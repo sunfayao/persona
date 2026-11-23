@@ -570,6 +570,10 @@ const (
 	// that reports the pane's conversation, is not installed there (node/agyhook.go, #13445): the pane would stay
 	// unreadable. Nothing ran; a start without a terminal (the Antigravity companion) still can.
 	CodeAgyIntegrationMissing = "agy_integration_missing"
+	// CodeAgyCompanionOffline: the start named HostAgy on a computer whose Antigravity companion is not connected
+	// (node/starthost.go). Nothing ran. A task start the hub sent there by default starts again in the computer's
+	// default host (assistant/tasks_placement.go, #13447); one that named the host is refused.
+	CodeAgyCompanionOffline = "agy_companion_offline"
 )
 
 // Codes session.modes refuses with (node/modes.go), the text in the request's language (apierr.Call). 409.
