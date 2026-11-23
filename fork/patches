@@ -29,3 +29,5 @@ feat/13522-by-project-computers 13546
 feat/13523-project-new-agent 13565
 # The built-in Mac rule every new Agent was told (upstream #13097), node only.
 fix/13642-no-default-mac-rules 13648
+# agy panes take their conversation title (#13639), node only.
+fix/13639-agy-pane-title 13650
