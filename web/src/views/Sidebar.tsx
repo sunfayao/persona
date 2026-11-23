@@ -45,7 +45,7 @@ import { agentGroupLabel, agentTreeState, buildTodoTree, shareTree, worstTreeSta
 import { openTodoFromTag, sortTodos, TODO_STATUS_INFO, type TodoStatus } from "../lib/todos";
 import type { Machine, Session } from "../lib/types";
 import { Collapse, cx, EASE, Kbd, Menu, sidebarFoldMotion, useMenu, useNow, type MenuItem } from "../ui/atoms";
-import { StatusMark } from "../ui/StatusMark";
+import { StateTally, StatusMark } from "../ui/StatusMark";
 import { Icon } from "../ui/icons";
 import { HerdrNotices as HerdrNoticesContent } from "./agents/HerdrNotices";
 import { HubNoticeLine as HubNoticeLineContent } from "./agents/HubNoticeRow";
@@ -77,7 +77,7 @@ import { SESSIONS_LIST_FEATURE, type ListCounts, type ListFilters } from "../lib
 import { heldCounts } from "../lib/seen-outbox";
 import { NoComputers, useAddComputer } from "./machines/AddComputerEntry";
 import { BADGE_CLASS, DOT_CLASS, type GoFn, GroupCount, holdsRow, morePagesMenu, type NavPage, type NodeMenuFn, pageIconStyle, pageLabel, type RegFn, rowKey, type RowMenuFn, Section, SidebarGroup, GroupFoldButton, useActiveKey, useGo, useNavPages } from "./SidebarParts";
-import { NavRow, PersonalAgents, PersonaRow, SessionRow, SubHeading } from "./SidebarRows";
+import { NavRow, PersonalAgents, PersonaRow, SessionRow, SubHeading, unreadShown } from "./SidebarRows";
 import { GroupBranch, LooseSection, MachineSection, RepoMachineSection, SessionTally, type SpaceMenuFn, type WorkspaceTreeActions, SpaceSection, TodoTreeView } from "./SidebarTree";
 import { CollapseButton, PagesTally } from "./SidebarRail";
 import type { PageSection } from "../lib/sidebar-pages";
@@ -288,6 +288,12 @@ const MORE_BUTTON = "whitespace-nowrap rounded-[7px] px-2 py-1 text-left text-[1
 const NO_CONVERSATIONS: Session[] = [];
 type DirectionEntry = { id: string; conversation?: Session; external?: ExternalDirection };
 
+/** A folded Persona chats or Recent heading's count of the chats it hides that are Unread (#13425): the Agents list's
+ *  folded tally (StateTally), so the mark and its number read as they do there, spoken as chats. Nothing at 0. */
+function UnreadTally({ n }: { n: number }) {
+  return n > 0 ? <StateTally chats counts={{ needs_you: 0, working: 0, bg_waiting: 0, unread: n }} /> : null;
+}
+
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate, workspaceActions }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void; workspaceActions?: WorkspaceTreeActions }) {
   const bindings = useBindings();
   const searchHint = jumpHint(bindings);
@@ -347,6 +353,12 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate, workspaceActi
   // 最近 folds on its own too (#6228): the choice is kept in this browser, and it opens by itself while it holds the
   // open conversation, so folding never hides where a message lands. The Agents block's Recent uses another key.
   const [recentFolded, toggleRecent] = useFolded("recent-chats", false, { holds: recent.some((c) => activeKey === `j:${c.session_id}`) });
+  // Folded, the Persona chats heading and Recent's still say how many of the chats they hide are Unread (#13425), with
+  // the folded tally the Agents list's groups use (StateTally); open, each row marks its own. The rows are the store's,
+  // which the seen outbox already holds seen (lib/store.ts holdSeen), so a chat just opened is not counted
+  // A pinned direction counts through its conversation; an external one (#12557) has no chat row, so no Unread mark.
+  const unreadPinned = directions.filter((d) => d.conversation !== undefined && unreadShown(d.conversation)).length;
+  const unreadRecent = recent.filter(unreadShown).length;
   const { nav, reg, hover, highlight } = useGlide(activeKey);
   useStickyTop(nav);
   const go = useGo(onNavigate);
@@ -429,6 +441,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate, workspaceActi
                     <span className="truncate">{countsLabel(leaderTotal, t)}</span>
                   </span>
                 )}
+                {personaFolded && <UnreadTally n={unreadPinned + unreadRecent} />}
                 <SectionAdd icon="compose" label={t("sidebar.new_chat")} to={{ name: "persona-new" }} go={go} active={activeKey === "j:new"} />
               </>
             }
@@ -448,7 +461,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate, workspaceActi
                 </Suspense>
               ) : recent.length > 0 && (
                 <>
-                  <SubHeading label={t("sidebar.recent_chats")} folded={recentFolded} onToggle={toggleRecent} help={t("sidebar.recent_chats_help")} />
+                  <SubHeading label={t("sidebar.recent_chats")} folded={recentFolded} onToggle={toggleRecent} help={t("sidebar.recent_chats_help")} tally={recentFolded && <UnreadTally n={unreadRecent} />} />
                   <Collapse open={!recentFolded} sidebarFold>
                     <div className="sidebar-indent" inert={recentFolded || undefined}>
                       {recent.map(recentRow)}
