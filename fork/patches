@@ -31,3 +31,7 @@ feat/13523-project-new-agent 13565
 fix/13642-no-default-mac-rules 13648
 # agy panes take their conversation title (#13639), node only.
 fix/13639-agy-pane-title 13650
+# Keep sidebar selected state for /t/ tabs outside sessionSummaries (#13708), web only.
+fix/13708-sidebar-tab-selection 13723
+# Populate UpdatedAt, LastText, and Rev on agy herdr panes (#13710), node only.
+fix/13710-agy-pane-updated-at 13726
