@@ -1,0 +1,29 @@
+# Fixes carried on deploy until upstream merges them, applied in this order on top of upstream main.
+# <branch on origin> <nwverse/persona pull request number>
+feat/12855-claude-usage-stream 12862
+# #13268 is the maintainers' continuation of our #13133 (closed); this branch holds its head with main merged.
+fix/13083-decision-handoff 13268
+fix/13084-worker-completion 13134
+# #13417 carries #13137's review follow-ups (#13137 merged at its reviewed head).
+fix/13413-terminal-resume-followups 13417
+fix/13397-estimate-rollback 13409
+# Antigravity (agy) fixes from the agy audit, applied in dependency order (#13476 before #13477, which stacks on it).
+fix/13445-agy-integration-check 13462
+fix/13447-agy-task-companion 13476
+fix/13464-agy-readonly-companion 13477
+fix/13451-agy-cli-owned-conversations 13469
+fix/13471-agy-assistant-warm 13475
+fix/13443-launcher-run-floor 13455
+fix/13456-agy-unlinked-judgment 13467
+fix/13468-log-5xx-errors 13474
+fix/13463-agy-pane-proof 13484
+fix/13470-agy-pane-incremental-read 13485
+feat/13425-persona-chats-unread 13473
+# Repo view fixes (#13453, #13454), web only.
+fix/13453-by-repo-removed-worktree 13508
+fix/13454-by-repo-repeated-names 13509
+# Projects board fixes, shipped one at a time as each is ready.
+fix/13533-one-space-per-folder 13556
+# #13565 stacks on #13546.
+feat/13522-by-project-computers 13546
+feat/13523-project-new-agent 13565
