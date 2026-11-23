@@ -68,6 +68,7 @@ DOMAINS = [
     "direction_sessions_mock",  # Move To… and one direction's page (#11516), MOCK_DIRECTION_SESSIONS
     "dock_mock",  # more of the main conversation's tasks waiting in the To Decide pager (#12831), MOCK_DOCK
     "extension_scene_mock",  # UI version 11's scene on a made-up Home page (#12544), MOCK_EXTENSION_SCENE
+    "space_folders_mock",  # two of the MacBook's spaces with one name, in two folders (#13522), MOCK_SPACE_FOLDERS
 ]
 
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
