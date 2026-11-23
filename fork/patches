@@ -35,3 +35,7 @@ fix/13639-agy-pane-title 13650
 fix/13708-sidebar-tab-selection 13723
 # Populate UpdatedAt, LastText, and Rev on agy herdr panes (#13710), node only.
 fix/13710-agy-pane-updated-at 13726
+# Show Antigravity background tasks and schedules (#13594).
+upstream/13594-agy-background-tasks 13600
+# Switch models and efforts on running Antigravity Agents (#13754).
+feat/13754-agy-model-switch 13766
