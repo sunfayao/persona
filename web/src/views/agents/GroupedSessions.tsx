@@ -4,12 +4,13 @@
 // too, #9751);
 // a section reads its own sessions while it is open, a page at a time, and stops when it is folded, so the groups of a
 // long list cost nothing until someone looks into one. By space on several computers, each computer is a section of
-// its own around its spaces (#13522).
+// its own around its spaces (#13522); a space's heading starts a new Agent in its folder (#13523).
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { t } from "../../i18n";
 import { neverConnected } from "../../lib/add-computer";
 import { shortPath } from "../../lib/format";
 import { filterQuery, PAGE_SIZE, SessionList, type ListChangeHint, type ListFilters } from "../../lib/session-list";
+import { openNewAgent } from "../../lib/new-agent";
 import { onHubEvent, useStore } from "../../lib/store";
 import { SectionList } from "../../lib/section-list";
 import { selectSidebarMachines } from "../../lib/sidebar-machines";
@@ -20,6 +21,7 @@ import { nestUnderParents, type StableRowOrder } from "../../lib/side-sessions";
 import { Button, Collapse, cx, sidebarFoldMotion } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { SESSION_LIST_METRICS, SESSION_LIST_STYLE } from "../../ui/list-metrics";
+import { SectionAdd } from "../SectionAdd";
 import { GroupCount, NeedsCount, Section, ShowMoreRow, SidebarGroup } from "../SidebarSection";
 
 /** How a section's own list is read: the collection the groups are of, as the list above them reads it. */
@@ -61,25 +63,42 @@ export interface GroupedSessionsProps<T> {
   machineOrder?: readonly string[];
 }
 
-type SectionProps<T> = Pick<GroupedSessionsProps<T>, "dimension" | "kind" | "scope" | "source" | "renderRow" | "groupName" | "machineName" | "open" | "foldScope">;
+type SidebarMachine = ReturnType<typeof selectSidebarMachines>[number];
+
+type SectionProps<T> = Pick<GroupedSessionsProps<T>, "dimension" | "kind" | "scope" | "source" | "renderRow" | "groupName" | "machineName" | "open" | "foldScope"> & {
+  /** The computers the store knows: their online state. */
+  machines: readonly SidebarMachine[];
+};
 
 export function GroupedSessions<T>({ groups, byComputer = false, machineOrder, ...p }: GroupedSessionsProps<T>) {
+  const machines = useStore(selectSidebarMachines);
   return (
     <div data-session-groups={p.dimension}>
-      {byComputer ? <Computers groups={groups} machineOrder={machineOrder} {...p} /> : <GroupList groups={groups} {...p} />}
+      {byComputer ? <Computers groups={groups} machineOrder={machineOrder} machines={machines} {...p} /> : <GroupList groups={groups} machines={machines} {...p} />}
     </div>
   );
 }
 
+/** A space's New agent (#13523): the one New agent sheet, on the space's computer and in its folder, with that
+ *  computer's usual launcher. A runtime space only (an account is no place to start one), on a computer that is online,
+ *  whose folder the hub says (the catalog's `path`); not No project, which has none. */
+function startIn(group: SessionGroup, kind: string, dimension: GroupDimension, machines: readonly SidebarMachine[]): (() => void) | undefined {
+  const place = group.places[0];
+  if (kind !== "runtime" || dimension !== "group" || group.rest || !place?.path) return undefined;
+  if (!machines.some((m) => m.id === place.machine && m.online)) return undefined;
+  return () => openNewAgent({ machineId: place.machine, cwd: place.path });
+}
+
 /** A run of sections, a bounded number of them at first (a computer's spaces, or the whole list). */
-function GroupList<T>({ groups, onExcluded, dimension, kind, scope, source, renderRow, groupName, machineName, open, foldScope }: SectionProps<T> & { groups: readonly SessionGroup[]; onExcluded?: (key: string, n: number) => void }) {
+function GroupList<T>({ groups, onExcluded, dimension, kind, scope, source, renderRow, groupName, machineName, open, foldScope, machines }: SectionProps<T> & { groups: readonly SessionGroup[]; onExcluded?: (key: string, n: number) => void }) {
   const [all, setAll] = useState(false);
   const shown = all ? groups : groups.slice(0, SESSION_LIST_METRICS.groupOptions);
   const opens = (group: SessionGroup, i: number) => dimension === "todo" ? !group.rest : i < SESSION_LIST_METRICS.groupsOpen || (dimension === "state" && group.key === JUST_FINISHED_KEY);
   return <>
     {shown.map((group, i) => (
       <GroupSection key={group.key} group={group} first={i === 0} startsOpen={opens(group, i)} dimension={dimension} kind={kind} scope={scope} source={source}
-        renderRow={renderRow} name={groupName(group)} machineName={machineName} holds={Boolean(open && holdsPlace(group, dimension, open))} foldScope={foldScope} onExcluded={onExcluded} />
+        renderRow={renderRow} name={groupName(group)} machineName={machineName} holds={Boolean(open && holdsPlace(group, dimension, open))} foldScope={foldScope} onExcluded={onExcluded}
+        start={startIn(group, kind, dimension, machines)} />
     ))}
     {groups.length > shown.length && (
       <ShowMoreRow label={t("paged-agents.more_groups", { count: groups.length - shown.length })} onClick={() => setAll(true)} />
@@ -90,14 +109,11 @@ function GroupList<T>({ groups, onExcluded, dimension, kind, scope, source, rend
 /** By space on several computers (#13522, as iOS's By Project): a section per computer, in the hub's order, with its
  *  spaces in it and its sessions in no space last. */
 function Computers<T>({ groups, machineOrder, ...p }: SectionProps<T> & { groups: readonly SessionGroup[]; machineOrder?: readonly string[] }) {
-  const machines = useStore(selectSidebarMachines);
   const sections = useMemo(() => computerSections(groups, machineOrder), [groups, machineOrder]);
   return <>{sections.map((section, i) => (
-    <ComputerGroup key={section.machine} section={section} first={i === 0} machine={machines.find((m) => m.id === section.machine)} {...p} />
+    <ComputerGroup key={section.machine} section={section} first={i === 0} machine={p.machines.find((m) => m.id === section.machine)} {...p} />
   ))}</>;
 }
-
-type SidebarMachine = ReturnType<typeof selectSidebarMachines>[number];
 
 /** A computer's heading, as the complete list's By machine has it: its online state, its name, then how many of its
  *  sessions need the user and how many it holds (the sums of its spaces'). A computer that is away starts folded. Its
@@ -138,11 +154,18 @@ function ComputerGroup<T>({ section, first, machine, ...p }: SectionProps<T> & {
   );
 }
 
-function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, source, renderRow, name, machineName, holds, foldScope, onExcluded }: {
+/** A space heading's + (#13523), as the complete list's space ⋯ shows: on hover with a pointer and on keyboard focus,
+ *  always on a touch screen. The heading's numbers step aside for it then, rather than being covered. */
+const REVEALED = "opacity-0 transition-opacity duration-150 group-hover/sec:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100";
+const STEP_ASIDE = "transition-transform duration-150 group-hover/sec:-translate-x-6 group-has-[[data-space-add]_:focus-visible]/sec:-translate-x-6 [@media(hover:none)]:mr-6";
+
+function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, source, renderRow, name, machineName, holds, foldScope, onExcluded, start }: {
   group: SessionGroup; first: boolean; startsOpen: boolean; dimension: GroupDimension; kind: string; scope: ListFilters; source: GroupedSource<T>;
   renderRow: (row: T, within: GroupDimension, group: SessionGroup) => ReactNode; name: string; machineName: (id: string) => string; holds: boolean; foldScope?: string;
   /** Hears how many of its rows it leaves out while open (a computer's heading counts without them too). */
   onExcluded?: (key: string, n: number) => void;
+  /** Its heading's + (#13523): a new Agent where its sessions are. */
+  start?: () => void;
 }) {
   // The first few start open, the rest folded: an open section keeps a list of its own up to date. "Expand all"
   // leaves them alone for the same reason (it would start one read per group), except in the sidebar, whose title row
@@ -163,8 +186,14 @@ function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, sou
       <Section first={first} folded={folded} onToggle={toggle}
         title={<>{name}{group.qualifier && <span className="font-normal"> · {group.qualifier}</span>}</>}
         right={<>
-          <NeedsCount n={group.needs} />
-          <GroupCount n={shownCount} label={t("paged-agents.count", { count: shownCount })} />
+          {/* the numbers step aside for the + where it shows: under the pointer, on keyboard focus, always on a touch screen */}
+          <span className={cx("flex shrink-0 items-center gap-1", start && STEP_ASIDE)}>
+            <NeedsCount n={group.needs} />
+            <GroupCount n={shownCount} label={t("paged-agents.count", { count: shownCount })} />
+          </span>
+          {start && <span data-space-add className="absolute top-0 right-2 bottom-1 z-10 flex items-center">
+            <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: group.qualifier ? `${name} · ${group.qualifier}` : name })} onClick={start} className={REVEALED} />
+          </span>}
         </>}>
         {!folded && <>
           {dimension === "project" && <GroupPlaces group={group} machineName={machineName} />}
