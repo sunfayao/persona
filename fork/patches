@@ -27,3 +27,5 @@ fix/13533-one-space-per-folder 13556
 # #13565 stacks on #13546.
 feat/13522-by-project-computers 13546
 feat/13523-project-new-agent 13565
+# The built-in Mac rule every new Agent was told (upstream #13097), node only.
+fix/13642-no-default-mac-rules 13648
