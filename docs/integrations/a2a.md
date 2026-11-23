@@ -86,6 +86,19 @@ An ordinary final reply to a task request becomes its result.
 Native approval prompts stay with the user. The task records a waiting state
 while the receiving session is blocked.
 
+Every task message tells its recipient how to call these tools without the
+Persona MCP tools. `personad` is often not on the `PATH` of an Agent in a
+terminal: on macOS the node's program can have another name, and its folder is
+not always on the shell's `PATH`. So for a session that calls the tools from a
+terminal the node verifies (its pane, or a Codex thread) and has no Persona MCP
+tools, the manager asks that node for its executable (`node.info`). The message
+then names it as a JSON string, as the task handoff does. The Agent runs it with
+`tool <name>` and one JSON object of arguments. The first message of an Agent
+that A2A or `dispatch_start` launches names it too, unless the launcher is known
+to run Claude Code. Sessions with the Persona MCP tools, runtimes that wire the
+A2A tools in, and nodes that name no executable get the text that says
+`personad tool`.
+
 Questions, approval waits, resumed work, and final results go back to the
 sending session once it is live and idle.
 Ordinary progress is available in the task history. Set `wake: false` to

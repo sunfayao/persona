@@ -318,11 +318,12 @@ func (s *Service) a2aDeliver(ctx context.Context, st a2aStore, t *a2aTask, i int
 			return true, s.a2aSave(ctx, st, t)
 		}
 	}
+	executable := s.a2aSessionExecutable(ctx, to.Machine, sess) // asked before the send is marked as under way
 	e.Delivery, e.Attempted = a2aSending, time.Now().UTC()
 	if err := s.a2aSave(ctx, st, t); err != nil {
 		return false, err
 	}
-	text := a2aPrompt(t, e, from, string(s.lang(ctx)))
+	text := a2aPrompt(t, e, from, string(s.lang(ctx)), executable)
 	params := map[string]any{
 		"session_id": to.Session, "text": text, "client_msg_id": id, "message_source": a2aMessageSource(from),
 	}
@@ -386,15 +387,12 @@ func a2aMessageSource(from a2aRef) *proto.MessageSource {
 	return &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: from.Session, Title: fromName}
 }
 
-func a2aPrompt(t *a2aTask, e *a2aEvent, from a2aRef, language string) string {
-	source := a2aMessageSource(from)
-	state := e.State
-	if state == "" {
-		state = t.State
-	}
-	text := prompts.RenderA2AMessage(prompts.A2AMessage{ID: t.ID, Sender: source.Title, State: state,
-		Request: e.Kind == "message", Text: e.Text, Language: language})
-	return prompts.RelayMessageText(text, source, a2aDeliveryID(t.ID, e.Seq))
+// a2aPrompt is event e of task t from from as its recipient receives it, in language, naming executable (a JSON
+// string, a2a_entry.go) for a recipient without the Persona MCP tools; "" keeps the text that says personad.
+func a2aPrompt(t *a2aTask, e *a2aEvent, from a2aRef, language, executable string) string {
+	m := a2aTaskMessage(t, e, from, language)
+	m.Executable = executable
+	return a2aRelay(m, from, a2aDeliveryID(t.ID, e.Seq))
 }
 
 // Reserve a launch before handing it to a node. An ambiguous startup stays
@@ -421,10 +419,12 @@ func (s *Service) a2aLaunch(ctx context.Context, st a2aStore, t *a2aTask) error 
 	if err := s.a2aSave(ctx, st, t); err != nil {
 		return err
 	}
-	taskID, mid, sid := t.ID, t.TargetMachine, t.TargetSession
+	taskID, mid, sid, source := t.ID, t.TargetMachine, t.TargetSession, t.source()
+	// The first message is written once the launcher is known (a2aLaunchExecutable), from a copy taken here: the task
+	// itself is not read again until the start's outcome is recorded.
+	message := a2aTaskMessage(t, e, source, string(s.lang(ctx)))
 	request := map[string]any{"cwd": t.Launch.CWD, "launcher": t.Launch.Launcher, "session_id": sid,
-		"prompt": a2aPrompt(t, e, t.source(), string(s.lang(ctx))), "client_msg_id": a2aDeliveryID(taskID, 1),
-		"message_source": a2aMessageSource(t.source()), "permission_mode": "plan"}
+		"client_msg_id": a2aDeliveryID(taskID, 1), "message_source": a2aMessageSource(source), "permission_mode": "plan"}
 	go func() {
 		ctx, cancel := context.WithTimeout(s.runCtx(), agentStartTimeout)
 		defer cancel()
@@ -432,6 +432,9 @@ func (s *Service) a2aLaunch(ctx context.Context, st a2aStore, t *a2aTask) error 
 		err := s.applyModel(ctx, "agent.new", request)
 		definite := err != nil
 		if err == nil {
+			launcher, _ := request["launcher"].(string)
+			message.Executable = s.a2aLaunchExecutable(ctx, mid, launcher)
+			request["prompt"] = a2aRelay(message, source, a2aDeliveryID(taskID, 1))
 			err = s.call(ctx, mid, DeviceSessionStart, request, &out)
 			definite = err != nil && !startResultUnknown(err) && !sendUnknown(err)
 		}

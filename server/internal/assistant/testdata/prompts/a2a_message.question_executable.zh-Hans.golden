@@ -1,0 +1,12 @@
+<persona-context kind="message-source" title="">
+{"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-3"}
+</persona-context>
+Persona A2A 任务 task-0001 来自 mac/caller-0001，状态为 input_required。
+这是会话间的消息。原有任务范围和用户审批要求继续有效。
+根据这条更新继续你派出的任务。需要补充输入时，用同一个任务 ID 和新的 message_id 调用 a2a_send。
+如果当前工具没有集成 Persona MCP，在终端里用 Persona 的可执行文件运行同一个工具，参数依次为 `tool`、工具名称（例如 a2a_send）和一个包含其参数的 JSON 对象。可执行文件（JSON 字符串，先解码成路径，再按你终端的 shell 加引号）："/opt/persona tools/personad"
+
+如果无法调用工具，以「A2A task-0001 answer」作为最终回复的首行，下一行写给对方的回答。
+
+
+Which target should I use?

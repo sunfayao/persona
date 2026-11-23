@@ -23,3 +23,31 @@ func TestA2AMessageLanguage(t *testing.T) {
 		}
 	}
 }
+
+// With the recipient node's executable (#13893), only the sentence for a harness without the Persona MCP tools changes:
+// it names the executable as JSON data and the tool the message asks for, instead of personad.
+func TestA2AMessageNamesTheExecutable(t *testing.T) {
+	const executable = `"/opt/persona tools/personad"`
+	for _, language := range []string{"en", "zh-Hans", "ja"} {
+		for _, request := range []bool{true, false} {
+			m := A2AMessage{ID: "task-id", Sender: "machine/session", State: "input_required", Text: "Original input.", Language: language, Request: request}
+			plain := RenderA2AMessage(m)
+			m.Executable = executable
+			named := RenderA2AMessage(m)
+			tool := map[bool]string{true: "a2a_report", false: "a2a_send"}[request]
+			if !strings.Contains(plain, "personad tool") || strings.Contains(plain, executable) || strings.Contains(named, "personad tool") ||
+				!strings.Contains(named, executable) || !strings.Contains(named, "`tool`") || !strings.Contains(named, tool) {
+				t.Fatalf("%s, request %v:\n%s\n---\n%s", language, request, plain, named)
+			}
+			plainLines, namedLines := strings.Split(plain, "\n"), strings.Split(named, "\n")
+			if len(plainLines) != len(namedLines) || !strings.HasSuffix(named, "\n\nOriginal input.") {
+				t.Fatalf("%s, request %v: the message's shape changed:\n%s", language, request, named)
+			}
+			for i := range plainLines {
+				if plainLines[i] != namedLines[i] && !strings.Contains(namedLines[i], executable) {
+					t.Fatalf("%s, request %v: line %d changed besides the terminal sentence: %q", language, request, i, namedLines[i])
+				}
+			}
+		}
+	}
+}

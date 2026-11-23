@@ -30,27 +30,42 @@ func (s *Service) taskEntry(ctx context.Context, machine string, fit startAgent)
 	return s.taskEntryFor(ctx, machine, fit.agent, mcp, terminal)
 }
 
-// adoptedTaskEntry uses the running session's provenance. A Codex app-server thread
-// can identify its caller through CODEX_THREAD_ID even when it has no terminal pane.
+// adoptedTaskEntry uses the running session's provenance (sessionEntry).
 func (s *Service) adoptedTaskEntry(ctx context.Context, machine string, c proto.Session) prompts.TaskHandoff {
-	paseo := c.Host == proto.EnginePaseo
-	terminal := !paseo && (c.SourceKind == "" || c.SourceKind == proto.SourceClaudeTerminal ||
-		c.Agent == "codex" && c.SourceThreadID != "" && (c.SourceKind == "codex_app_server" || c.SourceKind == "codex_history"))
-	mcp := terminal && c.Agent == "claude" || paseo && (c.Agent == "claude" || c.Agent == "codex")
+	mcp, terminal := sessionEntry(c)
 	return s.taskEntryFor(ctx, machine, c.Agent, mcp, terminal)
+}
+
+// sessionEntry is how running session c reaches its own Persona tools: whether it has the Persona MCP tools, and
+// whether it calls them from a terminal the node verifies. A Codex app-server thread can identify its caller through
+// CODEX_THREAD_ID even when it has no terminal pane. Paseo injects the Persona MCP server into its Claude and Codex.
+func sessionEntry(c proto.Session) (mcp, terminal bool) {
+	paseo := c.Host == proto.EnginePaseo
+	terminal = !paseo && (c.SourceKind == "" || c.SourceKind == proto.SourceClaudeTerminal ||
+		c.Agent == "codex" && c.SourceThreadID != "" && (c.SourceKind == "codex_app_server" || c.SourceKind == "codex_history"))
+	mcp = terminal && c.Agent == "claude" || paseo && (c.Agent == "claude" || c.Agent == "codex")
+	return mcp, terminal
 }
 
 func (s *Service) taskEntryFor(ctx context.Context, machine, agent string, mcp, terminal bool) prompts.TaskHandoff {
 	h := prompts.TaskHandoff{Language: answerLanguage(s.hello(ctx).Locale), MCP: mcp}
 	if terminal && (agent == "codex" || proto.IsWorkAgentType(agent) || proto.IsNoModeAgentType(agent)) {
-		cctx, cancel := context.WithTimeout(ctx, min(agentStartListTimeout, time.Second))
-		defer cancel()
-		var info proto.NodeInfo
-		if s.call(cctx, machine, "node.info", map[string]any{}, &info) == nil && proto.NodeAbs(info.Executable) {
-			// Keep paths, including quotes and line breaks, as JSON data rather than constructing a shell command.
-			encoded, _ := json.Marshal(info.Executable)
-			h.Executable = string(encoded)
-		}
+		h.Executable = s.nodeExecutable(ctx, machine)
 	}
 	return h
+}
+
+// nodeExecutable is machine's node program as the node names it (node.info's Executable, an absolute path) for an
+// Agent to run Persona's tools from a terminal, encoded as a JSON string: paths, quotes and line breaks included, it
+// stays data rather than shell code. "" when the node does not say within a second: an optional hint never holds up
+// a start or a delivery (task handoffs; A2A messages, a2a_entry.go).
+func (s *Service) nodeExecutable(ctx context.Context, machine string) string {
+	cctx, cancel := context.WithTimeout(ctx, min(agentStartListTimeout, time.Second))
+	defer cancel()
+	var info proto.NodeInfo
+	if s.call(cctx, machine, "node.info", map[string]any{}, &info) != nil || !proto.NodeAbs(info.Executable) {
+		return ""
+	}
+	encoded, _ := json.Marshal(info.Executable)
+	return string(encoded)
 }

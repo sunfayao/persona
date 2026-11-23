@@ -252,6 +252,10 @@ type A2AMessage struct {
 	ID, Sender, State, Text string
 	Language                string
 	Request                 bool
+	// Executable is the recipient node's program for a harness without the Persona MCP tools, encoded as a JSON string,
+	// never shell code (as TaskHandoff's, #13893): `personad` is not always on such an Agent's PATH. Empty keeps the
+	// text that says personad.
+	Executable string
 }
 
 func RenderA2AMessage(t A2AMessage) string { return render("agents/a2a_message", t) }
