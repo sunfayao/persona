@@ -39,3 +39,5 @@ fix/13710-agy-pane-updated-at 13726
 upstream/13594-agy-background-tasks 13600
 # Switch models and efforts on running Antigravity Agents (#13754).
 feat/13754-agy-model-switch 13766
+# Agents read another session with a2a_read and get the address of a session quoted with @ (#13831), manager, node and runtime integrations.
+feat/13831-agent-session-read 13885
