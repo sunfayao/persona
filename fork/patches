@@ -42,3 +42,5 @@ fix/14395-agy-stable-address 14419
 fix/14400-tool-call-stall 14411
 # One row per Claude desktop session: the transcripts it went on from fold into its row (#14394), node only.
 fix/14394-claude-desktop-one-row 14423
+# Keep a mark on an Agent's finished turn until it is opened, and list interrupted sessions as Not running (#14447), manager + web.
+fix/14447-unchecked-finished 14510
