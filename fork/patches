@@ -34,6 +34,8 @@ feat/13754-agy-model-switch 13901
 feat/13831-agent-session-read 13885
 # Name the node's executable in A2A task messages (#13893), manager only. Upstream carries it as #14344 (same design); ours drops out when that merges.
 fix/13893-a2a-message-executable 14344
+# Name the node's executable from the node.info its connection began with, so a slow login shell no longer drops it from task handoffs and A2A messages (#14446), manager only. Conflicts once with fix/13893-a2a-message-executable in task_handoff.go: keep this branch's nodeExecutable.
+fix/14446-node-executable-fast 14477
 # Keep an agy conversation's A2A address when its row changes ID (#14395), node + manager.
 fix/14395-agy-stable-address 14419
 # personad tool starts in a folder that stalls, and its reads fail within 30 seconds (#14400), node programs.
