@@ -623,7 +623,8 @@ The history token includes the error format so connected clients refresh items c
 The CLI companion runs the **Antigravity CLI (`agy`)**. When `personad node`
 runs (`--attach` or `--stdio`), `agy` is installed, Node.js 22.5+ (`node:sqlite`) is available, and no external `agy`
 runtime is connected on `runtime.sock`, the node automatically writes out the embedded `persona-antigravity-runtime`
-package and supervises `antigravity/companion.mjs` (passing `--no-update --parent-stdin`), yielding whenever an external
+package and supervises `antigravity/companion.mjs` (passing `--no-update --parent-stdin`, and its own program as
+`--personad-bin`), yielding whenever an external
 `agy` runtime connects (`server/internal/node/agybridge.go`). You can also start
 `node integrations/antigravity/companion.mjs` manually from the repository root, or install into the runtime package store
 with `node integrations/antigravity/install.mjs` and supervise
@@ -634,8 +635,8 @@ availability probes, rewinds and phone permission cards to finish, then stops `a
 it on the new code; direct launches outside the store leave self-update off. The companion connects to the node's runtime
 socket, lists CLI transcripts, and uses `agy acp` for terminal-less session creation, sending and interruption. It can also
 serve as an assistant backend through the optional assistant contract above. It requires an installed, authenticated `agy`
-with ACP support; `--agy-bin`, `--agy-dir`, `--socket`, `--no-update` and `--parent-stdin` override the executable, CLI data
-directory, node socket, automatic updates and parent-pipe shutdown.
+with ACP support; `--agy-bin`, `--agy-dir`, `--personad-bin`, `--socket`, `--no-update` and `--parent-stdin` override the
+executable, CLI data directory, node program, node socket, automatic updates and parent-pipe shutdown.
 Models come from authenticated `agy models` discovery and ACP session metadata. The companion refreshes the catalog every
 five minutes, and the picker's refresh requests a fresh catalog through optional `models({launcher, refresh})`
 (`caps.models`, `launchers.models`). Discovery never sends a prompt. The native settings file determines the advertised
@@ -675,7 +676,10 @@ The runtime bounds native calls to a 75-second budget, followed by bounded sessi
 node's shell check. Shell and managed launchers keep their own execution context.
 
 A chat gets Persona's MCP server, named `persona`, through ACP `mcpServers`. Regular Agent chats can also get
-`persona_a2a` with a session-scoped ticket. `agy` defers the tools over its
+`persona_a2a` with a session-scoped ticket. Both run the node's own program as `<program> mcp`: the node names it with
+`--personad-bin`, and a companion started some other way takes `personad` from a state directory's `bin`, or
+`persona-node` beside it, the name a Persona Link install has (#14582). With neither, its chats get no Persona tools,
+which the companion logs once as it starts (`no Persona node program`). `agy` defers the tools over its
 declaration budget, largest first, and has no `call_mcp_tool` for servers passed through ACP, so an assistant chat's
 server runs behind `integrations/antigravity/mcp-proxy.mjs`, which adds a small `persona_call` tool that calls any
 Persona tool by name (#7333). The proxy declares only the tools larger than `persona_call`, so it is always the smallest
