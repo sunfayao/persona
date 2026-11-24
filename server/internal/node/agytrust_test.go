@@ -230,6 +230,11 @@ func TestAgySendReadsWorkingUntilHerdrShowsTheTurn(t *testing.T) {
 	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
 	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, ""))
 	f.reply("agent.prompt", map[string]any{})
+	f.after(func(c herdrCall) {
+		if c.Method == "agent.prompt" {
+			f.setScreen(agyTestPane, "count to 300 (alt+m to send immediately)")
+		}
+	})
 	if _, err := request(t, n, "session.send", map[string]any{"session_id": agyTestRow, "text": "count to 300"}); err != nil {
 		t.Fatal(err)
 	}
