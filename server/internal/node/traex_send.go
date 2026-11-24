@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -90,6 +91,15 @@ func (n *Node) traeForeground(ctx context.Context, pane string) bool {
 		if isTraexProgram(name) {
 			return true
 		}
+	}
+	return false
+}
+
+func isTraexProgram(name string) bool {
+	base := strings.TrimSuffix(strings.ToLower(filepath.Base(name)), ".exe")
+	switch base {
+	case "traex", "traecli", "trae-cli", "trae_cli":
+		return true
 	}
 	return false
 }
