@@ -441,8 +441,24 @@ func (n *Node) workAgentCalls(ctx context.Context, method, id string, a host.Age
 		// one typed again.
 		unlock := n.typing.lock(id)
 		defer unlock()
+		typedAt := time.Now()
+		var delivery *agySendWatch
+		beforeQueued := -1
+		if a.Agent == agyAgent {
+			delivery = n.watchAgySend(id, a.PaneID, p.Text, typedAt)
+			if a.AgentStatus == proto.StatusWorking || a.AgentStatus == proto.StatusBlocked || n.workSent.recent(a.PaneID, typedAt) {
+				if screen, err := n.readPane(ctx, a.PaneID, "visible", 80); err == nil {
+					beforeQueued = len(parseAgyQueuedLines(screen))
+				}
+			}
+		}
 		if err := n.hostPrompt(ctx, a.PaneID, p.Text); err != nil {
 			return nil, fmt.Errorf("send: %w", err), true
+		}
+		if a.Agent == agyAgent {
+			if err := n.confirmAgySend(ctx, id, a.PaneID, p.Text, typedAt, delivery, beforeQueued); err != nil {
+				return nil, err, true
+			}
 		}
 		n.lostFirst.clear(id) // the message the start could not deliver went in now, or another one
 		// Working until herdr shows the turn, so an interrupt right after the send stops it (worksent.go, #11437).

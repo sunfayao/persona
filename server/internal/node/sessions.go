@@ -81,6 +81,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	out := make([]proto.Session, 0, size+4) // room for a few new sessions; more regrow it once
 	seen := make(map[string]bool, size)
 	livePanes := map[string]bool{} // the resting Claudes' panes, whose screens are read for a dialog
+	liveBusyAgy := map[string]bool{}
 	now := time.Now()
 	// In id order, not the map's: the list is sorted by UpdatedAt with a stable sort, and rows that tie on it (live panes
 	// with no transcript yet all have none) came out in a new order on every pass, each one a whole new list for the hub.
@@ -249,11 +250,13 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			// switch its model and effort through /model and /effort (agymodel_switch.go). Its permission mode stays its start's,
 			// so no mode chips; every other operation stays as for a terminal row. Not on a stopped one, which says none.
 			if s.Capabilities == nil && s.Status != proto.StatusOffline && s.Status != proto.StatusInterrupted {
-				var canModel *bool
+				caps := &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, Modes: proto.CanModes(false)}
 				if a.Agent == agyAgent {
-					canModel = proto.Bool(true)
+					caps.Model = proto.Bool(true)
+					caps.QueueEdit = proto.Bool(false)
+					caps.QueueSendNow = proto.Bool(true)
 				}
-				s.Capabilities = &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, Modes: proto.CanModes(false), Model: canModel}
+				s.Capabilities = caps
 			}
 			hasRuntimeRow := false
 			if runtimeID := agyRuntimeIDs[id]; runtimeID != "" {
@@ -311,6 +314,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 					n.resolveAgyContextWindow(&s)
 				}
 				n.agyPaneTitle(&s, agyConversations[id]) // its conversation's title, not the terminal's (agytitle.go)
+				if s.Status == proto.StatusWorking || s.Status == proto.StatusBlocked {
+					liveBusyAgy[a.PaneID] = true
+					s.Queued = n.agyQueuedFor(id, a.PaneID)
+				} else {
+					n.clearAgyQueue(id, a.PaneID)
+				}
 			}
 		case otherAgent(a):
 			s.ReadOnlyReason = otherNoReader(a.Agent)
@@ -400,6 +409,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		seen[s.SessionID] = true
 	}
 	n.forgetDialogs(livePanes) // after every row that reads a pane's dialog, the tmux claudes' too
+	n.forgetAgyQueues(liveBusyAgy)
 	for _, s := range n.codexSessionsIn(seen, pass) {
 		out = append(out, s)
 	}
