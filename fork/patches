@@ -67,3 +67,7 @@ task/14913-trae-models 14917
 fix/14887-a2a-agy-companion 14925
 # Fold Antigravity subagent conversations under their parent and list them in SessionOverview (#14817), antigravity runtime + node.
 fix/14817-agy-subagent-hierarchy 14912
+# Native Antigravity queue previews and send-now; keep before the busy send preference.
+carry/14884-agy-queue 14884
+# TRAE native next-turn queue and the web's busy send preference for TRAE and Antigravity.
+fix/14946-agent-follow-up 14953
