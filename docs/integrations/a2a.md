@@ -42,7 +42,7 @@ absolute path, as the task handoff does.
 
 | Tool | Purpose |
 | --- | --- |
-| `a2a_sessions` | Discover eligible session addresses, harnesses and states |
+| `a2a_sessions` | Discover eligible session addresses, harnesses and states; with `presets`, also the computers an Agent can start on and their Agent presets |
 | `a2a_read` | Read a session's recent conversation: the user's messages, its replies and one line per tool call |
 | `a2a_send` | Send a request to a session, start an Agent, or answer its request for input |
 | `a2a_get` | Get a task and its delivery receipts, or list the caller's incoming and outgoing tasks |
@@ -78,7 +78,8 @@ moves to `/` after 2 seconds instead of waiting for the folder: Go programs
 otherwise wait for their folder before they start (`server/internal/startdir`).
 
 To start a new Agent, provide the machine and `cwd`, with an optional
-`launcher`. The start uses the manager's Agent model and plan permission.
+`launcher`. The start uses the manager's Agent model (or the Agent preset
+named below) and plan permission.
 Starting an Agent remotely requires either the existing Agent dispatch setting
 or an explicit A2A machine list.
 Reuse the same `message_id` when a tool reply is lost. The manager records the
@@ -88,11 +89,37 @@ request and a reserved session ID before attempting the launch.
 personad tool a2a_send '{"machine_id":"box","cwd":"~/code/project","message_id":"request-002","text":"Inspect the failing integration test and explain the cause."}'
 ```
 
+Add `tier` to start the Agent on one of the owner's Agent presets: the tiers
+of the model profile in use ([model profiles](../assistant/model-profiles.md)
+"Agent presets (tiers)"), each with a description saying when to use it. The
+tier resolves as it does for the assistant's `agent_start`, before anything is
+recorded or started: an unknown tier is refused (`err_tier_not_found`, naming
+the tiers there are), and so is one whose launcher the target computer lacks
+(`launcher_not_on_machine`, naming the launchers it has). A `launcher` named
+with it that is not the tier's own wins, and the tier then gives nothing. The
+tier's launcher, model, effort and faster speed go to `session.start`, with the
+manager's Agent model filling in what the tier leaves out. Its
+`permission_mode` is not used: the start keeps plan permission. This is
+deliberate. An owner's presets never raise what an Agent-started Agent may do.
+A retry with the same `message_id` must name the same tier; another tier is a
+conflict.
+
+To see the presets first, call `a2a_sessions` with `"presets": true`. It
+answers `{"sessions": […], "computers": […]}`: each computer a launch can go to,
+the caller's own included, whether it is online, and the presets it can run,
+with what each runs (launcher, model, effort, speed) and its description. The
+list is filtered as New Agent's is: only presets whose launcher that computer
+has, a preset whose launcher failed its latest check marked `unavailable`, and
+`presets_unread` on an online computer whose launcher list could not be read.
+
 When Agent dispatch is enabled, `dispatch_start` uses A2A for new tasks and
 keeps the existing launcher, worktree and supervision options. It returns the
 new session and task IDs. Supply a stable `message_id` when retrying a launch.
-`dispatch_read` accepts either ID for new dispatches and can still read the
-dispatch history created earlier.
+It takes `tier` too, resolved, refused and matched on retries the same way; the
+started Agent keeps the permission rule dispatch gives it.
+`dispatch_read` without arguments lists each computer a task can go to with
+the presets it can run. It accepts either ID for new dispatches and can still
+read the dispatch history created earlier.
 
 When the receiving Agent needs something from the sender, it reports an
 `input_required` event with the question. The sender responds with
