@@ -178,3 +178,71 @@ func TestAgyBackgroundTaskLogRejectsEscapingSymlink(t *testing.T) {
 		t.Fatalf("accepted a symlink outside the conversation: %s", path)
 	}
 }
+
+func TestAgyBackgroundOneShotTimersAndReconciliation(t *testing.T) {
+	n := &Node{home: t.TempDir()}
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	dir := n.agyDataRoot()
+	base := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	t0 := base.Format(time.RFC3339)
+	t1 := base.Add(30 * time.Second).Format(time.RFC3339)
+	t2 := base.Add(60 * time.Second).Format(time.RFC3339)
+	t3 := base.Add(90 * time.Second).Format(time.RFC3339)
+
+	// 1) task-1 (command), task-2 (one-shot timer with TimerCondition on task-1),
+	//    task-3 (one-shot timer firing via its own sender message),
+	//    task-4 (one-shot timer with future dueAt resolved dynamically at applyAt),
+	//    task-5 (cron with MaxIterations=2), task-6 & task-7 (two commands ended in one SYSTEM_MESSAGE),
+	//    task-8 (reconciled via manage_task list "No background tasks are currently running.").
+	planner := fmt.Sprintf(`{"step_index":0,"type":"PLANNER_RESPONSE","created_at":%q,"tool_calls":[`+
+		`{"name":"run_command","args":{"CommandLine":"\"sleep 5\""}},`+
+		`{"name":"schedule","args":{"DurationSeconds":"240","Prompt":"\"Check task-1\"","TimerCondition":%q}},`+
+		`{"name":"schedule","args":{"DurationSeconds":30,"Prompt":"\"Wake up\""}},`+
+		`{"name":"schedule","args":{"DurationSeconds":"6000","Prompt":"\"Long timer\""}},`+
+		`{"name":"schedule","args":{"CronExpression":"\"*/2 * * * *\"","MaxIterations":"2","Prompt":"\"Poll MR\""}},`+
+		`{"name":"run_command","args":{"CommandLine":"\"cmd6\""}},`+
+		`{"name":"run_command","args":{"CommandLine":"\"cmd7\""}},`+
+		`{"name":"run_command","args":{"CommandLine":"\"cmd8\""}}`+
+		`]}`+"\n", t0, agyTestID+"/task-1")
+	file := agyTestFile(t, dir, agyTestID, planner+
+		agyBackgroundStep(1, "RUNNING", t0, 1, "sleep 5", "")+
+		agyBackgroundStep(2, "RUNNING", t0, 2, "Timer: 4m, Prompt: Check task-1", "")+
+		agyBackgroundStep(3, "RUNNING", t0, 3, "Timer: 30s, Prompt: Wake up", "")+
+		agyBackgroundStep(4, "RUNNING", t0, 4, "Timer: 1h 40m, Prompt: Long timer", "")+
+		agyBackgroundStep(5, "RUNNING", t0, 5, "Cron: */2 * * * *, Prompt: Poll MR", "")+
+		agyBackgroundStep(6, "RUNNING", t0, 6, "cmd6", "")+
+		agyBackgroundStep(7, "RUNNING", t0, 7, "cmd7", "")+
+		agyBackgroundStep(8, "RUNNING", t0, 8, "cmd8", ""))
+
+	// task-1 finishes -> cancels task-2 via TimerCondition; task-3 fires via sender message; task-5 triggers once (1/2).
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":9,"type":"SYSTEM_MESSAGE","created_at":%q,"content":%q}`+"\n", t1,
+		fmt.Sprintf("<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-1 content=Task id \"%[1]s/task-1\" finished with result: ok\n</SYSTEM_MESSAGE>\n<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-3 content=Wake up\n</SYSTEM_MESSAGE>\n<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-5 content=Poll MR\n</SYSTEM_MESSAGE>", agyTestID, t1)))
+
+	// Bundled SYSTEM_MESSAGE finishes task-6 and cancels task-7 in the same step; task-5 hits MaxIterations (2/2).
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":10,"type":"SYSTEM_MESSAGE","created_at":%q,"content":%q}`+"\n", t2,
+		fmt.Sprintf("<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-6 content=Task id \"%[1]s/task-6\" finished\n</SYSTEM_MESSAGE>\n<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-7 content=Task id \"%[1]s/task-7\" was canceled\n</SYSTEM_MESSAGE>\n<SYSTEM_MESSAGE>\n[Message] timestamp=%[2]s sender=%[1]s/task-5 content=Poll MR\n</SYSTEM_MESSAGE>", agyTestID, t2)))
+
+	meta, ok := n.agyTranscriptMeta(agyTestID)
+	if !ok {
+		t.Fatal("missing transcript meta")
+	}
+	var row proto.Session
+	row.Status = proto.StatusIdle
+	// Before task-4's 6000s dueAt: only task-4 and task-8 are still running.
+	meta.background.applyAt(&row, base.Add(5*time.Minute))
+	if len(row.Background) != 2 || row.Background[0].ID != agyTestID+"/task-4" || row.Background[1].ID != agyTestID+"/task-8" {
+		t.Fatalf("expected task-4 and task-8 running, got: %+v", row.Background)
+	}
+	// After task-4's dueAt (cached meta without touching transcript on disk!): task-4 transitions to completed.
+	meta.background.applyAt(&row, base.Add(2*time.Hour))
+	if len(row.Background) != 1 || row.Background[0].ID != agyTestID+"/task-8" {
+		t.Fatalf("expected cached due timer task-4 to expire at applyAt, got: %+v", row.Background)
+	}
+
+	// manage_task list reports no running tasks -> reconciles task-4 and task-8.
+	agyTestAppend(t, file, fmt.Sprintf(`{"step_index":11,"type":"GENERIC","status":"DONE","created_at":%q,"content":"Created At: %s\nCompleted At: %s\nNo background tasks are currently running."}`+"\n", t3, t3, t3))
+	n.mergeAgyTranscript(&row, agyTestID)
+	if len(row.Background) != 0 {
+		t.Fatalf("expected all tasks reconciled after empty manage_task list, got: %+v", row.Background)
+	}
+}
