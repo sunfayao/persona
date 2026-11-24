@@ -558,6 +558,17 @@ When a pane stops or the ACP session is no longer loaded, its running tasks disa
 not record an outcome. The node links a task log when the local export names the corresponding file in that
 conversation's task directory.
 
+A subagent conversation (`invoke_subagent`, or a Swarm's worker) is a session of its own that another one started
+("Sub-Agents and background tasks" above, #14817). agy records the starting conversation as the subagent's
+`parent_conversation_id` in `conversation_summaries.db`, and its descriptor role in
+`brain/<parent>/.system_generated/subagents/<child>.json`. The companion lists the subagent with `is_subagent`,
+`parent_session_id` (its parent's row) and `root_session_id` (the topmost conversation up that line), titling an
+untitled one from its descriptor role or `agent_name`, so both running and finished subagents fold under their parent
+without taking root `maxSessions` slots. Every ancestor of a listed subagent stays listed, including an older parent of
+a running subagent. A summary database without those columns lists every conversation as a root, as before. While a
+live herdr pane runs the parent conversation, the node lists the pane's row instead of the companion's, and points the
+subagent's parent and root at the pane's row (`server/internal/node/agychildren.go`).
+
 A session is listed `unknown` when the evidence cannot say working, idle or done (`transcriptState` in
 `integrations/antigravity/lib/map.js`). It is never guessed as idle: an idle native summary closes a turn only when its
 step count covers the last exported step. The companion logs why, as reason counts, each time the tally across listed

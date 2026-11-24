@@ -17,10 +17,10 @@ import (
 // brings the generated total from 254,085 B back to 251,311 B under the unchanged 252,000 B ceiling. Main measured
 // 251,491 B on 2026-11-23, and leaving conversations the agy CLI has open to it (#13451) adds 1,060 B (253,000 B ceiling).
 // Fork deploy branch only: it carries several open runtime PRs at once (fork/patches), each within its own ceiling
-// upstream, and together they measured 255,033 B on 2026-11-24, so the ceiling here is 256,000 B.
+// upstream, and together they measured 257,367 B on 2026-11-24, so the ceiling here is 258,000 B.
 // Raise the budget only for code a runtime needs, never to embed the packages raw again.
 func TestDistBudget(t *testing.T) {
-	const budget = 256_000
+	const budget = 258_000
 	_, out := generateIntegrations(t)
 	entries, err := os.ReadDir(out)
 	if err != nil {
