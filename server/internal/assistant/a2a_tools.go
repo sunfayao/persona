@@ -118,8 +118,12 @@ func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwir
 				// A new hand-off, not a retry of one already made (a2aStart answers those).
 				where := a.CWD
 				if launch != nil {
-					// Its tier is resolved, or refused, before anything is asked or recorded (agent_presets.go).
+					// Its tier is resolved, or refused, before anything is asked or recorded (agent_presets.go), and so
+					// is a start that could not run read-only where it would go (start_host.go).
 					if err := s.a2aLaunchTier(ctx, cfg, a.Machine, launch); err != nil {
+						return nil, err
+					}
+					if err := s.a2aLaunchCheck(ctx, cfg, a.a2aRef, a.Context, launch); err != nil {
 						return nil, err
 					}
 					where = s.a2aLaunchWhere(ctx, launch)
