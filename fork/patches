@@ -60,3 +60,5 @@ feat/14672-agent-start-tier 14725
 fix/14681-claude-own-port 14733
 # A new tab forgets older bindings of its pane id, so a Codex start (A2A included) lists one row (#14682), node only.
 fix/14682-stale-pane-binding 14734
+# List TRAE CLI models and pass the selected model on new Agents (#14913), node only.
+task/14913-trae-models 14917
