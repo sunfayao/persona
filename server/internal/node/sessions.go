@@ -461,6 +461,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		return nil
 	}
 	out = out[:j]
+	// The desktop app's sessions once each: a transcript one went on from folds into its current row (#14394).
+	if folds := n.offlineFolds(); len(folds.earlier) > 0 {
+		if out = foldDesktopEarlier(out, folds, n.alwaysListed()); len(out) == 0 {
+			return nil // as above
+		}
+	}
 	n.nameAgyAliases(out, agyConversations) // the ids an agy conversation went by, on the row listing it (agyaliases.go)
 	parents, origins := n.offlineDesktop()
 	linkSideSessions(out, parents)           // the desktop app's side sessions under the sessions that started them (#5935)
