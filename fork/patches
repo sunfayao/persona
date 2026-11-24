@@ -1,44 +1,35 @@
 # Fixes carried on deploy until upstream merges them, applied in this order on top of upstream main.
 # <branch on origin> <nwverse/persona pull request number>
-feat/12855-claude-usage-stream 12862
 # #13268 is the maintainers' continuation of our #13133 (closed); this branch holds its head with main merged.
 fix/13083-decision-handoff 13268
-fix/13084-worker-completion 13134
+# #13364 is the maintainers' continuation of our #13134; carried until it merges.
+fix/13084-worker-completion 13364
 # #13417 carries #13137's review follow-ups (#13137 merged at its reviewed head).
 fix/13413-terminal-resume-followups 13417
-fix/13397-estimate-rollback 13409
 # Antigravity (agy) fixes from the agy audit, applied in dependency order (#13476 before #13477, which stacks on it).
-fix/13445-agy-integration-check 13462
 fix/13447-agy-task-companion 13476
 fix/13464-agy-readonly-companion 13477
 fix/13451-agy-cli-owned-conversations 13469
-fix/13471-agy-assistant-warm 13475
 fix/13443-launcher-run-floor 13455
 fix/13456-agy-unlinked-judgment 13467
-fix/13468-log-5xx-errors 13474
-fix/13463-agy-pane-proof 13484
 fix/13470-agy-pane-incremental-read 13485
-feat/13425-persona-chats-unread 13473
-# Repo view fixes (#13453, #13454), web only.
+# #13598 is the maintainers' continuation of our #13473; carried until it merges.
+feat/13425-persona-chats-unread 13598
+# Repo view fix (#13453), web only. (#13454 merged as #13509.)
 fix/13453-by-repo-removed-worktree 13508
-fix/13454-by-repo-repeated-names 13509
 # Projects board fixes, shipped one at a time as each is ready.
 fix/13533-one-space-per-folder 13556
-# #13565 stacks on #13546.
-feat/13522-by-project-computers 13546
-feat/13523-project-new-agent 13565
-# The built-in Mac rule every new Agent was told (upstream #13097), node only.
-fix/13642-no-default-mac-rules 13648
-# agy panes take their conversation title (#13639), node only.
-fix/13639-agy-pane-title 13650
-# Keep sidebar selected state for /t/ tabs outside sessionSummaries (#13708), web only.
-fix/13708-sidebar-tab-selection 13723
+# #13565 stacks on #13546; both carried until the maintainers' continuations (#13904, #13665) merge.
+feat/13522-by-project-computers 13904
+feat/13523-project-new-agent 13665
+# Keep sidebar selected state for /t/ tabs outside sessionSummaries (#13708), web only; carried until the maintainers' continuation #13854 merges.
+fix/13708-sidebar-tab-selection 13854
 # Populate UpdatedAt, LastText, and Rev on agy herdr panes (#13710), node only.
 fix/13710-agy-pane-updated-at 13726
 # Show Antigravity background tasks and schedules (#13594).
 upstream/13594-agy-background-tasks 13600
-# Switch models and efforts on running Antigravity Agents (#13754).
-feat/13754-agy-model-switch 13766
+# Switch models and efforts on running Antigravity Agents (#13754); carried until the maintainers' continuation #13901 merges.
+feat/13754-agy-model-switch 13901
 # Agents read another session with a2a_read and get the address of a session quoted with @ (#13831), manager, node and runtime integrations.
 feat/13831-agent-session-read 13885
 # Name the node's executable in A2A task messages (#13893), manager only. Upstream carries it as #14344 (same design); ours drops out when that merges.
