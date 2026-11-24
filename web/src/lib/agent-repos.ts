@@ -567,11 +567,14 @@ function catalogRepos(sessions: Session[], machineId: string, options: RepoCatal
     repo.worktrees.push(root);
     repo.count += root.tree.length;
   }
-  // A host that does not say which of its workspaces is a repository's main checkout (herdr) leaves it to the folder: the
-  // workspace at the repository's own folder is. It wears the home mark and comes first, as Git's main checkouts do
-  // (#13454), instead of sorting by name among the linked trees.
+  // A host that names no project and does not say which of its workspaces is a repository's main checkout (herdr) leaves
+  // it to the folder: the workspace at the repository's own folder, as Git or the path named it (repositoryPath), is. It
+  // wears the home mark and comes first, as Git's main checkouts do (#13454), instead of sorting by name among the linked
+  // trees. A project's folder is not that: a desktop app's project lists each of its folders as its own project_path
+  // (#14497).
+  const byFolder = (w: HostWorkspace) => w.is_main === undefined && !w.project_id && !w.project_path;
   for (const repo of repos.values()) {
-    const unmarked = repo.worktrees.filter((w) => w.workspace!.is_main === undefined && catalogPath(w.path) === catalogPath(repo.repo));
+    const unmarked = repo.worktrees.filter((w) => byFolder(w.workspace!) && catalogPath(w.path) === catalogPath(repo.repo));
     for (const w of unmarked) w.main = true;
     if (unmarked.length) repo.worktrees.sort(order);
   }

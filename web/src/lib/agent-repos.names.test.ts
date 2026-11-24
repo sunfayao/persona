@@ -67,6 +67,22 @@ describe("By repo names a repository once", () => {
     expect(inferred.worktrees[0]!.workspace!.is_main).toBeUndefined();
   });
 
+  it("does not mark a project's folders, which name no main checkout (#14497)", () => {
+    // The Codex app and Claude Desktop name a project on every row and say nothing of a main checkout: each folder of a
+    // project is its own row, with that folder as the row's project_path. The section is the project's, and its first
+    // folder is no more the main checkout than the others.
+    const folder = (id: string, source: string, project: string, cwd: string): HostWorkspace =>
+      herdr(id, cwd, { source, source_id: project, project_id: project, project_name: "app", project_path: cwd, title: "app" });
+    const marks = (tree: RepoTree) => tree.worktrees.map((w) => [w.workspace!.cwd, w.main]);
+    const codex = only([], [folder("c-app", "codex_app", "codex-project:p1", "/code/app"), folder("c-docs", "codex_app", "codex-project:p1", "/code/docs")]);
+    expect(marks(codex).sort()).toEqual([["/code/app", false], ["/code/docs", false]]);
+    const claude = only([], [folder("d-web", "claude_desktop", "env-1", "/code/web"), folder("d-api", "claude_desktop", "env-1", "/code/api")]);
+    expect(marks(claude).sort()).toEqual([["/code/api", false], ["/code/web", false]]);
+    // One folder alone is not marked either; a host's own is_main still is.
+    expect(marks(only([], [folder("c-app", "codex_app", "codex-project:p1", "/code/app")]))).toEqual([["/code/app", false]]);
+    expect(marks(only([], [{ ...folder("c-app", "codex_app", "codex-project:p1", "/code/app"), is_main: true }]))).toEqual([["/code/app", true]]);
+  });
+
   it("does not mark a workspace whose folder it cannot tell", () => {
     // herdr reports a workspace's folder only when its panes agree; without one it is never the main checkout.
     const loose = only([agent("draft", "w-notes", "/code/notes")], [herdr("w-notes", "", { title: "notes" })]);
