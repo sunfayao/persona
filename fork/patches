@@ -44,3 +44,7 @@ fix/14400-tool-call-stall 14411
 fix/14394-claude-desktop-one-row 14423
 # Keep a mark on an Agent's finished turn until it is opened, and list interrupted sessions as Not running (#14447), manager + web.
 fix/14447-unchecked-finished 14510
+# By repo finds a workspace's main checkout from its folder only where the host names no project, such as herdr (#14497), web only.
+fix/14497-by-repo-main-inference 14523
+# A 5xx request line logs only the error the hub itself wrote, never the response body (#14490), hub only.
+fix/14490-log-own-errors-only 14526
