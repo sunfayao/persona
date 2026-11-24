@@ -159,6 +159,7 @@ export interface SessionCapabilities {
   interrupt?: boolean;
   queue_edit?: boolean;
   queue_send_now?: boolean;
+  queue_next_turn?: boolean;
   approve?: boolean;
   terminal?: boolean;
   attach?: boolean;

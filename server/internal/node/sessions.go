@@ -203,6 +203,14 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				s.Subagents = n.subagents(id)
 			}
 		}
+		if a.Agent == traexAgent && host.ParsePane(a.PaneID).Kind == host.Herdr && s.Capabilities == nil && s.Status != proto.StatusOffline && s.Status != proto.StatusInterrupted {
+			s.Capabilities = &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, QueueNextTurn: true, QueueEdit: proto.Bool(false)}
+			if s.Status == proto.StatusWorking {
+				if box, err := n.readTraeComposer(ctx, a.PaneID); err == nil {
+					s.Queued = box.queued
+				}
+			}
+		}
 		if a.Agent != "codex" && a.Agent != traexAgent {
 			n.terminalModesRow(&s, rollout)
 		}
