@@ -47,3 +47,5 @@ fix/13893-a2a-message-executable 14344
 fix/14395-agy-stable-address 14419
 # personad tool starts in a folder that stalls, and its reads fail within 30 seconds (#14400), node programs.
 fix/14400-tool-call-stall 14411
+# One row per Claude desktop session: the transcripts it went on from fold into its row (#14394), node only.
+fix/14394-claude-desktop-one-row 14423
