@@ -50,3 +50,5 @@ fix/14497-by-repo-main-inference 14523
 fix/14490-log-own-errors-only 14526
 # Keep a closed agy conversation closed under its own ID; Close… archives agy Agents (#14520), manager + node + web. Stacked on fix/14395-agy-stable-address.
 fix/14520-agy-close-sticks 14564
+# Answer a command waiting for input (a sign-in code, a password) from a Persona card, typed straight into the command: agy panes and the web (#14527), node + manager + web.
+feat/14527-command-input 14599
