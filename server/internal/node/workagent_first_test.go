@@ -215,6 +215,11 @@ func TestWorkAgentFirstMessageGivesUpAfterTries(t *testing.T) {
 	}
 	a, _ := x.n.agent(id)
 	params, _ := json.Marshal(map[string]any{"session_id": id, "text": "Please start on the task above."})
+	x.f.after(func(c herdrCall) {
+		if c.Method == "agent.prompt" {
+			x.f.setScreen(a.PaneID, "Please start on the task above. (alt+m to send immediately)")
+		}
+	})
 	if _, err, handled := x.n.workAgentCalls(context.Background(), "session.send", id, a, params); !handled || err != nil {
 		t.Fatalf("send: handled %v, %v", handled, err)
 	}

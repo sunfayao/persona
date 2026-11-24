@@ -168,6 +168,14 @@ func TestPaneAgentsTypedThroughHerdrGetTheSessionMentionNote(t *testing.T) {
 			}
 			seedAgents(t, n, f, pane)
 			text, noted := notedQuote(t, n)
+			if tc.agent == agyAgent {
+				file := agyTestFile(t, n.agyDataRoot(), agyTestID, "")
+				f.after(func(c herdrCall) {
+					if c.Method == "agent.prompt" {
+						agyTestAppend(t, file, fmt.Sprintf(`{"step_index":0,"type":"USER_INPUT","source":"USER_EXPLICIT","content":%q}`+"\n", noted))
+					}
+				})
+			}
 			agyTestCall(t, n, "session.send", tc.row, map[string]any{"text": text, "prompt_language": "English"})
 			assertTrace(t, f.trace("agent.prompt"), []string{call("agent.prompt", map[string]any{"target": agyTestPane, "text": noted})})
 		})
