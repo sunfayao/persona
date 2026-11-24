@@ -281,15 +281,13 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 					if s.LastText == "" && runtimeRow.LastText != "" {
 						s.LastText = runtimeRow.LastText
 					}
-					if s.Rev == 0 && runtimeRow.Rev > 0 {
-						s.Rev = runtimeRow.Rev
-					}
 					background := agyBackgroundTasks{running: runtimeRow.Background, ended: runtimeRow.BackgroundEnded()}
 					// The live pane is authoritative even when its ACP mirror is only a history row.
 					if meta, ok := n.agyTranscriptMeta(agyConversations[id]); ok {
 						background = meta.background
 					}
 					background.apply(&s)
+					// Not its Rev: the companion's counts steps, the pane's is its transcript's size (agyPaneActivity).
 				}
 			}
 			if a.Agent == agyAgent {
@@ -300,9 +298,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 					}
 				}
 				if hasRuntimeRow {
-					if s.UpdatedAt.IsZero() || s.Rev == 0 {
-						n.mergeAgyTranscriptActivity(&s, agyConversations[id])
-					}
+					n.mergeAgyTranscriptActivity(&s, agyConversations[id])
 				} else {
 					n.mergeAgyTranscript(&s, agyConversations[id])
 				}
