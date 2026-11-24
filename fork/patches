@@ -62,3 +62,5 @@ fix/14681-claude-own-port 14733
 fix/14682-stale-pane-binding 14734
 # List TRAE CLI models and pass the selected model on new Agents (#14913), node only.
 task/14913-trae-models 14917
+# Agent-started agy Agents (a2a_send, dispatch_start) start on the Antigravity companion, a read-only start no pane holds is refused before its A2A task is recorded, and a launch that did not start says why (#14887), manager only. Conflicts once with feat/14672-agent-start-tier in a2a_tools.go and dispatch.go: tier first, then the check; also lay the tier's Run on both probes (a2aLaunchCheck, dispatchStartRefusal), which no conflict marks (see the deploy patch).
+fix/14887-a2a-agy-companion 14925
