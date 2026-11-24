@@ -56,3 +56,7 @@ feat/14527-command-input 14599
 fix/14582-agy-node-program 14609
 # Agents start Agents on an Agent preset (tier) and list each computer's presets (#14672), manager only.
 feat/14672-agent-start-tier 14725
+# Claude Code's own listener is no server of an Agent behind a wrapper launcher, so Close archives idle Claude Code Agents again (#14681), node only.
+fix/14681-claude-own-port 14733
+# A new tab forgets older bindings of its pane id, so a Codex start (A2A included) lists one row (#14682), node only.
+fix/14682-stale-pane-binding 14734
