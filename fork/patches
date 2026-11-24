@@ -54,3 +54,5 @@ fix/14520-agy-close-sticks 14564
 feat/14527-command-input 14599
 # agy chats get their Persona tools when the node program is persona-node (#14582): the node names its own program to the Antigravity companion, node only.
 fix/14582-agy-node-program 14609
+# Agents start Agents on an Agent preset (tier) and list each computer's presets (#14672), manager only.
+feat/14672-agent-start-tier 14725
