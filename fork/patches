@@ -41,3 +41,5 @@ upstream/13594-agy-background-tasks 13600
 feat/13754-agy-model-switch 13766
 # Agents read another session with a2a_read and get the address of a session quoted with @ (#13831), manager, node and runtime integrations.
 feat/13831-agent-session-read 13885
+# Name the node's executable in A2A task messages (#13893), manager only. Upstream carries it as #14344 (same design); ours drops out when that merges.
+fix/13893-a2a-message-executable 14344
