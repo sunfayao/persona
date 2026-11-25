@@ -5,10 +5,8 @@ decision 4 (a)): the `todo` a manager sends with a `decide` push (`assistantwire
 bus) → the push's category, whether it sets `aps.mutable-content`, and its top-level `todo` (`TodoDecidePush` in
 `schema/wire/todo-view.schema.json`), which the WebSocket `notify` carries too. The hub answers every case exactly
 (`TestDecisionPushFixtures`, `server/internal/hub/push_decide_test.go`); `scripts/test/test_wire_schema.py` holds each
-expected `todo` to the schema, and the generated Go, Swift and Kotlin types read it back unchanged
-(`server/internal/assistantwire/todo_view_gen_test.go`, `apple/PersonaTests/TodoViewWireTests.swift`,
-`android/core/contracts/src/test/kotlin/persona/core/contracts/TodoViewWireTest.kt`). The app's notification service
-extension decodes the same `todo` through the generated Swift type once it offers the options (#10465).
+expected `todo` to the schema, and the generated Go type reads it back unchanged
+(`server/internal/assistantwire/todo_view_gen_test.go`).
 
 | File | What it pins | Cases |
 | --- | --- | --- |

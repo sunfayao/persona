@@ -268,8 +268,7 @@ still confirm delivery from a matching ID in recent turns.
 
 ### Phone data tools
 claude calls the MCP tool `phone_calendar_events` → `personad mcp` → node.sock → node → manager (`app.call` `phone` / `phone.call`) → hub → a connected iPhone that offers the tool (WS) → the app queries with EventKit → returns the same way.
-When no iPhone is connected, the hub wakes the newest iOS registration that offers the tool with a silent push (only when push is set up; a device at most once per 30 seconds) and waits up to 20 seconds for it to connect
-(`docs/apple/phone-tools.md` "iOS limitations"). If none does, it returns the error "The user's iPhone is not connected and did not wake up in the background: ask them to open the Persona app, then retry."
+When no iPhone is connected, the hub wakes the newest iOS registration that offers the tool with a silent push (only when push is set up; a device at most once per 30 seconds) and waits up to 20 seconds for it to connect. If none does, it returns the error "The user's iPhone is not connected and did not wake up in the background: ask them to open the Persona app, then retry."
 
 ### Runtime list origin projection
 

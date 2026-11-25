@@ -140,7 +140,7 @@ program `iphone`, and the iPhone is allowed there (a target picked a moment earl
   told to look at the screen with `iphone_look` first and not to repeat the steps blindly.
 
 The names are `iphone_*` (and the node's methods `iphone.*`), not `phone_*`: `phone_*` are the iPhone's own data tools,
-which the hub hands to the app ([phone-tools.md](../apple/phone-tools.md)).
+which the hub hands to the app.
 
 ### Approval
 

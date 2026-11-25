@@ -8,7 +8,6 @@ Each computer's OS, current load and curves for the past 24 hours. The node coll
 | Node sending | `server/internal/node/metrics.go` |
 | Manager storage, downsampling, cleanup, API (hub forwards `devicewire.MetricsRoutes`) | `server/internal/devices/metrics.go`, `server/internal/db/metrics.go`, migration `0051_machine_metrics.sql` |
 | Token usage: node metering, manager storage, API (see "Token usage" below) | `server/internal/tokenuse/`, `server/internal/node/usage.go`, `server/internal/node/usage_adapters.go`, `server/internal/devices/usage.go`, `server/internal/db/usage.go`, migration `manager/0421_machine_usage.sql` |
-| App | `apple/Persona/Views/Machines/` (`MachinesView`, `MachineDetailView`, `MetricCharts`, `OSBadge`), model `apple/Packages/PersonaWire/Sources/PersonaWire/MachineMetrics.swift` |
 | Inspect local samples / overhead | `personad sysmon [n]`: prints system info and n+1 samples (one every 10 seconds, n ≤ 8640, one day); final line gives actual sample count, collection duration and personad CPU (Ctrl-C stops immediately) |
 
 For node `session.send` and `codex.answer`, the devices manager supplies the optional `prompt_language` native
@@ -239,7 +238,7 @@ Measured row data is 116 bytes (`pg_column_size`), roughly 200 bytes including h
 
 ## Token usage (#4973)
 
-How many tokens each machine runs, for the Machines page's cards and charts (the Dynamic Island's totals come from the same data, `docs/apple/live-activity.md` ("Usage")).
+How many tokens each machine runs, for the Machines page's cards and charts.
 
 - **Metering** (`node/usage.go`): every 10 seconds the node reads what its agents' records gained. An adapter per agent (`node/usage_adapters.go`, #9923) says which files hold its usage,
   which session a file belongs to and which parser reads it: Claude Code's main and subagent transcripts in every config directory, and the agents of its workflow runs
@@ -372,7 +371,7 @@ Follow dataviz rules:
 
 ### Token usage charts
 
-`MachineUsageSection` (`apple/Persona/Views/Machines/UsageCharts.swift`), from `GET /api/v1/machines/{id}/usage`:
+The section (web `web/src/views/machines/UsageSection.tsx`) reads `GET /api/v1/machines/{id}/usage`:
 
 - **Controls**: 1 hour / 24 hours (default) / 7 days; **All Models** and **All Launchers** menus (from the response's shares; the unknown launcher is **Other**; greyed out with a note for an older node).
 - **Numbers**: the range's total, output, cache hit rate and replies.
@@ -382,9 +381,9 @@ Follow dataviz rules:
 - **By Model**: each model's total and hit rate; tapping one filters by it.
 - **Holding** either chart shows that moment in both. Polls every 20 seconds on the 1-hour range, every minute otherwise, only in front.
 - **States**: an older hub (404) says to deploy a newer one; a range or filter with no usage says so in the chart (with **Clear Filters**).
-- **Colors** (`UsageColor`, `apple/Shared/Design`): input blue, output orange, cache write violet, cache read teal, light and dark steps of the categorical palette, validated in the stacking order
+- **Colors**: input blue, output orange, cache write violet, cache read teal, light and dark steps of the categorical palette, validated in the stacking order
   (adjacent pairs ΔE ≥ 24.7 light / 17.3 dark for color-blind readers). Light teal is under 3:1 on a light card, so the legend always writes the numbers.
-- **Numbers** use `TokenFormat` (`apple/Packages/PersonaWire/Sources/PersonaWire/TokenUsage.swift`): K / M / B, three significant digits, no trailing zeros, under 1,000 as is, a rounding to 1,000 moves up a unit (999,500 → 1M). The web uses the same rules.
+- **Numbers**: K / M / B, three significant digits, no trailing zeros, under 1,000 as is, a rounding to 1,000 moves up a unit (999,500 → 1M).
 - **Web** (`web/src/views/machines/UsageSection.tsx`, `web/src/lib/tokens.ts`): the same section on a machine's page, before Monitoring (the engine and the self-check moved after it),
   with the chart and the numbers on the left and **By Model** / **By Launcher** on the right on a wide screen; hovering a chart or ← → on it holds a moment in both, Esc lets go.
   The Machines list has **Today's tokens** across the top and a **Tokens** cell on each card, and uses up to three columns on a wide screen (it used to stop at 1000px).
@@ -394,8 +393,6 @@ Follow dataviz rules:
 ## Doctor: what this computer can do (#2429)
 
 The web Machines page has **What this computer can do** (modeled on Moshi's Doctor page), presenting `personad node doctor` results (`docs/integrations/claude-integration.md`, "Self-check") by feature, not a string of check names.
-iOS / Mac machine detail (#3018, `apple/Persona/Views/Machines/NodeHealthSection.swift`, grouping in `NodeHealthModel.swift`'s `NodeHealth`) places it after Engine. Grouping, states and copy match web; changing one requires updating the other.
-The retired native Mac app showed this section through the shared iOS view and received no Mac-only changes for it ([mac.md](../archive/apple/mac.md)).
 
 - **Fetch**: hub routes `GET /api/v1/machines/{mid}/doctor` (read-only) and `POST …/doctor/fix` (rewrite Persona-generated files, recheck and return a new report) are **`full` devices only** (reports contain paths and user hook commands; fix writes files). Node RPC: `node.doctor` (read-only unless `{"fix":true}`), `node.doctor.fix` (`node/doctor_rpc.go`); checks run in node with CLI `RunDoctor`, same `DoctorReport` JSON. Hub GET never passes `fix` to node.
 - **Report language**: current clients send `Accept-Language`, which the hub forwards as the RPC's optional `locale`; a new node then words `detail`, `hint` and human `items` in the page's language without changing the report shape or grouping fields. A header-less request and the assistant's direct readiness call keep canonical zh-Hans. A new node with an old hub therefore keeps today's report, and an old node with a new hub ignores `locale` and has its Chinese report relayed unchanged. The command's human text instead uses `i18n.Terminal`; its `--json` always retains canonical zh-Hans bytes.
@@ -410,7 +407,7 @@ The retired native Mac app showed this section through the shared iOS view and r
 - **Connection failures** (`classifyConnection`): offline machine cards/pages classify recorded hub error text as **Authentication failed / Can't reach this computer / Connection timed out / Version mismatch**, each with a next step (different SSH / Persona Link wording);
   unrecognized text adds nothing, no guessing. Planned restarts during deployment don't count.
 - Mock-hub screenshots: `MOCK_DOCTOR=healthy|stale|broken|mixed|old|error|slow`, `MOCK_DOCTOR_OLD=<machine id,…>` (`scripts/mock/mock_hub.py`).
-- Tests: `node/doctor_rpc_test.go` (temporary directories; no writes without fix, fix only generated files and never user settings.json, check names match web grouping), `hub/node_doctor_test.go` (permissions), `web/src/lib/node-health.test.ts` (grouping, summary, fixing, old node, connection classification), `apple/PersonaTests/NodeHealthTests.swift` (same grouping table, decoding, old node / hub, model check/fix).
+- Tests: `node/doctor_rpc_test.go` (temporary directories; no writes without fix, fix only generated files and never user settings.json, check names match web grouping), `hub/node_doctor_test.go` (permissions), `web/src/lib/node-health.test.ts` (grouping, summary, fixing, old node, connection classification).
 
 ## Diagnosis and cleanup (#8037)
 
@@ -496,13 +493,6 @@ The one other live edit of an entry is its kind, from `ssh` to `link` and back (
 - When the kind changes, the manager replaces the machine (`sameConfig` sees a change), which ends the SSH connection. The new
   machine then waits for Persona Link. Everything kept by id stays: pins, mutes, trust, engine choice, sessions, metrics, usage and
   `node.deploy.<id>`.
-
-The iPhone / iPad client decodes the optional `link_switch` in `apple/Shared/Models.swift` and starts through `APIClient`; an absent
-field is the older-hub gate. `MachineLinkSwitchStore` keeps one attempt per `MachineRef` across detail-page remounts and reconciles
-the accepted answer with pushed/read machine snapshots. Settled attempts expire after two minutes; an uncertain answer never reposts
-automatically, while a new explicit confirmation may follow the hub's unchanged eligibility. `MachineLinkSwitchView` is the
-advanced-detail card; its expected-disconnect guard also suppresses the ordinary offline explanation and Reconnect while the switch
-runs (#10671).
 
 ## Opt-in machine-ops skill and read-only ops CLI / MCP (#13053)
 

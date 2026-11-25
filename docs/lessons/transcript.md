@@ -32,11 +32,9 @@ answer. A turn is not that: a background command's notification (`wake`) starts 
 woken work kept in the exchange before it, each woken turn's last words took the answer's place, so a complete
 answer to a newer question was folded into "work" as soon as an older background command reported back (four final
 texts between two messages, one shown). The wire already says where the turn ended (`Item.wake`: delivered while the
-agent was idle); every client now closes the exchange there and opens one for the woken work, which draws the notice
+agent was idle); every client closes the exchange there and opens one for the woken work, which draws the notice
 where a message would be and has an ordinary summary of its own, never a wake chip or drawer.
-When grouping is ported or changed, check all of them together: the web's `buildBlocks`, iOS `ChatBlock.build`,
-Android `buildBlocks`, the Rust core's `turns::project`, the per-reply usage split (`chatUsage` on iOS and Android),
-and the two shared fixtures that pin it (`spec/fixtures/lines/wakes.json`, `spec/fixtures/sync/wake.json`). Cover the
+When grouping is changed, check the web's `buildBlocks` and the per-reply usage split together. Cover the
 interval between the wake and its first step (the live work row must exist and keep its id) as well as the finished turn.
 
 
@@ -77,7 +75,7 @@ Use synthetic conversations for screenshots, not the user's real main conversati
   "stuck on the message I sent"). Rule: if the list is at the newest end and no finger is down, it must follow (`landed` / `contentArrived`). Run `ChatFollowTests` when changing follow logic.
 - In sessions with many screenshots, one page of earlier messages is 1–5 MB (images embedded as base64). Decode pagination on a background thread, and prefetch the previous page as soon as the earliest dozen or so lines appear.
 - Do not implement background sync by "subscribing to every session": subscriptions make the node refresh transcripts every 250ms and read terminals every 400ms (herdr process calls). Use an IM-style push/pull combination instead:
-  the hub pushes only each session's `rev` (transcript byte count), and the App pulls increments with `after_seq` (`docs/apple/ios.md`, background sync). The full session list is about 130 KB;
+  the hub pushes only each session's `rev` (transcript byte count), and the App pulls increments with `after_seq`. The full session list is about 130 KB;
   do not resend it for rev changes—use a separate `revs` event. The Lark gateway has a real-time event WebSocket (`/agent/v1/events`, `message.upserted` /
   `conversation.upserted`); Lark pushes come from there.
 - Validate changes to transcript parsing or the sync protocol against a real corpus (`docs/archive/integrations/msg-render-verification.md`). `corpus_test.go` compares the old and new parsers file by file;

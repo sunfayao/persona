@@ -8,8 +8,6 @@ of the rules to one definition. `scripts/gen/graph_layout.py` is the reference: 
 | Reader | What it checks |
 | --- | --- |
 | web `web/src/lib/graph-layout.test.ts` | everything |
-| iOS `apple/PersonaTests/ExtensionGraphLayoutTests.swift` | everything |
-| Android `ExtensionGraphLayoutTest.kt` in `android/feature/settings` | everything |
 | hub `TestGraphReadingOrderFollowsTheSharedCases` in `server/internal/extension/ui_v10_test.go` | `order`, `depth`, `folds` |
 
 ## Structure

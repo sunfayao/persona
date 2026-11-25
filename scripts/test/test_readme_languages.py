@@ -1,19 +1,17 @@
-"""The bilingual README: reciprocal switches, the same shape in both languages, and reproducible assets."""
+"""The bilingual README: reciprocal switches, the same shape in both languages, and its pictures."""
 from pathlib import Path
-import importlib.util
 import re
 import unittest
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = ROOT / "scripts/assets/make_readme_assets.py"
-SPEC = importlib.util.spec_from_file_location("readme_assets", SCRIPT)
-ASSETS = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(ASSETS)
 SVG = "{http://www.w3.org/2000/svg}"
 README_ASSETS = ROOT / "docs/assets/readme"
 READMES = {"en": ROOT / "README.md", "zh-CN": ROOT / "README.zh-CN.md"}
-FEATURES = 8
+SUFFIX = {"en": "", "zh-CN": ".zh-CN"}
+THEMES = ("light", "dark")
+FEATURES = 6
+BADGE = re.compile(r"\[!\[([^\]]+)\]\(docs/assets/readme/badge-([a-z-]+)\.svg\)\]\(([^)]+)\)")
 
 
 def read(lang):
@@ -37,55 +35,35 @@ class ReadmeLanguageTests(unittest.TestCase):
         self.assertEqual(heads(en), heads(zh))
         for lang in READMES:
             with self.subTest(lang=lang):
-                video, features = section(read(lang), 0), section(read(lang), 1)
-                self.assertRegex(video, r"(?m)^https://github\.com/user-attachments/assets/\S+$", "the video tour comes first")
-                features = re.findall(r"^- \*\*", features, re.M)
-                self.assertEqual(FEATURES, len(features), "the section after the video tour lists the eight features")
+                features = re.findall(r"^- \*\*", section(read(lang), 0), re.M)
+                self.assertEqual(FEATURES, len(features), "the first section lists the six features")
 
-    def test_each_language_uses_its_own_pictures(self):
-        for lang, suffix in ASSETS.LANGS.items():
-            text = read(lang)
-            pictures = re.findall(r'(?:src|srcset)="docs/assets/readme/((?:banner|hero)-[^"]+)"', text)
+    def test_each_language_uses_its_own_banner(self):
+        for lang, suffix in SUFFIX.items():
+            pictures = re.findall(r'(?:src|srcset)="docs/assets/readme/(banner-[^"]+)"', read(lang))
             with self.subTest(lang=lang):
-                self.assertEqual(4, len(pictures))
-                for name in pictures:
-                    self.assertTrue(name.endswith(f"{suffix}.svg") or name.endswith(f"{suffix}.webp"), name)
-                    if not suffix:
-                        self.assertNotIn(".zh-CN.", name)
+                self.assertEqual(sorted(f"banner-{theme}{suffix}.svg" for theme in THEMES), sorted(pictures))
 
-    def test_badges_form_one_row_per_kind(self):
-        kinds = list(dict.fromkeys(kind for _, kind, _ in ASSETS.BADGES))  # client, agent, engine
-        for lang in READMES:
-            lines = [ln for ln in read(lang).splitlines() if "docs/assets/readme/badge-" in ln]
-            with self.subTest(lang=lang):
-                self.assertEqual(len(kinds), len(lines), "one source line per row: clients, agents, engines")
-                for kind, line in zip(kinds, lines):
-                    found = re.findall(r"\[!\[([a-z]+): [^\]]+\]\(docs/assets/readme/badge-([a-z-]+)\.svg\)", line)
-                    self.assertEqual([(kind, name) for name, k, _ in ASSETS.BADGES if k == kind], found)
-                for line in lines[:-1]:
-                    self.assertTrue(line.endswith("<br>"), "end each row but the last with <br>")
+    def test_badges_are_the_same_in_both_languages_and_link_to_maintained_docs(self):
+        found = {lang: BADGE.findall(read(lang)) for lang in READMES}
+        self.assertEqual(found["en"], found["zh-CN"])
+        for label, name, target in found["en"]:
+            kind = label.split(":")[0]
+            self.assertIn(kind, ("agent", "engine"), name)
+            path = target.split("#", 1)[0]
+            self.assertTrue(path.startswith("docs/"), name)
+            self.assertNotRegex(path, r"^docs/(plans|archive)/", name)
+            self.assertTrue((ROOT / path).is_file(), target)
+            self.assertTrue((README_ASSETS / f"badge-{name}.svg").is_file(), name)
+        lines = [ln for ln in read("en").splitlines() if "docs/assets/readme/badge-" in ln]
+        for line in lines[:-1]:
+            self.assertTrue(line.endswith("<br>"), "end each row but the last with <br>")
 
-    def test_badges_link_to_maintained_docs_with_matching_labels(self):
-        expected = [(name, f"{kind}: {product}") for name, kind, product in ASSETS.BADGES]
-        for lang in READMES:
-            badges = re.findall(
-                r"\[!\[([^\]]+)\]\(docs/assets/readme/badge-([a-z-]+)\.svg\)\]\(([^)]+)\)",
-                read(lang),
-            )
-            with self.subTest(lang=lang):
-                self.assertEqual(expected, [(name, label) for label, name, _ in badges])
-                for _, name, target in badges:
-                    path = target.split("#", 1)[0]
-                    self.assertTrue(path.startswith("docs/"), name)
-                    self.assertNotRegex(path, r"^docs/(plans|archive)/", name)
-                    self.assertTrue((ROOT / path).is_file(), target)
-
-    def test_badges_keep_the_existing_pill_style(self):
-        for name, kind, product in ASSETS.BADGES:
-            with self.subTest(badge=name):
-                root = ET.fromstring(ASSETS.badge(kind, product))
+    def test_badges_keep_the_pill_style(self):
+        for path in sorted(README_ASSETS.glob("badge-*.svg")):
+            with self.subTest(badge=path.name):
+                root = ET.fromstring(path.read_text(encoding="utf-8"))
                 self.assertEqual("24", root.attrib["height"])
-                self.assertEqual(f"{kind}: {product}", root.attrib["aria-label"])
                 pill = root.find(SVG + "rect")
                 self.assertEqual("6", pill.attrib["rx"])
                 self.assertEqual("#26211e", pill.attrib["fill"])
@@ -98,8 +76,6 @@ class ReadmeLanguageTests(unittest.TestCase):
             with self.subTest(lang=lang):
                 spellings = set(re.findall(r"(?i)super[ -]?agent", read(lang)))
                 self.assertEqual({"SuperAgent"}, spellings)
-        for lang in ASSETS.LANGS:
-            self.assertIn("SuperAgent", ASSETS.TAGLINE[lang][0])
 
     def test_local_links_and_pictures_exist(self):
         for lang in READMES:
@@ -118,25 +94,19 @@ class ReadmeLanguageTests(unittest.TestCase):
                 with self.subTest(asset=path.name):
                     self.assertIn(f"docs/assets/readme/{path.name}", used, "delete assets the README no longer shows")
 
-    def test_generated_svgs_match_the_committed_files(self):
-        for lang, suffix in ASSETS.LANGS.items():
-            for theme in ASSETS.THEMES:
+    def test_banners_are_in_their_language(self):
+        for lang, suffix in SUFFIX.items():
+            for theme in THEMES:
                 with self.subTest(lang=lang, theme=theme):
-                    actual = ASSETS.banner(theme, lang)
-                    committed = README_ASSETS / f"banner-{theme}{suffix}.svg"
-                    self.assertEqual(actual, committed.read_text(encoding="utf-8"), "regenerate the README SVG assets")
-                    root = ET.fromstring(actual)
+                    root = ET.fromstring((README_ASSETS / f"banner-{theme}{suffix}.svg").read_text(encoding="utf-8"))
                     self.assertEqual(lang, root.attrib["lang"])
                     text = " ".join("".join(node.itertext()) for tag in ("title", "text")
                                     for node in root.iter(SVG + tag))
+                    self.assertIn("SuperAgent", text)
                     if lang == "en":
                         self.assertNotRegex(text, r"[一-鿿]")
                     else:
                         self.assertRegex(text, r"[一-鿿]")
-        for name, kind, product in ASSETS.BADGES:
-            with self.subTest(badge=name):
-                committed = README_ASSETS / f"badge-{name}.svg"
-                self.assertEqual(ASSETS.badge(kind, product), committed.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

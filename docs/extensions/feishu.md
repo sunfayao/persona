@@ -8,29 +8,16 @@
 
 **Explicit #392 exception**: off-by-default Show Messages on Home in Lark settings adds Messages for browsing all direct / group chats. Shared accounts / chat pages / outbox / sync with Inbox, no second implementation; other Lark pages stay out. [Lark capability consolidation](lark-migration.md).
 
-**iOS Messages filters (#6553)**: Messages is initially selected and keeps the pinned shelf. Its neutral Messages / Unread segmented bar follows the shelf and is a native plain-list section header: the shelf scrolls away and the bar stays under the page toolbar. The two buttons reuse `Theme.Font.caption[Strong]`, `Fill.well` / `Fill.pressed`, `Radius.control` and `tapTargetHeight()` (at least 44 pt). The group hugs its labels at the leading edge; its visible fills sit inside the full-height touch regions, and the header adds no extra vertical padding. English uses the shorter All label and Japanese uses すべて so both choices fit on one line at accessibility text sizes. This grouped filter pattern replaces the separate accent `FilterChip` pills to match the requested Lark iOS hierarchy while retaining full-height touch targets. Unread shows only unread or manually marked-unread chats, including matching pinned chats as ordinary rows. Switching never reports a chat as read. The account-bound gateway uses its `unread` scope (and its normal muted/done/boxed exclusions); generic messaging sources, whose contract has no scope parameter, filter each ordinary page by unread count or the manual flag and retain its cursor. A read-only page is not an empty unread list: the visible footer continues through up to eight older pages before offering a button to continue. Search stays within the selected list. Filters reset their rows, cursor and pending requests on a switch; only All uses the existing hub/account-specific disk cache. The filter drawer, Marked and custom labels are outside this change.
-
-Verification: `LarkUnreadTests` covers scope/cursor isolation, late replies, manual unread, retry, account changes and read events. `LarkUnreadUITests` uses `MOCK_LARK=1 MOCK_LARK_UNREAD=1`; add `MOCK_MESSAGING=1` for generic page filtering. For its bounded-scan assertion, also set mock `MOCK_LARK_UNREAD_PAGES=9` and runner `TEST_RUNNER_PERSONA_EXPECT_UNREAD_CONTINUE=1`. `MOCK_LARK_LIST=180` supplies a paginated list for the existing optimized `PerfInboxTests/testFeishuMessagesListScroll` measurement.
-
-For a visibility check, add `MOCK_LARK_UNREAD_PAGE_DELAY=0.5` to the long generic fixture. Switch to Assistant after cursor 60 starts: the in-flight page may finish, but cursor 120 must not start until Messages is visible again. Scans use live mounted/tab/scene state and pause while a chat is open.
-
-**Android Messages (#511)**: Settings › Connectors › Lark has the same off-by-default **Show messages on home** choice, stored on this device under `integrations.lark.enabled`. While on and native Lark chats are available, Messages is an optional place in the shared Assistant sidebar; a real pairing's initial null repository is loading and preserves restored routes until DI publishes it, while demo mode has no repository and hides both the switch and destination. Assistant and Agents remain the only primary destinations. It pages the default account's direct and group chats through the existing `scope=chats` transport and opens the existing native chat with Back to Messages. Rows show avatar, name, time, preview, unread / marked-unread and mute state. Loading, empty and failed first reads are distinct; retained rows survive refresh / tail failures and pagination stops on a repeated cursor. Disabling restores the retained Assistant path even behind Agents without switching tabs. There is no chat-body prefetch. This Android slice intentionally has no account chips, pinned shelf, All / Unread filter, deep search or conversation-list disk cache. Tests are `LarkMessagesRepositoryTest`, `LarkMessagesViewModelTest`, `LarkHomePreferenceTest`, `LarkMessagesNavigationTest`, and the native JVM `LarkMessagesShotsTest`, `LarkHomeShotsTest` and `LarkMessagesShellShotsTest`; details are in `docs/android/android.md` "Optional Lark Messages on home (#511)".
-
 Three optional hub integrations: Lark gateway (third-party user-authenticated web client through private extension), official `lark-cli` (`docs/plans/plan-lark-cli.md`), and a private Lark Agent extension. This document covers gateway; its deployment / variables / commands in extension instructions.
 
 ## What stays
 
 | Capability | Location | Notes |
 | --- | --- | --- |
-| Messages | Inbox (`docs/assistant/inbox.md`), optional Messages | Unread / mentions / direct chats mixed with mail, event-grouped / AI-sorted; opens `LarkChatView` |
-| Document links | `FeishuDocReader` (`Views/Feishu/Docs/`) | Native in-app rendering from any link, `LinkSheet` / message. With `lark_doc_comments`, comments reply threads / whole doc, resolve / reopen, mention people (#1290, `FeishuDocsComments.swift`; web `docs/web/web.md` “Links open inside the page” (**Lark doc comments**), `docs/protocol/protocol.md` Lark APIs) |
-| Moments links | `LarkMomentsCard` / `LarkMomentsPostView` | Shared-post preview opens one post / comments; no browsable feed |
+| Messages | Inbox (`docs/assistant/inbox.md`), optional Messages | Unread / mentions / direct chats mixed with mail, event-grouped / AI-sorted |
 | User-related Moments | Inbox via extension, formerly hub inbox_moments.go; knowledge | Comments on own post, replies / mentions: one event per post, AI sorting / comment drafts, Send posts comment back (`docs/assistant/inbox.md` “Moments”) |
-| Other links | `LinkSheet` WebView | Minutes / events / tasks / approvals in in-app web cards |
 | AI Lark tools | Hub, `server/internal/lark` / assistant `lark_api` | Read-only search / read messages, docs, Moments, calendar, Minutes as context |
 | Persona in Lark | Bot (`docs/extensions/bots.md`) | DM self-built bot = main chat; extra Persona entry, not copied Lark feature |
-
-`FeishuLinks.route(_:)` routes docs→`.doc`, Moments `…/client/moments/detail?postId=`→`.momentsPost`, others nil→web. `FeishuRoute` only chat / doc / profile / momentsPost, destinations from individual messages / links.
 
 ## Data paths
 
@@ -60,7 +47,6 @@ Gateway x-multi-account `GET /agent/v1/accounts`; choose account via gateway hea
 - **Account list** `GET /api/v1/lark/accounts` fetches at most once/minute, selecting logged-in nonquarantined Inbox / events accounts. Old gateway without accounts treated default-only.
 - **Events**: default connection, others reconciled every 2 minutes. App lark events carry account, nondefault `ol_account` for cache targeting. `/agent`, personal Agent, knowledge only default events.
 - **Inbox**: sequential each signed-in account unread / mentions. Default errors fail round; other errors log only. `lark.account_id`, old 0=1; `lark.ol_account` for nondefault app open / reply. Same group in two accounts distinct events. Multiple sources “Lark · <name>”; reply as item's account. Never change Lark read state.
-- **iOS**: `APIClient.lark(_:)` adds `ol_account`; `LarkConversation.account` follows chat / topics / profiles / cards / mentions / previews. Cache / listeners keyed `LarkConversation.key` a<number>-<feed>. Multiple-account Messages capsules with unread counts, independent lists / pins; subtitle Lark · <name>. Settings › Connectors › Lark lists all.
 - **Web**: `web/src/lib/lark-accounts.ts` list / browser selection / `larkPath` query. `LarkChatRef.account` follows reads / read reports / sends / replies / topics / pins, accepts same-account pushes only. Messages account buttons below search, lists `larkChatsFor`, heading Group Chat · <name>. Inbox uses `lark.ol_account`; settings lists accounts. E2E `scripts/test/web_lark_accounts_e2e.py`, MOCK_LARK_ACCOUNTS=1. Android no switch, default only.
 
 ## API quick reference (tested on hub; assistant uses extension skill, gateway references authoritative)
@@ -74,7 +60,7 @@ Gateway x-multi-account `GET /agent/v1/accounts`; choose account via gateway hea
 ### Documents
 - `documents/read?url=&format=markdown`;403 `DOCUMENT_EXPORT_FORBIDDEN` /422 `DOCUMENT_FORMAT_UNSUPPORTED` → `format=json` ProseMirror tree. Base / files / boards Open in Lark. Also `documents/header`, `documents/reader/info`, `documents/ai-summary` (read-only cache), `documents/comments`.
 - Markdown export fixed start # Title + `[Source](<url>)`; images absolute gateway URLs rewritten to `/api/v1/lark/raw/documents/…`.
-- Each list item separate `bulletList` / `orderedList`, continue numbering across siblings. Table colwidth pixels; implement rowspan placeholders. `FeishuDocRenderer.swift` / PersonaTests/FeishuDocsTests.swift.
+- Each list item separate `bulletList` / `orderedList`, continue numbering across siblings. Table colwidth pixels; implement rowspan placeholders.
 - `authority.copy=false` disables selection.
 
 ### Calendar / meetings / Minutes
@@ -102,7 +88,7 @@ Gateway x-multi-account `GET /agent/v1/accounts`; choose account via gateway hea
 
 Topic replies (`GET /agent/v1/messages/:messageId/thread`) page only backward: the gateway returns the latest page or the one before `beforePosition`, never a newer page (source review: `docs/archive/extensions/feishu-records.md`).
 
-Hub topic route therefore has no after yet. Ordinary messages support `afterPosition`, but topic replies use independent `threadPosition`; cannot borrow ordinary cursor or append latest page as continuous. Android ↓ Latest Replies reloads / replaces current window; older pagination / post-reply refresh unchanged. Add newer pagination once upstream fetch / query / cursor contract exists. No real Lark / live hub accessed; conclusions from source review.
+Hub topic route therefore has no after yet. Ordinary messages support `afterPosition`, but topic replies use independent `threadPosition`; cannot borrow ordinary cursor or append latest page as continuous. Add newer pagination once upstream fetch / query / cursor contract exists. No real Lark / live hub accessed; conclusions from source review.
 
 ### lark-cli Inbox conversation details
 

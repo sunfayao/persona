@@ -350,9 +350,6 @@ A new route rather than a new mode of `search=`:
   Agent chats); a session outside the list opens by id.
   A stopped session offers Continue: `POST /api/v1/sessions` with `resume_session_id` in its folder
   (`docs/protocol/protocol.md`: `claude --resume`, `codex resume`).
-- **iOS**: the Agents page's search field (`docs/apple/ios.md`) gets the same row at the end of its matches, a results
-  page with the coverage line, and the `?at=` landing it has for assistant chats, extended to Agent chats.
-- **Android**: the Agents page's search box (`docs/android/android.md`), the same row, page and landing.
 - New strings in `en`, `zh-Hans` and `ja`; screenshots in dark and light before merging.
 
 ### 9. The assistant's tool

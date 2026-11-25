@@ -2931,8 +2931,8 @@ nothing ran the old build after the new one.
 
 - On a computer where Persona Link installed the resident node (`com.persona.node` → `~/.persona/bin/persona-node node
   --attach`), the `personad node --stdio` the hub starts over ssh only relays to it. A hub deploy replaces `personad`
-  on that computer, but the program that answers is still the resident one. `scripts/app/mac-link.sh install` installs
-  that resident node once (a Mac without one gets it: "Installed and started the resident node service") and leaves it
+  on that computer, but the program that answers is still the resident one. The resident node is installed
+  once (a Mac without one gets it: "Installed and started the resident node service") and leaves it
   alone after that ("already installed … leaving it unchanged", `docs/operations/node-update.md`).
 - So a node change can look deployed and still not run. The live screen's x264 probe (#8883) never reported on such a
   Mac: its resident node predated the probe. A first guess blamed a cached failed probe and changed the probe (#8989:

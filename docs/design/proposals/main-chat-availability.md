@@ -4,9 +4,7 @@ Status: built (#4757). The owner took decisions 1 to 5 of section 7 as recommend
 recommended. Every step of section 6 is merged: M1 (#4924), F1 (#4925), F2 (#4926), B1 (#4927), Q1 (#4928), R1 (#4929),
 R2 (#4930), B2 on the web, the Apple apps and Android (#5082, #5083, #5084), R3 (#5085) and K1 (#5086). Follow-ups:
 the clients' part of R1 (#5802), R2 (#5803) and R3 (#5804), the tier-down suggestion (#5805, built), purpose descriptions in
-Model Settings (#5806), and verification on real builds and a live install (#5807). The Apple apps' part of #5802 to
-#5804 and of #5806 is in `docs/apple/ios.md` ("Suggested standing rule and held decisions", "Briefing card",
-"Background supervisor"); its check on a simulator is part of #5807. Covers the assistant
+Model Settings (#5806), and verification on real builds and a live install (#5807). Covers the assistant
 manager and its prompts; the clients change only where a step says so.
 
 ## 1. Goal
@@ -111,12 +109,6 @@ work out as today; it no longer receives supervision messages for it.
   each `review` entry marked `by: "background"` (the mark #5084 added) as one line. The model
   purpose `assistant.supervise` stayed out of the catalog `GET /api/v1/model-config` returns (until #5806) and is read
   by its own id beside it.
-- **As built on Android (step B2, #5084)** (`docs/android/android.md` "The background supervisor (#5084)"): that app's
-  drawer has no group of its own for scheduled tasks' conversations (they are under All chats), so the conversation is
-  under All chats with them. The feed's `review` entry did not say who wrote it, so this step adds `by: "background"`
-  to the entry of a review the background supervisor wrote (`reviewFeedBody.By`), and the app draws exactly those as one
-  line; against a hub without the mark every review stays in the background record as before. The hub's model catalog
-  left `assistant.supervise` out (until #5806), so the app asks for it by its ID to list it.
 
 Alternatives considered:
 

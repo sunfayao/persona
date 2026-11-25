@@ -44,15 +44,9 @@ The hub and the relay are both in the public repository (`server/internal/hub`, 
 
 If you have an always-on computer, put the hub on it. A laptop works as the hub too, but when the lid is closed and it sleeps, your phone can't connect.
 
-## Install the App
+## Open Persona
 
-| Device | How to install |
-| --- | --- |
-| iPhone (iOS 26 or later) | [TestFlight public beta](https://testflight.apple.com/join/vsjfy3hE): install TestFlight from the App Store first, then tap this link. The App is called Persona Side |
-| Apple Watch | Installs along with the iPhone version |
-| Web | Nothing to install: once the hub is set up, open the hub's address in a browser (explained below). On a computer you can also install it as an app ([web.md](../web/web.md), "On computers") |
-| Android | No public package yet; build it yourself ([android.md](../android/android.md)) |
-| Desktop app | Electron around the hub-hosted web UI ([desktop.md](../desktop/desktop.md)); no local node is required just to chat or use Agents on another computer. A computer whose Agents Persona should reach also needs the separately installed Persona Link ("Connect a computer" below) |
+Persona is a web app: once the hub is set up, open the hub's address in a browser (explained below). On a computer you can also install it as an app ([web.md](../web/web.md), "On computers"). No local node is required just to chat or use Agents on another computer. A computer whose Agents Persona should reach also needs the separately installed Persona Link ("Connect a computer" below).
 
 ## Install the hub: paste one command
 
@@ -131,9 +125,9 @@ To add another computer (say, your Mac laptop), do it on the web:
 2. Choose that computer's system and give it a name, for example "My MacBook".
 3. Follow the on-screen instructions on that computer; each system is different:
    - **Linux**: copy the line on screen, open a terminal on that computer, paste, press Return. It installs Persona's background service and connects by itself.
-   - **Mac**: you first need the independently installed Persona Link background service. There's no signed package yet, so you build its helpers from source: that needs Xcode and Go. Follow [persona-link-install.md](persona-link-install.md) step by step.
-     Once installed, send the pairing link to that Mac (with **Copy Pairing Link** or **Share…**) and use the optional Electron setup window or the `persona-link pair` command shown there. Link starts at login and does not need a menu bar app.
-   - **Windows**: build two programs yourself, then paste one line in PowerShell ([windows.md](windows.md)). The optional Electron desktop is separate from Link and is not required by its scheduled task.
+   - **Mac**: you first need the independently installed Persona Link background service. Follow [persona-link-install.md](persona-link-install.md) step by step.
+     Once installed, send the pairing link to that Mac (with **Copy Pairing Link** or **Share…**) and use the `persona-link pair` command shown there. Link starts at login and does not need a menu bar app.
+   - **Windows**: build two programs yourself, then paste one line in PowerShell ([windows.md](windows.md)).
 4. Once that computer connects, the same screen asks "A computer wants to join: <name>. Is it yours?". If it's yours click **It's mine**; if you don't recognize it click **No, remove**.
 
 Why confirm again: if someone else gets hold of the pairing link, their computer can connect too. Until you confirm, the computer gets none of your model keys and Persona won't do work on it; if it isn't confirmed within 24 hours, it's removed automatically.
@@ -141,7 +135,7 @@ So only send the pairing link to your own computers; don't paste it in a group c
 
 Closing that screen is fine: the computer's card in the machine list shows an orange notice, and you can confirm or remove it there.
 
-**Add Computer** on iPhone and Android is still in progress; use the web for now. On iPhone, you can first sign in to the web version in a computer's browser as described in the previous section.
+Use **Add Computer** on the web.
 
 ## Connect a model
 
@@ -158,7 +152,7 @@ Pick a path based on what you have:
 The list currently has: Anthropic official, DeepSeek, Kimi (Moonshot AI), Zhipu GLM, Alibaba Cloud Model Studio (Qwen), MiniMax, and Grok (xAI); Kimi and MiniMax also have international editions.
 The ones marked as directly available in mainland China can be opened with a Chinese phone number and payment method; Anthropic official, Grok and the two international editions need an overseas account and payment method. If none fit, choose **Custom compatible gateway** at the end of the list.
 
-**Settings › Model Providers** on iPhone and Android can add providers too, but the new "pick a vendor, just paste the key" wizard is still in progress, so the web is easiest for now.
+The web has the "pick a vendor, just paste the key" wizard.
 ## What the cards above the main chat mean
 
 In the web version's main chat, when something isn't connected yet, a card appears above the input box saying which step is missing, with a button. The send button also changes to text like **Add a computer first** or **Connect a model first**; clicking it takes you straight to that step.
@@ -176,20 +170,17 @@ What you typed stays in the input box, to send once things are connected. When t
 
 If it fails only after sending, the card appears under that message, worded the same as in the table. Open **Details** to see the raw error; screenshot that when asking someone for help.
 
-These cards on iPhone and Android are still in progress; there you'll only see the error after sending.
-
 ## What isn't possible yet, and what still needs the terminal
 
 - Installing the hub means pasting one command in that computer's terminal, once.
 - A new pairing code for a phone, when no other phone or tablet is still connected, takes one command in the hub machine's terminal ("Pair again").
 - A Mac as the hub needs Docker Desktop or OrbStack first.
-- Persona Link on the Mac, the Mac App, the Android App and the Windows programs have no packages yet; you build them yourself.
+- The Windows programs have no packages yet; you build them yourself.
 - Installing Claude Code on a computer and signing in to Claude Code each have to be done once in that computer's terminal.
 - With only an API key and no computer, the main chat doesn't work; you must connect a computer that has Claude Code.
 - The NAS install package needs a GitHub login to download.
 - Connecting back home while out needs a VPN you set up yourself; direct IPv6 also needs one command run in the hub machine's terminal.
 - If Claude Code was installed on the hub machine only after the hub, rerun `personad hub setup` to add it as a computer, or add it by hand (see "Advanced").
-- Add Computer, the new model wizard and the cards on the main chat are only on the web for now; iPhone and Android are in progress.
 
 ## Advanced
 

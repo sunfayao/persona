@@ -2,8 +2,7 @@
 
 A message forwarded from one chat to another (#3807) carries the original in a `<persona-context kind="forward">` block
 before the note the user typed. The format is in [protocol.md](../../../docs/protocol/protocol.md), "Forwarded messages".
-The iOS app (`apple/Persona/Views/Chat/Forward.swift`, `ContextRef` in `apple/Persona/Views/Link/LinkSheet.swift`)
-writes and reads these blocks and checks them against these cases; the web app and Android follow the same cases.
+The web app writes and reads these blocks and follows these cases.
 
 ## Rules
 

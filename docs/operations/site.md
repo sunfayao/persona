@@ -69,9 +69,9 @@ that statement whenever the cookie behavior changes.
   for people deciding whether to try Persona; the docs are for the rest.
 - **State colors keep their app meaning**: red needs you, amber working, green done, also for the packets moving on
   the diagrams.
-- **Assets** come from `scripts/assets/make_site_assets.py`: `site/public/img/recording.webp` and
-  `recording-en.webp` (copies of `docs/assets/readme/hero-dark.zh-CN.webp` and `hero-dark.webp` for the matching page
-  language), `site/public/img/paper.webp` (the mascot cut from the Apple Vision Pro icon's front layer) and `site/public/fonts/persona-serif.woff`, Noto Serif CJK SC Bold cut down to the characters of
+- **Assets**: `site/public/img/recording.webp` and `recording-en.webp` (the home page's recording for the matching page
+  language) and `site/public/img/paper.webp` (the mascot) are committed images; `site/public/fonts/persona-serif.woff`
+  comes from `scripts/assets/make_site_assets.py`: Noto Serif CJK SC Bold cut down to the characters of
   the **Chinese** pages' `h1`, `h2` and `.hello`. English headings use the system serif stack (`Iowan Old Style`,
   Palatino, Georgia), so they need no downloaded CJK or new Latin font and are deliberately not inputs to the subsetter.
   **After editing any Chinese text in those elements, run `python3 scripts/assets/make_site_assets.py serif`**, or the
@@ -96,7 +96,6 @@ The privacy and terms pages describe the self-hosted app independently of its di
 `/#contact` in Chinese and `/en/#contact` in English, each home page's existing product-support footer, which offers email
 and issue reporting. Keep those anchors stable and verify the whole route, not just an HTTP 200 from the legal page.
 `site/worker.test.mjs` pins the Chinese links and their destination, and `site/i18n.test.mjs` keeps the English pair in step.
-The App Store review notes give the Release-compatible offline demo entry and its limits (`release.md`, "External testing").
 
 ## Extensions page
 

@@ -220,8 +220,6 @@ For the step 4 notice, check readiness both before saving and after refetching: 
 
 **C. Has neither**: one screen, "Where to get a model." Sort built-in presets by request language (Chinese lists providers available directly in China first; other languages list Anthropic first). Give each a one-sentence explanation and "Sign up" (open `signup_url` in the in-app browser); on return, proceed to B. Leave out direct-API presets (Grok): signing up there gives no main chat. Beside it, offer "Try demo first." No affiliate links; recommendations and order are decision 11.
 
-Android implementation (#4297; details in `docs/android/android.md`, "Onboarding: model, devices, computers"): when hub has `builtin_presets`, use the same three steps as web, including the direct-API exception above. Differences: "Where to get a key" opens `signup_url` in the system browser (Settings has no in-app browser); while readiness is pending, a Claude-compatible preset's switch area says "Checking…" and saving waits for the result. Old hubs retain "Enter manually / Add from extension"; connection tests and fetching model lists exist only in the custom-gateway form.
-
 #### Built-in presets
 
 - Add an embedded presets_builtin.json under `server/internal/assistant/`, using `assistantwire.LauncherPreset` (`assistantwire/models.go:61-75`), `plugin: "builtin"`, and IDs `builtin/<vendor>`. Add two optional fields: `signup_url`, `name_zh` (or an i18n key).
@@ -261,8 +259,6 @@ Differences and additions in the implementation (#4253, `assistant/schedule_read
 **After setup**: when "Try a message" succeeds, main chat shows a locally written welcome (no model cost) and three small tappable tasks, chosen from connected capabilities: "Find the largest folders on this computer," "What's on my calendar today?" (request phone calendar permission only on tap), and "Help me connect email."
 
 Web implementation (#3847; details in `docs/web/web.md`, "What the main chat still needs") differs as follows: the message that failed stays in the chat as a failed bubble with Retry and Delete, as in the apps (#1122), and the card's Retry retries it. `add_computer` opens the Machines page's add flow in place when hub has `machines_add`; old hubs show an explanatory dialog with "Open admin UI" (hub's `/admin/machines`). `confirm_computer` opens that pending computer's confirmation UI in place (#4037). The zero-computer Overview empty state is separate work in #3729.
-
-Android implementation (#4032; details in `docs/android/android.md`, "What the main chat is still missing") differs as follows: failed-send cards appear only when starting main chat is rejected (409 `no_machine` / `machine_pending` / `claude_missing` / `launcher_missing` / `not_logged_in` / `auth_failed`). The message remains "Not sent," with a card pinned below, the step's button, and "Retry" (refetch readiness first; if still incomplete, open that step without resending). These messages previously stayed queued forever; after hub rejects them, creation is no longer retried. Before item 16 in 7.2 merges, `add_computer` shows an explanation pointing to web **Machines › Add computer** (from #4297 it opens the in-app add-computer page, and `confirm_computer` opens that computer's confirmation; see "Android implementation" after 5.3 below). "Try a message" uses `?probe=1`, like web, without opening a real main-chat turn. The full-page checklist after first pairing has no navigation; `connect_model` / `edit_provider` opens a "How to connect a model" explanation (no "Connect model" or "Use an API key" buttons, only "Got it"); `confirm_computer` has no button. Only "Skip unfinished items" sends `dismiss`; "Done" does not.
 
 #### "Chat only" mode (P1, a separate issue, decision 9)
 
@@ -526,9 +522,6 @@ or {"machine": "example-macbook"}            Regenerate a code for an existing l
   (`pending` / `confirmed`), plus `name` and `added`. If hub does not know its release website (local build, Docker image), omit `install`. A main-token request with nonexistent `machine` returns 400 `unknown_machine`.
   Receipt notification text includes the computer name: "<device> generated a pairing code for computer '<name>'." The notification's "Not you? Revoke" button is not implemented yet (requires notification categories on each client).
 
-- Android implementation (#4297): follow web's add-computer flow, with confirmation on the "Waiting for it to connect" screen. Add through the selected hub group; regenerate, confirm, and reject through the machine's group by machine ID. Without `machines_add`, the add-computer page only explains how to add on web or in the admin UI (no longer a dialog). The web login URL in **Settings › Devices › Connect new device** uses the address this phone uses to connect to hub. "Regenerate link" is available only for computers with `error_code: never_connected` (regeneration invalidates existing pairing; sleeping computers only need waking). Entering from "Confirm computer" with none awaiting confirmation shows "No computers awaiting confirmation," not the add form. The Machines "+" and empty-state "Add computer" open the add page only with `machines_add`; old hubs retain the explanation dialog. If `expires_at` is unreadable, already expired relative to the phone clock, or more than 10 minutes ahead, count 10 minutes from now using the phone clock.
-
-- iOS / macOS implementation (#4196): follow web's flow and copy, with confirmation on the same waiting screen. "Regenerate link" likewise appears only for pending computers that have never connected. Without `machines_add`, show no add entry point (Machines retains its original empty-state copy); without `machine_trust`, show no confirm / reject buttons. Other pages (readiness-card `add_computer` / `confirm_computer`) open through `AppModel.openAddComputer()` / `openConfirmComputer(_:)`; see `docs/apple/ios.md` ("Add and confirm computers").
 
 Add two optional fields to every machine in the list (`GET /api/v1/machines` and hello machines):
 
@@ -676,7 +669,6 @@ Separate P1 issues: "Chat only" mode (after decision 9), node `claude.install`, 
 ### 7.3 iOS / macOS work assigned to a Mac
 
 Each issue references the protocol in section 5 and states "The Linux development machine cannot compile Swift; note in the PR if Xcode 26.0 was not verified." UI uses only the design system (`.surface`, `EmptyStateView(action:)`, `Theme.*`); do not raise the `TokenRatchetTests` baseline. Single-line buttons; light and dark screenshots.
-The retired native Mac app was frozen ([mac.md](../archive/apple/mac.md)): in M1–M4 and M6, it received only what the shared iOS code brought. M5 is Persona Link, which remains independently installable and is not frozen ([desktop.md](../desktop/desktop.md)).
 
 | # | Title | Changes | Acceptance |
 | --- | --- | --- | --- |

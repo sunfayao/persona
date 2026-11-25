@@ -51,4 +51,3 @@ made up.
 
 - Go: `server/internal/screenlink` `TestTheUDPWireMatchesTheSharedCases` (`go test ./internal/screenlink`).
   `PERSONA_WRITE_UDP_FIXTURES=1` writes `cases.json` from the test's cases.
-- iOS: `apple/Packages/PersonaScreenKit`, with the phone's side of the flow.

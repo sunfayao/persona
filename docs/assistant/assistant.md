@@ -485,7 +485,7 @@ With over ten Agents running, most mid-task questions concern internal choices t
 - **Audit and changing answers**: triage answers sent to Agents explain "The assistant answered for me under my rules (reason: …); I may change my answer later" (`prompts/agents/answer.md`); task chat activity says "Assistant answered: X, because Y". Don't record delegation as to-do decisions (those are the user's). To change: `POST /api/v1/interactions/{id}/reanswer {answers}` (hub forwards to manager; card-answer-only devices can't use it). The Agent has already acted, so send the new answer as a message (`prompts/agents/reanswer.md`, including original assistant answer), broadcast `interaction_reanswered`, and record the user answer in task history / decisions.
 - **Statistics**: each evaluation writes `session_work_events` (`delegate_answered` / `delegate_asked` / `delegate_failed`), shown with triage statistics.
 - **Manager restart while deciding** (#2587): `delegating` and the background decision live in the manager's memory, and a restored card comes back with neither (`restoreInteractions` does not know whether it rang). So `delegate` records `delegate_start` (the card id) in `session_work_events`, and `delegateNow` records `delegate_end` once it has decided: after the assistant's answer, and before the user is told on a hand-over, so a restart right after does not push twice. No migration. As the next manager starts, `resumeDelegations` takes the restored cards whose latest mark is `delegate_start` (within 24 hours) and that do not find a supervisor route again (`restoreRoute`, "Asks go to the supervisor first" in `docs/assistant/unified-entry.md`); a hook that claims its card before the hub's handshake gets the same, from `waitInteraction`. within `timeout_seconds` of that start the assistant decides again for the time left (the card is `delegating` in the hub's first full list); past it, or when delegation is now off or the question repeats, the card goes to the user through the usual push / bot / channel path (`escalate`), recording `delegate_failed` with reason `restart` when it was the time. Restored cards without an open start were told before the restart and are not told again. Only resumable hook cards (Claude Code) are restored this way; a Codex card a node lists again after a restart goes through `announce` again (`codexAnnounced` starts empty), so it is delegated anew.
-- **Client UI**: web has "Assistant is looking", the `delegate` context and "Change answer", plus the delegated answers in **Session info** (#544, `docs/web/web.md` "Pages"); iOS / Mac have the same (`docs/apple/ios.md`, "Information architecture"). Android has the same pending-card looking/context presentation (#544, `docs/android/android.md` "Session controls, session origin and capabilities") and already has Change Answer.
+- **Client UI**: web has "Assistant is looking", the `delegate` context and "Change answer", plus the delegated answers in **Session info** (#544, `docs/web/web.md` "Pages").
 
 ## Asking without holding the turn (#4928)
 
@@ -1161,7 +1161,7 @@ Why archive and not delete or hide in place: the old conversation's id is what o
 `former` keeps the last 10 main conversations put away, by New main chat and Clear context alike: someone who clears often pushes older ones out sooner, and those are then ordinary archived conversations (still listed while their machine lists them, still found by id).
 Why no confirmation: nothing is lost (`docs/design/DESIGN_SYSTEM.md` 4.4, the reversible rung), and Cindy's `/clear` asks nothing either. "New main chat…" stays for carrying a summary over.
 
-Android offers it in the main chat's title menu and as `/clear` in its composer (`docs/android/android.md`). iOS offers it in the avatar menu and the sidebar main-chat long press, and as `/clear` where that composer offers commands (#5100). Without `assistant_main_clear` none of it shows. After it, the page stays an empty conversation (the same top bar and composer); the first message starts the new main chat. A 409 `main_changed` refreshes and shows what the hub has.
+Without `assistant_main_clear` none of it shows. After it, the page stays an empty conversation (the same top bar and composer); the first message starts the new main chat. A 409 `main_changed` refreshes and shows what the hub has.
 
 ## Scheduled tasks
 
@@ -1724,10 +1724,9 @@ operation then read as accepted and the bubble waited for the transcript and wen
   It shows "Waits for this conversation's current work to finish" (`wait_idle`): a session list that still shows the
   conversation working does not wake it, one that shows it settled sends it at once, and that send resolves the role
   again, so it starts the process on the new role. Other 409 refusals are answered as before.
-- **Shown everywhere.** The row's `undelivered` (`proto.Session.Undelivered`) lists them; web, iOS and Android draw each as the
+- **Shown everywhere.** The row's `undelivered` (`proto.Session.Undelivered`) lists them; the web draws each as the
   owner's bubble marked "Not delivered", with why and "It will be sent automatically", and Delete; one that gave up
-  in red with Retry and Delete. Every device sees it, not only the one that sent it (`web/src/lib/undelivered.ts`;
-  Android `android/feature/chat/src/main/kotlin/persona/feature/chat/ChatUndeliveredBubble.kt`). On the web the line
+  in red with Retry and Delete. Every device sees it, not only the one that sent it (`web/src/lib/undelivered.ts`). On the web the line
   under the bubble, Retry and Delete are a chunk of their own (`web/src/views/chat/UndeliveredBubbles.tsx`, strings in
   `chat-undeliveredbubbles`), off the first screen; until it is in, the message shows as the owner's failed bubble alone,
   so it never blinks out (#10357).
@@ -1994,11 +1993,7 @@ supervisor" below, `setup_suggest_tier.go`); every rule of this section holds fo
   `public_url`; and the web app's briefing card, from the `setup` list of the run's `brief` item
   (`docs/protocol/protocol.md` ("Tasks and the chat feed")), with an **Open settings** button on the lines that have
   a page (`docs/web/web.md`). The model is also given the lines and copies them at the end of its answer when no
-  Lark card goes out, as it does the briefing's other rows. The Android app draws the `setup` list on its briefing
-  card too, with **Open settings** on the lines whose mechanism has a page there (#5802, `docs/android/android.md`
-  "Rule suggestions, held decisions, recommended setup and purpose descriptions"), and so do the Apple apps (#5804,
-  `docs/apple/ios.md` "Briefing card"), with a button on the lines whose mechanism has a page there (Session Triage,
-  the background supervisor's model). An app that does not draw `setup` leaves its owner, without
+  Lark card goes out, as it does the briefing's other rows. A client that does not draw `setup` leaves its owner, without
   the Lark card, to read the lines in the model's answer, which is the model's copy and not checked against the
   computed lines.
 - **Where a mechanism is turned on.** Session triage's three switches and the remembered kinds of task are on the
@@ -2616,36 +2611,6 @@ Differences:
 - Disconnected runtime (`dsh web` not running) returns `runtime_away` without sending anything.
 
 DSH details (permission preset mapping, persistent `dsh web`): `docs/integrations/dsh.md` ("Assistant"); end-to-end `integrations/dsh/e2e/assistant.mjs`.
-
-## Profile and avatar
-
-- Persona tab top-right avatar opens `AssistantProfileView`: identity / machine, Online / Working, three "Up Next" items,
-  proactive work (scheduled tasks, run history), knowing you (About Me, memory), settings (Skills, Run on, Working directory;
-  next-message suggestions on a supporting hub, off by default and hidden when the field is absent; model in Settings › Model
-  Configuration › Main chat, #1291), accessible data. Settings › Assistant opens the same page.
-- Scheduled tasks: "Up Next" timeline (large times on the left, like Reminders), "Scheduled tasks" (daily / interval, natural rules "Every weekday at 09:00", "Every 30 minutes"; a daily rule's time is 24-hour in every language, like the next run under it and the web, #7499),
-  "One-time follow-ups"; rows show icon, next run, nondefault execution ("claude-fast · Auto · Low effort", Allow Everything red), last result, switch; swipe delete, long-press Run now,
-  recent runs. Shared editor: repeat (Once / Daily / Interval), prompt, execution (model, permission, effort), Continue original chat (toggle off for new chats each run),
-  Run now, history.
-- Task-created chats live on Scheduled tasks (#2838, same web #2824 rules, `AssistantTaskChats`): iOS / Mac Recent excludes them (except the open chat,
-  which keeps a row; pinned unchanged). Each task shows up to 3 links like "Today 09:03". Identify by `run_session_id` / `last_session_id`
-  and `/assistant/runs` `session_id`, excluding task `session_id` (continued originating chats are user-owned). History retains 200 runs; older chats match hub titles
-  `MMDD | Scheduled | Task name` (mutual prefixes accepted for truncated names; Scheduled alone isn't enough, since model can classify user chats that way). Reread tasks / runs on sidebar appearance and chat-count changes.
-- Avatar is SwiftUI (`AssistantAvatar`), not bitmap. Default since 2026-11-03 is **Mochi** (white waving dumpling in the App icon, icon colors independent of theme; `docs/apple/persona.md` ("Built-in drawing"));
-  the alternatives below follow theme accent. Four earlier candidates (`-tab assistant -openAssistantPage avatars` compares):
-  **Visor** (default before 2026-11-03, now optional: accent disc + dark mask, two glowing eyes, upper-right spark echoing App icon; working eyes scan side to side),
-  **Circuit** (B2 selected from tech-style icon candidates 2026-10-31, made optional not default 11-01: on a dark accent circle, traces from three left pads
-  flow into a two-eyed core, representing computer Agents converging in Persona; working signals flow along traces),
-  Spark (App-icon spark in a dark circle, too similar to the icon and button-like small), Halo (broken HUD ring + glowing core, cool but cold, details blur at 28pt).
-  Not beside messages (full-width assistant replies would lose a column), nor notifications (requires Notification Service Extension + communication notification, separate work).
-- Since 2026-10-31 avatar / name can change (Settings › Appearance › Avatar, `docs/apple/persona.md`; avatar colors used only with "Match Avatar" theme). Visor is default, Circuit next and selectable. Both animate by top-bar state:
-  idle blinks, thinking looks up with thought bubble, working Visor scans / Circuit signals flow along three traces, Needs you red breathing outer ring, offline gray.
-
-## Android entry points
-
-Android management lives in Settings › Assistant (`docs/android/android.md` ("Assistant settings")): Settings "Assistant › Persona", Persona title-menu "Assistant settings", top-right avatar, and drawer "Profile" all open it. Content: Run on (machine, working directory, machine switch; launcher / model in Model Configuration › Main chat, #1291), data location, knowing you (About Me, memory), timezone (phone default), accessible data; proactive work (scheduled tasks, follow-ups, run history) is separate, added here after integration.
-
-Unlike iOS, Android can switch the assistant machine. Warn "Memory and chat history stay on the old computer and won't follow", and send `"main":"-"` in the same `PUT /api/v1/assistant` to clear main chat. hub doesn't change `main` on machine changes; without clearing, the App combines old `main` with the new machine and seeks nonexistent history.
 
 ## Tests
 

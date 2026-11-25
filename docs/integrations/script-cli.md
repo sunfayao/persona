@@ -202,7 +202,6 @@ Delivery goes through APNs (direct or via the push relay) and the persistent con
   `server/internal/assistant/outside_decisions_test.go` (manager lifecycle, idempotency, caller isolation, fixed answers, defaults, withdrawal and restart); `server/internal/hub/outside_decisions_scope_test.go` (explicit `decisions.raise` scope and missing-scope 403);
   `server/internal/hub/notify_api_test.go` (`silent`, `notify` from node: muting, preferences, no extension fields, the body cut to fit the push).
 - Direction unit tests: `server/internal/scriptcli/direction_test.go` and `server/internal/nodeclient/script_direction_test.go` (exact wire payloads, interspersed flags and `--`, machine/session pairs, links-only rejection, ordered links containing commas, no dial on usage errors, compact stdout, stderr and exit codes, malformed and old-node replies, deadlines, interruption and no automatic second request); `server/internal/nodecmd/direction_test.go` checks device-command dispatch.
-- `apple/PersonaTests/PlanPermissionTests.swift` (`ScriptAskMarkdownTests`) covers the optional wire field, both card kinds and visual styles, and plain defaults; `web/src/views/chat/Interactions.markdown.test.tsx` covers the same behavior on the web, including the original answer key.
 - The real `personad` binary was run against a fake node socket to check the exit codes and wire JSON of `ask` / `notify` (without touching a real node or phone).
 - Not done: end-to-end against a real hub + phone (by convention, tests don't send real notifications).
 

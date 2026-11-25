@@ -20,14 +20,12 @@ Section 6 and the lines it changes were re-checked on `origin/main` at 81361c1dd
   TodoCounts on `GET /api/v1/todos`, which `hub/todo_view.go` adds up across managers; the direction tree's counts; and
   per-row numbers (`pending_interactions`, the children rollup). The hub's own counts are only the sessionlist state
   maps and the catalog (`counts=1`, `with_counts=1`, `catalog=1`). The hello, health and every push carry no count:
-  nothing in `server/internal/hub` sets `aps.badge`, and no Android code calls `setNumber`.
+  nothing in `server/internal/hub` sets `aps.badge`.
 - **So every badge is counted by the client that draws it, from raw lists.** "Agents that need you" alone is counted by
-  **19 functions in five codebases**. Server: `needsYou` with `liveCounts` (`assistant/fleet_live.go`), `linkAttention`
-  (`assistant/fleet_attention.go`), `addCount` (`sessionlist/query.go`). iOS: `AgentsNeedsYou.badge`,
-  `AgentsNeedsYou.rows` for the section, `AssistantBadges.waiting`, `WatchPet.status`, `IntentPicker.waiting`. Android:
-  `ShellCounts.agentRows`, `agentNeedsYouRows`, `ManagerRoster.waiting`, `NeedsYou.kt` `needsYou`. Web: `stateCounts`,
+  **19 functions in five codebases** when this plan was written, of which the server's and the web's are kept here. Server: `needsYou` with `liveCounts` (`assistant/fleet_live.go`), `linkAttention`
+  (`assistant/fleet_attention.go`), `addCount` (`sessionlist/query.go`). Web: `stateCounts`,
   manager-attention's `waitingAgents`, `islandState`, `filterCounts`, the Machines page's `agentCounts`, and inbox.ts's
-  `waitingAgents` (cards, labelled agents). Rust core: `sort::counts`.
+  `waitingAgents` (cards, labelled agents).
 - **The same label shows different numbers for the same data:**
 
   | One thing waiting | iPhone / Android Agents badge | Web title, favicon, Dock | Persona Link | Live Activity |
@@ -50,11 +48,10 @@ Section 6 and the lines it changes were re-checked on `origin/main` at 81361c1dd
   to-do, shelved ones too, on iOS release builds and Android (`TodoStore.badgeCount`, `ShellCounts.todos`); the hub's N
   on iOS behind the V1 gate (`TodoFeatures.released = false`); to-dos due today or overdue, across every assistant, on
   the Apple widget.
-- **Text in the code and docs contradicts the code.** `InboxStore.actionCount`'s comment, `docs/apple/home-widgets.md`
-  ("What each number counts") and the `assistantwire.InboxNeedsYou` comment each say they are "the Inbox badge"; the
+- **Text in the code and docs contradicts the code.** The `assistantwire.InboxNeedsYou` comment says it is "the Inbox badge"; the
   badge reads `unreadCount`. `TodoCounts.needs_you`'s schema text says the To-dos row shows it; no release client reads
   it. `DESIGN_SYSTEM.md` 3.8 says the tab badge is "the same number the row and the list's Needs You show", while
-  `spec/fixtures/needs-you` pins a split (`muted_and_quiet_agents_are_rows_but_not_on_the_badge`).
+  the needs-you cases pinned a split (`muted_and_quiet_agents_are_rows_but_not_on_the_badge`).
 - **Why it happened.** Each surface got its rule when it shipped. The fixtures pin single surfaces (needs-you: the
   Agents tab; attention: Link; todo-counts: the list), some pin splits on purpose (`TestLiveActivityKeepsItsOwnCount`),
   and no test compares surfaces, which `docs/design/proposals/owner-at-a-glance.md` G3 asks for. The one hub-sent count
@@ -74,21 +71,8 @@ Paths in the server rows are under `server/internal`. Every row was checked at e
 | TodoCounts and places | manager: `assistant/todo/projection/list.go` Counts; hub sum: `hub/todo_view.go` | to-dos, linked sessions, cards | iOS only, behind the V1 gate (TodoCountsSource) | N is the Needs you section, each to-do once; quiet and Can wait are out; a step counts with its parent |
 | Direction tree counts | manager: `assistant/direction_tree.go` | todo_triage.go (triageCountsAsOpen) | web and Android leader rows | Tasks by tree state; quiet tasks included, unlike TodoCounts |
 | Row `pending_interactions`, state, children | manager: `assistant/fleet_sessions.go` decorateInventory, `assistant/fleet_fold.go` | pending cards, host status | every row | Per row; the basis of every state count. Possible gap, read from code only: the row count takes `s.fleet.interactions`, while pendingCards (`assistant/fleet_ix.go`) also merges session-review cards from the review store |
-| iOS Persona tab | `AppModel.countBadges` | cards in scope | tab badges (iPad, visionOS, iPhone Duo) | Cards on Persona conversations and on quiet tasks' agents (#1731), one each; muted and directory-hidden cards out |
-| iOS Agents tab | `AgentsNeedsYou.badge` | cards plus the sessions the app holds | Agents tab, top switch, sidebar, Home Agents widget | One per waiting session; a card on no session counts 1; Persona, quiet, muted and directory-hidden are out (hidden cards through directoryVisibleInteractions, hidden waits in `AgentsNeedsYou.waiting`). On a hub with bounded lists, sessions that wait with no card count only if loaded, and a card in a muted space counts if its row is not loaded (`TabBadges.place` reads the space from the rows the app holds; quiet falls back to the to-do list); the full read (readNeedsYou) feeds only the switcher, and only with several assistants |
-| iOS Agents section and filter | `AgentsNeedsYou.rows` (ChatsView) | the same | list header, filter chip | The badge's rows with muted and quiet kept; follows the machine and hub filters |
-| iOS Inbox | `InboxStore.unreadCount` / `actionCount` | inbox items in scope | tab, drawer row, icon / Inbox widget, face dot | Unread open action items / open action items, read or not |
-| iOS To-dos row | `TodoStore.sidebarCount` | to-dos in scope | drawer and sidebar | `badgeCount` (open and not quiet, any section) unless the V1 gate is on |
-| iOS switcher | `AssistantBadges.waiting` + `counts` | sessions, cards, roster | switcher, avatar dot | With several assistants: sessions once, each card on the session it names (`sessionKey`, not `requestHome`), so a waiting child counts apart from its parent; Persona conversations by their cards (`.assistant` counts); quiet, muted and directory-hidden out; a card on no session 1; plus `inbox_needs_you`. Where a bounded list is a window, it reads the hub's sessions in Needs you (readNeedsYou) |
-| iOS app icon | `AppIconBadge.count` | TabBadges, unreadCount | home screen | Persona + Agents + Inbox unread; set by the app only (`setBadgeCount`), so it goes stale while the app is not running |
-| Watch, Siri, visionOS | `WatchPet.status`; `IntentPicker.waiting`; `VisionShell` ornament | phone summary or own reads | frog and complication; Siri; ornament | Watch: card sessions plus needs_you sessions, muted and Persona included, unscoped. Siri: cards, one each. Ornament: Persona plus Agents |
-| Android Agents tab | `ShellCounts.agentRows` | cards, sessions | Agents badge | The iOS rule (`spec/fixtures/needs-you`) over the rows the app holds, except that Android reads no `hidden_by_directory`: a directory-hidden session's cards count on every hub (`fleet.interactions` carries every pending card, and HubInteractionCenter keeps them all), and its wait with no card counts on a hub without bounded lists, whose inventory keeps the marked rows (bounded lists leave them out). On a hub with bounded lists, until the Agents page is shown in a run, those are the 50 most recently updated (`HubSessionsRepository` firstPage, Mode.Paged; the cold-start snapshot is cut to 50 too): only that page asks for the complete list (`requiresCompleteMembership`, set while it is observed). Outside them, a session that waits with no card is not counted, and a card counts even if its task is quiet or its space muted, both read from the row |
-| Android Persona tab | `Root.kt` assistantRequests.size | cards | not drawn on Glass | Cards on Persona conversations only; a quiet task's card is on no tab |
-| Android page and others | `agentNeedsYouRows`; `inboxUnreadCount`; `ShellCounts.todos`; `ManagerRoster.waiting` | | Agents header; sidebar Inbox and To-dos; switcher | Muted and quiet kept; unread action items, minus read Lark rows; open and not quiet; with several assistants, sessions once, Persona conversations counted (no `assistant` check, for cards or for sessions in Needs you), quiet and muted out as the tab reads them, a card of a session the app does not hold 1 each (outside the 50-row window, one per card), plus `inbox_needs_you`. The header and the switcher keep directory-hidden sessions, as the tab does |
 | Web Agents badge | `web/src/lib/sessions.ts` stateCounts / useCounts; `web/src/lib/current-assistant.ts` useScopedCounts | rows, or the hub's `state.needs_you` | tab title, favicon, Electron Dock (unscoped); sidebar Home, ShellSwitch (scoped) | Without bounded lists: quiet out, muted in, no sessionless cards. With them (the default): the hub's number, quiet and muted in (`quietCounted: true`) |
 | Web Inbox, To-dos, switcher | `web/src/lib/inbox.ts` badgeCount; `web/src/lib/todo-triage.ts` ownerBadge; `web/src/lib/manager-attention.ts` | items, to-dos, rows | sidebar rows, switcher | Unread action items; what waits on the owner; with several assistants, sessions once from the complete list (useFullAgentSessions), children folded, Persona conversations by their cards, a card on no session 1, quiet, muted and directory-hidden out, plus `inbox_needs_you` |
-| Desktop | `desktop/src/badge.ts`; `web/src/lib/desktop-island.ts` | the web's numbers | Dock and taskbar; notch island | The Dock shows the web's unscoped Agents number, and nothing resets it on sign-out. The island counts quiet and muted agents and background waits as working |
-| HarmonyOS and the Rust core | `native/app-core/crates/persona-core/src/sort/mod.rs` | projection input | HarmonyOS group headers only | Muted counted; background waits as idle; no quiet field. No badges on HarmonyOS |
 
 ## 3. Target
 
@@ -104,8 +88,8 @@ Paths in the server rows are under `server/internal`. Every row was checked at e
   *Revised 2026-11-22 in #10613:* a core with an adapter and a visitor in place of a package returning records.
 - **Each count has an id and a one-line definition** in a new doc, docs/protocol/counts.md (principle 3). An id starts
   with the rule of the client it replaces, so no number changes before its decision.
-- **The pilot is the Agents count.** `agents_needs_you` is `spec/fixtures/needs-you`'s badge rule as iOS computes it
-  (Android keeps directory-hidden sessions, section 2): one row per waiting session, folded to its parent; Persona
+- **The pilot is the Agents count.** `agents_needs_you` is the needs-you cases' badge rule
+  (section 2): one row per waiting session, folded to its parent; Persona
   conversations, quiet tasks' agents, muted agents and directory-hidden sessions (`docs/protocol/protocol.md`, "Agent
   directory visibility") left out; a card on no session counts 1. Its unit, one per session, is the one
   `docs/design/DESIGN_SYSTEM.md` ("One count, per session") takes from `docs/assistant/managers.md` ("Counts"). That
@@ -178,8 +162,7 @@ it draws.
    receipt) → confirmed (its key leaves the view); a failed act, or a key still listed 30 s after receipt, drops the
    entry, so the number honestly comes back and the card's own error says why.
 2. **Scope:** which managers and paired hubs a surface adds up (D2).
-3. **List-local counts:** filters, search and folds intersect `keys`. Their unfiltered value equals their label's count,
-   or is a `differs` row (section 3.5).
+3. **List-local counts:** filters, search and folds intersect `keys`. Their unfiltered value equals their label's count.
 4. **Drawing:** hidden at 0, `99+`, the favicon's `9+`, tone, dot or number.
 5. **Cold start and gaps:** the last view per hub and manager is persisted (Apple StateCache, Android DataStore, web
    storage) and drawn on the first frame as it is, with no new look; stale is a data state for diagnostics. `view: null`
@@ -213,19 +196,7 @@ and only those, since 51 open PRs touch it; the contract lives in docs/protocol/
 
 ### 3.5 The agreement check
 
-- **The definition** is `spec/fixtures/needs-you`, replayed by the manager package (authoritative) and by the iOS and
-  Android fallbacks. A fallback is today's rule, so its replay keeps its step-3 marks until step 13 deletes both; a
-  client that draws the view also replays a view-path case (the manager package's view for the fixture case, decoded and
-  drawn) that asserts the fixture value. **The surface table**, spec/fixtures/counts/surfaces.json, has one row per
-  surface in section 2 with its count id, scope, each client's code symbol and test, and per client `matches` (drawing
-  the view would show today's number) or `differs` (with the decision that settles it). A guard,
-  scripts/test/test_counts_surfaces.py, checks that every symbol exists, `matches` rows with the same label share one
-  id, the `differs` list only shrinks, and a hub-fed surface calls its fallback nowhere outside the fallback file.
-- **Replays:** each client's replay drives the functions its views call and, with a report switch, writes
-  `{lane, case, surface, value}`; scripts/test/counts_agreement.py compares the lanes, reading a fallback lane's marked
-  case as its known difference, not a failure. The scheduled main verification runs it
-  (`docs/operations/main-verification.md`). A live mock-hub check stays optional: it needs new tooling, since
-  `scripts/app/android.sh shots` writes images, not drawn numbers.
+- **The definition** is the manager package's own rule and tests (authoritative).
 
 ## 4. Steps
 
@@ -247,42 +218,16 @@ in 10 open PRs; one entry in one cell. *Gate:* docs tests, privacy scan. *Rollba
 except `DESIGN_SYSTEM.md` 3.8 against the needs-you fixture's split, since choosing between them is D6. Also correct the
 needs-you README's sentence that Android's section counts cards (it counts rows, `agentNeedsYouRows`) and the side-fold
 README, which names `assistant/fleet_fold_test.go` while the test is in `assistant/fleet_side_fold_test.go`. TodoCounts'
-description is schema text, so its four outputs are regenerated. *Conflict:* `InboxStore.swift` has 2 open PRs (#7495,
-#4512), `assistantwire/inbox.go` 3 (#9782d, #6539d, #4512), the rest none. *Gate:* none. *Rollback:* revert. *Done:*
+description is schema text, so its four outputs are regenerated. *Conflict:* `assistantwire/inbox.go` 3 (#9782d, #6539d, #4512), the rest none. *Gate:* none. *Rollback:* revert. *Done:*
 `scripts/gen/extension_schema.py --check` and the docs tests pass.
 
 *Landed (#11832):* every correction above, none skipped (no open PR rewrites those lines), plus the same claims in the
-`HomeInbox` comment, `docs/apple/ios.md` ("Counts"), `docs/assistant/managers.md` ("Badges") and the web side-fold
+`docs/assistant/managers.md` ("Badges") and the web side-fold
 replay's comment.
 
-**3. The Agents definition, pinned.** *Change:* every `spec/fixtures/needs-you` case gets `expected.badge_rows`, plus
-six cases: a child's card under its parent, a side folded under its parent, a quiet task's card, a directory-hidden card
-(counted nowhere), a delegating card (counts today; D11), an elicitation-only card (its session waits). The iOS and
-Android replays assert `badge_rows`. A replay that skips a filter its client's badge applies is changed to apply it,
-which changes no number: iOS's replay counts the badge from every pending card, while countBadges first drops
-directory-hidden ones. A client whose own counting fails a case is not fixed here, since that would change what it
-draws: the case is marked as that client's known difference, asserted at today's value and naming D1. The replay
-becomes the frozen fallback's (section 3.5), so the mark stays until step 13 deletes the fallback; the client's step (8
-or 9) adds a view-path case that asserts the fixture value instead. Android fails the directory-hidden card this way
-(it reads no `hidden_by_directory`).
-*Conflict:* the fixture and both replays have 0 open PRs. *Gate:* none. *Rollback:* revert. *Done:* Android
-`:core:domain:test --tests '*AgentsNeedsYouFixtureTest*'` (`--max-workers=4`) and iOS AgentsNeedsYouFixtureTests pass,
-each marked case at today's value, iOS on the implementer's own simulator.
+**3. (Dropped.)** The pinned needs-you fixture and the client replays went away with the native clients.
 
-*Landed (#11823):* `badge_rows` on every case and the six cases; iOS's replays (with `HomeWidgetTests`) now drop
-directory-hidden cards and fold sides as the app does, and the one mark is Android's on
-`a_directory_hidden_card_counts_nowhere` (D1); iOS needs none.
-
-**4. The surface table and the agreement report** (section 3.5). *Change:* spec/fixtures/counts (README, surfaces.json),
-the guard, the report switch in the existing replays, the lane differ, and entries in `scripts/ci/paths.py` and
-`scripts/ci/check_fast_map.py`. *Conflict:* new files; `spec/README.md` has 1 open PR (#5969d), `paths.py` and
-`check_fast_map.py` 0. *Gate:* none. *Rollback:* delete. *Done:* the guard passes and fails on each seeded violation
-(unit tests); the baseline count of `differs` rows is in the README.
-
-*Landed (#11900):* 32 rows, 26 of them `differs` (the baseline, in the README); the guard
-(`scripts/test/test_counts_surfaces.py`), `PERSONA_COUNTS_REPORT` in both needs-you replays, the differ
-(`scripts/test/counts_agreement.py`: iOS agrees on every case, Android on all but its D1 mark) and check-fast's rule.
-`scripts/ci/paths.py` needed no entry: CI's lanes already select every file (`spec/**`, and `**` for scripts).
+**4. (Dropped.)** The surface table and the cross-client agreement report went away with the native clients.
 
 **5. The counting core.** *Change:* the rules of needsYou, liveCounts and cardStands (`assistant/fleet_live.go`) and
 linkAttention's predicate (`assistant/fleet_attention.go`) move into fleetcount, with fleetcountadapt building its
@@ -324,42 +269,9 @@ order hello, machines, counts, then session lists; TestBroadcastTypes, `test_doc
 guard pass, apart from `TestHubAnswersOnlyItsOwnRoutes`, which already fails on main (#9485) and is compared with
 `origin/main`.
 
-**8. Android reads `agents_needs_you`.** *Change:* ShellCounts and the switcher's agents share read the view, with the
-overlay and the frozen fallback, and the switcher adds its Persona-conversation part by today's rule (section 3.3 item
-7), so a Persona conversation's card stays on it; HubManagers.kt decodes the generated type. Step 3's Android mark
-stays on the fallback's replay, which is unchanged, and a view-path case asserts the fixture value. **Visible** in two
-cases (section 2, Android rows). Wherever an Agent-folder hide rule matches a session that waits, on any hub: its
-cards, and on hubs without bounded lists its wait with no card, leave the badge and the switcher. On hubs with bounded
-lists while the app holds its 50-row window: sessions outside it that wait with no card now count, cards on unloaded
-quiet tasks' agents or in muted spaces leave, and the switcher counts such a session once, not once per card. That is
-the written rule (the needs-you fixture, and `docs/protocol/protocol.md` ("Agent directory visibility") for hidden
-sessions), applied under D1, with a self-check. *Conflict:* `ShellCounts.kt` and `HubManagers.kt` 0;
-`Root.kt` (#11660d, #5969d) is not touched. *Gate:* steps 3 to 7b, D1, D10 (mixed support) and D13 (a missing view),
-and the Inbox plan's step A4, which brings the Kotlin domain kit after the client domain guard and #13024 (section
-6.2). *Rollback:* revert, or turn off the hub feature. *Done:* ShellCountsTest, with a paged case (a wait with no card
-outside the window: counted from the view, not by the fallback), a hidden case (a directory-hidden session's card: left
-out by the view, counted by the fallback) and a switcher case (a Persona conversation's card counts with a view and
-without), AgentsNeedsYouFixtureTest (the marked case at today's value, the view-path case at the fixture's) and the
-surfaces replay pass; `scripts/app/android.sh shots` in three styles, light and dark, shows today's numbers where the
-list is complete and no hide rule matches a waiting session. *Revised 2026-11-22 in #10613:* it also waits for the
-Inbox step that brings the domain kit its reducer is built on.
+**8. (Dropped.)** The Android step went away with the native client.
 
-**9. iOS reads `agents_needs_you`.** *Change:* the tab badge and the switcher's agents share read the view, and the
-Home Agents widget's number, for the whole hub (D2), as is the app icon's; the switcher adds its
-Persona-conversation part by today's rule (section 3.3 item 7). Any iOS mark from step 3 stays on the fallback's
-replay, with a view-path case beside it. **Visible** in two cases. On hubs with bounded lists, the tab badge: sessions
-that wait with no card now count when not loaded, and a card in a muted space whose row is not loaded leaves. With
-several assistants, the switcher: where a session and a child folded under it both wait, it counts 1, not 2 (section
-2, iOS switcher). Both are the written rule, applied under D1, with a self-check. *Conflict:*
-`AppModel.swift` 4 (#11456d, #11282, #7517, #2051), `AssistantScope.swift` the four repair PRs, `HomeWidgetWriter.swift`
-and `AppIconBadge.swift` 0; `AgentsNeedsYouRows.swift`, which the four repair PRs touch, stays as it is, since the
-fallback and the list's section keep reading it. *Gate:* steps 3 to 7b, D1, D10 and D13, and PersonaDomainKit with
-the client domain guard (section 6.2); D2 for the widget. *Rollback:* revert. *Done:* AgentsNeedsYouFixtureTests
-(any marked case at today's value, the view-path case at the fixture's), AppIconBadgeTests, AssistantBadgesTests (a
-Persona conversation's card counts with a view and without) and
-HomeWidgetTests pass; the PR names the `docs/apple/performance.md` rules followed (P1, P4, P6) with countBadges timings
-before and after from an optimized build, light and dark screenshots, and the Xcode used. *Revised 2026-11-22 in
-#10613:* it also waits for the domain kit its reducer is built on.
+**9. (Dropped.)** The iOS step went away with the native client.
 
 **10. Web and desktop read `agents_needs_you`.** **Visible:** muted agents leave the tab title, favicon and Dock; cards
 on no session join; quiet agents leave on bounded hubs. Under D17 the same number also adds Persona's questions and
@@ -389,7 +301,7 @@ Persona tab, the app icon and the switchers' Persona-conversation part after D9;
 (alert pushes, the iOS Notification Service Extension, widget wakes) after D12. *Conflict:*
 `assistant/todo_projection.go` and `todo/projection` have 4 open PRs (#11179, #11168, #10809d, #9823), `todo-triage.ts`
 3; draft PRs #10809 and #9777 change what Needs you holds and must be reconciled. *Gate:* the named decision.
-*Rollback:* revert. *Done:* the count's rows in surfaces.json turn `matches`; the lane differ is green.
+*Rollback:* revert. *Done:* the count's tests pass.
 
 **13. Retire the fallbacks.** *Change:* when D14's window ends, delete each client's fallback file with its fixture
 replay and step-3 marks (the view-path cases stay); the hub keeps FleetState, `inbox_needs_you` and Link for old apps;
@@ -402,8 +314,6 @@ decision.
 | Measure | Now | Target |
 | --- | --- | --- |
 | Functions counting "agents that need you" | 19 (section 1) | 1 in the manager, plus one frozen fallback per client until step 13 (the switchers' Persona-conversation part stays local until step 12, D9) |
-| `differs` rows in surfaces.json | baseline recorded in step 4 | only shrinks; 0, or each row links a decision |
-| Cross-client agreement on the fixtures | not measured: the web replays no needs-you case, no lane compares surfaces | every lane's report equal, in the scheduled main verification |
 | `count_skew` per device-day: a drawn number unlike view plus overlay for over 5 s, per surface, no content, in Developing Persona packages (`docs/operations/developing-persona.md`) | no diagnostic | 0 before step 13 |
 | Tap to the tapping device's own badge (principle 7) | not measured | the same frame (Apple: under 16 ms on the main thread, optimized build) |
 | Card raised to the number drawn on another device | not measured | p95 at most 1 s on the mock hub, reported apart from execution latency |
@@ -424,7 +334,7 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
 
 ### 6.1 The decided list
 
-- **D1** The one Agents rule (#5974). *Decided 2026-11-22:* `spec/fixtures/needs-you`'s badge rule
+- **D1** The one Agents rule (#5974). *Decided 2026-11-22:* the needs-you cases' badge rule
   (`badge_rows`) counts every surface named "Agents that need you", the switchers' agents part included. Its other homes
   are `docs/design/DESIGN_SYSTEM.md` 4.8, the 11-10 entry "Needs You counts sessions" in `docs/design/DECISIONS.md` and
   `docs/protocol/protocol.md` ("Agent directory visibility"); `docs/assistant/managers.md` ("Counts") writes the
@@ -440,16 +350,13 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
   `assistantWaiting`, which mixes three units.
 - **D3** Persona Link's muted agents. *Decided 2026-11-22:* listed but not counted in `needs_you`. Cards on no
   session are counted (D1) and listed with an empty route, so a consumer opens the app; counted items come first, so
-  `more` is counted overflow. Nothing draws Link's number today (`desktop/src/link-contract.cts` passes on neither
-  `needs_you` nor its items), so nobody sees a change.
+  `more` is counted overflow. Nothing draws Link's number today, so nobody sees a change.
 - **D4** The Live Activity's headline. *Decided 2026-11-22:* `agents_needs_you` plus each Persona conversation
   with a standing card, counted once per conversation as today; FleetState keeps its shape (no part field). Cards on no
   session are counted and listed as `card:<id>` items: older apps open `persona://open` for them (`FleetLink.url` falls
   back when an id has no `/`), and Allow / Deny still work through the interaction id. Held cards follow D11, the scope
-  D2. `docs/apple/live-activity.md` writes down the two differences left against the app icon: quiet tasks' questions,
-  and one count per conversation rather than per card.
-- **D5** The `surfaces` map. *Decided 2026-11-22:* no map. Each client names the ids it draws, and
-  `spec/fixtures/counts/surfaces.json` with its guard stays the one table: a `{surface: id}` map carries neither a scope
+  D2.
+- **D5** The `surfaces` map. *Decided 2026-11-22:* no map. Each client names the ids it draws: a `{surface: id}` map carries neither a scope
   nor a sum (the app icon draws three ids). Under D7 both Inbox ids stay ones clients know, so no remap is pending.
   Reopened only for a decided remap that must reach every device at once; the field would then be a pure optional
   addition.
@@ -463,7 +370,7 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
   Inbox part (web, iOS, Android), so an assistant's switcher count is its tab badges added up. The face dot says
   "Something in the Inbox needs you" and opens a sidebar whose Inbox row counts unread, so after reading, the dot stays
   while the row is empty. The Inbox widget keeps Need You (open action items, read or not): its label, dots and empty
-  text say that unit (`docs/apple/home-widgets.md`, "What each number counts"), as the Inbox page's Needs you section
+  text say that unit, as the Inbox page's Needs you section
   does. The roster keeps `inbox_needs_you` for old apps.
 - **D8** The To-dos badge. *Decided 2026-11-22:* N, the owner's decision 4 (a) in
   `docs/design/proposals/todos-redesign.md`: open to-dos whose phase is needs_you, each once, per manager
@@ -566,13 +473,9 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
     known-difference mark; dropping them only in the badge would leave them in the other groupings.
   - Android: a quiet task's question counts on the Persona tab (Brief and Board; Glass draws no Persona tab badge), and
     the switcher's parts equal the tab badges (D9, D7).
-  - iOS: the face dot (`apple/Persona/DesignSystem/ShellComponents.swift`) counts unread Inbox items, and the switcher
-    unread Inbox items and `persona_cards` (D7, D9). `surfaces.json`'s `ios.inbox_widget` row, which holds both the
-    widget and the face dot today, splits: the widget draws `inbox_action`, the dot `inbox_unread`.
   - Web: the switcher counts each assistant's tab badges added up (D7, D9).
   - Web, Android in its three styles, and iOS, one PR each, after the fixture PR: the Needs you header and filter count
-    the badge's rows, with the Muted and Assistant is looking groups (D6); `surfaces.json` gains a `web.agents_section`
-    row. HarmonyOS is out of scope.
+    the badge's rows, with the Muted and Assistant is looking groups (D6).
 - **Step 5** follows D15 and lands after #12899's domain rules and agentref, the session identity after them; the domain
   slice scaffold writes both packages' skeletons first. fleetcount imports no proto and has no type parameters, and its
   values are always valid: closed sets for State, Role, Lineage, Muting, Visibility, Placement (its own row, or under an
@@ -594,7 +497,7 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
   running on fleetInputsInto's result, and LeftOut replaces the quiet line once none does: the four repair PRs that did
   closed on 2026-11-22, and the step re-measures with `git merge-tree` against its own head, as the Inbox plan's section
   4 does. foldSidesIn and workingSince stay until step 11. archguard gets a names-only movedClusters row and no
-  contracts.txt entry. The fixture replay decodes `spec/fixtures/needs-you` into proto values and runs the adapter, the
+  contracts.txt entry. The replay decodes the needs-you cases into proto values and runs the adapter, the
   core and the renderer, without compiling package assistant. **The gate:** one benchmark in package assistant runs the
   whole round (build the values, decide, render FleetState and `link.Attention`) before and after, with 60 agents (a
   third each needs-you, working and unread) and 12 cards. allocs/op must not rise. B/op must not rise except by the
@@ -610,29 +513,22 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
   takes `totals` from the Tally's own `VisitTotal` in the same pass (D12); only it writes the wire `why` word (D11), and
   neither fleetcount nor the hub knows the wire shape. Until the Inbox and the to-dos have cores of their own, their
   counts enter as the adapter's own inputs (today's status() fold and the projection's Counts()), and no record is added
-  for them. Each count in `surfaces.json` gets a `producer` beside `pinned_by`, naming the one adapter function that
-  produces it, and the step's test checks every producer against the adapter's code map: a count with an empty
-  `waits_on` and no producer fails, as do a code-map id the table lacks and a planted table missing a producer (D18).
+  for them.
   `persona_cards`, `inbox_unread` and `todos_needs_you` wait on D9, D7 and D8's steps and may have none until then.
   *Revised 2026-11-22 in #10613:* the core's adapter, not package assistant, maps the Tally.
-- **Step 7b:** `counts_view` always listed, and the per-manager roster flag (D10). It creates
-  spec/fixtures/counts/views.json with D13's four cases (a disconnect keeps the number, a removed manager drops it, a
-  new epoch replaces it, a new device after a hub restart shows the fallback until the managers reconnect) and adds a
-  section on it to `spec/fixtures/counts/README.md`; the hub's relay test replays the restart case.
-- **Steps 8 to 10:** each client keeps views through a reducer that is a domain module beside its adapter (Android
-  :core:counts:domain in android/core/counts; Swift PersonaCountsDomain and PersonaCountsAdapt in
-  apple/Packages/PersonaCounts; the web and desktop's features/counts/domain and adapt), which replays views.json
-  through its adapter (keep on null, offline or a hub restart; replace on a new epoch; a lower rev loses; drop on roster
-  removal or sign-out) and does not create the file. The domain module alone builds its events, and each event gives the
+- **Step 7b:** `counts_view` always listed, and the per-manager roster flag (D10). It adds
+  D13's four cases (a disconnect keeps the number, a removed manager drops it, a
+  new epoch replaces it, a new device after a hub restart shows the fallback until the managers reconnect); the hub's relay test replays the restart case.
+- **Steps 8 to 10:** the web keeps views through a reducer that is a domain module beside its adapter (features/counts/domain and adapt), which handles
+  D13's four cases through its adapter (keep on null, offline or a hub restart; replace on a new epoch; a lower rev loses; drop on roster
+  removal or sign-out). The domain module alone builds its events, and each event gives the
   next set of kept views; persisted views are data in the adapter, and one that fails to restore is dropped with the
   `count_fallback` diagnostic. Each client clears persisted views at sign-out (D13) and draws a surface from views only
   under D10. Step 9 also moves the app icon and the Home widgets to the whole hub (D2), or step 12 does. Step 10 also
   draws D17's number on the Dock, the taskbar, the tab title and the favicon, and carries D3's Link part, since
   `spec/fixtures/attention` and its web replay change there anyway, so the fixture is rewritten once (else step 11
   carries it). Each step waits for its platform's domain kit and checks, which the Inbox plan's client steps bring
-  (`docs/plans/plan-inbox-vertical-slice.md`, sections 3.3 and 4): Android for :core:domainkit, which Inbox A4 creates
-  with :core:inbox:domain after A2, the client domain guard and #13024 (an unused result is a compile error in every
-  Android module); iOS for PersonaDomainKit (Inbox I1, after the same guard); the web and desktop for web/src/domain-kit
+  (`docs/plans/plan-inbox-vertical-slice.md`, sections 3.3 and 4): the web for web/src/domain-kit
   and its lint rules (Inbox W1).
   *Revised 2026-11-22 in #10613:* domain modules with adapters in place of one small pure reducer, after their
   platform's domain kit.
@@ -662,12 +558,8 @@ the decision changes it:
   stays the switcher's rule (D1).
 - `docs/assistant/inbox.md`: its sentence on the roster's `inbox_needs_you` keeping a "separate meaning" is narrowed to
   old apps, with D7's first iOS PR.
-- `docs/apple/home-widgets.md` ("What each number counts"): the widgets' scope at step 9 (D2), the To-dos widget's
-  number at step 12 (D8).
-- `docs/apple/live-activity.md`: D4's two differences, at step 11.
-- `docs/protocol/agent-states.md` and `spec/fixtures/needs-you/README.md`: how a row in an uncounted group reads its
-  state word (D6) and D11's state path, with the fixture PR before step 5; `docs/apple/ios.md` (the Agents row of the
-  tabs table) with D6's iOS PR.
+- `docs/protocol/agent-states.md`: how a row in an uncounted group reads its
+  state word (D6) and D11's state path, before step 5.
 
 ## 7. Out of scope
 

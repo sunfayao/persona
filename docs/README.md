@@ -10,12 +10,9 @@ and the [architecture](server/architecture.md). The [protocol](protocol/protocol
 
 | Directory | Scope | Entry points |
 | --- | --- | --- |
-| [design/](design/) | Product design principles, cross-platform design system and Apple HIG audit | [Principles](design/PRINCIPLES.md), [design system](design/DESIGN_SYSTEM.md), [HIG audit](design/HIG_AUDIT.md), [proposal: owner at a glance](design/proposals/owner-at-a-glance.md), [proposal: continuous improvement loop](design/proposals/continuous-improvement-loop.md), [proposal: meeting recording page](design/proposals/meeting-recording.md), [proposal: main chat availability](design/proposals/main-chat-availability.md), [proposal: hub token boundary](design/proposals/hub-token-boundary.md), [proposal: assistant instructions](design/proposals/assistant-instructions.md), [proposal: built-in Inbox sources as subscriptions](design/proposals/inbox-sources-migration.md), [proposal: To-dos redesign](design/proposals/todos-redesign.md), [proposal: team projects with personal agents](design/proposals/team-project-spaces.md) |
+| [design/](design/) | Product design principles and the web design system | [Principles](design/PRINCIPLES.md), [design system](design/DESIGN_SYSTEM.md), [proposal: owner at a glance](design/proposals/owner-at-a-glance.md), [proposal: continuous improvement loop](design/proposals/continuous-improvement-loop.md), [proposal: main chat availability](design/proposals/main-chat-availability.md), [proposal: hub token boundary](design/proposals/hub-token-boundary.md), [proposal: assistant instructions](design/proposals/assistant-instructions.md), [proposal: built-in Inbox sources as subscriptions](design/proposals/inbox-sources-migration.md), [proposal: To-dos redesign](design/proposals/todos-redesign.md), [proposal: team projects with personal agents](design/proposals/team-project-spaces.md) |
 | [server/](server/) | Hub architecture, managers' infrastructure, mesh, computers and usage | [Server](server/server.md), [mesh](server/mesh.md), [machines](server/machines.md) |
-| [apple/](apple/) | iPhone, Apple Watch and Vision Pro; native design and phone data | [iOS and watch](apple/ios.md), [performance](apple/performance.md), [icons](apple/icons.md), [sidebars](apple/sidebar.md), [Vision Pro](apple/vision.md) |
-| [desktop/](desktop/) | Electron desktop app and independently installable Persona Link | [Desktop](desktop/desktop.md) |
-| [android/](android/) | Android modules and design system | [Android](android/android.md), [design](android/android-design.md) |
-| [web/](web/) | Browser client | [Web](web/web.md) |
+| [web/](web/) | Web app | [Web](web/web.md) |
 | [assistant/](assistant/) | Main chat, managers, knowledge, Inbox, tasks, models, prompts and voice | [Assistant](assistant/assistant.md), [managers](assistant/managers.md), [knowledge](assistant/knowledge.md) |
 | [integrations/](integrations/) | Agent runtimes, engines, sessions, launchers and terminal | [Runtime contract](integrations/runtimes.md), [A2A](integrations/a2a.md), [engines](integrations/engines.md), [Claude Code](integrations/claude-integration.md), [Codex](integrations/codex.md) |
 | [extensions/](extensions/) | Extension system, data connectors, messaging and channels | [Extensions](extensions/extensions.md), [extension settings](extensions/extension-settings.md), [connectors](extensions/connectors.md), [channels](extensions/channels.md) |
@@ -24,7 +21,7 @@ and the [architecture](server/architecture.md). The [protocol](protocol/protocol
 | [plans/](plans/) | Proposals with open decisions or unfinished scope, not implementation guarantees | [Extension roadmap](plans/plan-extensions.md), [connector roadmap](plans/plan-connectors.md) |
 | [lessons/](lessons/README.md) | Reusable pitfalls and fixes, organized by topic | [Lessons index](lessons/README.md) |
 | [archive/](archive/README.md) | Historical measurements, unfinished acceptance boundaries and superseded designs, grouped by module | [Archive index](archive/README.md) |
-| [assets/readme/](assets/readme/) | Only the media used by the English and Chinese READMEs | [Generator](../scripts/assets/make_readme_assets.py) |
+| [assets/readme/](assets/readme/) | Only the media used by the English and Chinese READMEs | [Banners and badges](assets/readme/) |
 
 The complete maintained-guide index remains in [CLAUDE.md](../CLAUDE.md#docs-index).
 Archive records are evidence from their stated date, not current instructions. Follow the maintained module guide when they disagree.
@@ -37,7 +34,7 @@ Issue and PR numbers in lines written up to 2026-11-07 (check `git blame`) refer
   unresolved acceptance limits, or decisions not recorded elsewhere; group it under `archive/<module>/`.
 - Do not commit development screenshots, recordings, before/after mockups, or capture-only indexes.
   Save verification output outside the checkout and attach evidence to the relevant PR.
-- Only README, app, or website production media belongs in git. App and website resources stay in their owning module;
+- Only README, web app, or website production media belongs in git. Web app and website resources stay in their owning module;
   this documentation tree retains only the README assets. Interactive design prototypes are text, live beside their
   module guide (or in its archive), and do not depend on stored verification images.
 - Run `python3 scripts/test/test_doc_paths.py`, `python3 scripts/test/test_doc_go_paths.py`, and

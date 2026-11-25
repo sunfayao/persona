@@ -1,6 +1,6 @@
 # Comment blocks at the start of a message
 
-The `> ` blocks a message starts with when it carries comments: on picked words (`Comment N`), on lines of a file or a diff (`Code comment N`, a review's comments, #151) and on an element of a dev server's page (`Element comment N`, #150). The format is in [protocol.md](../../../docs/protocol/protocol.md), "Quote and comment blocks at the start of messages". The web app (`web/src/lib/comments.ts`, `web/src/lib/drafts.ts`) and the iOS app (`apple/Persona/Views/Chat/MessageComments.swift`) both write and read these blocks and check them against these cases.
+The `> ` blocks a message starts with when it carries comments: on picked words (`Comment N`), on lines of a file or a diff (`Code comment N`, a review's comments, #151) and on an element of a dev server's page (`Element comment N`, #150). The format is in [protocol.md](../../../docs/protocol/protocol.md), "Quote and comment blocks at the start of messages". The web app (`web/src/lib/comments.ts`, `web/src/lib/drafts.ts`) writes and reads these blocks and checks them against these cases.
 
 ## Rules
 
@@ -32,6 +32,5 @@ A comment with neither is a comment on picked words. Comments compare by these f
 ## Checking
 
 - Web: `cd web && npx vitest run src/lib/comments.spec-fixtures.test.ts`.
-- iOS: `PersonaTests/MessageCommentsTests` (`readsAndWritesTheSharedCases`).
 
 Add a case by writing its expected text by hand from the protocol and the web's goldens, then run both.

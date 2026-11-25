@@ -299,5 +299,4 @@ Then look at every PNG: clipped or wrapped text, misaligned chrome, colors in da
 - Frames are static pictures: no scrolling. Motion is limited to spinners (off with Reduce Motion), the gallery's theme
   change and frame.html's transitions between frames, which approximate the system's (the content slides or fades as a
   whole; the pane transitions are a cross-fade and slide, not two columns moving).
-- iPhone and iPad sizes and safe areas are approximate; the Duo's side-column metrics follow `docs/apple/ios.md`
-  ("iPhone Duo") and `Theme.Shell`. Android frames reuse the iOS components; they show layout, not Material styling.
+- iPhone and iPad sizes and safe areas are approximate.

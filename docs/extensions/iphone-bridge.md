@@ -393,7 +393,7 @@ line.
   no USB or trust, and prints `{"udid", "name", "model", "product_version", "transport": "simulator"}`. A udid that is not a simulator here
   goes to the USB pairing above.
 - **Connecting**: `serve --udid <udid> --record <path>` without `--host`, or `call` without `device.address`. The simulator must already be
-  booted (`scripts/app/sim-boot.sh`): the bridge never boots, shuts down or erases one. Not booted: `unreachable`. Gone from this computer:
+  booted (`xcrun simctl boot <udid>`): the bridge never boots, shuts down or erases one. Not booted: `unreachable`. Gone from this computer:
   `pairing_rejected`. A record for another simulator: `wrong_device`.
 - **Operations**: `device_info` (model, iOS version and screen from the simulator's environment), `screenshot` (`simctl io screenshot`),
   `list_apps` (`simctl listapps`), `launch_app` (`simctl launch`; `env` is passed through as `SIMCTL_CHILD_…`), `terminate_app`
@@ -439,7 +439,7 @@ On a computer with Xcode, XcodeGen and a Rust toolchain:
 ```sh
 native/iphone-bridge/build.sh --sim-runner
 B=native/iphone-bridge/target/release/persona-iphone-bridge
-SIM=$(scripts/app/sim-boot.sh "Persona iPhone Bridge <issue>")      # your own simulator
+SIM=<udid>                                                          # your own simulator, booted with `xcrun simctl boot`
 $B pair --udid "$SIM" --out /tmp/sim.record
 $B serve --udid "$SIM" --record /tmp/sim.record                     # waits on stdin; type one request per line:
 {"id":"1","op":"screenshot","args":{"out_file":"/tmp/sim.jpg"}}
@@ -470,10 +470,8 @@ How the bridge reaches the computers that need it (#8199):
   publishing computer's own platform, `version` must say `persona-iphone-bridge …`. A GitHub release whose private upload
   command doesn't carry a listed helper's file is not refused: `tag_release.py` warns and uploads a copy of `latest.json`
   without it, so hubs on that source find no build of the helper.
-- **With Persona Link.** `install.sh` puts it at `~/.persona/bin/persona-iphone-bridge` when it installs a computer's
+- **With the node install.** `install.sh` puts it at `~/.persona/bin/persona-iphone-bridge` when it installs a computer's
   node service and the release has a build for that platform. A failed or missing download is only a warning.
-  `scripts/app/mac-link.sh install` builds it for that Mac (when Rust is there) and puts it in the same place. It leaves the
-  app bundle, and Persona Screen and Persona Input in it, untouched.
 - **From the app.** `POST /api/v1/machines/{mid}/iphone/install` (the computer turned on) has the manager find the build
   for that computer's OS and architecture (`devices.Devices.HelperDownload`). It looks first in the release of the hub's
   version from the hub's node packages source (`docs/operations/node-update.md` "Node packages"), then in the newest

@@ -1,7 +1,7 @@
 # deep-links
 
-The cases every client checks against the route table in `docs/protocol/deep-links.md` (#9926): the same link opens
-the same page on the iPhone, the web, the desktop app and Android, and the hub writes every page's link one way.
+The cases the hub and the web check against the route table in `docs/protocol/deep-links.md` (#9926): the same link opens
+the same page on the web, and the hub writes every page's link one way.
 
 All addresses are made up (`example.com`, `example.org`, `example.net`, `2001:db8::/32`).
 
@@ -53,15 +53,11 @@ link). A page without `hub` opens on the hub the app is showing.
   - `not-a-page`: on a paired hub, or a `persona://` link, but no page of the table. Clients keep their own handling
     (the web card, an action link's own parser).
   - `unsafe`: refused; never opened as a page or handed on.
-  App-link cases may carry `route`: the path and query the desktop app hands to the web app (keys no row lists and
-  `hub` dropped). Values are compared decoded, so `%3A` and `:` in a segment are the same page.
+  Values are compared decoded, so `%3A` and `:` in a segment are the same page.
 
 ## Who reads it
 
 | Client | Sections |
 | --- | --- |
 | Hub (Go) | `build`, `links` |
-| iPhone (`HubPageLinkTests`) | `parse` |
-| Web | `parse` (the web treats a case's only hub as its own origin; cases with two hubs are iPhone's and Android's) |
-| Desktop | `parse` cases with a `route` (accepted, handing on that route) and app-link cases that are `unsafe` (refused) |
-| Android | `parse` |
+| Web | `parse` (the web treats a case's only hub as its own origin; cases with two hubs are not its) |

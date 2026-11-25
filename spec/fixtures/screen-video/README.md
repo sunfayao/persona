@@ -1,8 +1,8 @@
 # screen-video
 
 The live screen's video wire (#3954, `docs/extensions/computer-use.md` "Live screen video (#3954)"): the messages
-Persona Screen and its clients exchange. The iPhone (`PersonaScreenKit`) and the browser (`web/src/screen/video-wire.ts`,
-#6558) read the same cases, so both frame every message alike.
+Persona Screen and its clients exchange. The browser (`web/src/screen/video-wire.ts`,
+#6558) reads these cases.
 
 ## Rules
 
@@ -34,9 +34,4 @@ Persona Screen and its clients exchange. The iPhone (`PersonaScreenKit`) and the
   `exact: false` (JSON bodies): decoding gives `expected`; an encoding's key order and spacing may differ (the file's
   bodies have their keys sorted).
 
-## Making it again
-
-The cases are written from Swift values in `apple/Packages/PersonaScreenCore/Tests/PersonaScreenCoreTests/ScreenVideoFixtureTests.swift`:
-`PERSONA_WRITE_VIDEO_FIXTURES=1 swift test --package-path apple/Packages/PersonaScreenCore --filter ScreenVideoFixtureTests`.
-Without the variable that test fails when the file is not what the Swift side writes now, so a wire change on either
-side shows up in both languages' tests. All values are made up.
+All values are made up.

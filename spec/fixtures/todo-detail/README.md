@@ -5,7 +5,7 @@ what the item route answers for a to-do and where its page is shown, which eleme
 which action is its one primary, and whom its composer addresses first. Presence and order only: words, sizes and looks
 are each client's (proposal 7.2). `scripts/test/test_todo_fixtures.py` checks the format, holds every case to the rules
 below and the proposal's three columns to its table, and keeps the everyday cases free of machinery (proposal 7.7). No
-client reads them yet: iOS will replay them from its paper (#10465), the web and Android from their stages.
+client reads them yet (#10465).
 
 | File | What it pins | Cases |
 | --- | --- | --- |

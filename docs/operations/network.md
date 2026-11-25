@@ -2,7 +2,7 @@
 
 Phones connect directly to hub over the public internet, preferring IPv6; users configure their own VPN. Hub provides a separate TLS listener and retains HTTP for LAN / old clients. **Expose only the TLS port publicly**; clients must verify HTTPS / WSS before sending tokens.
 
-This document reflects existing `server/internal/hub/` and `server/internal/netaddr/` implementations. Existing iOS / Watch clients do not yet gain self-signed certificate pinning from this and still use their original LAN / VPN addresses. Separate DDNS and doctor implementations are explained below. If direct routes all fail, iOS / macOS apps can also [connect to hub through an SSH tunnel](#经-ssh-隧道连-hub直连不通时的后备).
+This document reflects existing `server/internal/hub/` and `server/internal/netaddr/` implementations. Separate DDNS and doctor implementations are explained below.
 
 <a id="hubjson-网络配置"></a>
 
@@ -99,12 +99,10 @@ Before turning it on, make sure every client can use the TLS port:
 | Client | Over the TLS port |
 | --- | --- |
 | Persona Link, mesh peers | Already TLS-only, pinned |
-| Android | Pins the fingerprint from a TLS pairing. A pairing made before TLS was on checks HTTPS against system CAs, like the Apple apps |
-| iOS, watchOS, Mac app | Uses the system trust store only, with no pinning, and keeps the URL it was paired with. Needs a certificate the device trusts, then a new pairing with an `https://` address |
 | Web app | Works after the redirect. The browser warns about a certificate it does not trust, and `localStorage` is per origin, so the first visit on HTTPS asks for sign-in again |
 | ssh / tailcat nodes, the built-in manager | Not affected: they carry no hub token over the hub's HTTP port |
 
-The managed self-signed certificate names only `<hub_id>.persona.invalid`, so no system trust store accepts it. To keep the Apple apps working, give the TLS listener a certificate they trust through `public.cert_file` / `public.key_file`. One option is a publicly trusted certificate for a name that resolves to the hub. Another is a private CA that you install and trust on each device. Issue the certificate for the managed key `~/.persona/tls/hub.key`: the pin is the public key's hash, so Persona Link and other pinned clients keep working without pairing again. With a private CA, for example:
+The managed self-signed certificate names only `<hub_id>.persona.invalid`, so no system trust store accepts it. To keep clients that only use the system trust store working, give the TLS listener a certificate they trust through `public.cert_file` / `public.key_file`. One option is a publicly trusted certificate for a name that resolves to the hub. Another is a private CA that you install and trust on each device. Issue the certificate for the managed key `~/.persona/tls/hub.key`: the pin is the public key's hash, so Persona Link and other pinned clients keep working without pairing again. With a private CA, for example:
 
 ```sh
 cd ~/.persona/tls
@@ -113,7 +111,7 @@ printf 'subjectAltName=IP:<hub address>\nextendedKeyUsage=serverAuth\n' > hub.ex
 openssl x509 -req -in hub.csr -CA <ca>.crt -CAkey <ca>.key -CAcreateserial -days 825 -sha256 -extfile hub.ext -out hub-ca.crt
 ```
 
-On iOS, install the CA as a profile, then turn it on under Settings › General › About › Certificate Trust Settings. Then set `public_url` to the `https://` address so that new pairings and links use it. Pair each Apple device again, and remove its old device so that its old token stops working. The hub does not renew a custom certificate, so reissue it before it expires. Persona Link pins the key, which does not change.
+Install the CA on each device and trust it. Then set `public_url` to the `https://` address so that new pairings and links use it. Pair each device again, and remove its old device so that its old token stops working. The hub does not renew a custom certificate, so reissue it before it expires. Persona Link pins the key, which does not change.
 
 ## Candidate addresses and DDNS
 
@@ -131,48 +129,10 @@ Hub's advertised list may be incomplete: discovery may miss addresses on physica
 
 - Manual candidates stay on the client, saved per pairing. New hub lists replace only hub-supplied candidates, not manual ones, client-disabled settings, or user ordering.
 - Clients may let users reorder candidates and try in that exact order: displayed order equals attempt order, without per-network memory or hidden adjustments. New hub candidates append; removed hub candidates disappear.
-- Same security requirements as hub-supplied candidates: HTTPS pins the public-key fingerprint from trusted pairing and checks `hub_id`. Pairings without fingerprints (hub itself has no TLS, behind a reverse proxy) use system CA / hostname verification for HTTPS; see "Reverse-proxy subpaths (Android)" below. Plain HTTP is LAN-only; check the actual peer address again before sending a token.
+- Same security requirements as hub-supplied candidates: HTTPS pins the public-key fingerprint from trusted pairing and checks `hub_id`. Pairings without fingerprints (hub itself has no TLS, behind a reverse proxy) use system CA / hostname verification for HTTPS; see "Reverse-proxy subpaths" below. Plain HTTP is LAN-only; check the actual peer address again before sending a token.
 - Manual candidates do not prove reachability, just as `seen_at` is not a connectivity test. Clients may probe unauthenticated `GET /api/v1/health` only as evidence "This address reaches the already-pinned hub," never deriving initial trust from response fingerprints.
 
-Android implementation: [android.md](../android/android.md#连接地址设置--连接诊断); computer links: [link.md](link.md).
-
-iOS implementation (#4670): Settings › hub › Addresses keeps a paired hub's other addresses on the device, in the pairing (`PairedHub.addresses`, `apple/Shared/Hubs.swift`); pairings saved before this have none and work as before. The paired address always comes first; added ones can be removed and reordered.
-
-- Each added address may carry its own Cloudflare Access service token, sent only to that address's origin (see [Behind Cloudflare Access](#behind-cloudflare-access)). The pairing's own token stays with the paired address.
-- `HubRoute` probes every address of the hub at once, together with the group's other candidates, on connect, reconnect and network change (another Wi-Fi, a VPN switched on or off). It takes the first address in the user's order that answers; a later one only when every earlier one failed, or none answered within `HubRoute.centerGrace` of the first answer. Nothing answering: the paired address, for the socket's own retries.
-- On a later address, the app asks the earlier ones again on every network change and every `HubRoute.centerRecheck`, and moves back once one answers.
-- An added address must answer the health probe with the paired hub's `hub_id` (once the app knows it). An answer without a `hub_id` fails the probe, and a hello from another hub on an added address changes nothing in the pairing. HTTPS uses system trust and hostname verification; there is no fingerprint pinning on iOS yet.
-- Known gap against the spec above: iOS does not hold plain HTTP to the LAN or check the peer address. An `http://` address works as the paired one does, on any host, and the device token goes over it unencrypted. Add `http://` addresses only for networks you trust (a VPN overlay, the LAN).
-- Typing an address: one without a scheme gets `https://` in front, a bare IP or `localhost` too (`http://` only when typed), and the line under the field shows the full address **Add Address** will add. An address that still can't be read, a scheme other than http or https, or one the hub has already (scheme and host in any case, the default port written or not) is said on that line instead, and Add stays off (`HubAddressInput`, `apple/Shared/Hubs.swift`).
-- Settings › hub shows the address in use under the hub's name, and the Addresses page marks it **In Use**.
-- **What each try came to** (#11390, `HubOutcome`, `apple/Shared/HubOutcome.swift`): the probe gives each address one outcome instead of yes or no. Only
-  **Answers** passes, so which address is taken, the order, the grace, the probe's 3-second timeout and the retries are as above.
-  - **Answers**: a healthy hub answer (`ok`), with the paired hub's `hub_id` on an added address.
-  - **Certificate not trusted**: TLS failed the system's trust (an unknown root such as the managed self-signed certificate above, a wrong host name, an
-    expired certificate). Kept apart from the rest: without pinning the phone can't tell the hub's own self-signed certificate from someone else's.
-    Checked on an iOS 27.0 simulator against local endpoints: a self-signed certificate, an unknown root, a wrong host name and an expired certificate
-    all fail as `NSURLErrorServerCertificateUntrusted` (-1202), the request and the socket alike; a server that hangs up during the handshake, or a
-    plain HTTP port asked for HTTPS, fails as `NSURLErrorSecureConnectionFailed` (-1200) without the server's trust, which counts as Couldn't connect.
-  - **Not your hub**: an added address answered with another `hub_id`. On a private address (loopback, LAN IPv4, link-local, ULA, `localhost`, `.local`;
-    `HubAddressScope`) it counts as Couldn't connect, since there it only says another device has that address on this network, unless every address
-    the attempt tries is private, as Android does (`HubRouteSelector.worst`). The paired address is not checked here: another `hub_id` there is left to the hello.
-  - **Couldn't connect**: refused, timed out, host not found, connection lost, a TLS handshake cut short, or not a healthy hub answer (another status, no
-    `hub_id` where one is expected, `ok` not true, Cloudflare Access answering, the socket turned down with 401).
-  - **Unknown**: the probe was cut short: another address won and the rest were cancelled, a newer attempt replaced this one (Retry Now, the network
-    coming back, a renewed credential), a restored SSH tunnel came up first (the race in "Connecting to hub through SSH (fallback when direct access
-    fails)"), or the app went to the background before it finished (so does a later probe of the same recheck asked while the app was away; one asked
-    after the app came back says what it came to). The line keeps Unknown until the address is tried again: within about 3 s after a replaced attempt,
-    but after a restored tunnel won, at the tunnel's check of the direct way 2 minutes later, or sooner if the socket reconnects meanwhile (away from
-    home with an SSH tunnel, the home address can show Unknown that long after each return to the front).
-  - A group with one address and no tunnel is never probed: its outcome comes from the socket's own attempt, classified the same way. Otherwise the
-    probe says, and the socket replaces only an Answers that the same attempt's own probe found at the address it then failed to open, so each attempt
-    counts once per address. Through a tunnel no probe hands the socket an address: a tunnel set to be used every time asks none, and when the restore
-    race's tunnel wins, an address that answered meanwhile keeps its Answers (the socket's failure is the tunnel's); a pick that was cancelled or
-    replaced keeps what its probes came to and hands the socket nothing. Connection Details lists the addresses with their outcomes
-    (`docs/apple/ios.md`, "Connection status (slow / offline networks)"); Developing Persona counts opens by them weekly
-    (`docs/operations/developing-persona.md`, "Connection tally (iOS)").
-- Not yet: the hub's own list (`/api/v1/endpoints`) does not feed this list, and the watch, widgets and other extensions keep the paired address.
-- DEBUG builds: `-seedHubAddresses <base64 of a [HubAddress] JSON>` sets the first hub's added addresses, `-tab settings -openHubAddresses YES` opens its page, and `-showHubAddressDraft <text>` starts its field with that text (screenshots).
+Computer links: [link.md](link.md).
 
 ## Allowing IPv6 ingress
 
@@ -272,24 +232,19 @@ See the previous layer's docs for enabling PROXY (often "proxy protocol" / "send
 
 <a id="反向代理的子路径android"></a>
 
-### Reverse-proxy subpaths (Android)
+### Reverse-proxy subpaths
 
-Hub can live under a reverse-proxy subpath (`public_url: https://<hub-address>/<prefix>`, with the proxy stripping the prefix before forwarding to hub's plaintext port). Hub then has no TLS itself and no `fp` in `hub pair` links; the proxy uses a public-CA certificate. iOS and web already verify HTTPS through system trust. Web requires proxy `X-Forwarded-Prefix: /<prefix>`; hub adjusts `index.html` `<base>`, placing APIs, WebSocket, images, and routes under it ([web.md](../web/web.md), "Subpaths"; admin UI only at root). Android:
+Hub can live under a reverse-proxy subpath (`public_url: https://<hub-address>/<prefix>`, with the proxy stripping the prefix before forwarding to hub's plaintext port). Hub then has no TLS itself and no `fp` in `hub pair` links; the proxy uses a public-CA certificate. The web client verifies HTTPS through system trust. Web requires proxy `X-Forwarded-Prefix: /<prefix>`; hub adjusts `index.html` `<base>`, placing APIs, WebSocket, images, and routes under it ([web.md](../web/web.md), "Subpaths"; admin UI only at root).
 
-- **Prefixed addresses**: pairing and hub candidates may have path prefixes; every request (REST, WebSocket `/api/v1/ws`, media, installer downloads) appends under it (`hubUrl` / `hubPath` / `hubResolve` in `core/hub`). Hub `/api/…` references also gain the prefix; same-origin checks additionally require being inside it. Candidate keys include prefix (`https://host:443/persona`); root keys unchanged. Manual candidates still stop at the port.
-- **HTTPS without `fp` uses system trust**: without `fp`, HTTPS uses system trust (`network_security.xml`: system CA only, not user-installed certificates) and hostname verification, consistently for pairing, persistent connections, Settings tests, and update downloads.
-- **A link with `fp` whose `url` is a proxy** (#2622): a hub with its own TLS listener (`fp`, `tls`) can also have a `public_url` behind a reverse proxy or tunnel with a public CA's certificate, which is what the iOS app uses. That link's `url` is checked with system trust and hostname verification, as the iOS app and the web client do, when it is HTTPS on a host name (not an IP literal) and not on the `tls` port (`HubPairingClient.systemTrustedOrigin`). Every other candidate stays pinned to `fp`, with no fallback: `https://<host>:<tls>`, `alt`, and what `/api/v1/endpoints` adds later. The origin is decided from the link once and stored with the pairing (`HubCredentials.systemOrigins`), so a later endpoint list cannot widen it. The trust manager lets a system-valid chain through, but the host name verifier refuses it for any other host before a request is sent. `hub_id` is still checked there; a group's per-endpoint pin check skips that origin. When the only certificate failure in a pairing is that address's, the error names it as the proxy's certificate (`PairingFailure.ProxyCertificate`) instead of suggesting a reinstalled hub; a pinned candidate's mismatch still wins. A pairing saved before this has no such origin and stays fully pinned; pairing again with the same link adds it.
 - **Trade-off**: pinning trusts one public key; system trust accepts every system CA, any of which can impersonate hub by issuing for its domain (compromised / misissuing CA, device management installing system certificates). Same as browser access: better than plaintext, weaker than pinning. Prefer hub TLS + `fp` when available. Pairing codes appear only when scanned / pasted; hub identity still checked by `hub_id`.
 
 Persona Link on computers (active mode) likewise accepts HTTPS pairing without `fp`: preserves prefix, verifies system CA / hostname; `fp` pairings remain pinned without fallback. Hub allows plaintext link requests only from same-machine or LAN proxies carrying `X-Forwarded-Proto: https`; see [link.md](link.md), "Hub behind a reverse proxy."
-
-After pairing failures, Android Connection diagnostics shows the latest attempt: addresses, failed stage (link parsing / address connection / TLS certificate / HTTP request / pairing-code validation / hub response), error text, time, and per-address probe results. Memory-only, no pairing code.
 
 Public plaintext APIs default to `403 tls_required`, except `GET /api/v1/health`. This refusal happens after the request arrives and cannot retract an already-plaintext token; clients must choose the protocol before requesting.
 
 ## Behind Cloudflare Access
 
-Use this when hub is published on a public hostname through Cloudflare Tunnel with Cloudflare Access in front, so phones reach it over the internet without a system VPN (#3502). Access answers requests without credentials with a `302` to its login page. Browsers (web app) handle the login themselves; the iOS and Android apps instead send an Access **service token** as the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers. No hub changes.
+Use this when hub is published on a public hostname through Cloudflare Tunnel with Cloudflare Access in front, so clients reach it over the internet without a system VPN (#3502). Access answers requests without credentials with a `302` to its login page. Browsers (web app) handle the login themselves; a client that cannot (a script, an API client) sends an Access **service token** as the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers. No hub changes.
 
 **Cloudflare dashboard**:
 
@@ -297,170 +252,7 @@ Use this when hub is published on a public hostname through Cloudflare Tunnel wi
 2. In hub's Access application, add a policy with Action **Service Auth** that includes that service token. Keep the existing login policy so browsers still work.
 3. WebSocket must pass through the tunnel (`/api/v1/ws`). Cloudflare Tunnel allows it by default; don't turn it off.
 
-**In the app**: the values belong to one paired hub. Enter them on the pairing screen under "Cloudflare Access" **before** pairing (otherwise the first pairing request is already redirected), or later in Settings › hub, where they can also be changed or cleared. The secret is stored like hub token (iOS keychain, Android encrypted storage), shown masked, and never written to logs or diagnostics.
-
-- Both headers go on every request to that hub: REST, WebSocket, port forwarding, media players, pairing and token exchange, notification actions and, on iOS, extensions and widgets that call hub directly.
-- They go **only** to that hub's own origin, never to other hubs, mesh peers, redirect targets or third-party URLs.
-
-**When Access blocks the app** (redirect to the `cloudflareaccess.com` login, its HTML login page, or a `403` from Access), the app does not follow the redirect and shows a specific error instead of a generic connection failure:
-
-- no token set: "This hub is behind Cloudflare Access and needs a service token";
-- token set: "Cloudflare Access rejected the service token" (wrong or revoked token, or no Service Auth policy includes it).
-
 **Warning: `cloudflared` on hub's machine makes internet traffic loopback.** The tunnel connects to hub from `127.0.0.1`, so hub treats every public request as local: the main token works, the admin UI skips `admin.access`, and authentication failures are not throttled ([PROXY protocol](#proxy-protocol) lists the effects). Hub never trusts `Cf-Connecting-IP` or other forwarded headers. Configure `security.proxy_protocol` and `security.trusted_cidrs` as described in [Source classification and reverse proxies](#source-classification-and-reverse-proxies); PROXY protocol helps only when the hop that connects to hub sends a PROXY header carrying the real client address. If yours can't, Access is the only thing in front of hub, so keep its policies tight.
-
-<a id="经-ssh-隧道连-hub直连不通时的后备"></a>
-
-## Connecting to hub through SSH (fallback when direct access fails)
-
-iOS / macOS and Android apps can reach hub through an SSH server (#891): use when the device has no VPN route and hub has no public entry point, but an externally accessible SSH endpoint exists (jump host, bastion such as Warpgate, own server). No hub changes. Another option beyond direct access / embedded Tailscale / embedded tailcat in [#868](https://github.com/nwverse/persona/issues/868).
-
-```text
-App ──HTTP / WebSocket──▶ 127.0.0.1:<random-port> (inside app process)
-     ══SSH (direct-tcpip, one channel per connection)══▶ SSH server ──TCP──▶ hub (tunnel target, default 127.0.0.1:18660)
-```
-
-- **In-process implementation** (`apple/Packages/PersonaSSH`, swift-nio-ssh + Network.framework), not system ssh. The TestFlight Mac app is sandboxed, unable to call `/usr/bin/ssh` or read `~/.ssh`. Listen on a local loopback port (prefer the same next time), opening one `direct-tcpip` channel per incoming connection for HTTP / WebSocket; one SSH connection per hub.
-- **Addresses unchanged inside the app**: pairing, candidates, and comparisons still use hub addresses. Only outbound requests (`APIClient`, WebSocket, port forwarding, the Feishu video and voice player) are rewritten to loopback by `HubTransport`.
-- **Keys**: app-generated Ed25519, one per device; private key only in that device's keychain (`ThisDeviceOnly`: no sync, restore to other devices, or logs).
-- **Routing**: new connections try existing direct routes first (pairing address / group candidates, `GET /api/v1/health`, 3 seconds), using SSH only if all fail. On Apple, restoring a closed SSH tunnel used last time races that tunnel against the direct addresses: the first successful way restores service without waiting for the other timeout (#11671). An already-routed tunnel keeps direct-first selection. While tunneled, retry direct every 2 minutes; switch back and close the tunnel once reachable. "Always use SSH" prefers the tunnel, falling back to direct if it cannot start.
-- **Disconnects**: next request redials a broken SSH connection; failures back off 1, 2, 4… up to 30 seconds, with requests failing immediately during backoff (socket has its own backoff too). TCP keepalive (after 20 seconds idle, every 5 seconds, 3 probes) detects silent loss; network-unavailable signals immediately close / redial. A channel failing to open within 10 seconds marks SSH dead.
-- **Disconnect / unpair** (#2379): disconnecting a group closes all its hub tunnels before registry changes; removing one hub closes only its tunnel; unpair calls `closeAll`, also clearing `HubTransport` routes. Otherwise local listeners, routes, and 120-second `watchDirect` remain (on Mac until quit), rewriting later direct re-pair requests to an old tunnel.
-- **Pairing tunnels**: initially dial under ID `pairing`, then `adopt` under the new hub ID after success. State updates resolve the tunnel object's current ID (`SSHTunnels.key(of:in:)`), exposing failures in connection details and **Settings › SSH tunnels**.
-- **iOS backgrounding**: close tunnels with the socket, including unfinished SSH dials; foreground reselects routes and rebuilds. Requests from a `HubLink` client wait for its current route selection before constructing their URL and authorization, including conditional reads, uploads and downloads; they do not wait for a WebSocket hello or for another group. Backgrounding or replacing the attempt cancels its waiting requests. Each SSH start and in-app relay lease has its own identity, so an old completion cannot clear or close a replacement. Standalone clients (including Siri / Shortcuts) keep their existing behavior. Recovery time depends on the network; the earlier approximately one-second observation was from a simulator, not a phone guarantee. Silent-push wakeups build tunnels on demand too.
-  So do buttons pressed outside the app (#3142): a notification's Allow / Deny / Approve / Reject or Reply, and the Live Activity's buttons, for a group with tunnels (any kind: SSH, local proxy, in-app). With the group's socket connected they go to the hub it is on; otherwise (closed for the background, or just woken and not there yet) they pick the group's way the same way (`AppModel.outside`), send their one request to the hub the chosen tunnel reaches, and close that group's tunnels again once its last button is done, if its socket is still closed (the app going to the background meanwhile leaves them to it). iOS gives a button about 30 seconds: a way not found within 20 seconds (an in-app tunnel that needs a fresh sign-in or MFA) ends as a timeout, said in a notification. Siri / Shortcuts intents still go straight to the paired address.
-- **Through the in-app tunnel** (iOS): when the SSH server is reachable only inside a private network the in-app tunnel reaches ([below](#connecting-to-hub-through-an-in-app-tunnel)), the SSH tunnel can dial it through that tunnel instead of the device's own network, so no system VPN has to displace another one (Tailscale, for example). The app first brings up the core's tunnel and a loopback forward to `<SSH host>:<SSH port>`, then the SSH tunnel dials `127.0.0.1:<that port>`:
-
-  ```text
-  App ──HTTP / WebSocket──▶ 127.0.0.1:<port A> ══SSH══▶ 127.0.0.1:<port B> ══Tunnel core══▶ SSH server ──TCP──▶ hub
-  ```
-
-  The host key stays pinned for the configured SSH host and port, never for the loopback address. The core is started with a hub's own in-app route as its probe (this hub's, else another paired hub's: the core and its sign-in are one per device; its `ssh_port` when the extension gives one), never the SSH route's own address, and the SSH server's forward is kept apart from the hub's own in-app forward: closing either one never stops the other, and the core's tunnel goes down only when neither is left. The background and button rules above apply to the chain as a whole: both layers close when the app goes to the background, and a button pressed outside the app brings both up (within the same 20 seconds) and closes both afterwards. Not offered on the pairing page or on Android (no in-app tunnel there).
-- **Watch unsupported**: Watch connects directly and cannot tunnel. If hub is SSH-only, direct data-fetch features fail, but pushes unaffected (they do not use this connection). Web currently unsupported.
-- **Android** (`android/core/hub/src/main/kotlin/persona/core/hub/tunnel/`): JSch in process, one SSH session per hub that forwards a loopback port (`setPortForwardingL`, one `direct-tcpip` channel per connection). Android lacks the JDK classes JSch uses for X25519 and Ed25519, so `curve25519-sha256` and `ssh-ed25519` run on Tink (`TinkX25519`, `TinkEd25519`, named to JSch by class). The device key is one Ed25519 seed per device in `hub-data/ssh-key.enc` under `noBackupFilesDir`, encrypted with the app's Keystore-backed keyset (never backed up, kept when a hub is unpaired, an unreadable file is reported instead of replaced); each pairing's tunnel settings, the proxy's password included, live in `hub-data/<pairing>/tunnels.enc` and go with the pairing. The same `HubWay` order picks the way inside the group connection (`OkHttpHubConnection`), whose base URL becomes `http://127.0.0.1:<port>` plus the paired address's path; the connection keeps running in the background, and so does its tunnel, while the 2-minute direct recheck waits for the foreground. A failure only the user can fix (host key, public key) waits for new settings instead of redialling, and stays on the tunnel's page as "Last failure"; saving the tunnel's page again (after a successful **Test connection and save**) dials it again. Tunnels are set up after pairing: the pairing page has no SSH option.
-
-### Settings
-
-In the app: **Settings › hub › SSH tunnels**, separately per paired hub; before pairing, choose "Connect through SSH tunnel" on the pairing page (iOS / macOS). Android: **Settings › Hubs**, the SSH tunnel row under each paired hub.
-
-| Setting | Description |
-| --- | --- |
-| Host, port | SSH server, default port 22 |
-| Username | Sent unchanged; Warpgate target login uses `user:target` |
-| Tunnel target | Hub address as seen by SSH server; default `127.0.0.1:18660` (hub on this server) |
-| Always use SSH | Off: only if direct fails; on: always prefer SSH |
-| Connect through *tunnel name* | Shown when the build has the in-app tunnel core and a paired hub has an in-app tunnel: dial the SSH server through that tunnel ("Through the in-app tunnel" above). Test connection and save goes the same way |
-
-"Copy authorized_keys line" copies a restricted line to paste into that server user's `~/.ssh/authorized_keys`:
-
-```text
-restrict,port-forwarding,permitopen="127.0.0.1:18660" ssh-ed25519 AAAA… persona-<device-name>
-```
-
-`restrict` disables shell, pty, agent / X11 forwarding, and `~/.ssh/rc`; `port-forwarding` restores only forwarding, `permitopen` permits only the tunnel target. Server `sshd_config` must not use `AllowTcpForwarding no` or `DisableForwarding yes` (they override authorized_keys options). A dedicated restricted user is better: under `Match User <user>`, add `PermitOpen 127.0.0.1:18660`, `X11Forwarding no`, `PermitTTY no`, `ForceCommand /usr/bin/false` (does not affect `-N` forwarding).
-
-"Test connection and save" logs in and opens one target-forwarding channel, saving only on success.
-
-### Host keys
-
-On first connection, the app asks confirmation of server fingerprint (`ED25519 SHA256:…`, matching `ssh-keygen -lf <host-public-key>`), then pins it. Changed fingerprints always refuse connection; Settings / connection details say "SSH server fingerprint changed; connection refused." Accept only after the user selects "Trust new fingerprint" in the old / new comparison opened by "Test connection and save"; no silent replacement. Changing SSH host / port requires confirmation again.
-
-Supported algorithms (swift-nio-ssh): key exchange `curve25519-sha256`, `ecdh-sha2-nistp256/384/521`; Ed25519 / ECDSA host keys (**no RSA host keys**); AES-128-GCM / AES-256-GCM encryption (OpenSSH aes128-gcm / aes256-gcm). Current OpenSSH defaults include these. Android (JSch): key exchange `curve25519-sha256`, `ecdh-sha2-nistp256/384/521` and Diffie-Hellman (group exchange, groups 14 / 16 / 18); Ed25519, ECDSA and RSA (`rsa-sha2-256/512`) host keys, the pinned key's algorithm offered first; AES-GCM and AES-CTR encryption.
-
-### Security notes
-
-- **Tunnel terminates at the SSH server**: hub sees the SSH server as source (loopback if colocated, otherwise its LAN address), **treated as LAN**: main token, plaintext HTTP, full health fields available ([source classification](#来源判断与反向代理)).
-  **Except a hub in Docker on the SSH server** reached through a published port (`127.0.0.1:18660`): docker-proxy hands the tunnel's connections to the container from its gateway, which counts as public, so every request through the tunnel (always plaintext) gets `403 tls_required`. Publish the hub's ports on `127.0.0.1` only and add the gateway to `security.trusted_cidrs` ([docker.md](docker.md) ("SSH tunnel to a hub on the same host")).
-- Acceptable after SSH authentication: only holders of this device key allowed by the server can reach hub; SSH is encrypted and the app pins the host key. But **the server-side key must be restricted with `permitopen` to hub's port**. An unrestricted key can jump to any LAN address or open a shell. The app-provided authorized_keys line includes restrictions; do not paste only "Copy public key."
-- Plaintext HTTP exists only on device loopback (inside app / local machine) and SSH-server-to-hub hop (loopback stays on server; LAN target uses LAN, same as direct LAN access).
-- Lost device: remove its `persona-<device-name>` line from server authorized_keys and revoke hub credentials in **Settings › Devices**.
-
-### Troubleshooting
-
-| Symptom (Settings / connection details) | Check |
-| --- | --- |
-| Cannot connect to SSH server | Host / port, device reachability (try another network) |
-| First connection to this SSH server requires fingerprint confirmation | **Settings › hub › SSH tunnels › Test connection and save** |
-| SSH server fingerprint changed; connection refused | Verify `ssh-keygen -lf` on server; trust only after confirming intentional key change, otherwise do not connect |
-| SSH server rejected this device's public key | Correct user's authorized_keys, permissions (`StrictModes`), Warpgate public key for this user |
-| SSH server cannot forward to hub (administratively prohibited) | `permitopen` address differs from target, or server prohibits TCP forwarding |
-| SSH server cannot forward to hub (connect failed) | Wrong target from SSH server's perspective, or hub not listening there |
-| Test connection and save succeeds, then every request fails with `TLS is required for public requests` (`403 tls_required`) | The hub runs in Docker on the SSH server and sees the tunnel from its container gateway (the hub logs `api: plaintext from <gateway>, this container's gateway`): see "Security notes" above |
-| SSH handshake failed (no common algorithm) | RSA-only host key or chacha20-only server; add Ed25519 host key and enable AES-GCM |
-| Can't reach the SSH server through the in-app tunnel | The tunnel's sign-in (**Settings › hub › Tunnel › Sign in and select node**), and that the SSH host and port are reachable from the tunnel's network |
-
-## Connecting to hub through an in-app tunnel
-
-When hub lives on a private network the phone must join first, and access to that network can be packaged as a library, the iOS app can link it and establish an in-process tunnel. Only Persona's hub traffic uses it; no system VPN is created and other apps are unaffected.
-
-```text
-App ──HTTP / WebSocket──▶ 127.0.0.1:<port> (tunnel-core forwarding, inside app process)
-     ══Tunnel core (userspace)══▶ Private network ──TCP──▶ hub (target_host:target_port)
-```
-
-- **Availability**: hub has an installed, enabled extension contributing `tunnels` ([extensions.md](../extensions/extensions.md), "In-app tunnels"). The tunnel name (its Settings row title), `target_host`, and `target_port` come from the extension. The app refreshes them on every hello and stores them in pairing information.
-- **Core outside the repository**: a directory on the build machine, selected by `app.tunnel_core` in `config.json` ([config.md](config.md)). `scripts/persona_config.py xcconfig` writes it to `Config.xcconfig`; only physical-device builds link it. Without configuration, the feature is absent: simulator and unconfigured builds show "This app build has no private-network tunnel core" on hub's tunnel page and skip it during routing.
-- **Routing** matches SSH tunnels: direct first, tunnel only if all fail, retry direct every 2 minutes while tunneled. "Always use tunnel" prefers the tunnel. If the same hub also has SSH configured, try SSH first.
-- **Carrying an SSH tunnel**: the core is a generic loopback TCP forward, so an SSH tunnel can reach its server through it ([SSH, "Through the in-app tunnel"](#connecting-to-hub-through-ssh-fallback-when-direct-access-fails)) for a hub that listens only on loopback behind an SSH server in the private network. Its probe is always a hub's own in-app route: `target_host:ssh_port` when the extension sets `ssh_port` ([extensions.md](../extensions/extensions.md), "In-App tunnels"), which answers even when the hub listens only on loopback; otherwise `target_host:target_port` as before. The probe is set once per app process, by whichever path starts the core first. The direct in-app tunnel always forwards to `target_port`.
-- **Connect only on demand**: start the core on first use, never connect automatically, and disconnect after the last forward closes. Disconnect when iOS backgrounds; reroute on return.
-- **Sign-in**: accounts and nodes belong in the core's own control panel (loopback web page, **Settings › hub › Tunnel › Sign in and select node**). Data stays in app `Application Support/tunnel`, excluded from backups and never uploaded to hub. The panel opens sign-in outside the app. If the user copies a link externally and returns, the app offers clipboard text to the core (`PersonaTunnelOfferLink`); only recognized text is accepted, then the panel refreshes.
-- **Security**: hub sees an address from the tunnel-side network and treats it as LAN ([source classification](#来源判断与反向代理)), just like a direct connection from that network.
-
-### Core directory and C API
-
-The directory selected by `app.tunnel_core` contains:
-
-| File | Description |
-| --- | --- |
-| `libpersonatunnel.a` | Static library for arm64 iOS devices |
-| `module.modulemap` | Defines Swift module `PersonaTunnelCore`, referring to the header below |
-| Header | Declares the functions below |
-
-Link flags: `-lpersonatunnel -lresolv -framework Security -framework CoreFoundation`. All functions block; the app calls them off the main thread. Free returned `char *` with `PersonaTunnelFree`; an `error:` prefix indicates failure.
-
-| Function | Description |
-| --- | --- |
-| `int PersonaTunnelAPIVersion(void)` | API version, currently 1; do not use if it differs from the app |
-| `char *PersonaTunnelStart(char *dataDir, char *probeHost, char *probePort)` | Start core without connecting; returns control-panel URL with a one-time token. Probe `probeHost:probePort` to determine tunnel connectivity |
-| `char *PersonaTunnelConnect(int timeoutSeconds)` | Connect, or leave an existing connection unchanged; without sign-in returns `error: not signed in` |
-| `void PersonaTunnelDisconnect(void)` | Disconnect, retaining core and sign-in data |
-| `char *PersonaTunnelStatus(void)` | JSON: `state` (e.g. `connected`), `logged_in`, `has_server`, `server_name?`, `error?`, `needs_mfa?` |
-| `char *PersonaTunnelForward(char *target, int port)` | Open loopback forwarding through the tunnel to `host:port`, preferring `port` (0: any), returning `127.0.0.1:<port>` |
-| `void PersonaTunnelStopForward(char *target)` | Close forwarding to `target` |
-| `char *PersonaTunnelOfferLink(char *text)` | User-provided external text; returns `accepted` if the core used it to complete a sign-in step, otherwise `ignored` |
-| `void PersonaTunnelFree(char *p)` | Free strings returned above |
-
-## Connecting to hub through a local SOCKS5 proxy
-
-When the hub sits on a private network this device reaches only through another app that serves a local SOCKS5 proxy (for example a VPN-like client listening on `127.0.0.1:<port>` instead of taking the system VPN slot), the iOS, macOS and Android apps can go through that proxy (#1248). Only Persona's hub traffic uses it.
-
-```text
-App ──HTTP / WebSocket──▶ 127.0.0.1:<port> (inside app process)
-     ══SOCKS5 (one CONNECT per connection)══▶ local proxy (another app) ──TCP──▶ hub (hub address, default the paired address)
-```
-
-- **Settings**: **Settings › hub › Local Proxy**, per paired hub: proxy host (default `127.0.0.1`) and port, optional username and password (RFC 1929), the hub's address as the proxy's network sees it, and **Always Use the Proxy**. The hub's address defaults to the paired address's host, with its port for an `http` address (80 when it names none) and the hub's HTTP port 18660 for an `https` one.
-- **In-process forward** (`apple/Persona/App/LocalProxies.swift`, SOCKS5 client in `apple/Persona/App/SOCKS5.swift`): the app listens on a loopback port (the same one next time when it is free); each connection made there dials the proxy, does one SOCKS5 CONNECT to the hub's address, then copies bytes both ways. Nothing is read from the connection before the proxy has connected, and bytes the hub sends right after the proxy's reply stay on the connection. The forward carries plain HTTP, like the SSH and in-app tunnels, and `HubTransport` sends REST, WebSocket, port-forward and Feishu player traffic to it. A host name goes to the proxy unresolved (address type domain), so the proxy's network resolves it.
-- **Routing** matches the other tunnels (`HubWay` in `apple/Persona/App/HubTunnels.swift`): direct first, the proxy only if every direct address fails, retry direct every 2 minutes while proxied; **Always Use the Proxy** prefers it and goes direct when it can't connect. Each time the way is picked, the proxy is asked for the hub once, so a proxy whose app quit is not taken (that asks only the proxy: many proxies, such as `ssh -D`, mihomo and Xray, accept a CONNECT before they try the address). A hub with several ways tries the SSH tunnel, then the local proxy, then the in-app tunnel. Settings saved while an earlier start is still under way replace it.
-- **Test Connection and Save** connects through the proxy to the hub's address, then sends `GET /api/v1/health` through a forward of its own, without following redirects (they would leave the proxy). It saves only when the hub answers `{"ok": true}` with its `version`, which the hub leaves out for a source it counts as the internet, where it refuses plain HTTP; and, once the app knows the paired hub's `hub_id`, only when that hub answers.
-- **Credentials** are kept with the pairing in the keychain (`PairedHub.localProxy`), like the SSH tunnel's settings; on Android in the pairing's encrypted `tunnels.enc`.
-- **Android** (`LocalProxyForward` and `Socks5Handshake` in `android/core/hub/src/main/kotlin/persona/core/hub/tunnel/`): the same forward, handshake and test; **Settings › Hubs**, the Local proxy row under each paired hub. Both tunnels' pages show the tunnel's state and its last failure.
-- **iOS backgrounding**: forwards close with the socket and the way is picked again on return. The watch connects directly.
-- **Not supported**: HTTP CONNECT proxies, SOCKS4, UDP.
-- **Security**: the forward carries plain HTTP, even for an `https` pairing, so the proxy sees Persona's traffic to the hub and this device's credential in it. What is trusted is whatever process holds that loopback port at the time (SOCKS5 does not authenticate the proxy), so use it only with a proxy app you trust, as with a VPN app. A proxy host that is not on this device gets a warning on the page: the traffic and the proxy's password would cross the network unencrypted. The forward's own loopback port has no access control either (as with the SSH tunnel's). The hub classifies the source address the proxy's network gives it as usual ([source classification](#来源判断与反向代理)).
-
-| Symptom (Settings › hub › Local Proxy, connection details) | Check |
-| --- | --- |
-| Can't reach the proxy at … (Connection refused) | The proxy app is running and its SOCKS5 port is the one set |
-| … didn't answer as a SOCKS5 proxy | The port is the proxy's SOCKS5 port, not its HTTP proxy port |
-| The proxy asks for a username and password / didn't accept the username or password | Username and password on this page |
-| The proxy couldn't connect to … (connection refused, 5) | The hub's address and port as the proxy's network sees them, and that the hub listens there (proxies that wait for the connection before answering) |
-| Got no answer from … through the proxy | The same, for proxies that accept the CONNECT first and then close it |
-| Reached … through the proxy, but it doesn't look like a hub | The address is not the hub's HTTP port (an HTTPS port, a redirect to https, another service) |
-| The hub at … treats connections through the proxy as coming from the internet | The proxy reaches the hub at a public address: use its address inside the LAN or VPN |
-| … is another hub, not the one this device is paired with | The hub's address points at another hub |
-
-DEBUG builds: `-seedLocalProxy <base64 of the LocalProxyRoute JSON>` sets the first hub's proxy, and `-tab settings -openLocalProxy YES` opens its page (screenshots).
 
 <a id="网络排查"></a>
 
@@ -477,7 +269,7 @@ TUN proxy automatic routes may send public-connection responses into the proxy, 
 | `403 master_token_local_only` | Use temporary pairing or device tokens publicly |
 | `429 rate_limited` | Wait `Retry-After`, stop repeated reconnects with invalid tokens |
 | Public-key mismatch | Changed key, wrong hub, TLS-terminating proxy; re-pair through a trusted channel, never skip pinning |
-| Public-key mismatch only away from home | A LAN address the hub advertised (`public_url` or `advertise_lan`) is another device on that network. Android treats such a private address as unreachable and keeps trying the others; to stop handing it out, set `public_url` to a name and `public.advertise_lan` to `false` |
+| Public-key mismatch only away from home | A LAN address the hub advertised (`public_url` or `advertise_lan`) is another device on that network. To stop handing it out, set `public_url` to a name and `public.advertise_lan` to `false` |
 | `hub pair` cannot connect locally | Hub running, HTTP supports IPv4 loopback, command configuration matches running instance |
 | TLS inaccessible after enabling `security.proxy_protocol` | `proxy protocol: refused …` logs: upstream not sending headers, or direct bypass ([PROXY protocol](#proxy-protocol)) |
 | A browser's Web Push test fails, or its last notification didn't go out (#7459) | The hub machine must reach the browsers' push services over https (`fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`); a firewall or proxy that blocks outbound https stops Web Push. `personad hub doctor` lists each browser and its last failure ([web.md](../web/web.md) "Web Push") |

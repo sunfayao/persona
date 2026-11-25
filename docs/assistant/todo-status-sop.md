@@ -83,8 +83,6 @@ older hub does not send `kind` keeps its previous behavior.
 On the web, the header's Parked count is the number of to-dos in the Parked section (included in open). It contains both explicit holds and ready merge waits (#9325). The `pr_open` rule and PR freshness/precedence are unchanged; only its web display section changes from `pr` to `parked`. Shared fixture expectations retain the legacy `pr` name for the hub and native clients; the web fixture reader maps that label explicitly, preserving the same rules and open total. The conversation tray and All board use this same web classification. A fallback date alone does not move a hold to Other open; an actual wake/review does.
 Inactive counts only automatic 48-hour shelving. Cancelled has its own count and is never included in Done / completed.
 The Parked section and review badge use the same localized name.
-Apple (`apple/Shared/TodoTriage.swift`) and Android (`TodoTriage.kt` in `android/core/domain`) still need this
-parked rule and naming alignment; #5929 records the parity gap. This web fix does not claim native-client delivery.
 
 **A failed start whose work got done another way is not the owner's**: the hub closes a to-do whose agent never started
 (`done_at` with its `start_error`), and rule 1 keeps it in Waiting for you so the owner can retry or remove it. When the
@@ -236,10 +234,9 @@ receipt, not delivery acceptance:
   review or unaccepted `live` delivery stays open and awaiting review.
 - Checks: the shared cases (`*_seen*`, `supervised_finished_unseen_seen_stays_awaiting_review`,
   `unfinished_before_just_finished_and_seen_in_done`), `server/internal/assistant/todo_seen_test.go`,
-  `web/src/views/Todos.seen.test.tsx`, `apple/PersonaTests/TodoTriageTests.swift` and `TodosLogicTests.swift`. In a
-  browser and the simulator against the mock hub (`MOCK_TODO_LIST=1`; `MOCK_TODO_SEEN=off` is a hub without it):
-  `node web/e2e/todo-seen.mjs <web URL> [--phase before|after] [--shots <dir>]` and the UI test `TodoSeenTests`
-  (`TEST_RUNNER_PERSONA_TODOS_HUB`, `TEST_RUNNER_PERSONA_SHOTS`).
+  and `web/src/views/Todos.seen.test.tsx`. In a
+  browser against the mock hub (`MOCK_TODO_LIST=1`; `MOCK_TODO_SEEN=off` is a hub without it):
+  `node web/e2e/todo-seen.mjs <web URL> [--phase before|after] [--shots <dir>]`.
 
 ## Header count
 
@@ -369,25 +366,17 @@ migrated.
 
 ## Clients
 
-Every client follows this document with its own copy of the rules, each with the same test cases (#3206):
+The web follows this document with its own copy of the rules, with the same test cases as the hub (#3206):
 
 | Client | Rules | Tests | Page |
 | :--- | :--- | :--- | :--- |
 | Web | `web/src/lib/todo-triage.ts` | `web/src/lib/todo-triage.test.ts`, `web/src/lib/todo-triage-fixture.test.ts` | `web/src/views/Todos.tsx` |
-| iOS / Mac | `apple/Shared/TodoTriage.swift` (`TodoTriageLogic`) | `apple/PersonaTests/TodoTriageTests.swift`, `apple/PersonaTests/TodoTriageFixtureTests.swift` | `apple/Persona/Views/Todos/TodosView.swift` |
-| Android | `android/core/domain/src/main/kotlin/persona/core/domain/tasks/TodoTriage.kt` | `android/core/domain/src/test/kotlin/persona/core/domain/tasks/TodoTriageTest.kt`, `TodoTriageFixtureTest.kt` | `android/feature/agents/src/main/kotlin/persona/feature/agents/TodosScreen.kt` |
 | Hub | `server/internal/assistant/todo_triage.go` | `server/internal/assistant/todo_triage_test.go` | none: it tells when a leader's task is stuck (#3483) |
 
-The shared cases in `spec/fixtures/triage` are read by all four implementations: the web app, Apple and Android fixture
-suites, and the hub. A rule change adds or changes a case there first; copying its expected value into a client-only test
-is not a substitute for replaying the fixture. The hub, web and Android replay every concern case. Until Apple's native
-concern follow-up, its fixture suite replays every non-concern case and keeps the documented compatibility behavior.
+The shared cases in `spec/fixtures/triage` are read by both implementations: the web app's fixture suite and the hub. A rule change adds or changes a case there first; copying its expected value into a client-only test
+is not a substitute for replaying the fixture. The hub and web replay every concern case.
 
-A change to an existing rule changes all of them in the same PR. Native differences: iOS / Mac keep restores in the device's
-`UserDefaults` (`todos.restored`) and Android in its local preferences, as the web keeps them per browser; the iOS list
-has no Status | Folder switch (it had no folder view), and the Mac shows a merged row's members as a disclosure under the
-lead. The iOS list draws a row's "N related" inside the lead's row, under its words (Android's card already had it). iOS and
-Android filter and sort the list on the device (`docs/assistant/todos.md`, "List filter and sort"; the web follows). Moving the classification to the hub, so the clients only draw the section it sends, would remove the copies; it
+A change to an existing rule changes both in the same PR. Moving the classification to the hub, so the web only draws the section it sends, would remove the copy; it
 is not done yet.
 
 ## The hub's view (#10226)

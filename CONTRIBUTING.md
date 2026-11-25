@@ -7,24 +7,20 @@ and those disagree, they win.
 ## What Persona is
 
 Persona is a self-hosted personal SuperAgent, and an Agent product for everyone, not only for software developers. A Go
-server (`personad`) runs as the **hub** on an always-on machine and holds all state; the iPhone, Apple Watch, Vision Pro,
-Android, HarmonyOS, desktop and web clients talk only to it, and each of your computers runs a **node** where coding Agents
+server (`personad`) runs as the **hub** on an always-on machine and holds all state; the web app, which it serves,
+talks only to it, and each of your computers runs a **node** where coding Agents
 run. **Assistant** is for everyday people; **Agents** is for people who work directly with Claude Code and other Agents.
 Before any design decision, ask who it serves. See [the architecture](docs/server/architecture.md) and
 [the design principles](docs/design/PRINCIPLES.md).
 
 ## Getting set up
 
-- **Try it**: [Getting started](docs/operations/getting-started.md) installs a hub with one command and pairs a phone.
+- **Try it**: [Getting started](docs/operations/getting-started.md) installs a hub with one command.
 - **Build from source**: [config](docs/operations/config.md) (`~/.config/persona/config.json` for build and deploy values;
   values specific to your machines and accounts for Agents go in `CLAUDE.local.md`, which is not committed), then the area
   you work on:
   - the hub and nodes: [`docs/server/server.md`](docs/server/server.md)
   - the web app: [`docs/web/web.md`](docs/web/web.md) (needs Node.js and Go)
-  - iPhone, Watch and Vision Pro: [`docs/apple/ios.md`](docs/apple/ios.md) (Xcode 26.0 or later)
-  - Android: [`docs/android/android.md`](docs/android/android.md)
-  - HarmonyOS: [`harmony/README.md`](harmony/README.md)
-  - desktop: [`docs/desktop/desktop.md`](docs/desktop/desktop.md)
   - extensions and Agent runtimes: [`docs/extensions/extensions.md`](docs/extensions/extensions.md),
     [`docs/integrations/runtimes.md`](docs/integrations/runtimes.md)
 - Where things live: the "Layout" table in [`CLAUDE.md`](CLAUDE.md#layout); every maintained doc is in its "Docs index".
@@ -55,8 +51,6 @@ CI scripts run the same locally and on hosted runners:
 ```sh
 scripts/ci/server.sh    # Go hub and node
 scripts/ci/web.sh       # web app
-scripts/ci/apple.sh     # iPhone, Watch, Vision Pro
-scripts/ci/android.sh   # Android
 scripts/ci/scripts.sh   # Python scripts, docs and repository guards
 ```
 
@@ -71,7 +65,7 @@ python3 scripts/test/test_doc_paths.py && python3 scripts/test/test_doc_sections
 light and dark, which you actually looked at ([`docs/operations/testing.md`](docs/operations/testing.md)), shown in the PR and
 never committed ([`docs/operations/collaboration.md`](docs/operations/collaboration.md), "Screenshots in PRs"), plus the
 "UI change self-check" from [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md). Say in the PR which checks you
-couldn't run (a missing toolchain, no device) rather than leaving them out.
+couldn't run (a missing toolchain) rather than leaving them out.
 
 ## Rules that catch most first PRs
 

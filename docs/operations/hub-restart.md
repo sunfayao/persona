@@ -1,6 +1,6 @@
 # Hub restarts invisible to clients
 
-User, 2026-11-04: every time the hub is deployed or restarted, Persona on iPhone, Mac, web and Android disconnects, and the assistant's background tasks running in the main chat (Monitor, `run_in_background`) get stopped too.
+User, 2026-11-04: every time the hub is deployed or restarted, Persona in the web client disconnects, and the assistant's background tasks running in the main chat (Monitor, `run_in_background`) get stopped too.
 Requirement: **when the server restarts, clients notice nothing at all**. Issue #1574.
 
 Goal: in a normal deployment, no client shows a disconnect notice, no message is lost, and no running chat is interrupted.
@@ -39,20 +39,19 @@ After the new hub comes up: the local node connects within 0.2 s; a Mac over ssh
 
 ### How clients detect a disconnect and recover
 
-| | iOS / Mac (`apple/Shared/LiveConnection.swift`) | Web (`web/src/lib/store.ts`) | Android (`core/hub/.../OkHttpHubConnection.kt`) |
-| --- | --- | --- | --- |
-| Detecting a disconnect | receive fails; ping every 20 s, a pong 5 s late counts as stuck, disconnect after 45 s without messages (`:266-269`, `:383-411`) | `onclose`; a watchdog every 10 s, reconnect after 70 s without messages (`:217-245`) | `onClosing` / `onFailure`, 15 s hello timeout, 45 s without messages in the foreground (`:411-486`) |
-| Reconnecting | Starts at 1 s, doubling to 20 s, no jitter (`:468-477`) | Starts at 600 ms, doubling to 15 s, ±20% jitter (`:222`) | Starts at 1 s, doubling to 20 s, ×0.8–1.0; reset only after sync completes (`:340-378`) |
-| UI | A non-online state must last 1.5 s before "Connecting…" / "Updating…" shows (`ConnectionStatus.swift:39`, `:127-151`); during a hub self-update it shows "Hub updating…" | Every disconnect switches to "Connecting" at once, and from the third failure on "Can't reach the hub. Retrying…" (`App.tsx:206-212`, `Sidebar.tsx:429`); no grace period | Leaving Online is published after a 1.5 s delay (`:797-813`), a timeout shows "Connecting" immediately, and once connected it first shows "Updating…" (`:511-513`) |
-| After reconnecting | Connection snapshot (machines, sessions, interactions) + refetch interactions, Inbox, to-dos, tasks, etc.; chats resume from `since_seq` | After `hello`, `refresh()` refetches 7 endpoints + Inbox, extension slots, terminals; chats resume from `since_seq` | Back to Online, refetches machines, sessions, interactions; chats resume from `since_seq` |
-| Writes during the disconnect | Messages go into a persistent outbox and are resent after connecting (`client_msg_id`); approvals / answers are removed optimistically and restored on failure, with no retry and no op id | Sending a message fails immediately ("not sent: can't reach the hub"); a failed approval shows "not delivered"; no op id | Messages go through a persistent outbox with `client_msg_id` and `X-Persona-Op-Id`, checked against receipts; approvals carry no op id and are not retried |
+|  | Web (`web/src/lib/store.ts`) |
+| --- | --- |
+| Detecting a disconnect | `onclose`; a watchdog every 10 s, reconnect after 70 s without messages (`:217-245`) |
+| Reconnecting | Starts at 600 ms, doubling to 15 s, ±20% jitter (`:222`) |
+| UI | Every disconnect switches to "Connecting" at once, and from the third failure on "Can't reach the hub. Retrying…" (`App.tsx:206-212`, `Sidebar.tsx:429`); no grace period |
+| After reconnecting | After `hello`, `refresh()` refetches 7 endpoints + Inbox, extension slots, terminals; chats resume from `since_seq` |
+| Writes during the disconnect | Sending a message fails immediately ("not sent: can't reach the hub"); a failed approval shows "not delivered"; no op id |
 
-What they share: **global live events have no sequence number**, so broadcasts during the disconnect (`todos`, `inbox`, `lark`, `revs`, `interaction_resolved`…) are all lost and can only be recovered by a full refetch after reconnecting;
+What every client shares: **global live events have no sequence number**, so broadcasts during the disconnect (`todos`, `inbox`, `lark`, `revs`, `interaction_resolved`…) are all lost and can only be recovered by a full refetch after reconnecting;
 only chat content can resume from `since_seq` (`subscribe` and `sendBacklog` in `onClientMessage` of `http.go`, `docs/protocol/protocol.md` ("Continuity of items")). The hub already has idempotent receipts (`X-Persona-Op-Id`, `hub/clientops.go`,
-`docs/protocol/protocol.md` ("Operation receipts")) and `client_msg_id` dedup, but only Android's message sending uses an op id.
+`docs/protocol/protocol.md` ("Operation receipts")) and `client_msg_id` dedup.
 
-What clients see during one restart: the web switches to "Connecting" immediately (connected again after about 1.3 s, with a full refetch); iOS / Android only show something after 1.5 s, so usually a brief flash of "Connecting…" or "Updating…";
-on the Mac, ssh machines go offline for 2–8 s, and their sessions disappear from the list and then reappear.
+What clients see during one restart: the web switches to "Connecting" immediately (connected again after about 1.3 s, with a full refetch); on the Mac, ssh machines go offline for 2–8 s, and their sessions disappear from the list and then reappear.
 
 ### Work in progress inside the hub
 
@@ -218,7 +217,7 @@ Machines without a resident node (where the hub starts `node --stdio` directly o
 
 ### Clients tolerate short disconnects
 
-The shared client approach (done on web and Android; for iOS / Mac see the issue at the end):
+The client approach (done on web):
 
 - **Silent reconnect**: after a disconnect, do not change the UI at first. On `hub_restarting` or close code 1001: reconnect after 150–400 ms, then every 0.5–1 s, keeping the UI "online" for **30 s**;
   other disconnects: first retry after 300–600 ms, keeping the UI online for **8 s**, then the usual backoff and notices. If it reconnects within the grace period, nothing in the UI changes (no "Connecting" flash, no list refresh).
@@ -327,7 +326,7 @@ Socket activation caveats:
 - Unit / integration tests (`server/`): `TestEventLogSince`, `TestHelloResumes`, `TestStampEvent`, `TestListenInherited` (pass fd 3 to a child like systemd),
   `TestEventLogHandOver`, `TestRestartIsPlanned` (actually runs `hub.Run` twice: the client first receives `hub_restarting` and 1001 "hub restarting", then the next hub continues the same stream with `resumed: true`),
   `TestResidentNodeKeepsConversations` in `node` (the chat process survives the connection ending, and the next connection's `Node` receives its output after takeover).
-  Web: `src/lib/reconnect.test.ts`, `store-reconnect.test.ts`, `ops.test.ts`; for Android see `docs/android/android.md`.
+  Web: `src/lib/reconnect.test.ts`, `store-reconnect.test.ts`, `ops.test.ts`.
 - Repeated restarts: run `scripts/test/hub_restart_seamless.py --restarts N --converse` on the hub machine:
   - Request `/api/v1/health` every 100 ms; any refused / failed request is a failure;
   - A WebSocket client following the web client's behavior: each broadcast's `event_seq` must follow the previous one (no loss or duplicates), every reconnect after the first connection must be `resumed` on the same stream,
@@ -338,14 +337,3 @@ Socket activation caveats:
 
 After socket activation and the resident node were deployed (#1617), repeated restarts with a streaming side chat passed on a real hub: no failed health probe, every reconnect resumed on the same stream with no lost or duplicated event, and each disconnect lasted about a second, well inside the clients' grace period.
 Before the change a restart refused connections for about 1.3 s and killed the local node's assistant processes. The numbers are in `docs/archive/operations/hub-restart-records.md`.
-
-## iOS / Mac (#1634)
-
-Same rules as web and Android; the Apple implementation (shared by iOS and Mac):
-
-- Pure logic in `apple/Shared/Reconnect.swift`: `LinkDrop` (8 s / 30 s grace, reconnect timing), `EventCursor` (resume sequence), `FrameMeta` (reads `event_seq`, `event_stream`, `resumed`, `hub_restarting` while decoding),
-  `ReconnectPlan` (no refetch after reconnect when `resumed`), `OpRetry` (retry with the same op id, at most 60 s; `Error.isGap` determines whether the request might not have reached the hub).
-- `LiveConnection` records disconnects (`drop`, `inGrace`, `graceOver`), and `ConnectionStatus` treats it as connected during the grace period; close codes come from `URLSessionWebSocketTask.closeCode` (closing it ourselves on a heartbeat timeout does not count as 1001).
-- When `resumed`, `AppModel.didConnect` only registers the phone and resubscribes; sending messages (`SendSafety.sendPending`) and answers (`AppModel.resolve`) carry op ids. For UI behavior see `docs/apple/ios.md` ("Connection status").
-- Verification: `PersonaTests/HubRestartTests` (includes a loopback WebSocket using Network.framework: `hub_restarting` + 1001 → grace, reconnect within 1 second, `resumed`);
-  mock hub `MOCK_RESTART=1` (`GET /mock/restart?gap_ms=…&missed=…&drop_post=1` simulates a planned restart, `docs/operations/testing.md`) with a simulator to inspect the UI and requests.

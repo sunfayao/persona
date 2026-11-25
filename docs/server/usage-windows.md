@@ -1,7 +1,7 @@
 # Subscription usage windows (#2432)
 
 Subscriptions like Codex and Claude Code have "5-hour" and "weekly" usage windows. This page explains how Persona collects, merges and draws them, and why some sources are not used.
-The UI is at the bottom of the web sidebar (`docs/web/web.md` ("Subscription usage")), on the iOS Machines page and at the bottom of the Mac section column ("UI (iOS / Mac)" below). The data comes from the node on each computer, and from account-pool gateways the manager queries (such as relay gateways, see "Account-pool gateways" below, #2595).
+The UI is at the bottom of the web sidebar (`docs/web/web.md` ("Subscription usage")). The data comes from the node on each computer, and from account-pool gateways the manager queries (such as relay gateways, see "Account-pool gateways" below, #2595).
 Collection, merging and the gateways all belong to the **manager** (the one that connects computers, the assistant process `personad assistant`, see "Who owns this" below); the hub only forwards the API.
 
 ## Read-only collection without access to credentials
@@ -289,20 +289,6 @@ One rule on every client; web first (`web/src/lib/usage-windows.ts`: `groupByPro
 - **Reset timeline**: one chart per card, always drawn when any account in it has a reset time. A shared axis (now, 6h, 12h, 1d, 3d, 5d, 7d; the first 24 hours take 45% of the width, 1 to 7 days the other 55%, `timelinePosition`), one row per account in the card's quota order, and in each row a teal capsule for the 5h window over a blue one for the 7d window, from the now line to the window's reset, with a hollow end dot and the time left (the label sits inside the capsule, in white, when the end is past about 80% of the width). Windows without a reset time, ended ones and per-model allowances are left out; an account with none has no row. A row's accessible label lists each window's reset ("5h · Resets in 4h").
 - **Protection line**: a window may carry `protect_percent` (0-100; it can differ per account and per window): the use at which scheduling stops using the account. When present, its bar shows a thin warning-colour notch at that percent, a small "protect N%" flag, and a hatched zone from the line to 100%; the bar's accessible label includes the value. When absent (an older hub, or no such rule) nothing is drawn. The hub side of the field is a separate change; clients only read it.
 - **Switches**: one switch per provider on **Admin › Usage sources › Providers in the usage bars**, writing `usage.hidden_providers` (display only, #11767). No new setting.
-
-## UI (iOS / Mac, #2889)
-
-Same rules as the web (pure functions in `apple/Packages/PersonaWire/Sources/PersonaWire/UsageWindows.swift`, unit tests `UsageWindowsTests` share the web's cases; views in `Persona/Views/Machines/UsageWindowsViews.swift`):
-
-- **iOS**: on the Machines page (**Machines** in the drawer / Settings / Agents menu), a **Subscription Usage** section below the cards lists every window of every account directly (no hover on a phone, so no two layers of thin bar + popover).
-  One card per account type (#13173): the type's name, how many accounts, when the newest was read; every account of it is listed (no folding), soonest 7-day reset first (accounts without a 7-day window or reset time last, then by name; `UsageWindows.sortedByWeekReset`, `UsageCardsTests`).
-  The sample time sits right of the account title, the next line gives the plan and sources, and there is a one-line explanation when the gateway cannot read; one row per window, the 5h window then the 7d window then any other: length, used, ahead / behind pace, reset countdown, with a bar carrying the pace tick below. Under the rows an always-shown reset timeline: a strip from now to the farthest reset (at most seven days) with a segment per window ending at its reset (`UsageWindows.timeline`). With no data the whole section is not drawn.
-  A menu in the section header switches each account type off or on. The hub's `usage.hidden_providers` is written only from the admin console (a phone's credentials do not open it), so the phone's switches are a filter kept on the device: they can hide more, never show what the hub left out.
-  It asks once a minute while the page and the App are in the foreground (`tabActiveTask`), and also on pull to refresh. DEBUG: `-tab dev -openMonitor all`.
-- **Mac**: at the bottom of the section column, above the connection status, one thin bar each for the two fullest accounts (`MacUsageFooter`), warning color at ≥ 80%, out-of-date ones faded, hover tooltip shows the source; clicking opens the same detail popover (Esc or clicking elsewhere closes it).
-  It asks once a minute while the App is in the foreground; the Machines page does not draw it again.
-- Demo mode (`DemoHub`) has one Claude and one Codex account; the mock hub's `MOCK_USAGE=gateways` shows a mix of computer and gateway accounts.
-- With multiple hub groups, each group is asked separately and the results are sorted together (the same account in two hub groups appears once in each; no merging across groups); old hubs (404) count as no data.
 
 ## Limitations
 

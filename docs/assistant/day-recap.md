@@ -2,7 +2,7 @@
 
 The Apple Watch records the whole day, the phone transcribes it on device as it arrives, and the hub writes a recap of
 the day that reaches the user in the evening. This is not a third recording product: it is the recordings already in
-the knowledge base ([recording.md](../apple/recording.md), [recording-rolling.md](../apple/recording-rolling.md)) with
+the knowledge base with
 a new kind, `day`, an incremental upload, and a recap made by the minutes pipeline
 ([meeting-minutes.md](meeting-minutes.md)) with its own prompts. This document is the contract the watch, the phone
 and the hub follow (#4741); [protocol.md](../protocol/protocol.md) "All-day recordings (#4741)" carries the hub's

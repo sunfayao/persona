@@ -9,7 +9,7 @@ Android's navigation badge counts each unread open item in Needs you once, inclu
 
 The Inbox belongs to the **manager** (assistant process `personad assistant`; `docs/assistant/assistant.md`, "Boundary with hub"): items and their state (pre-admission triage,
 per-source rules and fallback tiers, `triage` status, event grouping, muting, done state, bulk actions), the AI twin (judgment, starting its chat, drafts, message cards), item translation,
-and generic App translation (`docs/apple/ios.md`, "Translation"), plus every endpoint under `/api/v1/inbox…`, `/api/v1/translate`, and `/api/v1/translate/mail`
+and generic App translation, plus every endpoint under `/api/v1/inbox…`, `/api/v1/translate`, and `/api/v1/translate/mail`
 (hub forwards unchanged through `assistantwire.InboxRoutes`, with the same fields as before). Code: `server/internal/assistant/inbox*.go`.
 Table `inbox_items` and setting `inbox_mutes` are unchanged; no data migration, and only the manager reads / writes them. All models (triage, judgment, drafting, translation) are called by the manager
 through hub's model configuration (`app.call models.*`, centralized on the manager side in `assistant/inbox_hub.go`). Every call has a deadline (`timeout_ms`);
@@ -328,10 +328,8 @@ a summary up to 40 characters, and a short reason:
     Use hub `reason`, trimmed. If empty, use state defaults: `unconfigured` no triage model configured · `paused` triage model paused · `error` triage model error · `timeout` triage model too slow · `behind` too many new messages, queued.
     Unknown state without reason shows only "{waiting} messages waiting for triage." Chinese labels place no spaces around the source name ("有 2 条GitHub消息在等分拣", meaning 2 GitHub messages waiting for triage).
   - Button: Set Up only for `unconfigured`, opening Settings › Model configuration › Information filtering (`inbox.triage`). Show only if this device can edit settings, otherwise text alone. Other states only explain the cause.
-  - All clients use a clock icon. Web `TriageBanner` (`docs/web/web.md`, "Inbox") has Set Up to the text's right. iOS / Mac `InboxStore.triage` uses design-system `NoticeBanner` (`apple/Persona/DesignSystem/Notice.swift`, `Theme.Icon.time`)
-    as the first list row (iPhone below filters with Set Up below text; Mac first row in the list column, Set Up on the right). Set Up opens an Information filtering model-edit sheet, hidden in demo mode.
-    Android shows Set Up only if it can read `GET /api/v1/model-config/purposes/inbox.triage` (reply-only devices or hubs lacking that purpose show text only; hidden in demo); details in `docs/android/android.md`.
-    Normally paired devices behave identically across clients: devices able to save this setting get the button.
+  - The clock icon is used. Web `TriageBanner` (`docs/web/web.md`, "Inbox") has Set Up to the text's right. Set Up is shown only if the client can read `GET /api/v1/model-config/purposes/inbox.triage` (reply-only devices or hubs lacking that purpose show text only; hidden in demo).
+    Normally paired devices behave identically: devices able to save this setting get the button.
   - Screenshots / integration use mock `MOCK_INBOX_TRIAGE=<state>[:<count>[:<source names, comma-separated>[:<reason>]]]` (`unconfigured`, `behind:8:Lark`, `error:7:Lark,Mail,GitHub`, `error:2:GitHub:Model has no quota`).
 - First run 2026-10-27: of 51 items, 3 needed you and 29 were noise (all marketing mail). An example summary: "A contact asks whether the Codex code was merged into 1013, awaiting your confirmation."
 
@@ -472,7 +470,6 @@ Two manual actions in Select mode (web, iPhone), the row menu and the detail pag
 - **Add to to-dos** (`POST /api/v1/inbox/todo {items:[{id, version?, title?}], due_at | due_date}`): the user picks the due time and the client works it out in its own zone (1 hour from now, today all day = `due_date`, a date and time, or neither). One to-do per row, all with that due time, titled like the row (or the user's edit) with its summary as notes, pointing back at the row (`todos.inbox_item`, migration 0512). The row counts as handled: `done_by=todo`, "Added to your to-dos" on its chain with a `todo` link. A row that cannot be filed gets no to-do. Several rows that are one matter: merge first. `POST /api/v1/inbox/todo/undo {items:[{id, todo_id}]}` deletes the to-dos and reopens the rows.
 - **AI suggestion**: `inbox_suggest` kind `todo`: `text` the title, `due` a day (all day) or an RFC 3339 moment, only when the message states a deadline. The detail page's capsule shows it with both editable; `POST /api/v1/inbox/{id}/suggestion {action: confirm, version, text?, due?}` adds the to-do and files the row as above. `now` is `confirm_todo`. Only a full device confirms it; only the processing conversation suggests it.
 - **Web client** (`web/src/lib/inbox-actions.ts`, `views/inbox/InboxTodoDialog.tsx`): the selecting bar has **Merge** (two or more rows of one manager; icon only on a phone) and **Add to to-dos**, which opens one dialog for the due time: 1 hour later, today all day, a picked date and time, no due date. The row menu and the item's ⋯ menu carry Add to to-dos for one open row. A merge removes the members from the list when the hub answers and a row with members says "Merged from N rows" in plain grey small text; both end with a toast whose Undo calls the undo routes. A `todo` suggestion is a card with the title, day and time as fields and one **Add to to-dos** button (a day alone is all day). A chain entry with a `todo` link opens that to-do.
-- **iPhone client** (`apple/Shared/InboxMergeTodo.swift`, `Persona/Views/Inbox/InboxTodoViews.swift`, `InboxStore.merge` / `addTodos`): Merge and Add to To-Dos are two actions. Selecting's bottom bar has **Merge** (two or more open rows of one manager) and an **Add to To-Dos** menu (1 Hour Later, Today All Day, Pick Date & Time… in a sheet, No Due Date); a row's long-press menu and the item page's ⋯ menu carry Add to To-Dos for one row. Both show at once when the hub answers and end with a toast whose Undo calls the undo routes. A row with members says "Merged from N rows" in plain grey caption text. The to-do suggestion card has the title, a Due Date switch, the day, an **All Day** switch (on: the day alone is all day; off: a time, 9:00 to start with) and one **Add to To-Dos** button. A chain entry with a `todo` link opens that to-do in a sheet.
 
 ## Muting (2026-11-03, connector v2 · V3, #670)
 
@@ -937,7 +934,7 @@ Who it serves: everyone using the Inbox on the Assistant side; it adds no settin
 
 ## Grouping and selection (2026-11-10, #2059)
 
-The same rules on the web (`web/src/lib/inbox-groups.ts`) and iOS / iPad (`Persona/Views/Inbox/InboxGroups.swift`); Android follows in #2576. The retired native Mac app kept its earlier list behavior ([mac.md](../archive/apple/mac.md)).
+The same rules on the web (`web/src/lib/inbox-groups.ts`).
 
 - **Groups**: Needs you, FYI and Collapsed group by source (default) or by time, switched in the section bar's grouping menu ("Section bar") and kept on this device
   (web `localStorage` `inbox.grouping`, Apple `@StoredValue("inbox.grouping")`). Done always groups by when it was done. Working is never grouped.

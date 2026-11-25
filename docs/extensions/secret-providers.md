@@ -221,28 +221,12 @@ holds every answer to it before it reaches the manager:
   (`needsFieldValues`). An extension's secret offers **Use a reference** where the hub has `extension_secret_references`; a
   secret that holds one says **From <provider>** with the item under its title. A provider's page lists **Used by** (the
   settings that hold its references) and **Always for Agents** (its rules, each removed after a confirm).
-- **iPhone** (`apple/Persona/Views/Interactions/SecretHandoffForm.swift`, `apple/Persona/Views/Settings/ExtensionsViews.swift`):
-  the same card, extension secrets and provider page, an Always rule removed after a confirm.
-- **Model provider keys**, in every app (`web/src/views/settings/ProviderFields.tsx` `KeyField`,
-  `apple/Persona/Views/Settings/ProviderKeyField.swift`, Android `feature/settings/ProviderKeyField.kt`): where the hub has
+- **Model provider keys** (`web/src/views/settings/ProviderFields.tsx` `KeyField`): where the hub has
   `launcher_secret_references`, a provider's key, a preset's key and each computer's own key offer **Use a reference**; a
   stored reference opens with it on and says **From <provider>** with its item, as the provider's page does. A reference
   is never sent to the connection test or the model list, which would hand its value to the address in the request: while
   one is typed, both wait for the save (a stored one is probed by the provider's name, as a stored key is), and a preset's
   key given as a reference skips its key test and is checked when it is saved.
-- **Android** (`feature/chat/SecretHandoffSummary.kt`, `feature/settings/ExtensionsScreen.kt`): the same full hand-off card
-  in a conversation and the Agents request sheet, with no approval action on its notification or ongoing status. Any
-  unreadable variable invalidates the whole approval instead of being hidden while the remaining variables stay
-  approvable. The two settings gates also require an enabled, compatible extension whose `secret_providers`
-  contribution is enabled, checked for the assistant whose page is open; a stopped provider still counts, while
-  unreadable provider metadata fails closed. A saved reference stays readable when that gate later closes. Editors are
-  locked during the fresh save-time capability check so a newer draft cannot be mistaken for the request that was sent. Provider details list **Used by** and **Always for Agents**, with rule removal behind a confirmation.
-  `ShareQueue` marks new and existing-chat sends `via: "share"`, and the Today-card message uses `via: "card"`; both the
-  first conversation creation and its session-message POST carry the mark through the durable outbox and retries. Ordinary
-  typed messages and notification replies carry none. Android currently has no direct voice-assistant, App Action or
-  shortcut caller that submits text without opening the composer; such a caller must use `via: "intent"`, while merely
-  opening the composer leaves the eventual typed message unmarked.
-
 
 ## Phone-approved storage
 

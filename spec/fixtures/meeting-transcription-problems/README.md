@@ -19,4 +19,3 @@ In a hub-mode meeting the hub tells the phone, with the audio socket's `problem`
 ## Verification
 
 - Hub: `cd server && go test ./internal/assistant -run TestTranscriptionProblemsFollowTheSharedCases`.
-- iPhone: `apple/PersonaTests/MeetingTranscriptionTests.swift` (`MeetingTranscriptionShownTests`).

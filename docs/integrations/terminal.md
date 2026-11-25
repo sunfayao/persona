@@ -58,26 +58,6 @@ herdr pane ──observe(pane size)──▶ node (one observe process per pane,
 - **Compatibility**: old Apps don't send the new subscription and keep polling `/screen`; old node / herdr that don't recognize `terminal.watch` (or can't start observe) make the hub return
   `unsupported`. The App falls back to screen polling (`format=ansi` snapshots retain colors, but no cursor and one refresh per second).
 
-## 3. iOS emulator choice
-
-| | SwiftTerm | libghostty (GhosttyKit) | Custom VT subset |
-| --- | --- | --- | --- |
-| License | MIT | MIT | — |
-| Integration | SPM; 1.99.1 Package.swift includes swift-argument-parser, swift-docc-plugin and swift-png (all need local mirrors), plus a build tool plugin requiring trust in Xcode / xcodebuild | Build xcframework with Zig (not installed locally); embedding API not stable yet (only libghostty-vt has a stable C API) | No dependencies |
-| Size | 3.2 MB source, several MB added binary | Tens of MB (including Metal renderer) | Tens of KB |
-| CJK / wide characters | Yes (wcwidth table) | Yes | Two cells via East Asian Width |
-| Reflow | Yes (xterm.js port) | Yes | Unneeded: fixed pane-sized grid, wrapping is display-layer work |
-| Accepted input | Arbitrary VT | Arbitrary VT | herdr observe subset + common CSI, unknown sequences ignored |
-
-**Choose custom** (`TerminalGrid`): input isn't arbitrary program bytes; it's a grid herdr has already emulated and redraws with a small fixed set of sequences.
-The hard parts (program-output parsing, alternate screen, scroll regions, wide-character cursor semantics) are already handled by herdr. Existing emulators' reflow isn't useful (grid must match pane size),
-and their views don't support "172-column grid displayed with 45-column wrapping", so rendering and selection need custom work anyway. The cost is extending the parser if herdr changes its output.
-Unknown sequences are always ignored, never crash, and real recorded observe frames are unit-test fixtures. If raw program bytes become available later (herdr would need a raw observer stream),
-switching to SwiftTerm's `Terminal` (headless engine) affects only this layer.
-
-Rendering (`TerminalGridView`) is cell-based: each character is placed in its own cell (wide characters occupy two), not by font glyph width, so Chinese and borders always align.
-No huge monospaced CJK font required for alignment; the font only affects appearance (D: a bundled OFL Latin monospace font is possible, with system Chinese glyphs drawn in two cells).
-
 ## 4. Limits
 
 - Program OSC 52 clipboard writes and bells never reach the phone (herdr handles them on the computer). Phone copying uses its own selection (web: section 18).
@@ -86,9 +66,7 @@ No huge monospaced CJK font required for alignment; the font only affects appear
 
 ## 5. Implementation notes
 
-- Files: node `server/internal/node/terminal.go`, hub `server/internal/hub/terminal.go`, herdr `server/internal/herdr/observe.go`;
-  App `apple/Persona/Views/Session/Terminal/` (`TerminalGrid` parsing, `TerminalFeed` subscription / replay / fallback, `TerminalView` rendering, `TerminalWrap` wrapping,
-  `TerminalInput` direct typing, `BoxDrawing`, `TerminalTheme`).
+- Files: node `server/internal/node/terminal.go`, hub `server/internal/hub/terminal.go`, herdr `server/internal/herdr/observe.go`;.
 - Default palette is Ink (near-black 0x0C0C0E, independent of App light/dark mode; Moshi defaults to pure black). Terminal-card buttons, key bar and keyboard choose light/dark appearance from the palette's background.
   Also Midnight (dark gray), Persona and Solarized (the latter two follow the system).
 - herdr converts reverse video (SGR 7) directly to foreground/background truecolor from **its own theme** (`38;2;40;44;52;48;2;255;255;255`); the phone sees herdr's reverse colors, not Persona's theme.
@@ -98,55 +76,8 @@ No huge monospaced CJK font required for alignment; the font only affects appear
 - Symbols with emoji forms (⏺ ⏵, common in Claude Code) get U+FE0E when drawn to request text presentation, avoiding colored emoji instead of cell colors.
 - Draw only through the last text row or cursor: after `clear`, the prompt is at the first row with forty-plus blank rows below; following the bottom would show only blanks.
 - Wide-character width uses East Asian Width (Wide / Fullwidth) plus emoji presentation; disagreement with herdr only misaligns the rest of one row, corrected by the next CUP.
-- Measured fixtures: real frames in `apple/PersonaTests/Fixtures/terminal-observe.jsonl` (recorded from a scratch pane running an example script, no personal data);
+- Measured fixtures: real frames (recorded from a scratch pane running an example script, no personal data);
   `go test -tags herdrlive -run TestLiveObserve ./internal/herdr/` verifies observe itself on a machine with herdr.
-
-## 6. Font (decision D)
-
-Default **JetBrains Mono** (OFL-1.1, v2.304 Regular / Bold ttf files, about 550 KB total, `apple/Persona/Resources/Fonts`, full license in
-`THIRD_PARTY_NOTICES.md`); Settings can switch back to system SF Mono. Registered with `CTFontManagerRegisterFontsForURL` on first use, no Info.plist changes.
-Chinese and symbols use system fallback fonts, each glyph placed in its own two cells.
-
-Before 2026-10-29, none was bundled because cell-based rendering makes alignment independent of fonts. The decision changed after comparison with Moshi (JetBrains Mono 14pt by default):
-glyph shapes are what makes it "look like a terminal", and a Latin font is only a few hundred KB; no need to wait for a CJK monospace font (10–20 MB).
-
-- Default size 13 (previously 11). Line height always `ceil(font size × 1.42)`, not the font's own spacing, so changing fonts doesn't change row count.
-- Chinese glyphs are about 1 em wide, while two cells are 1.2 em, leaving visible gaps at native size (one cause of tab4's uneven-spacing report).
-  Wide glyphs now grow to about 92% of two cells, capped at 86% of line height and 1.25×.
-
-## 7. Typing directly in the terminal
-
-- The terminal view (`TerminalScrollView`) implements `UITextInput` itself (`TerminalInput.swift`); tap makes it first responder, with the keyboard acting directly on the terminal.
-  - Its document only holds the IME's composing marked text (pinyin), drawn at the cursor and sent only after commit.
-  - `insertText` / `replace(range:)` (dictation) both count as typing.
-  - Return and Tab send key names; deletion sends `backspace`.
-  - Hardware arrows, Esc and Ctrl+letter use `keyCommands`.
-- Key-bar Ctrl / Alt / ⇧ applies to the next typed key (Ctrl then c means `ctrl+c`). The bar sits above the keyboard when shown.
-  Keyboard button at the far right; the only way to dismiss it is that button.
-- Sending uses `KeyStream` + `KeyBatcher`: only one `/keys` request in flight, with typing during it accumulated for the next request.
-  - Request format is text first, keys second; text after a key goes in the next request.
-  - Backspace removes unsent text locally.
-  - Fast typing thus sends only a few requests, in order.
-- Cursor follows herdr's: filled block while typing in the terminal, hollow outline otherwise.
-- Page header (title, space bar, tabs) collapses to a narrow strip when the keyboard appears, implemented by `ChatView`.
-  iPhone 17 Pro at 13pt shows about 20 rows with keyboard (previously 13), about 27 without.
-- Settings › Input Mode can restore the old Input Field: compose a line, send as one; the field has completion.
-
-## 8. Wrapping at phone width (`TerminalWrap.swift`)
-
-The pane lays out at computer width (often 170 columns); the phone fits forty-something cells per row, so it wraps again. Real-frame fixture tests (`TerminalWrapTests`) cover all rules:
-
-- **Break between words**: after spaces or beside Chinese characters; not before closing punctuation such as `，。）` or after opening punctuation such as `（「`.
-  Search only the latter half of the row for breaks; split within a word only if longer than half a row. Break spaces aren't carried to the next row's start.
-- **Hanging indent**: continuation aligns with the body's start, after leading spaces and list markers.
-  - Markers include `⏺ ⎿ ❯ • - *`, `2.`, `3)`.
-  - Vertical borders `│ ┃ ║` in the indent are redrawn; indent cells retain the row's background.
-  - At most half a row of indentation.
-- **Don't wrap padding**: if the rest of a row is only padding, stop at the phone edge rather than wrapping into several rows of dashes or solid background. Padding includes:
-  - spaces with any background color;
-  - pane-wide separators: `─ ━ ═ ╌ ┄`, such as Claude input-box borders and `╌` in permission dialogs;
-  - gray user-message backgrounds in Claude (48;2;55;55;55).
-- Never truncate the cursor row; the typing position must remain visible.
 
 ## 9. herdr wide-character redraw pitfall ("missing characters")
 
@@ -264,8 +195,6 @@ So the phone follows Moshi: under control, vertical finger swipes = wheel events
 Before takeover (evening 2026-10-29), phone history was locally accumulated by comparing grids and keeping rows scrolled off the top (section 11 "Scrollback on the phone", verified with real-frame replay).
 Now all swipes under control are herdr wheel events; locally accumulated history is only used without control (mirroring). Section 16 covers wheel coordinates and event count.
 
-Tried, not adopted: render the transcript in Claude style above the terminal on the phone (branch `lane/terminal-transcript`, `TerminalHistory.swift`, sanitized long-chat fixtures and seam alignment).
-User rejected it: the terminal should contain only what it emitted.
 
 ## 14. Terminal rises from the bottom, Moshi-style key bar
 
@@ -273,12 +202,9 @@ User rejected it: the terminal should contain only what it emitted.
 - Tapping Terminal now opens from the bottom over the full page (`TerminalCover`, fullScreenCover + transparent background). Only a thin top bar (size, handle, settings, Close), following a downward drag;
   dismiss after 140pt or projected travel over 420pt, otherwise spring back. Tapping the handle or Close (Close Terminal, 44pt, test `terminal-close`; the bar is `terminal-bar`) closes too, as does VoiceOver's escape. Dimensions only change with keyboard. Measured 47×35 (previous tab 45×29).
 - The bar sits above the screen, so it is there in every state (#4328: the no-terminal state used to replace the view that held it, and nothing closed the cover). With no terminal (the stream ends "not running") the screen is an `EmptyStateView`: a Claude Code session offers **Resume Session** (`POST /api/v1/sessions` with `resume_session_id`; the node keeps the launcher, model, modes, directory and tab name it ran with), other agents say a message resumes them; the key bar is hidden and the area drags down like the bar (`TerminalNotRunningTests`).
-  Android (#4345) shows the same empty state in place of the terminal, drawn in the dark palette since the terminal is dark in either appearance (`TerminalScreen.kt` `TerminalNotRunning`); Resume Session retries the stream at once on success and shows the hub's words on failure (`TerminalViewModel.resume`, `TerminalCriticalPathTest`). Its key bar stays: the page has its own Back.
 - Key bar follows Moshi's Toolbar (measured its settings preview): glass capsule (`TerminalKeyBar`), 44pt high, padding 5 horizontal / 4 vertical, 36pt keys, gap 6.
   Ctrl / Esc / Tab use JetBrains Mono, others SF Symbols (Moshi uses Lucide; not added). Double-tap Keyboard = Return. Previously separate 40pt glass circles.
-- Chat top bar no longer has Chat / Terminal / Git / Files tabs: Terminal is top-right button; Files / Git via left swipe or ··· menu (`docs/apple/ios.md`).
-- Keyboard reduces terminal rows (`testDrivingTheTerminalSendsItsBytes`). Caveat: XCUITest typing switches the simulator to hardware-keyboard mode; afterward soft keyboard doesn't appear and terminal doesn't yield rows,
-  failing this test (also on clean master). Without Simulator.app this can't be reversed; create a new simulator through `scripts/app/sim-boot.sh "<new name>"`.
+- Chat top bar no longer has Chat / Terminal / Git / Files tabs: Terminal is top-right button; Files / Git via left swipe or ··· menu.
 
 ## 15. Tap terminal = click inside it; keyboard only from the key-bar button
 
@@ -397,21 +323,6 @@ Paste screenshots with ⌘V / Ctrl+V or drag files from a file manager. Files up
 
 **Can iOS / Android reuse this API?** Yes, no server changes. They already use `POST /machines/{mid}/files` (chat Send File, uploading to computer temp storage);
 adding `dest=terminal` stores under Persona. Escape returned paths as above, then type through `terminal_input.text` (wrap `ESC[200~ … ESC[201~` yourself).
-Android not implemented yet.
-
-### iOS / Mac (#3083)
-
-Same route/rules as web (UI test `TerminalFilesUITests`: hold Paste for menu, tap Files for picker). Pure logic in `apple/Persona/Views/Session/Terminal/TerminalFiles.swift` (`TerminalPaste`: escaping, naming, guards, messages; `TerminalUploads`: uploads/path typing), unit test `TerminalFilesTests`.
-
-- **Entry**: iOS Paste key tap still pastes text; **hold** opens Paste Text / Photos / Files: multi-select photo library including videos, or Files App.
-  Settings › Key Bar can enable a separate paperclip Photos / Files key (hidden by default: another key exceeds phone width and makes the bar horizontally scroll).
-  Mac ⌘V pastes Finder-copied files or screenshots (only if clipboard contains images without text; with text, original text paste, same decision as composer `MacPaste`). Files can also be dropped on terminal (accent outline while dragging, only under control); key bar works too.
-- **Upload**: `APIClient.upload(…, dest: "terminal")`, sequentially; reject over 50 MB or empty files; directories aren't uploaded, with "Can't upload folders; drag files from inside".
-  HEIC / TIFF etc. from photo library convert to JPEG (`image.jpg`); PNG / JPEG / GIF / WebP and videos unchanged. Unnamed items named by type (`image.png`, `video.mov`).
-- **Paths**: same escaping as `escapePastePath` (`TerminalPaste.escape`), space-separated with trailing space; whole string bracketed (`ESC[200~ … ESC[201~`; App doesn't know whether `?2004` is enabled, always wraps like multiline paste), sent through `terminal_input.text`, no Return.
-- **Guard**: only while controlling (otherwise "Take over the terminal before pasting files"); session changed or terminal closed during upload: "Terminal changed during upload; not pasted"; no longer controlling: "Terminal control ended during upload; not pasted".
-  Upload status at terminal top; failures use toast.
-
 ### Drag file-panel entries into terminal / composer (#2333)
 
 Like Moshi web (`application/x-moshi-file`, inserts `@relative-path `): file/folder rows are draggable; terminal drop types `@path `, composer drop inserts at cursor.
@@ -539,8 +450,6 @@ A pane terminal is a full shell on that computer, stricter than an Agent-session
 
 ### Not implemented
 
-- iOS: **Agents › ⋯ (list menu) › Terminals**, and **Terminals** on a computer's page (#4754, `apple/Persona/Views/Chats/TerminalsView.swift`): every pane of each computer, the Agents' under their titles, plain ones labelled Terminal with their `foreground` program and folder, a stopped Agent's left behind as "Finished: <title>". A plain pane opens in the existing terminal cover by its `pane:` address (watch and type); an Agent's, and a stopped Agent's, by its session, whose terminal page offers Resume (#4328). Each computer's header menu has New Terminal per workspace and Close Finished Terminals (preview, then confirm); a plain pane closes by swipe or long press, after a confirmation. A plain pane on herdr or Tern renames its tab from its long press and its terminal page's ⋯ (#6996, `tabs/rename`, as the web's node menu; `docs/apple/ios.md`, "Information architecture"), and the page reads the panes again every 8 seconds while it is in front. Android has it too (#2972): Terminal in Agents List Settings, see `docs/android/android.md` ("App shell and direct page entry").
-- Close tabs and split on iOS: outside this version, do it on the computer when needed (iOS closes a pane and renames a plain pane's tab, above).
 - Hosts without sessions or herdr (Paseo, botmux): no panes, empty list.
 - ⌘K palette now searches panes too (#2330, `docs/web/web.md`, "Pages"): reads each online computer's `panes.list` once on opening, lists ordinary shells and sessionless panes (Agent panes with sessions already appear as session results); terminal page Jump To unchanged.
 
@@ -617,11 +526,9 @@ with node methods `panes.close` / `panes.split` / `panes.agent` / `panes.git` / 
   An older node's Codex launchers lack `run_here`: there a failed start would close its pane, here the user's own shell, so they stay out and Codex starts from New Agent in a tab of its own (#5275). iOS's footer says so only on a computer with such a launcher (`NodeMenu.runHereFooter`).
   Tests: `node/run_here_codex_test.go` (the start in a shell pane with history above Codex, its waiting row and first message; a failed start leaving the pane), `assistant/models_launchers_runhere_test.go`, the clients' unit tests. Checked live on a Mac (Codex 0.153.4, herdr 0.9.3, 2026-11-12): Codex came up in a scratch shell pane under its history, the pane listed as its waiting row, and `/quit` left the shell.
 - **Git**: run in pane directory (workspace uses its own), reject non-repositories (`not_a_repository`).
-  Results and refusals are codes (#1888): success carries an `outcome` (`fetched`, `up_to_date`, `pulled`, `nothing_to_push`, `pushed`) that web and iOS say in their own strings, with an English `message` for older clients; each refusal is a coded 409 the hub words in the client's language (`rpc-errors`: `no_directory`, `detached_head`, `no_upstream`, `uncommitted_changes`, `not_fast_forward`, `push_rejected`; `pull_failed` / `push_failed` / `fetch_failed` carry git's words), the node's words as `detail`. **Pull** uses existing `gitPull`: fast-forward only, reject uncommitted changes; **Fetch** `git fetch --no-recurse-submodules`.
+  Results and refusals are codes (#1888): success carries an `outcome` (`fetched`, `up_to_date`, `pulled`, `nothing_to_push`, `pushed`) that the web says in its own strings, with an English `message` for older clients; each refusal is a coded 409 the hub words in the client's language (`rpc-errors`: `no_directory`, `detached_head`, `no_upstream`, `uncommitted_changes`, `not_fast_forward`, `push_rejected`; `pull_failed` / `push_failed` / `fetch_failed` carry git's words), the node's words as `detail`. **Pull** uses existing `gitPull`: fast-forward only, reject uncommitted changes; **Fetch** `git fetch --no-recurse-submodules`.
   **Push** asks first in every client (#1883, like the Git panel's Push; Pull and Fetch don't change the remote and run at once). It requires branch/upstream and pending commits (otherwise the `nothing_to_push` outcome), explicit `refs/heads/<branch>:<upstream branch>` without `+`, preventing force push even if `remote.<name>.push = +…` is configured. A remote that rejects a branch behind it is `push_rejected` (pull first; git's words in `detail`).
   All timeout after 60 seconds, don't prompt for passwords (`GIT_TERMINAL_PROMPT=0`, askpass `false`), retain only last 2 KB output.
-- **iOS / Mac** (#3098): Agent-row long-press menus add Split, Git, Close Tab; space ⋯ adds Run Agent Here…, Git, same routes (`docs/apple/ios.md`, "Information architecture"). No standalone terminal; shell pane chosen in Run Agent Here… sheet.
-- **Apple errors** (#3586): an uncoded node refusal reaches the hub as 502 `internal`. `APIClient.nodeAction` marks that call so the existing sheet / toast keeps the node's actionable reason; other `internal` 5xx responses stay generic instead of exposing private exceptions.
 - **Measured** (herdr 0.9.5, local temporary tab): `go test -tags herdrlive -run TestLiveMenuActions ./internal/herdr/` (`HERDR_LIVE_WORKSPACE=<workspace id>`) creates/renames tab, splits twice, closes pane/tab, matching fake herdr node tests.
 - **Tests**: `node/panes_actions_test.go` (fake herdr close/rename/split calls, rejection doesn't touch herdr, run in shell pane, rejection/failure preserves pane; real Git fetch/pull/push, force-push config ineffective, reject nonrepo/dirty/detached HEAD),
   `hub/panes_test.go` (every route denies `answer`/extension tokens before node receives it, forwards only named fields, absent from `answer` allowlist, route scopes `-`).
@@ -696,7 +603,6 @@ These suggestions apply only to creation and do not establish ownership for clos
   Checkout path absolute (`~/` expanded), not an existing file, existing directory must be empty (Git can reuse it), never inside repo `.git`. Git rejection (branch checked out elsewhere, bad path…) returns original `fatal:` line, after an earlier line that names the cause when there is one (a program the shell could not find, else the last `error:` line): an LFS filter whose `git-lfs` is not on PATH says `git-lfs filter-process: git-lfs: command not found; the remote end hung up unexpectedly`, not only the second half (#10127). No forcing, deleting or partial artifacts on failure.
 - **Dialog** (`views/NewWorktree.tsx`, logic `lib/worktree.ts`): reads repo on open ("Reading repository…"); path follows branch until manually changed, clears to restore auto-follow; immediate branch validation (empty: "Enter a branch name").
   Creation shows spinner and disables dismissal; failure inside dialog ("Couldn't create worktree: …"), missing old-hub/node API says "Persona on this computer is too old; update to create worktrees". Success: toast, reload tree, open new workspace terminal.
-- **iOS / Mac** (#3099): space ⋯ in Agents list has New Worktree…, same two routes/form rules (`WorktreeForm`); success opens New Chat prefilled with new workspace instead of terminal (`docs/apple/ios.md`, "Information architecture").
 - **Tests**: `node/worktree_test.go` (real Git + fake herdr: prepare repo name/branch/config directory/linked worktree/detached HEAD/nonrepo; herdr creation with new/existing branches; rejected paths/branches never touch herdr; Git errors; Git fallback/repeated checkout; `panes.list` includes `worktree`),
   `node/hostorca_worktree_test.go` (real Git + a fake Orca whose `worktree.create` behaves like Orca 1.4: Orca's default folder; a new branch from the source workspace's branch, under it, not activated, to the terminal Orca opened; an existing branch without a base; a detached HEAD's commit; a branch in use and an existing empty folder refused without asking Orca; Orca's own folder taken as it is; a renamed branch is an error; a workspace Orca does not list),
   `herdr/worktrees_test.go` (config parsing, slug, folder name, socket args, CLI fallback), `hub/panes_test.go` (permissions, named fields only), `web/src/lib/worktree.test.ts`, `node-actions.test.ts`, `node-palette.test.ts`, `views/NewWorktree.test.tsx`.
@@ -1126,23 +1032,20 @@ The herdr server is the one the computer's own herdr window uses too. iOS keeps 
 
 - `cd web && npm test`: `lib/terminal-appearance.test.ts` (default, stored values, notifications), `terminal/colors.test.ts` (`styles.css` scopes every token the terminal reads; a dark terminal on a light page is Match page on a dark page, with a theme color and with an extension theme), `terminal/appearance.test.ts` (both feeds: palette; Full view's 996 answers and 2031 reports on page and setting changes), `terminal/TerminalOptions.test.tsx` (the row), `terminal/FullTerminal.test.tsx` (Full view's gear: only Appearance).
 
-## 30. A subscription nobody answers: the wait is bounded (iOS and web, #6327)
+## 30. A subscription nobody answers: the wait is bounded (web, #6327)
 
-Open Terminal Here on the iPhone sat on **Taking over…** with a spinner for good. The app never sent `terminal_subscribe`: it allowed streams and keys only for a session whose row says it has a terminal (`canTerminal`), and a `pane:` address (section 19) has no row. `AppModel.canUseTerminal` now lets a `pane:` address through for the subscription, the keys, the wheel, clicks and the mouse. `keys()` over HTTP stays session-only, as the node's `session.keys` does. The mock UI tests had missed it because they run without `MOCK_TERMINAL_STREAM`, where the feed polls `GET …/screen` and never subscribes.
-
-The same page could also wait forever on a subscription the hub never answers, for example a takeover whose `terminal.watch` went with a node connection that a deploy closed. Both feeds (`TerminalFeed.swift`, `web/src/views/session/terminal/feed.ts`) now bound that wait:
+The same page could also wait forever on a subscription the hub never answers, for example a takeover whose `terminal.watch` went with a node connection that a deploy closed. The feed (`web/src/views/session/terminal/feed.ts`) now bounds that wait:
 
 - **What counts as an answer**: a subscription from a whole frame is answered by its first frame. One that asks to drive needs the hub's `terminal_control` too, together with a frame or the screen it continues. A subscription that continues the frames the page already has, and only watches, is not timed: an idle pane sends nothing.
-- **From 4 seconds** without a first screen, the link status says **No terminal yet · Waiting for the computer…** with Retry, as the web already did (`TerminalLinkStatus` counts from `waitingSince` until a screen came).
+- **From 4 seconds** without a first screen, the link status says **No terminal yet · Waiting for the computer…** with Retry,.
 - **At 10 seconds** (`answerLimit`, `ANSWER_LIMIT_MS`) the feed unsubscribes at the hub and fails with a reason: **<computer> is offline** when the hub lists it offline, else **<computer> isn't answering**. The spinner gives way to the reason, and the backoff (1, 2, 4, 8, 15 s) subscribes again from a whole frame. A hub error for an offline computer is shown in those words too, never the hub's raw text, which can name the machine by id.
 - **Retry** while a subscription is still unanswered unsubscribes first. Otherwise the hub would treat it as the same subscription again and start no new watch (`terminalSubscribe`: same device, same size).
 - **The computer comes back online** (the `machines` push): the feed subscribes again, and takes the terminal over, at once rather than at the backoff's turn.
-- **The size chip** (iOS) and the size label (web) say **Taking over…** between tries: the feed still takes the terminal over, and the next try asks again. Before, a failed try set it back to off, and the chip showed Wrap (the web: View only), the controls of a mirror that had given up. Only a session that isn't running, or a node that can't stream (the feed reads the screen instead), goes back to watching. On iOS the chip also goes back to Taking over… while the hub link is down, as the web's does: the hub no longer knows who drives.
+- **The size label** (web) says **Taking over…** between tries: the feed still takes the terminal over, and the next try asks again. Before, a failed try set it back to off and the label showed View only, the controls of a mirror that had given up. Only a session that isn't running, or a node that can't stream (the feed reads the screen instead), goes back to watching. The label also goes back to Taking over… while the hub link is down: the hub no longer knows who drives.
 
 Hub: when a computer's connection ends (`connectionEnded` → `terminalsEnded`), a `terminal.watch` still on its way to that connection is cancelled (`termRelay.life`). Before, it held the session's call lock until its 20-second deadline, so the next takeover, on the node's new connection, waited behind it. A node's own `terminal.end` does not cancel anything: watches to a live connection stay one at a time.
 
 ### Tests
 
 - Hub: `terminal_reconnect_test.go`. The node's connection closes with the takeover's watch on its way: the app is told at once, and subscribing again takes over on the new connection. The hub hears of the reconnect before the old call fails: the next takeover goes through within 3 seconds, not after 20.
-- iOS: `TerminalTakeoverTests` (a `pane:` terminal takes over and takes keys; the 10-second limit, its reason and the fresh subscription; Retry unsubscribes first; back online subscribes at once). `TerminalTakeoverHangTests` is the UI flow with screenshots, against the mock's `/mock/terminal_node?state=stalled|gone|back`.
 - Web: `terminal/feed.test.ts` (the same three cases).

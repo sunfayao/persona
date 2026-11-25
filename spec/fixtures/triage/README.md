@@ -1,14 +1,12 @@
 # To-do status SOP fixtures
 
-The To-dos page's sections (docs/assistant/todo-status-sop.md) are worked out by every client's own copy of the rules and,
+The To-dos page's sections (docs/assistant/todo-status-sop.md) are worked out by the web app's own copy of the rules and,
 since #3483, by the hub (`server/internal/assistant/todo_triage.go`), which needs them to tell when a leader's task is
-stuck. These cases hold the copies to one definition. All four implementations read them: the web app
-(`web/src/lib/todo-triage-fixture.test.ts`), Apple (`apple/PersonaTests/TodoTriageFixtureTests.swift`), Android
-(`android/core/domain/src/test/kotlin/persona/core/domain/tasks/TodoTriageFixtureTest.kt`), and the hub
+stuck. These cases hold the copies to one definition. Both implementations read them: the web app
+(`web/src/lib/todo-triage-fixture.test.ts`) and the hub
 (`TestTriageFollowsTheSharedCases`, `TestTriageTodosFollowsTheSharedCases`,
-`TestTriageRelatedKeysFollowTheSharedCases` in `server/internal/assistant/todo_triage_test.go`). The hub, web and Android
-replay every case. Until Apple's native concern follow-up, its fixture suite replays every non-concern case; the concern
-cases remain explicit rather than silently changing Apple behavior.
+`TestTriageRelatedKeysFollowTheSharedCases` in `server/internal/assistant/todo_triage_test.go`). The hub and the web
+replay every case.
 
 | File | Rule | Cases |
 | --- | --- | --- |
@@ -26,6 +24,4 @@ cases remain explicit rather than silently changing Apple behavior.
 - A due day is read in UTC by the hub's test; the web reads it in the machine's zone, so a case must not hang on the
   zone.
 - All data is made up.
-- Run: `cd server && go test ./internal/assistant -run Triage`; `cd web && npx vitest run src/lib/todo-triage-fixture.test.ts`;
-  `cd android && ./gradlew :core:domain:testDebugUnitTest --tests '*TodoTriageFixtureTest'`; and the Apple
-  `TodoTriageFixtureTests` test class in `PersonaTests`.
+- Run: `cd server && go test ./internal/assistant -run Triage`; `cd web && npx vitest run src/lib/todo-triage-fixture.test.ts`.
