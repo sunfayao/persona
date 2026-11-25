@@ -1,16 +1,5 @@
 package node
 
-import (
-	"bufio"
-	"encoding/binary"
-	"encoding/json"
-	"net"
-	"testing"
-	"time"
-
-	"github.com/nwverse/persona/server/internal/preview"
-)
-
 // previewPage: a button that renames the page, a field that does too as it is typed in, and a link elsewhere.
 const previewPage = `<!doctype html><html><head><title>Hi</title><style>
 body { margin: 0; background: #00f } #go { position: absolute; left: 0; top: 0; width: 100px; height: 50px }

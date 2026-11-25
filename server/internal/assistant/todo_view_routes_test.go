@@ -1,13 +1,10 @@
 package assistant
 
 import (
-	"context"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // The To-dos view on the wire (todo_view_routes.go, #10226): every row of the list carries its view and the list its

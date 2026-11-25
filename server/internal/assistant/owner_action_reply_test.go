@@ -1,14 +1,8 @@
 package assistant
 
 import (
-	"encoding/json"
-	"errors"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func ownerReplyTestService(t *testing.T) (*Service, *fakeHub, *ownerActionTestStore, *ownerActionBook) {

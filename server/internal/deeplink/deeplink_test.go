@@ -1,11 +1,5 @@
 package deeplink
 
-import (
-	"encoding/json"
-	"os"
-	"testing"
-)
-
 // fixture is spec/fixtures/deep-links/cases.json's sections this package writes (its README says what each holds).
 type fixture struct {
 	Version int `json:"version"`
