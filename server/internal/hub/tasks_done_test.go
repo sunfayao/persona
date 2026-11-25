@@ -49,6 +49,12 @@ func stubJudge(t *testing.T, h *Hub, status int, reply string) *judgeStub {
 			_ = json.NewEncoder(w).Encode(map[string]any{"content": []any{map[string]any{"type": "text", "text": `{"categories":[]}`}}})
 			return
 		}
+		// The titles of agents and to-dos go to the same triage model now (nothing sets a separate one): only a
+		// judgment, whose prompt asks for a verdict, counts.
+		if !strings.Contains(string(raw), "verdict") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"content": []any{map[string]any{"type": "text", "text": "example-task"}}})
+			return
+		}
 		js.input.Store(string(raw))
 		js.calls.Add(1)
 		if status != http.StatusOK {
@@ -84,7 +90,7 @@ func TestJudgeStubSeparatesNamingCalls(t *testing.T) {
 		t.Fatal("a naming request was counted as a completion judgment")
 	}
 	var result struct{ Verdict string }
-	if err := ai.New(*js.triage).JSON(context.Background(), "Example judgment system", "Example completed work", &result); err != nil {
+	if err := ai.New(*js.triage).JSON(context.Background(), "Example judgment system: answer with a verdict", "Example completed work", &result); err != nil {
 		t.Fatal(err)
 	}
 	if result.Verdict != "done" || js.calls.Load() != 1 {
