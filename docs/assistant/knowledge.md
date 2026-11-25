@@ -641,7 +641,7 @@ start. Then only the newest three are kept: the oldest by the time in the name a
 | `kb_history_resume` | `{"source", "slow"}`: approves the plan as the selection reads it now (the fingerprint), removes `STOP`, and with `slow` holds the slowest pace for the first two hours |
 
 The flow the tool descriptions ask for: list the plan, show it, apply the owner's exceptions, show the result, and call `kb_history_resume` only when the owner says to start.
-Replies go through `server/internal/i18n/locales/*/assistant-kb_history.json`; with `kb.history` off the tools say so and ask no connector anything. In the health space only
+Replies go through `server/internal/i18n/locales/*/assistant-kb_history.json`; with `kb.history` off the tools say so and ask no connector anything. In a track only
 `kb_history_status` works: the others change what goes into the knowledge base.
 
 ### Time zones

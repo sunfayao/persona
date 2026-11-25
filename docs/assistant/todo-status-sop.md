@@ -421,7 +421,7 @@ redesign changes them:
   manager's `askRisk`, also written on the list's `ask`, one rule for every place that answers it); a retry is
   `safe`; a run's ask is what its pending card asks (`question`, `plan`, `tool`, `form` or `secret`, the card's id as
   `interaction`; the session's own card before Persona's about its turn, then the oldest), `safe` only when a
-  notification may answer that card too (one question with options, not a Just me turn's or a health conversation's,
+  notification may answer that card too (one question with options, not a Just me turn's or a track's conversation's,
   and its asker did not say going ahead cannot be undone. The hub and Android omit option actions for an explicitly
   irreversible question. See `docs/protocol/protocol.md`, "Answering a question from its notification").
   A failed start of a to-do no conversation opened carries no retry, since the hub would refuse it; its row still
@@ -486,6 +486,6 @@ A to-do with more than 1000 such feed items serves the rounds that began within 
 log and ledger reviews are cut at the same time, and the rounds that began earlier are left out, so every round served
 is whole and keeps its id as newer items come. An extension's token reads it without the answered cards, whose records
 hold what the owner typed into a card and do not say whose card it was, and not at all for a to-do that may hold the
-health space's words: one opened from or written to by a health conversation, one any of whose runs ever worked there
+track's words: one opened from or written to by a track's conversation, one any of whose runs ever worked there
 (taken off it or not, done or not), and, since this fails closed, one with a conversation or run whose space cannot be
 told (`docs/extensions/extensions.md` "Never shown to extensions").

@@ -46,7 +46,7 @@ The prototype is the UI and interaction standard; compare screen by screen durin
   (`add` / `remove`, `{"machine", "directory", "access": "edit" | "read"}`) after the owner approves its card; `add` refuses those three
   too-broad directories.
   A task in a Git repository is remembered by the repository, named by its main checkout, so every worktree of it and its main checkout are one kind (#8259): the hub asks the task's computer (`worktree.status`) about the folder the task runs in (the workspace it resolved to, which can be in another repository than the plan's `cwd`) when the plan is made and again at Start, and keeps the answer as the task's hub-owned `repo`, never what `task_plan` or a card edit says. The box is remembered once the task's workspace is admitted: the hub resolves `repo` again from the admitted folder (an existing workspace, or the checkout the engine made), saves it with that `cwd`, and remembers that repository, or that exact folder when the computer names none; never the repository the plan was made from. A folder in no repository, or one whose computer cannot say (offline, an older node), is remembered as that folder, as every entry was before. A task starts without asking when an entry covers its repository or its own folder; different repositories, different computers, and reading versus file changes stay separate kinds.
-- Read-only tasks keep `permission: bypassPermissions` for Claude and an Auto Accept provider, and `permission: plan` for Codex, after card edits and on retries. Their first prompt says not to change files, commit, or write externally. Health-space plans still wait for Start. Runtime support and the current card labels are described in [To-dos](todos.md#read-only-planned-tasks).
+- Read-only tasks keep `permission: bypassPermissions` for Claude and an Auto Accept provider, and `permission: plan` for Codex, after card edits and on retries. Their first prompt says not to change files, commit, or write externally. Track plans still wait for Start. Runtime support and the current card labels are described in [To-dos](todos.md#read-only-planned-tasks).
 - `task_plan` **does not block**: once the plan is handed to you, the turn ends immediately and you can continue talking about something else. When you tap Start, hub starts the Agents directly; Persona sees the result in the next message's live snapshot.
 
 ### Task workspace policy (#3659)
@@ -59,7 +59,7 @@ The prototype is the UI and interaction standard; compare screen by screen durin
 | `{"new":{"branch":"task/fix-login"}}` | Create through that engine, with an explicit branch |
 | `{"existing":"/code/app"}` | Reuse an existing directory (`~/…` is expanded on the selected machine) |
 | `{"existing":"/code/app","queue":true}` | Reuse an existing directory, queueing FIFO behind an occupying task instead of failing |
-| `{"existing":"ws_…"}` | Select a workspace from that machine's catalog; node-local and board-qualified IDs are accepted |
+| `{"existing":"ws_…"}` | Select a workspace from that machine's catalog; node-local and manager-qualified IDs are accepted |
 | `"none"` | Create no workspace; run at `cwd` (the default for read-only/non-Git tasks) |
 
 Settings › Assistant › Dispatch tasks offers **When dispatching tasks, prefer**:
@@ -529,7 +529,7 @@ page one setting away (#5424):
 - **Where everything opens** (#5424). Settings › General › Agent preferences › **How Agents open** picks it, for this
   browser only (`web/src/lib/agent-open.ts`, localStorage `agent.open`; nothing is written for the default). Every entry
   goes through `openTask` / `openAgent` in `web/src/lib/handoff.ts`: the hand-off cards, the dock's pills, Needs you and
-  In progress rows, task lines, the board, decisions, the Today card, injected task lines, the workspace board and links.
+  In progress rows, task lines, the board, decisions, the Today card, injected task lines, and links.
   - **Side panel** (the default): a task opens `TaskPanel` (its Agent's chat, ⌄ to switch between several Agents, ⋯ with
     Open in new window and Remove task…; the task's starting or failed state while no Agent is up), an Agent `AgentPanel`.
     The chat stays beside it on a wide window; a phone-sized one has the panel over the chat, and Back closes it. Both are
@@ -798,7 +798,7 @@ A new dispatch from `task_plan` records the cohort once, including plans the own
 Direct owner starts keep their existing brief behavior. An Agent must link successfully in the recorded cohort. The first recorded
 completion supplies wall-clock minutes from the dispatch. That duration becomes a sample only when the supervisor
 or its judge accepts the round. Reopening a to-do removes its prior round from learning. A manual re-close cannot
-reuse that acceptance. Canceled, unstarted, placement-changed and older rounds without a recorded cohort supply no samples. Health-space plans use the default and keep their work out of calibration.
+reuse that acceptance. Canceled, unstarted, placement-changed and older rounds without a recorded cohort supply no samples. Track plans use the default and keep their work out of calibration.
 The next comparable plan checks up to 32 recent rounds whose review was accepted while the sample write was
 interrupted, and recovers them from the durable admission, completion and acceptance. It skips expired and
 reopened work. Estimates and their evidence are fixed on the plan. A continuation of an automatic brief inherits its current
@@ -1062,7 +1062,7 @@ call; nothing is turned on for the owner without the tap.
 - **Never suggested**: `deploy-production`, `send`, `delete` and `spend`; a decision whose `why_owner` is
   `irreversible` or `visible_to_others` (the line is not shown on one, and the answer to one is not counted); a
   question whose text mentions force, production, release, deleting, sending or paying; tool permission cards and plan
-  approvals (their answers are not counted either); the health space. A decision typed into a to-do by hand
+  approvals (their answers are not counted either); a track. A decision typed into a to-do by hand
   (`POST /api/v1/todos/{id}/decisions`) is not an answer to a card and counts nothing. An Agent's question card has no
   `why_owner`: for it the list of actions and the words above are the whole check.
 - **The scope** of a go-ahead is the directory the task's plan named (the repository, whichever worktree its agent
@@ -1455,7 +1455,7 @@ Table `task_plans`: `id`, `conversation`, `tasks` (JSON: each item's `title`, `n
   work event (plan, conversation, reason, task titles). Another conversation's plan, a plan not `open`, and an empty
   reason are refused. A withdrawn plan is no answer of the owner's: the "Start These Directly" count and the setup
   suggestions leave it out. The snapshot's plans waiting to start give each plan's id for it.
-- A plan made in a round the hub started for a scheduled task names it: each task's `schedule` (its id) and `schedule_title`, the hub's alone (a tool call's or an edit's are dropped). Never in the health space.
+- A plan made in a round the hub started for a scheduled task names it: each task's `schedule` (its id) and `schedule_title`, the hub's alone (a tool call's or an edit's are dropped). Never in a track.
 - `ultracode` (#12): the assistant sets it per task, as on `agent_start`, rather than writing the word into the prompt; the Agent starts with Claude Code's ultracode on (`session.start` `ultracode: true`). On start, `true` / `false` from the card overrides it and leaving it out keeps the assistant's choice.
 
 ### A scheduled task's own start grant
@@ -1472,7 +1472,7 @@ writable task it hands out used to wait on its card however much the owner wante
   the schedule as its round had it (`schedule_basis`): a Start after the schedule changed grants nothing.
 - **Only for schedules that read nothing from outside**: a schedule whose runs get the briefing's facts (Inbox
   matters), the north star's report or a saved state note (an earlier run wrote it), that runs into the conversation it
-  came from, or that is in the health space never offers or uses one.
+  came from, or that is in a track never offers or uses one.
 - **Only in a clean round**: a schedule with a grant starts each round in a new conversation of its own, under an id
   the hub picks before it starts (Claude Code only: another agent picks its own id, so its rounds are never clean and
   their cards don't offer a grant), and that conversation's context leaves out the live snapshot (Lark messages,

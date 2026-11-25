@@ -207,7 +207,7 @@ The App Group ID itself has no team prefix, so the Info.plist writes `$(PERSONA_
   App Groups are checked the same way: every bundle's signature has its target's group, and the Info.plist's `PersonaAppGroup` is one of them.
   In the exported ipa / pkg, the push entitlement (`aps-environment`; on Mac `com.apple.developer.aps-environment`) must be `production`. A Mac .pkg can be checked too.
 - **HealthKit background delivery** (`com.apple.developer.healthkit.background-delivery`, #2526): signed in only with config.json
-  `app.health_background_delivery: true`, so that workout reports come right after a workout (`docs/assistant/health.md`,
+  `app.health_background_delivery: true`, so that workout reports come right after a workout (`docs/assistant/tracks.md`,
   "Automatic workout reports (iOS)"). The App ID's HealthKit capability covers it. If the profiles predate it, rerun
   `asc_signing.py` before turning the switch on. `entitlements.py check` errors if an exported App built with the switch lacks
   it, because the Settings page would promise reports that wait for Persona to open. Check the first such build on a device:

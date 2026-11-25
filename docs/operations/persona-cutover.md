@@ -170,7 +170,7 @@ Database/container names are a separate operator step. The volume holds the buil
 
 ### Agent conversation history
 
-Claude Code keeps each folder's conversations (transcripts, subagent and tool-result files, `memory/`) in `<config dir>/projects/<key>`, where the key is the folder's absolute path with every character other than ASCII letters and digits replaced by `-`. The assistant runs in `<root>/assistant` and the health space in `<root>/health`, so moving the root moves their key too: after the move Claude Code looks under the key for `~/.persona/assistant`, finds nothing, and the assistant's whole history seems gone, the main conversation included, although every file is still on disk.
+Claude Code keeps each folder's conversations (transcripts, subagent and tool-result files, `memory/`) in `<config dir>/projects/<key>`, where the key is the folder's absolute path with every character other than ASCII letters and digits replaced by `-`. The assistant runs in `<root>/assistant` and a track in `<root>/health`, so moving the root moves their key too: after the move Claude Code looks under the key for `~/.persona/assistant`, finds nothing, and the assistant's whole history seems gone, the main conversation included, although every file is still on disk.
 
 On every machine, for every Claude Code config directory listed in the inventory (`~/.claude` and each `CLAUDE_CONFIG_DIR` in use):
 

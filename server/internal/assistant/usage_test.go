@@ -77,7 +77,7 @@ func TestPolicyOf(t *testing.T) {
 
 // Every row of the health space's outbound table (docs/assistant/tracks.md "Outbound") is a scene whose rule for the
 // health space's information is what the row says: the health space behaves as before.
-func TestUsageHealthOutbound(t *testing.T) {
+func TestUsageSensitiveTrackOutbound(t *testing.T) {
 	health := infoUse{Categories: []string{categoryHealth}, Known: true, SourceTrack: testSpace}
 	for _, row := range []struct {
 		exit string
