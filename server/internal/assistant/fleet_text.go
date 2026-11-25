@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"path/filepath"
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/apierr"

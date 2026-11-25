@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"encoding/hex"
+
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/i18n"
