@@ -130,6 +130,7 @@ class Rebaseline extends Error {}
  * Rejected reads also set `error`; invalidation is fire-and-forget and records errors without rejecting globally.
  */
 export class SessionList<T> {
+  protected readonly admitExistingMembersInCompleteScope: boolean = false;
   protected snapshot: ListSnapshot<T> = this.empty();
   private listeners = new Set<() => void>();
   private filters: ListFilters = {};
@@ -508,7 +509,7 @@ export class SessionList<T> {
     if (!this.current(generation)) return;
     this.overlay = delta.overlay;
     this.checkpoint = delta.revision;
-    const rows = this.visible(false, delta.added);
+    const rows = this.visible(false, delta.added, delta.total);
     this.publish({ rows, total: delta.total, hasMore: !!this.cursor || this.candidateCount() > this.prefixSize, ...(delta.counts ? { counts: delta.counts } : {}) });
     // Publishing may synchronously reset/switch the list through onRows or a subscriber.
     if (!this.current(generation) || !this.onDelta) return;
@@ -582,13 +583,14 @@ export class SessionList<T> {
 
   private candidateCount(): number { return this.candidates().size; }
 
-  private visible(resetPresentation = false, added?: ReadonlySet<string>): T[] {
+  private visible(resetPresentation = false, added?: ReadonlySet<string>, scopeTotal?: number): T[] {
     const candidates = this.candidates();
     const transport = [...candidates.values()].sort(this.compare).slice(0, this.prefixSize);
     this.transport = this.stabilize(transport);
     if (!this.presentation) return this.transport;
     if (resetPresentation) this.presented = [];
-    const admitted = added === undefined ? undefined : new Set([...added, ...this.admitted]);
+    const completeScope = this.admitExistingMembersInCompleteScope && !this.cursor && candidates.size === scopeTotal;
+    const admitted = added === undefined || completeScope ? undefined : new Set([...added, ...this.admitted]);
     this.presented = mergeStableRows(this.presented, transport, candidates, this.identity, this.presentation, this.presentation.parentOf, admitted);
     for (const row of this.presented) this.admitted.add(this.identity(row));
     return this.stabilize(this.presented);

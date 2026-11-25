@@ -4,6 +4,9 @@
 import { SessionList, type ListChangeHint } from "./session-list";
 
 export class SectionList<T> extends SessionList<T> {
+  // When the group has every current row, an entrant changes its membership regardless of when the row was created.
+  protected override readonly admitExistingMembersInCompleteScope = true;
+
   /** Where the hints were followed to without a read, and the read revision that was from: a read that moves
    *  `checkpoint` leaves it behind. */
   private followed?: { from: string; to: string };
