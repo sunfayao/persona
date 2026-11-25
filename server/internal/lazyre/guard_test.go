@@ -67,7 +67,6 @@ func TestNoPackageLevelMustCompile(t *testing.T) {
 	}
 }
 
-
 func TestCompiledAtOnceInTests(t *testing.T) {
 	defer func() {
 		if recover() == nil {

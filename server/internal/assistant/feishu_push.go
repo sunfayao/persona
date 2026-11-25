@@ -539,3 +539,11 @@ func agentDoneCard(l i18n.Lang, head, text, place, secondary string, sess proto.
 		"\n" + fallbackText.Replace(hint)
 	return card, strings.TrimSpace(fallback)
 }
+
+// feishuPushKeyed is feishuPush within ctx, for a push that may be sent again when key is set (card i goes with key
+// and i, so one that landed lands once): an error when it may yet get out and did not (the bot's status not read
+// while the hub is away, a card Feishu did not take for now), nil when it went or has nowhere to go (no bot, the
+// pushes switch off, a card Feishu refuses however often it is sent).
+func (s *Service) feishuPushKeyed(ctx context.Context, machine, session, title, body, key string) error {
+	return s.feishuPushTold(ctx, machine, session, title, body, key, nil)
+}

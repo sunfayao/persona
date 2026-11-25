@@ -11,9 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/channel"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/prompts"
 )
-
 
 func setupNeedsUserTaskWithLark(t *testing.T, st Store) (*Service, *fakeHub, Todo, func() []string, func() []string) {
 	t.Helper()

@@ -1036,7 +1036,6 @@ func TestTaskLeaderNeedsUserIdenticalRecommendationIsDeduplicated(t *testing.T) 
 	}
 }
 
-
 // Even where the judge closes a main-chat task that passed its own check (spot checks off), it does not close a
 // leader's worker: the worker waits for its leader's review.
 func TestJudgeDoesNotCloseALeadersWorkerThatPassedItsCheck(t *testing.T) {
@@ -1115,7 +1114,6 @@ func TestWorkerAutomaticSignalsGoToLeader(t *testing.T) {
 		})
 	}
 }
-
 
 // A leader whose own task closed: its open workers are rehomed to the conversation above it (which becomes their
 // supervisor and can review them), not left pending for ever.

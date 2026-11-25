@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-
 // MayMatchLowered reads an ASCII text as strings.ToLower has it, without lowering it: false exactly when the lowered
 // text fails the gate, and never false for a lowered text that matches. A text with other runes is left to the match.
 func TestMayMatchLoweredIsTheGateOnTheLoweredText(t *testing.T) {

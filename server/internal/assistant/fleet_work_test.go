@@ -79,7 +79,6 @@ func workReport(on bool, ws map[string]proto.WorkState) *WorkReport {
 	return r
 }
 
-
 // A done turn nobody has seen is Just finished on the lists while it ended less than the window ago (#9751); not one
 // already seen, nor one past the window, nor a turn the triage did not call done, nor any with the triage off. Seeing
 // it takes it out, and so does a new turn.

@@ -121,7 +121,6 @@ func TestDefaultReviewsEveryTask(t *testing.T) {
 	}
 }
 
-
 // PUT /api/v1/assistant takes the share (0–100) and GET says the one in effect.
 func TestReviewSamplePercentSetting(t *testing.T) {
 	s, _, _ := newSupervisedService(t)
@@ -178,5 +177,3 @@ func TestJudgeLeavesAReopenedTaskToTheSupervisor(t *testing.T) {
 		t.Fatal("the judge closed a reopened task again")
 	}
 }
-
-

@@ -1133,7 +1133,6 @@ func TestUpdateManagedLauncherPreservesAgentWhenOmitted(t *testing.T) {
 	}
 }
 
-
 func TestAskLauncherModelsAddsOnlyExactCatalogPrices(t *testing.T) {
 	s, f, _ := modelService(t)
 	own := &proto.ModelPrice{Input: 9, Output: 99}

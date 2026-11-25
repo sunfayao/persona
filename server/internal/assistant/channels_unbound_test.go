@@ -3,15 +3,10 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
 
 func TestChannelUnboundWhileQuestionIsBeingSent(t *testing.T) {
 	s, f, _, _ := newTextAskService(t)

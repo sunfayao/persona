@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -23,7 +22,6 @@ func TestMain(m *testing.M) {
 	taskDoneRetryAfter = time.Millisecond
 	os.Exit(testhome.Main(func() int { return staleListedCheck(dbtest.Main(m)) }))
 }
-
 
 // The package's tests never see the developer's HOME or PERSONA_HOME (testhome); most of them need a database and skip
 // in CI, this one keeps the TestMain wiring from being dropped there.

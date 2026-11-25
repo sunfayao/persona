@@ -701,7 +701,6 @@ func TestReadTurnOverTheBus(t *testing.T) {
 	}
 }
 
-
 // The bot's cards and lines read in the user's language; without one they are Chinese.
 func TestBotTextInLanguages(t *testing.T) {
 	yes := true

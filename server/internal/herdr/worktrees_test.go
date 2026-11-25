@@ -7,7 +7,6 @@ import (
 	"testing"
 )
 
-
 func TestTerminalDefaultShellIn(t *testing.T) {
 	for _, tc := range []struct{ name, config, want string }{
 		{"basic string", "[terminal]\ndefault_shell = \"C:\\\\Program Files\\\\Git\\\\bin\\\\BASH.EXE\"\n", `C:\Program Files\Git\bin\BASH.EXE`},

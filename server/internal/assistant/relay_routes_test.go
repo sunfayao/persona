@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -59,4 +58,3 @@ func TestScheduledWakeStartsANewChain(t *testing.T) {
 		t.Fatal("a wake after the window did not start a new chain")
 	}
 }
-

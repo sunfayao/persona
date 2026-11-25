@@ -1,17 +1,12 @@
 package assistant
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"reflect"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -45,4 +40,3 @@ func todoViewRows(t *testing.T, e *todoEnv) (plain, worked, closed, failed strin
 	}
 	return plain, worked, closed, failed
 }
-

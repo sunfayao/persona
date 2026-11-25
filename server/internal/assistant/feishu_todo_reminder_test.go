@@ -159,7 +159,6 @@ func TestFeishuTodoReminderReplyCarriesTodoContext(t *testing.T) {
 	}
 }
 
-
 // The health space's existing outbound rule covers the phone push too: only a generic notice leaves the space.
 func TestTodoReminderHealthPhoneUsesGenericNotice(t *testing.T) {
 	f, s, _ := todoReminderHub(t)

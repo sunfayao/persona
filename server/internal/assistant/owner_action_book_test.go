@@ -95,7 +95,6 @@ func validOwnerProof(batch, item string) ownerReplyProof {
 	}
 }
 
-
 func TestOwnerActionCanonicalPayload(t *testing.T) {
 	a, err := canonicalOwnerAction(json.RawMessage(` {"subject":"hello","to":[{"email":"a@example.test"}],"n":1} `))
 	if err != nil {

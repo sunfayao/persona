@@ -241,7 +241,6 @@ func TestLauncherHealthRepairRecheckMeetsAUsageLimit(t *testing.T) {
 	}
 }
 
-
 // Readiness reads a usage-limited launcher as a rate limit that passes by itself, until its reset.
 func TestLauncherHealthUsageLimitInReadiness(t *testing.T) {
 	_, s, _ := readyMachine(t, proto.Session{SessionID: "m1", State: proto.StateIdle, LastText: "你好，我是 Persona。", UpdatedAt: time.Now().Add(-time.Hour)})

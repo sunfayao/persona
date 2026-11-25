@@ -53,7 +53,6 @@ func TestAskOfClips(t *testing.T) {
 	}
 }
 
-
 // cutListMark is the list-mark regexp it replaced, written out.
 func TestCutListMarkMatchesRegexp(t *testing.T) {
 	re := regexp.MustCompile(`^\s*(?:[-*+>#]+|\d+[.)、])\s*`)

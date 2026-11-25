@@ -150,7 +150,6 @@ func TestGoldenInboxJudge(t *testing.T) {
 	}
 }
 
-
 // Relating a batch to events: the first call (rules, the connector's meta description, the events) and the call after
 // one tool call.
 func TestGoldenInboxGroup(t *testing.T) {

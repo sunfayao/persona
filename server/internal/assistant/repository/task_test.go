@@ -129,7 +129,6 @@ func TestAliasReservedDeviceNames(t *testing.T) {
 	}
 }
 
-
 func TestTaskLinkReportsPreserveSourcesAndNormalizeReferences(t *testing.T) {
 	urls := []string{"https://GitHub.com/Example/Web/pull/7", "https://github.com/example/web/pull/7", "https://github.com/example/api/pull/7", "https://gitlab.example.com/Team/Api/merge_requests/7"}
 	rows, err := MergeTaskLinks(nil, urls, Catalog{})

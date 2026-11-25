@@ -127,7 +127,6 @@ func TestOnlyLarkDMTriageNamesLatestPreview(t *testing.T) {
 	}
 }
 
-
 // The no-write preview must use the same Lark-DM input boundary as a real triage call.
 func TestLarkDMTriagePreviewKeepsLatestMessageBoundary(t *testing.T) {
 	h := newInboxHub(t)

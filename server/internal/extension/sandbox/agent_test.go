@@ -303,7 +303,6 @@ func TestAgentStatusReasonJSONRoundTrip(t *testing.T) {
 	}
 }
 
-
 // The Linux branch builds a default-allow bwrap command and sends its opaque profile through the same Check hook.
 // It shares neither the network nor the pid namespace, and its view exposes only this start's launcher settings.
 func TestWrapAgentLinux(t *testing.T) {

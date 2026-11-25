@@ -45,7 +45,6 @@ func TestTitleTopic(t *testing.T) {
 	}
 }
 
-
 // MMDD is the day in the user's time zone though the hub runs in UTC; a broken answer is asked for once more, then
 // cut or replaced by "explore | the first 14 characters".
 func TestMakeTitle(t *testing.T) {

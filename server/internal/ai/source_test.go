@@ -38,4 +38,3 @@ func TestDirectModelSourceAllProtocolsAndDestinations(t *testing.T) {
 		}
 	}
 }
-

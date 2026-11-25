@@ -1088,4 +1088,3 @@ func TestOwnerPresenceAndMainSupervisionQueue(t *testing.T) {
 		t.Fatalf("the message that waits on a decision did not go first; still queued: %+v", left)
 	}
 }
-

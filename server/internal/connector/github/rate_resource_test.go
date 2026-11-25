@@ -3,7 +3,6 @@ package github
 import (
 	"net/http"
 	"strconv"
-	"testing"
 	"time"
 )
 
@@ -16,4 +15,3 @@ func quotaAnswer(h http.Header, resource string, left, limit int, reset time.Tim
 	h.Set("X-RateLimit-Remaining", strconv.Itoa(left))
 	h.Set("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
 }
-

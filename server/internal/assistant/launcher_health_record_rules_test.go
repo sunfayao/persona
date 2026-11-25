@@ -339,7 +339,6 @@ func TestUsageLimitRuleUnknownFamilyOutlivesOtherReset(t *testing.T) {
 	})
 }
 
-
 // Fourth review's counterexamples and the persisted format.
 
 func reloadHealthService(t *testing.T, s *Service, f *fakeHub) *Service {

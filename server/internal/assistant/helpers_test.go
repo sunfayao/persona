@@ -73,7 +73,6 @@ func (b *inboxBook) inboxAgentPrompt(it *InboxItem, owner string) string {
 	return b.inboxAgentPromptFor(it, owner, nil, 1, time.UTC)
 }
 
-
 // waitWorkEvents returns once the events recorded so far are in the store (or failed): what reads the stats right
 // after acting sees them. The caller must know nothing else is recording events meanwhile (no Run,
 // no triage goroutine from workTick), as a WaitGroup's Add from zero must not race its Wait.

@@ -6,21 +6,16 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/db/dbtest"
 	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
 )
 
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
@@ -221,7 +216,6 @@ func TestSharePreparedHTTPContract(t *testing.T) {
 	}
 	t.Log("synthetic prepared API: HTTP acknowledgement, exact preview, entropy, hash-only persistence, one-time create, tokenless replay, two subjects/two devices, tools-off, tools-on selection, tools-off narrowing, authority fence, offline narrowing, revoke, expiry, uniform 404 PASS")
 }
-
 
 func TestShareCommonClientFixture(t *testing.T) {
 	raw, err := os.ReadFile("../../../spec/fixtures/agent-sharing.json")

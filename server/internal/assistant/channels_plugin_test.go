@@ -167,7 +167,6 @@ func TestChannelReceiveCommandRestAnswersAsk(t *testing.T) {
 	}
 }
 
-
 // A resolve that fails on the wire keeps the ask and the answers already given: the last question is asked again (its
 // failed answer is dropped), a re-sent reply finishes it, and the ask is deleted only once the resolve goes through.
 func TestChannelAnswerKeptOnResolveError(t *testing.T) {

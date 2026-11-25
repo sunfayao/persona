@@ -506,8 +506,6 @@ func TestInboxSweepLeavesAHandoffAlone(t *testing.T) {
 	}
 }
 
-
-
 // handoffCards are the write-back cards in conversation sid's feed, oldest first.
 func handoffCards(t *testing.T, h *inboxHub, sid string) []handoffCard {
 	t.Helper()

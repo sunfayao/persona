@@ -363,7 +363,6 @@ func TestProviderReadFailureEditUsesConfirmedSnapshot(t *testing.T) {
 	}
 }
 
-
 func TestProviderReadFailureAssignmentIsCheckedAndRecovers(t *testing.T) {
 	s, _, st := providerReadFixture(t)
 	before, writes := providerSettings(st.memStore)

@@ -116,4 +116,3 @@ func TestCompatTLSIdentityKeepsLegacyCertificateAndPin(t *testing.T) {
 		t.Fatal("renewal changed the pin")
 	}
 }
-

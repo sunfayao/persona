@@ -122,7 +122,6 @@ func TestOpenCodeGoDirectAPISessionHeader(t *testing.T) {
 	}
 }
 
-
 func TestGateKeyAndChatEffortCacheKeepDeploymentPrefixesApart(t *testing.T) {
 	if a, b := gateKeyFor("responses", "https://gw.example/openai", "k"), gateKeyFor("responses", "https://gw.example/openai/responses", "k"); a == b {
 		t.Fatalf("distinct Responses prefixes collided: %q", a)

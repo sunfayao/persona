@@ -306,7 +306,6 @@ func TestTaskWorkspaceSessionRowsVerifyOwnership(t *testing.T) {
 	}
 }
 
-
 func TestStoppedTaskReworkChecksContextAndWritesResumeNote(t *testing.T) {
 	s, f, leader := stoppedTaskLeader(t)
 	c := stoppedBoxAgent(resumedTaskLeaderSession)

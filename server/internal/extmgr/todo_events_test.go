@@ -176,7 +176,6 @@ func waitEventQueuesEmpty(t *testing.T, h *Manager) {
 	}
 }
 
-
 // With nobody subscribed and granted, nothing is queued.
 func TestTodoEventsAreNotQueuedForNobody(t *testing.T) {
 	h, _ := extensionTestHub(t)
