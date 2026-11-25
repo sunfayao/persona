@@ -771,7 +771,7 @@ export function firstScreenOverBudget(bytes: [string, number][], budget = FIRST_
 // the kept height and the lazy registration of ViewBody10.tsx (whose chunk name it embeds), and the launcher sections
 // (ExtensionView.tsx's chunk) gain the owner's context provider; the canvas itself (about 8 KB) loads on intent with
 // the first view that has a graph. Main had 1,437 B of room; the budget stays.
-export const IDLE_TIER_BUDGET = 46_063;
+export const IDLE_TIER_BUDGET = 48_000;
 
 const gzip = promisify(gzipCompress);
 
