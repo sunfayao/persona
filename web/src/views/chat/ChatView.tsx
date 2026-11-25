@@ -2621,7 +2621,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           editingLast={editProp}
           loadingDraft={editingLast}
           // Persona's conversations too, the main one included (#1467): the node stops their turn like an agent's
-          onStop={sessionCan(session, "interrupt") ? interrupt : undefined}
+          onStop={!backgroundOnly && sessionCan(session, "interrupt") ? interrupt : undefined}
           stopping={stopping}
           commands={commands}
           suggestion={session?.suggestion}

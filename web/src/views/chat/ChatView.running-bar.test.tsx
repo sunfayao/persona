@@ -136,6 +136,7 @@ describe("the Persona conversation says its foreground turn exactly once (#6230)
     expect(liveWorkLine()).toBeNull();
     expect(dockBar()).not.toBeNull();
     expect(dockBar()?.getAttribute("data-running-background")).toBe("command");
+    expect(host.querySelector('[data-testid="composer-stop"]')).toBeNull();
   });
 
   it("keeps the live transcript line when an Agent's cached transcript reloads", async () => {
