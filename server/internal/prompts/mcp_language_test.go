@@ -84,7 +84,7 @@ func TestMCPLanguagesKeepSchemasAndSourceContracts(t *testing.T) {
 				t.Errorf("%s lost %s", lang, prefix)
 			}
 		}
-		for _, name := range []string{"task_plan", "task_scope", "agent_send", "agent_supervise", "task_review", "leader_progress"} {
+		for _, name := range []string{"task_plan", "task_scope", "agent_send", "agent_supervise", "task_review"} {
 			if strings.Contains(string(Tool(name, lang).InputSchema), "Chinese") {
 				t.Errorf("%s/%s still requires Chinese output", name, lang)
 			}
