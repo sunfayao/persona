@@ -7,7 +7,6 @@ import type { Session } from "./types";
 
 const NOW = Date.parse("2026-11-05T12:00:00Z");
 const fresh = new Date(NOW - 60_000).toISOString();
-const old = new Date(NOW - STALE_MS - 60_000).toISOString();
 const s = (sid: string, state: Session["state"], cwd: string, patch: Partial<Session> = {}): Session => ({
   machine_id: "m1", session_id: sid, title: sid, cwd, status: state === "working" ? "working" : "idle", state, updated_at: fresh, ...patch,
 });

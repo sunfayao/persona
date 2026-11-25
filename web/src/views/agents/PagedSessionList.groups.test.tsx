@@ -312,7 +312,7 @@ describe("stable presentation over paged transport (#11801)", () => {
     const rankedList = new SessionList<Ranked>("/sessions", identity, transport);
     await rankedList.load();
     await act(async () => root.render(<PagedSessionList root={rankedList} path="/sessions" identity={identity} compare={transport} event="sessions_list"
-      grouping={{ dimension: "machine", bar: null, label: "Machine", rowOrder: { compare: stable } }}
+      grouping={{ dimension: "machine", rowOrder: { compare: stable } }}
       placeOf={(r) => ({ machine: r.machine, project: r.project, group: r.group })}
       renderRow={(r) => <span data-row={r.id}>{r.id}</span>} />));
     await settle();
@@ -365,7 +365,7 @@ describe("stable presentation over paged transport (#11801)", () => {
     const rankedList = new SessionList<Ranked>("/sessions", identity, transport);
     await rankedList.load();
     await act(async () => root.render(<PagedSessionList root={rankedList} path="/sessions" identity={identity} compare={transport} event="sessions_list"
-      grouping={{ dimension: "machine", bar: null, label: "Machine", query, rowOrder: { compare: stable } }}
+      grouping={{ dimension: "machine", query, rowOrder: { compare: stable } }}
       placeOf={(r) => ({ machine: r.machine, project: r.project, group: r.group })}
       renderRow={(r) => <span tabIndex={0} data-row={r.id}>{r.id}</span>} />));
     await settle();
@@ -450,7 +450,7 @@ describe("stable presentation over paged transport (#11801)", () => {
     const renderList = async (rankedList: SessionList<Ranked>) => {
       await rankedList.load();
       await act(async () => root.render(<PagedSessionList root={rankedList} path="/sessions" identity={identity} compare={transport} event="sessions_list"
-        grouping={{ dimension: "machine", bar: null, label: "Machine", rowOrder: { compare: stable } }}
+        grouping={{ dimension: "machine", rowOrder: { compare: stable } }}
         placeOf={(r) => ({ machine: r.machine, project: r.project, group: r.group })}
         renderRow={(r) => <span data-row={r.id} data-rank={r.rank} data-place={r.place}>{r.id}</span>} />));
       await settle();

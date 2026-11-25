@@ -7,12 +7,7 @@ const workspace = (id: string, patch: Partial<HostWorkspace> = {}): HostWorkspac
 const session = (id: string, workspaceId: string, patch: Partial<Session> = {}): Session => ({ session_id: id, machine_id: "machine-a", title: id, cwd: "/elsewhere", state: "idle", status: "idle", space_kind: "orca", space_id: workspaceId, ...patch });
 const desktops = [["codex_app", "codex-project:home"], ["claude_desktop", "claude-environment:account"]] as const;
 
-describe("catalog-backed By repo projection", () => {
-  const runtime = (id: string, patch: Partial<Session> = {}) => session(id, "/code/app", {
-    source_kind: "runtime", space_kind: "agy", cwd: "/code/app", repo_root: "/code/app", worktree: "/code/app", workspace_cwd: "/code/app", ...patch,
-  });
-  const native = () => workspace("native", { source: "herdr", cwd: "/code/app", title: "app", project_id: undefined, project_name: undefined });
-
+describe("sessionWorkspace against the host catalog", () => {
   it("uses explicit placement ahead of directory inference and refuses a foreign host's binding", () => {
     const catalog = [workspace("a", { cwd: "/code/a" }), workspace("b", { cwd: "/code/b" })];
     expect(sessionWorkspace(session("agent", "b", { cwd: "/code/a", workspace_id: "b" }), catalog)?.source_id).toBe("b");

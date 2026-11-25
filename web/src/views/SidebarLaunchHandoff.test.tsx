@@ -128,6 +128,7 @@ describe("Sidebar launch handoff (#12380)", () => {
     expect([unread(), working()]).toEqual([1, 0]);
 
     // Phase 2: POST /sessions returns an idle session while POST /messages is still in flight -> no duplicate in the list, no 2 Done unread flash.
+    await vi.waitFor(() => expect(resolveCreate).toBeDefined());
     await act(async () => { resolveCreate(json({ session: created })); });
     await flush();
     expect(getState().launches[launchId].phase).toBe("sending");

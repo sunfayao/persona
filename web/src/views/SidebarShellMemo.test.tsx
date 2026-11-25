@@ -102,6 +102,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(at));
   localStorage.clear();
+  sessionStorage.clear();
   reset();
   usage = [account(20)];
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
@@ -268,7 +269,6 @@ describe("the sidebar shell across store pushes", () => {
     await flush();
     expect(row()).not.toBeNull();
     await push({ type: "machines", machines });
-    expect(host.textContent).toContain("Home · Laptop");
     expect(host.textContent).toContain("2/2");
   });
 

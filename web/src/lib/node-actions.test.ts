@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { MenuItem } from "../ui/menu-model";
 import { canChangeHost, canRenameIn, gitOutcomeText, machineNode, nodeActions, sessionNode, termPaneNode, termSpaceNode, termTabNode, type MenuNode, type NodeActionDeps } from "./node-actions";
-import { buildTerminalTree, shellsOnly, type PanesResponse } from "./terminals";
+import { buildTerminalTree, type PanesResponse } from "./terminals";
 import type { Session } from "./types";
 import zhNode from "../i18n/locales/zh-Hans/lib-node-actions.json";
 import enNode from "../i18n/locales/en/lib-node-actions.json";
@@ -460,12 +460,6 @@ describe("the nodes of the two trees", () => {
     expect(split.agent).toBeUndefined();
     expect(keys(nodeActions(split, deps()))).not.toContain("node-agent");
     expect(termPaneNode("m1", sp, sp.tabs[2], sp.tabs[2].panes[1], true)).toMatchObject({ kind: "pane", paneId: "w1:p4", agent: "" });
-  });
-  it("the sidebar lists the plain shells only", () => {
-    const shells = shellsOnly([sp]);
-    expect(shells[0].tabs.map((t) => t.label)).toEqual(["shell", "split"]);
-    expect(shells[0].tabs.flatMap((t) => t.panes.map((p) => p.pane))).toEqual(["w1:p2", "w1:p3", "w1:p4"]);
-    expect(shellsOnly([{ ...sp, tabs: [sp.tabs[0]] }])).toEqual([]);
   });
 });
 

@@ -45,10 +45,6 @@ describe("从 cwd 推断仓库与工作树", () => {
   });
 });
 
-  expect(built.map((m) => m.machine.id)).toEqual(["machine-a"]);
-  return built[0]!.repos;
-};
-
 describe("Windows repository paths", () => {
   it("recognizes both separators and matches a repository root without case differences", () => {
     expect(repoOf("c:\\work\\app\\src", "C:/Work/App/")).toEqual({

@@ -3094,7 +3094,7 @@ Older hubs ignore these keys: `catalog=1` then answers an ordinary page, and `pl
 
 `hello.features` advertises **`sessions_todo`**. Only then does a runtime page or counts read take **`todo=<id>`**, the sessions on that open to-do, or **`todo=none`**, the sessions on none; and the counts have a **`todo`** map, each open to-do's sessions by its id and the sessions on none under `""`. A session's to-do is `Session.todo`, which the default manager sets for an active link only (a done to-do is `completed_todo`), so the hub needs no list of open to-dos: `none` covers a done to-do's sessions too. To-do ids are `todo_<hex>`, never `none`. `todo` combines with the other filters and binds a cursor as they do; empty or repeated values return **400 `invalid_query`**.
 
-The web's paged Agents list draws **By to-do** with it (`docs/web/web.md` "By to-do"): a section per open to-do read with `todo=<id>`, the sessions on none with `todo=none`, every number from one counts read. Older hubs ignore `todo` and list every session, so clients send it only when `sessions_todo` is advertised, and read the complete list for By to-do otherwise.
+The web's paged Agents list draws **By to-do** with it (`docs/web/web.md`): a section per open to-do read with `todo=<id>`, the sessions on none with `todo=none`, every number from one counts read. Older hubs ignore `todo` and list every session, so clients send it only when `sessions_todo` is advertised, and read the complete list for By to-do otherwise.
 
 #### Quick filters (`sessions_quick_filters`, #6662)
 

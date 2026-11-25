@@ -13,7 +13,6 @@ import {
   todoRank,
   todoStatusLabel,
   waitsForOwner,
-  buildTodoAgentGroups,
   dockAgents,
   findTodoForSpace,
   interruption,
