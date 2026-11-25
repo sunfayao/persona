@@ -1,5 +1,10 @@
 {
   "title": "订阅额度",
+  "short_title": "用量",
+  "used": "已用",
+  "display": "用量显示",
+  "detailed": "详细",
+  "compact": "紧凑",
   "stale_title": "数据已过期",
   "stale_age": "已过期 · {age}",
   "used_label": "{name} 已用 {percent}",

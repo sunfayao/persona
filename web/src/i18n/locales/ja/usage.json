@@ -1,5 +1,10 @@
 {
   "title": "サブスクリプションの利用上限",
+  "short_title": "使用量",
+  "used": "使用済み",
+  "display": "使用量の表示",
+  "detailed": "詳細",
+  "compact": "コンパクト",
   "stale_title": "データが古くなっています",
   "stale_age": "古いデータ · {age}",
   "used_label": "{name}：{percent}使用済み",

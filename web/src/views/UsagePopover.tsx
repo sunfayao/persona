@@ -1,13 +1,14 @@
 // The account windows and error details behind a click on the sidebar's usage bars (#10082): these are not needed
 // for the cold first screen, so the overlay and its long strings load on intent.
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { t as tr } from "../i18n";
 import { sendDraft } from "../lib/drafts";
 import { navigate } from "../lib/router";
 import { getState } from "../lib/store";
 import { balanceEmpty, balanceText } from "../lib/usage-balance";
-import { accountPace, groupByProvider, isBalanceAccount, isWarn, planNote, providerTimeline, providerTitle, remainingText, resetLabel, resetPinnedUsageAccounts, sampleAge, sortedWindows, sourceNames, TIMELINE_TICKS_HOURS, timelinePosition, togglePinnedUsageAccount, usePinnedUsageAccounts, windowKey, type PaceState, type UnconnectedProvider, type UsageAccount, type UsageWindow } from "../lib/usage-windows";
-import { cx, EASE } from "../ui/atoms";
+import { accountPace, fullest, groupByProvider, isBalanceAccount, isWarn, planNote, providerTimeline, providerTitle, remainingText, resetLabel, resetPinnedUsageAccounts, sampleAge, sortedWindows, sourceNames, TIMELINE_TICKS_HOURS, timelinePosition, togglePinnedUsageAccount, usePinnedUsageAccounts, windowKey, type PaceState, type ProviderGroup, type UnconnectedProvider, type UsageAccount, type UsageWindow } from "../lib/usage-windows";
+import { AgentMark } from "../ui/AgentMark";
+import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
 import { Meter } from "./UsageBars";
 
@@ -63,11 +64,13 @@ function connectPrompt(p: UnconnectedProvider): string {
 
 /** Every live account, window by window, plus active providers without usage data yet. */
 export function UsagePopover({
+  id,
   accounts,
   unconnected = [],
   now: fixed,
   onClose,
 }: {
+  id?: string;
   accounts: UsageAccount[];
   unconnected?: readonly UnconnectedProvider[];
   now?: number;
@@ -76,6 +79,11 @@ export function UsagePopover({
   const pinnedIds = usePinnedUsageAccounts();
   const pinnedSet = new Set(pinnedIds);
   const livePinnedCount = accounts.reduce((n, a) => n + (pinnedSet.has(a.id) ? 1 : 0), 0);
+  const [view, setView] = useState<"detailed" | "compact">("detailed");
+  const [provider, selectProvider] = useState<string>();
+  const detailsId = useId();
+  const groups = groupByProvider(accounts);
+  const selected = view === "compact" ? groups.find((g) => g.provider === provider) : undefined;
   const [tick, setTick] = useState(() => Date.now());
   useEffect(() => {
     if (fixed !== undefined) return;
@@ -90,56 +98,130 @@ export function UsagePopover({
     if (!onStarter) navigate("/persona/new");
   };
   return (
-    <div role="dialog" aria-label={tr("usage.title")} className="absolute bottom-full left-2.5 right-2.5 z-20 mb-1.5 max-h-[60vh] overflow-y-auto rounded-card bg-surface p-3 shadow-overlay" style={{ animation: `pop-in 160ms ${EASE} both`, transformOrigin: "bottom left" }}>
-      <div className="flex flex-col gap-3">
-        {pinnedIds.length > 0 && accounts.length > 0 && (
-          <div data-usage-pinned-bar className="flex items-center justify-between gap-2 border-b border-line pb-2 text-submeta">
-            <span className="min-w-0 truncate text-ink-3">
-              {livePinnedCount > 0 ? tr("usage.pinned_summary", { count: livePinnedCount }) : tr("usage.pinned_fallback")}
-            </span>
-            <button
-              type="button"
-              data-usage-reset-pins
-              onClick={() => resetPinnedUsageAccounts()}
-              className="shrink-0 font-medium whitespace-nowrap text-accent-ink hover:underline"
-            >
-              {tr("usage.reset_pinned")}
-            </button>
+    <div
+      id={id}
+      role="dialog"
+      aria-label={tr("usage.title")}
+      data-usage-popover
+      className={cx(
+        "absolute bottom-full left-2.5 right-2.5 z-20 mb-1.5 flex max-h-[60dvh] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-overlay lg:right-auto",
+        selected ? "lg:w-176" : "lg:w-96",
+      )}
+    >
+      <header className="shrink-0 border-b border-line px-3 pb-2">
+        <div className="flex min-h-11 items-center gap-2">
+          <Icon name="gauge" size={16} className="text-ink-3" />
+          <h2 className="min-w-0 flex-1 text-label font-semibold text-ink">{tr("usage.short_title")}</h2>
+          <span className="text-submeta text-ink-3">{tr("usage.used")}</span>
+        </div>
+        {groups.length > 0 && (
+          <div role="group" aria-label={tr("usage.display")} className="grid grid-cols-2 gap-1 rounded-control bg-inset p-1">
+            {(["detailed", "compact"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={view === mode}
+                onClick={() => setView(mode)}
+                className={cx("min-h-11 rounded-control px-2 text-meta font-medium transition-colors lg:min-h-8", view === mode ? "bg-surface text-ink shadow-hairline" : "text-ink-2 hover:bg-hover")}
+              >
+                {mode === "detailed" ? tr("usage.detailed") : tr("usage.compact")}
+              </button>
+            ))}
           </div>
         )}
-        {groupByProvider(accounts).map((g) => (
-          <section key={g.provider} data-usage-provider={g.provider} aria-label={providerTitle(g.provider)} className="flex flex-col gap-3 rounded-control border border-line p-2.5">
-            <header className="flex items-baseline gap-2">
-              <h3 className="min-w-0 flex-1 truncate text-meta font-semibold text-ink">{providerTitle(g.provider)}</h3>
-              <span className="shrink-0 whitespace-nowrap text-submeta text-ink-3">{tr("usage.provider_accounts", { count: g.accounts.length })}</span>
-              {g.sampledAt && <span className="shrink-0 whitespace-nowrap text-submeta text-ink-3">{sampleAge(g.sampledAt, now)}</span>}
-            </header>
-            {g.accounts.map((a, i) => (
-              <div key={a.id} className={cx("flex flex-col", i > 0 && "border-t border-line pt-2.5")}>
-                <AccountSection a={a} now={now} pinned={pinnedSet.has(a.id)} />
-              </div>
-            ))}
-            <ProviderTimeline accounts={g.accounts} now={now} />
-          </section>
-        ))}
-        {unconnected.map((p, i) => (
-          <section key={`provider:${p.id}`} aria-label={p.title} className={cx("flex flex-col gap-1 text-xs", (accounts.length > 0 || i > 0) && "border-t border-line pt-2.5")}>
-            <div className="flex items-baseline gap-2">
-              <h3 className="min-w-0 flex-1 truncate font-medium text-ink">{p.title}</h3>
+      </header>
+      <div className={cx("min-h-0 overflow-y-auto overscroll-contain p-3", selected && "lg:grid lg:grid-cols-2 lg:items-start lg:gap-3")}>
+        <div className="flex min-w-0 flex-col gap-2">
+          {pinnedIds.length > 0 && accounts.length > 0 && (
+            <div data-usage-pinned-bar className="flex items-center justify-between gap-2 border-b border-line pb-2 text-submeta">
+              <span className="min-w-0 truncate text-ink-3">
+                {livePinnedCount > 0 ? tr("usage.pinned_summary", { count: livePinnedCount }) : tr("usage.pinned_fallback")}
+              </span>
               <button
                 type="button"
-                data-usage-connect={p.id}
-                onClick={() => askAssistant(p)}
+                data-usage-reset-pins
+                onClick={() => resetPinnedUsageAccounts()}
                 className="shrink-0 font-medium whitespace-nowrap text-accent-ink hover:underline"
               >
-                {tr("usage.connect_action")}
+                {tr("usage.reset_pinned")}
               </button>
             </div>
-            <div className="leading-snug text-ink-3">{connectHint(p)}</div>
-          </section>
-        ))}
+          )}
+          {view === "detailed" ? groups.map((g) => (
+            <ProviderCard key={g.provider} group={g} now={now} pinned={pinnedSet} />
+          )) : groups.map((g) => (
+            <ProviderSummary
+              key={g.provider}
+              group={g}
+              selected={selected === g}
+              detailsId={detailsId}
+              onClick={() => selectProvider(selected === g ? undefined : g.provider)}
+            />
+          ))}
+          {unconnected.map((p, i) => (
+            <section key={`provider:${p.id}`} aria-label={p.title} className={cx("flex flex-col gap-1 text-xs", (accounts.length > 0 || i > 0) && "border-t border-line pt-2.5")}>
+              <div className="flex items-baseline gap-2">
+                <h3 className="min-w-0 flex-1 truncate font-medium text-ink">{p.title}</h3>
+                <button
+                  type="button"
+                  data-usage-connect={p.id}
+                  onClick={() => askAssistant(p)}
+                  className="shrink-0 font-medium whitespace-nowrap text-accent-ink hover:underline"
+                >
+                  {tr("usage.connect_action")}
+                </button>
+              </div>
+              <div className="leading-snug text-ink-3">{connectHint(p)}</div>
+            </section>
+          ))}
+        </div>
+        {selected && <div id={detailsId} className="mt-3 min-w-0 lg:mt-0"><ProviderCard group={selected} now={now} pinned={pinnedSet} /></div>}
       </div>
     </div>
+  );
+}
+
+function ProviderSummary({ group, selected, detailsId, onClick }: { group: ProviderGroup; selected: boolean; detailsId: string; onClick: () => void }) {
+  const name = providerTitle(group.provider);
+  return (
+    <button
+      type="button"
+      aria-expanded={selected}
+      aria-controls={selected ? detailsId : undefined}
+      onClick={onClick}
+      className={cx("flex min-h-11 items-center gap-2 rounded-control px-2.5 py-2 text-left hover:bg-hover", selected && "bg-hover")}
+    >
+      <AgentMark agent={group.provider} label={name} decorative size={16} />
+      <span className="min-w-0 flex-1 truncate text-meta font-medium text-ink">{name}</span>
+      <span className="flex max-w-1/2 flex-wrap justify-end gap-1 text-submeta font-medium tabular-nums text-ink-2">
+        {group.accounts.map((a) => (
+          <span key={a.id} title={a.name} className={cx("min-w-0 truncate rounded-control bg-inset px-1.5 py-0.5", a.stale && "opacity-60", !isBalanceAccount(a) && isWarn(fullest(a)) && "text-orange")}>
+            {isBalanceAccount(a) ? (a.balance ? balanceText(a.balance) : "—") : shown(fullest(a))}
+          </span>
+        ))}
+      </span>
+      <Icon name={selected ? "chevron" : "chevronRight"} size={12} className="shrink-0 text-ink-3" />
+    </button>
+  );
+}
+
+function ProviderCard({ group, now, pinned }: { group: ProviderGroup; now: number; pinned: ReadonlySet<string> }) {
+  const name = providerTitle(group.provider);
+  return (
+    <section data-usage-provider={group.provider} aria-label={name} className="flex min-w-0 flex-col gap-2 rounded-control border border-line p-2.5">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-line pb-2">
+        <AgentMark agent={group.provider} label={name} decorative size={16} />
+        <h3 className="min-w-0 grow basis-24 truncate text-meta font-semibold text-ink">{name}</h3>
+        <span className="text-submeta text-ink-3">{tr("usage.provider_accounts", { count: group.accounts.length })}</span>
+        {group.sampledAt && <span className="text-submeta text-ink-3">{sampleAge(group.sampledAt, now)}</span>}
+      </header>
+      {group.accounts.map((a, i) => (
+        <div key={a.id} className={cx("flex flex-col", i > 0 && "border-t border-line pt-2.5")}>
+          <AccountSection a={a} now={now} pinned={pinned.has(a.id)} />
+        </div>
+      ))}
+      <ProviderTimeline accounts={group.accounts} now={now} />
+    </section>
   );
 }
 
@@ -152,8 +234,10 @@ function AccountSection({ a, now, pinned }: { a: UsageAccount; now: number; pinn
     <section aria-label={a.name} className={cx("flex flex-col gap-2", a.stale && "opacity-70")}>
       <header className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <h3 className="min-w-0 flex-1 truncate text-label font-medium text-ink">{a.name}</h3>
-          <span className="shrink-0 whitespace-nowrap text-submeta text-ink-3">{a.stale ? tr("usage.stale_age", { age: sampleAge(a.sampled_at, now) }) : sampleAge(a.sampled_at, now)}</span>
+          <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+            <h3 className="min-w-0 grow basis-24 truncate text-label font-medium text-ink">{a.name}</h3>
+            <span className="text-submeta text-ink-3">{a.stale ? tr("usage.stale_age", { age: sampleAge(a.sampled_at, now) }) : sampleAge(a.sampled_at, now)}</span>
+          </div>
           <button
             type="button"
             data-usage-pin={a.id}
@@ -258,11 +342,11 @@ function WindowRow({ name, w, stale, now }: { name: string; w: UsageWindow; stal
           {w.model}
         </span>
       )}
-      <div className="flex items-baseline gap-2 text-submeta">
-        <span className="w-7 shrink-0 text-ink-2">{w.label}</span>
-        <span className={cx("shrink-0 tabular-nums", isWarn(w.used_percent) ? "text-orange" : "text-ink")}>{shown(w.used_percent)}</span>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-submeta">
+        <span className="shrink-0 font-medium text-ink">{w.label}</span>
+        <span className="min-w-0 flex-1 text-ink-3">{resetLabel(w.resets_at, now)}</span>
         {p && p.state !== "on" && <span className={cx("shrink-0 whitespace-nowrap", PACE_TEXT[p.state])}>{paceLabel(p.state)}</span>}
-        <span className="min-w-0 flex-1 truncate text-right text-ink-3">{resetLabel(w.resets_at, now)}</span>
+        <span className={cx("shrink-0 font-semibold tabular-nums", isWarn(w.used_percent) ? "text-orange" : "text-ink")}>{shown(w.used_percent)}</span>
       </div>
       <Meter used={w.used_percent} expected={p?.expected} protect={w.protect_percent} label={w.model ? tr("usage.window_model_label", { name, window: w.label, model: w.model, percent: shown(w.used_percent) }) : tr("usage.window_used_label", { name, window: w.label, percent: shown(w.used_percent) })} tall />
     </div>

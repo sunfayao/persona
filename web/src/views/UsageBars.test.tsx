@@ -59,10 +59,20 @@ describe("the sidebar's usage strip", () => {
       expect(host.querySelector("[role=dialog]")).toBeNull();
       await act(async () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!.click());
       await vi.waitFor(() => expect(host.querySelector("[role=dialog]")?.textContent).toContain("5h"));
-      const dialog = host.querySelector("[role=dialog]");
-      expect(dialog?.textContent).toContain("网关暂时读不到，显示的是上次的数字");
-      await act(async () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!.click());
+      const dialog = host.querySelector<HTMLElement>("[role=dialog]")!;
+      expect(dialog.textContent).toContain("网关暂时读不到，显示的是上次的数字");
+      const compact = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent === "紧凑")!;
+      await act(async () => compact.click());
+      expect(dialog.querySelector("[data-usage-provider]")).toBeNull();
+      const provider = dialog.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+      expect(provider.textContent).toContain("Codex");
+      await act(async () => provider.click());
+      expect(provider.getAttribute("aria-expanded")).toBe("true");
+      expect(dialog.querySelector("[data-usage-provider=codex]")?.textContent).toContain("5h");
+      provider.focus();
+      await act(async () => provider.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
       expect(host.querySelector("[role=dialog]")).toBeNull();
+      expect(document.activeElement).toBe(host.querySelector("[data-usage-bars] > button"));
     } finally {
       await act(async () => root.unmount());
       host.remove();

@@ -1753,6 +1753,10 @@ A horizontal separating hinge divides a page into safe regions; the window and h
 
 Real folding-feature evidence and fake-posture layout evidence are reported separately. `debug.posture=tabletop` does not prove an OEM device's posture behavior. Glass requires light and dark captures; Brief and Board require light and dark samples. These rules change geometry and insets only, not the styles' visual languages.
 
+### 3.15.2 Subscription usage (Web and Desktop)
+
+The sidebar footer uses the existing Agent marks, secondary text size and thin meters to show usage at a glance. A percentage always accompanies a meter, with the warning color starting at 80%. Prepaid amounts retain their currency and are separate from quota percentages. The footer opens an anchored, keyboard-dismissable popover. Detailed shows all accounts; Compact gives one summary per provider and discloses the selected provider's details beside the list on wide screens or below it on narrow ones. Both use the same account cards and the same quota and reset rules. See [Subscription usage](../web/web.md#subscription-usage-bottom-of-the-sidebar-2432).
+
 ## 4. Interaction patterns
 
 ### 4.1 Navigation hierarchy (super rule 3)
