@@ -43,7 +43,7 @@ describe("startupMatcher", () => {
     const configured = startupMatcher(startup);
     for (const key of [
       "back_to_main", "clear", "clear_failed", "close", "compact", "compacting", "compacted",
-      "compact_failed", "compact_start_failed", "copy_info", "details", "knowledge", "new_main_ellipsis", "new_main_elsewhere",
+      "compact_failed", "compact_start_failed", "copy_info", "details", "new_main_ellipsis", "new_main_elsewhere",
     ]) expect(configured(`assistant-assistantchat.${key}`), key).toBe(true);
     for (const key of [
       "new_main_done_carried", "new_main_done", "new_main_failed", "new_main_title", "new_main", "new_main_body",

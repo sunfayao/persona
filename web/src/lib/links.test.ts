@@ -123,8 +123,8 @@ describe("where a link opens", () => {
     expect(linkRoute(`${hub}/admin`, false, hub).kind).toBe("web");
     expect(linkRoute(`${hub}/share/abc`, false, hub).kind).toBe("web");
     expect(linkRoute(`https://user:pw@hub.example.com/s/m1/abc-1`, false, hub).kind).toBe("web");
-    // the app's other pages (the Inbox, settings, knowledge…) open in place (docs/protocol/deep-links.md, #9930)
-    for (const path of ["/todos", "/inbox", "/inbox/assistant%3A9f?manager=m2", "/settings?tab=extensions&extension=gh", "/overview", "/persona", "/persona/new", "/kb/spells/x"]) {
+    // the app's other pages (the Inbox, settings…) open in place (docs/protocol/deep-links.md, #9930)
+    for (const path of ["/todos", "/inbox", "/inbox/assistant%3A9f?manager=m2", "/settings?tab=extensions&extension=gh", "/overview", "/persona", "/persona/new"]) {
       expect(linkRoute(`${hub}${path}`, false, hub), path).toEqual({ kind: "page", path });
     }
     // one message of an agent's conversation

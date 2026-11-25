@@ -79,7 +79,8 @@ describe("deep links: the shared cases", () => {
     expect(fixture.version).toBe(1);
     expect(cases.length).toBeGreaterThan(60);
   });
-  for (const c of cases.filter((c) => c.hubs.length === 1)) {
+  // the shared table still names the knowledge base; this web app no longer has it
+  for (const c of cases.filter((c) => c.hubs.length === 1 && !String(c.page?.page).startsWith("knowledge"))) {
     it(c.name, () => {
       expect(kept(opened(c.url, hubs[c.hubs[0]!]!))).toEqual(kept(c.page));
       expect(c.page === null).toBe(c.reason !== undefined);
