@@ -131,11 +131,11 @@ describe("the focus across a fold (web usability audit item 23)", () => {
 
 describe("localized page names in the drawer and desktop sidebar (#3579)", { timeout: 30_000 }, () => {
   const locales = [
-    { lang: "en", full: ["Overview", "Inbox", "Health", "Scheduled tasks", "Knowledge", "Machines"], short: ["Home", "Inbox", "Health", "Tasks", "KB", "Hosts"] },
-    { lang: "ja", full: ["概要", "受信トレイ", "ヘルスケア", "定期タスク", "ナレッジ", "マシン"], short: ["概要", "受信", "健康", "定期", "ナレッジ", "マシン"] },
-    { lang: "zh-Hans", full: ["总览", "收件箱", "健康", "定时任务", "知识库", "机器"], short: ["总览", "收件箱", "健康", "定时任务", "知识库", "机器"] },
+    { lang: "en", full: ["Overview", "Inbox", "Scheduled tasks", "Machines"], short: ["Home", "Inbox", "Tasks", "Hosts"] },
+    { lang: "ja", full: ["概要", "受信トレイ", "定期タスク", "マシン"], short: ["概要", "受信", "定期", "マシン"] },
+    { lang: "zh-Hans", full: ["总览", "收件箱", "定时任务", "机器"], short: ["总览", "收件箱", "定时任务", "机器"] },
   ] as const;
-  const paths = ["/overview", "/inbox", "/health", "/routines", "/kb", "/machines"];
+  const paths = ["/overview", "/inbox", "/routines", "/machines"];
   const pageLink = (path: string) => host.querySelector<HTMLAnchorElement>(`a[href="${path}"]`)!;
   function DrawerPages() {
     const { pages } = useNavPages();

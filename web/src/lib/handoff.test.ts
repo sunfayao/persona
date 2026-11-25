@@ -88,11 +88,11 @@ describe("leaving a conversation", () => {
     history.replaceState(null, "", "/persona");
     leaveChat({ name: "session", mid: "m1", sid: "s1" }, false);
     expect(handoffFrom()).toBeUndefined();
-    history.replaceState(null, "", "/workspace-board");
+    history.replaceState(null, "", "/machines");
     leaveChat({ name: "session", mid: "m1", sid: "s2" });
     expect(location.pathname).toBe("/s/m1/s2");
-    expect(handoffFrom()).toEqual({ path: "/workspace-board" });
-    history.replaceState(null, "", "/workspace-board");
+    expect(handoffFrom()).toEqual({ path: "/machines" });
+    history.replaceState(null, "", "/machines");
     leaveChat({ name: "session", mid: "m1", sid: "s3" }, false);
     expect(handoffFrom()).toBeUndefined();
   });
@@ -126,12 +126,12 @@ describe("an Agent opened from inside a page (#12055)", () => {
   });
 
   it("from an Agent's page opened from another page, keeps that first page for the sidebar", () => {
-    history.replaceState(null, "", "/kb/projects/p1");
+    history.replaceState(null, "", "/machines/m1");
     openFromPage({ name: "session", mid: "m1", sid: "s1" });
-    expect(fromHere()).toEqual({ path: "/s/m1/s1", page: "/kb/projects/p1" });
+    expect(fromHere()).toEqual({ path: "/s/m1/s1", page: "/machines/m1" });
     openFromPage({ name: "session", mid: "m1", sid: "s2" });
-    expect(handoffFrom()).toEqual({ path: "/s/m1/s1", page: "/kb/projects/p1" });
-    expect(sidebarPageOf(handoffFrom())).toBe("/kb/projects/p1");
+    expect(handoffFrom()).toEqual({ path: "/s/m1/s1", page: "/machines/m1" });
+    expect(sidebarPageOf(handoffFrom())).toBe("/machines/m1");
     // an Agent's page picked in the sidebar is the first page itself
     history.replaceState(null, "", "/s/m1/root");
     expect(fromHere()).toEqual({ path: "/s/m1/root" });

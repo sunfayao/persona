@@ -49,53 +49,53 @@ describe("更多 in the sidebar", () => {
   });
 
   it("holds the pages put away, folded, and opens to them", async () => {
-    setPageShown("kb", false);
-    setPageShown("health", false);
+    setPageShown("routines", false);
+    setPageShown("machines", false);
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     const more = moreButton()!;
     expect(more.textContent).toContain("2");
     expect(more.getAttribute("aria-expanded")).toBe("false");
     // the folded More holds its pages without drawing them (a folded group mounts no rows); opened, they are there
-    const kb = () => [...host.querySelectorAll("a")].find((a) => a.textContent?.includes("知识库"));
-    expect(kb()).toBeUndefined();
+    const routines = () => [...host.querySelectorAll("a")].find((a) => a.textContent?.includes("定时任务"));
+    expect(routines()).toBeUndefined();
     act(() => more.click());
     expect(more.getAttribute("aria-expanded")).toBe("true");
-    expect(kb()!.closest("[inert]")).toBeNull();
+    expect(routines()!.closest("[inert]")).toBeNull();
     // Settings stays in the list
     expect(pageLinks()).toContain("设置");
   });
 
   it("opens by itself while one of its pages is open", async () => {
-    setPageShown("kb", false);
-    act(() => root.render(<Sidebar route={{ name: "kb" }} onSearch={() => {}} onNewAgent={() => {}} />));
+    setPageShown("routines", false);
+    act(() => root.render(<Sidebar route={{ name: "routines" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     expect(moreButton()!.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("is a ⋯ on the rail that lists them", async () => {
-    setPageShown("kb", false);
+    setPageShown("routines", false);
     act(() => root.render(<SidebarRail route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     const labels = [...host.querySelectorAll("nav a")].map((a) => a.getAttribute("aria-label"));
-    expect(labels).not.toContain("知识库");
+    expect(labels).not.toContain("定时任务");
     const more = host.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!;
     expect(more.getAttribute("aria-label")).toContain("1");
     act(() => more.click());
     await flush();
-    expect(document.body.textContent).toContain("知识库");
+    expect(document.body.textContent).toContain("定时任务");
   });
 
   it("is a ⋯ in the phone drawer's grid whose pick closes the drawer", async () => {
     const onNavigate = vi.fn();
     const page = (k: string, label: string) => ({ k, to: { name: k } as never, icon: "gear" as const, label });
-    act(() => root.render(<NavGrid pages={[page("home", "总览")]} more={[page("kb", "知识库")]} activeKey="home" go={() => () => {}} onNavigate={onNavigate} />));
+    act(() => root.render(<NavGrid pages={[page("home", "总览")]} more={[page("routines", "定时任务")]} activeKey="home" go={() => () => {}} onNavigate={onNavigate} />));
     act(() => host.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click());
     await flush();
-    const row = [...document.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]')].find((el) => el.textContent?.includes("知识库"))!;
+    const row = [...document.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]')].find((el) => el.textContent?.includes("定时任务"))!;
     act(() => row.click());
     await flush();
-    expect(location.pathname).toBe("/kb");
+    expect(location.pathname).toBe("/routines");
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 });
@@ -105,10 +105,10 @@ describe("设置 › 通用 › 侧栏", () => {
     act(() => root.render(<SidebarPagesGroup />));
     await flush();
     const sw = (name: string) => host.querySelector<HTMLButtonElement>(`button[role="switch"][aria-label="「${name}」放在侧栏上"]`)!;
-    expect(sw("知识库").getAttribute("aria-checked")).toBe("true");
-    act(() => sw("知识库").click());
-    expect(getSidebarPrefs().hidden).toEqual(["kb"]);
-    expect(sw("知识库").getAttribute("aria-checked")).toBe("false");
+    expect(sw("定时任务").getAttribute("aria-checked")).toBe("true");
+    act(() => sw("定时任务").click());
+    expect(getSidebarPrefs().hidden).toEqual(["routines"]);
+    expect(sw("定时任务").getAttribute("aria-checked")).toBe("false");
     expect(host.textContent).toContain("在「更多」里");
     expect(sw("设置").disabled).toBe(true);
     // a built-in page's line says where it is, not its badge's explanation

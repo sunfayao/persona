@@ -53,12 +53,12 @@ describe("sidebar groups", () => {
 
   it("draws the user's group after Pages, with the pages moved to it", async () => {
     const life = addPageGroup([""], "生活");
-    setPageGroup("health", life);
+    setPageGroup("machines", life);
     setPageGroup("routines", life);
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     expect(headings().filter((h) => h === "页面" || h === "生活")).toEqual(["页面", "生活"]);
-    expect(linksUnder("生活")).toEqual(["健康", "定时任务"]);
-    expect(linksUnder("页面")).not.toContain("健康");
+    expect(linksUnder("生活")).toEqual(["定时任务", "机器"]);
+    expect(linksUnder("页面")).not.toContain("机器");
   });
 });

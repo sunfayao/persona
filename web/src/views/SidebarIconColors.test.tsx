@@ -36,7 +36,7 @@ const flush = async () => {
 const link = (label: string) => [...host.querySelectorAll<HTMLAnchorElement>("a")].find((a) => (a.getAttribute("aria-label") ?? a.textContent?.trim()) === label || a.title === label)!;
 /** A page row's (or a grid tile's) icon box: the span around its svg. */
 const iconBox = (label: string) => link(label).querySelector("svg")!.parentElement as HTMLElement;
-const BUILT_IN = { 总览: "home", 收件箱: "inbox", 健康: "health", 待办: "todos", 定时任务: "routines", 知识库: "kb", 机器: "machines", 设置: "settings" } as const;
+const BUILT_IN = { 总览: "home", 收件箱: "inbox", 待办: "todos", 定时任务: "routines", 机器: "machines", 设置: "settings" } as const;
 const hues = () => [...host.querySelectorAll<HTMLElement>("[style]")].map((el) => el.style.color).filter((c) => c.includes("--hue-"));
 
 function DrawerPages({ active = "home" }: { active?: string }) {
@@ -146,15 +146,15 @@ describe("Colored", () => {
   });
 
   it("colors the pages under More too", async () => {
-    setPageShown("kb", false);
-    act(() => root.render(<Sidebar route={{ name: "kb" }} onSearch={() => {}} onNewAgent={() => {}} />));
+    setPageShown("routines", false);
+    act(() => root.render(<Sidebar route={{ name: "routines" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     // the open page under More keeps the open row's ink; another put away takes its color
-    expect(iconBox("知识库").className).toBe("text-ink");
-    expect(iconBox("知识库").hasAttribute("style")).toBe(false);
-    act(() => setPageShown("health", false));
+    expect(iconBox("定时任务").className).toBe("text-ink");
+    expect(iconBox("定时任务").hasAttribute("style")).toBe(false);
+    act(() => setPageShown("machines", false));
     await flush();
-    expect(iconBox("健康").style.color).toBe("var(--hue-pink)");
+    expect(iconBox("机器").style.color).toBe("var(--hue-teal)");
   });
 
   it("colors the icon rail, kept under the pointer, and the open page keeps its ink", async () => {

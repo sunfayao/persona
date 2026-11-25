@@ -126,10 +126,10 @@ describe("a page's words", () => {
   it("answer to the Chinese names in an English UI too (the Mac's quick open)", async () => {
     await initI18n("en");
     try {
-      const places = ["inbox", "todos", "kb", "machines", "settings", "persona"].map((key) => ({ key, title: key, icon: "list" as const, to: { name: "home" } as const, words: placeWords(key) }));
+      const places = ["inbox", "todos", "routines", "machines", "settings", "persona"].map((key) => ({ key, title: key, icon: "list" as const, to: { name: "home" } as const, words: placeWords(key) }));
       expect(placeHits(places, "飞书").map((h) => h.key)).toEqual(["p:inbox"]);
       expect(placeHits(places, "待办").map((h) => h.key)).toEqual(["p:todos"]);
-      expect(placeHits(places, "知识库").map((h) => h.key)).toEqual(["p:kb"]);
+      expect(placeHits(places, "定时").map((h) => h.key)).toEqual(["p:routines"]);
       expect(placeHits(places, "内存").map((h) => h.key)).toEqual(["p:machines"]);
     } finally {
       await initI18n("zh-Hans");

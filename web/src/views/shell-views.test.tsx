@@ -74,7 +74,7 @@ describe("the Agents page", () => {
 describe("the drawer's page grid", () => {
   const pages: NavPage[] = [
     { k: "home", to: { name: "home" }, icon: "home", label: "总览", badge: 2, badgeTone: "red" },
-    { k: "workspace-board", to: { name: "workspace-board" }, icon: "layers", label: "工作流看板", short: "看板" },
+    { k: "routines", to: { name: "routines" }, icon: "clock", label: "定时任务调度", short: "定时" },
     { k: "settings", to: { name: "settings" }, icon: "gear", label: "设置" },
   ];
   it("lays the pages in two even rows, at most five across", () => {
@@ -87,8 +87,8 @@ describe("the drawer's page grid", () => {
   it("is one link per page with its short name, badge and the current one marked", () => {
     const html = renderToStaticMarkup(<NavGrid pages={pages} activeKey="settings" go={() => () => {}} />);
     expect(html.match(/<a /g)).toHaveLength(3);
-    expect(html).toContain(">看板</span>");
-    expect(html).toContain('title="工作流看板"');
+    expect(html).toContain(">定时</span>");
+    expect(html).toContain('title="定时任务调度"');
     expect(html).toContain('aria-label="总览 2"');
     expect(html).toMatch(/href="\/settings"[^>]*aria-current="page"/);
     expect(html).toMatch(/min-h-12/);

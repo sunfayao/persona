@@ -51,10 +51,10 @@ describe("lazyPage", () => {
 
   it("loads a route's page once as the pointer, the focus or a finger reaches a link to it, and not with Data Saver", () => {
     const settings = vi.fn(() => Promise.resolve(() => null));
-    const kb = vi.fn(() => Promise.resolve(() => null));
+    const routines = vi.fn(() => Promise.resolve(() => null));
     lazyPage(settings, { routes: ["settings"] });
-    lazyPage(kb, { routes: ["kb"] });
-    document.body.innerHTML = `<a href="/settings"><span>Settings</span></a><a href="/persona">Persona</a><a href="https://example.com/settings">out</a><a href="/kb/notes">kb</a>`;
+    lazyPage(routines, { routes: ["routines"] });
+    document.body.innerHTML = `<a href="/settings"><span>Settings</span></a><a href="/persona">Persona</a><a href="https://example.com/settings">out</a><a href="/routines/notes">routines</a>`;
     const [link, main, away, notes] = document.querySelectorAll("a");
     const fire = (el: Element, type: string) => el.dispatchEvent(new Event(type, { bubbles: true }));
     const saver = preloadPages({ document, navigator: { connection: { saveData: true } } });
@@ -71,7 +71,7 @@ describe("lazyPage", () => {
     expect(settings).toHaveBeenCalledTimes(1);
     stop();
     fire(notes, "pointerover"); // the listener is gone with the cancel
-    expect(kb).not.toHaveBeenCalled();
+    expect(routines).not.toHaveBeenCalled();
   });
 
   it("waits for idle where there is requestIdleCallback, can be cancelled, and skips Data Saver", () => {

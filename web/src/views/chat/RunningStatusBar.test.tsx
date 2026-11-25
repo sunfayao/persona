@@ -72,7 +72,6 @@ describe("the Persona conversation's plain words (cindy's plain phases, super ru
     expect(plain(tool("WebSearch"))).toBe("正在搜索网页…");
     expect(plain(tool("WebFetch"))).toBe("正在读取网页…");
     expect(plain(tool("Bash"))).toBe("正在处理…");
-    expect(plain(tool("mcp__persona__kb_search"))).toBe("正在处理…");
     expect(plain(tool("Agent", true))).toBe("正在处理…");
     expect(plain({ kind: "after" })).toBe("正在处理…");
     expect(statusWords({ verb: "Compacting conversation" }, undefined, true)).toEqual({ text: "正在整理对话…", compacting: true });

@@ -664,12 +664,6 @@ const PERSONA_VERB_KEY: Record<string, string> = {
   task_plan: "persona_agent_start",
   interaction_answer: "persona_interaction_answer",
   ask_persona: "persona_ask_persona",
-  // the knowledge base (docs/assistant/knowledge.md)
-  kb_get: "persona_kb_search",
-  kb_list: "persona_kb_search",
-  kb_search: "persona_kb_search",
-  search_knowledge: "persona_kb_search",
-  kb_update: "persona_kb_update",
   // talking to the user
   ask_user: "persona_ask_user",
   notify_user: "persona_notify_user",

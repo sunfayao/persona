@@ -116,7 +116,6 @@ describe("ActionRow", () => {
 
   it("Persona's own tools read as their verb, then what they were given", () => {
     expect(presentAction(use("p", "mcp__persona__agent_read", {}))).toEqual({ verb: "读 Agent 对话" });
-    expect(presentAction(use("p", "mcp__persona__kb_search", { query: "周报" }))).toEqual({ verb: "查知识库", param: { text: "周报", title: "mcp__persona__kb_search" } });
     expect(presentAction(use("p", "mcp__persona__phone_contacts_search", { query: "Alice" }))).toEqual({ verb: "iPhone", param: { text: "contacts search · Alice", title: "mcp__persona__phone_contacts_search" } });
     expect(presentAction(use("p", "mcp__github__create_issue", {})).verb).toBe("调用");
   });

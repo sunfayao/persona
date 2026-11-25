@@ -3,7 +3,7 @@
 // window it covers the chat). Set to "Full page" (#5096, after cindy's SessionHandoffCard): the Agent's own page, which
 // says where it came from ("Came from … · click to return", ChatView's HandoffBack), and going back puts the
 // conversation's chat where it was (ChatView takes the place `leaveChat` kept on the conversation's history entry).
-// An Agent opened from inside another page (a to-do, a knowledge project, a meeting: `openFromPage`, #12055) says where
+// An Agent opened from inside another page (a to-do: `openFromPage`, #12055) says where
 // it came from the same way, and the sidebar keeps that page's row (lib/persona-nav.ts sidebarRoute, #9971). Set to
 // Full page, the main conversation keeps the page it opened last while another place is in front, and the sidebar's
 // Main Chat opens it again over the conversation (`pickMainChat`, #13164), as a place keeps its stack on iOS.
@@ -113,8 +113,7 @@ export function openedFromHere(): Record<string, unknown> {
 }
 
 /**
- * Opens `to` (an Agent's page) from inside the page showing now: a drill-down (#9971, #12055), as a to-do's Agent rows,
- * a knowledge project's Agents and a meeting's hand-off open one. The new entry says where it came from, so the Agent's
+ * Opens `to` (an Agent's page) from inside the page showing now: a drill-down (#9971, #12055), as a to-do's Agent rows do. The new entry says where it came from, so the Agent's
  * page offers the way back ("Came from … · click to return") and the sidebar keeps that page's row; from a Persona
  * conversation the chat's place is kept too (`leaveChat`).
  */

@@ -1,5 +1,5 @@
 // The strip at the top of an Agent's page opened from a conversation's hand-off card (#5096, cindy's HandoffSourcePill)
-// or from inside another page (a to-do, a knowledge project, a meeting, #12055): "Came from <conversation or page> ·
+// or from inside another page (a to-do, #12055): "Came from <conversation or page> ·
 // click to return", with ✕ to put it away. Returning goes back in the history, so the conversation's chat is where it was
 // left (lib/handoff.ts).
 import { handoffFrom } from "../../lib/handoff";

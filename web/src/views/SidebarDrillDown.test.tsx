@@ -72,8 +72,6 @@ const back = () => act(() => new Promise<void>((done) => {
 describe("the sidebar on an Agent's page opened from inside a page (#12055)", () => {
   it.each([
     { from: "/todos?id=t1", row: "/todos", what: "a to-do's Agent row or hand-off" },
-    { from: "/kb/projects/p1", row: "/kb", what: "a knowledge project's Agents" },
-    { from: "/kb/recordings/r1", row: "/kb", what: "a meeting's hand-off" },
   ])("keeps the page's row lit: $what", async ({ from, row }) => {
     history.replaceState(null, "", from);
     await show();

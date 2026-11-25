@@ -143,12 +143,11 @@ describe("By repo catalog integration", () => {
     expect([...previews.keys()]).toEqual([]);
   });
 
-  it("loads independent of the board, exposes empty ancestry and lets titles and arrows toggle the same disclosure", async () => {
+  it("loads on its own, exposes empty ancestry and lets titles and arrows toggle the same disclosure", async () => {
     const onSelectWorkspace = vi.fn();
     await render({ onSelectWorkspace });
     expect(inventory.every((w) => title(w.title))).toBe(true);
     expect(title("leaf").textContent).toBe("leafProject B");
-    expect(request.mock.calls.some(([url]) => String(url).endsWith("/workspace-board"))).toBe(false);
     expect(getState().sessions[machine.id]).toHaveLength(1);
     expect(disclosure("root").getAttribute("aria-expanded")).toBe("true");
     click(title("root"));
