@@ -11,7 +11,6 @@ let support: WebPushSupport = "ok";
 let state: WebPushState = { loaded: true, working: false, status: { subscribed: false } };
 const turnOn = vi.fn();
 const turnOff = vi.fn();
-const sendTest = vi.fn();
 const load = vi.fn();
 vi.mock("../../lib/web-push", async (orig) => ({
   ...(await orig<typeof import("../../lib/web-push")>()),
@@ -20,7 +19,6 @@ vi.mock("../../lib/web-push", async (orig) => ({
   loadWebPush: () => load(),
   turnOnWebPush: () => turnOn(),
   turnOffWebPush: () => turnOff(),
-  sendTestPush: () => sendTest(),
 }));
 const toast = vi.fn();
 vi.mock("../../ui/atoms", async (orig) => ({ ...(await orig<typeof import("../../ui/atoms")>()), toast: (...a: unknown[]) => toast(...a) }));
@@ -34,7 +32,7 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   support = "ok";
   state = { loaded: true, working: false, status: { subscribed: false } };
-  for (const f of [turnOn, turnOff, sendTest, load, toast]) f.mockReset();
+  for (const f of [turnOn, turnOff, load, toast]) f.mockReset();
   vi.stubGlobal("Notification", { permission: "granted" });
   host = document.createElement("div");
   document.body.append(host);

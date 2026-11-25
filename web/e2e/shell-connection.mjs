@@ -10,7 +10,7 @@
 //   86  the Offline state's English line wraps between words ("make sure the" is never cut inside "the")
 //   87  the reconnect pill covers none of the page's fields, buttons or titles (the fake hub's /mock/down), on a phone
 //       and a wide window
-//   89  with the alert sound off (the default) the page's first key press makes no AudioContext; on, it makes one
+//   89  the page's first key press makes no AudioContext (the page plays no sound)
 //
 // Needs an exclusively owned fake hub (the runner takes it down and refuses this browser's credential for a while) and
 // the web page against it, and Chrome:
@@ -51,17 +51,16 @@ const hub = (path) => fetch(`${mock}${path}`).then((r) => r.text());
 const hubJSON = async (path) => (await fetch(`${mock}/api/v1${path}`, { headers: { Authorization: "Bearer mock" } })).json();
 
 const browser = await chromium.launch({ channel: "chrome", headless: true });
-async function page({ theme = "light", lang = "zh-Hans", w = 1280, h = 820, touch = false, sound = false, signedIn = true } = {}) {
+async function page({ theme = "light", lang = "zh-Hans", w = 1280, h = 820, touch = false, signedIn = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch, isMobile: touch, deviceScaleFactor: 2, colorScheme: theme });
-  await ctx.addInitScript(([theme, lang, sound, signedIn]) => {
+  await ctx.addInitScript(([theme, lang, signedIn]) => {
     if (sessionStorage.getItem("e2e.init")) return;
     sessionStorage.setItem("e2e.init", "1");
     localStorage.setItem("persona.theme", theme);
     localStorage.setItem("persona.language", lang);
     localStorage.removeItem("persona.sidebarCollapsed");
     if (signedIn) localStorage.setItem("persona.token", "mock");
-    if (sound) localStorage.setItem("persona.attentionSound", "1");
-  }, [theme, lang, sound, signedIn]);
+  }, [theme, lang, signedIn]);
   // every AudioContext the page makes, counted
   await ctx.addInitScript(() => {
     window.__audioContexts = 0;
@@ -143,15 +142,15 @@ try {
     await ctx.close();
   });
 
-  // 89: the first key press with the alert sound off, then on
-  for (const sound of [false, true]) await section(`89 sound ${sound ? "on" : "off"}`, async () => {
-    const { ctx, p } = await page({ sound });
+  // 89: the first key press
+  await section("89 first key press", async () => {
+    const { ctx, p } = await page();
     await p.goto(`${web}/overview`);
     await online(p);
     await p.keyboard.press("Shift");
     await sleep(300);
     const made = await p.evaluate(() => window.__audioContexts);
-    check(made === (sound ? 1 : 0), `89: alert sound ${sound ? "on" : "off"}, the first key press makes ${sound ? "one AudioContext" : "no AudioContext"}`, String(made));
+    check(made === 0, "89: the first key press makes no AudioContext", String(made));
     await ctx.close();
   });
 
