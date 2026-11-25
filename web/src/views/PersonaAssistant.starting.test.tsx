@@ -217,6 +217,8 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     act(() => chooseManager("other-manager"));
+    // the other assistant's own answer, as the store reads it after the switch
+    act(() => void Object.assign(getState(), { loaded: true, assistant: { machine_id: "hub", conversations: [] }, assistantError: null }));
     await flush();
     expect(pickedFast()).toBe(false);
     await send();
