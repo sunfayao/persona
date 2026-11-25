@@ -392,25 +392,6 @@ func (s *bgWriteStore) PutSetting(ctx context.Context, key string, v any) error 
 	return s.meshStore.PutSetting(ctx, key, v)
 }
 
-func (s *bgWriteStore) NextLockTestDue(context.Context) (*time.Time, error) {
-	if s.lockTestAttempts.Load() > 0 {
-		return nil, nil
-	}
-	return s.lockTestDue, nil
-}
-
-func (s *bgWriteStore) DueLockTests(context.Context, time.Time) ([]db.LockTest, error) {
-	if s.lockTestAttempts.Load() > 0 {
-		return nil, nil
-	}
-	return []db.LockTest{{TestID: "lt_1", DeviceID: "dev1", DueAt: *s.lockTestDue}}, nil
-}
-
-func (s *bgWriteStore) AttemptLockTest(context.Context, string, int64, time.Time) (bool, error) {
-	s.lockTestAttempts.Add(1)
-	return true, nil
-}
-
 func (s *bgWriteStore) ClaimLiveActivityStart(context.Context, string, string, time.Time, time.Duration, time.Duration) (time.Time, bool, error) {
 	s.laClaims.Add(1)
 	return time.Time{}, true, nil

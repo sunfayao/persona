@@ -174,59 +174,6 @@
     }
   },
   {
-    "name": "fleet_bad_optional_stats",
-    "description": "Fleet 的可选统计字段类型错误时只丢弃统计字段。",
-    "source": [
-      "apple/Shared/FleetState.swift: FleetState.init(from:)"
-    ],
-    "derived": true,
-    "decoder": "compat_event",
-    "input": {
-      "fleet": {
-        "phase": "working",
-        "stats": "invalid",
-        "working": 1
-      },
-      "type": "fleet"
-    },
-    "expected": {
-      "accepted": true,
-      "fields": {
-        "/fleet/phase": "working",
-        "/fleet/stats": null,
-        "/fleet/working": 1
-      }
-    }
-  },
-  {
-    "name": "fleet_unknown_values",
-    "description": "未知 Fleet 阶段变为空阶段，未知条目类型变为 screen。",
-    "source": [
-      "apple/PersonaTests/FleetStateTests.swift: lenientDecoding"
-    ],
-    "from_test": "FleetStateTests.lenientDecoding",
-    "decoder": "compat_event",
-    "input": {
-      "fleet": {
-        "items": [
-          {
-            "id": "a/b",
-            "kind": "teleport"
-          }
-        ],
-        "phase": "later"
-      },
-      "type": "fleet"
-    },
-    "expected": {
-      "accepted": true,
-      "fields": {
-        "/fleet/items/0/kind": "screen",
-        "/fleet/phase": ""
-      }
-    }
-  },
-  {
     "name": "hello_wrong_known_type",
     "description": "已知信封键类型错误会让整条握手被丢弃。",
     "source": [

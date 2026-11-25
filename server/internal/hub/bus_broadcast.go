@@ -51,17 +51,17 @@ var managerMessageTypes = map[string]bool{
 }
 
 // hubMessageTypes are the messages the hub sends the apps from its own state (cards, machines, sessions and their
-// items, errors, the Live Activity, looks, the roster, its update…): no manager's message is one, not even one its
+// items, errors, looks, the roster, its update…): no manager's message is one, not even one its
 // extensions declare.
 var hubMessageTypes = map[string]bool{
-	"hello": true, "client_hello_ack": true, "pong": true, "notify": true, "push_grading": true, "lock_test": true, "error": true,
+	"hello": true, "client_hello_ack": true, "pong": true, "notify": true, "push_grading": true, "error": true,
 	"interaction": true, "interaction_resolved": true,
 	"machines": true, "sessions": true, "sessions_delta": true, "sessions_list": true, "items": true, "revs": true,
 	"conversation_deleted": true,
 	"delta":                true, "live": true, proto.FeatureMessageSendState: true, proto.FeatureTodoSendState: true,
-	"screen": true, "tool_call": true, "hook_event": true, "fs_changed": true, "desktops": true, "endpoints": true,
+	"screen": true, "hook_event": true, "fs_changed": true, "desktops": true, "endpoints": true,
 	"terminal": true, "terminal_control": true, "herdr_state": true, "herdr_focus": true, "herdr_end": true, "herdr_data": true,
-	"fleet": true, "liveactivity": true, "look": true, "personas": true, "managers": true, "hub_update": true,
+	"look": true, "personas": true, "managers": true, "hub_update": true,
 	"hub_restarting":      true,
 	"extension_ui_stream": true, // reserved targeted transport; never a manager broadcast
 }

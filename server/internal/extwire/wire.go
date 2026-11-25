@@ -41,7 +41,6 @@ var Routes = []string{
 	"POST /api/v1/agents/sessions/{id}/read",
 	"/api/v1/messaging",
 	"/api/v1/messaging/",
-	"/api/v1/devices/{id}/widgets",
 	"/api/v1/machines/{mid}/computer",
 	"/api/v1/machines/{mid}/computer/",
 	"/api/v1/machines/{mid}/browser",
@@ -118,8 +117,6 @@ const (
 // The hub's apps the manager calls (assistantwire.AppCall.AppID / Method).
 const (
 	AppHub = "hub"
-	// HubPushBackground: {payload, devices} → {}: a silent push to those devices (an extension's widget).
-	HubPushBackground = "push.background"
 )
 
 // Authorize is MethodAuthorize's params: the token's hash, and the route the request is for (its pattern on the

@@ -79,7 +79,7 @@ func TestGitReviewRoute(t *testing.T) {
 	if code, _ := call(t, handler, "GET", base+"?scope=uncommitted", h.cfg.Token, ""); code != http.StatusBadRequest {
 		t.Fatalf("no cwd: %d", code)
 	}
-	_, watch := call(t, handler, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	if code, _ := call(t, handler, "GET", base+"?cwd=/work/web&scope=uncommitted", watch["token"].(string), ""); code != http.StatusForbidden {
 		t.Fatalf("a watch's token: %d", code)
 	}

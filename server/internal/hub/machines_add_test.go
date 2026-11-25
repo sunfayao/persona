@@ -187,7 +187,7 @@ func TestDeviceAddRefusals(t *testing.T) {
 // without TLS says so with the action that fixes it; a member hub sends the device to the center.
 func TestComputerCodeCallers(t *testing.T) {
 	h, _, tok := addHub(t)
-	_, watch := call(t, h.routes(), "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	_, linkTok := call(t, h.routes(), "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"kind":"link","machine":"onb-own"}`)
 	pair := newPairCode(t, h).Token
 	body := `{"add":{"name":"onb a"}}`

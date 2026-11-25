@@ -123,28 +123,6 @@ python3 -I scripts/migrate/persona-cutover.py \
   --session-home '<another machine home>' --print-database-sql
 ```
 
-### Mandatory relay-renewal acceptance
-
-`devices.relay_grant` and client-stored relay grants are base64url nonce+ciphertext authenticated under the relay's AAD. The new relay cannot open grants sealed with the previous AAD even if their bytes, APNs topic and encryption key are unchanged. The maintenance SQL and local fixture conversion preserve opaque grants unchanged; they do not clear, re-seal, validate or print them. Nonempty grants do not block the preceding typed-ID transaction, but their successful renewal is a **mandatory post-start acceptance condition**.
-
-The existing `postRelay` path in `server/internal/hub/push_transport.go` renews an invalid grant after an HTTP 401: `renewGrant` posts the saved APNs token/environment/topic to the matching relay's `/v1/register`, stores the fresh grant, then retries the push. This is generic credential renewal, not an old-brand/AAD fallback: the new relay still refuses the old ciphertext. After the global barrier, use only the new relay/hub/clients and verify that this 401→register→persist→successful retry path works, or have the new client re-register and deliver a fresh grant explicitly. Verify persistence, subsequent push success without another invalid-grant failure, and that a stale client does not overwrite the renewed credential. `TestRelayRenewsAnInvalidGrant` is the server's isolated renewal regression; actual push delivery still needs its own approved acceptance.
-
-Keep normal relay delivery gated until controlled verification succeeds; if token/topic data is unavailable, the relay is unreachable, renewal fails, or any push is lost, cutover acceptance remains blocked. Preserve APNs tokens/topics, trusted pairing and the relay's **own** 32-byte grant secret: the implementation defaults to `relay.secret`, or uses `relay.json.secret_path`. It is not necessarily the hub's `secret.key`. Do not add old-AAD decoding, clear existing grants, or implement offline re-sealing for this migration. Restoring the old binary requires the old grants/secret as part of the whole-fleet rollback. Ordinary extension secret ciphertext with unchanged AES-GCM domain remains preserved by the registry transaction.
-
-For a shared/external relay, record its owner and upgrade dependencies explicitly. A private fleet's cutover does not authorize replacing a relay used by other old clients; coordinate that complete dependent-client set or keep relay disabled until it can be migrated. The publisher/relay is part of the protocol barrier, not an unchanged third-party endpoint.
-
-Unknown setting keys, extension-specific ID fields, environment names, custom directory paths, cached schema fields and client preferences are **manual blockers** until their owners define an exact mapping and test it. This tool does not claim to migrate every arbitrary JSON value. Do not use global substitution on a dump, user messages, prompts, permissions, accounts or a home directory.
-
-Generate the reviewed transaction without connecting or writing a file:
-
-```sh
-python3 -I scripts/migrate/persona-cutover.py \
-  --source-name '<previous-name>' --home '<sandbox home>' --print-database-sql
-```
-
-After future explicit authorization, save that output privately (use `umask 077`) and have the operator execute it using an already reviewed libpq service, not credentials on the command line:
-
-```sh
 # MANUAL, FUTURE APPROVED WINDOW ONLY: the tool itself never executes this.
 psql -X --no-password --dbname='service=persona-cutover' \
   --file='<private reviewed transaction.sql>'

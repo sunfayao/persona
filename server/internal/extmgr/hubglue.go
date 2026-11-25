@@ -68,15 +68,6 @@ func (h *Manager) pushLocalized(build func(i18n.Lang) map[string]any, collapseID
 	}
 }
 
-// pushBackground sends devices a silent push.
-func (h *Manager) pushBackground(payload map[string]any, devices []string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := h.callHub(ctx, extwire.HubPushBackground, map[string]any{"payload": payload, "devices": devices}, nil); err != nil {
-		h.logf("push: %v", err)
-	}
-}
-
 // asker is the conversation a card the manager has the hub make belongs to: the clients put a card into the chat of
 // its machine and session, so one with no session shows only in "Needs you".
 type asker struct{ machine, session string }

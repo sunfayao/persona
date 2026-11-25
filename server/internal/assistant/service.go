@@ -244,7 +244,6 @@ type Service struct {
 	dispatch       dispatchBook      // dispatch.go: dispatch_start, dispatch_read
 	admission      admissionBook     // admission.go: execution-agent resource and direction gate
 	adoptMu        sync.Mutex        // agent_control.go: one agent_supervise at a time
-	placeBook      placeBook         // places.go
 	accept         acceptBook        // acceptance.go
 	pushQuiet      quietSwitch       // push_quiet.go: the hub's low-distraction switch as last read
 	deploy         deployProbe       // deploy_check.go: is the work in the running hub
@@ -413,7 +412,6 @@ func New(o Options) *Service {
 	s.skillRoutes()
 	s.scheduleRoutes()
 	s.scheduleGrantRoutes()
-	s.placeRoutes()
 	saved.Register(saved.Host{Store: func() any { return s.store() }, Event: s.event, Handle: s.handle, Full: fullRole, BodyErr: writeBodyErr})
 	s.resourceRoutes()
 	s.repositoryRoutes()

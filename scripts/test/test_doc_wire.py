@@ -44,11 +44,7 @@ EXTENSIONS_DOC = "docs/extensions/extensions.md"
 MANIFEST_SCHEMA = "schema/extension/manifest.schema.json"
 
 # hubMessageTypes keys that never go to an app over the WebSocket.
-NOT_ON_THE_WEBSOCKET = {
-    # An APNs push type (relayproto.PushRequest{Type: "liveactivity"} in hub/push_send.go), not a WebSocket message:
-    # it is reserved in hubMessageTypes only because TestBroadcastTypes' scan of the hub's code reads that Type.
-    "liveactivity",
-}
+NOT_ON_THE_WEBSOCKET = set()
 
 STRING = r'"(?:[^"\\]|\\.)*"'
 # `Features = append(`, not a field of the same name (`r.Features = append(`).
@@ -565,7 +561,7 @@ class DocWireTests(unittest.TestCase):
         to_clients -= NOT_ON_THE_WEBSOCKET
         # The parsers still find the lists (a move of the code would otherwise pass with nothing to check).
         self.assertTrue({"hello", "sessions", "assistant_feed", "inbox"} <= to_clients, sorted(to_clients))
-        self.assertTrue({"subscribe", "client_hello", "ping", "tool_result"} <= from_clients, sorted(from_clients))
+        self.assertTrue({"subscribe", "client_hello", "ping"} <= from_clients, sorted(from_clients))
         documented_to_clients, documented_from_clients = documented_websocket_types()
         self.assertEqual({"Server → client": [], "Client → server": []},
                          {"Server → client": missing(to_clients, documented_to_clients),

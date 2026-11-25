@@ -177,7 +177,7 @@ func TestAnswerRoleSendsOnlyText(t *testing.T) {
 
 	mux := h.routes()
 	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	_, watch := call(t, mux, "POST", "/api/v1/auth/tokens", phone["token"].(string), `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	const body = `{"text":"\u0003\u0003hi\r\nthere\t\u001b[201~","launcher":"picked","model":"m","model_fingerprint":"f","images":[{"data":"x"}],"clear_draft":"d","permission_mode":"bypassPermissions"}`
 	if code, b := call(t, mux, "POST", "/api/v1/sessions/box/s1/messages", watch["token"].(string), body); code != 200 {
 		t.Fatalf("%d %v", code, b)

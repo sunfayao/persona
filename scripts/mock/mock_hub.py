@@ -17798,7 +17798,7 @@ if os.environ.get("MOCK_CARDS") == "1":
             "```persona-card\n{\"type\": \"stat\", \"title\": \"步\n```",
         ])),
     ]
-# The health space's conversations (docs/assistant/tracks.md "Charts", #3140): the numbers in each answer come with the charts its
+# The health space's conversations (#3140): the numbers in each answer come with the charts its
 # CLAUDE.md asks for: sleep and steps by day as lines, a stat for today's steps, each meal's calories as bars, how the
 # day's calories split as a stacked bar, the details as a table. Made-up numbers.
 _hcard = lambda d: "```persona-card\n" + json.dumps(d, ensure_ascii=False) + "\n```"

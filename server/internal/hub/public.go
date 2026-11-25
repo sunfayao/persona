@@ -241,7 +241,7 @@ func (h *Hub) serveHTTP(ctx context.Context) error {
 		listeners = append(listeners, injected)
 		h.public.testPlaintext = nil
 	}
-	stopSessions, stopTests := func() {}, func() {}
+	stopSessions := func() {}
 	defer func() {
 		h.shutdown.start()
 		// Close both listeners before draining any clients, including pending upgrades.
@@ -266,17 +266,11 @@ func (h *Hub) serveHTTP(ctx context.Context) error {
 			return sctx.Err()
 		})
 		h.shutdown.step(h, "device sessions", func(context.Context) error { stopSessions(); return nil })
-		h.shutdown.step(h, "lock tests", func(context.Context) error { stopTests(); return nil })
 	}()
 	var err error
 	stopSessions, err = h.startDeviceSessions(ctx)
 	if err != nil {
 		stopSessions = func() {}
-		return err
-	}
-	stopTests, err = h.startLockTests(ctx)
-	if err != nil {
-		stopTests = func() {}
 		return err
 	}
 	handler := idleBodies(h.routes()) // a body that stops coming is answered and let go (bodyidle.go)

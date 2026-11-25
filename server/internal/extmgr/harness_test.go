@@ -253,7 +253,7 @@ func (th *testHub) appCall(ctx context.Context, method string, params json.RawMe
 		th.resolved[a.ID] = a.Resolution
 		th.mu.Unlock()
 		return map[string]any{"ok": true}, nil
-	case extwire.HubPushLocalized, extwire.HubPushBackground:
+	case extwire.HubPushLocalized:
 		var p map[string]any
 		_ = json.Unmarshal(params, &p)
 		th.mu.Lock()

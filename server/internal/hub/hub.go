@@ -80,9 +80,8 @@ type Hub struct {
 	fsWatchForceMu       sync.Mutex
 	fsWatchForceByID     map[string]bool
 	push                 *Pusher
-	agentWork            agentWork    // whether the manager is there to ask (agents_link.go)
-	store                Store        // nil in unit tests: nothing is persisted
-	lockTests            lockTestWake // wakes the lock test dispatcher when a test is scheduled (locktest.go)
+	agentWork            agentWork // whether the manager is there to ask (agents_link.go)
+	store                Store     // nil in unit tests: nothing is persisted
 
 	terms terminals  // the terminal tab's live streams (terminal.go)
 	fulls fullRelays // the web's full herdr views (herdrclient.go)
@@ -191,14 +190,6 @@ type Hub struct {
 
 // Store is the hub's persistence (internal/db on Postgres).
 type Store interface {
-	CreateLockTest(ctx context.Context, t db.LockTest) error
-	LockTest(ctx context.Context, deviceID, testID string) (*db.LockTest, error)
-	DueLockTests(ctx context.Context, at time.Time) ([]db.LockTest, error)
-	NextLockTestDue(ctx context.Context) (*time.Time, error)
-	AttemptLockTest(ctx context.Context, testID string, sessionID int64, at time.Time) (bool, error)
-	ReceiveLockTest(ctx context.Context, deviceID, testID string, shown *bool, at time.Time) (*db.LockTest, error)
-	RecoverLockTests(ctx context.Context, at time.Time) error
-	PruneLockTests(ctx context.Context, before time.Time) error
 	InsertDeviceSession(ctx context.Context, s db.DeviceSession) (int64, error)
 	UpdateDeviceSessionHeartbeat(ctx context.Context, id int64, interval int) error
 	FinishDeviceSession(ctx context.Context, id int64, at time.Time, reason string, interval int) error

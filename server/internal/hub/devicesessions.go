@@ -60,9 +60,6 @@ func (h *Hub) startDeviceSessions(ctx context.Context) (func(), error) {
 		defer h.quiesce.end()
 		pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		if err := h.store.PruneLockTests(pctx, time.Now().Add(-deviceSessionRetention)); err != nil {
-			h.logf("prune lock tests: %v", err)
-		}
 		if err := h.store.PruneDeviceSessions(pctx, time.Now().Add(-deviceSessionRetention)); err != nil {
 			h.logf("prune device sessions: %v", err)
 		}

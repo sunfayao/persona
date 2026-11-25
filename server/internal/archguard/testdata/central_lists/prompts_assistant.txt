@@ -121,7 +121,6 @@ SnapshotAccept
 SnapshotAgent
 SnapshotAgentCloseout
 SnapshotAgentPlan
-SnapshotApp
 SnapshotApproval
 SnapshotAsked
 SnapshotCalendar
@@ -169,10 +168,6 @@ TaskNotice
 TaskRun
 TurnContext
 TurnSection
-UrgentCall
-UrgentCallRule
-UrgentRuleBuiltin
-UrgentRuleBuiltinIn
 WorkspaceMention
 WorkspaceProject
 WorkspaceSession

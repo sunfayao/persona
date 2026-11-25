@@ -364,6 +364,9 @@ func (h *Hub) tokenRoutes(api *http.ServeMux) {
 				return
 			}
 		case "web":
+		case "watch": // an answer-only credential: no client uses it any more, and it must not become a full one
+			writeErrCode(w, http.StatusBadRequest, "invalid_kind", errors.New("device kind watch is not supported"))
+			return
 		default:
 			kind = "other"
 		}

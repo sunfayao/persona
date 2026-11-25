@@ -4,7 +4,6 @@
 # (docs/server/architecture.md "Registering a domain's entries"). Delete a line once the test's notice names it; add
 # none.
 "agent_message_hold"
-"android_update"
 "app_ping"
 "assistant_compact"
 "assistant_conversation_delete"
@@ -68,7 +67,6 @@
 "launcher_secret_references"
 "launcher_switch"
 "locale"
-"lock_test"
 "look_uploads"
 "machine_trust"
 "machines_add"
@@ -82,7 +80,6 @@
 "preview"
 "request_id"
 "resumable_interactions"
-"runtime_cli"
 "screen_dialog"
 "secret_prompts"
 "send_refusals"

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -20,18 +19,7 @@ import (
 
 // Places outside the app (docs/extensions/extensions.md "System-level placements"): an extension's widgets (the ui slot widget: a home
 // screen widget, a Lock Screen or watch face complication) and its shortcuts (actions Shortcuts and Siri run). The apps
-// list them, draw a widget for a family (held to what the family draws, kept until it is due again) and run a shortcut;
-// each device says which widgets it has, so an extension's ui.invalidate wakes the devices that show it.
-
-// widgetPushEvery is how often one device is woken for one widget at most: iOS budgets background pushes and widget
-// reloads, and a widget a minute old is fine. Lifecycle changes bypass this content refresh budget.
-var widgetPushEvery = 15 * time.Minute
-
-// deviceWidgetsKey is the setting keeping the widgets each device has.
-const deviceWidgetsKey = "extension_widgets"
-
-// deviceWidgetsMost is how many widgets one device may report.
-const deviceWidgetsMost = 64
+// list them, draw a widget for a family (held to what the family draws, kept until it is due again) and run a shortcut.
 
 // WidgetPlace is one widget an extension draws, as the apps list it.
 type WidgetPlace = wire.WidgetPlace
@@ -39,15 +27,11 @@ type WidgetPlace = wire.WidgetPlace
 // ShortcutPlace is one shortcut of an extension, as the apps list it.
 type ShortcutPlace = wire.ShortcutPlace
 
-// widgets keeps what the hub knows of widgets: views drawn and not yet due, the widgets each device has, when each was
-// last woken for one.
+// widgets keeps what the hub knows of widgets: views drawn and not yet due.
 type widgets struct {
 	mu         sync.Mutex
-	views      map[string]widgetView          // widgetCacheKey → the view
-	devices    map[string][]wire.DeviceWidget // device id → its widgets
-	loaded     bool                           // devices read from the store
-	woken      map[string]time.Time           // device/extension/ui → when it was last woken for it
-	generation map[string]uint64              // extension → lifecycle revision, fencing renders from an old runtime
+	views      map[string]widgetView // widgetCacheKey → the view
+	generation map[string]uint64     // extension → lifecycle revision, fencing renders from an old runtime
 }
 
 type widgetView struct {
@@ -303,43 +287,8 @@ func checkShortcutValue(p extension.ShortcutParam, v string) string {
 	return ""
 }
 
-// deviceWidgets are the widgets each device has (device id → its widgets), as each last said; the caller holds no
-// lock and reads the map under widgets.mu.
-func (h *Manager) deviceWidgets(ctx context.Context) map[string][]wire.DeviceWidget {
-	w := &h.extensions.widgets
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if !w.loaded && h.store != nil {
-		var stored map[string][]wire.DeviceWidget
-		if _, err := h.store.Setting(ctx, deviceWidgetsKey, &stored); err == nil {
-			w.devices, w.loaded = stored, true
-		}
-	}
-	if w.devices == nil {
-		w.devices = map[string][]wire.DeviceWidget{}
-	}
-	return w.devices
-}
-
-// setDeviceWidgets keeps the widgets device id says it has (none forgets it).
-func (h *Manager) setDeviceWidgets(ctx context.Context, id string, list []wire.DeviceWidget) error {
-	all := h.deviceWidgets(ctx)
-	w := &h.extensions.widgets
-	w.mu.Lock()
-	defer w.mu.Unlock() // through the write: two devices saying theirs at once are stored in the order they were taken
-	if len(list) == 0 {
-		delete(all, id)
-	} else {
-		all[id] = list
-	}
-	if h.store == nil {
-		return nil
-	}
-	return h.store.PutSetting(ctx, deviceWidgetsKey, all)
-}
-
 // widgetsDropExtension retires every cached family/context and any render still in flight, even after uninstall
-// or an upgrade that removed its widget declarations. Device reports survive to target the lifecycle wake.
+// or an upgrade that removed its widget declarations.
 func (h *Manager) widgetsDropExtension(id string) {
 	w := &h.extensions.widgets
 	w.mu.Lock()
@@ -356,8 +305,7 @@ func (h *Manager) widgetsDropExtension(id string) {
 }
 
 // widgetsChanged takes what an extension said changed (ui.invalidate: its ui ids, "" for all of them): the views kept
-// of them are dropped, and each device showing one of them is woken (a background push with extension_widget), once
-// in widgetPushEvery per widget.
+// of them are dropped.
 func (h *Manager) widgetsChanged(id string, ids map[string]bool) {
 	if h.extensions == nil {
 		return
@@ -384,38 +332,6 @@ func (h *Manager) widgetsChanged(id string, ids map[string]bool) {
 		}
 	}
 	w.mu.Unlock()
-	h.widgetsWake(id, changed, false)
-}
-
-// widgetsWake uses the persisted device reports, not the current manifest: nil ids means every reported widget
-// of the extension, including removed contributions. Lifecycle changes force a wake even after a content push.
-func (h *Manager) widgetsWake(id string, ids map[string]bool, force bool) {
-	devices := h.deviceWidgets(context.Background())
-	now := time.Now()
-	w := &h.extensions.widgets
-	w.mu.Lock()
-	if w.woken == nil {
-		w.woken = map[string]time.Time{}
-	}
-	wake := map[string][]string{} // device → widgets to wake it for
-	for dev, list := range devices {
-		for _, dw := range list {
-			k := dev + "/" + dw.Extension + "/" + dw.ID
-			if dw.Extension != id || (ids != nil && !ids[dw.ID]) || slices.Contains(wake[dev], dw.ID) ||
-				(!force && now.Sub(w.woken[k]) < widgetPushEvery) {
-				continue
-			}
-			w.woken[k] = now
-			wake[dev] = append(wake[dev], dw.ID)
-		}
-	}
-	w.mu.Unlock()
-	for dev, uis := range wake {
-		for _, ui := range uis {
-			h.pushBackground(map[string]any{"aps": map[string]any{"content-available": 1},
-				"extension_widget": wire.WidgetPush{Extension: id, ID: ui}}, []string{dev})
-		}
-	}
 }
 
 func (h *Manager) extensionSystemRoutes(api *http.ServeMux) {
@@ -458,35 +374,5 @@ func (h *Manager) extensionSystemRoutes(api *http.ServeMux) {
 		default:
 			writeJSON(w, res)
 		}
-	})
-	// Which widgets this device has on its screens (the app says it as they change): an extension's ui.invalidate
-	// wakes it for those only.
-	api.HandleFunc("PUT /api/v1/devices/{id}/widgets", func(w http.ResponseWriter, r *http.Request) {
-		var in wire.DeviceWidgets
-		if !readExtensionJSON(w, r, &in) {
-			return
-		}
-		if len(in.Widgets) > deviceWidgetsMost {
-			writeErrCode(w, http.StatusBadRequest, "bad_request", fmt.Errorf("at most %d widgets", deviceWidgetsMost))
-			return
-		}
-		var list []wire.DeviceWidget
-		for _, dw := range in.Widgets {
-			if dw.Extension == "" || dw.ID == "" || !slices.Contains(extension.WidgetFamilies, dw.Family) {
-				writeErrCode(w, http.StatusBadRequest, "bad_request", errors.New("a widget is {extension, id, family}"))
-				return
-			}
-			if !slices.ContainsFunc(list, func(o wire.DeviceWidget) bool { return o == dw }) {
-				list = append(list, dw)
-			}
-		}
-		if err := h.setDeviceWidgets(r.Context(), r.PathValue("id"), list); err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
-		}
-		if list == nil {
-			list = []wire.DeviceWidget{}
-		}
-		writeJSON(w, wire.DeviceWidgets{Widgets: list})
 	})
 }

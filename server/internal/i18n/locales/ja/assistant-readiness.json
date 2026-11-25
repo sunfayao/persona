@@ -45,8 +45,6 @@
   "suggest_how_to_connect_model": "モデルはどう接続するの？",
   "suggest_largest_folders": "このコンピューターで一番大きいフォルダーを見る",
   "suggest_largest_folders_prompt": "このコンピューターで一番大きいフォルダーをいくつか見せて。",
-  "suggest_today": "今日の予定",
-  "suggest_today_prompt": "今日の予定は？",
   "suggest_connect_mail": "メールの接続方法を教えて",
   "suggest_connect_mail_prompt": "メールを Persona に接続する方法を教えて。"
 }

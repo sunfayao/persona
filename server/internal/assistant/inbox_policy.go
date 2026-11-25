@@ -17,18 +17,7 @@ var inboxReadOnlyTools = map[string]bool{
 	"machines_list": true, "agents_list": true, "agent_read": true,
 	"conversations_list": true, "conversation_read": true, "view_get": true, "task_scope": true,
 	"repositories_list": true, "repository_get": true, "todo_repositories_get": true, "todo_list": true, "todo_get": true,
-	"list_followups": true, "list_places": true, "model_profiles_list": true, "model_profile_get": true,
-}
-
-// Phone tools have no ReadTools/Actions metadata. Keep an explicit read-only catalog and fail closed for new or mixed
-// tools: phone_notify, messages/calls, alarms, shortcuts, media, clipboard writes and device controls all stay behind
-// inbox_suggest. These reads do not notify or change the phone (maps_route, unlike maps_navigate, opens nothing).
-var inboxReadOnlyPhoneTools = map[string]bool{
-	"phone_contacts_search": true, "phone_calendar_events": true, "phone_reminders_list": true,
-	"phone_location_current": true, "phone_location_search": true, "phone_maps_search_nearby": true, "phone_maps_route": true,
-	"phone_photos_recent": true, "phone_photo_get": true, "phone_device_info": true, "phone_clipboard_get": true,
-	"phone_alarms_list": true, "phone_shortcuts_list": true, "phone_music_snapshot": true, "phone_home_list": true,
-	"phone_notifications_list": true, "phone_write_queue_list": true,
+	"list_followups": true, "model_profiles_list": true, "model_profile_get": true,
 }
 
 // isInboxModelCall uses the node's attested origin first, covering the window before assistant.send returns and the
@@ -89,7 +78,7 @@ func (s *Service) inboxModelRefusal(ctx context.Context, machine, session, origi
 	if !s.isInboxModelCall(ctx, machine, session, originHint) {
 		return proto.ToolResult{}, false
 	}
-	if inboxReadOnlyTools[name] || inboxReadOnlyPhoneTools[name] {
+	if inboxReadOnlyTools[name] {
 		return proto.ToolResult{}, false
 	}
 	if s.ext != nil {

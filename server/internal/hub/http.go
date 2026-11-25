@@ -91,7 +91,6 @@ func (h *Hub) routes() http.Handler {
 	h.pushRoutes(api)
 	h.webPushRoutes(api)
 	h.metricsRoutesRelayed(api) // the monitoring is the manager's (devices_routes.go)
-	h.lockTestRoutes(api)
 	h.assistantRoutes(api)
 	h.pinRoutes(api)
 	h.notifyRoutes(api)
@@ -113,7 +112,6 @@ func (h *Hub) routes() http.Handler {
 	h.managerRoutes(api) // the roster (managers.go)
 	h.linkRoutes(api)
 	h.publicRoutes(api)
-	h.androidAppRoutes(api)
 	h.peerRoutes(api)
 	// What the center serves: its own apps' requests and those the members pass on (peer_http.go), whose source the
 	// member judged (no gate here for them). A member passes everything but its own few routes on (memberForward).
