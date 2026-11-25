@@ -45,9 +45,7 @@ func TestInspectBackupWithoutAnInstallOrStaging(t *testing.T) {
 	if report.Check != "offline_integrity" || report.DatabaseRestoreVerified || report.Format != manifest.Format ||
 		!report.CreatedAt.Equal(manifest.CreatedAt) || report.ArchiveBytes != size ||
 		report.HubDump.Files != 1 || report.HubDump.Bytes <= 0 || report.ManagerDump.Files != 1 ||
-		report.ManagerDump.Bytes <= 0 || report.Runtime.Files < 4 ||
-		report.KnowledgeBase.State != "included" || report.KnowledgeBase.Location != "internal" ||
-		report.KnowledgeBase.Files == 0 {
+		report.ManagerDump.Bytes <= 0 || report.Runtime.Files < 4 {
 		fatalf(t, "inspection report %+v", report)
 	}
 	for _, omitted := range []string{fixture.output, fixture.home, manifest.HubDatabase, manifest.ManagerDatabase,
@@ -66,36 +64,8 @@ func TestInspectBackupWithoutAnInstallOrStaging(t *testing.T) {
 	}
 }
 
-func TestInspectBackupKnowledgeStates(t *testing.T) {
-	for _, tc := range []struct {
-		name, state, location string
-		locator               KnowledgeBaseLocator
-		payload               bool
-	}{
-		{"absent", "absent", "internal", KnowledgeBaseLocator{Relative: "private-folder"}, false},
-		{"empty", "empty", "internal", KnowledgeBaseLocator{Relative: "private-folder", Present: true}, false},
-		{"external", "included", "external", KnowledgeBaseLocator{External: filepath.Join(t.TempDir(), "private-folder"), Present: true}, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			raw := inspectionFixture(t, tc.locator, tc.payload)
-			report, err := inspectArchive(context.Background(), bytes.NewReader(raw), int64(len(raw)))
-			if err != nil {
-				fatal(t, err)
-			}
-			kb := report.KnowledgeBase
-			wantFiles := 0
-			if tc.payload {
-				wantFiles = 1
-			}
-			if kb.State != tc.state || kb.Location != tc.location || kb.Files != wantFiles || (kb.Bytes > 0) != tc.payload {
-				fatalf(t, "knowledge base %+v", kb)
-			}
-		})
-	}
-}
-
 func TestInspectRejectsBadMembersAndKeys(t *testing.T) {
-	raw := inspectionFixture(t, KnowledgeBaseLocator{}, false)
+	raw := inspectionFixture(t)
 	members := inspectionMembers(t, raw)
 	for _, tc := range []struct {
 		name   string
@@ -149,7 +119,7 @@ func TestInspectRejectsBadMembersAndKeys(t *testing.T) {
 }
 
 func TestInspectRequiresACompleteArchiveEnd(t *testing.T) {
-	raw := inspectionFixture(t, KnowledgeBaseLocator{}, false)
+	raw := inspectionFixture(t)
 	for _, removed := range []int{1, tarBlock, 2 * tarBlock} {
 		truncated := raw[:len(raw)-removed]
 		_, err := inspectArchive(context.Background(), bytes.NewReader(truncated), int64(len(truncated)))
@@ -165,7 +135,7 @@ func TestInspectRequiresACompleteArchiveEnd(t *testing.T) {
 }
 
 func TestInspectReadsAnOlderManifestPosition(t *testing.T) {
-	parts := inspectionMembers(t, inspectionFixture(t, KnowledgeBaseLocator{}, false))
+	parts := inspectionMembers(t, inspectionFixture(t))
 	parts[0], parts[1] = parts[1], parts[0]
 	raw := packInspectionParts(t, parts)
 	if _, err := inspectArchive(context.Background(), bytes.NewReader(raw), int64(len(raw))); err != nil {
@@ -174,7 +144,7 @@ func TestInspectReadsAnOlderManifestPosition(t *testing.T) {
 }
 
 func TestInspectRejectsOverlappingFileAndDirectory(t *testing.T) {
-	parts := inspectionMembers(t, inspectionFixture(t, KnowledgeBaseLocator{}, false))
+	parts := inspectionMembers(t, inspectionFixture(t))
 	var manifest Manifest
 	if err := json.Unmarshal(parts[0].data, &manifest); err != nil {
 		fatal(t, err)
@@ -194,7 +164,7 @@ func TestInspectRejectsOverlappingFileAndDirectory(t *testing.T) {
 }
 
 func TestInspectStreamsTheDatabasePayload(t *testing.T) {
-	parts := inspectionMembers(t, inspectionFixture(t, KnowledgeBaseLocator{}, false))
+	parts := inspectionMembers(t, inspectionFixture(t))
 	var manifest Manifest
 	if err := json.Unmarshal(parts[0].data, &manifest); err != nil {
 		fatal(t, err)
@@ -223,7 +193,7 @@ func (r *trackingInspectionReader) Read(p []byte) (int, error) {
 }
 
 func TestInspectCancellationReachesArchiveReads(t *testing.T) {
-	data := inspectionFixture(t, KnowledgeBaseLocator{}, false)
+	data := inspectionFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	source := &cancelInspectionReader{Reader: bytes.NewReader(data), cancel: cancel, beforeCancel: int64(len(data) - tarBlock)}
@@ -270,7 +240,7 @@ func TestInspectCLIHandlesPrivateErrorsAndHelp(t *testing.T) {
 		fatalf(t, "missing bundle: %v", err)
 	}
 
-	parts := inspectionMembers(t, inspectionFixture(t, KnowledgeBaseLocator{}, false))
+	parts := inspectionMembers(t, inspectionFixture(t))
 	parts[1].header.Name = "private-member\n"
 	name := filepath.Join(t.TempDir(), "private-backup-filename")
 	if err := os.WriteFile(name, packInspectionParts(t, parts), 0o600); err != nil {
@@ -303,7 +273,7 @@ type inspectionPart struct {
 	data   []byte
 }
 
-func inspectionFixture(t *testing.T, kb KnowledgeBaseLocator, withKnowledge bool) []byte {
+func inspectionFixture(t *testing.T) []byte {
 	t.Helper()
 	hubKey, managerKey := bytes.Repeat([]byte("h"), 32), bytes.Repeat([]byte("m"), 32)
 	files := []struct {
@@ -315,14 +285,8 @@ func inspectionFixture(t *testing.T, kb KnowledgeBaseLocator, withKnowledge bool
 		{"runtime/hub.json", []byte(`{"token":"fixture-private-value"}`)},
 		{"runtime/managers/assistant/manager.json", []byte(`{}`)},
 	}
-	if withKnowledge {
-		files = append(files, struct {
-			name string
-			data []byte
-		}{"kb/private-filename.md", []byte("fixture-private-note")})
-	}
 	manifest := Manifest{
-		Format: formatVersion, CreatedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC), KnowledgeBase: kb,
+		Format: formatVersion, CreatedAt: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
 		HubDatabase: "private_hub_database", ManagerDatabase: "private_manager_database",
 		Hub:               DatabaseIdentity{Schema: []Migration{{Version: 1, Name: "setup", Part: "hub"}}},
 		Manager:           DatabaseIdentity{Schema: []Migration{{Version: 1, Name: "setup", Part: "manager"}}},

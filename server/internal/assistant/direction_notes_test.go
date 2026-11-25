@@ -16,24 +16,18 @@ import (
 
 // A direction's notes (#10086, direction_notes.go). All ids, names and notes are placeholders.
 
-// notesEnv is outcomeEnv's assistant (a knowledge base whose project 天气-app holds box:/code/weather) with
-// conv_lead a leader filed under that project, and conv_other a leader filed under none.
+// notesEnv is an assistant with conv_lead and conv_other as leaders.
 func notesEnv(t *testing.T) (*Service, *fakeHub) {
 	t.Helper()
-	s, f, _ := outcomeEnv(t, nil, outcomeReply)
-	e := kbEng(t, s)
-	p, _ := e.Store.Project("天气-app")
-	p.Goal = "Ship the weather app on iOS and Android"
-	if err := e.Store.PutProject(p); err != nil {
-		t.Fatal(err)
-	}
+	f := newFakeHub().withMachine()
+	s := newServiceWithStore(t, f)
 	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"conv_lead", "conv_other"} })
 	b := &s.directions
 	b.mu.Lock()
 	if !s.directionsLocked(context.Background()) {
 		t.Fatal("directions unreadable")
 	}
-	b.m["conv_lead"] = &direction{MachineID: "server", Project: "天气-app", By: directionByUser, At: time.Now(), Name: "Weather"}
+	b.m["conv_lead"] = &direction{MachineID: "server", By: directionByUser, At: time.Now(), Name: "Weather"}
 	b.m["conv_other"] = &direction{MachineID: "server", By: directionByUser, At: time.Now(), Name: "Infra"}
 	b.mu.Unlock()
 	return s, f
@@ -97,96 +91,14 @@ func TestDirectionNotesRoute(t *testing.T) {
 	}
 }
 
-// A leader's role policy carries its own notes and its project's goal, and only its own: without notes it is the
-// supervision instructions byte for byte, another leader's policy never changes, and clearing them restores it.
-func TestDirectionNotesReachTheLeaderPolicy(t *testing.T) {
-	s, f := notesEnv(t)
-	ctx := context.Background()
-	policy := prompts.RenderSupervisionInstructions()
-	if got := dispatchedPolicy(t, s, "conv_lead"); got != policy {
-		t.Fatal("a leader without notes has a different policy")
-	}
-	if _, _, err := s.setDirectionNotes(ctx, "conv_lead", "Readings: the store build number.", nil); err != nil {
-		t.Fatal(err)
-	}
-	got := dispatchedPolicy(t, s, "conv_lead")
-	if !strings.HasPrefix(got, policy+"\n\n") || !strings.Contains(got, "Readings: the store build number.") ||
-		!strings.Contains(got, "Ship the weather app on iOS and Android") || !strings.Contains(got, "「Weather」") {
-		t.Fatalf("policy = %q", strings.TrimPrefix(got, policy))
-	}
-	if other := mustSupervisionInstructions(t, s, ctx, "server", "conv_other"); other != policy {
-		t.Fatal("another leader's policy changed")
-	}
-	// The manager's own sends carry it too: what the node is told to append is the same text.
-	f.answerNode(DeviceSessionSend, nodeTakes)
-	if sent, err := managerSend(s, "conv_lead"); err != nil || sent != got {
-		t.Fatalf("dispatched policy differs: %v", err)
-	}
-	// The per-message context names the project's status; its one-line summary changing never touches the policy.
-	c := s.Context(ctx, ContextParams{MachineID: "server", SessionID: "conv_lead"})
-	if !strings.Contains(c.Text, "天气 App 的 iOS 和安卓版") {
-		t.Fatalf("context = %q", c.Text)
-	}
-	e := kbEng(t, s)
-	pr, _ := e.Store.Project("天气-app")
-	pr.OneLine = "Android beta out"
-	if err := e.Store.PutProject(pr); err != nil {
-		t.Fatal(err)
-	}
-	if again := dispatchedPolicy(t, s, "conv_lead"); again != got {
-		t.Fatal("a project summary rewrite changed the leader's policy")
-	}
-	if _, _, err := s.setDirectionNotes(ctx, "conv_lead", "", nil); err != nil {
-		t.Fatal(err)
-	}
-	if back := dispatchedPolicy(t, s, "conv_lead"); back != policy {
-		t.Fatal("cleared notes left the policy changed")
-	}
-	if c := s.Context(ctx, ContextParams{MachineID: "server", SessionID: "conv_lead"}); strings.Contains(c.Text, "Android beta out") {
-		t.Fatal("a leader without notes is told its project's status")
-	}
-}
-
-// New Agents for the direction get its notes before the project background: one started in the project's directory,
-// and one the leader supervises wherever it works. Another direction's notes, an ended direction's and a work
-// machine's Agent get none.
-func TestDirectionNotesReachNewAgents(t *testing.T) {
-	s, _ := notesEnv(t)
-	ctx := context.Background()
-	if _, _, err := s.setDirectionNotes(ctx, "conv_lead", "Readings: the store build number.", nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := s.setDirectionNotes(ctx, "conv_other", "Infra rule: back up first.", nil); err != nil {
-		t.Fatal(err)
-	}
-	got := s.withProjectContext(ctx, "box", "/code/weather/ios", "", "Fix the login page")
-	if !strings.HasPrefix(got, `<persona-context kind="context" title="方向 · Weather · 说明"`) ||
-		!strings.Contains(got, "Readings: the store build number.") || strings.Contains(got, "back up first") ||
-		!strings.Contains(got, `title="项目 · 天气 App · 背景"`) || !strings.HasSuffix(got, "\n\nFix the login page") {
-		t.Fatalf("in the project: %q", got)
-	}
-	got = s.withProjectContext(ctx, "box", "/code/elsewhere", "conv_other", "Rotate the keys")
-	if !strings.Contains(got, "Infra rule: back up first.") || strings.Contains(got, "store build number") {
-		t.Fatalf("supervised by the other leader: %q", got)
-	}
-	if got := s.withProjectContext(ctx, "box", "/code/elsewhere", "", "Plain"); got != "Plain" {
-		t.Fatalf("no direction: %q", got)
-	}
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"conv_other"} }) // conv_lead is no leader now
-	if got := s.withProjectContext(ctx, "box", "/code/weather/ios", "conv_lead", "Fix"); strings.Contains(got, "store build number") {
-		t.Fatalf("a former leader's notes: %q", got)
-	}
-}
-
 // The prompts, in each language (UPDATE_GOLDEN=1 writes them).
 func TestGoldenDirectionNotes(t *testing.T) {
 	for _, l := range []i18n.Lang{i18n.ZhHans, i18n.En, i18n.Ja} {
-		d := prompts.DirectionNotes{Lang: directionLang(l), Name: "Weather", Notes: "- Readings: the store build number\n- Never deploy on Fridays",
-			ProjectName: "Weather app", ProjectGoal: "Ship on iOS and Android"}
+		d := prompts.DirectionNotes{Lang: directionLang(l), Name: "Weather", Notes: "- Readings: the store build number\n- Never deploy on Fridays"}
 		golden(t, "direction_notes."+string(l), prompts.RenderDirectionNotes(d))
 		golden(t, "todo_direction."+string(l), prompts.RenderTodoDirection(d))
 	}
-	if prompts.RenderDirectionNotes(prompts.DirectionNotes{Name: "x"}) != "" || prompts.RenderTodoDirection(prompts.DirectionNotes{Name: "x", ProjectGoal: "y"}) != "" {
+	if prompts.RenderDirectionNotes(prompts.DirectionNotes{Name: "x"}) != "" || prompts.RenderTodoDirection(prompts.DirectionNotes{Name: "x"}) != "" {
 		t.Fatal("nothing to say still rendered a block")
 	}
 }

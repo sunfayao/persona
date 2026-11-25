@@ -245,9 +245,6 @@ func (s *Service) triageTurn(ctx context.Context, v *workView, machine string, c
 	if s.isReviewer(machine, c.SessionID) {
 		return // a review's reviewer: its turn is the review's (supervise_autoreview.go), never the user's to decide
 	}
-	if s.meetingTurnNow(machine, c.SessionID) {
-		return // a meeting's batch started it: a side exchange, no work state (meeting_turns.go)
-	}
 	k := [2]string{machine, c.SessionID}
 	s.work.mu.Lock()
 	s.work.init()
@@ -384,15 +381,6 @@ func (s *Service) triageTurn(ctx context.Context, v *workView, machine string, c
 		}
 	} else {
 		s.putWork(ctx, e)
-	}
-	if e.Work.Phase == proto.WorkDone {
-		s.work.mu.Lock()
-		var items []proto.Item
-		if t, ok := s.work.tried[k]; ok && sameTurn(c, t.turn) && t.read != nil {
-			items = t.read.items
-		}
-		s.work.mu.Unlock()
-		s.goRecordWorkerDone(ctx, e, items)
 	}
 	s.logf("triage %s/%s: %s%s (%s %.1fs): %s", machine, short(c.SessionID), e.Work.Phase, orEmpty("/", e.Work.On), by,
 		time.Since(start).Seconds(), e.Work.Line)

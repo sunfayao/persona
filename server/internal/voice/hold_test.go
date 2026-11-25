@@ -555,8 +555,7 @@ func (a *app) got(typ string) bool {
 	return a.types[typ]
 }
 
-// A hold is not for a call that takes none: on protocol 1 and on a meeting call it changes nothing, and the log says
-// so once. A hold the app sends before it has its ready is read once the call is up (the extension reads no frame
+// A hold is not for a call that takes none: on protocol 1 it changes nothing, and the log says so once. A hold the app sends before it has its ready is read once the call is up (the extension reads no frame
 // before its ready), and pauses it then.
 func TestHoldIgnored(t *testing.T) {
 	t.Run("protocol 1", func(t *testing.T) {
@@ -591,24 +590,6 @@ func TestHoldIgnored(t *testing.T) {
 			t.Fatal("paused")
 		}
 		a.protocolOne()
-	})
-
-	t.Run("meeting call", func(t *testing.T) {
-		setVar(t, &pauseAfter, 100*time.Millisecond)
-		hub := roomHub(t)
-		up := newSessionsUp(t, true, nil)
-		pl := testPlugin(t, liveProvider(up.fakeUpstream), hub.server(t))
-		logs := captureLog(t, pl)
-		a := dialApp(t, pl, meetingStart("rec1", "room1", nil))
-		a.until(ofType("ready"))
-		a.send(hold(true))
-		logs.wait("call 1: hold frames on a meeting call: ignored")
-		a.never(500*time.Millisecond, "a meeting call on hold", func(f map[string]any) bool { return f["type"] == "link" })
-		a.send(map[string]any{"type": "text", "text": "What did we decide on the vendor?"})
-		hub.waitSent(1) // its lines go to the room as before
-		if up.count() != 1 {
-			t.Fatalf("%d sessions", up.count())
-		}
 	})
 
 	t.Run("before ready", func(t *testing.T) {

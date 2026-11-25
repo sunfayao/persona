@@ -563,10 +563,10 @@ func TestManagerWithoutConfigOwnNeedsUpdate(t *testing.T) {
 		return m
 	}
 	// The hub's hello-era sections go to a built-in manager it did not start, raw, and not to its own child.
-	if err := os.WriteFile(filepath.Join(h.cfg.dir, "hub.json"), []byte(`{"token":"t","kb":{"enabled":false}}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(h.cfg.dir, "hub.json"), []byte(`{"token":"t","agents":{"enabled":false}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for deploy, want := range map[string]string{"child": "", "external": `{"kb":{"enabled":false}}`} {
+	for deploy, want := range map[string]string{"child": "", "external": `{"agents":{"enabled":false}}`} {
 		r := dialRawBus(t, srv, tok)
 		var res struct {
 			LegacyConfig json.RawMessage `json:"legacy_config"`
@@ -605,14 +605,14 @@ func TestHubSaysWhichSectionsAreTheManagers(t *testing.T) {
 	var logs bytes.Buffer
 	h.logger = log.New(lockedWriter{&mu, &logs}, "", 0)
 	if err := os.WriteFile(filepath.Join(h.cfg.dir, "hub.json"),
-		[]byte(`{"token":"t","assistant":{"owner":"o","external":false},"kb":{},"lark":{}}`), 0o600); err != nil {
+		[]byte(`{"token":"t","assistant":{"owner":"o","external":false},"agents":{},"lark":{}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	h.sayMovedSections()
 	mu.Lock()
 	got := logs.String()
 	mu.Unlock()
-	if !strings.Contains(got, "hub.json's lark, kb, assistant.owner are the manager's") ||
+	if !strings.Contains(got, "hub.json's lark, agents, assistant.owner are the manager's") ||
 		!strings.Contains(got, filepath.Join("managers", "assistant", "manager.json")) {
 		t.Fatalf("said %q", got)
 	}

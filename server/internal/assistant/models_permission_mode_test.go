@@ -33,13 +33,13 @@ func TestModelBindingPermissionModeEditInheritAndValidate(t *testing.T) {
 	putLaunchers(t, s, apiProvider(t, s, "direct", "messages"), storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "cc-alt", Model: "alt-model"}})
 
 	// Launcher purposes expose permission_mode; direct API purposes do not.
-	for _, id := range []string{"assistant", "agent.new", purposeSupervise, purposeMeetingRoom, purposeAgent, purposeLarkAgent} {
+	for _, id := range []string{"assistant", "agent.new", purposeSupervise, purposeAgent, purposeLarkAgent} {
 		p := purposeOf(t, s, id)
 		if !slices.Contains(p.Fields, "permission_mode") {
 			t.Fatalf("launcher purpose %s missing permission_mode in fields: %v", id, p.Fields)
 		}
 	}
-	for _, id := range []string{"kb", "inbox.triage", purposeMeetingMinutes} {
+	for _, id := range []string{"kb", "inbox.triage"} {
 		p := purposeOf(t, s, id)
 		if slices.Contains(p.Fields, "permission_mode") {
 			t.Fatalf("API purpose %s unexpectedly exposes permission_mode in fields: %v", id, p.Fields)
@@ -399,7 +399,7 @@ func TestPermissionModeLaunchPropagationAndPrecedence(t *testing.T) {
 		}
 
 		// Guest conversation MUST never inherit or receive a non-empty permission_mode
-		sess, err = s.startOn(ctx, "server", StartParams{Text: "room", Purpose: purposeMeetingRoom, GuestTools: []string{"foo"}}, false)
+		sess, err = s.startOn(ctx, "server", StartParams{Text: "room", GuestTools: []string{"foo"}}, false)
 		if err != nil {
 			t.Fatal(err)
 		}

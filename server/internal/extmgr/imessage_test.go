@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
@@ -228,75 +226,13 @@ func TestIMessageAISwitch(t *testing.T) {
 	}
 }
 
-// The Mac's new messages go to the knowledge base (the assistant's, in this process: it reads them with app.call
-// connectors.archives / connectors.changes) as chat imessage-<the conversation's hash>, senders as the hash of their
-// number: no number in an id; the cursor moves on.
-func TestIMessageArchive(t *testing.T) {
-	h := newTestManager(t)
-	h.store = newMemStore()
-	h.connectors = connector.NewRegistry(nil)
-	imessageNode(t, h, func(method string, _ json.RawMessage) (any, error) {
-		switch method {
-		case "connector.list":
-			return json.RawMessage(`{"connectors":[{"id":"imessage","status":"ok"}]}`), nil
-		case "connector.changes":
-			return json.RawMessage(`{"next":"9","batches":[{"chat":{"id":"imessage-0123456789ab","name":"张三","members":[{"handle":"+15550100","name":"张三"}],
-"services":["SMS"],"last":"` + time.Now().UTC().Format(time.RFC3339) + `"},"messages":[
-{"id":"8","at":"` + time.Now().Add(-time.Minute).UTC().Format(time.RFC3339) + `","kind":"message","sender":{"handle":"+15550100","name":"张三"},"text":"示例：周五见"},
-{"id":"9","at":"` + time.Now().UTC().Format(time.RFC3339) + `","kind":"message","from_me":true,"text":"好"}]}]}`), nil
-		}
-		return nil, fmt.Errorf("unexpected %s", method)
-	})
-	if err := h.addIMessage(imessage.Config{Machine: "mac"}); err != nil {
-		t.Fatal(err)
-	}
-	h.imessage().Check(context.Background())
-	ask := func(method string, params any) json.RawMessage {
-		t.Helper()
-		raw, _ := json.Marshal(params)
-		out, ok, err := h.AppCall(context.Background(), assistantwire.AppCall{AppID: assistantwire.AppConnectors, Method: method, Params: raw})
-		if !ok || err != nil {
-			t.Fatalf("%s: handled %v, %v", method, ok, err)
-		}
-		return out
-	}
-	var archives assistantwire.Archives
-	_ = json.Unmarshal(ask(assistantwire.ConnectorsArchives, map[string]any{}), &archives)
-	if !slices.ContainsFunc(archives.Archives, func(a assistantwire.ArchiveSource) bool { return a.ID == imessage.ID }) {
-		t.Fatalf("archives %+v", archives)
-	}
-	var res assistantwire.ChangesResult
-	_ = json.Unmarshal(ask(assistantwire.ConnectorsChanges, map[string]any{"id": imessage.ID, "cursor": "", "fence_version": assistantwire.ArchiveFenceV1}), &res)
-	if res.Next != "9" || len(res.Batches) != 1 {
-		t.Fatalf("changes %+v", res)
-	}
-	b := res.Batches[0]
-	if b.Chat.ID != "0123456789ab" || b.Chat.Name != "张三" || b.Chat.Kind != "dm" || len(b.Messages) != 2 {
-		t.Fatalf("batch %+v", b)
-	}
-	if m := b.Messages[0]; m.SenderID != imessage.PersonKey("+15550100") || m.SenderName != "张三" || m.Mine {
-		t.Fatalf("their message %+v", m)
-	}
-	if !b.Messages[1].Mine {
-		t.Fatalf("mine %+v", b.Messages[1])
-	}
-	raw, _ := json.Marshal(res)
-	if strings.Contains(strings.ReplaceAll(string(raw), `"value":"+15550100"`, ""), "5550100") {
-		t.Errorf("a number outside the identity hint (hashed by the knowledge base): %s", raw)
-	}
-}
-
-// Deleting what was kept: only once "Hand to Persona" is off; the knowledge base's iMessage chats and people
-// (kb.forget) and the inbox's iMessage items (inbox.forget), both the assistant's in this process, go; the counts are
-// theirs.
+// Deleting what was kept: only once "Hand to Persona" is off; the inbox's iMessage items (inbox.forget), the assistant's in this
+// process, go; the count is its.
 func TestIMessageDelete(t *testing.T) {
 	h := newTestManager(t)
 	h.store = newMemStore()
 	h.connectors = connector.NewRegistry(nil)
 	a := withAssistant(h)
-	a.on(assistantwire.MethodKBForget, func(json.RawMessage) (any, error) {
-		return assistantwire.KBForgotten{Chats: 1, People: 1}, nil
-	})
 	a.on(assistantwire.MethodInboxForget, func(json.RawMessage) (any, error) { return map[string]any{"deleted": 1}, nil })
 	mux := h.routes()
 	imessageNode(t, h, func(method string, _ json.RawMessage) (any, error) {
@@ -309,21 +245,19 @@ func TestIMessageDelete(t *testing.T) {
 	if code, out := call(t, mux, "DELETE", "/api/v1/imessage/data", h.cfg.Token, ""); code != 409 || out["code"] != "ai_on" {
 		t.Fatalf("while on: %d %v", code, out)
 	}
-	if n := len(a.got(assistantwire.MethodKBForget)) + len(a.got(assistantwire.MethodInboxForget)); n != 0 {
+	if n := len(a.got(assistantwire.MethodInboxForget)); n != 0 {
 		t.Fatal("deleted while on")
 	}
 	call(t, mux, "PUT", "/api/v1/imessage/settings", h.cfg.Token, `{"ai":false}`)
 	code, out := call(t, mux, "DELETE", "/api/v1/imessage/data", h.cfg.Token, "")
-	if code != 200 || out["chats"] != 1.0 || out["people"] != 1.0 || out["inbox"] != 1.0 {
+	if code != 200 || out["inbox"] != 1.0 {
 		t.Fatalf("delete: %d %v", code, out)
 	}
-	for _, m := range []string{assistantwire.MethodKBForget, assistantwire.MethodInboxForget} {
-		if got := a.got(m); len(got) != 1 || !strings.Contains(string(got[0]), `"source":"imessage"`) {
-			t.Errorf("%s: %s", m, got)
-		}
+	if got := a.got(assistantwire.MethodInboxForget); len(got) != 1 || !strings.Contains(string(got[0]), `"source":"imessage"`) {
+		t.Errorf("inbox.forget: %s", got)
 	}
 	// The assistant away: its part is not deleted, the app is told to try again.
-	a.on(assistantwire.MethodKBForget, func(json.RawMessage) (any, error) { return nil, errAssistantOffline })
+	a.on(assistantwire.MethodInboxForget, func(json.RawMessage) (any, error) { return nil, errAssistantOffline })
 	if code, out := call(t, mux, "DELETE", "/api/v1/imessage/data", h.cfg.Token, ""); code != 503 {
 		t.Fatalf("assistant away: %d %v", code, out)
 	}

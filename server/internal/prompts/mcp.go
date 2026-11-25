@@ -92,8 +92,6 @@ func LocalizeTool(t MCPTool, lang string) MCPTool {
 		names = append(names, "leader_task_plan")
 	case "task_review":
 		names = append(names, "leader_task_review")
-	case "delegate_task":
-		names = append(names, "meeting_delegate_task")
 	}
 	for _, name := range names {
 		if _, ok := mcpTools()[name]; !ok {

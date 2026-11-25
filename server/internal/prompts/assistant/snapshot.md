@@ -22,9 +22,7 @@
 {{end}}{{if .NoPhone}}{{else if .PhoneOnline}}- iPhone：App 在线，phone_* 工具可用
 {{else}}- iPhone：App 不在前台，phone_* 工具会先尝试在后台唤醒 App，失败就请用户打开 App；要手机确认的写操作可以带 queue_if_offline 先排队（phone_write_queue_list 查看）
 {{end}}{{with .Apps}}- 各设备上的 Persona App 版本（各自最近一次连上 hub 时报的，App 不在前台也是这个版本）：{{range $i, $a := .}}{{if $i}}；{{end}}{{template "assistant/snapshot_app" $a}}{{end}}
-{{end}}{{with .KB}}- 知识库（kb_get 看详情）：{{if $.Omit.KB}}{{template "assistant/snapshot_omitted" "kb_get"}}
-{{else}}
-{{indent "  " .}}{{end}}{{end}}{{with .Chats}}{{if .Total}}- 飞书未读会话 {{.Total}} 个（免打扰的不算；用 lark_chats / lark_messages 看）
+{{end}}{{with .Chats}}{{if .Total}}- 飞书未读会话 {{.Total}} 个（免打扰的不算；用 lark_chats / lark_messages 看）
 {{with .AtMe}}  - @我：{{range $i, $c := first 6 .}}{{if $i}}；{{end}}{{$c.Name}}（{{$c.Unread}} 条）：{{$c.Preview}}{{end}}
 {{end}}{{with .Other}}  - 其他：{{if $.Omit.OtherChats}}{{len .}} 个会话，{{template "assistant/snapshot_omitted" "lark_chats"}}{{else}}{{range $i, $c := first 8 .}}{{if $i}}、{{end}}{{$c.Name}}（{{$c.Unread}} 条）{{end}}{{end}}
 {{end}}{{else}}- 飞书：没有未读（免打扰的不算）

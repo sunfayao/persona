@@ -35,29 +35,11 @@ func (m *Machine) isAssistant(s proto.Session) bool {
 	return isAssistantOf(s, m.assistantCwdOf(owner), owner)
 }
 
-// isMeetingRoomCwd checks whether cwd is a meeting room conversation's working directory (<state dir>/guest-meeting/<id>).
-func isMeetingRoomCwd(cwd string) bool {
-	if cwd == "" {
-		return false
-	}
-	clean := path.Clean(path.Clean(cwd))
-	parent := path.Base(path.Dir(clean))
-	if parent != "guest-meeting" {
-		return false
-	}
-	name := path.Base(clean)
-	return name != "" && name != "." && name != "/"
-}
-
-// isAssistantOf identifies manager owner's headless conversations in its directory dir, its health space's,
-// or a meeting room guest conversation (guest-meeting/<id>, #6048). A host pane is stronger evidence than
+// isAssistantOf identifies manager owner's headless conversations in its directory dir, its health space's. A host pane is stronger evidence than
 // a shared working directory.
 func isAssistantOf(s proto.Session, dir, owner string) bool {
 	if s.PaneID != "" || s.Cwd == "" {
 		return false
-	}
-	if isMeetingRoomCwd(s.Cwd) || s.Origin == "meeting" {
-		return true
 	}
 	if dir == "" {
 		return false

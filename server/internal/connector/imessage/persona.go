@@ -2,8 +2,6 @@ package imessage
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,13 +11,12 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // "Hand to Persona" (#528; the user, 2026-11-03: iMessage's texts may go to AI like Feishu's): while the switch is on, the
-// Mac's real conversations (KeepContacts) go into the knowledge base (connector.Archive, by ROWID), unread ones into
+// Mac's real conversations (KeepContacts): unread ones go into
 // the inbox (connector.Inbox, triaged like Feishu's), and the assistant reads them (ReadTools). Codes are masked in
 // all of it. Off: none of it — nothing is read for Persona, the tools are gone; what the hub kept stays until the
 // user deletes it (extmgr/imessage.go).
@@ -45,62 +42,6 @@ func (c *Remote) zone() *time.Location {
 		}
 	}
 	return time.UTC
-}
-
-// changesPage is how many messages one connector.changes call asks for.
-const changesPage = 300
-
-// Changes is connector.Archive: the new messages of the conversations that go to Persona, as knowledge-base chats
-// "imessage-<12 hex>" (the conversation's id) with people "imessage-<hash of their number>".
-func (c *Remote) Changes(ctx context.Context, cursor string, _ int) ([]connector.ChatBatch, string, bool, error) {
-	if !c.AI() {
-		return nil, cursor, false, nil
-	}
-	var page ChangesPage
-	if err := c.read(ctx, "connector.changes", map[string]any{"id": ID, "cursor": cursor, "limit": changesPage,
-		"days": 30, "keep": KeepContacts}, &page); err != nil {
-		return nil, cursor, false, err
-	}
-	out := make([]connector.ChatBatch, 0, len(page.Batches))
-	for _, b := range page.Batches {
-		out = append(out, kbBatch(b))
-	}
-	return out, page.Next, page.More, nil
-}
-
-func kbBatch(b Batch) connector.ChatBatch {
-	kind := "dm"
-	if b.Chat.Group {
-		kind = "group"
-	}
-	out := connector.ChatBatch{Chat: kb.SourceChat{ID: strings.TrimPrefix(b.Chat.ID, ID+"-"), Name: b.Chat.Name, Kind: kind,
-		UpdatedAt: b.Chat.Last}}
-	for _, m := range b.Messages {
-		sm := kb.SourceMessage{ID: m.ID, Position: m.ID, Mine: m.FromMe, Type: "TEXT", Text: lineText(m), At: m.At}
-		if m.Kind == "event" {
-			sm.Type = "SYSTEM"
-		}
-		if m.Sender != nil {
-			sm.SenderID, sm.SenderName = PersonKey(m.Sender.Handle), m.Sender.shown()
-			sm.SenderHandles = []kb.Handle{handleOf(m.Sender.Handle)} // hashed by the knowledge base, never kept as it is
-		}
-		out.Messages = append(out.Messages, sm)
-	}
-	return out
-}
-
-// handleOf is a Messages handle as an identity hint: an Apple ID's address or a number.
-func handleOf(h string) kb.Handle {
-	if strings.Contains(h, "@") {
-		return kb.Handle{Kind: kb.HandleEmail, Value: h}
-	}
-	return kb.Handle{Kind: kb.HandlePhone, Value: h}
-}
-
-// PersonKey is a person's id in the knowledge base: a hash of their number or address, never the number itself.
-func PersonKey(handle string) string {
-	sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(handle))))
-	return hex.EncodeToString(sum[:6])
 }
 
 // lineText is a message as one line of text: what it says, what it answers, what it carries.
@@ -166,7 +107,7 @@ var (
 )
 
 // Watch is connector.Events: every couple of minutes it lists the newest conversations, keeps the inbox's things
-// from them and kicks the knowledge base when anything came in. A Mac that does not answer is waited for (the
+// from them. A Mac that does not answer is waited for (the
 // status says why), so the hub does not restart and log this every few minutes.
 func (c *Remote) Watch(ctx context.Context, changed func(connector.Scope)) error {
 	for {
@@ -187,7 +128,6 @@ func (c *Remote) look(ctx context.Context, changed func(connector.Scope)) {
 		return
 	}
 	c.inboxMu.Lock()
-	moved := !newest.Equal(c.newest)
 	same := slices.EqualFunc(things, c.things, func(a, b connector.InboxThing) bool {
 		return a.Thread == b.Thread && a.Last == b.Last && a.Read == b.Read && a.Done == b.Done
 	})
@@ -196,9 +136,6 @@ func (c *Remote) look(ctx context.Context, changed func(connector.Scope)) {
 		c.things = things
 	}
 	c.inboxMu.Unlock()
-	if moved {
-		changed(connector.ScopeChats)
-	}
 	if !same {
 		changed(connector.ScopeInbox)
 	}

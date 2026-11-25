@@ -1,6 +1,6 @@
 {
   "assistant": {
-    "count": 56,
+    "count": 55,
     "files": [
       "assistant/acceptance.md",
       "assistant/acceptance_input.md",
@@ -22,7 +22,6 @@
       "assistant/routine_evening_former1.md",
       "assistant/routine_evening_former2.md",
       "assistant/routine_facts.md",
-      "assistant/routine_kb_hint.md",
       "assistant/routine_morning.md",
       "assistant/routine_morning_former1.md",
       "assistant/routine_morning_former2.md",
@@ -58,24 +57,6 @@
       "assistant/view_errors.md",
       "assistant/view_repair.md",
       "assistant/workspace_mention.md"
-    ]
-  },
-  "kb": {
-    "count": 13,
-    "files": [
-      "kb/day_recap_day.md",
-      "kb/day_recap_input.md",
-      "kb/day_recap_merge_input.md",
-      "kb/known_projects.md",
-      "kb/minutes_card.md",
-      "kb/minutes_input.md",
-      "kb/minutes_marks.md",
-      "kb/minutes_meeting.md",
-      "kb/minutes_merge_input.md",
-      "kb/readme.md",
-      "kb/recording_input.md",
-      "kb/recording_title_input.md",
-      "kb/topic_summary.md"
     ]
   }
 }

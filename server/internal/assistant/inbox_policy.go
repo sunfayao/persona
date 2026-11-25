@@ -9,11 +9,9 @@ import (
 
 // inboxReadOnlyTools are the assistant-owned tools an Inbox handling chat may call itself. Everything not listed is
 // denied by default: a newly added outbound, interruption, delegation, scheduling or settings tool must not become an
-// Inbox bypass merely because this policy was written before it. kb_update is the documented internal-memory exception;
-// it cannot send to another person. Suggestions and drafts remain available, and their confirmed execution uses runTool.
+// Inbox bypass merely because this policy was written before it. Suggestions and drafts remain available, and their confirmed execution uses runTool.
 var inboxReadOnlyTools = map[string]bool{
 	"inbox_suggest": true, "inbox_draft": true, "inbox_folders": true,
-	"kb_search": true, "kb_list": true, "kb_get": true, "kb_update": true, "kb_history_status": true,
 	"machines_list": true, "agents_list": true, "agent_read": true,
 	"conversations_list": true, "conversation_read": true, "view_get": true, "task_scope": true,
 	"repositories_list": true, "repository_get": true, "todo_repositories_get": true, "todo_list": true, "todo_get": true,

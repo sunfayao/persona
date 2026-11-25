@@ -11,9 +11,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/channel"
 	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connectorwire"
 	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/kbwire"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
@@ -83,19 +81,6 @@ func (s *server) handle(ctx context.Context, method string, params json.RawMessa
 			return nil, noCapability(c, "login")
 		}
 		return struct{}{}, l.Logout(ctx)
-	case MChanges:
-		a, ok := connector.As[connector.Archive](c)
-		if !ok {
-			return nil, noCapability(c, "archive")
-		}
-		var p ChangesParams
-		if err := json.Unmarshal(params, &p); err != nil {
-			return nil, err
-		}
-		b, next, more, err := a.Changes(ctx, p.Cursor, p.Limit)
-		return ChangesResult{Batches: b, Next: next, More: more}, err
-	case MHistoryChats, MHistory, MHistoryAnchors:
-		return historyCall(ctx, c, method, params)
 	case MCollect:
 		in, ok := connector.As[connector.Inbox](c)
 		if !ok {
@@ -251,40 +236,6 @@ func (s *server) handle(ctx context.Context, method string, params json.RawMessa
 			return nil, err
 		}
 		return sn.Snapshot(ctx, p.TZ)
-	case MItems:
-		is, ok := connector.As[connector.Items](c)
-		if !ok {
-			return nil, noCapability(c, "items")
-		}
-		items, err := is.ItemSource().Items(ctx)
-		if items == nil {
-			items = []kbwire.Item{}
-		}
-		return ItemsResult{Items: items}, err
-	case MDocTitle:
-		is, ok := connector.As[connector.Items](c)
-		if !ok {
-			return nil, noCapability(c, "items")
-		}
-		var p DocTitleParams
-		if err := json.Unmarshal(params, &p); err != nil {
-			return nil, err
-		}
-		return DocTitleResult{Title: is.ItemSource().DocTitle(ctx, p.URL)}, nil
-	case MArchiveMedia:
-		am, ok := c.(connector.ArchiveMedia)
-		if _, archive := connector.As[connector.Archive](c); !ok || !archive {
-			return nil, noCapability(c, "archive")
-		}
-		var p MediaParams
-		if err := json.Unmarshal(params, &p); err != nil {
-			return nil, err
-		}
-		m, err := am.ArchiveMedia(ctx, p.Ref)
-		if err == nil && len(m.Data) > connector.ArchiveMediaMost {
-			return nil, fmt.Errorf("attachment %d bytes, more than %d", len(m.Data), connector.ArchiveMediaMost)
-		}
-		return m, err
 	case MMedia:
 		th, ok := connector.As[connector.Threads](c)
 		if !ok {
@@ -362,45 +313,6 @@ func (s *server) handle(ctx context.Context, method string, params json.RawMessa
 		return RecallResult{Recalled: true}, nil
 	}
 	return nil, &rpc.Error{Code: CodeUnknownMethod, Message: "unknown method " + method}
-}
-
-// historyCall answers history.chats, archive.history and history.anchors for a connector declaring them. The query
-// is checked and its limit cut to connectorwire.HistoryMost before the connector sees it; what the connector answers,
-// error included, goes back as it is.
-func historyCall(ctx context.Context, c connector.Connector, method string, params json.RawMessage) (any, error) {
-	h, ok := connector.As[connector.History](c)
-	if !ok {
-		return nil, noCapability(c, "history")
-	}
-	switch method {
-	case MHistoryChats:
-		chats, err := h.HistoryChats(ctx)
-		if chats == nil {
-			chats = []connectorwire.HistoryChat{}
-		}
-		return HistoryChatsResult{Chats: chats}, err
-	case MHistory:
-		var q HistoryParams
-		if err := json.Unmarshal(params, &q); err != nil {
-			return nil, err
-		}
-		if err := q.Check(); err != nil {
-			return nil, err
-		}
-		return h.History(ctx, q.Clamped())
-	}
-	a, ok := connector.As[connector.HistoryAnchors](c)
-	if !ok {
-		return nil, noCapability(c, "history_anchors")
-	}
-	var q HistoryAnchorsParams
-	if err := json.Unmarshal(params, &q); err != nil {
-		return nil, err
-	}
-	if err := q.Check(); err != nil {
-		return nil, err
-	}
-	return a.HistoryAnchors(ctx, q.Clamped())
 }
 
 // contributionOf is the contribution a namespaced call names ("" when it names none).

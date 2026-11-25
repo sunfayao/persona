@@ -162,7 +162,7 @@ func TestQuietConversationsEventsAreTold(t *testing.T) {
 				e.must("POST", "/api/v1/todos/"+td.ID+"/decisions", `{"question":"`+question+`","choice":"`+choice+`"}`)
 			}
 		}
-		told := func(when string, got []recordedKBEvent, want ...string) {
+		told := func(when string, got []recordedEvent, want ...string) {
 			t.Helper()
 			var names []string
 			for _, ev := range got {
@@ -228,130 +228,7 @@ func TestQuietConversationsEventsAreTold(t *testing.T) {
 	})
 }
 
-// outcomeTimers holds the judgements again of s's held outcome lines (holdOutcomeLine) for the test to run.
-type outcomeTimers struct {
-	mu  sync.Mutex
-	due []func()
-}
-
-func fakeOutcomeTimers(s *Service) *outcomeTimers {
-	c := &outcomeTimers{}
-	h := &s.outcomeLines
-	h.mu.Lock()
-	h.after = func(_ time.Duration, f func()) { c.mu.Lock(); c.due = append(c.due, f); c.mu.Unlock() }
-	h.mu.Unlock()
-	return c
-}
-
 // fire runs the judgements due now; it says how many there were.
-func (c *outcomeTimers) fire() int {
-	c.mu.Lock()
-	due := c.due
-	c.due = nil
-	c.mu.Unlock()
-	for _, f := range due {
-		f()
-	}
-	return len(due)
-}
-
-// A closed task's outcome line waits while its to-do's verdict cannot be told (the conversation that handed it out
-// was never noted and is not listed): a project's timeline is outside the health space and kb.read reads it, so the
-// line is written only once the conversation is told outside the space, and dropped once it is told in it
-// (TestHiddenTaskOutcomeStaysOutOfProjects: one known at close is never held).
-func TestOutcomeLineWaitsForItsVerdict(t *testing.T) {
-	for _, store := range []string{"memory", "store"} {
-		for _, health := range []bool{false, true} {
-			name := store + "/main space"
-			if health {
-				name = store + "/health space"
-			}
-			t.Run(name, func(t *testing.T) {
-				var st Store
-				if store == "store" {
-					st = todoTestDB(t)
-				}
-				s, f, todo := outcomeEnv(t, st, outcomeReply)
-				timers := fakeOutcomeTimers(s)
-				f.setSessions("server") // conv1, never noted, no longer listed
-				if v := s.todoVerdicts(context.Background(), []string{todo.ID}, nil, nil)[todo.ID]; v != todoUntold {
-					t.Fatalf("the task's verdict: %d, want untold", v)
-				}
-				f.outcome = `{"outcome":"修好登录页横屏崩溃，PR 已合并","links":["https://github.com/o/weather/pull/12"]}`
-				s.recordTaskOutcome(todo, time.Now().UTC())
-				timeline := func() []string { return kbEng(t, s).Store.Log("天气-app", 10) }
-				if log := timeline(); len(log) != 0 {
-					t.Fatalf("the project's timeline while the verdict cannot be told: %q", log)
-				}
-				if n := timers.fire(); n != 1 || len(timeline()) != 0 {
-					t.Fatalf("judged again while still untold: %d judgements, timeline %q", n, timeline())
-				}
-				conv1 := proto.Session{SessionID: "conv1", Title: "Persona", Assistant: true}
-				if health {
-					conv1.Cwd, conv1.Space = identity.HealthDir("/home/owner"), SpaceHealth
-				}
-				f.setSessions("server", conv1) // listed again, as the backfill asks
-				if n := timers.fire(); n != 1 {
-					t.Fatalf("judgements once told: %d, want 1", n)
-				}
-				log := timeline()
-				if health {
-					if len(log) != 0 {
-						t.Fatalf("the project's timeline once the task is told the health space's: %q", log)
-					}
-				} else if len(log) != 1 || !strings.Contains(log[0], "修好登录页横屏崩溃") {
-					t.Fatalf("the project's timeline once the task is told outside the space: %q", log)
-				}
-				if n := timers.fire(); n != 0 {
-					t.Fatalf("still judged again after it was told: %d", n)
-				}
-			})
-		}
-	}
-}
-
-// A health conversation that wrote to a task's run (a routed item in its feed), quiet since before the manager noted
-// spaces, is neither the task's origin nor its supervisor: the backfill still has its computer list it, so the task's
-// verdict is told the health space's, and its outcome line, held while untold, is never written where kb.read reads it.
-func TestOutcomeLineOfAQuietHealthFeedConversation(t *testing.T) {
-	database := todoTestDB(t)
-	e := projectEnv(t, database)
-	timers := fakeOutcomeTimers(e.s)
-	ctx := context.Background()
-	setSettings(t, e.s, func(v *Settings) { v.Main = "conv1" })
-	main, h1 := scopeSession("conv1", "Persona", ""), scopeSession("h1", "Heart", identity.HealthDir("/home/owner"))
-	main.Assistant, h1.Assistant = true, true
-	run := scopeSession("s2", "Charts", "/home/owner/charts")
-	run.LastText = "Charted the resting heart rate against the new dose"
-	e.sessions("server", main, run) // h1 is quiet past a week, and was never noted
-	task, err := e.s.createTaskTodo(ctx, "Chart the readings", "", "conv1", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.must("PUT", "/api/v1/todos/"+task.ID+"/agents/server/s2", "")
-	e.must("PATCH", "/api/v1/todos/"+task.ID, `{"project":"诊断能力"}`)
-	if _, err := e.s.appendFeedAt(ctx, "h1", feedRouted, task.ID, map[string]string{"text": "Resting heart rate was 48",
-		"machine_id": "server", "session_id": "s2"}, time.Now().UTC().Add(time.Minute)); err != nil {
-		t.Fatal(err)
-	}
-	e.must("PATCH", "/api/v1/todos/"+task.ID, `{"done":true}`)
-	e.s.tasks.outcomeRuns.Wait()
-	if log := kbEng(t, e.s).Store.Log("诊断能力", 10); len(log) != 0 {
-		t.Fatalf("the project's timeline while h1 cannot be told: %q", log)
-	}
-	if keep := e.s.profile(ctx, []TaskView{}, &TodoReport{}).Keep; !slices.Contains(keep, SessionRef{MachineID: "server", SessionID: "h1"}) {
-		t.Fatalf("kept %v, want h1 listed for its space to be noted", keep)
-	}
-	e.sessions("server", main, run, h1) // listed as kept
-	e.sessions("server", main, run)     // quiet again
-	timers.fire()
-	if log := kbEng(t, e.s).Store.Log("诊断能力", 10); len(log) != 0 {
-		t.Fatalf("the project's timeline once h1 is told the health space's: %q", log)
-	}
-	if v := e.s.todoVerdicts(ctx, []string{task.ID}, nil, nil)[task.ID]; v != todoHidden {
-		t.Fatalf("the task's verdict: %d, want hidden", v)
-	}
-}
 
 // A conversation noted in the health space on any computer is told so wherever else it is noted or listed outside it,
 // and so is one listed in the space after it was noted outside it: on the store, a note outside the space is read back
@@ -599,57 +476,4 @@ func TestSpaceBackfillBatches(t *testing.T) {
 	if len(rest) != 5 || slices.ContainsFunc(rest, func(id string) bool { return slices.Contains(kept, id) }) {
 		t.Fatalf("kept once the first batch is noted: %v", rest)
 	}
-}
-
-// The regression check of #10941, a forged session: a computer with no transcript of a conversation's id starts a new
-// one under it when asked to resume it (an extension's resume, refused at the hub and the node now). A to-do whose
-// health chat was never noted was then told by that session's row, a terminal's outside the space: shown to
-// extensions, its held outcome line written to the project's timeline (kb.read). A row tells a conversation only as the
-// assistant's or as one in the space now, as a note is taken; the chat's real row in the space still hides it.
-func TestNeverNotedChatIsNotToldByASessionUnderItsID(t *testing.T) {
-	const title, reply = "Book the sleep clinic", "Booked the sleep clinic for Tuesday 9:00 after the new dose"
-	projectStores(t, func(t *testing.T, e *todoEnv) {
-		ctx := context.Background()
-		timers := fakeOutcomeTimers(e.s)
-		setSettings(t, e.s, func(v *Settings) { v.Main = "conv1" })
-		main := scopeSession("conv1", "Persona", "")
-		main.Assistant = true
-		run := scopeSession("s2", "Clinic booking", "/home/owner/errands")
-		run.LastText = reply
-		e.sessions("server", main) // h0, the health chat that opened the task, is quiet since before the notes
-		e.sessions("box", run)
-		task, err := e.s.createTaskTodo(ctx, title, "", "h0", "", "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		e.must("PUT", "/api/v1/todos/"+task.ID+"/agents/box/s2", "")
-		e.must("PATCH", "/api/v1/todos/"+task.ID, `{"project":"诊断能力"}`)
-		forged := scopeSession("h0", "hi", "/home/owner/errands")
-		forged.PaneID, forged.Launcher = "w7:p1", "claude"
-		e.sessions("server", main, forged)
-		hidden := func(when string) {
-			t.Helper()
-			for _, path := range []string{"/api/v1/todos/" + task.ID, "/api/v1/todos/" + task.ID + "/timeline"} {
-				if got := extensionDo(e, "GET", path, ""); got.Code != http.StatusNotFound {
-					t.Errorf("%s: an extension's GET %s: %d %s", when, path, got.Code, got.Body)
-				}
-			}
-			noneOf(t, when+": an extension's GET /api/v1/todos", extensionDo(e, "GET", "/api/v1/todos", "").Body.Bytes(), title)
-			noneOf(t, when+": the project's timeline", []byte(strings.Join(kbEng(t, e.s).Store.Log("诊断能力", 20), "\n")), title, reply)
-		}
-		hidden("a terminal's session under h0's id")
-		e.must("PATCH", "/api/v1/todos/"+task.ID, `{"done":true}`)
-		e.s.tasks.outcomeRuns.Wait()
-		timers.fire()
-		hidden("closed, its outcome line judged again")
-		h0 := scopeSession("h0", "Sleep", identity.HealthDir("/home/owner"))
-		h0.Assistant = true
-		e.sessions("server", main, forged, h0) // the chat's own row, in the space, as the backfill asks
-		waitFor(t, "the note written", e.s.listedSpacesWritten)
-		timers.fire()
-		hidden("h0 listed in the space")
-		if v := e.s.todoVerdicts(ctx, []string{task.ID}, nil, nil)[task.ID]; v != todoHidden {
-			t.Fatalf("the task's verdict: %d, want hidden", v)
-		}
-	})
 }

@@ -56,7 +56,6 @@ func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 		}
 	case c.Leader:
 		c.LeaderName = s.leaderNames(ctx, []string{p.SessionID})[p.SessionID]
-		c.LeaderStatus = s.directionStatus(ctx, p.SessionID)
 	}
 	return s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound)
 }
@@ -243,7 +242,6 @@ var snapshotOmits = []func(*prompts.SnapshotOmit){
 	func(o *prompts.SnapshotOmit) { o.Following = true },
 	func(o *prompts.SnapshotOmit) { o.Followups = true },
 	func(o *prompts.SnapshotOmit) { o.OtherChats = true },
-	func(o *prompts.SnapshotOmit) { o.KB = true },
 	func(o *prompts.SnapshotOmit) { o.Asked = true },
 	func(o *prompts.SnapshotOmit) { o.Unaccepted = true },
 	func(o *prompts.SnapshotOmit) { o.OpenTodos = true },
@@ -314,9 +312,6 @@ func (s *Service) takeSnapshot(done chan struct{}) {
 	snap.Unaccepted, snap.UnacceptedTotal = s.snapshotUnaccepted(ctx, loc)
 	snap.Plans, snap.PlansTotal = s.snapshotPlans(ctx, loc, now)
 	snap.Asked = s.snapshotAsked(ctx)
-	if e, err := s.kbGet(ctx); err == nil {
-		snap.KB = e.Prompt(6, 8)
-	}
 	snap.FollowingEnabled = s.inboxConfig(ctx).Agent.Enabled && s.inboxReady(ctx) == nil
 	if snap.FollowingEnabled {
 		snap.Following, snap.FollowingTotal = s.snapshotFollowing(ctx, loc)

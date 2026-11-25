@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 type AssistantSelectedFile struct{ Name, Path string }
@@ -49,14 +48,12 @@ type AssistantMachine struct {
 
 // AssistantClaudeMD is the assistant directory's CLAUDE.md (assistant/claude_md).
 type AssistantClaudeMD struct {
-	WorkGuide    bool
-	Owner        string // "" is "user"
-	Machines     []AssistantMachine
-	Notes        string // Settings › Assistant › About me, trimmed
-	ExtraDirs    []string
-	StateDir     string
-	KnowledgeDir string
-	OnHub        bool
+	WorkGuide bool
+	Owner     string // "" is "user"
+	Machines  []AssistantMachine
+	Notes     string // Settings › Assistant › About me, trimmed
+	StateDir  string
+	OnHub     bool
 	// LarkCLI: hub.json configures lark-cli (docs/plans/plan-lark-cli.md), on the assistant's PATH.
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
@@ -352,7 +349,6 @@ type Snapshot struct {
 	PhoneOnline     bool
 	NoPhone         bool               // leaves the iPhone line out: the background supervisor's (assistant/context.go backgroundSnapshot)
 	Apps            []SnapshotApp      // one per kind of device, the user's own before a simulator
-	KB              string             // RenderKBDigest, "" leaves it out
 	Chats           *SnapshotChats     // nil: Feishu did not answer in time
 	Calendar        *SnapshotCalendar  // nil: the calendar did not answer in time
 	Followups       []SnapshotFollowup // the next eight
@@ -394,7 +390,7 @@ type Snapshot struct {
 // and count with where to see the rows (a tool, or the App for Inbox follow-ups), never as empty: the node sends only
 // what changed, so a section that went missing would read as gone, and one rendered without its items as "none".
 type SnapshotOmit struct {
-	Waiting, Unread, Routines, Following, Followups, Asked, KB, OtherChats, Unaccepted, OpenTodos, Tasks, Approvals bool
+	Waiting, Unread, Routines, Following, Followups, Asked, OtherChats, Unaccepted, OpenTodos, Tasks, Approvals bool
 }
 
 // SnapshotCut is the line a snapshot cut short ends with (assistant/snapshot_cut).
@@ -470,10 +466,6 @@ type AssistantContext struct {
 	// LeaderName: for a leader, its direction's name.
 	Directions []ContextDirection
 	LeaderName string
-	// LeaderStatus: for a leader whose direction has notes, the one-line status of the knowledge-base project it is
-	// filed under (#10086). Here rather than in its system prompt: a summary rewrite changes it, and a changed system
-	// prompt would restart the leader.
-	LeaderStatus string
 	// Background: the legacy background supervisor, which finishes only tasks assigned before universal main supervision.
 	// BackgroundStarted: for the main conversation, once: that legacy supervisor's id, when it began following old tasks.
 	Background        bool
@@ -501,9 +493,6 @@ type TaskRun struct {
 	Late           string // "" when on time; else how late ("25 minutes")
 	Due            time.Time
 	Prompt         string
-	KBHint         bool // daily runs with the knowledge base on
-	// KnowledgeDir: the knowledge base directory the hint names; "" is the default ~/.persona/data.
-	KnowledgeDir string
 	// Continued: it goes into the task's own conversation, which got the background on the first run.
 	Continued bool
 	// PushAsked: the task pushes only what the run sends with notify_user (its push "asked", #2396).
@@ -546,74 +535,11 @@ type BriefFacts struct {
 	// Briefs: the open pieces of work that need the owner or changed since the last briefing, in their own words;
 	// BriefsDone: those that ended since, once, with each criterion's result (#3822).
 	Briefs, BriefsDone []BriefTask
-	// Day: the evening routine's today's all-day recording (#4741), for the model only; nil leaves the section out.
-	Day *BriefDay
 	// Setup: the lines of the weekly recommended-setup block (#5085), ready to read; none leaves the section out.
 	Setup []string
 	// Captures: the quick-capture lines (#13502), ready to read; a sensitive capture is only counted. None leaves the
 	// section out.
 	Captures []string
-}
-
-// BriefDay is today's all-day recording in the evening routine's facts (#4741), the day's parts merged by time; the
-// clock times are the owner's ("15:04", with the date when it is not today). Nothing of it is in the card, the brief
-// item or a channel, so the model says it even when Card is set.
-type BriefDay struct {
-	Date     string // the owner's today, YYYY-MM-DD
-	From, To string // when it was recorded: from its start to its end, or now while it is open
-	// Transcribed is how far its text goes when that is short of To (the phone transcribes and uploads as it can).
-	Transcribed string
-	// Gaps are the time with no text by reason, the reasons with the most of it; GapReasonsLeft counts the other
-	// reasons, GapsLeft their stretches and GapMinutesLeft their minutes.
-	Gaps                                     []BriefDayGap
-	GapReasonsLeft, GapsLeft, GapMinutesLeft int
-	// Parts are each part's recap or, without one, its state, the first and the latest ones; PartsLeft counts those
-	// from the middle left out (the section's bound).
-	Parts     []BriefDayPart
-	PartsLeft int
-	// Timeline is every part's recap entries by time; Left counts those from the middle of the day left out (the
-	// section's bound).
-	Timeline []BriefDayEntry
-	Left     int
-	// Actions are the suggested to-dos the user has not confirmed, by time; ActionsLeft counts those left out.
-	Actions     []BriefDayAction
-	ActionsLeft int
-}
-
-// BriefDayGap is the time of one reason with no text (paused, interrupted, stopped, pending, lost, erased, or the
-// phone's own word): how many stretches, how many minutes in all, the longest of them (More: there are others).
-type BriefDayGap struct {
-	Reason         string
-	Count, Minutes int
-	Ranges         []string
-	More           bool
-}
-
-// BriefDayPart is one part of the day: its recap (Made when it was written, Upto how far it read, Summary) and State
-// "pending" or "failed" when a newer one is being written or failed; without a recap, State is "pending", "failed",
-// "none" (nothing transcribed in Recorded minutes) or "" (not due yet).
-type BriefDayPart struct {
-	Part           int
-	Made, Upto     string
-	Final, Partial bool
-	Summary        string
-	State          string
-	Recorded       int
-}
-
-// BriefDayEntry is one entry of the day's timeline, without its points.
-type BriefDayEntry struct {
-	From, To string
-	Meeting  bool
-	Title    string
-}
-
-// BriefDayAction is a suggested to-do not confirmed yet.
-type BriefDayAction struct{ Who, What string }
-
-// BriefDayRunes is how many runes day adds to the facts (the evening routine keeps it about 4000).
-func BriefDayRunes(day *BriefDay) int {
-	return utf8.RuneCountInString(RenderBriefFacts(BriefFacts{Day: day})) - utf8.RuneCountInString(RenderBriefFacts(BriefFacts{}))
 }
 
 // BriefTask is one piece of work in the briefing, told from its brief: Date and Words are when the owner asked and
@@ -1351,18 +1277,12 @@ func RenderAcceptance() string                  { return render("assistant/accep
 func RenderAcceptanceInput(a Acceptance) string { return render("assistant/acceptance_input", a) }
 
 // WorkspaceMention is what the assistant gets for a workspace the user @-mentioned (assistant/workspace_mention,
-// #5594): where it is, the knowledge base's projects there and the agents that worked there lately. It replaces the
+// #5594): where it is and the agents that worked there lately. It replaces the
 // client's <persona-context kind="workspace"> block in the message.
 type WorkspaceMention struct {
 	Title, Machine, MachineName, Cwd, Branch string
 	Online                                   bool
-	Projects                                 []WorkspaceProject
 	Sessions                                 []WorkspaceSession
-}
-
-// WorkspaceProject is a knowledge-base project whose directories hold the workspace.
-type WorkspaceProject struct {
-	Name, Slug, OneLine string
 }
 
 // WorkspaceSession is an agent that worked in the workspace's directory: Cwd only when it is a folder under it.
@@ -1392,11 +1312,10 @@ type SuperviseCloseout struct {
 // RouteLeader is a current leader as the route model is shown it.
 type RouteLeader struct{ ID, Title, Project string }
 
-// RouteInput is what the route model reads: the sentence, the leaders and the knowledge base's project names.
+// RouteInput is what the route model reads: the sentence, the leaders.
 type RouteInput struct {
 	Sentence string
 	Leaders  []RouteLeader
-	Projects []string
 }
 
 func RenderRouteInput(in RouteInput) string { return render("assistant/route_input", in) }
@@ -1405,15 +1324,14 @@ func RenderRouteInput(in RouteInput) string { return render("assistant/route_inp
 // direction its work belongs to; it reads RouteInput (the agent's first message as the sentence, no projects).
 func RenderRouteAgent() string { return render("assistant/route_agent", nil) }
 
-// DirectionNotes is what a leader conversation is told of its own direction (#10086): the notes the owner wrote for it
-// and the goal of the knowledge-base project it is filed under. Lang is the owner's language (i18n code; "" or
+// DirectionNotes is what a leader conversation is told of its own direction (#10086): the notes the owner wrote for it. Lang is the owner's language (i18n code; "" or
 // zh-Hans: Chinese).
 type DirectionNotes struct {
-	Lang, Name, Notes, ProjectName, ProjectGoal string
+	Lang, Name, Notes string
 }
 
-// Empty: nothing the owner wrote and no project goal, so nothing is added to the leader's policy.
-func (d DirectionNotes) Empty() bool { return d.Notes == "" && d.ProjectGoal == "" }
+// Empty: nothing the owner wrote, so nothing is added to the leader's policy.
+func (d DirectionNotes) Empty() bool { return d.Notes == "" }
 
 // RenderDirectionNotes is the block appended to a leader's role policy (supervision_instructions); empty when there
 // is nothing to say, so a direction without notes keeps its policy byte for byte.

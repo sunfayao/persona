@@ -41,16 +41,6 @@ func (o *Operator) Create(ctx context.Context, opts Options) (_ Result, err erro
 	if err := refuseOutputInsideCollectedTree(opts.Home, output); err != nil {
 		return Result{}, err
 	}
-	// The knowledge-base layout is checked before anything is staged or dumped
-	// (collectPayload checks it again): a bundle restore would refuse is not
-	// written.
-	if home, err := filepath.Abs(opts.Home); err != nil {
-		return Result{}, err
-	} else if _, kbDir, err := knowledgeBaseLocator(home); err != nil {
-		return Result{}, err
-	} else if err := refuseKnowledgeBaseOverlap(home, kbDir); err != nil {
-		return Result{}, err
-	}
 	if err := os.MkdirAll(filepath.Dir(output), 0o700); err != nil {
 		return Result{}, err
 	}
@@ -99,8 +89,7 @@ func (o *Operator) Create(ctx context.Context, opts Options) (_ Result, err erro
 			return Result{}, fmt.Errorf("writes resumed during backup: %w", err)
 		}
 	}
-	notes, err := collectPayload(opts.Home, staging, manifest)
-	if err != nil {
+	if err := collectPayload(opts.Home, staging, manifest); err != nil {
 		return Result{}, err
 	}
 	if err := writeManifest(staging, manifest); err != nil {
@@ -115,7 +104,7 @@ func (o *Operator) Create(ctx context.Context, opts Options) (_ Result, err erro
 	if err := publishBundle(ctx, staging, output); err != nil {
 		return Result{}, err
 	}
-	return Result{Bundle: output, Verified: true, Notes: notes}, nil
+	return Result{Bundle: output, Verified: true}, nil
 }
 
 func (o *Operator) Verify(ctx context.Context, opts Options) (Result, error) {
@@ -195,7 +184,7 @@ func (o *Operator) Restore(ctx context.Context, opts Options) (_ Result, err err
 	// checks it again before it changes anything.
 	if home, err := filepath.Abs(opts.Home); err != nil {
 		return Result{}, err
-	} else if _, err := restoreItems(home, staging, manifest, opts.AllowExternalKB); err != nil {
+	} else if _, err := restoreItems(home, staging, manifest); err != nil {
 		return Result{}, err
 	}
 	managerKeys, err := bundledManagerKeys(staging)
@@ -229,11 +218,11 @@ func (o *Operator) Restore(ctx context.Context, opts Options) (_ Result, err err
 		return Result{}, err
 	}
 	keptPassword := dockerPasswordKept(opts.Home, manifest) // before applyFiles installs the bundle's copy
-	notes, err := leftInPlaceNotes(opts.Home, staging, manifest, opts.AllowExternalKB)
+	notes, err := leftInPlaceNotes(opts.Home, staging, manifest)
 	if err != nil {
 		return Result{}, err
 	}
-	previousFiles, previousKB, rollbackFiles, err := applyFiles(ctx, opts.Home, staging, manifest, opts.AllowExternalKB, id)
+	previousFiles, rollbackFiles, err := applyFiles(ctx, opts.Home, staging, manifest, id)
 	if err != nil {
 		return Result{}, err
 	}
@@ -251,15 +240,15 @@ func (o *Operator) Restore(ctx context.Context, opts Options) (_ Result, err err
 		// as restored, and the error says where everything previous is. Nothing
 		// is lost; running restore again converges.
 		return Result{}, fmt.Errorf("%w; a database from the bundle may be live and could not be rolled back, so the runtime files were left as restored to match it; "+
-			"previous runtime files: %s; previous external knowledge base: %s. "+
+			"previous runtime files: %s. "+
 			"Check the server, then run restore again, or rename the previous databases back by hand",
-			err, nameOrNone(previousFiles), nameOrNone(previousKB))
+			err, nameOrNone(previousFiles))
 	}
 	if err != nil {
 		return Result{}, errors.Join(err, rollbackFiles())
 	}
 	previous := outcome.previous()
-	return Result{Bundle: bundle, Verified: true, Restored: true, PreviousHubDB: previous[0], PreviousManagerDB: previous[1], PreviousFiles: previousFiles, KeptDockerPassword: keptPassword, PreviousExternalKB: previousKB, Notes: notes}, nil
+	return Result{Bundle: bundle, Verified: true, Restored: true, PreviousHubDB: previous[0], PreviousManagerDB: previous[1], PreviousFiles: previousFiles, KeptDockerPassword: keptPassword, Notes: notes}, nil
 }
 
 func nameOrNone(name string) string {
@@ -270,7 +259,7 @@ func nameOrNone(name string) string {
 }
 
 // refuseOutputInsideCollectedTree stops a bundle from being written inside a
-// tree it collects (the knowledge base and the runtime directories): staging
+// tree it collects (the runtime directories): staging
 // and the bundle would be copied into themselves, and every later backup would
 // carry the earlier ones.
 func refuseOutputInsideCollectedTree(home, output string) error {
@@ -278,11 +267,7 @@ func refuseOutputInsideCollectedTree(home, output string) error {
 	if err != nil {
 		return err
 	}
-	_, kbDir, err := knowledgeBaseLocator(homeAbs)
-	if err != nil {
-		return err
-	}
-	trees := []string{kbDir, filepath.Join(homeAbs, "managers", "assistant")}
+	trees := []string{filepath.Join(homeAbs, "managers", "assistant")}
 	for _, name := range optionalRuntimeDirectories {
 		trees = append(trees, filepath.Join(homeAbs, name))
 	}
@@ -291,7 +276,7 @@ func refuseOutputInsideCollectedTree(home, output string) error {
 		for _, candidate := range []string{filepath.Dir(output), resolvedOutput} {
 			for _, base := range []string{tree, resolveExisting(tree)} {
 				if rel, err := filepath.Rel(base, candidate); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-					return fmt.Errorf("--output is inside %s, which the backup collects: choose a directory outside the knowledge base and the runtime's managers/assistant, extensions, skills, hub.machines_kept and tls directories", tree)
+					return fmt.Errorf("--output is inside %s, which the backup collects: choose a directory outside the runtime's managers/assistant, extensions, skills, hub.machines_kept and tls directories", tree)
 				}
 			}
 		}

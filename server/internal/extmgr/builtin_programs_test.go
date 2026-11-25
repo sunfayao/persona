@@ -77,7 +77,6 @@ func TestBuiltinProgramsSameFlows(t *testing.T) {
 		"IMessageThroughTheHub":                          TestIMessageThroughTheHub,
 		"IMessageOldOrOfflineMac":                        TestIMessageOldOrOfflineMac,
 		"IMessageAISwitch":                               TestIMessageAISwitch,
-		"IMessageArchive":                                TestIMessageArchive,
 		"IMessageExtensionPicksTheMac":                   TestIMessageExtensionPicksTheMac,
 	} {
 		t.Run(name, test)

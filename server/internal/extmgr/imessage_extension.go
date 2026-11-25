@@ -13,7 +13,7 @@ import (
 
 // The built-in extension Messages (#1830 step 6, docs/plans/plan-extensions.md "How iMessage uses it"): which Mac's Messages
 // the connector imessage reads, picked in Settings › Extensions › Messages instead of manager.json's imessage.machine. The
-// connector is the one it always was (its id, inbox, knowledge base, "Hand to Persona", "Delete data"); only where its
+// connector is the one it always was (its id, inbox, "Hand to Persona", "Delete data"); only where its
 // Mac comes from changed:
 //
 //   - the extension on with a Mac picked: that Mac;
@@ -39,9 +39,9 @@ const imessageConfig = `{
 
 func imessageManifest(h *Manager) *extension.Manifest {
 	connector, _ := json.Marshal([]extension.ConnectorItem{{ID: imessage.ID, Name: imessage.NewRemote(imessage.Config{}, "", nil).Name(),
-		Capabilities: []string{"status", "tools", "events", "inbox", "archive", "machines"}}})
+		Capabilities: []string{"status", "tools", "events", "inbox", "machines"}}})
 	return &extension.Manifest{ManifestVersion: extension.ManifestVersion, ID: imessageExtensionID, Name: "信息（iMessage）", Version: h.version,
-		Description: "读你一台 Mac 上「信息」App 的短信和 iMessage（只读，不发送），交给收件箱、知识库和助手。读哪台在这里选；「交给 Persona」和删除已存的数据在 设置 › 连接器 › 信息。",
+		Description: "读你一台 Mac 上「信息」App 的短信和 iMessage（只读，不发送），交给收件箱和助手。读哪台在这里选；「交给 Persona」和删除已存的数据在 设置 › 连接器 › 信息。",
 		Contributes: map[string]json.RawMessage{"connectors": connector}, Configuration: json.RawMessage(imessageConfig), Node: builtinNode("machines")}
 }
 

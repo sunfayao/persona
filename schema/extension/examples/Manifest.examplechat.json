@@ -23,7 +23,6 @@
           "actions",
           "events",
           "inbox",
-          "archive",
           "login",
           "threads",
           "fallback",
@@ -77,12 +76,6 @@
             "title": "不收"
           }
         ]
-      },
-      "archive_groups": {
-        "type": "boolean",
-        "title": "群聊进知识库",
-        "description": "默认不进知识库。",
-        "default": false
       },
       "inbox_lookback_hours": {
         "type": "integer",

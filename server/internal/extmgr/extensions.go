@@ -218,7 +218,7 @@ type extensions struct {
 	dev devTaps
 	// badges are the plugins' badges on their nav_pages' entries ("<plugin>/<ui>" → extension.Badge; extension_ui.go).
 	badges sync.Map
-	// events and todoEvents keep slow extension programs out of the assistant bus read loop: the knowledge base's and the
+	// events and todoEvents keep slow extension programs out of the assistant bus read loop: the entries' and the
 	// todos' queues, apart so that a flood of one does not push out the other's.
 	events     extensionEvents
 	todoEvents extensionEvents
@@ -1154,8 +1154,6 @@ func (ps *extensions) specOf(ctx context.Context, p *extension.Extension, hp *hu
 			return ps.storageCall(ctx, p, method, params)
 		}
 		switch method {
-		case "kb.list", "kb.get", "kb.day", "kb.search", "kb.update", "kb.owner", "kb.recent":
-			return ps.extensionKBCall(ctx, id, method, params)
 		case "assistant.conversations", "assistant.messages", "assistant.memory", assistantwire.MethodAssistantEntriesList: // assistant.read, assistant.memory.read (extension_assistant_read.go)
 			return ps.extensionAssistantCall(ctx, id, method, params)
 		case "browser.machines", "browser.run": // browser.run (extension_browser.go)
@@ -1255,9 +1253,8 @@ func (ps *extensions) specOf(ctx context.Context, p *extension.Extension, hp *hu
 		link := &proc.Link{ID: c.ID}
 		hp.links = append(hp.links, link)
 		var secrets connector.Secrets
-		var kbase connector.KnowledgeBase
 		if ps.h != nil {
-			secrets, kbase = ps.h.secretsFor(c.ID), ps.h.kbFor(c.ID)
+			secrets = ps.h.secretsFor(c.ID)
 		}
 		for kind, d := range c.KindDescriptions {
 			extensionKinds.Store(c.ID+"/"+kind, d)
@@ -1267,7 +1264,7 @@ func (ps *extensions) specOf(ctx context.Context, p *extension.Extension, hp *hu
 		} else {
 			extensionConnectors.Store(c.ID, p.Record.Source)
 		}
-		cfg := proc.Config{ID: c.ID, Name: c.Name, Manifest: ps.knownOnly(id, connectorManifest(c)), Secrets: secrets, KB: kbase,
+		cfg := proc.Config{ID: c.ID, Name: c.Name, Manifest: ps.knownOnly(id, connectorManifest(c)), Secrets: secrets,
 			Logf: ps.logf, Link: link}
 		cfg.RecallNotBefore = hp.recallNotBefore // the program is not asked about a send before this install, whoever asks
 		if p.Record.Granted.GhLogin && ps.h != nil {
@@ -1334,7 +1331,7 @@ func extensionSource(connectorID string) string {
 // connectorManifest is a contribution to connectors as the connector registry declares it.
 func connectorManifest(c extension.ConnectorItem) connector.Manifest {
 	m := serve.Manifest{ID: c.ID, Name: c.Name, Capabilities: slices.Clone(c.Capabilities), Hosts: c.Hosts, AgentTools: c.AgentTools,
-		Unlisted: c.Unlisted, ConfirmAlways: c.ConfirmAlways, PollSeconds: c.PollSeconds, Kinds: c.Kinds, ArchiveSources: c.ArchiveSources,
+		Unlisted: c.Unlisted, ConfirmAlways: c.ConfirmAlways, PollSeconds: c.PollSeconds, Kinds: c.Kinds,
 		MetaDescription: c.MetaDescription, CLI: c.CLI}.Of()
 	slices.Sort(m.Capabilities)
 	return m
@@ -1348,7 +1345,7 @@ func (ps *extensions) hubEnv() []string {
 		return nil
 	}
 	// A plugin granted it is configured or accepted by whoever runs the hub, so it gets the hub's own credential to
-	// call its API with (the knowledge base, the agents, …): like a node, it is part of the hub.
+	// call its API with (the agents, …): like a node, it is part of the hub.
 	return identity.Environment(nil, "PERSONA_HUB_URL="+hubLocalURL(ps.h.cfg.Listen), "PERSONA_HUB_TOKEN="+ps.h.cfg.Token)
 }
 
@@ -1457,9 +1454,7 @@ func (h *Manager) forgetConnector(ctx context.Context, id string) {
 	}
 	delete(cs.Switch, id)
 	delete(cs.Options, id)
-	for _, f := range []connector.Feed{connector.FeedArchive, connector.FeedInbox} {
-		delete(*cs.feeds(f), id)
-	}
+	delete(cs.Inbox, id)
 	if err := h.store.PutSetting(ctx, connectorSettingsKey, cs); err != nil {
 		h.logf("connector %s: removed, but its settings are still stored: %v", id, err)
 	}

@@ -161,14 +161,11 @@ func tokenTaken(ctx context.Context, hub, token string, client *http.Client, log
 const DeployService = "service"
 
 // builtinFiles are where the built-in manager's things are in the data directory home: its manager.json and its keys
-// in its own directory (managers/assistant, managerconf.OwnFile), its knowledge base where manager.json says (by
-// default the data directory's data/), the extensions in the data directory (until they are a part of their own).
+// in its own directory (managers/assistant, managerconf.OwnFile), the extensions in the data directory (until they are a part of their own).
 func builtinFiles(home string) runOptions {
 	return runOptions{Dir: home, ConfigFile: managerconf.DefaultFile(home),
 		SecretKey:  managerconf.OwnFile(home, managerconf.SecretKey),
-		HandlesDir: filepath.Dir(managerconf.OwnFile(home, managerconf.HandlesKey)),
-		TailcatKey: managerconf.OwnFile(home, managerconf.TailcatKey),
-		KBDir:      managerconf.KBDir(home)}
+		TailcatKey: managerconf.OwnFile(home, managerconf.TailcatKey)}
 }
 
 // moveFiles copies the built-in manager's keys from the data directory into its own directory, once
@@ -231,12 +228,11 @@ type runOptions struct {
 	ID, Hub, Token, Deploy string
 	// Fingerprint pins the hub's TLS key (its public port's self-signed certificate); "" trusts the system's CAs.
 	Fingerprint string
-	// Dir is its data directory: the extensions; and, unless the fields below say otherwise, the knowledge base
-	// (data/), secret.key and handles.key.
+	// Dir is its data directory: the extensions; and, unless the fields below say otherwise, secret.key.
 	Dir string
-	// SecretKey, HandlesDir (handles.key's directory), TailcatKey and KBDir are its own files (builtinFiles for the
-	// built-in manager); "" are Dir's (TailcatKey: the machine's, tunnel.HubKeyPath).
-	SecretKey, HandlesDir, TailcatKey, KBDir string
+	// SecretKey and TailcatKey are its own files (builtinFiles for the built-in manager); "" are Dir's (TailcatKey: the
+	// machine's, tunnel.HubKeyPath).
+	SecretKey, TailcatKey string
 	// ConfigFile is its manager.json, with its sections of the configuration (internal/managerconf).
 	ConfigFile string
 	// ExtConfig is the configuration of its extensions, connectors and bots as moveConfig read it (nil: read there).
@@ -273,12 +269,6 @@ func run(ctx context.Context, build update.Build, o runOptions) error {
 	logf := o.Logf
 	if o.SecretKey == "" {
 		o.SecretKey = filepath.Join(home, managerconf.SecretKey)
-	}
-	if o.HandlesDir == "" {
-		o.HandlesDir = home
-	}
-	if o.KBDir == "" {
-		o.KBDir = filepath.Join(home, "data")
 	}
 	var httpClient *http.Client
 	if o.Fingerprint != "" {
@@ -400,7 +390,7 @@ func run(ctx context.Context, build update.Build, o runOptions) error {
 			return bh.Answer(ctx, method, params)
 		},
 		AssistantEvent: func(event string, params json.RawMessage) { bh.TellLocal(event, params) },
-		// A meeting's audio socket (assistantwire.SocketRoutes): svc is made below, before the extensions run.
+		// The A2A routes that upgrade to a WebSocket (assistantwire.SocketRoutes): svc is made below, before the extensions run.
 		AssistantSocket: func(w http.ResponseWriter, r *http.Request) { svc.ServeSocket(w, r) },
 		TranscriptionChanged: func() {
 			if svc != nil {
@@ -431,12 +421,11 @@ func run(ctx context.Context, build update.Build, o runOptions) error {
 	bh = NewBusHub(BusOptions{ID: o.ID, Hub: hub, Token: token, HTTPClient: httpClient, Version: version, Deploy: deploy,
 		ConfigFile: o.ConfigFile, Outbox: database,
 		Logf: logf, Devices: devs, Extensions: ext, StopWhenRevoked: o.StopWhenRevoked, StopWhenRejected: o.TokenFirst})
-	// The knowledge base in its directory, kept as its manager.json's kb section says (over the hub's hello). The model
-	// providers' keys are sealed with its own secret.key.
+	// The model providers' keys are sealed with its own secret.key.
 	assistantStore := repositorystore.New(database)
 	svc = New(Options{Hub: bh, Store: func() Store { return assistantStore }, Logf: logf, Devices: devs,
-		KB: &KBOptions{Dir: o.KBDir, KeyDir: o.HandlesDir}, SecretKey: o.SecretKey,
-		Trust: devs, AgentDirs: devs, ID: o.ID, Build: version, RepositoryConfig: o.ConfigFile,
+		SecretKey: o.SecretKey,
+		Trust:     devs, AgentDirs: devs, ID: o.ID, Build: version, RepositoryConfig: o.ConfigFile,
 		RemoteImageCache: filepath.Join(home, "cache", "remote-images")})
 	svc.SetExtensions(ext) // the connectors', Cua's and ego's tools, in this process (fleet_tools.go)
 	// When the north star's recording began (north_star.go).

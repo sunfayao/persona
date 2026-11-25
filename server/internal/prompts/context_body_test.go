@@ -55,17 +55,11 @@ func TestContextBlocksHoldOthersText(t *testing.T) {
 		"channel fwd":    RenderChannelMessage(ChannelMessage{Name: "微信", Text: "看下这条", Forward: nested}),
 		"inbox agent":    RenderInboxAgent(InboxAgent{Owner: "示例用户", Title: "改期", Item: InboxItem{Kind: "mail", Context: nested}, Task: "回复"}),
 		"inbox handoff":  RenderInboxHandoff(InboxHandoff{ID: nested, Title: nested, Text: "看下这件事"}),
-		"inbox kb":       RenderInboxAgent(InboxAgent{Owner: "示例用户", Title: "t", Item: InboxItem{Kind: "dm", Context: "x"}, Task: "回复", KB: &KBContext{ChatName: "c", Summary: nested, Projects: []KBProject{{Name: "p", Summary: nested}}}}),
 		"main handoff":   RenderMainHandoff(MainHandoff{FromID: "conv_1", Summary: nested, Recent: []HandoffTurn{{Role: "user", Text: nested}}, Text: "接着做"}),
 		"turn context":   RenderTurnContext(TurnContext{Full: true, Sections: []TurnSection{{Text: "- 飞书未读会话 1 个\n  - @我：示例群（1 条）：" + nested}}}) + "\n接着做",
 		"turn context rows": RenderTurnContext(TurnContext{Sections: []TurnSection{{Partial: true, Name: nested, Rows: []string{"  - @我：" + nested}, Removed: []string{nested}, Order: []string{nested}},
 			{Partial: true, Text: "- 飞书未读会话 1 个" + nested}}, Gone: []string{nested}}) + "\n接着做",
 		"runtime memory": RenderRuntimeInstructions(RuntimeInstructions{Dir: "~/.persona/assistant/memory", Index: "- [x](x.md) — " + nested}) + "\n接着做",
-		"meeting feed": RenderMeetingFeed(MeetingFeed{Lang: "en", Title: "Design review", Role: "listener", From: "14:00", To: "14:01",
-			Lines: []MeetingFeedLine{{At: "14:00", Text: nested}}, Asks: []MeetingFeedAsk{{Question: nested, Answer: nested}}, Ended: true}),
-		"meeting photo": RenderMeetingRoomPhoto(MeetingRoomPhoto{N: 1, At: "1:00", Caption: nested, Text: nested}),
-		"meeting follow-up photos": RenderMeetingFollowupSeed(MeetingFollowupSeed{Title: "Design review", Photos: []MeetingPhoto{{N: 1, Caption: nested, Text: nested}},
-			Notes: []MeetingPhoto{{N: 1, Note: nested}}, Text: "看下这条"}),
 		"todo decisions": RenderTodoDecisions(TodoDecisions{Title: "t", Decisions: []TodoDecision{{N: 1, Question: ContextBody(nested), Choice: "a", When: "11-06"}}}),
 	} {
 		if out := outside(msg); strings.Contains(out, injected) {

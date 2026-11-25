@@ -155,12 +155,8 @@ func (p *pages) noun(kind string) string {
 
 func (p *pages) destinations(s subscriptions.Subscription) string {
 	switch {
-	case s.ToInbox && s.ToKB:
-		return p.t("dest.both")
 	case s.ToInbox:
 		return p.t("dest.inbox")
-	case s.ToKB:
-		return p.t("dest.kb")
 	}
 	return p.t("dest.none")
 }

@@ -79,7 +79,7 @@ the glasses microphone is simply the same input option, with no separate impleme
 
 - No display on the glasses (Display glasses' display, Web Apps), button integration, or "Hey Meta": all are experimental and cannot be released.
 - No recording glasses video or keeping the camera stream on for long periods: it consumes power / generates heat, and no user has requested it.
-- Raw audio and photos are not uploaded automatically. As in `docs/apple/recording.md`, they reach the Agent only when the user taps Send.
+- Raw audio and photos are not uploaded automatically; they reach the Agent only when the user taps Send.
 
 ## Verification required on Mac and physical devices
 

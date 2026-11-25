@@ -4,6 +4,7 @@
 apple/Persona/App/AppModel.swift	docs/operations/hub-update.md	App 里
 apple/Persona/App/AppModel.swift	docs/operations/hub-update.md	兼容
 apple/Persona/Persona/Persona.swift	docs/apple/persona.md	App 图标
+apple/Persona/Recording/RecordingSync.swift	docs/protocol/protocol.md	Recording sync
 apple/Persona/Views/Chat/ChatView.swift	docs/assistant/unified-entry.md	指向谁
 apple/Persona/Views/Chat/ChatView.swift	docs/integrations/codex.md	守护进程上的会话
 apple/Persona/Views/Mail/MailOutlookViews.swift	docs/extensions/mail.md	Outlook Connection
@@ -11,12 +12,12 @@ apple/Persona/Views/Settings/AppearanceSettingsView.swift	docs/apple/ios.md	设�
 apple/Persona/Views/Settings/ExtensionsModel.swift	docs/extensions/extensions.md	自动升级
 apple/Persona/Views/Settings/SettingsView.swift	docs/assistant/agent-work.md	开关
 apple/Persona/Views/Shell/ShellPager.swift	docs/apple/ios.md	只在前台做的事
+apple/PersonaTests/RecordingSyncTests.swift	docs/protocol/protocol.md	Recording sync
 apple/PersonaUITests/ExtensionMarketTests.swift	docs/extensions/extensions.md	自动升级
 apple/Shared/APIClient.swift	docs/protocol/protocol.md	发消息
 apple/Shared/APIClient.swift	docs/protocol/protocol.md	操作回执
 docs/apple/ios.md	docs/integrations/codex.md	Effort
 docs/apple/phone-tools.md	docs/android/android.md	App shell and direct page navigation,
-docs/apple/recording.md	protocol.md	Recording synchronization
 docs/extensions/connectors.md	docs/assistant/inbox.md	Who owns what
 docs/extensions/extensions.md	docs/protocol/protocol.md	Personal Agents
 docs/integrations/codex.md	docs/operations/testing.md	Codex integration testing

@@ -169,7 +169,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 	f.none(t)
 
 	// P2 done turn: silent -> no WS notify, no Web Push.
-	doneOut := h.notifyDoneUnder("manager-a", "done", "m1", "box", "s1", "Task", "Finished", pushWants{Kind: "done", Took: time.Hour, Long: time.Minute}, "", "", pushPolicy{level: levelFor("done", "")})
+	doneOut := h.notifyDoneUnder("manager-a", "done", "m1", "box", "s1", "Task", "Finished", pushWants{Kind: "done", Took: time.Hour, Long: time.Minute}, "", pushPolicy{level: levelFor("done", "")})
 	if doneOut.held != interceptReasonP2 || doneOut.devices != 0 {
 		t.Fatalf("done outcome = %+v, want held P2 with 0 devices", doneOut)
 	}
@@ -224,7 +224,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 	if got := webOpened(t, b, f.next(t)); got["kind"] != "reply" {
 		t.Fatalf("reply Web Push = %+v", got)
 	}
-	repDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Follow-up", "still waiting", pushWants{Kind: "input"}, "", "", pushPolicy{level: assistantwire.LevelP1, relatedKey: "reply:s1@1"})
+	repDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Follow-up", "still waiting", pushWants{Kind: "input"}, "", pushPolicy{level: assistantwire.LevelP1, relatedKey: "reply:s1@1"})
 	if repDedup.held != interceptReasonDedup || repDedup.devices != 0 {
 		t.Fatalf("reply follow-up = %+v, want ln_dedup_12h", repDedup)
 	}
@@ -243,7 +243,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 		t.Fatalf("decide Web Push = %+v", got)
 	}
 	decideKey := "todo:" + todo.ID + "@" + askedAt.UTC().Format(time.RFC3339Nano)
-	decDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Approve", "note", pushWants{Kind: "input"}, "", "", pushPolicy{level: assistantwire.LevelP1, relatedKey: decideKey})
+	decDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Approve", "note", pushWants{Kind: "input"}, "", pushPolicy{level: assistantwire.LevelP1, relatedKey: decideKey})
 	if decDedup.held != interceptReasonDedup || decDedup.devices != 0 {
 		t.Fatalf("decide follow-up = %+v, want ln_dedup_12h", decDedup)
 	}

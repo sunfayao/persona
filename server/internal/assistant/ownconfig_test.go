@@ -35,11 +35,8 @@ func TestOwnConfigOverTheHello(t *testing.T) {
 		*h.Assistant.SupervisionBatchMinutes != 45 {
 		t.Fatalf("assistant %+v %q %q", h.Assistant, h.Owner, h.OwnerNotes)
 	}
-	if h.Agents.Triage.MaxRetries != 2 || h.Agents.Triage.AccountExhaustionMaxRetries != 3 || h.KB == nil || !h.KB.Off || !h.KB.ReadOnly || h.KB.TextDays != 30 || h.Models.KBAI == nil || h.Models.KBAI.Model != "k" {
-		t.Fatalf("agents/kb %+v %+v %+v", h.Agents, h.KB, h.Models.KBAI)
-	}
-	if len(h.KB.AttachmentDaysBySource) != 1 || h.KB.AttachmentDaysBySource["chat"] != 3650 || h.KB.AttachmentDays != 0 {
-		t.Fatalf("attachment days by source %+v", h.KB)
+	if h.Agents.Triage.MaxRetries != 2 || h.Agents.Triage.AccountExhaustionMaxRetries != 3 {
+		t.Fatalf("agents %+v", h.Agents)
 	}
 	// Of inbox each of the hello's keys is replaced only when manager.json has it: its judge model stays the hello's.
 	if h.Models.AI.Model != "m" || h.Models.TriageAI == nil || h.Models.TriageAI.Model != "t" || h.Models.JudgeAI == nil ||
@@ -49,9 +46,9 @@ func TestOwnConfigOverTheHello(t *testing.T) {
 	if h.Notify.HookTimeoutMS != 1800000 || h.Notify.LongTurnMS != 5 {
 		t.Fatalf("notify %+v", h.Notify)
 	}
-	// Nothing in manager.json: the hello as it came, with the knowledge base's defaults.
+	// Nothing in manager.json: the hello as it came.
 	none, _ := readOwnConfig(filepath.Join(t.TempDir(), "manager.json"))
-	if h := none.over(hub); h.OwnerNotes != "the hub's notes" || h.Models.JudgeAI.Model != "old" || h.KB == nil || h.KB.Off || h.KB.AttachmentDaysBySource != nil || h.Assistant.CompleteAgentlessTodos {
+	if h := none.over(hub); h.OwnerNotes != "the hub's notes" || h.Models.JudgeAI.Model != "old" || h.Assistant.CompleteAgentlessTodos {
 		t.Fatalf("empty %+v", h)
 	}
 	// A machine the hub doesn't have keeps the hub's default.
@@ -100,19 +97,19 @@ func TestOwnConfigKeepsTheLastThatRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := NewBusHub(BusOptions{ConfigFile: file, Logf: t.Logf})
-	if h := b.setHello(Hello{}); h.Owner != "Example" || h.KB == nil || !h.KB.Off {
+	if h := b.setHello(Hello{}); h.Owner != "Example" {
 		t.Fatalf("first hello %+v", h)
 	}
 	if err := os.WriteFile(file, []byte(`{"assistant":`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if h := b.setHello(Hello{}); h.Owner != "Example" || h.KB == nil || !h.KB.Off {
+	if h := b.setHello(Hello{}); h.Owner != "Example" {
 		t.Fatalf("after a bad edit %+v", h)
 	}
 	if err := os.WriteFile(file, []byte(`{"assistant":{"owner":"Other"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if h := b.setHello(Hello{}); h.Owner != "Other" || h.KB.Off {
+	if h := b.setHello(Hello{}); h.Owner != "Other" {
 		t.Fatalf("fixed %+v", h)
 	}
 	if err := os.WriteFile(file, []byte(`{"agents":{"triage":"often"}}`), 0o600); err != nil {
@@ -129,7 +126,7 @@ func TestSetHelloTakesTheHubsSectionsOver(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "manager.json")
 	b := NewBusHub(BusOptions{ConfigFile: file, Logf: t.Logf})
 	h := b.setHello(Hello{LegacyConfig: []byte(`{"assistant":{"owner":"Example"},"kb":{"enabled":false}}`)})
-	if h.Owner != "Example" || h.KB == nil || !h.KB.Off || h.LegacyConfig != nil {
+	if h.Owner != "Example" || h.LegacyConfig != nil {
 		t.Fatalf("hello %+v", h)
 	}
 	if c, err := readOwnConfig(file); err != nil || c.Assistant == nil || c.Assistant.Owner == nil || *c.Assistant.Owner != "Example" {
@@ -146,11 +143,11 @@ func TestSetHelloUsesTheHubsSectionsItCouldNotTake(t *testing.T) {
 	}
 	b := NewBusHub(BusOptions{ConfigFile: filepath.Join(dir, "gone", "manager.json"), Logf: t.Logf})
 	h := b.setHello(Hello{LegacyConfig: []byte(`{"assistant":{"owner":"Example"},"kb":{"enabled":false}}`)})
-	if h.Owner != "Example" || h.KB == nil || !h.KB.Off {
+	if h.Owner != "Example" {
 		t.Fatalf("hello %+v", h)
 	}
 	// manager.updated does not carry them again: they are still gone by until they are taken over.
-	if h := b.setHello(Hello{}); h.Owner != "Example" || h.KB == nil || !h.KB.Off {
+	if h := b.setHello(Hello{}); h.Owner != "Example" {
 		t.Fatalf("after manager.updated %+v", h)
 	}
 	// Once the directory is there, the next hello takes them over, and they are manager.json's from then on.
@@ -160,10 +157,10 @@ func TestSetHelloUsesTheHubsSectionsItCouldNotTake(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "gone"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if h := b.setHello(Hello{}); h.Owner != "Example" || !h.KB.Off || b.legacy != nil {
+	if h := b.setHello(Hello{}); h.Owner != "Example" || b.legacy != nil {
 		t.Fatalf("taken over %+v (pending %s)", h, b.legacy)
 	}
-	if c, err := readOwnConfig(filepath.Join(dir, "gone", "manager.json")); err != nil || c.KB == nil {
+	if c, err := readOwnConfig(filepath.Join(dir, "gone", "manager.json")); err != nil {
 		t.Fatalf("manager.json %+v %v", c, err)
 	}
 }

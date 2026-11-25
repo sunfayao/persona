@@ -93,7 +93,7 @@ func TestChatSaveMigratesTierAliasesWithProvider(t *testing.T) {
 		Model: "Sonnet[1m]", SonnetModel: "gw/sonnet", SmallModel: "gw/fast",
 	}})
 	for id, model := range map[string]string{
-		"kb": "Sonnet[1m]", purposeMeetingMinutes: "sonnet", "inbox.triage": "haiku", "agent.delegate": "custom-model",
+		"kb": "Sonnet[1m]", "inbox.triage": "haiku", "agent.delegate": "custom-model",
 	} {
 		setModel(t, s, id, ModelBinding{Provider: "launcher.chat", Model: model})
 	}
@@ -106,7 +106,7 @@ func TestChatSaveMigratesTierAliasesWithProvider(t *testing.T) {
 	if len(stored) != 1 || stored[0].Model != "gw/sonnet" || stored[0].SonnetModel != "" || stored[0].SmallModel != "" {
 		t.Fatalf("stored provider = %+v", stored)
 	}
-	for id, want := range map[string]string{"kb": "gw/sonnet", purposeMeetingMinutes: "gw/sonnet", "inbox.triage": "gw/fast"} {
+	for id, want := range map[string]string{"kb": "gw/sonnet", "inbox.triage": "gw/fast"} {
 		p := purposeOf(t, s, id)
 		if p.Override.Model != want || p.Revision != 2 {
 			t.Fatalf("%s override = %+v, revision %d", id, p.Override, p.Revision)
@@ -208,8 +208,7 @@ func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T
 	putAliasRecord(t, st, modelRecordKey("assistant"), 2, ModelBinding{Provider: "launcher.other", Model: "current-other"})
 	profiles := modelProfiles{Revision: 7, Profiles: []ModelProfile{
 		{ID: "one", Name: "One", Purposes: map[string]ModelBinding{
-			"kb": {Provider: "launcher.chat", Model: "sonnet"}, purposeMeetingMinutes: {Model: "haiku"},
-			"task.t1": {Model: "sonnet"},
+			"kb": {Provider: "launcher.chat", Model: "sonnet"}, "task.t1": {Model: "sonnet"},
 		}, Launchers: map[string]LauncherModels{"chat": {Model: profileValue("sonnet"), Effort: profileValue("high")}}},
 		{ID: "two", Name: "Two", Purposes: map[string]ModelBinding{
 			"kb": {}, "extension.disabled": {Model: "sonnet"}, "task.t1": {Model: "sonnet"},
@@ -219,8 +218,7 @@ func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T
 		}, Launchers: map[string]LauncherModels{"chat": {Model: profileValue("sonnet")}}},
 	}}
 	state := modelProfileState{Active: "one", Previous: &modelProfileImage{Profile: "before", Purposes: map[string]ModelBinding{
-		"kb": {Provider: "launcher.chat", Model: "sonnet"}, purposeMeetingMinutes: {Model: "haiku"},
-	}, Launchers: map[string]LauncherModels{"chat": {Model: profileValue("haiku")}}}}
+		"kb": {Provider: "launcher.chat", Model: "sonnet"}}, Launchers: map[string]LauncherModels{"chat": {Model: profileValue("haiku")}}}}
 	if err := st.PutSettings(ctx, map[string]any{modelProfilesKey: profiles, modelProfileStateKey: state}); err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +233,7 @@ func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T
 		t.Fatalf("profile revision = %d, want one increment", gotProfiles.Revision)
 	}
 	one, two := gotProfiles.Profiles[0], gotProfiles.Profiles[1]
-	if one.Purposes["kb"].Model != "gw/sonnet" || one.Purposes[purposeMeetingMinutes].Model != "gw/fast" ||
+	if one.Purposes["kb"].Model != "gw/sonnet" ||
 		one.Purposes["task.t1"].Model != "sonnet" || *one.Launchers["chat"].Model != "gw/sonnet" || *one.Launchers["chat"].Effort != "high" {
 		t.Fatalf("first profile = %+v", one)
 	}
@@ -251,7 +249,7 @@ func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotState.Previous.Purposes["kb"].Model != "gw/sonnet" || gotState.Previous.Purposes[purposeMeetingMinutes].Model != "gw/fast" ||
+	if gotState.Previous.Purposes["kb"].Model != "gw/sonnet" ||
 		*gotState.Previous.Launchers["chat"].Model != "gw/fast" {
 		t.Fatalf("rollback image = %+v", gotState.Previous)
 	}
@@ -443,8 +441,7 @@ func TestChatSaveMigratesAliasesInheritedFromCandidateFallback(t *testing.T) {
 	}
 	putAliasRecord(t, st, modelRecordKey("kb"), 4, ModelBinding{Model: "sonnet"})
 	profiles := modelProfiles{Revision: 7, Profiles: []ModelProfile{{ID: "one", Name: "One", Purposes: map[string]ModelBinding{
-		"kb": {Model: "sonnet"}, purposeMeetingMinutes: {Model: "haiku"},
-	}}}}
+		"kb": {Model: "sonnet"}}}}}
 	state := modelProfileState{Active: "one", Previous: &modelProfileImage{Profile: "before", Purposes: map[string]ModelBinding{
 		"kb": {Model: "haiku"},
 	}}}
@@ -488,8 +485,7 @@ func TestChatSaveMigratesAliasesInheritedFromCandidateFallback(t *testing.T) {
 		t.Fatalf("profile revision = %d, want one increment", gotProfiles.Revision)
 	}
 	profile := gotProfiles.Profiles[0]
-	if profile.Purposes["kb"] != (ModelBinding{Model: "gw/sonnet"}) ||
-		profile.Purposes[purposeMeetingMinutes] != (ModelBinding{Model: "gw/fast"}) {
+	if profile.Purposes["kb"] != (ModelBinding{Model: "gw/sonnet"}) {
 		t.Fatalf("saved profile = %+v", profile.Purposes)
 	}
 	gotState, err := s.readModelProfileState(ctx)

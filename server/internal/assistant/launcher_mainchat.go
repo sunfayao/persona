@@ -182,7 +182,7 @@ func (s *Service) waitMainChatLauncher(ctx context.Context, machine, name string
 // the picker and mainChatFit run the provider, so its own compatibility is the answer. A hidden one is still offered,
 // as mainChatFit has it: hiding takes it out of the pickers only.
 func (s *Service) mainChatOffers(ctx context.Context, p ModelPurpose) bool {
-	if p.Kind != "launcher" || p.CategoryID != "assistant" || p.ID == purposeMeetingRoom || p.MachineID == "" {
+	if p.Kind != "launcher" || p.CategoryID != "assistant" || p.MachineID == "" {
 		return false
 	}
 	name, ok := strings.CutPrefix(p.Effective.Provider, "launcher.")

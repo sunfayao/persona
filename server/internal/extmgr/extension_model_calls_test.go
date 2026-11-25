@@ -15,7 +15,7 @@ import (
 
 func TestExtensionIdentityAssistantCapabilityAndRegisteredStorageOwner(t *testing.T) {
 	h := newTestManager(t)
-	_ = kbExtensionSpec(t, h, "current-models", extension.Permissions{Hub: []string{extension.ScopeModels, extension.ScopeKBWrite}})
+	_ = extensionSpec(t, h, "current-models", extension.Permissions{Hub: []string{extension.ScopeModels, extension.ScopeAgentsControl}})
 	p := h.extensions.reg.GetExact("current-models")
 	p.Record.StorageID = "previous-models"
 	supported := false
@@ -59,9 +59,9 @@ func TestExtensionIdentityAssistantCapabilityAndRegisteredStorageOwner(t *testin
 // the extension's id; plugins.models lists the extensions that have a purpose.
 func TestExtensionModelCallNeedsItsScopeAndIsAttributed(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-models", extension.Permissions{Hub: []string{extension.ScopeModels}})
-	kbOnly := kbExtensionSpec(t, h, "example-kb", extension.Permissions{Hub: []string{extension.ScopeKBRead}})
-	full := kbExtensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
+	granted := extensionSpec(t, h, "example-models", extension.Permissions{Hub: []string{extension.ScopeModels}})
+	kbOnly := extensionSpec(t, h, "example-kb", extension.Permissions{Hub: []string{extension.ScopeAgentsRead}})
+	full := extensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
 	var mu sync.Mutex
 	var asked []string
 	var got []json.RawMessage

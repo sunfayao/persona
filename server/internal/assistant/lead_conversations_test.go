@@ -350,7 +350,7 @@ func TestLeadersApprovalComparesTheWholeList(t *testing.T) {
 
 	// Four leaders; the owner pins a fifth while the card waits.
 	out := propose(append(slices.Clone(ids[:4]), ids[5]), func() {
-		if _, err := s.makeDirection(ctx, ids[4], "", "", ""); err != nil {
+		if _, err := s.makeDirection(ctx, ids[4], "", ""); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -520,7 +520,7 @@ func TestDirectionNotesInEffectFollowTheConversationAcrossItsEnd(t *testing.T) {
 	if _, _, err := s.setDirectionNotes(ctx, "conv_lead", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.makeDirection(ctx, "conv_lead", "", "", ""); err != nil {
+	if _, err := s.makeDirection(ctx, "conv_lead", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	listLeads(f, proto.Session{SessionID: "conv_lead", Status: proto.StatusWorking})

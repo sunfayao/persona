@@ -3,7 +3,7 @@
 A hub-mode meeting's minutes wait for the final pass, which replays the whole recording once it is complete (#13461).
 While they wait, the minutes line on the iPhone and the web says the hub is checking the whole recording, with
 minutes done of the total once the pass has started, instead of "Writing the minutes…" for the whole wait. The rules
-are in [docs/assistant/meeting-minutes.md "Gaps and the final pass"](../../../docs/assistant/meeting-minutes.md). These
+are in the removed meeting contract. These
 cases hold the hub (what it keeps → what it sends) and the clients (what they get → which line, which numbers) to
 the same rule. All data is made up.
 
@@ -37,7 +37,7 @@ the same rule. All data is made up.
 
 ## Verification
 
-- hub: `cd server && go test ./internal/kb -run MinutesWaitFixture` (`server/internal/kb/transcription_progress_test.go`).
+- hub: `cd server && go test ./internal/kb -run MinutesWaitFixture` (server/internal/kb/transcription_progress_test.go).
 - iPhone: `apple/PersonaTests/MinutesWaitFixtureTests.swift` (the rule in `MinutesWaitLine`,
   `apple/Persona/Recording/MeetingAudioWire.swift`).
 - web: `cd web && npx vitest run src/lib/minutes-wait.test.ts` (the rule in `web/src/lib/minutes-wait.ts`).

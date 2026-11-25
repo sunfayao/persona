@@ -1,6 +1,6 @@
 # 会议里 Persona 的回声
 
-Persona 在会议里把答案说出来时，录音的麦克风也会听到；转写分不清是谁在说。一句转写只有**时间和文字都对上**才算 Persona 的回声：时间上和 Persona 说话的区间重叠，文字是 Persona 在这一段里说的话。规则见 [docs/assistant/meeting-minutes.md「Persona's echo」](../../../docs/assistant/meeting-minutes.md)（#5905）。回声行标记 `echo` 保留，不删除；纪要、录音摘要、会后对话和实时记录都不用它，手机的转写里也不显示。
+Persona 在会议里把答案说出来时，录音的麦克风也会听到；转写分不清是谁在说。一句转写只有**时间和文字都对上**才算 Persona 的回声：时间上和 Persona 说话的区间重叠，文字是 Persona 在这一段里说的话。规则见（#5905）。回声行标记 `echo` 保留，不删除；纪要、录音摘要、会后对话和实时记录都不用它，手机的转写里也不显示。
 
 | 文件 | 覆盖内容 |
 | --- | --- |
@@ -24,6 +24,6 @@ Persona 在会议里把答案说出来时，录音的麦克风也会听到；转
 
 ## 验证
 
-- hub：`cd server && go test ./internal/kb -run MeetingEcho`（`server/internal/kb/echo_test.go`，规则在 `server/internal/kb/echo.go`）。
+- hub：`cd server && go test ./internal/kb -run MeetingEcho`（`server/internal/kb/echo_test.go`，规则在 server/internal/kb/echo.go）。
 - iPhone：`apple/PersonaTests/MeetingEchoFixtureTests.swift`（规则在 `apple/Shared/Recording/MeetingEcho.swift`），由 Xcode 跑 PersonaTests。
 - 新增用例：先按上面的规则手算期望，写明哪几个二元组对上；两端都跑一遍，不要用被测的实现生成期望。

@@ -125,7 +125,7 @@ func TestTaskStateDiscardsDraftWhenRunCannotBeRegistered(t *testing.T) {
 	// The state instructions belong to the dispatched scheduled prompt (as the hub sends it, its source in front), not a
 	// separate injected notice.
 	now := time.Now().UTC()
-	sent := prompts.MessageSourceText(taskPrompt(task, now, now, time.UTC, false, false, false), taskMessageSource(task))
+	sent := prompts.MessageSourceText(taskPrompt(task, now, now, time.UTC, false, false), taskMessageSource(task))
 	node.setItems(proto.Item{Role: "user", Kind: proto.KindText, Text: sent})
 	args, _ := json.Marshal(map[string]string{"run_key": task.stateRunKey, "text": "new cursor"})
 	result, err := s.toolScheduleStateSet(ctx, "server", "scheduled", args)

@@ -134,7 +134,7 @@ func (s *Service) relayLaterSendFor(ctx context.Context, to, once string) (strin
 func (s *Service) withRelayLater(ctx context.Context, p map[string]any) (func(taken bool), error) {
 	id, _ := p["session_id"].(string)
 	text, ok := p["text"].(string)
-	if id == "" || !ok || meetingSource(p) || strings.HasPrefix(strings.TrimSpace(text), "/") {
+	if id == "" || !ok || strings.HasPrefix(strings.TrimSpace(text), "/") {
 		return func(bool) {}, nil
 	}
 	once, _ := p["once_id"].(string)

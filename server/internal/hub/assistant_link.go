@@ -115,9 +115,6 @@ func (h *Hub) assistantRoutesRelayed(api *http.ServeMux) {
 		if slices.Contains(storedTerminalTexts, pattern) {
 			relay = h.withoutTerminalControls(relay)
 		}
-		if kind, ok := meetingReceiptRoutes[pattern]; ok {
-			relay = h.withBodyIDReceipt(kind, relay) // meeting_receipts.go
-		}
 		if todoReceipt {
 			relay = h.withTodoReceipt(todoKind, relay) // todo_receipts.go
 		}
@@ -126,12 +123,11 @@ func (h *Hub) assistantRoutesRelayed(api *http.ServeMux) {
 }
 
 // storedTerminalTexts are the assistant's routes that keep text it later puts in an agent's prompt (a todo, its
-// decisions, a knowledge-base entry): an extension's token may not send terminal control characters on them either.
+// decisions): an extension's token may not send terminal control characters on them either.
 var storedTerminalTexts = []string{
 	"POST /api/v1/todos",
 	"PATCH /api/v1/todos/{id}",
 	"POST /api/v1/todos/{id}/decisions",
-	"PUT /api/v1/kb/{kind}/{id}",
 }
 
 // startConversationOnce relays a new conversation's start (its first message) with an operation receipt (#1349): an app
@@ -172,7 +168,7 @@ type assistantLink struct{ h *Hub }
 
 // Hello is what of the hub's own the manager needs: the machines and where the hub would run the assistant, the
 // cards' switches and the finished push's timings (hub.json's, the hub's), the user's language. The manager's own
-// sections (owner, notes, agents, kb, models, a card's wait) are in its manager.json, not here (docs/operations/config.md
+// sections (owner, notes, agents, models, a card's wait) are in its manager.json, not here (docs/operations/config.md
 // "manager.json").
 func (l assistantLink) Hello(context.Context) (assistantwire.Hello, error) {
 	h := l.h

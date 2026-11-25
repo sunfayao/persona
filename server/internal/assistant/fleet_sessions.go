@@ -64,10 +64,6 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 			// reconnect to the same turn. Only a known stopped turn proves a
 			// new one and resets its persisted loop state.
 			newTurn := prev == proto.StatusDone || prev == proto.StatusIdle || prev == proto.StatusInterrupted
-			s.justMeStarted(machine, sess.SessionID, newTurn, sess.WokeByTask) // meeting_justme.go
-			if s.meetingTurnStarted(machine, sess.SessionID, newTurn) {
-				break // a meeting's batch: a side exchange, neither the turn tracker's nor a task's or the Agents' (meeting_turns.go)
-			}
 			s.takeTaskAnswerRetry(machine, sess.SessionID)
 			s.suggestDrop(machine, sess.SessionID) // a new turn: the last one's suggestion goes, a call on its way is cancelled
 			s.turnsBook().working(key, now)
@@ -77,8 +73,6 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 		case prev == proto.StatusWorking && (sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle) && reconnected:
 			unsure = append(unsure, sess) // reconnectedTurnEnd, once the list is kept
 		case prev == proto.StatusWorking && (sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle):
-			// After its finished push is decided against the mark; held while its background work runs.
-			defer s.justMeEnded(machine, sess.SessionID, backgroundRunning(sess))
 			s.turnEndSeen(machine, sess, now)
 		case (sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle) &&
 			(sess.Status != prev || sess.Rev != was.Rev || sess.LastText != was.LastText || !sess.UpdatedAt.Equal(was.UpdatedAt)) &&
@@ -97,13 +91,11 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 			inlineUpdates = append(inlineUpdates, SessionRef{MachineID: machine, SessionID: sess.SessionID})
 		}
 		if sess.Status != prev && sess.Status != proto.StatusWorking && !(prev == proto.StatusWorking && (sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle)) {
-			// Stopped with no end seen (a restart, an interrupt, a card): a meeting turn there is over (meeting_turns.go).
-			s.meetingTurnStopped(machine, sess.SessionID, sess, prev == "")
 			if id := sess.SessionID; prev == proto.StatusWorking { // by id: a closure over sess would put every row on the heap
 				s.inOrder(func() { s.availStopped(machine, id, now) }) // its round is over (availability.go)
 			}
 		}
-		if sess.Status == proto.StatusWorking && backgroundRunning(sess) && !s.meetingTurnNow(machine, sess.SessionID) {
+		if sess.Status == proto.StatusWorking && backgroundRunning(sess) {
 			s.turnsBook().sawBackground(key, now)
 		}
 	}
@@ -128,13 +120,9 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 }
 
 // turnEndSeen is what a working → stopped edge of sess starts: its finished push, the next message's suggestion and
-// the turn's end for the conversations and tasks (TurnEnded). The caller ends a "just me" mark after it (justMeEnded).
+// the turn's end for the conversations and tasks (TurnEnded).
 func (s *Service) turnEndSeen(machine string, sess proto.Session, now time.Time) {
 	ref := SessionRef{MachineID: machine, SessionID: sess.SessionID}
-	if s.meetingTurnEnded(machine, sess.SessionID) { // no finished push, and the other turns' stay as they were
-		s.inOrder(func() { go s.turnEnded(context.Background(), ref, true) })
-		return
-	}
 	s.notifyFinished(machine, sess.SessionID, s.turnsBook().ended(machine+"/"+sess.SessionID, now, backgroundRunning(sess)))
 	s.suggestTurnEnded(machine, sess) // the next message, when nothing else suggests it (suggest_next.go)
 	// A new assistant conversation is named after its first turn; a task from one may be done. After the items of the
@@ -156,7 +144,6 @@ func (s *Service) reconnectedTurnEnd(machine string, sess proto.Session) {
 		return // no longer listed, or working again: that is its turn now
 	}
 	s.turnEndSeen(machine, sess, time.Now())
-	s.justMeEnded(machine, sess.SessionID, backgroundRunning(sess))
 }
 
 // turnPrev is what setSessions reads of a session's previous row: the turn's starts and ends are against it. Only

@@ -36,18 +36,18 @@ func (ps *extensions) extensionAssistantCall(ctx context.Context, id, method str
 	var out json.RawMessage
 	if method == assistantwire.MethodAssistantEntriesList {
 		// The entries ledger names its reader itself (#13106).
-		if err := ps.h.kbAsk(assistantwire.WithEntriesReader(ctx, id), method, params, &out); err != nil {
+		if err := ps.h.assistantAsk(assistantwire.WithEntriesReader(ctx, id), method, params, &out); err != nil {
 			return nil, err
 		}
 		return out, nil
 	}
 	// Say which extension reads (#13246): what it is shown follows its trust and grants. An assistant from before that
 	// answers the plain method, as a third party's read with no grant.
-	err := ps.h.kbAsk(ctx, assistantwire.MethodAssistantExtensionRead,
+	err := ps.h.assistantAsk(ctx, assistantwire.MethodAssistantExtensionRead,
 		assistantwire.AssistantExtensionRead{Extension: id, Method: method, Params: params}, &out)
 	var re *rpc.Error
 	if errors.As(err, &re) && re.Code == extension.CodeUnknownMethod {
-		err = ps.h.kbAsk(ctx, method, params, &out) // kbAsk: the manager's answer, assistant_offline coded
+		err = ps.h.assistantAsk(ctx, method, params, &out) // assistantAsk: the manager's answer, assistant_offline coded
 	}
 	if err != nil {
 		return nil, err

@@ -40,8 +40,8 @@ func TestASwitchedBuiltinFeedIsItsDefaultSubscriptionAndBack(t *testing.T) {
 		t.Fatalf("switched on: %+v %v", sub, err)
 	}
 	stored, _ := e.store.GetSubscription(e.ctx, sub.ID)
-	if stored.ToInbox || stored.ToKB || stored.Migrated == nil {
-		t.Fatalf("stored: inbox %v kb %v migrated %v", stored.ToInbox, stored.ToKB, stored.Migrated)
+	if stored.ToInbox || stored.Migrated == nil {
+		t.Fatalf("stored: inbox %v migrated %v", stored.ToInbox, stored.Migrated)
 	}
 	if m, _ := e.svc.Migrated(e.ctx); !m["example"] || len(m) != 1 {
 		t.Fatalf("migrated: %v", m)

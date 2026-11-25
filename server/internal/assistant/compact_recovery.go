@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"html"
-	"io"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -14,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -115,7 +112,6 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 		}
 		return strings.Compare(a.ID, b.ID)
 	})
-	slugs := []string{}
 	lead := p.SessionID
 	if isWorker {
 		if id, _, ok := s.directionForTodo(ctx, worker); ok {
@@ -125,9 +121,6 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 	if d := s.directionOf(lead); d != nil && d.EndedAt == nil {
 		for _, line := range strings.Split(d.Notes, "\n") {
 			out.Rules = append(out.Rules, prompts.RecoveryEntry{Source: "direction/" + lead + "/notes", Text: line})
-		}
-		if d.Project != "" {
-			slugs = append(slugs, d.Project)
 		}
 	}
 	for _, line := range strings.Split(s.notes(ctx), "\n") {
@@ -149,9 +142,6 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 				state += fmt.Sprintf("\nsession=%s/%s", a.MachineID, a.SessionID)
 			}
 			out.State = append(out.State, prompts.RecoveryEntry{Source: "todo/" + t.ID, Text: state})
-			if t.Project != "" && !slices.Contains(slugs, t.Project) {
-				slugs = append(slugs, t.Project)
-			}
 		}
 		if st := s.todoDB(); st != nil && (isWorker || !bulk) {
 			rows, err := st.ListTodoDecisions(ctx, t.ID, false)
@@ -192,29 +182,6 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 			Source: fmt.Sprintf("todo/%s/decision/%s source=%s %s/%s/%s at=%s", r.TodoID, r.ID, r.Source, r.SourceMachine, r.SourceSession, r.SourceMessage, r.CreatedAt.Format(time.RFC3339)),
 			Text:   r.Choice,
 		})
-	}
-	if e, err := s.kbGet(ctx); err == nil && e != nil {
-		for _, slug := range slugs {
-			project := e.FindProject(slug)
-			if project == nil || !project.Live() {
-				continue
-			}
-			state := e.Store.ProjectSummary(project.Slug, 2000)
-			source := "project/" + project.Slug + "/summary.md"
-			// STATE is optional in existing projects; never follow arbitrary paths supplied by a session.
-			if f, err := os.Open(e.Store.Path(kb.KindProject, project.Slug, "STATE.md")); err == nil {
-				raw, readErr := io.ReadAll(io.LimitReader(f, 8192))
-				_ = f.Close()
-				if readErr == nil {
-					state = strings.ToValidUTF8(string(raw), "")
-					source = "project/" + project.Slug + "/STATE.md"
-				}
-			}
-			if state == "" {
-				state = project.OneLine
-			}
-			out.State = append(out.State, prompts.RecoveryEntry{Source: source, Text: state})
-		}
 	}
 	out.Pins = s.compactRecoveryPins(ctx, p)
 	return out

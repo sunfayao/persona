@@ -56,7 +56,7 @@ func TestGraph(t *testing.T) {
 		src[s.ID] = s
 	}
 	outlook, mail := src["s.sub_outlook"], src["b.mail"]
-	if !outlook.Reading || !slices.Equal(outlook.To, []string{"inbox", "kb"}) || !slices.Equal(outlook.Duplicates, []string{"b.mail"}) ||
+	if !outlook.Reading || !slices.Equal(outlook.To, []string{"inbox"}) || !slices.Equal(outlook.Duplicates, []string{"b.mail"}) ||
 		outlook.Badge == nil || outlook.Badge.Text != "Possible duplicate" || outlook.State != `{"p":"source","id":"sub_outlook"}` ||
 		!strings.HasPrefix(outlook.Ask, AskURL+"?text=") || outlook.Kind != "subscription" {
 		t.Errorf("a subscription that reads: %+v", outlook)
@@ -70,20 +70,20 @@ func TestGraph(t *testing.T) {
 			t.Errorf("%s can't read now and says so: %+v", id, s)
 		}
 	}
-	if s := src["s.sub_broker"]; !s.Reading || !slices.Equal(s.To, []string{"kb"}) {
-		t.Errorf("a knowledge-base-only subscription: %+v", s)
+	if s := src["s.sub_broker"]; !s.Reading || !slices.Equal(s.To, []string{"inbox"}) {
+		t.Errorf("a subscription: %+v", s)
 	}
 	var dests []string
 	for _, d := range g.Destinations {
 		dests = append(dests, d.ID+"="+d.Name+" ("+d.Line+")")
 	}
-	if want := []string{"inbox=Inbox (7 sources · 3 reading)", "kb=Knowledge base (3 sources · 2 reading)"}; !slices.Equal(dests, want) {
+	if want := []string{"inbox=Inbox (8 sources · 4 reading)"}; !slices.Equal(dests, want) {
 		t.Errorf("destinations: %q", dests)
 	}
 
 	// Off is left out: a subscription with neither destination, and a built-in source turned off as a whole.
 	s := f.subs["sub_broker"]
-	s.ToKB, s.State = false, subscriptions.StateOff
+	s.ToInbox, s.State = false, subscriptions.StateOff
 	f.subs["sub_broker"] = s
 	b.list[2].Status = "disabled" // Lark
 	g, _ = DrawGraph(context.Background(), f, sourcesEnv(i18n.ZhHans, true, b))
@@ -97,7 +97,7 @@ func TestGraph(t *testing.T) {
 			t.Error("an extension with nothing drawn is drawn")
 		}
 	}
-	if g.Extensions[0].Name != "Persona 自带" || g.Destinations[0].Line != "6 个来源 · 2 个在读" || g.Destinations[1].Name != "知识库" {
+	if g.Extensions[0].Name != "Persona 自带" || g.Destinations[0].Line != "6 个来源 · 2 个在读" {
 		t.Errorf("in Chinese: %+v %+v", g.Extensions[0], g.Destinations)
 	}
 }

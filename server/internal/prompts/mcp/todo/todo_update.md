@@ -37,7 +37,7 @@ Update supplied title, notes, due/reminder, priority, project, part_of or after 
     },
     "project": {
       "type": "string",
-      "description": "Existing knowledge-base project slug/name (kb_list projects), preferably a long-term work area. Set only when clear; do not invent near-duplicates. \"\" clears."
+      "description": "Project label, preferably a long-term work area. Set only when clear; reuse an existing one, do not invent near-duplicates. \"\" clears."
     },
     "part_of": {
       "type": "string",

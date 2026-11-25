@@ -88,15 +88,11 @@ var titlePrefix = lazyre.New(`^\s*\d{4}\s*\|[^|]*\|\s*`)
 // i18n-ignore: matches the owner's own words): the name is what the brackets hold (#3744).
 var titleRole = lazyre.New(`^你是「([^」]+)」`) // i18n-ignore
 
-// directionName is what a direction is called (#3679): the name the owner or the secretary gave it, else its
-// knowledge-base project's name, else its conversation's title without the "MMDD | kind | " prefix and, when what is
+// directionName is what a direction is called (#3679): the name the owner or the secretary gave it, else its conversation's title without the "MMDD | kind | " prefix and, when what is
 // left starts 你是「X」 (a role given in the first message), just X (the title as it is when nothing is left).
-func directionName(d *direction, title, projectName string) string {
+func directionName(d *direction, title string) string {
 	if d != nil && d.Name != "" {
 		return d.Name
-	}
-	if projectName != "" {
-		return projectName
 	}
 	if t := strings.TrimSpace(titlePrefix.ReplaceAllString(title, "")); t != "" {
 		if m := titleRole.FindStringSubmatch(t); m != nil && strings.TrimSpace(m[1]) != "" {
@@ -107,27 +103,8 @@ func directionName(d *direction, title, projectName string) string {
 	return title
 }
 
-// projectNames are the knowledge base's project names by slug; false when it could not be read.
-func (s *Service) projectNames(ctx context.Context) (map[string]string, bool) {
-	e, err := s.kbGet(ctx)
-	if err != nil || e == nil {
-		return nil, false
-	}
-	out := map[string]string{}
-	for _, p := range e.Store.Projects() {
-		out[p.Slug] = p.Name
-	}
-	return out, true
-}
-
-// nameOf is direction d's name with the project names pn (ok false: unreadable; then a project's name last told
-// stands, rather than telling the extensions another name only for want of the knowledge base).
-func nameOf(d *direction, title string, pn map[string]string, ok bool) string {
-	if d != nil && d.Name == "" && d.Project != "" && !ok && d.Told != nil && d.Told.Name != "" {
-		return d.Told.Name
-	}
-	return directionName(d, title, pn[d.Project])
-}
+// nameOf is direction d's name.
+func nameOf(d *direction, title string) string { return directionName(d, title) }
 
 type directionBook struct {
 	mu     sync.Mutex
@@ -253,7 +230,6 @@ func (s *Service) directionsSync(ctx context.Context) {
 		return
 	}
 	projects := s.leaderProjects()
-	pnames, pok := s.projectNames(ctx)
 	now := time.Now().UTC()
 	tell := s.todoEventsOn()
 
@@ -292,7 +268,7 @@ func (s *Service) directionsSync(ctx context.Context) {
 		if !leaders[id] && d.EndedAt == nil {
 			d.EndedAt, changed = &now, true
 		}
-		curName := nameOf(d, titles[id].title, pnames, pok)
+		curName := nameOf(d, titles[id].title)
 		curTitle := titles[id].title
 		if d.Outside != nil {
 			curTitle = curName // no conversation title exists; event consumers still get a useful non-empty title
@@ -400,8 +376,8 @@ type leaderView struct {
 }
 
 // directionLeaderView is one direction's read model, shared by creation, progress writes and GET leaders.
-func directionLeaderView(id string, d *direction, title string, pnames map[string]string, pok bool) leaderView {
-	name := nameOf(d, title, pnames, pok)
+func directionLeaderView(id string, d *direction, title string) leaderView {
+	name := nameOf(d, title)
 	if d.Outside != nil {
 		title = name
 	}
@@ -420,7 +396,6 @@ func directionLeaderView(id string, d *direction, title string, pnames map[strin
 func (s *Service) directionRoutes() {
 	s.handle("GET /api/v1/assistant/leaders", func(w http.ResponseWriter, r *http.Request) {
 		titles, ok := s.conversationTitles()
-		pnames, pok := s.projectNames(r.Context())
 		b := &s.directions
 		b.mu.Lock()
 		ok = ok && s.directionsLocked(r.Context())
@@ -431,7 +406,7 @@ func (s *Service) directionRoutes() {
 		}
 		list := make([]leaderView, 0, len(b.m))
 		for id, d := range b.m {
-			list = append(list, directionLeaderView(id, d, titles[id].title, pnames, pok))
+			list = append(list, directionLeaderView(id, d, titles[id].title))
 		}
 		b.mu.Unlock()
 		slices.SortFunc(list, func(a, b leaderView) int {

@@ -114,11 +114,6 @@ func (s *Service) workspaceBlock(ctx context.Context, attrs map[string]string) (
 	if w.Title == "" {
 		w.Title = path.Base(strings.TrimRight(cwd, `/\`))
 	}
-	if e, err := s.kbGet(ctx); err == nil && e != nil {
-		for _, p := range e.ProjectsForWork(d.ID, cwd) {
-			w.Projects = append(w.Projects, prompts.WorkspaceProject{Name: oneLine(p.Name), Slug: p.Slug, OneLine: clip(oneLine(p.OneLine), 200)})
-		}
-	}
 	if d.Online {
 		lctx, cancel := context.WithTimeout(ctx, workspaceListWait)
 		list, err := s.sessions(lctx, d.ID)

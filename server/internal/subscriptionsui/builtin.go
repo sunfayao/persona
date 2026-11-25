@@ -13,7 +13,7 @@ import (
 )
 
 // Built-in sources (#5278, docs/extensions/subscriptions.md "Pages"): the connectors and mail that bring things into the
-// Inbox or the knowledge base themselves, beside the subscriptions. The pages list them with the same controls as a
+// Inbox themselves, beside the subscriptions. The pages list them with the same controls as a
 // subscription; what they change is the connector's own setting (the manager answers BuiltinSources), so a switch
 // turned here shows on the connector's page and the other way round.
 
@@ -25,12 +25,12 @@ type Builtin struct {
 	Extension string
 	// Status is its connector's state (connector.StateOK, StateNotSignedIn, StateDisabled…).
 	Status string
-	// Inbox and Archive say whether Add to Inbox and Add to Knowledge Base are on; nil: it has no such switch.
-	Inbox, Archive *bool
+	// Inbox says whether Add to Inbox is on; nil: it has no such switch.
+	Inbox *bool
 	// InboxAlways: it brings things into the Inbox with no switch for it (mail).
 	InboxAlways bool
-	// InboxEvery and ArchiveEvery are how often the Inbox and the knowledge base read it, in seconds (0: unknown).
-	InboxEvery, ArchiveEvery int
+	// InboxEvery is how often the Inbox reads it, in seconds (0: unknown).
+	InboxEvery int
 	// Read is the Inbox's latest read of it since the manager started; nil before the first.
 	Read *Read
 	// Accounts are what it reads one by one (mail accounts), each with its latest read.
@@ -77,7 +77,7 @@ type Mute struct {
 // BuiltinSources is what the pages use of the manager's built-in sources.
 type BuiltinSources interface {
 	List(ctx context.Context) []Builtin
-	// SetFeed turns Add to Inbox (inbox) or Add to Knowledge Base on or off: the connector's own switch.
+	// SetFeed turns Add to Inbox on or off: the connector's own switch.
 	SetFeed(ctx context.Context, id string, inbox, on bool, by subscriptions.Actor) error
 	// SetRules sets the source's own triage rules ("" clears them).
 	SetRules(ctx context.Context, id, rules string, by subscriptions.Actor) error
@@ -172,16 +172,11 @@ func (p *pages) readProblem(r *Read) string {
 // builtinDest is where a built-in source's things go, in a word or two.
 func (p *pages) builtinDest(b Builtin) string {
 	inbox := b.InboxAlways || b.Inbox != nil && *b.Inbox
-	kb := b.Archive != nil && *b.Archive
 	switch {
 	case b.Status == "disabled":
 		return p.t("builtin.disabled")
-	case inbox && kb:
-		return p.t("dest.both")
 	case inbox:
 		return p.t("dest.inbox")
-	case kb:
-		return p.t("dest.kb")
 	}
 	return p.t("dest.none")
 }
@@ -269,11 +264,6 @@ func (p *pages) builtinPage() wire.View {
 		r.Value = p.every(b.InboxEvery, "")
 		freq.Items = append(freq.Items, r)
 	}
-	if b.ArchiveEvery > 0 && b.Archive != nil {
-		r := row("f.kb", p.t("builtin.freq_kb"))
-		r.Value = p.every(b.ArchiveEvery, "")
-		freq.Items = append(freq.Items, r)
-	}
 	if len(freq.Items) > 0 {
 		v.Sections = append(v.Sections, freq)
 	}
@@ -330,9 +320,6 @@ func (p *pages) builtinSwitches(b Builtin) wire.Section {
 	case b.Inbox != nil:
 		sec.Items = append(sec.Items, sw("to_inbox", *b.Inbox, p.t("builtin.inbox_detail")))
 	}
-	if b.Archive != nil {
-		sec.Items = append(sec.Items, sw("to_kb", *b.Archive, p.t("source.kb_detail")))
-	}
 	return sec
 }
 
@@ -380,9 +367,6 @@ func (p *pages) builtinSwitchVia(values map[string]string) (wire.ActionResult, e
 // which model sorts it; nothing is pulled on a schedule the pages set.
 func (p *pages) builtinConfirm(dest string, b Builtin) string {
 	purpose, every := "inbox.triage", b.InboxEvery
-	if dest == "to_kb" {
-		purpose, every = "kb", b.ArchiveEvery
-	}
 	provider := ""
 	if m := p.modelOf(purpose); m.OK && m.Provider != "" {
 		provider = p.t("confirm.provider", i18n.Args{"name": modelName(m)})
@@ -480,13 +464,13 @@ func (p *pages) mutes() wire.View {
 	return v
 }
 
-// builtinDestination turns a built-in source's Add to Inbox or Add to Knowledge Base on or off: its connector's switch.
+// builtinDestination turns a built-in source's Add to Inbox on or off: its connector's switch.
 func (p *pages) builtinDestination(values map[string]string) (wire.ActionResult, error) {
 	to := values["to"]
-	if p.env.Builtin == nil || to != "to_inbox" && to != "to_kb" {
+	if p.env.Builtin == nil || to != "to_inbox" {
 		return wire.ActionResult{}, errBadValues
 	}
-	if err := p.env.Builtin.SetFeed(p.ctx, p.st.C, to == "to_inbox", values[to] == "true", p.env.By); err != nil {
+	if err := p.env.Builtin.SetFeed(p.ctx, p.st.C, true, values[to] == "true", p.env.By); err != nil {
 		return p.builtinFailed(err)
 	}
 	p.listed = nil // read again with the change

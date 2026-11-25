@@ -46,7 +46,6 @@ title, only Pause and End; after End, the tape's minutes. Starting asks to stop 
 - **What is kept**: the tapes, in Application Support/meeting-tapes, out of backups (a tape holds other people's words).
   Swipe to delete one; turning the switch off deletes them all. They are never part of the diagnostics package.
 
-The room, its guards and the tape's format: docs/apple/recording.md "A meeting's tape and its replay".
 
 ## What is recorded (iOS)
 

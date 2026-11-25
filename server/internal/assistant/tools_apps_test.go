@@ -4,16 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/dialogwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -31,257 +27,6 @@ func runTool(s *Service, self, name string, args any) (string, error) {
 	return b.String(), nil
 }
 
-// ---- kb_* ----
-
-func TestKBProjectNoteRoundTrip(t *testing.T) {
-	s := newKBService(t, newFakeHub())
-	out, err := runTool(s, "c1", "kb_update", map[string]any{
-		"kind": "projects", "id": "Project note", "note": "  First line\n second line  ",
-		"project_kind": "invalid", "status": "invalid", "projects": []string{"other"},
-		"importance": "invalid", "relevance": 101,
-		"chats": []string{"missing"},
-	})
-	// A project does not use projects: said, not dropped silently. Invalid values of fields it does use are still
-	// dropped as before (projectUpdate).
-	if err != nil || out != "Saved projects/project-note.\nNot saved: projects (projects entries do not use projects)." {
-		t.Fatalf("update: %q %v", out, err)
-	}
-	out, err = runTool(s, "c1", "kb_get", map[string]any{"kind": "projects", "id": "Project note"})
-	if err != nil || !strings.Contains(out, `"note": "First line second line"`) {
-		t.Fatalf("get note: %q %v", out, err)
-	}
-	if !strings.Contains(out, "\"locked_fields\": [\n    \"note\"\n  ]") || strings.Contains(out, `"locked": true`) {
-		t.Fatalf("get locks: %q", out)
-	}
-}
-
-// kb_update takes a wrong person or chat off a project for good, and only that link: the lists stay open to the
-// pipeline, which no longer brings the removed ones back (#10333).
-func TestKBUpdateRemovesOneLink(t *testing.T) {
-	s := newKBService(t, newFakeHub())
-	e := kbEng(t, s)
-	_ = e.Store.PutPerson(&kb.Person{ID: "alice", Name: "alice", Projects: []string{"billing-migration"}})
-	_ = e.Store.PutChat(&kb.Chat{ID: "team-chat", Name: "team-chat", Kind: "group", Projects: []string{"billing-migration"}})
-	_ = e.Store.PutProject(&kb.Project{Slug: "billing-migration", Name: "billing-migration", Status: "active",
-		People: []string{"alice"}, Chats: []string{"team-chat"}})
-	out, err := runTool(s, "c1", "kb_update", map[string]any{"kind": "projects", "id": "billing-migration",
-		"remove_people": []string{"alice"}, "remove_chats": []string{"team-chat"}})
-	if err != nil || out != "Saved projects/billing-migration." {
-		t.Fatalf("update: %q %v", out, err)
-	}
-	p, _ := e.Store.Project("billing-migration")
-	if len(p.People)+len(p.Chats)+len(p.LockedFields) != 0 || len(p.Excluded["people"]) != 1 || len(p.Excluded["chats"]) != 1 {
-		t.Fatalf("project after the removal: people %v, chats %v, locked %v, excluded %v", p.People, p.Chats, p.LockedFields, p.Excluded)
-	}
-	p.People, p.Chats = []string{"alice", "bob"}, []string{"team-chat", "new-chat"}
-	_ = e.Store.PutProject(p)
-	if p, _ = e.Store.Project("billing-migration"); strings.Join(p.People, ",") != "bob" || strings.Join(p.Chats, ",") != "new-chat" {
-		t.Fatalf("pipeline after the removal: people %v, chats %v", p.People, p.Chats)
-	}
-}
-
-// The app's PUT takes lock_lists and allow_*: a removal that does not lock, the detail naming what was removed, and
-// allowing it again; an allow_* list the kind has no list for is said, not applied.
-func TestKBRouteRemovesOneLinkAndAllowsItAgain(t *testing.T) {
-	s := newKBService(t, newFakeHub())
-	e := kbEng(t, s)
-	_ = e.Store.PutPerson(&kb.Person{ID: "alice", Name: "alice", Projects: []string{"billing-migration"}})
-	_ = e.Store.PutProject(&kb.Project{Slug: "billing-migration", Name: "billing-migration", Status: "active", People: []string{"alice"}})
-	path := "/api/v1/kb/projects/billing-migration"
-	if w := boardCall(s, "PUT", path, `{"remove_people":["alice"],"lock_lists":false}`, roleFull); w.Code != 200 {
-		t.Fatalf("remove: HTTP %d %s", w.Code, w.Body)
-	}
-	w := boardCall(s, "GET", path, "", roleFull)
-	var got struct {
-		Detail struct {
-			Meta    map[string]any `json:"meta"`
-			Removed []kb.Entry     `json:"removed"`
-		} `json:"detail"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || len(got.Detail.Removed) != 1 || got.Detail.Removed[0].ID != "alice" || got.Detail.Meta["locked_fields"] != nil {
-		t.Fatalf("detail: %v %s", err, w.Body)
-	}
-	w = boardCall(s, "PUT", path, `{"allow_people":["alice"],"allow_projects":["other"]}`, roleFull)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"field":"allow_projects"`) {
-		t.Fatalf("allow: HTTP %d %s", w.Code, w.Body)
-	}
-	if p, _ := e.Store.Project("billing-migration"); len(p.Excluded) != 0 || len(p.People) != 0 {
-		t.Fatalf("after allowing: people %v, excluded %v", p.People, p.Excluded)
-	}
-}
-
-// The kb_* tools read the assistant's knowledge base and write what the model reads: defaults and caps of their
-// arguments, the lines, the list, an entry with its meta.json as the file has it and dates in the user's zone.
-func TestKBToolsFormatTheData(t *testing.T) {
-	f := newFakeHub()
-	s := newKBService(t, f)
-	setSettings(t, s, func(v *Settings) { v.Timezone = "Asia/Shanghai" })
-	e := kbEng(t, s)
-	dir := e.Store.Dir
-	c := &kb.Chat{ID: kb.ChatID("lark", "f1"), Source: "lark", SourceID: "f1", Kind: "group", Name: "发布群", Created: time.Now()}
-	_ = e.Store.PutChat(c)
-	_ = e.Store.AppendMessages(c, []kb.Line{{At: time.Now(), Sender: "张三", Text: "周五灰度"}, {At: time.Now(), Sender: "李四", Text: "灰度名单"}})
-
-	out, err := runTool(s, "c1", "kb_search", map[string]any{"query": "灰度"})
-	if err != nil || strings.Count(out, "\n") != 2 || !strings.Contains(out, "chats/lark-f1/messages/") || !strings.Contains(out, ": - ") {
-		t.Fatalf("search: %q %v", out, err)
-	}
-	if out, err := runTool(s, "c1", "kb_search", map[string]any{"query": "灰度", "limit": 1}); err != nil || strings.Count(out, "\n") != 1 {
-		t.Fatalf("search, one: %q %v", out, err)
-	}
-	if out, err := runTool(s, "c1", "kb_search", map[string]any{"query": "灰度", "messages": false}); err != nil ||
-		out != "知识库里没有与「灰度」相关的内容。" || strings.Contains(out, dir) {
-		t.Fatalf("search without the messages: %q %v", out, err)
-	}
-
-	if out, err := runTool(s, "c1", "kb_update", map[string]any{"kind": "projects", "id": "Persona 发布", "project_kind": "long", "importance": "P0",
-		"relevance": 95, "tags": []string{"发布", "客户端"}, "log": "定了周五灰度", "chats": []string{"lark-f1"}}); err != nil || out != "Saved projects/persona-发布." {
-		t.Fatalf("update: %q %v", out, err)
-	}
-	if _, err := runTool(s, "c1", "kb_update", map[string]any{"kind": "projects", "id": "别的"}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := runTool(s, "c1", "kb_update", map[string]any{"kind": "projects", "id": "x", "relevance": "high"}); err == nil {
-		t.Fatal("an update that does not parse was applied")
-	}
-	if _, ok := e.Store.Project("x"); ok {
-		t.Fatal("an update that does not parse made a project")
-	}
-
-	out, err = runTool(s, "c1", "kb_list", map[string]any{"kind": "projects"})
-	if err != nil || !strings.HasPrefix(out, "- persona-发布 · Persona 发布 [P0 相关95] 发布,客户端 ") || !strings.Contains(out, "\n- 别的 · 别的 [- 相关0] ") {
-		t.Fatalf("list: %q %v", out, err)
-	}
-	if out, err := runTool(s, "c1", "kb_list", map[string]any{"kind": "projects", "limit": 1}); err != nil || strings.Count(out, "\n") != 1 {
-		t.Fatalf("list, one: %q %v", out, err)
-	}
-	if out, err := runTool(s, "c1", "kb_list", map[string]any{"kind": "meetings"}); err != nil ||
-		out != "知识库里还没有内容。" || strings.Contains(out, dir) {
-		t.Fatalf("list, empty: %q %v", out, err)
-	}
-
-	// A project's Moments (company feed) posts, dated in the user's zone (20:00 UTC is the next day in Shanghai).
-	if err := e.Store.PutMomentPost(&kb.MomentPost{ID: "p1", Author: "王五", Text: "发布了", CommentCount: 2,
-		At: time.Date(2026, 11, 3, 20, 0, 0, 0, time.UTC)}, nil); err != nil {
-		t.Fatal(err)
-	}
-	p, _ := e.Store.Project("persona-发布")
-	p.Moments = []kb.ProjectMoment{{ID: "p1", Note: "讲发布"}}
-	_ = e.Store.PutProject(p)
-	_ = e.Store.PutSummary(kb.KindProject, "persona-发布", "在推发布")
-	out, err = runTool(s, "c1", "kb_get", map[string]any{"kind": "projects", "id": "Persona 发布"})
-	if err != nil || !strings.HasPrefix(out, "Path: "+dir+"/projects/persona-发布\n\nmeta.json:\n{\n  \"") ||
-		!strings.Contains(out, "}\n\n\nsummary.md:\n在推发布\n") || !strings.Contains(out, "\nlog.md (latest):\n- ") || !strings.Contains(out, "定了周五灰度") ||
-		!strings.Contains(out, "\n公司圈 posts about it (full text: moments/posts/<id>.md):\n- p1 2026-11-04 · 2 comments · 讲发布 — 发布了\n") {
-		t.Fatalf("get:\n%s (%v)", out, err)
-	}
-	// A chat's latest messages; meta.json as the file has it.
-	meta, _ := os.ReadFile(filepath.Join(dir, "chats", "lark-f1", "meta.json"))
-	if out, err := runTool(s, "c1", "kb_get", map[string]any{"kind": "chats", "id": "lark-f1"}); err != nil ||
-		!strings.Contains(out, "meta.json:\n"+strings.TrimSpace(string(meta))+"\n\n") || !strings.Contains(out, "\nMessages, last 7 days:\n") ||
-		!strings.Contains(out, "周五灰度") {
-		t.Fatalf("get chat: %q %v", out, err)
-	}
-	if _, err := runTool(s, "c1", "kb_get", map[string]any{"kind": "projects", "id": "nope"}); err == nil || err.Error() != "projects/nope: not found" {
-		t.Fatalf("get, not found: %v", err)
-	}
-	// One edited by hand into something else reads as its text.
-	_ = os.WriteFile(filepath.Join(dir, "chats", "lark-f1", "meta.json"), []byte("not json"), 0o600)
-	if out, err := runTool(s, "c1", "kb_get", map[string]any{"kind": "chats", "id": "lark-f1"}); err != nil || !strings.Contains(out, "meta.json:\nnot json\n") {
-		t.Fatalf("get, meta not JSON: %q %v", out, err)
-	}
-}
-
-// Empty answers are neutral text in the user's language and never expose the store's disk directory; with data,
-// hits carry only paths relative to the store.
-func TestKBToolsEmptyAnswersAreLocalizedAndPathFree(t *testing.T) {
-	want := map[i18n.Lang]struct{ search, searchNoQuery, list string }{
-		i18n.ZhHans: {"知识库里没有与「发布会」相关的内容。", "知识库里没有相关内容。", "知识库里还没有内容。"},
-		i18n.En:     {"Nothing in the knowledge base matches “发布会”.", "The knowledge base has no matching content.", "The knowledge base is empty so far."},
-		i18n.Ja:     {"ナレッジベースに「发布会」に関連する内容はありません。", "ナレッジベースに該当する内容はありません。", "ナレッジベースにはまだ内容がありません。"},
-	}
-	for lang, w := range want {
-		f := newFakeHub()
-		f.mu.Lock()
-		f.hello.Locale = string(lang)
-		f.mu.Unlock()
-		s := newKBService(t, f)
-		dir := kbEng(t, s).Store.Dir
-		out, err := runTool(s, "c1", "kb_search", map[string]any{"query": "发布会"})
-		if err != nil || out != w.search || strings.Contains(out, dir) {
-			t.Fatalf("%s search empty: %q %v", lang, out, err)
-		}
-		out, err = runTool(s, "c1", "kb_search", map[string]any{"query": "  "})
-		if err != nil || out != w.searchNoQuery || strings.Contains(out, dir) {
-			t.Fatalf("%s search without a query: %q %v", lang, out, err)
-		}
-		out, err = runTool(s, "c1", "kb_list", map[string]any{"kind": "projects"})
-		if err != nil || out != w.list || strings.Contains(out, dir) {
-			t.Fatalf("%s list empty: %q %v", lang, out, err)
-		}
-	}
-	// With data, a hit that lives inside the store uses a store-relative path; the empty answers are the only place
-	// the absolute disk directory used to leak.
-	f := newFakeHub()
-	s := newKBService(t, f)
-	e := kbEng(t, s)
-	dir := e.Store.Dir
-	c := &kb.Chat{ID: kb.ChatID("lark", "f1"), Source: "lark", SourceID: "f1", Kind: "group", Name: "发布群", Created: time.Now()}
-	_ = e.Store.PutChat(c)
-	_ = e.Store.AppendMessages(c, []kb.Line{{At: time.Now(), Sender: "张三", Text: "周五灰度"}})
-	out, err := runTool(s, "c1", "kb_search", map[string]any{"query": "灰度"})
-	if err != nil || !strings.Contains(out, "chats/lark-f1/messages/") || strings.Contains(out, dir) {
-		t.Fatalf("search hit: %q %v", out, err)
-	}
-}
-
-// Without a knowledge base (manager.json kb.enabled false) the kb_* tools say it is off (and how to turn it on).
-func TestKBToolsKnowledgeBaseOff(t *testing.T) {
-	f := newFakeHub()
-	f.hello.KB = &KBSettings{Off: true}
-	s := withSettings(t, f, New(Options{Hub: f, Logf: testLogf(t), KB: &KBOptions{Dir: t.TempDir()}}))
-	for _, name := range []string{"kb_search", "kb_list", "kb_get", "kb_update"} {
-		if _, err := runTool(s, "c1", name, map[string]any{"kind": "projects", "id": "x", "query": "x"}); err == nil ||
-			err.Error() != "the knowledge base is off (manager.json kb.enabled)" {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-	if s.kbReady(context.Background()) || s.kb.dir == "" {
-		t.Fatal("off, yet ready; or its directory forgotten (CLAUDE.md names it)")
-	}
-}
-
-// ---- interaction_answer ----
-
-// answerService is an assistant whose hub has machine mac with an agent (abcdef12-agent) whose question "Send?" waits,
-// and the assistant's own conversation conv-assistant there.
-func answerService(t *testing.T) (*Service, *fakeHub, *fakeQueue, proto.Interaction) {
-	t.Helper()
-	f := newFakeHub()
-	f.sessions["mac"] = []proto.Session{
-		{SessionID: "abcdef12-agent", MachineID: "mac", Title: "修登录", Cwd: "/code/app", Status: proto.StatusWorking, UpdatedAt: time.Now().UTC()},
-		{SessionID: "conv-assistant", MachineID: "mac", Title: "Persona", Assistant: true, UpdatedAt: time.Now().UTC()},
-	}
-	ix := askOn("ix_ask1", "发吗？", false, "发", "不发")
-	q := f.withQueue(ix)
-	return newTestService(t, f), f, q, ix
-}
-
-// askOn is abcdef12-agent's question on mac, waiting for an hour.
-func askOn(id, text string, multi bool, options ...string) proto.Interaction {
-	q := proto.Question{Question: text, MultiSelect: multi}
-	for _, o := range options {
-		q.Options = append(q.Options, proto.QuestionOption{Label: o})
-	}
-	return proto.Interaction{ID: id, MachineID: "mac", SessionID: "abcdef12-agent", Kind: proto.IxQuestion, Questions: []proto.Question{q},
-		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour).UTC()}
-}
-
-func answerArgs(id string, answers any) map[string]any {
-	return map[string]any{"machine": "mac", "session_id": "abcdef12", "interaction_id": id, "answers": answers}
-}
-
-// A question another agent asks is answered for the user: the hub gets the answers by the question's wording.
 func TestInteractionAnswerAnswersAQuestion(t *testing.T) {
 	s, f, q, ix := answerService(t)
 	out, err := runTool(s, "conv-assistant", "interaction_answer", answerArgs(" "+ix.ID+" ", map[string]string{"发吗？": "发"}))
@@ -565,4 +310,32 @@ func TestInteractionAnswersTakeAnOptionWrittenOut(t *testing.T) {
 			t.Errorf("%q: got %q %v, want %q", tc.in, got[tc.q.Question], err, tc.want)
 		}
 	}
+}
+
+// answerService is an assistant whose hub has machine mac with an agent (abcdef12-agent) whose question "Send?" waits,
+// and the assistant's own conversation conv-assistant there.
+func answerService(t *testing.T) (*Service, *fakeHub, *fakeQueue, proto.Interaction) {
+	t.Helper()
+	f := newFakeHub()
+	f.sessions["mac"] = []proto.Session{
+		{SessionID: "abcdef12-agent", MachineID: "mac", Title: "修登录", Cwd: "/code/app", Status: proto.StatusWorking, UpdatedAt: time.Now().UTC()},
+		{SessionID: "conv-assistant", MachineID: "mac", Title: "Persona", Assistant: true, UpdatedAt: time.Now().UTC()},
+	}
+	ix := askOn("ix_ask1", "发吗？", false, "发", "不发")
+	q := f.withQueue(ix)
+	return newTestService(t, f), f, q, ix
+}
+
+func answerArgs(id string, answers any) map[string]any {
+	return map[string]any{"machine": "mac", "session_id": "abcdef12", "interaction_id": id, "answers": answers}
+}
+
+// askOn is abcdef12-agent's question on mac, waiting for an hour.
+func askOn(id, text string, multi bool, options ...string) proto.Interaction {
+	q := proto.Question{Question: text, MultiSelect: multi}
+	for _, o := range options {
+		q.Options = append(q.Options, proto.QuestionOption{Label: o})
+	}
+	return proto.Interaction{ID: id, MachineID: "mac", SessionID: "abcdef12-agent", Kind: proto.IxQuestion, Questions: []proto.Question{q},
+		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour).UTC()}
 }

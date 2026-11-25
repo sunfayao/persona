@@ -12,7 +12,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistant/todo/projection"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -189,119 +188,6 @@ func TestProjectionReadsTheManagersWords(t *testing.T) {
 }
 
 func ptrTo[T any](v T) *T { return &v }
-
-// The adapter on the manager's own list: a plain to-do, one a run works on, one just closed and a failed start whose
-// run is on a computer no open to-do uses, with the knowledge base's title on their project's place; and the same rows
-// decoded from GET /api/v1/todos read the same views.
-func TestProjectionOfTheManagersList(t *testing.T) {
-	f := newFakeHub().withMachine()
-	s := newKBService(t, f)
-	if _, err := kbEng(t, s).Apply(kb.KindProject, "Garden", kb.Update{Name: "Garden", Kind: "long"}); err != nil {
-		t.Fatal(err)
-	}
-	e := &todoEnv{t: t, s: s, f: f}
-	ctx := context.Background()
-	began := time.Now().UTC().Add(-time.Minute)
-	e.f.setSessions("server", proto.Session{MachineID: "server", SessionID: "s1", Title: "Hedge trimming",
-		Status: proto.StatusWorking, State: proto.StateWorking, StateSince: began, UpdatedAt: began,
-		Activity: "measuring the hedge"})
-	// The failed start's earlier run moved ten hours after the failure (its session's times are what dates it).
-	moved := began.Add(10 * time.Hour)
-	e.f.setSessions("box", proto.Session{MachineID: "box", SessionID: "s2", Title: "Ferry booking",
-		Status: proto.StatusIdle, State: proto.StateIdle, StateSince: moved, UpdatedAt: moved})
-	var created struct{ Todo Todo }
-	_ = json.Unmarshal(e.must("POST", "/api/v1/todos", `{"title":"Water the roses","project":"Garden"}`).Body.Bytes(), &created)
-	plain := created.Todo
-	if plain.Project == "" {
-		t.Fatal("the to-do got no project")
-	}
-	worked, closed, failed := e.create("Prune the hedge"), e.create("Order compost"), e.create("Book the ferry")
-	e.must("PUT", "/api/v1/todos/"+worked.ID+"/agents/server/s1", "")
-	e.must("PATCH", "/api/v1/todos/"+closed.ID, `{"done":true}`)
-	e.must("PUT", "/api/v1/todos/"+failed.ID+"/agents/box/s2", "")
-	if err := e.s.failTodo(ctx, failed.ID, "The computer is offline"); err != nil {
-		t.Fatal(err)
-	}
-
-	body := e.must("GET", "/api/v1/todos", "").Body.Bytes()
-	var listed struct{ Todos []listedTodo }
-	if err := json.Unmarshal(body, &listed); err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now()
-	got := e.s.todoProjectionOf(ctx, listed.Todos, now)
-	views := got.byID()
-
-	want := map[string][3]string{
-		plain.ID:  {assistantwire.TodoPhaseTodo, assistantwire.TodoListSectionTodo, assistantwire.TodoReasonRest},
-		worked.ID: {assistantwire.TodoPhaseWorking, assistantwire.TodoListSectionWorking, assistantwire.TodoReasonAgentRunning},
-		closed.ID: {assistantwire.TodoPhaseDone, assistantwire.TodoListSectionJustFinished, assistantwire.TodoReasonClosedUnseen},
-		failed.ID: {assistantwire.TodoPhaseNeedsYou, assistantwire.TodoListSectionNeedsYou, assistantwire.TodoReasonFailedStart},
-	}
-	for id, w := range want {
-		v := views[id]
-		if [3]string{v.Phase, v.Section, v.Reason} != w {
-			t.Errorf("%s: %s · %s · %s, want %v", id, v.Phase, v.Section, v.Reason, w)
-		}
-	}
-	if l := views[worked.ID].Line; l == nil || l.Key != "working" || l.Args["run"] != "Hedge trimming" ||
-		l.Args["text"] != "measuring the hedge" {
-		t.Errorf("the working run's line: %+v", l)
-	}
-	if c := got.counts(); c.Open != 3 || c.InProgress != 1 || c.NeedsYou != 1 || c.Sections["just_finished"] != 1 {
-		t.Errorf("counts %+v", c)
-	}
-	places := e.s.todoPlaces(ctx, got).Places
-	if len(places) != 4 || places[3].ID != "project:"+plain.Project || places[3].Title != "Garden" {
-		t.Errorf("places %+v", places)
-	}
-
-	// Two days on, the failed start is a To do; its run's session, fetched though no open to-do has a run on that
-	// computer, holds the Inactive mark back.
-	later := now.Add(50 * time.Hour)
-	if v := e.s.todoProjectionOf(ctx, listed.Todos, later).byID()[failed.ID]; v.Reason != assistantwire.TodoReasonRest ||
-		!v.Inactive.IsZero() || !v.NextChangeAt.Equal(moved.Add(48*time.Hour)) {
-		t.Errorf("the failed start two days on: %+v (its run moved at %v)", v, moved)
-	}
-
-	// The rows decode straight into projection.Facts, as the shared cases do, and read the same views.
-	var rows struct{ Todos []projection.Facts }
-	if err := json.Unmarshal(body, &rows); err != nil {
-		t.Fatal(err)
-	}
-	machines := map[string][]proto.Session{}
-	for _, m := range []string{"server", "box"} {
-		machines[m], _ = e.s.sessions(ctx, m)
-	}
-	for i := range rows.Todos {
-		for _, a := range rows.Todos[i].Agents {
-			for _, c := range machines[a.MachineID] {
-				if c.SessionID == a.SessionID {
-					rows.Todos[i].Sessions = append(rows.Todos[i].Sessions, c)
-				}
-			}
-		}
-		rows.Todos[i].Loc = e.s.location(ctx)
-	}
-	for _, at := range []time.Time{now, later} {
-		fromJSON, fromAdapter := projection.Views(rows.Todos, at), e.s.todoProjectionOf(ctx, listed.Todos, at).byID()
-		for i, r := range rows.Todos {
-			if !reflect.DeepEqual(fromJSON[i], fromAdapter[r.ID]) {
-				t.Errorf("%s at %v from the JSON: %+v, from the adapter %+v", r.ID, at, fromJSON[i], fromAdapter[r.ID])
-			}
-		}
-	}
-
-	// A computer that does not answer lists nothing: the failed start's run reads as offline, and the to-do gets no
-	// Inactive mark (nor a moment it would get one), since that run may be working on it.
-	e.f.mu.Lock()
-	e.f.sessionsFail["box"] = 1
-	e.f.mu.Unlock()
-	if v := e.s.todoProjectionOf(ctx, listed.Todos, later).byID()[failed.ID]; v.Reason != assistantwire.TodoReasonRest ||
-		!v.Inactive.IsZero() || !v.NextChangeAt.IsZero() {
-		t.Errorf("the failed start with its computer unreached: %+v", v)
-	}
-}
 
 // On a manager that carries the fleet, as in production, the adapter reads only the sessions of the open to-dos'
 // active runs, never a computer's whole list or its archive's records, and the archive's row of a run the computer no

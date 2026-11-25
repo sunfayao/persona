@@ -53,53 +53,6 @@ func personaRemote(t *testing.T, answers map[string]string) (*Remote, *scripted)
 
 const zhangJSON = `{"handle":"+15550100","name":"张三"}`
 
-func TestChangesGoToTheKnowledgeBase(t *testing.T) {
-	ctx := context.Background()
-	c, n := personaRemote(t, map[string]string{"connector.changes": `{"next":"42","more":true,"batches":[
- {"chat":{"id":"imessage-0123456789ab","name":"张三","members":[` + zhangJSON + `],"services":["SMS"],"last":"2026-10-30T08:00:00Z"},
-  "messages":[
-   {"id":"7","at":"2026-10-30T07:00:00Z","kind":"message","sender":` + zhangJSON + `,"text":"示例：周五见","service":"SMS"},
-   {"id":"8","at":"2026-10-30T07:10:00Z","kind":"message","from_me":true,"text":"好","reply_to":"示例：周五见"},
-   {"id":"9","at":"2026-10-30T07:20:00Z","kind":"message","sender":` + zhangJSON + `,"attachments":[{"kind":"image","name":"IMG_0001.HEIC"},{"kind":"file","name":"路线.pdf"}]},
-   {"id":"10","at":"2026-10-30T07:30:00Z","kind":"message","sender":` + zhangJSON + `,"unsent":true},
-   {"id":"11","at":"2026-10-30T07:40:00Z","kind":"message","sender":` + zhangJSON + `,"undecoded":true}]},
- {"chat":{"id":"imessage-ba9876543210","name":"周末徒步","group":true,"members":[],"services":["iMessage"],"last":"2026-10-30T08:00:00Z"},
-  "messages":[{"id":"12","at":"2026-10-30T07:50:00Z","kind":"event","from_me":true,"text":"你把群名改成「周末徒步」"}]}]}`})
-
-	batches, next, more, err := c.Changes(ctx, "30", 20)
-	if err != nil || next != "42" || !more || len(batches) != 2 {
-		t.Fatalf("%d batches, next %q, more %v, %v", len(batches), next, more, err)
-	}
-	if got := n.sent("connector.changes"); len(got) != 1 || got[0] != `{"cursor":"30","days":30,"id":"imessage","keep":"contacts","limit":300}` {
-		t.Errorf("asked %v", got)
-	}
-	dm := batches[0]
-	if dm.Chat.ID != "0123456789ab" || dm.Chat.Kind != "dm" || dm.Chat.Name != "张三" || batches[1].Chat.Kind != "group" {
-		t.Errorf("chat %+v", dm.Chat)
-	}
-	var lines []string
-	for _, m := range dm.Messages {
-		lines = append(lines, m.SenderName+"|"+m.Text)
-		if !m.Mine && (m.SenderID != PersonKey("+15550100") || strings.Contains(m.SenderID, "555")) {
-			t.Errorf("sender id %q", m.SenderID)
-		}
-	}
-	want := "张三|示例：周五见\n|回复「示例：周五见」：好\n张三|[图片] [文件 路线.pdf]\n张三|（撤回了一条消息）\n张三|[无法显示的消息]"
-	if strings.Join(lines, "\n") != want {
-		t.Errorf("lines:\n%s", strings.Join(lines, "\n"))
-	}
-	if ev := batches[1].Messages[0]; ev.Type != "SYSTEM" || !ev.Mine {
-		t.Errorf("event %+v", ev)
-	}
-
-	// Off: nothing is asked, the cursor stays.
-	c.SetAI(false)
-	batches, next, more, err = c.Changes(ctx, "42", 20)
-	if err != nil || len(batches) != 0 || next != "42" || more || len(n.sent("connector.changes")) != 1 {
-		t.Errorf("off: %d batches, next %q, %v", len(batches), next, err)
-	}
-}
-
 func chatsPage(now time.Time) string {
 	at := func(d time.Duration) string { return now.Add(-d).UTC().Format(time.RFC3339) }
 	return `{"chats":[

@@ -24,7 +24,7 @@ It also rules out writing a second indexer inside Persona. This plan answers how
 | `GET /api/v1/sessions?search=` (#7624) | Title, project, computer, launcher, model, state, latest text (`sessionsearch.Document` in `server/internal/sessionsearch/document.go`; operators `machine:`, `project:`, `harness:`, `since:` in `parseSearch`, `server/internal/sessionlist/search.go`) | The hub's in-memory list index (`runtimeSearchContext`, `server/internal/hub/sessions_search.go`) | Never opens a transcript (`SearchDocument` is "not a transcript"), so an earlier message is never matched |
 | Search in chat (#2977) | Every loaded item of one open chat (`web/src/lib/chat-search.ts`, Android `ChatSearchScreen.kt`) | The client | One session the user already found |
 | `GET /api/v1/assistant/search` (#6282) | The user's words and the replies in assistant chats (`server/internal/assistant/chatsearch/text.go`, `server/internal/db/assistant_search.go`) | The manager's Postgres, filled through `session.items` | Assistant chats only: its design (`docs/design/proposals/assistant-search.md`) leaves Agents' own history to #757, and it is an app endpoint, not a model tool |
-| `kb_search` | Knowledge-base files | The manager (`server/internal/kb/`) | Agent transcripts are not knowledge-base files |
+| `kb_search` | Knowledge-base files | The manager (server/internal/kb/) | Agent transcripts are not knowledge-base files |
 | `agent_read` | The last turns of one named session (`server/internal/prompts/mcp/agents/agent_read.md`) | The manager, through the node | Needs the session id first |
 
 ### How a node reads sessions
@@ -235,7 +235,7 @@ answer, so the App and the manager never know which one ran (`backend` is for th
   syncs its own index before each search (about 0.1 s when nothing changed, per its docs); that is mnemo's behavior on
   a computer where the user installed it.
 
-If scans turn out too slow, the knowledge base's prefilter (`server/internal/kb/search_index_grams.go`: per-file keys
+If scans turn out too slow, the knowledge base's prefilter (server/internal/kb/search_index_grams.go: per-file keys
 that only ever say "this file cannot match") could be lifted into a shared package. That is an index of a kind, so it
 is listed as a decision below, not part of this plan.
 

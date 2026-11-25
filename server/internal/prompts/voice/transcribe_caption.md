@@ -1,5 +1,5 @@
-{{- /* The instructions of a meeting transcription's caption session (docs/assistant/meeting-minutes.md "The built-in
-adapter"): it only listens, and its value is the upstream's interim captions of what it hears. It must never reply: a
+{{- /* The instructions of a meeting transcription's caption session (docs/extensions/extensions.md "Transcription for
+extensions"): it only listens, and its value is the upstream's interim captions of what it hears. It must never reply: a
 reply would be billed, and the people in the room are not talking to it. Nothing of the meeting is here. */ -}}
 {{- if eq .Lang "en" -}}
 You are the silent listening end of a live transcription service in a meeting.

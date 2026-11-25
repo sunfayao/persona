@@ -37,22 +37,26 @@ func TestInboxSourcesAreTheConnectors(t *testing.T) {
 	}
 	b := builtinSources{h}
 	list := connectorSources(b.List(ctx))
-	if len(list) != 1 || list[0].ID != "example" || list[0].Inbox == nil || !*list[0].Inbox || list[0].Archive == nil || !*list[0].Archive ||
-		list[0].InboxEvery != 120 || list[0].ArchiveEvery != 600 || !list[0].Mutable || list[0].Read != nil {
+	if len(list) != 1 || list[0].ID != "example" || list[0].Inbox == nil || !*list[0].Inbox ||
+		list[0].InboxEvery != 120 || !list[0].Mutable || list[0].Read != nil {
 		t.Fatalf("listed: %+v", list)
 	}
-	if err := b.SetFeed(ctx, "example", false, false, subscriptions.Actor{}); err != nil {
+	if err := b.SetFeed(ctx, "example", true, false, subscriptions.Actor{}); err != nil {
 		t.Fatal(err)
 	}
-	if c := listedExample(t, h); c["archive"] != false || c["inbox"] != true {
+	if c := listedExample(t, h); c["inbox"] != false {
 		t.Errorf("the pages' switch is Settings › Connectors' one: %v", c)
 	}
-	code, _ := call(t, h.routes(), "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, `{"inbox":false}`)
-	if l := b.List(ctx); code != 200 || *l[0].Inbox {
+	code, _ := call(t, h.routes(), "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, `{"inbox":true}`)
+	if l := b.List(ctx); code != 200 || !*l[0].Inbox {
 		t.Errorf("and the other way round: %d %+v", code, l[0])
 	}
+	code, _ = call(t, h.routes(), "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, `{"inbox":false}`)
+	if l := b.List(ctx); code != 200 || *l[0].Inbox {
+		t.Errorf("and off again: %d %+v", code, l[0])
+	}
 	var cs connectorSettings
-	if _, err := h.store.Setting(ctx, connectorSettingsKey, &cs); err != nil || (*cs.feeds(connector.FeedArchive))["example"] {
+	if _, err := h.store.Setting(ctx, connectorSettingsKey, &cs); err != nil || (*cs.feeds(connector.FeedInbox))["example"] {
 		t.Errorf("kept for the next start: %+v %v", cs, err)
 	}
 	h.readConnectors(ctx)
@@ -160,8 +164,8 @@ func TestInboxSourcesRoute(t *testing.T) {
 	if !strings.Contains(string(list), `"key":"b.example"`) || !strings.Contains(string(list), `"title":"Inbox Sources"`) {
 		t.Fatalf("the list has the built-in source: %s", list)
 	}
-	post(`{"context":{"ui_version":6,"locale":"en"},"state":"{\"p\":\"builtin\",\"c\":\"example\"}","action":"builtin_dest","values":{"to":"to_kb","to_kb":"false"}}`)
-	if h.connectors.Feeds("example", connector.FeedArchive) {
+	post(`{"context":{"ui_version":6,"locale":"en"},"state":"{\"p\":\"builtin\",\"c\":\"example\"}","action":"builtin_dest","values":{"to":"to_inbox","to_inbox":"false"}}`)
+	if h.connectors.Feeds("example", connector.FeedInbox) {
 		t.Error("the page's switch didn't turn the connector's off")
 	}
 	var in uiRequest

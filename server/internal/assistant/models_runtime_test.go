@@ -67,7 +67,7 @@ func TestModelConfigOffersNoRuntime(t *testing.T) {
 // the save succeeds, the rest of it applies, and no runtime is stored.
 func TestModelPatchIgnoresARuntime(t *testing.T) {
 	s, _, _ := modelService(t)
-	for _, id := range []string{"assistant", purposeMeetingRoom, "agent.new", "kb"} {
+	for _, id := range []string{"assistant", "agent.new", "kb"} {
 		for _, method := range []string{http.MethodPatch, http.MethodPut} {
 			for _, runtime := range []string{`"agentsdk"`, `"cli"`, `null`, `"something-else"`} {
 				body := fmt.Sprintf(`{"revision":%d,"runtime":%s}`, modelRecordOf(t, s, id).Revision, runtime)
@@ -110,10 +110,9 @@ func TestStoredRuntimeReadsAsTheCLI(t *testing.T) {
 				t.Fatalf("purpose: %+v", p)
 			}
 			for name, apply := range map[string]func(map[string]any) error{
-				"assistant":    func(p map[string]any) error { return s.applyModel(ctx, "assistant", p) },
-				"schedule":     func(p map[string]any) error { return s.applyModel(ctx, "schedule", p) },
-				"meeting room": func(p map[string]any) error { return s.applyModel(ctx, purposeMeetingRoom, p) },
-				"other":        func(p map[string]any) error { p["launcher"] = "other"; return s.applyModel(ctx, "assistant", p) },
+				"assistant": func(p map[string]any) error { return s.applyModel(ctx, "assistant", p) },
+				"schedule":  func(p map[string]any) error { return s.applyModel(ctx, "schedule", p) },
+				"other":     func(p map[string]any) error { p["launcher"] = "other"; return s.applyModel(ctx, "assistant", p) },
 				"picked": func(p map[string]any) error {
 					p["launcher"], p["model"] = "claude", "test-picked"
 					return s.applyPickedModel(ctx, p)

@@ -321,7 +321,7 @@ func (s *Service) externalSessionScope(ctx context.Context, machine, sid string)
 		return false
 	}
 	if sess, ok := s.nodeSession(machine, sid); ok {
-		if sess.PaneID != "" || sess.Origin == OriginMeeting || sess.Space != "" {
+		if sess.PaneID != "" || sess.Space != "" {
 			return false
 		}
 		if sess.Cwd != "" {

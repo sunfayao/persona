@@ -13,8 +13,8 @@ import (
 
 func TestGoldenMCPVoiceLanguages(t *testing.T) {
 	for _, lang := range []string{"zh-Hans", "en", "ja"} {
-		for name, set := range map[string][]string{"ordinary": toolNames, "bound": boundTools, "meeting": meetingTools} {
-			tools := toolDecls(set, name == "meeting", lang)
+		for name, set := range map[string][]string{"ordinary": toolNames, "bound": boundTools} {
+			tools := toolDecls(set, lang)
 			b, err := json.MarshalIndent(tools, "", "  ")
 			if err != nil {
 				t.Fatal(err)
@@ -32,13 +32,6 @@ func TestGoldenMCPVoiceLanguages(t *testing.T) {
 					kind, rest := splitMark(prefix + "source text")
 					if kind != want || rest != "source text" {
 						t.Fatalf("localized instruction prefix %s no longer parses", prefix)
-					}
-				}
-			}
-			if name == "meeting" {
-				for _, tool := range tools {
-					if tool.Name == "delegate_task" && tool.Description != prompts.Tool("meeting_delegate_task", lang).Description {
-						t.Fatal("meeting tool used ordinary delegation policy")
 					}
 				}
 			}

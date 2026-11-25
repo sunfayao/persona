@@ -159,25 +159,6 @@ func (h *hubClient) call(ctx context.Context, method, path string, body, out any
 	return json.Unmarshal(raw, out)
 }
 
-type kbHit struct {
-	Path string `json:"path"`
-	Line string `json:"line"`
-}
-
-// searchKnowledge: lines of the knowledge base matching every word of the query, of one kind when kind is not ""
-// (GET /api/v1/kb-search's kind, #3862 phase 6: a hub from before searches every kind, an unknown kind is its 400).
-func (h *hubClient) searchKnowledge(ctx context.Context, query, kind string) ([]kbHit, error) {
-	var out struct {
-		Hits []kbHit `json:"hits"`
-	}
-	q := url.Values{"q": {query}}
-	if kind != "" {
-		q.Set("kind", kind)
-	}
-	err := h.call(ctx, "GET", "/api/v1/kb-search?"+q.Encode(), nil, &out)
-	return out.Hits, err
-}
-
 // agents: the coding agents on every machine, without the Persona tab's own conversations.
 func (h *hubClient) agents(ctx context.Context) ([]proto.Session, error) {
 	var out struct {
@@ -209,25 +190,6 @@ func (h *hubClient) session(ctx context.Context, machine, id string) (*proto.Ses
 		}
 	}
 	return nil, nil
-}
-
-// liveRoom is a recording's room conversation as GET /api/v1/recordings/{id}/live tells it
-// (docs/assistant/meeting-minutes.md "Fields on GET …/live and detail.meta"): its state (an open set), and its ids once
-// it has started.
-type liveRoom struct {
-	State     string `json:"state"`
-	MachineID string `json:"machine_id"`
-	SessionID string `json:"session_id"`
-}
-
-// meetingRoom is recording id's room (GET …/live?parts=room, full credentials: the hub's own token takes it); nil when
-// the recording has none (not a room meeting, or a manager from before rooms).
-func (h *hubClient) meetingRoom(ctx context.Context, id string) (*liveRoom, error) {
-	var out struct {
-		Room *liveRoom `json:"room"`
-	}
-	err := h.call(ctx, "GET", "/api/v1/recordings/"+url.PathEscape(id)+"/live?parts=room", nil, &out)
-	return out.Room, err
 }
 
 // machineOnline: the hub has machine id connected (false when it does not know it).

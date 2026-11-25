@@ -72,9 +72,6 @@ const limitContinueHead = "⏰（Persona 叫你接着做）订阅的用量额度
 // lostTasksHead starts assistant/lost_tasks.
 const lostTasksHead = "⚠️ 运行你的 node 刚重启过"
 
-// kbHintHead starts assistant/routine_kb_hint, which a daily run's prompt may end with.
-const kbHintHead = "（知识库"
-
 var noticeStates = map[string]string{"做完了": "done", "在等用户": "needs", "被模型服务出错打断了": "interrupted", "没开起来": "failed"}
 
 var noticeLines = map[string]string{"done": "做完了", "needs": "在等你", "interrupted": "被打断了", "failed": "没开起来"}
@@ -275,17 +272,11 @@ func clipRunes(s string, n int) string {
 	return string(r[:n-1]) + "…"
 }
 
-// followupDetail is a run's prompt: after the notes under its first line, without the knowledge base hint.
+// followupDetail is a run's prompt: after the notes under its first line.
 func followupDetail(rest string) string {
 	_, body, ok := strings.Cut("\n"+rest, "\n\n")
 	if !ok {
 		return ""
 	}
-	body = strings.TrimSpace(body)
-	if i := strings.LastIndex(body, "\n\n"+kbHintHead); i >= 0 {
-		body = strings.TrimSpace(body[:i])
-	} else if strings.HasPrefix(body, kbHintHead) {
-		body = ""
-	}
-	return body
+	return strings.TrimSpace(body)
 }

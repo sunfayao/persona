@@ -282,8 +282,7 @@ func TestDirectionLimit(t *testing.T) {
 
 func TestGoldenRoute(t *testing.T) {
 	golden(t, "route_input", prompts.RenderRouteInput(prompts.RouteInput{Sentence: "Bring the Android app up to the phone's features",
-		Leaders:  []prompts.RouteLeader{{ID: "lead_a", Title: "Infra", Project: "infra"}, {ID: "lead_b", Title: "Docs"}},
-		Projects: []string{"Example app", "Infra"}}))
+		Leaders: []prompts.RouteLeader{{ID: "lead_a", Title: "Infra", Project: "infra"}, {ID: "lead_b", Title: "Docs"}}}))
 	golden(t, "route_input.empty", prompts.RenderRouteInput(prompts.RouteInput{Sentence: "What's on my calendar today?"}))
 }
 

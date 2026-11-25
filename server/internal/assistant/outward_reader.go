@@ -3,18 +3,11 @@ package assistant
 import (
 	"context"
 	"slices"
-
-	"github.com/nwverse/persona/server/internal/kb"
 )
 
-// Conversations that write to other people (docs/assistant/knowledge.md "Who reads the private parts"). The inbox's
-// AI twin drafts and sends replies to the people who wrote, Lark /agent answers in chats other people read, and a
-// conversation an extension opens hands its answers to that extension, which may send them anywhere. None of them
-// reads the private parts of a person's profile: the user's own words about someone, and the guesses about them
-// (kb.PrivateProfileLine). The hub drops those lines from everything its tools give such a conversation, whatever the
-// tool (kb_get and kb_search, and conversation_read, agent_read or any other that could quote them), and kb_search
-// passes over them so they do not take up its limit. The heading of a profile asking the model not to pass it on stays,
-// but it is no longer what keeps them out.
+// Conversations that write to other people. The inbox's AI twin drafts and sends replies to the people who wrote, Lark
+// /agent answers in chats other people read, and a conversation an extension opens hands its answers to that extension,
+// which may send them anywhere. Tools that read the user's private spaces refuse such a conversation.
 //
 // When it cannot be told where a conversation comes from, it is taken for one of these: reading a little less is the
 // smaller harm. That is the case while the origins cannot be read, and for a conversation not noted yet while a start
@@ -69,21 +62,4 @@ func withOutwardReader(ctx context.Context) context.Context {
 func isOutwardReader(ctx context.Context) bool {
 	v, _ := ctx.Value(outwardReaderKey{}).(bool)
 	return v
-}
-
-// outwardText is text as a tool gives it to the conversation: without the private parts of profiles when outward.
-func outwardText(outward bool, text string) string {
-	if !outward {
-		return text
-	}
-	return kb.WithoutPrivateProfile(text)
-}
-
-// profileSkip is what kb_search passes over for the conversation of ctx: the lines of the private parts of
-// profiles for one that writes to other people, so they do not take up its limit; nothing for the others.
-func profileSkip(ctx context.Context) []func(string) bool {
-	if isOutwardReader(ctx) {
-		return []func(string) bool{kb.PrivateProfileLine}
-	}
-	return nil
 }

@@ -1,7 +1,7 @@
 # Plan: connect Lark through lark-cli when there is no Lark gateway
 
 Status: proposal (#273). Items the user decided are under "Decided"; work follows the "Step-by-step plan", with finished steps checked off. When everything is done, merge the design parts into
-`docs/extensions/feishu.md`, `docs/assistant/knowledge.md`, `docs/assistant/inbox.md` and delete this plan.
+`docs/extensions/feishu.md`, `docs/assistant/inbox.md` and delete this plan.
 
 ## Background
 

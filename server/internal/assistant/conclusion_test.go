@@ -531,7 +531,7 @@ func TestRecommendationIsRecordedOnlyOnceItReachedTheAgent(t *testing.T) {
 	t.Cleanup(func() { agentReachAttempts, agentReachBackoff, agentReachMax = reachA, reachB, reachM })
 	f := newFakeHub().withMachine()
 	f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Title: "上线", Cwd: "/code/app", Agent: "claude", Status: proto.StatusIdle})
-	s := newKBServiceOn(t, f, database)
+	s := newServiceOn(t, f, database)
 	ctx := context.Background()
 	todo, err := s.createTodo(ctx, "上线方式", "定上线方式", "conv1", "")
 	if err != nil {

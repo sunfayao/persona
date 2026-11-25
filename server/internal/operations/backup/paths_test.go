@@ -49,7 +49,7 @@ func TestValidateOutputDirectoryExpandsHome(t *testing.T) {
 
 func TestValidateOutputDirectoryRefusals(t *testing.T) {
 	home := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(home, "data"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, "skills"), 0o700); err != nil {
 		fatal(t, err)
 	}
 	symlink := filepath.Join(home, "linked")
@@ -73,7 +73,7 @@ func TestValidateOutputDirectoryRefusals(t *testing.T) {
 	}{
 		"relative":         {"relative/dir", "absolute"},
 		"root":             {"/", "filesystem root"},
-		"knowledge base":   {filepath.Join(home, "data", "snapshots"), "which the backup collects"},
+		"skills":           {filepath.Join(home, "skills", "snapshots"), "which the backup collects"},
 		"manager files":    {filepath.Join(home, "managers", "assistant", "snapshots"), "which the backup collects"},
 		"symlink":          {symlink, "symbolic link"},
 		"public directory": {public, "readable by other users"},
@@ -231,7 +231,7 @@ func TestRecommendedDevelopmentBackupDirPreservesFinalSymlinkForRefusal(t *testi
 // through one is still refused.
 func TestValidateOutputDirectoryFollowsParentsButRefusesCollectedTargets(t *testing.T) {
 	home := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(home, "data"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, "skills"), 0o700); err != nil {
 		fatal(t, err)
 	}
 	elsewhere := filepath.Join(t.TempDir(), "elsewhere")
@@ -255,14 +255,14 @@ func TestValidateOutputDirectoryFollowsParentsButRefusesCollectedTargets(t *test
 	}
 
 	intoKB := filepath.Join(home, "intolink")
-	if err := os.Symlink(filepath.Join(home, "data"), intoKB); err != nil {
+	if err := os.Symlink(filepath.Join(home, "skills"), intoKB); err != nil {
 		fatal(t, err)
 	}
 	if _, err := ValidateOutputDirectory(home, intoKB); err == nil || !strings.Contains(err.Error(), "which the backup collects") {
-		fatalf(t, "accepted a symlink into the knowledge base: %v", err)
+		fatalf(t, "accepted a symlink into the skills: %v", err)
 	}
 	if _, err := ValidateOutputDirectory(home, filepath.Join(intoKB, "snapshots")); err == nil {
-		fatal(t, "accepted a directory reached through a link into the knowledge base")
+		fatal(t, "accepted a directory reached through a link into the skills")
 	}
 }
 
@@ -271,13 +271,13 @@ func TestValidateOutputDirectoryFollowsParentsButRefusesCollectedTargets(t *test
 // through a symlink.
 func TestValidateOutputDirectoryRefusesTheRuntimeAndItsAncestors(t *testing.T) {
 	home := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(home, "data"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, "skills"), 0o700); err != nil {
 		fatal(t, err)
 	}
 	for name, c := range map[string]struct{ dir, want string }{
-		"the runtime":        {home, "may not contain"},
-		"an ancestor":        {filepath.Dir(home), "may not contain"},
-		"the knowledge base": {filepath.Join(home, "data"), "which the backup collects"},
+		"the runtime": {home, "may not contain"},
+		"an ancestor": {filepath.Dir(home), "may not contain"},
+		"the skills":  {filepath.Join(home, "skills"), "which the backup collects"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ValidateOutputDirectory(home, c.dir); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -299,17 +299,17 @@ func TestValidateOutputDirectoryRefusesTheRuntimeAndItsAncestors(t *testing.T) {
 // A refused path through a symlinked parent leaves no directory behind.
 func TestValidateOutputDirectoryCreatesNothingWhenRefused(t *testing.T) {
 	home := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(home, "data"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(home, "skills"), 0o700); err != nil {
 		fatal(t, err)
 	}
 	intoKB := filepath.Join(home, "intolink")
-	if err := os.Symlink(filepath.Join(home, "data"), intoKB); err != nil {
+	if err := os.Symlink(filepath.Join(home, "skills"), intoKB); err != nil {
 		fatal(t, err)
 	}
 	if _, err := ValidateOutputDirectory(home, filepath.Join(intoKB, "snapshots")); err == nil {
-		fatal(t, "accepted a directory reached through a link into the knowledge base")
+		fatal(t, "accepted a directory reached through a link into the skills")
 	}
-	if _, err := os.Lstat(filepath.Join(home, "data", "snapshots")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Lstat(filepath.Join(home, "skills", "snapshots")); !errors.Is(err, os.ErrNotExist) {
 		fatalf(t, "the refused path was created: %v", err)
 	}
 }

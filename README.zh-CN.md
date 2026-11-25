@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/5ef97ffd-f6d8-4136-834c-ffcddbf56846
 - **手机和电脑无缝衔接**。Claude Code、Codex、opencode、pi、DSH 和 Antigravity CLI 一直跑在你自己的电脑上。手机上实时看、回答、审批，回到桌前接着用同一个会话；具体能力因运行时和引擎而异。[运行时](docs/integrations/runtimes.md) · [引擎](docs/integrations/engines.md)
 - **完整的扩展系统**。工具、Agent 运行时、数据源、渠道、语音都能以扩展接入，有 SDK，也有扩展市场。[扩展](docs/extensions/extensions.md) · [扩展市场](https://github.com/nwverse/persona-extensions)
 - **灵动岛、Siri 和快捷指令**。锁屏上一眼看清所有 Agent；用语音、快捷指令或手表提问、审批、派活，也能让 Siri 打给 Persona。[实时活动](docs/apple/live-activity.md) · [Siri](docs/apple/siri.md)
-- **知识库和收件箱**。聊天、人、项目沉淀成共享记忆；飞书、邮件、GitHub 汇进一个由 AI 分拣的收件箱。[知识库](docs/assistant/knowledge.md) · [收件箱](docs/assistant/inbox.md)
+- **收件箱**。飞书、邮件、GitHub 汇进一个由 AI 分拣的收件箱。[收件箱](docs/assistant/inbox.md)
 - **用上手机里的数据**。通讯录、日历、提醒事项、照片、健康、位置都成了工具，写入要先在手机上确认。[手机工具](docs/apple/phone-tools.md)
 - **连接器和渠道**。接入飞书、邮件、GitHub、iMessage、Telegram、微信；在 App、飞书、微信里或用语音都能找 Persona。[连接器](docs/extensions/connectors.md) · [渠道](docs/extensions/channels.md)
 - **全端客户端**。iPhone、iPad、网页、Android、Apple Watch、Vision Pro 和 Mac，支持中文、英文、日文；CarPlay 提供纯语音对话，需要 iOS 26.4+、Apple entitlement 审批和语音扩展。[客户端](docs/apple/ios.md) · [启用 CarPlay](docs/apple/carplay.md#enabling-it)

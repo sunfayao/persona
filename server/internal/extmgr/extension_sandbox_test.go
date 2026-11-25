@@ -99,7 +99,7 @@ func askLine(path string) string {
 
 // boxedPackage is a package with this test binary in it (a sandbox sees its package only).
 func boxedPackage(t *testing.T) string {
-	return boxedPackageWith(t, `"hub": ["kb.read"], "network": ["allowed.example.org"]`)
+	return boxedPackageWith(t, `"hub": ["agents.read"], "network": ["allowed.example.org"]`)
 }
 
 // boxedPackageWith is boxedPackage with these permissions (the inside of the manifest's "permissions").

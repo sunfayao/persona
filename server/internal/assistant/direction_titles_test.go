@@ -141,24 +141,6 @@ func TestDirectionConversationRenameUsesAPlainName(t *testing.T) {
 	}
 }
 
-func TestDirectionSessionTitleDoesNotOpenTheKnowledgeBase(t *testing.T) {
-	e := directionTitleEnv(t)
-	e.s.kb.dir = t.TempDir()
-	e.f.mu.Lock()
-	e.f.hello.KB = &KBSettings{}
-	e.f.mu.Unlock()
-	t.Cleanup(e.s.kbEnd)
-	if e.s.kb.cur.Load() != nil {
-		t.Fatal("the test's knowledge base was already open")
-	}
-	if got := directionSessionTitle(t, e.s.snapshot(t.Context()), "lead0001"); got != "Platform supervisor" {
-		t.Fatalf("name before the knowledge base opens: %q", got)
-	}
-	if e.s.kb.cur.Load() != nil {
-		t.Fatal("title projection opened the knowledge base on the snapshot path")
-	}
-}
-
 func TestDirectionConversationRenameFromTheAppUpdatesTheName(t *testing.T) {
 	e := directionTitleEnv(t)
 	before, _ := e.s.conversationTitles()

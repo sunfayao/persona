@@ -4,8 +4,6 @@
 电脑：{{ctx .MachineName}}（{{ctx .Machine}}）{{if not .Online}}，现在离线{{end}}
 目录：{{ctx .Cwd}}
 {{with .Branch}}分支：{{ctx .}}
-{{end}}{{if .Projects}}知识库里的项目：
-{{range .Projects}}- {{ctx .Name}}（{{ctx .Slug}}）{{with .OneLine}}：{{ctx .}}{{end}}
-{{end}}{{end}}{{if .Sessions}}最近在这个目录的 agent（新的在前，agent_read 可看）：
+{{end}}{{if .Sessions}}最近在这个目录的 agent（新的在前，agent_read 可看）：
 {{range .Sessions}}- 「{{ctx .Title}}」{{ctx .Agent}}，{{ctx .Status}}，{{.When}}，session {{ctx .ID}}{{with .Cwd}}，在 {{ctx .}}{{end}}
 {{end}}{{end}}</persona-context>

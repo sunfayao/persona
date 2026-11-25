@@ -25,7 +25,7 @@ func TestAPushMakesTheDevicesSourceOffAndKeepsWhatIsNew(t *testing.T) {
 	b := PushItem{Key: "k2", Title: "Bus delayed", Body: "Line 7 runs 10 minutes late.", App: "Example Transit"}
 	out := e.push(phone, a, b)
 	sub := out.Subscription
-	if out.New != 2 || out.Count != 2 || !IsPush(sub) || sub.Source != phone.ID || sub.State != StateOff || sub.ToInbox || sub.ToKB {
+	if out.New != 2 || out.Count != 2 || !IsPush(sub) || sub.Source != phone.ID || sub.State != StateOff || sub.ToInbox {
 		t.Fatalf("first push: %+v", out)
 	}
 	if sub.Label != "Shortcuts on Test iPhone" || sub.SourceName != "Test iPhone" || sub.RecipeOrigin != OriginPush || sub.NextRunAt != nil {
@@ -161,8 +161,8 @@ func TestPushedItemsReachTheInboxOnceItIsOn(t *testing.T) {
 func TestAPushSourceHasNoRecipeScheduleOrPull(t *testing.T) {
 	e := newEnv(t)
 	sub := e.push(phone, PushItem{Key: "a", Title: "x"}).Subscription
-	sub = e.patch(sub.ID, Patch{ToKB: ptr(true), TriageRules: ptr("Everything is FYI."), FallbackTier: ptr("fyi"), Label: ptr("My phone")})
-	if sub.Label != "My phone" || !sub.ToKB || sub.NextRunAt != nil || sub.State != StateOK {
+	sub = e.patch(sub.ID, Patch{TriageRules: ptr("Everything is FYI."), FallbackTier: ptr("fyi"), Label: ptr("My phone")})
+	if sub.Label != "My phone" || sub.NextRunAt != nil || sub.State != StateOK {
 		t.Fatalf("its switches, rules and label: %+v", sub)
 	}
 	r := pushRecipe

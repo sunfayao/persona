@@ -32,7 +32,7 @@ func (ps *extensions) extensionModelCall(ctx context.Context, id string, params 
 		return nil, err
 	}
 	var out json.RawMessage
-	if err := ps.h.kbAsk(ctx, assistantwire.MethodModelsExtensionComplete, assistantwire.ExtensionComplete{Extension: id, StorageID: storageID, Params: params}, &out); err != nil {
+	if err := ps.h.assistantAsk(ctx, assistantwire.MethodModelsExtensionComplete, assistantwire.ExtensionComplete{Extension: id, StorageID: storageID, Params: params}, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -55,7 +55,7 @@ func (ps *extensions) assistantStorageID(ctx context.Context, p *extension.Exten
 	var capability struct {
 		Supported bool `json:"supported"`
 	}
-	if err := ps.h.kbAsk(ctx, assistantwire.MethodExtensionIdentity, map[string]any{}, &capability); err != nil || !capability.Supported {
+	if err := ps.h.assistantAsk(ctx, assistantwire.MethodExtensionIdentity, map[string]any{}, &capability); err != nil || !capability.Supported {
 		return "", i18n.Err("extension-identity.assistant_required")
 	}
 	return p.Record.StorageKey(), nil

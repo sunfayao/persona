@@ -15,11 +15,11 @@ import (
 // Host is a fake hub for a program's own tests, beyond Check: it opens the protocol, then the test calls the program
 // as the hub would (Call), sends it the hub's events (Hear) and answers what it asks (Answer; a connector's secrets
 // are kept in memory, a channel's messages in Received). Every message both ways that the schemas describe
-// (wire.Calls: the connector, the channel, the knowledge base) is held to them, and the test fails on one that does
+// (wire.Calls: the connector and the channel) is held to them, and the test fails on one that does
 // not hold.
 //
 //	h := exttest.Start(t, manifest, exttest.Serve(t, program()))
-//	h.Answer("kb.list", func(json.RawMessage) (any, error) { return wire.KBListResult{Items: []wire.KBEntry{}, Tags: []string{}}, nil })
+//	h.Answer("model.complete", func(json.RawMessage) (any, error) { return wire.ModelCompleteResult{}, nil })
 //	var st wire.ConnectorStatus
 //	h.Call("connector.status", wire.ConnectorParams{Contribution: "example"}, &st)
 type Host struct {
@@ -134,7 +134,7 @@ func (h *Host) call(method string, params, out any) error {
 	return h.h.call(ctx, method, params, out)
 }
 
-// Hear sends the program one of the hub's events (event.kb.changed, event.agent.needs_you…), held to its schema
+// Hear sends the program one of the hub's events (event.todo.changed, event.agent.needs_you…), held to its schema
 // when the schemas describe it.
 func (h *Host) Hear(event string, params any) error {
 	h.t.Helper()
@@ -148,7 +148,7 @@ func (h *Host) Hear(event string, params any) error {
 	return h.h.notify(event, params)
 }
 
-// Answer answers the program's calls of method (kb.list, connector.posts.put…) with f, from now on. A method
+// Answer answers the program's calls of method (model.complete, connector.secrets.load…) with f, from now on. A method
 // without an answer gets {} (a connector's secrets.* are kept in memory).
 func (h *Host) Answer(method string, f func(params json.RawMessage) (any, error)) {
 	h.h.mu.Lock()
@@ -172,7 +172,7 @@ func (h *Host) Events() []Event {
 
 // CheckConnectors holds each connector the manifest contributes to the connector protocol (docs/protocol/connector-protocol.md),
 // the read-only calls the hub makes of what its capabilities declare: status, tools.list, actions.list,
-// inbox.collect, thread.page of the first thread, archive.changes, items.list, snapshot.get and options.get. Each
+// inbox.collect, thread.page of the first thread, snapshot.get and options.get. Each
 // answer holds to the schema (connector.schema.json); a refusal in words is fine (a backend a test cannot reach), not
 // knowing a declared method or the connector is not. It never calls a write (actions.do, inbox.reply). The hub's own
 // check is stricter still (`personad extension test`).
@@ -233,12 +233,6 @@ func CheckConnectors(t testing.TB, manifest []byte, run Run, config ...json.RawM
 		}
 		if has(wire.ConnectorCapabilityThreads) && len(things.Things) > 0 {
 			ask("thread.page", wire.ConnectorThreadParams{Contribution: c.ID, Thread: things.Things[0].Thread, Limit: 20}, nil)
-		}
-		if has(wire.ConnectorCapabilityArchive) {
-			ask("archive.changes", wire.ConnectorChangesParams{Contribution: c.ID, Limit: 50}, nil)
-		}
-		if has(wire.ConnectorCapabilityItems) {
-			ask("items.list", p, nil)
 		}
 		if has(wire.ConnectorCapabilitySnapshot) {
 			ask("snapshot.get", wire.ConnectorSnapshotParams{Contribution: c.ID, TZ: "UTC"}, nil)

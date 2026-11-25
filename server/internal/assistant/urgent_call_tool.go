@@ -87,9 +87,6 @@ func (s *Service) toolUrgentCall(ctx context.Context, machine, self string, args
 	if a.Why != urgentWhyOwner && a.Why != urgentWhyRule {
 		return "", errors.New(`why must be "owner_asked" or "rule"`)
 	}
-	if s.justMeNow(machine, self) {
-		return justMeNotice(s.lang(ctx)), nil
-	}
 	// The lock screen hears there is news, not what it is, when what it would say is redacted (health.go).
 	if space, _ := s.selfSpace(ctx, self); s.exitPolicy(ctx, a.Title+"\n"+a.Body, self, space).Redact {
 		if !s.trackPolicy(ctx, space).Redact {

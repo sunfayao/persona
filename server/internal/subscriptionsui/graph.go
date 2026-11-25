@@ -55,7 +55,7 @@ type GraphSource struct {
 	// Reading: it reads now without a problem. Not signed in, failing, waiting for a new recipe or not connected is
 	// not reading; being slowed down by its service is.
 	Reading bool `json:"reading"`
-	// To are its destinations: "inbox", "kb".
+	// To are its destinations: "inbox".
 	To []string `json:"to"`
 	// Duplicates are the sources that may bring the same things (the list's "Possible duplicate").
 	Duplicates []string `json:"duplicates,omitempty"`
@@ -65,10 +65,10 @@ type GraphSource struct {
 	Ask string `json:"ask,omitempty"`
 }
 
-// GraphDestination is where things go: the Inbox or the knowledge base, with how many sources bring things there
+// GraphDestination is where things go: the Inbox, with how many sources bring things there
 // (Sources) and how many of them are reading now (Reading).
 type GraphDestination struct {
-	ID      string `json:"id"` // "inbox" or "kb"
+	ID      string `json:"id"` // "inbox"
 	Name    string `json:"name"`
 	Line    string `json:"line"`
 	Sources int    `json:"sources"`
@@ -204,7 +204,7 @@ func DrawGraph(ctx context.Context, svc Service, env Env) (Graph, error) {
 		g.Extensions = append(g.Extensions, *e)
 	}
 	slices.SortFunc(g.Extensions, func(a, b GraphExtension) int { return byExt(a.ID, b.ID) })
-	for _, d := range []struct{ id, name string }{{"inbox", "dest.inbox"}, {"kb", "dest.kb"}} {
+	for _, d := range []struct{ id, name string }{{"inbox", "dest.inbox"}} {
 		dest := GraphDestination{ID: d.id, Name: p.t(d.name)}
 		for _, s := range g.Sources {
 			if slices.Contains(s.To, d.id) {
@@ -226,9 +226,6 @@ func subscriptionTo(s subscriptions.Subscription) []string {
 	if s.ToInbox {
 		to = append(to, "inbox")
 	}
-	if s.ToKB {
-		to = append(to, "kb")
-	}
 	return to
 }
 
@@ -236,9 +233,6 @@ func builtinTo(b Builtin) []string {
 	var to []string
 	if b.InboxAlways || b.Inbox != nil && *b.Inbox {
 		to = append(to, "inbox")
-	}
-	if b.Archive != nil && *b.Archive {
-		to = append(to, "kb")
 	}
 	return to
 }

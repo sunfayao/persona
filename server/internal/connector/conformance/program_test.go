@@ -22,7 +22,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/connectorwire"
 	"github.com/nwverse/persona/server/internal/extension"
 	progconf "github.com/nwverse/persona/server/internal/extension/conformance"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -87,23 +86,6 @@ func TestExampleChatWireFixtures(t *testing.T) {
 		"thread.page.json": ignore(func(raw json.RawMessage) (connector.ThreadPage, error) {
 			return checkThreadPage(programThreadLimit, actions, raw)
 		}),
-		"archive.changes.json": ignore(func(raw json.RawMessage) (serve.ChangesResult, error) {
-			return checkChanges("", programArchiveMost, raw)
-		}),
-		"history.chats.json": ignore(checkHistoryChats),
-		"archive.history.json": ignore(func(raw json.RawMessage) (connectorwire.HistoryPage, error) {
-			return checkHistoryPage(connectorwire.HistoryQuery{Chat: "primary.user_example_a"}, raw)
-		}),
-		"archive.history.start.json": ignore(func(raw json.RawMessage) (connectorwire.HistoryPage, error) {
-			return checkHistoryPage(connectorwire.HistoryQuery{Chat: "primary.user_example_a", Before: "3"}, raw)
-		}),
-		"archive.history.unreadable.json": ignore(func(raw json.RawMessage) (connectorwire.HistoryPage, error) {
-			return checkHistoryPage(connectorwire.HistoryQuery{Chat: "primary.group_example_gone"}, raw)
-		}),
-		"archive.history.paced.json": ignore(func(raw json.RawMessage) (connectorwire.HistoryPage, error) {
-			return checkHistoryPage(connectorwire.HistoryQuery{Chat: "primary.group_example_team"}, raw)
-		}),
-		"history.anchors.json":    ignore(checkHistoryAnchors),
 		"login.step.json":         ignore(checkPrompt),
 		"login.step.refused.json": ignore(checkPrompt),
 		"login.step.done.json":    ignore(checkPrompt),
@@ -130,14 +112,11 @@ func TestExampleChatWireFixtures(t *testing.T) {
 }
 
 // A program that answers from the fixtures. edit changes the JSON of a fixture before it is sent (to see what
-// CheckProgram says of a program that drifted); redeliver has the archive give the same again from a later cursor.
+// CheckProgram says of a program that drifted).
 type fixtureProgram struct {
-	edit      map[string]func(map[string]any)
-	redeliver bool
-	wrote     atomic.Bool // the program was asked to write: actions.do, inbox.reply, recall or recall.do
-	// historyAsked counts the history calls (history.chats, archive.history, history.anchors) it answered.
+	edit         map[string]func(map[string]any)
+	wrote        atomic.Bool // the program was asked to write: actions.do, inbox.reply, recall or recall.do
 	catalogAsked atomic.Int32
-	historyAsked atomic.Int32
 	manifest     *extension.Manifest // what CheckProgram is given, when it is not the fixture's
 	signedIn     atomic.Bool
 	announced    sync.Once
@@ -199,29 +178,6 @@ func (f *fixtureProgram) handle(t testing.TB) rpc.Handler {
 				return json.RawMessage(`{"chat":{"id":"primary.user_example_a","name":"示例联系人","kind":"dm"}}`), nil
 			}
 			return f.answer(t, "thread.page.json"), nil
-		case "connector.archive.changes":
-			if args.Cursor == "" || f.redeliver {
-				return f.answer(t, "archive.changes.json"), nil
-			}
-			next, _ := json.Marshal(args.Cursor)
-			return json.RawMessage(`{"next":` + string(next) + `}`), nil
-		case "connector.history.chats":
-			f.historyAsked.Add(1)
-			return f.answer(t, "history.chats.json"), nil
-		case "connector.archive.history":
-			f.historyAsked.Add(1)
-			switch {
-			case args.Chat == "primary.group_example_gone":
-				return f.answer(t, "archive.history.unreadable.json"), nil
-			case args.Chat == "primary.group_example_team":
-				return f.answer(t, "archive.history.paced.json"), nil
-			case args.Before == "3":
-				return f.answer(t, "archive.history.start.json"), nil
-			}
-			return f.answer(t, "archive.history.json"), nil
-		case "connector.history.anchors":
-			f.historyAsked.Add(1)
-			return f.answer(t, "history.anchors.json"), nil
 		case "connector.login.step":
 			switch {
 			case args.Step == "":
@@ -350,144 +306,29 @@ func TestCheckProgramAcceptsADeclaredRecallAndNeverAsksIt(t *testing.T) {
 	}
 }
 
-// declaring is the fixture program with the example connector declaring caps besides its own, in its manifest and in
-// what it answers to initialize.
-func declaring(t *testing.T, caps ...string) *fixtureProgram {
-	t.Helper()
-	add := func(v map[string]any) {
-		c := v["contributes"].(map[string]any)["connectors"].([]any)[0].(map[string]any)
-		for _, cp := range caps {
-			c["capabilities"] = append(c["capabilities"].([]any), cp)
-		}
-	}
-	var m map[string]any
-	if err := json.Unmarshal(fixture(t, "persona-plugin.json"), &m); err != nil {
-		t.Fatal(err)
-	}
-	add(m)
-	raw, _ := json.Marshal(m)
-	declared, err := extension.Parse(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &fixtureProgram{manifest: declared, edit: map[string]func(map[string]any){"initialize.json": add}}
-}
-
-// A program that declares history and history_anchors is asked for its conversations and reads back a few of them
-// (one to its start, one unreadable, one that asks to slow down), and for the owner's messages and the page around one.
-func TestCheckProgramReadsHistory(t *testing.T) {
-	f := declaring(t, "history", "history_anchors")
-	if got := f.check(t); got != "" {
-		t.Fatalf("CheckProgram failed a program with history that says what the fixtures say:\n%s", got)
-	}
-	// history.chats, the dm's two pages, the unreadable group, the paced group, history.anchors and the page around it.
-	if n := f.historyAsked.Load(); n != 7 {
-		t.Fatalf("%d history calls, want 7", n)
-	}
-	if f.wrote.Load() {
-		t.Fatal("CheckProgram asked the program to write while reading history")
-	}
-}
-
-// A program that does not declare history is never asked for it.
-func TestCheckProgramLeavesHistoryUndeclared(t *testing.T) {
-	f := &fixtureProgram{}
-	if got := f.check(t); got != "" {
-		t.Fatal(got)
-	}
-	if n := f.historyAsked.Load(); n != 0 {
-		t.Fatalf("%d history calls to a program that does not declare history", n)
-	}
-}
-
-// What the history import relies on, one program at a time that does not keep to it.
-func TestCheckProgramCatchesHistoryDrift(t *testing.T) {
-	cases := []struct {
-		name, file, want string
-		edit             func(map[string]any)
-	}{
-		{"more without a cursor", "archive.history.json", "more without an older cursor", func(v map[string]any) { delete(v, "older") }},
-		{"a page newest first", "archive.history.json", "oldest first", func(v map[string]any) { slices.Reverse(v["messages"].([]any)) }},
-		{"an unreadable chat with messages", "archive.history.unreadable.json", "unreadable, with", func(v map[string]any) {
-			v["messages"] = []any{map[string]any{"id": "1", "text": "x", "at": "2026-11-04T08:00:00Z"}}
-		}},
-		{"a kind the hub does not know", "history.chats.json", `kind "channel"`, func(v map[string]any) {
-			v["chats"].([]any)[0].(map[string]any)["kind"] = "channel"
-		}},
-		{"an anchor without a reason", "history.anchors.json", "neither mine nor mention", func(v map[string]any) {
-			delete(v["anchors"].([]any)[0].(map[string]any), "mine")
-		}},
-		{"a stop without a reason", "archive.history.paced.json", "without a reason", func(v map[string]any) {
-			v["pace"] = map[string]any{"stop": true}
-		}},
-		{"an empty page with more", "archive.history.json", "more on a page with no messages", func(v map[string]any) {
-			v["messages"] = []any{}
-		}},
-		{"an older cursor at the start", "archive.history.start.json", "an older cursor without more", func(v map[string]any) {
-			v["older"] = "1"
-		}},
-		{"an unreadable chat with more", "archive.history.unreadable.json", "unreadable, with more or a cursor", func(v map[string]any) {
-			v["more"], v["older"] = true, "5"
-		}},
-		{"a chat flag the protocol does not have", "history.chats.json", `unknown field "starred"`, func(v map[string]any) {
-			v["chats"].([]any)[0].(map[string]any)["starred"] = true
-		}},
-		{"one id under two sources", "history.chats.json", "listed twice", func(v map[string]any) {
-			c := v["chats"].([]any)
-			c[1].(map[string]any)["id"] = c[0].(map[string]any)["id"]
-			c[1].(map[string]any)["source"] = "examplefeed"
-		}},
-		{"going forward instead of back", "archive.history.start.json", "after the newer page", func(v map[string]any) {
-			for _, m := range v["messages"].([]any) {
-				m.(map[string]any)["at"] = "2026-11-05T08:00:00Z"
-			}
-		}},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			f := declaring(t, "history", "history_anchors")
-			f.edit[c.file] = c.edit
-			if got := f.check(t); !strings.Contains(got, c.want) {
-				t.Fatalf("CheckProgram should have failed with %q, said:\n%s", c.want, got)
-			}
-		})
-	}
-}
-
-// A declaration the hub would refuse: history without an archive, history_anchors without history.
-func TestCheckProgramRefusesHistoryWithoutItsBase(t *testing.T) {
-	f := declaring(t, "history_anchors")
-	if got := f.check(t); !strings.Contains(got, "declares history_anchors without history") {
-		t.Fatalf("history_anchors without history passed:\n%s", got)
-	}
-}
-
 // What the hub relies on, one program at a time that does not keep to it.
 func TestCheckProgramCatchesDrift(t *testing.T) {
 	first := func(v map[string]any, key string) map[string]any { return v[key].([]any)[0].(map[string]any) }
 	cases := []struct {
 		name, file, want string
 		edit             func(map[string]any)
-		redeliver        bool
 	}{
 		{"a field renamed", "inbox.collect.json", `unknown field "thread_id"`,
-			func(v map[string]any) { x := first(v, "things"); x["thread_id"] = x["thread"]; delete(x, "thread") }, false},
+			func(v map[string]any) { x := first(v, "things"); x["thread_id"] = x["thread"]; delete(x, "thread") }},
 		{"a key in the wrong case", "inbox.collect.json", `"Thread"`,
-			func(v map[string]any) { x := first(v, "things"); x["Thread"] = x["thread"]; delete(x, "thread") }, false},
+			func(v map[string]any) { x := first(v, "things"); x["Thread"] = x["thread"]; delete(x, "thread") }},
 		{"a tool without the prefix", "tools.list.json", `does not start with "examplechat_"`,
-			func(v map[string]any) { first(v, "tools")["name"] = "status" }, false},
+			func(v map[string]any) { first(v, "tools")["name"] = "status" }},
 		{"a page newest first", "thread.page.json", "oldest first",
-			func(v map[string]any) { slices.Reverse(v["messages"].([]any)) }, false},
-		{"a prompt with nothing to do", "login.step.json", "neither fields nor done", func(v map[string]any) { v["fields"] = []any{} }, false},
-		{"a cursor that starts over", "archive.changes.json", "start over", func(v map[string]any) { delete(v, "next") }, false},
-		{"a message delivered twice", "archive.changes.json", "delivered twice", func(v map[string]any) {}, true},
-		{"nothing where the backend has data", "inbox.collect.json", "the backend has data", func(v map[string]any) { v["things"] = []any{} }, false},
-		{"an event with a scope the hub drops", "changed.json", `scope "everything"`, func(v map[string]any) { v["scope"] = "everything" }, false},
-		{"the sign-in's secret said out loud", "status.json", "secret", func(v map[string]any) { v["guide"] = []any{"the key " + goodKey + " works"} }, false},
+			func(v map[string]any) { slices.Reverse(v["messages"].([]any)) }},
+		{"a prompt with nothing to do", "login.step.json", "neither fields nor done", func(v map[string]any) { v["fields"] = []any{} }},
+		{"nothing where the backend has data", "inbox.collect.json", "the backend has data", func(v map[string]any) { v["things"] = []any{} }},
+		{"an event with a scope the hub drops", "changed.json", `scope "everything"`, func(v map[string]any) { v["scope"] = "everything" }},
+		{"the sign-in's secret said out loud", "status.json", "secret", func(v map[string]any) { v["guide"] = []any{"the key " + goodKey + " works"} }},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			f := &fixtureProgram{edit: map[string]func(map[string]any){c.file: c.edit}, redeliver: c.redeliver}
+			f := &fixtureProgram{edit: map[string]func(map[string]any){c.file: c.edit}}
 			if got := f.check(t); !strings.Contains(got, c.want) {
 				t.Fatalf("CheckProgram should have failed with %q, said:\n%s", c.want, got)
 			}

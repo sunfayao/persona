@@ -483,7 +483,7 @@ func TestNorthStarOpensOnlyADailyReport(t *testing.T) {
 		t.Fatalf("daily report facts:\n%s", facts)
 	}
 	report.factsText = facts
-	prompt := taskPrompt(report, now, now, time.UTC, false, false, false)
+	prompt := taskPrompt(report, now, now, time.UTC, false, false)
 	if i, j := strings.Index(prompt, "北极星指标"), strings.Index(prompt, "Write today's report."); i < 0 || i > j {
 		t.Fatalf("the report does not open with the north star:\n%s", prompt)
 	}

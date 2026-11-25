@@ -93,7 +93,7 @@ func (s *Service) Migrate(ctx context.Context, m Migration, on bool, by Actor) (
 			next.Migrated, next.NextRunAt = &now, &now
 		} else {
 			next.Migrated = nil
-			if !next.ToInbox && !next.ToKB {
+			if !next.ToInbox {
 				next.NextRunAt = nil
 			}
 		}

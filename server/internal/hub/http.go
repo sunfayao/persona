@@ -478,7 +478,7 @@ func loggedPath(p string) string {
 	return p
 }
 
-// longLived requests (WebSockets, a plugin's sockets and streams, a meeting's audio socket, a forwarded port's
+// longLived requests (WebSockets, a plugin's sockets and streams, a forwarded port's
 // connections: ports.go) are not slow requests however long they last.
 func longLived(r *http.Request) bool {
 	path := r.URL.Path

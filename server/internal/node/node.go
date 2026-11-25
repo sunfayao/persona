@@ -2679,18 +2679,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
 		return n.findFiles(ctx, in.Cwd, in.Limit)
-	case devicewire.KnowledgeSearch:
-		var in devicewire.KnowledgeSearchRequest
-		if err := json.Unmarshal(params, &in); err != nil {
-			return nil, err
-		}
-		return n.searchKnowledge(ctx, in)
-	case devicewire.KnowledgeRead:
-		var in devicewire.KnowledgeReadRequest
-		if err := json.Unmarshal(params, &in); err != nil {
-			return nil, err
-		}
-		return n.readKnowledge(in)
 	case methodFsWatch: // the folders and Git directories the web panels have open (fswatch.go)
 		return n.fsWatch(params)
 	case methodGitStatus:

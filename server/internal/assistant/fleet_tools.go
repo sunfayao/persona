@@ -39,7 +39,6 @@ func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 		tools = append(tools, toolsNamed(resourceToolNames)...)
 	}
 	if !assistant {
-		tools = append(tools, s.knowledgeFolderTools(ctx)...)
 		tools = append(tools, s.AgentTools()...)       // report_to_supervisor, todo_decisions, todo_decision_add, todo_bind_thread (agentToolNames)
 		tools = append(tools, s.dispatchTools(ctx)...) // dispatch_start, dispatch_read, when agents.dispatch is on (dispatch.go)
 	}
@@ -134,12 +133,6 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 	if err != nil {
 		return nil, err
 	}
-	if _, room, err := s.roomOf(ctx, machine, session); guest && err == nil && room {
-		if s.isWorkMachine(machine) {
-			return []proto.Tool{}, nil
-		}
-		return guestTools(meetingRoomTools(), allowed), nil
-	}
 	if !guest {
 		if guestHint {
 			return []proto.Tool{}, nil
@@ -175,8 +168,7 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 	if s.isWorkMachine(machine) {
 		return []proto.Tool{}, nil
 	}
-	tools := guestTools(s.mcpTools(ctx, assistant), allowed)
-	return slices.DeleteFunc(tools, func(t proto.Tool) bool { return isKnowledgeFolderTool(t.Name) }), nil
+	return guestTools(s.mcpTools(ctx, assistant), allowed), nil
 }
 
 // guestRefuses refuses a guest conversation's call of a tool it was not given (and any call of one the hub cannot
@@ -189,7 +181,7 @@ func (s *Service) guestRefuses(ctx context.Context, machine, session, name strin
 		return proto.TextResult("tool unavailable for the moment: "+name, true), true
 	case !guest && guestHint:
 		return proto.TextResult("unknown tool "+name, true), true
-	case guest && (isKnowledgeFolderTool(name) || !slices.Contains(allowed, name)):
+	case guest && !slices.Contains(allowed, name):
 		return proto.TextResult("unknown tool "+name, true), true
 	}
 	return proto.ToolResult{}, false
@@ -204,9 +196,6 @@ func (s *Service) mcpCall(ctx context.Context, machine, session, name string, ar
 // mcpCallWithOrigin also takes the node's attested conversation origin. It is needed before assistant.send returns:
 // the manager's origin book is written from the returned session afterwards.
 func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name string, args json.RawMessage, assistant bool, origin string) proto.ToolResult {
-	if res, refused := s.meetingRefuses(ctx, machine, session, name, assistant); refused {
-		return res // a meeting's batch started this turn: only reading tools (meeting_turns.go)
-	}
 	if s.isWorkMachine(machine) {
 		if isAgentTool(name) {
 			return s.agentTool(ctx, machine, session, name, args)
@@ -228,9 +217,6 @@ func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name 
 	}
 	if assistantwire.IsA2ATool(name) {
 		return s.a2aTool(ctx, a2aRef{s.canonical(machine), session}, name, args)
-	}
-	if isKnowledgeFolderTool(name) && !assistant {
-		return s.Tool(ctx, ToolCall{Name: name, Arguments: args, MachineID: machine, SessionID: session})
 	}
 	if s.ext != nil { // the connectors', Cua's, ego's: ctx is the node's call (its caller going away withdraws a card)
 		if s.ext.ConnectorTool(name) { // a connector is told where the call comes from (connector_context.go)
@@ -269,11 +255,6 @@ func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name 
 	case name == runtimeCLITool:
 		return proto.TextResult("unknown tool "+name, true)
 	case strings.HasPrefix(name, "phone_"):
-		if name == "phone_notify" && s.justMeNow(machine, session) {
-			// A Just me turn (meeting_justme.go): a phone on the table shows its notifications to the room. As
-			// notify_user's: nothing goes out, the text stays in the conversation, which the meeting page shows.
-			return proto.TextResult(justMeNotice(s.lang(ctx)), false)
-		}
 		if name == "phone_notify" {
 			// Local phone notifications follow the same privacy rule as notify_user: what they say decides.
 			var a map[string]any
@@ -360,9 +341,6 @@ func (s *Service) mailAttachment(ctx context.Context, machine string, req proto.
 		return proto.MailAttachment{}, errors.New(i18n.T(s.lang(ctx), "assistant-privacy.assistant_denied"))
 	}
 	res, refused := s.guestRefuses(ctx, machine, req.SessionID, saveAttachmentTool, req.Guest)
-	if !refused {
-		res, refused = s.meetingRefuses(ctx, machine, req.SessionID, saveAttachmentTool, req.Assistant)
-	}
 	if refused {
 		var why strings.Builder
 		for _, c := range res.Content {

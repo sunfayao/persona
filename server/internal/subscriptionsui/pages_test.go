@@ -134,9 +134,6 @@ func (f *fake) Update(_ context.Context, id string, p subscriptions.Patch, _ sub
 	if p.ToInbox != nil {
 		s.ToInbox = *p.ToInbox
 	}
-	if p.ToKB != nil {
-		s.ToKB = *p.ToKB
-	}
 	if p.IntervalSeconds != nil {
 		s.IntervalSeconds = *p.IntervalSeconds
 	}
@@ -146,7 +143,7 @@ func (f *fake) Update(_ context.Context, id string, p subscriptions.Patch, _ sub
 	if p.FallbackTier != nil {
 		s.FallbackTier = *p.FallbackTier
 	}
-	if s.ToInbox || s.ToKB {
+	if s.ToInbox {
 		s.State = subscriptions.StateOK
 	}
 	s.Revision++
@@ -178,7 +175,7 @@ func newFake() *fake {
 		"sub_outlook": {ID: "sub_outlook", Connector: "apps", Extension: "apps", Source: "outlook", SourceName: "Outlook", Label: "Outlook", Icon: "mail",
 			Recipe: subscriptions.Recipe{Mode: "items", Tool: "search_messages", Kind: "sub_mail", GroupBy: "thread",
 				Fields: &wire.ConnectorSubscriptionFields{Title: "$.subject", Sender: "$.from.name", Time: "$.receivedDateTime", ID: "$.id", Thread: "$.conversationId"}},
-			RecipeOrigin: subscriptions.OriginExtension, RecipeAt: now.Add(-48 * time.Hour), ToInbox: true, ToKB: true, IntervalSeconds: 900,
+			RecipeOrigin: subscriptions.OriginExtension, RecipeAt: now.Add(-48 * time.Hour), ToInbox: true, IntervalSeconds: 900,
 			State: subscriptions.StateOK, LastOKAt: at(-3 * time.Minute), LastNewCount: 2, NextRunAt: at(12 * time.Minute), MinIntervalSeconds: 600, Revision: 4},
 		"sub_slack": {ID: "sub_slack", Connector: "apps", Extension: "apps", Source: "slack", Label: "Slack", Icon: "chat",
 			Recipe: subscriptions.Recipe{Mode: "items", Tool: "list_messages", Kind: "sub_message", GroupBy: "thread"}, ToInbox: true, IntervalSeconds: 900,
@@ -188,7 +185,7 @@ func newFake() *fake {
 			State: subscriptions.StateFailing, Error: &subscriptions.Problem{Code: subscriptions.CodeCallFailed}, FailCount: 4,
 			FailingSince: at(-21 * time.Minute), NextRunAt: at(11 * time.Minute), LastOKAt: at(-36 * time.Minute), Revision: 9},
 		"sub_broker": {ID: "sub_broker", Connector: "apps", Extension: "apps", Source: "broker", Label: "Holdings", Icon: "wallet",
-			Recipe: subscriptions.Recipe{Mode: "snapshot", Tool: "positions", Kind: "sub_update", GroupBy: "source"}, ToKB: true,
+			Recipe: subscriptions.Recipe{Mode: "snapshot", Tool: "positions", Kind: "sub_update", GroupBy: "source"}, ToInbox: true,
 			IntervalSeconds: 86400, DailyAt: "08:00", State: subscriptions.StateOK, LastOKAt: at(-2 * time.Hour), MinIntervalSeconds: 3600, Revision: 1},
 	},
 		runs: map[string][]subscriptions.Run{"sub_github": {
@@ -318,21 +315,18 @@ func TestList(t *testing.T) {
 func TestSwitchesConfirmBeforeTurningOn(t *testing.T) {
 	f := newFake()
 	s := f.subs["sub_outlook"]
-	s.ToKB = false
+	s.ToInbox = false
 	f.subs["sub_outlook"] = s
 	v := draw(t, f, env(i18n.ZhHans, true), state{P: pageSource, ID: "sub_outlook"})
-	in, kb := item(v, "d.to_inbox"), item(v, "d.to_kb")
-	if in.Control == nil || !in.Control.On || in.Control.Action.Confirm != "" {
-		t.Errorf("an on switch asks before turning off: %+v", in.Control)
+	in := item(v, "d.to_inbox")
+	if in.Control == nil || in.Control.On || !strings.Contains(in.Control.Action.Confirm, "信息过滤") {
+		t.Errorf("an off switch does not say what turning it on does: %+v", in.Control)
 	}
-	if kb.Control == nil || kb.Control.On || !strings.Contains(kb.Control.Action.Confirm, "信息处理") {
-		t.Errorf("an off switch does not say what turning it on does: %+v", kb.Control)
-	}
-	res := handle(t, f, env(i18n.ZhHans, true), state{P: pageSource, ID: "sub_outlook"}, "dest", map[string]string{"to": "to_kb", "to_kb": "true"})
-	if p := f.patches["sub_outlook"]; len(p) != 1 || p[0].ToKB == nil || !*p[0].ToKB || p[0].Revision != 4 || p[0].ToInbox != nil {
+	res := handle(t, f, env(i18n.ZhHans, true), state{P: pageSource, ID: "sub_outlook"}, "dest", map[string]string{"to": "to_inbox", "to_inbox": "true"})
+	if p := f.patches["sub_outlook"]; len(p) != 1 || p[0].ToInbox == nil || !*p[0].ToInbox || p[0].Revision != 4 {
 		t.Fatalf("patch: %+v", p)
 	}
-	if c := item(*res.View, "d.to_kb").Control; !c.On {
+	if c := item(*res.View, "d.to_inbox").Control; !c.On {
 		t.Error("the page drawn after does not show the switch on")
 	}
 }
@@ -494,16 +488,15 @@ func TestSetupKeepsTheRecipesSenderAndChatIDs(t *testing.T) {
 	}
 }
 
-// A things subscription (#6296): its source page has no knowledge-base switch (its rows are the Inbox's only), and its
+// A things subscription (#6296): its rows are the Inbox's only, and its
 // recipe page says the rows are provided by the connector, with no setup form (it maps no fields).
 func TestAThingsSubscriptionsPages(t *testing.T) {
 	f := newFake()
 	sub := f.subs["sub_outlook"]
 	sub.Recipe = subscriptions.Recipe{Mode: wire.ConnectorSubscriptionModeThings, Tool: "search_messages", Kind: "sub_mail", GroupBy: "thread"}
-	sub.ToKB = false
 	f.subs["sub_outlook"] = sub
 	v := draw(t, f, env(i18n.En, true), state{P: pageSource, ID: "sub_outlook"})
-	if item(v, "d.to_inbox") == nil || item(v, "d.to_kb") != nil {
+	if item(v, "d.to_inbox") == nil {
 		t.Error("the destinations of a things subscription")
 	}
 	v = draw(t, f, env(i18n.En, true), state{P: pageRecipe, ID: "sub_outlook"})

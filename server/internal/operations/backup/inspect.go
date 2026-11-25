@@ -27,24 +27,17 @@ func (s *inspectionSize) add(entry FileEntry) {
 	s.Bytes += entry.Size
 }
 
-type inspectionKnowledge struct {
-	State    string `json:"state"`
-	Location string `json:"location"`
-	inspectionSize
-}
-
 // inspectionReport projects a verified manifest into shareable aggregate data.
 // Paths, configuration, hashes, and encryption-key identities stay in the bundle.
 type inspectionReport struct {
-	Check                   string              `json:"check"`
-	Format                  int                 `json:"format"`
-	CreatedAt               time.Time           `json:"created_at"`
-	ArchiveBytes            int64               `json:"archive_bytes"`
-	HubDump                 inspectionSize      `json:"hub_dump"`
-	ManagerDump             inspectionSize      `json:"manager_dump"`
-	Runtime                 inspectionSize      `json:"runtime"`
-	KnowledgeBase           inspectionKnowledge `json:"knowledge_base"`
-	DatabaseRestoreVerified bool                `json:"database_restore_verified"`
+	Check                   string         `json:"check"`
+	Format                  int            `json:"format"`
+	CreatedAt               time.Time      `json:"created_at"`
+	ArchiveBytes            int64          `json:"archive_bytes"`
+	HubDump                 inspectionSize `json:"hub_dump"`
+	ManagerDump             inspectionSize `json:"manager_dump"`
+	Runtime                 inspectionSize `json:"runtime"`
+	DatabaseRestoreVerified bool           `json:"database_restore_verified"`
 }
 
 func runInspect(ctx context.Context, args []string, stdout io.Writer) error {
@@ -209,13 +202,6 @@ func inspectEnding(reader io.Reader, size, lastEnd, end int64) error {
 func summarizeInspection(manifest *Manifest, size int64) inspectionReport {
 	result := inspectionReport{
 		Check: "offline_integrity", Format: manifest.Format, CreatedAt: manifest.CreatedAt.UTC(), ArchiveBytes: size,
-		KnowledgeBase: inspectionKnowledge{State: "absent", Location: "unspecified"},
-	}
-	switch {
-	case manifest.KnowledgeBase.External != "":
-		result.KnowledgeBase.Location = "external"
-	case manifest.KnowledgeBase.Relative != "":
-		result.KnowledgeBase.Location = "internal"
 	}
 	for _, entry := range manifest.Files {
 		switch {
@@ -223,16 +209,8 @@ func summarizeInspection(manifest *Manifest, size int64) inspectionReport {
 			result.HubDump.add(entry)
 		case entry.Path == managerDumpPath:
 			result.ManagerDump.add(entry)
-		case strings.HasPrefix(entry.Path, "kb/"):
-			result.KnowledgeBase.add(entry)
 		default:
 			result.Runtime.add(entry)
-		}
-	}
-	if manifest.KnowledgeBase.Present {
-		result.KnowledgeBase.State = "empty"
-		if result.KnowledgeBase.Files > 0 {
-			result.KnowledgeBase.State = "included"
 		}
 	}
 	return result
@@ -249,16 +227,12 @@ func printInspection(output io.Writer, lang i18n.Lang, report inspectionReport) 
 		inspectionSize
 	}{
 		{"backup-inspect.hub", report.HubDump}, {"backup-inspect.manager", report.ManagerDump},
-		{"backup-inspect.runtime", report.Runtime}, {"backup-inspect.knowledge_base", report.KnowledgeBase.inspectionSize},
+		{"backup-inspect.runtime", report.Runtime},
 	} {
 		fmt.Fprintln(&rendered, i18n.T(lang, "backup-inspect.inventory", i18n.Args{
 			"part": i18n.T(lang, part.label), "files": part.Files, "bytes": part.Bytes,
 		}))
 	}
-	fmt.Fprintln(&rendered, i18n.T(lang, "backup-inspect.knowledge_state", i18n.Args{
-		"state":    i18n.T(lang, "backup-inspect.knowledge_"+report.KnowledgeBase.State),
-		"location": i18n.T(lang, "backup-inspect.location_"+report.KnowledgeBase.Location),
-	}))
 	fmt.Fprintln(&rendered, i18n.T(lang, "backup-inspect.verify_hint", i18n.Args{
 		"command": clitext.Named("personad backup verify"),
 	}))

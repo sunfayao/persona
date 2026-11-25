@@ -3,7 +3,7 @@ package prompts
 import "strings"
 
 // VoiceTranscribe is what the built-in voice extension's meeting transcription sessions are told
-// (voice/transcribe_caption, voice/transcribe_verbatim; docs/assistant/meeting-minutes.md "The built-in adapter").
+// (voice/transcribe_caption, voice/transcribe_verbatim; docs/extensions/extensions.md "Transcription for extensions").
 type VoiceTranscribe struct {
 	Lang string // the instructions' language: en, ja, otherwise Chinese
 	// TextLang is the recording's language tag (BCP 47), "" when not known. A hint only: every word is written in the
@@ -34,8 +34,8 @@ func RenderVoiceTranscribeVerbatim(d VoiceTranscribe) string {
 	return render("voice/transcribe_verbatim", voiceTranscribeData{VoiceTranscribe: d, Script: ChineseScript(d.TextLang)})
 }
 
-// ChineseScript is the Chinese script a language tag implies (docs/assistant/meeting-minutes.md "The `transcription`
-// extension point"): Hant for zh-TW, zh-HK, zh-MO and zh-Hant, Hans for any other Chinese tag, "" for another language.
+// ChineseScript is the Chinese script a language tag implies (docs/extensions/extensions.md "Transcription for
+// extensions"): Hant for zh-TW, zh-HK, zh-MO and zh-Hant, Hans for any other Chinese tag, "" for another language.
 func ChineseScript(tag string) string {
 	parts := strings.Split(strings.ToLower(strings.ReplaceAll(tag, "_", "-")), "-")
 	if len(parts) == 0 || (parts[0] != "zh" && parts[0] != "cmn" && parts[0] != "yue") {

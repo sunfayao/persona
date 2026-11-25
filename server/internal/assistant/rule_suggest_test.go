@@ -717,7 +717,7 @@ func TestOwnerDecidedIsKeptWithTheDecision(t *testing.T) {
 	database := todoTestDB(t)
 	f := newFakeHub().withMachine()
 	f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Title: "Ship", Cwd: "/code/app", Agent: "claude", Status: proto.StatusIdle})
-	s := newKBServiceOn(t, f, database)
+	s := newServiceOn(t, f, database)
 	ctx := context.Background()
 	todo, err := s.createTodo(ctx, "Ship", "Ship it", "conv1", "")
 	if err != nil {

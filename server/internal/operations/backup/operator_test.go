@@ -291,8 +291,7 @@ func newBackupFixture(t *testing.T, managerName string) *backupFixture {
 	managerKey := bytes.Repeat([]byte{2}, secretkey.Size)
 	writeFixtureFile(t, filepath.Join(home, "managers", "assistant", "secret.key"), managerKey)
 	writeFixtureFile(t, filepath.Join(home, "managers", "assistant", "tailcat-hub.json"), []byte("tailcat-key"))
-	writeFixtureFile(t, filepath.Join(home, "managers", "assistant", "handles.key"), []byte("handles-key"))
-	writeFixtureFile(t, filepath.Join(home, "data", "facts", "note.md"), []byte("original knowledge"))
+	writeFixtureFile(t, filepath.Join(home, "skills", "facts", "note.md"), []byte("original knowledge"))
 	writeFixtureFile(t, filepath.Join(home, "extensions", "example", "manifest.json"), []byte("{}"))
 	writeFixtureFile(t, filepath.Join(home, "extensions", "example", "run"), []byte("extension executable"))
 	if err := os.Chmod(filepath.Join(home, "extensions", "example", "run"), 0o700); err != nil {
@@ -335,7 +334,7 @@ func (f *backupFixture) mutate(t *testing.T) {
 	f.backend.add(f.hub, f.hub.Database, "hub-two")
 	f.backend.add(f.manager, f.manager.Database, "manager-two")
 	writeFixtureFile(t, filepath.Join(f.home, "hub.json"), []byte(`{"database_url":"`+f.hub.URL+`","token":"changed-token"}`))
-	writeFixtureFile(t, filepath.Join(f.home, "data", "facts", "note.md"), []byte("changed knowledge"))
+	writeFixtureFile(t, filepath.Join(f.home, "skills", "facts", "note.md"), []byte("changed knowledge"))
 	writeFixtureFile(t, filepath.Join(f.home, "managers", "m-abcdef", "manager.json"), []byte("independent manager changed"))
 }
 
@@ -400,7 +399,7 @@ func TestWholeInstallCreateVerifyRestore(t *testing.T) {
 	if err != nil || !bytes.Contains(raw, []byte("hub-token-secret")) {
 		fatalf(t, "hub.json was not restored: %q, %v", raw, err)
 	}
-	raw, _ = os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ = os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	if string(raw) != "original knowledge" {
 		fatalf(t, "knowledge after restore = %q", raw)
 	}
@@ -512,7 +511,7 @@ func TestRestoreFailureRollsBackFilesAndBothDatabases(t *testing.T) {
 	if !bytes.Contains(raw, []byte("changed-token")) {
 		fatalf(t, "files were not rolled back: %q", raw)
 	}
-	raw, _ = os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ = os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	if string(raw) != "changed knowledge" {
 		fatalf(t, "knowledge was not rolled back: %q", raw)
 	}

@@ -20,7 +20,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/modelhttp"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -35,8 +34,6 @@ type Options struct {
 	// in memory only.
 	Store func() Store
 	Logf  func(format string, args ...any)
-	// KB is the knowledge base it keeps (kb.go); nil: none.
-	KB *KBOptions
 	// Devices is the manager's own connections to the computers: with them, what comes from the nodes is its own
 	// (fleet.go); nil (unit tests): no fleet.
 	Devices Devices
@@ -219,12 +216,10 @@ type Service struct {
 	deletedConversations conversationDeleteBook // conversation_delete.go
 	convSpaces           convSpaceBook          // conversation_space.go
 	trackReg             trackRegistry          // track_registry.go
-	spaceRecs            spaceRecordingBook     // space_recordings.go
 	infoTags             infoTagCache           // info_tag.go
 	infoTagWaiting       infoTagPending         // info_use.go
 	captures             captureWork            // capture_sort.go: wakes the loop that sorts quick captures
 	spaceFill            spaceBackfill          // conversation_space_backfill.go
-	outcomeLines         outcomeLines           // todo_outcome.go
 	conversationWrites   sync.RWMutex
 
 	modelPicks modelPickBook // model_pick.go
@@ -276,36 +271,27 @@ type Service struct {
 	askLaters        askLaterBook      // ask_later.go: the questions asked without waiting, still out
 	approvals        approvalBook      // approval_clarify.go: clarified prepared approvals and their result delivery
 	detached         detachedGrantBook // approval_detached.go: one-time continuation grants for command gates
-	// minutesMu is held while confirmed action items of meeting minutes become to-dos (kb_minutes.go): one
-	// confirmation at a time reads and records what the others made.
-	minutesMu  sync.Mutex
-	attend     attendState       // meeting_feed.go: feeding the meetings Persona attends, and their turns
-	room       roomState         // meeting_room_tools.go: the meetings' rooms, their asks and sources
-	meetLive   meetingLiveEvents // meeting_events.go: the meeting_live events, at most one a second per recording
-	justMe     justMeBook        // meeting_justme.go: the Just me turns
-	meetLocks  meetingLocks      // meeting_followup.go: one creation at a time per recording
-	live       contextState      // context.go
-	todos      todoBook          // todos.go
-	work       workBook          // agents_work.go: the Agents business
-	reply      replyBook         // agents_reply.go: the reminders of questions left unanswered
-	chans      channelsBook      // channels.go
-	fbot       feishuBook        // feishu.go
-	tposts     threadPoster      // feishu_thread_posts.go: what a todo tells its chat thread
-	tevents    todoEvents        // todo_events.go: what the extensions are told of the todos
-	tpush      todosPush         // todos.go: the {"type":"todos"} waiting for the rest of its write
-	directions directionBook     // directions.go: the leaders' records and what the extensions were told of them
-	lreports   leaderReportBook  // leader_reports.go: what the leaders' tasks were reported as
-	dtree      directionTreeBook // direction_tree.go: the direction tree the apps were last told of
-	tview      todoViewBook      // todo_view_push.go: what the apps were told each to-do is filed under
-	offers     routeBook         // route.go: the directions offered for New chats
-	standing   standingBoard     // feishu_board.go: the standing "waiting for you" card
-	workbench  workbenchState    // feishu_workbench_pin.go: the pinned workbench
-	companions companionState    // feishu_companions.go: the notices for a companion bot
-	kb         kbState           // kb.go
-	inbox      inboxBook         // inbox_book.go
-	board      boardBook         // workspace_board.go: the workspace board
-	viewEvents viewNotifications // views.go: only coalesced notifications; contents are stored first
-	viewMemo   viewMemo          // views.go: encoded cards for the feed snapshot, checked against the database
+	live             contextState      // context.go
+	todos            todoBook          // todos.go
+	work             workBook          // agents_work.go: the Agents business
+	reply            replyBook         // agents_reply.go: the reminders of questions left unanswered
+	chans            channelsBook      // channels.go
+	fbot             feishuBook        // feishu.go
+	tposts           threadPoster      // feishu_thread_posts.go: what a todo tells its chat thread
+	tevents          todoEvents        // todo_events.go: what the extensions are told of the todos
+	tpush            todosPush         // todos.go: the {"type":"todos"} waiting for the rest of its write
+	directions       directionBook     // directions.go: the leaders' records and what the extensions were told of them
+	lreports         leaderReportBook  // leader_reports.go: what the leaders' tasks were reported as
+	dtree            directionTreeBook // direction_tree.go: the direction tree the apps were last told of
+	tview            todoViewBook      // todo_view_push.go: what the apps were told each to-do is filed under
+	offers           routeBook         // route.go: the directions offered for New chats
+	standing         standingBoard     // feishu_board.go: the standing "waiting for you" card
+	workbench        workbenchState    // feishu_workbench_pin.go: the pinned workbench
+	companions       companionState    // feishu_companions.go: the notices for a companion bot
+	inbox            inboxBook         // inbox_book.go
+	board            boardBook         // workspace_board.go: the workspace board
+	viewEvents       viewNotifications // views.go: only coalesced notifications; contents are stored first
+	viewMemo         viewMemo          // views.go: encoded cards for the feed snapshot, checked against the database
 
 	devs          Devices // the computers (devices.go); nil: no fleet
 	mcpWaitMu     sync.Mutex
@@ -345,13 +331,7 @@ type Service struct {
 	// sessionsSeen, when set, sees every machine's list SessionsChanged is handed (tests).
 	sessionsSeen func(DeviceSessions)
 
-	// asks are the questions of attended meetings being answered (meeting_ask.go); meetingModel stands in for the
-	// meeting.answer model in tests (nil: the configured one).
-	asks         meetingAsks
-	meetingModel kb.Model
-	// hubTr is the meetings transcribed on the hub (meeting_transcribe.go); sockets makes socketMux, ServeSocket's
-	// (meeting_audio.go).
-	hubTr     hubRuns
+	// sockets makes socketMux, ServeSocket's (sockets.go).
 	sockets   sync.Once
 	socketMux *http.ServeMux
 	// navMu: one change of the user's navigation choices at a time, each read and written whole (navigation.go)
@@ -433,8 +413,6 @@ func New(o Options) *Service {
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
 	s.companionRoutes()
-	s.kbInit(o.KB)
-	s.kbRoutes()
 	s.searchRoutes()
 	s.historyRoutes()
 	s.inboxRoutes()
@@ -682,14 +660,14 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 			}
 		}
 	}
-	if p, ok := params.(map[string]any); ok && method == DeviceAssistantSend && p[holdPushesParam] != true && !meetingSource(p) {
+	if p, ok := params.(map[string]any); ok && method == DeviceAssistantSend && p[holdPushesParam] != true {
 		// A meeting's batch is no one speaking there either: its turn is a side exchange (meeting_turns.go).
 		if id, _ := p["session_id"].(string); id != "" && s.supervising(id) {
 			s.releasePushes(ctx, id) // something else speaks there: its turns are pushed again (a supervision message holds them anew)
 		}
 	}
 	var round *roundStart
-	if p, ok := params.(map[string]any); ok && method == DeviceAssistantSend && !meetingSource(p) {
+	if p, ok := params.(map[string]any); ok && method == DeviceAssistantSend {
 		round = s.roundStarting(device, p, roundKind) // read before the send: its conversation is working right after
 	}
 	taskRoot, taskSpaceHeld := taskSpaceRootFromContext(ctx)
@@ -836,9 +814,6 @@ type startParams struct {
 	// NewSessionID starts the conversation under this id (a Claude Code one; another agent picks its own).
 	NewSessionID string `json:"new_session_id,omitempty"`
 }
-
-// kbReady: there is a knowledge base (kb.go; on, opened or about to).
-func (s *Service) kbReady(ctx context.Context) bool { return s.kbOn(ctx) }
 
 // push asks the hub to push n to the user (notify.request).
 func (s *Service) push(ctx context.Context, n Notification) {
@@ -1022,11 +997,9 @@ func (s *Service) userSpokeText(ctx context.Context, r SessionRef, text string) 
 	s.ownerHeard(r.SessionID)
 	s.clearToolLoop([2]string{r.MachineID, r.SessionID}, loopUserInput)
 	s.progressMade(r.MachineID, r.SessionID, time.Now()) // told something: a new stretch (supervise_progress.go)
-	// A meeting's turn under way is the user's from here on (meeting_turns.go).
-	s.meetingTurnUserSpoke(r.MachineID, r.SessionID)
-	s.releasePushes(ctx, r.SessionID) // the user speaks: its turns are pushed as ever (supervise_digest.go)
-	s.withdrawAskUser(r.SessionID)    // a question it waits on is taken back: the user's words are not left behind its turn
-	s.askLaterSpoke(ctx, r.SessionID) // one asked without waiting stays up; that they wrote is kept (ask_later.go)
+	s.releasePushes(ctx, r.SessionID)                    // the user speaks: its turns are pushed as ever (supervise_digest.go)
+	s.withdrawAskUser(r.SessionID)                       // a question it waits on is taken back: the user's words are not left behind its turn
+	s.askLaterSpoke(ctx, r.SessionID)                    // one asked without waiting stays up; that they wrote is kept (ask_later.go)
 	s.unarchiveOnSend(r.MachineID, r.SessionID)
 	if s.suggestDrop(r.MachineID, r.SessionID) { // a message went in: its suggestion is spent (suggest_next.go)
 		s.publishSessions(r.MachineID)
@@ -1040,9 +1013,6 @@ func (s *Service) userSpokeText(ctx context.Context, r SessionRef, text string) 
 // TurnStarted: one of a task's agents is working; what was going to be done about an agent's last turn is off.
 func (s *Service) TurnStarted(ctx context.Context, r SessionRef) {
 	s.approvalAnswerTurnStarted(r)
-	if s.meetingTurnStarted(r.MachineID, r.SessionID, true) {
-		return // a meeting's batch started it: a side exchange (meeting_turns.go)
-	}
 	s.turnStartedObserved(ctx, r, true)
 }
 
@@ -1058,40 +1028,33 @@ func (s *Service) turnStartedObserved(ctx context.Context, r SessionRef, newTurn
 func (s *Service) TurnEnded(ctx context.Context, r SessionRef) {
 	s.a2aSignal()
 	s.approvalAnswerTurnEnded(r)
-	s.turnEnded(ctx, r, s.meetingTurnEnded(r.MachineID, r.SessionID))
+	s.turnEnded(ctx, r)
 }
 
-// turnEnded is TurnEnded; meeting: the turn was a meeting's batch's (meeting_turns.go), a side exchange that is
-// neither a task's progress nor triaged, mirrored or a reason to name the conversation.
-func (s *Service) turnEnded(ctx context.Context, r SessionRef, meeting bool) {
+// turnEnded is TurnEnded.
+func (s *Service) turnEnded(ctx context.Context, r SessionRef) {
 	s.stopTurnEnded(r.MachineID, r.SessionID, time.Now()) // the turn a Stop interrupted, if one did (silent_turns.go)
 	s.clearToolLoop([2]string{r.MachineID, r.SessionID}, loopTurnChanged)
 	go s.registerInlineTurn(context.WithoutCancel(ctx), r)
 	s.afterSettle(context.WithoutCancel(ctx), s.registerInlineTurnSettled, r.MachineID, r.SessionID)
-	if !meeting {
-		s.infoTagTurnEnded(ctx, r.SessionID) // its categories are not known until it is tagged (info_use.go)
-		s.backgroundRoundTurnEnded(ctx, r.SessionID, time.Now())
-		s.availTurnEnded(ctx, r.MachineID, r.SessionID, time.Now()) // an assistant conversation's round (availability.go)
-		s.afterSettle(context.WithoutCancel(ctx), s.taskTurnSettled, r.MachineID, r.SessionID)
-		// A review's reviewer answered (supervise_autoreview.go, agents_session_review.go).
-		go s.autoReviewTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)
-		go s.sessionReviewTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)
-		go s.workTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)    // its triage (agents_work_turns.go)
-		go s.channelTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID) // a channel's answer, the sync mirror
-	}
+	s.infoTagTurnEnded(ctx, r.SessionID) // its categories are not known until it is tagged (info_use.go)
+	s.backgroundRoundTurnEnded(ctx, r.SessionID, time.Now())
+	s.availTurnEnded(ctx, r.MachineID, r.SessionID, time.Now()) // an assistant conversation's round (availability.go)
+	s.afterSettle(context.WithoutCancel(ctx), s.taskTurnSettled, r.MachineID, r.SessionID)
+	// A review's reviewer answered (supervise_autoreview.go, agents_session_review.go).
+	go s.autoReviewTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)
+	go s.sessionReviewTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)
+	go s.workTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID)    // its triage (agents_work_turns.go)
+	go s.channelTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID) // a channel's answer, the sync mirror
 	// A usage limit marks the launcher there until it resets (launcher_health.go).
 	s.afterSettle(context.WithoutCancel(ctx), s.launcherLimitTurnSettled, r.MachineID, r.SessionID)
-	if !meeting {
-		// An assistant turn that failed is logged; a conversation conversation_new opened tells its parent (spawned.go).
-		s.afterSettle(context.WithoutCancel(ctx), s.assistantTurnSettled, r.MachineID, r.SessionID)
-		s.afterSettle(context.WithoutCancel(ctx), s.inboxAgentTurnSettled, r.MachineID, r.SessionID)
-		// What the turn said is tagged with its information categories (info_tag.go).
-		s.afterSettle(context.WithoutCancel(ctx), s.infoTagTurnSettled, r.MachineID, r.SessionID)
-	}
-	if !meeting {
-		s.spawnPinAfterTurn(ctx, r.MachineID, r.SessionID)
-		s.titleAfterTurn(ctx, r.MachineID, r.SessionID)
-	}
+	// An assistant turn that failed is logged; a conversation conversation_new opened tells its parent (spawned.go).
+	s.afterSettle(context.WithoutCancel(ctx), s.assistantTurnSettled, r.MachineID, r.SessionID)
+	s.afterSettle(context.WithoutCancel(ctx), s.inboxAgentTurnSettled, r.MachineID, r.SessionID)
+	// What the turn said is tagged with its information categories (info_tag.go).
+	s.afterSettle(context.WithoutCancel(ctx), s.infoTagTurnSettled, r.MachineID, r.SessionID)
+	s.spawnPinAfterTurn(ctx, r.MachineID, r.SessionID)
+	s.titleAfterTurn(ctx, r.MachineID, r.SessionID)
 }
 
 // afterSettle runs settled for machine's session sid once its turn stayed still (settleDelay, read now), on a timer:

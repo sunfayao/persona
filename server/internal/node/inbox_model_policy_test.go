@@ -109,8 +109,7 @@ func TestInboxClaudeReadOnlyLocalResourceRules(t *testing.T) {
 	cwd := filepath.Join(n.dir, "assistant")
 	skillRoot := filepath.Join(home, ".claude", "skills")
 	linkedSkill := filepath.Join(home, "skill-checkout")
-	linkedData := filepath.Join(home, "knowledge")
-	for _, dir := range []string{skillRoot, linkedSkill, linkedData, n.dir} {
+	for _, dir := range []string{skillRoot, linkedSkill, n.dir} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -118,11 +117,8 @@ func TestInboxClaudeReadOnlyLocalResourceRules(t *testing.T) {
 	if err := os.Symlink(linkedSkill, filepath.Join(skillRoot, "linked")); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(linkedData, filepath.Join(n.dir, "data")); err != nil {
-		t.Fatal(err)
-	}
 	// A link's target is allowed by its physical path: macOS's temporary directory is behind a link.
-	for _, dir := range []*string{&linkedSkill, &linkedData} {
+	for _, dir := range []*string{&linkedSkill} {
 		physical, err := filepath.EvalSymlinks(*dir)
 		if err != nil {
 			t.Fatal(err)
@@ -149,7 +145,7 @@ func TestInboxClaudeReadOnlyLocalResourceRules(t *testing.T) {
 		return tool + "(/" + path + "/**)"
 	}
 	var readRules []string
-	for _, dir := range []string{skillRoot, filepath.Join(n.dir, "skills"), filepath.Join(n.dir, "data"), linkedSkill, linkedData} {
+	for _, dir := range []string{skillRoot, filepath.Join(n.dir, "skills"), linkedSkill} {
 		rule := fileRule("Read", dir)
 		readRules = append(readRules, rule)
 		if !slices.Contains(allowed, rule) {

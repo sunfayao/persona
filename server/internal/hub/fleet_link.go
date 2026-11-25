@@ -757,16 +757,6 @@ func (h *Hub) fleetAppCall(ctx context.Context, from string, p assistantwire.App
 
 // ---- the pushes the manager decided on ----
 
-// pushRecordingID is the recording id a manager's push names (assistantwire.Notification.RecordingID), lowercased, or
-// "" when it is not a recording id (a UUID): the push carries it as it is and an app opens it.
-func pushRecordingID(id string) string {
-	id = strings.ToLower(strings.TrimSpace(id))
-	if !clientOpUUID.MatchString(id) {
-		return ""
-	}
-	return id
-}
-
 // deliverPush is deliverPushFrom the assistant the hub starts.
 func (h *Hub) deliverPush(n assistantwire.Notification) error {
 	_, err := h.deliverPushFrom(assistantwire.AssistantID, n)
@@ -822,13 +812,12 @@ func (h *Hub) deliverPushFrom(from string, n assistantwire.Notification) (out *p
 	case assistantwire.NotifyPush: // one with an id shows once, sent again however late (a day recap's push)
 		policy := pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, !n.Asked)}
 		policy.level = h.pushGradingNotifyLevel(n, policy.level)
-		o := h.notifyDoneUnder(from, "assistant", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, pushWants{}, managerPushCollapseID(from, n.ID),
-			pushRecordingID(n.RecordingID), policy)
+		o := h.notifyDoneUnder(from, "assistant", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, pushWants{}, managerPushCollapseID(from, n.ID), policy)
 		out = &o
 	case assistantwire.NotifyDone:
 		o := h.notifyDoneUnder(from, "done", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body,
 			pushWants{Kind: "done", Took: time.Duration(n.TookMS) * time.Millisecond, Long: time.Duration(n.LongMS) * time.Millisecond},
-			"", "", pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, false)})
+			"", pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, false)})
 		out = &o
 	case assistantwire.NotifyReply:
 		h.notifyReplyKeyed(from, n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, n.RelatedKey)

@@ -1,7 +1,7 @@
 # Connectors
 
 A connector is Persona's standard way to connect a data source: GitHub, Messages (iMessage), Telegram, Lark and mail each have one. The hub's pipelines
-(assistant tools, write gates, Inbox, knowledge base, status in Settings › Connectors, live events) attach automatically according to what the connector provides; adding a source does not require changing those pipelines.
+(assistant tools, write gates, Inbox, status in Settings › Connectors, live events) attach automatically according to what the connector provides; adding a source does not require changing those pipelines.
 
 This document has three parts:
 
@@ -56,7 +56,6 @@ unknown capabilities, or kinds without an Inbox capability all fail registration
 | `tools` / `actions` | `ReadTools` / `Actions` | Read-only tools; writes (`Describe` produces the card text and returns errors for bad parameters without showing a card; `Do` performs the write). A connector that knows the id of the message a write made also implements `RefActions` (`DoRef`: `Do`'s text and that id, for the sent-as-user ledger), and one that can take such a message back implements `Recaller` (`CanRecall`, `Recall`; "Sent as the user" below); one whose read tools can answer subscriptions with JSON implements `ReadJSON` (`CallJSON`; [subscriptions.md](subscriptions.md) "Existing connectors"); one whose read tools answer with pictures for the model implements `ImageTools` (`CallImages`: the text and its `ToolImage`s, held to the limits of `connector.ToolResult`; [connector-protocol.md](../protocol/connector-protocol.md) "Pictures in a tool's answer", #8484); all four are found by type assertion, declare nothing and are optional (a program's connector, which implements every interface, is a `Recaller` only when it declares the capability `recall`) | See above |
 | `options` | `Options` | Connector-specific settings (JSON), edited in the App | GitHub |
 | `events` | `Events` | Live events, `changed(Scope)`; `Scope` is a typed constant, validated when received from subprocesses. Any scope also brings forward the connector's subscriptions' runs (`docs/extensions/subscriptions.md` "Running") | Each has its own |
-| `archive`, `chats`, `items` | `Archive`, `Chats`, `Items` | Three shapes for knowledge-base ingestion | See above |
 | `inbox`, `settle` | `Inbox`, `InboxSettler` | Inbox candidates and replies (`Reply` receives the full `InboxReply`: conversation, item, which step it answers, body); settle old items by rule | GitHub, Messages, Telegram; `settle` only GitHub |
 | `login` | `Login` | Stepwise login | Telegram, larkcli |
 | `threads` | `Threads` | Opens an Inbox conversation as a chat page in the App: `Thread(thread, before, limit)` returns a page of messages (sender, avatar, media, references, cursor); `Media(ref)` supplies avatar/media bytes. Read-only; replies use the action named in `ThreadChat.Reply` (gated). The App selects a page by `ThreadChat.Kind`: bubbles for dm / group / channel, GitHub layout for pr / issue. A message whose `format` is `markdown` is drawn from its Markdown, and lark-cli's envelope for one interactive message (`<card title="…">…</card>`) as a card under its title. lark-cli's page takes its kind from the chat's own record (`docs/protocol/protocol.md`); a Lark page with an empty kind (a hub before that) is a chat too | Telegram (#1054), GitHub (#1055, `docs/plans/plan-connectors.md` ("Conversation page")), Lark via lark-cli |
@@ -123,7 +122,6 @@ the hub drops unknown tiers and leaves classification to the model.
 Every write that went out through the gate is kept in the ledger `sent_as_user` (migration `manager/0420`, #5278), so the user can see what Persona wrote in their name, where, and why it was allowed. The ledger is on the manager's side: the gate runs there, and so do the approval card and the conversation that asked.
 
 - **What is a row**: a gated call (`Registry.Call`) whose action (`Do`) returned without an error; `Registry.SetSent` tells the manager (`recordSent` in `extmgr/sent_ledger.go`). Not a row: a write the gate denied, one the user declined on the phone, one whose `Do` failed (a program's `Do` that timed out may have happened anyway; nothing is kept for it), and everything the user sent by their own hand (`Registry.Run`: the conversation-page composer, Inbox "Send", Lark sends). Taking a row's message back is described below (**Recall**). An extension's connector that sends in the user's name by itself, outside the gate, and says so in its manifest (`contributes.connectors[].sends_as_user`), can put such a send in the ledger with `sent.record` (below). The assistant's Lark writes through the node's gate proxy come in with `lark.sent` (below).
-- **Archive provenance** (#2814): extensions granted both `kb.read` and `sent.read` can read `kb.day` origin marks (`sent_by`, `sent_ledger_id`, and `recalled_at` for recalled sends). Only unique matches are marked; recall preserves authorship, and an unmarked line is not proof the user typed it. This reads the existing ledger without changing sending or confirmation. Matching rules, permission status, and known gaps are in [Knowledge base RPC](extensions.md#knowledge-base-rpc-1908).
 - **Columns**: `id`, `at`, `connector`, `action`, `target` (where it went), `text` (what it said, at most 4000 characters), `summary` (one line), `origin`, `let_through`, `message_ref`, `recalled_at`.
   - `target` is read from the arguments: GitHub comments and reviews `{ref: "owner/name#12"}` (a review also `event`); mail `{to, cc?, bcc?, subject, account_id?}`; any other connector (an extension's too) the fields they usually name a destination by (`chat`, `thread`, `channel`, `conversation`, `recipient`, `to`, `reply_to`, `subject`, `repo`, `number`), and when none is there `{arg_keys: [...]}`, the names of the arguments it was given.
   - `summary` is the first line of the card's words when the user was asked, else the action and its target; for an extension's own record the line it gave, else `<connector>: <target fields>`.
@@ -180,47 +178,12 @@ The built-in `larkcli` connector keeps its cursor, bounded message-id overlap se
 
 **Maintainer opt-in addition (separate from L4):** `larkcli` exposes the connector option `inbox_all_chats`, a list of chat ids. When the list is non-empty, every new message from those chats is collected in addition to the L4 rules (the user's own messages are still dropped). It is off by default and can be removed independently if broad chat collection proves too noisy.
 
-### Knowledge-base ingestion
-
-- `Archive`: one cursor per account; `Changes(cursor)` returns changed conversations. The hub stores the cursor in `cursors/<id>.json`; conversation ids are `<connector id>-<conversation id>`.
-- **What the knowledge base's selection reads** (#1523): the selection decides which chats and documents are kept by
-  what the connector reports, so every connector that reports it behaves the same. A batch's chat (`kbwire.SourceChat`)
-  has a kind (the kind rules match dm / group / bot / official / system; other kinds such as mail, issue or pr match
-  none) and the owner's flags `muted`, `collapsed` and `done`; a message has `mine`, `mentioned` (the owner by name: the
-  connector decides what counts) and `mentioned_all` (an @all / @everyone, reported apart so the selection's
-  `include_all` can decide), on `Changes` batches as on history pages; a document (`kbwire.Item`) has `signals`, the ones it can tell of `mentions`,
-  `comment_mentions`, `authored` and `viewed`. All of them are optional: a connector that cannot tell one leaves it out,
-  and its chats or documents never match that rule (a document with no signals at all is kept as before the selection).
-  Per-item settings are keyed by the stable chat id `HistoryChats`
-  lists (`GET /api/v1/kb/selection/candidates` shows that list), or by a document's item id, and the history import reads what the selection says,
-  so a connector has nothing of its own to decide about which chats are imported.
-- `Chats`: for sources like Lark with per-conversation cursors and attachments, provide `kb.Source` directly; archiving, compression and tagging stay unchanged. Older history is imported separately (`docs/assistant/knowledge.md`, "History import").
-- `History` (capability `history`, requires `archive`): a conversation's older history, which `Changes` never reaches.
-  `HistoryChats` lists the conversations that can be imported (kind dm / group / bot / official / system, the
-  `muted` / `collapsed` / `done` flags, a rough message count; a conversation id is unique across the connector's archive sources, since a query names it by
-  id alone); `History` reads one page of one conversation (before / after / around a position, or the
-  newest page). Optional `HistoryAnchors` (capability `history_anchors`) searches for the messages the owner sent or
-  was mentioned in, so a conversation can be imported as windows around them (each anchor says the source its
-  conversation is filed under, since one the account left is often missing from `HistoryChats`). All read-only. The knowledge base drives
-  the import through the hub's bus methods `connectors.history_chats`, `connectors.history` and
-  `connectors.history_anchors` (`assistantwire/kb.go`); extmgr routes them only to a connector that archives into the
-  knowledge base now and declares the capability, checks the query and cuts its limit to 200, and passes the answer and
-  any error back as they are. `connectors.archives` says which connectors have them (`history`, `history_anchors`).
-  What the caller relies on (`docs/protocol/connector-protocol.md` "History"): a page's limit is a hint and a source may
-  answer more, so the caller goes on from the cursors it answers; `more` false or an empty page is the start of the
-  conversation, unless the answer is paced or unreadable (`HistoryPage.AtStart`); a conversation the account can no longer read is `unreadable` (skip it, not a failure); `pace` asks the
-  caller to wait (`retry_after_ms`) or stop for a person (`stop`, `reason`); a read that timed out is never retried by
-  the caller.
-- `Items`: Lark documents, meetings and calendar events.
-
 ### Settings › Connectors
 
 `GET /api/v1/connectors?all=1` (without `all`, omits Lark and mail for pre-M6 Apps); each entry is `{id, name, status, account, via, error, guide, guide_url?, missing_scopes?, capabilities, hosts, enabled, options, archive, inbox}`. `guide_url` is an optional HTTPS page the App may open for a connector-specific fix; `missing_scopes` names permissions when available.
-`archive` / `inbox` are the "Add to knowledge base" / "Add to Inbox" toggles (`Registry.SetFeed`, on by default, stored in hub settings). Turning knowledge-base ingestion off stops new content from its conversations, documents, meetings, calendar events and posts: the connector is omitted from both knowledge-base source lists, calls to `Archive`, `Items` and document-title lookup are refused, and the program's `kb.posts_*` calls are refused too. Content already saved stays. The connector keeps running and tools remain available. Turning the connector's main `enabled` switch off also blocks these knowledge-base paths, even if its extension process remains running for another capability.
+`inbox` is the "Add to Inbox" toggle (`Registry.SetFeed`, on by default, stored in hub settings).
 Changing an extension's connector's `enabled` switch restarts that extension (`setConnectorEnabled`, #10467), so its program's new `initialize` lists in `active.connectors` only the connectors that are on, and work it does for a connector on its own (a listener, replies) can stop with the switch; the hub's own connectors and a switch that changes nothing restart nothing (`docs/extensions/extensions.md` "Turning contributions on and off").
-"Delete stored knowledge-base content" (`DELETE …/{id}/archive`) turns knowledge-base ingestion off and deletes the connector's conversations and people, including its `archive_sources`, archived posts, and documents, meetings and events. It also removes their indexes and project associations and resets archive cursors and deleted chats' history-import state. The connector keeps running; Inbox entries and tools stay available.
-"Delete stored data" (`DELETE …/{id}/data`) performs the same knowledge-base cleanup, disables the connector itself, and deletes its Inbox entries. Both responses include `chats`, `people`, `posts`, `items` and `inbox` counts (`inbox` is zero for knowledge-base-only deletion). Deletion does not sign out or change data at the remote service.
-Ownership is recorded when data enters the knowledge base. Older records without ownership are deleted only when their source or source chat identifies this connector; ambiguous records are retained to protect other sources. See `docs/assistant/knowledge.md` ("Deleting a connector's saved knowledge") for the legacy and shared-source rules. Disabling Inbox ingestion stops `Collect` without changing existing inbox items.
+"Delete stored data" (`DELETE …/{id}/data`) disables the connector itself and deletes its Inbox entries.
 The App draws the whole section from this list: Lark and mail retain their original rows (status still comes from their own APIs), Messages has its own page, and others use the generic connector page. On web Settings › Connectors, the `larkcli` status lives in the Lark bot group. API details in `docs/protocol/protocol.md` ("Connector API").
 
 Audit: signing in or out, the switch, the two feeds, the connector's own settings, deleting its data or knowledge base content and GitHub's token source are recorded in `plugin_audit`
@@ -323,7 +286,7 @@ type Batch struct {
 - `Items`: merge into `Batch.Items`; `DocTitle` (document-title lookup by link) is not a "change", so remains an optional query (later merged into "Links" in the v1 plan).
 - Lark conversations: an adapter `connector.PerChat(kb.Source)` wraps per-conversation cursors into a composite cursor, moving the engine's conversation-selection logic into the adapter.
   **Lark is the largest source and this is the highest-risk step, so do it last**, with the M0 comparison baseline (then the hub's connector_baseline_test.go, removed with the hub's Lark source in #1571) and real-data comparison required.
-- **Kept separate**: reading older history (the opposite direction from "since last time") is its own optional capability, `history` (`History`, read through the hub's `connectors.history*` bus methods), not part of `Changes`; the old `kb.Backfiller` / `Engine.Backfill` path is gone; the assistant's history import drives it (`docs/assistant/knowledge.md`, "History import"). Attachments (`Download`) remain optional `Media`.
+- **Kept separate**: reading older history (the opposite direction from "since last time") is its own optional capability, `history` (`History`, read through the hub's `connectors.history*` bus methods), not part of `Changes`; the old `kb.Backfiller` / `Engine.Backfill` path is gone; the assistant's history import drives it. Attachments (`Download`) remain optional `Media`.
   Forcing them into `Changes` makes one cursor represent two directions and harder to understand.
 
 Size: **medium** (almost mechanical for four connectors) **to large** (Lark). Moments moves with Lark.

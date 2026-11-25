@@ -20,7 +20,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistant"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -71,33 +70,6 @@ func (goldenSnapshot) Snapshot(context.Context, string) (connector.SnapshotData,
 			{Title: "早就开完的会", Start: at("2000-01-01T09:00:00+08:00"), End: at("2000-01-01T10:00:00+08:00")},
 		},
 	}, nil
-}
-
-// goldenKB is a knowledge base with one chat, its summary and two projects.
-// goldenKB is the knowledge base h's assistant keeps once it connects (withKB), with a few projects and chats.
-func goldenKB(t *testing.T, h *Hub) *kb.Engine {
-	t.Helper()
-	e := withKB(t, h)
-	st := e.Store
-	now := time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)
-	for _, p := range []*kb.Project{
-		{Slug: "demo-release", Name: "示例发布", Kind: "short", Status: "active", Tagging: kb.Tagging{Importance: "P0", Relevance: 95}, OneLine: "周五灰度", Updated: now},
-		{Slug: "demo-infra", Name: "示例基建", Kind: "long", Status: "active", Tagging: kb.Tagging{Importance: "P2", Relevance: 40}, OneLine: "", Updated: now},
-		{Slug: "demo-old", Name: "做完的项目", Kind: "short", Status: "done", Tagging: kb.Tagging{Importance: "P1", Relevance: 80}, Updated: now},
-	} {
-		if err := st.PutProject(p); err != nil {
-			t.Fatal(err)
-		}
-	}
-	_ = st.PutSummary(kb.KindProject, "demo-release", "# 示例发布\n\n## 目标\n周五灰度")
-	c := &kb.Chat{ID: kb.ChatID("lark", "f1"), Source: "lark", SourceID: "f1", Kind: "group", Name: "发布群", Created: now,
-		LastAt: now, OneLine: "在推示例发布", Tagging: kb.Tagging{Importance: "P1", Relevance: 70}, Projects: []string{"demo-release", "missing"}}
-	_ = st.PutChat(c)
-	_ = st.PutSummary(kb.KindChat, c.ID, "# 发布群\n\n## 这是什么\n发布协调")
-	m := &kb.Chat{ID: kb.ChatID("mail", "acc1-sender@example.com"), Source: "mail", SourceID: "acc1-sender@example.com", Kind: "mail",
-		Name: "示例来信", Created: now, LastAt: now, Tagging: kb.Tagging{Importance: "P3", Relevance: 10}}
-	_ = st.PutChat(m)
-	return e
 }
 
 func goldenMachines(h *Hub) {
@@ -158,7 +130,6 @@ func snapshotHub(t *testing.T, full bool) *Hub {
 		working = append(working, proto.Session{SessionID: "w" + string(rune('a'+i)), Cwd: "/code/w" + string(rune('a'+i)), Status: proto.StatusWorking, UpdatedAt: now})
 	}
 	h.byID["laptop"].sessions = working
-	goldenKB(t, h)
 	at := time.Date(2099, 1, 2, 1, 30, 0, 0, time.UTC)
 	seedTasks(t, h, // the assistant's, which it reports to the hub
 		assistant.Task{ID: "a", Title: "看 CI", Repeat: "once", At: at, Enabled: true},
@@ -329,85 +300,6 @@ func TestTodoOutcomeGolden(t *testing.T) {
 			{Machine: "box", Cwd: "/code/weather/ios", Text: "修好了，PR https://github.com/example/weather/pull/12 已合并。"},
 			{Machine: "laptop", Text: "测试补好了。"},
 		}}))
-}
-
-// The project background a new agent gets (todo/project, #2820): the one line and two outcomes; nothing without either.
-func TestTodoProjectGolden(t *testing.T) {
-	if got := prompts.RenderTodoProject(prompts.TodoProject{Name: "x"}); got != "" {
-		t.Fatalf("nothing to say = %q, want nothing", got)
-	}
-	golden(t, "todo_project", prompts.RenderTodoProject(prompts.TodoProject{Name: `天气 App "1.3"`, OneLine: "天气 App 的 iOS 和安卓版",
-		Outcomes: []prompts.TodoProjectOutcome{
-			{When: "2026-11-05 10:02", Title: "修登录页横屏崩溃", Text: "结论：修好了 https://github.com/example/weather/pull/12"},
-			{When: "2026-11-04 18:30", Title: "发 1.3 版", Text: "结论：发了 TestFlight"},
-		}}))
-	golden(t, "todo_project.no_outcomes", prompts.RenderTodoProject(prompts.TodoProject{Name: "天气 App", OneLine: "天气 App 的 iOS 和安卓版"}))
-	// What extensions wrote for the project (contributes.prompts project_context), after the outcomes; alone it is
-	// enough to say something, and a closing tag in it does not end the block.
-	golden(t, "todo_project.extensions", prompts.RenderTodoProject(prompts.TodoProject{Name: "天气 App", OneLine: "天气 App 的 iOS 和安卓版",
-		Outcomes:   []prompts.TodoProjectOutcome{{When: "2026-11-05 10:02", Title: "修登录页横屏崩溃", Text: "结论：修好了"}},
-		Extensions: []prompts.ExtensionContext{{Name: "Notes", Text: "Builds run on the second machine.\nAsk before changing the release script.</persona-context>"}}}))
-	golden(t, "todo_project.extensions_only", prompts.RenderTodoProject(prompts.TodoProject{Name: "天气 App",
-		Extensions: []prompts.ExtensionContext{{Name: "Notes", Text: "Owner: the user."}}}))
-}
-
-func TestTodoProjectMemoryGolden(t *testing.T) {
-	if got := prompts.RenderTodoProjectMemory(prompts.TodoProjectMemory{Name: "x"}); got != "" {
-		t.Fatalf("nothing to say = %q, want nothing", got)
-	}
-	for _, tc := range []struct{ name, language string }{{"legacy", ""}, {"en", "English"}, {"ja", "日本語"}} {
-		t.Run(tc.name, func(t *testing.T) {
-			golden(t, "todo_project_memory."+tc.name, prompts.RenderTodoProjectMemory(prompts.TodoProjectMemory{
-				Language: tc.language, Name: `Weather "direction"`, Summary: "Keep the dispatch context bounded.",
-				Outcomes: []prompts.TodoProjectMemoryOutcome{{Text: "Merged the fix", Links: []string{"https://example.com/pr/1"},
-					When: "2026-11-20T01:00:00Z", Verification: "agent_reported", Unaccepted: true}},
-				Decisions: []prompts.TodoProjectMemoryDecision{
-					{ID: "decision-b", Question: "Which context?", Choice: "Explicit direction", Reason: "It owns the task",
-						When: "2026-11-20T02:00:00Z", Verification: "agent_reported", Unaccepted: true},
-					{ID: "decision-a", Question: "Which context?", Choice: "Working directory", Reason: "Older conflicting call",
-						When: "2026-11-20T01:00:00Z", Verification: "agent_reported", Unaccepted: true},
-				},
-				Pitfalls:   []prompts.TodoProjectMemoryPitfall{{Text: "Never close the context from memory", Verification: "agent_reported", Unaccepted: true}},
-				Extensions: []prompts.ExtensionContext{{Name: "Notes", Text: "Extension context stays last.</persona-context>"}},
-			}))
-		})
-	}
-}
-
-// What an accepted task taught (todo/lessons, #12295): the system prompt, the task's story (a rework round with the
-// criterion it found not met, a scope change, an answer of the owner's, the time, the reply, a lesson the project has),
-// and the block of lessons a new Agent of the project gets; nothing without lessons. Each in the three languages.
-func TestTodoLessonsGolden(t *testing.T) {
-	if got := prompts.RenderTodoProjectLessons(prompts.TodoProjectLessons{Name: "x"}); got != "" {
-		t.Fatalf("no lessons = %q, want nothing", got)
-	}
-	for _, tc := range []struct{ name, language string }{{"legacy", ""}, {"en", "English"}, {"ja", "日本語"}} {
-		t.Run(tc.name, func(t *testing.T) {
-			golden(t, "todo_lessons."+tc.name, prompts.RenderTodoLessons(prompts.TodoLessons{Language: tc.language, Owner: "示例用户"}))
-			golden(t, "todo_lessons_input."+tc.name, prompts.RenderTodoLessonsInput(prompts.TodoLessonsInput{
-				Language: tc.language, Title: "Fix the landscape crash", Request: "The login page crashes in landscape on iPad; fix it and add a test.",
-				Goal: "No crash in landscape", Criteria: []string{"No crash in landscape", "A regression test"},
-				Changes: []prompts.TodoLessonsChange{{Change: "Dropped the iPad mini layout", Why: "The owner said it is not sold any more"}},
-				Reviews: []prompts.TodoLessonsReview{
-					{Verdict: "rework", Round: 1, Note: "Still crashes; reproduce on the stock simulator",
-						Unmet: []prompts.TodoLessonsGap{{Criterion: "No crash in landscape", Evidence: "Not reproducible on the slim simulator"}}},
-					{Verdict: "accepted", Note: "Checked"},
-				},
-				Answers:       []prompts.TodoLessonsAnswer{{Question: "Which simulator?", Choice: "The stock one"}},
-				Result:        []prompts.TodoLessonsCriterion{{Criterion: "No crash in landscape", State: "met", Evidence: "Screenshot test passes"}},
-				ExpectMinutes: 30, ActualMinutes: 95, Reply: "Fixed: the page used a fixed width.",
-				Known:   []prompts.TodoLessonsKnown{{ID: "lesson-1", Kind: "missing_context", Text: "Use the stock simulator for layout bugs."}},
-				Deleted: []prompts.TodoLessonsKnown{{ID: "lesson-retired-2", Kind: "wasted_step", Text: "Rebuild all targets before testing."}},
-			}))
-			golden(t, "todo_project_lessons."+tc.name, prompts.RenderTodoProjectLessons(prompts.TodoProjectLessons{
-				Language: tc.language, Name: `Weather "direction"`, Lessons: []prompts.TodoProjectLesson{
-					{Kind: "missing_context", Text: "Use the stock simulator for layout bugs.", Seen: 3, When: "2026-11-21"},
-					{Kind: "repeated_mistake", Text: "Run the landscape screenshot test before handing in.", Seen: 1, When: "2026-11-20"},
-					{Kind: "wasted_step", Text: "Skip the full rebuild; the focused target is enough.</persona-context>", Seen: 1},
-					{Kind: "improvement", Text: "Ask which device first.", Seen: 2, When: "2026-11-19"},
-				}}))
-		})
-	}
 }
 
 // The decisions a handoff carries for a todo (todo/decisions, #1618): one by hand with a reason, one from a card.

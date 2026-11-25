@@ -33,7 +33,7 @@ const (
 	// HubSet is the hub's own tables: connections, devices and their tokens, pairing, push delivery, peers and the
 	// mesh, the admin page, the managers' roster and bus identities.
 	HubSet Sets = 1 << iota
-	// ManagerSet is a manager's: the assistant, inbox, knowledge base, todos, boards, extensions, the computers'
+	// ManagerSet is a manager's: the assistant, inbox, todos, boards, extensions, the computers'
 	// sessions and metrics.
 	ManagerSet
 	// AllSets is both, the hub's first: a test that uses either side's tables.

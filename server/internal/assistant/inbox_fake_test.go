@@ -20,7 +20,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
@@ -554,7 +553,7 @@ func (s *inboxMemStore) saved(id string) bool {
 }
 
 // inboxHub is an assistant whose inbox runs on a fakeInbox, under the names the hub's inbox tests used: h.inbox is
-// the inbox's state, h.collectInbox a round of the sources. Its knowledge base is its own (newInboxHubKB).
+// the inbox's state, h.collectInbox a round of the sources.
 type inboxHub struct {
 	*Service
 	f  *fakeHub
@@ -566,29 +565,11 @@ type inboxHub struct {
 // memory store.
 func newInboxHub(t *testing.T) *inboxHub {
 	t.Helper()
-	return newInboxHubWith(t, nil)
-}
-
-// newInboxHubKB is newInboxHub with the assistant's knowledge base open in a temp directory.
-func newInboxHubKB(t *testing.T) (*inboxHub, *kb.Engine) {
-	t.Helper()
-	h := newInboxHubWith(t, &KBOptions{Dir: t.TempDir()})
-	return h, kbEng(t, h.Service)
-}
-
-func newInboxHubWith(t *testing.T, kbo *KBOptions) *inboxHub {
-	t.Helper()
 	f := newFakeHub().withMachine()
-	if kbo != nil {
-		f.hello.KB = &KBSettings{}
-	}
 	in := newFakeInbox()
 	f.inbox = in
 	st := newInboxMemStore()
-	s := New(Options{Hub: f, Store: func() Store { return st }, Logf: testLogf(t), KB: kbo})
-	if kbo != nil {
-		t.Cleanup(s.kbEnd)
-	}
+	s := New(Options{Hub: f, Store: func() Store { return st }, Logf: testLogf(t)})
 	in.svc = s
 	// This fixture's synthetic translation model is exposed through legacy.kb, independently of screening.
 	setModel(t, s, purposeTranslate, ModelBinding{Provider: "legacy.kb"})

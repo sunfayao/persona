@@ -324,7 +324,6 @@ func TestExternalScopeUsesActualDeviceSessionClassification(t *testing.T) {
 		{"ordinary coding directory", proto.Session{SessionID: "main", Cwd: "/code/sample", Assistant: true}, false},
 		{"another manager", proto.Session{SessionID: "main", Cwd: "/home/u/.persona/assistant-other", Assistant: true}, false},
 		{"health space", proto.Session{SessionID: "main", Cwd: "/home/u/.persona/health", Space: SpaceHealth}, false},
-		{"meeting room", proto.Session{SessionID: "main", Cwd: "/home/u/.persona/assistant", Origin: OriginMeeting}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d.setSessions("server", []proto.Session{tc.sess})

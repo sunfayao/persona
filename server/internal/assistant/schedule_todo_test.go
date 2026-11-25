@@ -455,7 +455,7 @@ func TestScheduledTodoPromptAndUnlinkedExclusions(t *testing.T) {
 	s, _, todo := scheduledTodoFixture(t)
 	task := todoProgressTask(todo.ID)
 	now := time.Now()
-	if text := taskPrompt(task, now, now, time.UTC, false, false, false); !strings.Contains(text, "Linked to-do: "+todo.ID) {
+	if text := taskPrompt(task, now, now, time.UTC, false, false); !strings.Contains(text, "Linked to-do: "+todo.ID) {
 		t.Fatal("the scheduled run was not told its associated to-do")
 	}
 	for _, kind := range []string{"unlinked", "one shot"} {

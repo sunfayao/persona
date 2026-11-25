@@ -7,47 +7,9 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
-
-func TestGoldenTodoLanguageCallers(t *testing.T) {
-	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
-		name := locale
-		if name == "" {
-			name = "legacy"
-		}
-		t.Run(name, func(t *testing.T) {
-			ctx := context.Background()
-			s, f, todo := outcomeEnv(t, nil, outcomeReply)
-			f.mu.Lock()
-			f.hello.Locale = locale
-			f.todoTitleReply = "Example"
-			f.outcome = `{"outcome":"Example","links":["https://example.com/receipt"],"decisions":[{"question":"Scope","choice":"Keep it","reason":"Recorded"}],"pitfalls":[]}`
-			f.mu.Unlock()
-
-			if title := s.todoTitleFromModel(ctx, todo.Notes); title != "Example" {
-				t.Fatalf("title = %q", title)
-			}
-			golden(t, "todo_language.title."+name, modelPrompt(f.todoTitleAsked[0]))
-			receipt, err := s.pullOutcome(ctx, todo, []outcomeAgent{{Machine: "box", Cwd: "/code/weather/ios", Text: outcomeReply}})
-			if err != nil || len(receipt.Decisions) != 1 || receipt.Decisions[0].Choice != "Keep it" {
-				t.Fatalf("outcome = %+v, %v", receipt, err)
-			}
-			golden(t, "todo_language.outcome."+name, modelPrompt(f.outcomeAsked[0]))
-			store := kbEng(t, s).Store
-			if err := store.AppendLog("天气-app", time.Date(2026, time.November, 1, 12, 0, 0, 0, store.Zone()), kb.TodoLogSource+kb.TodoLogTitle(todo.Title), "结论：修好了"); err != nil {
-				t.Fatal(err)
-			}
-			project := s.withProjectContext(ctx, "box", "/code/weather", "", "下一步")
-			if got := transcript.StripInjected(project); got != "下一步" {
-				t.Fatalf("transcript body = %q", got)
-			}
-			golden(t, "todo_language.project."+name, project)
-		})
-	}
-}
 
 func modelPrompt(call modelCall) string {
 	return call.System + "\n---\n" + call.User

@@ -19,7 +19,6 @@ import (
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/kbwire"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -38,7 +37,7 @@ import (
 // (docs/assistant/prompts.md).
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
 	"cancel_followup", "list_places", "save_place", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_transfer", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest", "inbox_draft",
-	"inbox_folders", "inbox_move", "inbox_post", "kb_search", "kb_list", "kb_get", "kb_update", "kb_history_plan", "kb_history_status", "kb_history_stop", "kb_history_resume", "persona_settings", "secret_run", "skill_import",
+	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import",
 	"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback",
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
 	"conversations_list", "conversation_read", "conversation_rename", "conversation_archive", "conversation_unarchive",
@@ -58,7 +57,7 @@ func (s *Service) Tools(ctx context.Context) []proto.Tool {
 	if s.urgentOn(ctx) {
 		tools = append(tools, toolsNamed([]string{"urgent_call"})...)
 	}
-	return localizedMCPTools(append(tools, s.knowledgeFolderTools(ctx)...), s.toolLanguage(ctx))
+	return localizedMCPTools(tools, s.toolLanguage(ctx))
 }
 
 // toolsNamed are the MCP tools of these names, as prompts/mcp has them.
@@ -87,9 +86,6 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 	if len(args) == 0 {
 		args = json.RawMessage(`{}`)
 	}
-	if res, refused := s.meetingRefuses(ctx, call.MachineID, call.SessionID, call.Name, true); refused {
-		return res // a meeting's batch started this turn: only reading tools (meeting_turns.go)
-	}
 	switch call.Name {
 	case "resource_status", "resource_acquire", "resource_get", "resource_renew", "resource_release", "resource_cancel":
 		return s.resourceTool(ctx, call.MachineID, call.SessionID, call.Name, args)
@@ -113,18 +109,15 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 	}
 	// A model's call says which conversation asked (task_brief.go callerOrigin); the hub's own runTool calls do not.
 	ctx = withToolCaller(ctx, call.MachineID, call.SessionID)
-	outward := s.outwardReader(ctx, call.MachineID, call.SessionID)
-	if outward {
+	if s.outwardReader(ctx, call.MachineID, call.SessionID) {
 		ctx = withOutwardReader(ctx)
 	}
 	res, err := s.runTool(ctx, call.MachineID, call.SessionID, call.Name, args)
 	if err != nil {
-		return proto.TextResult(outwardText(outward, err.Error()), true)
+		return proto.TextResult(err.Error(), true)
 	}
 	s.noteBackgroundToolProgress(ctx, call.SessionID, call.Name, args)
-	// A conversation that writes to other people never reads the private parts of a profile, whichever tool would
-	// give them (outward_reader.go).
-	return proto.TextResult(outwardText(outward, res), false)
+	return proto.TextResult(res, false)
 }
 
 // appTool runs a tool that is app's (app.call app.tool).
@@ -140,17 +133,6 @@ func (s *Service) appTool(ctx context.Context, app string, call ToolCall, args j
 }
 
 func (s *Service) runTool(ctx context.Context, machine, self, name string, args json.RawMessage) (string, error) {
-	// What is said in a space stays there (docs/assistant/health.md "How directories and memory are isolated"): a space
-	// whose policy says so writes nothing to the knowledge base, nor changes or starts what is imported into it
-	// (kb_history_status only reads).
-	if name == "kb_update" || strings.HasPrefix(name, "kb_history_") && name != "kb_history_status" {
-		if space, _ := s.selfSpace(ctx, self); s.trackPolicy(ctx, space).NoKBWrite {
-			if space == SpaceHealth {
-				return "", errors.New("the health space doesn't write the knowledge base: health information stays in its conversations and memory")
-			}
-			return "", errors.New("this space doesn't write the knowledge base: what is said here stays in its conversations and memory")
-		}
-	}
 	switch name {
 	case "decision_record", "decisions_query":
 		return s.toolEntries(ctx, machine, self, name, args)
@@ -209,25 +191,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolLeaderProgress(ctx, self, args)
 	case "concern_report":
 		return s.toolConcernReport(ctx, machine, self, args) // concerns.go
-	case knowledgeSearchTool, knowledgeReadTool:
-		_, guest, err := s.guestOf(ctx, machine, self)
-		if err != nil || guest || s.isWorkMachine(machine) || isOutwardReader(ctx) {
-			return "", errors.New("remote knowledge folders are only available in private sessions")
-		}
-		return s.toolKnowledgeFolder(ctx, name, args)
-	case "kb_search", "kb_list", "kb_get", "kb_update":
-		// What kb_update writes carries its own categories (info_use.go exitPolicy): a sensitive text is not written
-		// either, judged once the update is valid and about to be written.
-		ctx = withKBWriteCheck(ctx, func(text string) error {
-			if space, _ := s.selfSpace(ctx, self); s.exitPolicy(ctx, text, self, space).NoKBWrite {
-				return errors.New("this isn't written to the knowledge base: it carries sensitive information, which stays in " +
-					"its conversation and memory. Nothing was saved")
-			}
-			return nil
-		})
-		return s.toolKB(ctx, name, args)
-	case "kb_history_plan", "kb_history_status", "kb_history_stop", "kb_history_resume":
-		return s.historyTools().Call(ctx, name, args) // kbhistory/tools.go
 	case "interaction_answer":
 		return s.toolInteractionAnswer(ctx, self, args)
 	case "ask_escalate":
@@ -267,11 +230,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		case "", assistantwire.LevelP0, assistantwire.LevelP1:
 		default:
 			return "", fmt.Errorf("push_level must be P0 or P1")
-		}
-		if s.justMeNow(machine, self) {
-			// A Just me turn (meeting_justme.go): no push and no copy anywhere; the text stays in the conversation,
-			// which the meeting page shows.
-			return justMeNotice(s.lang(ctx)), nil
 		}
 		// The lock screen and the channels hear there is news, not what it is (health.go): decided once, for the push and
 		// its copies alike.
@@ -1868,51 +1826,4 @@ func agentsListLabel(c proto.Session) string {
 		return "被停下了，没做完" // i18n-ignore: agents_list output for the model, as the lines around it
 	}
 	return "中断了，没做完" // i18n-ignore: agents_list output for the model, as the lines around it
-}
-
-// kbUpdateText is the words a kb_update writes (names, notes, summaries, log lines, profile items), not its ids, links
-// or settings.
-func kbUpdateText(args json.RawMessage) string {
-	var u kbwire.Update
-	if json.Unmarshal(args, &u) != nil {
-		return ""
-	}
-	parts := []string{u.Name, u.Status, u.Goal, u.MyRole, u.Note, u.Summary, u.Log}
-	if u.Pinned != nil {
-		parts = append(parts, *u.Pinned)
-	}
-	parts = append(parts, u.Aliases...)
-	parts = append(parts, u.Tags...)
-	if p := u.Profile; p != nil {
-		for _, items := range [][]kbwire.ProfileItem{p.Facts, p.Views, p.Inferences} {
-			for _, it := range items {
-				parts = append(parts, it.Text, it.Basis)
-			}
-		}
-		for _, c := range p.Commitments {
-			parts = append(parts, c.Text)
-		}
-	}
-	var b strings.Builder
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			b.WriteString(p)
-			b.WriteByte('\n')
-		}
-	}
-	return strings.TrimSpace(b.String())
-}
-
-// kbWriteCheckKey carries what a knowledge-base write from a conversation is checked against (withKBWriteCheck).
-type kbWriteCheckKey struct{}
-
-// withKBWriteCheck gives toolKB the check of the words a kb_update writes, for the conversation that calls it.
-func withKBWriteCheck(ctx context.Context, check func(text string) error) context.Context {
-	return context.WithValue(ctx, kbWriteCheckKey{}, check)
-}
-
-// kbWriteCheckOf is the check withKBWriteCheck gave ctx, nil for none.
-func kbWriteCheckOf(ctx context.Context) func(text string) error {
-	check, _ := ctx.Value(kbWriteCheckKey{}).(func(text string) error)
-	return check
 }

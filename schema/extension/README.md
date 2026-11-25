@@ -11,9 +11,8 @@ from them instead of being written once per platform:
 | `stream.schema.json` | Native UI stream protocol 1 (#5956): explicit capability, canonical app WebSocket envelopes, owner-session lifecycle requests, complete keyed snapshots, atomic deltas and bounded interaction values; source runtime activation remains independently gated |
 | `view.schema.json` | Views, sections, components (`Component`, told apart by `type`), actions, `ui.action`'s answer, and the `persona-card` in assistant answers (`PersonaCard`, folded into components in #1850) |
 | `messaging.schema.json` | The `messaging` extension point (#2138): the manifest's sources (`MessagingItem`), conversations, messages and parts (`MessagingPart`, by `kind`), sends, composer modes, documents, posts, events and errors; see `docs/extensions/extension-messaging.md` |
-| `connector.schema.json` | **Plugin-side.** The `connectors` extension point's calls (`docs/protocol/connector-protocol.md`): everything the hub asks a connector program (`connector.status`, `connector.inbox.collect`, `connector.thread.page`, `connector.archive.changes`, the read-only history import `connector.history.chats` / `connector.archive.history` / `connector.history.anchors`, `connector.group.*`, `connector.login.step`…), what the program asks back (`connector.secrets.*`, the knowledge base's `connector.posts.*` and `connector.archive.chats`, `connector.credentials.gh_token`, and the hub's own `sent.record`, which puts a send of the connector's in the sent-as-user ledger), `connector.recall` (the hub asks a connector that declares `recall` to take back a message it sent, once the user agreed), the `connector.changed` event, the capabilities, states and error codes |
+| `connector.schema.json` | **Plugin-side.** The `connectors` extension point's calls (`docs/protocol/connector-protocol.md`): everything the hub asks a connector program (`connector.status`, `connector.inbox.collect`, `connector.thread.page`, `connector.group.*`, `connector.login.step`…), what the program asks back (`connector.secrets.*`, `connector.credentials.gh_token`, and the hub's own `sent.record`, which puts a send of the connector's in the sent-as-user ledger), `connector.recall` (the hub asks a connector that declares `recall` to take back a message it sent, once the user agreed), the `connector.changed` event, the capabilities, states and error codes |
 | `channel.schema.json` | **Plugin-side.** The `channel` extension point's calls (`docs/extensions/channels.md` "4. Contributing a channel"): `channel.receive` and `channel.status` from the program, `channel.send`, `channel.typing` and `channel.edit` from the hub, `cannot_send` |
-| `kb.schema.json` | **Plugin-side.** The knowledge base an extension reads and writes directly (`docs/extensions/extensions.md` "Knowledge base RPC"): `kb.list`, `kb.get`, `kb.day`, `kb.search`, `kb.update`, `kb.owner`, and the events `event.kb.changed` / `event.kb.forgotten` |
 | `assistant.schema.json` | **Plugin-side.** Reading the user's conversations with the assistant (`docs/extensions/extensions.md` "Assistant conversations"): `assistant.conversations`, `assistant.messages` with the permission `assistant.read`; unified ledger `assistant.entries.list` and `event.assistant.entries.changed` with `assistant.entries.read` |
 | `assistant_data.schema.json` | **Plugin-side.** The assistant content an extension writes in its data directory (`docs/extensions/extensions.md` "Assistant content from the data directory"): `assistant.data_status`, what the assistant reads now of the calling extension's data contributions |
 | `browser.schema.json` | **Plugin-side.** Cross-machine browser automation via pluggable `BrowserBackend` (#12866): `browser.machines` and `browser.run` (`browser.run`) |
@@ -206,7 +205,7 @@ headless shortcuts keep working while UI sessions are suspended or disposed.
 
 ## Plugin-side schemas and calls
 
-A schema file with `"x-side": "plugin"` (`connector.schema.json`, `channel.schema.json`, `kb.schema.json`) describes only what the hub and an
+A schema file with `"x-side": "plugin"` (`connector.schema.json`, `channel.schema.json`) describes only what the hub and an
 extension's program say to each other. Its types are generated into the SDKs (Go `sdk/go/wire`, TypeScript
 `sdk/ts/src/wire.ts`) and not into the apps (Swift, Kotlin, the web copy), which never read these messages; a
 definition the apps have may not refer to one of them (the generator stops). Its examples are in `examples/plugin/`,
@@ -227,8 +226,7 @@ as `event.<name>`. The generator writes them out as `wire.Calls` (Go) and `CALLS
   A `null` is read as the hub's Go decoding reads it, by what the schema says is there: a null list or object is an
   empty one, a null of any JSON (`meta`) stays null, any other null is absent; an answer of `null` is `{}`. Go writes
   a nil slice, map or pointer as `null`, and both SDKs' programs are held to what the hub accepts, not more.
-- A list whose empty value means something (`kb.update`'s `tags` clears them, `posts.put`'s `comments` says there are
-  none) has `"x-go-pointer": true`: Go then writes it with `omitzero`, so an empty list is sent and only a nil one is
+- A list whose empty value means something has `"x-go-pointer": true`: Go then writes it with `omitzero`, so an empty list is sent and only a nil one is
   left out.
 - Params of a call in the connector namespace carry `contribution` (the connector's id; the hub adds it with
   `extension.Targeted`); results do not. Knowledge-base params are strict: no `contribution`, and an unknown field is
@@ -237,19 +235,19 @@ as `event.<name>`. The generator writes them out as `wire.Calls` (Go) and `CALLS
   `connector/serve`), `CheckProgram` (a running connector program of any language) and `channel/conformance.Check`.
 - `server/internal/extension/conformance/plugin_schema_test.go` holds each definition a call names to the Go type the
   server puts on the wire, field by field (names, JSON kinds, a required field Go never leaves out), and every
-  connector, channel and knowledge-base method the server has to an entry in the schemas; the server's wire fixtures
+  connector and channel method the server has to an entry in the schemas; the server's wire fixtures
   (`server/internal/connector/testdata/wire/`) hold to them too. A change on either side fails until the other follows.
 
 In the Go SDK, `ext.Methods{…}.For(<contributions>)` is a namespace's handler from typed methods
 (`ext.Method(func(ctx, wire.ConnectorThreadParams) (wire.ConnectorThreadPage, error))`), and `ext.Hub` has the
-program's calls (`LoadSecret` / `SaveSecret` / `DeleteSecret`, `ConnectorChanged`, `PutPosts`, `ArchivedChats`,
-`ChannelReceive`, `ChannelStatus`, `KBList`, `KBGet`, `KBUpdate`, `KBOwner`…; `ext.CannotSend` is channel.send's
+program's calls (`LoadSecret` / `SaveSecret` / `DeleteSecret`, `ConnectorChanged`,
+`ChannelReceive`, `ChannelStatus`…; `ext.CannotSend` is channel.send's
 `cannot_send`). `exttest.Start` (`StartWith` to change what `initialize` sends) is a fake hub to call a program from its own tests
 (`initialize` carries the manifest's contributions as active, its permissions as granted and the hub's
 capabilities, extension point versions only when the test sets them; it refuses what the hub refuses: a connector or
-channel the extension does not have, a knowledge-base call or gh token not granted, an unknown method of these
+channel the extension does not have, a gh token not granted, an unknown method of these
 namespaces; an `Answer` replaces its own; secrets in memory, `Answer` for
-the knowledge base and the rest, `Hear` for the hub's events, every message held to the schemas, a channel's
+the rest, `Hear` for the hub's events, every message held to the schemas, a channel's
 messages in `Received`); `exttest.CheckConnectors` makes the hub's read-only calls of each
 connector the manifest declares, and `exttest.CheckChannels` holds each channel to the channel protocol.
 
@@ -293,7 +291,7 @@ The generator understands only what is below; anything else stops it with an err
   A field that is an object with `properties` must be a definition of its own, referenced.
 - Optional fields are those not in `required`. Go adds `omitempty` (`omitzero` for a time) and makes an object a
   pointer; a scalar whose absence means something other than its zero value gets `"x-go-pointer": true` (a
-  progress's `ratio`, `kb.update`'s `relevance` and `pinned`). A required number Go would otherwise read back as 0 when
+  progress's `ratio`). A required number Go would otherwise read back as 0 when
   it is missing gets it too, so the hub's check still refuses it (a gauge's `ratio`).
 - A component has `"x-since": <UI version>`: it generates tables like `ComponentSince`, by which the hub takes new
   components out for older apps (`Fit`).

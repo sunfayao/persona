@@ -91,11 +91,11 @@ func (r *Registry) gateRules() []Rule {
 }
 
 // switchedOff are the connectors switched off, by instance: StatusOf answers StateDisabled for them, so every pipe
-// that goes by the status (tools, the inbox, the archive) leaves them alone without knowing about the switch.
+// that goes by the status (tools, the inbox) leaves them alone without knowing about the switch.
 var switchedOff sync.Map
 
 // SetEnabled switches a connector on or off. Off, it does not run (its Run and Watch are cancelled), offers no tools
-// and brings nothing into the inbox or the knowledge base, and its status is StateDisabled; on, it starts again.
+// and brings nothing into the inbox, and its status is StateDisabled; on, it starts again.
 // Signing in and out (Login) still work while it is off. The hub keeps the choice (it calls this before Start).
 func (r *Registry) SetEnabled(id string, on bool) error {
 	c := r.Get(id)
@@ -141,16 +141,15 @@ func (r *Registry) Enabled(id string) bool {
 }
 
 // Feed is where a connector's things go besides the assistant's tools: each is on until the user turns it off
-// (Settings › Connectors' "Add to knowledge base" and "Add to inbox"), while the connector itself keeps running.
+// (Settings › Connectors' "Add to inbox"), while the connector itself keeps running.
 type Feed string
 
 const (
-	FeedArchive Feed = "archive" // its conversations, items and posts into the knowledge base
-	FeedInbox   Feed = "inbox"   // its things into the inbox (Inbox)
+	FeedInbox Feed = "inbox" // its things into the inbox (Inbox)
 )
 
 // feedCaps is the capability a feed needs.
-var feedCaps = map[Feed]Capability{FeedArchive: CapArchive, FeedInbox: CapInbox}
+var feedCaps = map[Feed]Capability{FeedInbox: CapInbox}
 
 // SetFeed turns one of a connector's feeds on or off. The hub keeps the choice (it calls this before Start).
 func (r *Registry) SetFeed(id string, f Feed, on bool) error {
@@ -445,9 +444,8 @@ type Info struct {
 	Hosts         []string   `json:"hosts,omitempty"`
 	// Enabled: switched on (SetEnabled); off, Status is "disabled".
 	Enabled bool `json:"enabled"`
-	// Archive and Inbox: its feeds are on (SetFeed); only there when it has an archive, an inbox.
-	Archive *bool `json:"archive,omitempty"`
-	Inbox   *bool `json:"inbox,omitempty"`
+	// Inbox: its feed is on (SetFeed); only there when it has an inbox.
+	Inbox *bool `json:"inbox,omitempty"`
 	// Options are its own settings (Options), as it gives them.
 	Options json.RawMessage `json:"options,omitempty"`
 }
@@ -473,9 +471,6 @@ func (r *Registry) Infos(ctx context.Context) []Info {
 		}
 		if o, ok := As[Options](c); ok {
 			info.Options = o.Options()
-		}
-		if c.Manifest().Has(CapArchive) {
-			info.Archive = new(r.Feeds(c.ID(), FeedArchive))
 		}
 		if m := c.Manifest(); m.Has(CapInbox) || m.InboxSwitch {
 			info.Inbox = new(r.Feeds(c.ID(), FeedInbox))

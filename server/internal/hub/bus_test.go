@@ -215,7 +215,7 @@ func (f *fakeService) event(t *testing.T, prefix string) string {
 }
 
 // manager.hello: the hub answers with the identity, what of its own the manager needs and the managers, and puts
-// the connection in the roster; the other managers hear who is online. The manager's own sections (owner, notes, kb,
+// the connection in the roster; the other managers hear who is online. The manager's own sections (owner, notes,
 // a card's wait…) are its manager.json's, not in it.
 func TestBusHello(t *testing.T) {
 	h, srv, _ := newBusHub(t)

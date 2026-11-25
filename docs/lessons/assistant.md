@@ -624,7 +624,7 @@ Claude's tokenizer on knowledge-base text, CJK alone was 1.08 tokens a character
 digits and markdown (summaries, logs, chat messages) cost up to a third more than "one token a CJK character, two ASCII
 characters a token"; indented JSON was 1.8 characters a token, numeric ids 2.2, English prose 3.1. "One token a CJK
 character, 3.5 ASCII characters a token" put whole `kb_get` results at two thirds of their real count. `kb_get`'s
-ceiling (`estTokens`, `assistant/kb_get_fit.go`) counts a rune past ASCII as 1.25 tokens and an ASCII byte as half of
+ceiling (`estTokens`, assistant/kb_get_fit.go) counts a rune past ASCII as 1.25 tokens and an ASCII byte as half of
 one, which stayed within 15% under the real count on all of these, and stops at 20,000. The size came from the data,
 not the model: linking a group chat to a project adds all its members to the project's people, so one project's
 meta.json held 3,708 ids, 92% of a 129,000-character result. Fold such lists in the tool's text rather than count on

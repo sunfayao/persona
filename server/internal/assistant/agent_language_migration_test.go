@@ -260,8 +260,8 @@ func TestGoldenAgentLanguageLegacyAll(t *testing.T) {
 			auth.App = "App 原文"
 			delegate.Owner = "Owner 原文"
 			delegate.Rules = "Rules 原文"
-			din = prompts.AgentDelegateInput{Now: "TIME", Agent: "Agent 原文", Machine: "box", Cwd: "/code/example", Project: "Project 原文", Task: "Task 原文", Decisions: "Decisions 原文", Asks: []string{"Ask 原文"}, Reply: "Reply 原文", Questions: []prompts.DelegateQuestion{{Question: "Question 原文", MultiSelect: true, Options: []prompts.DelegateOption{{Label: "Label 原文", Description: "Description 原文"}}}}}
-			tin = prompts.AgentTriageInput{Now: "TIME", Agent: "Agent 原文", Machine: "box", Cwd: "/code/example", Project: "Project 原文", Ask: "Ask 原文", Reply: "Reply 原文", Others: []prompts.AgentTriageOther{{ID: "other-id", Label: "Label 原文", Line: "Line 原文"}}, Answered: answer.Items, ApprovedWait: "CI #7", ApprovedThen: "push source/branch", ApprovedByTask: true}
+			din = prompts.AgentDelegateInput{Now: "TIME", Agent: "Agent 原文", Machine: "box", Cwd: "/code/example", Task: "Task 原文", Decisions: "Decisions 原文", Asks: []string{"Ask 原文"}, Reply: "Reply 原文", Questions: []prompts.DelegateQuestion{{Question: "Question 原文", MultiSelect: true, Options: []prompts.DelegateOption{{Label: "Label 原文", Description: "Description 原文"}}}}}
+			tin = prompts.AgentTriageInput{Now: "TIME", Agent: "Agent 原文", Machine: "box", Cwd: "/code/example", Ask: "Ask 原文", Reply: "Reply 原文", Others: []prompts.AgentTriageOther{{ID: "other-id", Label: "Label 原文", Line: "Line 原文"}}, Answered: answer.Items, ApprovedWait: "CI #7", ApprovedThen: "push source/branch", ApprovedByTask: true}
 			reanswer.Items = []prompts.AgentReanswerItem{{Question: "Question 原文", Before: "Before 原文", Answer: "After 原文"}}
 			report = prompts.AgentReportLineInput{Task: "Task 原文", Kind: "progress", Text: "Report 原文"}
 			review = prompts.AgentReview{Title: "Task 原文", Ask: "Ask 原文", DoneWhen: []string{"Criterion 原文"}, Scope: "base..head", Diff: "+source 原文", Omitted: 2}

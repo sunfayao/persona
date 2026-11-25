@@ -1271,7 +1271,7 @@ A direction carries **notes** the owner writes for it: its rules, the readings t
 4,000 characters, `""` clears them; `GET /api/v1/assistant/leaders` lists `notes` and `notes_at`). They are the owner's
 content, not memory: memory stays one for every conversation (#9440), and a lesson the owner wants a direction to keep
 goes into its notes. What accepted tasks teach by themselves (with "Learn from finished tasks" on) is kept apart, in the
-direction's project, and never written into the notes (`docs/assistant/todos.md` "Lessons from accepted tasks").
+direction's project, and never written into the notes.
 
 On the web, the same settings group has **Direction and new-chat permissions**, a link to the existing
 `default_permission_mode` control. Directions and new assistant conversations share that default; changing it affects

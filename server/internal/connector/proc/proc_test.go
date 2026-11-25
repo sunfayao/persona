@@ -19,8 +19,6 @@ import (
 	"github.com/nwverse/persona/server/internal/extension"
 	"github.com/nwverse/persona/server/internal/extension/host"
 	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/kb"
-	"github.com/nwverse/persona/server/internal/kbwire"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -61,8 +59,6 @@ func TestMain(m *testing.M) {
 				return imageProgram{&exampleProgram{secrets: s}}, nil
 			case "catalog":
 				return &catalogProgram{exampleProgram: &exampleProgram{secrets: s}}, nil
-			case "history":
-				return &historyProgram{exampleProgram: &exampleProgram{secrets: s}}, nil
 			}
 			return &exampleProgram{secrets: s, exitSoon: os.Getenv("PERSONA_PROC_EXIT") == "1"}, nil
 		})
@@ -88,7 +84,7 @@ func (*exampleProgram) Name() string { return "Example" }
 
 func (*exampleProgram) Manifest() connector.Manifest {
 	return connector.Manifest{Capabilities: []connector.Capability{connector.CapStatus, connector.CapTools, connector.CapActions,
-		connector.CapEvents, connector.CapArchive, connector.CapItems, connector.CapLogin, connector.CapThreads}, AgentTools: []string{"example_chats"},
+		connector.CapEvents, connector.CapLogin, connector.CapThreads}, AgentTools: []string{"example_chats"},
 		Unlisted: []string{"example_send"}, Poll: 3 * time.Minute}
 }
 
@@ -118,15 +114,6 @@ func (p *exampleProgram) LoginStep(ctx context.Context, step string, v map[strin
 }
 
 func (p *exampleProgram) Logout(ctx context.Context) error { return p.secrets.Delete(ctx) }
-
-func (*exampleProgram) Changes(_ context.Context, cursor string, _ int) ([]connector.ChatBatch, string, bool, error) {
-	if cursor == "1" {
-		return nil, "1", false, nil
-	}
-	at := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	return []connector.ChatBatch{{Chat: kb.SourceChat{ID: "g1", Name: "示例群", Kind: "group"},
-		Messages: []kb.SourceMessage{{ID: "1", SenderName: "示例用户", Text: "示例消息", At: at}}}}, "1", false, nil
-}
 
 func (*exampleProgram) Tools() []proto.Tool { return []proto.Tool{{Name: "example_chats"}} }
 func (*exampleProgram) Call(_ context.Context, name string, _ json.RawMessage) (string, error) {
@@ -158,31 +145,8 @@ func (*exampleProgram) Media(_ context.Context, ref string) (connector.Media, er
 	return connector.Media{Mime: "image/webp", Data: []byte{0, 1, 2, 255}}, nil
 }
 
-// ArchiveMedia hands an archived message's attachment over; ItemSource has one meeting and knows one title.
-func (*exampleProgram) ArchiveMedia(_ context.Context, ref string) (connector.Media, error) {
-	if ref != "file:1" {
-		return connector.Media{}, errors.New("no such attachment")
-	}
-	return connector.Media{Mime: "application/pdf", Data: []byte("%PDF-1.7")}, nil
-}
-
-func (*exampleProgram) ItemSource() kb.ItemSource { return exampleItems{} }
-
-type exampleItems struct{}
-
-func (exampleItems) Items(context.Context) ([]kbwire.Item, error) {
-	return []kbwire.Item{{Kind: kb.KindMeeting, ID: "m1", Title: "示例周会", At: time.Date(2026, 1, 2, 3, 0, 0, 0, time.UTC), Where: "meetings"}}, nil
-}
-
-func (exampleItems) DocTitle(_ context.Context, u string) string {
-	if u == "https://example.com/docx/1" {
-		return "示例文档"
-	}
-	return ""
-}
-
 func (*exampleProgram) Watch(ctx context.Context, changed func(connector.Scope)) error {
-	changed(connector.ScopeChats)
+	changed(connector.ScopeInbox)
 	<-ctx.Done()
 	return nil
 }
@@ -360,10 +324,6 @@ func exercise(t *testing.T, c *Conn, sec *memSecrets) {
 		t.Fatalf("after signing in %+v", st)
 	}
 
-	batches, next, _, err := c.Changes(ctx, "", 20)
-	if err != nil || next != "1" || len(batches) != 1 || batches[0].Messages[0].Text != "示例消息" || !batches[0].Messages[0].At.Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
-		t.Fatalf("changes %+v %q %v", batches, next, err)
-	}
 	if tools := c.Tools(); len(tools) != 1 || tools[0].Name != "example_chats" {
 		t.Fatalf("tools %+v", tools)
 	}
@@ -398,28 +358,12 @@ func exercise(t *testing.T, c *Conn, sec *memSecrets) {
 	if m, err := c.Media(ctx, "sticker:7"); err != nil || m.Mime != "image/webp" || !bytes.Equal(m.Data, []byte{0, 1, 2, 255}) {
 		t.Fatalf("media %+v %v", m, err)
 	}
-	if m, err := c.ArchiveMedia(ctx, "file:1"); err != nil || m.Mime != "application/pdf" || string(m.Data) != "%PDF-1.7" {
-		t.Fatalf("archive media %+v %v", m, err)
-	}
-	if _, err := c.ArchiveMedia(ctx, "file:2"); err == nil {
-		t.Fatal("an attachment it does not have")
-	}
-	is, ok := connector.As[connector.Items](c)
-	if !ok {
-		t.Fatal("declared items, yet no item source")
-	}
-	if items, err := is.ItemSource().Items(ctx); err != nil || len(items) != 1 || items[0].Title != "示例周会" || items[0].Kind != kb.KindMeeting || !items[0].At.Equal(time.Date(2026, 1, 2, 3, 0, 0, 0, time.UTC)) {
-		t.Fatalf("items %+v %v", items, err)
-	}
-	if title := is.ItemSource().DocTitle(ctx, "https://example.com/docx/1"); title != "示例文档" {
-		t.Fatalf("doc title %q", title)
-	}
 	got := make(chan connector.Scope, 4)
 	wctx, wcancel := context.WithCancel(ctx)
 	go c.Watch(wctx, func(scope connector.Scope) { got <- scope })
 	select {
 	case s := <-got:
-		if s != connector.ScopeChats {
+		if s != connector.ScopeInbox {
 			t.Fatalf("scope %q", s)
 		}
 	case <-time.After(5 * time.Second):
@@ -540,10 +484,7 @@ func TestProgramDeclaringOtherwiseIsLogged(t *testing.T) {
 		connector.Manifest{Capabilities: []connector.Capability{connector.CapStatus, connector.CapLogin}, Proxy: true}) {
 		t.Fatal("order matters")
 	}
-	// Archive sources and the command line are part of the declaration too.
-	if sameManifest(connector.Manifest{ArchiveSources: []string{"moments"}}, connector.Manifest{Proxy: true}) {
-		t.Fatal("archive_sources ignored")
-	}
+	// The command line is part of the declaration too.
 	if sameManifest(connector.Manifest{CLI: "ex"}, connector.Manifest{CLI: "other", Proxy: true}) {
 		t.Fatal("cli ignored")
 	}
@@ -790,31 +731,6 @@ func TestLogLinesReadsPastALongLine(t *testing.T) {
 			short[i] = l[:min(len(l), 40)]
 		}
 		t.Fatalf("logged %d lines: %q", len(got), short)
-	}
-}
-
-// Changed events wait for Watch per scope: a full backlog of one scope (Watch not draining yet, or backing off)
-// does not drop another scope's change, which would leave, say, the inbox uncollected.
-func TestChangedEventsKeepEveryScope(t *testing.T) {
-	c := New(Config{ID: "example", Name: "Example"})
-	for range 16 {
-		c.onEvent(serve.EChanged, json.RawMessage(`{"scope":"chats"}`))
-	}
-	c.onEvent(serve.EChanged, json.RawMessage(`{"scope":"inbox"}`))
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	seen := map[connector.Scope]int{}
-	_ = c.Watch(ctx, func(s connector.Scope) {
-		seen[s]++
-		if seen[connector.ScopeChats] > 0 && seen[connector.ScopeInbox] > 0 {
-			cancel()
-		}
-	})
-	if seen[connector.ScopeInbox] == 0 {
-		t.Fatalf("Watch passed on %v: the inbox change was dropped", seen)
-	}
-	if seen[connector.ScopeChats] != 1 {
-		t.Fatalf("Watch passed on %v: the chats changes are one change", seen)
 	}
 }
 

@@ -571,9 +571,6 @@ func (h *Manager) AppCall(ctx context.Context, p assistantwire.AppCall) (json.Ra
 	if p.AppID == assistantwire.AppInbox {
 		return h.inboxAppCall(ctx, p)
 	}
-	if out, ok, err := h.kbSourcesCall(ctx, p); ok { // the knowledge base's sources (kb_sources.go)
-		return out, true, err
-	}
 	if out, ok, err := h.modelsAppCall(ctx, p); ok { // the extensions' providers, voice models, quota (models_link.go)
 		return out, true, err
 	}

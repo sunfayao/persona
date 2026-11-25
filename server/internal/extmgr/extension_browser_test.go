@@ -35,9 +35,9 @@ func (f *fakeCDPBackend) Run(_ context.Context, extID string, p wire.BrowserRunP
 //   - Additional BrowserBackend implementations (such as CDP) plug in via RegisterBrowserBackend.
 func TestExtensionBrowserGrantsAndPluggableBackends(t *testing.T) {
 	h, _ := extensionTestHub(t)
-	granted := kbExtensionSpec(t, h, "club-ext", extension.Permissions{Hub: []string{extension.ScopeBrowserRun}})
-	readOnly := kbExtensionSpec(t, h, "read-ext", extension.Permissions{Hub: []string{extension.ScopeMachinesRead}})
-	full := kbExtensionSpec(t, h, "full-ext", extension.Permissions{HubAPI: true})
+	granted := extensionSpec(t, h, "club-ext", extension.Permissions{Hub: []string{extension.ScopeBrowserRun}})
+	readOnly := extensionSpec(t, h, "read-ext", extension.Permissions{Hub: []string{extension.ScopeMachinesRead}})
+	full := extensionSpec(t, h, "full-ext", extension.Permissions{HubAPI: true})
 
 	mac, seen := egoMac(t, h, "mac")
 	if err := h.extensions.reg.SetEnabled(context.Background(), egoExtensionID, true, "test"); err != nil {

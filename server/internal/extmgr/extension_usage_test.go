@@ -37,8 +37,8 @@ func TestUsageGatewayAccountsNeedsItsPermission(t *testing.T) {
 		Accounts: []proto.GatewayAccount{{Source: "s1", AccountID: "k1", Provider: "kiro", Status: "disabled", Stale: true, Windows: []proto.GatewayWindow{}}},
 	}}
 	h.opts.Devices = devs
-	granted := kbExtensionSpec(t, h, "example-usage", extension.Permissions{UsageGateways: true})
-	keys := kbExtensionSpec(t, h, "example-keys", extension.Permissions{LauncherKeys: true})
+	granted := extensionSpec(t, h, "example-usage", extension.Permissions{UsageGateways: true})
+	keys := extensionSpec(t, h, "example-keys", extension.Permissions{LauncherKeys: true})
 
 	_, err := keys.Handle(context.Background(), "usage.gateway_accounts", json.RawMessage(`{}`))
 	var re *rpc.Error

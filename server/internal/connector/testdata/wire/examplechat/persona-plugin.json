@@ -23,7 +23,6 @@
           "actions",
           "events",
           "inbox",
-          "archive",
           "login",
           "threads",
           "fallback",
@@ -78,12 +77,6 @@
           }
         ]
       },
-      "archive_groups": {
-        "type": "boolean",
-        "title": "群聊进知识库",
-        "description": "默认不进知识库。",
-        "default": false
-      },
       "inbox_lookback_hours": {
         "type": "integer",
         "title": "收件箱回溯（小时）",
@@ -109,7 +102,7 @@
       "exclude_chats": {
         "type": "array",
         "title": "永不收的会话",
-        "description": "这些会话不进收件箱和知识库。",
+        "description": "这些会话不进收件箱。",
         "items": {
           "type": "string"
         }

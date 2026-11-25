@@ -29,7 +29,7 @@ import (
 //   - a session: its machine's manager (a manager's own conversations run on its own machines; moving a machine
 //     moves its sessions with it);
 //   - an interaction: the manager that reported it, taken only on a machine of its own (cardAllowed);
-//   - what names no thing the hub can place (the assistant's pages, the inbox, the knowledge base, the model
+//   - what names no thing the hub can place (the assistant's pages, the inbox, the model
 //     configuration, the todos, the extensions and sources…): the manager the request names (ManagerHeader, or the
 //     query parameter ManagerQuery), else the default manager. An item of such a list (an inbox item, an extension)
 //     is reached by naming the manager its list stamped on it.

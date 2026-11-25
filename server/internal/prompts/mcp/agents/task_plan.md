@@ -179,7 +179,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
           },
           "project": {
             "type": "string",
-            "description": "Existing kb_list projects slug/name for a clear long-term area; no near-duplicates."
+            "description": "Project label for a clear long-term area; reuse an existing one, no near-duplicates."
           },
           "part_of": {
             "type": "string",

@@ -12,7 +12,7 @@ import (
 // models.launchers, models.launcher_http).
 
 // hubModels is what hub.json's machines say about models (their launchers), for the hello; the models themselves
-// (ai, inbox's, kb's) are the manager's manager.json's.
+// (ai, inbox's) are the manager's manager.json's.
 func (h *Hub) hubModels() assistantwire.HubModels {
 	var out assistantwire.HubModels
 	for _, m := range h.machinesNow() {

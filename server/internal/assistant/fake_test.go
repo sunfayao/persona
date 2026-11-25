@@ -23,7 +23,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -191,7 +190,7 @@ type fakeHub struct {
 	// refuseConfigDir: assistant.send or assistant.warm with a config_dir fails as the hub refuses it for a node too old
 	// for one
 	refuseConfigDir bool
-	// elsewhere: the conversations in another profile than meetingProfile, by id: a resume that asks for a config_dir
+	// elsewhere: the conversations in another profile than signedInProfile, by id: a resume that asks for a config_dir
 	// fails, as the node refuses to move a conversation to another profile
 	elsewhere map[string]bool
 
@@ -1311,44 +1310,6 @@ func newTestService(t *testing.T, f *fakeHub) *Service {
 	return withSettings(t, f, New(Options{Hub: f, Store: func() Store { return st }, Logf: testLogf(t)}))
 }
 
-// newKBService is newTestService with a knowledge base in a directory of its own (kb.go), on as the hub says (its
-// hello's kb section, the defaults unless the test set one).
-func newKBService(t *testing.T, f *fakeHub) *Service {
-	t.Helper()
-	st := &memStore{}
-	f.mu.Lock()
-	if f.hello.KB == nil {
-		f.hello.KB = &KBSettings{}
-	}
-	f.mu.Unlock()
-	s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return st }, Logf: testLogf(t), KB: &KBOptions{Dir: t.TempDir()}}))
-	t.Cleanup(s.kbEnd)
-	return s
-}
-
-// newKBServiceOn is newKBService with st as its database.
-func newKBServiceOn(t *testing.T, f *fakeHub, st Store) *Service {
-	t.Helper()
-	f.mu.Lock()
-	if f.hello.KB == nil {
-		f.hello.KB = &KBSettings{}
-	}
-	f.mu.Unlock()
-	s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return st }, Logf: testLogf(t), KB: &KBOptions{Dir: t.TempDir()}}))
-	t.Cleanup(s.kbEnd)
-	return s
-}
-
-// kbEng is s's knowledge base, open now.
-func kbEng(t *testing.T, s *Service) *kb.Engine {
-	t.Helper()
-	e, err := s.kbGet(context.Background())
-	if err != nil {
-		t.Fatalf("the knowledge base did not open: %v", err)
-	}
-	return e
-}
-
 // newStorelessService is an assistant on f with no database: its state lives in memory only.
 func newStorelessService(t *testing.T, f *fakeHub) *Service {
 	t.Helper()
@@ -1753,4 +1714,37 @@ func todosTold(t testing.TB, s *Service) {
 			t.Fatal("a todos event still waits after 5 s")
 		}
 	}
+}
+
+// newServiceWithStore is newServiceOn with a fresh in-memory database.
+func newServiceWithStore(t *testing.T, f *fakeHub) *Service {
+	t.Helper()
+	return newServiceOn(t, f, &memStore{})
+}
+
+// toolText is a tool result's text.
+func toolText(res any) string {
+	switch v := res.(type) {
+	case proto.ToolResult:
+		var b strings.Builder
+		for _, c := range v.Content {
+			b.WriteString(c.Text)
+		}
+		return b.String()
+	case string:
+		return v
+	}
+	raw, _ := json.Marshal(res)
+	return string(raw)
+}
+
+// apiProvider is a keyed direct API connection speaking api.
+func apiProvider(t *testing.T, s *Service, name, api string) storedLauncher {
+	t.Helper()
+	key, err := s.sealKey("private-test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: name, Kind: "api", API: api,
+		BaseURL: "https://" + name + ".example.invalid", Model: name + "-model"}, KeySealed: key}
 }

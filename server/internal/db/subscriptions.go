@@ -246,7 +246,7 @@ type SubscriptionItemsQuery struct {
 }
 
 // SubscriptionItems are the items held for subscription id that q picks, in seq order (#2039: the Inbox reads the
-// newest of its window, the knowledge base pages on from its cursor).
+// newest of its window).
 func (d *DB) SubscriptionItems(ctx context.Context, id string, q SubscriptionItemsQuery) ([]SubscriptionItemRow, error) {
 	order := "ASC"
 	if q.Newest {

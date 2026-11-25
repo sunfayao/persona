@@ -1,6 +1,5 @@
 {{if and .Language (ne .Language "zh-Hans") (ne .Language "简体中文")}}{{if eq .Language "日本語"}}現在：{{.Now}}
-Agent：{{.Agent}}（{{.Machine}}{{with .Cwd}}、ディレクトリ {{.}}{{end}}）{{with .Project}}
-プロジェクト：{{.}}{{end}}
+Agent：{{.Agent}}（{{.Machine}}{{with .Cwd}}、ディレクトリ {{.}}{{end}}）
 {{with .Ask}}
 このターンのユーザーの依頼：
 {{.}}
@@ -19,8 +18,7 @@ Agent：{{.Agent}}（{{.Machine}}{{with .Cwd}}、ディレクトリ {{.}}{{end}}
 {{end}}{{end}}{{with .ApprovedThen}}
 {{if $.ApprovedByTask}}タスクがすでにこの手順を許可しています{{else}}ユーザーはすでに許可しています{{end}}：{{with $.ApprovedWait}}「{{.}}」を待った後{{else}}待ちが解消した後{{end}}に「{{.}}」を行うことです。同じことを待ち、同じ手順（同じブランチ・環境・対象で、追加の作業なし）を行うなら、on=external、wait.approved=trueとし、wait.thenにその手順をそのまま書いて、再確認しないでください。待つことや次の手順が変わった場合はapprovedを付けず、自動で進めないでください。
 {{end}}{{else}}Now: {{.Now}}
-Agent: {{.Agent}} ({{.Machine}}{{with .Cwd}}, directory {{.}}{{end}}){{with .Project}}
-Project: {{.}}{{end}}
+Agent: {{.Agent}} ({{.Machine}}{{with .Cwd}}, directory {{.}}{{end}})
 {{with .Ask}}
 The user's request for this turn:
 {{.}}
@@ -39,8 +37,7 @@ Other Agents working on the same computer:
 {{end}}{{end}}{{with .ApprovedThen}}
 {{if $.ApprovedByTask}}Its task already authorizes{{else}}The user already approved{{end}}: {{with $.ApprovedWait}}after waiting for “{{.}}”{{else}}after the wait is over{{end}}, do “{{.}}”. If it still waits for the same thing and will take this same step (the same branch/environment/target, with no extra work), set on=external and wait.approved=true, copy this step to wait.then, and do not ask the user again. If the wait or next step changed, do not set approved or proceed automatically.
 {{end}}{{end}}{{else}}现在：{{.Now}}
-Agent：{{.Agent}}（{{.Machine}}{{with .Cwd}}，目录 {{.}}{{end}}）{{with .Project}}
-项目：{{.}}{{end}}
+Agent：{{.Agent}}（{{.Machine}}{{with .Cwd}}，目录 {{.}}{{end}}）
 {{with .Ask}}
 这一轮用户给它的要求：
 {{.}}

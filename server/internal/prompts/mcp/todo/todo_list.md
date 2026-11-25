@@ -35,7 +35,7 @@ List Persona to-dos (not Feishu tasks): open/failed starts by default, due first
     },
     "project": {
       "type": "string",
-      "description": "Existing knowledge-base project slug/name."
+      "description": "Project label."
     },
     "kind": {
       "type": "string",

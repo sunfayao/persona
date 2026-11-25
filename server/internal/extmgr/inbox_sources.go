@@ -18,13 +18,9 @@ import (
 )
 
 // The built-in sources of the Inbox Sources pages (#5278, docs/extensions/subscriptions.md "Pages"): the connectors
-// that bring things into the Inbox or the knowledge base themselves, and mail. Their switches, rules and mutes here
+// that bring things into the Inbox themselves, and mail. Their switches, rules and mutes here
 // are the ones Settings › Connectors, an extension's page and the Inbox already change, so either place shows the
 // other's change.
-
-// kbArchiveDefault is how often the knowledge base asks a connector whose manifest names no Poll (the assistant's
-// kbConnectorPoll), for the pages to say.
-const kbArchiveDefault = 10 * time.Minute
 
 // sourceReads are the Inbox's latest reads of each source since the manager started (memory only), by connector id
 // and by "mail:<account id>": when, and the code of a failure.
@@ -66,12 +62,12 @@ type builtinSources struct{ h *Manager }
 var builtinIcons = map[string]string{"mail": "mail", "github": "code", "imessage": "chat", "larkcli": "chat", "lark": "chat",
 	"telegram": "chat", "wechat": "chat"}
 
-// listed says a connector is one of the pages' sources: it brings things into the Inbox or the knowledge base, and it
+// listed says a connector is one of the pages' sources: it brings things into the Inbox, and it
 // was set up (one never configured is no source of the user's yet).
 func (b builtinSources) listed(ctx context.Context, c connector.Connector) (bool, string) {
 	m := c.Manifest()
 	_, inbox := connector.As[connector.Inbox](c)
-	if !(m.Has(connector.CapInbox) && inbox) && !m.Has(connector.CapArchive) && c.ID() != "mail" {
+	if !(m.Has(connector.CapInbox) && inbox) && c.ID() != "mail" {
 		return false, ""
 	}
 	state := connector.StatusOf(ctx, c).State
@@ -101,13 +97,6 @@ func (b builtinSources) List(ctx context.Context) []subscriptionsui.Builtin {
 		if _, inbox := connector.As[connector.Inbox](c); inbox && m.Has(connector.CapInbox) {
 			on := h.connectors.Feeds(id, connector.FeedInbox)
 			src.Inbox, src.InboxEvery, src.Mutable = &on, int(inboxPoll/time.Second), true
-		}
-		if m.Has(connector.CapArchive) {
-			on := h.connectors.Feeds(id, connector.FeedArchive)
-			src.Archive, src.ArchiveEvery = &on, int(kbArchiveDefault/time.Second)
-			if m.Poll > 0 {
-				src.ArchiveEvery = int(m.Poll / time.Second)
-			}
 		}
 		if id == "mail" {
 			b.mail(&src)
@@ -248,18 +237,17 @@ func (b builtinSources) rules(src *subscriptionsui.Builtin) {
 func (b builtinSources) SetFeed(ctx context.Context, id string, inbox, on bool, _ subscriptions.Actor) error {
 	if id == assistantSource {
 		if !inbox {
-			return fmt.Errorf("%q has no knowledge-base feed", id)
+			return fmt.Errorf("%q has no such feed", id)
 		}
 		return b.h.callAssistant(ctx, assistantwire.MethodInboxPost, map[string]any{"on": on}, nil)
 	}
-	f := connector.FeedArchive
-	if inbox {
-		f = connector.FeedInbox
+	if !inbox {
+		return fmt.Errorf("%q has no such feed", id)
 	}
 	if b.h.connectors.Get(id) == nil {
 		return fmt.Errorf("no connector %q", id)
 	}
-	return b.h.setConnectorFeed(ctx, id, f, on)
+	return b.h.setConnectorFeed(ctx, id, connector.FeedInbox, on)
 }
 
 func (b builtinSources) SetRules(ctx context.Context, id, rules string, _ subscriptions.Actor) error {

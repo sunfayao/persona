@@ -69,16 +69,15 @@ func (svc *Service) agentArchiveChanges(machine string) map[string]time.Time {
 }
 
 // inboxAgentPrompt is the AI twin's first message for an item (prompts/inbox/agent.md).
-func (b *inboxBook) inboxAgentPrompt(it *InboxItem, owner string, kbc *prompts.KBContext) string {
-	return b.inboxAgentPromptFor(it, owner, kbc, nil, 1, time.UTC)
+func (b *inboxBook) inboxAgentPrompt(it *InboxItem, owner string) string {
+	return b.inboxAgentPromptFor(it, owner, nil, 1, time.UTC)
 }
 
 // inboxAgentPromptFor is inboxAgentPrompt for an item about one of the user's tasks (linked: its progress).
 // larkDefault is lark.account: the Feishu account lark_messages reads unless the prompt names another.
 // loc: the user's time zone, which the chain's times are read in.
-func (b *inboxBook) inboxAgentPromptFor(it *InboxItem, owner string, kbc *prompts.KBContext, linked *prompts.InboxTask, larkDefault int, loc *time.Location) string {
+func (b *inboxBook) inboxAgentPromptFor(it *InboxItem, owner string, linked *prompts.InboxTask, larkDefault int, loc *time.Location) string {
 	a := b.inboxAgentFor(it, owner, linked, larkDefault, loc)
-	a.KB = kbc
 	return prompts.RenderInboxAgent(a)
 }
 

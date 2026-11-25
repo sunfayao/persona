@@ -176,9 +176,6 @@ func (s *Service) resolveQuote(ctx context.Context, self, quote string) (*relayR
 		return nil, nil
 	}
 	machine := s.settings(ctx).MachineID
-	if s.justMeNow(machine, self) {
-		return nil, errPrivateQuote
-	}
 	var res struct {
 		Items []proto.Item `json:"items"`
 	}
@@ -196,10 +193,6 @@ func (s *Service) resolveQuote(ctx context.Context, self, quote string) (*relayR
 		map[string]any{"session_id": self, "turns": quoteTurns, "lazy_images": true}, &res); err != nil {
 		return nil, fmt.Errorf("not sent: this conversation could not be read to find the user's message to quote (%v). Send it again without quote", err)
 	}
-	// The node read may have been in flight when the current turn became private.
-	if s.justMeNow(machine, self) {
-		return nil, errPrivateQuote
-	}
 	var req *relayRequest
 	var err error
 	if quote == quoteLatest {
@@ -216,8 +209,6 @@ func (s *Service) resolveQuote(ctx context.Context, self, quote string) (*relayR
 	}
 	return req, nil
 }
-
-var errPrivateQuote = errors.New("not sent: the user asked privately during a meeting. Their words stay in this conversation. Do not copy them into text either")
 
 func (s *Service) quoteCandidate(ctx context.Context, self string, it proto.Item) *relayRequest {
 	if it.Role != "user" || it.Kind != proto.KindText || it.Task != nil || it.Wake {
@@ -243,21 +234,13 @@ func (s *Service) quoteInTurn(ctx context.Context, self string, items []proto.It
 		return nil, errors.New("not sent: the start of this turn is outside the transcript page. Put the user's exact words in quote, or send without quote")
 	}
 	var choices []*relayRequest
-	var private bool
 	for _, it := range items[start:] {
-		if strings.HasPrefix(it.ClientMsgID, justMeMsgPrefix) {
-			private = true
-			continue
-		}
 		if q := s.quoteCandidate(ctx, self, it); q != nil {
 			choices = append(choices, q)
 		}
 	}
 	switch len(choices) {
 	case 0:
-		if private {
-			return nil, errPrivateQuote
-		}
 		return nil, errors.New("not sent: the user wrote nothing in this turn to quote. To pass on an earlier request, put the user's exact words in quote, or send without quote")
 	case 1:
 		return choices[0], nil
@@ -274,16 +257,8 @@ func (s *Service) quoteInTurn(ctx context.Context, self string, items []proto.It
 func (s *Service) quoteByIDOrWords(ctx context.Context, self string, items []proto.Item, selector string) (*relayRequest, error) {
 	// Resolve every kind of id first, even when a newer message contains the id as ordinary words.
 	var candidates []*relayRequest
-	var private []string
 	var passageSource bool
 	for _, it := range slices.Backward(items) {
-		if strings.HasPrefix(it.ClientMsgID, justMeMsgPrefix) {
-			if it.ID == selector {
-				return nil, errPrivateQuote
-			}
-			private = append(private, ownerMessageText(it))
-			continue
-		}
 		q := s.quoteCandidate(ctx, self, it)
 		if it.ID == selector && q == nil {
 			return nil, errors.New("not sent: that item is neither a message the user wrote nor a verified quote this conversation received. Use the user's exact words, or send without quote")
@@ -311,11 +286,6 @@ func (s *Service) quoteByIDOrWords(ctx context.Context, self string, items []pro
 					q.Text = excerpt
 				}
 				return q, nil
-			}
-		}
-		for _, text := range private {
-			if quoteExcerpt(text, words) != "" {
-				return nil, errPrivateQuote
 			}
 		}
 	}

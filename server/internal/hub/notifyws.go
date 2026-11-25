@@ -36,7 +36,7 @@ func (w pushWants) fn() func(NotifyPrefs) bool {
 // devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
 // turned its pushes off get none (NotifyPrefs.MutedManagers).
 func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
-	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, "", "", pushPolicy{level: levelFor(kind, "")})
+	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, "", pushPolicy{level: levelFor(kind, "")})
 }
 
 // pushOutcome is where one push went: the devices it was handed to now (a push route, a ws_notify connection or a
@@ -60,17 +60,12 @@ func (o pushOutcome) reason() string {
 	return "no_device"
 }
 
-// notifyDoneUnder is notifyDone with the push's apns-collapse-id ("": one of its own) and the recording it is about
-// ("": none; assistantwire.Notification.RecordingID), which the push and the notify carry as `recording_id`. It returns
+// notifyDoneUnder is notifyDone with the push's apns-collapse-id ("": one of its own). It returns
 // where the push went, with the ln-mode reason it was held, so the assistant can tell the model whether a notify_user
 // notice reached a device, the briefing or nothing.
-func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants, collapseID, recordingID string, policy pushPolicy) pushOutcome {
+func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants, collapseID string, policy pushPolicy) pushOutcome {
 	build := func(l i18n.Lang) map[string]any {
-		p := donePayloadIn(l, machineID, machine, sessionID, title, text)
-		if recordingID != "" {
-			p["recording_id"] = recordingID
-		}
-		return p
+		return donePayloadIn(l, machineID, machine, sessionID, title, text)
 	}
 	if !h.sessionHiddenFromExtensions(machineID, sessionID) { // only of a session the extensions are shown (extension_private.go)
 		h.emitToExtensions(owner, "agent.finished", map[string]any{"machine_id": machineID, "machine": machine, "session_id": sessionID, "title": title})
@@ -314,9 +309,6 @@ func notifyMessage(kind string, payload map[string]any) map[string]any {
 	}
 	if td, ok := payload["todo"]; ok { // a decision's push (decidePayloadIn)
 		msg["todo"] = td
-	}
-	if id, ok := payload["recording_id"]; ok { // a meeting's minutes (notifyDoneUnder)
-		msg["recording_id"] = id
 	}
 	return msg
 }

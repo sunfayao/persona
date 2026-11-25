@@ -395,7 +395,7 @@ func TestRenewingAQuietTaskKeepsIt(t *testing.T) {
 	sc.mu.Unlock()
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	for _, continued := range []bool{false, true} {
-		sent := taskPrompt(task, time.Now(), time.Now(), loc, false, false, continued)
+		sent := taskPrompt(task, time.Now(), time.Now(), loc, false, continued)
 		if !strings.Contains(sent, "notify_user") {
 			t.Fatalf("the run's message says how it pushes: %s", sent)
 		}

@@ -45,41 +45,9 @@ func TestInterruptedRestoreRollsBack(t *testing.T) {
 	if got := fixture.backend.server(fixture.manager)[fixture.manager.Database].dump; got != "manager-two" {
 		fatalf(t, "manager was not rolled back after interruption: %q", got)
 	}
-	raw, _ := os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ := os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	if string(raw) != "changed knowledge" {
 		fatalf(t, "files were not rolled back after interruption: %q", raw)
-	}
-	assertNoTemporaryDatabases(t, fixture.backend)
-}
-
-func TestExternalKnowledgeBaseNeedsExplicitRestoreApproval(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	external := filepath.Join(t.TempDir(), "knowledge")
-	writeFixtureFile(t, filepath.Join(external, "fact.md"), []byte("external original"))
-	managerConfig := `{"database_name":"persona_manager","kb_dir":` + strconvQuote(external) + `}`
-	writeFixtureFile(t, filepath.Join(fixture.home, "managers", "assistant", "manager.json"), []byte(managerConfig))
-	operator := fixture.operator()
-	if _, err := operator.Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	writeFixtureFile(t, filepath.Join(external, "fact.md"), []byte("external changed"))
-	_, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true})
-	if err == nil || !strings.Contains(err.Error(), "--allow-external-kb") {
-		fatalf(t, "external restore without approval = %v", err)
-	}
-	if got := fixture.backend.server(fixture.hub)[fixture.hub.Database].dump; got != "hub-one" {
-		fatalf(t, "database changed without external approval: %q", got)
-	}
-	raw, _ := os.ReadFile(filepath.Join(external, "fact.md"))
-	if string(raw) != "external changed" {
-		fatalf(t, "external files changed without approval: %q", raw)
-	}
-	if _, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true, AllowExternalKB: true}); err != nil {
-		fatal(t, err)
-	}
-	raw, _ = os.ReadFile(filepath.Join(external, "fact.md"))
-	if string(raw) != "external original" {
-		fatalf(t, "external files were not restored: %q", raw)
 	}
 	assertNoTemporaryDatabases(t, fixture.backend)
 }
@@ -197,7 +165,7 @@ func TestUncertainRenameResultRollsBackToTheRealState(t *testing.T) {
 			if got := fixture.backend.server(fixture.manager)[fixture.manager.Database]; got == nil || got.dump != "manager-two" {
 				fatalf(t, "manager database after rollback = %+v", got)
 			}
-			raw, _ := os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+			raw, _ := os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 			if string(raw) != "changed knowledge" {
 				fatalf(t, "files were not rolled back: %q", raw)
 			}
@@ -241,7 +209,7 @@ func TestUnsupportedClientsFailBeforeAnyWork(t *testing.T) {
 	if _, err := os.Stat(other.Output); !errors.Is(err, os.ErrNotExist) {
 		errorf(t, "bundle published: %v", err)
 	}
-	raw, _ := os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ := os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	if string(raw) != "changed knowledge" {
 		errorf(t, "files touched: %q", raw)
 	}
@@ -356,7 +324,7 @@ func TestUnreachableServerAfterCommitKeepsFilesAndNamesThePreviousState(t *testi
 	if err == nil {
 		fatal(t, "restore succeeded")
 	}
-	raw, _ := os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ := os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	if string(raw) != "original knowledge" {
 		errorf(t, "files were rolled back under databases that stayed restored: %q", raw)
 	}
@@ -375,10 +343,10 @@ func TestUnreachableServerAfterCommitKeepsFilesAndNamesThePreviousState(t *testi
 	assertNothingDropped(t, fixture, "persona_staged_h_")
 }
 
-// An output inside a tree the backup collects (the knowledge base, runtime
+// An output inside a tree the backup collects (the runtime
 // directories) would be copied into itself with its staging directory.
 func TestCreateRefusesAnOutputInsideACollectedTree(t *testing.T) {
-	for _, inside := range []string{"data/backups", "data", "managers/assistant/out", "extensions/out", "skills"} {
+	for _, inside := range []string{"skills/backups", "managers/assistant/out", "extensions/out", "skills"} {
 		t.Run(inside, func(t *testing.T) {
 			fixture := newBackupFixture(t, "persona_manager")
 			opts := fixture.options()
@@ -387,7 +355,7 @@ func TestCreateRefusesAnOutputInsideACollectedTree(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "inside") {
 				fatalf(t, "create = %v", err)
 			}
-			if _, statErr := os.Stat(filepath.Dir(opts.Output)); statErr == nil && inside != "data" && inside != "managers/assistant/out" && inside != "skills" && inside != "data/backups" {
+			if _, statErr := os.Stat(filepath.Dir(opts.Output)); statErr == nil && inside != "managers/assistant/out" && inside != "skills" && inside != "skills/backups" {
 				errorf(t, "the output directory was created: %v", statErr)
 			}
 			entries, _ := filepath.Glob(filepath.Join(fixture.home, filepath.FromSlash(inside), ".persona-backup-*"))
@@ -472,7 +440,7 @@ func TestRestoreWithoutAnyDockerPasswordFileReportsNothingKept(t *testing.T) {
 
 func readNote(t *testing.T, fixture *backupFixture) string {
 	t.Helper()
-	raw, _ := os.ReadFile(filepath.Join(fixture.home, "data", "facts", "note.md"))
+	raw, _ := os.ReadFile(filepath.Join(fixture.home, "skills", "facts", "note.md"))
 	return string(raw)
 }
 
@@ -598,53 +566,22 @@ func TestDestinationCheckFailureIsNotTakenForNotCommitted(t *testing.T) {
 	}
 }
 
-// A restore onto an external knowledge base names the copy it keeps.
-func TestRestoreReportsThePreviousExternalKnowledgeBase(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	external := filepath.Join(t.TempDir(), "knowledge")
-	writeFixtureFile(t, filepath.Join(external, "fact.md"), []byte("external original"))
-	writeFixtureFile(t, filepath.Join(fixture.home, "managers", "assistant", "manager.json"), []byte(`{"database_name":"persona_manager","kb_dir":`+strconvQuote(external)+`}`))
-	operator := fixture.operator()
-	if _, err := operator.Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	writeFixtureFile(t, filepath.Join(external, "fact.md"), []byte("external changed"))
-	result, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true, AllowExternalKB: true})
-	if err != nil {
-		fatal(t, err)
-	}
-	if result.PreviousExternalKB == "" {
-		fatal(t, "the result does not name the previous external knowledge base")
-	}
-	if info, err := os.Stat(result.PreviousExternalKB); err != nil || !info.IsDir() {
-		fatalf(t, "the named directory does not exist: %v", err)
-	}
-}
-
-// The refusal sees through symlinks: an output reached through a link into the
-// knowledge base, and a knowledge base or collected directory that is itself a
-// link, are inside the collected tree.
+// The refusal sees through symlinks: an output reached through a link into a
+// collected directory, and a collected directory that is itself a link, are
+// inside the collected tree.
 func TestOutputRefusalResolvesSymlinks(t *testing.T) {
-	for _, shape := range []string{"link-to-kb", "kb-is-link", "collected-dir-is-link"} {
+	for _, shape := range []string{"link-to-collected-dir", "collected-dir-is-link"} {
 		t.Run(shape, func(t *testing.T) {
 			fixture := newBackupFixture(t, "persona_manager")
 			outside := t.TempDir()
 			var output string
 			switch shape {
-			case "link-to-kb":
+			case "link-to-collected-dir":
 				link := filepath.Join(t.TempDir(), "link")
-				if err := os.Symlink(filepath.Join(fixture.home, "data"), link); err != nil {
+				if err := os.Symlink(filepath.Join(fixture.home, "skills"), link); err != nil {
 					skip(t, "symlinks unavailable: ", err)
 				}
 				output = filepath.Join(link, "x.backup")
-			case "kb-is-link":
-				if err := os.RemoveAll(filepath.Join(fixture.home, "data")); err != nil {
-					fatal(t, err)
-				}
-				if err := os.Symlink(outside, filepath.Join(fixture.home, "data")); err != nil {
-					skip(t, "symlinks unavailable: ", err)
-				}
-				output = filepath.Join(outside, "x.backup")
 			case "collected-dir-is-link":
 				if err := os.Symlink(outside, filepath.Join(fixture.home, "skills")); err != nil {
 					skip(t, "symlinks unavailable: ", err)
@@ -790,36 +727,6 @@ func TestSwapKnowledgeNarrowsOnlyOnEstablishedFacts(t *testing.T) {
 	part.learn(maybe.observed(atStage, false).observed(atTarget, false).observed(atAside, false))
 	if !part.confused || !part.known.may(bundleAt(atTarget)) || !part.known.may(originalAt(atAside)) {
 		errorf(t, "a contradiction leaves %b (confused %v)", part.known, part.confused)
-	}
-}
-
-// No external knowledge base existed before the restore: nothing was kept, so
-// no empty directory is left and none is reported.
-func TestRestoreLeavesNoEmptyPreviousExternalKnowledgeBase(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	parent := t.TempDir()
-	external := filepath.Join(parent, "knowledge")
-	writeFixtureFile(t, filepath.Join(external, "fact.md"), []byte("external original"))
-	writeFixtureFile(t, filepath.Join(fixture.home, "managers", "assistant", "manager.json"), []byte(`{"database_name":"persona_manager","kb_dir":`+strconvQuote(external)+`}`))
-	operator := fixture.operator()
-	if _, err := operator.Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	if err := os.RemoveAll(external); err != nil {
-		fatal(t, err)
-	}
-	result, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true, AllowExternalKB: true})
-	if err != nil {
-		fatal(t, err)
-	}
-	if result.PreviousExternalKB != "" {
-		errorf(t, "an empty previous external knowledge base is reported: %s", result.PreviousExternalKB)
-	}
-	if left, _ := filepath.Glob(filepath.Join(parent, ".*persona-backup-previous-*")); len(left) != 0 {
-		errorf(t, "an empty previous-copy directory is left: %v", left)
-	}
-	if raw, _ := os.ReadFile(filepath.Join(external, "fact.md")); string(raw) != "external original" {
-		errorf(t, "the knowledge base was not restored: %q", raw)
 	}
 }
 

@@ -161,9 +161,6 @@ func (c *conversation) connect(woken bool) error {
 		c.runs.resume(resume)
 	}
 	switch {
-	case c.meeting != nil:
-		// Only what the call hands over is said: the room's own turns (batches, heard asks, photos) are not
-		// followed (meeting.go).
 	case c.version >= 2:
 		c.runs.observeTarget(linkKey{c.target.MachineID, c.target.SessionID}) // after the runs handed back
 	}
@@ -174,16 +171,12 @@ func (c *conversation) connect(woken bool) error {
 // the rate of its audio. A failure closes up; the service's refusal is a *sessionRefused.
 func (c *conversation) startSession(ctx context.Context, up upLink, w wire, p *Provider, model, voice string,
 	in prompts.VoiceInstructions, tools []string) (int, error) {
-	s := session{Model: model, Voice: voice, InputRate: p.inputRate(), Instructions: c.instructions(in, tools), Tools: toolDecls(tools, c.meeting != nil, string(c.language()))}
+	s := session{Model: model, Voice: voice, InputRate: p.inputRate(), Instructions: c.instructions(in, tools), Tools: toolDecls(tools, string(c.language()))}
 	return startUpstream(ctx, up, w, p, s)
 }
 
-// instructions are what a session that declares tools is told: voice/instructions, or a meeting call's voice/meeting
-// (only the owner's name of in's owner fields, never their notes).
+// instructions are what a session that declares tools is told: voice/instructions.
 func (c *conversation) instructions(in prompts.VoiceInstructions, tools []string) string {
-	if c.meeting != nil {
-		return fitMeeting(meetingInstructions(in, len(tools) > 0))
-	}
 	in.Tools = c.toolMode(tools)
 	return fitInstructions(in)
 }
@@ -321,10 +314,6 @@ func (c *conversation) toolSet() []string {
 		return nil // transcription only: no function tools, however the provider's ordinary calls are configured
 	case !declare || c.toolless.Load():
 		return nil
-	case c.meeting != nil:
-		// A meeting call hands every question to the room, and has nothing else: the room may hear what a tool
-		// brings back (meeting.go).
-		return meetingTools
 	case c.version >= 2:
 		// Bound to a conversation: what hands work over goes to it (delegate_task); send_to_agent and ask_persona would
 		// go past it. The measured service hands nothing over without a tool (docs/lessons/voice.md "Other behavior").
@@ -341,8 +330,6 @@ func (c *conversation) tools() bool { return len(c.toolSet()) > 0 }
 // toolMode is what the instructions say of tools (prompts.VoiceInstructions.Tools) for a session that declares tools.
 func (c *conversation) toolMode(tools []string) string {
 	switch {
-	case c.meeting != nil && len(tools) > 0:
-		return "meeting" // the log's word: voice/meeting has its own (meeting.go)
 	case c.target != nil && len(tools) > 0:
 		return "bound"
 	case len(tools) == len(toolNames):

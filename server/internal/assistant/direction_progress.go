@@ -217,17 +217,8 @@ func (s *Service) directionOf(id string) *direction {
 	return &cp
 }
 
-// directionSessionNames uses the same canonical resolver as the tree without opening
-// the knowledge base while publish holds pubMu. directionsSync publishes refreshed
-// project fallbacks once the knowledge base is available; explicit names are immediate.
+// directionSessionNames uses the same canonical resolver as the tree.
 func (s *Service) directionSessionNames(ctx context.Context, cfg Settings, titles map[string]shownTitle) map[string]string {
-	projects, available := map[string]string{}, false
-	if opened := s.kb.cur.Load(); opened != nil && s.kbOn(ctx) {
-		available = true
-		for _, project := range opened.eng.Store.Projects() {
-			projects[project.Slug] = project.Name
-		}
-	}
 	b := &s.directions
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -239,9 +230,9 @@ func (s *Service) directionSessionNames(ctx context.Context, cfg Settings, title
 		if id == "" || id == cfg.Main {
 			continue
 		}
-		name := directionName(nil, titles[id].title, "")
+		name := directionName(nil, titles[id].title)
 		if d := b.m[id]; d != nil {
-			name = nameOf(d, titles[id].title, projects, available)
+			name = nameOf(d, titles[id].title)
 		}
 		names[id] = name
 	}
@@ -252,14 +243,13 @@ func (s *Service) directionSessionNames(ctx context.Context, cfg Settings, title
 // leader with no name at all is called by its id.
 func (s *Service) leaderNames(ctx context.Context, ids []string) map[string]string {
 	titles, _ := s.conversationTitles()
-	pn, ok := s.projectNames(ctx)
 	out := make(map[string]string, len(ids))
 	for _, id := range ids {
 		var name string
 		if d := s.directionOf(id); d != nil {
-			name = nameOf(d, titles[id].title, pn, ok)
+			name = nameOf(d, titles[id].title)
 		} else {
-			name = directionName(nil, titles[id].title, "")
+			name = directionName(nil, titles[id].title)
 		}
 		out[id] = cmp.Or(clip(oneLine(name), 40), id)
 	}

@@ -1607,13 +1607,13 @@ Use an invalidation revision as the task key and handle the flag after completio
 
 - **AVAudioFile's m4a files carry about 23 KB of padding**: the writer leaves a `free` box between `moov` and `mdat` (room for the
   header to grow, never used once the file is closed), so 10 s of 32 kbps AAC came to about 65 KB instead of 42 KB, over the 48 000
-  bytes all-day recording's live envelope allows (`sendMessageData`, `docs/assistant/day-recap.md` "Chunks"). Every chunk would have
+  bytes all-day recording's live envelope allows (`sendMessageData`). Every chunk would have
   gone the slow `transferFile` way. `RecordingM4A.compact` drops the top-level `free` / `skip` boxes from each finished all-day chunk
   and moves the chunk offsets (`stco`, `co64`) back; a layout it doesn't know stays as written. Measure the real file size before
   sizing anything on bitrate × seconds.
 - **A watch haptic does nothing in the background**: `WKInterfaceDevice.play` plays only while the app is in front, and the call
   fails silently otherwise. A recording paused by a call with the wrist down reached nobody: rolling recording still only taps
-  (`docs/apple/recording-rolling.md` "Interruptions and the microphone"). Anything that must reach a wrist that is down is a local
+ . Anything that must reach a wrist that is down is a local
   notification the watch posts itself (`AllDayAlertPolicy` decides the haptic only when `appActive`).
 - **`WCSession.sendMessage` can't launch the watch app**: from the watch it may wake the iPhone app, but the phone's message reaches
   the watch app only while it runs and is reachable. The phone's all-day commands, acknowledgements, erases and deletes therefore fall
@@ -2797,7 +2797,7 @@ HTTP failures live in `Shared/APIClient.swift`, not PersonaKit's model-response 
 
 ### Segment wall-clock start comes from the audio host time
 
-When the segment writer opens a new file, record the tap callback's host time and carry it out with the segment (`docs/apple/recording-rolling.md`). Do not back-compute from when the callback reaches the main thread: queueing and batched `stop()` saves would be wrong.
+When the segment writer opens a new file, record the tap callback's host time and carry it out with the segment. Do not back-compute from when the callback reaches the main thread: queueing and batched `stop()` saves would be wrong.
 
 ### Watch holds unconfirmed rolling segments; bookmarked ones longer
 

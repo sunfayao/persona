@@ -30,7 +30,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 		WorkspaceRulesPatch    json.RawMessage `json:"workspace_rules"`
 		Permission             json.RawMessage `json:"default_permission_mode"`
 		Readonly               json.RawMessage `json:"readonly_mode"`
-		MinutesRetention       json.RawMessage `json:"minutes_days"`
 		TranscriptionMode      json.RawMessage `json:"meeting_transcription_default"`
 		Glossary               json.RawMessage `json:"meeting_glossary"`
 		TranscriptionExtension json.RawMessage `json:"meeting_transcription_extension"`
@@ -106,10 +105,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if d := in.RecordingDays; d != nil && (*d < minRecordingDays || *d > maxRecordingDays) {
-		apierr.Write(w, http.StatusBadRequest, errors.New("recording_days must be 1–365"))
-		return
-	}
 	var conversationTagFilters []string
 	tagFiltersWritten := len(in.ConversationTagFilters) > 0
 	if tagFiltersWritten && !bytes.Equal(bytes.TrimSpace(in.ConversationTagFilters), []byte("null")) {
@@ -147,17 +142,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if m := in.IdleReleaseMinutes; m != nil && (*m < minIdleReleaseMinutes || *m > maxIdleReleaseMinutes) {
 		apierr.Write(w, http.StatusBadRequest, i18n.Err("assistant-profile.bad_idle_release_minutes"))
-		return
-	}
-	if in.MinutesRetention != nil {
-		if err := json.Unmarshal(in.MinutesRetention, &in.MinutesDays); err != nil || in.MinutesDays == nil ||
-			*in.MinutesDays < minMinutesDays || *in.MinutesDays > maxMinutesDays {
-			apierr.Write(w, http.StatusBadRequest, i18n.Err("assistant-profile.bad_minutes_days"))
-			return
-		}
-	}
-	if m := in.MeetingAttendanceDefault; m != nil && !slices.Contains(meetingRoles, *m) {
-		apierr.Write(w, http.StatusBadRequest, i18n.Err("assistant-meeting.bad_default_role"))
 		return
 	}
 	if g := in.DeliveryGate; g != nil && !slices.Contains(deliveryGates, *g) {
@@ -265,9 +249,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 		if in.Notes != nil {
 			v.Notes = in.Notes
 		}
-		if in.OwnerAliases != nil {
-			v.OwnerAliases = ownerAliases(in.OwnerAliases)
-		}
 		if in.MainTasksQuiet != nil {
 			v.MainTasksQuiet = in.MainTasksQuiet
 		}
@@ -301,15 +282,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 		if in.Readonly != nil {
 			v.ReadonlyMode = in.ReadonlyMode
 		}
-		if in.RecordingDays != nil {
-			v.RecordingDays = in.RecordingDays
-		}
-		if in.MinutesDays != nil {
-			v.MinutesDays = in.MinutesDays
-		}
-		if in.KBTopics != nil {
-			v.KBTopics = in.KBTopics
-		}
 		if in.MainBackgroundFolded != nil {
 			v.MainBackgroundFolded = in.MainBackgroundFolded
 		}
@@ -328,9 +300,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if tagFiltersWritten {
 			v.ConversationTagFilters = conversationTagFilters
-		}
-		if in.MeetingAttendanceDefault != nil {
-			v.MeetingAttendanceDefault = in.MeetingAttendanceDefault
 		}
 		if in.MeetingTranscriptionDefault != nil {
 			v.MeetingTranscriptionDefault = in.MeetingTranscriptionDefault
@@ -375,9 +344,6 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if in.AgentTasks != nil {
 			v.AgentTasks = in.AgentTasks
-		}
-		if in.TaskLessons != nil {
-			v.TaskLessons = in.TaskLessons
 		}
 		if in.CloseEndedTerminals != nil {
 			v.CloseEndedTerminals = in.CloseEndedTerminals

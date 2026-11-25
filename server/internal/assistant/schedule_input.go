@@ -167,10 +167,10 @@ func (s *Service) taskInputExecution(ctx context.Context, t Task, record *modelR
 		taskExecutionChangeReason(t, ex, record.Binding) == "" && !((t.pushesOnlyAsked() || t.Repeat != repeatOnce) && s.mayBeMain(ctx, t.RunSessionID)) {
 		target.session = t.RunSessionID
 		if c, ok := s.session(ctx, ex.MachineID, t.RunSessionID); ok && signedOut(c) && (c.Agent == "" || c.Agent == "claude") {
-			target.profile = meetingProfile
+			target.profile = signedInProfile
 		}
 	} else if ex.Launcher == "claude" || ex.Agent == "" || ex.Agent == "claude" {
-		target.profile = meetingProfile
+		target.profile = signedInProfile
 	}
 	return target, nil
 }

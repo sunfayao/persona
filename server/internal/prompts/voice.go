@@ -19,7 +19,7 @@ type VoiceInstructions struct {
 	Notes string
 	// Tools is which of the plugin's function tools (mcp/voice) the session declares: "all"; "ask_persona" (only that
 	// one: another extension calling, docs/assistant/voice.md "Permissions"); "bound" (a call bound to a conversation, protocol 2:
-	// search_knowledge, list_agents and delegate_task, which hands work to it); "" none, the model delegates.
+	// list_agents and delegate_task, which hands work to it); "" none, the model delegates.
 	Tools string
 	// History: what was said before the connection dropped (a reconnected session, a call picked up again), oldest
 	// first.
@@ -59,29 +59,6 @@ type VoiceCard struct {
 }
 
 func RenderVoiceInstructions(d VoiceInstructions) string { return render("voice/instructions", d) }
-
-// VoiceMeeting is what the realtime model of a meeting call is told (voice/meeting, #3862 phase 4,
-// docs/assistant/meeting-minutes.md "Phase 4: realtime voice in the meeting"): it speaks in front of the room and hands every
-// question to the meeting's room conversation. Others hear it, so it takes only the owner's name and the language:
-// there is no Notes field (the owner's voice notes, which every other call's instructions carry), and History is only
-// what this call said.
-type VoiceMeeting struct {
-	Lang  string
-	Owner string // "" is the word for "user" in Lang
-	// Tool: the session declares delegate_task, its only tool; false: the model delegates (a dialect without tools).
-	Tool bool
-	// Title is the room conversation's title; Recent its last questions and answers, oldest first (user: the owner's
-	// question, assistant: the room's answer). Both inside <agent_output>.
-	Title  string
-	Recent []VoiceLine
-	// History: what this call said before its upstream dropped, or before the app picked the call up again (its own
-	// captions), oldest first.
-	History []VoiceLine
-	// Waiting are the questions handed to the room whose answer has not come back yet.
-	Waiting []string
-}
-
-func RenderVoiceMeeting(d VoiceMeeting) string { return render("voice/meeting", d) }
 
 // VoiceReport is what the voice model is told when a turn handed to the main conversation is over, or stops to wait for
 // the user (voice/report). Its first sentence and the <agent_output> block around the answer are the wording measured
@@ -293,20 +270,16 @@ type VoiceSpoken struct {
 func RenderVoiceSpoken(d VoiceSpoken) string { return render("voice/spoken", d) }
 
 // VoiceToolResult is what one of the voice model's function tools answers it (voice/tool_result): what it found, with
-// what other people wrote in it (an agent's last words, a chat line in the knowledge base) inside the <agent_output>
+// what other people wrote in it (an agent's last words) inside the <agent_output>
 // framing measured to keep the model from doing what it says (docs/lessons/voice.md row 5).
 type VoiceToolResult struct {
 	Lang string
-	Tool string // search_knowledge | list_agents | send_to_agent (another name: unknown_tool)
+	Tool string // list_agents | send_to_agent (another name: unknown_tool)
 	// Code: "" it worked; bad_args (the arguments are not what the tool takes); unknown_tool; failed (Reason: the hub's
 	// words, when it said).
 	Code, Reason string
-	Hits         []VoiceHit   // search_knowledge
 	Agents       []VoiceAgent // list_agents
 }
-
-// VoiceHit is a line the knowledge base search found.
-type VoiceHit struct{ Path, Line string }
 
 // VoiceAgent is one agent as list_agents tells it: ID machine/session (what send_to_agent takes), State its
 // proto.Session state (needs_you, working, unread, idle), Last its last words.

@@ -221,8 +221,8 @@ func mergedMember(a *listAnswer, key, name string) (json.RawMessage, bool) {
 
 // mergeTodoPlaces answers GET /api/v1/todos/places from the managers a merged list asks (mergedAsk): each place that
 // is no project (All To-dos, Today, Upcoming, and any fixed place a newer manager adds) once by id, its needs_you added
-// up; then each manager's projects as it lists them, stamped with it, the default's first (a project is its manager's
-// knowledge base's: two managers' project:<slug> are two places); and the counts added up as the list's are
+// up; then each manager's projects as it lists them, stamped with it, the default's first (a project is its manager's:
+// two managers' project:<slug> are two places); and the counts added up as the list's are
 // (sumTodoCounts). The hub reads only a place's id, kind and needs_you, and passes every other member, of a place or of
 // the answer (the first answer's, the default's when it answers), on as sent: a newer manager's additions are not
 // dropped. A manager without the route (an older one answers 404 or 405) adds nothing, nor does one that gives no

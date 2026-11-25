@@ -10,6 +10,4 @@
 
 Linked to-do: {{.TodoID}}. Advance this to-do within its approved scope. Report new output and evidence accurately; if no work could be advanced, say why. Persona checks observable progress after this run; repeating a status summary does not count as progress.{{end}}
 
-{{.Prompt}}{{if and .KBHint (not .Continued)}}
-
-{{template "assistant/routine_kb_hint" .}}{{end}}
+{{.Prompt}}

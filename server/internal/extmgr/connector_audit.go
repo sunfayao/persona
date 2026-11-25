@@ -19,16 +19,15 @@ type auditStore interface {
 // What someone did to a connector, as plugin_audit records it: the plugin column holds the connector's id, and the
 // actions carry a connector_ prefix so they never read as the extension's own (install, auth_signed_in, …) (#5281).
 const (
-	auditConnectorLoginStart     = "connector_login_start"     // a sign-in started (an empty step)
-	auditConnectorSignedIn       = "connector_signed_in"       // {account}: the sign-in is done
-	auditConnectorLogout         = "connector_logout"          // signed out: the credential is gone
-	auditConnectorEnabled        = "connector_enabled"         // {enabled}: switched on or off
-	auditConnectorFeed           = "connector_feed"            // {feed, on}: "Add to knowledge base" / "Add to Inbox"
-	auditConnectorOptions        = "connector_options"         // its own settings changed (never their values)
-	auditConnectorDataDeleted    = "connector_data_deleted"    // {chats, people, posts, items, inbox}: "Delete saved data"
-	auditConnectorArchiveDeleted = "connector_archive_deleted" // {chats, people, posts, items}: "Delete saved knowledge base content"
-	auditConnectorAuthSource     = "connector_auth_source"     // {source, machine}: where GitHub's token comes from
-	auditConnectorRecall         = "connector_recall"          // {row, action}: a message the ledger has a row for was taken back
+	auditConnectorLoginStart  = "connector_login_start"  // a sign-in started (an empty step)
+	auditConnectorSignedIn    = "connector_signed_in"    // {account}: the sign-in is done
+	auditConnectorLogout      = "connector_logout"       // signed out: the credential is gone
+	auditConnectorEnabled     = "connector_enabled"      // {enabled}: switched on or off
+	auditConnectorFeed        = "connector_feed"         // {feed, on}: "Add to Inbox"
+	auditConnectorOptions     = "connector_options"      // its own settings changed (never their values)
+	auditConnectorDataDeleted = "connector_data_deleted" // {chats, people, posts, items, inbox}: "Delete saved data"
+	auditConnectorAuthSource  = "connector_auth_source"  // {source, machine}: where GitHub's token comes from
+	auditConnectorRecall      = "connector_recall"       // {row, action}: a message the ledger has a row for was taken back
 )
 
 // The user's per-chat rules (#5278, chat_rules_routes.go): a rule made from a ledger row, and one dropped. The detail names

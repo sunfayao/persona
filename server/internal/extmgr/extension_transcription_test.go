@@ -17,9 +17,9 @@ import (
 // grant, not another scope), handed to the assistant with the extension's id, which the params cannot change.
 func TestExtensionTranscriptionNeedsItsScopeAndIsAttributed(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-video", extension.Permissions{Hub: []string{extension.ScopeTranscription}})
-	models := kbExtensionSpec(t, h, "example-models", extension.Permissions{Hub: []string{extension.ScopeModels}})
-	full := kbExtensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
+	granted := extensionSpec(t, h, "example-video", extension.Permissions{Hub: []string{extension.ScopeTranscription}})
+	models := extensionSpec(t, h, "example-models", extension.Permissions{Hub: []string{extension.ScopeModels}})
+	full := extensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
 	var mu sync.Mutex
 	var asked []string
 	var got []json.RawMessage

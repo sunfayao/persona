@@ -318,9 +318,9 @@ func (s *Service) firstMessage(ctx context.Context, machine, id string) (string,
 }
 
 // isAssistantRow: c runs in one of this manager's assistant directories (the hub's Assistant flag on a
-// decorated list; the node's own lists only have the directory), or a meeting room (#6048).
+// decorated list; the node's own lists only have the directory).
 func (s *Service) isAssistantRow(c proto.Session) bool {
-	return c.Assistant || c.PaneID == "" && c.Cwd != "" && (identity.IsAssistantDirOf(c.Cwd, s.id) || isMeetingRoomCwd(c.Cwd) || c.Origin == OriginMeeting)
+	return c.Assistant || c.PaneID == "" && c.Cwd != "" && (identity.IsAssistantDirOf(c.Cwd, s.id))
 }
 
 // BackfillResult is what one backfill did.
@@ -547,21 +547,4 @@ func (s *Service) originsOf(ctx context.Context, origin string) []originRecord {
 	}
 	slices.SortFunc(out, func(a, b originRecord) int { return strings.Compare(a.session, b.session) })
 	return out
-}
-
-// originDrop forgets conversation id's origin (a meeting's room deleted with its transcript).
-func (s *Service) originDrop(ctx context.Context, id string) {
-	b := &s.origins
-	b.mu.Lock()
-	if !s.originsLocked(ctx) || b.m[id] == nil {
-		b.mu.Unlock()
-		return
-	}
-	delete(b.m, id)
-	err := s.saveOriginsLocked(ctx)
-	b.mu.Unlock()
-	if err != nil {
-		s.logf("save conversation origins: %v", err)
-	}
-	s.publish(ctx)
 }

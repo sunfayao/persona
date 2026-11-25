@@ -240,7 +240,7 @@ func TestGuestRelayTellsTheHub(t *testing.T) {
 	relay(map[string]any{"kind": "mcp.tools", "assistant": true, "session_id": "guest-1"})
 	relay(map[string]any{"kind": "mcp.call", "assistant": true, "session_id": "guest-1", "name": "lark_agent_reply"})
 	relay(map[string]any{"kind": "mcp.tools", "assistant": true, "session_id": "other", "guest": true})
-	relay(map[string]any{"kind": "mcp.call", "assistant": true, "session_id": "ordinary", "name": "kb_search"})
+	relay(map[string]any{"kind": "mcp.call", "assistant": true, "session_id": "ordinary", "name": "machines_list"})
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
 	want := []bool{true, true, true, false}

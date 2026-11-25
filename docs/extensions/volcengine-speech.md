@@ -74,7 +74,7 @@ owner turns everything on in one place and the switch can never disagree with Re
   hub deletes it once the minutes are written.
 - It is a change only the owner makes on a device (the settings routes need full credentials). The assistant's settings tool
   (`persona_settings` `extension.volc`) neither lists nor sets it, as it never sets the transcription choice
-  ([meeting-minutes.md](../assistant/meeting-minutes.md) "Choosing the mode").
+ .
 - `meeting.transcription_choice` (`assistantwire.MeetingTranscriptionChoose`) is the manager's call to the assistant in its process,
   not on the extensions' allowlist.
 
@@ -94,7 +94,7 @@ owner turns everything on in one place and the switch can never disagree with Re
 
 ## Recognition
 
-The `transcription` contribution `volc` meets the contract of [meeting-minutes.md](../assistant/meeting-minutes.md)
+The `transcription` contribution `volc` meets the contract of
 "The `transcription` extension point": `/transcription/volc/info` answers protocol 1 with `live`, `replay` and `interim`, and
 `setup: "key"` until a key is saved. A job is one WebSocket from the manager; the program stores nothing.
 
@@ -164,7 +164,7 @@ a quota gateway's key reaches the voice extension today, so the owner enters it 
 
 - Only a meeting recorded with **On the hub** sends audio to Volcengine, as it is recorded, and only once the owner turned
   **Use for Meeting Transcription** on (or chose it in Recording settings): installing or turning on the extension sends nothing. The hub
-  deletes a meeting's audio once its minutes are written ([meeting-minutes.md](../assistant/meeting-minutes.md) "Gaps and the final pass"). Extensions granted `transcription` send their own audio through the same choice.
+  deletes a meeting's audio once its minutes are written. Extensions granted `transcription` send their own audio through the same choice.
 - Reading an answer aloud sends its text to Volcengine.
 - The key is never in a log, a reply, the repository or test data (tests use made-up keys with the stand-in service).
 

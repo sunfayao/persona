@@ -64,10 +64,9 @@ func validateNewBackupPathComponents(clean string) error {
 // ValidateOutputDirectory checks and prepares a snapshot directory chosen in
 // the Web UI and returns the canonical absolute path. It applies the same rules
 // as Create's --output: the directory may not be inside a tree a snapshot
-// collects (the knowledge base, managers/assistant, extensions, skills,
-// hub.machines_kept or tls), nor contain the runtime directory or the
-// knowledge base (the archive leaves the store out, so such a store would drop
-// what the snapshot is for). Snapshots hold database dumps, configuration and encryption
+// collects (managers/assistant, extensions, skills,
+// hub.machines_kept or tls), nor contain the runtime directory (the archive leaves the store out, so such
+// a store would drop what the snapshot is for). Snapshots hold database dumps, configuration and encryption
 // keys, so the directory is created with 0700 permissions and must already be
 // private when it exists; it may not be a symbolic link.
 func ValidateOutputDirectory(home, dir string) (string, error) {
@@ -146,23 +145,16 @@ func ValidateOutputDirectory(home, dir string) (string, error) {
 }
 
 // refuseOutputAroundCollectedRoots refuses a directory that is the runtime
-// home itself or contains it, or that contains an external knowledge base: a
-// snapshot leaves its own store out of the archive, which would also leave out
-// everything below it.
+// home itself or contains it: a snapshot leaves its own store out of the
+// archive, which would also leave out everything below it.
 func refuseOutputAroundCollectedRoots(home, output string) error {
 	homeAbs, err := filepath.Abs(home)
 	if err != nil {
 		return err
 	}
-	_, kbDir, err := knowledgeBaseLocator(homeAbs)
-	if err != nil {
-		return err
-	}
-	for _, root := range []string{homeAbs, kbDir} {
-		for _, base := range pathForms(root) {
-			if pathWithin(output, base) {
-				return fmt.Errorf("the backup directory may not contain %s: choose a folder outside the runtime directory and the knowledge base", root)
-			}
+	for _, base := range pathForms(homeAbs) {
+		if pathWithin(output, base) {
+			return fmt.Errorf("the backup directory may not contain %s: choose a folder outside the runtime directory", homeAbs)
 		}
 	}
 	return nil

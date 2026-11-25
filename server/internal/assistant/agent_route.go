@@ -22,13 +22,11 @@ import (
 // POST /api/v1/assistant/agents/{mid}/{sid}/supervisor makes it a supervised task of that leader. The leader gets
 // its supervision messages (digestTo) and reviews it. Which leader:
 //
-//  1. the knowledge-base project that owns the agent's directory, when a current leader is filed under it;
-//  2. else the prompt matched against the leaders' names and projects by assistant.route within routeTimeout;
-//  3. else Persona, the main conversation (no leaders, no match, the model slow or failing).
+//  1. the prompt matched against the leaders' names and projects by assistant.route within routeTimeout;
+//  2. else Persona, the main conversation (no leaders, no match, the model slow or failing).
 
 // Why a leader was suggested.
 const (
-	agentRouteProject = "project"
 	agentRouteModel   = "model"
 	agentRouteDefault = "default"
 )
@@ -46,14 +44,9 @@ type agentRoute struct {
 	By         string `json:"by"`
 }
 
-// decideAgentRoute is the rule table for a new agent: the leaders filed under a project that owns its directory (in
-// dirProjects, by slug) win; else the leader the model named (an id it made up counts for nothing); else main.
-func decideAgentRoute(main string, leaders []routeLeader, dirProjects []string, a agentRouteAnswer, err error) agentRoute {
-	for _, l := range leaders {
-		if l.Project != "" && slices.Contains(dirProjects, l.Project) {
-			return agentRoute{Supervisor: l.ID, Title: l.Title, By: agentRouteProject}
-		}
-	}
+// decideAgentRoute is the rule table for a new agent: the leader the model named (an id it made up counts for nothing),
+// else main.
+func decideAgentRoute(main string, leaders []routeLeader, a agentRouteAnswer, err error) agentRoute {
 	if err == nil {
 		if i := slices.IndexFunc(leaders, func(l routeLeader) bool { return l.ID == strings.TrimSpace(a.Leader) }); i >= 0 {
 			return agentRoute{Supervisor: leaders[i].ID, Title: leaders[i].Title, By: agentRouteModel}
@@ -69,18 +62,9 @@ func (s *Service) routeAgent(ctx context.Context, machine, cwd, prompt string) a
 	if len(leaders) == 0 {
 		return agentRoute{Supervisor: main, Main: true, By: agentRouteDefault}
 	}
-	var slugs []string
-	if e, err := s.kbGet(ctx); err == nil && e != nil && cwd != "" {
-		for _, p := range e.ProjectsForDir(machine, cwd) {
-			slugs = append(slugs, p.Slug)
-		}
-	}
-	if r := decideAgentRoute(main, leaders, slugs, agentRouteAnswer{}, errors.New("not asked")); r.By == agentRouteProject {
-		return r
-	}
 	prompt = strings.TrimSpace(contextBlock.ReplaceAllString(prompt, ""))
 	if prompt == "" {
-		return decideAgentRoute(main, leaders, slugs, agentRouteAnswer{}, errors.New("no prompt"))
+		return decideAgentRoute(main, leaders, agentRouteAnswer{}, errors.New("no prompt"))
 	}
 	in := prompts.RouteInput{Sentence: cutRunes(prompt, 1500)}
 	for _, l := range leaders {
@@ -93,7 +77,7 @@ func (s *Service) routeAgent(ctx context.Context, machine, cwd, prompt string) a
 	if err != nil {
 		s.logf("route agent on %s: %v (Persona)", machine, err)
 	}
-	return decideAgentRoute(main, leaders, slugs, a, err)
+	return decideAgentRoute(main, leaders, a, err)
 }
 
 // putAgentUnder puts agent sid on machine mid under conversation lead (the main conversation or a current leader; ""

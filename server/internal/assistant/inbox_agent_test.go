@@ -392,7 +392,7 @@ func TestInboxAgentPrompt(t *testing.T) {
 	it := actionItem("x", time.Now())
 	it.Title = `群 "A" <b>`
 	it.Agent = &InboxAgent{Task: "查 1013 是否合入"}
-	p := newInbox().inboxAgentPrompt(it, "小明", nil)
+	p := newInbox().inboxAgentPrompt(it, "小明")
 	for _, want := range []string{`title="飞书 · 群 &quot;A&quot; &lt;b&gt;"`, "飞书会话 id：f1", "查 1013 是否合入",
 		"inbox_suggest", "张三：1013 合了吗？", "小明", "事件 x"} {
 		if !strings.Contains(p, want) {
@@ -455,7 +455,7 @@ func TestInboxItemAboutATask(t *testing.T) {
 		t.Fatalf("agent = %+v", it.Agent)
 	}
 	linked := &prompts.InboxTask{ID: todo.ID, Title: "修登录崩溃", State: "在做", Last: "测试通过"}
-	if p := h.inbox.inboxAgentPromptFor(it, "示例用户", nil, linked, 1, time.UTC); !strings.Contains(p, "正在做的任务「修登录崩溃」") || !strings.Contains(p, "测试通过") {
+	if p := h.inbox.inboxAgentPromptFor(it, "示例用户", linked, 1, time.UTC); !strings.Contains(p, "正在做的任务「修登录崩溃」") || !strings.Contains(p, "测试通过") {
 		t.Fatalf("the agent is not told the task:\n%s", p)
 	}
 
@@ -492,36 +492,6 @@ func TestInboxItemAboutATask(t *testing.T) {
 	_ = json.Unmarshal(cards[0].Body, &mb)
 	if mb.TodoID != todo.ID || mb.Draft != "测试已经过了，十点前提 PR" || mb.Sender != "陈晓" || mb.Chat != "客户端发版群" {
 		t.Fatalf("card = %+v", mb)
-	}
-}
-
-// The AI twin's first message names the knowledge directory the hub keeps (PERSONA_HOME, kb_dir), not the default
-// ~/.persona/data, where it points at the chat's background.
-func TestInboxAgentPromptNamesTheKnowledgeDir(t *testing.T) {
-	ctx := context.Background()
-	h, e := newInboxHubKB(t)
-	if err := h.inboxReady(ctx); err != nil {
-		t.Fatal(err)
-	}
-	waitNeedsYouIdle(t, h.Service)
-	goldenKB(t, e)
-	dir := h.kb.dir
-	if dir == "" || strings.Contains(dir, ".persona") {
-		t.Fatalf("the test needs a custom knowledge directory: %q", dir)
-	}
-	it := *goldenItems(t)["mention"]
-	it.Agent = &InboxAgent{State: AgentQueued}
-	h.inbox.items[it.ID] = &it
-	h.startInboxAgents(ctx, InboxAgentConfig{Enabled: true})
-	if it.Agent.SessionID == "" {
-		t.Fatalf("the agent did not start: %+v", it.Agent)
-	}
-	text := h.f.lastSend(t)["text"].(string)
-	if !strings.Contains(text, "## 知识库里的背景") {
-		t.Fatalf("the first message has the knowledge base's part: %q", text)
-	}
-	if strings.Contains(text, "~/.persona/data") || !strings.Contains(text, "## 知识库里的背景（"+dir+"）") {
-		t.Fatalf("the heading should name %s: %q", dir, text)
 	}
 }
 

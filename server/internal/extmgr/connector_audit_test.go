@@ -142,20 +142,20 @@ func TestConnectorSwitchesAreAudited(t *testing.T) {
 			t.Fatalf("%s: %d %v", body, code, out)
 		}
 	}
-	put(`{"enabled":true,"archive":true,"inbox":true}`) // what they are already
+	put(`{"enabled":true,"inbox":true}`) // what they are already
 	if rows := st.take(); len(rows) != 0 {
 		t.Fatalf("nothing changed, recorded %v", actions(rows))
 	}
 	put(`{"enabled":false}`)
-	put(`{"archive":false}`)
-	put(`{"enabled":false,"archive":false}`) // again: no change
+	put(`{"inbox":false}`)
+	put(`{"enabled":false,"inbox":false}`) // again: no change
 	put(`{"options":{"muted":["example-org/private-notes"]}}`)
 	put(`{"options":{"muted":["example-org/private-notes"]}}`) // the same settings again
 	rows := st.take()
 	if !sameActions(rows, auditConnectorEnabled, auditConnectorFeed, auditConnectorOptions) {
 		t.Fatalf("recorded %v", actions(rows))
 	}
-	if rows[0].Detail["enabled"] != false || rows[1].Detail["feed"] != string(connector.FeedArchive) || rows[1].Detail["on"] != false {
+	if rows[0].Detail["enabled"] != false || rows[1].Detail["feed"] != string(connector.FeedInbox) || rows[1].Detail["on"] != false {
 		t.Fatalf("details %v %v", rows[0].Detail, rows[1].Detail)
 	}
 	if len(rows[2].Detail) != 0 {
@@ -163,8 +163,8 @@ func TestConnectorSwitchesAreAudited(t *testing.T) {
 	}
 }
 
-// Deleting a connector's data or its knowledge base content is recorded with what went (and switching it off, which
-// comes first); a deletion that only partly happened says so.
+// Deleting a connector's data is recorded with what went (and switching it off, which comes first); a deletion that
+// only partly happened says so.
 func TestConnectorDeletionsAreAudited(t *testing.T) {
 	h := newTestManager(t)
 	st := newAuditingStore()
@@ -174,21 +174,11 @@ func TestConnectorDeletionsAreAudited(t *testing.T) {
 	mux := h.routes()
 	forgettingAssistant(h)
 
-	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/archive", h.cfg.Token, ""); code != 200 {
-		t.Fatalf("archive: %d %v", code, out)
-	}
-	rows := st.take()
-	if !sameActions(rows, auditConnectorFeed, auditConnectorArchiveDeleted) || rows[1].Detail["chats"] != 1.0 ||
-		rows[1].Detail["people"] != 1.0 || rows[1].Detail["posts"] != 2.0 || rows[1].Detail["items"] != 3.0 || rows[1].Detail["incomplete"] != nil {
-		t.Fatalf("archive recorded %v %v", actions(rows), rows)
-	}
-
 	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 200 {
 		t.Fatalf("data: %d %v", code, out)
 	}
-	rows = st.take()
-	if !sameActions(rows, auditConnectorEnabled, auditConnectorDataDeleted) || rows[1].Detail["inbox"] != 1.0 ||
-		rows[1].Detail["posts"] != 2.0 || rows[1].Detail["items"] != 3.0 {
+	rows := st.take()
+	if !sameActions(rows, auditConnectorEnabled, auditConnectorDataDeleted) || rows[1].Detail["inbox"] != 1.0 {
 		t.Fatalf("data recorded %v %v", actions(rows), rows)
 	}
 
@@ -257,14 +247,14 @@ func TestConnectorAuditActorAndFailure(t *testing.T) {
 	}
 }
 
-// optionsConnector is feedConnector (an inbox and an archive) with settings of its own (connector.Options).
+// optionsConnector is feedConnector (an inbox) with settings of its own (connector.Options).
 type optionsConnector struct {
 	feedConnector
 	opts json.RawMessage
 }
 
 func (*optionsConnector) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapInbox, connector.CapArchive, connector.CapOptions},
+	return connector.Manifest{Capabilities: []connector.Capability{connector.CapInbox, connector.CapOptions},
 		Kinds: []string{"dm"}}
 }
 

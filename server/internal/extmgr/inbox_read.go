@@ -37,8 +37,7 @@ func (h *Manager) readInbox(ctx context.Context, round inboxRound) assistantwire
 // readMail reads the latest page of every eligible mailbox, up to inboxMailParallel accounts at once, in account
 // order. An unreadable folder is left out and its account named in Failed. nil when mail is off or listing fails.
 func (h *Manager) readMail(ctx context.Context) *assistantwire.InboxMailRead {
-	// Add to Inbox off (#5307): no mail round, so the manager keeps the mail items it has; search, replies and the
-	// knowledge base go on.
+	// Add to Inbox off (#5307): no mail round, so the manager keeps the mail items it has; search and replies go on.
 	if h.mail == nil || h.connectors.Get("mail") == nil || !h.connectors.Feeds("mail", connector.FeedInbox) {
 		return nil
 	}

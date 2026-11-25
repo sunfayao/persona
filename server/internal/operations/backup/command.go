@@ -21,10 +21,10 @@ const Usage = `personad backup create --output <file> --writes-quiesced [databas
                            check bundle integrity offline and print a summary
   personad backup verify --bundle <file> [database options]
                            verify every SHA-256 and restore both dumps into temporary databases (no service writes)
-  personad backup restore --bundle <file> --writes-quiesced [--allow-external-kb] [database options]
+  personad backup restore --bundle <file> --writes-quiesced [database options]
                            stage both databases and runtime files, preserve the previous databases, and roll back on failure
 
-  Put create's --output outside the knowledge base and the runtime's managers/assistant, extensions, skills,
+  Put create's --output outside the runtime's managers/assistant, extensions, skills,
   hub.machines_kept and tls directories: they are collected, so create refuses it (a case-insensitive file system may let a
   differently-cased path through, so spell the path as it is).
   Needs pg_dump/pg_restore of the server's major version on PATH, or (for a loopback server) docker with the
@@ -109,9 +109,6 @@ func runWithOperator(ctx context.Context, operator operatorRunner, args []string
 	} else {
 		flags.StringVar(&opts.Bundle, "bundle", "", "bundle to read")
 	}
-	if command == "restore" {
-		flags.BoolVar(&opts.AllowExternalKB, "allow-external-kb", false, "allow replacing the bundle's kb_dir outside the runtime directory")
-	}
 	if err := flags.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -147,9 +144,6 @@ func printResult(stdout io.Writer, command string, result Result) {
 		}
 		if result.PreviousFiles != "" {
 			fmt.Fprintf(stdout, "previous runtime files preserved in %s\n", result.PreviousFiles)
-		}
-		if result.PreviousExternalKB != "" {
-			fmt.Fprintf(stdout, "previous external knowledge base preserved in %s\n", result.PreviousExternalKB)
 		}
 		if result.KeptDockerPassword {
 			fmt.Fprintln(stdout, "kept this install's docker/db-password: the bundle's copy belongs to the database cluster it was taken from, not to this one")

@@ -121,10 +121,10 @@ func bodyHub(t *testing.T) (*Hub, *httptest.Server) {
 	return h, srv
 }
 
-// putRecording is an app's upload of body on one of the assistant's routes, with the hub's own token.
-func putRecording(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte) (int, string) {
+// putPlace is an app's upload of body on one of the assistant's routes, with the hub's own token.
+func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte) (int, string) {
 	t.Helper()
-	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/recordings/"+id+"?x=1", bytes.NewReader(body))
+	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/places/"+id+"?x=1", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestLargeBodyGoesOnAStreamOfItsOwn(t *testing.T) {
 		connectBodyManager(t, h, srv, nil, streams, m)
 		small, large := bodyOf(t, bodyStreamMin-1), bodyOf(t, bodyStreamMin)
 		for _, body := range [][]byte{small, large} {
-			if code, out := putRecording(t, h, srv, "r1", body); code != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
+			if code, out := putPlace(t, h, srv, "r1", body); code != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
 				t.Fatalf("streams %v, %d bytes: %d %s", streams, len(body), code, out)
 			}
 		}
@@ -195,7 +195,7 @@ func TestTurnedDownStreamGoesInline(t *testing.T) {
 		m := &bodyManager{turn: code}
 		connectBodyManager(t, h, srv, nil, true, m)
 		body := bodyOf(t, bodyStreamMin+5)
-		if status, out := putRecording(t, h, srv, "r%2F2", body); status != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
+		if status, out := putPlace(t, h, srv, "r%2F2", body); status != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
 			t.Fatalf("%s: %d %s", code, status, out)
 		}
 		how, got := m.requests()
@@ -211,7 +211,7 @@ func TestTurnedDownStreamGoesInline(t *testing.T) {
 		if !reflect.DeepEqual(streamed, inline) {
 			t.Fatalf("%s: the request differs but for its body:\nstreamed %+v\ninline   %+v", code, streamed, inline)
 		}
-		if streamed.Path != "/api/v1/recordings/r%2F2" || streamed.Query != "x=1" {
+		if streamed.Path != "/api/v1/assistant/places/r%2F2" || streamed.Query != "x=1" {
 			t.Fatalf("%s: path %q query %q", code, streamed.Path, streamed.Query)
 		}
 		eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })
@@ -294,7 +294,7 @@ func TestLargeBodyDoesNotHoldUpTheBus(t *testing.T) {
 		connectBodyManager(t, h, srv, client, streams, m)
 		done := make(chan string, 1)
 		go func() {
-			code, out := putRecording(t, h, srv, "big", body)
+			code, out := putPlace(t, h, srv, "big", body)
 			done <- jsonInt(code) + " " + out
 		}()
 		select {
@@ -303,7 +303,7 @@ func TestLargeBodyDoesNotHoldUpTheBus(t *testing.T) {
 			t.Fatalf("streams %v: the large body did not reach the manager", streams)
 		}
 		start := time.Now()
-		if code, out := putRecording(t, h, srv, "small", []byte(`{}`)); code != http.StatusOK {
+		if code, out := putPlace(t, h, srv, "small", []byte(`{}`)); code != http.StatusOK {
 			t.Fatalf("streams %v: the small call: %d %s", streams, code, out)
 		}
 		took := time.Since(start)
@@ -340,10 +340,10 @@ func TestAssistantTakesBodyStreams(t *testing.T) {
 	if !h.managerCan(assistantwire.AssistantID, assistantwire.CapabilityHTTPBodyStream) {
 		t.Fatal("the assistant's hello does not name the body stream")
 	}
-	code, small := putRecording(t, h, srv, "r1", []byte(`{}`))
+	code, small := putPlace(t, h, srv, "r1", []byte(`{}`))
 	large := append([]byte(`{"pad":"`), bytes.Repeat([]byte("a"), bodyStreamMin)...)
 	large = append(large, `"}`...)
-	if c, out := putRecording(t, h, srv, "r1", large); c != code || out != small {
+	if c, out := putPlace(t, h, srv, "r1", large); c != code || out != small {
 		t.Fatalf("large: %d %s, small: %d %s", c, out, code, small)
 	}
 	eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })

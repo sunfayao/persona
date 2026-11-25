@@ -9,7 +9,6 @@ Place necessary historical text under its module directory and list it below.
 
 | File | Contents |
 | --- | --- |
-| `assistant/knowledge-prompt-language-6272.md` | Caller inventory, generated/source-language boundaries and compatibility verification |
 | `assistant/agent-prompt-language-6268.md` | Complete Agent prompt caller/parser inventory, language and source-data boundaries, legacy compatibility and synthetic verification scope (#6268) |
 | `assistant/2026-11-18-inbox-prompt-language.md` | Inbox prompt migration caller/parser inventory, bounded phases, source-language and provenance boundaries (#6271) |
 | `operations/2026-11-16-web-update-review-6923.md` | Web development update: review reproductions, admission/Edge/boot recovery, owned route declarations, retained platform identity, real PostgreSQL dump/restore and recovery input validation (#6923) |

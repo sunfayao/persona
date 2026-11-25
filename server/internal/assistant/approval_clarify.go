@@ -509,11 +509,6 @@ func (s *Service) clarify(ctx context.Context, id, text, clientMsgID string, ori
 			MsgIDs: []string{clientMsgID}, Ext: map[string]string{"clarify": id, "chat": origin.ChatID}}
 	}
 	s.UserSpoke(ctx, SessionRef{MachineID: p.ix.MachineID, SessionID: p.ix.SessionID})
-	if p.ix.Private {
-		// The owner's question starts a new turn after the original Just me turn
-		// may have ended. Mark that answer turn before dispatch, not at its end.
-		s.justMeSent(p.ix.MachineID, p.ix.SessionID)
-	}
 	err = s.sendOnce(ctx, p.ix.MachineID, params)
 	if err != nil && !relayInDoubt(err) {
 		s.finishClarifyAttempt(p, attempt, nil, err)

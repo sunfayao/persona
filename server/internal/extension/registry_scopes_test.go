@@ -20,15 +20,15 @@ func TestRegistryScopeAndSubscriberSnapshots(t *testing.T) {
 		enabled bool
 		problem string
 	}{
-		{"read", Permissions{Hub: []string{ScopeKBRead}}, true, ""},
-		{"write", Permissions{Hub: []string{ScopeKBWrite}}, true, ""},
+		{"read", Permissions{Hub: []string{ScopeAgentsRead}}, true, ""},
+		{"write", Permissions{Hub: []string{ScopeAgentsControl}}, true, ""},
 		{"none", Permissions{}, true, ""},
 		{"legacy", Permissions{HubAPI: true}, true, ""},
-		{"disabled", Permissions{Hub: []string{ScopeKBRead}}, false, ""},
-		{"broken", Permissions{Hub: []string{ScopeKBRead}}, true, "incompatible"},
+		{"disabled", Permissions{Hub: []string{ScopeAgentsRead}}, false, ""},
+		{"broken", Permissions{Hub: []string{ScopeAgentsRead}}, true, "incompatible"},
 	} {
-		m := &Manifest{ID: tc.id, Version: "1.0.0", Permissions: Permissions{Hub: []string{ScopeKBRead, ScopeKBWrite}},
-			Contributes: map[string]json.RawMessage{"events": json.RawMessage(`[{"id":"example","subscribe":["kb.changed","agent.finished"]}]`)}}
+		m := &Manifest{ID: tc.id, Version: "1.0.0", Permissions: Permissions{Hub: []string{ScopeAgentsRead, ScopeAgentsControl}},
+			Contributes: map[string]json.RawMessage{"events": json.RawMessage(`[{"id":"example","subscribe":["assistant.entries.changed","agent.finished"]}]`)}}
 		if err := r.AddBuiltin(m, t.TempDir(), tc.enabled); err != nil {
 			t.Fatal(err)
 		}
@@ -38,14 +38,14 @@ func TestRegistryScopeAndSubscriberSnapshots(t *testing.T) {
 		r.mu.Unlock()
 	}
 	for _, id := range []string{"missing", "none", "write", "disabled", "broken"} {
-		if r.HubScopeAllowed(id, ScopeKBRead) {
+		if r.HubScopeAllowed(id, ScopeAgentsRead) {
 			t.Fatalf("read scope granted to %s", id)
 		}
 	}
-	if !r.HubScopeAllowed("read", ScopeKBRead) || r.HubScopeAllowed("read", ScopeKBWrite) || !r.HubScopeAllowed("legacy", ScopeKBWrite) {
+	if !r.HubScopeAllowed("read", ScopeAgentsRead) || r.HubScopeAllowed("read", ScopeAgentsControl) || !r.HubScopeAllowed("legacy", ScopeAgentsControl) {
 		t.Fatal("scope isolation or legacy full grant")
 	}
-	if ids := r.EventSubscribers("kb.changed", ScopeKBRead); !reflect.DeepEqual(ids, []string{"legacy", "read"}) {
+	if ids := r.EventSubscribers("assistant.entries.changed", ScopeAgentsRead); !reflect.DeepEqual(ids, []string{"legacy", "read"}) {
 		t.Fatalf("KB subscribers: %v", ids)
 	}
 	if ids := r.EventSubscribers("agent.finished", ""); !reflect.DeepEqual(ids, []string{"legacy", "none", "read", "write"}) {
@@ -54,9 +54,9 @@ func TestRegistryScopeAndSubscriberSnapshots(t *testing.T) {
 	if ids := r.EventSubscribers("unknown", ""); len(ids) != 0 {
 		t.Fatalf("unknown topic subscribers: %v", ids)
 	}
-	ids := r.EventSubscribers("kb.changed", ScopeKBRead)
+	ids := r.EventSubscribers("assistant.entries.changed", ScopeAgentsRead)
 	ids[0] = "changed snapshot"
-	if ids := r.EventSubscribers("kb.changed", ScopeKBRead); ids[0] != "legacy" {
+	if ids := r.EventSubscribers("assistant.entries.changed", ScopeAgentsRead); ids[0] != "legacy" {
 		t.Fatal("caller changed the registry's subscriber snapshot")
 	}
 
@@ -74,8 +74,8 @@ func TestRegistryScopeAndSubscriberSnapshots(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range 500 {
-			r.HubScopeAllowed("read", ScopeKBRead)
-			for _, id := range r.EventSubscribers("kb.changed", ScopeKBRead) {
+			r.HubScopeAllowed("read", ScopeAgentsRead)
+			for _, id := range r.EventSubscribers("assistant.entries.changed", ScopeAgentsRead) {
 				if id != "legacy" && id != "read" {
 					t.Errorf("unexpected subscriber: %s", id)
 				}
@@ -87,8 +87,8 @@ func TestRegistryScopeAndSubscriberSnapshots(t *testing.T) {
 
 func TestRegistrySnapshotKeepsProcessState(t *testing.T) {
 	r := NewRegistry(t.TempDir(), nil, nil, 1)
-	m := &Manifest{ID: "example", Version: "1.0.0", Permissions: Permissions{Hub: []string{ScopeKBRead}},
-		Contributes: map[string]json.RawMessage{"events": json.RawMessage(`[{"id":"example","subscribe":["kb.changed"]}]`)}}
+	m := &Manifest{ID: "example", Version: "1.0.0", Permissions: Permissions{Hub: []string{ScopeAgentsRead}},
+		Contributes: map[string]json.RawMessage{"events": json.RawMessage(`[{"id":"example","subscribe":["assistant.entries.changed"]}]`)}}
 	if err := r.AddBuiltin(m, t.TempDir(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -109,8 +109,8 @@ func TestRegistrySnapshotKeepsProcessState(t *testing.T) {
 	if current.Record.Enabled || len(current.Manifest.Topics()) != 0 || len(current.Record.DisabledContributions) != 1 {
 		t.Fatalf("the current state was not updated: %+v", current)
 	}
-	snapshot.Record.Granted.Hub[0] = ScopeKBWrite
-	if r.Snapshot("example").Record.Granted.Hub[0] != ScopeKBRead {
+	snapshot.Record.Granted.Hub[0] = ScopeAgentsControl
+	if r.Snapshot("example").Record.Granted.Hub[0] != ScopeAgentsRead {
 		t.Fatal("the snapshot shares the mutable permission slice")
 	}
 }

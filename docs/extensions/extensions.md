@@ -34,7 +34,7 @@ The user's decision: extensions, connectors and chat bots all belong to the **ma
 - Startup order is the same as the hub's used to be: mail, personal Agents, connector registry, WeChat state migration, bots, the loops (Inbox, Agent sources, keep-awake, leases for programs on computers, auto-upgrade, health), extensions. Extension programs are **child processes of the manager**: a hub restart no longer restarts them, only a manager restart does.
 - Reads the extensions, connectors and bots sections (keys unchanged) from its own `manager.json` (`~/.persona/managers/assistant/manager.json` for the built-in manager, copied out of hub.json once on upgrade, `docs/operations/config.md` ("manager.json")) and the same `secret.key` (`internal/secretkey`, no re-encryption; a manager running elsewhere must carry a copy). Table and setting keys are unchanged; no data migration.
 - Answers `extwire.Routes`: `/api/v1/extensions…`, `/api/v1/admin/extensions…`, the compatible `/api/v1/plugins…`, the extensions' own HTTP / WebSocket / SSE (`/api/v1/extensions/{id}/…`, plus prefixes contributed by an extension's `api` contribution, e.g. the Lark extension's `/api/v1/lark/…`), `/api/v1/connectors…`, `/api/v1/bots…`, `/api/v1/channels/{id}/bind`, `/api/v1/mail/…`, `/api/v1/imessage…`, `/api/v1/agents…`, `/api/v1/messaging…`, the machines' `…/computer…`, `…/browser…`, `/api/v1/devices/{id}/widgets`.
-- Inbox and knowledge base sources, channel transport, and the connector catalog for the assistant are all handed to the assistant directly **in the same process** (previously the hub's `inbox.collected`, `channels.receive`, `feishu.*`, `connectors.*`, `kb.*` over the bus; methods and parameters are unchanged, they just skip the bus). The `inbox.changed` and `kb.changed` the assistant sends to the hub also go to it first (pushed to extensions, and `{"type":"inbox"}` pushed to the App).
+- Inbox sources, channel transport, and the connector catalog for the assistant are all handed to the assistant directly **in the same process** (previously the hub's `inbox.collected`, `channels.receive`, `feishu.*`, `connectors.*`, `kb.*` over the bus; methods and parameters are unchanged, they just skip the bus). The `inbox.changed` and `kb.changed` the assistant sends to the hub also go to it first (pushed to extensions, and `{"type":"inbox"}` pushed to the App).
 - Computers are connected through its own devices: as soon as a node connects, it adds the extensions' Agent filters to `node.configure`, then starts Cua / ego state, extension programs on computers, and connectors (previously done in the hub's `devices.connected`). The node's `plugin.node.*` events and the streams it opens itself (`mx…`) are no longer handed to the hub; it answers `assistant.lark` itself (only to the assistant's machine).
 - Reports to the hub with `extensions.report` (the full report each time something changes): extension features (hello, `features` from `/health`), the API prefixes served by extensions and the receipts they declare, Cua / ego state on each machine and whether screen viewing can be enabled, keep-awake while the screen is being viewed, and the avatars of enabled extensions (`looks`). After an extension with avatars is uninstalled it also sends `extensions.looks_gone {ids}`; if the selected avatar no longer has a provider, it switches back to the default (see "Avatars" below).
 
@@ -107,7 +107,7 @@ What an extension contributes where is written in the manifest's `contributes`: 
 
 | Extension point | Namespace (method prefix) | Fields per item | Requirements | Wired to |
 | --- | --- | --- | --- | --- |
-| `connectors` (version 2) | `connector.` | The manifest fields of the connector protocol: `id` (`^[a-z][a-z0-9]*$`), `name`, `capabilities`, `hosts`, `agent_tools`, `unlisted`, `confirm_always?` (globs of write-operation names; `connector_gate`'s `allow` is also always clamped to confirm-on-phone, `deny` unchanged), `poll_seconds`, `kinds`, plus `kind_descriptions?` (kind → one line "Type: …" shown to the model, used by Inbox triage, drafting and the AI twin), `archive_sources?` (other names the archive may also go under), `cli?` (a command line on the assistant's PATH, see `docs/protocol/connector-protocol.md` ("Command line")), `sends_as_user?` (the connector sends messages in the user's name by itself, outside the write gate; see "Sent as the user: `sent.record`" below) | Process speaks the protocol | The connector registry (**Settings › Connectors**, Inbox, knowledge base, the assistant's tools); methods in `docs/protocol/connector-protocol.md`, including optional `catalog` source discovery/read calls and recipes (`docs/extensions/subscriptions.md`) |
+| `connectors` (version 2) | `connector.` | The manifest fields of the connector protocol: `id` (`^[a-z][a-z0-9]*$`), `name`, `capabilities`, `hosts`, `agent_tools`, `unlisted`, `confirm_always?` (globs of write-operation names; `connector_gate`'s `allow` is also always clamped to confirm-on-phone, `deny` unchanged), `poll_seconds`, `kinds`, plus `kind_descriptions?` (kind → one line "Type: …" shown to the model, used by Inbox triage, drafting and the AI twin), `cli?` (a command line on the assistant's PATH, see `docs/protocol/connector-protocol.md` ("Command line")), `sends_as_user?` (the connector sends messages in the user's name by itself, outside the write gate; see "Sent as the user: `sent.record`" below) | Process speaks the protocol | The connector registry (**Settings › Connectors**, Inbox, the assistant's tools); methods in `docs/protocol/connector-protocol.md`, including optional `catalog` source discovery/read calls and recipes (`docs/extensions/subscriptions.md`) |
 | `voice` (version 1) | — | `id`, `name?` | `runtime.http` | The App's voice chat; contract under "Voice" below |
 | `transcription` (version 1) | — | `id`, `name?` | `runtime.http` | Meeting transcription on the hub, for the manager only (#3862 phase 5); contract under "Transcription" below |
 | `speech` (version 1) | — | `id`, `name?` | `runtime.http` | A text read aloud for the apps (#8712): a meeting answer the iPhone says when Persona takes part; contract under "Speech" below |
@@ -138,7 +138,7 @@ What an extension contributes where is written in the manifest's `contributes`: 
 | `secret_providers` (version 1, #3962) | `secrets.` | `id`, `name` (1–80 characters: the settings say "From <name>"), `schemes` (1–4 of `^[a-z][a-z0-9+.-]{0,15}$`, not `http`, `https`, `file`, `data`, `persona`, `about`, `javascript`) | Process speaks the protocol; a scheme another installed extension claims fails the install | Values for references of its schemes (`op://vault/item/field`), asked by the manager only (`secrets.describe`, `secrets.resolve`, the event `secrets.used`), each resolution recorded on it; see [secret-providers.md](secret-providers.md) |
 | `repository_providers` (version 1, #10330) | `repo.` | `id`, `name` (1–80 characters: what the catalog and a to-do's repositories call the source), `hosts` (1–16 exact lowercase host names, no IP address; not `github.com`, `gitlab.com` or the other hosts the built-in providers read), `link_kinds?` (`[{kind: issue / pull_request, label}]`, each kind once, a label of 1–24 characters; only relabels), `capabilities?` (`["pr_status"]`: it answers `repo.pr_status`, #11584) | Process speaks the protocol; a host another installed extension claims (even one that is off), or one host in two items, fails the install | A code-hosting source for **Settings › Repositories** and a to-do's repositories and links on its hosts, asked by the manager only (`repo.parse`, `repo.check`, `repo.link`, the optional `repo.describe` and `repo.pr_status`; `schema/extension/repository.schema.json`), each answer re-checked; the install page lists its hosts, and they are in the permission digest |
 
-Extension points the hub doesn't know: the extension still installs (it may be written for a newer hub), that item has no effect, and the preview and list show a warning. When adding extension points later (knowledge base sources, link recognition…), add a row to this table.
+Extension points the hub doesn't know: the extension still installs (it may be written for a newer hub), that item has no effect, and the preview and list show a warning. When adding extension points later (link recognition…), add a row to this table.
 
 ## Manifest `persona-extension.json`
 
@@ -150,10 +150,10 @@ Lives at the root of the extension package. Example (a connector for a fictional
   "id": "example-notes",
   "name": "Example Notes",
   "version": "1.2.0",
-  "description": "Syncs Example Notes into the knowledge base and gives the assistant a search tool.",
+  "description": "Gives the assistant a search tool over Example Notes.",
   "publisher": "example",
   "homepage": "https://example.com/persona-extension",
-  "tags": ["notes", "knowledge base"],
+  "tags": ["notes"],
   "engines": {"persona": ">=202611050000", "extension_protocol": 1},
   "runtime": {
     "command": {"linux-amd64": "bin/example-notes-linux-amd64", "darwin-arm64": "bin/example-notes-darwin-arm64"},
@@ -161,7 +161,7 @@ Lives at the root of the extension package. Example (a connector for a fictional
   },
   "contributes": {
     "connectors": [
-      {"id": "examplenotes", "name": "Example Notes", "capabilities": ["status", "tools", "archive", "login"],
+      {"id": "examplenotes", "name": "Example Notes", "capabilities": ["status", "tools", "login"],
        "hosts": ["notes.example.com"], "poll_seconds": 600}
     ]
   },
@@ -222,7 +222,7 @@ would make the extension uninstallable on older hubs, while files they do not re
 
 ```json
 {"name": "Example Notes",
- "description": "Syncs Example Notes into the knowledge base.",
+ "description": "Gives the assistant a search tool over Example Notes.",
  "configuration": {
    "base_url": {"title": "Server URL"},
    "region": {"title": "Region", "choices": {"cn": "China", "intl": "International"}},
@@ -359,7 +359,7 @@ Following Chrome: declared explicitly, shown in full at install time, and an upg
 | --- | --- | --- | --- |
 | Run a program (implied by `runtime`) | — | Runs on the hub machine as the hub's system user | Extensions installed on the hub run in a **sandbox** by default (can only read and write their own package and data directory, with memory / CPU limits); off by default for ones from a trusted marketplace, see "Sandbox" below |
 | `network` | A list of host names, may start with `*.` (matches only subdomains, not the name itself), lowercase, no scheme, port or path; IP addresses must be listed literally | Which places it will reach | Sandboxed extensions can only go out through the hub's egress proxy, which lets only these hosts through, see "Egress" below; unsandboxed ones are still only shown and logged |
-| `hub` | A list of scopes, see "Hub API: scopes" below | Which parts of the hub API it uses (read the knowledge base, drive Agents…) | The token the extension gets opens only routes in these scopes; anything else returns 403 `permission_denied` |
+| `hub` | A list of scopes, see "Hub API: scopes" below | Which parts of the hub API it uses (drive Agents…) | The token the extension gets opens only routes in these scopes; anything else returns 403 `permission_denied` |
 | `hub_api` (legacy form) | `true` | Gets the hub's address and full token (`PERSONA_HUB_URL`, `PERSONA_HUB_TOKEN`) and can do everything the hub's owner can | Without acceptance these two variables are not given; the install page labels it "Full access (legacy form)" and shows a warning. If `hub` is also written, `hub` wins |
 | `storage` | `{keys: [...], patterns: [...], queues?: true, blobs?: true}` | Keep bounded, installation-owned business data in the manager's Postgres database | Default-deny stdio callbacks check declared logical keys, actual grants, installation epoch and the host-created process attempt; no files, SQL, credentials, hub scopes or extra network authority. See "Installation-owned business storage" below |
 | `launcher_keys` | `true` | Uses a launcher's key to reach its gateway (required for `quota` contributions and `ui` with `launcher_section`) | The extension never sees the key: the hub or that computer sends the request for it, and only to the launcher's own gateway; without acceptance, it isn't asked |
@@ -468,14 +468,11 @@ The [source handler design](source-api-handlers.md) keeps its per-operation sess
 To call the hub's HTTP API, an extension lists the scopes it uses in `permissions.hub` instead of asking for the full token:
 
 ```json
-"permissions": {"hub": ["kb.read", "agents.read"]}
+"permissions": {"hub": ["agents.read"]}
 ```
 
 | Scope | Wording on the install page | Routes opened |
 | --- | --- | --- |
-| `sent.read` | Identify messages Persona sent as you in the knowledge base | No HTTP route: adds provenance to `kb.day`; also requires `kb.read` |
-| `kb.read` | Read the knowledge base | `GET /api/v1/kb/…`, `GET /api/v1/kb-search` |
-| `kb.write` | Change entries in the knowledge base | `PUT /api/v1/kb/{kind}/{id}`, not with terminal control characters (see below) |
 | `inbox.read` | Read the Inbox | `GET /api/v1/inbox`, `/inbox/{id}`, `/inbox/mutes`, `/inbox/policies` |
 | `inbox.write` | Handle the Inbox | Mark as handled, draft, reply (text only: replies with `changes` or `/agent` still require full access), document status, mute, set policies, refresh |
 | `agents.read` | See the Agents and chats on your computers | `GET /api/v1/sessions…` (list, info, items, images, screen), `/interactions`, `/interactions/history` (paged by time, see "Question history"), `/agents…` (personal Agents), `/workspaces`, `/workspace-board`; never the health space's chats or a private card (see "Never shown to extensions") |
@@ -542,93 +539,11 @@ Scopes cover what an extension calls with its token. The owner's own answers tha
 
 <a id="知识库-rpc1908"></a>
 
-### Knowledge base RPC (#1908)
-
-An extension's program can call the seven methods below directly, without passing a token over HTTP. Permissions are still declared only in `permissions.hub`; the hub checks against the permissions actually granted,
-not the ones requested in the manifest. `kb.write` does not imply `kb.read`. The legacy `hub_api` full access stays compatible. Every call is forwarded by the hub to the manager's knowledge base,
-so the extension does not need to read the hub's or the manager's data directory.
-
-| Method | Parameters | Returns | Scope |
-| --- | --- | --- | --- |
-| `kb.list` | `{kind,tag?,limit?,offset?,since?}` | `{items,tags,total,next_offset?}` | `kb.read` |
-| `kb.recent` | `{since,until?,kinds?,limit?,offset?}` | `{items,total,next_offset?}`: what came in from every source, newest first | `kb.read` |
-| `kb.get` | `{kind,id,recent_chars?}` | `{detail}` | `kb.read` |
-| `kb.day` | `{id,day}`, day is `YYYY-MM-DD` | `{day,messages,prev,next,sent_origin}`; `messages[].n` is the 1-based line number in the source file | `kb.read`; `sent.read` adds origin marks |
-| `kb.search` | `{query,messages?,limit?}` | `{hits}` | `kb.read` |
-| `kb.update` | `{kind,id,...fields to update,evidence?,unlock?}` | `{id,before?,ignored?}` | `kb.write` |
-| `kb.owner` | `{}` | `{name,aliases,handles:[{kind,value}]}` | `kb.read` |
-
-The params, answers, error codes and events are described in `schema/extension/kb.schema.json`; the Go SDK has them as `ext.Hub`'s `KBList`, `KBRecent`, `KBGet`, `KBDay`, `KBSearch`, `KBUpdate` and `KBOwner`.
-
-kind is `projects`, `chats`, `people`, `docs`, `meetings`, `events`, `recordings` or `topics` (knowledge points by subject; `kb.get` adds `points`, `docs/assistant/knowledge.md` "Topics"). list returns 30 by default, at most 200, with offset starting at 0;
-if not finished, continue with next_offset. Paging is not a snapshot when things change between requests, so extensions should deduplicate and re-read when needed. search searches messages by default, 40 by default, at most 200;
-get includes a chat's most recent 12000 bytes of messages by default, cut at a message or line start, or inside a long line at a whole character when the next start would drop more than half of them (a recording's transcript: its first 12000 characters); recent_chars may be 0, at most 20000. Empty lists return `[]`.
-`kb.get` does not include live Agents; reading Agent state still needs the matching permission. A missing scope returns `permission_denied` with `scope` in the error data;
-unknown fields, missing required fields or bad formats return `invalid_params`, a missing entity returns `not_found`, a write touching what someone else holds returns `conflict`, a manager that is offline returns `assistant_offline`, and a knowledge base that isn't ready returns `kb_unavailable`.
-Internal methods such as `kb.forget`, `kb.context`, `kb.posts_*` are not on this allowlist, and even extensions with full access can't call them this way.
-
-`since` / `until` are RFC 3339 times (an entity's update time: a chat's last message, a document's, meeting's or event's time, a recording's start). `kb.recent` defaults to chats, docs, meetings, events and recordings,
-50 a page, at most 200; list entries for chats carry `source` (lark, mail, wechat, github…), so one pass covers every source; read a chat's text with `kb.day` and the rest with `kb.get`.
-
-**Messages sent as the user** (#2814): declare `{"permissions":{"hub":["kb.read","sent.read"]}}` to distinguish matching assistant sends from other archive lines. `sent.read` is shown during install and permission upgrades in the user's language. It adds no ledger-list endpoint and does not grant archive access by itself; the legacy full `hub_api` grant includes it. The extension manager checks the actual grant and forwards the privileged read as internal `kb.extension_day`, which extensions cannot invoke directly.
-
-Every `kb.day` response includes `sent_origin`:
-
-- `available`: ledger matching completed. Only matched lines have `sent_by: "assistant"` and `sent_ledger_id`; a matched recalled send also has `recalled_at` (RFC 3339). Recall does not turn archived assistant words into the user's words.
-- `missing_scope`: `kb.read` was granted but `sent.read` was not. All per-line origin fields are absent.
-- `unavailable`: this service cannot provide the marks, including an older assistant during a rolling upgrade. Older hosts may omit `sent_origin`; treat that absence as unavailable too. A database or archive read error fails the call instead of pretending that matching found nothing.
-
-Matching is deliberately conservative. New live archive ingestion retains a receipt binding the provider's message ID, original time and owner flag to the rendered speaker/body hash. It resolves that receipt only when both the receipt and archive line are unique at that minute. Matching first uses an exact provider reference within the connector; GitHub's comment/review resource types remain distinct. Generic connectors also need an exact destination. Without a reference on one side, fallback requires the connector, an exact chat destination, the owner's archive speaker, the entire normalized text, and a timestamp within two minutes of the archived minute (ledger time in `[minute - 2m, minute + 3m)`). Normalization removes whitespace like echo matching, but keeps case and punctuation and never accepts a truncated prefix. Destination fields recognized as scalar source IDs are `chat`, `thread`, `channel`, `conversation`, `recipient`, `to` and `ref`; display names, subjects and recipient arrays are insufficient.
-
-A ledger row marks at most one archive line. Multiple possible lines or ledger rows are left unmarked; an already matched line remains an ambiguity candidate for other ledger records. Adjacent days participate in ambiguity checks, so a send near midnight cannot mark a line on both pages. Day boundaries use the archive's stored time zone, including daylight-saving changes; repeated wall-clock minutes need an original receipt timestamp. The manager queries the ledger once per connector/day with the two-minute boundary allowance using its `(connector, at)` index, then matches in memory.
-
-**An unmarked line is not proof of human authorship.** Older archives and history imports have no receipt hashes; identical text, missing IDs or targets, changed rendering, truncated ledger text, clock differences beyond the window, retained text after ledger expiry (90 days by default), and unrecorded sends can all miss. The built-in mail archive uses IMAP UIDs and formatted bodies, which do not reliably map to ledger Message-IDs and recipient targets. GitHub's legacy flattened chat IDs are not used to guess a destination; new receipts can match its exact typed references. Curation must treat unavailable and unmarked provenance as unknown where learning a false user preference would matter. Option 1 supplies the provenance needed alongside the text; a more general read-only ledger API remains future work.
-
-**Writes are the extension's** (#6100): the manager attributes `kb.update` to the calling extension (internally `kb.extension_update`; an extension cannot call that or name another). It may write fields nobody holds and fields it holds itself;
-a field the user (or another extension) holds refuses the whole update with `conflict`, data `{owners: {<field>: "user" | "ext:<id>"}}` (a linked entity's field as `<kind>/<id>.<field>`), and nothing is written: put it to the user, don't retry.
-The locked fields it writes become its own with `evidence` (`[{chat, day, n?, note?}]`, at most 20, kept in the entity's `meta.provenance`, visible in `kb.get`); `lock: false` holds nothing; `unlock: [fields]` hands back fields it holds.
-`before` is each written field's previous value (`null` when unset, the old `summary` text), for the extension's undo. Rules and how this sits with the built-in pipeline: [Knowledge base](../assistant/knowledge.md#who-holds-a-field-6100).
-
-The update fields follow the existing knowledge base update API, plus `pinned`, `lock` and `remove_people/remove_chats/remove_aliases/remove_projects`.
-A link the user removed (`excluded` in the entity's meta, `removed` in `kb.get`) is not made again: it is dropped from `people` / `chats` / `projects` and named in `ignored`, and the rest applies ("Removed links" in `docs/assistant/knowledge.md`).
-
-Project list rows and detail include `freshness`, canonical `sources`, and `project_mode` when the owner made the
-project reference-only. Check `freshness.needs_review` before relying on a conclusion, and inspect the field's own
-cutoff and maintainer for the review. A project source's `delivery_state` records the source observation and
-`environment_verification` records the independent verification status. A detail write to a reference-only project
-returns `invalid_params` with the refused fields and applies none of the update. The project mode and external
-pointers are controlled by the owner. See `docs/assistant/knowledge.md` ("Project freshness and reference-only sources").
-Each kind takes only the fields it uses ("Fields each kind takes" in `docs/assistant/knowledge.md`); the others are not applied, and the answer names them in `ignored: [{field, reason}]`, so nothing is dropped silently (a person's `summary` and `log`, for one).
-
-**A person's profile** (`profile`, people only): what the extension knows of the person, in four parts kept apart: `facts`, the user's own words about them (`views`), `inferences` (each with its `basis`, shown as only a hint), and `commitments` either way (`owes: user | them`, `due?`, `done?`). Every item needs `sources`.
-It is the extension's own: a write replaces the profile it wrote before as a whole (one with no items removes it) and touches no other extension's, nor the user's, nor the person's `pinned` and `note`, so it never conflicts. `before.profile` is the one replaced.
-The person's summary.md shows it under its own headings, every line labelled with its part, which is what `kb_get` / `kb_search` and `kb.get` / `kb.search` read; `kb.get` also gives `profiles` by writer, as written. Rules and bounds are in "Person profiles" (`docs/assistant/knowledge.md`).
-
-```json
-{"kind":"people","id":"<person id>","profile":{
-  "facts":[{"text":"Leads the example project","sources":["chats/<dm id>/messages/2026-11-03.md"]}],
-  "views":[{"text":"explains things clearly","sources":["user"]}],
-  "inferences":[{"text":"Prefers written updates","basis":"asked for a written summary after three of four calls","sources":["chats/<dm id>"]}],
-  "commitments":[{"text":"Send the review notes","owes":"user","due":"2026-11-20","sources":["chats/<dm id>/messages/2026-11-04.md"]}]}}
-```
-Protection rules, which entities they apply to, encryption of the owner's identity and history limits are in [Knowledge base](../assistant/knowledge.md#扩展整理知识库1908). The owner's aliases are edited by the user in the assistant settings;
-there is no separate RPC for extensions to write the owner's identity.
-
-Subscription example:
-
-```json
-{"permissions":{"hub":["kb.read","kb.write"]},"activation_events":["on_startup"],
- "contributes":{"events":[{"id":"knowledge","subscribe":["kb.changed","kb.forgotten"]}]}}
-```
-
-The hub pushes `event.kb.changed {kind,id,what}` and `event.kb.forgotten {source}`. Only subscribers that are still enabled, have that contribution on, have their program running, and were actually granted
-`kb.read` (or legacy full access) receive them; write permission alone is not enough. Notifications carry only the identifying fields above, no body text, owner handles or absolute paths, and are not persisted for redelivery; after starting / reconnecting, an extension reads the full state first.
-
 ### Model calls (#6102)
 
 An extension that needs a model (daily summaries, tagging, a weekly review) asks the hub instead of taking an API key of its own: it declares `models` in `permissions.hub`
 and calls `model.complete` over its process connection. The call runs on the extension's **own purpose** `extension.<id>` in Settings › Model configuration,
-which follows "Knowledge base" (`kb`) until the user picks another connection or model for it there; the extension never sees a key and does not choose the connection.
+which follows "Information processing" (`kb`) until the user picks another connection or model for it there; the extension never sees a key and does not choose the connection.
 
 | Method | Parameters | Returns | Scope |
 | --- | --- | --- | --- |
@@ -672,7 +587,7 @@ The schema is `schema/extension/models.schema.json`; the Go SDK has it as `ext.H
   extensions with a purpose through `app.call plugins.models` (enabled, compatible, granted `models` itself).
 
 ```json
-{"permissions":{"hub":["kb.read","kb.write","models"]}}
+{"permissions":{"hub":["models"]}}
 ```
 
 A call with candidates and an answer from the second one:
@@ -726,7 +641,7 @@ Code: `extmgr/extension_transcription.go`, `assistant/extension_transcribe.go`, 
 
 An extension that learns from what the user tells the assistant (how they judge, what they prefer, how they work) reads those
 conversations over its process connection instead of a copy of the transcripts: it declares `assistant.read` in `permissions.hub`,
-and the hub checks the grant the user gave, as for `kb.read` (the legacy `hub_api` full access counts too). Read-only: nothing here
+and the hub checks the grant the user gave (the legacy `hub_api` full access counts too). Read-only: nothing here
 sends, renames, archives or changes a conversation. The manager, which owns the conversations, answers both methods.
 
 | Method | Parameters | Returns | Scope |
@@ -756,7 +671,7 @@ The schema is `schema/extension/assistant.schema.json`; the Go SDK has them as `
   `machine_offline` (the assistant's computer is not connected or not set up).
 
 ```json
-{"permissions":{"hub":["kb.read","assistant.read"]}}
+{"permissions":{"hub":["assistant.read"]}}
 ```
 
 ### Assistant memory
@@ -946,7 +861,7 @@ and the extensions' `agent.needs_you` / `agent.finished` events still leave the 
   conversation's space to filter their targets. `GET /api/v1/assistant` lists none of them (`?space=health` lists
   nothing), and a chat's feed (`GET …/conversations/{id}/feed`) answers 404 for one of them, or for one whose space
   cannot be told. `agent.finished` is not sent of such a chat either.
-- **Private and health cards**: a card a Just me turn raised (`private`, `docs/assistant/meeting-minutes.md` "Just me"), a card of
+- **Private and health cards**: a card a Just me turn raised (`private`), a card of
   the health space (by its directory or its conversation's space), and a card without a directory whose conversation cannot be found
   are left out of `GET /api/v1/interactions` and `/interactions/history`, and `agent.needs_you` is not sent of them. An extension
   page's own confirmation card (`confirm` on an action) names no computer or directory, so it is one of them: the page's action
@@ -990,10 +905,6 @@ and the extensions' `agent.needs_you` / `agent.finished` events still leave the 
   again). Every to-do it is shown reads as a device reads it,
   and the list's `counts` are a device's, which count, as numbers, the to-dos it is not shown too. What told a to-do's history stays: a run's link keeps a directory in the
   space when the run's shell leaves it, and a space's unlink, move or void releases such a link rather than delete it.
-  Such a task's outcome is not written into a knowledge-base project's timeline either, where `kb.read` would read it:
-  the line of one that only cannot be told yet waits, is written once the task is told outside the space and is
-  dropped once it is told in it (judged again as the events are; a manager restart in between drops it, and the
-  outcome stays in the to-do's decisions).
   A chat's feed (`assistant.ask`) leaves out the same: the items, plans and task cards of such a to-do, a plan with a task in
   the space, every answered card, and the digests that gather many to-dos and cards at once (a routine's `brief`, the
   Today card).
@@ -1361,7 +1272,7 @@ Besides the whole extension's toggle, **each contribution** (`<extension point>/
   so UI slots, provider presets, the assistant's skills and instructions, event subscriptions, App API, quota and personal Agent sources don't see it; the program gets only the enabled ones in `initialize`'s `active`
   (one entry per extension point: `{"ui": ["usage"], "providers": ["fast"], …}`), and the extension doesn't have to do anything for contributions that are off. Changing a toggle restarts the extension (like a config change).
 - Ids that are off still belong to this extension: other extensions can't take them by installing; permissions, the permission summary and upgrade comparisons all use the full manifest, so turning off contributions doesn't make the extension "ask for fewer permissions".
-- A **connector**'s toggle is the connector's own toggle (already used by **Settings › Connectors**, the Inbox and the knowledge base); this is just another entry point to the same toggle. **Channels** bound to a connector follow that connector.
+- A **connector**'s toggle is the connector's own toggle (already used by **Settings › Connectors**, the Inbox); this is just another entry point to the same toggle. **Channels** bound to a connector follow that connector.
   In the list they are `via: "connector"`, `can_disable: false`, and changes go through the connector's toggle (409 `not_running` when the connector hasn't started yet).
   Whichever entry point is used, a change of that toggle restarts the extension that contributes the connector, once, like the other toggles (#10467): its new `initialize`'s
   `active.connectors` lists only the connectors that are on, so a program that works for a connector on its own (a live listener, replies) knows to leave a switched-off one alone.
@@ -4319,7 +4230,7 @@ Closing the WebSocket ends this conversation.
 
 The `transcription` point (#3862 phase 5) turns a meeting's audio into text on the hub, for the manager, which writes the live log and the hub's transcript from it;
 the program stores nothing. The contract (the job's frames both ways, which contribution transcribes, the built-in one's sessions) is
-[meeting-minutes.md](../assistant/meeting-minutes.md) "The `transcription` extension point"; this is the extension's side in short.
+the `transcription` extension point; this is the extension's side in short.
 
 - **Endpoints**, on the program's own socket under the contribution's id, apart from the voice point's `GET /info` and `GET /ws`:
   `GET /transcription/{cid}/info` → `{"protocol": 1, "features": ["live", "replay", "interim"], "setup"?: …}` (`extwire.TranscriptionInfo`), and
@@ -4340,7 +4251,7 @@ the program stores nothing. The contract (the job's frames both ways, which cont
 ## Speech
 
 The `speech` point (#8712) reads a text aloud for the apps, one way: no conversation, no model. Its first user is the iPhone saying a
-meeting answer when Persona takes part in a meeting ([meeting-minutes.md](../assistant/meeting-minutes.md) "What the phone does (#3375)"),
+meeting answer when Persona takes part in a meeting,
 in place of the voice extension's realtime voice or the phone's own. The built-in Volcengine speech extension contributes one
 ([volcengine-speech.md](volcengine-speech.md)).
 
@@ -4441,7 +4352,7 @@ The form's upstream has no `tools` switch, so it is auto: it declares the functi
 - **Dictation** (#2083, feature `dictation`): a protocol 2 `start` with `mode: "dictation"` and no target opens one unbound upstream session per dictation, requests text-only output and interim captions with the existing refusal fallbacks, declares no tools or delegation, forwards one non-duplicated stream of interim/final user transcripts and discards generated replies. It uses only the existing `live` dialect and does not reconnect automatically; call, meeting and `speak` behavior is unchanged. Details in `docs/assistant/voice.md` ("Dictation").
 - **Meeting transcription** (#3862 phase 5): the manifest also contributes `transcription: [{"id": "gpt-live", "name": "GPT-Live"}]` beside its voice (its kind stays `voice`), with the same upstreams and key.
   It transcribes only through a GPT-Live (`live` dialect) upstream: the default model's when its upstream is one, else the first `live` upstream's default; with none,
-  `GET /transcription/gpt-live/info` says `setup: "live_upstream"`. See "Transcription" above and [meeting-minutes.md](../assistant/meeting-minutes.md) "The built-in adapter".
+  `GET /transcription/gpt-live/info` says `setup: "live_upstream"`. See "Transcription" above and.
 - **Extension env vars**: `PERSONA_EXTENSION_CONFIG` (form values with defaults), `PERSONA_EXTENSION_SECRETS` (`{"key": "…"}`, decrypted only in process environment),
   `PERSONA_VOICE_HUB_CONFIG` (original `config` of the taken-over entry), entry `env`, and `PERSONA_HUB_URL` / `PERSONA_HUB_TOKEN` (manifest `hub_api`, as before);
   legacy `PERSONA_PLUGIN_*` names are also supplied and accepted.

@@ -119,7 +119,6 @@ func TestAnExtensionsTokenActsOnlyAsItsManager(t *testing.T) {
 		{"names A by query: a naming preview", "POST", "/api/v1/assistant/workspace-naming/preview?manager=assistant", `{"machine_id":"mb","layout":"root"}`, nil},
 		{"names A: an inbox reply", "POST", "/api/v1/inbox/item-1/reply", `{"text":"x"}`, namesA},
 		{"names A: an inbox retry", "POST", "/api/v1/inbox/item-1/retry", "", namesA},
-		{"names A: the knowledge base", "GET", "/api/v1/kb/people", "", namesA},
 		{"names A: another extension's HTTP", "GET", "/api/v1/extensions/lark/things", "", namesA},
 		{"A's card choice", "POST", "/api/v1/interactions/ix_a/choose", `{"option":0,"rev":"old"}`, nil},
 		{"A's conversation's feed", "GET", "/api/v1/assistant/conversations/conv-a/feed", "", nil},
@@ -345,10 +344,7 @@ func TestExtensionSelfMarketRefreshStaysOnTokenManager(t *testing.T) {
 // checks what its body or query names itself.
 func TestEveryExtensionRouteIsBounded(t *testing.T) {
 	bounded := map[string]string{
-		"GET /api/v1/kb/{kind}": "manager", "GET /api/v1/kb/{kind}/{id}": "manager", "GET /api/v1/kb/chats/{id}/context": "manager",
-		"GET /api/v1/kb/chats/{id}/days/{day}": "manager", "GET /api/v1/kb/moments/{id}": "manager", "GET /api/v1/kb-search": "manager",
-		"PUT /api/v1/kb/{kind}/{id}": "manager",
-		"GET /api/v1/inbox":          "manager", "GET /api/v1/inbox/done": "manager", "GET /api/v1/inbox/done/days": "manager", "GET /api/v1/inbox/{id}": "manager", "GET /api/v1/inbox/mutes": "manager",
+		"GET /api/v1/inbox": "manager", "GET /api/v1/inbox/done": "manager", "GET /api/v1/inbox/done/days": "manager", "GET /api/v1/inbox/{id}": "manager", "GET /api/v1/inbox/mutes": "manager",
 		"GET /api/v1/inbox/policies": "manager", "POST /api/v1/inbox/done": "manager", "POST /api/v1/inbox/bulk": "manager",
 		"POST /api/v1/inbox/merge": "manager", "POST /api/v1/inbox/merge/undo": "manager", "POST /api/v1/inbox/todo": "manager", "POST /api/v1/inbox/todo/undo": "manager",
 		"POST /api/v1/inbox/{id}/done": "manager", "POST /api/v1/inbox/{id}/draft": "manager", "POST /api/v1/inbox/{id}/reply": "manager",

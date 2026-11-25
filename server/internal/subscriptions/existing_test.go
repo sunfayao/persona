@@ -134,7 +134,7 @@ func TestExistingNeedsARecipeThatChanges(t *testing.T) {
 		t.Fatalf("the same recipe left marks: %v %v", got.Baseline, got.CatchupFrom)
 	}
 	// A digest only touches an Inbox that was on and stays on.
-	e.patch(sub.ID, Patch{ToInbox: ptr(false), ToKB: ptr(true)})
+	e.patch(sub.ID, Patch{ToInbox: ptr(false)})
 	if got := e.patch(sub.ID, Patch{Recipe: ptr(changedRecipe())}); got.CatchupFrom != nil || got.InboxFrom != nil {
 		t.Fatalf("a digest with the Inbox off: %v %v", got.CatchupFrom, got.InboxFrom)
 	}
@@ -228,7 +228,7 @@ func TestPatchedIsWhatUpdateMakes(t *testing.T) {
 	snap := Recipe{Mode: "snapshot", Tool: "balance", Kind: "sub_update", GroupBy: "source"}
 	for _, p := range []Patch{
 		{Label: ptr("  Work   notices "), IntervalSeconds: ptr(3600), TriageRules: ptr("Only from the office"), FallbackTier: ptr("action")},
-		{ToInbox: ptr(false), ToKB: ptr(true)},
+		{ToInbox: ptr(false)},
 		{Recipe: &snap},
 		{DailyAt: ptr("07:30")},
 		{Label: ptr("")},
@@ -241,7 +241,7 @@ func TestPatchedIsWhatUpdateMakes(t *testing.T) {
 			t.Fatal(err)
 		}
 		if got.Label != want.Label || got.IntervalSeconds != want.IntervalSeconds || got.DailyAt != want.DailyAt || got.ToInbox != want.ToInbox ||
-			got.ToKB != want.ToKB || got.TriageRules != want.TriageRules || got.FallbackTier != want.FallbackTier || got.Recipe.Mode != want.Recipe.Mode ||
+			got.TriageRules != want.TriageRules || got.FallbackTier != want.FallbackTier || got.Recipe.Mode != want.Recipe.Mode ||
 			got.State != want.State || got.MinIntervalSeconds != want.MinIntervalSeconds {
 			t.Fatalf("patch %+v:\nupdate  %+v\npatched %+v", p, got, want)
 		}

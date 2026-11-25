@@ -2,7 +2,7 @@
 
 `Status`: in progress. Telegram has its own plan in `docs/archive/extensions/plan-telegram.md` (#533; an extension `since` 2026-11-05 in `nwverse/persona-extensions`, #1704, #2057). User, 2026-11-01: "Assign a lane to write the `connector` plan first, starting with GitHub and iMessage"; implementation began 2026-11-02: framework (C1), then GitHub, then iMessage (assigned to the terminal lane, #449),
 with Lark and `mail` migration (M0–M6) later. Use conservative defaults and keep switches for the two undecided points ("Decisions needed from the user", 2 and 7).
-After the user approves, follow "Implementation steps" and check completed steps; once everything is done, merge the design into `docs/extensions/connectors.md` (new), `docs/assistant/knowledge.md`, `docs/assistant/inbox.md`, then delete this plan.
+After the user approves, follow "Implementation steps" and check completed steps; once everything is done, merge the design into `docs/extensions/connectors.md` (new), `docs/assistant/inbox.md`, then delete this plan.
 2026-11-03: migration M0–M6 complete; current structure is in part I of `docs/extensions/connectors.md`, together with v2 design and progress (closed out 2026-11-03: V1, V3–V6 complete, V2 and V7 rejected). This plan remains as process history and for unfinished steps (I5, later Telegram steps).
 
 ## Background: separate integrations today
@@ -314,7 +314,7 @@ Later activity merges into the unresolved item; activity after completion opens 
 
 - **`Conversations`**: one per PR / `issue`, `chats/github-<owner>-<repo>-<number>` (`kind: pr | issue`), description first, then `issue` comments, reviews ("`alice` approved", "bob requested `changes`: …"),
   inline comments (with file:line), chronologically ordered. Bots (`[bot]` accounts, CI comments) are marked as bots and excluded from real people by `HasPeople`.
-  The chat carries the thread's state, and a merge, close or reopen adds one line (`docs/assistant/knowledge.md` "Chat state and finished projects", #9427).
+  The chat carries the thread's state, and a merge, close or reopen adds one line (, #9427).
 - **What is collected**: only `threads` "related to me" (seen in notifications + search `involves:@me` updated in the last 30 days), not entire repositories. Cursor uses thread `updated_at`
   + `since` per `comment` type (`StreamSource`); backfill reads all comments on first fetch (like Moments, no `Older` needed).
 - **Repositories link to projects**: project `dirs` (`<machine>:<path>`) are code directories; node `git.status` gains optional `remotes` (skip old nodes without it).

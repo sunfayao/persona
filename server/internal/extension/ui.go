@@ -258,8 +258,6 @@ var (
 	// _ for .> (Explain). No text here: the catalogs are read on first use, not when the package starts (#1308).
 	EventTopics = map[string]bool{
 		"assistant.entries.changed": true,
-		"kb.changed":                true,
-		"kb.forgotten":              true,
 		"inbox.changed":             true,
 		"agent.needs_you":           true,
 		"agent.finished":            true,
@@ -273,8 +271,6 @@ var (
 	// (or the legacy full-hub grant) is told. A topic not listed needs none.
 	EventScopes = map[string]string{
 		"assistant.entries.changed": ScopeAssistantEntriesRead,
-		"kb.changed":                ScopeKBRead,
-		"kb.forgotten":              ScopeKBRead,
 		"todo.changed":              ScopeTodosRead,
 		"todo.decision":             ScopeTodosRead,
 		"leader.changed":            ScopeLeadersRead,

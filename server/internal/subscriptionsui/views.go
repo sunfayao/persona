@@ -51,9 +51,6 @@ func (p *pages) failed(title string, err error) wire.View {
 // confirm is what a destination's switch asks before it turns on: what, how often, where it is kept, which model.
 func (p *pages) confirm(dest, label, kind, every string, push bool) string {
 	purpose := "inbox.triage" // Information filtering triages the Inbox's items
-	if dest == "to_kb" {
-		purpose = "kb" // Information processing summarizes the knowledge base's
-	}
 	provider := ""
 	if m := p.modelOf(purpose); m.OK && m.Provider != "" {
 		provider = p.t("confirm.provider", i18n.Args{"name": modelName(m)})
@@ -65,7 +62,7 @@ func (p *pages) confirm(dest, label, kind, every string, push bool) string {
 	return p.t(key, i18n.Args{"source": label, "noun": p.noun(kind), "every": every, "provider": provider})
 }
 
-func (p *pages) switches(id, label, kind, every string, inbox, kb, enabled, push bool) wire.Section {
+func (p *pages) switches(id, label, kind, every string, inbox, enabled, push bool) wire.Section {
 	sw := func(name string, on bool, subtitle string) wire.Component {
 		r := row("d."+name, p.t("dest."+name))
 		r.Subtitle = subtitle
@@ -78,7 +75,6 @@ func (p *pages) switches(id, label, kind, every string, inbox, kb, enabled, push
 	}
 	return wire.Section{Key: "dest", Title: p.t("source.dest"), Items: []wire.Component{
 		sw("to_inbox", inbox, p.t("source.inbox_detail", i18n.Args{"noun": p.noun(kind)})),
-		sw("to_kb", kb, p.t("source.kb_detail")),
 	}}
 }
 
@@ -104,10 +100,7 @@ func (p *pages) source() wire.View {
 	case subscriptions.StateFailing, subscriptions.StateNeedsRecipe, subscriptions.StateRateLimited, subscriptions.StateNotConnected:
 		v.Sections = append(v.Sections, p.trouble(s))
 	}
-	dest := p.switches(s.ID, s.Label, s.Recipe.Kind, p.schedule(s), s.ToInbox, s.ToKB, true, false)
-	if s.Recipe.Mode == wire.ConnectorSubscriptionModeThings {
-		dest.Items = dest.Items[:1] // its rows are the Inbox's only: the knowledge base reads the source itself (#6296)
-	}
+	dest := p.switches(s.ID, s.Label, s.Recipe.Kind, p.schedule(s), s.ToInbox, true, false)
 	if subscriptions.IsMigration(s.ID) {
 		// A built-in's default subscription: switched on its built-in's page, its own switches kept off (#6345).
 		r := row("d.to_inbox", p.t("dest.to_inbox"))
@@ -223,7 +216,7 @@ func (p *pages) newSource() wire.View {
 		v.Sections = append(v.Sections, wire.Section{Key: "native", Items: []wire.Component{
 			text("native", p.t("source.native", i18n.Args{"where": where}), "secondary")}})
 	}
-	if cat.Direct.Inbox || cat.Direct.Archive {
+	if cat.Direct.Inbox {
 		v.Sections = append(v.Sections, wire.Section{Key: "direct", Items: []wire.Component{text("direct", p.t("source.direct"), "secondary")}})
 	}
 	min := 300
@@ -259,7 +252,7 @@ func (p *pages) newSource() wire.View {
 		v.Sections = append(v.Sections, wire.Section{Key: "try", Items: []wire.Component{p.previewPress()}})
 		v.Sections = append(v.Sections, p.previewOf(kind, "")...)
 	}
-	v.Sections = append(v.Sections, p.switches("", src.Name, kind, every, false, false, len(src.Recipes) > 0, false))
+	v.Sections = append(v.Sections, p.switches("", src.Name, kind, every, false, len(src.Recipes) > 0, false))
 	freq := row("f.interval", p.t("source.interval"))
 	freq.Value = every
 	v.Sections = append(v.Sections, wire.Section{Key: "freq", Title: p.t("source.freq"), Items: []wire.Component{freq},

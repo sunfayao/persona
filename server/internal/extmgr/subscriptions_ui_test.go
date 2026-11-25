@@ -59,7 +59,7 @@ func TestSubscriptionPagesFitTheAppsVersion(t *testing.T) {
 	h.connectors = connector.NewRegistry(nil)
 	store := subscriptions.NewMemStore()
 	sub := subscriptions.Subscription{ID: "sub_example", Connector: "example", Source: "notices", Label: "Notices",
-		Recipe: subscriptions.Recipe{Mode: "items", Kind: "sub_notice", GroupBy: "source"}, ToInbox: true, ToKB: true,
+		Recipe: subscriptions.Recipe{Mode: "items", Kind: "sub_notice", GroupBy: "source"}, ToInbox: true,
 		Revision: 1, CreatedAt: time.Now().UTC().Add(-time.Hour)}
 	if err := store.CreateSubscription(ctx, sub); err != nil {
 		t.Fatal(err)

@@ -25,7 +25,7 @@ func TestTodoEventsReachOnlyAuthorizedExtensions(t *testing.T) {
 		{"reader", `{"hub":["todos.read"]}`, []string{"todo.changed", "todo.decision", "agent.finished"}, true},
 		{"reader-changed-only", `{"hub":["todos.read"]}`, []string{"todo.changed", "agent.finished"}, true},
 		{"writer", `{"hub":["todos.write"]}`, []string{"todo.changed", "todo.decision", "agent.finished"}, false},
-		{"kb-reader", `{"hub":["kb.read"]}`, []string{"todo.changed", "todo.decision", "agent.finished"}, false},
+		{"kb-reader", `{"hub":["agents.read"]}`, []string{"todo.changed", "todo.decision", "agent.finished"}, false},
 		{"none", `{}`, []string{"todo.changed", "todo.decision", "agent.finished"}, false},
 		{"legacy", `{"hub_api":true}`, []string{"todo.changed", "todo.decision", "agent.finished"}, true},
 		{"reader-not-subscribed", `{"hub":["todos.read"]}`, []string{"agent.finished", "inbox.changed"}, false},
@@ -176,15 +176,15 @@ func waitEventQueuesEmpty(t *testing.T, h *Manager) {
 	}
 }
 
-// A flood of to-do events does not push the knowledge base's out of its queue; a backlog of to-do changes is at most
+// A flood of to-do events does not push the other events out of their queue; a backlog of to-do changes is at most
 // one event a to-do (a to-do made and deleted before the extensions were told is none), and past the limit the oldest
 // goes.
-func TestTodoEventFloodLeavesTheKnowledgeBaseAlone(t *testing.T) {
+func TestTodoEventFloodLeavesTheOtherEventsAlone(t *testing.T) {
 	h := newTestManager(t)
 	h.extensions = &extensions{h: h}
 	holdEvents(&h.extensions.events)
 	holdEvents(&h.extensions.todoEvents)
-	h.AssistantSaid(assistantwire.EventKBChanged, json.RawMessage(`{"kind":"chats","id":"example-chat","what":"messages"}`))
+	h.extensions.queueEvent("agent.finished", map[string]any{})
 	say := func(id, what string) {
 		raw, _ := json.Marshal(assistantwire.TodoChangedEvent{ID: id, Title: "t " + what, What: what})
 		h.AssistantSaid(assistantwire.EventTodoChanged, raw)
@@ -200,10 +200,10 @@ func TestTodoEventFloodLeavesTheKnowledgeBaseAlone(t *testing.T) {
 		}
 	}
 	h.extensions.events.mu.Lock()
-	kbWaiting := len(h.extensions.events.pending)
+	otherWaiting := len(h.extensions.events.pending)
 	h.extensions.events.mu.Unlock()
-	if kbWaiting != 1 {
-		t.Fatalf("the knowledge base's queue holds %d, want its 1 event", kbWaiting)
+	if otherWaiting != 1 {
+		t.Fatalf("the other events' queue holds %d, want its 1 event", otherWaiting)
 	}
 	q := &h.extensions.todoEvents
 	q.mu.Lock()

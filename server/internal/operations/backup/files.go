@@ -14,60 +14,49 @@ import (
 )
 
 var optionalRootFiles = []string{
-	"secret.key.prev", "tailcat-hub.json", "handles.key", "apns.json", "apns_key.p8",
+	"secret.key.prev", "tailcat-hub.json", "apns.json", "apns_key.p8",
 	"tailcat.json", "link.json", "daemons.json", "docker/db-password",
 }
 
 var optionalRuntimeDirectories = []string{"extensions", "skills", "hub.machines_kept", "tls"}
 
 // userContentDirectories hold the owner's files (installed extensions and
-// skills), copied in full like the knowledge base: a name such as yarn.lock or
+// skills), copied in full: a name such as yarn.lock or
 // meeting.log there is content, not a runtime artifact.
 var userContentDirectories = map[string]bool{"extensions": true, "skills": true}
 
-// collectPayload copies the runtime files and the knowledge base into staging.
-// notes are warnings for the operator (a knowledge base that is not there).
-func collectPayload(home, staging string, manifest *Manifest) (notes []string, err error) {
+// collectPayload copies the runtime files into staging.
+func collectPayload(home, staging string, manifest *Manifest) (err error) {
 	home, err = filepath.Abs(home)
 	if err != nil {
-		return nil, err
-	}
-	locator, kbDir, err := knowledgeBaseLocator(home)
-	if err != nil {
-		return nil, err
-	}
-	if err := refuseKnowledgeBaseOverlap(home, kbDir); err != nil {
-		return nil, err
+		return err
 	}
 	managerDir := filepath.Join(home, "managers", "assistant")
 	if own := managerSecretFile(home); !samePath(own, managerconf.OwnFile(home, managerconf.SecretKey)) {
-		return nil, errors.New("the built-in manager still reads the hub's secret.key; finish its key-file migration before backup")
+		return errors.New("the built-in manager still reads the hub's secret.key; finish its key-file migration before backup")
 	}
-	// A knowledge base inside a runtime directory (kb_dir "kb" puts it in
-	// managers/assistant) is collected once, as the knowledge base, not also
-	// as part of that directory.
-	if err := copyTreeExcept(managerDir, filepath.Join(staging, "runtime", "managers", "assistant"), true, kbDir); err != nil {
-		return nil, fmt.Errorf("collect the built-in manager files: %w", err)
+	if err := copyTree(managerDir, filepath.Join(staging, "runtime", "managers", "assistant"), true); err != nil {
+		return fmt.Errorf("collect the built-in manager files: %w", err)
 	}
 	manifest.RuntimeDirectories = append(manifest.RuntimeDirectories, "managers/assistant")
 	if err := copyRequired(filepath.Join(home, "hub.json"), filepath.Join(staging, "runtime", "hub.json")); err != nil {
-		return nil, err
+		return err
 	}
 	if err := copyRequired(filepath.Join(home, "secret.key"), filepath.Join(staging, "runtime", "secret.key")); err != nil {
-		return nil, err
+		return err
 	}
 	for _, name := range optionalRootFiles {
 		if err := copyOptional(filepath.Join(home, filepath.FromSlash(name)), filepath.Join(staging, "runtime", filepath.FromSlash(name))); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	nextKeys, err := filepath.Glob(filepath.Join(home, "secret.key.next-*"))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	for _, name := range nextKeys {
 		if err := copyOptional(name, filepath.Join(staging, "runtime", filepath.Base(name))); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	for _, name := range optionalRuntimeDirectories {
@@ -77,78 +66,40 @@ func collectPayload(home, staging string, manifest *Manifest) (notes []string, e
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !info.IsDir() {
-			return nil, fmt.Errorf("runtime path %s is not a directory", name)
+			return fmt.Errorf("runtime path %s is not a directory", name)
 		}
-		if err := copyTreeExcept(source, filepath.Join(staging, "runtime", name), !userContentDirectories[name], kbDir); err != nil {
-			return nil, fmt.Errorf("collect %s: %w", name, err)
+		if err := copyTree(source, filepath.Join(staging, "runtime", name), !userContentDirectories[name]); err != nil {
+			return fmt.Errorf("collect %s: %w", name, err)
 		}
 		manifest.RuntimeDirectories = append(manifest.RuntimeDirectories, name)
-	}
-	manifest.KnowledgeBase = locator
-	if info, err := os.Lstat(kbDir); err != nil {
-		// Not a failure: an install may have no knowledge base yet. But a path
-		// that is only missing for now (an unmounted drive, a mistyped kb_dir)
-		// would be recorded as no knowledge base, so the operator is told.
-		manifest.KnowledgeBase.Present = false
-		reason := "does not exist"
-		if !errors.Is(err, os.ErrNotExist) {
-			reason = "cannot be read (" + err.Error() + ")"
-		}
-		notes = append(notes, fmt.Sprintf("warning: the knowledge base %s %s, so this bundle records no knowledge base and restoring it will leave whatever knowledge base the install has in place. "+
-			"If it should be there (an unmounted drive, a mistyped kb_dir), fix that and create the backup again", kbDir, reason))
-	} else if !info.IsDir() {
-		return nil, errors.New("the knowledge-base path is not a directory")
-	} else {
-		manifest.KnowledgeBase.Present = true
-		if err := copyTree(kbDir, filepath.Join(staging, "kb"), false); err != nil {
-			return nil, fmt.Errorf("collect the knowledge base: %w", err)
-		}
 	}
 	for _, required := range []string{"runtime/managers/assistant/manager.json", managerKeyPath} {
 		name := filepath.Join(staging, filepath.FromSlash(required))
 		if info, err := os.Lstat(name); err != nil || !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("required runtime file %s is missing or not regular", required)
+			return fmt.Errorf("required runtime file %s is missing or not regular", required)
 		}
 		if err := os.Chmod(name, 0o600); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	hubKey, err := secretkey.ReadKey(filepath.Join(home, "secret.key"))
 	if err != nil {
-		return nil, fmt.Errorf("read the hub encryption key: %w", err)
+		return fmt.Errorf("read the hub encryption key: %w", err)
 	}
 	managerKey, err := secretkey.ReadKey(managerSecretFile(home))
 	if err != nil {
-		return nil, fmt.Errorf("read the built-in manager encryption key: %w", err)
+		return fmt.Errorf("read the built-in manager encryption key: %w", err)
 	}
 	manifest.HubKeyFingerprint = secretkey.Fingerprint(hubKey)
 	manifest.ManagerKeyFingerprint = secretkey.Fingerprint(managerKey)
 	if manifest.Manager.SealingKey != "" && manifest.Manager.SealingKey != manifest.ManagerKeyFingerprint {
-		return nil, errors.New("the built-in manager database names a different secret.key than the one on disk, usually because its key rotation is unfinished (a secret.key.next-* file is pending). " +
+		return errors.New("the built-in manager database names a different secret.key than the one on disk, usually because its key rotation is unfinished (a secret.key.next-* file is pending). " +
 			"If so, start the built-in manager once so it finishes the rotation (it resumes at startup), then stop it and retry; the rotation cannot be rolled back after its commit")
 	}
-	return notes, nil
-}
-
-// runtimeTargets are the paths under home that restore replaces, other than
-// the knowledge base; runtimeDirectoryTargets are the directories among them.
-func runtimeTargets(home string) []string {
-	targets := []string{filepath.Join(home, "hub.json"), filepath.Join(home, "secret.key")}
-	for _, name := range optionalRootFiles {
-		targets = append(targets, filepath.Join(home, filepath.FromSlash(name)))
-	}
-	return append(targets, runtimeDirectoryTargets(home)...)
-}
-
-func runtimeDirectoryTargets(home string) []string {
-	targets := []string{filepath.Join(home, "managers", "assistant")}
-	for _, name := range optionalRuntimeDirectories {
-		targets = append(targets, filepath.Join(home, name))
-	}
-	return targets
+	return nil
 }
 
 // pathWithin reports whether child is parent or lies under it.
@@ -161,45 +112,6 @@ func pathWithin(parent, child string) bool {
 // existing prefix resolved.
 func pathForms(name string) []string {
 	return []string{filepath.Clean(name), resolveExisting(name)}
-}
-
-// refuseKnowledgeBaseOverlap refuses a knowledge base that restore could not
-// replace without moving something else with it: one that holds the runtime
-// directory (home, its parent or any ancestor, /), which would move the whole
-// install, the previous-files directory with it, into the knowledge base's
-// previous copy; one that is or holds a runtime file or directory restore
-// replaces as well (hub.json, managers, managers/assistant, extensions...),
-// which would push the item just restored into the previous files; one inside
-// a runtime file; and one inside a previous-files directory. A knowledge base
-// inside a runtime directory (kb_dir "kb" is managers/assistant/kb) is fine:
-// that directory is restored first, without it, and the knowledge base is
-// then installed inside it. Paths are compared as given and with their
-// symbolic links resolved.
-func refuseKnowledgeBaseOverlap(home, kb string) error {
-	directories := map[string]bool{}
-	for _, name := range runtimeDirectoryTargets(home) {
-		directories[name] = true
-	}
-	for _, kbForm := range pathForms(kb) {
-		for _, homeForm := range pathForms(home) {
-			if pathWithin(kbForm, homeForm) {
-				return fmt.Errorf("refusing the knowledge base %s: it holds the runtime directory %s, so restoring it would move the whole install into its previous copy. "+
-					"Nothing was changed; restore into a runtime directory outside it, or set kb_dir to a directory of its own", kb, home)
-			}
-			if rel, err := filepath.Rel(homeForm, kbForm); err == nil && strings.HasPrefix(strings.Split(filepath.ToSlash(rel), "/")[0], ".persona-backup-previous-") {
-				return fmt.Errorf("refusing the knowledge base %s: it lies inside a previous-files directory of an earlier restore. Nothing was changed", kb)
-			}
-		}
-		for _, target := range runtimeTargets(home) {
-			for _, targetForm := range pathForms(target) {
-				if pathWithin(kbForm, targetForm) || (!directories[target] && pathWithin(targetForm, kbForm)) {
-					return fmt.Errorf("refusing the knowledge base %s: it is or holds %s, which the backup holds and restore replaces as well. "+
-						"Nothing was changed; set kb_dir to a directory of its own (the default is data; a directory inside managers/assistant, extensions, skills or hub.machines_kept is fine too)", kb, target)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func managerSecretFile(home string) string {
@@ -239,12 +151,6 @@ func ephemeralRuntimeFile(name string) bool {
 // and temporary files, and is only for directories the product itself writes,
 // never for the owner's files.
 func copyTree(source, destination string, skipRuntime bool) error {
-	return copyTreeExcept(source, destination, skipRuntime, "")
-}
-
-// copyTreeExcept is copyTree leaving out the directory except (a knowledge
-// base inside source), compared as given and with symbolic links resolved.
-func copyTreeExcept(source, destination string, skipRuntime bool, except string) error {
 	info, err := os.Lstat(source)
 	if err != nil {
 		return err
@@ -255,11 +161,6 @@ func copyTreeExcept(source, destination string, skipRuntime bool, except string)
 	if err := os.MkdirAll(destination, 0o700); err != nil {
 		return err
 	}
-	var excluded []string
-	if except != "" {
-		excluded = pathForms(except)
-	}
-	resolvedSource := resolveExisting(source)
 	return filepath.WalkDir(source, func(name string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -270,14 +171,6 @@ func copyTreeExcept(source, destination string, skipRuntime bool, except string)
 		rel, err := filepath.Rel(source, name)
 		if err != nil {
 			return err
-		}
-		for _, form := range excluded {
-			if form == filepath.Clean(name) || form == filepath.Join(resolvedSource, rel) {
-				if entry.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
 		}
 		if entry.IsDir() {
 			if entry.Type()&os.ModeSymlink != 0 {
@@ -343,9 +236,8 @@ var (
 )
 
 type restoreItem struct {
-	source  string
-	target  string
-	runtime bool
+	source string
+	target string
 }
 
 type restoreRecord struct {
@@ -357,28 +249,27 @@ type restoreRecord struct {
 }
 
 type fileTransaction struct {
-	id           string
-	backupRoot   string
-	externalRoot string
-	records      []*restoreRecord
+	id         string
+	backupRoot string
+	records    []*restoreRecord
 }
 
 // applyFiles installs what the bundle has, each copy staged beside its target
 // before the target is renamed aside; what the bundle has no copy of stays as it
 // is. The replaced files remain in mode-0700 transaction directories after
 // success.
-func applyFiles(ctx context.Context, home, staging string, manifest *Manifest, allowExternal bool, id string) (previous, previousExternal string, rollback func() error, returnErr error) {
+func applyFiles(ctx context.Context, home, staging string, manifest *Manifest, id string) (previous string, rollback func() error, returnErr error) {
 	home, err := filepath.Abs(home)
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
-	items, err := restoreItems(home, staging, manifest, allowExternal)
+	items, err := restoreItems(home, staging, manifest)
 	if err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 	transaction := &fileTransaction{id: id, backupRoot: filepath.Join(home, ".persona-backup-previous-"+id)}
 	if err := os.MkdirAll(transaction.backupRoot, 0o700); err != nil {
-		return "", "", nil, err
+		return "", nil, err
 	}
 	committed := false
 	defer func() {
@@ -388,10 +279,10 @@ func applyFiles(ctx context.Context, home, staging string, manifest *Manifest, a
 	}()
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 		if err := transaction.apply(item); err != nil {
-			return "", "", nil, err
+			return "", nil, err
 		}
 	}
 	committed = true
@@ -399,18 +290,13 @@ func applyFiles(ctx context.Context, home, staging string, manifest *Manifest, a
 		_ = os.Remove(transaction.backupRoot)
 		transaction.backupRoot = ""
 	}
-	if transaction.externalRoot != "" && emptyDirectory(transaction.externalRoot) {
-		_ = os.Remove(transaction.externalRoot)
-		transaction.externalRoot = ""
-	}
-	return transaction.backupRoot, transaction.externalRoot, transaction.rollback, nil
+	return transaction.backupRoot, transaction.rollback, nil
 }
 
-// leftInPlaceNotes names what the manifest records as absent or empty (no
-// knowledge base, a runtime directory that held no files) while this install
-// has it. Restore does not reproduce that absence: it leaves the install's copy
+// leftInPlaceNotes names what the manifest records as empty (a runtime directory
+// that held no files) while this install has it. Restore does not reproduce that absence: it leaves the install's copy
 // where it is, untouched, and says so. Call it before the files change.
-func leftInPlaceNotes(home, staging string, manifest *Manifest, allowExternal bool) ([]string, error) {
+func leftInPlaceNotes(home, staging string, manifest *Manifest) ([]string, error) {
 	home, err := filepath.Abs(home)
 	if err != nil {
 		return nil, err
@@ -425,26 +311,7 @@ func leftInPlaceNotes(home, staging string, manifest *Manifest, allowExternal bo
 			notes = append(notes, fmt.Sprintf("note: the bundle records an empty %s; this install's %s was left in place, untouched", name, name))
 		}
 	}
-	if manifest.KnowledgeBase.Present {
-		return notes, nil
-	}
-	kbTarget, err := knowledgeBaseTarget(home, manifest, allowExternal)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := os.Lstat(kbTarget); err != nil {
-		return notes, nil
-	}
-	// A knowledge base inside a runtime directory the bundle replaces goes with
-	// that directory into the previous files.
-	for _, directory := range runtimeDirectoryTargets(home) {
-		rel, _ := filepath.Rel(home, directory)
-		staged := filepath.Join(staging, "runtime", rel)
-		if _, err := os.Lstat(staged); err == nil && pathWithin(directory, kbTarget) {
-			return append(notes, fmt.Sprintf("note: the bundle records no knowledge base; this install's knowledge base %s lies inside %s, which restore replaced, so it is kept with that directory in the previous files", kbTarget, filepath.ToSlash(rel))), nil
-		}
-	}
-	return append(notes, fmt.Sprintf("note: the bundle records no knowledge base; this install's knowledge base %s was left in place, untouched", kbTarget)), nil
+	return notes, nil
 }
 
 // dockerPasswordKept reports whether restore leaves the install's own
@@ -459,30 +326,10 @@ func dockerPasswordKept(home string, manifest *Manifest) bool {
 	return false
 }
 
-// knowledgeBaseTarget is where the bundle's knowledge base belongs.
-func knowledgeBaseTarget(home string, manifest *Manifest, allowExternal bool) (string, error) {
-	if manifest.KnowledgeBase.External != "" {
-		if !allowExternal {
-			return "", errors.New("this bundle has an external knowledge base; rerun with --allow-external-kb to replace that directory")
-		}
-		return manifest.KnowledgeBase.External, nil
-	}
-	rel := manifest.KnowledgeBase.Relative
-	if rel == "" {
-		rel = "data"
-	}
-	kbTarget := filepath.Join(home, filepath.FromSlash(rel))
-	// Only an approved external knowledge base may lie outside the runtime directory.
-	if inside, err := filepath.Rel(home, kbTarget); err != nil || inside == "." || inside == ".." || strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
-		return "", errors.New("the knowledge-base relative path leaves the runtime directory")
-	}
-	return kbTarget, nil
-}
-
-func restoreItems(home, staging string, manifest *Manifest, allowExternal bool) ([]restoreItem, error) {
+func restoreItems(home, staging string, manifest *Manifest) ([]restoreItem, error) {
 	var items []restoreItem
 	for _, name := range []string{"hub.json", "secret.key"} {
-		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", name), target: filepath.Join(home, name), runtime: true})
+		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", name), target: filepath.Join(home, name)})
 	}
 	for _, name := range optionalRootFiles {
 		// A Docker install's database password stays: the role's password is
@@ -495,7 +342,7 @@ func restoreItems(home, staging string, manifest *Manifest, allowExternal bool) 
 				continue
 			}
 		}
-		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", filepath.FromSlash(name)), target: filepath.Join(home, filepath.FromSlash(name)), runtime: true})
+		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", filepath.FromSlash(name)), target: filepath.Join(home, filepath.FromSlash(name))})
 	}
 	// A pending rotation key (secret.key.next-<fingerprint>) may be the only copy
 	// of a key: one the install has is never moved, and the bundle's is installed
@@ -512,27 +359,11 @@ func restoreItems(home, staging string, manifest *Manifest, allowExternal bool) 
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return nil, err
 		}
-		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", rel), target: target, runtime: true})
+		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", rel), target: target})
 	}
-	// The runtime directories come before the knowledge base, which may lie
-	// inside one of them.
 	for _, name := range append([]string{"managers/assistant"}, optionalRuntimeDirectories...) {
-		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", filepath.FromSlash(name)), target: filepath.Join(home, filepath.FromSlash(name)), runtime: true})
+		items = append(items, restoreItem{source: filepath.Join(staging, "runtime", filepath.FromSlash(name)), target: filepath.Join(home, filepath.FromSlash(name))})
 	}
-	kbTarget, err := knowledgeBaseTarget(home, manifest, allowExternal)
-	if err != nil {
-		return nil, err
-	}
-	if err := refuseKnowledgeBaseOverlap(home, kbTarget); err != nil {
-		return nil, err
-	}
-	kbSource := filepath.Join(staging, "kb")
-	if manifest.KnowledgeBase.Present {
-		if err := os.MkdirAll(kbSource, 0o700); err != nil {
-			return nil, err
-		}
-	}
-	items = append(items, restoreItem{source: kbSource, target: kbTarget, runtime: manifest.KnowledgeBase.External == ""})
 	return items, nil
 }
 
@@ -555,17 +386,7 @@ func (t *fileTransaction) apply(item restoreItem) error {
 	if err := copyRecursive(item.source, record.temporary); err != nil {
 		return err
 	}
-	backupRoot := t.backupRoot
-	if !item.runtime {
-		if t.externalRoot == "" {
-			t.externalRoot = filepath.Join(filepath.Dir(item.target), fmt.Sprintf(".%s.persona-backup-previous-%s", filepath.Base(item.target), t.id))
-			if err := os.MkdirAll(t.externalRoot, 0o700); err != nil {
-				return err
-			}
-		}
-		backupRoot = t.externalRoot
-	}
-	record.backup = filepath.Join(backupRoot, fmt.Sprintf("%03d-%s", len(t.records), filepath.Base(item.target)))
+	record.backup = filepath.Join(t.backupRoot, fmt.Sprintf("%03d-%s", len(t.records), filepath.Base(item.target)))
 	if _, err := os.Lstat(item.target); err == nil {
 		if err := os.MkdirAll(filepath.Dir(record.backup), 0o700); err != nil {
 			return err
@@ -614,7 +435,7 @@ func (t *fileTransaction) rollback() error {
 		}
 	}
 	var kept []string
-	for _, root := range []string{t.backupRoot, t.externalRoot} {
+	for _, root := range []string{t.backupRoot} {
 		if root == "" {
 			continue
 		}

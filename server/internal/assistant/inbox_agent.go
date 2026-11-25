@@ -10,7 +10,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -349,8 +348,7 @@ func (s *Service) startInboxAgents(ctx context.Context, cfg InboxAgentConfig) {
 	b.sortQueued(queued)
 	type job struct {
 		it      *InboxItem
-		chat    string
-		prompt  func(*prompts.KBContext) string
+		prompt  func() string
 		carried int // the agent's told count when the first message was made: it carries the notes queued up to it
 	}
 	var jobs []job
@@ -376,11 +374,9 @@ func (s *Service) startInboxAgents(ctx context.Context, cfg InboxAgentConfig) {
 		it.Agent.State, it.Agent.StartedAt, it.Agent.Attempts, it.Agent.RetryAfter = AgentRunning, &now, it.Agent.Attempts+1, nil
 		delete(b.listMemo.kept, it.ID) // saved once the start returns: listed as running meanwhile (inbox_list_memo.go)
 		a := b.inboxAgentForIn(it, owner, linked[it.Agent.TodoID], larkDefault, loc, language)
-		a.KnowledgeDir = s.kb.dir // the heading of what the knowledge base knows names where it is
 		turn := rand.Text()
 		it.Agent.ProcessingTurn = turn
-		jobs = append(jobs, job{it, b.kbChatOf(it), func(kbc *prompts.KBContext) string {
-			a.KB = kbc
+		jobs = append(jobs, job{it, func() string {
 			return inboxProcessingPrompt(turn, prompts.RenderInboxAgent(a))
 		},
 			it.Agent.told})
@@ -394,12 +390,8 @@ func (s *Service) startInboxAgents(ctx context.Context, cfg InboxAgentConfig) {
 		s.deliverNotes(ctx, w.it) // nothing goes for an undone one (no conversation)
 	}
 	for _, j := range jobs {
-		var kbc *prompts.KBContext
-		if j.chat != "" {
-			kbc = s.kbChatContext(ctx, j.chat)
-		}
 		cctx, cancel := context.WithTimeout(ctx, inboxAgentStartWait)
-		machineID, sessionID, err := s.startInboxAgent(cctx, cfg, j.it, j.prompt(kbc))
+		machineID, sessionID, err := s.startInboxAgent(cctx, cfg, j.it, j.prompt())
 		cancel()
 		b.mu.Lock()
 		a := j.it.Agent
@@ -439,23 +431,6 @@ func (s *Service) startInboxAgents(ctx context.Context, cfg InboxAgentConfig) {
 	if len(jobs) > 0 {
 		s.publish(ctx) // the hub knows the agents' conversations (no finished push for them)
 	}
-}
-
-// kbChatOf is the knowledge base's chat of an item: its Feishu chat, or the mail's correspondent; "" for none.
-func (b *inboxBook) kbChatOf(it *InboxItem) string {
-	switch {
-	case it.Lark != nil:
-		return kb.ChatID("lark", it.Lark.FeedID)
-	case it.Mail != nil:
-		return kb.ChatID("mail", it.Mail.AccountID+"-"+strings.ToLower(it.Mail.From.Email))
-	case it.Connector != nil: // a subscription's row, while its knowledge base is on (#6222)
-		b.srcMu.RLock()
-		defer b.srcMu.RUnlock()
-		if chat := b.vias[it.Source].chats[it.Connector.Thread]; chat != "" {
-			return kb.ChatID(it.Source, chat)
-		}
-	}
-	return ""
 }
 
 // startInboxAgent starts a headless conversation like the assistant's (same directory, so the same tools) on the

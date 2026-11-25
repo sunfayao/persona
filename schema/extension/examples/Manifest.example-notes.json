@@ -27,7 +27,6 @@
         "capabilities": [
           "status",
           "tools",
-          "archive",
           "login"
         ],
         "hosts": [

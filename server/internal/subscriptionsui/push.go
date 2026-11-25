@@ -16,7 +16,7 @@ const pushIcon = "bell" // notifications; every UI version has it
 // pushSource is a push source's page.
 func (p *pages) pushSource(s subscriptions.Subscription) wire.View {
 	v := wire.View{Title: s.Label, State: state{P: pageSource, ID: s.ID}.String()}
-	v.Sections = append(v.Sections, p.switches(s.ID, s.Label, s.Recipe.Kind, p.schedule(s), s.ToInbox, s.ToKB, true, true))
+	v.Sections = append(v.Sections, p.switches(s.ID, s.Label, s.Recipe.Kind, p.schedule(s), s.ToInbox, true, true))
 	last := row("st.last", p.t("source.push_last"))
 	last.Value = p.lastLine(s)
 	runs := row("st.runs", p.t("source.runs"))

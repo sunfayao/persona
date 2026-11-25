@@ -35,16 +35,16 @@ func TestClientEnvironmentUsesQueryStringPassword(t *testing.T) {
 	}
 }
 
-// User files in the knowledge base and skills are content, not runtime state:
+// User files in skills and extensions are content, not runtime state:
 // names that look like logs or lock files must survive a create/restore round
 // trip. Runtime artifacts in the manager's own directory are still skipped.
 func TestUserFilesWithRuntimeLookingNamesAreBackedUp(t *testing.T) {
 	fixture := newBackupFixture(t, "persona_manager")
 	userFiles := []string{
-		filepath.Join("data", "meeting.log"),
-		filepath.Join("data", "project", "yarn.lock"),
-		filepath.Join("data", "notes.pid"),
-		filepath.Join("data", "draft.tmp-1"),
+		filepath.Join("skills", "meeting.log"),
+		filepath.Join("skills", "project", "yarn.lock"),
+		filepath.Join("skills", "notes.pid"),
+		filepath.Join("skills", "draft.tmp-1"),
 		filepath.Join("skills", "example", "uv.lock"),
 		filepath.Join("extensions", "example", "Cargo.lock"),
 	}
@@ -130,31 +130,6 @@ func rewriteManifest(t *testing.T, bundle string, change func(*Manifest)) string
 		fatal(t, err)
 	}
 	return output
-}
-
-func TestRelativeKnowledgeBaseCannotEscapeHome(t *testing.T) {
-	fixture := newBackupFixture(t, "persona_manager")
-	operator := fixture.operator()
-	if _, err := operator.Create(context.Background(), fixture.options()); err != nil {
-		fatal(t, err)
-	}
-	victim := filepath.Join(filepath.Dir(fixture.home), "victim")
-	writeFixtureFile(t, filepath.Join(victim, "keep.txt"), []byte("outside the runtime directory"))
-	tampered := rewriteManifest(t, fixture.output, func(m *Manifest) { m.KnowledgeBase.Relative = "../victim" })
-	_, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: tampered, WritesQuiesced: true})
-	if err == nil {
-		fatal(t, "a relative knowledge-base path outside the runtime directory was restored without --allow-external-kb")
-	}
-	raw, readErr := os.ReadFile(filepath.Join(victim, "keep.txt"))
-	if readErr != nil || string(raw) != "outside the runtime directory" {
-		fatalf(t, "directory outside the runtime was replaced: %q, %v", raw, readErr)
-	}
-	for _, relative := range []string{"..", "../victim", "../../etc", "data/../../victim"} {
-		manifest := &Manifest{KnowledgeBase: KnowledgeBaseLocator{Relative: relative, Present: true}}
-		if _, err := restoreItems(fixture.home, t.TempDir(), manifest, true); err == nil {
-			errorf(t, "restoreItems accepted relative knowledge base %q", relative)
-		}
-	}
 }
 
 // Before its first key rotation the built-in manager's database has no

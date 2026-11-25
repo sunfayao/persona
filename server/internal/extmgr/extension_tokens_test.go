@@ -89,26 +89,26 @@ func TestExtensionTokenRecord(t *testing.T) {
 	h.routes()
 	h.extTokens.keepRecord(database, owner, t.Logf)
 
-	tok := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeKBRead, extension.ScopeNotify})
+	tok := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeAgentsRead, extension.ScopeNotify})
 	all := h.extTokens.issueAll("example-y", "Example Y")
 	rows := tokenRows(t, database, owner)
 	r := rows[hashToken(tok)]
 	noPlaintext(t, r, tok)
 	if r.Extension != "example-x" || r.Name != "Example X" || r.All || r.RevokedAt != nil || r.IssuedAt.IsZero() ||
-		!slices.Equal(r.Scopes, []string{extension.ScopeKBRead, extension.ScopeNotify}) {
+		!slices.Equal(r.Scopes, []string{extension.ScopeAgentsRead, extension.ScopeNotify}) {
 		t.Fatalf("the scoped token's record: %+v", r)
 	}
 	if r := rows[hashToken(all)]; !r.All || len(r.Scopes) != 0 || r.Extension != "example-y" || r.RevokedAt != nil {
 		t.Fatalf("the token of every scope: %+v", r)
 	}
 
-	tok2 := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeKBRead}) // its next start, granted less
+	tok2 := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeAgentsRead}) // its next start, granted less
 	h.extTokens.revoke("example-y", db.ExtensionTokenDisabled)
 	rows = tokenRows(t, database, owner)
 	if r := rows[hashToken(tok)]; r.RevokedAt == nil || r.Reason != db.ExtensionTokenReplaced {
 		t.Fatalf("the replaced token: %+v", r)
 	}
-	if r := rows[hashToken(tok2)]; r.RevokedAt != nil || !slices.Equal(r.Scopes, []string{extension.ScopeKBRead}) {
+	if r := rows[hashToken(tok2)]; r.RevokedAt != nil || !slices.Equal(r.Scopes, []string{extension.ScopeAgentsRead}) {
 		t.Fatalf("its new token: %+v", r)
 	}
 	if r := rows[hashToken(all)]; r.RevokedAt == nil || r.Reason != db.ExtensionTokenDisabled {
@@ -194,7 +194,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	}
 	live := func() []string { t.Helper(); return liveTokens(tokenRows(t, database, owner)) }
 
-	installDir(t, mux, master, scopedPackage(t, `["kb.read", "agents.read"]`))
+	installDir(t, mux, master, scopedPackage(t, `["inbox.read", "agents.read"]`))
 	tok1 := started(h, mux, master, "")
 	r := tokenRows(t, database, owner)[hashToken(tok1)]
 	noPlaintext(t, r, tok1)
@@ -204,7 +204,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	}
 
 	// An upgrade that asks for less: the old token goes with the old run, the new one opens only what is granted now.
-	pkg2 := scopedPackageAt(t, `"hub": ["kb.read"]`, "1.1.0")
+	pkg2 := scopedPackageAt(t, `"hub": ["agents.read"]`, "1.1.0")
 	code, pv := call(t, mux, "POST", "/api/v1/extensions/-/preview", master, `{"source": "dir:`+pkg2+`", "upgrade": "scoped"}`)
 	if code != 200 {
 		t.Fatalf("preview: %d %v", code, pv)
@@ -217,7 +217,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	if why := reason(tok1); why != db.ExtensionTokenStopped {
 		t.Fatalf("the token of the version before: %q", why)
 	}
-	if r := tokenRows(t, database, owner)[hashToken(tok2)]; r.RevokedAt != nil || !slices.Equal(r.Scopes, []string{extension.ScopeKBRead}) {
+	if r := tokenRows(t, database, owner)[hashToken(tok2)]; r.RevokedAt != nil || !slices.Equal(r.Scopes, []string{extension.ScopeAgentsRead}) {
 		t.Fatalf("the token granted less: %+v", r)
 	}
 	if a := kbSearch(h, tok1); a.Extension != "" {
@@ -331,7 +331,7 @@ func TestExtensionTokenRecordFailing(t *testing.T) {
 	h.routes()
 	h.extTokens.keepRecord(rec, "example-manager", logf)
 	h.extTokens.revokeLastRun(context.Background())
-	tok := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeKBRead})
+	tok := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeAgentsRead})
 	if a := kbSearch(h, tok); !a.OK || a.Extension != "example-x" {
 		t.Fatalf("a token issued while the record fails: %+v", a)
 	}
@@ -368,7 +368,7 @@ func TestExtensionTokenRecordOrder(t *testing.T) {
 				if i%3 == 2 {
 					h.extTokens.revoke(id, db.ExtensionTokenStopped)
 				} else {
-					h.extTokens.issue(id, "Example", []string{extension.ScopeKBRead})
+					h.extTokens.issue(id, "Example", []string{extension.ScopeAgentsRead})
 				}
 			}
 		}()
@@ -439,8 +439,8 @@ func TestDroppedTokensAreToldToTheHub(t *testing.T) {
 			t.Fatalf("%s: the hub was not told", what)
 		}
 	}
-	first := h.extTokens.issue("example", "Example", []string{extension.ScopeKBRead})
-	second := h.extTokens.issue("example", "Example", []string{extension.ScopeKBRead})
+	first := h.extTokens.issue("example", "Example", []string{extension.ScopeAgentsRead})
+	second := h.extTokens.issue("example", "Example", []string{extension.ScopeAgentsRead})
 	want(first, "replaced")
 	h.extTokens.revoke("example", db.ExtensionTokenStopped)
 	want(second, "revoked")
@@ -552,7 +552,7 @@ func TestDroppedTokenNoticeHoldsUpNoRevoke(t *testing.T) {
 	defer close(release)
 	rec := &fakeTokenRecord{}
 	h.extTokens.keepRecord(rec, "example-manager", nil)
-	tok := h.extTokens.issue("example", "Example", []string{extension.ScopeKBRead})
+	tok := h.extTokens.issue("example", "Example", []string{extension.ScopeAgentsRead})
 	done := make(chan struct{})
 	go func() {
 		h.extTokens.revoke("example", db.ExtensionTokenStopped)

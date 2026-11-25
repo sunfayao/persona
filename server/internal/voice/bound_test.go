@@ -107,7 +107,7 @@ func TestBoundToAnAgent(t *testing.T) {
 		{"role": "assistant", "text": "登录页的测试挂了两个"}, {"role": "tool", "text": "ignored"}}}))
 	ready := a.until(ofType("ready"))
 	target, _ := ready["target"].(map[string]any)
-	if ready["protocol"] != float64(2) || fmt.Sprint(ready["features"]) != "[target runs asks resume suspend speak speech_gate meeting hold dictation]" || target["kind"] != "agent" ||
+	if ready["protocol"] != float64(2) || fmt.Sprint(ready["features"]) != "[target runs asks resume suspend speak speech_gate hold dictation]" || target["kind"] != "agent" ||
 		target["agent_label"] != "Claude Code" || target["title"] != "修登录页的测试" || target["machine_name"] != "工作站" || target["session_id"] != "a1" {
 		t.Fatalf("ready: %v", ready)
 	}
@@ -116,7 +116,7 @@ func TestBoundToAnAgent(t *testing.T) {
 	for _, d := range start["tools"].([]any) {
 		names = append(names, d.(map[string]any)["name"].(string))
 	}
-	if strings.Join(names, ",") != "search_knowledge,list_agents,delegate_task" {
+	if strings.Join(names, ",") != "list_agents,delegate_task" {
 		t.Fatalf("tools: %v", names)
 	}
 	instructions := start["instructions"].(string)

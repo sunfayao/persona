@@ -245,45 +245,40 @@ func TestConnectorDataDelete(t *testing.T) {
 	h.connectors = connector.NewRegistry(nil)
 	_ = h.addConnector(&exampleConnector{})
 	mux := h.routes()
-	// The knowledge base and the inbox are the assistant's (in this process): the manager asks it to delete the
-	// source's knowledge content (kb.forget) and its inbox items (inbox.forget), which it does (tested there).
+	// The inbox is the assistant's (in this process): the manager asks it to delete the
+	// source's inbox items (inbox.forget), which it does (tested there).
 	a := forgettingAssistant(h)
 
 	if code, _ := call(t, mux, "DELETE", "/api/v1/connectors/nope/data", h.cfg.Token, ""); code != 404 {
 		t.Fatalf("an unknown connector: %d", code)
 	}
 	code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, "")
-	if code != 200 || out["chats"] != 1.0 || out["people"] != 1.0 || out["posts"] != 2.0 || out["items"] != 3.0 || out["inbox"] != 1.0 {
+	if code != 200 || out["inbox"] != 1.0 {
 		t.Fatalf("delete: %d %v", code, out)
 	}
 	if h.connectors.Enabled("example") || !strings.Contains(st.settings[connectorSettingsKey], `"example":false`) {
 		t.Fatalf("not switched off for good: %s", st.settings[connectorSettingsKey])
 	}
-	for _, method := range []string{assistantwire.MethodKBForget, assistantwire.MethodInboxForget} {
-		if got := a.got(method); len(got) != 1 || !strings.Contains(string(got[0]), `"source":"example"`) {
-			t.Fatalf("%s asked %s", method, got)
-		}
+	if got := a.got(assistantwire.MethodInboxForget); len(got) != 1 || !strings.Contains(string(got[0]), `"source":"example"`) {
+		t.Fatalf("inbox.forget asked %s", got)
 	}
 
-	// The assistant away (the knowledge base and the inbox are its): nothing goes, the app is told to try again (503).
+	// The assistant away (the inbox is its): nothing goes, the app is told to try again (503).
 	h.opts.Assistant = nil
 	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 503 || out["code"] != assistantwire.CodeAssistantOffline {
 		t.Fatalf("with the assistant away: %d %v", code, out)
 	}
 	// Back: asked again, what is left goes.
 	a = forgettingAssistant(h)
-	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 200 || out["chats"] != 1.0 ||
-		len(a.got(assistantwire.MethodKBForget)) != 1 {
+	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 200 || out["inbox"] != 1.0 ||
+		len(a.got(assistantwire.MethodInboxForget)) != 1 {
 		t.Fatalf("asked again: %d %v", code, out)
 	}
 }
 
-// forgettingAssistant is a fake assistant reporting deletion counts for each type of saved content.
+// forgettingAssistant is a fake assistant reporting the inbox deletion count.
 func forgettingAssistant(h *Manager) *fakeAssistant {
 	a := withAssistant(h)
-	a.on(assistantwire.MethodKBForget, func(json.RawMessage) (any, error) {
-		return assistantwire.KBForgotten{Chats: 1, People: 1, Posts: 2, Items: 3}, nil
-	})
 	a.on(assistantwire.MethodInboxForget, func(json.RawMessage) (any, error) { return map[string]any{"deleted": 1}, nil })
 	return a
 }

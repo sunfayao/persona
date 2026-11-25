@@ -131,7 +131,7 @@ Server state is stored in the hub's Postgres database (read/written by the assis
 - `source` (jsonb, NULL): where the to-do was asked for when that is another chat, `{"channel", "chat_id", "message_id", "anchor"?, "handoff"?, "no_report"?, "reported_at"?, "report_text"?, "report_due_at"?, "report_full_reply"?, "attempts"?}` (#6146, "Where it came from" below); `NULL` for any other to-do. Migration `0429` (manager side; first numbered 0428, which #6188 also took, so `db.go` renumbers it); a `CHECK` requires the three ids. Not unique (several to-dos may come from one message); one value read and written as a unit, hence jsonb like `thread`. Deleting the to-do deletes it.
 - `due_at` (timestamptz) / `due_date` (date): when it is due, a moment or a whole day in the user's time zone; at most one (`CHECK todos_due_one`). `remind_at` (timestamptz): when the phone is pushed about it; `reminded_at` (timestamptz): when that was claimed, cleared whenever `remind_at` changes. `priority` (text, NOT NULL, DEFAULT ''): `''` normal, `high`, `low` (`CHECK`). Migration `0442` (manager side, #1683, "Due date, reminder, priority" below).
 - `inbox_item` (text, NOT NULL, DEFAULT ''): the Inbox row it was made from (#6480, `docs/assistant/inbox.md` "Merge rows and Add to to-dos"), `''` for any other to-do. Migration `0512` (manager side). The to-do's page opens the row from it; the row links back through its chain.
-- `project` (text, NOT NULL, DEFAULT ''): the slug of the knowledge-base project the to-do belongs to, `''` for none. Migration `0461` (manager side, #2581, "Project" below). Not a foreign key: projects live in the knowledge base's files.
+- `project` (text, NOT NULL, DEFAULT ''): the project label the to-do belongs to, `''` for none. Migration `0461` (manager side, #2581, "Project" below). Not a foreign key: projects live in the knowledge base's files.
 - `kind` (text, NOT NULL, DEFAULT ''): `''` for a to-do or a task, `concern` for one of the owner's concerns (#3561, "Concerns" below). Set when it is made, never changed. Migration `0487` (manager side). `done_by` gains `reported` for a concern closed by its report.
 - `part_of` (text, NOT NULL, DEFAULT '') / `after_ids` (text[], NOT NULL, DEFAULT '{}'): the to-do whose request this one is a piece of, `''` for none, and the pieces of that request it waits for (JSON `part_of`, `after`; "Requests in pieces" below). Migration `0542` (manager side). Not foreign keys: the manager checks them when they are written, and a deleted to-do leaves an id the readers skip.
 - `restored_at` (timestamptz): when the owner last brought the to-do back from Inactive; `someday_until` (timestamptz): when a to-do the owner put off to Someday comes back, `NULL` while it is not put off, `9999-12-31` for Someday with no date. Neither is an edit: `updated_at` stays. Migration `0552` (manager side, #10226, "Restores and Someday" below).
@@ -500,7 +500,7 @@ of going to the computer:
 To-dos created by `task_plan` and `agent_start` (#2775), and by `agent_send` with `task` and `agent_supervise` (#3020), formerly used the prompt's first line as title, often starting with instructions to the Agent ("ultrathink ultracode 主人 11-05 19:47 的反馈，已授权直接开工：…", meaning feedback from the owner, authorized to start; "秘书派活（主人授权过…）", meaning assistant dispatch, owner already authorized), obscuring the task itself. Now two steps (`assistant/todo_titles.go`):
 
 1. **On creation**, synchronously supply a cleaned title: remove leading keywords such as ultrathink / ultracode / think hard, provenance/timestamps such as "主人 11-05 19:47 的反馈" (owner's feedback), parenthetical notes such as "秘书派活（…）" (assistant dispatch) / "【…】", and "已授权直接开工" (authorized to start); truncate to 20 Chinese characters (20 Japanese, 40 characters for other languages). No model call, no delay to task launch.
-2. **In background**, the small-task model (**To-do Title** `todo.title` in model configuration, inheriting the knowledge-organization category, through `models.complete` like chat titles `assistant.title`) reads the prompt and produces a short title explaining the task, replacing step 1. Keep step 1 if model unavailable, errors or empty result. Before replacement, verify title is still step 1's (conditional `UPDATE … WHERE title = old title` in database); never overwrite an intervening user edit. Prompts: `prompts/todo/title.md`, `title_input.md`.
+2. **In background**, the small-task model (**To-do Title** `todo.title` in model configuration, inheriting the Information processing category, through `models.complete` like chat titles `assistant.title`) reads the prompt and produces a short title explaining the task, replacing step 1. Keep step 1 if model unavailable, errors or empty result. Before replacement, verify title is still step 1's (conditional `UPDATE … WHERE title = old title` in database); never overwrite an intervening user edit. Prompts: `prompts/todo/title.md`, `title_input.md`.
 
 Assistant-supplied titles in `task_plan`, `agent_send`'s `task.title` and `agent_supervise`'s `title`: if within the limit and without those prefixes, use as-is without a model; only first-line, overlong or prefixed titles use the two steps. Without a title, `agent_send` names the task from its text when the task still has a `done_when` or `expect_minutes` (with neither it is a plain reply and makes no to-do, #3386); `agent_supervise`, which has no instruction, keeps the session's title (else its label).
 
@@ -1108,98 +1108,15 @@ The line is "New decision: …", "3 new decisions: …", "An agent finished a tu
 
 ## Record conclusions on completion
 
-Step 3 of the three-loop process (#2820): Agent conclusions automatically settle into the to-do/knowledge base, without user opening Agent; next dispatch for the same project includes them (`server/internal/assistant/todo_outcome.go`).
+Step 3 of the three-loop process (#2820): Agent conclusions automatically settle into the to-do, without user opening Agent (`server/internal/assistant/todo_outcome.go`).
 
 - **When**: main-chat-dispatched task (nonempty `origin`) becomes done through main-chat acceptance (`accepted` in `task_review`, `reviewDoneTodo`) or explicit user completion (`done: true` in `PATCH /api/v1/todos/{id}`). A delivery judgment alone does not record an outcome because it does not close the task. Legacy automatic completions are handled on reload as before. Excludes manual to-dos, tasks ended by launch failure and review-cancelled tasks (`cancelled`). Runs in background, not slowing completion.
-- **Extract**: read last-turn replies from all still-linked Agents (fallback session-list `last_text`; ignore model-service-interrupted turns), use model (`kb.project`, prompts `server/internal/prompts/todo/outcome.md`, `outcome_input.md`) to extract one-sentence conclusion (at most 120 characters), PR/deploy links (at most 3), decisions and lessons (at most 5 each); invent nothing not in replies. Reply reads get at most 1 minute, model 90 seconds, decision/timeline writes another 45 seconds, so a slow model does not delay writes.
+- **Extract**: read last-turn replies from all still-linked Agents (fallback session-list `last_text`; ignore model-service-interrupted turns), use model (`kb`, prompts `server/internal/prompts/todo/outcome.md`, `outcome_input.md`) to extract one-sentence conclusion (at most 120 characters), PR/deploy links (at most 3), decisions and lessons (at most 5 each); invent nothing not in replies. Reply reads get at most 1 minute, model 90 seconds, decision/timeline writes another 45 seconds, so a slow model does not delay writes.
   Without model (unconfigured, quota, unparsable reply), conclusion falls back to receipt text (latest Agent reply compressed to one line, at most 120 characters), links only GitHub PRs from replies, no extracted decisions/lessons.
-- **Decision section**: record conclusion ("Completion conclusion" + conclusion/links), each decision (question/choice/reason), each lesson ("Lessons learned") separately, `source = "outcome"`, provenance latest Agent (`source_machine` / `source_session`).
+- **Decision section**: record conclusion ("Completion conclusion" + conclusion/links), each decision (question/choice/reason), `source = "outcome"`, provenance latest Agent (`source_machine` / `source_session`).
   Once per completion: `source_message` is `outcome:<to-do id>:<completion time>#<index>`; duplicate triggers (two paths together, again after hub restart) check database first. Write conclusion first; only successful writer proceeds with decisions, lessons and timeline (one wins with two assistants sharing database); deleted to-do gets no writes. Reopen then complete is a new occurrence. The Decisions view labels a previous completion summary “Earlier phase outcome”; the tools distinguish it from the current completion using the time in the recorded key, even if its write arrived late. The result and its source session stay in the record. Web provenance says "Recorded when Agent finished"; handoff includes these in established decisions, marked "Recorded when Agent finished, not decided by user".
-- **Knowledge base**: the to-do's own project when it has one ("Project" below); otherwise (or when that project is gone) the project for each Agent working directory (`kb.Engine.ProjectsForWork`: first registered code `dirs`; if none match, match directory name to projects with no registered code dirs by name/slug/alias, never name-match projects with registered dirs),
-  append `结论：<conclusion> <at most two links>` ("Conclusion: …") to `log.md` (at most 200 characters per line: keep links whole, truncate conclusion to remaining space), source `待办 · <title>` ("To-do · <title>", remove ` · ` from title, at most 60 characters), one line per project. Not limited by `kb.agent_turn`'s one-per-Agent-per-30-minutes rule. If knowledge base not open, retry once after 30 seconds; otherwise only record decisions. A to-do that may hold the health space's words gets no line, and one whose conversations cannot be told yet gets it only once they are told outside the space (#10941, `docs/extensions/extensions.md` "Never shown to extensions").
-- **Project context at dispatch**: for a new Agent, ownership is the to-do's live explicit `Project`, then the live project of its unique current direction through `Supervision.Supervisor` (unwrapping a task leader with `leaderAbove`), and only then the target directory's projects as above. `task_spawn` carries the same `TodoID`, explicit `Project` and raw supervisor source into its child, so a child working in another project's directory still reads and writes its assigned direction. Work-trust machines receive none of this personal context.
-  With usable `memory.jsonl`, the first prompt has three fixed sections (`server/internal/prompts/todo/project_memory.md`): bounded `summary.md` (1500 runes for a short project, 2500 for a long direction; `OneLine` only when the summary is absent or empty), the latest 5 outcome records, then the latest 5 effective decisions with reasons and at most 3 pitfalls. Newest-first selection is per kind, not one shared JSONL tail limit. Only explicit `supersedes_id` removes an old decision; different IDs with contradictory choices all remain with their timestamps. `agent_reported` records are visibly marked as not supervisor-accepted; legacy M1 outcome rows with an inline decision remain readable without inventing a timestamp. Extension `project_context` blocks follow the pitfalls.
-  Without a usable `memory.jsonl`, the old project keeps the existing `OneLine` plus latest 5 `待办 ·` conclusions from `log.md` and the original `server/internal/prompts/todo/project.md` rendering; dispatch does not create or migrate the file. At most two project blocks appear. Extension contributions are enough to render a block, as before. Send unchanged without project, nothing to say, or knowledge base closed.
-  - Assistant `task_plan` (`startTaskAgent`, retry includes decisions too), `agent_start`: prepend directly; tab names still use original title/prompt.
-  - App **Hand to Agent → New** through hub: `POST /api/v1/sessions` with `todo_id`/`prompt` asks assistant (`assistant.todo_handoff` with `new: true`, `machine_id`, `cwd`; expand `~/` and empty cwd using that computer's home), project context before decisions.
-    Clients' Claude starts in background then sends first message (`async`, empty prompt): hub remembers "session newly created for this to-do" (memory, 15 minutes), treats its first message as new Agent's first input with context/decisions; recognizes iOS / Android first messages even without `todo_id`. Forget only after successful send; failed sends (rejected/nothing entered) retain context on retry; answer-only devices do not count. If hub restarted between, send unchanged.
-  - Handoff to an existing Agent (message) includes decisions only, not project context.
 
 Not yet: manual editing/undo of conclusions (currently **Replace** in decisions), Lark reporting (#2768), iOS / Android decision lists.
-
-## Lessons from accepted tasks
-
-A task the supervisor accepts after corrections teaches the next Agents of its project what to do better (#12295,
-`server/internal/assistant/task_lessons.go`). It is a short retrospective written in the background. It asks which
-mistakes came back, what background the owner had to add, which steps wasted time and what would make this kind of task
-go better. The answers become lessons that new tasks of the same project get by themselves, so nobody has to remember
-them.
-
-- **Switch**: "Learn from finished tasks" (Settings › Persona; `task_lessons` in `GET/PUT /api/v1/assistant`;
-  `persona_settings` key `assistant.task_lessons`, approved on the phone), **off by default**. Off, nothing here runs: no
-  model call, no lesson written, and every first prompt is byte for byte what it was. Lessons learned before stay on
-  their projects' pages, where they can still be edited or deleted.
-- **When**: a supervised task (one with a supervision ledger) is accepted (`task_review` `accepted`, in `reviewDoneTodo`
-  beside the outcome and the learned estimate). It runs in the background, so the acceptance answer never waits for it.
-  A rework round triggers nothing by itself: its review is read when the task is accepted. Cancelled tasks, failed
-  starts, to-dos without a ledger, and to-dos whose history may hold the health space's words or cannot be told yet
-  (`todoVerdicts`) teach nothing.
-- **Only after friction**: the model is called only when the stretch of work the acceptance closes had something to
-  learn from. That means a rework round or a needs_user review, a criterion a review found not met, a scope change in
-  the brief's log, an answer the owner gave on the to-do (a question card, a note on it, its chat thread), or at least
-  twice the estimate. A continued to-do counts only the reviews, changes and answers since its earlier acceptance. A task
-  accepted at once and in time makes no call.
-- **Who writes it, from what**: one call of the Information processing model (`kb.project`, the purpose that writes the
-  outcome; prompts `server/internal/prompts/todo/lessons.md`, `lessons_input.md`). It reads the title, the owner's
-  request, goal and criteria from the brief, the scope changes, each review of the stretch (verdict, round, note, the
-  criteria not met with what was found), the owner's answers, how each criterion ended, the estimate against the time
-  taken, the newest Agent's last reply (2,000 characters), and the primary project's 12 newest live lessons and 12
-  newest deletion records, each with its ID. It receives the deletions in a separate list and skips lessons it recognizes
-  as repeating one, even in different words. The supervisor's instructions and `task_review` are unchanged.
-- **What it answers**: at most 3 lessons, each `{kind, text, same_as}`. `kind` is `repeated_mistake`, `missing_context`,
-  `wasted_step` or `improvement`, and `text` is one sentence of at most 200 characters in the owner's language that says
-  what to do next time. `same_as` names a lesson of the project the new one repeats. Nothing is invented, and an empty
-  list is the usual answer. A lesson of another kind, an empty one, or one that the shared-transcript scrub
-  (`transcript.SanitizeShareText`) would redact (a key, a token, a password, a secret in a link) is dropped. Without a
-  model nothing is learned.
-- **Where**: typed `lesson` records in the project's `memory.jsonl` ([knowledge.md](knowledge.md)), under the ownership
-  worker outcomes use (`projectsForTask`: the to-do's live project, then its direction's project, then the projects of
-  its last Agent's directory). Without a project nothing is learned. A record keeps `kind`, the text in `conclusion`,
-  the to-do (`todo_id`), `verification` (`accepted`, or `owner` once corrected), `seen`, `first_seen_at`,
-  `last_seen_at`, `recorded_at` and up to 5 `sources`. Lessons never go into the direction's notes, which stay the
-  owner's own text. A manager from before lessons skips these records, and the outcome, decision and pitfall records
-  and their prompt are unchanged.
-- **Merging, deleting, aging**: records are never changed in place. A lesson the project already has (the one the model
-  named, else one with the same letters and digits, `kb.LessonKey`) is taught again: a record that supersedes it, with
-  `seen` up, the to-do added to its sources and its text kept (the owner may have corrected it). A to-do already among
-  its sources does not count again, and a completion is learned from once (its record IDs start with a key of the to-do
-  and its completion time). A deleted lesson leaves a `lesson_retired` tombstone that keeps its text. For each project,
-  the write rejects a lesson when its `same_as` names a tombstone or a linked version, or its normalized text matches
-  any readable version of a deleted lesson. A lessons read scans the last 8 MiB of the file. If a linked version is
-  missing or outside that range, its ID is still checked and the chain ends there. Rewordings without a deleted ID
-  depend on the model recognizing the deletion. All writes go through `kb.Engine.UpdateProjectLessons`, which decides
-  from the lessons as they are under the store's lock, so a merge, an edit and a delete never supersede the same
-  version twice.
-- **Handed to new Agents**: every new Agent of the project gets, after the project's own block (`todo/project.md` or
-  `todo/project_memory.md`, both unchanged), a block of its own (`server/internal/prompts/todo/project_lessons.md`). It
-  holds the fresh lessons, the most repeated first and then the most recently taught. At most 2 of one kind, 5 in all and
-  1,200 characters, each with its kind, `seen` and last date. A lesson not taught again for 90 days is left out. The block
-  says the lessons were learned from accepted tasks and that the task's own instructions win where they differ. The
-  starts are the same as for the project context ("Record conclusions on completion" above), and work machines get none.
-- **Seen and changed by the owner**: the project's page in Knowledge on the web lists them, with the kind, the text,
-  how many times, the last time, the newest source task and whether it is still handed out, and offers Edit and Delete
-  (Delete asks first). Its routes are in `docs/protocol/protocol.md` "Project lessons", for the owner's apps only.
-- **Cost**: at most one model call per accepted task that had friction, none otherwise; no call at dispatch, which reads
-  a bounded tail of the file.
-- **Checks**: `server/internal/kb/project_lessons_test.go` (chains, tombstones, stale writes, the read's bound, dispatch
-  memory unchanged); `server/internal/assistant/task_lessons_test.go` (an accepted rework learned end to end and handed
-  to the next Agent, off by default and byte-identical, no call for a smooth acceptance, nothing without a model,
-  merges and deletions, selection bounds, friction, the routes); goldens `todo_lessons.*`, `todo_lessons_input.*`,
-  `todo_project_lessons.*` in `server/internal/hub/testdata/prompts`; web `web/src/views/knowledge/ProjectLessons.test.tsx`
-  and `web/src/views/settings/AssistantSettings.task-lessons.test.tsx`.
-- **Not yet**: the iOS, Android and HarmonyOS project pages and switches; ranking lessons by how well they match the new
-  task's words; promoting a lesson into the direction's notes; showing lessons to the supervisor or leader as it plans;
-  measuring rework rounds and owner corrections per accepted task before and after (the evaluation #8231 asks for).
 
 ## Due date, reminder, priority
 
@@ -1293,11 +1210,10 @@ several requests, in a stable order, and counts the set as sent only once every 
 
 ## Project
 
-#2581. A to-do can belong to one knowledge-base project (`todos.project`, its slug; `todo_project.go`), usually a long-term one standing for an area of the user's work. The knowledge base already keeps these areas with a summary and a timeline; the to-do only points at one.
+#2581. A to-do can belong to one project (`todos.project`, a free label; `todo_project.go`), usually standing for an area of the user's work. Since the knowledge base was removed the label is no longer checked against anything.
 
-- **Setting it**: the apps through `POST` / `PATCH /api/v1/todos` (`project`), the assistant through `todo_create` / `todo_update` and each `task_plan` task's `project`. A slug, a name or an alias is accepted (`kb.Engine.FindProject`; a merged project's name leads to the one it went into) and stored as the slug; no live project of that name, or the knowledge base off or not open, is refused. The assistant's CLAUDE.md tells it to set one when the area is clear, reusing an existing project (long-term first) and never making a near-duplicate.
-- **Outcomes**: a finished task in a project writes its conclusion to that project's timeline only ("Record conclusions on completion"); the directory-inferred projects get it when it has none, or when its project was deleted or ignored since.
-- **The web To-dos page** groups open to-dos under their project's name (from `GET /api/v1/kb/projects`; the slug while the list is not loaded) before the groups by repository, which only to-dos without a project still fall into; those with neither go last under **Unsorted**. The detail picks the project from a menu (long-term projects first). An area's group never folds for being quiet and shows no "Done" when no agent is at work: its to-dos are the user's open ones. The iPhone and iPad (#7077) show it too: a **Project** row in the detail with the due date, reminder and priority (the same choices and order as the web's picker), and **Group By › Project** on the To-dos list (a section per project, the one with the most pressing to-do first, then **Unsorted**, then Done folded, as the other groupings). The Mac and Android ignore the field for now. Checked by `scripts/test/web_todo_project_e2e.py` (mock hub, light and dark, wide and phone width).
+- **Setting it**: the apps through `POST` / `PATCH /api/v1/todos` (`project`), the assistant through `todo_create` / `todo_update` and each `task_plan` task's `project`. The label is stored as given, trimmed.
+- **The web To-dos page** groups open to-dos under their project label before the groups by repository, which only to-dos without a project still fall into; those with neither go last under **Unsorted**. The detail picks the project from a menu (long-term projects first). An area's group never folds for being quiet and shows no "Done" when no agent is at work: its to-dos are the user's open ones. The iPhone and iPad (#7077) show it too: a **Project** row in the detail with the due date, reminder and priority (the same choices and order as the web's picker), and **Group By › Project** on the To-dos list (a section per project, the one with the most pressing to-do first, then **Unsorted**, then Done folded, as the other groupings). The Mac and Android ignore the field for now. Checked by `scripts/test/web_todo_project_e2e.py` (mock hub, light and dark, wide and phone width).
 
 ## Requests in pieces
 

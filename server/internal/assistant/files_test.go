@@ -24,14 +24,10 @@ func TestTheBuiltinManagerUsesItsOwnFiles(t *testing.T) {
 	}
 	own := managerconf.DefaultDir(home)
 	o := builtinFiles(home)
-	for what, got := range map[string]string{"secret.key": o.SecretKey, "tailcat key": o.TailcatKey,
-		"handles.key's directory": filepath.Join(o.HandlesDir, managerconf.HandlesKey)} {
+	for what, got := range map[string]string{"secret.key": o.SecretKey, "tailcat key": o.TailcatKey} {
 		if filepath.Dir(got) != own {
 			t.Errorf("%s: %s, not in %s", what, got, own)
 		}
-	}
-	if o.KBDir != filepath.Join(home, "data") {
-		t.Errorf("knowledge base %s", o.KBDir)
 	}
 	if o.Dir != home || o.ConfigFile != managerconf.DefaultFile(home) {
 		t.Errorf("data directory %s, manager.json %s", o.Dir, o.ConfigFile)

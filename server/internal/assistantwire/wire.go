@@ -15,7 +15,7 @@ import (
 
 // Hello is manager.hello's answer, and manager.updated's params (the answer again when it changed): what the hub
 // knows that the manager needs (its machines, the cards' switches, the push timings, the user's language). The
-// manager's own sections (Owner, OwnerNotes, Agents, KB, the models but Launchers, a card's wait) are not sent by a hub
+// manager's own sections (Owner, OwnerNotes, Agents, the models but Launchers, a card's wait) are not sent by a hub
 // that knows config.own: the manager lays its manager.json over the hello (assistant/ownconfig.go); an older hub still
 // sends its hub.json's, which a manager.json section replaces. Its own settings are its own (Profile).
 type Hello struct {
@@ -34,8 +34,6 @@ type Hello struct {
 	HTMLViews   bool `json:"html_views,omitempty"`
 	// Agents is manager.json's agents section: the triage's limits and default switches (agents.go).
 	Agents AgentsConfig `json:"agents,omitzero"`
-	// KB is manager.json's kb section: the knowledge base the assistant keeps (kb.go).
-	KB *KBSettings `json:"kb,omitempty"`
 	// Models is what hub.json says about models (models.go).
 	Models HubModels `json:"models,omitzero"`
 	// Locale is the user's language (zh-Hans / en / ja, docs/protocol/i18n.md): the assistant answers in it. "" (an older hub)
@@ -46,7 +44,7 @@ type Hello struct {
 	// read them (fleet.mutes brings them later).
 	Mutes *Mutes `json:"mutes,omitempty"`
 	// LegacyConfig is what of the hub's hub.json the hello carried before config.own (managerconf.HelloSections:
-	// owner, notes, Agents, kb, ai, a card's wait, the inbox's models and AI twin machine), raw. Only in the handshake's
+	// owner, notes, Agents, ai, a card's wait, the inbox's models and AI twin machine), raw. Only in the handshake's
 	// answer to a built-in manager the hub did not start (its hello's deploy is not "child"), which takes them over into
 	// its manager.json once (managerconf.MoveFrom); the hub's child took them from this hub.json itself.
 	LegacyConfig json.RawMessage `json:"legacy_config,omitempty"`

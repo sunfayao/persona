@@ -71,7 +71,7 @@ func (n *Node) assistantOriginCwd(id string) (string, string) {
 	return "", ""
 }
 
-// inboxReadRules lets an Inbox investigation read the owner's installed Skills and knowledge base. Claude Code checks
+// inboxReadRules lets an Inbox investigation read the owner's installed Skills. Claude Code checks
 // both a requested symlink path and its resolved target, so a linked Skills root or direct child Skill needs both rules.
 // Nested links keep the usual permission flow. A comma cannot be carried by the comma-joined --allowedTools value.
 func (n *Node) inboxReadRules() []string {
@@ -83,9 +83,6 @@ func (n *Node) inboxReadRules() []string {
 		skillRoots = append(skillRoots, filepath.Join(n.dir, "skills"))
 	}
 	roots := slices.Clone(skillRoots)
-	if n.dir != "" {
-		roots = append(roots, filepath.Join(n.dir, "data"))
-	}
 	var rules []string
 	add := func(path string) {
 		if path == "" || strings.Contains(path, ",") {

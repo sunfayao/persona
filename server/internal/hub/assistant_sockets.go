@@ -9,8 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// assistantSocketRoutesRelayed relays the assistant's WebSocket routes (assistantwire.SocketRoutes: a meeting's audio
-// socket, docs/assistant/meeting-minutes.md "Audio from the phone") to its manager as the extensions' sockets are
+// assistantSocketRoutesRelayed relays the assistant's WebSocket routes (assistantwire.SocketRoutes: the A2A routes) to its manager as the extensions' sockets are
 // (relayToManager): over a relay stream, never as http.request, which cannot upgrade. Who asked goes in the hub's
 // headers, the credential (Bearer or ?token=) stays here, revoking the device ends the socket (trackRelayed), and
 // while the manager is away the upgrade is refused 503 assistant_offline. Full credentials only: the auth already
@@ -39,8 +38,7 @@ var assistantSockets = sync.OnceValue(func() *http.ServeMux {
 	return mux
 })
 
-// isAssistantSocket says whether r is one of assistantwire.SocketRoutes: open for as long as a meeting records
-// (longLived).
+// isAssistantSocket says whether r is one of assistantwire.SocketRoutes: open for as long as the peer stays (longLived).
 func isAssistantSocket(r *http.Request) bool {
 	_, pattern := assistantSockets().Handler(r)
 	return pattern != ""

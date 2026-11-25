@@ -29,7 +29,7 @@ Errors use the triangle (`error`, `errorFilled`); the octagon (`critical`) is on
 ## Recording marks
 
 A recording, the mode that keeps recording, its paused state and the summaries made from them are different meanings,
-each with its own entry (all-day recording, #4741, `docs/apple/recording.md` "All-day recording (Apple)"):
+each with its own entry (all-day recording, #4741):
 
 | Entry | Symbol | Meaning |
 | --- | --- | --- |

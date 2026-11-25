@@ -3,10 +3,7 @@
 package backup
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"time"
 )
 
@@ -57,50 +54,19 @@ type FileEntry struct {
 	Mode   uint32 `json:"mode"`
 }
 
-// KnowledgeBaseLocator describes where its files belong without putting a
-// credential-bearing database URL in the manifest.
-type KnowledgeBaseLocator struct {
-	Relative string `json:"relative,omitempty"`
-	External string `json:"external,omitempty"`
-	// Present records whether the install had a knowledge base. A manifest
-	// must state it (see UnmarshalJSON).
-	Present bool `json:"present"`
-}
-
-// UnmarshalJSON requires present: a manifest without it cannot say whether
-// the bundle has no knowledge base or was written without the record.
-func (l *KnowledgeBaseLocator) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Relative string `json:"relative"`
-		External string `json:"external"`
-		Present  *bool  `json:"present"`
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&raw); err != nil {
-		return err
-	}
-	if raw.Present == nil {
-		return errors.New("the manifest's knowledge_base does not say whether the bundle has a knowledge base (present); this bundle was not written by personad backup create, or by a version before the format was final")
-	}
-	*l = KnowledgeBaseLocator{Relative: raw.Relative, External: raw.External, Present: *raw.Present}
-	return nil
-}
-
 // Manifest is the versioned bundle identity. Key fingerprints are HMACs, not
 // key material; the key material itself is hashed as ordinary payload content.
 type Manifest struct {
-	Format                int                  `json:"format"`
-	CreatedAt             time.Time            `json:"created_at"`
-	Hub                   DatabaseIdentity     `json:"hub"`
-	Manager               DatabaseIdentity     `json:"manager"`
-	HubDatabase           string               `json:"hub_database"`
-	ManagerDatabase       string               `json:"manager_database"`
-	HubKeyFingerprint     string               `json:"hub_key_fingerprint"`
-	ManagerKeyFingerprint string               `json:"manager_key_fingerprint"`
-	KnowledgeBase         KnowledgeBaseLocator `json:"knowledge_base"`
-	RuntimeDirectories    []string             `json:"runtime_directories,omitempty"`
-	Files                 []FileEntry          `json:"files"`
+	Format                int              `json:"format"`
+	CreatedAt             time.Time        `json:"created_at"`
+	Hub                   DatabaseIdentity `json:"hub"`
+	Manager               DatabaseIdentity `json:"manager"`
+	HubDatabase           string           `json:"hub_database"`
+	ManagerDatabase       string           `json:"manager_database"`
+	HubKeyFingerprint     string           `json:"hub_key_fingerprint"`
+	ManagerKeyFingerprint string           `json:"manager_key_fingerprint"`
+	RuntimeDirectories    []string         `json:"runtime_directories,omitempty"`
+	Files                 []FileEntry      `json:"files"`
 }
 
 // Backend isolates PostgreSQL administration and client programs so failure,
@@ -123,7 +89,6 @@ type Options struct {
 	Bundle                 string
 	Output                 string
 	WritesQuiesced         bool
-	AllowExternalKB        bool
 	DatabaseURL            string
 	ManagerDatabaseURL     string
 	HubDockerContainer     string
@@ -143,11 +108,7 @@ type Result struct {
 	// KeptDockerPassword: the bundle has a docker/db-password, but the install's
 	// own was kept (see restoreItems).
 	KeptDockerPassword bool
-	// PreviousExternalKB: where an approved external knowledge base's previous
-	// copy was kept (its own directory, beside the knowledge base).
-	PreviousExternalKB string
-	// Notes are printed after the result: for create, a knowledge base that
-	// was not there to collect; for restore, what the bundle records as absent
-	// or empty and restore left in place (see leftInPlaceNotes).
+	// Notes are printed after the result: for restore, what the bundle records as
+	// empty and restore left in place (see leftInPlaceNotes).
 	Notes []string
 }

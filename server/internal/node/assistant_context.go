@@ -77,7 +77,7 @@ const (
 // id, an Agents or unread-chats row the label it starts with (one row per label). The keys are sectionKeys of
 // prompts/assistant/snapshot.md and snapshot_own_tasks.md (TestSnapshotRowIDs renders them). The other sections have
 // no such rows and are compared whole: one line of items joined by "；", which their free text may hold too; the
-// Inbox follow-ups, which show a title and no id; the knowledge digest, whose rows sit under headings of its own.
+// Inbox follow-ups, which show a title and no id.
 var rowIDs = map[string]func(row string) string{
 	"- Agents":       rowLabel,
 	"- 优先显示的开放任务详情":  rowTodo,

@@ -71,7 +71,6 @@ func stubJudge(t *testing.T, h *Hub, status int, reply string) *judgeStub {
 	js.triage, js.kb = &triage, &kbAI
 	// The manager's models (its manager.json): a connected one reads them again.
 	setManagerJSON(t, h, "inbox", map[string]any{"triage_ai": triage})
-	setManagerJSON(t, h, "kb", map[string]any{"ai": kbAI})
 	return js
 }
 

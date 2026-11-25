@@ -13,7 +13,6 @@
           "actions",
           "events",
           "inbox",
-          "archive",
           "login",
           "threads",
           "fallback",
