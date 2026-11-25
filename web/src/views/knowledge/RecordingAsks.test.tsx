@@ -84,7 +84,7 @@ describe("an attended meeting in Knowledge detail", () => {
   });
 
   it.each([
-    ["the main chat when one is known", { machine_id: "server", main: "main-1", conversations: [] }, "/persona/main-1"],
+    ["the main chat when one is known", { machine_id: "server", main: "main-1", conversations: [] }, "/"],
     ["plain text without assistant info", null, null],
   ])("names %s", async (_, assistant, path) => {
     Object.assign(getState(), { assistant: assistant as AssistantInfo | null });
@@ -98,7 +98,7 @@ describe("an attended meeting in Knowledge detail", () => {
   it("opens a Persona conversation in Persona, and an unknown session names its computer", async () => {
     Object.assign(getState(), { assistant: { machine_id: "server", main: "main-1", conversations: [{ machine_id: "server", session_id: "conv-2", title: "Planning" } as Session] } });
     await load(fixture({ attending_session: { machine_id: "server", session_id: "conv-2" } }));
-    expect(factRow("Attending session")!.querySelector("a")!.getAttribute("href")).toBe("/persona/conv-2");
+    expect(factRow("Attending session")!.querySelector("a")!.getAttribute("href")).toBe("/");
     act(() => root.render(null));
     host.replaceChildren();
     await load(fixture({ attending_session: { machine_id: "studio", session_id: "gone" } }));

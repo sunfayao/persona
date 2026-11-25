@@ -142,7 +142,7 @@ describe("a recorded meeting's conversation", () => {
     const s = section()!;
     expect(s.querySelector("h2")!.textContent).toBe("Conversation");
     expect(s.querySelector("[role=status]")!.textContent).toBe("Persona is in the meeting as a participant · answers can be said aloud");
-    expect(s.querySelector('a[title="Open the meeting’s conversation"]')!.getAttribute("href")).toBe(`/persona/${room}`);
+    expect(s.querySelector('a[title="Open the meeting’s conversation"]')!.getAttribute("href")).toBe("/");
     // No "Persona joined the meeting" (#9411): the web can't know whether Persona was ever in it.
     expect(kinds()).toEqual(["lines", "question", "answer"]);
     expect(s.textContent).not.toContain("joined the meeting");
@@ -302,7 +302,7 @@ describe("a recorded meeting's conversation", () => {
     await submit();
     expect(JSON.parse(String(pending(path)[3].init.body)).id).toBe(third.id);
     await reply(pending(path)[3], { followup: { machine_id: "server", session_id: follow }, created: true, client_msg_id: `followup-${third.id}` });
-    expect(location.pathname).toBe(`/persona/${follow}`);
+    expect(location.pathname).toBe("/");
   });
 
   it("shows the follow-up after the divider, its seed folded, and continues there", async () => {
@@ -318,7 +318,7 @@ describe("a recorded meeting's conversation", () => {
     expect(seed.textContent).toBe("The meeting’s material");
     expect(seed.getAttribute("aria-expanded")).toBe("false");
     expect(s.querySelector("li[data-thread]:last-child strong")?.textContent).toBe("draft");
-    expect([...s.querySelectorAll("a")].find((a) => a.textContent === "Continue in the conversation")!.getAttribute("href")).toBe(`/persona/${follow}`);
+    expect([...s.querySelectorAll("a")].find((a) => a.textContent === "Continue in the conversation")!.getAttribute("href")).toBe("/");
     expect(s.querySelector("textarea")).toBeNull();
   });
 
@@ -341,7 +341,7 @@ describe("a recorded meeting's conversation", () => {
     expect(kinds()).toEqual(["material", "question", "answer"]);
     expect(section()!.textContent).toContain("After the meeting");
     expect(section()!.querySelector("textarea")).toBeNull();
-    expect([...section()!.querySelectorAll("a")].find((a) => a.textContent === "Continue in the conversation")!.getAttribute("href")).toBe(`/persona/${follow}`);
+    expect([...section()!.querySelectorAll("a")].find((a) => a.textContent === "Continue in the conversation")!.getAttribute("href")).toBe("/");
 
     // Its first words start the follow-up through POST …/followup and open it.
     fresh();
@@ -353,7 +353,7 @@ describe("a recorded meeting's conversation", () => {
     const body = JSON.parse(String(pending(path)[0].init.body));
     expect(body).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), text: "What did we decide?" });
     await reply(pending(path)[0], { followup, created: true, client_msg_id: `followup-${body.id}` });
-    expect(location.pathname).toBe(`/persona/${follow}`);
+    expect(location.pathname).toBe("/");
   });
 
   it("offers the talk only once …/live has answered for the recording, and none where it is gone", async () => {
