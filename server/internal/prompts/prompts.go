@@ -111,7 +111,25 @@ func (s *templateSet) render(name string, data any) string {
 	return b.String()
 }
 
+// AnswerLanguage is the English name of the language the owner reads, for a prompt to say what language to write in.
+// Every prompt is written in English; only what the model writes for the owner follows the owner's language. Callers
+// pass that language as they have it: a native name (answerLanguage: "English", "日本語", "" for Simplified Chinese), an
+// i18n code ("en", "ja", "zh-Hans") or an English name. Any other value is returned as it is.
+func AnswerLanguage(language string) string {
+	switch strings.TrimSpace(language) {
+	case "", "zh-Hans", "zh", "zh-CN", "简体中文", "中文", "Chinese", "Simplified Chinese":
+		return "Simplified Chinese"
+	case "en", "English":
+		return "English"
+	case "ja", "日本語", "Japanese":
+		return "Japanese"
+	}
+	return strings.TrimSpace(language)
+}
+
 var funcs = template.FuncMap{
+	// lang is the English name of the owner's language (AnswerLanguage): {{lang .Language}}.
+	"lang": AnswerLanguage,
 	// attr escapes text for an XML attribute.
 	"attr": func(s string) string {
 		return strings.NewReplacer("&", "&amp;", `"`, "&quot;", "<", "&lt;", ">", "&gt;").Replace(s)

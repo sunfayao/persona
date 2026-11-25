@@ -403,7 +403,7 @@ func parkDecidedSignal(t Todo) (superviseSignal, bool) {
 	if r == nil || !r.DecidedTold.IsZero() {
 		return superviseSignal{}, false
 	}
-	return superviseSignal{Todo: t.ID, Kind: sigParkDecided, Key: parkDecidedKey(r), Detail: "搁置时在等：" + r.Reason}, true // i18n-ignore: the supervision message is the assistant's prompt
+	return superviseSignal{Todo: t.ID, Kind: sigParkDecided, Key: parkDecidedKey(r), Detail: "while parked it was waiting for: " + r.Reason}, true
 }
 
 // parkDecidedTold keeps on each park in list that a supervision message carried its park_decided (sent, or queued
@@ -449,7 +449,7 @@ func (s *Service) parkedEntry(ctx context.Context, r *TaskReview) *prompts.Super
 
 // parkedHealth is a parked task's supervision in the snapshot's words: until when and why.
 func parkedHealth(p *Parked, loc *time.Location) string {
-	on := map[string]string{parkOwnerPriority: "等用户定优先级", parkSomeoneElse: "等别人", parkExternalEvent: "等外部的事", // i18n-ignore: the snapshot is the assistant's prompt
-		parkDate: "等到时间", parkTodoHandoff: "等另一条待办回传结果"}[p.WaitingOn] // i18n-ignore: the snapshot is the assistant's prompt
-	return fmt.Sprintf("已搁置到 %s（%s）：%s", p.Until.In(loc).Format("01-02 15:04"), on, p.Reason) // i18n-ignore: the snapshot is the assistant's prompt
+	on := map[string]string{parkOwnerPriority: "waiting for the user to set priority", parkSomeoneElse: "waiting on someone else", parkExternalEvent: "waiting on an external event",
+		parkDate: "waiting for a time", parkTodoHandoff: "waiting for another to-do to hand back its result"}[p.WaitingOn]
+	return fmt.Sprintf("parked until %s (%s): %s", p.Until.In(loc).Format("01-02 15:04"), on, p.Reason)
 }

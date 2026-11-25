@@ -547,7 +547,7 @@ func TestAcceptedIsRefusedWhileTheWorkWaitsOnTheOwner(t *testing.T) {
 	if w.Reason != "两版草稿等用户挑一版再发" || w.At.IsZero() || w.Work.IsZero() {
 		t.Fatalf("waits = %+v", w)
 	}
-	if health, _ := taskHealth(todoNow(s, todo.ID), nil, time.Now()); health != "等你处理" {
+	if health, _ := taskHealth(todoNow(s, todo.ID), nil, time.Now()); health != "waiting for you to handle it" {
 		t.Fatalf("snapshot health = %q", health)
 	}
 

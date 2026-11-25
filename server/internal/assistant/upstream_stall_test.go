@@ -86,8 +86,8 @@ func TestAccountExhaustionSurfacesImmediatelyForExternalLoopSession(t *testing.T
 	}
 
 	active := ft.s.describeAgents(ctx, "active", "", "")
-	if !strings.Contains(active, "[上游不可用]") || !strings.Contains(active, " · upstream_unavailable") ||
-		!strings.Contains(active, "上游异常："+poolErr) {
+	if !strings.Contains(active, "[upstream unavailable]") || !strings.Contains(active, " · upstream_unavailable") ||
+		!strings.Contains(active, "upstream error: "+poolErr) {
 		t.Fatalf("agents_list active missing upstream_unavailable visibility:\n%s", active)
 	}
 	needsList := ft.s.describeAgents(ctx, proto.StateNeedsYou, "", "")

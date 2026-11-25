@@ -1,12 +1,12 @@
-任务：{{.Title}}
+Task: {{.Title}}
 
-派活时的要求：
+Requirements when it was handed out:
 {{.Prompt}}
 
-Agent 最后的回复：
+The Agent's last reply:
 {{.Reply}}
 
-可用的链接：
+Available links:
 {{range .Links}}- {{.}}
-{{else}}（没有）
+{{else}}(none)
 {{end}}

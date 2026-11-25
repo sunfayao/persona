@@ -1,4 +1,4 @@
-Search Lark through lark-cli. The `messages` kind searches messages; `chats`, `docs`, and `people` use the corresponding read-only CLI shortcuts.{{template "shared/mcp_language" .}}
+Search Lark through lark-cli. The `messages` kind searches messages; `chats`, `docs`, and `people` use the corresponding read-only CLI shortcuts.
 
 ```json
 {

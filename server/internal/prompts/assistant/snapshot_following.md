@@ -1,3 +1,3 @@
-{{if .FollowingTotal}}- 在跟的事（{{.FollowingTotal}} 件）：{{if .Omit.Following}}这份快照放不下，没列出来，收件箱在 App 里看{{else}}{{range .Following}}
-  - 「{{.Title}}」；在哪：{{if .Where}}{{.Where}}{{else}}没写{{end}}；等谁：{{if .Who}}{{.Who}}{{else}}没写{{end}}；下一步：{{if .Next}}{{.Next}}{{else}}没写{{end}}；再看：{{if .CheckAt.IsZero}}{{if .CheckDue}}到了再看的时间{{else}}没定时间{{end}}{{else}}{{.CheckAt.Format "01-02 15:04"}}{{if .CheckDue}}；到了再看的时间{{end}}{{end}}{{if .FollowUpAsk}}；看过 3 次没动静{{end}}{{end}}{{if gt .FollowingTotal (len .Following)}}
-  - 还有 {{.FollowingLeft}} 件，收件箱在 App 里看{{end}}{{end}}{{end}}
+{{if .FollowingTotal}}- Following ({{.FollowingTotal}} item(s)): {{if .Omit.Following}}too many to fit in this snapshot, so not listed; see the Inbox in Persona{{else}}{{range .Following}}
+  - “{{.Title}}”; where: {{if .Where}}{{.Where}}{{else}}not written{{end}}; waiting on: {{if .Who}}{{.Who}}{{else}}not written{{end}}; next step: {{if .Next}}{{.Next}}{{else}}not written{{end}}; check again: {{if .CheckAt.IsZero}}{{if .CheckDue}}time to check again has come{{else}}no time set{{end}}{{else}}{{.CheckAt.Format "01-02 15:04"}}{{if .CheckDue}}; time to check again has come{{end}}{{end}}{{if .FollowUpAsk}}; checked 3 times with no movement{{end}}{{end}}{{if gt .FollowingTotal (len .Following)}}
+  - {{.FollowingLeft}} more; see the Inbox in Persona{{end}}{{end}}{{end}}

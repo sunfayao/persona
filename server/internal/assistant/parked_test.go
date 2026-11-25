@@ -259,7 +259,7 @@ func TestParkedTaskIsNotInNeedsYouAndRaisesNoSignals(t *testing.T) {
 		t.Fatal("the task is not orphaned when it is not parked")
 	}
 	// The snapshot's task line says it is parked, until when and why.
-	if h, _ := taskHealth(cur, nil, time.Now()); !strings.Contains(h, "已搁置到") || !strings.Contains(h, "等别人") ||
+	if h, _ := taskHealth(cur, nil, time.Now()); !strings.Contains(h, "parked until") || !strings.Contains(h, "waiting on someone else") ||
 		!strings.Contains(h, "The design team has to pick the icon set first") {
 		t.Fatalf("health = %q", h)
 	}

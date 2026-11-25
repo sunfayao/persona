@@ -620,45 +620,45 @@ func taskHealth(t Todo, agents []proto.Session, now time.Time) (string, int) {
 	}
 	switch v.state(t) {
 	case reviewUserCheck:
-		return "待你验收", 0 // i18n-ignore: the snapshot is the assistant's prompt
+		return "awaiting your review", 0
 	case reviewNeedsUser:
 		if triageReviewState(t) == reviewNeedsUser {
-			return "等你处理", 0
+			return "waiting for you to handle it", 0
 		}
 	case reviewPending:
-		return "已交付·待看", 1
+		return "delivered; awaiting a look", 1
 	case reviewAccepted:
-		return "已验收", 8
+		return "accepted", 8
 	case reviewCancelled:
-		return "已取消", 8
+		return "cancelled", 8
 	case reviewParked: // waits on purpose (parked.go): below everything that needs the assistant
 		return parkedHealth(v.parked(), now.Location()), 6
 	}
 	if t.failedStart() {
 		// Its agent never started: stored done (#1077) but nothing was done. Only the supervisor can retry it, so it
 		// heads the list rather than sitting among the finished ones.
-		return "启动失败，待你处理（重试只有你能做）", 0 // i18n-ignore: the snapshot is the assistant's prompt
+		return "failed to start, waiting for you (only you can retry)", 0
 	}
 	if t.DoneAt != nil {
 		return "", 8
 	}
 	if v.Waits != nil { // the judge found it stopped on the owner's decision (#1277): not to be accepted as done
-		return "停下等用户拍板，别直接验收", 0 // i18n-ignore: the snapshot is the assistant's prompt
+		return "stopped waiting for the user's call; do not accept it directly", 0
 	}
 	if snapshotDoneRule(t, agents, nil, nil, now, now.Location()) == ruleAccepted {
 		// v.state masks an accepted review after reopening; acceptanceStands inside the shared triage rule still holds
 		// until a newer review. Reopened accepted work is normal, not a second delivery awaiting review (#5732).
-		return "正常", 5 // i18n-ignore: the snapshot is the assistant's prompt
+		return "normal", 5
 	}
 	if deliveryAwaitsReview(t, agents) {
-		return "已交付·待看", 1 // i18n-ignore: the snapshot is the assistant's prompt
+		return "delivered; awaiting a look", 1
 	}
 	for _, c := range agents {
 		if c.State == proto.StateNeedsYou || c.PendingInteractions > 0 {
 			if wait := now.Sub(cmp.Or(c.StateSince, c.UpdatedAt)); wait >= time.Minute {
-				return "等回答 " + humanDuration(wait), 0
+				return "waiting for an answer " + humanDuration(wait), 0
 			}
-			return "等回答", 0
+			return "waiting for an answer", 0
 		}
 	}
 	for _, c := range agents {
@@ -670,11 +670,11 @@ func taskHealth(t Todo, agents []proto.Session, now time.Time) (string, int) {
 			moved = *c.ActivityAt
 		}
 		if still := now.Sub(moved); !moved.IsZero() && still >= stallAfter(v.ExpectMinutes) {
-			return "卡住 " + humanDuration(still), 2
+			return "stuck for " + humanDuration(still), 2
 		}
 	}
 	if v.state(t) == reviewRework {
-		return fmt.Sprintf("返工第 %d 轮", v.Round), 3
+		return fmt.Sprintf("rework round %d", v.Round), 3
 	}
-	return "正常", 5
+	return "normal", 5
 }

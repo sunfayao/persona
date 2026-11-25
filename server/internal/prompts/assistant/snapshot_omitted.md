@@ -1,1 +1,1 @@
-这份快照放不下，没列出来，要看用 {{.}}
+too many to fit in this snapshot, so not listed; use {{.}} to see them

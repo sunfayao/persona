@@ -1,10 +1,9 @@
 package assistant
 
-// How an A2A message tells its recipient to reach Persona's tools without the Persona MCP tools (#13893): by its node's
-// executable, named as the task handoff names it (task_handoff.go), since `personad` is often not on such an Agent's
-// PATH. The A2A tools bind a terminal caller by its pane or Codex thread (node/clicall.go a2aCaller), whatever the
-// program is called. A recipient with the Persona MCP tools, or one whose node names no executable, keeps the message's
-// text as it was.
+// How an A2A message tells its recipient to reach Persona's tools: a recipient with the Persona MCP tools is told the
+// tool alone; one without them (#13893) its node's executable, named as the task handoff names it (task_handoff.go),
+// since `personad` is often not on such an Agent's PATH. The A2A tools bind a terminal caller by its pane or Codex
+// thread (node/clicall.go a2aCaller), whatever the program is called.
 
 import (
 	"context"
@@ -13,26 +12,35 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// a2aSessionExecutable is machine's node program, as a JSON string, for an A2A message to running session sess: a
-// session that calls its tools from a terminal the node verifies (its pane, a Codex thread) and has no Persona MCP
-// tools (sessionEntry). "" for one with the MCP tools, for a runtime's (its harness wires the A2A tools in, or it
-// answers through chat), and when the node does not say.
-func (s *Service) a2aSessionExecutable(ctx context.Context, machine string, sess proto.Session) string {
-	if mcp, terminal := sessionEntry(sess); mcp || !terminal {
-		return ""
-	}
-	return s.nodeExecutable(ctx, machine)
+// a2aEntry is how an A2A message's recipient reaches the A2A tools, as prompts/agents/a2a_message takes it: the
+// Persona MCP tools, or its node's program (a JSON string) run from a terminal the node verifies (its pane, a Codex
+// thread). Neither for a runtime's session (its harness wires the A2A tools in, or it answers through chat) and when
+// the node names no program: the message then names the tool and the reply line that stands in for it.
+type a2aEntry struct {
+	mcp        bool
+	executable string
 }
 
-// a2aLaunchExecutable is the same for the first message of an Agent an A2A task starts with launcher on machine, whose
-// harness is not known before it starts: named unless the launcher is known, without asking the computer, to run
-// Claude Code, which Persona starts with its MCP tools (the node's --mcp-config). The sentence that names it applies
-// only to a harness without those tools, so naming it for another harness changes nothing it does.
-func (s *Service) a2aLaunchExecutable(ctx context.Context, machine, launcher string) string {
-	if s.a2aLaunchesClaude(ctx, launcher) {
-		return ""
+func (e a2aEntry) lay(m *prompts.A2AMessage) { m.MCP, m.Executable = e.mcp, e.executable }
+
+// a2aSessionEntry is the entry of running session sess on machine. Its node is asked for its program only for a
+// terminal session without the MCP tools.
+func (s *Service) a2aSessionEntry(ctx context.Context, machine string, sess proto.Session) a2aEntry {
+	mcp, terminal := sessionEntry(sess)
+	if mcp || !terminal {
+		return a2aEntry{mcp: mcp}
 	}
-	return s.nodeExecutable(ctx, machine)
+	return a2aEntry{executable: s.nodeExecutable(ctx, machine)}
+}
+
+// a2aLaunchEntry is the same for the first message of an Agent an A2A task starts with launcher on machine, whose
+// harness is not known before it starts: the MCP tools when the launcher is known, without asking the computer, to
+// run Claude Code, which Persona starts with them (the node's --mcp-config); the node's program otherwise.
+func (s *Service) a2aLaunchEntry(ctx context.Context, machine, launcher string) a2aEntry {
+	if s.a2aLaunchesClaude(ctx, launcher) {
+		return a2aEntry{mcp: true}
+	}
+	return a2aEntry{executable: s.nodeExecutable(ctx, machine)}
 }
 
 // a2aLaunchesClaude: launcher runs Claude Code by its own name or as a Persona-managed provider of that type; false when
@@ -46,7 +54,7 @@ func (s *Service) a2aLaunchesClaude(ctx context.Context, launcher string) bool {
 }
 
 // a2aTaskMessage is event e of task t from from, in language, as prompts/agents/a2a_message takes it, without the
-// recipient's executable: the caller adds that once it knows the recipient (a2aSessionExecutable, a2aLaunchExecutable).
+// recipient's entry: the caller adds that once it knows the recipient (a2aSessionEntry, a2aLaunchEntry).
 func a2aTaskMessage(t *a2aTask, e *a2aEvent, from a2aRef, language string) prompts.A2AMessage {
 	state := e.State
 	if state == "" {

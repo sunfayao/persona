@@ -46,9 +46,10 @@ func TestMalformedWakeMarkerIsNotInferred(t *testing.T) {
 }
 
 func TestWakeAuthorizationTranslations(t *testing.T) {
+	// The wording is English whatever the language.
 	for _, tc := range []struct{ lang, approval, task, boundary string }{
 		{"English", "The user has already approved", "Your task already authorized", "stop and ask the user first"},
-		{"日本語", "ユーザーはすでに許可", "この手順はタスクに含まれて", "まず停止してユーザーに確認"},
+		{"日本語", "The user has already approved", "Your task already authorized", "stop and ask the user first"},
 	} {
 		for _, approved := range []bool{false, true} {
 			for _, task := range []bool{false, true} {

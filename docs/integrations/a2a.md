@@ -149,18 +149,23 @@ An ordinary final reply to a task request becomes its result.
 Native approval prompts stay with the user. The task records a waiting state
 while the receiving session is blocked.
 
-Every task message tells its recipient how to call these tools without the
-Persona MCP tools. `personad` is often not on the `PATH` of an Agent in a
-terminal: on macOS the node's program can have another name, and its folder is
-not always on the shell's `PATH`. So for a session that calls the tools from a
-terminal the node verifies (its pane, or a Codex thread) and has no Persona MCP
-tools, the manager asks that node for its executable (`node.info`). The message
-then names it as a JSON string, as the task handoff does. The Agent runs it with
-`tool <name>` and one JSON object of arguments. The first message of an Agent
-that A2A or `dispatch_start` launches names it too, unless the launcher is known
-to run Claude Code. Sessions with the Persona MCP tools, runtimes that wire the
-A2A tools in, and nodes that name no executable get the text that says
-`personad tool`.
+Every task message opens with one short note: who sent it, that the user did not type it, the task ID, and that
+the recipient's final reply goes back as the result. How to ask the sender something first depends on what Persona
+knows of the recipient:
+
+- A session with the Persona MCP tools (a Claude Code pane Persona started, Paseo's Claude and Codex) is told the
+  tool alone: `a2a_report` with the task ID.
+- A session that calls the tools from a terminal the node verifies (its pane, or a Codex thread) and has no Persona
+  MCP tools is told to run its node's executable with `tool <name>` and one JSON object of arguments. `personad` is
+  often not on such an Agent's `PATH` (on macOS the node's program can have another name), so the manager takes the
+  executable from that node (`node.info`) and the note names it as a JSON string, as the task handoff does. The note
+  also gives the reply line (`A2A <task ID> input_required`) for a sandbox that cannot run it.
+- For any other session (a runtime that wires the A2A tools in, a node that names no executable) the note names the
+  tool and the reply line that stands in for it.
+
+The first message of an Agent that A2A or `dispatch_start` launches follows the same rule by its launcher: one known
+to run Claude Code gets the MCP form, any other the terminal form. An update that goes back to the sender names the
+task's new state, and says how to answer only when the task waits for input.
 
 Questions, approval waits, resumed work, and final results go back to the
 sending session once it is live and idle.

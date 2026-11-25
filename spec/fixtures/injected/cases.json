@@ -6,7 +6,7 @@
       "description": "任务做完的通知：只留标题、电脑和一句话。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「README 去掉扩展列表」做完了（公司电脑）\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\nAgent 最后说的：\n改好了，PR 在这里。\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么（看改动、合并、回复谁……）；没什么要用户做的就说一句做完了。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "🔔 Task “README 去掉扩展列表” finished (公司电脑)\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nThe Agent's last words:\n改好了，PR 在这里。\n\nYou decide whether and how to tell the user: give the result in a sentence or two and what the user should do next (look at the change, merge, reply to someone…); when there is nothing for the user to do, say it is done. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -21,7 +21,7 @@
       "description": "任务在等用户：带着提问也只显示一句话。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「升级依赖」在等用户（家里的 Mac）\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n它在问：\n- 要不要一起升级测试框架？（选项：要 / 不要）\n\n你来决定要不要告诉用户、怎么说：说清楚它在问什么、要用户怎么回（卡片就在主对话底下，用户点一下就行；用户以前交代过怎么答的，可以用 interaction_answer 代答再告诉用户）。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "🔔 Task “升级依赖” is waiting for the user (家里的 Mac)\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nIt is asking:\n- 要不要一起升级测试框架？（选项：要 / 不要）\n\nYou decide whether and how to tell the user: say what it is asking and how the user should answer (the card is at the bottom of the main conversation, one click; when the user told you earlier how to answer, you may answer with interaction_answer and then tell the user). Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -36,7 +36,7 @@
       "description": "先等过用户、后被打断：以最后的状态为准。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「修登录页」被模型服务出错打断了\n（这期间它还等过用户，以这条为准。）\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n模型服务回的错：\nAPI Error: overloaded\n\n你来决定要不要告诉用户、怎么说：说清楚在哪一步、什么错，可以点卡片上的「继续」。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "🔔 Task “修登录页” was interrupted by a model service error\n(Meanwhile it also: 等过用户; this notice is the latest.)\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nThe model service's error:\nAPI Error: overloaded\n\nYou decide whether and how to tell the user: say at which step and with what error; the user can click Continue on the card. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -50,7 +50,7 @@
       "description": "从 /agent 这类对话派出的任务做完：说法不同，也只显示一句话。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「提 MR 修掉它」做完了（公司电脑）\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从这段对话派出去的，它的结果只通知到这里：手机不会为它另外推送，要靠你按这段对话一开始的说明交代出去。）\n\nAgent 最后说的：\nMR 提好了。\n\n你来决定要不要交代、怎么说：照这段对话一开始说的方式交代（比如它要你用某个工具回复，就用那个工具）。做完了就说结果（改了什么、PR / MR 链接、结论）；只交代有意义的进展和结果，不要复述这条通知，没什么值得说的就不用交代。"
+        "text": "🔔 Task “提 MR 修掉它” finished (公司电脑)\n(This is a Persona task notice, not a message from the user. The task was handed out from this conversation and its result is reported only here: the user gets no separate notification for it, so pass it on as this conversation's opening instructions say.)\n\nThe Agent's last words:\nMR 提好了。\n\nYou decide whether and how to pass it on, the way this conversation's opening instructions say (if they tell you to reply with a certain tool, use that tool). For finished work give the result (what changed, the PR / MR link, the conclusion); pass on only meaningful progress and results, do not repeat this notice, and say nothing when nothing is worth saying."
       },
       "expected": {
         "kind": "task_notice",
@@ -65,7 +65,7 @@
       "description": "任务没开起来，没有电脑名。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「整理周报」没开起来\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n原因：\nrpc: connection closed\n\n你来决定要不要告诉用户、怎么说：说清楚为什么没开起来，可以点卡片上的「重试」或换一台电脑。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "🔔 Task “整理周报” did not start\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nReason:\nrpc: connection closed\n\nYou decide whether and how to tell the user: say why it did not start; the user can click Retry on the card or pick another computer. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -79,7 +79,7 @@
       "description": "标题里有括号和书名号也能取对。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "🔔 任务「改「设置（外观）」页」做完了（公司电脑）\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么（看改动、合并、回复谁……）；没什么要用户做的就说一句做完了。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "🔔 Task “改「设置（外观）」页” finished (公司电脑)\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nYou decide whether and how to tell the user: give the result in a sentence or two and what the user should do next (look at the change, merge, reply to someone…); when there is nothing for the user to do, say it is done. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -94,7 +94,7 @@
       "description": "晚到的一次性跟进：说明行不进 detail。",
       "source": "server/internal/prompts/assistant/task_run.md",
       "input": {
-        "text": "⏰ 看看 CI（你之前安排的跟进）\n（本该 11-05 09:00 运行，Persona 当时没在运行，晚了 25 分钟；看看还有没有必要按原计划做。）\n\n看一下 CI 有没有过，过了就合并。"
+        "text": "⏰ 看看 CI (a follow-up you scheduled)\n(It was due at 11-05 09:00, when Persona was not running, so it is 25 分钟 late; check whether the original plan still makes sense.)\n\n看一下 CI 有没有过，过了就合并。"
       },
       "expected": {
         "kind": "followup",
@@ -109,7 +109,7 @@
       "description": "每天的定时任务。",
       "source": "server/internal/prompts/assistant/task_run.md",
       "input": {
-        "text": "⏰ 早报（定时任务）\n\n整理今天的日程。\n\n再看看邮件。"
+        "text": "⏰ 早报 (scheduled task)\n\n整理今天的日程。\n\n再看看邮件。"
       },
       "expected": {
         "kind": "followup",
@@ -124,7 +124,7 @@
       "description": "按间隔运行、接着自己的对话。",
       "source": "server/internal/prompts/assistant/task_run.md",
       "input": {
-        "text": "⏰ 盯部署（定时任务，每 30 分钟）\n（又到时间了，还是这个任务自己的对话：前几次的结果都在上面，接着做，和上次比有变化的地方说清楚。）\n\n看部署好了没有。"
+        "text": "⏰ 盯部署 (scheduled task, every 30 分钟)\n(It is time again, in this task's own conversation: the earlier runs' results are above. Carry on, and say clearly what changed since last time.)\n\n看部署好了没有。"
       },
       "expected": {
         "kind": "followup",
@@ -139,7 +139,7 @@
       "description": "只在它自己提醒时推送的任务：那句说明在首段，不进 detail（#2396）。",
       "source": "server/internal/prompts/assistant/task_run.md",
       "input": {
-        "text": "⏰ 新邮件（定时任务，每 5 分钟）\n（Persona 会按时再运行它，不用再用 schedule_followup 安排下一次。）\n（这个任务只在你用 notify_user 时才推送到手机：有用户需要知道的事就用 notify_user 推一条，没有就简短说一句，这次运行不会推送。）\n\n看看邮箱有没有新邮件，有就告诉我。"
+        "text": "⏰ 新邮件 (scheduled task, every 5 分钟)\n(Persona runs it again on time; do not schedule the next run with schedule_followup.)\n(This task notifies the user only when you call notify_user: send one for anything the user needs to know; otherwise say so briefly, and this run sends no notification.)\n\n看看邮箱有没有新邮件，有就告诉我。"
       },
       "expected": {
         "kind": "followup",
@@ -154,7 +154,7 @@
       "description": "叫醒等待中的 Agent。",
       "source": "server/internal/prompts/agents/wake.md",
       "input": {
-        "text": "⏰（Persona 叫醒你，第 2 次）你上一轮停下时说在等「CI 跑完」，等到以后要「合并」。\n你等的 Agent「构建」刚停下了，它最后说：好了。\n现在自己查一下等的事好了没有：好了就接着往下做；还没好就简短说明还差什么、大概还要多久（Persona 会再叫你），不用一直守着等。\n接下来如果要推代码、部署 / 发布、给别人发消息或评论、合并或改别人的 MR / PR，先停下来问用户，不要自己做。"
+        "text": "\u003cpersona-wake\u003e{\"title\":\"CI 跑完\"}\u003c/persona-wake\u003e\n⏰ (Persona is waking you, attempt 2.) At the end of your last turn, you said you were waiting for “CI 跑完” and would then “合并”.\nThe Agent you were waiting for, “构建”, has stopped. Its last report: 好了.\nCheck whether what you were waiting for is ready. If it is, continue the work. Otherwise, briefly explain what remains and roughly how long it will take (Persona will wake you again). Do not keep waiting in a loop.\nIf the next step pushes code, deploys or publishes, sends messages or comments to others, or merges or changes someone else's MR or PR, stop and ask the user first; do not act on your own.\n"
       },
       "expected": {
         "kind": "followup",
@@ -168,7 +168,7 @@
       "description": "node 重启丢了后台任务：数出几个。",
       "source": "server/internal/prompts/assistant/lost_tasks.md",
       "input": {
-        "text": "⚠️ 运行你的 node 刚重启过（换了版本，或者这台电脑没有常驻 node、hub 重启连带停了它），这段对话里还在跑的后台任务 / 监控随进程一起停了：\n- npm test\n- 监控 CI\n还需要的就重新启动（命令可能只跑了一半，重跑前先看看输出）；不需要了就简短说一句，不用推送。"
+        "text": "⚠️ The node running you was just restarted (a new version, or this computer has no standing node and a hub restart stopped it), so the background tasks and monitors still running in this conversation stopped with the process:\n- npm test\n- 监控 CI\nStart again what you still need (a command may have run halfway: read its output before rerunning); for what you no longer need, say so briefly, without a notification."
       },
       "expected": {
         "kind": "system",
@@ -181,7 +181,7 @@
       "description": "前面带着实时快照块的也认。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "\u003cpersona-context\u003e\n实时快照里和上一份比变了的（没列出的照旧）：\n- 现在：……\n\u003c/persona-context\u003e\n🔔 任务「跑测试」做完了\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么（看改动、合并、回复谁……）；没什么要用户做的就说一句做完了。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "\u003cpersona-context\u003e\nRows of the live snapshot that changed since the previous one (rows not listed are unchanged):\n- 现在：……\n\u003c/persona-context\u003e\n🔔 Task “跑测试” finished\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nYou decide whether and how to tell the user: give the result in a sentence or two and what the user should do next (look at the change, merge, reply to someone…); when there is nothing for the user to do, say it is done. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -195,7 +195,7 @@
       "description": "旧名字 \u003cpersona-context\u003e 的快照块也认（历史消息、旧 node，#3182）。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "\u003cpersona-context\u003e\n实时快照：……\n\u003c/persona-context\u003e\n🔔 任务「跑测试」做完了\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么（看改动、合并、回复谁……）；没什么要用户做的就说一句做完了。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "\u003cpersona-context\u003e\n实时快照：……\n\u003c/persona-context\u003e\n🔔 Task “跑测试” finished\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nYou decide whether and how to tell the user: give the result in a sentence or two and what the user should do next (look at the change, merge, reply to someone…); when there is nothing for the user to do, say it is done. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",
@@ -209,7 +209,7 @@
       "description": "前面带着有属性的 \u003cpersona-context\u003e 块的也认。",
       "source": "server/internal/prompts/assistant/task_notice.md",
       "input": {
-        "text": "\u003cpersona-context kind=\"context\" title=\"引用的消息\" url=\"\"\u003e\n引用\n\u003c/persona-context\u003e\n🔔 任务「跑测试」做完了\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么（看改动、合并、回复谁……）；没什么要用户做的就说一句做完了。你的回答会推送到用户手机上，只说用户需要知道的，不要复述这条通知。"
+        "text": "\u003cpersona-context kind=\"context\" title=\"引用的消息\" url=\"\"\u003e\n引用\n\u003c/persona-context\u003e\n🔔 Task “跑测试” finished\n(This is a Persona task notice, not a message from the user. The task was handed out from the main conversation, and the user chose to be told about such tasks only there: there is no separate notification, so it is up to you to tell the user.)\n\nYou decide whether and how to tell the user: give the result in a sentence or two and what the user should do next (look at the change, merge, reply to someone…); when there is nothing for the user to do, say it is done. Your answer is sent to the user as a notification: say only what the user needs to know, and do not repeat this notice."
       },
       "expected": {
         "kind": "task_notice",

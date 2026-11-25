@@ -206,7 +206,7 @@ func (s *Service) acceptLines(ctx context.Context, t Todo, machine, session, rep
 	}
 	input := prompts.RenderAcceptanceInput(prompts.Acceptance{Title: t.Title, Prompt: clipMiddle(strings.TrimSpace(t.Notes), 800),
 		Reply: clipMiddle(reply, 2000), Links: links})
-	if err := s.purposeModel("inbox.judge").JSON(ctx, prompts.RenderAcceptance(), input, &out); err != nil {
+	if err := s.purposeModel("inbox.judge").JSON(ctx, prompts.RenderAcceptance(answerLanguage(s.hello(ctx).Locale)), input, &out); err != nil {
 		s.logf("task %s: acceptance lines: %v (plain ones)", t.ID, err)
 		return a
 	}

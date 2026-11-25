@@ -631,7 +631,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 }
 
 // reviewAgainNote ends every rework reply: the supervisor is told where its next look comes from.
-const reviewAgainNote = "When the agent stops again you get a 督办 message to review it again."
+const reviewAgainNote = "When the agent stops again you get a supervision message to review it again."
 
 // reviewReply is what a review says of the work, as the reply a "Please verify" card's three lines are read from.
 func reviewReply(note string, checks []ReviewCheck) string {

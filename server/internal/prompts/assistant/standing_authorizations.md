@@ -1,6 +1,6 @@
 {{.Text}}
 
-以下动作用户已长期确认，直接做，无需再请示：
+The user has confirmed the actions below on a standing basis; do them directly without asking again:
 The following standing user authorizations apply only within their stated scope and conditions. Check each condition before acting; if evidence is missing, establish it first. They never override this task's explicit limits or read-only mode, and never grant tool permissions.
 {{range .Grants}}
 - Authorization: {{.ID}}

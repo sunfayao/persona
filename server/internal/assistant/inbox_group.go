@@ -408,14 +408,14 @@ func (s *Service) groupTool(ctx context.Context, connectorID, thread, name strin
 		err := s.appCall(cctx, AppInbox, inboxGroupTool, map[string]any{"source": connectorID,
 			"call": connector.GroupToolCall{Thread: thread, Name: name, Args: args}}, &res)
 		if unsupported(err) {
-			return jsonText(map[string]string{"error": "这个工具用不了：连接器没有它，别再调，用已有的信息判断"})
+			return jsonText(map[string]string{"error": "this tool is unavailable: the connector does not have it; do not call it again, judge from the information you have"})
 		}
 		if err != nil {
 			return jsonText(map[string]string{"error": err.Error()})
 		}
 		return res.Result
 	}
-	return jsonText(map[string]string{"error": "没有这个工具：" + name})
+	return jsonText(map[string]string{"error": "no such tool: " + name})
 }
 
 // checkGroupAnswer holds the model's answer to the rules: every new message in exactly one event; an existing event
@@ -431,7 +431,7 @@ func checkGroupAnswer(out groupAnswer, fresh []string, seen map[string]groupEven
 	var order []string
 	for _, a := range out.Assign {
 		if !want[a.Message] {
-			return nil, fmt.Errorf("消息 %q 不是这一批的，或者归了两次", a.Message)
+			return nil, fmt.Errorf("message %q is not in this batch, or was assigned twice", a.Message)
 		}
 		delete(want, a.Message)
 		if _, ok := byEvent[a.Event]; !ok {
@@ -446,12 +446,12 @@ func checkGroupAnswer(out groupAnswer, fresh []string, seen map[string]groupEven
 				left = append(left, m)
 			}
 		}
-		return nil, fmt.Errorf("消息 %s 没有归到事件", strings.Join(left, "、"))
+		return nil, fmt.Errorf("no event assigned to message(s) %s", strings.Join(left, ", "))
 	}
 	described := map[string]int{}
 	for i, e := range out.Events {
 		if _, twice := described[e.Event]; twice {
-			return nil, fmt.Errorf("事件 %q 写了两次", e.Event)
+			return nil, fmt.Errorf("event %q is described twice", e.Event)
 		}
 		described[e.Event] = i
 	}
@@ -459,28 +459,28 @@ func checkGroupAnswer(out groupAnswer, fresh []string, seen map[string]groupEven
 	for _, ev := range order {
 		i, ok := described[ev]
 		if !ok {
-			return nil, fmt.Errorf("事件 %q 没有标题和分级", ev)
+			return nil, fmt.Errorf("event %q has no title and tier", ev)
 		}
 		d := out.Events[i]
 		if !connector.Tier(d.Tier).Known() {
-			return nil, fmt.Errorf("事件 %q 的分级 %q 不对", ev, d.Tier)
+			return nil, fmt.Errorf("event %q has an invalid tier %q", ev, d.Tier)
 		}
 		if strings.TrimSpace(d.Title) == "" {
-			return nil, fmt.Errorf("事件 %q 没有标题", ev)
+			return nil, fmt.Errorf("event %q has no title", ev)
 		}
 		pe := plannedEvent{messages: byEvent[ev], title: d.Title, summary: d.Summary, tier: d.Tier, reason: d.Reason,
 			urgent: d.Urgent && d.Tier == TierAction}
 		if isNewEvent(ev) {
 			if d.Continues != "" {
 				if s, ok := seen[d.Continues]; !ok || !s.Done {
-					return nil, fmt.Errorf("事件 %q 接着的 %q 不是查到的已处理的事", ev, d.Continues)
+					return nil, fmt.Errorf("event %q continues %q, which is not a handled event found by the tools", ev, d.Continues)
 				}
 				pe.continues = d.Continues
 			}
 		} else {
 			s, ok := seen[ev]
 			if !ok {
-				return nil, fmt.Errorf("事件 %q 不是查到的事", ev)
+				return nil, fmt.Errorf("event %q is not an event found by the tools", ev)
 			}
 			if s.Done {
 				pe.reopen = d.Reopen

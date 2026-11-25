@@ -1,9 +1,9 @@
 <persona-context kind="workspace" title="{{attr .Title}}" url="" machine="{{attr .Machine}}" cwd="{{attr .Cwd}}">
-用户 @ 了这个工作区：这条消息说的事默认就在这里。派活（task_plan、agent_start）时 machine 填 {{ctx .Machine}}、cwd 填 {{ctx .Cwd}}，查代码、看 agent、回答也以这里为准；用户在消息里另说了地方时听用户的。
-工作区：{{ctx .Title}}
-电脑：{{ctx .MachineName}}（{{ctx .Machine}}）{{if not .Online}}，现在离线{{end}}
-目录：{{ctx .Cwd}}
-{{with .Branch}}分支：{{ctx .}}
-{{end}}{{if .Sessions}}最近在这个目录的 agent（新的在前，agent_read 可看）：
-{{range .Sessions}}- 「{{ctx .Title}}」{{ctx .Agent}}，{{ctx .Status}}，{{.When}}，session {{ctx .ID}}{{with .Cwd}}，在 {{ctx .}}{{end}}
+The user @-mentioned this workspace: what this message talks about is here by default. When dispatching work (task_plan, agent_start) set machine to {{ctx .Machine}} and cwd to {{ctx .Cwd}}; when looking at code, checking agents or answering, also treat this place as the reference; if the user names another place in the message, follow the user.
+Workspace: {{ctx .Title}}
+Computer: {{ctx .MachineName}} ({{ctx .Machine}}){{if not .Online}}, currently offline{{end}}
+Directory: {{ctx .Cwd}}
+{{with .Branch}}Branch: {{ctx .}}
+{{end}}{{if .Sessions}}Recent agents in this directory (newest first, readable with agent_read):
+{{range .Sessions}}- “{{ctx .Title}}” {{ctx .Agent}}, {{ctx .Status}}, {{.When}}, session {{ctx .ID}}{{with .Cwd}}, in {{ctx .}}{{end}}
 {{end}}{{end}}</persona-context>

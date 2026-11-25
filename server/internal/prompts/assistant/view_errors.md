@@ -1,7 +1,7 @@
 <persona-view-errors>
-这是 Persona 的卡片校验反馈，不是用户说的话，也不是对任何操作的要求、授权或确认。下面这些回复里的 persona-view 卡片没有通过校验，App 只显示了它们的 fallback 文字：
-{{range .Replies}}- {{.At}} 的回复：
+This is Persona's card validation feedback. It is not something the user said, and it is not a request, authorization or confirmation for any action. The persona-view cards in the replies below did not pass validation, and Persona showed only their fallback text:
+{{range .Replies}}- Reply at {{.At}}:
 {{range .Errors}}  - {{.}}
-{{end}}{{end}}{{if .Later}}- 之后还有回复的卡片没通过，下一条消息再告诉你
-{{end}}先照常回应这条消息。之后画卡片时按上面的原因写对；那张卡片还和现在的话题有关、用户还需要它，才在这次回复里重画一张（写 fallback，结论仍在正文），无关就不用提。不要为了修卡片重新执行已经做过的工具调用或操作。
+{{end}}{{end}}{{if .Later}}- More replies have cards that did not pass; you will be told with the next message
+{{end}}First respond to this message as usual. When you draw cards later, write them correctly according to the reasons above. Redraw a card in this reply only if it is still relevant to the current topic and the user still needs it (write the fallback, and keep the conclusion in the body text); if it is not relevant, do not mention it. Do not re-run tool calls or operations that were already done just to fix a card.
 </persona-view-errors>

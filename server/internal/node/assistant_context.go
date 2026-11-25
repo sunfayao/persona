@@ -28,7 +28,7 @@ import (
 // almost every message, and its siblings were most of what a conversation was told again.
 
 // snapshotSection is one top-level line of the snapshot with the indented lines under it; key is what it is about
-// (the "- Lark calendar" part of "- Lark calendar today next: ..." or "- Lark calendar: ...", in Chinese).
+// (the "- Feishu calendar" part of "- Feishu calendar (meetings today…): ..." or "- Feishu calendar (no more…)").
 type snapshotSection struct{ key, text string }
 
 func snapshotSections(text string) []snapshotSection {
@@ -53,22 +53,20 @@ func snapshotSections(text string) []snapshotSection {
 	return out
 }
 
-// sectionCount is a count a heading ends with (" 3 个", three of them, in "- Lark unread chats 3": in Chinese).
-var sectionCount = lazyre.New(` \d+ 个$`)
+// sectionCount is a count a heading ends with (" 3" in "- Feishu unread chats 3").
+var sectionCount = lazyre.New(` \d+$`)
 
-// sectionKey is a line's subject: up to the first full-width colon or parenthesis, cut before the word "today" and
-// without a count at its end, so a section is the same one whatever it says: "Lark calendar today next:" and "Lark
-// calendar: no more meetings today", "Following (3):" and "Following: nothing", "Lark unread chats 3 (…)" and
-// "Lark unread chats 4 (…)" (all in Chinese).
+// sectionKey is a line's subject: up to the first colon or opening parenthesis and without a count at its end, so a
+// section is the same one whatever it says: "Following (3 item(s)): …" and "Following: none", "Feishu unread chats 3
+// (…)" and "Feishu unread chats 4 (…)". The snapshot's own lines are prompts/assistant/snapshot.md's.
 func sectionKey(line string) string {
-	k, _, _ := strings.Cut(line, "：")
-	k, _, _ = strings.Cut(k, "（")
-	k, _, _ = strings.Cut(k, "今天")
+	k, _, _ := strings.Cut(line, ":")
+	k, _, _ = strings.Cut(k, " (")
 	return sectionCount.ReplaceAllString(strings.TrimSpace(k), "")
 }
 
 const (
-	timeSection = "- 现在"
+	timeSection = "- Now"
 	// listMark starts the snapshot's own sections; the lines before them say what the conversation is.
 	listMark = "- "
 )
@@ -76,17 +74,17 @@ const (
 // rowIDs are the sections whose rows each carry an id of their own, and how a row tells it: a task's row its to-do
 // id, an Agents or unread-chats row the label it starts with (one row per label). The keys are sectionKeys of
 // prompts/assistant/snapshot.md and snapshot_own_tasks.md (TestSnapshotRowIDs renders them). The other sections have
-// no such rows and are compared whole: one line of items joined by "；", which their free text may hold too; the
+// no such rows and are compared whole: one line of items joined by "; ", which their free text may hold too; the
 // Inbox follow-ups, which show a title and no id.
 var rowIDs = map[string]func(row string) string{
-	"- Agents":       rowLabel,
-	"- 优先显示的开放任务详情":  rowTodo,
-	"- 这个对话派出或督办的任务": rowTodo,
-	"- 飞书未读会话":       rowLabel,
+	"- Agents":            rowLabel,
+	"- Open task details": rowTodo,
+	"- Tasks this conversation handed out or supervises": rowTodo,
+	"- Feishu unread chats":                              rowLabel,
 }
 
-// rowTodoID is the id a task's row gives after its title: "（todo_1）：" or "（todo_1，链接 …）：".
-var rowTodoID = lazyre.New(`（(todo_[0-9A-Za-z_]+)(?:，链接 [^）]*)?）：`)
+// rowTodoID is the id a task's row gives after its title: "(todo_1): " or "(todo_1, link …): ".
+var rowTodoID = lazyre.New(`\((todo_[0-9A-Za-z_]+)(?:, link [^)]*)?\): `)
 
 func rowTodo(row string) string {
 	if m := rowTodoID.FindStringSubmatch(row); m != nil {
@@ -98,11 +96,11 @@ func rowTodo(row string) string {
 // rowLabel is the label a row starts with: "- Needs you: ..." is "Needs you", "- Done (24 hours): ..." is "Done".
 func rowLabel(row string) string {
 	label, ok := strings.CutPrefix(strings.TrimSpace(row), listMark)
-	if !ok || !strings.Contains(label, "：") {
+	if !ok || !strings.Contains(label, ":") {
 		return ""
 	}
-	label, _, _ = strings.Cut(label, "：")
-	label, _, _ = strings.Cut(label, "（")
+	label, _, _ = strings.Cut(label, ":")
+	label, _, _ = strings.Cut(label, " (")
 	return strings.TrimSpace(label)
 }
 
@@ -127,12 +125,12 @@ func sectionRows(text string) (head string, rows []string) {
 	return head, rows
 }
 
-// idsOf are the ids of rows, ok when each has one of its own that a list of ids can hold ("；" separates them).
+// idsOf are the ids of rows, ok when each has one of its own that a list of ids can hold ("; " separates them).
 func idsOf(rows []string, id func(string) string) (ids []string, ok bool) {
 	taken := make(map[string]bool, len(rows))
 	for _, r := range rows {
 		k := id(r)
-		if k == "" || taken[k] || strings.Contains(k, "；") {
+		if k == "" || taken[k] || strings.Contains(k, ";") {
 			return nil, false
 		}
 		taken[k] = true

@@ -30,23 +30,29 @@ func a2aTestExecutable() string {
 	return string(encoded)
 }
 
-// What a task message's recipient reads (#13893), in each language: a request and a question for its sender, naming the
-// node's executable for a harness without the Persona MCP tools, and, with no executable, the text that says personad.
+// What a task message's recipient reads, in each language: a request and a question for its sender, for a recipient
+// with the Persona MCP tools, for one that runs its node's executable from a terminal (#13893), and for one whose
+// entry is not known.
 func TestGoldenA2AMessage(t *testing.T) {
 	task := &a2aTask{A2ARow: db.A2ARow{ID: "task-0001", State: a2aSubmitted}}
 	request := &a2aEvent{Seq: 1, Kind: "message", State: a2aSubmitted, Text: "Run the integration checks and return the failing cases."}
 	question := &a2aEvent{Seq: 3, Kind: "status", State: a2aInput, Text: "Which target should I use?"}
+	done := &a2aEvent{Seq: 4, Kind: "status", State: a2aComplete, Text: "Two cases fail; details below."}
 	from := a2aRef{"mac", "caller-0001"}
+	terminal := a2aEntry{executable: a2aTestExecutable()}
 	for _, lang := range []string{"en", "zh-Hans", "ja"} {
-		golden(t, "a2a_message.request."+lang, a2aPrompt(task, request, from, lang, ""))
-		golden(t, "a2a_message.request_executable."+lang, a2aPrompt(task, request, from, lang, a2aTestExecutable()))
-		golden(t, "a2a_message.question_executable."+lang, a2aPrompt(task, question, from, lang, a2aTestExecutable()))
+		golden(t, "a2a_message.request."+lang, a2aPrompt(task, request, from, lang, a2aEntry{}))
+		golden(t, "a2a_message.request_mcp."+lang, a2aPrompt(task, request, from, lang, a2aEntry{mcp: true}))
+		golden(t, "a2a_message.request_executable."+lang, a2aPrompt(task, request, from, lang, terminal))
+		golden(t, "a2a_message.question_mcp."+lang, a2aPrompt(task, question, from, lang, a2aEntry{mcp: true}))
+		golden(t, "a2a_message.question_executable."+lang, a2aPrompt(task, question, from, lang, terminal))
+		golden(t, "a2a_message.result."+lang, a2aPrompt(task, done, from, lang, a2aEntry{mcp: true}))
 	}
 }
 
 // A task message names the executable to a recipient that calls its tools from a terminal without the Persona MCP
-// tools (a Codex pane). One with the MCP tools (a Claude Code pane) and a runtime's keep the text that says personad,
-// and their node is not asked.
+// tools (a Codex pane). One with the MCP tools (a Claude Code pane) is told the tool alone, a runtime's the tool and
+// the reply line that stands in for it, and their node is not asked.
 func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
 	s, h, st, cfg, parent, runtime := a2aFixture(t)
 	asked := a2aAnswerNodeInfo(h)
@@ -57,8 +63,9 @@ func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
 	h.mu.Unlock()
 	for i, tc := range []struct {
 		session string
-		names   bool
-	}{{"codex-pane-0001", true}, {"claude-pane-0001", false}, {runtime.Session, false}} {
+		names   bool // the executable
+		line    bool // the reply line that stands in for the tool
+	}{{"codex-pane-0001", true, true}, {"claude-pane-0001", false, false}, {runtime.Session, false, true}} {
 		tk, err := s.a2aStart(t.Context(), st, cfg, parent, a2aRef{"box", tc.session}, fmt.Sprintf("request-%d", i), "", "Run the checks.", true, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -75,9 +82,9 @@ func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
 		if err := json.Unmarshal(sends[i].Params, &p); err != nil || p.SessionID != tc.session {
 			t.Fatalf("%s: delivered %+v %v", tc.session, p, err)
 		}
-		if strings.Contains(p.Text, a2aTestExecutable()) != tc.names || strings.Contains(p.Text, "personad tool") == tc.names ||
-			prompts.RelayMessageID(p.Text) != a2aDeliveryID(tk.ID, 1) || !strings.Contains(p.Text, "Run the checks.") {
-			t.Fatalf("%s (names the executable: %v):\n%s", tc.session, tc.names, p.Text)
+		if strings.Contains(p.Text, a2aTestExecutable()) != tc.names || strings.Contains(p.Text, "A2A "+tk.ID+" input_required") != tc.line ||
+			!strings.Contains(p.Text, "a2a_report") || prompts.RelayMessageID(p.Text) != a2aDeliveryID(tk.ID, 1) || !strings.Contains(p.Text, "Run the checks.") {
+			t.Fatalf("%s (names the executable: %v, the reply line: %v):\n%s", tc.session, tc.names, tc.line, p.Text)
 		}
 	}
 	if n := asked.Load(); n != 1 {

@@ -36,9 +36,9 @@ func duplicateHints(t PlanTask, todos []Todo, sessions []proto.Session) []string
 			}
 		}
 		if shared := sharedRef(refs, issueRefs(o.Title+" "+o.Notes+" "+o.PRURL)); shared != "" {
-			add("todo:"+o.ID, fmt.Sprintf("任务「%s」（%s）也提到 %s", o.Title, o.ID, shared))
+			add("todo:"+o.ID, fmt.Sprintf("task “%s” (%s) also mentions %s", o.Title, o.ID, shared))
 		} else if sim := titleSimilarity(t.Title, o.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
-			add("todo:"+o.ID, fmt.Sprintf("任务「%s」（%s）标题相近%s", o.Title, o.ID, map[bool]string{true: "，在同一个目录", false: ""}[sameDir]))
+			add("todo:"+o.ID, fmt.Sprintf("task “%s” (%s) has a similar title%s", o.Title, o.ID, map[bool]string{true: ", in the same directory", false: ""}[sameDir]))
 		}
 	}
 	for _, c := range sessions {
@@ -46,12 +46,12 @@ func duplicateHints(t PlanTask, todos []Todo, sessions []proto.Session) []string
 			continue
 		}
 		title := cmp.Or(c.Title, c.LastText)
-		where := fmt.Sprintf("%s 上的 Agent「%s」（session_id=%s）", c.MachineID, clip(oneLine(title), 40), short(c.SessionID))
+		where := fmt.Sprintf("the Agent “%s” on %s (session_id=%s)", clip(oneLine(title), 40), c.MachineID, short(c.SessionID))
 		sameDir := c.MachineID == t.Machine && dirsOverlap(c.Cwd, t.Cwd)
 		if shared := sharedRef(refs, issueRefs(c.Title+" "+c.LastText)); shared != "" {
-			add("agent:"+c.MachineID+"/"+c.SessionID, where+"也在做 "+shared)
+			add("agent:"+c.MachineID+"/"+c.SessionID, where+" is also working on "+shared)
 		} else if sim := titleSimilarity(t.Title, c.Title); sim >= 0.7 || sameDir && sim >= 0.4 {
-			add("agent:"+c.MachineID+"/"+c.SessionID, where+"在做相近的事")
+			add("agent:"+c.MachineID+"/"+c.SessionID, where+" is working on something similar")
 		}
 	}
 	return out
@@ -191,7 +191,7 @@ func (s *Service) planDuplicates(ctx context.Context, tasks []PlanTask) string {
 		if len(hints) == 0 {
 			continue
 		}
-		fmt.Fprintf(&b, "\n- 「%s」可能和这些重复：%s", t.Title, strings.Join(hints, "；"))
+		fmt.Fprintf(&b, "\n- “%s” may duplicate these: %s", t.Title, strings.Join(hints, "; "))
 	}
 	if b.Len() == 0 {
 		return ""

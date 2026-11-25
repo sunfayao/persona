@@ -76,7 +76,7 @@ func peerItem(mk func(int, string, string) proto.Item, text, name, body string) 
 	}
 	if from == PersonaPeer {
 		tagged = personaWords(tagged)
-		if tagged == strings.TrimSpace(prompts.PeerStop()) {
+		if prompts.IsPeerStop(tagged) {
 			tagged = StoppedFromPhone
 		}
 	}

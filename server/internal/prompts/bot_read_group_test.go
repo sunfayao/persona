@@ -83,16 +83,10 @@ func TestBotReadGroupRecentPages(t *testing.T) {
 }
 
 func TestBotReadGroupRangeGuidance(t *testing.T) {
-	for _, tc := range []struct {
-		lang, chronological, rangeRule, partial string
-	}{
-		{"", "按时间从早到晚", "请求指定范围时", "读取不完整"},
-		{"English", "oldest to newest", "If the request names a range", "incomplete"},
-		{"日本語", "古い順", "依頼に範囲があれば", "不完全"},
-	} {
-		t.Run(tc.lang, func(t *testing.T) {
-			text := RenderBotReadGroup(BotReadGroup{Language: tc.lang, ThreadID: "omt_example", Default: 40, Most: 500})
-			for _, want := range []string{tc.chronological, tc.rangeRule, tc.partial, "--start / --end", "--page-token", "has_more", "500"} {
+	for _, lang := range []string{"", "English", "日本語"} {
+		t.Run(lang, func(t *testing.T) {
+			text := RenderBotReadGroup(BotReadGroup{Language: lang, ThreadID: "omt_example", Default: 40, Most: 500})
+			for _, want := range []string{"oldest to newest", "If the request names a range", "incomplete", "--start / --end", "--page-token", "has_more", "500"} {
 				if !strings.Contains(text, want) {
 					t.Errorf("missing range/history guidance %q", want)
 				}

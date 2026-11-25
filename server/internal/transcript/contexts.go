@@ -5,6 +5,7 @@ import (
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"html"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -19,7 +20,9 @@ var contextBlockRe = lazyre.New(`(?s)(<` + compat.ContextPattern() + `\b[^>]*>)(
 
 var contextAttrRe = lazyre.New(`\s+(\w+)="([^"]*)"`)
 
-const interjectTitle = "插话" // i18n-ignore: canonical model-context title, not UI copy.
+// interjectTitles are the titles of the interjection note (prompts/assistant/interject.md): the current one, then the
+// Chinese one it had before, which transcripts keep.
+var interjectTitles = []string{"Interjection", "插话"} // i18n-ignore: canonical model-context title, not UI copy.
 
 // StripInterject removes the node's model-only mid-turn acknowledgement note
 // from presentation and echo matching. Keep owner-selected context inspectable;
@@ -28,7 +31,7 @@ const interjectTitle = "插话" // i18n-ignore: canonical model-context title, n
 func StripInterject(s string) string {
 	// Ordinary snapshots can be large. Avoid scanning and copying their blocks
 	// unless the canonical title (possibly encoded as numeric entities) can occur.
-	if !strings.Contains(s, "-context") || (!strings.Contains(s, interjectTitle) && !strings.Contains(s, "&#")) {
+	if !strings.Contains(s, "-context") || (!slices.ContainsFunc(interjectTitles, func(t string) bool { return strings.Contains(s, t) }) && !strings.Contains(s, "&#")) {
 		return s
 	}
 	return contextBlockRe.ReplaceAllStringFunc(s, func(block string) string {
@@ -42,7 +45,7 @@ func StripInterject(s string) string {
 				title = html.UnescapeString(attr[2])
 			}
 		}
-		if kind == "context" && title == interjectTitle {
+		if kind == "context" && slices.Contains(interjectTitles, title) {
 			return ""
 		}
 		return block

@@ -1,2 +1,2 @@
-Persona 算好的北极星指标（这次开跑时的快照，数字以此为准，别改也别另编）。这份日报开头先照这几行报：今天的打扰次数和可用率、和昨天同一时段比的变化、数据来源，再接下面的内容；数字原样，未知就说未知：{{range .}}
+North-star metrics already computed by Persona (a snapshot from when this run started; these numbers are authoritative, do not change them or make up others). Open this daily report with these lines first, in the user's language: today's interruption count and availability, the change compared with the same time period yesterday, and the data source; then continue with the content below. Keep the numbers as they are; if one is unknown, say it is unknown:{{range .}}
 - {{.}}{{end}}

@@ -1,15 +1,15 @@
-🔔 你 {{.When}} 用 ask_user 问过用户（wait: false，当时没有等回答）：
+🔔 At {{.When}} you asked the user with ask_user (wait: false, without waiting for the answer):
 {{range .Questions}}- {{.}}
 {{end}}{{if .Answers}}
-用户在卡片上回答了：
+The user answered on the card:
 {{range .Answers}}- {{.Question}} → {{.Choice}}
 {{end}}
-照用户的回答接着做，做了什么、还要用户做什么，简短告诉用户。{{if .Missing}}当时问了几个问题，上面没列出的用户没有答，需要的话再问（ask_user）。{{end}}
+Carry on as the user answered, and tell the user briefly what you did and what is still theirs to do.{{if .Missing}} You asked several questions then; the user did not answer the ones not listed above, so ask again (ask_user) if you need them.{{end}}
 {{else if .Expired}}
-卡片到点没人回：{{.Expired}}
+Nobody answered the card in time: {{.Expired}}
 {{else if .Spoke}}
-卡片到点了，没人在卡片上回答。这期间用户在这个对话里发过消息，所以它没有转成待办，也没有按推荐选项默认处理。用户那些消息已经答了这个问题的，照他说的做（已经照做了就不用再提）；没有答到的，不要按其中任何一个选项去做，还需要他决定就再问一次（ask_user）。
+The card ran out with no answer on it. The user wrote in this conversation meanwhile, so it did not become a to-do and the recommended options were not taken by default. Where those messages already answer the question, do as the user said (no need to mention it again if you already did); where they do not, act on none of the options, and ask again (ask_user) if you still need the decision.
 {{else}}
-这张卡片没有得到回答就结束了（用户把它关了，或者它已经失效）。用户已经在对话里直接答过的，照那个答案做；没答过的，不要按其中任何一个选项去做，也别再问同一个问题，事情要是还卡在这里，简短告诉用户卡在哪。
+This card ended without an answer (the user closed it, or it is no longer valid). Where the user already answered in the conversation, follow that answer; otherwise act on none of the options and do not ask the same question again; if things are still stuck here, tell the user briefly where.
 {{end}}
-（这是 Persona 的通知，不是用户在这里发的消息。）
+(This is a notice from Persona, not a message the user sent here.)

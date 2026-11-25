@@ -1004,7 +1004,7 @@ func (s *Service) handoffFor(ctx context.Context, sid, text string) string {
 func (s *Service) renderHandoff(ctx context.Context, handoff mainHandoff, text string) string {
 	hp := prompts.MainHandoff{FromID: handoff.From, Summary: handoff.Summary, Text: text}
 	local := handoff.Until.In(s.location(ctx))
-	hp.Until = fmt.Sprintf("%d月%d日 %02d:%02d", local.Month(), local.Day(), local.Hour(), local.Minute())
+	hp.Until = local.Format("Jan 2 15:04")
 	for _, t := range handoff.Recent {
 		hp.Recent = append(hp.Recent, prompts.HandoffTurn{Role: t.Role, Text: t.Text})
 	}

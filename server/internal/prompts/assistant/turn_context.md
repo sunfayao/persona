@@ -1,10 +1,10 @@
 <persona-context>
-{{if .Full}}实时快照（这条消息发出时的；之后的变化用工具查）：{{else}}实时快照里和上一份比变了的（没列出的照旧）：{{end}}
+{{if .Full}}Live snapshot (as of when this message was sent; use tools to check later changes):{{else}}Rows of the live snapshot that changed since the previous one (rows not listed are unchanged):{{end}}
 {{range .Sections}}{{if .Partial}}{{if .Text}}{{ctx .Text}}
-  - （只列有变化和新增的行，没列的行照旧）{{else}}{{ctx .Name}}（只列有变化和新增的行，没列的行照旧）：{{end}}{{range .Rows}}
+  - (only changed and new rows are listed; rows not listed are unchanged){{else}}{{ctx .Name}} (only changed and new rows are listed; rows not listed are unchanged):{{end}}{{range .Rows}}
 {{ctx .}}{{end}}{{with .Removed}}
-  - （已移除的行：{{ctx (join . "；")}}）{{end}}{{with .Order}}
-  - （行现在的顺序：{{ctx (join . "；")}}）{{end}}{{else}}{{ctx .Text}}{{end}}
-{{end}}{{with .Gone}}- 这份快照里已经没有的段落（它们之前的内容作废）：{{range .}}
+  - (removed rows: {{ctx (join . "; ")}}){{end}}{{with .Order}}
+  - (current row order: {{ctx (join . "; ")}}){{end}}{{else}}{{ctx .Text}}{{end}}
+{{end}}{{with .Gone}}- Sections no longer in this snapshot (discard their earlier content):{{range .}}
   - {{ctx .}}{{end}}
 {{end}}</persona-context>

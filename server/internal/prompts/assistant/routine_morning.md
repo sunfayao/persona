@@ -1,7 +1,7 @@
-给我今天的早报，一屏以内，结论先行。
-等我决定的事、过去 12 小时做完和没成的、等我验收的任务：上面有「Persona 算好的事实」时，数字以它为准，要不要你列、怎么列按它的说明；没有这块时，你自己按快照把这几项列在最前面，每件一行，说清要我做什么、去哪点。
-你写：
-1. 一两句总述：今天最该先做哪一件、为什么；
-2. 今天的日程（飞书日历 + iPhone 日历，合并去重），标出需要准备的会；
-3. 需要我处理的：飞书里 @我 / 单聊未读里要我回复或决定的事、重要邮件。
-对今天每个值得准备的会，用 schedule_followup 在会前 10 分钟安排一次会前准备（材料、上次纪要、要点）。
+Give me today's morning briefing, within one screen, conclusion first. Write it in my language.
+Things waiting for my decision, what finished and what failed in the past 12 hours, tasks waiting for my acceptance: when there is a “Facts Persona worked out” block above, its numbers are authoritative, and whether and how to list them follows its instructions; when there is no such block, list these items at the very top yourself from the snapshot, one line each, saying what I need to do and where to click.
+You write:
+1. One or two sentences of summary: which one thing to do first today and why;
+2. Today's schedule (Feishu calendar), marking the meetings that need preparation;
+3. What needs me: things in Feishu @mentions / unread DMs where I must reply or decide, and important emails.
+For each meeting today that is worth preparing for, use schedule_followup to schedule a preparation 10 minutes before it (materials, key points).

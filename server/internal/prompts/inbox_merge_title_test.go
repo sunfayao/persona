@@ -13,8 +13,8 @@ func TestInboxMergeTitle(t *testing.T) {
 			t.Errorf("the system prompt lacks %q:\n%s", want, sys)
 		}
 	}
-	if plain := RenderInboxMergeTitle(InboxMergeTitle{}); !strings.Contains(plain, "沿用这些标题的语言") {
-		t.Errorf("without a language the titles' own is kept:\n%s", plain)
+	if plain := RenderInboxMergeTitle(InboxMergeTitle{}); !strings.Contains(plain, "in Simplified Chinese") {
+		t.Errorf("without a language the title is asked for in Simplified Chinese:\n%s", plain)
 	}
 	in := RenderInboxMergeTitleInput(InboxMergeTitleInput{Items: []InboxFolderItem{
 		{Kind: "dm", Source: "Lark", Title: "Budget deadline", Sender: "Ana", Summary: "Ana asks for the numbers"},
@@ -24,7 +24,7 @@ func TestInboxMergeTitle(t *testing.T) {
 	if i < 0 || j < 0 || i > j {
 		t.Fatalf("the rows are not shown in order:\n%s", in)
 	}
-	for _, want := range []string{"来自：Ana", "摘要：Ana asks for the numbers", "内容：Hi, attached", "类型：dm（Lark）"} {
+	for _, want := range []string{"From: Ana", "Summary: Ana asks for the numbers", "Content: Hi, attached", "Type: dm (Lark)"} {
 		if !strings.Contains(in, want) {
 			t.Errorf("the input lacks %q:\n%s", want, in)
 		}

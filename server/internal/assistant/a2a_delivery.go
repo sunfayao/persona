@@ -318,12 +318,12 @@ func (s *Service) a2aDeliver(ctx context.Context, st a2aStore, t *a2aTask, i int
 			return true, s.a2aSave(ctx, st, t)
 		}
 	}
-	executable := s.a2aSessionExecutable(ctx, to.Machine, sess) // asked before the send is marked as under way
+	entry := s.a2aSessionEntry(ctx, to.Machine, sess) // asked before the send is marked as under way
 	e.Delivery, e.Attempted = a2aSending, time.Now().UTC()
 	if err := s.a2aSave(ctx, st, t); err != nil {
 		return false, err
 	}
-	text := a2aPrompt(t, e, from, string(s.lang(ctx)), executable)
+	text := a2aPrompt(t, e, from, string(s.lang(ctx)), entry)
 	params := map[string]any{
 		"session_id": to.Session, "text": text, "client_msg_id": id, "message_source": a2aMessageSource(from),
 	}
@@ -387,11 +387,11 @@ func a2aMessageSource(from a2aRef) *proto.MessageSource {
 	return &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: from.Session, Title: fromName}
 }
 
-// a2aPrompt is event e of task t from from as its recipient receives it, in language, naming executable (a JSON
-// string, a2a_entry.go) for a recipient without the Persona MCP tools; "" keeps the text that says personad.
-func a2aPrompt(t *a2aTask, e *a2aEvent, from a2aRef, language, executable string) string {
+// a2aPrompt is event e of task t from from as its recipient receives it, in language, saying how a recipient with
+// entry reaches the A2A tools (a2a_entry.go).
+func a2aPrompt(t *a2aTask, e *a2aEvent, from a2aRef, language string, entry a2aEntry) string {
 	m := a2aTaskMessage(t, e, from, language)
-	m.Executable = executable
+	entry.lay(&m)
 	return a2aRelay(m, from, a2aDeliveryID(t.ID, e.Seq))
 }
 
@@ -420,7 +420,7 @@ func (s *Service) a2aLaunch(ctx context.Context, st a2aStore, t *a2aTask) error 
 		return err
 	}
 	taskID, mid, sid, source := t.ID, t.TargetMachine, t.TargetSession, t.source()
-	// The first message is written once the launcher is known (a2aLaunchExecutable), from a copy taken here: the task
+	// The first message is written once the launcher is known (a2aLaunchEntry), from a copy taken here: the task
 	// itself is not read again until the start's outcome is recorded.
 	message := a2aTaskMessage(t, e, source, string(s.lang(ctx)))
 	request := map[string]any{"cwd": t.Launch.CWD, "launcher": t.Launch.Launcher, "session_id": sid,
@@ -440,7 +440,7 @@ func (s *Service) a2aLaunch(ctx context.Context, st a2aStore, t *a2aTask) error 
 		definite := err != nil
 		if err == nil {
 			launcher, _ := request["launcher"].(string)
-			message.Executable = s.a2aLaunchExecutable(ctx, mid, launcher)
+			s.a2aLaunchEntry(ctx, mid, launcher).lay(&message)
 			request["prompt"] = a2aRelay(message, source, a2aDeliveryID(taskID, 1))
 			start := func() error { return s.call(ctx, mid, DeviceSessionStart, request, &out) }
 			err = start()

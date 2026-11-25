@@ -201,16 +201,16 @@ func TestMissingFieldPanics(t *testing.T) {
 func TestSmallPrompts(t *testing.T) {
 	for got, want := range map[string]string{
 		RenderReadonlyTaskPlanExit():           "This task is read-only. Stay in plan mode; do not request implementation approval. Return your findings and report completion to your supervisor with report_to_supervisor.",
-		RenderReadonlyTaskConstraint(""):       "本任务只读：不改项目文件、不提交、不对外写入",
+		RenderReadonlyTaskConstraint(""):       "This task is read-only: do not change project files, commit, or write to external systems.",
 		RenderPlanFirstTaskConstraint():        "Before you change anything, write a short plan: the steps you will take and how you will check each one. Work through them in order, and before you finish, check every acceptance criterion yourself and fix what does not hold.",
 		RenderQuestionCancelled():              "The user closed this question without answering. Continue without an answer; do not repeat this question.",
 		RenderQuestionUserSpoke():              "The user did not pick an option: they wrote a new message in this conversation instead. It is delivered when you end this turn, so end the turn now and do not call ask_user again in it. Read their message then: it may be the answer; if you still need one, ask again after reading it.",
-		RenderRefused("他说不行"):                  "（没有执行）他说不行",
+		RenderRefused("他说不行"):                  "(Not executed) 他说不行",
 		RenderLauncherCheck():                  "Reply with exactly one word: ok",
 		RenderJSONOnly("system"):               "system\n\nReply with a single JSON object only, no prose, no code fences.",
-		RenderTranslateMailInput("", "S", "T"): "主题：S\n\nT",
+		RenderTranslateMailInput("", "S", "T"): "Subject: S\n\nT",
 		RenderCodexInstructions("mem"):         "mem",
-		SnapshotCut():                          "- 快照到此截断；其余用 agents_list、todo_list 查；收件箱在 App 里看",
+		SnapshotCut():                          "- Snapshot cut off here; use agents_list and todo_list for the rest; see the Inbox in Persona",
 	} {
 		if got != want {
 			t.Errorf("got %q, want %q", got, want)
@@ -237,16 +237,16 @@ func TestSnapshotWorkingAndWorkflowsStayCounts(t *testing.T) {
 		}},
 	})
 	for _, want := range []string{
-		"- Agents：需要你 0 个，完成未看 0 个，工作中 2 个（详情用 agents_list）",
-		"整理接口文档（todo_42）：在做，box-1 session_id=t3333333：在等子工作流；后台 workflow 在跑（在等它的结果，没做完）：「doc-audit」阶段 Verify（2/2），3/4 个 agent 完成，已跑 5 分钟",
+		"- Agents: 0 need you, 0 finished unread, 2 working (details: agents_list)",
+		"整理接口文档 (todo_42): 在做, box-1 session_id=t3333333: 在等子工作流; background workflow running (waiting on its result, not finished): “doc-audit” phase Verify (2/2), 3/4 agents done, running for 5 分钟",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
 	}
 	for _, unwanted := range []string{
-		"  - 工作中：",
-		"  - 后台 workflow 在跑（这些 Agent",
+		"  - Working: ",
+		"  - Background workflow running (these Agents",
 		"无关后台编译任务",
 		"无关后台巡检任务",
 		"跑构建",
@@ -512,7 +512,7 @@ func TestUnknownToolPanics(t *testing.T) {
 
 func TestTurnContext(t *testing.T) {
 	got := RenderTurnContext(TurnContext{Sections: []TurnSection{{Text: "- 现在：x"}}})
-	if want := "<persona-context>\n实时快照里和上一份比变了的（没列出的照旧）：\n- 现在：x\n</persona-context>"; got != want {
+	if want := "<persona-context>\nRows of the live snapshot that changed since the previous one (rows not listed are unchanged):\n- 现在：x\n</persona-context>"; got != want {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -531,18 +531,18 @@ func TestTurnContextRows(t *testing.T) {
 		Gone: []string{"飞书日历", "已安排的跟进"},
 	})
 	want := `<persona-context>
-实时快照里和上一份比变了的（没列出的照旧）：
+Rows of the live snapshot that changed since the previous one (rows not listed are unchanged):
 - 现在：x
-- 任务（只列有变化和新增的行，没列的行照旧）：
+- 任务 (only changed and new rows are listed; rows not listed are unchanged):
   - 修登录（todo_1）：在做
-  - （已移除的行：todo_2；todo_3）
-  - （行现在的顺序：todo_4；todo_1）
+  - (removed rows: todo_2; todo_3)
+  - (current row order: todo_4; todo_1)
 - Agents：需要你 0 个
-  - （只列有变化和新增的行，没列的行照旧）
-  - （已移除的行：需要你）
+  - (only changed and new rows are listed; rows not listed are unchanged)
+  - (removed rows: 需要你)
 - 在线的电脑：a
   - b
-- 这份快照里已经没有的段落（它们之前的内容作废）：
+- Sections no longer in this snapshot (discard their earlier content):
   - 飞书日历
   - 已安排的跟进
 </persona-context>`
@@ -555,12 +555,12 @@ func TestTurnContextRows(t *testing.T) {
 // meetings still to come (snapshot.go Snapshot.Upcoming), so both have to come from reading the calendar (#4596).
 func TestEveningRoutineReadsTheCalendar(t *testing.T) {
 	got := RenderEveningRoutine()
-	for _, want := range []string{"今天开了哪些会", "phone_calendar_events", "飞书日历", "明天最早的安排"} {
+	for _, want := range []string{"Which meetings I had today", "Feishu calendar", "lark-cli calendar +agenda", "The earliest items tomorrow"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the evening routine does not say %q:\n%s", want, got)
 		}
 	}
-	if !strings.Contains(got, "已经开完的不在") {
+	if !strings.Contains(got, "meetings already over are not there") {
 		t.Errorf("the evening routine does not say the snapshot leaves out the meetings already over:\n%s", got)
 	}
 }
@@ -570,10 +570,10 @@ func TestEveningRoutineReadsTheCalendar(t *testing.T) {
 func TestSnapshotCalendarSaysFinishedMeetingsAreNotListed(t *testing.T) {
 	now := time.Date(2026, 11, 6, 21, 30, 0, 0, time.UTC) // a Friday evening
 	got := RenderSnapshot(Snapshot{Now: now, Zone: "UTC", Calendar: &SnapshotCalendar{}})
-	if strings.Contains(got, "今天接下来没有会\n") {
+	if strings.Contains(got, "no meetings today\n") {
 		t.Errorf("the empty calendar still reads as a day without meetings:\n%s", got)
 	}
-	if want := "已经开完的不在这里"; !strings.Contains(got, want) {
+	if want := "ones already finished are not listed"; !strings.Contains(got, want) {
 		t.Errorf("the empty calendar does not say %q:\n%s", want, got)
 	}
 	// With a meeting still to come the line names it, and says the same about the ones over.
@@ -589,7 +589,7 @@ func TestSnapshotCalendarSaysFinishedMeetingsAreNotListed(t *testing.T) {
 func TestAgentTriageLineLanguageAndIDs(t *testing.T) {
 	zh := RenderAgentTriage(AgentTriage{})
 	en := RenderAgentTriage(AgentTriage{Language: "English"})
-	if !strings.Contains(zh, "pane id、session id、批次号") || !strings.Contains(en, "in English") || !strings.Contains(en, "internal pane/session/batch/todo_") {
+	if !strings.Contains(zh, "in Simplified Chinese") || !strings.Contains(en, "in English") || !strings.Contains(en, "internal pane/session/batch/todo_") {
 		t.Fatal("triage lost language or internal-ID rules")
 	}
 }
@@ -597,7 +597,7 @@ func TestAgentTriageLineLanguageAndIDs(t *testing.T) {
 func TestAgentReportLineLanguageAndIDs(t *testing.T) {
 	zh := RenderAgentReportLine(AgentReportLine{Max: 30})
 	en := RenderAgentReportLine(AgentReportLine{Language: "English", Max: 60})
-	if !strings.Contains(zh, "不超过 30 个字，") || !strings.Contains(zh, "不要写「Agent」「它」这类主语") ||
+	if !strings.Contains(zh, "Write in Simplified Chinese, at most 30 characters") || !strings.Contains(zh, "subjects such as") ||
 		!strings.Contains(en, "Write in English, at most 60 characters") || !strings.Contains(en, "internal pane/session/batch/todo_") || !strings.Contains(en, "subjects such as") {
 		t.Fatal("report line lost language, length, subject or internal-ID rules")
 	}

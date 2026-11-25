@@ -30,7 +30,7 @@ func TestCancelledTodoCarriesItsTimeAndReason(t *testing.T) {
 	}
 	for _, task := range s.snapshotTasks(context.Background(), "https://hub.example.com") {
 		if task.ID == todo.ID {
-			if task.State != "已取消" || task.CancelledReason != "用户改期，不再本轮做" {
+			if task.State != "cancelled" || task.CancelledReason != "用户改期，不再本轮做" {
 				t.Fatalf("snapshot cancellation = %+v", task)
 			}
 			return

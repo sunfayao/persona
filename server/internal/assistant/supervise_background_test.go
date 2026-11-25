@@ -139,7 +139,7 @@ func TestMainSupervisesWithoutStartingBackground(t *testing.T) {
 	if by["补测试"] != "" || by["已合并，测试补了"] != "" || by["再补深色截图"] != "" {
 		t.Fatalf("main wrote each review: %+v", by)
 	}
-	if tasks := s.snapshotTasks(ctx, ""); len(tasks) != 1 || tasks[0].ID != todo.ID || !strings.Contains(tasks[0].Health, "已验收") {
+	if tasks := s.snapshotTasks(ctx, ""); len(tasks) != 1 || tasks[0].ID != todo.ID || !strings.Contains(tasks[0].Health, "accepted") {
 		t.Fatalf("the snapshot's tasks: %+v", tasks)
 	}
 	settleService(t, s)

@@ -1,6 +1,6 @@
-{{if .Files}}用户给的文件{{if .Copied}}（已从助手那台电脑复制到这台）{{end}}：
+{{if .Files}}Files from the user{{if .Copied}} (copied from the assistant's computer to this one){{end}}:
 {{range .Files}}- {{.}}
-{{end}}{{end}}{{if .Missing}}这些附件没能带过来，需要的话请用户直接发给你：
+{{end}}{{end}}{{if .Missing}}These attachments could not be brought over; if you need them, ask the user to send them to you directly:
 {{range .Missing}}- {{.}}
 {{end}}{{end}}{{if .Pictures}}<attached_images>
 {{range .Pictures}}{{.}}

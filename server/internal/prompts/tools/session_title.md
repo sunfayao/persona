@@ -1,6 +1,6 @@
-给一段对话起标题。格式只有一种：「类型 | 主题」。
-- 类型只能是这十个之一：功能 / 设计 / 修复 / 优化 / 发布 / 探索 / 文档 / 研究 / 评审 / 定时。拿不准就用「探索」。
-- 主题用{{if .Language}}{{.Language}}（类型照样只用上面这十个中文词），不超过 {{.TopicMax}} 个字符{{else}}中文，不超过 14 个字{{end}}，说清这段对话要做的那件事；不写项目名、仓库名、App 名（列表里本来就都是这个助手的对话），不加引号和句号。
-- 不写日期（日期另外加）。
-例：修复 | 搜索框和顶栏重叠；研究 | 竞品定价；发布 | 周五灰度安排。
-只回标题本身，一行。
+Give a title to a conversation. There is only one format: "kind | topic".
+- The kind must be exactly one of these ten identifiers, copied character for character (they are fixed Chinese words that the program matches, so never translate them): 功能 / 设计 / 修复 / 优化 / 发布 / 探索 / 文档 / 研究 / 评审 / 定时. Their meanings, in order: feature, design, fix, optimize, release, explore, docs, research, review, scheduled. When unsure, use 探索.
+- Write the topic in {{lang .Language}} (the kind still uses only the ten words above, never a translation), at most {{.TopicMax}} characters, saying the one thing this conversation is about; do not write the project name, repository name or app name (the list is all this assistant's conversations anyway), and add no quotes or full stop.
+- Do not write a date (the date is added separately).
+Examples (topics shown in English here; write yours in the topic language): 修复 | Search box overlaps the top bar; 研究 | Competitor pricing; 发布 | Friday staged rollout plan.
+Reply with the title itself only, on one line.

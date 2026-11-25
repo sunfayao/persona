@@ -375,11 +375,11 @@ func TestTaskReviewDismissalSameEverywhere(t *testing.T) {
 		}
 		return triageTodo(list[0], noSessions, time.Now(), time.Time{}, time.UTC, false), health
 	}
-	if tr, health := read(); tr.Rule != ruleOwnerDecides || health != "等你处理" {
+	if tr, health := read(); tr.Rule != ruleOwnerDecides || health != "waiting for you to handle it" {
 		t.Fatalf("before: %+v %q", tr, health)
 	}
 	dismissReview(t, e, at)
-	if tr, health := read(); tr.Rule == ruleOwnerDecides || tr.Section == triageWaiting || health != "你选了不处理这个决定" {
+	if tr, health := read(); tr.Rule == ruleOwnerDecides || tr.Section == triageWaiting || health != "you chose not to handle this decision" {
 		t.Fatalf("after Don't handle: %+v %q", tr, health)
 	}
 }

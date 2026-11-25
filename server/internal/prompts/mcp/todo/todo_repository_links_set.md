@@ -1,4 +1,4 @@
-Set saved-source links. [] clears; absent/empty titles keep. Reread conflicts. Metadata only.{{template "shared/mcp_language" .}}
+Set saved-source links. [] clears; absent/empty titles keep. Reread conflicts. Metadata only.
 
 ```json
 {

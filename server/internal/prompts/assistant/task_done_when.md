@@ -1,3 +1,3 @@
-验收标准（逐条核对）：
+Acceptance criteria (check each one):
 {{range .Criteria}}- {{.}}
-{{end}}逐项报告满足、未满足或已移除，并附证据。调查附来源，议题附链接，改动附测试，部署附环境和验证。说明缺失或不适用的证据。
+{{end}}Report each as met, not met or removed, with evidence. Cite sources for investigations, links for issues, tests for changes, and the environment and verification for deployments. Say which evidence is missing or not applicable.

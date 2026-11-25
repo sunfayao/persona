@@ -11,8 +11,14 @@ import (
 
 var messageContextRe = lazyre.New(`(?s)^\s*<persona-context\b([^>]*)>(.*?)</persona-context>\s*`)
 var sourceKindRe = lazyre.New(`\bkind="message-source"`)
-var relayTitleRe = lazyre.New(`\btitle="来自对话「(.*?)」"`)
-var relayBodyRe = lazyre.New(`^这条消息不是用户本人发的，是 Persona 的另一段对话（([^\s（）]+)）用 (conversation_send|conversation_new) 发来的，第 ([0-9]+) 跳（最多 ([0-9]+) 跳）。\n按里面说的做。要把结果告诉那段对话就用 conversation_send 发回 ([^\s；]+)；只是确认收到就不要回，免得两段对话来回发。$`)
+
+// The canonical relay context (assistant/relay.md), then the Chinese one it rendered before: transcripts keep it.
+// In both the body's groups are the sending conversation, the tool, the hop, the hop limit and the conversation to
+// answer.
+var relayTitleRe = lazyre.New(`\btitle="From the conversation “(.*?)”"`)
+var relayBodyRe = lazyre.New(`^The user did not send this message: another Persona conversation \(([^\s()]+)\) sent it with (conversation_send|conversation_new), hop ([0-9]+) of at most ([0-9]+)\.\nDo what it says\. To tell that conversation the result, send it back to ([^\s;]+) with conversation_send; do not reply just to acknowledge, so the two conversations do not message back and forth\.$`)
+var legacyRelayTitleRe = lazyre.New(`\btitle="来自对话「(.*?)」"`)
+var legacyRelayBodyRe = lazyre.New(`^这条消息不是用户本人发的，是 Persona 的另一段对话（([^\s（）]+)）用 (conversation_send|conversation_new) 发来的，第 ([0-9]+) 跳（最多 ([0-9]+) 跳）。\n按里面说的做。要把结果告诉那段对话就用 conversation_send 发回 ([^\s；]+)；只是确认收到就不要回，免得两段对话来回发。$`)
 
 type messageSourceMetadata struct {
 	proto.MessageSource
@@ -111,6 +117,10 @@ func ParseRelaySource(text string) *proto.MessageSource {
 		}
 		title := relayTitleRe.FindStringSubmatch(m[1])
 		body := relayBodyRe.FindStringSubmatch(strings.TrimSpace(m[2]))
+		if title == nil || body == nil {
+			title = legacyRelayTitleRe.FindStringSubmatch(m[1])
+			body = legacyRelayBodyRe.FindStringSubmatch(strings.TrimSpace(m[2]))
+		}
 		if title != nil && strings.Contains(m[1], `kind="context"`) && body != nil && body[1] == body[5] {
 			return &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: body[1], Title: html.UnescapeString(title[1])}
 		}

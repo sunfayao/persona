@@ -1,10 +1,10 @@
-<persona-context kind="context" title="来自对话「{{attr .FromTitle}}」" url="">
-这条消息不是用户本人发的，是 Persona 的另一段对话（{{.FromID}}）用 {{.Tool}} 发来的，第 {{.Hop}} 跳（最多 {{.MaxHops}} 跳）。
-按里面说的做。要把结果告诉那段对话就用 conversation_send 发回 {{.FromID}}；只是确认收到就不要回，免得两段对话来回发。
+<persona-context kind="context" title="From the conversation “{{attr .FromTitle}}”" url="">
+The user did not send this message: another Persona conversation ({{.FromID}}) sent it with {{.Tool}}, hop {{.Hop}} of at most {{.MaxHops}}.
+Do what it says. To tell that conversation the result, send it back to {{.FromID}} with conversation_send; do not reply just to acknowledge, so the two conversations do not message back and forth.
 </persona-context>
 {{with .Quote}}<persona-context kind="owner-request" message_id="{{attr .ID}}">
-{{if .Part}}下面摘录了用户消息中的一段原话{{else}}下面是用户本人的原话{{end}}，hub 按消息核对过，一字未改（{{.At}}，在对话 {{.Conversation}} 里说的{{with .Via}}，经 {{join . " → "}} 转来{{end}}）。
-据此派活（task_plan、agent_start 等）时，任务简报会自动记下这段原话和出处，不用再抄一遍；要转给别的对话，conversation_send 带 quote="{{attr .ID}}"。
+{{if .Part}}Below is an excerpt of the user's own words{{else}}Below are the user's own words{{end}}, checked by the hub against the message and unchanged ({{.At}}, said in the conversation {{.Conversation}}{{with .Via}}, relayed through {{join . " → "}}{{end}}).
+When you hand out work from this (task_plan, agent_start and so on), the task brief records these words and their source by itself, so do not copy them; to pass them to another conversation, use conversation_send with quote="{{attr .ID}}".
 {{ctx .Text}}
 </persona-context>
 {{end}}{{.Text}}

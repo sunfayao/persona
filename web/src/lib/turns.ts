@@ -222,13 +222,13 @@ function viewFeedbackOnly(it: Item): boolean {
 }
 
 /** The hub's mid-turn interject note (server/internal/prompts/assistant/interject.md): instructions for the model
- *  inside `<persona-context kind="context" title="插话">`, never a quote the owner picked, so it never renders as one.
+ *  inside `<persona-context kind="context" title="Interjection">`, never a quote the owner picked, so it never renders as one.
  *  The title is pinned by server/internal/node/assistant_interject_test.go. */
-const INTERJECT_TITLE = "插话"; // i18n-ignore: canonical hub prompt title
+const INTERJECT_TITLES = ["Interjection", "插话"]; // i18n-ignore: canonical hub prompt title, and the Chinese one before it
 
 /** A persona-context block that is the hub's interject note rather than user-picked context. */
 export function isInterjectContext(attrs: { kind?: string; title?: string }): boolean {
-  return (attrs.kind ?? "context") === "context" && attrs.title === INTERJECT_TITLE;
+  return (attrs.kind ?? "context") === "context" && INTERJECT_TITLES.includes(attrs.title ?? "");
 }
 
 export function parseUserText(raw: string): { text: string; contexts: Context[]; files: AttachedFile[]; photos: string[] } {

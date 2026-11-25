@@ -1387,7 +1387,7 @@ func TestAgentSendReadonlyPreservesModelResult(t *testing.T) {
 				MachineID: "server", SessionID: "conv9", Name: "agent_send",
 				Arguments: json.RawMessage(`{"machine":"box","session_id":"readonly-agent","text":"Continue"}`),
 			})
-			if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != "这个 Agent 仅支持查看："+reason {
+			if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != "this Agent is view-only: "+reason {
 				t.Fatalf("locale=%q capabilities=%+v: %+v", locale, caps, res)
 			}
 		}

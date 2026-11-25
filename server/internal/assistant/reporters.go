@@ -374,7 +374,7 @@ func (s *Service) dropQueuedSupervisionMatchingAtomic(conversation string, ids m
 				for id := range ids {
 					if strings.Contains(m.Text, id) {
 						taken = append(taken, superviseSignal{Todo: id, Kind: sigUnjudged,
-							Key: "pre-restart-" + at.UTC().Format(time.RFC3339Nano), At: at, Detail: "重启前排队的督办"}) // i18n-ignore: the supervision message is the assistant's prompt
+							Key: "pre-restart-" + at.UTC().Format(time.RFC3339Nano), At: at, Detail: "supervision queued before the restart"})
 					}
 				}
 				for _, other := range known {
@@ -382,7 +382,7 @@ func (s *Service) dropQueuedSupervisionMatchingAtomic(conversation string, ids m
 						continue
 					}
 					remaining = append(remaining, superviseSignal{Todo: other.ID, Kind: sigUnjudged,
-						Key: "pre-restart-" + at.UTC().Format(time.RFC3339Nano), At: at, Detail: "重启前排队的督办"}) // i18n-ignore: the supervision message is the assistant's prompt
+						Key: "pre-restart-" + at.UTC().Format(time.RFC3339Nano), At: at, Detail: "supervision queued before the restart"})
 				}
 			}
 		}

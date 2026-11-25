@@ -517,7 +517,7 @@ func TestAgentSendEmptyTaskIsAReply(t *testing.T) {
 			}
 			n = len(sentToAgent(f))
 			if _, err := s.runTool(ctx, "server", "conv1", "agent_send", sendArgs("ro000001", "A reply", task)); err == nil ||
-				err.Error() != "这个 Agent 仅支持查看：read only" || len(sentToAgent(f)) != n {
+				err.Error() != "this Agent is view-only: read only" || len(sentToAgent(f)) != n {
 				t.Fatalf("read-only agent: %v", err)
 			}
 			if after := taskLedger(t, s, "conv1", "conv2"); after != before {

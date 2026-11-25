@@ -46,7 +46,7 @@ type quietBook struct {
 }
 
 // noticeStates are the words for a state in the notice's "meanwhile it also…".
-var noticeStates = map[string]string{"done": "做完过一次", "needs": "等过用户", "interrupted": "被打断过", "failed": "没开起来过"}
+var noticeStates = map[string]string{"done": "finished once", "needs": "waited for the user", "interrupted": "was interrupted", "failed": "failed to start"}
 
 // quietNotify tells the main conversation about quiet task t (a no-op for any other): state, and what it asks (needs)
 // or what its agent last said (text); files: what a done turn handed over, on the conversation's computer (task_files.go).

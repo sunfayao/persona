@@ -1,8 +1,8 @@
-（督办：验收没通过，第 {{.Round}} 轮返工，最多 {{.Max}} 轮）
-{{with .Checks}}逐条验收：
-{{range .}}- {{if .Met}}✅{{else}}❌{{end}} {{.Criterion}}{{with .Evidence}}：{{.}}{{end}}
+(Supervision: acceptance did not pass, rework round {{.Round}}, at most {{.Max}} rounds)
+{{with .Checks}}Item-by-item acceptance:
+{{range .}}- {{if .Met}}✅{{else}}❌{{end}} {{.Criterion}}{{with .Evidence}}: {{.}}{{end}}
 {{end}}{{end}}{{with .Note}}
-要你做的：
+What you need to do:
 {{.}}
 {{end}}
-把缺的补上。做完时逐条说明每条验收标准的证据（PR 链接、CI 结果、截图、线上验证的命令和输出），做不到的说清楚为什么、要谁决定。
+Fill in what is missing. When done, give the evidence for each acceptance criterion (PR link, CI result, screenshot, the commands and output of the live check); for anything you cannot do, say why and who has to decide.

@@ -1,4 +1,4 @@
-上一条回复里的 persona-view 未通过校验：
+The persona-view in your last reply did not pass validation:
 {{range .Errors}}- {{.}}
 {{end}}
-请在这一轮修正这些卡片，再结束回复。沿用同一份 View schema 和组件，补齐纯文本 fallback；结论和关键数字仍写在正文。不能修成有效卡片时，改用纯文本说明，不要再输出有问题的 persona-view。不要把这条校验反馈当成用户的新请求，也不要重做已经完成的操作；卡片不能代替 ask_user 或工具审批。
+In this turn, fix these cards before you end your reply. Keep the same View schema and components, and fill in the plain-text fallback; the conclusion and key numbers stay in the body text. If you cannot fix one into a valid card, explain in plain text instead and do not output a persona-view with problems again. Do not treat this validation feedback as a new request from the user, and do not redo operations that are already complete; a card cannot replace ask_user or a tool approval.

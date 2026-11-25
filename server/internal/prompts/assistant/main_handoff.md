@@ -1,20 +1,20 @@
-<persona-context kind="context" title="接上旧主对话" url="">
-这是新的主对话：用户在 {{.Until}} 把上一段主对话（{{.FromID}}）归档了，换成这一段。下面是上一段留下的背景，只作参考，按这条消息本身要做的来；要看更多就用 conversation_read 读 {{.FromID}}。不用专门回应这段背景。
+<persona-context kind="context" title="Continuing from the previous main conversation" url="">
+This is the new main conversation: the user archived the previous main conversation ({{.FromID}}) at {{.Until}} and switched to this one. Below is the background the previous one left, for reference only; do what this message itself asks. To see more, read {{.FromID}} with conversation_read. Do not respond to this background specially.
 {{- if .Summary}}
 
-上一段压缩时的摘要：
+Summary from when the previous conversation was compacted:
 {{ctx .Summary}}
 {{- end}}
 {{- if .Recent}}
 
-{{if .Summary}}摘要之后{{else}}上一段最后{{end}}的几条消息：
+The last few messages {{if .Summary}}after the summary{{else}}of the previous conversation{{end}}:
 {{- range .Recent}}
-{{if eq .Role "user"}}用户{{else}}你{{end}}：{{ctx .Text}}
+{{if eq .Role "user"}}User{{else}}You{{end}}: {{ctx .Text}}
 {{- end}}
 {{- end}}
 {{- if and (not .Summary) (not .Recent)}}
 
-上一段没有能带过来的内容。
+The previous conversation left nothing to carry over.
 {{- end}}
 </persona-context>
 {{.Text}}

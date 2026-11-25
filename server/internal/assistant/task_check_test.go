@@ -156,7 +156,7 @@ func TestSupervisedTaskKeepsTheCheck(t *testing.T) {
 		t.Fatalf("check = %+v", c)
 	}
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "在等别人或别的事：等 App 审核") {
+	if n := f.notices()[0]; !strings.Contains(n, "waiting on someone else or something else: 等 App 审核") {
 		t.Fatalf("message:\n%s", n)
 	}
 

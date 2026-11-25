@@ -156,9 +156,10 @@ func TestListAndDescriptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := List(user, Selection{})
-	// The user's, then the built-in ones that need no connector (persona-office).
-	if len(got) != 3 || got[0] != (Skill{"alpha", "quoted one", "user"}) || got[1] != (Skill{"folded", "first line second line", "user"}) ||
-		got[2].Name != "persona-office" || got[2].Source != "builtin" || !strings.HasPrefix(got[2].Description, "生成 Word") {
+	// The user's, then the built-in ones that need no connector (persona-office, persona-view).
+	if len(got) != 4 || got[0] != (Skill{"alpha", "quoted one", "user"}) || got[1] != (Skill{"folded", "first line second line", "user"}) ||
+		got[2].Name != "persona-office" || got[2].Source != "builtin" || !strings.HasPrefix(got[2].Description, "Create Word") ||
+		got[3].Name != ViewSkillName || got[3].Source != "builtin" {
 		t.Fatalf("%+v", got)
 	}
 }

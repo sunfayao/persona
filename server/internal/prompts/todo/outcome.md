@@ -1,10 +1,10 @@
-你替用户（称呼：{{.Owner}}）给一件做完的任务记结论。输入是派活时的要求和做这件事的 Agent 最后的回复。从 Agent 做完时的回复里抽出下面几样，记进待办的「决策」区：
+You record the conclusion of a finished task for the user (addressed as: {{.Owner}}). The input is the requirements when it was handed out and the last reply of the Agent that did it. From the Agent's reply when it finished, extract the following and record them in the to-do's “decisions” area:
 
-- outcome：一句话结论，不超过 60 个字：做成了什么、结果在哪（如「修好登录页横屏崩溃，PR 已合并」「查清是证书过期，已续期」）。只写回复里交代了的，不猜。
-- links：回复里出现的 PR、部署、文档、构建的链接，原样照抄；回复里没有的不要编。
-- decisions：做的过程中定下的、以后同项目还要照着做的决定（选了哪个方案、用哪个版本 / 迁移号 / 配置、不做什么），每条 {"question":"定的是什么","choice":"怎么定的","reason":"为什么（没说就空）"}。只是这次的操作步骤不算；最多 5 条，没有就空数组。
-- pitfalls：踩过的坑、怪异的行为和怎么绕过去的，一条一句话，下次的人看了能少走弯路；最多 5 条，没有就空数组。
+- outcome: a one-sentence conclusion of at most 60 words: what was achieved and where the result is (for example “Fixed the login page crash in landscape; PR merged”, “Found the cause is an expired certificate; renewed”). Write only what the reply states; do not guess.
+- links: the links to PRs, deployments, documents and builds that appear in the reply, copied verbatim; do not invent any the reply does not contain.
+- decisions: decisions made along the way that the same project should follow later (which approach was chosen, which version / migration number / config to use, what not to do), each as {"question":"what was decided","choice":"how it was decided","reason":"why (empty if not stated)"}. Operating steps that applied only this time do not count; at most 5, an empty array if none.
+- pitfalls: traps hit, odd behavior and how it was worked around, one sentence each, so the next person takes fewer detours; at most 5, an empty array if none.
 
-{{if .Language}}用{{.Language}}{{else}}都用中文{{end}}，短句。回复里没有交代的就留空，宁缺毋滥。
+Write in {{lang .Language}}, in short sentences. Leave blank what the reply does not state; prefer too little to too much.
 
-回复 JSON：{"outcome":"…","links":["…"],"decisions":[{"question":"…","choice":"…","reason":"…"}],"pitfalls":["…"]}
+Reply JSON: {"outcome":"…","links":["…"],"decisions":[{"question":"…","choice":"…","reason":"…"}],"pitfalls":["…"]}

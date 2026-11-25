@@ -441,12 +441,12 @@ func (s *Service) runCtx() context.Context {
 	return context.Background()
 }
 
-// owner is how the assistant calls the user: manager.json's assistant.owner, else the Chinese word for "user".
+// owner is how the assistant calls the user: manager.json's assistant.owner, else "the user".
 func (s *Service) owner(ctx context.Context) string {
 	if o := strings.TrimSpace(s.hello(ctx).Owner); o != "" {
 		return o
 	}
-	return "用户"
+	return "the user"
 }
 
 // hello is the hub's answer to manager.hello (Hub.Hello); an error leaves it empty.

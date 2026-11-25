@@ -268,9 +268,6 @@ type InboxHandoffNote struct {
 }
 
 func RenderInboxHandoffNote(n InboxHandoffNote) string {
-	if n.Language == "" {
-		return render("inbox/handoff_note", n)
-	}
 	marker, err := json.Marshal(inboxMetadata{Title: n.Title})
 	if err != nil {
 		panic(err)

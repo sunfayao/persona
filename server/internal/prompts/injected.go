@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/lazyre"
@@ -18,21 +19,33 @@ import (
 // (docs/protocol/protocol.md "Messages injected by Persona"). ParseInjected reads them back off the transcript's text, so old lines are
 // known too; its tests render every template and parse the result, which keeps the two in step.
 
+// The templates are written in English. Each shape below is the one they render now; the "legacy" ones are the
+// Chinese shapes they rendered before, still read: transcripts keep them.
 var (
-	noticeHeadRe   = lazyre.New(`^🔔 任务「(.+)」(做完了|在等用户|被模型服务出错打断了|没开起来)(?:（(.+)）)?$`)
-	followupHeadRe = lazyre.New(`^⏰ (.+)（(你之前安排的跟进|定时任务(?:，每 [^）]+)?)）$`)
-	wakeHeadRe     = lazyre.New(`^⏰（Persona 叫醒你，第 \d+ 次）你上一轮停下时说在等「(.*?)」`)
-	superviseRe    = lazyre.New(`^📋 督办：你派出去的任务有 (\d+) 个要你处理$`)
-	inboxHeadRe    = lazyre.New(`^📥 收件箱事件「(.+)」有了下文$`)
-	askLaterHeadRe = lazyre.New(`^🔔 你 .+ 用 ask_user 问过用户（wait: false，当时没有等回答）：$`)
-	leadContextRe  = lazyre.New(`^(?s)\s*<persona-context\b[^>]*>.*?</persona-context>`)
+	noticeHeadRe         = lazyre.New(`^🔔 Task “(.+)” (finished|is waiting for the user|was interrupted by a model service error|did not start)(?: \((.+)\))?$`)
+	legacyNoticeHeadRe   = lazyre.New(`^🔔 任务「(.+)」(做完了|在等用户|被模型服务出错打断了|没开起来)(?:（(.+)）)?$`)
+	followupHeadRe       = lazyre.New(`^⏰ (.+) \((a follow-up you scheduled|scheduled task(?:, every [^)]+)?)\)$`)
+	legacyFollowupHeadRe = lazyre.New(`^⏰ (.+)（(你之前安排的跟进|定时任务(?:，每 [^）]+)?)）$`)
+	wakeHeadRe           = lazyre.New(`^⏰（Persona 叫醒你，第 \d+ 次）你上一轮停下时说在等「(.*?)」`)
+	superviseRe          = lazyre.New(`^📋 Supervision: (\d+) of the tasks you handed out need you$`)
+	legacySuperviseRe    = lazyre.New(`^📋 督办：你派出去的任务有 (\d+) 个要你处理$`)
+	inboxHeadRe          = lazyre.New(`^📥 收件箱事件「(.+)」有了下文$`)
+	askLaterHeadRe       = lazyre.New(`^🔔 At .+ you asked the user with ask_user \(wait: false, without waiting for the answer\):$`)
+	legacyAskLaterHeadRe = lazyre.New(`^🔔 你 .+ 用 ask_user 问过用户（wait: false，当时没有等回答）：$`)
+	leadContextRe        = lazyre.New(`^(?s)\s*<persona-context\b[^>]*>.*?</persona-context>`)
 )
 
 // noticeMarker is in every task notice (assistant/task_notice): a first line alone could be the user's.
-const noticeMarker = "这是 Persona 的任务通知"
+const (
+	noticeMarker       = "This is a Persona task notice"
+	legacyNoticeMarker = "这是 Persona 的任务通知"
+)
 
 // superviseMarker is in every supervise (follow-up) message (assistant/supervise, #3124).
-const superviseMarker = "这是 Persona 的督办消息"
+const (
+	superviseMarker       = "This is a supervision message from Persona"
+	legacySuperviseMarker = "这是 Persona 的督办消息"
+)
 
 // SuperviseRoundMarker is on its own line in a supervision message that is a round of the background supervisor starting
 // from a clean context (assistant/supervise, Fresh, #7315). The manager sends such a message as a round (IsSuperviseRound),
@@ -53,15 +66,24 @@ func IsSuperviseRound(text string) bool {
 const inboxMarker = "这是 Persona 的收件箱通知"
 
 // askLaterMarker ends every assistant/ask_later message (#4928): a first line alone could be the user's.
-const askLaterMarker = "（这是 Persona 的通知，不是用户在这里发的消息。）"
+const (
+	askLaterMarker       = "(This is a notice from Persona, not a message the user sent here.)"
+	legacyAskLaterMarker = "（这是 Persona 的通知，不是用户在这里发的消息。）"
+)
 
 // askAnswered, askExpired and askSpoke start ask_later's sections for an answered card, one that ran out and made a
-// to-do or took the defaults, and one that ran out after the user wrote in the conversation; any other ended unanswered.
-const (
-	askAnswered = "用户在卡片上回答了："
-	askExpired  = "卡片到点没人回："
-	askSpoke    = "卡片到点了，没人在卡片上回答。"
+// to-do or took the defaults, and one that ran out after the user wrote in the conversation; any other ended
+// unanswered. Each lists the current text, then the legacy one.
+var (
+	askAnswered = []string{"The user answered on the card:", "用户在卡片上回答了："}
+	askExpired  = []string{"Nobody answered the card in time:", "卡片到点没人回："}
+	askSpoke    = []string{"The card ran out with no answer on it.", "卡片到点了，没人在卡片上回答。"}
 )
+
+// hasAnyPrefix: s starts with one of prefixes.
+func hasAnyPrefix(s string, prefixes []string) bool {
+	return slices.ContainsFunc(prefixes, func(p string) bool { return strings.HasPrefix(s, p) })
+}
 
 // askAnswerCap is how many characters of the answers the line keeps.
 const askAnswerCap = 60
@@ -69,10 +91,13 @@ const askAnswerCap = 60
 // limitContinueHead starts agents/limit_continue: the manager continues an agent once its usage limit reset.
 const limitContinueHead = "⏰（Persona 叫你接着做）订阅的用量额度已经重置了"
 
-// lostTasksHead starts assistant/lost_tasks.
-const lostTasksHead = "⚠️ 运行你的 node 刚重启过"
+// lostTasksHeads start assistant/lost_tasks: the current text, then the legacy one.
+var lostTasksHeads = []string{"⚠️ The node running you was just restarted", "⚠️ 运行你的 node 刚重启过"}
 
-var noticeStates = map[string]string{"做完了": "done", "在等用户": "needs", "被模型服务出错打断了": "interrupted", "没开起来": "failed"}
+var noticeStates = map[string]string{
+	"finished": "done", "is waiting for the user": "needs", "was interrupted by a model service error": "interrupted", "did not start": "failed",
+	"做完了": "done", "在等用户": "needs", "被模型服务出错打断了": "interrupted", "没开起来": "failed",
+}
 
 var noticeLines = map[string]string{"done": "做完了", "needs": "在等你", "interrupted": "被打断了", "failed": "没开起来"}
 
@@ -98,9 +123,12 @@ func ParseInjected(text string) *proto.Injected {
 		return &proto.Injected{Kind: proto.InjectedSystem, State: "answer_again", Line: "Persona 正在补问"}
 	case strings.HasPrefix(head, "<persona-wake"):
 		return parseWakeMarker(head, rest)
-	case strings.HasPrefix(head, "🔔 任务「"):
-		m := noticeHeadRe.FindStringSubmatch(head)
-		if m == nil || !strings.Contains(rest, noticeMarker) {
+	case strings.HasPrefix(head, "🔔 Task “"), strings.HasPrefix(head, "🔔 任务「"):
+		m, marker := noticeHeadRe.FindStringSubmatch(head), noticeMarker
+		if m == nil {
+			m, marker = legacyNoticeHeadRe.FindStringSubmatch(head), legacyNoticeMarker
+		}
+		if m == nil || !strings.Contains(rest, marker) {
 			return nil
 		}
 		state := noticeStates[m[2]]
@@ -122,22 +150,28 @@ func ParseInjected(text string) *proto.Injected {
 	case strings.HasPrefix(head, "⏰ "):
 		m := followupHeadRe.FindStringSubmatch(head)
 		if m == nil {
+			m = legacyFollowupHeadRe.FindStringSubmatch(head)
+		}
+		if m == nil {
 			return nil
 		}
 		in := &proto.Injected{Kind: proto.InjectedFollowup, Title: m[1], Detail: followupDetail(rest)}
 		switch {
-		case m[2] == "你之前安排的跟进":
+		case m[2] == "a follow-up you scheduled", m[2] == "你之前安排的跟进":
 			in.State, in.Line = "once", "跟进「"+m[1]+"」到时间了"
-		case strings.HasPrefix(m[2], "定时任务，每 "):
+		case strings.HasPrefix(m[2], "scheduled task, every "), strings.HasPrefix(m[2], "定时任务，每 "):
 			in.State, in.Line = "interval", "定时任务「"+m[1]+"」开始运行"
 		default:
 			in.State, in.Line = "daily", "定时任务「"+m[1]+"」开始运行"
 		}
 		return in
-	case strings.HasPrefix(head, "📋 督办："):
+	case strings.HasPrefix(head, "📋 Supervision: "), strings.HasPrefix(head, "📋 督办："):
 		// Only hubs that write it mark it: it is not in the shared fixtures the apps' own recognition runs.
-		m := superviseRe.FindStringSubmatch(head)
-		if m == nil || !strings.Contains(rest, superviseMarker) {
+		m, marker := superviseRe.FindStringSubmatch(head), superviseMarker
+		if m == nil {
+			m, marker = legacySuperviseRe.FindStringSubmatch(head), legacySuperviseMarker
+		}
+		if m == nil || !strings.Contains(rest, marker) {
 			return nil
 		}
 		level := "triage" // Messages from before levels were added are routine triage too.
@@ -155,13 +189,14 @@ func ParseInjected(text string) *proto.Injected {
 			return nil
 		}
 		return &proto.Injected{Kind: proto.InjectedSystem, State: "inbox", Title: m[1], Line: "收件箱「" + m[1] + "」有了下文"}
-	case strings.HasPrefix(head, "🔔 你 "):
+	case strings.HasPrefix(head, "🔔 At "), strings.HasPrefix(head, "🔔 你 "):
 		// Only hubs that write it mark it: it is not in the shared fixtures the apps' own recognition runs.
-		if !askLaterHeadRe.MatchString(head) || !strings.HasSuffix(rest, askLaterMarker) {
+		if !(askLaterHeadRe.MatchString(head) && strings.HasSuffix(rest, askLaterMarker)) &&
+			!(legacyAskLaterHeadRe.MatchString(head) && strings.HasSuffix(rest, legacyAskLaterMarker)) {
 			return nil
 		}
 		return askLaterInjected(rest)
-	case strings.HasPrefix(head, lostTasksHead):
+	case hasAnyPrefix(head, lostTasksHeads):
 		n := 0
 		for _, l := range strings.Split(rest, "\n") {
 			if strings.HasPrefix(l, "- ") {
@@ -238,7 +273,7 @@ func askLaterInjected(rest string) *proto.Injected {
 	lines := strings.Split(rest, "\n")
 	for i, l := range lines {
 		switch {
-		case l == askAnswered:
+		case slices.Contains(askAnswered, l):
 			var answers []string
 			for _, l := range lines[i+1:] {
 				if strings.HasPrefix(l, "- ") {
@@ -256,7 +291,7 @@ func askLaterInjected(rest string) *proto.Injected {
 			}
 			title := clipRunes(strings.Join(answers, " · "), askAnswerCap)
 			return &proto.Injected{Kind: proto.InjectedSystem, State: "ask_answered", Title: title, Line: "你回答了：" + title}
-		case strings.HasPrefix(l, askExpired), strings.HasPrefix(l, askSpoke):
+		case hasAnyPrefix(l, askExpired), hasAnyPrefix(l, askSpoke):
 			return &proto.Injected{Kind: proto.InjectedSystem, State: "ask_expired", Line: "问题到时间了，卡片上没有回答"}
 		}
 	}

@@ -1,16 +1,16 @@
-🔔 你 {{.When}} 用 ask_user 问过用户，到点没人回，转成了待办 {{.TodoID}}。当时问的是：
+🔔 At {{.When}} you asked the user with ask_user; nobody answered in time and it became the to-do {{.TodoID}}. You asked:
 {{range .Questions}}- {{.}}
 {{end}}{{if .Dropped}}
-用户把这条待办关了，没有在待办里给答案。用户已经在对话里直接答过的，照那个答案做；没答过的，不要按其中任何一个选项去做，也别再问同一个问题，事情要是还卡在这里，简短告诉用户卡在哪。
+The user closed this to-do without giving an answer in it. Where the user already answered in the conversation, follow that answer; otherwise act on none of the options and do not ask the same question again; if things are still stuck here, tell the user briefly where.
 {{else if .Defaulted}}
-到截止时间 {{.Deadline}} 用户也没回。你当时说这件事可以撤回，所以按你推荐的默认选项执行了，已作为决定记在这条待办上：
+The user had not answered by the deadline, {{.Deadline}}. You said this could be undone, so your recommended options were taken by default and recorded on the to-do as decisions:
 {{range .Choices}}- {{with .Question}}{{.}} → {{end}}{{.Choice}}
 {{end}}
-待办已经关了。照这些默认选项接着做，并简短告诉用户：哪些是到期按默认执行的，想改可以随时说。
+The to-do is closed. Carry on with these defaults and tell the user briefly which ones were taken by default at the deadline and that they can change them at any time.
 {{else}}
-用户{{if .Thread}}在这条待办绑定的飞书话题里回复了{{else}}在这条待办里记下了决定{{end}}：
-{{range .Choices}}- {{with .Question}}{{.}} → {{end}}{{.Choice}}{{with .Reason}}（理由：{{.}}）{{end}}
+The user {{if .Thread}}replied in the Feishu topic bound to this to-do{{else}}recorded a decision on this to-do{{end}}:
+{{range .Choices}}- {{with .Question}}{{.}} → {{end}}{{.Choice}}{{with .Reason}} (reason: {{.}}){{end}}
 {{end}}
-待办已经关了。照用户的决定接着做，做了什么、还要用户做什么，简短告诉用户。{{if .Several}}当时问了几个问题，用户这次没说到的，需要的话再问（ask_user）。{{end}}
+The to-do is closed. Carry on as the user decided, and tell the user briefly what you did and what is still theirs to do.{{if .Several}} You asked several questions then; ask again (ask_user) about the ones the user did not cover, if you need them.{{end}}
 {{end}}
-（这是 Persona 的通知，不是用户在这里发的消息。）
+(This is a notice from Persona, not a message the user sent here.)

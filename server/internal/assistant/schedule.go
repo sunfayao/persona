@@ -520,7 +520,7 @@ func (s *Service) loadSchedule(ctx context.Context) *schedule {
 	upgraded := slices.Clone(sc.tasks)
 	if upgradeDefaultRoutines(upgraded) {
 		if err := s.saveLocked(sc, upgraded); err == nil {
-			s.logf("schedule: the default 早报 / 晚报 prompts brought up to date")
+			s.logf("schedule: the default morning / evening briefing prompts brought up to date")
 		}
 	}
 	return sc
@@ -729,7 +729,10 @@ func stopsAt(t Task, loc *time.Location) string {
 
 // scheduleHeader is the first line of a run's message (taskPrompt, prompts/assistant/task_run.md) and the notes under it. A patrol told to
 // "schedule the next one with the same prompt" copies them along; they are dropped so they don't pile up.
-var scheduleHeader = lazyre.New(`^(?:⏰[^\n]*（[^\n]*(?:跟进|定时任务)[^\n]*）|（本该[^\n]*）|（(?:Persona|Persona) 会[^\n]*）|（又到时间了[^\n]*）|（这个任务只在你用 notify_user[^\n]*）|（没有变化就立即结束，不做长汇报。）|（Saved state from this scheduled task[^\n]*）|（At the end of this run, if the task state changed,[^\n]*）)\s*`)
+var scheduleHeader = lazyre.New(`^(?:⏰[^\n]*\((?:a follow-up you scheduled|scheduled task[^\n)]*)\)|\(It was due at[^\n]*\)|\(Persona runs it again on time[^\n]*\)|\(It is time again[^\n]*\)|\(This task notifies the user only when you call notify_user[^\n]*\)|\(This task is set to put[^\n]*\)|` + legacyScheduleHeader + `)\s*`)
+
+// legacyScheduleHeader is the same in the Chinese the template rendered before: prompts copied along then still hold it.
+const legacyScheduleHeader = `⏰[^\n]*（[^\n]*(?:跟进|定时任务)[^\n]*）|（本该[^\n]*）|（(?:Persona|Persona) 会[^\n]*）|（又到时间了[^\n]*）|（这个任务只在你用 notify_user[^\n]*）|（没有变化就立即结束，不做长汇报。）|（Saved state from this scheduled task[^\n]*）|（At the end of this run, if the task state changed,[^\n]*）`
 
 func stripScheduleHeader(p string) string {
 	p = strings.TrimSpace(p)
@@ -749,12 +752,18 @@ func stripScheduleHeader(p string) string {
 	}
 }
 
-// everyText: "30 minutes" / "2 hours" (in Chinese).
+// everyText: "30 minutes" / "2 hours".
 func everyText(minutes int) string {
-	if minutes%60 == 0 {
-		return fmt.Sprintf("%d 小时", minutes/60)
+	if minutes == 60 {
+		return "1 hour"
 	}
-	return fmt.Sprintf("%d 分钟", minutes)
+	if minutes%60 == 0 {
+		return fmt.Sprintf("%d hours", minutes/60)
+	}
+	if minutes == 1 {
+		return "1 minute"
+	}
+	return fmt.Sprintf("%d minutes", minutes)
 }
 
 // ruleText is the schedule in words, for the tools' replies and list_followups.
@@ -1541,20 +1550,19 @@ func dropStaleUntil(t *Task, sent bool, now time.Time) {
 
 func weekdayText(ds []int) string {
 	if len(ds) == 0 || len(ds) == 7 {
-		return "每天"
+		return "every day"
 	}
 	if len(ds) == 5 && !slices.Contains(ds, 6) && !slices.Contains(ds, 7) {
-		return "工作日"
+		return "weekdays"
 	}
-	names := []string{"", "一", "二", "三", "四", "五", "六", "日"}
-	var b strings.Builder
-	b.WriteString("周")
+	names := []string{"", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+	var out []string
 	for _, d := range ds {
 		if d >= 1 && d <= 7 {
-			b.WriteString(names[d])
+			out = append(out, names[d])
 		}
 	}
-	return b.String()
+	return strings.Join(out, "/")
 }
 
 // Run runs what the assistant does on its own until ctx ends: the scheduled tasks, closing finished tasks' agents, the
@@ -2880,11 +2888,11 @@ func lateness(due, at time.Time) string {
 func humanDuration(d time.Duration) string {
 	switch {
 	case d < time.Hour:
-		return fmt.Sprintf("%d 分钟", int(d.Minutes()))
+		return fmt.Sprintf("%d min", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("%d 小时", int(d.Hours()))
+		return fmt.Sprintf("%d h", int(d.Hours()))
 	}
-	return fmt.Sprintf("%d 天", int(d.Hours()/24))
+	return fmt.Sprintf("%d days", int(d.Hours()/24))
 }
 
 // broadcastSchedule: the list changed. The scheduler re-reads it, the apps are told (event assistant_schedule) and

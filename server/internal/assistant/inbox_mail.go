@@ -85,7 +85,7 @@ func (s *Service) readMailBody(ctx context.Context, a assistantwire.InboxMailAcc
 	for _, t := range m.Cc {
 		cc = append(cc, t.Email)
 	}
-	it.Context = fmt.Sprintf("邮箱 %s 收到的未读邮件（共 %d 封，下面是最新一封）：\n发件人：%s <%s>\n收件人：%s\n抄送：%s\n时间：%s\n主题：%s\n\n%s",
+	it.Context = fmt.Sprintf("Unread mail received by mailbox %s (%d in all, the newest one below):\nFrom: %s <%s>\nTo: %s\nCc: %s\nDate: %s\nSubject: %s\n\n%s",
 		a.Email, len(it.Mail.UIDs), m.From.Name, m.From.Email, strings.Join(to, ", "), strings.Join(cc, ", "), m.Date, m.Subject, clip(text, 3000))
 	return true
 }
@@ -517,9 +517,9 @@ func mailMessages(unseen []assistantwire.InboxMailSummary, had []uint32) []Inbox
 // mailContext is the item's mails as the models read them; read: they were already read when they came.
 func mailContext(a assistantwire.InboxMailAccount, msgs []assistantwire.InboxMailSummary, read bool) string {
 	var b strings.Builder
-	head := "邮箱 %s 收到的未读邮件：\n"
+	head := "Unread mail received by mailbox %s:\n"
 	if read {
-		head = "邮箱 %s 收到的邮件（来时已读）：\n" // i18n-ignore: text for a model
+		head = "Mail received by mailbox %s (already read when it arrived):\n"
 	}
 	fmt.Fprintf(&b, head, a.Email)
 	for _, m := range msgs {
@@ -527,7 +527,7 @@ func mailContext(a assistantwire.InboxMailAccount, msgs []assistantwire.InboxMai
 		for _, t := range m.To {
 			to = append(to, t.Email)
 		}
-		fmt.Fprintf(&b, "---\n发件人：%s <%s>\n收件人：%s\n时间：%s\n主题：%s\n%s\n", m.From.Name, m.From.Email, strings.Join(to, ", "),
+		fmt.Fprintf(&b, "---\nFrom: %s <%s>\nTo: %s\nDate: %s\nSubject: %s\n%s\n", m.From.Name, m.From.Email, strings.Join(to, ", "),
 			m.Date, m.Subject, clip(oneLine(m.Snippet), inboxText))
 	}
 	return strings.TrimSpace(b.String())

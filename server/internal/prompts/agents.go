@@ -250,9 +250,11 @@ type A2AMessage struct {
 	ID, Sender, State, Text string
 	Language                string
 	Request                 bool
-	// Executable is the recipient node's program for a harness without the Persona MCP tools, encoded as a JSON string,
-	// never shell code (as TaskHandoff's, #13893): `personad` is not always on such an Agent's PATH. Empty keeps the
-	// text that says personad.
+	// MCP: the recipient is known to have the Persona MCP tools, so the note names the tool alone. Otherwise
+	// Executable is the recipient node's program for a terminal harness without them, encoded as a JSON string, never
+	// shell code (as TaskHandoff's, #13893): `personad` is not always on such an Agent's PATH. With neither known (a
+	// runtime's session), the note names the tool and the reply line that stands in for it.
+	MCP        bool
 	Executable string
 }
 

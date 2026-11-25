@@ -1,30 +1,30 @@
-任务：{{.Title}}
+Task: {{.Title}}
 
-派活时的要求：
+Requirements when it was handed out:
 {{.Prompt}}
 {{with .Asked}}
-这件事最初的要求（{{$.AskedAt}} 用户的原话；上面的「派活时的要求」可能只是后来接手时的交接说明，以原话和验收标准为准）：
+The original request (the user's own words, {{$.AskedAt}}; the “requirements when it was handed out” above may only be a hand-over note written when someone else took over, so the original words and the acceptance criteria prevail):
 {{.}}
 {{end}}{{with .Dropped}}
-范围调整时已经去掉、不再要求的标准：
+Criteria removed in a scope change and no longer required:
 {{range .}}- {{.}}
 {{end}}{{end}}{{if .Criteria}}
-当前任务的验收标准：
+Current acceptance criteria for the task:
 {{range .Criteria}}- {{.}}
 {{end}}{{end}}
-{{if eq (len .Replies) 1}}Agent 停下时最后的回复{{else}}各个 Agent 停下时最后的回复{{end}}：
+{{if eq (len .Replies) 1}}The Agent's last reply when it stopped{{else}}Each Agent's last reply when it stopped{{end}}:
 {{range .Replies}}
 --- {{.Machine}}
-{{with .From}}这一轮的发送方：{{.}}
-{{end}}{{with .Source}}这一轮的来源：{{.}}（旁路来源，不是用户对本任务的新要求）
-{{end}}{{with .Earlier}}它上一轮的回复（同一个会话里，这一轮之前）：
+{{with .From}}Sender of this turn: {{.}}
+{{end}}{{with .Source}}Source of this turn: {{.}} (a side source, not a new request from the user about this task)
+{{end}}{{with .Earlier}}Its reply in the previous turn (same session, before this turn):
 {{.}}
 
-{{end}}{{with .Ask}}这一轮收到的请求（不一定来自用户，不替代原任务）：
+{{end}}{{with .Ask}}The request received in this turn (not necessarily from the user, and it does not replace the original task):
 {{.}}
 
-它的回复：
+Its reply:
 {{end}}{{.Text}}
 {{end}}{{if or .MergedPR .Build}}
-线索（只是提示）：回复里提到了{{if .MergedPR}}已合并的 PR{{end}}{{if and .MergedPR .Build}}、{{end}}{{if .Build}}TestFlight 构建号{{end}}。
+Hints (only hints): the reply mentions {{if .MergedPR}}a merged PR{{end}}{{if and .MergedPR .Build}} and {{end}}{{if .Build}}a build number{{end}}.
 {{end}}

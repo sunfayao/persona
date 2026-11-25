@@ -159,9 +159,9 @@ func TestSilentTaskTurnIsNotShownAsDone(t *testing.T) {
 		listed  string // agents_list's
 	}{
 		{name: "the model answered nothing", kind: proto.TurnErrorNoOutput, cause: causeNoOutput, summary: interruptedSummary,
-			label: taskStateLabel("interrupted"), listed: "中断了，没做完"},
+			label: taskStateLabel("interrupted"), listed: "interrupted, not finished"},
 		{name: "its conversation was stopped", stop: true, kind: proto.TurnErrorStopped, cause: causeStopped,
-			summary: i18n.T(i18n.Default, "assistant-tasks.stopped"), label: taskStateLabel("stopped"), listed: "被停下了，没做完"},
+			summary: i18n.T(i18n.Default, "assistant-tasks.stopped"), label: taskStateLabel("stopped"), listed: "stopped, not finished"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			ft := newFleetTaskTest(t)

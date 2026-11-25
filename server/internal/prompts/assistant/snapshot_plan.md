@@ -1,1 +1,1 @@
-计划 {{.Done}}/{{.Total}}{{with .Current}}：{{.}}{{end}}
+Plan {{.Done}}/{{.Total}}{{with .Current}}: {{.}}{{end}}

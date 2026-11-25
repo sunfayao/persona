@@ -51,7 +51,7 @@ func TestFailedStartWakesTheMainConversationAtOnce(t *testing.T) {
 	if len(tasks) == 0 || tasks[0].ID != todo.ID {
 		t.Fatalf("snapshot tasks = %+v, want the failed start first", tasks)
 	}
-	if tasks[0].State != "没开起来" || !strings.Contains(tasks[0].Health, "启动失败，待你处理") {
+	if tasks[0].State != "did not start" || !strings.Contains(tasks[0].Health, "failed to start, waiting for you") {
 		t.Fatalf("snapshot task = %+v", tasks[0])
 	}
 }

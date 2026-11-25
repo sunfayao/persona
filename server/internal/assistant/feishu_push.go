@@ -256,7 +256,9 @@ func (s *Service) feishuMirror(ctx context.Context, machine, session string) {
 	if !ok {
 		return
 	}
-	if strings.Contains(asked, "title=\"飞书机器人\"") { // the context tag of the bot's messages (prompts/channels), not text for people
+	// The context tag of the bot's messages (prompts/bot/message.md), not text for people: its title now, and the
+	// Chinese one it had before.
+	if strings.Contains(asked, "title=\"Lark bot\"") || strings.Contains(asked, "title=\"飞书机器人\"") {
 		return // its own message: answered by the run
 	}
 	l := s.botLang(ctx)

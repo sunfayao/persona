@@ -7,8 +7,8 @@ import (
 
 // What only a Fresh message carries. i18n-ignore: exact generated prompt text.
 const (
-	freshHeader = "这一轮通常从干净的上下文开始"
-	lastReview  = "上次结论（"
+	freshHeader = "This round usually starts from a clean context"
+	lastReview  = "Last verdict ("
 )
 
 func background(fresh bool, entries ...SuperviseEntry) Supervise {
@@ -28,7 +28,7 @@ func TestSuperviseFreshAddsOnlyTheRoundsFacts(t *testing.T) {
 	} {
 		fresh := RenderSupervise(background(true, entry))
 		whole := RenderSupervise(background(false, entry))
-		for _, banned := range []string{"怎么处理", "task_review", "agent_send", "interaction_answer", "supervision_finish", "task_scope"} {
+		for _, banned := range []string{"Role-specific responsibilities", "task_review", "agent_send", "interaction_answer", "supervision_finish", "task_scope"} {
 			if strings.Contains(fresh, banned) {
 				t.Errorf("%s: a Fresh round carries handling policy %q:\n%s", entry.Kind, banned, fresh)
 			}
@@ -96,7 +96,7 @@ func TestSuperviseRoundMarker(t *testing.T) {
 	if !strings.HasPrefix(lines[2], freshHeader) || lines[3] != `<persona-supervision level="info" />` || lines[4] != SuperviseRoundMarker {
 		t.Fatalf("header, level tag and marker:\n%s", strings.Join(lines[:6], "\n"))
 	}
-	if !strings.Contains(text, "\n   "+lastReview+"11-14 10:20）：rework，add the tests\n") || strings.Count(text, lastReview) != 1 {
+	if !strings.Contains(text, "\n   "+lastReview+"11-14 10:20): rework, add the tests\n") || strings.Count(text, lastReview) != 1 {
 		t.Fatalf("the last review:\n%s", text)
 	}
 	if in := ParseInjected(text); in == nil || in.State != "supervise" || in.Level != "info" {

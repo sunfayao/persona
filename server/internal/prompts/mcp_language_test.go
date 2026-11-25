@@ -1,43 +1,23 @@
 package prompts
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
 )
 
-// Recorded from the unlocalized upstream tool inventory, including task_plan
-// ownership (#13362), agent_supervise leader adoption (#13357) and the Agent presets an Agent starts another on
-// (#14672). This covers the description and schema of every tool, not only a representative golden.
-func TestMCPLegacyBytes(t *testing.T) {
-	raw, err := os.ReadFile("testdata/mcp_legacy.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var expected map[string]string
-	if err := json.Unmarshal(raw, &expected); err != nil {
-		t.Fatal(err)
-	}
-	// Unified-ledger tools and a2a_read (#13831) were introduced after the frozen legacy inventory.
-	newTools := []string{"decision_record", "decisions_query", "space_state_update", "a2a_read"}
-	for _, name := range newTools {
-		if _, exists := expected[name]; exists {
-			t.Fatalf("%s is not a legacy tool", name)
-		}
-	}
-	if len(expected)+len(newTools) != len(mcpTools()) {
-		t.Fatal("legacy inventory changed; classify new tools explicitly")
-	}
-	for name, want := range expected {
-		for _, lang := range []string{"", "zh-Hans"} {
-			tool := Tool(name, lang)
-			digest := sha256.Sum256([]byte(tool.Description + "\x00" + string(tool.InputSchema)))
-			if got := hex.EncodeToString(digest[:]); got != want {
-				t.Errorf("%s/%s: legacy bytes changed", name, lang)
+// The tool inventory is English only: whatever the language, a tool's description and schema are the same bytes, except
+// that a language name printed with {{lang}} (the language an argument is written in) follows the owner's language.
+func TestMCPToolsAreLanguageIndependent(t *testing.T) {
+	for name := range mcpTools() {
+		base := Tool(name)
+		for lang, display := range map[string]string{"zh-Hans": "Simplified Chinese", "en": "English", "ja": "Japanese"} {
+			got := Tool(name, lang)
+			want := strings.ReplaceAll(base.Description, "Simplified Chinese", display)
+			wantSchema := strings.ReplaceAll(string(base.InputSchema), "Simplified Chinese", display)
+			if got.Description != want || string(got.InputSchema) != wantSchema {
+				t.Errorf("%s/%s differs from the default definition by more than the language name", name, lang)
 			}
 		}
 	}
@@ -73,13 +53,10 @@ func TestMCPLanguagesKeepSchemasAndSourceContracts(t *testing.T) {
 			if tool.Name != name || !reflect.DeepEqual(withoutDescriptions(localized), withoutDescriptions(original)) {
 				t.Errorf("%s/%s: schema contract changed", name, lang)
 			}
-			if tool.Description == Tool(name).Description {
-				t.Errorf("%s/%s has no language guidance", name, lang)
-			}
 		}
 	}
 	for _, lang := range []string{"en", "ja"} {
-		for _, prefix := range []string{"状态：", "停止：", "回答："} {
+		for _, prefix := range []string{"Status:", "Stop:", "Answer:"} {
 			if !strings.Contains(Tool("delegate_task", lang).Description, prefix) {
 				t.Errorf("%s lost %s", lang, prefix)
 			}

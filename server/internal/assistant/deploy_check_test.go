@@ -168,7 +168,7 @@ func TestMergedNotDeployedIsHeldUntilTheHubHasIt(t *testing.T) {
 	if got.Stage != "merge" {
 		t.Fatalf("stage %q: merged and not deployed is not deployed", got.Stage)
 	}
-	if line := deliverySummary(got); !strings.HasPrefix(line, "已合未上线") {
+	if line := deliverySummary(got); !strings.HasPrefix(line, "merged but not live") {
 		t.Fatalf("summary %q", line)
 	}
 	waitReportQueue(t, s)

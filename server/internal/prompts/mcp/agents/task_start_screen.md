@@ -1,4 +1,4 @@
-Read the last 30 lines of the terminal tab a task's agent did not start in, while its computer keeps that tab (a 督办 message says until when): the question the tab's shell waits on, or where the agent's own screen stopped. Only for a task of this conversation whose start is being remedied; what it shows stays here, it is not kept with the task.{{template "shared/mcp_language" .}}
+Read the last 30 lines of the terminal tab a task's agent did not start in, while its computer keeps that tab (a supervision message says until when): the question the tab's shell waits on, or where the agent's own screen stopped. Only for a task of this conversation whose start is being remedied; what it shows stays here, it is not kept with the task.
 
 ```json
 {
@@ -7,7 +7,7 @@ Read the last 30 lines of the terminal tab a task's agent did not start in, whil
   "properties": {
     "todo_id": {
       "type": "string",
-      "description": "the task's id, as the 督办 message gives it"
+      "description": "the task's id, as the supervision message gives it"
     },
     "reason": {
       "type": "string",

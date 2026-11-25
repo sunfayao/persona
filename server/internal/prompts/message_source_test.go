@@ -38,6 +38,11 @@ func TestMessageSourceText(t *testing.T) {
 
 func TestItemSourceCompatibility(t *testing.T) {
 	relay := RenderRelay(Relay{FromID: "conversation-1", FromTitle: `Research " & <result>`, Tool: "conversation_send", Hop: 1, MaxHops: 4, Text: "Read the result."})
+	// The relay header as transcripts written before the English-only prompts keep it (legacyRelayTitleRe, legacyRelayBodyRe).
+	legacyRelay := "<persona-context kind=\"context\" title=\"来自对话「Research &quot; &amp; &lt;result&gt;」\" url=\"\">\n" + // i18n-ignore: exact legacy generated template
+		"这条消息不是用户本人发的，是 Persona 的另一段对话（conversation-1）用 conversation_send 发来的，第 1 跳（最多 4 跳）。\n" + // i18n-ignore: exact legacy generated template
+		"按里面说的做。要把结果告诉那段对话就用 conversation_send 发回 conversation-1；只是确认收到就不要回，免得两段对话来回发。\n" + // i18n-ignore: exact legacy generated template
+		"</persona-context>\nRead the result."
 	base := proto.Item{Role: "user", Kind: proto.KindText}
 	tests := []struct {
 		name string
@@ -46,9 +51,11 @@ func TestItemSourceCompatibility(t *testing.T) {
 	}{
 		{"relay", proto.Item{Role: "user", Kind: proto.KindText, Text: relay}, &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: "conversation-1", Title: `Research " & <result>`}},
 		{"relay with snapshot", proto.Item{Role: "user", Kind: proto.KindText, Text: "<persona-context>snapshot</persona-context>\n" + relay}, &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: "conversation-1", Title: `Research " & <result>`}},
+		{"legacy Chinese relay", proto.Item{Role: "user", Kind: proto.KindText, Text: legacyRelay}, &proto.MessageSource{Kind: proto.SourceConversation, ConversationID: "conversation-1", Title: `Research " & <result>`}},
+		{"legacy Chinese relay with another id", proto.Item{Role: "user", Kind: proto.KindText, Text: strings.Replace(legacyRelay, "发回 conversation-1", "发回 conversation-2", 1)}, nil},
 		{"plain user", proto.Item{Role: "user", Kind: proto.KindText, Text: "Please schedule a patrol and followup."}, nil},
 		{"partial relay", proto.Item{Role: "user", Kind: proto.KindText, Text: strings.Replace(relay, "conversation_send", "another_tool", 1)}, nil},
-		{"mismatched relay id", proto.Item{Role: "user", Kind: proto.KindText, Text: strings.Replace(relay, "发回 conversation-1", "发回 conversation-2", 1)}, nil},
+		{"mismatched relay id", proto.Item{Role: "user", Kind: proto.KindText, Text: strings.Replace(relay, "send it back to conversation-1 with", "send it back to conversation-2 with", 1)}, nil},
 		{"app template", proto.Item{Role: "user", Kind: proto.KindText, Text: relay, ClientMsgID: "app-1"}, nil},
 		{"assistant quoting relay", proto.Item{Role: "assistant", Kind: proto.KindText, Text: relay}, nil},
 		{"peer remains peer", proto.Item{Role: "user", Kind: proto.KindText, From: "peer name", Text: relay}, nil},

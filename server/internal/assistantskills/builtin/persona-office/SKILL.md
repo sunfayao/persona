@@ -1,68 +1,80 @@
 ---
 name: persona-office
-description: 生成 Word（.docx）、PowerPoint（.pptx）、Excel（.xlsx）文件，或者看一个 Office 文件里有什么。用户要报告、文档、纪要、方案、演示文稿、PPT、幻灯片、表格、Excel，或者说「导出成 Word / PPT / Excel」时用。在这台机器上用 personad 生成，不需要 Office、Python 或 Node。不用于 PDF，也不改已有的 Office 文件（重新生成一个）。
+description: Create Word (.docx), PowerPoint (.pptx) and Excel (.xlsx) files, or look at what an Office file contains. Use when the user wants a report, document, minutes, proposal, presentation, slides, a spreadsheet, or says "export to Word / PPT / Excel". Files are generated on this machine with personad; Office, Python and Node are not needed. Not for PDF, and not for editing an existing Office file (generate a new one).
 ---
 
-# Office 文件（persona-office）
+# Office files (persona-office)
 
-先把内容写成 Markdown（文档、演示文稿）或 JSON / CSV（表格），再用这个 skill 目录里的 `scripts/office.sh` 转成 Office 文件。
-它调这台机器上的 `personad office`，详细说明见 Persona 仓库的 `docs/assistant/office.md`。
+Write the content as Markdown (documents, presentations) or JSON / CSV (spreadsheets), then turn it into an Office file with
+`scripts/office.sh` in this skill's directory. It calls `personad office` on this machine; details are in the Persona
+repository's `docs/assistant/office.md`.
 
-## 步骤
+## Steps
 
-1. 把内容写成文件，放在当前工作目录里（比如 `周报.md`），用到的图片放在它旁边。
-2. 生成：**一条命令只生成一个文件**，写成 `sh <这个 skill 目录的绝对路径>/scripts/office.sh docx 周报.md -o 周报.docx --title "周报"`。
-   pptx、xlsx 同理：`… pptx 发布会.md`、`… xlsx 销售.json`。不写 `-o` 就放在源文件旁边。
-   照这个样子写的命令 Persona 已经放行，不用用户批准。别用 shell 变量拼路径，也别用 `;`、`&&`、换行把几条连在一起：那样会在用户手机上弹审批卡。
-   `-o` 只能是同类的文件（`.docx` / `.pptx` / `.xlsx`）。
-3. 看命令输出的 `check`：标题、页数、每页标题、表格、公式数是不是你要的。不对就改源文件，再生成一次。
-4. 回复用户时，**单独一行写出生成文件的绝对路径**（输出里的 `file`）。Persona App 会把它显示成文件，点开就是预览，不用把内容再贴一遍。
+1. Write the content to a file in the current working directory (for example `weekly-report.md`), with any images beside it.
+2. Generate: **one command generates one file**, written as
+   `sh <absolute path of this skill's directory>/scripts/office.sh docx weekly-report.md -o weekly-report.docx --title "Weekly report"`.
+   pptx and xlsx work the same way: `… pptx launch.md`, `… xlsx sales.json`. Without `-o` the file goes beside the source.
+   Persona already allows a command written this way, with no approval from the user. Do not build the path from shell
+   variables, and do not join several commands with `;`, `&&` or a line break: that raises an approval card for the user.
+   `-o` must be a file of the same kind (`.docx` / `.pptx` / `.xlsx`).
+3. Read `check` in the command's output: are the title, page count, each page's title, the tables and the number of formulas
+   what you wanted? If not, change the source and generate again.
+4. In your reply, **put the absolute path of the generated file (`file` in the output) on a line of its own**. Persona shows it
+   as a file that opens in a preview, so do not paste the content again.
 
-想看一个已有的 Office 文件里有什么，用 `sh <这个 skill 的目录>/scripts/office.sh check <文件>`，它会列出标题、工作表、每页标题等。
+To see what an existing Office file contains, run `sh <this skill's directory>/scripts/office.sh check <file>`: it lists the
+title, the sheets, each page's title and so on.
 
-## Word（docx）：写 Markdown
+## Word (docx): write Markdown
 
-- 支持：
-  - `#` / `##` / `###` 标题，段落；**粗体**、*斜体*、`代码`、~~删除线~~、[链接](https://…)。
-  - 有序和无序列表，可以嵌套，有序列表从你写的第一个数开始。
-  - GitHub 表格：第一行是表头，`:---:` 控制对齐。
-  - 代码块、`>` 引用、`- [ ]` / `- [x]` 勾选框。
-- `---` 是分页。
-- 图片：`![说明](图片.png)`，路径相对 Markdown 文件，只认 PNG / JPEG / GIF，最宽到页面宽度。网上的图不会下载，只留说明文字。
-- 页面是 A4。正文、标题、表格、代码、引用都有统一的样式，不要自己调字号颜色：Markdown 里也调不了。
+- Supported:
+  - `#` / `##` / `###` headings and paragraphs; **bold**, *italic*, `code`, ~~strikethrough~~, [links](https://…).
+  - Ordered and unordered lists, nested too; an ordered list starts from the first number you write.
+  - GitHub tables: the first row is the header, `:---:` sets alignment.
+  - Code blocks, `>` quotes, `- [ ]` / `- [x]` checkboxes.
+- `---` is a page break.
+- Images: `![caption](image.png)`, a path relative to the Markdown file; PNG / JPEG / GIF only, at most the page's width.
+  Images on the web are not downloaded; only the caption is kept.
+- The page is A4. Body text, headings, tables, code and quotes have one consistent style; do not set font sizes or colors
+  yourself (Markdown cannot).
 
-## PowerPoint（pptx）：写 Markdown，16:9
+## PowerPoint (pptx): write Markdown, 16:9
 
-- 分页：有 `---` 就按 `---` 分页，没有就每个 `#` / `##` 开一页。每页第一个标题是这页的标题。
-- 封面：第一页只有 `#` 标题和一两段文字时，做成封面，文字是副标题。
-- 每页的要点用列表，编号列表带编号。别的段落是不带圆点的行。每页最多一张图和一个表（多的不放）：有文字时图放右边、表放下面；图和表都有时，图在右边，文字和表在左边上下排。
-- 一页别写太多：大约 3–6 个要点、每条一行。字会随文字量变小（24 → 14 磅），太挤就拆成两页。
-- 没有演讲者备注。
+- Pages: with `---`, pages break at `---`; without it every `#` / `##` starts a page. A page's first heading is its title.
+- Cover: a first page with only a `#` heading and one or two paragraphs becomes the cover, the text its subtitle.
+- Use a list for a page's points; numbered lists keep their numbers. Other paragraphs are lines without bullets. A page takes at
+  most one image and one table (more are left out): with text the image goes on the right and the table below; with both, the
+  image is on the right and the text and table stack on the left.
+- Keep a page light: about 3 to 6 points of one line each. The font shrinks with the amount of text (24 to 14 pt); when it is
+  crowded, split the page in two.
+- There are no speaker notes.
 
-## Excel（xlsx）：写 JSON 或 CSV
+## Excel (xlsx): write JSON or CSV
 
 ```json
-{"sheets":[{"name":"销售","header":["月份","收入","成本","利润","日期"],
-  "rows":[["1月",1200.5,800,"=B2-C2","2026-01-31"],
-          ["2月",1350,900,"=B3-C3","2026-02-28"],
-          ["合计","=SUM(B2:B3)","=SUM(C2:C3)","=SUM(D2:D3)",null]],
+{"sheets":[{"name":"Sales","header":["Month","Revenue","Cost","Profit","Date"],
+  "rows":[["Jan",1200.5,800,"=B2-C2","2026-01-31"],
+          ["Feb",1350,900,"=B3-C3","2026-02-28"],
+          ["Total","=SUM(B2:B3)","=SUM(C2:C3)","=SUM(D2:D3)",null]],
   "formats":["","#,##0.00","#,##0.00","#,##0.00","yyyy-mm-dd"],
   "widths":[8,12,12,12,12]}]}
 ```
 
-- 单元格可以是文字、数字、`true` / `false`、`null`（空），或者以 `=` 开头的公式。行号从 1 开始，表头是第 1 行。
-- **合计、差额、占比这类写成公式，不要自己算好再填数字**：用户改了数据，结果会跟着变。
-- 公式的值在生成时就算好写进文件，预览（包括 App 里的）能直接看到。这些都能算：
-  - `+ - * / ^ & %` 和比较；
-  - 单元格、区域，以及别的工作表：`销售!B2`，名字有空格要加引号 `'销 售'!B2`；
-  - SUM AVERAGE MIN MAX COUNT COUNTA ROUND ABS IF IFERROR AND OR NOT。
-  - 别的函数（VLOOKUP 等）也能写，只是要在 Excel / Numbers 里打开才算，预览里是空的。
-- `formats` 是按列的 Excel 数字格式（`0.00`、`#,##0`、`0%`、`yyyy-mm-dd`）。日期格式那一列写 `"2026-01-31"`，会变成真的日期。
-- 表头默认加粗并冻结（`"freeze": false` 关掉），列宽按内容自动算。
-- CSV：第一行是表头，像数字的就是数字，`007` 这样的编号保持文字。CSV 里以 `=` 开头的（表头也算）保持文字，不当公式：要公式就写 JSON。
+- A cell is text, a number, `true` / `false`, `null` (empty), or a formula starting with `=`. Rows count from 1 and the header is row 1.
+- **Write totals, differences and shares as formulas instead of computed numbers**: when the user changes the data, the results follow.
+- Formula values are computed when the file is generated and written into it, so a preview (Persona's too) shows them. These are computed:
+  - `+ - * / ^ & %` and comparisons;
+  - cells, ranges and other sheets: `Sales!B2`; a name with a space needs quotes, `'Sales 2026'!B2`;
+  - SUM AVERAGE MIN MAX COUNT COUNTA ROUND ABS IF IFERROR AND OR NOT.
+  - Other functions (VLOOKUP and so on) can be written too, but are computed only when the file is opened in Excel / Numbers; a preview shows them empty.
+- `formats` are Excel number formats per column (`0.00`, `#,##0`, `0%`, `yyyy-mm-dd`). In a date-formatted column write `"2026-01-31"`; it becomes a real date.
+- The header is bold and frozen by default (`"freeze": false` turns that off), and column widths follow the content.
+- CSV: the first row is the header; what looks like a number is a number, and an id such as `007` stays text. In a CSV, anything
+  starting with `=` (in the header too) stays text and is not a formula: write JSON when you need formulas.
 
-## 不支持
+## Not supported
 
-- 改已有的 docx / pptx / xlsx：重新生成一个。
-- PDF、图表、演讲者备注、自定义字体和主题、合并单元格、多级表头。
-- 要图表就先用别的方式画成 PNG，再放进文档或幻灯片。
+- Editing an existing docx / pptx / xlsx: generate a new one.
+- PDF, charts, speaker notes, custom fonts and themes, merged cells, multi-level headers.
+- For a chart, draw it as a PNG some other way first, then put it in the document or slide.

@@ -73,7 +73,7 @@ func FirstLine(s string) string {
 	return ""
 }
 
-// Ago is how long ago t was, in words ("just now", "5 minutes ago"… in Chinese); "" for the zero time.
+// Ago is how long ago t was, in words ("just now", "5 minutes ago"…); "" for the zero time.
 func Ago(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -81,13 +81,13 @@ func Ago(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "刚刚"
+		return "just now"
 	case d < time.Hour:
-		return fmt.Sprintf("%d 分钟前", int(d.Minutes()))
+		return fmt.Sprintf("%d minutes ago", int(d.Minutes()))
 	case d < 24*time.Hour:
-		return fmt.Sprintf("%d 小时前", int(d.Hours()))
+		return fmt.Sprintf("%d hours ago", int(d.Hours()))
 	default:
-		return fmt.Sprintf("%d 天前", int(d.Hours()/24))
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
 	}
 }
 
@@ -101,8 +101,8 @@ func Short(id string) string {
 
 // StateNames are the agent states (proto.State*) as the apps say them.
 var StateNames = map[string]string{
-	proto.StateNeedsYou: "需要你", proto.StateWorking: "工作中", proto.StateUnread: "完成未看", proto.StateIdle: "空闲",
-	proto.StateOffline: "离线", proto.StateUnknown: "未知",
+	proto.StateNeedsYou: "needs you", proto.StateWorking: "working", proto.StateUnread: "finished, unseen", proto.StateIdle: "idle",
+	proto.StateOffline: "offline", proto.StateUnknown: "unknown",
 }
 
 // AgentLabel is how an agent's session is named: its title (its directory's name while it has none), under its

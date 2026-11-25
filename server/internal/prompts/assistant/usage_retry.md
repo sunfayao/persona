@@ -1,3 +1,3 @@
 <persona-context>
-（Persona：上面的消息刚才没有送到模型。模型网关给上一轮报了一个不可能的 token 用量，Claude Code 因此误以为上下文超长，回了「Prompt is too long」；Persona 已经把那个用量修正了。请直接接着回答上面的消息，不用提这件事。）
+(Persona: the message above did not reach the model just now. The model gateway reported an impossible token usage for the previous turn, so Claude Code wrongly thought the context was too long and replied "Prompt is too long"; Persona has corrected that usage. Just go on and answer the message above, and do not mention this.)
 </persona-context>

@@ -86,11 +86,11 @@ func TestAutoFinishHoldsUndeliveredWork(t *testing.T) {
 	if got.DoneAt != nil || !got.Delivery.held() || got.Delivery.Gate != "等用户批准合并" || got.Stage != "review" {
 		t.Fatalf("held work: %+v %+v", got, got.Delivery)
 	}
-	if line := deliverySummary(got); line != "停在 PR，卡在「等用户批准合并」，要用户点头" {
+	if line := deliverySummary(got); line != "stopped at the PR, stuck at “等用户批准合并”, needs the user's nod" {
 		t.Fatalf("summary = %q", line)
 	}
 	a := s.snapshotApprovals(context.Background(), "")
-	if len(a) != 1 || a[0].ID != "todo_d" || a[0].Stage != "停在 PR" {
+	if len(a) != 1 || a[0].ID != "todo_d" || a[0].Stage != "stopped at the PR" {
 		t.Fatalf("approvals = %+v", a)
 	}
 	task := snapshotTask(got, "unread", nil, now)
@@ -159,7 +159,7 @@ func TestSupervisedUndeliveredTellsWhereItIsHeld(t *testing.T) {
 	agentTurn(s, f, proto.StatusWorking, "", 0)
 	agentTurn(s, f, proto.StatusDone, "做完了，https://github.com/o/r/pull/901 等合并\n交付：停在 PR；卡点：等用户批准合并；谁来解：用户", 0)
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
-	if n := f.notices()[0]; !strings.Contains(n, "做完了但还没上线：开了 PR（停在 PR，卡在「等用户批准合并」）") {
+	if n := f.notices()[0]; !strings.Contains(n, "finished but not live yet: 开了 PR (stopped at the PR, stuck at “等用户批准合并”)") {
 		t.Fatalf("message:\n%s", n)
 	}
 	now := todoNow(s, todo.ID)

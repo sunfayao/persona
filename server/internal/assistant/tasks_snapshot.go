@@ -202,15 +202,15 @@ func (s *Service) snapshotTasks(ctx context.Context, web string) []prompts.Snaps
 		if dismissed, err := s.decisionDismissed(ctx, t); err == nil && dismissed && !t.Delivery.waitsForOwner() {
 			// The owner chose Don't handle on this decision: not theirs to answer now, so it is not raised again. An
 			// independent delivery approval is a different owner wait and keeps both its state and its priority (#5732).
-			task.Health, rank = "你选了不处理这个决定", 6 // i18n-ignore: the snapshot's words, as taskHealth has them
+			task.Health, rank = "you chose not to handle this decision", 6
 		}
 		if v := t.Supervision; v.state(t) == reviewParked {
 			task.Health = parkedHealth(v.parked(), s.location(ctx)) // until when, in the owner's zone (parked.go)
 		}
 		if o, ok := s.orphanOf(t.ID); ok && t.DoneAt == nil {
-			task.Orphan = o.Reason   // nobody works on it any more (tasks_orphan.go)
-			if task.Health == "正常" { // i18n-ignore: the snapshot's words, as taskHealth has them
-				task.Health, rank = "没人在做", 2 // i18n-ignore: the snapshot's words
+			task.Orphan = o.Reason // nobody works on it any more (tasks_orphan.go)
+			if task.Health == "normal" {
+				task.Health, rank = "nobody is working on it", 2
 			}
 		}
 		if t.Supervision != nil {
@@ -269,7 +269,7 @@ func snapshotTask(t Todo, st string, agents []proto.Session, now time.Time) prom
 	}
 	for _, sa := range last.Subagents {
 		if sa.Running && len(task.Subagents) < 3 {
-			task.Subagents = append(task.Subagents, clip(oneLine(cmp.Or(sa.Description, sa.Type, "子任务")), 40))
+			task.Subagents = append(task.Subagents, clip(oneLine(cmp.Or(sa.Description, sa.Type, "sub-task")), 40))
 		}
 	}
 	task.Workflows = runningWorkflows(last, now)
@@ -429,13 +429,11 @@ func agentWaits(c proto.Session) bool {
 }
 
 func taskStateLabel(st string) string {
-	return map[string]string{"done": "已完成", "auto_done": "已完成（hub 判断做完了，自动关的）", "failed": "没开起来", "needs_you": "等用户",
-		"owner_wait": "等你处理", "awaiting_review": "已交付·待看", // i18n-ignore: the model reads these snapshot labels
-		"interrupted": "模型服务出错，中断了（没做完，等用户让它继续）", "unread": "已交付·待看", "working": "在做",
-		"followup": "停着", "not_started": "还没开始", "timed_out": "Timed out; Continue resumes the retained session",
-		// "cancelled" shares the ignored final line: every label here is model-read prompt text, and this keeps the
-		// hardcoded-Chinese baseline count unchanged instead of raising it.
-		// i18n-ignore: the model reads it; "stopped" is "interrupted" when Persona's Stop did it (snapshotTask)
-		"stopped":   "随对话一起被停下了（没做完：用户停了交出它的对话，它还没有任何输出；等用户让它继续）",
-		"cancelled": "已取消", "waiting": "在等（后台命令、子 Agent 或外部条件，hub 会叫醒它，不用管）", "usage_limit": "订阅的用量额度用完了，等额度重置（没做完；重置前发「继续」也会被拒）"}[st] // i18n-ignore: the model reads it
+	return map[string]string{"done": "done", "auto_done": "done (the hub judged it finished and closed it automatically)", "failed": "did not start", "needs_you": "waiting for the user",
+		"owner_wait": "waiting for you to handle it", "awaiting_review": "delivered; awaiting a look",
+		"interrupted": "interrupted by a model service error (not finished; waiting for the user to let it continue)", "unread": "delivered; awaiting a look", "working": "working",
+		"followup": "idle", "not_started": "not started yet", "timed_out": "Timed out; Continue resumes the retained session",
+		// "stopped" is "interrupted" when Persona's Stop did it (snapshotTask)
+		"stopped":   "stopped along with its conversation (not finished: the user stopped the conversation that handed it out, and it has no output yet; waiting for the user to let it continue)",
+		"cancelled": "cancelled", "waiting": "waiting (on a background command, a sub-Agent or an external condition; the hub will wake it, no action needed)", "usage_limit": "the subscription's usage quota ran out; waiting for the quota to reset (not finished; a “Continue” sent before the reset is also refused)"}[st]
 }

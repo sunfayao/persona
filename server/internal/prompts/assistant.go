@@ -409,13 +409,6 @@ type AssistantContext struct {
 
 func RenderAssistantContext(c AssistantContext) string { return render("assistant/context", c) }
 
-// SupervisorStart is the message an explicitly started background supervisor's conversation starts with
-// (assistant/supervisor_start): what it is for, before its first supervision message. Automatic replacement of a
-// legacy background supervisor stays disabled under universal main supervision (#5732).
-type SupervisorStart struct{ Owner string }
-
-func RenderSupervisorStart(d SupervisorStart) string { return render("assistant/supervisor_start", d) }
-
 // TaskRun is the message a scheduled task's run starts with (assistant/task_run).
 type TaskRun struct {
 	Label          string
@@ -553,10 +546,12 @@ func RenderEveningRoutine() string { return render("assistant/routine_evening", 
 // saved one unchanged gets the current default (assistant: upgradeDefaultRoutines). Never edited: each is what a hub
 // may hold byte for byte.
 func FormerMorningRoutines() []string {
-	return []string{render("assistant/routine_morning_former1", nil), render("assistant/routine_morning_former2", nil), render("assistant/routine_morning_former3", nil)}
+	return []string{render("assistant/routine_morning_former1", nil), render("assistant/routine_morning_former2", nil), render("assistant/routine_morning_former3", nil),
+		render("assistant/routine_morning_former4", nil)} // former4: the last Chinese default, before the prompts went English-only
 }
 func FormerEveningRoutines() []string {
-	return []string{render("assistant/routine_evening_former1", nil), render("assistant/routine_evening_former2", nil)}
+	return []string{render("assistant/routine_evening_former1", nil), render("assistant/routine_evening_former2", nil),
+		render("assistant/routine_evening_former3", nil)} // former3: the last Chinese default
 }
 
 // RenderLostTasks tells an assistant conversation that a restart stopped its background tasks (assistant/lost_tasks).
@@ -1182,7 +1177,10 @@ type Acceptance struct {
 	Links                []string // the only links it may pick
 }
 
-func RenderAcceptance() string                  { return render("assistant/acceptance", nil) }
+// RenderAcceptance takes the owner's language (AnswerLanguage): the request it writes is read by the owner.
+func RenderAcceptance(language string) string {
+	return render("assistant/acceptance", struct{ Language string }{language})
+}
 func RenderAcceptanceInput(a Acceptance) string { return render("assistant/acceptance_input", a) }
 
 // WorkspaceMention is what the assistant gets for a workspace the user @-mentioned (assistant/workspace_mention,

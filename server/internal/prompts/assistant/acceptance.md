@@ -1,8 +1,8 @@
-你替用户读一个已经部署的任务，写一张「请验收」卡片的三行，让用户不用翻记录就能自己去看、去试。
+You read a task that has already been deployed on the user's behalf and write the three lines of a “please accept” card, so the user can go and look and try it without digging through records.
 
-只回一个 JSON 对象，不要别的文字：
+Reply with a single JSON object and nothing else:
 {"changed": "...", "link": "...", "how": "..."}
 
-- changed：改了什么，一句话，30 字以内，说用户能看到的变化，不写实现细节、不写 id。
-- link：去哪看。只能从「可用的链接」里原样选一个，选最直接通到那个页面 / 视图的（不是首页、不是 PR，除非只剩 PR）；都不合适就留空。
-- how：怎么验，一两句、60 字以内：点哪里、做什么、应该看到什么。照 Agent 回复里的验证步骤写；回复里没说的不要编，写「打开链接，看上面说的变化在不在」。
+- changed: what changed, in one sentence of at most 60 characters, describing what the user can see; no implementation details, no ids. Write it in {{lang .Language}}.
+- link: where to look. Pick exactly one from "Available links", copied verbatim: the one that leads most directly to that page or view (not the home page, and not the PR unless the PR is all that is left); if none fits, leave it empty.
+- how: how to check, one or two sentences of at most 120 characters: where to click, what to do, what should be seen. Follow the verification steps in the Agent's reply; do not invent anything the reply does not say, and write “Open the link and check whether the change described above is there” instead. Write it in {{lang .Language}}.

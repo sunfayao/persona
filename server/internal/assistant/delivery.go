@@ -64,9 +64,10 @@ func deliveryClosable(state string) bool { return state == deliveryLive || state
 
 // The line an agent ends its last reply with (assistant/task_delivery).
 var (
-	deliveryLine = lazyre.New(`交付\s*[:：]\s*(已上线并实测|停在\s*PR|已合未上线|默认关待启用|不涉及上线)`)
-	gateField    = lazyre.New(`卡点\s*[:：]\s*([^；;\n]+)`)
-	unblockField = lazyre.New(`谁来解\s*[:：]\s*([^；;\n]+)`)
+	// The English words the prompt dictates now, and the Chinese ones it dictated before: stored replies hold them.
+	deliveryLine = lazyre.New(`(?i)(?:Delivery|交付)\s*[:：]\s*(live and tested|stopped at a PR|merged, not live|off by default, to be enabled|nothing to go live|已上线并实测|停在\s*PR|已合未上线|默认关待启用|不涉及上线)`)
+	gateField    = lazyre.New(`(?i)(?:blocker|卡点)\s*[:：]\s*([^；;\n]+)`)
+	unblockField = lazyre.New(`(?i)(?:unblocked by|谁来解)\s*[:：]\s*([^；;\n]+)`)
 	// Match an explicit external actor at the start of a wait, including when the judge selected user.
 	externalDeliveryWait = lazyre.New(`(?i)^(?:(?:wait(?:ing)? (?:for|on)|awaiting)\s+|(?:等待|等|待)\s*)?(?:(?:the|an?)\s+)?` + // i18n-ignore: matches the original gate text
 		`(?:deploy(?:ment)?(?: integration)?\s+agent\b|maintainers?\b|reviewers?\b|部署(?:集成)?\s*agent\b|维护者|评审人|メンテナー|レビュアー|デプロイ(?:統合)?エージェント)`) // i18n-ignore: matches the original actor name
@@ -74,8 +75,12 @@ var (
 		`(?:转(?:为)?|标记(?:为)?)\s*ready\b|(?:取消|退出)草稿|ドラフト解除`) // i18n-ignore: matches the original gate text
 )
 
-var deliveryWords = map[string]string{"已上线并实测": deliveryLive, "停在PR": deliveryPR, "已合未上线": deliveryMerged,
-	"默认关待启用": deliveryOff, "不涉及上线": deliveryNone}
+// deliveryWords are the states by their words without spaces, in lower case.
+var deliveryWords = map[string]string{
+	"liveandtested": deliveryLive, "stoppedatapr": deliveryPR, "merged,notlive": deliveryMerged,
+	"offbydefault,tobeenabled": deliveryOff, "nothingtogolive": deliveryNone,
+	"已上线并实测": deliveryLive, "停在pr": deliveryPR, "已合未上线": deliveryMerged, "默认关待启用": deliveryOff, "不涉及上线": deliveryNone,
+}
 
 // deliveryMark reads the delivery line off a reply: its state, gate and who unholds it; ok false when there is none.
 // The last such line counts.
@@ -85,7 +90,7 @@ func deliveryMark(text string) (d TodoDelivery, ok bool) {
 		if m == nil {
 			continue
 		}
-		d = TodoDelivery{State: deliveryWords[strings.Join(strings.Fields(m[1]), "")]}
+		d = TodoDelivery{State: deliveryWords[strings.ToLower(strings.Join(strings.Fields(m[1]), ""))]}
 		if g := gateField.FindStringSubmatch(line); g != nil {
 			d.Gate = noneWord(g[1])
 		}
@@ -105,7 +110,7 @@ func deliveryMark(text string) (d TodoDelivery, ok bool) {
 }
 
 func noneWord(s string) string {
-	s = strings.Trim(strings.TrimSpace(s), "「」<>")
+	s = strings.Trim(strings.TrimSpace(s), "「」<>\"“”")
 	if s == "无" || s == "没有" || strings.EqualFold(s, "none") {
 		return ""
 	}
@@ -120,7 +125,7 @@ func unblockOf(s, gate string) string {
 		return unblockOther
 	case s == "":
 		return ""
-	case s == unblockUser || strings.HasPrefix(s, "用户") || s == "你" || strings.HasPrefix(s, "你来"):
+	case s == unblockUser || strings.HasPrefix(s, "the user") || strings.HasPrefix(s, "用户") || s == "你" || strings.HasPrefix(s, "你来"):
 		return unblockUser
 	case s == unblockAgent || strings.HasPrefix(s, "agent") || strings.HasPrefix(s, "我"):
 		return unblockAgent
@@ -281,10 +286,10 @@ func (s *Service) doneNeedsDelivery(ctx context.Context) bool {
 	return s.deliveryGate(ctx) == deliveryGateLive
 }
 
-var deliveryLabels = map[string]string{deliveryPR: "停在 PR", deliveryMerged: "已合未上线", deliveryOff: "默认关待启用"}
+var deliveryLabels = map[string]string{deliveryPR: "stopped at the PR", deliveryMerged: "merged but not live", deliveryOff: "shipped off by default, awaiting enablement"}
 
-var unblockLabels = map[string]string{unblockUser: "要用户点头", unblockAgent: "Agent 自己能接着做", unblockOther: "等别人 / CI / 环境",
-	unblockSupervisor: "Agent 说要用户点头，督办还没判断，没给用户开卡"} // i18n-ignore: the snapshot's words
+var unblockLabels = map[string]string{unblockUser: "needs the user's nod", unblockAgent: "the Agent can carry on by itself", unblockOther: "waiting on someone else / CI / environment",
+	unblockSupervisor: "the Agent says it needs the user's nod; the supervisor has not judged yet and no card was opened for the user"}
 
 // currentDelivery reads the hold against the same facts for the apps and snapshot. The recorded delivery remains
 // available to the deployment checks. Review, decision and forge writes already notify clients to read the todo again.
@@ -352,10 +357,10 @@ func deliverySummary(t Todo) string {
 	}
 	out := deliveryLabels[d.State]
 	if d.Gate != "" {
-		out += "，卡在「" + d.Gate + "」"
+		out += ", stuck at “" + d.Gate + "”"
 	}
 	if u := unblockLabels[d.Unblock]; u != "" {
-		out += "，" + u
+		out += ", " + u
 	}
 	return out
 }
@@ -375,7 +380,7 @@ func (s *Service) snapshotApprovals(ctx context.Context, web string) []prompts.S
 	for _, t := range list {
 		gate := t.Delivery.Gate
 		if gate == "" {
-			gate = "等用户批准"
+			gate = "waiting for the user's approval"
 		}
 		out = append(out, prompts.SnapshotApproval{ID: t.ID, Title: clip(oneLine(t.Title), 60), Stage: deliveryLabels[t.Delivery.State],
 			Gate: clip(oneLine(gate), 60),

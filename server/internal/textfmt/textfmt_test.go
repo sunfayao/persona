@@ -42,8 +42,8 @@ func TestFormatting(t *testing.T) {
 	if got := Short("abcdef1234"); got != "abcdef12" {
 		t.Errorf("Short = %q", got)
 	}
-	if Ago(time.Time{}) != "" || Ago(time.Now()) != "刚刚" || Ago(time.Now().Add(-5*time.Minute)) != "5 分钟前" ||
-		Ago(time.Now().Add(-3*time.Hour)) != "3 小时前" || Ago(time.Now().Add(-49*time.Hour)) != "2 天前" {
+	if Ago(time.Time{}) != "" || Ago(time.Now()) != "just now" || Ago(time.Now().Add(-5*time.Minute)) != "5 minutes ago" ||
+		Ago(time.Now().Add(-3*time.Hour)) != "3 hours ago" || Ago(time.Now().Add(-49*time.Hour)) != "2 days ago" {
 		t.Error("Ago")
 	}
 	if StateNames[proto.StateNeedsYou] != "需要你" {

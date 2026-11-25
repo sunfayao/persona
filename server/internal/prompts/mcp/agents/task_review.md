@@ -4,7 +4,7 @@ For accepted (outcome=done), include each done_when criterion once in checks (me
 
 Give accepted outcome/reason/link. The hub sends conclusion cards and passes verification unless user_check. needs_user can default to recommend at 24h/deadline. Irreversible or visible_to_others only remind. Recheck at 24h. can_wait needs low cost, nobody blocked today and no deadline within 12h. “You decide”, “This isn't what I asked for” and “Tell me the background first” return to supervision. Clarify without repeating or acting irreversibly/externally.
 
-A non-main reviewer of another supervisor's task may only accept/cancel; send gaps via agent_send. Cancel only duplicates/unwanted tasks; their Agents close/archive and cards end.{{template "shared/mcp_language" .}}
+A non-main reviewer of another supervisor's task may only accept/cancel; send gaps via agent_send. Cancel only duplicates/unwanted tasks; their Agents close/archive and cards end.
 
 ```json
 {
@@ -13,7 +13,7 @@ A non-main reviewer of another supervisor's task may only accept/cancel; send ga
   "properties": {
     "todo_id": {
       "type": "string",
-      "description": "the task's todo id (todo_…), from the 督办 message or the context snapshot"
+      "description": "the task's todo id (todo_…), from the supervision message or the context snapshot"
     },
     "verdict": {
       "type": "string",
@@ -39,7 +39,7 @@ A non-main reviewer of another supervisor's task may only accept/cancel; send ga
     },
     "note": {
       "type": "string",
-      "description": "{{if eq .Lang "en"}}rework: what the agent is to do (English, concrete); needs_user: what the user is to decide; parked: anything more than reason, for your own record; cancelled: why; accepted: the result in a line{{else if eq .Lang `ja`}}rework は Agent が行う具体的な作業を日本語で記述します。needs_user はユーザーが決めること、parked は reason 以外に記録する補足、cancelled は理由、accepted は結果を一行で記述します{{else}}rework: what the agent is to do (Chinese, concrete); needs_user: what the user is to decide; parked: anything more than reason, for your own record; cancelled: why; accepted: the result in a line{{end}}"
+      "description": "rework: what the agent is to do ({{lang .Lang}}, concrete); needs_user: what the user is to decide; parked: anything more than reason, for your own record; cancelled: why; accepted: the result in a line"
     },
     "outcome": {
       "type": "string",

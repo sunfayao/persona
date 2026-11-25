@@ -1,4 +1,4 @@
-Use task_plan for code, repo research and multi-step work (one task per independent piece). Check machines_list, KB, agents_list and preferences for editable choices and one-line reasons. Read-only, user_requested and preapproved kinds start at once; others wait for 开始. Queued receipt means dispatched; check the to-do outcome and use agent_send. Tool reminders/events are separate.
+Use task_plan for code, repo research and multi-step work (one task per independent piece). Check machines_list, agents_list and preferences for editable choices and one-line reasons. Read-only, user_requested and preapproved kinds start at once; others wait for the user's Start. Queued receipt means dispatched; check the to-do outcome and use agent_send. Tool reminders/events are separate.
 
 Fixed machine_policy stays on that machine and refuses unavailable launchers; flexible moves portable work on failed health checks (explain why). Main owns its tasks: signals, cards, start remedies, review and cancellation. Check returned supervisor and similar work. Pass todo_id for caller's unassigned to-do (Lark topic, split, failed start).
 
@@ -12,7 +12,7 @@ For a saved workspace naming plan on an existing todo, select {"backend":{"opera
 
 Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}} names its branch; {"existing":"<cwd or workspace_id>","queue":true} picks one (queue:true or owner in after queues FIFO and auto-starts when free; else busy refuses with owner); "none" creates nothing. Omitted: readonly uses none; writable Git follows assistant.task_workspace_preference (prefer-existing default, prefer-new to isolate), busy cwd uses new. Explicit existing never switches silently. Reusing explicit new branch needs clean checkout, no live Agent and no open owner, else refuse with path/owner. Engine owns creation/registration; never run git worktree add. Card previews editable path before Start. Default branch: task/<todo id>. Failed creation starts no Agent; workspaces stay after acceptance. Follow org read-only refusals; never retry unchanged.
 
-`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply. Only an immediately dispatchable single-task plan waits; approval cards and multi-task plans return immediately.{{template "shared/mcp_language" .}}
+`wait_seconds` observes up to 50 seconds after dispatch, appending `Inline observation` JSON: `completed`(this input's `reply`), `question`(pending `interaction_id`), `timeout`/`cancelled`/`unavailable`/`interrupted`/`failed`, with known input/session ids. Observation never answers questions, accepts tasks, resends or cancels work; normal supervision/`task_review` applies. Older nodes may time out rather than return an unrelated reply. Only an immediately dispatchable single-task plan waits; approval cards and multi-task plans return immediately.
 
 ```json
 {
@@ -49,12 +49,12 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
         "properties": {
           "title": {
             "type": "string",
-            "description": "{{if eq .Lang "en"}}Card title in English, under 20 characters.{{else if eq .Lang "ja"}}カードに表示する日本語のタイトル（20文字未満）。{{else}}Card title in Chinese, under 20 characters.{{end}}"
+            "description": "Card title in {{lang .Lang}}, under 20 characters."
           },
-          "context": {"type": "string", "description": "facts the manager cannot resolve; omit project background"},
+          "context": {"type": "string", "description": "facts the manager cannot resolve"},
           "prompt": {
             "type": "string",
-            "description": "goal, authorization bounds and new facts; the manager adds project context, criteria and framework rules once"
+            "description": "goal, authorization bounds and new facts; the manager adds criteria and framework rules once"
           },
           "machine": {
             "type": "string",
@@ -114,7 +114,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
           },
           "readonly": {
             "type": "boolean",
-            "description": "true only for a task that must remain read-only; false for explicitly authorized file changes (see the description). The first message adds「本任务只读：不改项目文件、不提交、不对外写入」 only when true"
+            "description": "true only for a task that must remain read-only; false for explicitly authorized file changes (see the description). The first message adds “This task is read-only: do not change project files, commit, or write to external systems.” only when true"
           },
           "user_requested": {
             "type": "boolean",
@@ -122,7 +122,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
           },
           "why": {
             "type": "string",
-            "description": "{{if eq .Lang "en"}}One-line reason in English for the machine, directory and model.{{else if eq .Lang "ja"}}コンピュータ、ディレクトリ、モデルを選ぶ理由を日本語で一行に記述します。{{else}}Chinese one-line reason for machine, directory and model.{{end}}"
+            "description": "One-line reason in {{lang .Lang}} for the machine, directory and model."
           },
           "done_when": {
             "type": "array",
@@ -130,11 +130,11 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
             "items": {
               "type": "string"
             },
-            "description": "{{if eq .Lang "en"}}Checkable acceptance results in English, one per entry, shared with the Agent. Nonempty for writable tasks; ignored with continues.{{else if eq .Lang "ja"}}Agent に伝える確認可能な完了条件を日本語で一項目ずつ記述します。書き込み可能なタスクは一つ以上必須です。continues 指定時は無視されます。{{else}}Chinese checkable acceptance results told to Agent, one per entry. Nonempty for writable tasks; ignored with continues.{{end}}"
+            "description": "Checkable acceptance results in {{lang .Lang}}, one per entry, shared with the Agent. Nonempty for writable tasks; ignored with continues."
           },
           "goal": {
             "type": "string",
-            "description": "{{if eq .Lang "en"}}Owner's one-line outcome in English. Required for read-only tasks; writable tasks default to the title.{{else if eq .Lang "ja"}}ユーザーが得る結果を日本語で一行に記述します。読み取り専用タスクでは必須です。書き込み可能なタスクで省略した場合はタイトルを使います。{{else}}Owner's one-line Chinese outcome. Required read-only; writable defaults to title.{{end}}"
+            "description": "Owner's one-line outcome in {{lang .Lang}}. Required for read-only tasks; writable tasks default to the title."
           },
           "out_of_bounds": {
             "type": "array",
@@ -142,7 +142,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
             "items": {
               "type": "string"
             },
-            "description": "{{if eq .Lang "en"}}Optional forbidden actions or areas in English, one per entry.{{else if eq .Lang "ja"}}任意の禁止事項や対象外の範囲を日本語で一項目ずつ記述します。{{else}}Optional forbidden actions/areas, in Chinese, one per entry.{{end}}"
+            "description": "Optional forbidden actions or areas in {{lang .Lang}}, one per entry."
           },
           "continues": {
             "type": "string",
@@ -158,7 +158,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
           },
           "started_why": {
             "type": "string",
-            "description": "If not just owner-requested (own idea, 督办 or routine): one-line start reason saved in brief."
+            "description": "If not just owner-requested (own idea, supervision or routine): one-line start reason saved in brief."
           },
           "attachments": {
             "type": "array",
@@ -198,7 +198,7 @@ Workspace policy: "new" isolates a checkout; {"new":{"branch":"task/my-change"}}
           },
           "tier": {
             "type": "string",
-            "description": "Agent preset from the snapshot's 模型档位 line; choose by purpose; resolved at task start with its profile; explicit launcher/model/effort/speed overrides"
+            "description": "Agent preset from the snapshot's Model profile line; choose by purpose; resolved at task start with its profile; explicit launcher/model/effort/speed overrides"
           },
           "speed": {
             "type": "string",

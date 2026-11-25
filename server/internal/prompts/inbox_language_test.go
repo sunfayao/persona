@@ -8,13 +8,11 @@ import (
 )
 
 func TestInboxDirectMailPutsContextOnItsOwnLine(t *testing.T) {
-	for _, tc := range []struct{ language, label string }{
-		{"English", "Type: email sent directly to the user"},
-		{"日本語", "種類：ユーザー宛てのメール"},
-	} {
-		t.Run(tc.language, func(t *testing.T) {
-			text := RenderInboxItem(InboxItem{Language: tc.language, Kind: "mail", MailDirect: true, Context: "Sample mail body"})
-			if !strings.HasPrefix(text, tc.label+"\n") || !strings.Contains(text, "Sample mail body") {
+	const label = "Type: email sent directly to the user"
+	for _, language := range []string{"English", "日本語"} {
+		t.Run(language, func(t *testing.T) {
+			text := RenderInboxItem(InboxItem{Language: language, Kind: "mail", MailDirect: true, Context: "Sample mail body"})
+			if !strings.HasPrefix(text, label+"\n") || !strings.Contains(text, "Sample mail body") {
 				t.Fatalf("direct-mail context is missing or joined to the label: %q", text)
 			}
 		})

@@ -46,7 +46,7 @@ func TestSupervisedJudgeServiceErrorRetriesThenReportsOnce(t *testing.T) {
 		t.Fatalf("model calls = %d, want two immediate plus four deferred (6)", got)
 	}
 	n := entryLine(f.notices()[0])
-	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "判定服务出错（自动重判 4 次仍失败）") {
+	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "the judge service failed (still failing after 4 automatic re-judgments)") {
 		t.Fatalf("the exhausted signal does not name the service failure and retries:\n%s", n)
 	}
 	before := f.judged
@@ -116,7 +116,7 @@ func TestSupervisedJudgeTimeoutUsesDeferredRetry(t *testing.T) {
 	if got := f.judged; got != 5 {
 		t.Fatalf("model calls = %d, want one initial plus four deferred (5)", got)
 	}
-	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=unjudged") || !strings.Contains(got, "判定服务出错（自动重判 4 次仍失败）") {
+	if got := entryLine(f.notices()[0]); !strings.Contains(got, "signal=unjudged") || !strings.Contains(got, "the judge service failed (still failing after 4 automatic re-judgments)") {
 		t.Fatalf("the exhausted timeout was mislabeled:\n%s", got)
 	}
 }
@@ -133,7 +133,7 @@ func TestSupervisedJudgeUnsureStillReportsImmediately(t *testing.T) {
 		t.Fatalf("a valid unsure judgment made %d model calls, want 1", got)
 	}
 	waitFor(t, "the immediate unjudged signal", func() bool { return len(f.notices()) == 1 })
-	if got := entryLine(f.notices()[0]); !strings.Contains(got, "看不出做没做完") || strings.Contains(got, "判定服务出错") {
+	if got := entryLine(f.notices()[0]); !strings.Contains(got, "cannot tell whether it is finished") || strings.Contains(got, "the judge service failed") {
 		t.Fatalf("a valid unsure judgment was mislabeled:\n%s", got)
 	}
 }

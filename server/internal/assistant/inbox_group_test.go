@@ -334,7 +334,7 @@ func TestInboxGroupReasksAnInvalidAnswer(t *testing.T) {
 	for _, tc := range []struct {
 		name, reply, problem string
 	}{
-		{name: "validation", reply: badAnswer, problem: "消息 m1061 没有归到事件"},
+		{name: "validation", reply: badAnswer, problem: "no event assigned to message(s) m1061"},
 		{name: "not JSON", reply: "not JSON", problem: ai.ErrNoObject.Error()},
 		{name: "decode", reply: `{"assign":[}`},
 	} {
@@ -1272,7 +1272,7 @@ func TestInboxGroupToolMissing(t *testing.T) {
 	h.collectInbox(context.Background(), roundPoll)
 	h.waitGrouping()
 	calls := model.asked()
-	if g.tools != 1 || len(calls) != 2 || !strings.Contains(calls[1].User, "这个工具用不了") {
+	if g.tools != 1 || len(calls) != 2 || !strings.Contains(calls[1].User, "this tool is unavailable") {
 		t.Fatalf("%d tool call(s), %d model call(s)", g.tools, len(calls))
 	}
 	if h.inbox.items["examplechat:chat:C1#m3"] == nil {

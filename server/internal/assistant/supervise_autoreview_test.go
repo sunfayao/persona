@@ -353,11 +353,11 @@ func TestAutoReviewTickEndsAndTimesOut(t *testing.T) {
 
 	s2, f2, todo2, _ := supervisedReview(t)
 	s2.autoReviewTick(ctx, time.Now().Add(31*time.Minute))
-	if v := todoNow(s2, todo2.ID).Supervision; v.State != reviewPending || v.AutoReview.State != autoFailed || v.AutoReview.Error != "评审超时" {
+	if v := todoNow(s2, todo2.ID).Supervision; v.State != reviewPending || v.AutoReview.State != autoFailed || v.AutoReview.Error != "Review timed out" {
 		t.Fatalf("past the deadline: %q %+v", v.State, v.AutoReview)
 	}
 	waitFor(t, "the supervisor's message", func() bool { return len(f2.notices()) == 1 })
-	if msg := f2.notices()[0]; !strings.Contains(msg, "signal=review") || !strings.Contains(msg, "没评审成（评审超时）") {
+	if msg := f2.notices()[0]; !strings.Contains(msg, "signal=review") || !strings.Contains(msg, "the review did not complete (Review timed out)") {
 		t.Fatalf("message:\n%s", msg)
 	}
 }
@@ -385,11 +385,11 @@ func TestAutoReviewStartFailures(t *testing.T) {
 		name, want string
 		breakIt    func(f *fakeHub)
 	}{
-		{"no copy", "没能为评审建一份改动的副本", func(f *fakeHub) {
+		{"no copy", "Could not make a copy of the change for the review", func(f *fakeHub) {
 			f.nodes["worktree.snapshot"] = func(string, json.RawMessage) (any, error) { return nil, fmt.Errorf("unknown method worktree.snapshot") }
 		}},
-		{"no reviewer", "评审员没开起来", func(f *fakeHub) { f.failStart = fmt.Errorf("launcher not found") }},
-		{"no change", "没有可评审的代码改动", func(f *fakeHub) {
+		{"no reviewer", "The reviewer did not start", func(f *fakeHub) { f.failStart = fmt.Errorf("launcher not found") }},
+		{"no change", "No code change to review", func(f *fakeHub) {
 			f.nodes["git.review"] = func(string, json.RawMessage) (any, error) { return proto.GitReview{Scope: proto.ReviewBranch}, nil }
 		}},
 	} {

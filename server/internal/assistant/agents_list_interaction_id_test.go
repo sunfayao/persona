@@ -34,7 +34,7 @@ func TestAgentsListKeepsInteractionIDPastLongPendingText(t *testing.T) {
 			s := newStorelessService(t, f)
 
 			got := s.describeAgents(context.Background(), proto.StateNeedsYou, "", "")
-			const head = "    等你：" // i18n-ignore: agents_list output for the model
+			const head = "    waiting for you: "
 			var line string
 			for _, l := range strings.Split(got, "\n") {
 				if strings.HasPrefix(l, head) {

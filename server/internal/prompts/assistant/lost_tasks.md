@@ -1,3 +1,3 @@
-⚠️ 运行你的 node 刚重启过（换了版本，或者这台电脑没有常驻 node、hub 重启连带停了它），这段对话里还在跑的后台任务 / 监控随进程一起停了：
+⚠️ The node running you was just restarted (a new version, or this computer has no standing node and a hub restart stopped it), so the background tasks and monitors still running in this conversation stopped with the process:
 - {{join .Tasks "\n- "}}
-还需要的就重新启动（命令可能只跑了一半，重跑前先看看输出）；不需要了就简短说一句，不用推送。
+Start again what you still need (a command may have run halfway: read its output before rerunning); for what you no longer need, say so briefly, without a notification.

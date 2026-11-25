@@ -200,7 +200,7 @@ func TestSupervisedTaskRound(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "两种走法：A 先灰度，B 直接全量。你选一个？", 0)
 	waitFor(t, "the message", func() bool { return len(f.notices()) == 1 })
 	n := f.notices()[0]
-	for _, want := range []string{"📋 督办", "Agent 停下了，但没做完（要用户决定：问用两种部署走法里的哪一种）", "验收标准：PR 合并到 master；浅色 / 深色截图贴进 PR",
+	for _, want := range []string{"📋 督办", "Agent 停下了，但没做完(needs the user to decide: 问用两种部署走法里的哪一种)", "验收标准：PR 合并到 master；浅色 / 深色截图贴进 PR",
 		"A 先灰度，B 直接全量", "signal=idle"} {
 		if !strings.Contains(n, want) {
 			t.Errorf("message lacks %q:\n%s", want, n)
@@ -346,7 +346,7 @@ func TestDigestBatches(t *testing.T) {
 	f.setSessions("server", idle)
 	s.drainRelays("server", []proto.Session{idle})
 	waitFor(t, "the merged message", func() bool { return len(f.notices()) == 2 })
-	if n := f.notices()[1]; !strings.Contains(n, "25 分钟没有进展") || !strings.Contains(n, "Agent 停下了，但没做完（没做完）") {
+	if n := f.notices()[1]; !strings.Contains(n, "25 分钟没有进展") || !strings.Contains(n, "Agent 停下了，但没做完(not finished)") {
 		t.Fatalf("merged:\n%s", n)
 	}
 }
@@ -360,15 +360,15 @@ func TestTaskHealth(t *testing.T) {
 		want   string
 	}{
 		{Todo{}, nil, ""},
-		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "正常"},
-		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now.Add(-25 * time.Minute)}}, "卡住 25 分钟"},
-		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateNeedsYou, StateSince: now.Add(-5 * time.Minute)}}, "等回答 5 分钟"},
-		{Todo{Supervision: &Supervision{State: reviewPending}}, nil, "已交付·待看"},
-		{Todo{Supervision: &Supervision{State: reviewRework, Round: 2}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "返工第 2 轮"},
-		{Todo{Supervision: &Supervision{State: reviewNeedsUser}}, nil, "等你处理"},
-		{Todo{Supervision: &Supervision{State: reviewAccepted}, DoneAt: &done}, nil, "已验收"},
-		{Todo{Supervision: &Supervision{State: reviewAccepted}}, nil, "正常"}, // reopened by the user
-		{Todo{Supervision: &Supervision{Waits: &OwnerWait{At: now}}}, nil, "停下等用户拍板，别直接验收"},
+		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "normal"},
+		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now.Add(-25 * time.Minute)}}, "stuck for 25 分钟"},
+		{Todo{Supervision: &Supervision{}}, []proto.Session{{State: proto.StateNeedsYou, StateSince: now.Add(-5 * time.Minute)}}, "waiting for an answer 5 分钟"},
+		{Todo{Supervision: &Supervision{State: reviewPending}}, nil, "delivered; awaiting a look"},
+		{Todo{Supervision: &Supervision{State: reviewRework, Round: 2}}, []proto.Session{{State: proto.StateWorking, UpdatedAt: now}}, "rework round 2"},
+		{Todo{Supervision: &Supervision{State: reviewNeedsUser}}, nil, "waiting for you to handle it"},
+		{Todo{Supervision: &Supervision{State: reviewAccepted}, DoneAt: &done}, nil, "accepted"},
+		{Todo{Supervision: &Supervision{State: reviewAccepted}}, nil, "normal"}, // reopened by the user
+		{Todo{Supervision: &Supervision{Waits: &OwnerWait{At: now}}}, nil, "stopped waiting for the user's call; do not accept it directly"},
 	} {
 		if got, _ := taskHealth(c.todo, c.agents, now); got != c.want {
 			t.Errorf("%+v: %q, want %q", c.todo.Supervision, got, c.want)
@@ -390,7 +390,7 @@ func TestDuplicateHints(t *testing.T) {
 		{MachineID: "mac", SessionID: "yyy", Cwd: "/code/app", Title: "侧边栏扩展页面", State: proto.StateIdle},
 	}
 	got := strings.Join(duplicateHints(task, todos, sessions), "\n")
-	for _, want := range []string{"任务「iPad 侧边栏」（t1）也提到 #2813", "任务「iOS 侧边栏显示扩展的页面」（t2）标题相近", "Agent「侧边栏扩展页面」"} {
+	for _, want := range []string{"task “iPad 侧边栏” (t1) also mentions #2813", "task “iOS 侧边栏显示扩展的页面” (t2) has a similar title", "the Agent “侧边栏扩展页面”"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("lacks %q:\n%s", want, got)
 		}
@@ -414,7 +414,7 @@ func TestTaskPlanSaysDuplicates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(res, "Possible duplicates") || !strings.Contains(res, "「修登录崩溃」可能和这些重复") {
+	if !strings.Contains(res, "Possible duplicates") || !strings.Contains(res, "“修登录崩溃” may duplicate these") {
 		t.Fatalf("result: %s", res)
 	}
 	waitFor(t, "the task", func() bool { return todoCount(s) == 1 })

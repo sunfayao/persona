@@ -79,7 +79,7 @@ func (s *Service) handOverTask(ctx context.Context, t Todo, from, to string, hel
 		case changed:
 			moved, supervised = true, true
 			if pending { // the old conversation was told; the new one has not been
-				s.signal(superviseSignal{Todo: t.ID, Kind: sigReview, Key: reviewKey(&v), Detail: "主对话换了，这个任务转给你验收"}) // i18n-ignore: the supervision message is the assistant's prompt
+				s.signal(superviseSignal{Todo: t.ID, Kind: sigReview, Key: reviewKey(&v), Detail: "the main conversation changed; this task is handed to you for review"})
 			}
 		}
 	}

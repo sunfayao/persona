@@ -35,7 +35,7 @@ func TestInboxGroupSelfLines(t *testing.T) {
 	if !strings.Contains(lower, "assign") {
 		t.Errorf("the marker's line does not say the lines must not go into assign: %q", para)
 	}
-	if !strings.Contains(para, "不要归类") {
+	if !strings.Contains(para, "never classify") {
 		t.Errorf("the marker's line does not say the lines are not grouped: %q", para)
 	}
 }

@@ -56,24 +56,24 @@ func TestSnapshotTasksUseDeliveryAndOwnerWaitStates(t *testing.T) {
 		return out
 	}
 	got := byID()
-	if got[delivered.ID].State != "已交付·待看" || got[delivered.ID].Health != "已交付·待看" {
+	if got[delivered.ID].State != "delivered; awaiting a look" || got[delivered.ID].Health != "delivered; awaiting a look" {
 		t.Fatalf("pending review projection = %+v", got[delivered.ID])
 	}
-	if got[live.ID].State != "已交付·待看" || got[live.ID].Health != "已交付·待看" {
+	if got[live.ID].State != "delivered; awaiting a look" || got[live.ID].Health != "delivered; awaiting a look" {
 		t.Fatalf("unaccepted live projection = %+v", got[live.ID])
 	}
 
 	if _, _, err := s.updateSupervision(ctx, delivered.ID, func(v *Supervision) bool { v.State = reviewNeedsUser; return true }); err != nil {
 		t.Fatal(err)
 	}
-	if got := byID()[delivered.ID]; got.State != "等你处理" || got.Health != "等你处理" {
+	if got := byID()[delivered.ID]; got.State != "waiting for you to handle it" || got.Health != "waiting for you to handle it" {
 		t.Fatalf("owner-wait projection = %+v", got)
 	}
 	if _, err := runJSON(t, s, "conv1", "task_review", map[string]any{"todo_id": delivered.ID, "verdict": "accepted", "note": "verified",
 		"checks": completeReviewChecks(todoNow(s, delivered.ID))}); err != nil {
 		t.Fatal(err)
 	}
-	if got := byID()[delivered.ID]; got.State != "已完成" || got.Health != "已验收" {
+	if got := byID()[delivered.ID]; got.State != "done" || got.Health != "accepted" {
 		t.Fatalf("accepted projection = %+v", got)
 	}
 }
@@ -85,17 +85,17 @@ func TestSnapshotDecisionDismissalKeepsIndependentDeliveryApproval(t *testing.T)
 	e := dismissalEnv(t, &memStore{}, at, true)
 	e.s.todos.todos["task"].Origin = "conv1"
 	ctx := context.Background()
-	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "等你处理" {
+	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "waiting for you to handle it" {
 		t.Fatalf("undismissed control = %+v, want owner wait", got)
 	}
 	dismissReview(t, e, at)
-	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "还没开始" || got.Health != "你选了不处理这个决定" {
+	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "not started yet" || got.Health != "you chose not to handle this decision" {
 		t.Fatalf("dismissed review projection = %+v", got)
 	}
 	e.s.todos.mu.Lock()
 	e.s.todos.todos["task"].Delivery = &TodoDelivery{State: deliveryPR, Gate: "Approve the release", Unblock: unblockUser, At: time.Now()}
 	e.s.todos.mu.Unlock()
-	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "等你处理" || got.Health != "等你处理" {
+	if got := snapshotStatesForTest(e.s, ctx)["task"]; got.State != "waiting for you to handle it" || got.Health != "waiting for you to handle it" {
 		t.Fatalf("independent delivery approval was dismissed with the review: %+v", got)
 	}
 }
@@ -140,8 +140,8 @@ func TestSnapshotAcceptedOpenConcernDoesNotComplete(t *testing.T) {
 	}
 	for _, task := range s.snapshotTasks(ctx, "") {
 		if task.ID == todo.ID {
-			if task.State != "还没开始" || task.Health != "正常" {
-				t.Fatalf("accepted open concern projection = %+v, want State 还没开始 and Health 正常", task)
+			if task.State != "not started yet" || task.Health != "normal" {
+				t.Fatalf("accepted open concern projection = %+v, want State not started yet and Health normal", task)
 			}
 			return
 		}
@@ -186,16 +186,16 @@ func TestSnapshotReopenedAcceptedLiveDoesNotAwaitReview(t *testing.T) {
 	s.setTaskDelivery(ctx, ordinary.ID, TodoDelivery{State: deliveryLive, At: time.Now()})
 
 	got := snapshotStatesForTest(s, ctx)
-	if got[accepted.ID].State != "已完成" || got[accepted.ID].Health != "正常" {
+	if got[accepted.ID].State != "done" || got[accepted.ID].Health != "normal" {
 		t.Fatalf("reopened accepted live projection = %+v, want completed/normal", got[accepted.ID])
 	}
-	if got[ordinary.ID].State != "已交付·待看" || got[ordinary.ID].Health != "已交付·待看" {
+	if got[ordinary.ID].State != "delivered; awaiting a look" || got[ordinary.ID].Health != "delivered; awaiting a look" {
 		t.Fatalf("ordinary unaccepted live control = %+v", got[ordinary.ID])
 	}
 
 	// Acceptance files only work at rest; a new working stretch stays active.
 	f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Status: proto.StatusWorking, State: proto.StateWorking, UpdatedAt: time.Now()})
-	if got := snapshotStatesForTest(s, ctx)[accepted.ID]; got.State != "在做" || got.Health != "正常" {
+	if got := snapshotStatesForTest(s, ctx)[accepted.ID]; got.State != "working" || got.Health != "normal" {
 		t.Fatalf("reopened accepted working control = %+v", got)
 	}
 	f.setSessions("box", proto.Session{SessionID: "s1", MachineID: "box", Status: proto.StatusDone, State: proto.StateUnread, UpdatedAt: time.Now()})
@@ -206,7 +206,7 @@ func TestSnapshotReopenedAcceptedLiveDoesNotAwaitReview(t *testing.T) {
 	if acceptanceStands(todoNow(s, accepted.ID)) {
 		t.Fatal("a newer review left the old acceptance standing")
 	}
-	if got := snapshotStatesForTest(s, ctx)[accepted.ID]; got.State != "已交付·待看" || got.Health != "已交付·待看" {
+	if got := snapshotStatesForTest(s, ctx)[accepted.ID]; got.State != "delivered; awaiting a look" || got.Health != "delivered; awaiting a look" {
 		t.Fatalf("newer-review live control = %+v", got)
 	}
 }
@@ -258,11 +258,11 @@ func TestSnapshotOrdinarySeenFinishedTurnIsDone(t *testing.T) {
 	f.setSessions("box", sessions...)
 
 	got := snapshotStatesForTest(s, ctx)
-	if got[seen.ID].State != "已完成" || got[seen.ID].Health != "" {
+	if got[seen.ID].State != "done" || got[seen.ID].Health != "" {
 		t.Fatalf("ordinary Seen projection = %+v, want completed", got[seen.ID])
 	}
 	for _, todo := range []Todo{unseen, pending, supervised, stale, live} {
-		if got[todo.ID].State != "已交付·待看" {
+		if got[todo.ID].State != "delivered; awaiting a look" {
 			t.Fatalf("%s control = %+v, want awaiting review", todo.Title, got[todo.ID])
 		}
 	}

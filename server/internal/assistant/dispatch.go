@@ -253,7 +253,7 @@ func (s *Service) dispatchStart(ctx context.Context, machine, session string, ar
 	}
 	if tracker != nil {
 		launcher, _ := params["launcher"].(string)
-		message.Executable = s.a2aLaunchExecutable(sctx, am.ID, launcher) // a2a_entry.go
+		s.a2aLaunchEntry(sctx, am.ID, launcher).lay(&message) // a2a_entry.go
 		params["prompt"] = a2aRelay(message, source, a2aDeliveryID(tracker.task.ID, 1))
 	}
 	note := ""

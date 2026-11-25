@@ -1,5 +1,6 @@
-# 内置 skill
+# Built-in skills
 
-每个子目录是一个随 personad 发布的 skill。只放 Persona 能再分发的（许可证允许、我们自己写的），并登记在 `embed.go` 的
-`Redistributable` 里（`TestBuiltinsAreRedistributable` 守着）。从别处拷来、不能再分发的（比如飞书网关的 skill）放用户自己的空间
-`~/.persona/skills/`（`docs/operations/hub-update.md`「Skills move out of the binary」），仓库里的副本在 `skills/`。
+Each subdirectory is a skill shipped with personad. Only skills Persona may redistribute go here (the license allows it, or we
+wrote them), each registered in `Redistributable` in `embed.go` (`TestBuiltinsAreRedistributable` guards it). A skill copied
+from elsewhere that may not be redistributed belongs in the user's own space, `~/.persona/skills/`
+(`docs/operations/hub-update.md`, "Skills move out of the binary").

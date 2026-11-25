@@ -78,20 +78,20 @@ type AutoReview struct {
 }
 
 // Why a run failed or was cancelled, and what the supervisor hears when its rework did not reach the agent: model
-// input (the supervisor's message, prompts/assistant/supervise.md), Chinese like it, and not shown to people as is.
+// input (the supervisor's message, prompts/assistant/supervise.md), English like it, and not shown to people as is.
 const (
-	whyNoDiff        = "读不到这次的改动："                 // i18n-ignore: the supervisor's prompt
-	whyNoChange      = "没有可评审的代码改动"                // i18n-ignore: the supervisor's prompt
-	whyNoCopy        = "没能为评审建一份改动的副本："            // i18n-ignore: the supervisor's prompt
-	whyNoReviewerErr = "评审员没开起来："                  // i18n-ignore: the supervisor's prompt
-	whyNoMarker      = "评审员没按格式给出结论"               // i18n-ignore: the supervisor's prompt
-	whyDecided       = "督办已经给出了结论"                 // i18n-ignore: the supervisor's prompt
-	whyReworkUnsent  = "独立评审发现了阻断问题，但返工没送到 Agent：" // i18n-ignore: the supervisor's prompt
-	whySilent        = "评审员什么都没说"                  // i18n-ignore: the supervisor's prompt
-	whyAgentWorks    = "Agent 又开始工作了"              // i18n-ignore: the supervisor's prompt
-	whyTodoDone      = "任务已经结束"                    // i18n-ignore: the supervisor's prompt
-	whyTimeout       = "评审超时"                      // i18n-ignore: the supervisor's prompt
-	whyNoReviewer    = "评审员没开起来"                   // i18n-ignore: the supervisor's prompt
+	whyNoDiff        = "Could not read this change: "
+	whyNoChange      = "No code change to review"
+	whyNoCopy        = "Could not make a copy of the change for the review: "
+	whyNoReviewerErr = "The reviewer did not start: "
+	whyNoMarker      = "The reviewer did not give a verdict in the required format"
+	whyDecided       = "The supervisor already gave a verdict"
+	whyReworkUnsent  = "The independent review found blocking issues, but the rework did not reach the Agent: "
+	whySilent        = "The reviewer said nothing"
+	whyAgentWorks    = "The Agent started working again"
+	whyTodoDone      = "The task has ended"
+	whyTimeout       = "Review timed out"
+	whyNoReviewer    = "The reviewer did not start"
 )
 
 // Limits of a run.
@@ -318,17 +318,17 @@ func (s *Service) reviewChange(ctx context.Context, machine, cwd string) (*proto
 }
 
 // reviewScopeLine names what the review's diff is compared with. It goes into the reviewer's prompt (agents/review),
-// model input like the other agents/ prompts, so it is Chinese and not localized.
+// model input like the other agents/ prompts, so it is English and not localized.
 func reviewScopeLine(r proto.GitReview) string {
 	switch {
 	case r.Base.Empty:
-		return "空仓库（首次提交前，所有文件都是新增）" // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "empty repository (before the first commit; every file is new)"
 	case r.Scope == proto.ReviewUncommitted:
-		return "未提交的改动（工作区相对 HEAD）" // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "uncommitted changes (working tree against HEAD)"
 	case r.Base.Short != "" && strings.TrimSpace(r.Base.Subject) != "":
-		return fmt.Sprintf("分支相对默认分支的改动（自 %s「%s」起，含未提交）", r.Base.Short, oneLine(strings.TrimSpace(r.Base.Subject))) // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return fmt.Sprintf("branch changes against the default branch (since %s “%s”, including uncommitted)", r.Base.Short, oneLine(strings.TrimSpace(r.Base.Subject)))
 	default:
-		return "分支相对默认分支的改动（含未提交）" // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "branch changes against the default branch (including uncommitted)"
 	}
 }
 
@@ -341,17 +341,17 @@ func reviewDiff(r proto.GitReview) (out string, omitted int) {
 	spent := 0
 	for _, f := range r.Files {
 		if reason, one := fileWithoutHunks(f); one {
-			fmt.Fprintf(&b, "%s — +%d/−%d 行，diff 略（%s）\n", reviewFilePath(f), f.Added, f.Deleted, reason) // i18n-ignore: the reviewer's prompt, as agents/review.md
+			fmt.Fprintf(&b, "%s — +%d/−%d lines, diff omitted (%s)\n", reviewFilePath(f), f.Added, f.Deleted, reason)
 			continue
 		}
 		block := reviewFileBlock(f)
 		if len(block) > reviewFileBudget {
-			fmt.Fprintf(&b, "%s — +%d/−%d 行，diff 略（太大）\n", reviewFilePath(f), f.Added, f.Deleted) // i18n-ignore: the reviewer's prompt, as agents/review.md
+			fmt.Fprintf(&b, "%s — +%d/−%d lines, diff omitted (too large)\n", reviewFilePath(f), f.Added, f.Deleted)
 			continue
 		}
 		if spent+len(block) > reviewDiffBudget {
 			omitted++
-			fmt.Fprintf(&b, "%s — +%d/−%d 行，diff 略（超总量）\n", reviewFilePath(f), f.Added, f.Deleted) // i18n-ignore: the reviewer's prompt, as agents/review.md
+			fmt.Fprintf(&b, "%s — +%d/−%d lines, diff omitted (over the total budget)\n", reviewFilePath(f), f.Added, f.Deleted)
 			continue
 		}
 		spent += len(block)
@@ -365,11 +365,11 @@ func reviewDiff(r proto.GitReview) (out string, omitted int) {
 func fileWithoutHunks(f proto.GitReviewFile) (reason string, one bool) {
 	switch {
 	case f.Refused:
-		return "含敏感信息，未展示", true // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "contains sensitive information, not shown", true
 	case f.Binary:
-		return "二进制文件", true // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "binary file", true
 	case f.Big:
-		return "太大", true // i18n-ignore: the reviewer's prompt, as agents/review.md
+		return "too large", true
 	}
 	return "", false
 }

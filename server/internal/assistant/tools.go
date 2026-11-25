@@ -338,8 +338,7 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 			return "", fmt.Errorf("that is an assistant conversation, not a coding agent")
 		}
 		if c.SourceKind != "" && (c.Capabilities == nil || !c.Capabilities.Send) && !stoppedAgent(c) {
-			// i18n-ignore: original MCP refusal for the model, not API error, push or approval-card copy; keep the source reason verbatim.
-			return "", fmt.Errorf("这个 Agent 仅支持查看：%s", c.ReadOnlyReason)
+			return "", fmt.Errorf("this Agent is view-only: %s", c.ReadOnlyReason)
 		}
 		if strings.TrimSpace(a.Text) == "" {
 			return "", fmt.Errorf("text is empty")
@@ -1531,13 +1530,13 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		}
 		what := ix.Summary
 		if ix.Kind == proto.IxQuestion && len(ix.Questions) > 0 {
-			what = "提问：" + questionSummary(ix)
+			what = "question: " + questionSummary(ix)
 		} else if ix.Kind == proto.IxPlan {
-			what = "计划待审批：" + planTitle(ix.Plan)
+			what = "plan awaiting approval: " + planTitle(ix.Plan)
 		} else if ix.Kind == proto.IxPermission {
-			what = "要授权 " + ix.ToolName + "：" + ix.Summary
+			what = "permission needed for " + ix.ToolName + ": " + ix.Summary
 		} else if ix.Kind == proto.IxScreen {
-			what = "终端对话框等你处理"
+			what = "terminal dialog waiting for you"
 		}
 		session := ix.SessionID
 		source := [2]string{ix.MachineID, session}
@@ -1645,7 +1644,7 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		if c.SourceKind != "" {
 			fmt.Fprintf(&b, " · source=%s instance=%s", c.SourceKind, c.SourceInstanceID)
 			if c.Capabilities == nil || !c.Capabilities.Send {
-				fmt.Fprintf(&b, " · 仅查看：%s", c.ReadOnlyReason)
+				fmt.Fprintf(&b, " · view-only: %s", c.ReadOnlyReason)
 			}
 		}
 		if c.Archived {
@@ -1682,7 +1681,7 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 			b.WriteString(" · /loop")
 		}
 		if n := len(c.Background); n > 0 {
-			fmt.Fprintf(&b, " · 后台任务 %d", n)
+			fmt.Fprintf(&b, " · background tasks %d", n)
 		}
 		if state == "done" {
 			b.WriteString(" · work=done")
@@ -1692,27 +1691,27 @@ func (s *Service) describeAgents(ctx context.Context, state, machine, query stri
 		}
 		b.WriteString("\n")
 		if (state == "done" || state == "muted") && c.Work != nil && c.Work.Phase != proto.WorkWorking && c.Work.Line != "" {
-			fmt.Fprintf(&b, "    结论：%s\n", clip(oneLine(c.Work.Line), 200)) // i18n-ignore: agents_list output for the model, as the lines around it
+			fmt.Fprintf(&b, "    conclusion: %s\n", clip(oneLine(c.Work.Line), 200))
 		}
 		for _, w := range runningWorkflows(c, now) { // its turn ended to wait for them: not done (#2935)
-			fmt.Fprintf(&b, "    后台 workflow 在跑（在等它的结果，没做完）：%s\n", prompts.RenderSnapshotWorkflow(w))
+			fmt.Fprintf(&b, "    background workflow running (waiting on its result; not finished): %s\n", prompts.RenderSnapshotWorkflow(w))
 		}
 		for _, p := range pending[[2]string{r.m.ID, c.SessionID}] {
 			if !p.folded || folded[p.source] {
-				fmt.Fprintf(&b, "    等你：%s\n", p.text)
+				fmt.Fprintf(&b, "    waiting for you: %s\n", p.text)
 			}
 		}
 		if c.AwaitsReply && c.Asks != "" {
-			fmt.Fprintf(&b, "    在问你、还没回：%s\n", c.Asks) // i18n-ignore: agents_list output for the model, as the lines around it
+			fmt.Fprintf(&b, "    asking you, no reply yet: %s\n", c.Asks)
 		}
 		if upstreamRow(c) {
-			fmt.Fprintf(&b, "    上游异常：%s\n", clip(oneLine(c.TurnError), 300)) // i18n-ignore: agents_list output for the model, as the lines around it
+			fmt.Fprintf(&b, "    upstream error: %s\n", clip(oneLine(c.TurnError), 300))
 		}
 		// Why it waits, while it does (a dialog's first line, a host's reason), as the apps' rows show it; else its last words.
 		if last := c.LastText; c.State == proto.StateNeedsYou && strings.TrimSpace(c.AttentionReason) != "" {
-			fmt.Fprintf(&b, "    最后说：%s\n", clip(oneLine(c.AttentionReason), 200))
+			fmt.Fprintf(&b, "    last said: %s\n", clip(oneLine(c.AttentionReason), 200))
 		} else if last != "" {
-			fmt.Fprintf(&b, "    最后说：%s\n", clip(oneLine(last), 200))
+			fmt.Fprintf(&b, "    last said: %s\n", clip(oneLine(last), 200))
 		}
 	}
 	if len(offline) > 0 {
@@ -1794,11 +1793,11 @@ func agentsListState(c proto.Session) string {
 func agentsListLabel(c proto.Session) string {
 	switch {
 	case upstreamRow(c):
-		return "上游不可用" // i18n-ignore: agents_list output for the model, as the lines around it
+		return "upstream unavailable"
 	case !silentRow(c):
 		return stateNames[c.State]
 	case c.TurnErrorKind == proto.TurnErrorStopped:
-		return "被停下了，没做完" // i18n-ignore: agents_list output for the model, as the lines around it
+		return "stopped, not finished"
 	}
-	return "中断了，没做完" // i18n-ignore: agents_list output for the model, as the lines around it
+	return "interrupted, not finished"
 }

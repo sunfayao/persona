@@ -8,184 +8,28 @@ What counts as a prompt: system / user text sent to a model, CLAUDE.md written t
 and explanatory text that wraps data in a prompt (`<persona-context>` blocks, lines such as "类型：飞书私聊"—"Type: Lark direct message"). The user's own words, collected chat history, and document bodies are **data**, not template content.
 MCP tool descriptions and parameter explanations shown to models are also prompts, in `mcp/` (see "MCP tools" below). Tool-result text returned to models still lives in the respective code.
 
-## Language migration
+## Language
 
-User- and agent-facing prompts must carry the caller's language through a `Language` or `Lang` field. New or
-changed language-aware templates have en, zh-Hans and ja caller-level goldens. Source quotations, identifiers,
-recorded decisions and the owner's words remain data: do not translate or rewrite them to match the interface.
+Every prompt is written in English, and only in English: templates carry no language branches. What the model writes
+for the owner still follows the owner's language. A prompt that asks for owner-facing text (a title, a summary, a
+reason, a report) says so with the `lang` template function, which prints the English name of the owner's language:
+`in {{lang .Language}}` (`{{lang .Lang}}` in MCP tool descriptions). Callers pass the language as they have it, a
+native name (`answerLanguage(hello.Locale)`: `English`, `日本語`, empty for Simplified Chinese) or an i18n code;
+`prompts.AnswerLanguage` maps all of them. Source quotations, identifiers, recorded decisions and the owner's words
+remain data: a prompt never asks for them to be translated.
 
-The migration in #5976 establishes the contract, a wake-message example and a downward-only inventory. It does
-not claim that every historical prompt has been translated. The follow-ups below own the remaining areas; each
-must audit all production callers and any parser before changing the text. Use `answerLanguage(hello.Locale)`
-for the owner's native language name (`English`, `日本語`, empty for zh-Hans), or the existing i18n-code `Lang`
-pattern where the caller already uses it. Instruction-only language hints and fully translated templates are both
-supported; a hint alone is not evidence that user-visible injected instructions have been translated.
+The assistant's instructions say once that tool arguments the owner reads (titles, reasons, criteria, messages) are
+written in the owner's language; tool descriptions do not repeat it.
 
-### Compatibility and wake messages
+Text that code recognises keeps recognising what older versions wrote. The injected messages
+(`injected.go` `ParseInjected`, `web/src/lib/injected.ts`), the relay header (`message_source.go`,
+`web/src/lib/message-source.ts`), the delivery line (`assistant/delivery.go`), the peer message heads
+(`peer_message.go`) and the default routines (`routine_*_former*.md`) each hold the Chinese shape they had before the
+prompts became English-only, beside the current one: transcripts and stored rows keep the old text. Language-independent
+markers (`<persona-wake>`, `<persona-limit-continue />`, `<persona-inbox>`, `<persona-answer-again />`) are unchanged.
 
-`agents/wake.md` is fully rendered in English and Japanese. `agents_work_tick.go` reads the owner's language at
-send time, so a subsequent wake follows a changed language without rewriting a previous message. Empty language
-keeps the complete original Chinese prompt byte for byte, including its approval wording. The four variants
-(timer, another Agent stopping, user-approved step, task-authorized step) have separate en/ja goldens and the
-normal `session.send` fake captures the localized text. The one approved step never authorizes unrelated outward
-actions; localization does not remove or weaken policy. Other supported language names currently use the English
-instruction branch until that language gets a whole-text translation.
-
-New localized wakes start with `<persona-wake>` containing canonical JSON with the waiting subject in `title`,
-followed by `</persona-wake>` on the same line. JSON escapes tags and newlines in that subject. Recognition uses
-this metadata, not translated wording. Malformed metadata is not inferred as a different message. Chinese wakes
-and old transcripts keep the narrow historical header parser: this compatibility exception is needed to preserve
-the empty-language bytes. Pasted user text remains protected by `client_msg_id` or the outer user-authorship
-sentinel. The hub returns the same structured `injected`/`source` fields and localizes the display line for the
-viewer, without changing the model's original text. New localized markers are tested on the hub; the shared
-old-hub fallback fixtures stay unchanged. Older hubs cannot recognize these new markers by text alone.
-
-### Remaining work by area
-
-The tracking issues below implement the migration separately; finishing this umbrella does not imply they are done.
-Each uses the Template rules in this document and keeps existing empty-language output unless its issue explicitly
-records a justified compatibility change. Before claiming any follow-up, recheck ownership and overlapping PRs.
-
-| Area | Tracking issue | Scope |
-| --- | --- | --- |
-| agents | #6268 | Remaining agent event and policy templates; audit source recognition and authorization branches. Wake is already covered here. |
-| assistant | #6269 | Generated instructions, snapshots, supervision and scheduled events; audit parser/role boundaries and preserve policy. |
-| mcp | #6270 | Owner-language tool-list rendering and generated-argument guidance; complete voice descriptions, preserving tool/schema contracts. |
-| inbox | #6271 | Triage, drafting, grouping and handling templates; preserve original incoming text and test callers. |
-| todo | #6273 | Task/to-do wording and review context; preserve criteria, decisions and authorization evidence. |
-| tools | #6274 | Remaining tool guidance and generated helper text; keep protocol identifiers and parameters stable. |
-| channel/shared/bot | #6275 | Channel/bot wrappers and shared fragments; inventory all includes and preserve provenance and native message data. |
-
-### To-do prompts
-
-The model phase covers the title and completion receipt. The title keeps its existing output language and length rules,
-and the receipt uses the owner's language for newly generated text while retaining its JSON field names and original
-evidence links. The title and receipt inputs retain task notes, machine names, paths and Agent replies as data.
-
-The delivery phase covers decision and project context in Agent handoffs and the Feishu topic-open and topic-reply
-messages. They read the owner's current locale at render time. Context tags, quote handling, to-do IDs, decision
-source records, and the `task_plan` contract are independent of the rendered language. Transcript stripping uses
-the context tags, and Feishu routing uses the structured topic and run records.
-
-### Tool guidance (#6274)
-
-1. The translation JSON routes and the background mail pass reach `translateTexts` or `translateMailFresh`.
-   Localize their model instructions with the owner's language while preserving the explicit translation target.
-   The shared system template, batch and mail wrappers, and mail input are one unit. The batch parser checks
-   `texts` cardinality and order, and the mail parser reads `subject` and `text`. Keep those keys and localize
-   the subject label together in the system and user messages.
-2. Manual and automatic naming reach `makeTitle`. Its system prompt already carries the topic language.
-   Give its first exchange and failed-answer retry the same language and character limit. The parser continues
-   to require one of the existing Chinese kind identifiers and the same pipe delimiter. The first exchange,
-   extension hint and rejected answer are quoted as data. These calls are private model requests.
-
-### Agent prompt migration (#6268)
-
-The remaining Chinese Agent templates have full English and Japanese branches, with the original empty-language
-branch retained byte for byte. This includes decision answers and overrides, authorization relay notices,
-read-only task constraints, usage-limit continuations, peer-inbox wrappers, triage/delegation and report inputs,
-review instructions, and the closeout instructions and rules. Wake localization remains the #5976 implementation.
-System/input pairs for a model operation use one captured owner language; future deliveries use the current one.
-User questions, exact option labels, reports, decisions, owner rules, diff evidence, identifiers and the closeout
-form remain source data. Reanswer deduplication deliberately uses the legacy rendering, so changing the interface
-language does not resend the same override. Existing English classifier, replay and task-policy templates are
-inventoried separately; this migration does not translate recorded conversation history or fixed protocol enums.
-The full caller/parser inventory and original phase boundaries are in
-`docs/archive/assistant/agent-prompt-language-6268.md`.
-
-A localized usage-limit continuation begins with the exact standalone `<persona-limit-continue />` marker and a
-nonempty body. The hub reads that marker as the existing `limit_continue` follow-up; the old Chinese prefix is
-still recognized. User-authored context and `client_msg_id` protection still win over text recognition. The manager
-supplies the existing structured message source on delivery. Older hubs cannot recognize the new marker by text
-alone; update the hub before relying on its localized transcript classification.
-
-The devices manager overwrites the optional `prompt_language` on node `session.send` and `codex.answer` from its
-owner-language callback, removing all caller-supplied letter-case variants. Nodes use it only for the newly
-rendered peer/answer wrapper, in per-call context rather than global state. It is independent of `owner_input`,
-reserved owner-control RPCs and peer `from-mode`; it never grants authority. Old nodes ignore the field and keep
-their Chinese wrapper; calls from old managers omit it and new nodes keep that same default. The transcript reader
-strips exact English/Japanese peer heads as well as the current and historical Chinese heads, only on messages
-from Persona. Stop recognition remains unchanged. A display-language upgrade never reclassifies another peer's
-message as the owner's input.
-
-### Ratchet and acceptance
-
-`scripts/ci/prompt_language_ratchet.py` runs in the repository CI guards. It counts CJK-bearing `.md` templates
-without an actual `if` on `.Language` or `.Lang`, including language handling inherited through a template called
-with the same data. Comments and quoted mentions do not qualify. The baseline records both directory counts and
-filenames: a new omission fails even when another file in that directory was removed. There are no source
-exemptions. The checker also compares the baseline against `CI_BASE_SHA` (otherwise `origin/main`) when it exists
-there, so editing the JSON cannot raise the allowance. Only a new omission fails: a resolved prompt still in the
-baseline passes with a notice, and with a base given (`--base` or `CI_BASE_SHA`, not the `origin/main` fallback) a
-prompt the merge base already handles may not lose its language handling again while the baseline still lists it
-(`docs/operations/testing.md`, "Count ratchets"). Removing resolved entries is
-tidying anyone can do, with `--update` (which refuses increases) or `python3 scripts/ci/lower_baselines.py`. This is
-a structural guard, not a check of translation quality, caller wiring or model behavior.
-
-The initial inventory is computed from this checkout rather than the issue's earlier audit. A migration needs
-caller-level goldens, synthetic delivery and parser tests where applicable, and unchanged default/Chinese goldens.
-The checker has negative tests for new files/directories, replacing an omission at the same count, quoted/comment
-mentions, include cycles and attempts to raise the baseline. Judge behavior and recording-language live checks
-still follow the rules below when those prompts change.
-
-### Channel, bot and shared prompts (#6275)
-
-The three delivery paths read the owner’s configured language when they prepare the new turn. Plugin IM uses
-`channelForward` for `channel/message`. A public mention selects `channel/mention_message` and retains its chat,
-thread and public audience. Feishu uses `botSendIn` for `bot/message`. A private reminder can include its to-do
-and the quoted message. A group topic carries only its own authorized reply. The templates retain each channel’s
-format, destination and confirmation instructions. Sender names, forwarded messages, attachment paths and the
-owner’s text keep their source language. Feishu rich posts retain the provider parser’s existing variant order
-(`zh_cn`, `en_us`, `ja_jp`) regardless of the owner’s language.
-
-When a conversation ends without a text answer, `askAgain` sends `channel/answer_again` once. Its context block
-has no owner text. The channel reader finds the turn by its client message ID and transcript probe. The author
-sentinel, context boundaries and structured `shared/message_source` metadata keep their existing wire meaning.
-`shared/all_stopped` supplies an internal observation in English.
-
-`shared/kb_blocks` receives the Inbox prompt’s language alongside the stored chat and project profiles. Only the
-profile headings change language. `shared/user_rules` supplies the precedence heading for Inbox triage, grouping,
-task selection and Agent delegation. The rule itself is the owner’s original text. The delegate retains its
-explicit Chinese language aliases. Caller goldens cover English, Japanese, Simplified Chinese and empty-language
-deliveries, including the shared blocks in the first processing turn. Empty language retains the original bytes.
-
-### Inbox language migration
-
-Inbox request builders capture the owner's language once per model request (including grouping retries and draft
-rewrites), and use it for both instructions and input labels. Shared rule and knowledge fragments follow that
-same language. New processing conversations, their queued handling notes and handoffs
-also use the owner's current language. A later language change affects the next delivery, never a stored recap,
-chain entry, decision, folder, externally authored source description, quoted message or existing knowledge page.
-
-English and Japanese templates retain the Chinese templates' policy, limits and canonical JSON/tool names. The
-literal Lark mention and self-message markers are explained without translating them: the connector still writes
-`（@了我）`, `（@所有人）` and `我（自己说的，不归类）`. Task-link evidence must still quote the original task verbatim.
-Drafted email follows the incoming email's language and formality; WeChat follows the counterpart's language with
-owner-language fallback. Source and extension descriptions are data, even when they are in another language.
-Subscription kind labels generated by Persona follow the subscription manager's language when the source is read.
-
-Localized handoff followups start with `<persona-inbox>` and canonical JSON containing `title`, closed on the same
-line. The hub recognizes that identity rather than translated prose. Malformed, duplicate, unknown or trailing JSON
-is not inferred as provenance. Historical Chinese handoff notices keep their original parser and exact bytes;
-user-authorship protection and app `client_msg_id` still prevent pasted notices from becoming automated input. The
-wire `injected` / `source` shapes are unchanged. Older hubs cannot recognize a localized notice by text alone.
-The original user handoff remains a context block followed by the user's own request, not an automated notice.
-
-The caller and parser audit, bounded implementation phases and compatibility boundaries are recorded in
-[the Inbox migration audit](../archive/assistant/2026-11-18-inbox-prompt-language.md) (#6271). Stub-model and delivery
-tests verify inputs, parsing and policy gates; they do not establish real-model judgment quality.
-
-### Related work and knowledge policy
-
-#5906 shipped recording summaries, minutes and day recaps in the recording's language, with owner-language
-fallback (#6011); #6045 preserves place names as spoken. Those paths are not reimplemented here. Existing knowledge
-content stays in the language in which it was recorded; a UI-language change never rewrites stored pages or quoted
-source data. Non-recording KB explanations and their input wrappers now follow owner language (#6272); the live digest localizes only its headings, while persisted source records stay unchanged. The template inventory classifies all callers and the source-preserving templates. Other KB templates are migration backlog, not a permanent exemption: their follow-up decides which
-new outputs should use owner language and which preserve source language before changing them.
-
-#5898 and its instruction-placement proposal (#5903) separately address deduplication and policy placement,
-including wake messages. This change translates the existing rules without cutting or moving them. #5750/#6202
-localize Persona Link's client UI; they do not supply the language of model prompts.
+Strings shown to the owner (display lines such as `proto.Injected.Line`, notifications, card text) are not prompts:
+they go through the localization resources (`docs/protocol/i18n.md`).
 
 ## Directory
 
@@ -295,13 +139,11 @@ localize Persona Link's client UI; they do not supply the language of model prom
 | `channel/message.md` | Representation of the owner's bot message from a plugin channel (WeChat, etc.; `docs/extensions/channels.md`) in a Persona chat: where replies return, format (plain text or Markdown), whether questions can be answered there, quoted messages, forwarded history, attachments saved to the computer, content the bot cannot forward | `assistant/channels_plugin.go` `channelForward` |
 | `channel/mention_message.md` | A public mention turn, in Chinese, English and Japanese: the answer returns as the owner; private context from other chats, sessions, mail and health stays undisclosed unless explicitly requested; chat, topic, gathered context, quote and forwarded history are data blocks. Used only for `mention` channels, including when their target is the main chat (#11130) | `assistant/channels_plugin.go` `channelForward` |
 | `channel/answer_again.md` | When a channel turn ends without an answer (empty or only a placeholder such as "No response requested."), hub asks the Persona chat once for that turn's answer | `assistant/channels_answer.go` `askAgain` (#4588) |
-| `shared/kb_blocks.md` | Localized headings for stored chat and project profiles | `inbox/agent.md` through `startInboxAgents` |
 | `shared/user_rules.md` | Localized precedence heading and the owner's original rules | `inbox/triage.md`, `inbox/group.md`, `inbox/judge.md`, `agents/delegate.md` |
-| `shared/mcp_language.md` | Owner-language guidance for newly generated MCP arguments, preserving source data and permission boundaries | All MCP definitions |
 
 Since #1571, prompts and context for Lark `/agent` (in chats / document comments) live with `/agent` in the Lark integration plugin. This repository has no `lark/` directory (`docs/extensions/lark-agent.md`).
 
-Go side: `prompts.go` (parsing, template functions), `assistant.go`, `inbox.go`, `kb.go`, `tools.go` (one data structure and `RenderXxx` per prompt; since #1571, lark.go for Lark /agent lives with its prompts in the plugin). `assistant.go` takes no new name: a new assistant prompt's data structure and `RenderXxx` go in a file of their own, `assistant_<topic>.go`, as `assistant_answer_again.go` has them (`docs/server/architecture.md` "Registering a domain's entries").
+Go side: `prompts.go` (parsing, template functions), `assistant.go`, `inbox.go`, `tools.go` (one data structure and `RenderXxx` per prompt; since #1571, lark.go for Lark /agent lives with its prompts in the plugin). `assistant.go` takes no new name: a new assistant prompt's data structure and `RenderXxx` go in a file of their own, `assistant_<topic>.go`, as `assistant_answer_again.go` has them (`docs/server/architecture.md` "Registering a domain's entries").
 
 ## MCP tools
 
@@ -318,7 +160,7 @@ Reading a skill or other outside content still requires the ordinary Start appro
 Each MCP tool hub provides to Agents / the assistant has one file: `mcp/<scenario>/<tool-name>.md`. The filename is the tool name. Contents: one paragraph of model-facing description, a blank line,
 then a ```json code block containing the input schema (parameters and their descriptions). They are templates with `MCPData.Lang` (`en`, `ja`, or empty for the historical default). `Tool(name)` keeps the default; `Tool(name, lang)` renders the caller's language, with English fallback for other language codes. The schema is loaded with `json.Compact`, so layout is arbitrary and does not affect transmitted bytes. Literal recipe placeholders such as `{{since}}` must be escaped as template string literals, not evaluated as prompt actions.
 
-MCP language handling (#6270) serves people reading the titles, reasons, completion criteria and messages the model generates as tool arguments. The shared `shared/mcp_language.md` tells the model to write new user-facing arguments in the owner's language, preserving source quotations, identifiers, enums, command prefixes and approvals. Existing English tool policies stay intact; this is output-language guidance, not a claim that every English description has been translated into Japanese. Schema descriptions that previously required Chinese now have English/Japanese branches. All six voice tool definitions have complete English/Japanese descriptions and parameter guidance.
+Tool descriptions are English. A field whose value the owner reads names the owner's language with `{{lang .Lang}}`; the general rule for such arguments is stated once in the assistant's instructions, not in every description.
 
 The manager applies the owner language from `hello.Locale` after discovery filtering, including ordinary Agents, assistant/supervision lists, work-machine restrictions, guest meeting rooms and restricted task-leader aliases. Runtime leader registration follows the same contract. A profile update invalidates discovery revisions. The extension manager and connector registry/catalog use context language; the assistant supplies the owner language when collecting their tools. Voice session starts use the conversation's existing language precedence. Built-in phone-queue tools join normal discovery; device-authored schemas remain source data. Static mail/connector constructors can still return default definitions: localization occurs at registry/catalog and final manager discovery boundaries.
 

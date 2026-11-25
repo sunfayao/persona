@@ -254,8 +254,9 @@ func (s *Service) gatherOriginEvidence(ctx context.Context) originEvidence {
 // The first messages of the conversations the hub opens (prompts/inbox/agent.md, assistant/relay.md, task_run.md, and
 // the Feishu plugin's /agent), as the node lists an untitled conversation: its first message.
 var (
-	inboxFirst   = "这是收件箱里的一件事"
-	relayFirst   = lazyre.New(`^<` + compat.ContextPattern() + ` kind="context" title="来自对话「[^"]*」"[^>]*>\s*这条消息不是用户本人发的，是 Persona 的另一段对话（([A-Za-z0-9._-]+)）`)
+	// Each in the English its template renders now, and in the Chinese it rendered before (old conversations).
+	inboxFirsts  = []string{"This is an Inbox matter", "这是收件箱里的一件事"}
+	relayFirst   = lazyre.New(`^<` + compat.ContextPattern() + ` kind="context" title="(?:From the conversation “[^"]*”|来自对话「[^"]*」)"[^>]*>\s*(?:The user did not send this message: another Persona conversation \(|这条消息不是用户本人发的，是 Persona 的另一段对话（)([A-Za-z0-9._-]+)[)）]`)
 	larkAgentRe  = lazyre.New(`^<` + compat.ContextPattern() + ` kind="instructions" title="给 Agent 的说明">[\s\S]*?/agent`)
 	taskFirstPfx = "⏰"
 )
@@ -278,7 +279,7 @@ func guessOrigin(id, title, by string, ev originEvidence) (origin, ref string) {
 	}
 	raw := strings.TrimSpace(title)
 	switch {
-	case strings.HasPrefix(raw, inboxFirst):
+	case slices.ContainsFunc(inboxFirsts, func(first string) bool { return strings.HasPrefix(raw, first) }):
 		return OriginInbox, ""
 	case strings.HasPrefix(raw, taskFirstPfx):
 		return OriginTask, ""

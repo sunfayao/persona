@@ -180,19 +180,19 @@ func (s *Service) superviseJudged(ctx context.Context, t Todo, work time.Time, c
 		// The judge failed (the model service, a reply that was no verdict): no word on whether it is finished, not
 		// "stopped short" (#3111). The supervisor reads the agent's reply and decides. No model set up for the judge is
 		// said as such, not as a model error that a retry might mend.
-		detail := "判定模型出错" // i18n-ignore: the supervision message is the assistant's prompt
+		detail := "the judge model failed"
 		if errors.Is(err, errTaskDoneJudgeExhausted) {
-			detail = fmt.Sprintf("判定服务出错（自动重判 %d 次仍失败）", taskDoneDeferredRetries) // i18n-ignore: supervisor prompt
+			detail = fmt.Sprintf("the judge service failed (still failing after %d automatic re-judgments)", taskDoneDeferredRetries)
 		}
 		if ai.IsNotConfigured(err) {
-			detail = "判定模型未配置" // i18n-ignore: the supervision message is the assistant's prompt
+			detail = "no judge model configured"
 		}
 		s.signal(superviseSignal{Todo: t.ID, Kind: sigUnjudged, Key: key, Detail: detail})
 		return
 	}
 	detail := verdictWords[c.Verdict]
 	if c.Reason != "" {
-		detail += "：" + c.Reason
+		detail += ": " + c.Reason
 	}
 	if c.Verdict == verdictUnsure { // no word on it either way: not "stopped short" (#3111)
 		if c.Detail != "" {
@@ -202,11 +202,11 @@ func (s *Service) superviseJudged(ctx context.Context, t Todo, work time.Time, c
 		return
 	}
 	if d := c.Delivery; c.Verdict == verdictUndelivered && d.held() { // where it is held, to chase (delivery.go)
-		detail += "（" + deliveryLabels[d.State]
+		detail += " (" + deliveryLabels[d.State]
 		if d.Gate != "" {
-			detail += "，卡在「" + d.Gate + "」"
+			detail += ", stuck at “" + d.Gate + "”"
 		}
-		detail += "）"
+		detail += ")"
 	}
 	s.signal(superviseSignal{Todo: t.ID, Kind: sigIdle, Key: key, Detail: detail})
 }
@@ -229,8 +229,8 @@ func reviewClosedSince(v *Supervision, work time.Time) bool {
 	return (r.Verdict == reviewAccepted || r.Verdict == reviewCancelled) && r.At.After(work)
 }
 
-var verdictWords = map[string]string{verdictNotDone: "没做完", verdictWaiting: "在等别人或别的事", verdictNeedsUser: "要用户决定",
-	verdictUnsure: "看不出做没做完", verdictUndelivered: "做完了但还没上线"}
+var verdictWords = map[string]string{verdictNotDone: "not finished", verdictWaiting: "waiting on someone else or something else", verdictNeedsUser: "needs the user to decide",
+	verdictUnsure: "cannot tell whether it is finished", verdictUndelivered: "finished but not live yet"}
 
 // ownerPushTimeout bounds one delivery and its receipt, so a stalled hub cannot hold up every other task's owner push.
 var ownerPushTimeout = 10 * time.Second
@@ -260,7 +260,7 @@ func (s *Service) noteOwnerWait(ctx context.Context, t Todo, work time.Time, rea
 		s.logf("task %s: owner wait dropped: its work was reviewed or closed", t.ID)
 		return false
 	}
-	s.signal(superviseSignal{Todo: t.ID, Kind: sigIdle, Key: work.UTC().Format(time.RFC3339Nano), Detail: "要用户决定：" + reason}) // i18n-ignore: the supervision message is the assistant's prompt
+	s.signal(superviseSignal{Todo: t.ID, Kind: sigIdle, Key: work.UTC().Format(time.RFC3339Nano), Detail: "needs the user to decide: " + reason})
 	if changed || (v.Waits != nil && v.Waits.PushPending) {
 		// Quiet suppresses routine notices, not an action only the owner can take. An undelivered wait (for example,
 		// its conversation was not configured yet) may retry; a delivered one has PushPending cleared.

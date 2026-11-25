@@ -113,7 +113,7 @@ func (s *Service) handOverReview(ctx context.Context, t Todo, side, to string, n
 	s.logf("task %s: conversation %s left its review waiting for %s; the main conversation's follow-up takes it over",
 		t.ID, short(side), waited.Round(time.Minute))
 	g := superviseSignal{Todo: t.ID, Kind: sigReview, Key: reviewKey(&v),
-		Detail: fmt.Sprintf("派出它的对话过了 %d 分钟没验收，转给你验收", int(waited.Minutes()))} // i18n-ignore: the supervision message is the assistant's prompt
+		Detail: fmt.Sprintf("the conversation that sent it out went %d minutes without reviewing it; handed to you for review", int(waited.Minutes()))}
 	b := &s.supervise
 	b.dedupMu.Lock()
 	s.forgetSupervision(ctx, []superviseSignal{g}, s.webBase(ctx)) // said to the side conversation within the window: not said here yet

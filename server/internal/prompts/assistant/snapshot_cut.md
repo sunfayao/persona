@@ -1,1 +1,1 @@
-- 快照到此截断；其余用 agents_list、todo_list 查；收件箱在 App 里看
+- Snapshot cut off here; use agents_list and todo_list for the rest; see the Inbox in Persona

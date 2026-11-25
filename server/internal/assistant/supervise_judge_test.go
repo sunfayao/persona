@@ -88,7 +88,7 @@ func TestSupervisedUnjudgedIsNotStoppedShort(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, "又改了一处", 0)
 	waitFor(t, "the second message", func() bool { return len(f.notices()) == 2 })
 	n := entryLine(f.notices()[1])
-	if !strings.Contains(n, "Agent 停下了，hub 没判断出来是不是做完了（不是说没做完）（看不出做没做完：证据不足）") || strings.Contains(n, "停下了，但没做完") {
+	if !strings.Contains(n, "Agent 停下了，hub 没判断出来是不是做完了（不是说没做完）(cannot tell whether it is finished: 证据不足)") || strings.Contains(n, "停下了，但没做完") {
 		t.Fatalf("after an unsure judgment:\n%s", n)
 	}
 }
@@ -111,7 +111,7 @@ func TestSupervisedUnjudgedSaysTheJudgeHasNoModel(t *testing.T) {
 	agentTurn(s, f, proto.StatusDone, fullReport, 0)
 	waitFor(t, "the supervisor's message", func() bool { return len(f.notices()) == 1 })
 	n := entryLine(f.notices()[0])
-	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "（判定模型未配置）") || strings.Contains(n, "判定模型出错") {
+	if !strings.Contains(n, "signal=unjudged") || !strings.Contains(n, "(no judge model configured)") || strings.Contains(n, "the judge model failed") {
 		t.Fatalf("no model for the judge:\n%s", n)
 	}
 }

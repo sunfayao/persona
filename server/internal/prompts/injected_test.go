@@ -219,3 +219,57 @@ func TestParseInjectedAskLater(t *testing.T) {
 		t.Fatal("a user's text taken for an ask_later message")
 	}
 }
+
+// The shared fixture holds what the templates render now (English). Transcripts keep the Chinese shapes the templates
+// rendered before, and ParseInjected still reads them: each case below is the old text of one legacy shape.
+func TestParseInjectedLegacyChineseShapes(t *testing.T) {
+	// i18n-ignore: every input in this test is an exact legacy generated template.
+	const noticeNote = "\n（这是 Persona 的任务通知，不是用户发的消息。这个任务是从主对话派出去的，用户设置了这类任务只在主对话里通知：手机不会为它另外推送，灵动岛上也没有，要靠你告诉用户。）\n\n你来决定要不要告诉用户、怎么说：一两句话说结果和接下来要用户做什么。"
+	const askMarker = "（这是 Persona 的通知，不是用户在这里发的消息。）"
+	const askHead = "🔔 你 11-13 12:48 用 ask_user 问过用户（wait: false，当时没有等回答）：\n- 今晚几点提醒你？\n\n"
+	for _, c := range []struct {
+		name, text string
+		want       *proto.Injected
+	}{
+		{"task done with machine", "🔔 任务「README 去掉扩展列表」做完了（公司电脑）" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "done", Title: "README 去掉扩展列表", Machine: "公司电脑", Line: "任务「README 去掉扩展列表」做完了"}},
+		{"task needs", "🔔 任务「升级依赖」在等用户（家里的 Mac）" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "needs", Title: "升级依赖", Machine: "家里的 Mac", Line: "任务「升级依赖」在等你"}},
+		{"task interrupted", "🔔 任务「修登录页」被模型服务出错打断了\n（这期间它还等过用户，以这条为准。）" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "interrupted", Title: "修登录页", Line: "任务「修登录页」被打断了"}},
+		{"task failed", "🔔 任务「整理周报」没开起来" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "failed", Title: "整理周报", Line: "任务「整理周报」没开起来"}},
+		{"title with brackets", "🔔 任务「改「设置（外观）」页」做完了（公司电脑）" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "done", Title: "改「设置（外观）」页", Machine: "公司电脑", Line: "任务「改「设置（外观）」页」做完了"}},
+		{"task notice behind a snapshot", "<persona-context>\n实时快照：……\n</persona-context>\n🔔 任务「跑测试」做完了" + noticeNote,
+			&proto.Injected{Kind: "task_notice", State: "done", Title: "跑测试", Line: "任务「跑测试」做完了"}},
+		{"follow-up once, late", "⏰ 看看 CI（你之前安排的跟进）\n（本该 11-05 09:00 运行，Persona 当时没在运行，晚了 25 分钟；看看还有没有必要按原计划做。）\n\n看一下 CI 有没有过，过了就合并。",
+			&proto.Injected{Kind: "followup", State: "once", Title: "看看 CI", Line: "跟进「看看 CI」到时间了", Detail: "看一下 CI 有没有过，过了就合并。"}},
+		{"scheduled task", "⏰ 早报（定时任务）\n\n整理今天的日程。\n\n再看看邮件。",
+			&proto.Injected{Kind: "followup", State: "daily", Title: "早报", Line: "定时任务「早报」开始运行", Detail: "整理今天的日程。\n\n再看看邮件。"}},
+		{"scheduled task with an interval", "⏰ 盯部署（定时任务，每 30 分钟）\n（又到时间了，还是这个任务自己的对话：前几次的结果都在上面，接着做，和上次比有变化的地方说清楚。）\n\n看部署好了没有。",
+			&proto.Injected{Kind: "followup", State: "interval", Title: "盯部署", Line: "定时任务「盯部署」开始运行", Detail: "看部署好了没有。"}},
+		{"wake", "⏰（Persona 叫醒你，第 2 次）你上一轮停下时说在等「CI 跑完」，等到以后要「合并」。\n现在自己查一下等的事好了没有。",
+			&proto.Injected{Kind: "followup", State: "wake", Title: "CI 跑完", Line: "Persona 叫醒了它：看看「CI 跑完」好了没有"}},
+		{"lost tasks", "⚠️ 运行你的 node 刚重启过（换了版本，或者这台电脑没有常驻 node、hub 重启连带停了它），这段对话里还在跑的后台任务 / 监控随进程一起停了：\n- npm test\n- 监控 CI\n还需要的就重新启动。",
+			&proto.Injected{Kind: "system", State: "lost_tasks", Line: "node 重启过，2 个后台任务停了"}},
+		{"supervision", "📋 督办：你派出去的任务有 2 个要你处理\n（这是 Persona 的督办消息，不是用户发的。）\n<persona-supervision level=\"user\" />",
+			&proto.Injected{Kind: "system", State: "supervise", Level: "user", Line: "督办：2 个派出去的任务要处理"}},
+		{"ask later, answered", askHead + "用户在卡片上回答了：\n- 今晚几点提醒你？ → 到家时\n\n" + askMarker,
+			&proto.Injected{Kind: "system", State: "ask_answered", Title: "到家时", Line: "你回答了：到家时"}},
+		{"ask later, ran out", askHead + "卡片到点没人回：已经记成待办了。\n\n" + askMarker,
+			&proto.Injected{Kind: "system", State: "ask_expired", Line: "问题到时间了，卡片上没有回答"}},
+		{"ask later, ran out after the user wrote", askHead + "卡片到点了，没人在卡片上回答。\n\n" + askMarker,
+			&proto.Injected{Kind: "system", State: "ask_expired", Line: "问题到时间了，卡片上没有回答"}},
+		{"ask later, closed", askHead + askMarker,
+			&proto.Injected{Kind: "system", State: "ask_closed", Line: "问题卡片关掉了，没有回答"}},
+		{"a notice head without its marker", "🔔 任务「买菜」做完了\n帮我记一下", nil},
+		{"a supervision head without its marker", "📋 督办：你派出去的任务有 2 个要你处理\n我自己写的", nil},
+	} {
+		got, _ := json.Marshal(ParseInjected(c.text))
+		want, _ := json.Marshal(c.want)
+		if !bytes.Equal(got, want) {
+			t.Errorf("%s: got %s, want %s", c.name, got, want)
+		}
+	}
+}
