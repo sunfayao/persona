@@ -5,8 +5,6 @@
   "mode_full_title": "コンピューター上の herdr と同じ：サイドバー、タブ、分割がそろっていて、ここで切り替えて操作できます",
   "mode_tooltip": "{label}：{title}",
   "mode_group": "ターミナルの表示",
-  "pref_last": "前回の選択を使う",
-  "pref_hint": "新しく開くターミナルで使う表示です。ターミナルのヘッダーのスイッチでいつでも切り替えられます。",
   "cmd_terminal_mode": "ターミナル：単一ペイン ⇄ フル画面",
   "end_forbidden": "このデバイスは表示専用のため、フル画面は使えません",
   "end_unsupported": "このコンピューターの Persona または herdr はフル画面に対応していません",

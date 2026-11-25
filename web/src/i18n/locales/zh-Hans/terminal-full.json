@@ -5,8 +5,6 @@
   "mode_full_title": "像电脑上的 herdr 一样：侧边栏、标签页、分屏都在，在这里切换和操作",
   "mode_tooltip": "{label}：{title}",
   "mode_group": "终端界面",
-  "pref_last": "记住上次",
-  "pref_hint": "新打开的终端用哪种；终端头上的开关随时可以换。",
   "cmd_terminal_mode": "终端 单窗格 ⇄ 完整界面",
   "end_forbidden": "这台设备只能看，不能用完整界面",
   "end_unsupported": "这台电脑的 Persona 或 herdr 不支持完整界面",

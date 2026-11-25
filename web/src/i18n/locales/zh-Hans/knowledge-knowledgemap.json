@@ -18,7 +18,6 @@
   "empty_topics_body": "Persona 会在后台从项目时间线和会话里整理出以后用得上的知识，按主题归类，整理出来导图就会慢慢填满。",
   "empty_off": "知识点整理已关闭",
   "empty_off_body": "在「设置 › 知识库」里打开「按主题整理知识点」，Persona 就会在后台开始整理。",
-  "open_settings": "打开设置",
   "empty_projects": "还没有项目",
   "empty_projects_body": "Persona 从会话和 Agent 的工作里整理出项目后，就会显示在这里。",
   "has_summary": "有摘要",
