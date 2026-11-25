@@ -1113,6 +1113,10 @@ Drawn as Telegram draws them (#2984). Inline code has no gray box (#9477). There
 | Inline code | no background, border or padding (#9477): a monospaced face at 0.94 em, CJK inside it in the body's face (the web lists the body's CJK families before the generic `monospace`), in an ink a step quieter than the body (web `--ink` and `--ink-2` mixed 55:45, ≥ 4.5:1 on every page and card); words in an ink of their own (a quote, a quieter heading, an agent's quiet words) keep it, and in a written link it is the link's. About 0.12 em of room where it meets a CJK letter directly (a margin, `data-gap`), none beside a space or CJK punctuation | a click or tap copies it ("Copied"); so do Enter or Space when it is focused, and a pale wash shows under the pointer; a click ending a drag that selected words doesn't. Blue is kept for what opens: code that is a path there (inside a link) opens the file, not a copy | web `copyInlineCode`, `rehypeLinkedCode` |
 | Quote | the accent bar on a faint accent card (web `--accent` at 8%), a quote mark at the top end | longer than about four lines it folds with its end faded; a click or tap opens it, its chevron (at the touch size) folds it again. A reply still being written never folds its quotes | web `ReplyQuote`, `ReplyStreaming` |
 
+### 3.15.2 Subscription usage (Web and Desktop)
+
+The sidebar footer uses the existing Agent marks, secondary text size and thin meters to show usage at a glance. A percentage always accompanies a meter, with the warning color starting at 80%. Prepaid amounts retain their currency and are separate from quota percentages. The footer opens an anchored, keyboard-dismissable popover. Detailed shows all accounts; Compact gives one summary per provider and discloses the selected provider's details beside the list on wide screens or below it on narrow ones. Both use the same account cards and the same quota and reset rules. See [Subscription usage](../web/web.md#subscription-usage-bottom-of-the-sidebar-2432).
+
 ## 4. Interaction patterns
 
 ### 4.1 Navigation hierarchy (super rule 3)

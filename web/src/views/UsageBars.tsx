@@ -1,28 +1,28 @@
-// The sidebar's bottom (#2432, docs/server/usage-windows.md): the two fullest subscription accounts as thin bars; a click opens
+// The sidebar's bottom (#2432, docs/server/usage-windows.md): compact quota meters; a click opens
 // a popover with every window of every account, its reset countdown, when it was sampled and whether use is ahead of or
 // behind an even pace. Hidden entirely while the hub has no data.
-import { type ComponentType, useEffect, useRef, useState } from "react";
+import { type ComponentType, useEffect, useId, useRef, useState } from "react";
 import { t as tr } from "../i18n";
 import { fullest, isWarn, liveAccounts, selectSidebarUsageAccounts, sourceNames, usePinnedUsageAccounts, useUsageWindows, type UnconnectedProvider, type UsageAccount } from "../lib/usage-windows";
+import { AgentMark } from "../ui/AgentMark";
 import { cx } from "../ui/atoms";
+import { Icon } from "../ui/icons";
 import { lazyOverlay } from "./LazyOverlay";
 
-const UsagePopover = lazyOverlay<{ accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; onClose: () => void }>(() => import("./UsagePopover").then((m) => m.UsagePopover));
+const UsagePopover = lazyOverlay<{ id: string; accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; now?: number; onClose: () => void }>(() => import("./UsagePopover").then((m) => m.UsagePopover));
 let LoadedUnconnected: ComponentType<{ accounts: UsageAccount[]; onChange: (next: readonly UnconnectedProvider[]) => void }> | undefined;
 
 const percent = (p: number) => Math.min(100, Math.max(0, p));
 const shown = (p: number) => `${Math.round(p)}%`;
 const fill = (p: number) => (isWarn(p) ? "bg-orange" : "bg-accent");
-// The strip's row text: one place for the named secondary-meta size.
-const ROW_NAME = "min-w-0 flex-1 truncate text-submeta text-ink-3";
-const ROW_VALUE = "shrink-0 text-submeta tabular-nums";
+const VALUE = "shrink-0 text-submeta font-medium tabular-nums";
 
 /** A bar: the track, the used part (caution colour from 80%) and, with `expected`, a tick where an even pace would be. */
 export function Meter({ used, expected, protect, label, tall }: { used: number; expected?: number; protect?: number; label: string; tall?: boolean }) {
   const hasProtect = typeof protect === "number" && Number.isFinite(protect) && protect >= 0 && protect <= 100;
   return (
-    <div role="progressbar" aria-label={hasProtect ? `${label}, ${tr("usage.protect_label", { percent: Math.round(protect) })}` : label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent(used))} className={cx("relative w-full rounded-full bg-inset", tall ? "h-1.5" : "h-1", hasProtect && "mt-3.5")}>
-      <div className={cx("h-full rounded-full transition-[width] duration-300", fill(used))} style={{ width: `${percent(used)}%` }} />
+    <span role="progressbar" aria-label={hasProtect ? `${label}, ${tr("usage.protect_label", { percent: Math.round(protect) })}` : label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(percent(used))} className={cx("relative block w-full rounded-full bg-inset", tall ? "h-1.5" : "h-1", hasProtect && "mt-3.5")}>
+      <span className={cx("block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-300", fill(used))} style={{ width: `${percent(used)}%` }} />
       {hasProtect && (
         <>
           <span aria-hidden data-protect-zone className="absolute inset-y-0 right-0 rounded-r-full" style={{ left: `${percent(protect)}%`, backgroundImage: "repeating-linear-gradient(135deg, transparent 0 2px, color-mix(in srgb, var(--orange) 45%, transparent) 2px 3px)" }} />
@@ -33,16 +33,18 @@ export function Meter({ used, expected, protect, label, tall }: { used: number; 
         </>
       )}
       {expected !== undefined && <span aria-hidden data-pace-tick className="absolute -top-0.5 -bottom-0.5 w-0.5 -translate-x-1/2 rounded-full bg-ink-2" style={{ left: `${percent(expected)}%` }} />}
-    </div>
+    </span>
   );
 }
 
 const EMPTY_UNCONNECTED: readonly UnconnectedProvider[] = [];
 
 /** The sidebar's strip. `accounts` as the hub gave them; `unconnected` lists active providers without usage data yet. */
-export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now = Date.now() }: { accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; now?: number }) {
+export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; now?: number }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
   const pinnedIds = usePinnedUsageAccounts();
   const live = liveAccounts(accounts, now);
   const { bars: top, balances } = selectSidebarUsageAccounts(live, pinnedIds);
@@ -50,9 +52,14 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now = Dat
   useEffect(() => {
     if (!open) return;
     const down = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
     };
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      setOpen(false);
+      trigger.current?.focus();
+    };
     addEventListener("pointerdown", down, true);
     addEventListener("keydown", key);
     return () => {
@@ -63,52 +70,58 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now = Dat
 
   if (!top.length && !balances.length && !unconnected.length) return null;
   return (
-    <div ref={ref} className="relative shrink-0 px-2.5 pb-2.5 pt-1" data-usage-bars>
-      {open && <UsagePopover accounts={live} unconnected={unconnected} onClose={() => setOpen(false)} />}
+    <div ref={root} className="relative shrink-0 border-t border-line bg-canvas px-2.5" data-usage-bars>
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         title={tr("usage.title")}
-        className="touch-hit flex w-full flex-col gap-1.5 rounded-control px-2.5 py-2 text-left shadow-hairline transition-colors hover:bg-hover"
+        className={cx("touch-hit flex min-h-11 w-full items-center gap-2 rounded-control px-1 text-left transition-colors hover:bg-hover", open && "bg-hover")}
       >
-        {top.map((a) => {
-          const used = fullest(a);
-          const from = sourceNames(a);
-          const title = [from.length ? tr("usage.sources_title", { sources: from.join(" · ") }) : "", a.stale ? tr("usage.stale_title") : ""].filter(Boolean).join(" · ");
-          return (
-            <span key={a.id} className={cx("flex flex-col gap-1", a.stale && "opacity-60")} title={title || undefined}>
-              <span className="flex items-baseline gap-2">
-                <span className={ROW_NAME}>{a.name}</span>
-                <span className={cx(ROW_VALUE, isWarn(used) ? "text-orange" : "text-ink-2")}>{shown(used)}</span>
+        <span className="shrink-0 text-submeta font-semibold text-ink-2">{tr("usage.short_title")}</span>
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5">
+          {top.map((a) => {
+            const used = fullest(a);
+            const from = sourceNames(a);
+            const label = tr("usage.used_label", { name: a.name, percent: shown(used) });
+            const hint = [label, from.length ? tr("usage.sources_title", { sources: from.join(" · ") }) : "", a.stale ? tr("usage.stale_title") : ""].filter(Boolean).join(" · ");
+            return (
+              <span key={a.id} className={cx("inline-flex shrink-0 items-center gap-1", a.stale && "opacity-60")} title={hint}>
+                <AgentMark agent={a.provider} label={a.name} decorative size={12} />
+                <span className="sr-only">{a.name}</span>
+                <span className="w-4"><Meter used={used} label={label} /></span>
+                <span className={cx(VALUE, isWarn(used) ? "text-orange" : "text-ink-2")}>{shown(used)}</span>
               </span>
-              <Meter used={used} label={tr("usage.used_label", { name: a.name, percent: shown(used) })} />
+            );
+          })}
+          {balances.map((a) => <BalanceSummary key={a.id} a={a} />)}
+          {unconnected.slice(0, Math.max(1, 4 - top.length)).map((p) => (
+            <span key={p.id} data-usage-unconnected={p.id} className="inline-flex items-center gap-1 text-ink-3" title={`${p.title} · ${tr("usage.not_connected")}`}>
+              <AgentMark agent={p.agent} label={p.title} decorative size={12} />
+              <span className="sr-only">{p.title} · {tr("usage.not_connected")}</span>
+              <span aria-hidden className={VALUE}>—</span>
             </span>
-          );
-        })}
-        {balances.map((a) => (
-          <BalanceRow key={a.id} a={a} />
-        ))}
-        {unconnected.slice(0, Math.max(1, 4 - top.length)).map((p) => (
-          <span key={`_${p.id}`} data-usage-unconnected={p.id} className="flex items-baseline gap-2 text-xs text-ink-3">
-            <span className="min-w-0 flex-1 truncate">{p.title}</span>
-            <span className="shrink-0">{tr("usage.not_connected")}</span>
-          </span>
-        ))}
+          ))}
+        </span>
+        <Icon name="chevron" size={12} className={cx("shrink-0 text-ink-3", !open && "rotate-180")} />
       </button>
+      {open && <UsagePopover id={panelId} accounts={live} unconnected={unconnected} now={now} onClose={() => setOpen(false)} />}
     </div>
   );
 }
 
-/** A prepaid account's row: the amount and currency, no bar. A genuine zero and an unreadable balance are both
+/** A prepaid account's summary: the amount and currency, no bar. A genuine zero and an unreadable balance are both
  *  caution-coloured, but only the first shows an amount. */
-function BalanceRow({ a }: { a: UsageAccount }) {
+function BalanceSummary({ a }: { a: UsageAccount }) {
   // Why a balance is missing or old is the popover's detail (progressive disclosure); the strip only fades a stale one.
   return (
-    <span className={cx("flex items-baseline gap-2", a.stale && "opacity-60")}>
-      <span className={ROW_NAME}>{a.name}</span>
-      <span className={cx(ROW_VALUE, !a.balance || Number(a.balance.amount) === 0 ? "text-orange" : "text-ink-2")}>
+    <span className={cx("inline-flex min-w-0 max-w-full items-center gap-1", a.stale && "opacity-60")} title={a.name}>
+      <AgentMark agent={a.provider} label={a.name} decorative size={12} />
+      <span className="sr-only">{a.name}</span>
+      <span className={cx("truncate text-submeta font-medium tabular-nums", !a.balance || Number(a.balance.amount) === 0 ? "text-orange" : "text-ink-2")}>
         {a.balance ? `${a.balance.currency} ${a.balance.amount}`.trim() : "—"}
       </span>
     </span>

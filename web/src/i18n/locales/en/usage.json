@@ -1,5 +1,10 @@
 {
   "title": "Subscription limits",
+  "short_title": "Usage",
+  "used": "Used",
+  "display": "Usage display",
+  "detailed": "Detailed",
+  "compact": "Compact",
   "stale_title": "Data is out of date",
   "stale_age": "Out of date · {age}",
   "used_label": "{name}: {percent} used",
