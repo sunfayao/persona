@@ -57,7 +57,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 const flush = async () => {
-  for (let i = 0; i < 6; i++) await act(async () => { flushPushes(); await new Promise((r) => setTimeout(r, 0)); });
+  for (let i = 0; i < 12; i++) await act(async () => { flushPushes(); await new Promise((r) => setTimeout(r, 0)); });
 };
 const todoNoneRow = () => host.querySelector('[data-tree-branch="todo:none"] [data-tree-branch-row]')?.textContent ?? "";
 const startingSection = () => [...host.querySelectorAll("[data-sidebar-group-heading]")].find((el) => el.textContent?.includes("正在启动"));
