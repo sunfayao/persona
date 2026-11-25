@@ -3,6 +3,7 @@ package node
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -11,6 +12,54 @@ import (
 
 	"github.com/nwverse/persona/server/internal/compat"
 )
+
+func TestAgyQuotedReadTargetOpensPreview(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "fixture notes.md")
+	const body = "# Example file\nPreview payload"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	quoted, _ := json.Marshal(path)
+	raw, _ := json.Marshal(map[string]string{"Path": string(quoted)})
+	name, input := agyTool("view_file", raw)
+	var f struct {
+		Path string `json:"file_path"`
+	}
+	if err := json.Unmarshal(input, &f); err != nil || name != "Read" || f.Path != path {
+		t.Fatalf("preview target = %s %s (%v), want Read %q", name, input, err, path)
+	}
+	n := &Node{home: dir}
+	preview, err := n.readFile(f.Path, dir, 0, true)
+	if err != nil || preview.Path != path || preview.Name != filepath.Base(path) || preview.Text != body {
+		t.Fatalf("preview = %+v, %v", preview, err)
+	}
+}
+
+func TestAgyNativeFilePathsOnlyDecodeCompleteAbsoluteWrappers(t *testing.T) {
+	dir := t.TempDir()
+	abs := filepath.Join(dir, "notes.md")
+	withQuotes := filepath.Join(dir, `keep".md`)
+	quoted, _ := json.Marshal(withQuotes)
+	incomplete := `"` + abs
+	for _, example := range []struct {
+		tool, field, path, want string
+	}{
+		{"read_file", "AbsolutePath", string(quoted), withQuotes},
+		{"write_to_file", "TargetFile", "'" + abs + "'", abs},
+		{"edit_file", "Path", withQuotes, withQuotes},
+		{"view_file", "Path", `"relative.md"`, `"relative.md"`},
+		{"view_file", "Path", incomplete, incomplete},
+		{"view_file", "file_path", string(quoted), string(quoted)},
+	} {
+		raw, _ := json.Marshal(map[string]string{example.field: example.path})
+		_, input := agyTool(example.tool, raw)
+		var got map[string]any
+		if err := json.Unmarshal(input, &got); err != nil || got["file_path"] != example.want {
+			t.Errorf("%s %s=%q became %s (%v), want %q", example.tool, example.field, example.path, input, err, example.want)
+		}
+	}
+}
 
 func TestAgyPaneTranscriptMapping(t *testing.T) {
 	// The JSONL example from issue #10236.

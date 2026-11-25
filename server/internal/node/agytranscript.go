@@ -845,6 +845,23 @@ var agyToolNames = map[string]string{
 	"web_fetch": "WebFetch", "web_search": "WebSearch", "todo_write": "TodoWrite",
 }
 
+// Agy sometimes records an absolute native file argument as a quoted word. Decode only a complete
+// wrapper around an absolute path so a literal quote in an ordinary path stays part of its name.
+func agyNativeFilePath(value any) any {
+	path, ok := value.(string)
+	if !ok || len(path) < 2 || (path[0] != '"' && path[0] != '\'') || path[len(path)-1] != path[0] {
+		return value
+	}
+	var decoded string
+	if path[0] == '"' && json.Unmarshal([]byte(path), &decoded) == nil && filepath.IsAbs(decoded) {
+		return decoded
+	}
+	if decoded, ok := shellWord(path); ok && filepath.IsAbs(decoded) {
+		return decoded
+	}
+	return value
+}
+
 func agyTool(name string, raw json.RawMessage) (string, json.RawMessage) {
 	if name == "" {
 		name = "tool"
@@ -875,15 +892,23 @@ func agyTool(name string, raw json.RawMessage) (string, json.RawMessage) {
 		}
 		return ""
 	}
+	filePath := func(key string) any {
+		for _, field := range []string{key, "Path"} {
+			if value := args[field]; value != nil {
+				return agyNativeFilePath(value)
+			}
+		}
+		return first("file_path")
+	}
 	switch name {
 	case "run_command":
 		args = map[string]any{"command": first("CommandLine", "command"), "description": first("toolSummary", "Cwd")}
 	case "view_file", "read_file":
-		args = map[string]any{"file_path": first("AbsolutePath", "Path", "file_path")}
+		args = map[string]any{"file_path": filePath("AbsolutePath")}
 	case "write_to_file", "write_file":
-		args = map[string]any{"file_path": first("TargetFile", "Path", "file_path"), "content": first("CodeContent", "Content", "content")}
+		args = map[string]any{"file_path": filePath("TargetFile"), "content": first("CodeContent", "Content", "content")}
 	case "replace_file_content", "edit_file":
-		args = map[string]any{"file_path": first("TargetFile", "Path", "file_path"), "old_string": first("TargetContent", "Target", "old_string"),
+		args = map[string]any{"file_path": filePath("TargetFile"), "old_string": first("TargetContent", "Target", "old_string"),
 			"new_string": first("ReplacementContent", "Replacement", "new_string")}
 	case "grep_search":
 		args = map[string]any{"pattern": first("Query", "Pattern", "pattern"), "path": first("SearchPath", "Path", "path")}
