@@ -4,7 +4,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closePalette, getPalette, openPalette, setPaletteQuery, usePalette } from "../lib/palette";
+import { closePalette, getPalette, openPalette, registerContextCommands, setPaletteQuery, usePalette } from "../lib/palette";
 import { closeHelp, toggleHelp, useHelpOpen } from "../lib/shortcut-help";
 import { helpKey, paletteKey } from "../lib/use-shortcuts";
 import { registerShortcut } from "../lib/shortcuts";
@@ -35,6 +35,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount());
+  offCommands();
   closePalette();
   closeHelp();
   host.remove();
@@ -46,8 +47,11 @@ function show(open: boolean) {
   act(() => root.render(<Palette open={open} onClose={() => {}} onNewAgent={() => {}} />));
 }
 
-/** Opens it in command mode: the app's own commands (New agent, New chat) are always listed. */
+/** Opens it in command mode: the app's own command (New agent) and a page's own are listed. */
+let offCommands: () => void = () => {};
 function openCommands() {
+  offCommands();
+  offCommands = registerContextCommands(() => [{ id: "test:page", section: "测试", title: "页面命令", run: () => {} }]);
   act(() => openPalette("command"));
   show(true);
 }
