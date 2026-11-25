@@ -209,8 +209,8 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			s.Capabilities = &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, QueueNextTurn: true, QueueEdit: proto.Bool(false)}
 			n.traexModelRow(&s)
 			if s.Status == proto.StatusWorking {
-				if box, err := n.readTraeComposer(ctx, a.PaneID); err == nil {
-					s.Queued = box.queued
+				if queued, ok := traexQueue(a.PaneID, id); ok {
+					s.Queued = queued
 				}
 			}
 		}

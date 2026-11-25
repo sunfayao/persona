@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/osproc"
@@ -63,8 +65,10 @@ var traexCache = struct {
 }{panes: map[int]string{}, status: map[string]traexState{}}
 
 type traexState struct {
-	status string
-	at     time.Time
+	session, status string
+	at              time.Time
+	queued          []string
+	queueRead       bool
 }
 
 // traexOwners maps each live compatible CLI process to its newest main conversation.
@@ -337,36 +341,65 @@ func traexPaneThread(owners map[int][]string, preferred string, parent func(int)
 
 var traexChoiceRe = lazyre.New(`(?m)^\s*[›❯>]\s*1\.\s+\S`)
 
-// traexStatus: working from the title's spinner at once; otherwise the screen, read at most every 2s.
+// traexStatus shares one screen read between status and the Herdr queue. The spinner is immediate evidence of
+// work unless the most recent screen shows a blocking question. Each pane is sampled at most every two seconds.
 func (n *Node) traexStatus(ctx context.Context, p host.Agent) string {
 	title := []rune(strings.TrimSpace(p.RawTitle))
 	spinning := len(title) > 0 && title[0] >= 0x2800 && title[0] <= 0x28FF
 	traexCache.Lock()
 	s, ok := traexCache.status[p.PaneID]
 	traexCache.Unlock()
-	if ok && time.Since(s.at) < 2*time.Second {
+	if !ok || s.session != p.SessionID() {
+		s = traexState{session: p.SessionID()}
+	}
+	if time.Since(s.at) < 2*time.Second {
 		if spinning && s.status != proto.StatusBlocked {
 			return proto.StatusWorking
 		}
 		return s.status
 	}
-	status := proto.StatusDone
 	rctx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	text, err := n.readPane(rctx, p.PaneID, "visible", 40)
-	cancel()
+	defer cancel()
+	colored := host.ParsePane(p.PaneID).Kind == host.Herdr
+	var text string
+	var err error
+	if colored {
+		text, err = n.readPaneANSI(rctx, p.PaneID, "visible", 80)
+		if errors.Is(err, herdr.ErrTruncated) {
+			colored = false
+			text, err = n.readPane(rctx, p.PaneID, "visible", 40)
+		}
+	} else {
+		text, err = n.readPane(rctx, p.PaneID, "visible", 40)
+	}
+	plain := screen.Plain(text)
+	status := proto.StatusDone
 	switch {
 	case err != nil:
 		status = s.status // keep the last known
-		if status == "" {
+		if spinning && status != proto.StatusBlocked {
+			status = proto.StatusWorking
+		} else if status == "" {
 			status = proto.StatusUnknown
 		}
-	case screen.ReadTraeQuestion(text) != nil, traexChoiceRe.MatchString(text):
+	case screen.ReadTraeQuestion(plain) != nil, traexChoiceRe.MatchString(plain):
 		status = proto.StatusBlocked
-	case spinning, strings.Contains(text, "esc to interrupt"):
+	case spinning, strings.Contains(plain, "esc to interrupt"):
 		status = proto.StatusWorking
 	}
+	s = traexState{session: p.SessionID(), status: status, at: time.Now()}
+	if colored && err == nil && status == proto.StatusWorking {
+		s.queued, s.queueRead = parseTraeComposer(text).queued, true
+	}
 	traexCache.Lock()
-	traexCache.status[p.PaneID] = traexState{status, time.Now()}
+	traexCache.status[p.PaneID] = s
 	traexCache.Unlock()
 	return status
+}
+
+func traexQueue(pane, session string) ([]string, bool) {
+	traexCache.Lock()
+	defer traexCache.Unlock()
+	s := traexCache.status[pane]
+	return s.queued, s.session == session && s.queueRead && time.Since(s.at) < 2*time.Second
 }
