@@ -418,61 +418,6 @@ func TestSetupBlockLeavesOutWhatIsOn(t *testing.T) {
 	}
 }
 
-// The block never turns anything on: computing it writes nothing, and telling it writes its own book only.
-func TestSetupBlockSwitchesNothingOn(t *testing.T) {
-	ctx := context.Background()
-	s, ev := newRuleService(t)
-	now := time.Now()
-	setupDelegateEvidence(ev, now, 5)
-	if err := s.putTriageSwitches(ctx, TriageSwitches{Enabled: true}); err != nil {
-		t.Fatal(err)
-	}
-	for i := range 4 {
-		ev.events = append(ev.events, db.WorkEvent{At: now.Add(-time.Duration(i+1) * time.Hour), Kind: "resumed",
-			Detail: map[string]any{"by": "user", "on": proto.WaitExternal, "phase": proto.WorkBlocked, "hand": handAutoContinue}})
-	}
-	store := s.store().(ruleStore)
-	snapshot := func() map[string]string {
-		store.mu.Lock()
-		defer store.mu.Unlock()
-		out := map[string]string{}
-		for k, v := range store.vals {
-			if k != setupKey {
-				out[k] = string(v)
-			}
-		}
-		return out
-	}
-	before, puts := snapshot(), store.puts
-
-	b := s.setupFor(ctx, now, s.location(ctx), i18n.En, testWeb)
-	if got := setupIDs(b); !slices.Equal(got, []string{setupDelegate, setupAutoContinue}) {
-		t.Fatalf("block: %v", got)
-	}
-	if store.puts != puts {
-		t.Fatalf("computing the block wrote %d settings", store.puts-puts)
-	}
-	s.setupTold(b, now)
-	if store.puts != puts+1 {
-		t.Fatalf("telling the block wrote %d settings, want its own book only", store.puts-puts)
-	}
-	after := snapshot()
-	if len(after) != len(before) {
-		t.Fatalf("settings changed: %v → %v", before, after)
-	}
-	for k, v := range before {
-		if after[k] != v {
-			t.Fatalf("setting %s changed: %s → %s", k, v, after[k])
-		}
-	}
-	if sw := s.triageSwitches(ctx); sw.AutoContinue || sw.Wake || sw.Decide {
-		t.Fatalf("a triage switch was turned on: %+v", sw)
-	}
-	if s.hello(ctx).Agents.Delegate.On() || len(s.settings(ctx).Leaders) != 0 || s.reviewSamplePercent(ctx) != 100 {
-		t.Fatal("a mechanism was turned on")
-	}
-}
-
 // The resumed row names the triage action a hand resume replaced (`hand`) only when that switch, being off, was all
 // that kept the triage from going on with the stop, and the turn was neither this manager's nor the agent's own doing.
 func TestResumedRowNamesTheSwitchAHandResumeReplaced(t *testing.T) {

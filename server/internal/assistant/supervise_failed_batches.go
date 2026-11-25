@@ -91,7 +91,7 @@ func (s *Service) failedStartBatchKey(ctx context.Context, to string, g supervis
 		return "", false
 	}
 	t, ok := s.todoNow(g.Todo)
-	if !ok || t.Supervision == nil || t.Supervision.Supervisor != to || !s.isLeader(ctx, to) || t.Supervision.state(t) == reviewNeedsUser {
+	if !ok || t.Supervision == nil || t.Supervision.Supervisor != to || t.Supervision.state(t) == reviewNeedsUser {
 		return "", false
 	}
 	machine := g.Machine

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/prompts"
@@ -75,13 +76,22 @@ func (s *Service) spaceClaudeMD(ctx context.Context, here string, e trackEntry) 
 	return prompts.RenderAssistantSpaceClaudeMD(d)
 }
 
+// spaceMDLang is the template's language: "" for Chinese (the prompts' original language), else the code.
+func spaceMDLang(l i18n.Lang) string {
+	switch l {
+	case i18n.En, i18n.Ja:
+		return string(l)
+	}
+	return ""
+}
+
 // initialSpaceMD is track e's first SPACE.md, in the owner's language (prompts/assistant/space_md.md).
 func (s *Service) initialSpaceMD(ctx context.Context, e trackEntry) string {
 	title := oneLine(e.Title)
 	if title == "" {
 		title = e.Slug
 	}
-	return prompts.RenderAssistantSpaceMD(prompts.AssistantSpaceMD{Lang: directionLang(s.lang(ctx)), Title: title})
+	return prompts.RenderAssistantSpaceMD(prompts.AssistantSpaceMD{Lang: spaceMDLang(s.lang(ctx)), Title: title})
 }
 
 // prepareTrackSoon makes new track slug's directory on the assistant's machine now, rather than at the next refresh

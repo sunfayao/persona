@@ -41,74 +41,6 @@ func stopHolds(t *testing.T, s *Service) {
 	})
 }
 
-// The ranks: the owner's late answer, what waits on a decision, an outcome to report, then the rest.
-func TestRelayRanks(t *testing.T) {
-	for _, tc := range []struct {
-		msg      relayMsg
-		rank     int
-		decision bool
-	}{
-		{relayMsg{Tool: askAnswerTool}, relayRankAnswer, true},
-		{relayMsg{Tool: superviseTool, Urgent: true}, relayRankDecision, true},
-		{relayMsg{Tool: noticeTool, State: "needs"}, relayRankDecision, true},
-		{relayMsg{Tool: noticeTool, State: "interrupted"}, relayRankDecision, true},
-		{relayMsg{Tool: noticeTool, State: "failed"}, relayRankDecision, true},
-		{relayMsg{Tool: noticeTool, State: "done"}, relayRankReport, false},
-		{relayMsg{Tool: superviseTool}, relayRankOther, false},
-		{relayMsg{Tool: "conversation_send"}, relayRankOther, false},
-		{relayMsg{Tool: spawnNoticeTool}, relayRankOther, false},
-		{relayMsg{Tool: taskEndTool}, relayRankOther, false},
-	} {
-		if got := tc.msg.rank(); got != tc.rank || tc.msg.decisionWaiting() != tc.decision {
-			t.Errorf("%s %q urgent=%v: rank %d decision %v, want %d %v", tc.msg.Tool, tc.msg.State, tc.msg.Urgent, got,
-				tc.msg.decisionWaiting(), tc.rank, tc.decision)
-		}
-		if got := tc.msg.rankIn(true); got != tc.rank {
-			t.Errorf("%s %q urgent=%v in a lead's queue: rank %d, want %d", tc.msg.Tool, tc.msg.State, tc.msg.Urgent, got, tc.rank)
-		}
-	}
-	// A hand-over of the owner's words (#11699): in a direction's lead's queue it goes after a late answer, a message
-	// that waits on a decision and a done notice, and before a routine supervision message and an ordinary message from
-	// another conversation; in any other queue it ranks as such a message.
-	handover := relayMsg{Tool: "conversation_send", Handover: "handover_1"}
-	if got := handover.rankIn(true); got != relayRankHandover {
-		t.Errorf("a hand-over in a lead's queue: rank %d, want %d", got, relayRankHandover)
-	}
-	if got := handover.rank(); got != relayRankOther {
-		t.Errorf("a hand-over in another queue: rank %d, want %d", got, relayRankOther)
-	}
-	if !(relayRankAnswer < relayRankDecision && relayRankDecision < relayRankReport && relayRankReport < relayRankHandover &&
-		relayRankHandover < relayRankOther) {
-		t.Error("the ranks are out of order")
-	}
-	// A signal waits on a decision when somebody waits on its answer: not every signal that is told soon (urgent).
-	for _, tc := range []struct {
-		g    superviseSignal
-		want bool
-	}{
-		{superviseSignal{Kind: sigNeedsYou}, true},
-		{superviseSignal{Kind: sigIdle}, true},
-		{superviseSignal{Kind: sigInterrupted}, true},
-		{superviseSignal{Kind: sigFailed}, true},
-		{superviseSignal{Kind: sigOrphaned}, true},
-		{superviseSignal{Kind: sigAsk}, true},
-		{superviseSignal{Kind: sigReport, Report: upReportQuestion}, true},
-		{superviseSignal{Kind: sigReport, Report: upReportBlocked}, true},
-		{superviseSignal{Kind: sigReport, Report: upReportDone}, false},
-		{superviseSignal{Kind: sigReport, Report: upReportProgress}, false},
-		{superviseSignal{Kind: sigStarted}, false},
-		{superviseSignal{Kind: sigReview}, false},
-		{superviseSignal{Kind: sigStalled}, false},
-	} {
-		if got := tc.g.waitsOnDecision(); got != tc.want {
-			t.Errorf("%s %s waits on a decision: %v, want %v", tc.g.Kind, tc.g.Report, got, tc.want)
-		}
-	}
-	if !anyDecision([]superviseSignal{{Kind: sigReview}, {Kind: sigNeedsYou}}) || anyDecision([]superviseSignal{{Kind: sigStarted}, {Kind: sigStalled}}) {
-		t.Fatal("a supervision message waits on a decision exactly when one of its signals does")
-	}
-}
-
 // queuedRelays is a copy of conversation id's queue.
 func queuedRelays(s *Service, id string) []relayMsg {
 	b := &s.relays
@@ -293,62 +225,6 @@ func TestScheduledRunWaitsForTheOwner(t *testing.T) {
 	}
 }
 
-// The queue goes out by rank, the one that queued first within a rank, whatever order the messages came in.
-// In a direction's lead conversation, a hand-over of the owner's words (#11699) goes after the outcomes to report and
-// before the rest; in the main conversation it waits its turn among them.
-func TestQueuedRelaysGoOutByRank(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		lead bool
-		want []string
-	}{
-		{"main conversation", false, []string{"answer-1", "decision-notice", "report-1", "report-2", "other-1", "supervise-plain", "handover-1"}},
-		{"lead conversation", true, []string{"answer-1", "decision-notice", "report-1", "report-2", "handover-1", "other-1", "supervise-plain"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, f := newQuietService(t)
-			if tc.lead {
-				setSettings(t, s, func(v *Settings) { v.Main, v.Leaders = "conv0", []string{"conv1"} })
-			}
-			busy := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusWorking}
-			f.setSessions("server", busy)
-			at := time.Now().UTC()
-			for _, m := range []relayMsg{
-				{From: "c2", FromTitle: "Research", Tool: "conversation_send", Text: "other-1"},
-				{From: "t1", Tool: noticeTool, State: "done", Text: "report-1"},
-				{From: superviseTool, Tool: superviseTool, Text: "supervise-plain"},
-				{From: "t2", Tool: noticeTool, State: "done", Text: "report-2"},
-				{From: "t3", Tool: noticeTool, State: "failed", Text: "decision-notice"},
-				{From: "t4", Tool: askAnswerTool, Text: "answer-1"},
-				{From: superviseTool, Tool: superviseTool, Urgent: true, Text: "never queued twice"},
-				{From: "c3", FromTitle: "Planning", Tool: "conversation_send", Handover: "handover_1", Text: "handover-1"},
-			} {
-				if m.Tool == superviseTool && m.Urgent {
-					continue // one supervision message per conversation waits (replaceQueuedSupervise)
-				}
-				m.At = at
-				if s.queueRelay("conv1", m) == 0 {
-					t.Fatal("not queued")
-				}
-			}
-			idle := busy
-			idle.Status = proto.StatusIdle
-			for i := range tc.want {
-				s.drainRelays("server", []proto.Session{idle})
-				waitFor(t, "the next queued message", func() bool { return f.sentTo("conv1") == i+1 })
-			}
-			for i, text := range f.notices() {
-				if !strings.Contains(text, tc.want[i]) {
-					t.Fatalf("message %d is %q, want %q\nall: %q", i, text, tc.want[i], f.notices())
-				}
-			}
-			if n := s.queuedFor("conv1"); n != 0 {
-				t.Fatalf("%d left queued", n)
-			}
-		})
-	}
-}
-
 // Within ownerPresentFor of the owner's message nothing from the system goes into the conversation, idle as it is;
 // when the hold ends it goes in on its own, with no change of the machine's list.
 func TestSystemMessagesWaitWhileTheOwnerTalks(t *testing.T) {
@@ -485,10 +361,10 @@ func TestDecisionWaitingMessagesAreHeldAtMost(t *testing.T) {
 		{Tool: "conversation_send", Text: "other", At: now.Add(-10 * time.Minute)},
 		{Tool: superviseTool, Urgent: true, Text: "soon", At: now.Add(-4 * time.Minute)},
 	}
-	if i, wait := b.pickLocked("conv1", false, now); i != -1 || wait != time.Minute {
+	if i, wait := b.pickLocked("conv1", now); i != -1 || wait != time.Minute {
 		t.Fatalf("pick %d, wait %s", i, wait)
 	}
-	if i, wait := b.pickLocked("conv1", false, now.Add(time.Minute)); i != 1 || wait != 0 {
+	if i, wait := b.pickLocked("conv1", now.Add(time.Minute)); i != 1 || wait != 0 {
 		t.Fatalf("after the decision's hold: pick %d, wait %s", i, wait)
 	}
 	b.frontLocked("conv1", 1)
@@ -724,55 +600,5 @@ func TestHeldRelaysSurviveARestart(t *testing.T) {
 	restarted.relays.mu.Unlock()
 	if kept {
 		t.Fatal("the owner's last message is kept after its hold ended and its queue was handed on")
-	}
-}
-
-// The stored shape: what the last version wrote reads as before, a message without the new fields writes none of
-// them, and the last version (which does not know them) reads what this one writes.
-func TestRelayStateReadsAcrossVersions(t *testing.T) {
-	old := `{"queue":{"conv1":[{"from":"c2","from_title":"Research","tool":"conversation_send","text":"hi","hop":1,"at":"2026-11-01T00:00:00Z"}]},"hops":{"conv1":{"hop":1,"at":"2026-11-01T00:00:00Z"}}}`
-	var rs relayState
-	if err := json.Unmarshal([]byte(old), &rs); err != nil {
-		t.Fatal(err)
-	}
-	if q := rs.Queue["conv1"]; len(q) != 1 || q[0].Text != "hi" || q[0].Urgent || rs.Spoke != nil {
-		t.Fatalf("read: %+v", rs)
-	}
-	out, err := json.Marshal(rs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, field := range []string{"urgent", "spoke", "decision_at", "handover", "answers", "handed"} {
-		if strings.Contains(string(out), field) {
-			t.Fatalf("new fields written for a queue that has none: %s", out)
-		}
-	}
-	rs.Queue["conv1"][0].Urgent = true
-	rs.Queue["conv1"][0].Handover, rs.Queue["conv1"][0].Answers = "handover_2", "handover_1"
-	rs.Spoke = map[string]time.Time{"conv1": time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)}
-	out, err = json.Marshal(rs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The last version's shape: no urgent, no spoke; unknown fields are skipped.
-	var prev struct {
-		Queue map[string][]struct {
-			From, Tool, Text string
-			At               time.Time
-		} `json:"queue"`
-		Hops map[string]relayHop `json:"hops"`
-	}
-	if err := json.Unmarshal(out, &prev); err != nil {
-		t.Fatal(err)
-	}
-	if q := prev.Queue["conv1"]; len(q) != 1 || q[0].Text != "hi" || q[0].Tool != "conversation_send" || prev.Hops["conv1"].Hop != 1 {
-		t.Fatalf("the last version reads: %+v", prev)
-	}
-	var back relayState
-	if err := json.Unmarshal(out, &back); err != nil {
-		t.Fatal(err)
-	}
-	if m := back.Queue["conv1"][0]; m.Handover != "handover_2" || m.Answers != "handover_1" || m != rs.Queue["conv1"][0] {
-		t.Fatalf("read back: %+v", m)
 	}
 }

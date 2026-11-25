@@ -158,53 +158,6 @@ func TestModelPickIsKeptAndCleared(t *testing.T) {
 	}
 }
 
-// Every kind of assistant conversation — a leader, the background supervisor, a scheduled task's, a one-off one — runs
-// its next message on its own pick and the snapshot publishes the same pick, so what the apps show is what runs
-// (#9248, #6911's concern). Clearing it goes back to following the default / what it started with; another
-// conversation is untouched either way.
-func TestEveryAssistantConversationRunsOnItsOwnPick(t *testing.T) {
-	s, f := pickFixture(t)
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead"} })
-	f.setSessions("server", proto.Session{SessionID: "main", Assistant: true, Launcher: "gw"},
-		proto.Session{SessionID: "side", Assistant: true, Launcher: "cx", Model: "gpt-5"},
-		proto.Session{SessionID: "lead", Assistant: true, Launcher: "gw"})
-	shown := func(sid string) *proto.ModelPick {
-		for _, v := range f.lastSnapshot().Sessions {
-			if v.SessionID == sid {
-				return v.ModelPick
-			}
-		}
-		return nil
-	}
-	if p, err := send(t, s, "lead", map[string]any{}); err != nil || p["launcher"] != "gw" {
-		t.Fatalf("a leader follows the default before it picks: %v %v", p, err)
-	}
-	for _, sid := range []string{"lead", "side"} {
-		if r := putPick(t, s, sid, `{"launcher":"claude","model":"opus","effort":"high"}`); r.Code != 200 {
-			t.Fatalf("PUT %s: %d %s", sid, r.Code, r.Body.String())
-		}
-		p, err := send(t, s, sid, map[string]any{})
-		if err != nil || p["launcher"] != "claude" || p["model"] != "opus" || p["effort"] != "high" || p["model_fingerprint"] == nil {
-			t.Fatalf("%s runs on its pick: %v %v", sid, p, err)
-		}
-		if pick := shown(sid); pick == nil || pick.Launcher != "claude" || pick.Model != "opus" {
-			t.Fatalf("%s shows %+v, not what runs", sid, pick)
-		}
-	}
-	if p, err := send(t, s, "main", map[string]any{}); err != nil || p["launcher"] != "gw" || shown("main") != nil {
-		t.Fatalf("main has no pick of its own: %v %v %+v", p, err, shown("main"))
-	}
-	if r := request(s, "DELETE", "/api/v1/assistant/conversations/lead/model", ""); r.Code != 200 {
-		t.Fatalf("DELETE lead: %d %s", r.Code, r.Body.String())
-	}
-	if p, err := send(t, s, "lead", map[string]any{}); err != nil || p["launcher"] != "gw" || p["model"] != nil || shown("lead") != nil {
-		t.Fatalf("a leader back on the default: %v %v %+v", p, err, shown("lead"))
-	}
-	if p, err := send(t, s, "side", map[string]any{}); err != nil || p["launcher"] != "claude" || p["model"] != "opus" {
-		t.Fatalf("side kept its pick: %v %v", p, err)
-	}
-}
-
 // A message that picks nothing runs on the main conversation's pick; one that picks a launcher or a model (an older
 // app) runs on that; an effort sent with the message wins over the pick's. Another assistant conversation runs on its
 // own pick the same way (#9248), and on what it started with until it has one.
@@ -676,65 +629,6 @@ func TestStartTakesAModelAndKeepsThePick(t *testing.T) {
 			t.Fatalf("kept: %v", picks)
 		}
 	})
-}
-
-// The hub's own messages to a conversation (supervision, notices, another conversation's) run on its pick like the
-// ones the user types, so the model the apps show is the next one's whoever writes next; and the background
-// supervisor, whoever writes to it, runs under its own purpose until it has a pick (#9248).
-func TestRelayedMessagesAndTheSupervisorRunOnTheirModel(t *testing.T) {
-	s, f := pickFixture(t)
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) {
-		v.Leaders = []string{"lead"}
-		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg", "server"
-	})
-	setModel(t, s, purposeSupervise, ModelBinding{Provider: "launcher.cx"})
-	f.setSessions("server", proto.Session{SessionID: "main", Assistant: true, Launcher: "gw"},
-		proto.Session{SessionID: "lead", Assistant: true, Launcher: "gw"},
-		proto.Session{SessionID: "bg", Assistant: true, Launcher: "gw"})
-	f.mu.Lock()
-	f.known["lead"], f.known["bg"] = true, true
-	f.mu.Unlock()
-	relay := func(to string) map[string]any {
-		t.Helper()
-		if err := s.deliverRelay(ctx, "server", to, relayMsg{Tool: noticeTool, Text: "a notice"}); err != nil {
-			t.Fatal(err)
-		}
-		return f.lastSend(t)
-	}
-	if p := relay("lead"); p["launcher"] != nil {
-		t.Fatalf("a leader without a pick is sent as it was: %v", p)
-	}
-	if r := putPick(t, s, "lead", `{"launcher":"claude","model":"opus"}`); r.Code != 200 {
-		t.Fatalf("PUT lead: %d %s", r.Code, r.Body.String())
-	}
-	if p := relay("lead"); p["launcher"] != "claude" || p["model"] != "opus" {
-		t.Fatalf("a relayed message runs on the leader's pick: %v", p)
-	}
-	// without a pick the supervisor runs under its own purpose, typed to or relayed
-	if p, err := send(t, s, "bg", map[string]any{}); err != nil || p["launcher"] != "cx" {
-		t.Fatalf("a message typed to the supervisor: %v %v", p, err)
-	}
-	if p := relay("bg"); p["launcher"] != "cx" {
-		t.Fatalf("a relayed message to the supervisor: %v", p)
-	}
-	// with a pick, both run on it after a manager restart too; the main conversation still follows its own default
-	if r := putPick(t, s, "bg", `{"launcher":"claude","model":"haiku"}`); r.Code != 200 {
-		t.Fatalf("PUT bg: %d %s", r.Code, r.Body.String())
-	}
-	s = newServiceOn(t, f, s.store())
-	if p, err := send(t, s, "main", map[string]any{}); err != nil || p["launcher"] != "gw" {
-		t.Fatalf("the main conversation after the restart: %v %v", p, err)
-	}
-	if p, err := send(t, s, "lead", map[string]any{}); err != nil || p["launcher"] != "claude" || p["model"] != "opus" {
-		t.Fatalf("the leader after the restart: %v %v", p, err)
-	}
-	if p, err := send(t, s, "bg", map[string]any{}); err != nil || p["launcher"] != "claude" || p["model"] != "haiku" {
-		t.Fatalf("typed to the supervisor on its pick after the restart: %v %v", p, err)
-	}
-	if p := relay("bg"); p["launcher"] != "claude" || p["model"] != "haiku" {
-		t.Fatalf("relayed to the supervisor on its pick after the restart: %v", p)
-	}
 }
 
 // A conversation a scheduled task started follows Model configuration › Main chat on every message, also once it is no

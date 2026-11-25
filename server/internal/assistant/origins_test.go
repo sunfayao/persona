@@ -32,69 +32,6 @@ func titleIn(f *fakeHub, id string) string {
 	return ""
 }
 
-// Every way the hub opens a conversation notes where it comes from (#3264): the app's own and a channel's /new are
-// the user's, the rest are the hub's.
-func TestOriginNotedAtStart(t *testing.T) {
-	ctx := context.Background()
-	f := newFakeHub().withMachine()
-	f.settings = &Settings{MachineID: "server", Timezone: "Asia/Shanghai"}
-	s := newTestService(t, f)
-
-	app, err := s.Start(ctx, StartParams{Text: "帮我看看明天的会"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o, _ := originOf(f, app.SessionID); o != OriginUser || app.Origin != OriginUser {
-		t.Fatalf("the app's conversation: %q / %q", o, app.Origin)
-	}
-	ch, err := s.Start(ctx, StartParams{Text: "/new 你好", Origin: OriginChannel, OriginRef: "wechat"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o, ref := originOf(f, ch.SessionID); o != OriginChannel || ref != "wechat" {
-		t.Fatalf("a channel's /new: %q %q", o, ref)
-	}
-	main, err := s.Start(ctx, StartParams{Text: "早", Main: true, Origin: OriginChannel, OriginRef: "feishu"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o, _ := originOf(f, main.SessionID); o != OriginUser {
-		t.Fatalf("the main conversation is the user's whatever opened it: %q", o)
-	}
-
-	// conversation_new: spawned, of the conversation that asked.
-	res := s.Tool(ctx, ToolCall{MachineID: "server", SessionID: app.SessionID, Name: "conversation_new", Arguments: json.RawMessage(`{"text":"去查一下"}`)})
-	if res.IsError {
-		t.Fatalf("conversation_new: %+v", res)
-	}
-	spawned := f.lastSend(t)
-	var spawnedID string
-	for _, v := range f.lastSnapshot().Sessions {
-		if v.Origin == OriginSpawned {
-			spawnedID = v.SessionID
-			if v.OriginRef != app.SessionID {
-				t.Fatalf("spawned of %q", v.OriginRef)
-			}
-		}
-	}
-	if spawnedID == "" || !strings.Contains(spawned["text"].(string), "去查一下") {
-		t.Fatalf("no spawned conversation: %+v", f.lastSnapshot().Sessions)
-	}
-
-	// A scheduled task: task, of the task, titled after it at once.
-	setTasks(s, Task{ID: "r", Title: "早报", Prompt: "给我今天的早报", Repeat: repeatDaily, Time: "09:00", Enabled: true})
-	run, err := runNow(t, s, "r")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if o, ref := originOf(f, run.SessionID); o != OriginTask || ref != "r" {
-		t.Fatalf("a task's conversation: %q %q", o, ref)
-	}
-	if got := titleIn(f, run.SessionID); !strings.HasSuffix(got, " | 定时 | 早报") {
-		t.Fatalf("a task's title: %q", got)
-	}
-}
-
 // A plugin's request opens an extension's conversation; on lark.agent's model it is a Feishu /agent. An app's
 // request is the user's whatever header it sends.
 func TestOriginOfARequest(t *testing.T) {

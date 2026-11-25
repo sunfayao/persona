@@ -56,9 +56,9 @@ func (s *Service) handOverUnreviewed(ctx context.Context, now time.Time) {
 }
 
 // sideSupervisor: supervisor is a legacy side conversation that supervised what it handed out: not the main
-// conversation, a leader conversation, the background supervisor or a task leader's agent.
+// conversation, the background supervisor or a task leader's agent.
 func (s *Service) sideSupervisor(ctx context.Context, cfg Settings, supervisor string) bool {
-	return supervisor != "" && supervisor != cfg.Main && !s.isLeader(ctx, supervisor) && !s.isBackground(ctx, supervisor) &&
+	return supervisor != "" && supervisor != cfg.Main && !s.isBackground(ctx, supervisor) &&
 		!s.isLeaderRef(supervisor)
 }
 

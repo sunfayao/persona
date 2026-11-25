@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"net/http"
 	"path"
 	"slices"
 	"sort"
@@ -15,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/prompts"
@@ -180,32 +178,6 @@ func (s *Service) unarchiveOnSend(machine, id string) bool {
 	return changed
 }
 
-// archiveRoutes: POST /api/v1/assistant/conversations/{id}/archive and …/unarchive.
-func (s *Service) archiveRoutes() {
-	for _, op := range []struct {
-		path string
-		on   bool
-	}{{"archive", true}, {"unarchive", false}} {
-		s.handle("POST /api/v1/assistant/conversations/{id}/"+op.path, func(w http.ResponseWriter, r *http.Request) {
-			id := r.PathValue("id")
-			if !validSessionID(id) {
-				apierr.Write(w, http.StatusBadRequest, errors.New("invalid conversation id"))
-				return
-			}
-			machine := s.settings(r.Context()).MachineID
-			if _, err := s.setArchived(r.Context(), machine, id, op.on, titleByUser); err != nil {
-				status := http.StatusInternalServerError
-				if errors.Is(err, errArchiveMain) || errors.Is(err, errArchiveBackground) {
-					status = http.StatusBadRequest
-				}
-				apierr.Write(w, status, err)
-				return
-			}
-			apierr.WriteJSON(w, map[string]any{"ok": true, "archived": op.on})
-		})
-	}
-}
-
 var sessionIDRe = lazyre.New(`^[A-Za-z0-9._-]{1,128}$`)
 var legacySuperviseEntryIDRe = lazyre.New(`(?m)^\d+\.\s+任务「[^\n]*?」（(todo_[A-Za-z0-9]+)(，链接 [^\n]+)?）：`) // i18n-ignore: pre-signals rendered entry header, not display copy
 
@@ -273,11 +245,6 @@ type relayMsg struct {
 	// Chat: what a chat_reply tells (chat_reply.go, #10777), so a later batch of the same chat merges into it. A version
 	// that does not know it drops it on its next save: the message then goes as it is, and the next batch queues its own.
 	Chat *chatReply `json:"chat,omitempty"`
-	// Handover: the hand-over of the owner's words this conversation_send is, and Answers: the one it answers
-	// (relay_handover.go, #11699). A version that does not know them drops them on its next save: the message then ranks
-	// as before, its hand-over stays queued until it expires, and the one it answers stays delivered.
-	Handover string `json:"handover,omitempty"`
-	Answers  string `json:"answers,omitempty"`
 }
 
 type relayHop struct {
@@ -300,9 +267,6 @@ type relayState struct {
 	// conversation. Reads also accept the former NUL-delimited in-memory key; only the Postgres-safe form is written.
 	// It survives a manager restart, so an old background can finish exactly those tasks and no new main-supervised ones.
 	LegacyBackground map[string]bool `json:"legacy_background,omitempty"`
-	// Spawned: the conversations conversation_new opened, by id, until they report back or their parent is told
-	// (spawned.go, #4669).
-	Spawned map[string]spawnedConv `json:"spawned,omitempty"`
 	// Spoke: when the owner last sent each conversation a message, kept for ownerPresentFor (relay_presence.go).
 	Spoke map[string]time.Time `json:"spoke,omitempty"`
 	// Later: by receiver, what conversation_send with wake: false kept for it, to go in with its next delivered message
@@ -311,10 +275,6 @@ type relayState struct {
 	Later map[string][]relayMsg `json:"later,omitempty"`
 	// LaterSends freezes quiet-message context for retries under one assistant.send once_id (relay_later.go).
 	LaterSends map[string]relayLaterSend `json:"later_sends,omitempty"`
-	// Handed: by direction's lead conversation, when a hand-over of the owner's quoted words last went into it
-	// (relay_lead_hold.go, #11699): until the owner next writes there (userSpoke), what it plans that writes waits for
-	// their Start. A version that does not know it drops it on its next save: those plans then start as before.
-	Handed map[string]time.Time `json:"handed,omitempty"`
 }
 
 type relayBook struct {
@@ -371,9 +331,6 @@ func (s *Service) relayLocked(ctx context.Context) bool {
 	}
 	if rs.Hops == nil {
 		rs.Hops = map[string]relayHop{}
-	}
-	if rs.Spawned == nil {
-		rs.Spawned = map[string]spawnedConv{}
 	}
 	if rs.LegacyBackground == nil {
 		rs.LegacyBackground = map[string]bool{}
@@ -439,11 +396,6 @@ func (s *Service) saveRelayLocked() error {
 			delete(s.relays.st.Spoke, id)
 		}
 	}
-	for id, c := range s.relays.st.Spawned {
-		if time.Since(c.At) > spawnedKeep {
-			delete(s.relays.st.Spawned, id)
-		}
-	}
 	s.pruneRelayLaterLocked(time.Now())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -482,16 +434,14 @@ func (s *Service) userSpoke(id string) {
 	}
 	b.ownerSpokeLocked(id, time.Now())
 	delete(b.st.Hops, id)
-	delete(b.st.Handed, id)       // the owner is in it again: what they ask for there starts as they ask (relay_lead_hold.go)
 	b.roundsFrom[id] = time.Now() // the owner is in it again: its round trips count from here (#10400)
 	s.saveRelayLocked()
 }
 
-// relayRoute is who is on each end of a message, as the settings name them (#10099): the main conversation and the
-// leader conversations. The zero route is an ordinary message between two other conversations.
+// relayRoute is who is on each end of a message, as the settings name them (#10099): the main conversation. The zero
+// route is an ordinary message between two other conversations.
 type relayRoute struct {
-	fromMain bool     // from is the main conversation
-	leaders  []string // the leader conversations, counted per pair only when the main conversation writes to them
+	fromMain bool // from is the main conversation
 	// quote: the owner's message the hub verified this send carries (conversation/message id), written within
 	// relayHopMemory; "" for none. The first send of it to a target is the owner's own request: no rate, no round
 	// trip, hop 1 (#10400).
@@ -520,7 +470,7 @@ func (s *Service) relayRouteFor(ctx context.Context, self string) relayRoute {
 	if cfg.Main == "" || cfg.Main != self {
 		return relayRoute{}
 	}
-	return relayRoute{fromMain: true, leaders: slices.Clone(cfg.Leaders)}
+	return relayRoute{fromMain: true}
 }
 
 // relayAllowed checks the hop and rate limits for a message from → to and counts it when allowed. It returns the
@@ -595,9 +545,7 @@ func (s *Service) relayAdmit(r relayRoute, from, to string, now time.Time) (rela
 			if now.Sub(t) >= relayWindow {
 				continue // a place counted for later (due) is in the window too
 			}
-			if !r.fromMain || !slices.Contains(r.leaders, k[1]) {
-				fromTs = append(fromTs, t)
-			}
+			fromTs = append(fromTs, t)
 			if k[1] == to {
 				pairTs = append(pairTs, t)
 			}
@@ -623,12 +571,10 @@ func (s *Service) relayAdmit(r relayRoute, from, to string, now time.Time) (rela
 		due := over(pairTs, relayPairMax)
 		a.count, a.limit = len(pairTs), relayPairMax
 		what := "messages to that conversation"
-		if !(r.fromMain && slices.Contains(r.leaders, to)) {
-			if d := over(fromTs, relayFromMax); d.After(due) {
-				due = d
-				a.count, a.limit = len(fromTs), relayFromMax
-				what = "messages to other conversations"
-			}
+		if d := over(fromTs, relayFromMax); d.After(due) {
+			due = d
+			a.count, a.limit = len(fromTs), relayFromMax
+			what = "messages to other conversations"
 		}
 		if !due.IsZero() && due.After(now) {
 			if !r.queue {
@@ -777,7 +723,6 @@ func (s *Service) queueRelay(to string, msg relayMsg) int {
 	}
 	n := len(b.st.Queue[to])
 	b.mu.Unlock()
-	s.handoverSet(msg.Handover, handoverQueued, "", nil) // a hand-over of the owner's words waits (relay_handover.go)
 	go s.releaseHeldAsks(to)
 	return n
 }
@@ -841,7 +786,7 @@ func (s *Service) queuedRelays() (map[string][]string, bool) {
 	}
 	for id, q := range b.st.Queue {
 		for _, msg := range q {
-			if msg.Tool == noticeTool || msg.Tool == askAnswerTool || msg.Tool == spawnNoticeTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool || msg.Tool == relayRefusedTool { // a quiet task's notice (quiet.go), a question's answer (ask_todo.go): its title is enough
+			if msg.Tool == noticeTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool || msg.Tool == relayRefusedTool { // a quiet task's notice (quiet.go), a question's answer (ask_todo.go): its title is enough
 				out[id] = append(out[id], msg.FromTitle+"的通知")
 				continue
 			}
@@ -911,14 +856,11 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 	if round {
 		params[superviseRoundParam] = true
 	}
-	// A hand-over of the owner's words into a lead holds its writable plans from before the send (relay_lead_hold.go).
-	handed := s.holdForHandover(to, msg)
 	var res superviseRoundReply
 	if err := s.call(ctx, machine, DeviceAssistantSend, params, &res); err != nil {
 		if msg.Tool == superviseTool && !relayInDoubt(err) { // in doubt, drainRelays lets go once it knows it did not go in
 			s.releasePushes(ctx, to)
 		}
-		handed(err)
 		return err
 	}
 	if s.isBackground(ctx, to) && res.SessionID != "" && res.SessionID != to {
@@ -937,7 +879,7 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 // relayDeliveryText is what a relayed message says in the conversation: a notice, a supervision message and an answer
 // are their own text; a message from another conversation says where it comes from.
 func relayDeliveryText(msg relayMsg) string {
-	if msg.Tool == noticeTool || msg.Tool == superviseTool || msg.Tool == askAnswerTool || msg.Tool == spawnNoticeTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool ||
+	if msg.Tool == noticeTool || msg.Tool == superviseTool || msg.Tool == askAnswerTool || msg.Tool == taskEndTool || msg.Tool == prFollowupTool ||
 		msg.Tool == chatReplyTool || msg.Tool == relayRefusedTool {
 		return msg.Text
 	}
@@ -962,8 +904,6 @@ func (s *Service) relayDelivered(ctx context.Context, to string, msg relayMsg) {
 		s.noteReportTurn(to) // the answer to a task's notice (or to the owner's late call) is pushed however quick it was (#3438)
 		return
 	}
-	s.handoverWentIn(to, msg) // the hand-over of the owner's words it is, or answers (relay_handover.go)
-	s.noteHandedOver(to, msg) // and a lead it went into waits for the owner before writable work (relay_lead_hold.go)
 	now := time.Now().UTC()
 	b := &s.relays
 	b.mu.Lock()
@@ -1065,7 +1005,6 @@ func (s *Service) takeRelayHeadLocked(id string, msg relayMsg, replayOK bool) (r
 // where the message going in is. A conversation whose messages are all held is drained again when the first hold
 // ends.
 func (s *Service) drainRelays(machine string, list []proto.Session) {
-	leads := s.queueLeads(context.Background())
 	b := &s.relays
 	b.mu.Lock()
 	if !s.relayLocked(context.Background()) || len(b.st.Queue) == 0 {
@@ -1077,7 +1016,7 @@ func (s *Service) drainRelays(machine string, list []proto.Session) {
 	now := time.Now()
 	for _, c := range list {
 		if len(b.st.Queue[c.SessionID]) > 0 && c.Status != proto.StatusWorking && !c.Starting && !b.draining[c.SessionID] && !b.replacing[c.SessionID] {
-			i, wait := b.pickLocked(c.SessionID, leads[c.SessionID], now)
+			i, wait := b.pickLocked(c.SessionID, now)
 			if last, stuck := b.stuck[c.SessionID]; stuck && i >= 0 && b.st.Queue[c.SessionID][i] == last {
 				// Only the message it failed to take is left to go: tried again after a gap, not on every list.
 				if gap := relayRetryGap - now.Sub(b.failedAt[c.SessionID]); gap > 0 {
@@ -1166,10 +1105,6 @@ func (s *Service) drainRelays(machine string, list []proto.Session) {
 				}
 			}
 			leaves := stale || refused && !stays || !keep && (err == nil || failure == relayFailedGone)
-			if leaves && err != nil && failure == relayFailedGone {
-				// Dropped: a hand-over it carried will not be tried again, marked before the queue without it is saved.
-				s.handoverEnded(msg.Handover, handoverGone)
-			}
 			b.mu.Lock()
 			delete(b.draining, id)
 			// An inline answer may have committed while this send was in flight. Apply its result to the loaded queue.
@@ -1305,7 +1240,6 @@ func conversationName(c proto.Session, main string) string {
 func (s *Service) toolConversationsList(ctx context.Context, self string, args json.RawMessage) (string, error) {
 	var a struct {
 		Query           string `json:"query"`
-		Tag             string `json:"tag"`
 		IncludeArchived bool   `json:"include_archived"`
 		Limit           int    `json:"limit"`
 	}
@@ -1321,16 +1255,12 @@ func (s *Service) toolConversationsList(ctx context.Context, self string, args j
 	list, main := s.conversations(ctx, a.IncludeArchived, space)
 	sort.SliceStable(list, func(i, j int) bool { return list[i].UpdatedAt.After(list[j].UpdatedAt) })
 	q := strings.ToLower(strings.TrimSpace(a.Query))
-	tag := strings.TrimSpace(a.Tag)
 	loc := s.location(ctx)
 	var b strings.Builder
 	n := 0
 	for _, c := range list {
 		name := conversationName(c, main)
 		if q != "" && !strings.Contains(strings.ToLower(name+"\n"+c.LastText), q) {
-			continue
-		}
-		if tag != "" && !hasTag(c, tag) {
 			continue
 		}
 		if n >= a.Limit {
@@ -1374,9 +1304,6 @@ func (s *Service) toolConversationsList(ctx context.Context, self string, args j
 		if q != "" {
 			filters = append(filters, fmt.Sprintf("query %q", a.Query))
 		}
-		if tag != "" {
-			filters = append(filters, fmt.Sprintf("tag %q", tag))
-		}
 		if len(filters) > 0 {
 			return "No conversation matches " + strings.Join(filters, " and ") + ".", nil
 		}
@@ -1385,9 +1312,6 @@ func (s *Service) toolConversationsList(ctx context.Context, self string, args j
 	head := fmt.Sprintf("%d conversation(s), newest activity first", n)
 	if !a.IncludeArchived {
 		head += " (archived ones left out)"
-	}
-	if tag != "" {
-		head += fmt.Sprintf(" (tag %q)", tag)
 	}
 	if n > a.Limit {
 		head += fmt.Sprintf("; the first %d", a.Limit)
@@ -1416,210 +1340,6 @@ func (s *Service) toolConversationRead(ctx context.Context, self string, args js
 	}
 	head := fmt.Sprintf("「%s」 %s (%s)", conversationName(c, s.settings(ctx).Main), c.SessionID, stateNames[c.State])
 	return transcriptText(head, sessionLink(s.webBase(ctx), c.MachineID, c.SessionID, true), res.Items), nil
-}
-
-func (s *Service) toolConversationRename(ctx context.Context, self string, args json.RawMessage) (string, error) {
-	var a struct {
-		ID        string `json:"id"`
-		Name      string `json:"name"`
-		Kind      string `json:"kind"`
-		Topic     string `json:"topic"`
-		UserAsked bool   `json:"user_asked"`
-	}
-	_ = json.Unmarshal(args, &a)
-	c, err := s.ownSpaceConversation(ctx, self, a.ID)
-	if err != nil {
-		return "", err
-	}
-	if c.SessionID == s.settings(ctx).Main {
-		return "", errors.New("the main conversation is always shown as 主对话: it has no title to change")
-	}
-	if s.isLeader(ctx, c.SessionID) {
-		if d := s.directionOf(c.SessionID); d != nil && d.NameBy == directionByUser && !a.UserAsked {
-			return "", errors.New("the user named this direction themselves: rename it only when they ask you to, and then pass user_asked")
-		}
-		name := strings.TrimSpace(a.Name)
-		if name == "" {
-			name = strings.TrimSpace(a.Topic) // compatible with older callers that supplied kind/topic
-		}
-		if name == "" {
-			return "", errors.New("name is required for a direction: use its project-supervisor name without a date or kind prefix")
-		}
-		raw, _ := json.Marshal(map[string]string{"id": c.SessionID, "name": name})
-		return s.toolDirectionName(ctx, self, raw) // retains the existing main-only direction-name permission
-	}
-	if !slices.Contains(titleKinds, a.Kind) {
-		return "", fmt.Errorf("kind must be one of %s", strings.Join(titleKinds, " / "))
-	}
-	topic := titleTopic(a.Topic)
-	if topic == "" {
-		return "", errors.New("topic is empty")
-	}
-	by, started := s.titleOf(c.SessionID)
-	if by == titleByUser && !a.UserAsked {
-		return "", fmt.Errorf("the user named this conversation 「%s」 themselves: rename it only when they ask you to, and then pass user_asked", c.Title)
-	}
-	if started.IsZero() { // started before titles were kept: today's day is the best guess
-		started = time.Now()
-	}
-	title := titleDay(started, s.location(ctx)) + " | " + a.Kind + " | " + topic
-	who := titleByAssistant
-	if a.UserAsked {
-		who = titleByUser // the user's choice, said in words: it stays like one typed in the app
-	}
-	if err := s.renameConversation(ctx, c, title, who); err != nil {
-		return "", err
-	}
-	if c.SessionID == self {
-		return fmt.Sprintf("Renamed this conversation to 「%s」.", title), nil
-	}
-	return fmt.Sprintf("Renamed %s to 「%s」.", c.SessionID, title), nil
-}
-
-func (s *Service) toolConversationArchive(ctx context.Context, self string, args json.RawMessage, on bool) (string, error) {
-	var a struct {
-		ID string `json:"id"`
-	}
-	_ = json.Unmarshal(args, &a)
-	c, err := s.ownSpaceConversation(ctx, self, a.ID)
-	if err != nil {
-		if !on { // an archived conversation may be long out of the node's list: the id alone will do
-			if id := strings.TrimSpace(a.ID); s.isArchived(id) {
-				_, err := s.setArchived(ctx, s.settings(ctx).MachineID, id, false, titleByAssistant)
-				if err != nil {
-					return "", err
-				}
-				return fmt.Sprintf("Unarchived %s.", id), nil
-			}
-		}
-		return "", err
-	}
-	name := conversationName(c, s.settings(ctx).Main)
-	changed, err := s.setArchived(ctx, c.MachineID, c.SessionID, on, titleByAssistant)
-	if err != nil {
-		return "", err
-	}
-	switch {
-	case !changed && on:
-		return fmt.Sprintf("「%s」 was archived already.", name), nil
-	case !changed:
-		return fmt.Sprintf("「%s」 is not archived.", name), nil
-	case !on:
-		return fmt.Sprintf("Unarchived 「%s」: it is back in the list.", name), nil
-	case c.SessionID == self:
-		return "Archived this conversation: it is out of the list (under 已归档). This turn finishes as usual; a new message from the user brings it back.", nil
-	}
-	return fmt.Sprintf("Archived 「%s」 (under 已归档 in the app; nothing is deleted).", name), nil
-}
-
-func (s *Service) toolConversationNew(ctx context.Context, self string, args json.RawMessage) (string, error) {
-	var a struct {
-		Text  string   `json:"text"`
-		Tags  []string `json:"tags"`
-		Quote string   `json:"quote"`
-		Tier  string   `json:"tier"`
-		Pin   bool     `json:"pin"`
-	}
-	if err := json.Unmarshal(args, &a); err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(a.Text) == "" {
-		return "", errors.New("text is empty")
-	}
-	// Validate the tags before anything is started: an over-long or over-count call must not leave a conversation
-	// behind it.
-	tags, err := normalizeConversationTags(a.Tags)
-	if err != nil {
-		return "", err
-	}
-	if err := s.dispatchNewConversationGuard(ctx, self); err != nil {
-		return "", err
-	}
-	from, err := s.relayFrom(ctx, self)
-	if err != nil {
-		return "", err
-	}
-	quote, err := s.resolveQuote(ctx, self, a.Quote) // before relayAllowed: a refused quote uses up no rate
-	if err != nil {
-		return "", err
-	}
-	var preset ModelTier
-	a.Tier = strings.TrimSpace(a.Tier)
-	if a.Tier != "" {
-		preset, err = s.tierModel(ctx, a.Tier)
-		if err != nil {
-			return "", err
-		}
-	}
-	counted := time.Now()
-	hop, _, err := s.relayAllowedOn(s.relayRouteFor(ctx, self), self, relayNewKey, counted) // an opening message is a request, never an answer
-	if err != nil {
-		return "", err
-	}
-	started := false
-	defer func() {
-		if !started {
-			s.relayRefund(self, relayNewKey, counted) // nothing started: it costs no place (#10099)
-		}
-	}()
-	msg := relayMsg{From: self, FromTitle: from, Tool: "conversation_new", Text: a.Text, Hop: hop, At: time.Now().UTC(), Quote: quote}
-	if quote != nil {
-		s.keepQuote(ctx, self, *quote) // before it starts: its first turn may hand out work at once
-	}
-	sctx, cancel := context.WithTimeout(ctx, 100*time.Second)
-	defer cancel()
-	space, err := s.knownSpace(ctx, self)
-	if err != nil {
-		return "", err
-	}
-	c, err := s.startSignedIn(sctx, StartParams{Text: prompts.MessageSourceText(relayText(msg), msg.source()), Space: space, Origin: OriginSpawned, OriginRef: self,
-		Launcher: preset.Launcher, Model: preset.Model, Effort: preset.Effort, RequireLauncher: a.Tier != ""})
-	if err != nil {
-		return "", err
-	}
-	started = true
-	b := &s.relays
-	b.mu.Lock()
-	pinKept := false
-	if s.relayLocked(ctx) {
-		b.st.Hops[c.SessionID] = relayHop{Hop: hop, At: time.Now().UTC(), From: self} // its report back is the answer
-		// Followed until it reports back: a turn that fails or ends without a word tells self (spawned.go, #4669).
-		spawn := spawnedConv{Parent: self, At: time.Now().UTC()}
-		if a.Pin {
-			spawn.PinMachine = c.MachineID
-		}
-		b.st.Spawned[c.SessionID] = spawn
-		pinKept = s.saveRelayLocked() == nil
-	}
-	b.mu.Unlock()
-	s.titleNew(c.MachineID, c.SessionID, time.Now())
-	note := quoteNote(quote)
-	lang := s.lang(ctx)
-	if a.Tier != "" {
-		run := ModelTier{Launcher: c.Launcher, Model: c.Model, Effort: c.Effort}
-		note += " " + i18n.T(lang, "assistant-conversations.started_on", i18n.Args{"run": run.runs()})
-		pick := modelPick{MachineID: c.MachineID, Launcher: preset.Launcher, Model: preset.Model, Effort: preset.Effort, At: time.Now().UTC()}
-		if err := s.setModelPick(sctx, c.SessionID, &pick); err != nil {
-			note += " " + i18n.T(lang, "assistant-conversations.pick_save_failed", i18n.Args{"error": err.Error()})
-		}
-	}
-	if a.Pin && pinKept {
-		note += " " + i18n.T(lang, "assistant-conversations.pin_requested")
-		// A short first turn can finish before the start call returns its session ID.
-		if child, ok := s.session(ctx, c.MachineID, c.SessionID); ok && child.Status == proto.StatusDone {
-			s.spawnPinAfterTurn(ctx, c.MachineID, c.SessionID)
-		}
-	} else if a.Pin {
-		note += " " + i18n.T(lang, "assistant-conversations.pin_save_failed")
-	}
-	if len(tags) > 0 {
-		if _, err := s.setConversationTags(sctx, c.MachineID, c.SessionID, tags, titleByAssistant); err != nil {
-			note += fmt.Sprintf(" Its tags could not be saved: %v", err)
-		} else {
-			note += " It is born with tags: " + strings.Join(tags, ", ") + "."
-		}
-	}
-	return fmt.Sprintf("Started conversation %s; it is working on the message now and is named after its first turn. It shows up in the app's sidebar.%s", c.SessionID, note), nil
 }
 
 func (s *Service) toolConversationSend(ctx context.Context, self string, args json.RawMessage) (string, error) {
@@ -1661,8 +1381,7 @@ func (s *Service) toolConversationSend(ctx context.Context, self string, args js
 		if !ok {
 			return "", errors.New("not kept: the relay state could not be read or saved; try again shortly")
 		}
-		s.spawnReported(self, c.SessionID) // a quiet report still answers the conversation that opened this one
-		s.publish(ctx)                     // the receiver shows it waiting above its composer
+		s.publish(ctx) // the receiver shows it waiting above its composer
 		return fmt.Sprintf("Kept for %q without waking it (%d kept there): it goes in with the next message that conversation gets for anything else. No reply will come from it; no need to send it again.",
 			conversationName(c, s.settings(ctx).Main), n), nil
 	}
@@ -1693,12 +1412,6 @@ func (s *Service) toolConversationSend(ctx context.Context, self string, args js
 		s.keepQuote(ctx, self, *quote) // before it goes in: the receiver may hand out work in the turn it starts
 	}
 	name := conversationName(c, s.settings(ctx).Main)
-	// The hand-over of the owner's words this is, and the one it answers (relay_handover.go, #11699).
-	var forget, release func()
-	msg.Handover, forget = s.handoverFor(ctx, self, c.SessionID, name, quote)
-	defer forget()
-	msg.Answers, release = s.handoverToAnswer(self, c.SessionID)
-	defer release()
 	back := quoteNote(quote)
 	if s.unarchiveOnSend(c.MachineID, c.SessionID) {
 		back = " It was archived; it is back in the list."
@@ -1717,7 +1430,6 @@ func (s *Service) toolConversationSend(ctx context.Context, self string, args js
 	if running := c.Status == proto.StatusWorking || c.Starting; running || s.relayWaits(c.SessionID, msg) {
 		n := s.queueRelay(c.SessionID, msg)
 		if n > 0 {
-			s.spawnReported(self, c.SessionID) // a conversation conversation_new opened reports back (spawned.go)
 		}
 		s.publish(ctx) // the receiver shows it waiting above its composer
 		if running {
@@ -1745,12 +1457,10 @@ func (s *Service) toolConversationSend(ctx context.Context, self string, args js
 		if n == 0 {
 			return "", err
 		}
-		s.spawnReported(self, c.SessionID)
 		s.publish(ctx)
 		s.drainAfter(c.MachineID, c.SessionID, relayRetryGap)
 		return fmt.Sprintf("%q could not take the message now (%v): it is queued (%d waiting) and goes in once it can.%s", name, err, n, back), nil
 	}
-	s.spawnReported(self, c.SessionID)
 	return fmt.Sprintf("Sent to 「%s」 (%s).%s", name, c.SessionID, back), nil
 }
 

@@ -157,11 +157,10 @@ func serveUIExtensionForTest() {
 				return ui(ctx, method, params)
 			},
 			"event": func(_ context.Context, method string, params json.RawMessage) (any, error) {
-				if method == "assistant.entries.changed" || method == "agent.finished" || method == "todo.changed" || method == "todo.decision" ||
-					method == "leader.changed" || method == "leader.report" {
+				if method == "assistant.entries.changed" || method == "agent.finished" || method == "todo.changed" || method == "todo.decision" {
 					finished.Add(1)
 				}
-				if method == "todo.changed" || method == "todo.decision" || method == "leader.changed" || method == "leader.report" {
+				if method == "todo.changed" || method == "todo.decision" {
 					seenMu.Lock()
 					todoSeen += "<" + method + " " + string(params) + ">"
 					seenMu.Unlock()

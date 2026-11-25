@@ -3,8 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -126,100 +124,6 @@ func outgrownOf(s *Service, id string) string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.outgrown[id]
-}
-
-// A round's message is the background supervisor's golden message (supervise.background, TestGoldenBackgroundSupervisor)
-// with three lines more: the header after the role line, the marker after the level tag and the task's last review
-// after its criteria. It is pinned against that golden rather than as a golden of its own: the supervision events'
-// size ratchet (prompt_size_ratchet_test.go) counts every supervise.* golden, and a round adds no event text but these
-// lines.
-func TestGoldenBackgroundSupervisorFresh(t *testing.T) {
-	whole, err := os.ReadFile(filepath.Join("testdata", "prompts", "supervise.background.golden"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := prompts.RenderSupervise(prompts.Supervise{Leader: true, Background: true, Asked: true, AskMinutes: 5, Fresh: true,
-		Entries: sortEntries([]prompts.SuperviseEntry{
-			{ID: "t1", Title: "修登录崩溃", Kind: sigReview, Machine: "Mac", Session: "a1b2c3d4", DoneWhen: []string{"PR 合并到 main"}, Last: "做完了，PR 已合并",
-				LastReview: &prompts.SuperviseLastReview{Verdict: reviewRework, At: "11-14 10:20", Note: "补深色截图"}},
-			{ID: "t2", Title: "补测试", Kind: sigAsk, Asks: []prompts.SuperviseAsk{{ID: "ix1", Kind: proto.IxQuestion, Machine: "Mac", Session: "b2c3d4e5", Text: "用哪个分支？"}}},
-		})})
-	var want []string
-	for _, line := range strings.Split(string(whole), "\n") {
-		want = append(want, line)
-		switch {
-		case strings.HasPrefix(line, "（这是 Persona 的督办消息"):
-			want = append(want, roundHeaderLine)
-		case strings.HasPrefix(line, "<persona-supervision level="):
-			want = append(want, prompts.SuperviseRoundMarker)
-		case line == "   验收标准：PR 合并到 main":
-			want = append(want, "   上次结论（11-14 10:20）：rework，补深色截图")
-		}
-	}
-	if w := strings.Join(want, "\n"); got != w {
-		t.Fatalf("the round's message:\n%s\n--- want ---\n%s", got, w)
-	}
-}
-
-// By default each supervision message to the background supervisor is a round: rendered Fresh (the header, the
-// marker) and sent with supervise_round. Its start is not, and neither is anything to the main
-// conversation or a leader, nor another kind of message to the background supervisor. The task's last review comes
-// along in the next round.
-func TestBackgroundRoundStartsFresh(t *testing.T) {
-	s, f, todo := newBackgroundService(t)
-	ctx := context.Background()
-	if backgroundKeepsContext(s.settings(ctx)) {
-		t.Fatal("the background supervisor keeps its context by default")
-	}
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	agentTurn(s, f, proto.StatusDone, "做完了，PR https://github.com/o/r/pull/7 已合并", 0)
-	bg := withBackgroundBG1(t, s, f)
-	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigReview, Key: "legacy-review"})
-	waitFor(t, "the background supervisor's round", func() bool { return len(f.noticesTo(bg)) == 1 })
-	send := assistantSendsTo(f, bg)[0]
-	text, _ := send["text"].(string)
-	if send[superviseRoundParam] != true || !prompts.IsSuperviseRound(text) || !strings.Contains(text, roundHeader) {
-		t.Fatalf("the round: %v\n%s", send[superviseRoundParam], text)
-	}
-	if !strings.Contains(text, roundReview) || strings.Contains(text, roundIdle) || strings.Contains(text, "怎么处理") || strings.Contains(text, "上次结论（") {
-		t.Fatalf("a review's round names another signal, carries rules, or a review it never had:\n%s", text)
-	}
-	for _, a := range conversationStarts(f) {
-		if _, set := a[superviseRoundParam]; set {
-			t.Fatalf("its start is a round: %v", a)
-		}
-	}
-
-	f.mu.Lock()
-	f.known["lead1"] = true
-	f.mu.Unlock()
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	for _, to := range []string{"conv1", "lead1"} {
-		if err := s.deliverRelay(ctx, "server", to, relayMsg{From: superviseTool, Tool: superviseTool, Text: text, At: time.Now().UTC()}); err != nil {
-			t.Fatal(err)
-		}
-		if a := lastSendTo(f, to); a == nil || a[superviseRoundParam] != nil {
-			t.Fatalf("a marked message to %s: %v", to, a)
-		}
-	}
-	if err := s.deliverRelay(ctx, "server", bg, relayMsg{From: "conv1", Tool: "conversation_send", Text: text, At: time.Now().UTC()}); err != nil {
-		t.Fatal(err)
-	}
-	if a := lastSendTo(f, bg); a[superviseRoundParam] != nil {
-		t.Fatalf("another conversation's message is a round: %v", a)
-	}
-
-	// Sent back for rework: the next round says so, though it does not see the round that did it.
-	if _, err := runJSON(t, s, bg, "task_review", map[string]any{"todo_id": todo.ID, "verdict": "rework", "note": "补深色截图"}); err != nil {
-		t.Fatal(err)
-	}
-	wakeRound(s, superviseSignal{Todo: todo.ID, Kind: sigIdle, Key: "after-rework", Detail: "改到一半"})
-	waitFor(t, "the next round", func() bool { return len(f.noticesTo(bg)) == 3 })
-	next := f.noticesTo(bg)[2]
-	at := time.Now().In(s.location(ctx)).Format("01-02")
-	if !strings.Contains(next, "上次结论（"+at) || !strings.Contains(next, "）：rework，补深色截图") || !strings.Contains(next, roundIdle) || strings.Contains(next, roundReview) {
-		t.Fatalf("the next round:\n%s", next)
-	}
 }
 
 // A wake while a round runs (its conversation working, or starting while its process restarts) queues: later wakes

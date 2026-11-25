@@ -36,15 +36,13 @@ import (
 // toolNames are the tools only assistant conversations get; their descriptions and schemas are in prompts/mcp
 // (docs/assistant/prompts.md).
 var toolNames = []string{"resource_status", "ask_user", "notify_user", "supervision_finish", "schedule_followup", "schedule_routine", "schedule_state_set", "delete_routine", "list_followups",
-	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_transfer", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest", "inbox_draft",
+	"cancel_followup", "machines_list", "machine_redeploy", "agents_list", "agent_read", "agent_send", "agent_switch", "agents_switch", "agent_interrupt", "agent_start", "agent_supervise", "agent_archive", "agent_unarchive", "agent_autoname", "agent_autoname_receipt", "interaction_answer", "ask_escalate", "inbox_suggest", "inbox_draft",
 	"inbox_folders", "inbox_move", "inbox_post", "persona_settings", "secret_run", "skill_import",
 	"model_profiles_list", "model_profile_get", "model_profile_switch", "model_profile_rollback",
 	"repositories_list", "repository_get", "repository_add", "view_show", "view_update", "view_get",
-	"conversations_list", "conversation_read", "conversation_rename", "conversation_archive", "conversation_unarchive",
-	"conversation_tags_set",
-	"conversation_new", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_screen", "task_start_keys", "task_retry",
+	"conversations_list", "conversation_read", "conversation_send", "task_plan", "task_plan_withdraw", "task_review", "task_scope", "task_decided", "task_start_screen", "task_start_keys", "task_retry",
 	"todo_workspace", "todo_repositories_get", "todo_repositories_set", "todo_repository_links_set", "todo_repository_links_add", "todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete", "concern_report",
-	"direction_name", "leader_progress", "decision_record", "decisions_query"}
+	"decision_record", "decisions_query"}
 
 // Tools are the assistant's tools (assistant.tools).
 func (s *Service) Tools(ctx context.Context) []proto.Tool {
@@ -88,7 +86,7 @@ func (s *Service) tool(ctx context.Context, call ToolCall) proto.ToolResult {
 		return s.resourceTool(ctx, call.MachineID, call.SessionID, call.Name, args)
 	case "persona_settings":
 		return s.toolPersonaSettings(ctx, call, args) // settings_tool.go
-	case "task_plan", "agent_start", "conversation_new":
+	case "task_plan", "agent_start":
 		// The optional dispatch policy is checked first: it can refuse a model's call where the task-agent refusal
 		// below still lets a scheduled conversation through. The hub's own starts (an inbox hand-off) come through
 		// runTool and never reach Tool, so they are not limited here.
@@ -182,10 +180,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolTodoRepositories(ctx, machine, self, name, args)
 	case "todo_list", "todo_get", "todo_create", "todo_update", "todo_complete", "todo_reopen", "todo_delete":
 		return s.toolTodo(ctx, machine, self, name, args) // todo_tools.go
-	case "direction_name":
-		return s.toolDirectionName(ctx, self, args) // direction_progress.go
-	case "leader_progress":
-		return s.toolLeaderProgress(ctx, self, args)
 	case "concern_report":
 		return s.toolConcernReport(ctx, machine, self, args) // concerns.go
 	case "interaction_answer":
@@ -252,14 +246,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolConversationsList(ctx, self, args)
 	case "conversation_read":
 		return s.toolConversationRead(ctx, self, args)
-	case "conversation_rename":
-		return s.toolConversationRename(ctx, self, args)
-	case "conversation_archive", "conversation_unarchive":
-		return s.toolConversationArchive(ctx, self, args, name == "conversation_archive")
-	case "conversation_tags_set":
-		return s.toolConversationTagsSet(ctx, self, args)
-	case "conversation_new":
-		return s.toolConversationNew(ctx, self, args)
 	case "conversation_send":
 		return s.toolConversationSend(ctx, self, args)
 	case "schedule_state_set":
@@ -544,8 +530,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		return s.toolAgentInterrupt(ctx, machine, self, args) // agent_control.go
 	case "agent_supervise":
 		return s.toolAgentSupervise(ctx, self, args)
-	case "agent_transfer":
-		return s.toolAgentTransfer(ctx, self, args) // agent_route.go: the App's Move to path
 	case "agent_archive", "agent_unarchive":
 		return s.toolAgentArchive(ctx, machine, self, args, name == "agent_archive") // agent_archive_tools.go
 	case "agent_autoname":
@@ -721,13 +705,13 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		// conversation's turn and given agentStartTimeout instead of the old 100s.
 		sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), agentStartTimeout)
 		defer cancel()
-		// The tab is named from the prompt as written; the agent gets its project's background before it (#2820).
+		// The tab is named from the prompt as written;.
 		title := s.tabName(sctx, a.Prompt)
 		params := map[string]any{"cwd": a.Cwd, "launcher": a.Launcher, "model": a.Model, "effort": a.Effort, "speed": a.Speed, "permission_mode": a.PermissionMode, "tab_name": title, "title": title}
 		if a.Host != "" {
 			params["host"] = a.Host
 		}
-		prompt := s.withProjectContext(sctx, am.ID, a.Cwd, self, a.Prompt)
+		prompt := a.Prompt
 		if a.Ultracode {
 			params["ultracode"] = true
 		}

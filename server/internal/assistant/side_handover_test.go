@@ -179,23 +179,3 @@ func TestReviewOfASideConversationThatIsGoneIsHandedOver(t *testing.T) {
 	}
 	waitFor(t, "the review told to the main conversation", func() bool { return reviewsTold(f, "conv1", todo.ID) == 1 })
 }
-
-// A direction keeps reviews for Agents it explicitly adopted (#5732). Even after
-// the cardless settle time, the reminder goes to that lead and the ledger stays its own.
-func TestReviewLeftWaitingByALeaderStaysWithIt(t *testing.T) {
-	c := boxAgent("manual01")
-	s, f := leadTakeEnv(t, c)
-	if _, err := runJSON(t, s, "lead0001", "agent_supervise", map[string]any{"machine": "box", "session_id": c.SessionID}); err != nil {
-		t.Fatal(err)
-	}
-	todo := deliverPendingReview(t, s, f, onlyTodo(s), "lead0001")
-	s.superviseWatch(t.Context(), time.Now().Add(time.Hour))
-	s.sendDigest(t.Context())
-	waitFor(t, "the cardless reminder to the lead", func() bool { return reviewsTold(f, "lead0001", todo.ID) == 2 })
-	if got := todoNow(s, todo.ID).Supervision.Supervisor; got != "lead0001" {
-		t.Fatalf("the review moved to %q", got)
-	}
-	if n := reviewsTold(f, "conv1", todo.ID); n != 0 {
-		t.Fatalf("main got %d supervision messages for the lead's review", n)
-	}
-}

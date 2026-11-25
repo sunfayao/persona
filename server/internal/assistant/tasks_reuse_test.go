@@ -308,20 +308,3 @@ func TestTaskPlanTodoIDTakesAFailedStart(t *testing.T) {
 		t.Fatalf("open count %d once taken up, was %d", n, open)
 	}
 }
-
-// A start being remedied in the tab its computer keeps is task_retry's: a plan taking the to-do through todo_id would
-// open another tab beside the one waiting on its question.
-func TestTaskPlanTodoIDFailedStartWhileRemedying(t *testing.T) {
-	e := newThreadEnv(t, nil)
-	piece, _ := failedDirectionTodoStart(t, e, keptRefusal(proto.CodeShellWaiting))
-	if piece.DoneAt != nil {
-		t.Fatalf("failed at once, not remedied: %+v", piece)
-	}
-	_, err := e.s.toolTaskPlan(context.Background(), "c1x1x1", reuseArgs(true, piece.ID))
-	if err == nil || !strings.Contains(err.Error(), "being remedied") || !strings.Contains(err.Error(), "task_retry") {
-		t.Fatalf("error %v, want the remedy's", err)
-	}
-	if n := len(e.f.started()); n != 1 {
-		t.Fatalf("%d starts", n)
-	}
-}

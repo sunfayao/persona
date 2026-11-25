@@ -23,7 +23,7 @@ import (
 
 // mainOnlySignals are the signals the instructions' background line leaves to the main conversation; their handling
 // rules name the tools a round withholds (task_start_screen, task_start_keys, task_retry, conversation_send).
-var mainOnlySignals = []string{sigFailed, sigStarted, sigEscalated, sigLeaderStuck, sigTodoReady}
+var mainOnlySignals = []string{sigFailed, sigStarted, sigEscalated, sigTodoReady}
 
 // backgroundSignals are the signals an existing background conversation can receive for explicitly addressed legacy
 // notices. Without that explicit legacy target, all of them stay with main for new assistant-dispatched work (#5732).
@@ -170,7 +170,7 @@ func roundMessage(lang string) string {
 		}
 		entries = append(entries, e)
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries(entries), Leader: true, Background: true, Fresh: true,
+	return prompts.RenderSupervise(prompts.Supervise{Entries: sortEntries(entries), Background: true, Fresh: true,
 		Overdue: true, ParkedDue: true, ParkDecided: true, Decisions: true, Inbox: true, Asked: true, AskMinutes: 5, PushGrading: true})
 }
 
@@ -198,13 +198,13 @@ func namedTools(text string) []string {
 // replacement, task_review needs_user for the owner), so none sends a round to a tool it lacks. A new mention is worded
 // for the round's tools, or listed here when it is one of these.
 var roundPassingMentions = map[string][]string{
-	"agent_archive":      {"agent_unarchive", "conversation_archive"},
+	"agent_archive":      {"agent_unarchive"},
 	"agent_send":         {"agent_start", "ask_user"},
 	"agents_list":        {"agent_start", "agent_switch", "agent_unarchive"},
 	"conversation_read":  {"conversations_list"},
 	"schedule_followup":  {"inbox_post"},
 	"supervision_finish": {"ask_user"},
-	"task_plan":          {"repositories_list", "repository_get", "task_retry", "agent_transfer"},
+	"task_plan":          {"repositories_list", "repository_get", "task_retry"},
 	"task_review":        {"agent_start"},
 	"task_scope":         {"agent_supervise", "ask_user"},
 	"todo_get":           {"todo_repository_links_add"},
@@ -333,27 +333,6 @@ func TestAStoppedAgentsAnswersOfferARoundItsTools(t *testing.T) {
 			case name == "ask_user" && strings.Contains(text, "ask_user, or task_review needs_user"):
 			default:
 				t.Errorf("%s sends a round to %s, which it does not list: %s", what, name, text)
-			}
-		}
-	}
-}
-
-// The background supervisor's snapshot leaves out the main conversation's plan cards waiting for Start (only the main
-// conversation withdraws them), the owner's unread chats and the iPhone line; the main conversation's keeps them.
-func TestBackgroundSnapshotLeavesOutWhatOnlyMainActsOn(t *testing.T) {
-	s, _ := scopeFixture(t)
-	now := time.Now()
-	snap := prompts.Snapshot{Now: now, Zone: "UTC",
-		Plans: []prompts.SnapshotPlan{{ID: "plan_1", At: now, Titles: []string{"Fix the login page"}, Tasks: 1}}, PlansTotal: 1,
-		Chats: &prompts.SnapshotChats{AtMe: []prompts.SnapshotChat{{Name: "Release room", Unread: 2, Preview: "Is it out?"}}}}
-	s.live.mu.Lock()
-	s.live.snap, s.live.at = &snap, now // fresh: no read
-	s.live.mu.Unlock()
-	for id, keeps := range map[string]bool{"main": true, "bg": false} {
-		got := scopedContext(t, s, id)
-		for _, part := range []string{"plan_1", "task_plan_withdraw", "Release room", "lark_chats"} {
-			if strings.Contains(got, part) != keeps {
-				t.Errorf("%s's context has %q: %v, want %v:\n%s", id, part, !keeps, keeps, got)
 			}
 		}
 	}

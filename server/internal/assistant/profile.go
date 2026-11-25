@@ -86,18 +86,8 @@ type Settings struct {
 	MainBackgroundFolded *bool `json:"main_background_folded,omitempty"`
 	// MainCompactWindow: the compaction window, in tokens, the main conversation is held to when its launcher declares a
 	// larger one (#7314, main_compact_window.go); nil is 400000, 0 follows the launcher.
-	MainCompactWindow *int `json:"main_compact_window,omitempty"`
-	// RecentTaskChats: the apps' sidebar Recent lists the chats a scheduled task or the background supervisor started
-	// too, by last activity with the others (#8324; since #6228 they are only in All chats). Display only, one value
-	// for every device. nil is off (the default).
-	RecentTaskChats *bool `json:"recent_task_chats,omitempty"`
-	// ConversationOrder is the user's manual order of ordinary conversation ids (#12017). Empty keeps activity-time
-	// ordering. Clients append ids they do not currently hold so a limited read cannot silently discard the rest.
-	ConversationOrder []string `json:"conversation_order,omitempty"`
-	// ConversationTagFilters is the user's exact filter-entry order above the conversation list (#12018). Nil keeps
-	// the automatic all-in-use-tag row; a non-nil empty list is a deliberately customized empty row.
-	ConversationTagFilters []string `json:"conversation_tag_filters"`
-	WorkGuide              *bool    `json:"work_guide,omitempty"`
+	MainCompactWindow *int  `json:"main_compact_window,omitempty"`
+	WorkGuide         *bool `json:"work_guide,omitempty"`
 	// Meeting transcription stays on the device until the user chooses the hub. A nil glossary is empty;
 	// a nil or empty extension reference selects the built-in transcription contribution.
 	MeetingTranscriptionDefault   *string   `json:"meeting_transcription_default,omitempty"`
@@ -158,9 +148,6 @@ type Settings struct {
 	// StartDefaults is the optional policy of what task Agents start with beyond what their caller named, by the kind
 	// of work (start_defaults.go). nil or expired: every task starts as without it.
 	StartDefaults *StartDefaultsPolicy `json:"start_defaults,omitempty"`
-	// Leaders are the side conversations the user made leaders (#3133, supervise_leader.go): a task one hands out with
-	// task_plan is supervised by it instead of the main conversation. Empty (the default): only the main one supervises.
-	Leaders []string `json:"leaders,omitempty"`
 	// BriefingWaits tunes only the deterministic wait rows in morning/evening facts. Nil uses the supervision
 	// thresholds documented by briefingWaitsOf; changes go through persona_settings' ordinary owner approval.
 	BriefingWaits *BriefingWaits `json:"briefing_waits,omitempty"`
@@ -466,12 +453,6 @@ func (s *Service) mainBackgroundFolded(ctx context.Context) bool {
 	return quietOn(s.settings(ctx).MainBackgroundFolded)
 }
 
-// recentTaskChats: the apps' sidebar Recent lists the scheduled tasks' chats too (recent_task_chats, off by default).
-func (s *Service) recentTaskChats(ctx context.Context) bool {
-	v := s.settings(ctx).RecentTaskChats
-	return v != nil && *v
-}
-
 // launcherNow is the launcher new conversations start with: Model configuration › Main chat's, else the assistant's own.
 func (s *Service) launcherNow(ctx context.Context) string {
 	if rec, err := s.modelRecord(ctx, "assistant"); err == nil && rec.Binding.Provider != "" {
@@ -491,9 +472,8 @@ func (s *Service) mainLauncherNow(ctx context.Context) string {
 }
 
 // profile is what the hub's features need of the settings (Snapshot.Profile); tasks are the scheduled tasks and todos
-// the open todos' agents as reported (either nil: unreadable, and Keep is left out, so the nodes keep what they list;
-// Keep is left out too when what places the directions' sessions cannot be read, directionKeep). nil when the
-// settings could not be read.
+// the open todos' agents as reported (either nil: unreadable, and Keep is left out, so the nodes keep what they list).
+// nil when the settings could not be read.
 func (s *Service) profile(ctx context.Context, tasks []TaskView, todos *TodoReport) *Profile {
 	saved, ok := s.savedSettings(ctx)
 	if !ok {
@@ -503,28 +483,21 @@ func (s *Service) profile(ctx context.Context, tasks []TaskView, todos *TodoRepo
 	p := &Profile{MachineID: v.MachineID, Main: v.Main, MainMachineID: v.MainMachineID, Launcher: v.Launcher, Timezone: v.Timezone,
 		ExtensionOwners: s.extensionOwners(ctx)}
 	if tasks != nil && todos != nil {
-		if placed, err := s.directionKeep(ctx, v); err != nil {
-			s.logf("assistant: keep: %v", err)
-		} else {
-			p.Keep = keptSessions(v, tasks, todos.Links, s.leadSessions(ctx, v), s.spaceKeep(ctx, v), placed)
-		}
+		p.Keep = keptSessions(v, tasks, todos.Links, s.spaceKeep(ctx, v))
 	}
 	return p
 }
 
 // keptSessions are the conversations their machines list however long they have been quiet: the main conversation,
-// the main ones it replaced, scheduled tasks' own, the agents of open todos, the current leaders (leads) and those listed
+// the main ones it replaced, scheduled tasks' own, the agents of open todos and those listed
 // for their spaces to be told (convs, spaceKeep: the task leaders' agents of open tasks, and a batch at a time of the
 // conversations to-dos name that were never noted). Otherwise a busy machine's 80 newest transcripts crowd them out of
 // the list and the Persona tab has no main chat (2026-11-01: the main one, quiet for two days, was gone), a weekly
 // task's conversation drops out in between, with the app's link to it and the check that its last run still goes, an
 // open task whose agent finished and exited shows "Starting Agent" for ever: its todo names a session the list no
-// longer has (#4510), a direction the owner leaves alone for a week loses its Pinned row and its tasks' supervision
-// messages go to the main chat (#11392), and the space of a to-do's conversation quiet since before the manager noted
-// spaces could never be told (conversation_space_backfill.go, #10941). Last come the sessions placed under the current
-// directions (placed, directionKeep), or a quiet one reads not_listed in its direction and can no longer be moved
-// (#11515). Keeping a row listed does not keep its transcript file.
-func keptSessions(v Settings, tasks []TaskView, links []TodoLink, leads, convs, placed []SessionRef) []SessionRef {
+// longer has (#4510), and the space of a to-do's conversation quiet since before the manager noted
+// spaces could never be told (conversation_space_backfill.go, #10941). Keeping a row listed does not keep its transcript file.
+func keptSessions(v Settings, tasks []TaskView, links []TodoLink, convs []SessionRef) []SessionRef {
 	out := []SessionRef{}
 	add := func(machine, id string) {
 		if machine != "" && id != "" && !slices.Contains(out, SessionRef{MachineID: machine, SessionID: id}) {
@@ -543,45 +516,8 @@ func keptSessions(v Settings, tasks []TaskView, links []TodoLink, leads, convs, 
 	}
 	// The background supervisor: quiet between tasks, still the one their signals go to (supervise_background.go).
 	add(v.BackgroundSupervisorMachineID, v.BackgroundSupervisor)
-	for _, l := range leads {
-		add(l.MachineID, l.SessionID)
-	}
 	for _, c := range convs {
 		add(c.MachineID, c.SessionID)
-	}
-	for _, p := range placed {
-		add(p.MachineID, p.SessionID)
-	}
-	return out
-}
-
-// leadSessions are the current leaders' conversations (assistant.leaders without the main one), each on the computer
-// its direction record names, else the assistant's (a leader not recorded yet, or the records unreadable). An ended
-// direction is no longer in assistant.leaders, so its conversation leaves the set.
-func (s *Service) leadSessions(ctx context.Context, v Settings) []SessionRef {
-	if len(v.Leaders) == 0 {
-		return nil
-	}
-	b := &s.directions
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	loaded := s.directionsLocked(ctx)
-	out := make([]SessionRef, 0, len(v.Leaders))
-	for _, id := range v.Leaders {
-		if id == "" || id == v.Main {
-			continue
-		}
-		if d := b.m[id]; loaded && d != nil && d.Outside != nil {
-			if d.Outside.MachineID != "" && d.Outside.SessionID != "" {
-				out = append(out, SessionRef{MachineID: d.Outside.MachineID, SessionID: d.Outside.SessionID})
-			}
-			continue // never keep a synthetic direction id as though it were a conversation
-		}
-		machine := v.MachineID
-		if d := b.m[id]; loaded && d != nil && d.MachineID != "" {
-			machine = d.MachineID
-		}
-		out = append(out, SessionRef{MachineID: machine, SessionID: id})
 	}
 	return out
 }
@@ -639,9 +575,7 @@ type assistantView struct {
 	DeliveryGate      string `json:"delivery_gate"`
 	DoneNeedsDelivery bool   `json:"done_needs_delivery"`
 	// MainBackgroundFolded is in effect, like MainTasksQuiet.
-	MainBackgroundFolded bool `json:"main_background_folded"`
-	// RecentTaskChats is in effect, like DoneNeedsDelivery.
-	RecentTaskChats               bool     `json:"recent_task_chats"`
+	MainBackgroundFolded          bool     `json:"main_background_folded"`
 	WorkGuide                     bool     `json:"work_guide"`
 	MeetingTranscriptionDefault   string   `json:"meeting_transcription_default"`
 	MeetingGlossary               []string `json:"meeting_glossary"`
@@ -708,7 +642,6 @@ func (s *Service) view(ctx context.Context, withArchived bool, space ...string) 
 		ReadonlyMode:            readonlyModeOf(v),
 		MainBackgroundFolded:    quietOn(v.MainBackgroundFolded),
 		WorkGuide:               v.workGuideOn(),
-		RecentTaskChats:         v.RecentTaskChats != nil && *v.RecentTaskChats,
 		DeliveryGate:            deliveryGateOf(v),
 		DoneNeedsDelivery:       deliveryGateOf(v) == deliveryGateLive, IdleCloseHours: int(s.idleCloseAfter(ctx) / time.Hour),
 		ArchiveClosedDays:            int(s.archiveClosedAfter(ctx) / (24 * time.Hour)),
@@ -768,9 +701,6 @@ func (s *Service) profileRoutes() {
 			return
 		}
 		out := s.view(r.Context(), archived == "1" || archived == "true", space)
-		if tag := strings.TrimSpace(r.URL.Query().Get("tag")); tag != "" {
-			out.Conversations = slices.DeleteFunc(out.Conversations, func(c proto.Session) bool { return !hasTag(c, tag) })
-		}
 		if r.Header.Get(RoleHeader) == roleExtension {
 			out.StartDefaults = nil // read with its own scope (GET /api/v1/assistant/start-defaults), not assistant.ask
 			out.Conversations = extensionConversations(out.Conversations)

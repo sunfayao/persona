@@ -127,15 +127,12 @@ func (s *Service) checkParentCloseoutReady(ctx context.Context, parent Todo) ([]
 	return children, out, true, nil
 }
 
-// parentCloseoutSupervisor resolves the owning conversation (Main chat or Leader, never the background supervisor)
+// parentCloseoutSupervisor resolves the owning conversation (the main chat or a side conversation, never the background supervisor)
 // for parent's closeout wake. A parent owned by a task leader agent returns "" so leaderRoute delivers to that agent.
 func (s *Service) parentCloseoutSupervisor(ctx context.Context, cfg Settings, parent Todo, children []Todo) string {
 	isLiveConversation := func(id string) bool {
 		if id == "" || id == cfg.Main || id == cfg.BackgroundSupervisor || s.isLeaderRef(id) {
 			return false
-		}
-		if s.isLeader(ctx, id) {
-			return true
 		}
 		if cfg.MachineID != "" {
 			if c, ok := s.session(ctx, cfg.MachineID, id); ok && c.Assistant {
@@ -163,28 +160,6 @@ func (s *Service) parentCloseoutSupervisor(ctx context.Context, cfg Settings, pa
 		if orig == cfg.Main {
 			return cfg.Main
 		}
-	}
-	var sharedLeader string
-	ambiguous := false
-	for _, c := range children {
-		lead := ""
-		if sup := supervisorOf(c); s.isLeader(ctx, sup) {
-			lead = sup
-		} else if s.isLeader(ctx, c.Origin) {
-			lead = c.Origin
-		}
-		if lead == "" {
-			continue
-		}
-		if sharedLeader == "" {
-			sharedLeader = lead
-		} else if sharedLeader != lead {
-			ambiguous = true
-			break
-		}
-	}
-	if sharedLeader != "" && !ambiguous {
-		return sharedLeader
 	}
 	return cfg.Main
 }

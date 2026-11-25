@@ -99,21 +99,6 @@ func TestAssistantOverTheBus(t *testing.T) {
 		return code == http.StatusOK && strings.Contains(body, `"r1"`)
 	})
 
-	// A conversation route (http.request): archived by the assistant, shown so by the hub (its snapshot), the
-	// machine's list pushed to the app.
-	if code, body := do("POST", "/api/v1/assistant/conversations/side-2/archive", ""); code != http.StatusOK {
-		t.Fatalf("archive: %d %s", code, body)
-	}
-	if !shown(h, "side-2").Archived {
-		t.Fatal("the hub does not show it archived")
-	}
-	if _, body := do("GET", "/api/v1/assistant?archived=1", ""); !strings.Contains(body, `"session_id":"side-2"`) || !strings.Contains(body, `"archived":true`) {
-		t.Fatalf("GET /assistant: %s", body)
-	}
-	app.wait(t, "the sessions push", func(m map[string]any) bool {
-		return m["type"] == "sessions" && strings.Contains(m["raw"].(string), `"archived":true`)
-	})
-
 	// A task plan: the tool's card reaches the app (ws.broadcast), the app starts it (relayed), its agent starts on box.
 	if r := mcp("task_plan", json.RawMessage(planArgs(false))); r.IsError {
 		t.Fatalf("task_plan: %+v", r)
@@ -175,9 +160,6 @@ func TestAssistantOverTheBus(t *testing.T) {
 		defer h.assistant.mu.RUnlock()
 		return c != nil && c != conn && h.assistant.seq > seq
 	})
-	if !shown(h, "side-2").Archived {
-		t.Fatal("lost what it reported")
-	}
 
 	// Not running: its routes answer 503 assistant_offline, its tools fail the same way; the hub's own still answer.
 	a.stop()
@@ -194,9 +176,6 @@ func TestAssistantOverTheBus(t *testing.T) {
 	}
 	if code, _ := do("GET", "/api/v1/machines", ""); code != http.StatusOK {
 		t.Fatalf("the hub's own offline: %d", code)
-	}
-	if !shown(h, "side-2").Archived {
-		t.Fatal("the hub forgot its snapshot while it is away")
 	}
 	// Back (started again): it answers again.
 	dialAssistant(t, h, srv.URL, true)

@@ -70,64 +70,6 @@ func TestRelayOneWayWithinTheLooseCap(t *testing.T) {
 	}
 }
 
-// Two conversations that keep turning back to each other are cut after relayRoundsMax round trips, even the main
-// conversation whose hops are capped; the owner speaking in one of them starts the count again.
-func TestRelayRoundTripsCut(t *testing.T) {
-	s, send := routedChain(t)
-	sent := 0
-	var err error
-	for ; sent < 100; sent++ {
-		from, to := "main", "lead-1"
-		if sent%2 == 1 {
-			from, to = to, from
-		}
-		if _, err = send(from, to); err != nil {
-			break
-		}
-	}
-	if err == nil || !strings.Contains(err.Error(), "back and forth") {
-		t.Fatalf("cut by %v, not the round trips", err)
-	}
-	if sent != 2*relayRoundsMax+1 {
-		t.Fatalf("%d messages went before the cut, want %d", sent, 2*relayRoundsMax+1)
-	}
-	s.userSpoke("main")
-	if _, err := send("main", "lead-1"); err != nil {
-		t.Fatalf("after the owner spoke: %v", err)
-	}
-}
-
-// End to end: past the rate a send is queued and the sender told when it goes in; the owner's verified words go
-// straight in, once; the same quote again queues.
-func TestConversationSendQueuesPastTheRate(t *testing.T) {
-	d := newDispatchPolicyHarness(t)
-	stopHolds(t, d.s)
-	fillRate(t, d.s, d.mainID, d.sideID, relayPairMax)
-	res := d.tool(t, d.mainID, "conversation_send", `{"id":"`+d.sideID+`","text":"one more thing"}`)
-	if res.IsError {
-		t.Fatalf("past the rate: %+v", res)
-	}
-	text := res.Content[0].Text
-	if !strings.Contains(text, "Queued for") || !strings.Contains(text, "goes in at about") || !strings.Contains(text, "once") {
-		t.Fatalf("the sender is not told it is queued and when: %q", text)
-	}
-	if n := d.s.queuedFor(d.sideID); n != 1 {
-		t.Fatalf("%d queued, want 1", n)
-	}
-	before := d.f.sentTo(d.sideID)
-	d.f.setItems(proto.Item{ID: "m-owner", Seq: 1, TS: time.Now().UTC(), Role: "user", Kind: proto.KindText,
-		Text: "tell the side conversation to stop the export", ClientMsgID: "c-m-owner"})
-	res = d.tool(t, d.mainID, "conversation_send", `{"id":"`+d.sideID+`","text":"from the owner","quote":"latest"}`)
-	if res.IsError || strings.Contains(res.Content[0].Text, "Queued for") {
-		t.Fatalf("the owner's words were held by the rate: %+v", res)
-	}
-	waitFor(t, "the owner's words to go in", func() bool { return d.f.sentTo(d.sideID) == before+1 })
-	res = d.tool(t, d.mainID, "conversation_send", `{"id":"`+d.sideID+`","text":"from the owner again","quote":"latest"}`)
-	if res.IsError || !strings.Contains(res.Content[0].Text, "Queued for") {
-		t.Fatalf("the same quote again was not counted: %+v", res)
-	}
-}
-
 // Messages waiting for the rate go in when their time comes, in the order they were sent, each once.
 func TestRelayRateQueueGoesInOrderOnce(t *testing.T) {
 	s, f := newQuietService(t)

@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -145,85 +143,6 @@ func TestQuietConversationsTasksStayShown(t *testing.T) {
 		// The manager starts again on the same store; its computer has not reported.
 		again := newTodoEnv(t, database)
 		wantShown(t, again, "after a restart", all, q.chat, q.main, q.led, q.own)
-	})
-}
-
-// No event is lost to the rule: todo.changed and todo.decision of a task whose chat its computer no longer lists, or
-// of the main conversation's while it lists nothing, are told; one whose verdict cannot be told yet (its conversation
-// never listed) waits, and is told once it can be; the health conversation's is never told.
-func TestQuietConversationsEventsAreTold(t *testing.T) {
-	todoEventStores(t, func(t *testing.T, e *todoEventEnv, database *db.DB) {
-		q := newQuietTasks(t, e.todoEnv)
-		// decide writes a decision on to-do td (in the database only: in memory there are none to tell).
-		decide := func(td Todo, question, choice string) {
-			t.Helper()
-			if database != nil {
-				e.must("POST", "/api/v1/todos/"+td.ID+"/decisions", `{"question":"`+question+`","choice":"`+choice+`"}`)
-			}
-		}
-		told := func(when string, got []recordedEvent, want ...string) {
-			t.Helper()
-			var names []string
-			for _, ev := range got {
-				var p struct {
-					ID string `json:"id"`
-				}
-				_ = json.Unmarshal(ev.raw, &p)
-				names = append(names, ev.name+" "+p.ID)
-			}
-			slices.Sort(names)
-			want = slices.Sorted(slices.Values(want))
-			if !slices.Equal(names, want) {
-				t.Errorf("%s: told %v, want %v", when, names, want)
-			}
-		}
-		changed := func(td Todo) string { return assistantwire.EventTodoChanged + " " + td.ID }
-		decided := func(td Todo) []string {
-			if database == nil {
-				return nil
-			}
-			return []string{assistantwire.EventTodoDecision + " " + td.ID}
-		}
-		told("created, all listed", e.settle(), changed(q.chat), changed(q.main), changed(q.led), changed(q.own))
-
-		main, _, _, _, run := quietSessions()
-		e.sessions("server", main, run)
-		e.must("PATCH", "/api/v1/todos/"+q.chat.ID, `{"title":"Book the movers for Saturday"}`)
-		e.must("PATCH", "/api/v1/todos/"+q.led.ID, `{"title":"Paint the hall white"}`)
-		e.must("PATCH", "/api/v1/todos/"+q.health.ID, `{"title":"Book the sleep clinic soon"}`)
-		told("retitled once the chats are quiet", e.settle(), changed(q.chat), changed(q.led))
-		decide(q.chat, "Which day?", "Saturday")
-		told("a decision once its chat is quiet", e.told(), decided(q.chat)...)
-
-		e.sessions("server")
-		e.must("PATCH", "/api/v1/todos/"+q.main.ID, `{"title":"Renew the lease this week"}`)
-		told("the main conversation's while nothing is listed", e.settle(), changed(q.main))
-
-		// One never listed: nothing is told of it while its verdict cannot be told, not even after a retry.
-		e.must("PATCH", "/api/v1/todos/"+q.ghost.ID, `{"title":"Find the deeds today"}`)
-		decide(q.ghost, "Which drawer?", "The top one")
-		decide(q.health, "Which night?", "Friday")
-		told("never listed", e.settle())
-		e.clock.advance(todoRetryAfter)
-		told("never listed, judged again", e.told())
-		// Its conversation is listed now, outside the space: what waited is told, its creation as it is now and its
-		// decision; the health conversation's still is not.
-		ghost := scopeSession("ghost", "Papers", "")
-		ghost.Assistant = true
-		e.sessions("server", ghost)
-		e.clock.advance(todoRetryDelay(1))
-		got := e.told()
-		told("listed at last", got, append(decided(q.ghost), changed(q.ghost))...)
-		for _, ev := range got {
-			if ev.name != assistantwire.EventTodoChanged {
-				continue
-			}
-			if c := changedOf(t, ev); c.What != assistantwire.TodoCreated || c.Title != "Find the deeds today" {
-				t.Errorf("what waited: %+v", c)
-			}
-		}
-		e.clock.advance(todoRetryMost)
-		told("nothing more", e.told())
 	})
 }
 

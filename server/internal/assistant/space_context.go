@@ -24,13 +24,13 @@ const spaceOwnerMax = 40
 const spaceLookupTimeout = 2 * time.Second
 
 // contextTrack is the track conversation p.SessionID works in when that is one other than the main space, else "".
-// The main conversation, a leader and the background supervisor are the main space's and are not looked up, so their
+// The main conversation and the background supervisor are the main space's and are not looked up, so their
 // context is what it was. Another is told as the manager noted it (notedSpaces), else as its computer lists it, a
 // directory inside a track counting as the track (runSpace: telling a track's conversation for the main space's would
 // show it the snapshot). One that cannot be told (never noted, its computer not answering) gets the main space's.
 func (s *Service) contextTrack(ctx context.Context, p ContextParams, background bool) string {
 	id := p.SessionID
-	if id == "" || background || s.isMain(ctx, id) || s.isLeader(ctx, id) {
+	if id == "" || background || s.isMain(ctx, id) {
 		return ""
 	}
 	if space, ok := s.notedSpaces(ctx, []string{id})[id]; ok {

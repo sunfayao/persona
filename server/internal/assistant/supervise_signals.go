@@ -37,9 +37,6 @@ const (
 	sigAsk           = "ask"            // its agent's card came to the supervisor before the user (ask_route.go)
 	sigDecide        = "decide"         // a task leader's worker needs a decision its leader cannot make: told the conversation above the leader (task_leader.go)
 	sigDecisionReply = "decision_reply" // the owner wrote in a task's Agent chat; its pending decision needs confirmation
-	// sigLeaderStuck: a leader's task is stuck (leader_reports.go): the main conversation says so in one line, no push
-	// (the owner's ruling after H1, #3609). Detail is the direction's name and where it is stuck.
-	sigLeaderStuck = "leader_stuck"
 	// sigCheck: a recurring schedule linked to the task (schedule_todo.go) has news of it, the hub's and never its
 	// Agent's (#11587). Report says which: its check saw no progress, could not save what it saw, or the owner
 	// answered the decision it raised (checkDecided), which did not go to the Agent.

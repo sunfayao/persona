@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"strings"
 
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
@@ -18,35 +17,8 @@ func feishuSessionNames(sess proto.Session, preferTab bool) (label, secondary st
 	return agentLabel(sess), ""
 }
 
-// feishuDirections takes one snapshot for a card or a whole report. Use the same
-// display names as the direction tree, including a name the owner just changed.
-func (s *Service) feishuDirections(ctx context.Context) map[string]string {
-	cfg := s.settings(ctx)
-	if len(cfg.Leaders) == 0 {
-		return nil
-	}
-	titles, _ := s.conversationTitles()
-	return s.directionSessionNames(ctx, cfg, titles)
-}
-
-// feishuDirection names the conversation responsible for the work. The main
-// conversation and its background supervisor share the Persona direction.
-func (s *Service) feishuDirection(ctx context.Context, t Todo, names map[string]string) string {
-	supervisor := t.Origin
-	if t.Supervision != nil {
-		supervisor = t.Supervision.Supervisor
-		if _, _, worker := parseLeaderRef(supervisor); worker {
-			supervisor, _ = s.supervisorAboveTask(ctx, t)
-		}
-	}
-	if name, isDirection := names[supervisor]; isDirection {
-		if strings.TrimSpace(name) == "" {
-			name = supervisor
-		}
-		return "[" + clip(oneLine(name), directionNameMost) + "] "
-	}
-	return "[Persona] "
-}
+// feishuTaskPrefix leads a task's line in a Feishu card or report.
+const feishuTaskPrefix = "[Persona] "
 
 // feishuAgentPlace identifies the session even when the node supplied no title.
 func (s *Service) feishuAgentPlace(ctx context.Context, ix proto.Interaction) (place, secondary string) {

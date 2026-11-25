@@ -15,7 +15,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -376,73 +375,6 @@ func TestPreUpgradeNoMainQueueDoesNotGainGrantAfterRehome(t *testing.T) {
 	}
 }
 
-// An ask remembers its original rung in To. If that rung disappears with main, routeTo falls back to the task's
-// dispatcher; the original target must not turn that no-main delivery into a legacy acceptance grant.
-func TestNoMainAskFallbackDoesNotGrantCloseout(t *testing.T) {
-	e := newRouteEnv(t, nil, true)
-	s := e.s
-	ctx := context.Background()
-	setSuperviseTimingsForTest(s, superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour})
-	e.f.known["bg1"] = true
-	convs := []proto.Session{
-		{SessionID: "conv1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle},
-		{SessionID: "lead1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle},
-		{SessionID: "bg1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle},
-	}
-	e.sessions("server", convs...)
-	e.f.setSessions("server", convs...)
-	setSettings(t, s, func(v *Settings) { v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server" })
-	todo := e.todo
-	todo.Origin = "bg1"
-	putTodo(s, todo)
-	if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool { v.Supervisor = ""; return true }); err != nil {
-		t.Fatal(err)
-	}
-	e.raise(askQuestion("ix_no_main_origin", "worker-1"))
-	waitFor(t, "the ask routed to main", func() bool {
-		ix, ok := e.shown("ix_no_main_origin")
-		return ok && ix.Delegating
-	})
-	var routed superviseSignal
-	waitFor(t, "the routed ask signal", func() bool {
-		s.supervise.mu.Lock()
-		defer s.supervise.mu.Unlock()
-		for _, g := range s.supervise.pending {
-			if g.Kind == sigAsk {
-				routed = g
-				return true
-			}
-		}
-		return false
-	})
-	if routed.To != "conv1" {
-		t.Fatalf("the ask did not retain its original main rung: %+v", routed)
-	}
-
-	setSettings(t, s, func(v *Settings) { v.Main = "" })
-	convs = []proto.Session{{SessionID: "bg1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle}}
-	e.sessions("server", convs...)
-	e.f.setSessions("server", convs...)
-	setSuperviseTimingsForTest(s, superviseTimings{gather: 1, every: 1, urgent: time.Hour})
-	s.sendDigest(ctx) // conv1 is gone: the actual delivery falls back to Origin=bg1 while To stays conv1
-	if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool { v.State = reviewPending; return true }); err != nil {
-		t.Fatal(err)
-	}
-
-	current := todoNow(s, todo.ID)
-	if s.backgroundSupervises(ctx, "bg1", current) {
-		t.Error("the no-main ask fallback became background acceptance authority")
-	}
-	res, err := runJSON(t, s, "bg1", "task_review", map[string]any{"todo_id": todo.ID, "verdict": "accepted", "note": "origin is not acceptance", "checks": completeReviewChecks(current)})
-	if err == nil {
-		t.Errorf("the ask Origin fallback accepted its own task: %s", res)
-	}
-	if got := todoNow(s, todo.ID); got.DoneAt != nil {
-		t.Errorf("the unauthorized ask-fallback review closed the task: %+v", got)
-	}
-	e.settle()
-}
-
 // A failed start can have no supervision ledger yet. Its no-main failure digest is still delivery-only: creating a
 // ledger later must not turn that old notice into the dispatcher's acceptance authority.
 func TestNoMainFailedStartNoticeDoesNotGrantCloseout(t *testing.T) {
@@ -722,29 +654,6 @@ func TestBackgroundCannotReviewLeaderWorkerWithoutLegacyNotice(t *testing.T) {
 	}
 }
 
-func TestExistingBackgroundStaysBuiltIn(t *testing.T) {
-	s, _, _ := newBackgroundService(t)
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) { v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server" })
-	cfg := s.settings(ctx)
-	if slices.Contains(cfg.Leaders, "bg1") || s.isLeader(ctx, "bg1") || s.supervises(ctx, "bg1") {
-		t.Fatal("the background supervisor is a leader")
-	}
-	if !slices.Contains(keptSessions(cfg, nil, nil, nil, nil, nil), SessionRef{MachineID: "server", SessionID: "bg1"}) {
-		t.Fatal("the background supervisor is not kept listed")
-	}
-	if _, err := s.setArchived(ctx, "server", "bg1", true, titleByUser); !errors.Is(err, errArchiveBackground) {
-		t.Fatalf("archiving the background supervisor: %v", err)
-	}
-	raw, _ := json.Marshal([]string{"bg1"})
-	if _, err := s.setLeaders(ctx, raw); err == nil || !strings.Contains(err.Error(), "background supervisor") {
-		t.Fatalf("the background supervisor as a leader: %v", err)
-	}
-	if _, err := s.makeDirection(ctx, "bg1", "", ""); err == nil || !strings.Contains(err.Error(), "background supervisor") {
-		t.Fatalf("the background supervisor as a direction: %v", err)
-	}
-}
-
 // Main is not told that a background supervisor follows its tasks, because none is created for a new signal (#5732).
 func TestNoBackgroundSupervisorIsAnnounced(t *testing.T) {
 	s, f, _ := newBackgroundService(t)
@@ -913,173 +822,6 @@ func TestBackgroundSupervisorGoneMovesItsQueueToMain(t *testing.T) {
 	}
 }
 
-// digestTo: every new task signal goes to main. Explicit leaders keep their specialized route, and legacy cards naming
-// a background supervisor move to main when it was switched off or moved (#5732).
-func TestDigestToWithBackgroundSupervisor(t *testing.T) {
-	s, f, todo := newBackgroundService(t)
-	ctx := context.Background()
-	f.known["lead1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	setSettings(t, s, func(v *Settings) {
-		v.Leaders = []string{"lead1"}
-		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server"
-	})
-	led, err := s.createTodo(ctx, "主管的任务", "", "lead1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.superviseTodo(ctx, led.ID, "lead1", []string{"做完"}, 30)
-	// A side conversation supervises what it hands out itself (#5002): the background supervisor takes the tasks whose
-	// ledger names the main conversation, not these.
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "side1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	sided, err := s.createTodo(ctx, "别的对话的任务", "", "side1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.superviseTodo(ctx, sided.ID, "side1", []string{"做完"}, 30)
-	waits, err := s.createTodo(ctx, "别的对话等用户的任务", "", "side1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.superviseTodo(ctx, waits.ID, "side1", []string{"做完"}, 30)
-	if _, _, err := s.updateSupervision(ctx, waits.ID, func(v *Supervision) bool { v.State = reviewNeedsUser; return true }); err != nil {
-		t.Fatal(err)
-	}
-	for conv, want := range map[string]string{"side1": "conv1", "bg1": "conv1", "gone": "conv1"} {
-		// What the background supervisor hands out keeps the main conversation on its ledger, as every task it follows up.
-		if got, ok := s.defaultPlanSupervisor(ctx, conv, ""); !ok || got != want {
-			t.Errorf("a task %s plans is supervised by %q %v, want %q", conv, got, ok, want)
-		}
-	}
-	cfg := s.settings(ctx)
-	for _, c := range []struct {
-		name string
-		g    superviseSignal
-		want string
-	}{
-		{"a review", superviseSignal{Todo: todo.ID, Kind: sigReview}, "conv1"},
-		{"a report", superviseSignal{Todo: todo.ID, Kind: sigReport}, "conv1"},
-		{"a stall", superviseSignal{Todo: todo.ID, Kind: sigStalled}, "conv1"},
-		{"a stop short", superviseSignal{Todo: todo.ID, Kind: sigIdle}, "conv1"},
-		{"a stop nobody judged", superviseSignal{Todo: todo.ID, Kind: sigUnjudged}, "conv1"},
-		{"a waiting agent", superviseSignal{Todo: todo.ID, Kind: sigNeedsYou}, "conv1"},
-		{"an interrupted turn", superviseSignal{Todo: todo.ID, Kind: sigInterrupted}, "conv1"},
-		{"a task nobody works on", superviseSignal{Todo: todo.ID, Kind: sigOrphaned}, "conv1"},
-		{"a task past its clock", superviseSignal{Todo: todo.ID, Kind: sigOverdue}, "conv1"},
-		{"a parking that is due", superviseSignal{Todo: todo.ID, Kind: sigParkedDue}, "conv1"},
-		{"an inbox message", superviseSignal{Todo: todo.ID, Kind: sigInbox}, "conv1"},
-		{"a decision to recheck", superviseSignal{Todo: todo.ID, Kind: sigRecheck}, "conv1"},
-		{"a decision nobody can answer", superviseSignal{Todo: todo.ID, Kind: sigUndecidable}, "conv1"},
-		{"a decision the owner cannot answer", superviseSignal{Todo: todo.ID, Kind: sigOwnerCannot}, "conv1"},
-		{"a failed start", superviseSignal{Todo: todo.ID, Kind: sigFailed}, "conv1"},
-		{"a retried start", superviseSignal{Todo: todo.ID, Kind: sigStarted}, "conv1"},
-		{"an escalation", superviseSignal{Todo: todo.ID, Kind: sigEscalated}, "conv1"},
-		{"a leader stuck", superviseSignal{Todo: led.ID, Kind: sigLeaderStuck}, "conv1"},
-		{"a leader's review", superviseSignal{Todo: led.ID, Kind: sigReview}, "lead1"},
-		{"a side conversation's review", superviseSignal{Todo: sided.ID, Kind: sigReview}, "conv1"},
-		{"a side conversation's task waiting for the user", superviseSignal{Todo: waits.ID, Kind: sigIdle}, "conv1"},
-		{"a card's rung", superviseSignal{Todo: led.ID, Kind: sigAsk, To: "lead1"}, "lead1"},
-		{"a card raised to the main conversation", superviseSignal{Todo: led.ID, Kind: sigAsk, To: "conv1"}, "conv1"},
-		{"a task leader's decision for the main conversation", superviseSignal{Todo: todo.ID, Kind: sigDecide, To: "conv1"}, "conv1"},
-		{"a task leader's decision for a leader", superviseSignal{Todo: led.ID, Kind: sigDecide, To: "lead1"}, "lead1"},
-		{"a task that is gone", superviseSignal{Todo: "none", Kind: sigReview}, "conv1"},
-	} {
-		if got := s.digestTo(ctx, cfg, c.g); got != c.want {
-			t.Errorf("%s goes to %q, want %q", c.name, got, c.want)
-		}
-	}
-	// Off, or on another machine than the assistant's: the main conversation, also for what named the background supervisor.
-	on := true
-	off := cfg
-	off.MainSupervisesOwnTasks = &on
-	moved := cfg
-	moved.BackgroundSupervisorMachineID = "laptop"
-	for name, c := range map[string]Settings{"off": off, "moved": moved} {
-		if got := s.digestTo(ctx, c, superviseSignal{Todo: todo.ID, Kind: sigReview}); got != "conv1" {
-			t.Errorf("%s: a review goes to %q", name, got)
-		}
-		if got := s.digestTo(ctx, c, superviseSignal{Todo: todo.ID, Kind: sigAsk, To: "bg1"}); got != "conv1" {
-			t.Errorf("%s: a card held by the background supervisor goes to %q", name, got)
-		}
-	}
-}
-
-// Cards of a main-supervised task use main's ask ladder even when a legacy background conversation is registered.
-// Main may escalate one; an unanswered card still reaches the user after the hold (#5732).
-func TestAsksOfMainSupervisedTasksUseMainLadder(t *testing.T) {
-	e := newRouteEnv(t, nil, true)
-	ctx := context.Background()
-	e.s.noBackground = false
-	e.f.known["bg1"] = true
-	convs := []proto.Session{{SessionID: "conv1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle},
-		{SessionID: "lead1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle},
-		{SessionID: "bg1", MachineID: "server", Cwd: assistantHome, Assistant: true, Status: proto.StatusIdle}}
-	e.sessions("server", convs...)
-	e.f.setSessions("server", convs...)
-	setSettings(t, e.s, func(v *Settings) { v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server" })
-	if _, _, err := e.s.updateSupervision(ctx, e.todo.ID, func(v *Supervision) bool { v.Supervisor = "conv1"; return true }); err != nil {
-		t.Fatal(err)
-	}
-	if ladder, _, _, ok := e.s.askLadder(ctx, proto.Interaction{MachineID: "mac", SessionID: "worker-1", Kind: proto.IxQuestion}); !ok || !slices.Equal(ladder, []string{"conv1"}) {
-		t.Fatalf("ladder = %v %v", ladder, ok)
-	}
-	if _, _, _, ok := e.s.askLadder(ctx, proto.Interaction{MachineID: "server", SessionID: "bg1", Kind: proto.IxQuestion}); ok {
-		t.Fatal("the background supervisor's own cards are routed")
-	}
-
-	e.raise(askPermission("ix1", "worker-1"))
-	n := e.noticeWith("conv1", "interaction_id=ix1")
-	if !strings.Contains(n, "先交给你处理") {
-		t.Fatalf("main's card message:\n%s", n)
-	}
-	e.settle()
-	if got := e.pushesOf("ix1"); got != 0 {
-		t.Fatalf("the user was pushed %d times", got)
-	}
-	if _, ok := e.s.routedTo("ix1", "conv1", true); !ok {
-		t.Fatal("main may not answer its card")
-	}
-	if _, ok := e.s.routedTo("ix1", "lead1", false); ok {
-		t.Fatal("a leader may answer a card of a task that is not its own")
-	}
-	res, err := runJSON(t, e.s, "conv1", "ask_escalate", map[string]any{"todo_id": e.todo.ID, "reason": "要推到远端分支，需要你同意", "recommend": "允许"})
-	if err != nil || !strings.Contains(res, "1 card(s)") {
-		t.Fatalf("escalate: %s %v", res, err)
-	}
-	waitFor(t, "the push", func() bool { return e.pushesOf("ix1") == 1 })
-
-	// A card nobody handles still goes to the user after the hold.
-	e.raise(askPermission("ix2", "worker-2"))
-	e.noticeWith("conv1", "interaction_id=ix2")
-	e.s.askTick(time.Now().Add(2 * askHoldFor))
-	waitFor(t, "the push", func() bool { return e.pushesOf("ix2") == 1 })
-
-	on := true
-	setSettings(t, e.s, func(v *Settings) { v.MainSupervisesOwnTasks = &on })
-	if ladder, _, _, ok := e.s.askLadder(ctx, proto.Interaction{MachineID: "mac", SessionID: "worker-1", Kind: proto.IxQuestion}); !ok || !slices.Equal(ladder, []string{"conv1"}) {
-		t.Fatalf("with the setting on the ladder = %v %v", ladder, ok)
-	}
-}
-
-// Without leader conversations a card is the user's as it comes, background supervisor or not.
-func TestBackgroundSupervisorAloneDoesNotRouteAsks(t *testing.T) {
-	e := newRouteEnv(t, nil, false)
-	e.s.noBackground = false
-	setSettings(t, e.s, func(v *Settings) { v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "bg1", "server" })
-	if _, _, _, ok := e.s.askLadder(context.Background(), proto.Interaction{MachineID: "mac", SessionID: "worker-1", Kind: proto.IxQuestion}); ok {
-		t.Fatal("a card is routed with no leader conversation")
-	}
-	e.raise(askPermission("ix1", "worker-1"))
-	waitFor(t, "the push", func() bool { return e.pushesOf("ix1") == 1 })
-	if e.lastShown("ix1").Delegating {
-		t.Fatal("the card is shown as delegating")
-	}
-}
-
 // The background supervisor's model purpose follows the main chat's until it is given its own.
 func TestBackgroundSupervisorModelPurpose(t *testing.T) {
 	s, _, _ := modelService(t)
@@ -1230,44 +972,6 @@ func TestProviderUsesNameTheBackgroundSupervisor(t *testing.T) {
 	}
 	if got := uses("shared"); !reflect.DeepEqual(got, []string{main, mainOnly}) {
 		t.Fatalf("uses of the main chat's provider once it has its own: %v; want %q and %q", got, main, mainOnly)
-	}
-}
-
-// The legacy background supervisor's prompts cover only tasks assigned before #5732. New work is always supervised by
-// the main conversation, regardless of the old setting.
-func TestGoldenBackgroundSupervisor(t *testing.T) {
-	golden(t, "context.background", prompts.RenderAssistantContext(prompts.AssistantContext{Background: true, Owner: "Example user", Snapshot: "（快照）"}))
-	golden(t, "context.main_background_started", prompts.RenderAssistantContext(prompts.AssistantContext{Main: true, Owner: "Example user",
-		BackgroundStarted: "a1b2c3d4-0000-4000-8000-000000000009", Snapshot: "（快照）"}))
-	golden(t, "supervise.background", prompts.RenderSupervise(prompts.Supervise{Leader: true, Background: true, Asked: true, AskMinutes: 5,
-		Entries: sortEntries([]prompts.SuperviseEntry{
-			{ID: "t1", Title: "修登录崩溃", Kind: sigReview, Machine: "Mac", Session: "a1b2c3d4", DoneWhen: []string{"PR 合并到 main"}, Last: "做完了，PR 已合并"},
-			{ID: "t2", Title: "补测试", Kind: sigAsk, Asks: []prompts.SuperviseAsk{{ID: "ix1", Kind: proto.IxQuestion, Machine: "Mac", Session: "b2c3d4e5", Text: "用哪个分支？"}}},
-		})}))
-	golden(t, "supervise.background_escalated", prompts.RenderSupervise(prompts.Supervise{Escalated: true, BackgroundEscalated: true, Entries: []prompts.SuperviseEntry{
-		{ID: "t1", Title: "修登录崩溃", Kind: sigEscalated, Background: true, Detail: "要不要顺手改 iPhone 横屏", Recommend: "先只修 iPad"}}}))
-
-	bare := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
-	s := newTestService(t, bare)
-	off := s.claudeMD(context.Background(), "server", false)
-	s.noBackground = false
-	on := s.claudeMD(context.Background(), "server", false)
-	golden(t, "assistant_claude_md.background", on)
-	for _, common := range []string{off, on} {
-		if !strings.Contains(common, "主管派的任务归该主管") {
-			t.Fatal("shared CLAUDE.md lost the direction ownership rule")
-		}
-		if strings.Contains(common, "cost_of_waiting") || strings.Contains(common, "visibility: \"silent\"") {
-			t.Fatal("shared CLAUDE.md still contains detailed supervision handling")
-		}
-	}
-	if on != off {
-		t.Fatal("the legacy background supervisor setting changed the main supervision instructions")
-	}
-	yes := true
-	setSettings(t, s, func(v *Settings) { v.MainSupervisesOwnTasks = &yes })
-	if got := s.claudeMD(context.Background(), "server", false); got != off {
-		t.Fatal("with the setting on the CLAUDE.md is not what it was before the background supervisor")
 	}
 }
 

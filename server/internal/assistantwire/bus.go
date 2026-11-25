@@ -33,18 +33,10 @@ const (
 	// of it (devicewire MethodMachinesPut / Remove / Get) once the hub hands it MachinesOwn
 	// (docs/assistant/managers.md "Each manager's computers").
 	CapabilityMachinesOwn = "machines.own"
-	// CapabilityAssistantSearch: the manager answers GET /api/v1/assistant/search from its index of the chats' messages
-	// (#6282, docs/protocol/protocol.md "Assistant chat search"). The hub lists the assistant_search feature only while
-	// the default manager names it; the apps keep filtering titles and last messages without it.
-	CapabilityAssistantSearch = "assistant_search"
 	// CapabilityTaskInput: the manager validates and saves structured scheduled prompts.
 	CapabilityTaskInput = "task_input"
 	// CapabilityAssistantSegments promises persistent logical routing and explicit switches.
 	CapabilityAssistantSegments = "assistant_segments"
-	// CapabilityDirectionSessions: the manager files sessions under a direction and reads one direction
-	// (PUT /api/v1/assistant/sessions/{mid}/{sid}/direction, GET /api/v1/assistant/directions/{id}, and the tree's
-	// additive sessions; #11391). The hub lists direction_sessions only while the default manager names it.
-	CapabilityDirectionSessions = "direction_sessions"
 	// CapabilityAssistantStartServiceTier: the manager forwards a new conversation's native service_tier to the node,
 	// which acknowledges it before the first turn (#6240). The hub lists the feature only for the default manager and
 	// refuses an explicit tier sent to a manager that does not name this capability.
@@ -133,7 +125,7 @@ const (
 
 // DispatchGuardTools are the assistant tools an opt-in dispatch guard may hide and refuse for an explicitly named
 // conversation. List filtering and call admission use the same names, so a hidden tool is not left callable.
-var DispatchGuardTools = []string{"task_plan", "agent_start", "conversation_new", "conversation_send"}
+var DispatchGuardTools = []string{"task_plan", "agent_start", "conversation_send"}
 
 // Error codes that cross the bus where a Go error would lose its kind (rpc.Error.Code).
 const (
@@ -224,9 +216,6 @@ var Routes = []string{
 	"POST /api/v1/sessions/{mid}/{sid}/archive",
 	"POST /api/v1/sessions/{mid}/{sid}/unarchive",
 	"POST /api/v1/sessions/{mid}/{sid}/autoname",
-	"POST /api/v1/assistant/conversations/{id}/archive",
-	"PUT /api/v1/assistant/conversations/{id}/tags",
-	"DELETE /api/v1/assistant/conversations/{id}",
 	"GET /api/v1/assistant/conversations/{id}/always",
 	"GET /api/v1/assistant/standing-authorizations",
 	"GET /api/v1/assistant/north-star",
@@ -236,12 +225,8 @@ var Routes = []string{
 	"DELETE /api/v1/assistant/conversations/{id}/always/{hash}",
 	"POST /api/v1/assistant/conversations/{id}/undelivered/{msg}/retry",
 	"DELETE /api/v1/assistant/conversations/{id}/undelivered/{msg}",
-	"POST /api/v1/assistant/conversations/{id}/unarchive",
 	"POST /api/v1/assistant/conversations/{id}/stop",
 	"GET /api/v1/assistant/reporters",
-	"GET /api/v1/assistant/leaders",
-	"POST /api/v1/assistant/directions",
-	"POST /api/v1/assistant/directions/{id}/progress",
 	"GET /api/v1/assistant/dispatch-policy",
 	"PUT /api/v1/assistant/dispatch-policy",
 	"GET /api/v1/assistant/dispatch-guard",
@@ -251,18 +236,6 @@ var Routes = []string{
 	"PUT /api/v1/assistant/start-defaults",
 	"POST /api/v1/assistant/start-defaults/preview",
 	"GET /api/v1/assistant/availability",
-	"GET /api/v1/assistant/directions/tree",
-	"GET /api/v1/assistant/directions/offers",
-	"GET /api/v1/assistant/directions/{id}",
-	"DELETE /api/v1/assistant/directions/offers/{id}",
-	"POST /api/v1/assistant/directions/{id}/start",
-	"POST /api/v1/assistant/directions/{id}/make",
-	"POST /api/v1/assistant/directions/{id}/end",
-	"POST /api/v1/assistant/route/agent",
-	"POST /api/v1/assistant/agents/{mid}/{sid}/supervisor",
-	"PUT /api/v1/assistant/directions/{id}/name",
-	"PUT /api/v1/assistant/directions/{id}/notes",
-	"PUT /api/v1/assistant/sessions/{mid}/{sid}/direction",
 	"GET /api/v1/assistant/conversations/{id}/feed",
 	"POST /api/v1/assistant/feed/{id}/dismiss",
 	"POST /api/v1/assistant/feed/{id}/undo-dismiss",
@@ -396,8 +369,6 @@ var Routes = []string{
 	"GET /api/v1/assistant/feishu/notices",
 	"POST /api/v1/assistant/feishu/notices/action",
 	"POST /api/v1/assistant/feishu/workbench",
-	// The assistant's chat search (search_routes.go there, docs/protocol/protocol.md "Assistant chat search", #6282).
-	"GET /api/v1/assistant/search",
 	"GET /api/v1/assistant/history",
 	"PUT /api/v1/assistant/history",
 	"GET /api/v1/assistant/segments",

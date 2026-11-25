@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"html"
@@ -86,13 +85,9 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 	}
 	cfg := s.settings(ctx)
 	main := cfg.Main == p.SessionID && cfg.mainRouteMachine() == p.MachineID
-	leader := s.isLeader(ctx, p.SessionID)
-	if d := s.directionOf(p.SessionID); leader && (d == nil || cmp.Or(d.MachineID, cfg.MachineID) != p.MachineID || d.EndedAt != nil) {
-		leader = false
-	}
 	_ = s.ensureTodosLoaded(ctx)
 	worker, isWorker := s.openTodoOfAgent(p.MachineID, p.SessionID)
-	if !main && !leader && !isWorker {
+	if !main && !isWorker {
 		return out
 	}
 	var todos []Todo
@@ -112,17 +107,6 @@ func (s *Service) compactRecoverySource(ctx context.Context, p ContextParams) co
 		}
 		return strings.Compare(a.ID, b.ID)
 	})
-	lead := p.SessionID
-	if isWorker {
-		if id, _, ok := s.directionForTodo(ctx, worker); ok {
-			lead = id
-		}
-	}
-	if d := s.directionOf(lead); d != nil && d.EndedAt == nil {
-		for _, line := range strings.Split(d.Notes, "\n") {
-			out.Rules = append(out.Rules, prompts.RecoveryEntry{Source: "direction/" + lead + "/notes", Text: line})
-		}
-	}
 	for _, line := range strings.Split(s.notes(ctx), "\n") {
 		out.Rules = append(out.Rules, prompts.RecoveryEntry{Source: "assistant/about", Text: line})
 	}
@@ -195,11 +179,6 @@ func (s *Service) compactRecoveryBudget(ctx context.Context, p ContextParams) in
 	cfg := s.settings(ctx)
 	if cfg.Main == p.SessionID && cfg.mainRouteMachine() == p.MachineID {
 		return compactRecoveryBytes
-	}
-	if s.isLeader(ctx, p.SessionID) {
-		if d := s.directionOf(p.SessionID); d != nil && cmp.Or(d.MachineID, cfg.MachineID) == p.MachineID && d.EndedAt == nil {
-			return compactRecoveryBytes
-		}
 	}
 	if s.ensureTodosLoaded(ctx) == nil {
 		if _, ok := s.openTodoOfAgent(p.MachineID, p.SessionID); ok {

@@ -23,7 +23,6 @@ agents_switch
 agent_interrupt
 agent_start
 agent_supervise
-agent_transfer
 agent_archive
 agent_unarchive
 agent_autoname
@@ -50,11 +49,6 @@ view_update
 view_get
 conversations_list
 conversation_read
-conversation_rename
-conversation_archive
-conversation_unarchive
-conversation_tags_set
-conversation_new
 conversation_send
 task_plan
 task_plan_withdraw
@@ -77,8 +71,6 @@ todo_complete
 todo_reopen
 todo_delete
 concern_report
-direction_name
-leader_progress
 decision_record
 decisions_query
 subscription_list

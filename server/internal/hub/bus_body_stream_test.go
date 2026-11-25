@@ -124,7 +124,7 @@ func bodyHub(t *testing.T) (*Hub, *httptest.Server) {
 // putPlace is an app's upload of body on one of the assistant's routes, with the hub's own token.
 func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte) (int, string) {
 	t.Helper()
-	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/places/"+id+"?x=1", bytes.NewReader(body))
+	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/memory/"+id+"?x=1", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestTurnedDownStreamGoesInline(t *testing.T) {
 		if !reflect.DeepEqual(streamed, inline) {
 			t.Fatalf("%s: the request differs but for its body:\nstreamed %+v\ninline   %+v", code, streamed, inline)
 		}
-		if streamed.Path != "/api/v1/assistant/places/r%2F2" || streamed.Query != "x=1" {
+		if streamed.Path != "/api/v1/assistant/memory/r%2F2" || streamed.Query != "x=1" {
 			t.Fatalf("%s: path %q query %q", code, streamed.Path, streamed.Query)
 		}
 		eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })

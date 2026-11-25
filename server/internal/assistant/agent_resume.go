@@ -24,7 +24,7 @@ import (
 //     (node node.go fillResume: the session's own launcher, directory, model and permission mode; the shell it left
 //     when that is still there, else a new tab), the text as its first message;
 //   - never unsupervised: the agent is on an open task of this conversation already, or the call gives task (the main
-//     conversation, or a direction's lead within leadTakeAllowed, #12953), which makes it one as agent_send with a
+//     conversation), which makes it one as agent_send with a
 //     task does, the card marked resumed (wakeResumed);
 //   - visible: the phone's confirmation and the task's card say which agent was resumed and why (resume_note);
 //   - compacted before the text goes in when its context is nearly full (#11137): resumed without a first message,
@@ -95,7 +95,7 @@ func (s *Service) resumeAllowed(ctx context.Context, self string, am Device, c p
 	}
 	t, ok := s.openTodoOfAgent(am.ID, c.SessionID)
 	if !ok {
-		if !s.supervises(ctx, self) {
+		if !s.isMain(ctx, self) {
 			return fmt.Errorf("%s is on no open task of yours: a resumed agent must be supervised, and only the main "+
 				"conversation and a direction's lead supervise agents. Nothing was started or sent", agentLabel(c))
 		}

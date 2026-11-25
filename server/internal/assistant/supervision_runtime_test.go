@@ -70,21 +70,6 @@ func TestRuntimeTaskPlanDeliversCompletionToCompatibleSupervisor(t *testing.T) {
 	}
 }
 
-func TestRuntimeScheduledLeaderAcceptsOwnerFollowUp(t *testing.T) {
-	ctx := context.Background()
-	s, f := newQuietService(t)
-	side := proto.Session{SessionID: "scheduled-run", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "dsh", Launcher: "dsh", Status: proto.StatusIdle}
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{side.SessionID} })
-	f.setSessions("server", side)
-	s.originSet(ctx, side.MachineID, side.SessionID, OriginTask, "scheduled-check", "")
-	guardRuntimeFollowUp(f, side.SessionID)
-
-	sendRuntimeOwnerFollowUp(t, s, side.SessionID)
-	if !s.isLeader(ctx, side.SessionID) || f.sentTo(side.SessionID) != 1 {
-		t.Fatal("the scheduled leader did not receive the owner's reply")
-	}
-}
-
 func TestRuntimeTaskPlanWithoutCompatibleReviewerStaysOpen(t *testing.T) {
 	ctx := context.Background()
 	s, f := newQuietService(t)
@@ -315,40 +300,6 @@ func TestRuntimeQueuedSupervisionMovesToOwnSupervisor(t *testing.T) {
 	}
 }
 
-// A leader conversation on a runtime (a scheduled chat listed in assistant.leaders) is routed around, so the route's
-// supervisor has to be able to review what it supervised.
-func TestRuntimeLeaderTasksAreReviewedByBackgroundSupervisor(t *testing.T) {
-	ctx := context.Background()
-	s, f := newQuietService(t)
-	off := false
-	s.noBackground = false
-	setSettings(t, s, func(v *Settings) {
-		v.MainSupervisesOwnTasks = &off
-		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "background", "server"
-		v.Leaders = []string{"agy-lead"}
-	})
-	persona := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Agent: "claude", Status: proto.StatusIdle}
-	background := proto.Session{SessionID: "background", MachineID: "server", Assistant: true, Agent: "codex", Status: proto.StatusIdle}
-	lead := proto.Session{SessionID: "agy-lead", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "agy", Launcher: "agy", Status: proto.StatusIdle}
-	f.setSessions("server", persona, background, lead)
-	f.mu.Lock()
-	f.known[background.SessionID] = true
-	f.mu.Unlock()
-	todo, err := s.newTodo(ctx, "Check", "", lead.SessionID, "", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool { v.Supervisor = lead.SessionID; return true }); err != nil {
-		t.Fatal(err)
-	}
-	if got := s.digestTarget(ctx, s.settings(ctx), superviseSignal{Todo: todo.ID, Kind: sigReview}); got != background.SessionID {
-		t.Fatalf("signal goes to %q, want the background supervisor", got)
-	}
-	if !s.backgroundSupervises(ctx, background.SessionID, todoNow(s, todo.ID)) {
-		t.Fatal("the background supervisor may not review the task it is told about")
-	}
-}
-
 func capableRuntimeCaps() *proto.SessionCapabilities {
 	return &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, SupervisionPolicy: true}
 }
@@ -475,86 +426,6 @@ func TestCapableRuntimeSideChatSupervisesOwnTasks(t *testing.T) {
 	// Once its last open task closes, ordinary follow-ups receive empty supervision_instructions so the runtime clears the role.
 	if got := mustSupervisionInstructions(t, s, ctx, "server", side.SessionID); got != "" {
 		t.Fatalf("closed-task side chat retained supervision policy (%d bytes)", len(got))
-	}
-}
-
-// A capable runtime leader keeps its own supervision signals (not diverted to the background supervisor), and a
-// capable runtime background supervisor stays recognized by backgroundThere and reviews main-chat tasks with policy.
-func TestCapableRuntimeLeaderAndBackgroundSupervisor(t *testing.T) {
-	ctx := context.Background()
-	s, f := newQuietService(t)
-	off := false
-	s.noBackground = false
-	setSettings(t, s, func(v *Settings) {
-		v.MainSupervisesOwnTasks = &off
-		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID = "agy-bg", "server"
-		v.Leaders = []string{"agy-lead"}
-	})
-	main := proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "agy", Launcher: "agy", Status: proto.StatusIdle, Capabilities: capableRuntimeCaps()}
-	bg := proto.Session{SessionID: "agy-bg", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "agy", Launcher: "agy", Status: proto.StatusIdle, Capabilities: capableRuntimeCaps()}
-	lead := proto.Session{SessionID: "agy-lead", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "agy", Launcher: "agy", Status: proto.StatusIdle, Capabilities: capableRuntimeCaps()}
-	dshSide := proto.Session{SessionID: "dsh-side", MachineID: "server", Assistant: true, SourceKind: proto.SourceRuntime, Agent: "dsh", Launcher: "dsh", Status: proto.StatusIdle}
-	f.setSessions("server", main, bg, lead, dshSide)
-	f.mu.Lock()
-	f.known[bg.SessionID] = true
-	f.known[lead.SessionID] = true
-	f.mu.Unlock()
-
-	cfg := s.settings(ctx)
-	if !s.backgroundThere(ctx, cfg, bg.SessionID) {
-		t.Fatal("capable runtime background supervisor was treated as gone")
-	}
-	// A non-capable runtime background supervisor is still treated as gone so it can be replaced.
-	if s.backgroundThere(ctx, Settings{MachineID: "server", BackgroundSupervisor: dshSide.SessionID, BackgroundSupervisorMachineID: "server"}, dshSide.SessionID) {
-		t.Fatal("non-capable runtime background supervisor was treated as valid")
-	}
-	// Main keeps its policy for new main-supervised work (#5732); background and leader receive their own policies too.
-	if got := mustSupervisionInstructions(t, s, ctx, "server", main.SessionID); got != prompts.RenderSupervisionInstructions() {
-		t.Fatalf("main chat lost its supervision policy (%d bytes)", len(got))
-	}
-	for _, id := range []string{bg.SessionID, lead.SessionID} {
-		if got := mustSupervisionInstructions(t, s, ctx, "server", id); got != prompts.RenderSupervisionInstructions() {
-			t.Fatalf("%s did not receive supervision policy", id)
-		}
-	}
-	// Leader task stays with the capable leader; background supervisor does not usurp it.
-	leadTodo, err := s.newTodo(ctx, "Leader check", "", lead.SessionID, "", false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := s.updateSupervision(ctx, leadTodo.ID, func(v *Supervision) bool { v.Supervisor = lead.SessionID; return true }); err != nil {
-		t.Fatal(err)
-	}
-	if got := s.digestTarget(ctx, cfg, superviseSignal{Todo: leadTodo.ID, Kind: sigReview}); got != lead.SessionID {
-		t.Fatalf("capable leader signal went to %q, want %q", got, lead.SessionID)
-	}
-	if s.backgroundSupervises(ctx, bg.SessionID, todoNow(s, leadTodo.ID)) {
-		t.Fatal("background supervisor usurped a capable runtime leader's task")
-	}
-	// A non-capable DSH side chat's task still routes to the compatible main/background route (here, capable AGY background).
-	if _, err := s.toolTaskPlan(ctx, dshSide.SessionID, json.RawMessage(runtimePlan)); err != nil {
-		t.Fatalf("non-capable runtime side chat could not route to capable AGY background supervisor: %v", err)
-	}
-	todoByOrigin := func(origin string) (Todo, bool) {
-		s.todos.mu.RLock()
-		defer s.todos.mu.RUnlock()
-		for _, td := range s.todos.todos {
-			if td.Origin == origin {
-				return *td, true
-			}
-		}
-		return Todo{}, false
-	}
-	waitFor(t, "the worker to link", func() bool {
-		td, ok := todoByOrigin(dshSide.SessionID)
-		return ok && len(td.Agents) == 1
-	})
-	routed, _ := todoByOrigin(dshSide.SessionID)
-	if routed.Supervision == nil || routed.Supervision.Supervisor != main.SessionID {
-		t.Fatalf("routed supervisor = %+v, want main route %q", routed.Supervision, main.SessionID)
-	}
-	if got := s.digestTarget(ctx, cfg, superviseSignal{Todo: routed.ID, Kind: sigReview}); got != bg.SessionID {
-		t.Fatalf("routed digest target = %q, want capable background supervisor %q", got, bg.SessionID)
 	}
 }
 

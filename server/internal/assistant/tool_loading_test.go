@@ -225,56 +225,6 @@ func TestToolLoadingCopies(t *testing.T) {
 	}
 }
 
-// Exercise the initial node response, so the attested session id must reach loading
-// classification. Membership changes tool loading, never a tool's caller permissions.
-func TestToolLoadingUsesTheConversationRole(t *testing.T) {
-	ft := newFleetTest(t)
-	ft.f.hello.Assistant.MachineID = "mac"
-	s := ft.s
-	setSettings(t, s, func(v *Settings) {
-		v.Main = "main0001"
-		v.Leaders = []string{"lead0001", "main0001"} // main is still main even if present here
-	})
-	wantLeader := []string{"leader_progress", "todo_create", "ask_escalate", "direction_name"}
-	if !slices.Equal(leaderCoreTools, wantLeader) {
-		t.Fatalf("leader tool defaults changed: %v", leaderCoreTools)
-	}
-	for _, tc := range []struct {
-		name, session string
-		deferred      bool
-	}{
-		{"leader", "lead0001", false},
-		{"main", "main0001", true},
-		{"ordinary", "side0001", true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			raw, _ := json.Marshal(map[string]any{"assistant": true, "session_id": tc.session})
-			out, handled, err := s.NodeRequest(t.Context(), "mac", "mcp.tools", raw)
-			if err != nil || !handled {
-				t.Fatalf("tool list: %v, handled %v", err, handled)
-			}
-			b, _ := json.Marshal(out)
-			var res struct {
-				Tools []proto.Tool `json:"tools"`
-			}
-			if err := json.Unmarshal(b, &res); err != nil {
-				t.Fatal(err)
-			}
-			for _, name := range wantLeader {
-				i := slices.IndexFunc(res.Tools, func(tool proto.Tool) bool { return tool.Name == name })
-				if i < 0 || res.Tools[i].DeferLoading != tc.deferred {
-					t.Errorf("%s: tool absent or deferred incorrectly (index %d, want %v)", name, i, tc.deferred)
-				}
-			}
-			for _, tool := range res.Tools {
-				if slices.Contains(coreTools, tool.Name) && tool.DeferLoading {
-					t.Errorf("shared core tool %s was deferred", tool.Name)
-				}
-			}
-		})
-	}
-}
-
 func TestWorkGuideLoadingScopeAndScheduledGrant(t *testing.T) {
 	s := newFleetTest(t).s
 	set := func(on, all bool) { setSettings(t, s, func(v *Settings) { v.WorkGuide = &on; v.LoadAllTools = &all }) }

@@ -10,36 +10,6 @@ import (
 	"testing"
 )
 
-func TestMainOverrideDoesNotRebindAnExplicitLogicalSegment(t *testing.T) {
-	s, _, d, _ := logicalPair(t, "codex")
-	setSettings(t, s, func(cfg *Settings) {
-		cfg.Main = "side-chat"
-		cfg.MainMachineID = "server"
-		cfg.Leaders = []string{"side-chat"}
-	})
-	shared := ModelBinding{Provider: "launcher.claude", Model: "shared-default", Effort: "low"}
-	setModel(t, s, "assistant", shared)
-	setModel(t, s, purposeMain, ModelBinding{Provider: "launcher.claude", Model: "main-default", Effort: "high"})
-	c := activatePair(t, d)
-	params := map[string]any{}
-	if err := s.sendModel(t.Context(), "server", "side-chat", params, s.lang(t.Context())); err != nil {
-		t.Fatal(err)
-	}
-	if params["launcher"] != "codex" || params["model"] != "target-model" || params["effort"] != "medium" {
-		t.Fatalf("main setting replaced explicit segment choice: %v", params)
-	}
-	after, err := d.LogicalConversation(t.Context(), "server", "side-chat")
-	if err != nil || after.Epoch != c.Epoch || after.SessionID != c.SessionID {
-		t.Fatalf("main settings changed logical identity: %+v %v", after, err)
-	}
-	if cfg := s.settings(t.Context()); cfg.Main != "side-chat" || len(cfg.Leaders) != 1 || cfg.Leaders[0] != "side-chat" {
-		t.Fatalf("main settings changed role: %+v", cfg)
-	}
-	if got, err := s.resolveModel(t.Context(), "assistant"); err != nil || got != shared {
-		t.Fatalf("main settings changed side defaults: %+v %v", got, err)
-	}
-}
-
 func TestMainDefaultWaitsForExplicitSwitchBeforeCrossingExecutionPaths(t *testing.T) {
 	for _, tc := range []struct {
 		name, launcher, model string

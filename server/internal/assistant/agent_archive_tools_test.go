@@ -82,7 +82,7 @@ func TestAgentArchiveTool(t *testing.T) {
 		UpdatedAt: time.Now().Add(-time.Hour)}
 	ft.d.setSessions("mac", []proto.Session{row, conv})
 	if _, err := archiveTool(t, ft, "agent_archive", map[string]any{"machine": "mac", "session_id": conv.SessionID}); err == nil ||
-		!strings.Contains(err.Error(), "conversation_archive") {
+		!strings.Contains(err.Error(), "not a coding agent") {
 		t.Fatalf("assistant conversation: %v", err)
 	}
 	if archivedIDs(t, ft.s)[conv.SessionID] {

@@ -330,63 +330,6 @@ func TestStartDefaultsGoalRefusedStartsWithoutIt(t *testing.T) {
 	}
 }
 
-// The facts a start gives say which conversation actually follows the task up, not which one planned it. New work
-// planned by a lead, or explicitly assigned to one by main, uses that lead’s class; read-only and role ride along.
-// The explicit manual-Agent and task-leader worker topologies keep their specialized class.
-func TestStartDefaultsFactsSayWhoSupervises(t *testing.T) {
-	s, f := newQuietService(t)
-	f.devices = []Device{{ID: "box", Name: "box", Home: "/home/me", Online: true, Reachable: true}}
-	f.known["lead1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	seen := stubStartDefaults(s, func(StartFacts) (StartDefaults, bool) { return StartDefaults{}, false })
-	ctx := context.Background()
-	plan := func(conversation, supervisor string, task map[string]any) {
-		t.Helper()
-		task["machine"], task["cwd"], task["why"] = "box", "/code/app", "the repo is on box"
-		args := map[string]any{"tasks": []map[string]any{task}}
-		if supervisor != "" {
-			args["supervisor"] = supervisor // explicit initial assignment by main
-		}
-		raw, _ := json.Marshal(args)
-		res, err := s.toolTaskPlan(ctx, conversation, raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(res, "nothing has started") {
-			id := planID(t, res)
-			if id == "" {
-				return // an auto-queued task dispatches itself
-			}
-			if _, err := s.startPlan(ctx, id, nil, false); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-	planWait := func(want int) {
-		waitFor(t, "a task's defaults", func() bool { return len(seen()) == want })
-	}
-	plan("lead1", "", map[string]any{"title": "A", "prompt": "fix it", "readonly": false, "done_when": []string{"CI is green"}, "expect_minutes": 30})
-	planWait(1)
-	plan("conv1", "", map[string]any{"title": "B", "prompt": "look it up", "readonly": true, "goal": "the answer", "expect_minutes": 10})
-	planWait(2)
-	plan("conv1", "lead1", map[string]any{"title": "C", "prompt": "fix that", "readonly": false, "done_when": []string{"CI is green"},
-		"expect_minutes": 30})
-	planWait(3)
-	waitFor(t, "the starts to finish their bookkeeping", func() bool { return s.taskStarting.Load() == 0 })
-	got := seen()
-	if a := got[0]; a.Supervisor != dispatchClassLeader || a.Readonly || a.Role != "worker" || a.DoneWhen != 1 || a.Machine != "box" {
-		t.Fatalf("task planned by the leader: %+v", a)
-	}
-	if b := got[1]; b.Supervisor != dispatchClassMain || !b.Readonly {
-		t.Fatalf("main's own task: %+v", b)
-	}
-	if c := got[2]; c.Supervisor != dispatchClassLeader {
-		t.Fatalf("task with an explicit supervisor: %+v", c)
-	}
-}
-
 // putStartDefaults sends PUT /api/v1/assistant/start-defaults as role (full, extension, read-only) and answers the code
 // and body.
 func putStartDefaults(t *testing.T, s *Service, role, ext, body string) (int, string) {
@@ -401,92 +344,6 @@ func putStartDefaults(t *testing.T, s *Service, role, ext, body string) (int, st
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
-}
-
-// A policy matches the actual supervisor, not the planning conversation. A leader-only rule leaves new work alone even
-// when a leader planned it; the explicit manual-leader worker topology still matches. Replacing it with a main rule
-// fills writable starts, while read-only stays untouched. The policy is the one an extension wrote through the route.
-func TestStartDefaultsPolicyOnlyWhereItsRuleMatches(t *testing.T) {
-	s, f := newQuietService(t)
-	f.devices = []Device{{ID: "box", Name: "box", Home: "/home/me", Online: true, Reachable: true}}
-	f.known["lead1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	expires := time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)
-	code, body := putStartDefaults(t, s, roleExtension, "kit", `{"start_defaults":{"expires_at":"`+expires+`","rules":[
-		{"when":{"supervisor":["leader"],"readonly":false},"then":{"effort":"max","ultracode":true,"goal":"done_when"}}]}}`)
-	if code != http.StatusOK {
-		t.Fatalf("put: %d %s", code, body)
-	}
-	ctx := context.Background()
-	start := func(conversation string, readonly bool) map[string]any {
-		t.Helper()
-		before := len(startsOf(f))
-		task := map[string]any{"title": "Fix", "prompt": "fix it", "machine": "box", "cwd": "/code/app", "why": "the repo is on box",
-			"readonly": readonly, "expect_minutes": 30}
-		if readonly {
-			task["goal"] = "the answer"
-		} else {
-			task["done_when"] = []string{"CI is green"}
-		}
-		raw, _ := json.Marshal(map[string]any{"tasks": []map[string]any{task}})
-		res, err := s.toolTaskPlan(ctx, conversation, raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if strings.Contains(res, "nothing has started") {
-			if _, err := s.startPlan(ctx, planID(t, res), nil, false); err != nil {
-				t.Fatal(err)
-			}
-		}
-		waitFor(t, "the start", func() bool { return len(startsOf(f)) == before+1 })
-		return startsOf(f)[before]
-	}
-	led := start("lead1", false)
-	if led["ultracode"] != true || led["goal"] == nil || led["effort"] != "max" {
-		t.Fatalf("the planning lead missed its defaults: %v", led)
-	}
-	own := start("conv1", false)
-	if own["ultracode"] != nil || own["goal"] != nil || own["effort"] == "max" {
-		t.Fatalf("the main conversation's own task got the leader-only defaults: %v", own)
-	}
-	// The specialized manual-leader topology still matches. Its worker takes the leader conversation's class from the
-	// parent task's ledger, rather than from the new-plan default (#5732).
-	putTodo(s, Todo{ID: "todo_leader_defaults", Title: "L", Supervision: &Supervision{Supervisor: "lead1"},
-		Agents: []TodoAgent{{MachineID: "server", SessionID: "lead1", Source: sourceLeader, Agent: "claude"}}})
-	worker := PlanTask{Title: "W", Prompt: "fix it", Machine: "box", Cwd: "/code/app", Permission: "bypassPermissions",
-		DoneWhen: []string{"CI is green"}, ExpectMinutes: 30, Parent: "todo_leader_defaults"}
-	if _, _, err := s.startTaskAgent(ctx, &worker, false); err != nil {
-		t.Fatal(err)
-	}
-	led = startsOf(f)[2]
-	if led["ultracode"] != true || led["effort"] != "max" || led["goal"] == nil {
-		t.Fatalf("a manual leader's worker started without the defaults: %v", led)
-	}
-	ro := start("lead1", true)
-	if ro["ultracode"] != nil || ro["goal"] != nil || ro["effort"] == "max" {
-		t.Fatalf("a read-only task got the leader-only defaults: %v", ro)
-	}
-
-	code, body = putStartDefaults(t, s, roleExtension, "kit", `{"start_defaults":{"expires_at":"`+expires+`","rules":[
-		{"when":{"supervisor":["main"],"readonly":false},"then":{"effort":"max","ultracode":true,"goal":"done_when"}}]}}`)
-	if code != http.StatusOK {
-		t.Fatalf("put main rule: %d %s", code, body)
-	}
-	led = start("lead1", false)
-	if led["ultracode"] != nil || led["effort"] == "max" || led["goal"] != nil {
-		t.Fatalf("the planning lead received main-only defaults: %v", led)
-	}
-	own = start("conv1", false)
-	if own["ultracode"] != true || own["effort"] != "max" || own["goal"] == nil {
-		t.Fatalf("the main conversation's own task missed the defaults: %v", own)
-	}
-	ro = start("lead1", true)
-	if ro["ultracode"] != nil || ro["goal"] != nil || ro["effort"] == "max" {
-		t.Fatalf("a read-only task got the main defaults: %v", ro)
-	}
-	waitFor(t, "the starts to finish their bookkeeping", func() bool { return s.taskStarting.Load() == 0 })
 }
 
 // The route's rules: an extension's policy must expire within an hour; the owner may keep one without expiry; a
@@ -738,51 +595,6 @@ func TestStartDefaultsPresetOnAHiddenLauncher(t *testing.T) {
 	}
 	if st := startsOf(f)[0]; st["launcher"] != "secret" {
 		t.Fatalf("the hidden preset was passed over: %v", st)
-	}
-}
-
-// A rule can match a task leader (role) and a task leader's worker (parent): the facts carry the role and the class of
-// the conversation that follows the leader's own task up.
-func TestStartDefaultsRoleAndLeaderWorkerFacts(t *testing.T) {
-	s, f := newQuietService(t)
-	f.devices = []Device{{ID: "box", Name: "box", Home: "/home/me", Online: true, Reachable: true}}
-	f.known["lead1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	var got StartFacts
-	stubStartDefaults(s, func(facts StartFacts) (StartDefaults, bool) { got = facts; return StartDefaults{}, false })
-	ctx := context.Background()
-
-	// The leader's own task, supervised by the leader conversation, with its coding agent (the session a worker's
-	// parent lookup resolves) already running.
-	putTodo(s, Todo{ID: "todo_leader", Title: "L",
-		Supervision: &Supervision{Supervisor: "lead1"},
-		Agents:      []TodoAgent{{MachineID: "server", SessionID: "lead1", Source: sourceLeader, Agent: "claude"}}})
-
-	// A task leader the main conversation hands out: role leader, followed up by the leader conversation.
-	leader := PlanTask{Title: "L", Prompt: "lead the work", Machine: "box", Cwd: "/code/app", Role: roleLeader,
-		Permission: "bypassPermissions", DoneWhen: []string{"the worker finishes"}, ExpectMinutes: 30,
-		Supervisor: "lead1", TodoID: "todo_leader2"}
-	putTodo(s, Todo{ID: "todo_leader2", Title: "L", Supervision: &Supervision{Supervisor: "lead1"},
-		Agents: []TodoAgent{{MachineID: "server", SessionID: "lead1", Source: sourceLeader, Agent: "claude"}}})
-	if _, _, err := s.startTaskAgent(ctx, &leader, false); err != nil {
-		t.Fatal(err)
-	}
-	if got.Role != roleLeader || got.Supervisor != dispatchClassLeader {
-		t.Fatalf("the leader task: %+v", got)
-	}
-
-	// Its worker: the parent todo names the leader task; its supervisor is the leader agent, whose session the ledger
-	// records as a leader, so the worker's class is still the leader conversation's.
-	worker := PlanTask{Title: "W", Prompt: "do the work", Machine: "box", Cwd: "/code/app",
-		Permission: "bypassPermissions", DoneWhen: []string{"CI is green"}, ExpectMinutes: 30,
-		Parent: "todo_leader"}
-	if _, _, err := s.startTaskAgent(ctx, &worker, false); err != nil {
-		t.Fatal(err)
-	}
-	if got.Role != "worker" || got.Supervisor != dispatchClassLeader {
-		t.Fatalf("the leader's worker: %+v", got)
 	}
 }
 

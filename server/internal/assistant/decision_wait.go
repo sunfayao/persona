@@ -172,10 +172,7 @@ func (s *Service) heldEscalates(ctx context.Context, t Todo, a *acceptAsk) bool 
 	if t.Supervision == nil {
 		return false
 	}
-	if a.RaisedBy != "" {
-		return !s.isMain(ctx, a.RaisedBy)
-	}
-	return s.isLeader(ctx, t.Supervision.Supervisor)
+	return a.RaisedBy != "" && !s.isMain(ctx, a.RaisedBy)
 }
 
 // heldForBriefing: a is a decision that waits for a briefing to bring it to the owner.

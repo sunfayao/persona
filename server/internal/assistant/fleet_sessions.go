@@ -112,7 +112,6 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 	s.roundsSeen(list)      // whose round each conversation is on (owner_preempt.go)
 	s.ownerRoundsSeen(list) // the owner-turn gates end with their rounds (relay_presence.go, #6394)
 	s.sessionsChanged(machine)
-	s.searchWake() // the chat search index reads what changed (search_index.go)
 	s.historyWake()
 	// Messages from other conversations, for those no longer running; the todos' links and herdr marks.
 	d := DeviceSessions{MachineID: machine, Sessions: list, Connected: connected}
@@ -545,7 +544,6 @@ func (s *Service) decorateInventory(machine string, list []proto.Session, comple
 		}
 		if list[i].Assistant {
 			list[i].Archived = shown[list[i].SessionID].Archived
-			list[i].Tags = rowTagsOf(shown[list[i].SessionID].Tags)
 			v := shown[list[i].SessionID]
 			list[i].Origin, list[i].OriginRef, list[i].OpenedBy = v.Origin, v.OriginRef, v.OpenedBy // origins.go
 			list[i].ModelPick = v.ModelPick                                                         // what its next messages run on (model_pick.go)

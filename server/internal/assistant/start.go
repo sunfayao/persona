@@ -1422,15 +1422,15 @@ func (s *Service) sendModel(ctx context.Context, machine, sid string, p map[stri
 	if cfg.ClaudeInteractive != nil && *cfg.ClaudeInteractive {
 		p["claude_interactive"] = true // what the conversation's Claude runs in (#10058, node/assistant_tui.go)
 	}
-	// A leader conversation and the background supervisor follow it too: the hub's own messages (supervision, digests)
+	// The background supervisor follows it too: the hub's own messages (supervision, digests)
 	// drive them and pick nothing, so a model a failed turn's recovery moved one to (node/assistant_recovery.go: Opus
 	// down to Haiku on a run of 429s) was carried over as what it runs, for good.
 	followsSetting := cfg.Main != "" && cfg.Main == sid && cfg.mainRouteMachine() == machine || s.isTaskConversation(ctx, machine, sid) ||
-		s.startedByTask(sid) || s.isLeader(ctx, sid) || s.isBackground(ctx, sid)
-	// The owner-visible recovery rule (#7824) covers the main conversation and the leader/background supervisors, but
+		s.startedByTask(sid) || s.isBackground(ctx, sid)
+	// The owner-visible recovery rule (#7824) covers the main conversation and the background supervisor, but
 	// not worker Agent task conversations, whose cheaper-tier behavior stays unchanged. The node marks the protected
 	// ones so it can publish and persist the model-recovery marker only for them.
-	p["follows_setting"] = s.isLeader(ctx, sid) || s.isBackground(ctx, sid)
+	p["follows_setting"] = s.isBackground(ctx, sid)
 	picked := false // a model picked with this message
 	if m, ok := p["model"].(string); ok && strings.TrimSpace(m) != "" {
 		m = strings.TrimSpace(m)
@@ -1621,9 +1621,7 @@ func (s *Service) Rename(ctx context.Context, p RenameParams) (json.RawMessage, 
 	if c, found := s.session(ctx, p.MachineID, p.SessionID); found && !c.Assistant {
 		return s.renameAgent(ctx, p, c)
 	}
-	directionTitle := strings.TrimSpace(title) != "" && p.Extension == "" &&
-		p.MachineID == s.settings(ctx).MachineID && s.isLeader(ctx, p.SessionID)
-	if c, _ := s.session(ctx, p.MachineID, p.SessionID); c.Agent == "codex" || directionTitle {
+	if c, _ := s.session(ctx, p.MachineID, p.SessionID); c.Agent == "codex" {
 		delete(params, "title") // only the assistant's title for Codex (its conversation_rename does the same)
 	}
 	out := json.RawMessage(`{"ok":true}`)
@@ -1635,10 +1633,6 @@ func (s *Service) Rename(ctx context.Context, p RenameParams) (json.RawMessage, 
 		}
 	}
 	switch {
-	case directionTitle:
-		if err := s.setDirectionName(ctx, p.SessionID, title, directionByUser); err != nil {
-			return nil, err
-		}
 	case strings.TrimSpace(title) == "":
 	case p.Extension != "":
 		s.titleHinted(p.MachineID, p.SessionID, title)

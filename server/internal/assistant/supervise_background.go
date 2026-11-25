@@ -77,8 +77,7 @@ func (s *Service) backgroundSupervises(ctx context.Context, self string, t Todo)
 	if sup == self || s.legacyBackgroundNotice(ctx, self, t.ID) {
 		return true
 	}
-	// A leader conversation on a runtime without supervision_policy cannot be told anything (digestTarget): its tasks are this route's to review.
-	return s.isLeader(ctx, sup) && s.runtimeWithoutSupervisionPolicy(ctx, s.settings(ctx).MachineID, sup)
+	return false
 }
 
 // legacyBackgroundKey is safe as a Postgres JSON object key: session and todo IDs cannot contain '|'. The former NUL
@@ -221,22 +220,10 @@ func (s *Service) backgroundLost(ctx context.Context, old, to, web string) []sup
 		}
 	}
 	moved := 0
-	title := "" // the name of to, for a hand-over of the owner's words that moves there (relay_handover.go)
-	if to != "" {
-		title = short(to)
-		if cfg := s.settings(ctx); cfg.MachineID != "" {
-			if c, ok := s.session(ctx, cfg.MachineID, to); ok {
-				title = conversationName(c, cfg.Main)
-			}
-		}
-	}
-	h := &s.handovers
-	h.mu.Lock() // before the relay lock (handoverBook): the hand-overs change before the queue that moves them is saved
 	r := &s.relays
 	r.mu.Lock()
 	keepOld := to == "" // without a destination, ordinary relays wait for a later reconciliation (#5732)
 	if s.relayLocked(ctx) && len(r.st.Queue[old]) > 0 && !r.draining[old] {
-		var handovers []string
 		var retained []relayMsg
 		for _, msg := range r.st.Queue[old] {
 			if msg.Tool == superviseTool && len(lost) > 0 {
@@ -245,18 +232,14 @@ func (s *Service) backgroundLost(ctx context.Context, old, to, web string) []sup
 				}
 				continue // told again from its signals when a destination exists
 			}
-			if msg.Handover != "" {
-				handovers = append(handovers, msg.Handover)
-			}
 			if to != "" {
 				msg.OnceID = ""                                                     // another destination is a separate delivery
 				msg.TriedAt, msg.Looks, msg.LookAfter = time.Time{}, 0, time.Time{} // the earlier try was to another conversation
 				moved++
-			} else if msg.Handover == "" {
+			} else {
 				retained = append(retained, msg)
 			}
 		}
-		s.handoversMovedLocked(handovers, to, title) // an owner-word hand-over with nowhere to go ends as not delivered
 		if to != "" {
 			for _, msg := range r.st.Queue[old] {
 				if msg.Tool == superviseTool && len(lost) > 0 {
@@ -279,7 +262,6 @@ func (s *Service) backgroundLost(ctx context.Context, old, to, web string) []sup
 		delete(r.replacing, old)
 	}
 	r.mu.Unlock()
-	h.mu.Unlock()
 	if moved > 0 {
 		s.logf("supervise: %d message(s) queued for the background supervisor %s, which is gone, wait for %s now", moved, short(old), short(to))
 		if cfg := s.settings(ctx); cfg.MachineID != "" {

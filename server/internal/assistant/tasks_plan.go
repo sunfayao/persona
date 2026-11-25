@@ -37,7 +37,6 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 		return "", err
 	}
 	var a struct{ Tasks []PlanTask }
-	lead := "" // optional initial leader assignment; omission keeps the planning lead or main
 	if scope != nil {
 		tasks, err := scope.workerTasks(args)
 		if err != nil {
@@ -46,20 +45,14 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 		a.Tasks = tasks
 	} else {
 		var in struct {
-			Tasks      []planTaskIn `json:"tasks"`
-			Supervisor string       `json:"supervisor"`
+			Tasks []planTaskIn `json:"tasks"`
 		}
 		if err := json.Unmarshal(args, &in); err != nil {
 			return "", fmt.Errorf("tasks: %v", err)
 		}
-		var err error
-		if lead, err = s.planSupervisor(ctx, sessionID, in.Supervisor); err != nil {
-			return "", err
-		}
 		for _, t := range in.Tasks {
 			t.PlanTask.ReuseTodo = strings.TrimSpace(t.TodoID)
 			t.PlanTask.Parent = "" // the hub's, set only for a task leader's workers
-			t.PlanTask.Supervisor = lead
 			a.Tasks = append(a.Tasks, t.PlanTask)
 		}
 	}
@@ -255,12 +248,6 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			a.Tasks[i].UserRequested = false
 		}
 	}
-	// A direction's lead that a hand-over of the owner's quoted words went into (#11699): the words may have reached the
-	// wrong lead, so until the owner writes there, "the user asked for this" is no Start for writable work it plans
-	// outside the kinds the owner already let this lead start (heldOutsideOwnKinds, #12953).
-	if scope == nil && slices.ContainsFunc(a.Tasks, func(t PlanTask) bool { return t.UserRequested }) && s.handedOver(sessionID) {
-		s.heldOutsideOwnKinds(ctx, sessionID, a.Tasks)
-	}
 	// A plan from a conversation hands its prompts to agents outside it (scene 3): what it says, titles first (they are
 	// what its push shows), decides once whether it waits for "Start" and what its push says (health.go). A leader's
 	// workers (scope) need no decision.
@@ -353,10 +340,6 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 			title, body = s.redactedNotice(ctx, l, space)
 		}
 		s.push(ctx, Notification{Subtitle: machineName, DeviceID: here, SessionID: sessionID, Title: title, Body: body})
-		if lead != "" || s.isLeader(ctx, sessionID) {
-			s.lreports.plansDue.Store(true)
-			s.directionsSoon() // a leader's plan waiting for Start is a decision for the owner (leader_reports.go)
-		}
 		return fmt.Sprintf("Plan %s is on the user's screen as a card and pushed to their phone; nothing has started. "+
 			"Don't wait for it: carry on. When they start it, the tasks show up in the context snapshot.", p.ID) + dups + taskPlanEstimateNotes(p.Tasks), nil
 	}
@@ -413,21 +396,6 @@ func (s *Service) taskPlanFrom(ctx context.Context, machine, sessionID string, a
 		}), nil
 	}
 	return b.String(), nil
-}
-
-// planSupervisor validates an optional initial leader assignment. A lead may name itself; main may choose
-// a current lead explicitly. Omission uses the planning lead, or main for an ordinary conversation.
-func (s *Service) planSupervisor(ctx context.Context, self, lead string) (string, error) {
-	lead = strings.TrimSpace(lead)
-	switch {
-	case lead == "" || lead == self:
-		return "", nil
-	case !s.isMain(ctx, self):
-		return "", errors.New("supervisor: only the main conversation may name another leader; omit it to keep this direction lead as supervisor")
-	case !s.isLeader(ctx, lead):
-		return "", fmt.Errorf("supervisor: %s is not a leader conversation (assistant.leaders lists them); omit it to use the default supervisor", lead)
-	}
-	return lead, nil
 }
 
 // applyPlanEdit takes what the user changed on the card; an empty field keeps the assistant's.

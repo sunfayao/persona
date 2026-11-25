@@ -512,7 +512,7 @@ func (s *Service) protectedContinuationModel(ctx context.Context, machine, sid s
 
 func (s *Service) protectedModelConversation(ctx context.Context, machine, sid string) bool {
 	cfg := s.settings(ctx)
-	return cfg.Main != "" && cfg.Main == sid && cfg.mainRouteMachine() == machine || s.isLeader(ctx, sid) || s.isBackground(ctx, sid)
+	return cfg.Main != "" && cfg.Main == sid && cfg.mainRouteMachine() == machine || s.isBackground(ctx, sid)
 }
 
 // protectedQuotaWait admits only mechanical quota waits to assistant work tracking. Other assistant failures never

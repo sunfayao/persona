@@ -302,7 +302,7 @@ func TestStartDefaultsPreviewIsReadOnly(t *testing.T) {
 		_ = json.Unmarshal(rec.Body.Bytes(), &out)
 		return rec.Code, out
 	}
-	code, out := post(`{"task":{"machine":"box","role":"worker","supervisor":"leader","done_when":2},` + draft[1:])
+	code, out := post(`{"task":{"machine":"box","role":"worker","supervisor":"other","done_when":2},` + draft[1:])
 	if code != http.StatusOK {
 		t.Fatalf("preview: %d %v", code, out)
 	}
@@ -376,7 +376,7 @@ func TestStartDefaultsPreviewValidationLocalization(t *testing.T) {
 		}{
 			{name: "machine", body: `{"task":{}}`, key: "assistant-start_defaults_preview.field_required", wantEN: "task.machine is required", args: i18n.Args{"field": i18n.Verbatim("task.machine")}},
 			{name: "role", body: `{"task":{"machine":"box","role":"typo"}}`, key: "assistant-start_defaults_preview.field_one_of", wantEN: "task.role must be one of worker, leader", args: i18n.Args{"field": i18n.Verbatim("task.role"), "values": i18n.Verbatim("worker, leader")}},
-			{name: "supervisor", body: `{"task":{"machine":"box","supervisor":"typo"}}`, key: "assistant-start_defaults_preview.field_one_of", wantEN: "task.supervisor must be one of main, leader, background_supervisor, scheduled, other", args: i18n.Args{"field": i18n.Verbatim("task.supervisor"), "values": i18n.Verbatim("main, leader, background_supervisor, scheduled, other")}},
+			{name: "supervisor", body: `{"task":{"machine":"box","supervisor":"typo"}}`, key: "assistant-start_defaults_preview.field_one_of", wantEN: "task.supervisor must be one of main, background_supervisor, scheduled, other", args: i18n.Args{"field": i18n.Verbatim("task.supervisor"), "values": i18n.Verbatim("main, background_supervisor, scheduled, other")}},
 			{name: "done when", body: `{"task":{"machine":"box","done_when":-1}}`, key: "assistant-start_defaults_preview.field_nonnegative", wantEN: "task.done_when must be 0 or more", args: i18n.Args{"field": i18n.Verbatim("task.done_when")}},
 			{name: "effort", body: `{"task":{"machine":"box"},"caller":{"effort":"typo"}}`, key: "assistant-start_defaults_preview.field_one_of", wantEN: "caller.effort must be one of low, medium, high, xhigh, max", args: i18n.Args{"field": i18n.Verbatim("caller.effort"), "values": i18n.Verbatim("low, medium, high, xhigh, max")}},
 		} {
@@ -415,7 +415,7 @@ func TestStartDefaultsPreviewValidationLanguageFallbacks(t *testing.T) {
 	for _, tc := range []struct{ body, want string }{
 		{`{"task":{}}`, "task.machine is required"},
 		{`{"task":{"machine":"box","role":"typo"}}`, "task.role must be one of worker, leader"},
-		{`{"task":{"machine":"box","supervisor":"typo"}}`, "task.supervisor must be one of main, leader, background_supervisor, scheduled, other"},
+		{`{"task":{"machine":"box","supervisor":"typo"}}`, "task.supervisor must be one of main, background_supervisor, scheduled, other"},
 		{`{"task":{"machine":"box","done_when":-1}}`, "task.done_when must be 0 or more"},
 		{`{"task":{"machine":"box"},"caller":{"effort":"typo"}}`, "caller.effort must be one of low, medium, high, xhigh, max"},
 	} {
@@ -1274,7 +1274,7 @@ func TestStartDefaultsRoundTripStaysWithinBodyLimit(t *testing.T) {
 			cands = append(cands, map[string]any{"name": strings.Repeat("<", 64), "priority": startDefaultsMaxPriority, "weight": startDefaultsMaxWeight})
 		}
 		rules = append(rules, map[string]any{
-			"applies_when": map[string]any{"role": "worker", "supervisor": []string{"main", "leader", "background_supervisor", "scheduled", "other"}},
+			"applies_when": map[string]any{"role": "worker", "supervisor": []string{"main", "background_supervisor", "scheduled", "other"}},
 			"then":         map[string]any{"candidates": cands, "effort": "max"},
 		})
 	}
@@ -1947,7 +1947,7 @@ func TestStartDefaultsSupervisorBounds(t *testing.T) {
 		t.Fatalf("an unbounded repeated supervisor array was not accepted and deduped: %d %s", code, got[:120])
 	}
 	// Every distinct class once (with a duplicate thrown in) is stored deduped, and its dual-name read writes back.
-	if code, got := putStartDefaults(t, s, roleFull, "", rule(`["main","leader","main","background_supervisor","scheduled","other"]`)); code != http.StatusOK {
+	if code, got := putStartDefaults(t, s, roleFull, "", rule(`["main","main","background_supervisor","scheduled","other"]`)); code != http.StatusOK {
 		t.Fatalf("distinct classes with a duplicate were refused: %d %s", code, got)
 	}
 	p = s.activeStartDefaults(context.Background())

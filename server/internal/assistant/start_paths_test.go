@@ -34,11 +34,10 @@ var startWrappers = map[string]string{
 var supervisedStarts = map[string]string{
 	// task_plan: every task's ledger is made as its plan starts, before its agent (startPlan): the planner when it
 	// supervises (the main conversation, a leader), a task leader's agent for its workers, else the conversation that planned it.
-	"runPlanTaskStart":    "startPlan",
-	"toolConversationNew": "toolConversationNew", // conversation_new: followed until it reports back (spawned.go, #4669)
-	"runTool":             "prepareAgentTask",    // agent_start: pre-create its task and main supervision (#5732)
-	"dispatchStart":       "superviseDispatched", // dispatch_start: adopted as the main conversation's task (#3442)
-	"taskSpawn":           "taskSpawn",           // joins the caller's verified task and keeps its existing ledger
+	"runPlanTaskStart": "startPlan",
+	"runTool":          "prepareAgentTask",    // agent_start: pre-create its task and main supervision (#5732)
+	"dispatchStart":    "superviseDispatched", // dispatch_start: adopted as the main conversation's task (#3442)
+	"taskSpawn":        "taskSpawn",           // joins the caller's verified task and keeps its existing ledger
 	// a task whose agents all stopped goes on with a new agent on the same task, its ledger kept (#4754)
 	"startTaskSuccessor": "startTaskSuccessor",
 	// agent_send's resume of a stopped agent: on an open task of the caller's, or the task the send made (#8099)

@@ -65,11 +65,6 @@ func (s *Service) taskSpawn(ctx context.Context, machine, session string, args j
 		}
 	}
 	project := t.Project
-	if project == "" {
-		if _, d, ok := s.directionForTodo(ctx, t); ok {
-			project = d.Project
-		}
-	}
 	child := PlanTask{TodoID: t.ID, Project: project, Supervisor: t.Supervision.Supervisor,
 		Title: a.Title, Prompt: a.Prompt, Machine: machine, Cwd: parent.Cwd,
 		Launcher: parent.Launcher, Model: s.taskSpawnModel(ctx, machine, parent, assignment), Effort: parent.Effort,

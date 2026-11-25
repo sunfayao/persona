@@ -58,12 +58,10 @@ type AdmissionSettings struct {
 	Enabled *bool `json:"enabled,omitempty"`
 	// LoadPerCore refuses when load1 exceeds cores times this (4 by default).
 	LoadPerCore *float64 `json:"load_per_core,omitempty"`
-	// DirectionCap is the most running execution Agents one direction may have (8 by default). DirectionCapByDirection
-	// overrides it for one supervising conversation id or the direction's displayed name, and DirectionCapByProject for
-	// a knowledge-base project slug; the direction map wins over the project map.
-	DirectionCap            *int           `json:"direction_cap,omitempty"`
-	DirectionCapByDirection map[string]int `json:"direction_cap_by_direction,omitempty"`
-	DirectionCapByProject   map[string]int `json:"direction_cap_by_project,omitempty"`
+	// DirectionCap is the most running execution Agents one supervising conversation may have (8 by default).
+	// DirectionCapByProject overrides it for a knowledge-base project slug.
+	DirectionCap          *int           `json:"direction_cap,omitempty"`
+	DirectionCapByProject map[string]int `json:"direction_cap_by_project,omitempty"`
 	// Generic machine lines. MaxClaudeProcs bounds sessions working a turn at once on one computer (the fleet's working
 	// count); only a computer without a fleet snapshot falls back to its OS claude process count.
 	MinMemoryBytes *int64 `json:"min_memory_bytes,omitempty"`
@@ -211,34 +209,13 @@ func (s *Service) limitsFor(ctx context.Context, machineID, direction, project s
 	return admissionLimits{minMemory: minMemory, maxProcs: maxProcs, loadPerCore: loadPerCore, directionCap: directionCap}
 }
 
-// directionCap resolves one start's direction line. The count is taken per supervising conversation, so the first and
-// exact match is DirectionCapByDirection keyed by that conversation id; the same map also accepts the direction's
-// displayed name for a hand-written setting. A task's knowledge-base project stays as the fallback the original gate
-// shipped with, then the global DirectionCap, then the code default.
+// directionCap resolves one start's cap. The count is taken per supervising conversation; a task's knowledge-base
+// project overrides the global DirectionCap, then the code default.
 func (s *Service) directionCap(ctx context.Context, direction, project string, cfg AdmissionSettings) int {
-	if direction != "" {
-		if cap, ok := cfg.DirectionCapByDirection[direction]; ok && cap > 0 {
-			return cap
-		}
-		if name, ok := s.directionDisplayName(ctx, direction); ok {
-			if cap, ok := cfg.DirectionCapByDirection[name]; ok && cap > 0 {
-				return cap
-			}
-		}
-	}
 	if cap, ok := cfg.DirectionCapByProject[project]; ok && cap > 0 {
 		return cap
 	}
 	return positiveOrInt(cfg.DirectionCap, admissionDirectionCap)
-}
-
-// directionDisplayName is the displayed name of a current leader conversation (the directions tree's name), so a
-// direction_cap_by_direction entry written with a name resolves to the same line as one written with the id. False
-// for a conversation that is not a current leader (the main conversation): configure its line by id.
-func (s *Service) directionDisplayName(ctx context.Context, id string) (string, bool) {
-	_, names := s.currentLeaders(ctx, s.settings(ctx))
-	name, ok := names[id]
-	return name, ok && strings.TrimSpace(name) != ""
 }
 
 // admissionMachineFacts is the resource view the gate uses for one machine.
@@ -845,11 +822,6 @@ func (cfg AdmissionSettings) validate() error {
 	}
 	if cfg.HubMaxClaudeProcs != nil && *cfg.HubMaxClaudeProcs <= 0 {
 		return bad("hub_max_claude_procs")
-	}
-	for k, cap := range cfg.DirectionCapByDirection {
-		if strings.TrimSpace(k) == "" || cap <= 0 {
-			return fmt.Errorf("direction_cap_by_direction entries need a non-empty direction id or name and a positive cap")
-		}
 	}
 	for k, cap := range cfg.DirectionCapByProject {
 		if strings.TrimSpace(k) == "" || cap <= 0 {

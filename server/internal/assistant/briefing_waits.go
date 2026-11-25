@@ -110,22 +110,14 @@ func (s *Service) setBriefingWaits(ctx context.Context, raw json.RawMessage) (*o
 // to main, so leader-dispatched and main-dispatched work are both covered.
 func (s *Service) briefDirections(ctx context.Context, now time.Time, l i18n.Lang, web string) ([]prompts.BriefDirection, []prompts.BriefDisabledRoutine) {
 	cfg, waits := s.settings(ctx), briefingWaitsOf(s.settings(ctx))
-	ids := make([]string, 0, len(cfg.Leaders)+1)
+	var ids []string
 	if cfg.Main != "" {
 		ids = append(ids, cfg.Main)
-	}
-	for _, id := range cfg.Leaders {
-		if id != "" && !slices.Contains(ids, id) {
-			ids = append(ids, id)
-		}
 	}
 	if len(ids) == 0 {
 		return nil, s.briefDisabledRoutines(ctx, now, l, nil)
 	}
-	names := s.leaderNames(ctx, ids)
-	if cfg.Main != "" {
-		names[cfg.Main] = i18n.T(l, "assistant-feishu_cards.main_chat")
-	}
+	names := map[string]string{cfg.Main: i18n.T(l, "assistant-feishu_cards.main_chat")}
 	loc := s.location(ctx)
 	dirs := make([]prompts.BriefDirection, len(ids))
 	byID := make(map[string]int, len(ids))

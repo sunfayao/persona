@@ -19,7 +19,7 @@ import (
 // roundText is a supervision message as the manager renders a round of it (the marker on its own line), or without the
 // marker when marked is false.
 func roundText(n int, marked bool) string {
-	return prompts.RenderSupervise(prompts.Supervise{Leader: true, Background: true, Fresh: marked,
+	return prompts.RenderSupervise(prompts.Supervise{Background: true, Fresh: marked,
 		Entries: []prompts.SuperviseEntry{{ID: fmt.Sprintf("t%d", n), Title: fmt.Sprintf("Round %d", n), Kind: "idle"}}})
 }
 

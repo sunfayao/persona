@@ -7,14 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistant/repository"
 	"github.com/nwverse/persona/server/internal/assistant/saved"
 	"github.com/nwverse/persona/server/internal/assistantwire"
@@ -185,30 +183,26 @@ type Service struct {
 	// interrupts: the interrupted receipts re-sent when their tasks change (interruptions.go).
 	interrupts interruptBook
 
-	titles           titleBook             // titles.go
-	agentNames       agentNamingBook       // agent_naming.go
-	runFloors        runFloorBook          // models_run.go: how fast a launcher's runs can be
-	prefs            settingsBook          // profile.go
-	guard            dispatchGuardBook     // dispatch_guard.go
-	main             mainBook              // start.go
-	archived         archiveBook           // conversations.go
-	tags             conversationTagsBook  // conversation_tags.go
-	directionFilings directionSessionsBook // direction_sessions.go
-	origins          originBook            // origins.go
-	guests           guestBook             // guest.go
-	relays           relayBook             // conversations.go
-	chatReplies      chatReplyBook         // chat_reply.go: what conversations that wrote as the user were told of the chats
-	undelivered      undeliveredBook       // undelivered.go: the owner's messages that could not go in
-	quotes           quoteBook             // relay_quote.go: the owner's messages relays carried, verified
-	handovers        handoverBook          // relay_handover.go: the owner's words handed to and from a direction's lead
-	avail            availBook             // availability.go
-	quiet            quietBook             // quiet.go
-	taskFileBook     taskFileBook          // task_files.go: the files tasks handed over, by todo id
-	supervise        superviseBook         // supervise_signals.go
-	progress         progressBook          // supervise_progress.go
-	preempt          preemptBook           // owner_preempt.go
-	tbriefs          taskBriefBook         // task_brief.go
-	search           searchIndex           // search_index.go
+	titles       titleBook         // titles.go
+	agentNames   agentNamingBook   // agent_naming.go
+	runFloors    runFloorBook      // models_run.go: how fast a launcher's runs can be
+	prefs        settingsBook      // profile.go
+	guard        dispatchGuardBook // dispatch_guard.go
+	main         mainBook          // start.go
+	archived     archiveBook       // conversations.go
+	origins      originBook        // origins.go
+	guests       guestBook         // guest.go
+	relays       relayBook         // conversations.go
+	chatReplies  chatReplyBook     // chat_reply.go: what conversations that wrote as the user were told of the chats
+	undelivered  undeliveredBook   // undelivered.go: the owner's messages that could not go in
+	quotes       quoteBook         // relay_quote.go: the owner's messages relays carried, verified
+	avail        availBook         // availability.go
+	quiet        quietBook         // quiet.go
+	taskFileBook taskFileBook      // task_files.go: the files tasks handed over, by todo id
+	supervise    superviseBook     // supervise_signals.go
+	progress     progressBook      // supervise_progress.go
+	preempt      preemptBook       // owner_preempt.go
+	tbriefs      taskBriefBook     // task_brief.go
 
 	deletedConversations conversationDeleteBook // conversation_delete.go
 	convSpaces           convSpaceBook          // conversation_space.go
@@ -276,11 +270,7 @@ type Service struct {
 	tposts           threadPoster      // feishu_thread_posts.go: what a todo tells its chat thread
 	tevents          todoEvents        // todo_events.go: what the extensions are told of the todos
 	tpush            todosPush         // todos.go: the {"type":"todos"} waiting for the rest of its write
-	directions       directionBook     // directions.go: the leaders' records and what the extensions were told of them
-	lreports         leaderReportBook  // leader_reports.go: what the leaders' tasks were reported as
-	dtree            directionTreeBook // direction_tree.go: the direction tree the apps were last told of
 	tview            todoViewBook      // todo_view_push.go: what the apps were told each to-do is filed under
-	offers           routeBook         // route.go: the directions offered for New chats
 	standing         standingBoard     // feishu_board.go: the standing "waiting for you" card
 	workbench        workbenchState    // feishu_workbench_pin.go: the pinned workbench
 	companions       companionState    // feishu_companions.go: the notices for a companion bot
@@ -354,9 +344,6 @@ func New(o Options) *Service {
 	}
 	// The kept old keys too while a rotation keeps them (keyrotate.go).
 	s.models.secret = secretkey.NewWithFallback(o.SecretKey)
-	s.archiveRoutes()
-	s.conversationTagRoutes()
-	s.conversationDeleteRoutes()
 	s.logicalSwitchRoutes()
 	s.modelPickRoutes()
 	s.agentArchiveRoutes()
@@ -370,18 +357,10 @@ func New(o Options) *Service {
 	s.ruleSuggestionRoutes()
 	s.northStarRoutes()
 	s.reporterRoutes()
-	s.directionRoutes()
-	s.directionOutsideRoutes()
 	s.dispatchPolicyRoutes() // dispatch_policy_routes.go
 	s.dispatchGuardRoutes()  // dispatch_guard.go
 	s.startPresetRoutes()
 	s.startDefaultsRoutes() // start_defaults_routes.go
-	s.directionTreeRoutes()
-	s.directionSessionRoutes()
-	s.routeRoutes()
-	s.agentRouteRoutes()
-	s.directionNameRoutes()
-	s.directionNotesRoutes()
 	s.originRoutes()
 	s.profileRoutes()
 	s.entriesRoutes()
@@ -406,7 +385,6 @@ func New(o Options) *Service {
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
 	s.companionRoutes()
-	s.searchRoutes()
 	s.historyRoutes()
 	s.inboxRoutes()
 	s.modelConfigRoutes()
@@ -435,10 +413,6 @@ func (s *Service) handle(pattern string, fn http.HandlerFunc) {
 func (s *Service) Routes() []string { return append([]string(nil), s.routes...) }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if err := s.deletedConversationRequest(r); err != nil {
-		apierr.Call(w, err)
-		return
-	}
 	s.mux.ServeHTTP(w, s.extensionReaderRequest(r))
 }
 
@@ -516,7 +490,6 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 			return json.Unmarshal(result, out)
 		}
 	}
-	taken := false // the node took this send (or may have): a direction's notes block it carried counts as given
 	if p, ok := params.(map[string]any); ok && (method == DeviceAssistantSend || method == DeviceAssistantWarm || sessionSend ||
 		method == assistantwire.DeviceAssistantAnswerAgain) {
 		id, _ := p["session_id"].(string)
@@ -527,10 +500,7 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 		} else if method == DeviceAssistantWarm {
 			p["model_source"] = modelhttp.Source{Role: "main"}
 		}
-		pctx, carry := withNotesCarry(ctx)
-		// Settled however this returns: a send refused before it left was not taken (direction_notes.go).
-		defer func() { s.notesSendOutcome(ctx, carry, taken) }()
-		if err := s.putSupervisionInstructions(pctx, device, id, p); err != nil {
+		if err := s.putSupervisionInstructions(ctx, device, id, p); err != nil {
 			return beforeNodeWrite(method, err)
 		}
 		if method == DeviceAssistantSend || sessionSend {
@@ -684,8 +654,6 @@ func (s *Service) call(ctx context.Context, device, method string, params, out a
 		err = s.nodeSilent(device, method, err)
 	}
 	cancel()
-	// Not taken: refused before anything was typed, or it never reached the computer (relay_refusal.go).
-	taken = err == nil || !sendNotTaken(err)
 	if taskRoot != "" && (method == DeviceSessionSend || method == deviceTaskStart) {
 		s.noteTaskSpaceResult(ctx, taskRoot, device, res)
 	}
@@ -851,8 +819,6 @@ func (s *Service) publish(ctx context.Context) {
 	if _, err := s.hub.Snapshot(ctx, snap); err != nil && !errors.Is(err, ErrStaleSnapshot) {
 		s.logf("assistant: snapshot: %v", err)
 	}
-	s.directionsSoon()    // a leader, its title or its tasks may have changed (directions.go)
-	s.directionTreeSoon() // and so may the direction tree (direction_tree.go)
 }
 
 func (s *Service) Resync(ctx context.Context) { s.publish(ctx) }
@@ -889,36 +855,10 @@ func (s *Service) snapshot(ctx context.Context) Snapshot {
 	for id, machine := range archived {
 		view(id, machine).Archived = true
 	}
-	tagRecords, ok := s.conversationTagsRecords()
-	snap.Partial = snap.Partial || !ok
-	for id, rec := range tagRecords {
-		if len(rec.Tags) > 0 {
-			view(id, rec.MachineID).Tags = slices.Clone(rec.Tags)
-		}
-	}
 	picks, ok := s.modelPicksSet()
 	snap.Partial = snap.Partial || !ok
 	for id, p := range picks {
 		view(id, p.MachineID).ModelPick = p.wire()
-	}
-	directions, ok := s.directionViews(ctx)
-	snap.Partial = snap.Partial || !ok
-	leadersAt := cfg.MachineID // a leader conversation is on the assistant's machine
-	for id, d := range directions {
-		view(id, leadersAt).Direction = d
-	}
-	if len(cfg.Leaders) > 0 {
-		// The same canonical name as the direction tree is the active conversation's
-		// identity on every client. Keep its stored ordinary title for when it ends.
-		names := s.directionSessionNames(ctx, cfg, titles)
-		for id, name := range names {
-			if d := s.directionOf(id); d != nil && d.Outside != nil {
-				continue // this is a direction, not a conversation to decorate
-			}
-			if name != "" {
-				view(id, leadersAt).Title = name
-			}
-		}
 	}
 	snap.Tasks = s.taskViews(ctx)
 	snap.Partial = snap.Partial || snap.Tasks == nil
@@ -1032,12 +972,11 @@ func (s *Service) turnEnded(ctx context.Context, r SessionRef) {
 	go s.channelTurnEnded(context.WithoutCancel(ctx), r.MachineID, r.SessionID) // a channel's answer, the sync mirror
 	// A usage limit marks the launcher there until it resets (launcher_health.go).
 	s.afterSettle(context.WithoutCancel(ctx), s.launcherLimitTurnSettled, r.MachineID, r.SessionID)
-	// An assistant turn that failed is logged; a conversation conversation_new opened tells its parent (spawned.go).
+	// An assistant turn that failed is logged.
 	s.afterSettle(context.WithoutCancel(ctx), s.assistantTurnSettled, r.MachineID, r.SessionID)
 	s.afterSettle(context.WithoutCancel(ctx), s.inboxAgentTurnSettled, r.MachineID, r.SessionID)
 	// What the turn said is tagged with its information categories (info_tag.go).
 	s.afterSettle(context.WithoutCancel(ctx), s.infoTagTurnSettled, r.MachineID, r.SessionID)
-	s.spawnPinAfterTurn(ctx, r.MachineID, r.SessionID)
 	s.titleAfterTurn(ctx, r.MachineID, r.SessionID)
 }
 
@@ -1092,7 +1031,6 @@ func (s *Service) SessionsChanged(ctx context.Context, d DeviceSessions) {
 	s.nativeArchivesListed(d.MachineID) // agent_archive_native.go
 	s.switchQueueListed(d.MachineID)    // a queued launcher switch whose turn ended (agents_switch.go)
 	s.followStarts(ctx, d)              // the app's starts, for launcher health (launcher_health_starts.go)
-	s.directionTreeSessions(d)          // an Agent of the direction tree may have moved (direction_tree.go)
 	s.agentNamesChanged(d)
 }
 

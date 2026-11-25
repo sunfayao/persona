@@ -271,24 +271,6 @@ func TestQuestionAndBlockedReportsRemainImmediateAndRepeatAfterTheShortWindow(t 
 	}
 }
 
-func TestSpawnedConversationQuietReportDoesNotWakeItsParent(t *testing.T) {
-	h := newSpawnHarness(t)
-	id := h.spawn(t)
-	child := proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusWorking, Title: "Research"}
-	h.f.setSessions("server", h.parent, child)
-	if _, err := h.s.toolConversationSend(context.Background(), id, []byte(`{"id":"parent-1","text":"Research complete.","wake":false}`)); err != nil {
-		t.Fatal(err)
-	}
-	child.Status = proto.StatusDone
-	h.ended(child)
-	if h.f.sentTo("parent-1") != 0 || h.s.queuedFor("parent-1") != 0 || len(h.noticesToParent()) != 0 {
-		t.Fatal("a quiet report triggered an unreported-child wake")
-	}
-	if len(laterFor(h.s, "parent-1")) != 1 {
-		t.Fatal("the quiet report was not kept")
-	}
-}
-
 // No wake: conversation_send with wake: false starts no turn; the receiver reads it with the next message it gets,
 // and only then is it let go. A quote, the owner's request, always wakes.
 func TestConversationSendWithoutWake(t *testing.T) {

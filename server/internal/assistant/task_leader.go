@@ -967,7 +967,7 @@ func (s *Service) mayReviewForLeader(ctx context.Context, self string, t Todo) b
 	// configured as background never grants acceptance over a new task-leader worker (#5732). An attested round fork
 	// shares only its base's already recorded notice, never a fresh acceptance grant.
 	self = s.supervisionHoldKey(ctx, self)
-	return up == self || s.isBackground(ctx, self) && !s.isLeader(ctx, up) && s.legacyBackgroundNotice(ctx, self, t.ID)
+	return up == self || s.isBackground(ctx, self) && s.legacyBackgroundNotice(ctx, self, t.ID)
 }
 
 // leaderTaskOf is the open task leader agent lead leads.

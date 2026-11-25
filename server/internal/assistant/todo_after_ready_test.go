@@ -400,48 +400,6 @@ func TestTodoAfterReadySkipsAlreadyStartedDependent(t *testing.T) {
 	}
 }
 
-func TestTodoAfterReadyRoutesToOwningLeader(t *testing.T) {
-	st := &memStore{}
-	s, f := newTodoReadyService(t, st)
-	ctx := context.Background()
-
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	f.known["lead1"] = true
-	f.setSessions("server",
-		proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-	)
-
-	root, err := s.createDirectionTodo(ctx, "lead1", "Leader project", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	partOf := root.ID
-	pre, err := s.createDirectionTodo(ctx, "lead1", "Leader step 1", "", db.TodoEdit{PartOf: &partOf})
-	if err != nil {
-		t.Fatal(err)
-	}
-	after := []string{pre.ID}
-	dep, err := s.createDirectionTodo(ctx, "lead1", "Leader step 2", "Run leader step 2 on box", db.TodoEdit{PartOf: &partOf, After: &after})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if closed, err := s.reviewDoneTodo(ctx, pre.ID, "accepted", true); err != nil || !closed {
-		t.Fatalf("accept pre: closed=%v err=%v", closed, err)
-	}
-	waitFor(t, "leader todo_ready wake", func() bool { return len(sendsToConversation(f, "lead1")) == 1 })
-	msg := sendsToConversation(f, "lead1")[0]
-	for _, want := range []string{"signal=todo_ready", dep.ID, dep.Title, pre.ID, "Run leader step 2 on box"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("leader wake missing %q:\n%s", want, msg)
-		}
-	}
-	if got := len(sendsToConversation(f, "conv1")); got != 0 {
-		t.Fatalf("main chat received %d wakes for leader-owned dependent, want 0", got)
-	}
-}
-
 func TestTodoAfterReadyRestartAndResweepIdempotency(t *testing.T) {
 	st := &memStore{}
 	s1, f1 := newTodoReadyService(t, st)
@@ -631,65 +589,6 @@ func TestTodoAfterReadyFailedStartAndRequireAcceptedGateAndUpdatedAfterSet(t *te
 			t.Fatalf("second wake missing p2:\n%s", msg)
 		}
 	})
-}
-
-func TestTodoAfterReadyFallbackWithoutSupervisionPolicyGoesToMainNotBackground(t *testing.T) {
-	st := &memStore{}
-	s, f := newTodoReadyService(t, st)
-	ctx := context.Background()
-
-	s.noBackground = false
-	now := time.Now().UTC()
-	setSettings(t, s, func(v *Settings) {
-		v.Leaders = []string{"lead_no_policy"}
-		v.BackgroundSupervisor = "bg1"
-		v.BackgroundSupervisorMachineID = "server"
-		v.BackgroundSupervisorAt = &now
-	})
-	f.known["lead_no_policy"] = true
-	f.known["bg1"] = true
-	// lead_no_policy is hosted by a runtime lacking supervision_policy; digestTarget must fall back to Main, not bg1.
-	f.setSessions("server",
-		proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lead_no_policy", MachineID: "server", Assistant: true, Status: proto.StatusIdle,
-			SourceKind: proto.SourceRuntime},
-	)
-
-	root, err := s.createDirectionTodo(ctx, "lead_no_policy", "Leader project", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	partOf := root.ID
-	pre, err := s.createDirectionTodo(ctx, "lead_no_policy", "Prereq", "", db.TodoEdit{PartOf: &partOf})
-	if err != nil {
-		t.Fatal(err)
-	}
-	after := []string{pre.ID}
-	dep, err := s.createDirectionTodo(ctx, "lead_no_policy", "Dependent", "Main fallback notes", db.TodoEdit{PartOf: &partOf, After: &after})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cfg := s.settings(ctx)
-	sig := superviseSignal{Todo: dep.ID, Kind: sigTodoReady, Key: todoReadyKey(dep), To: "lead_no_policy"}
-	if got := s.digestTarget(ctx, cfg, sig); got != "conv1" {
-		t.Fatalf("digestTarget(todo_ready without supervision_policy) = %q, want conv1 (not bg1)", got)
-	}
-
-	if closed, err := s.reviewDoneTodo(ctx, pre.ID, "accepted", true); err != nil || !closed {
-		t.Fatalf("accept pre: closed=%v err=%v", closed, err)
-	}
-	waitFor(t, "fallback todo_ready wake to main", func() bool { return len(sendsToConversation(f, "conv1")) == 1 })
-	if msg := sendsToConversation(f, "conv1")[0]; !strings.Contains(msg, dep.ID) || !strings.Contains(msg, "Main fallback notes") {
-		t.Fatalf("unexpected fallback wake:\n%s", msg)
-	}
-	if got := len(sendsToConversation(f, "bg1")); got != 0 {
-		t.Fatalf("background supervisor got %d todo_ready wakes, want 0", got)
-	}
-	if got := len(sendsToConversation(f, "lead_no_policy")); got != 0 {
-		t.Fatalf("unsupported runtime leader got %d todo_ready wakes, want 0", got)
-	}
 }
 
 func TestTodoAfterReadyRepoStoreUnavailableFailsClosedAndRetriesAfterRecovery(t *testing.T) {

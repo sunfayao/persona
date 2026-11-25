@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"slices"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
@@ -26,7 +25,7 @@ func cacheKeepaliveOf(v Settings) assistantwire.CacheKeepalive {
 func (s *Service) putCacheKeepalive(ctx context.Context, machine, id string, main bool, p map[string]any) {
 	delete(p, "cache_keepalive")
 	v := s.settings(ctx)
-	if !main && (id == "" || !slices.Contains(v.Leaders, id)) {
+	if !main {
 		return
 	}
 	if id != "" {
@@ -46,7 +45,7 @@ func (s *Service) putCacheKeepalive(ctx context.Context, machine, id string, mai
 }
 
 func (s *Service) cacheKeepaliveRefs(ctx context.Context, v Settings) []SessionRef {
-	refs := s.leadSessions(ctx, v)
+	var refs []SessionRef
 	if v.Main != "" {
 		refs = append(refs, SessionRef{MachineID: v.mainRouteMachine(), SessionID: v.Main})
 	}

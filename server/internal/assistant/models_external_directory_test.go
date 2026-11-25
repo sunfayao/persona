@@ -343,27 +343,6 @@ func TestExternalLaunchersChangedDoesNotWaitForConversationReads(t *testing.T) {
 	}
 }
 
-func TestExternalDirectoryInvalidationKeepsDeletedSessionEventsBlocked(t *testing.T) {
-	s, _, _ := externalPickFixture(t)
-	if err := s.deleteConversation(t.Context(), "server", "side"); err != nil {
-		t.Fatal(err)
-	}
-	s.models.zshrcMu.Lock()
-	s.models.zshrcRefreshing = true
-	s.models.zshrcMu.Unlock()
-	if s.NodeEvent("server", "launchers.changed", json.RawMessage(`{}`)) {
-		t.Fatal("manager-owned launcher event was forwarded")
-	}
-	for _, event := range []string{"session.items", "session.delta", "session.screen"} {
-		if s.NodeEvent("server", event, json.RawMessage(`{"session_id":"side","text":"Synthetic old content"}`)) {
-			t.Fatalf("deleted conversation's %s was forwarded after directory invalidation", event)
-		}
-	}
-	if !s.NodeEvent("server", "session.delta", json.RawMessage(`{"session_id":"main","text":"Synthetic current content"}`)) {
-		t.Fatal("directory invalidation blocked an unrelated current conversation")
-	}
-}
-
 func TestExternalLaunchersChangedRefreshesColdDirectoryWithoutBlocking(t *testing.T) {
 	s, f, l := externalPickFixture(t)
 	f.mu.Lock()

@@ -22,7 +22,6 @@ import (
 // Conversation classes a policy rule can name.
 const (
 	dispatchClassMain                 = "main"
-	dispatchClassLeader               = "leader"
 	dispatchClassBackgroundSupervisor = "background_supervisor"
 	dispatchClassScheduled            = "scheduled"
 	dispatchClassOther                = "other"
@@ -33,21 +32,19 @@ const (
 
 // Actions a rule can deny.
 const (
-	dispatchActionTaskPlan          = "task_plan"
-	dispatchActionAgentStart        = "agent_start"
-	dispatchActionStartConversation = "start_conversation"
-	dispatchActionSendToMain        = "send_to_main"
-	dispatchActionSendToLeader      = "send_to_leader"
+	dispatchActionTaskPlan   = "task_plan"
+	dispatchActionAgentStart = "agent_start"
+	dispatchActionSendToMain = "send_to_main"
 )
 
 var (
 	dispatchClasses = []string{
-		dispatchClassMain, dispatchClassLeader, dispatchClassBackgroundSupervisor,
+		dispatchClassMain, dispatchClassBackgroundSupervisor,
 		dispatchClassScheduled, dispatchClassOther,
 	}
 	dispatchActions = []string{
-		dispatchActionTaskPlan, dispatchActionAgentStart, dispatchActionStartConversation,
-		dispatchActionSendToMain, dispatchActionSendToLeader,
+		dispatchActionTaskPlan, dispatchActionAgentStart,
+		dispatchActionSendToMain,
 	}
 )
 
@@ -140,7 +137,7 @@ func (p *DispatchPolicy) ruleFor(class string) *DispatchRule {
 }
 
 // dispatchConversationClass names the class of sid on machine. The checks run most specific first: a conversation a
-// scheduled task runs in can itself be made the main or a leader conversation later, and the stored lists can still
+// scheduled task runs in can itself be made the main conversation later, and the stored lists can still
 // contain an old main id. A task's own conversation keeps its class even when the schedule cannot be read or its task
 // was deleted mid-run, because the origin book records OriginTask when the run's conversation starts: the schedule
 // book alone would fail open in those windows.
@@ -151,9 +148,6 @@ func (s *Service) dispatchConversationClass(ctx context.Context, machine, sid st
 	cfg := s.settings(ctx)
 	if cfg.Main != "" && cfg.Main == sid {
 		return dispatchClassMain
-	}
-	if slices.Contains(cfg.Leaders, sid) {
-		return dispatchClassLeader
 	}
 	if s.isBackgroundSession(ctx, sid) {
 		return dispatchClassBackgroundSupervisor
@@ -185,9 +179,8 @@ func (s *Service) originIsTaskOn(machine, sid string) bool {
 // the model's entry point (Service.Tool): the hub's own runTool calls never reach it.
 func (s *Service) dispatchToolGuard(ctx context.Context, machine, self, tool string) error {
 	action := map[string]string{
-		"task_plan":        dispatchActionTaskPlan,
-		"agent_start":      dispatchActionAgentStart,
-		"conversation_new": dispatchActionStartConversation,
+		"task_plan":   dispatchActionTaskPlan,
+		"agent_start": dispatchActionAgentStart,
 	}[tool]
 	if action == "" {
 		return nil
@@ -214,11 +207,6 @@ func toolCallerMachine(ctx context.Context) string {
 	return c.machine
 }
 
-// dispatchNewConversationGuard refuses conversation_new from a class the policy limits.
-func (s *Service) dispatchNewConversationGuard(ctx context.Context, self string) error {
-	return s.dispatchToolGuard(ctx, toolCallerMachine(ctx), self, "conversation_new")
-}
-
 // dispatchScheduleGuard refuses cancel_followup / delete_routine from a class the policy limits. It does not depend
 // on the exact denied actions: a limited conversation must not be able to change the schedule that gives it its
 // class, regardless of which actions its rule names.
@@ -241,7 +229,7 @@ func (s *Service) dispatchSendGuard(ctx context.Context, self, targetMachine, ta
 	return s.dispatchRelayGuard(ctx, toolCallerMachine(ctx), self, targetClass, text)
 }
 
-// dispatchRelayGuard refuses a conversation_send to the main or a leader conversation when the policy denies the
+// dispatchRelayGuard refuses a conversation_send to the main conversation when the policy denies the
 // caller's class that action. A send to any other conversation is not limited here. The owner's own words still get
 // through to the main conversation: either the current turn started with one of their messages, or the sent text
 // starts with their words verbatim. When the transcript cannot be read to confirm that, the send stays refused.
@@ -250,8 +238,6 @@ func (s *Service) dispatchRelayGuard(ctx context.Context, machine, self, targetC
 	switch targetClass {
 	case dispatchClassMain:
 		action = dispatchActionSendToMain
-	case dispatchClassLeader:
-		action = dispatchActionSendToLeader
 	default:
 		return nil
 	}

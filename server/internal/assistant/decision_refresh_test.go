@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"slices"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/i18n"
 )
 
 // Stale decisions and their origins (#3804, acceptance AC1 and AC2). All names, ids and texts are placeholders.
@@ -361,61 +358,5 @@ func TestDecisionRefreshFixedResponseRoundStaysAnswerable(t *testing.T) {
 	}
 	if rec := answerAsk(s, todo.ID, map[string]string{"option": "直接全量"}); rec.Code != http.StatusOK {
 		t.Fatalf("the fixed-response round no longer accepts an option: %d %s", rec.Code, rec.Body.String())
-	}
-}
-
-// backgroundText names the origin frozen in the brief instead of calling every non-owner origin the assistant. The
-// existing owner-message and unknown-origin fallbacks, date, where and current closeout/status stay byte-for-byte intact.
-func TestDecisionRefreshBackgroundNamesOrigins(t *testing.T) {
-	at := time.Date(2026, 11, 7, 9, 30, 0, 0, time.UTC)
-	origins := []struct {
-		by, en, zhHans, ja string
-	}{
-		{briefByAssistant, "the assistant", "助理", "アシスタント"},
-		{briefByLeader, "a leader conversation", "负责人对话", "リーダーの会話"},
-		{briefByRoutine, "a routine", "例行任务", "定期タスク"},
-		{briefByHub, "Persona itself", "Persona ", "Persona "},
-	}
-	langs := []struct {
-		name          string
-		lang          i18n.Lang
-		originPhrase  string
-		assistantWant string
-		ownerWant     string
-	}{
-		{"en", i18n.Lang("en"), "the assistant", "Started by the assistant on 2026-11-07, in the main conversation · Now: Closeout approved",
-			"From the main conversation, 2026-11-07: “Prepare the release” · Now: Closeout approved"},
-		{"zh-Hans", i18n.Lang("zh-Hans"), "助理", "助理于 2026-11-07 在主对话发起 · 现状：Closeout approved",
-			"来自主对话，2026-11-07：「Prepare the release」 · 现状：Closeout approved"},
-		{"ja", i18n.Lang("ja"), "アシスタント", "アシスタントが 2026-11-07 にメインの会話で開始 · 現状：Closeout approved",
-			"メインの会話より、2026-11-07：「Prepare the release」 · 現状：Closeout approved"},
-	}
-	for _, lang := range langs {
-		t.Run(lang.name, func(t *testing.T) {
-			for _, origin := range origins {
-				t.Run(origin.by, func(t *testing.T) {
-					phrase := origin.en
-					switch lang.name {
-					case "zh-Hans":
-						phrase = origin.zhHans
-					case "ja":
-						phrase = origin.ja
-					}
-					want := strings.Replace(lang.assistantWant, lang.originPhrase, phrase, 1)
-					ask := &acceptAsk{From: &askFrom{Main: true, At: at, ByAssistant: true, StartedBy: origin.by}, Stands: "Closeout approved"}
-					if got := backgroundText(lang.lang, time.UTC, ask); got != want {
-						t.Errorf("background %q, want %q", got, want)
-					}
-				})
-			}
-			owner := &acceptAsk{From: &askFrom{Main: true, At: at, Message: "Prepare the release", StartedBy: briefByOwner}, Stands: "Closeout approved"}
-			if got := backgroundText(lang.lang, time.UTC, owner); got != lang.ownerWant {
-				t.Errorf("owner background changed: %q, want %q", got, lang.ownerWant)
-			}
-			unknown := &acceptAsk{From: &askFrom{Main: true, At: at, ByAssistant: true, StartedBy: briefByUnknown}, Stands: "Closeout approved"}
-			if got := backgroundText(lang.lang, time.UTC, unknown); got != lang.assistantWant {
-				t.Errorf("unknown-origin fallback changed: %q, want %q", got, lang.assistantWant)
-			}
-		})
 	}
 }

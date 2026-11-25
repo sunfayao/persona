@@ -241,8 +241,6 @@ func backgroundText(l i18n.Lang, loc *time.Location, a *acceptAsk) string {
 	args := i18n.Args{"where": where, "date": f.At.In(loc).Format("2006-01-02"), "message": f.Message}
 	origin := "assistant-reports.decision_from_assistant"
 	switch f.StartedBy {
-	case briefByLeader:
-		origin = "assistant-reports.decision_from_leader"
 	case briefByRoutine:
 		origin = "assistant-reports.decision_from_routine"
 	case briefByHub:

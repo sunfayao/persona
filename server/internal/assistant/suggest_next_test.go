@@ -22,37 +22,6 @@ type suggestTest struct {
 	done  chan string
 }
 
-func newSuggestTest(t *testing.T, on bool) *suggestTest {
-	t.Helper()
-	ft := newFleetTestOn(t, &memStore{})
-	ft.f.fakeModel(t)
-	if on {
-		setSettings(t, ft.s, func(v *Settings) { v.NextSuggestions = &on })
-	}
-	st := &suggestTest{fleetTest: ft, done: make(chan string, 8)}
-	st.items = []proto.Item{
-		{Seq: 1, Role: "user", Kind: proto.KindText, Text: "Find the flaky test"},
-		{Seq: 2, Role: "assistant", Kind: proto.KindThinking, Text: "secret thoughts"},
-		{Seq: 3, Role: "assistant", Kind: proto.KindToolUse, ToolName: "Bash", Text: "go test ./..."},
-		{Seq: 4, Role: "user", Kind: proto.KindToolResult, Text: "tool output"},
-		{Seq: 5, Role: "assistant", Kind: proto.KindText, Text: "Found two. Fix 1, 2 or both?"},
-	}
-	ft.f.mu.Lock()
-	ft.f.sessions["mac"] = nil // the node answers session.items with items
-	ft.f.items = st.items
-	ft.f.mu.Unlock()
-	ft.f.hookReads(receiptHooks{before: func(int) {
-		st.mu.Lock()
-		hold := st.hold
-		st.mu.Unlock()
-		if hold != nil {
-			<-hold
-		}
-	}})
-	ft.s.nextSug.done = func(_, _, text string) { st.done <- text }
-	return st
-}
-
 // suggestAsked are the model calls the suggestion made.
 func (st *suggestTest) suggestAsked() []modelCall {
 	st.f.mu.Lock()
@@ -539,4 +508,35 @@ func TestOwnerReplyCancelsPendingReportSuggestion(t *testing.T) {
 	if len(st.s.hubSuggestions("mac")) != 0 || len(st.f.sentToAgents()) != 0 {
 		t.Fatal("an expired suggestion was offered or sent")
 	}
+}
+
+func newSuggestTest(t *testing.T, on bool) *suggestTest {
+	t.Helper()
+	ft := newFleetTestOn(t, &memStore{})
+	ft.f.fakeModel(t)
+	if on {
+		setSettings(t, ft.s, func(v *Settings) { v.NextSuggestions = &on })
+	}
+	st := &suggestTest{fleetTest: ft, done: make(chan string, 8)}
+	st.items = []proto.Item{
+		{Seq: 1, Role: "user", Kind: proto.KindText, Text: "Find the flaky test"},
+		{Seq: 2, Role: "assistant", Kind: proto.KindThinking, Text: "secret thoughts"},
+		{Seq: 3, Role: "assistant", Kind: proto.KindToolUse, ToolName: "Bash", Text: "go test ./..."},
+		{Seq: 4, Role: "user", Kind: proto.KindToolResult, Text: "tool output"},
+		{Seq: 5, Role: "assistant", Kind: proto.KindText, Text: "Found two. Fix 1, 2 or both?"},
+	}
+	ft.f.mu.Lock()
+	ft.f.sessions["mac"] = nil // the node answers session.items with items
+	ft.f.items = st.items
+	ft.f.mu.Unlock()
+	ft.f.hookReads(receiptHooks{before: func(int) {
+		st.mu.Lock()
+		hold := st.hold
+		st.mu.Unlock()
+		if hold != nil {
+			<-hold
+		}
+	}})
+	ft.s.nextSug.done = func(_, _, text string) { st.done <- text }
+	return st
 }

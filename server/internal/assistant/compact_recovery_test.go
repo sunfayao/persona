@@ -72,40 +72,6 @@ func TestGoldenCompactRecoveryContext(t *testing.T) {
 	}
 }
 
-func TestCompactRecoveryDirectionAndExclusions(t *testing.T) {
-	s, f := notesEnv(t)
-	ctx := context.Background()
-	f.setItems(proto.Item{Role: "user", Kind: proto.KindText, ID: "quote", Text: "Keep this original input."})
-	s.directions.mu.Lock()
-	s.directions.m["conv_lead"].Notes = "DIRECTION_RULE"
-	s.directions.mu.Unlock()
-	for _, tc := range []struct {
-		machine, session string
-		want             bool
-	}{{"server", "conv_lead", true}, {"wrong", "conv_lead", false}, {"server", "ordinary", false}} {
-		p := ContextParams{SessionID: tc.session, MachineID: tc.machine, RecoveryID: "break"}
-		got := s.Context(ctx, p)
-		if (got.Recovery != "") != tc.want {
-			t.Fatalf("%s/%s recovery=%q", tc.machine, tc.session, got.Recovery)
-		}
-		if tc.want && !strings.Contains(got.Recovery, "DIRECTION_RULE") {
-			t.Fatal("direction rule missing")
-		}
-	}
-	s.directions.mu.Lock()
-	s.directions.m["conv_lead"].MachineID = ""
-	s.directions.mu.Unlock()
-	if got := s.Context(ctx, ContextParams{SessionID: "conv_lead", MachineID: "server", RecoveryID: "legacy"}); !strings.Contains(got.Recovery, "DIRECTION_RULE") {
-		t.Fatal("legacy direction lost the configured machine fallback")
-	}
-	if got := s.Context(ctx, ContextParams{SessionID: "conv_lead", MachineID: "wrong", RecoveryID: "legacy"}); got.Recovery != "" {
-		t.Fatal("legacy machine fallback broadened scope")
-	}
-	if got := s.Context(ctx, ContextParams{SessionID: "conv_lead", MachineID: "server"}); got.Recovery != "" {
-		t.Fatal("ordinary turn repeated recovery")
-	}
-}
-
 func TestCompactRecoveryNativeHookUsesPreparedScopedRecords(t *testing.T) {
 	f := newFakeHub().withMachine()
 	s := newTestService(t, f)

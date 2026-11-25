@@ -244,8 +244,8 @@ func (s *Service) toolTaskScope(ctx context.Context, self string, args json.RawM
 		supervisor = t.Supervision.Supervisor
 	}
 	// Its supervisor only; the main conversation also for a task an earlier main conversation supervised (as task_review),
-	// and the background supervisor for the tasks no leader supervises (supervise_background.go).
-	if supervisor != self && !(s.isMain(ctx, self) && !s.isLeader(ctx, supervisor)) && !s.backgroundSupervises(ctx, self, t) {
+	// and the background supervisor for the tasks it supervises (supervise_background.go).
+	if supervisor != self && !s.isMain(ctx, self) && !s.backgroundSupervises(ctx, self, t) {
 		return "", fmt.Errorf("task %s is supervised by another conversation: only its supervisor changes its scope", t.ID)
 	}
 	// A card-less owner wait must not be pushed further out by an estimate extension or scope change (#12648); the

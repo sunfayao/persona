@@ -46,9 +46,6 @@ func (d *DB) PutConversationDeletion(ctx context.Context, machine, session strin
 				if _, err = tx.Exec(ctx, `UPDATE settings SET value=value || jsonb_build_object($2::text,$3::jsonb || jsonb_build_object('machine_id',$4::text,'session_id',$5::text,'hidden_segment',$6::boolean)) WHERE key=$1`, ConversationDeletionsKey, conversationDeletionKey(seg.MachineID, seg.SessionID), row, seg.MachineID, seg.SessionID, seg.Ordinal > 1); err != nil {
 					return err
 				}
-				if err = dropSearchConversationTx(ctx, tx, seg.MachineID, seg.SessionID); err != nil {
-					return err
-				}
 				if err = dropConversationHistoryTx(ctx, tx, seg.MachineID, seg.SessionID); err != nil {
 					return err
 				}
@@ -56,9 +53,6 @@ func (d *DB) PutConversationDeletion(ctx context.Context, machine, session strin
 			if _, err = tx.Exec(ctx, `DELETE FROM logical_conversations WHERE machine_id=$1 AND session_id=$2`, c.MachineID, c.SessionID); err != nil {
 				return err
 			}
-		}
-		if err := dropSearchConversationTx(ctx, tx, machine, session); err != nil {
-			return err
 		}
 		return dropConversationHistoryTx(ctx, tx, machine, session)
 	})

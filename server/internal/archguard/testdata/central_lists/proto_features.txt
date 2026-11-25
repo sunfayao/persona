@@ -6,7 +6,6 @@
 "agent_message_hold"
 "app_ping"
 "assistant_compact"
-"assistant_conversation_delete"
 "assistant_main_clear"
 "assistant_main_new"
 "assistant_model_pick"
