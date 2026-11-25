@@ -21,7 +21,7 @@ import { href, navigate, type Route } from "../lib/router";
 import { composing } from "../lib/send-history";
 import { useAgentSessions } from "../lib/sessions";
 import { PALETTE_RECENT_CHATS, shownChats, useRecentChats } from "../lib/recent-chats";
-import { chordParts, handlerOf, runShortcut, SCOPE_LABEL, useBindings } from "../lib/shortcuts";
+import { chordParts, handlerOf, runShortcut, SCOPE_LABEL } from "../lib/shortcuts";
 import { useStore } from "../lib/store";
 import { buildTerminalTree, type PanesResponse } from "../lib/terminals";
 import type { Session } from "../lib/types";
@@ -162,7 +162,6 @@ export function Palette({ open, onClose, onNewAgent, pane, route = HOME, listSho
   const agentsPaging = useStore((s) => supportsPagedAgents(s.features));
   const completeList = !pagedAgentList({ bounded: agentsPaging, pins, several });
   const panesOn = useStore((s) => s.features.includes("terminal_panes"));
-  const bindings = useBindings();
   // "Inbox" and "Go to" (the Mac's quick open): the open inbox items, and the sidebar's pages with Persona
   const inboxItems = useInbox((s) => s.items);
   // every page, the ones under More too: finding a page is what this is for
@@ -268,10 +267,10 @@ export function Palette({ open, onClose, onNewAgent, pane, route = HOME, listSho
       ...(back ? [{ id: "app:previous-chat", title: t("palette.previous_chat"), detail: sessionTitle(back.s, preferTab), section: SCOPE_LABEL.global, icon: "undo" as const, keywords: "back previous last recent 返回 上一个 最近", run: () => navigate(back.to) }] : []), // i18n-ignore: search words in both languages, as PLACE_WORDS
       { id: "app:new-agent", title: t("palette.new_agent"), section: SCOPE_LABEL.global, icon: "plus", keywords: "new agent", run: onNewAgent },
     ];
-    const all = [...contextCommands({ route, pane }), ...appCommands({ bindings, available: (id) => Boolean(handlerOf(id)), run, machines: machines.map((m) => ({ id: m.id, name: m.name })), extra })];
+    const all = [...contextCommands({ route, pane }), ...appCommands({ available: (id) => Boolean(handlerOf(id)), run, machines: machines.map((m) => ({ id: m.id, name: m.name })), extra })];
     return filterCommands(all, text).map((cmd) => ({ kind: "command" as const, key: cmd.id, cmd }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `route` is parsed anew each render; its path says it all
-  }, [open, mode, text, bindings, machines, pane?.mid, pane?.sid, href(route), onNewAgent, recentChats, sessions, preferTab]);
+  }, [open, mode, text, machines, pane?.mid, pane?.sid, href(route), onNewAgent, recentChats, sessions, preferTab]);
   // the files under the directory of the page (#2438): listed after the conversations and panes
   const files = usePaletteFiles({ open: open && !managing, jump: mode === "jump" && !operators, text, route, pane, machinePanes });
   const shown = useMemo(() => (mode === "command" ? commands : [...hits, ...files.rows]), [mode, commands, hits, files.rows]);

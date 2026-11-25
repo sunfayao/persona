@@ -10,7 +10,7 @@ import { cx, Menu } from "../ui/atoms";
 import { StatusMark } from "../ui/StatusMark";
 import { AppMark } from "../ui/AppMark";
 import { Icon } from "../ui/icons";
-import { formatChord, jumpHint, useBindings } from "../lib/shortcuts";
+import { BINDINGS, formatChord, JUMP_HINT } from "../lib/shortcuts";
 import { takeFocusHandoff, toggleSidebarColumn } from "../lib/layout";
 import { CURRENT_ROW, DOT_CLASS, morePagesMenu, pageLabel, type NavPage, useActiveKey, useGo, useNavPages } from "./SidebarParts";
 
@@ -62,7 +62,6 @@ const RAIL_ITEM = "touch-hit relative flex size-9 shrink-0 items-center justify-
 export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onSearch: () => void; onNewAgent: () => void }) {
   const { phase, online, total, main, pages, more } = useNavPages();
   const [moreMenu, setMoreMenu] = useState<HTMLElement | null>(null);
-  const bindings = useBindings();
   const activeKey = useActiveKey(route);
   const go = useGo();
   const status = connStatus(phase, online, total);
@@ -88,8 +87,8 @@ export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onS
   };
   return (
     <aside className="flex h-full w-full flex-col items-center bg-canvas py-2.5">
-      <CollapseButton collapsed chord={bindings["left-sidebar"]} />
-      <button type="button" onClick={onSearch} aria-label={t("sidebar.search_sessions")} title={`${t("sidebar.search_sessions")} (${jumpHint(bindings)})`} className={cx(RAIL_ITEM, "mt-1 text-ink-3 hover:bg-hover hover:text-ink")}>
+      <CollapseButton collapsed chord={BINDINGS["left-sidebar"]} />
+      <button type="button" onClick={onSearch} aria-label={t("sidebar.search_sessions")} title={`${t("sidebar.search_sessions")} (${JUMP_HINT})`} className={cx(RAIL_ITEM, "mt-1 text-ink-3 hover:bg-hover hover:text-ink")}>
         <Icon name="search" size={15} stroke={1.8} />
       </button>
       <span aria-hidden className="my-2 h-px w-6 shrink-0 bg-line" />
@@ -101,7 +100,7 @@ export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onS
           <AppMark size={20} radius={5} className="shadow-hairline" />,
           pending > 0 ? <span aria-hidden className="absolute top-1 right-1 size-2 rounded-full bg-attention ring-2 ring-canvas" />
             : st === "working" || st === "needs_you" || st === "unread" ? <span aria-hidden className="absolute top-0.5 right-0.5 flex rounded-full ring-2 ring-canvas"><StatusMark state={st} /></span> : null,
-          bindings.persona ? `${t("sidebar.persona_main")} (${formatChord(bindings.persona)})` : t("sidebar.persona_main"),
+          BINDINGS.persona ? `${t("sidebar.persona_main")} (${formatChord(BINDINGS.persona)})` : t("sidebar.persona_main"),
         )}
         {pages.map((p) => link(
           p.k,

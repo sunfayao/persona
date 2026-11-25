@@ -3,7 +3,7 @@
 // other modules add commands through (`registerContextCommands`). Pure apart from the small store.
 import { t } from "../i18n";
 import { useSyncExternalStore } from "react";
-import { chordParts, SCOPE_LABEL, SHORTCUTS, DIGITS, type Bindings, type Platform } from "./shortcuts";
+import { chordParts, SCOPE_LABEL, SHORTCUTS, DIGITS, type Platform } from "./shortcuts";
 import type { Route } from "./router";
 import type { PaneState, TermSpace } from "./terminals";
 import type { AgentSurface } from "./agent-kind";
@@ -124,7 +124,6 @@ export function contextCommands(ctx: PaletteContext): PaletteCommand[] {
 }
 
 export interface AppCommandInput {
-  bindings: Bindings;
   /** Which commands have a handler here (shortcuts.ts handlerOf). */
   available: (id: string) => boolean;
   run: (id: string, digit?: number) => void;
@@ -140,7 +139,7 @@ export function appCommands(input: AppCommandInput): PaletteCommand[] {
   const out: PaletteCommand[] = [];
   for (const def of SHORTCUTS) {
     if (!input.available(def.id)) continue;
-    const chord = input.bindings[def.id] ?? def.chord;
+    const chord = def.chord;
     const section = SCOPE_LABEL[def.scope];
     if (chord.endsWith(`+${DIGITS}`)) {
       input.machines.slice(0, 9).forEach((m, i) => {

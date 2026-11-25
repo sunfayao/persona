@@ -46,7 +46,7 @@ import { lazyDialog } from "./LazyOverlay";
 import { FoldScope, useFolded } from "../lib/use-folded";
 import { clipsOverflow, glideBox, glideStyle, sameBox, type GlideBox, type Span } from "../lib/glide";
 import { AGENTS_FOLD, pagedAgentList } from "../lib/sidebar-api";
-import { jumpHint, useBindings } from "../lib/shortcuts";
+import { BINDINGS, JUMP_HINT } from "../lib/shortcuts";
 import { markAllSeenLabel, stateCount } from "../lib/state-labels";
 import { PagedSessionList, type PagedQuickFilters } from "./agents/PagedSessionList";
 import { ListError } from "../ui/ListError";
@@ -261,8 +261,7 @@ function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
 }
 
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
-  const bindings = useBindings();
-  const searchHint = jumpHint(bindings);
+  const searchHint = JUMP_HINT;
   const { phase, online, total, main: mainConversation, sections, more } = useNavPages();
   // a phone's drawer has the pages as two rows of icons, so its first screen reaches the Agents (#1996)
   const narrow = useMedia(NARROW);
@@ -278,7 +277,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
         <div className="mb-2 flex items-center gap-1">
           <div className="min-w-0 flex-1"><AssistantSwitcher phase={phase} online={online} total={total} route={route} /></div>
           {/* folds the column to the rail of icons (a wide screen; the drawer closes by its scrim) */}
-          {!narrow && <CollapseButton collapsed={false} chord={bindings["left-sidebar"]} />}
+          {!narrow && <CollapseButton collapsed={false} chord={BINDINGS["left-sidebar"]} />}
         </div>
         <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-control bg-inset px-2.5 text-left shadow-hairline transition-colors hover:bg-hover">
           <Icon name="search" size={12} stroke={2} className="text-ink-3" />
@@ -296,7 +295,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
         {/* the main conversation is the column's first row, Main chat with the home symbol, and only there (#2004, #5109); it
             stays at the top while the rest scrolls (#5581), with a solid divider above the sticky groups */}
         <div data-sidebar-sticky className="sticky top-0 z-30 flex flex-col gap-px bg-canvas pt-1">
-          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={bindings.persona} />
+          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={BINDINGS.persona} />
           <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line" />
         </div>
         {/* a phone's drawer has Pages as its grid of icons; every other group (#9071) is a section, as on a wide screen */}
