@@ -577,6 +577,12 @@ def git_file_data(files, prefix):
     return data
 
 
+GIT_OID = re.compile(rb"[0-9a-f]{40}|[0-9a-f]{64}")
+# Git's empty tree, by object id length (SHA-1, SHA-256): the base of a range whose two ends share no history.
+EMPTY_TREE = {40: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+              64: "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321"}
+
+
 def commit_messages(base, head):
     """(commit, message) of every commit in base..head (every commit reachable from head when base is the empty tree),
     newest first, from one `git log` instead of one per commit (a long range spent most of its time starting git). Git

@@ -312,6 +312,12 @@ class PersonaScriptIdentityTests(unittest.TestCase):
             self.assertEqual(result.stdout, f'{root}|{root}|status')
 
 
+# A hang guard for one whole fixture deploy, not a speed check (#2264). The hub deploy starts about 48 Python processes
+# and a nested bash for each fake ssh hop: about 7s of CPU, whose wall time grows with the machine's load (24-27s at
+# load 45-50 on an 18-core Mac, past 30s at 80) without any step hanging.
+DEPLOY_TIMEOUT = 120
+
+
 class PersonaDeploymentScriptTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix='persona-script-deploy-')
