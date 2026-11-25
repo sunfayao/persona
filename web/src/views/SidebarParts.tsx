@@ -19,7 +19,6 @@ import { scoped, useScope, useScopedCounts } from "../lib/current-assistant";
 import { useOwnerNeeds } from "../lib/todo-owner-needs";
 import { useLarkOn, useStore, type State } from "../lib/store";
 import { connPhase } from "../lib/connection";
-import { useStarredCount } from "../lib/starred-summary";
 import type { Session } from "../lib/types";
 import type { MenuItem } from "../ui/atoms";
 import { agentsFoldAction, setAgentsFolded } from "../lib/sidebar-api";
@@ -115,14 +114,12 @@ export function useNavPages() {
   // "Messages" needs the hub to read Feishu (feature `lark`) as well as this browser's switch
   const larkHome = larkSwitch && lark;
   const extensionPages = useExtensionSlot("nav_page");
-  const stars = useStarredCount(useStore((s) => s.features.includes("starred_messages")));
 
   const main = assistant?.main ? assistant.conversations.find((c) => c.session_id === assistant.main) : undefined;
   const page: Record<(typeof NAV_PAGES)[number], NavPage | false> = {
     home: { k: "home", to: { name: "home" }, icon: "home", label: t("sidebar.nav_home"), short: t("sidebar.nav_home_short"), badge: counts.badge || undefined, badgeTone: "attention" },
     inbox: { k: "inbox", to: { name: "inbox" }, icon: "inbox", label: t("sidebar.nav_inbox"), short: t("sidebar.nav_inbox_short"), badge: inbox || undefined, badgeTone: "attention", title: inbox ? t("sidebar.inbox_badge_title", { count: inbox }) : undefined },
     messages: larkHome && { k: "messages", to: { name: "messages" }, icon: "chat", label: t("sidebar.nav_messages") },
-    starred: stars != null && { k: "starred", to: { name: "starred" }, icon: "star", label: t("starred.title"), badge: stars || undefined, badgeLabel: t("starred.count", { count: stars }) },
     todos: todosSupported !== false && { k: "todos", to: { name: "todos" }, icon: "todo", label: t("sidebar.nav_todos"), badge: todosBadge || undefined, badgeLabel: todosBadgeLabel, title: todosBadgeLabel },
     routines: { k: "routines", to: { name: "routines" }, icon: "clock", label: t("sidebar.nav_routines"), short: t("sidebar.nav_routines_short") },
     machines: { k: "machines", to: { name: "machines" }, icon: "machine", label: t("sidebar.nav_machines"), short: t("sidebar.nav_machines_short"), hint: total ? `${online}/${total}` : undefined },

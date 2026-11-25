@@ -27,7 +27,6 @@ export type Route =
   // "Clients"): two managers may list the same id
   | { name: "inbox"; id?: string; manager?: string }
   | { name: "messages"; id?: string }
-  | { name: "starred" }
   | { name: "routines" }
   | { name: "machines" }
   | { name: "machine"; mid: string }
@@ -87,7 +86,6 @@ export function parse(path: string, search = ""): Route {
     return manager ? { name: "inbox", id: p[1], manager } : { name: "inbox", id: p[1] };
   }
   if (p[0] === "messages") return { name: "messages", id: p[1] };
-  if (p[0] === "starred" && p.length === 1) return { name: "starred" };
   if (p[0] === "routines") return { name: "routines" };
   if (p[0] === "space" && p[1] && p[2]) return { name: "space", mid: p[1], space: p[2] };
   if (p[0] === "machines") return p[1] ? { name: "machine", mid: p[1] } : { name: "machines" };
@@ -155,8 +153,6 @@ export function routePath(r: Route): string {
       return r.id ? `/inbox/${encodeURIComponent(r.id)}${r.manager ? `?manager=${encodeURIComponent(r.manager)}` : ""}` : "/inbox";
     case "messages":
       return r.id ? `/messages/${encodeURIComponent(r.id)}` : "/messages";
-    case "starred":
-      return "/starred";
     case "routines":
       return "/routines";
     case "machines":
