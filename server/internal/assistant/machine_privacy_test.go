@@ -106,7 +106,7 @@ func TestAssistantMachineAuthorization(t *testing.T) {
 	} {
 		t.Run(test.machine+"/"+test.session, func(t *testing.T) {
 			names := privacyTools(t, s, test.machine, test.session, true)
-			if got := slices.Contains(names, "kb_search"); got != test.allowed {
+			if got := slices.Contains(names, "schedule_routine"); got != test.allowed {
 				t.Fatalf("assistant tools=%v: %v", got, names)
 			}
 			res := privacyCall(t, s, test.machine, test.session, "lark_chats", true)
@@ -186,7 +186,7 @@ func TestAnotherManagerAssistantToolsFollowItsDirectory(t *testing.T) {
 				t.Fatalf("assistantCaller=%v, want %v", got, test.allowed)
 			}
 			names := privacyTools(t, s, "server", test.session, true)
-			if got := slices.Contains(names, "kb_search"); got != test.allowed {
+			if got := slices.Contains(names, "schedule_routine"); got != test.allowed {
 				t.Fatalf("assistant tools=%v: %v", got, names)
 			}
 			if res := privacyCall(t, s, "server", test.session, "lark_chats", true); res.IsError == test.allowed {
@@ -203,7 +203,7 @@ func TestWorkMachineToolsDeniedAtExecution(t *testing.T) {
 		if !slices.Contains(names, "report_to_supervisor") {
 			t.Fatal("work agent lost its supervisor tool")
 		}
-		for _, name := range []string{"phone_contacts", "mail_search", "lark_chats", "computer_run", "kb_search", "agents_list"} {
+		for _, name := range []string{"phone_contacts", "mail_search", "lark_chats", "computer_run", "agents_list"} {
 			if slices.Contains(names, name) {
 				t.Fatalf("work machine lists %s", name)
 			}

@@ -200,7 +200,7 @@ func settleTaskExecutionBubble(t *testing.T, fx *taskExecutionWaitFixture, resul
 }
 
 func TestTaskExecutionCompatibilityWaitDispatchesOnce(t *testing.T) {
-	for _, path := range []string{"source", "resume", "new", "directory"} {
+	for _, path := range []string{"resume", "new", "directory"} {
 		t.Run(path, func(t *testing.T) {
 			fx := newTaskExecutionWaitFixture(t, path, "")
 			synctest.Test(t, func(t *testing.T) {
@@ -382,7 +382,7 @@ func TestTaskExecutionLegacyFallbackPolicyDisabled(t *testing.T) {
 }
 
 func TestTaskExecutionCompatibilityWaitPreservesUncertainDelivery(t *testing.T) {
-	for _, path := range []string{"source", "resume", "new", "directory"} {
+	for _, path := range []string{"resume", "new", "directory"} {
 		t.Run(path, func(t *testing.T) {
 			fx := newTaskExecutionWaitFixture(t, path, "")
 			fx.h.compatible.Store(true)

@@ -139,9 +139,6 @@ func TestSpaceTasksAndRefusals(t *testing.T) {
 		t.Fatalf("tasks in the health space %d, in the assistant's own %d", health, own)
 	}
 
-	if out, isErr := spaceTool(t, s, "sleep-000-0000", "kb_update", `{}`); !isErr || !strings.Contains(out, "knowledge base") {
-		t.Fatalf("kb_update from the health space: %s", out)
-	}
 	// A caller the machine doesn't list is taken for the assistant's own: it never sees the health conversations.
 	if out, _ := spaceTool(t, s, "gone-0000-0000", "conversations_list", `{}`); strings.Contains(out, "sleep-000") || strings.Contains(out, "steps-000") {
 		t.Fatalf("an unlisted caller saw the health conversations: %s", out)

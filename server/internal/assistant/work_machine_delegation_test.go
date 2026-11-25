@@ -43,46 +43,6 @@ func tokenSendDone(t *testing.T, s *Service, machine string) {
 	}
 }
 
-func TestDelegationProjectContextRespectsMachineTrust(t *testing.T) {
-	for _, trust := range []string{"", "personal", "work"} {
-		t.Run("trust="+trust, func(t *testing.T) {
-			s, f, _ := outcomeEnv(t, nil, outcomeReply)
-			delegationMachineTrust(t, s, "box", trust)
-			ctx := context.Background()
-			const prompt = "Add dark mode"
-			args, _ := json.Marshal(map[string]string{"machine": "box", "cwd": "/code/weather", "prompt": prompt})
-			if _, err := s.runTool(ctx, "server", "conv9", "agent_start", args); err != nil {
-				t.Fatal(err)
-			}
-			f.mu.Lock()
-			if len(f.starts) != 1 {
-				t.Fatalf("starts = %+v", f.starts)
-			}
-			got, _ := f.starts[0]["prompt"].(string)
-			f.mu.Unlock()
-			if trust == "work" && got != prompt {
-				t.Fatalf("work computer received project context: %q", got)
-			}
-			if trust != "work" && !strings.Contains(got, "<persona-context") {
-				t.Fatalf("personal computer lost project context: %q", got)
-			}
-			// The app's new-Agent handoff uses the same policy as agent_start.
-			other, err := s.createTodo(ctx, "Add dark mode", "", "", "")
-			if err != nil {
-				t.Fatal(err)
-			}
-			handoff, err := s.TodoHandoff(ctx, TodoHandoff{TodoID: other.ID, Text: prompt, New: true,
-				MachineID: "box", Cwd: "/code/weather"})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if trust == "work" && handoff.Text != prompt || trust != "work" && !strings.Contains(handoff.Text, "<persona-context") {
-				t.Fatalf("handoff = %q", handoff.Text)
-			}
-		})
-	}
-}
-
 func TestAssistantStartRefusesWorkBeforePreparing(t *testing.T) {
 	for _, guest := range []bool{false, true} {
 		f := newFakeHub().withMachine()

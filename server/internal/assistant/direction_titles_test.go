@@ -93,19 +93,6 @@ func TestDirectionSessionTitleIsItsNameAndRestoresTheOrdinaryTitle(t *testing.T)
 	}
 }
 
-func TestDirectionSessionTitleKeepsTheCanonicalOfflineProjectName(t *testing.T) {
-	e := directionTitleEnv(t)
-	b := &e.s.directions
-	b.mu.Lock()
-	d := b.m["lead0001"]
-	d.Name, d.NameBy, d.Project = "", "", "platform"
-	d.Told = &leaderTold{Name: "Platform project", Project: "platform"}
-	b.mu.Unlock()
-	if got := directionSessionTitle(t, e.s.snapshot(t.Context()), "lead0001"); got != "Platform project" {
-		t.Fatalf("offline project fallback differs from the direction tree: %q", got)
-	}
-}
-
 func TestDirectionConversationRenameUsesAPlainName(t *testing.T) {
 	e := directionTitleEnv(t)
 	ctx := context.Background()

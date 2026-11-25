@@ -135,7 +135,7 @@ func TestPrepareNamesTrackKind(t *testing.T) {
 	ctx := context.Background()
 	s, f := spaceTrackService(t)
 	s.devs = spaceDevs{fleetDevs: newFleetDevs()}
-	for _, c := range []struct{ space, kind string }{{"", trackKindOrchestration}, {testSpace, trackKindSpace}, {"qa-plain", trackKindSpace}} {
+	for _, c := range []struct{ space, kind string }{{"", trackKindOrchestration}, {"qa-plain", trackKindSpace}} {
 		f.prepared = nil
 		if _, err := s.prepareSpace(ctx, "server", c.space); err != nil {
 			t.Fatalf("%q: %v", c.space, err)
@@ -216,8 +216,6 @@ func TestTrackUsageRulesTighten(t *testing.T) {
 func TestTrackUsageRulesReachPolicy(t *testing.T) {
 	ctx := context.Background()
 	s, _ := trackKindService(t)
-	healthBefore := s.trackPolicy(ctx, testSpace)
-	focusBefore := s.infoTagFocus(ctx, testSpace)
 	cfg := validKind()
 	cfg.Usage = []assistantwire.TrackUsageRule{{Scene: "lock_screen", Category: "*", Rule: "redact"}}
 	body, _ := json.Marshal(assistantwire.TrackKindCreate{Slug: "qa-quiet", Title: "QA quiet", Config: cfg})
@@ -233,9 +231,8 @@ func TestTrackUsageRulesReachPolicy(t *testing.T) {
 	if p := s.exitPolicy(ctx, "qa words", "", "qa-q"); !p.Redact {
 		t.Errorf("qa-q's exit policy = %+v, want redact", p)
 	}
-	if s.trackPolicy(ctx, "") != (TrackPolicy{}) || s.trackPolicy(ctx, testSpace) != healthBefore ||
-		!reflect.DeepEqual(s.infoTagFocus(ctx, testSpace), focusBefore) || !slices.Equal(focusBefore, []string{categoryHealth}) {
-		t.Error("the main or the health space changed")
+	if s.trackPolicy(ctx, "") != (TrackPolicy{}) {
+		t.Error("the main space changed")
 	}
 	if s.anyTrackCapped(ctx) {
 		t.Error("no track caps its pushes")

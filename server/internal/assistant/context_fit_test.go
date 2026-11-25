@@ -127,7 +127,6 @@ func TestFitSnapshotKeepsCountsOfWhatItLeavesOut(t *testing.T) {
 		"  - 做完的（24 小时内）：20 个，agents_list state=done 查",
 		"  - 已屏蔽（用户关了它们的通知，上面的数不算它们；别主动提，问到再说）：4 个，agents_list state=muted 查",
 		"- 已安排的跟进：11 个，这份快照放不下，没列出来，要看用 list_followups",
-		"- 知识库（kb_get 看详情）：这份快照放不下",
 		"- 飞书未读会话 2 个",
 	} {
 		if !strings.Contains(got, want) {

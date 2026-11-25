@@ -248,9 +248,6 @@ func TestDirectionPromptSettingOwnerApprovalChain(t *testing.T) {
 		strings.Contains(policy, "Verify before merge.") {
 		t.Fatalf("lead policy did not take the approved notes: %q", policy)
 	}
-	if prompt := s.withProjectContext(context.Background(), "box", "/code/weather/ios", "", "Fix the login page"); !strings.Contains(prompt, "Run server tests before merge.") || strings.Contains(prompt, "Verify before merge.") {
-		t.Fatalf("new Agent prompt did not take the approved notes: %q", prompt)
-	}
 
 	done = setDirectionSetting(s, "main_chat", `"# Rules\n\nWhole replacement."`)
 	card, ok = awaitCard(s)

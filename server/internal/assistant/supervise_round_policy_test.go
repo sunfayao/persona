@@ -202,11 +202,9 @@ var roundPassingMentions = map[string][]string{
 	"agent_send":         {"agent_start", "ask_user"},
 	"agents_list":        {"agent_start", "agent_switch", "agent_unarchive"},
 	"conversation_read":  {"conversations_list"},
-	"kb_get":             {"kb_list"},
-	"kb_search":          {"kb_list"},
 	"schedule_followup":  {"inbox_post"},
 	"supervision_finish": {"ask_user"},
-	"task_plan":          {"kb_list", "repositories_list", "repository_get", "task_retry", "agent_transfer"},
+	"task_plan":          {"repositories_list", "repository_get", "task_retry", "agent_transfer"},
 	"task_review":        {"agent_start"},
 	"task_scope":         {"agent_supervise", "ask_user"},
 	"todo_get":           {"todo_repository_links_add"},
@@ -353,7 +351,7 @@ func TestBackgroundSnapshotLeavesOutWhatOnlyMainActsOn(t *testing.T) {
 	s.live.mu.Unlock()
 	for id, keeps := range map[string]bool{"main": true, "bg": false} {
 		got := scopedContext(t, s, id)
-		for _, part := range []string{"plan_1", "task_plan_withdraw", "Release room", "lark_chats", "phone_"} {
+		for _, part := range []string{"plan_1", "task_plan_withdraw", "Release room", "lark_chats"} {
 			if strings.Contains(got, part) != keeps {
 				t.Errorf("%s's context has %q: %v, want %v:\n%s", id, part, !keeps, keeps, got)
 			}

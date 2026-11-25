@@ -29,7 +29,7 @@ func (h *startingPrivacyHub) DeviceCall(ctx context.Context, p DeviceCall) (json
 func assertStartingAssistantTools(t *testing.T, s *Service, machine, session string, allowed bool) {
 	t.Helper()
 	names := privacyTools(t, s, machine, session, true)
-	for _, name := range []string{"kb_search", "lark_chats", "computer_run"} {
+	for _, name := range []string{"schedule_routine", "lark_chats", "computer_run"} {
 		if slices.Contains(names, name) != allowed {
 			t.Fatalf("%s/%s: %s allowed=%v, tools=%v", machine, session, name, allowed, names)
 		}
@@ -41,7 +41,7 @@ func assertStartingAssistantTools(t *testing.T, s *Service, machine, session str
 
 func assertAssistantDiscoveryOnly(t *testing.T, s *Service, machine string) {
 	t.Helper()
-	if !slices.Contains(privacyTools(t, s, machine, "", true), "kb_search") {
+	if !slices.Contains(privacyTools(t, s, machine, "", true), "schedule_routine") {
 		t.Fatal("runtime host cannot rediscover assistant tools")
 	}
 	if got := privacyCall(t, s, machine, "", "lark_chats", true); !got.IsError {

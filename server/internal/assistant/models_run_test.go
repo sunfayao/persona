@@ -62,7 +62,7 @@ func TestAPIPurposeRunsOnALauncher(t *testing.T) {
 	if p := purposeOf(t, s, "kb"); p.Status != modelUnverified {
 		t.Fatalf("status: %q", p.Status)
 	}
-	text, err := s.purposeModel("kb.compress").Complete(context.Background(), "sys", "hi", 64)
+	text, err := s.purposeModel("agent.title").Complete(context.Background(), "sys", "hi", 64)
 	if err != nil || text != "answer to hi" || len(devs.saw) != 1 {
 		t.Fatalf("complete: %q %v %d", text, err, len(devs.saw))
 	}

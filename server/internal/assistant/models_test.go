@@ -200,7 +200,7 @@ func TestModelConfigurationPreservesLegacyBaselines(t *testing.T) {
 	f.hello.Assistant.Launcher = "conversation"
 	s := newTestService(t, f)
 	ctx := context.Background()
-	for id, want := range map[string]string{"inbox.triage": "triage", "inbox.judge": "triage", "translate": "triage", "kb.compress": "knowledge", "assistant.title": "knowledge"} {
+	for id, want := range map[string]string{"inbox.triage": "triage", "inbox.judge": "triage", "translate": "triage", "assistant.title": "knowledge"} {
 		b, err := s.resolveModel(ctx, id)
 		if err != nil || b.Model != want {
 			t.Errorf("%s: %+v %v", id, b, err)
@@ -428,7 +428,7 @@ func TestAPIModelPurposesFallBackToAKeyedConnection(t *testing.T) {
 	if err := s.putSetting(ctx, launchersHiddenKey, []string{"hidden"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"inbox.triage", "inbox.judge", "inbox.draft", "translate", "kb.compress", "assistant.title", "agent.title"} {
+	for _, id := range []string{"inbox.triage", "inbox.judge", "inbox.draft", "translate", "assistant.title", "agent.title"} {
 		p := purposeOf(t, s, id)
 		if p.Effective.Provider != "launcher.claude-gw" || p.Effective.Model != "gateway-default" || p.Status != "未验证" {
 			t.Fatalf("%s did not fall back: %+v", id, p)

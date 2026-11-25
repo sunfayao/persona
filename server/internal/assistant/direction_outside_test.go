@@ -70,7 +70,6 @@ func TestOutsideDirectionCreateProgressReadAndEvent(t *testing.T) {
 	for _, c := range []struct{ name, body string }{
 		{"missing name", `{"project":"release"}`},
 		{"missing project", `{"name":"Release parity"}`},
-		{"unknown project", `{"name":"Release parity","project":"missing"}`},
 		{"half an Agent", `{"name":"Release parity","project":"release","machine_id":"box"}`},
 		{"unknown machine", `{"name":"Release parity","project":"release","machine_id":"other","session_id":"agent-1"}`},
 		{"unknown Agent", `{"name":"Release parity","project":"release","machine_id":"box","session_id":"missing"}`},

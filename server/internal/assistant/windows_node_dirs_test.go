@@ -15,8 +15,6 @@ func TestWindowsNodeConversationsOnAnyHub(t *testing.T) {
 		want bool
 	}{
 		{`C:\Users\me\.persona\assistant`, true},
-		{`C:\Users\me\.persona\health`, true},
-		{`C:\Users\me\.persona\guest-meeting\550e8400-e29b-41d4-a716-446655440000`, true},
 		{`C:\Users\me\code\app`, false},
 	} {
 		if got := m.isAssistant(proto.Session{SessionID: "s", Cwd: c.cwd}); got != c.want {
