@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -155,19 +157,51 @@ func (h *Hub) applyResumeLauncher(ctx context.Context, m *Machine, sid string, p
 // autoTabName is a short name for the herdr tab of a new agent, from its first message (the manager's
 // agents.tab_name). "" when there is no message, or no name came: the node names it agent-<n>.
 func (h *Hub) autoTabName(ctx context.Context, prompt string) string {
+	return h.autoTabNameOn(ctx, h.defaultOwner(ctx), prompt)
+}
+
+func (h *Hub) autoTabNameOn(ctx context.Context, owner, prompt string) string {
 	var res struct {
 		Name string `json:"name"`
 	}
 	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if !h.waitManager(cctx) {
+	if !h.waitManagerOf(cctx, owner) {
 		return ""
 	}
-	if err := h.asst().call(cctx, assistantwire.MethodAgentTabName, map[string]any{"prompt": prompt}, &res); err != nil {
+	if err := h.asstOf(owner).call(cctx, assistantwire.MethodAgentTabName, map[string]any{"prompt": prompt}, &res); err != nil {
 		h.logf("tab name: %v", err)
 		return ""
 	}
 	return res.Name
+}
+
+func nativeTraeTab(launcher, agent, engine string) bool {
+	return (agent == "traex" || agent == "" && launcher == "traex") &&
+		(engine == proto.EngineHerdr || engine == proto.EngineHerdrCore)
+}
+
+var newAgentTabLabel = lazyre.New(`^agent-[0-9]+$`)
+
+// Wait for a confirmed native TRAE start, then name only the placeholder tab
+// it returned. The node checks that the tab and label still match before renaming.
+func (h *Hub) nameStartedTraeTab(m *Machine, owner string, session proto.Session, prompt string) {
+	tab, label := cmp.Or(session.SlotID, session.TabID), session.HerdrTabName()
+	if session.Agent != "traex" || session.SessionID == "" || tab == "" || !newAgentTabLabel.MatchString(label) ||
+		h.machineOwner(m.cfg.ID) != owner {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	name := h.autoTabNameOn(ctx, owner, prompt)
+	if name == "" || name == label || h.machineOwner(m.cfg.ID) != owner {
+		return
+	}
+	if err := m.call(ctx, assistantwire.DeviceSessionRenameTabIfCurrent, map[string]any{
+		"session_id": session.SessionID, "tab_id": tab, "expected_tab_name": label, "tab_name": name,
+	}, nil); err != nil {
+		h.logf("tab name %s: %v", session.SessionID, err)
+	}
 }
 
 // startSettleWait is how long the hub watches a start the node answered before it ran (async) for how it went: longer
