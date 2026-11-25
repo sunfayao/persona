@@ -208,7 +208,7 @@ The theme paints `::selection` with `--accent-tint`, a neutral grey in the defau
 press-and-drag that started on a group's always-shown explanation (trying to drag an Agent onto a to-do) selected the
 group titles, state words and explanations below it, line by line, and pressing the fold buttons afterwards kept it
 (a press on a button does not move the selection), so the owner reported it as a highlight style leaking. Rows that
-fold or group (`Section`'s heading, `TreeBranch`) are `select-none`; a drag test in `web/e2e/todo-grouping.mjs` keeps
+fold or group (`Section`'s heading, `TreeBranch`) are `select-none`; a drag test keeps
 it so. Before calling a stray grey block a style bug, check `String(getSelection())`.
 
 ## Live acceptance must distinguish a lookup POST from a mutation (#5753)
