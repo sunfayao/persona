@@ -1,6 +1,5 @@
 // The requests graph's hover card (views/TodoRequestGraph.tsx): what a piece of a request has to say (who is on it, what
-// it waits for) is more than the ⓘ tip (ui/InfoTip.tsx) holds, which is one sentence under its own button. The card is
-// drawn in the same tooltip colors and place (placeMenu). It comes up when the pointer has rested on a piece for
+// it waits for) is drawn as a card in the tooltip colors, placed by placeMenu. It comes up when the pointer has rested on a piece for
 // TIP_DELAY, or when keyboard focus lands on one; it goes when the pointer leaves, the focus does, Escape is pressed, the
 // page scrolls or a press lands. It takes no pointer and no focus (pointer-events: none), so it never stands between the
 // pointer and what it is going for, and it opens above the anchor when there is no room below.

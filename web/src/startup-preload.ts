@@ -236,7 +236,7 @@ export async function brotliCopies(dir: string, files: string[]): Promise<{ file
  * And 720 B for "By to-do" as one kind of row (#6458: main at 8269cd921 measured ja 476,774 B, 114 B over the budget
  * before; this change takes it to 477,349 B, +575 B: the to-dos at the top level and their groups, "Recent (not running)"
  * among them, as rows with a count, a state and an ⓘ, a to-do's state in the To-dos page's word, and the groups'
- * explanations; the ⓘ's words, ui/InfoTipPanel.tsx, load the first time one is asked for, which took 287 B back off;
+ * explanations; the ⓘ's words loaded the first time one was asked for, which took 287 B back off;
  * 31 B of room).
  * And 176 B for side sessions drawn under their parent, with main's own growth (#5935: main at 2d9596043 measured ja
  * 477,447 B, 67 B over the budget before; this change takes it to 477,525 B, +78 B: lib/side-sessions.ts's

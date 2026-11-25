@@ -105,7 +105,7 @@ export function SidebarGroup({ heading, children, className }: { heading: React.
 }
 
 /** A sidebar group: its heading folds it. The heading selects no text, so a press-and-drag over the list paints no
- *  selection behind it (#6458); what a group holds, when its name does not say, is an ⓘ in `right` (InfoTip).
+ *  selection behind it (#6458).
  *  `top`: one of the sidebar's top-level headings (Pages, Persona chats, Personal Agents), whose row is the Agents
  *  title row's box, `sidebar-heading` (#10637), whatever `right` carries; a group's heading inside a list keeps its own. */
 export function Section({ title, children, folded, onToggle, right, onMenu, first, top }: { title: React.ReactNode; children: React.ReactNode; folded: boolean; onToggle: () => void; right?: React.ReactNode; onMenu?: (at: MenuAt, el: HTMLElement) => void; first?: boolean; top?: boolean }) {
