@@ -48,8 +48,7 @@ bulk action that could not succeed. The automatic view does not expose selection
 
 The implementation extends the existing manager-owned mutation endpoint instead of looping over single-card writes
 (which could partially succeed) or replacing the whole state from the browser (which would give it authority over
-bindings). No schema migration or new endpoint is needed. The browser regression runner is
-`web/e2e/workspace-board-bulk.mjs`; its fixtures and screenshots use made-up data, not a deployed hub.
+bindings). No schema migration or new endpoint is needed.
 
 ## Activity history (#7599)
 
@@ -81,8 +80,7 @@ Assistant selection, and changing either retires old responses.
 
 The capability `activity: true` in board responses enables the entry. `answer` connections can read the history;
 extension tokens need `agents.read`. Neither gets a write permission. Older managers keep their existing board UI.
-The API is documented in [the protocol](../protocol/protocol.md#workspace-board). Browser acceptance uses
-`web/e2e/workspace-board-activity.mjs` and synthetic records; the database tests separately verify actual transaction
+The API is documented in [the protocol](../protocol/protocol.md#workspace-board). The database tests verify actual transaction
 rollback, concurrent saves, persistence, filtering and retention against Postgres.
 
 ## Who owns the board
@@ -126,7 +124,7 @@ A successful write pushes a `workspace_board` event. When the toggle is off, the
 
 ## Upgrades and compatibility
 
-When upgrading the hub, apply the Postgres migration above, and deploy the new web app and the node on each computer at the same time. An old node that does not support `workspaces.list` or `workspace.resolve` shows a discovery or binding error; existing session folders still supplement discovery, but binding must ultimately be verified by a new node. New project creation also requires `workspace.create` on the node and the manager's optional creation fields. An old hub returns 404, or 503 `not_supported` if it does not support board storage, and the web app asks you to update: one message in the board's place (the title says to update the hub, the line under it only why: an older version, or no board storage) with **Open hub settings**, without the board's search, machine filter, Archived, Manual / Auto or the auto view's banner (none of them could change anything) and without Retry; the page keeps its regular reads, so the board appears once the hub is updated. When the manager is away it is also 503, with `assistant_offline` (or any other code, such as a proxy's): that one passes, so the page offers **Retry** and keeps its controls (`boardUnsupported` in `web/src/lib/workspace-board.ts`). Existing native clients keep using the original endpoints.
+When upgrading the hub, apply the Postgres migration above, and deploy the new web app and the node on each computer at the same time. An old node that does not support `workspaces.list` or `workspace.resolve` shows a discovery or binding error; existing session folders still supplement discovery, but binding must ultimately be verified by a new node. New project creation also requires `workspace.create` on the node and the manager's optional creation fields. An old hub returns 404, or 503 `not_supported` if it does not support board storage, and the web app asks you to update: one message in the board's place (the title says to update the hub, the line under it only why: an older version, or no board storage) with **Open hub settings**, without the board's search, machine filter, Archived, Manual / Auto or the auto view's banner (none of them could change anything) and without Retry; the page keeps its regular reads, so the board appears once the hub is updated. When the manager is away it is also 503, with `assistant_offline` (or any other code, such as a proxy's): that one passes,. Existing native clients keep using the original endpoints.
 
 A Session's optional `workspace_cwd` is the physical folder verified by the node, used to link the board to workspaces; the raw `cwd` keeps its runtime meaning. When an old node lacks this field it falls back to `cwd`; linking through symlink aliases requires upgrading the node. Detailed data structures, errors, and RPCs are in [the protocol](../protocol/protocol.md#workspace-board).
 
