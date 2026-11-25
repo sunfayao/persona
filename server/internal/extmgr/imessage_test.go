@@ -121,7 +121,7 @@ func TestIMessageThroughTheHub(t *testing.T) {
 		list[0].(map[string]any)["account"] != "示例 Mac" || list[0].(map[string]any)["name"] != "信息" {
 		t.Fatalf("connectors: %v", out)
 	}
-	if caps := list[0].(map[string]any)["capabilities"].([]any); fmt.Sprint(caps) != "[status tools catalog events inbox archive]" {
+	if caps := list[0].(map[string]any)["capabilities"].([]any); fmt.Sprint(caps) != "[status tools catalog events inbox]" {
 		t.Errorf("capabilities %v", caps)
 	}
 	if n := len(h.connectors.Tools(context.Background())); n != 3 {

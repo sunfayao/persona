@@ -197,36 +197,36 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 	// Through the relay to the hub, with its token as it sent it, the manager's proof, and nothing else of the
 	// manager's or of the extension's making.
 	forged := "v1,m=work,t=1,n=AAAAAAAAAAAAAAAAAAAAAA,s=x"
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search?q=x", map[string]string{"Authorization": "Bearer " + tok,
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions?q=x", map[string]string{"Authorization": "Bearer " + tok,
 		"Cookie": "persona_admin=s", "X-Forwarded-For": "203.0.113.9", "X-Forwarded-Proto": "https",
 		extwire.HeaderManagerProof: forged, "Connection": extwire.HeaderManagerProof}); code != 200 {
 		t.Fatalf("through the relay: %d", code)
 	}
 	seen := f.last()
-	if seen.Get("X-Test-Path") != "/api/v1/kb-search" || seen.Get("X-Test-Query") != "q=x" || seen.Get("Authorization") != "Bearer "+tok ||
+	if seen.Get("X-Test-Path") != "/api/v1/sessions" || seen.Get("X-Test-Query") != "q=x" || seen.Get("Authorization") != "Bearer "+tok ||
 		seen.Get("Cookie") != "" || seen.Get("X-Forwarded-For") != "" || seen.Get("X-Forwarded-Proto") != "" ||
 		seen.Get("X-Test-Host") != strings.TrimPrefix(f.srv.URL, "https://") {
 		t.Fatalf("the hub got %v", seen)
 	}
 	proof, err := extwire.ParseProof(seen.Get(extwire.HeaderManagerProof))
 	if err != nil || proof.Manager != "work" || !proof.Fresh(time.Now()) ||
-		!proof.Valid(extwire.ProofKey(otherBusToken), "GET", "/api/v1/kb-search?q=x", tok) || seen.Get(extwire.HeaderManagerProof) == forged {
+		!proof.Valid(extwire.ProofKey(otherBusToken), "GET", "/api/v1/sessions?q=x", tok) || seen.Get(extwire.HeaderManagerProof) == forged {
 		t.Fatalf("the manager's own proof of this request: %q (%v)", seen.Get(extwire.HeaderManagerProof), err)
 	}
-	for _, other := range []struct{ method, uri, tok string }{{"POST", "/api/v1/kb-search?q=x", tok},
-		{"GET", "/api/v1/kb-search", tok}, {"GET", "/api/v1/kb-search?q=x", master}} {
+	for _, other := range []struct{ method, uri, tok string }{{"POST", "/api/v1/sessions?q=x", tok},
+		{"GET", "/api/v1/sessions", tok}, {"GET", "/api/v1/sessions?q=x", master}} {
 		if proof.Valid(extwire.ProofKey(otherBusToken), other.method, other.uri, other.tok) {
 			t.Fatalf("the proof vouches for %v too", other)
 		}
 	}
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search?token="+tok, nil); code != 200 || f.last().Get("X-Test-Query") != "token="+tok {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions?token="+tok, nil); code != 200 || f.last().Get("X-Test-Query") != "token="+tok {
 		t.Fatalf("the token in the query, as the hub reads it: %d %v", code, f.last())
 	}
 
 	// Off the bus, the manager answers its extensions itself and sends the hub nothing.
 	before := f.count()
 	f.away.Store(true)
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusServiceUnavailable {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusServiceUnavailable {
 		t.Fatalf("off the bus: %d", code)
 	}
 	f.away.Store(false)
@@ -237,16 +237,16 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 	// A hub that does not know the manager (it restarted; the connection is half open): after its 401 the manager
 	// holds its extensions' requests until its next bus connection.
 	f.lost.Store(true)
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusUnauthorized {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusUnauthorized {
 		t.Fatalf("the hub lost the manager: %d", code)
 	}
 	f.lost.Store(false)
 	held := f.count()
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusServiceUnavailable || f.count() != held {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusServiceUnavailable || f.count() != held {
 		t.Fatalf("held until the next connection: %d (%d requests at the hub, was %d)", code, f.count(), held)
 	}
 	f.conn.Add(1)
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search", map[string]string{"Authorization": "Bearer " + tok}); code != 200 {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions", map[string]string{"Authorization": "Bearer " + tok}); code != 200 {
 		t.Fatalf("on the next connection: %d", code)
 	}
 
@@ -256,11 +256,11 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 		path, auth string
 		want       int
 	}{
-		{"/api/v1/kb-search", "", http.StatusUnauthorized},
-		{"/api/v1/kb-search", "Bearer " + master, http.StatusUnauthorized},
-		{"/api/v1/kb-search", "Bearer " + extTokenPrefix + "unknown", http.StatusUnauthorized},
-		{"/api/v1/kb-search?token=" + master, "", http.StatusUnauthorized},
-		{"/api/v1/kb-search?token=" + tok, "Bearer " + master, http.StatusUnauthorized}, // the hub reads the header first
+		{"/api/v1/sessions", "", http.StatusUnauthorized},
+		{"/api/v1/sessions", "Bearer " + master, http.StatusUnauthorized},
+		{"/api/v1/sessions", "Bearer " + extTokenPrefix + "unknown", http.StatusUnauthorized},
+		{"/api/v1/sessions?token=" + master, "", http.StatusUnauthorized},
+		{"/api/v1/sessions?token=" + tok, "Bearer " + master, http.StatusUnauthorized}, // the hub reads the header first
 		{"/admin/", "Bearer " + tok, http.StatusNotFound},
 		{"/api/v1/../../admin/", "Bearer " + tok, http.StatusNotFound},
 		{"/api/v1/%2e%2e/%2e%2e/admin/", "Bearer " + tok, http.StatusNotFound},
@@ -297,7 +297,7 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 	if code, out := call(t, mux, "PUT", "/api/v1/extensions/scoped/-/enabled", master, `{"enabled": false}`); code != 200 {
 		t.Fatalf("%d %v", code, out)
 	}
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusUnauthorized {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions", map[string]string{"Authorization": "Bearer " + tok}); code != http.StatusUnauthorized {
 		t.Fatalf("switched off, the relay still passes its token on: %d", code)
 	}
 
@@ -307,7 +307,7 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 	}
 	tok2, _ := scopedWhoami(t, h, mux, master)["env"].(string)
 	f.srv.Close()
-	if code := relayDo(t, "GET", relay+"/api/v1/kb-search?token="+tok2, nil); code != http.StatusBadGateway {
+	if code := relayDo(t, "GET", relay+"/api/v1/sessions?token="+tok2, nil); code != http.StatusBadGateway {
 		t.Fatalf("the hub away: %d", code)
 	}
 	l := logs.String()
@@ -382,7 +382,7 @@ func TestAnotherManagersFullHubExtension(t *testing.T) {
 		pattern, path string
 		ok            bool
 	}{
-		{"GET /api/v1/kb-search", "/api/v1/kb-search", true},
+		{"GET /api/v1/sessions", "/api/v1/sessions", true},
 		{"POST /api/v1/sessions/{mid}/{sid}/messages", "/api/v1/sessions/m/s/messages", true},
 		{"GET /api/v1/machines", "/api/v1/machines", true},
 		{"/api/v1/extensions/{id}/", "/api/v1/extensions/third/x", true},
@@ -420,8 +420,8 @@ func TestAnotherManagersConfiguredExtension(t *testing.T) {
 		echo["hub"] == f.srv.URL || echo["manager"] != "work" {
 		t.Fatalf("got %v", echo)
 	}
-	if a := h.authorize(extwire.Authorize{Hash: hashToken(echo["token"]), Pattern: "GET /api/v1/kb-search", Method: "GET",
-		Path: "/api/v1/kb-search"}); !a.OK || a.Extension != "byhand" {
+	if a := h.authorize(extwire.Authorize{Hash: hashToken(echo["token"]), Pattern: "GET /api/v1/sessions", Method: "GET",
+		Path: "/api/v1/sessions"}); !a.OK || a.Extension != "byhand" {
 		t.Fatalf("a token of every scope: %+v", a)
 	}
 	if code := relayDo(t, "GET", echo["hub"]+"/api/v1/machines", map[string]string{"Authorization": "Bearer " + echo["token"]}); code != 200 ||

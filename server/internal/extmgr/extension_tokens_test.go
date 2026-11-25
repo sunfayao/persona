@@ -75,9 +75,9 @@ func noPlaintext(t *testing.T, r db.ExtensionToken, tok string) {
 	}
 }
 
-// kbSearch is whether tok opens the hub's knowledge-base search on h, and whose h says it is.
-func kbSearch(h *Manager, tok string) extwire.Authorized {
-	return h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/kb-search", Method: "GET", Path: "/api/v1/kb-search"})
+// sessionsRead is whether tok opens the hub's session list on h, and whose h says it is.
+func sessionsRead(h *Manager, tok string) extwire.Authorized {
+	return h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/sessions", Method: "GET", Path: "/api/v1/sessions"})
 }
 
 // What a manager issues and revokes is recorded by hash, never the token, with whose it is, what it opens and why it
@@ -132,7 +132,7 @@ func TestExtensionTokenRecord(t *testing.T) {
 	next.extTokens.revokeLastRun(context.Background())
 	for _, m := range []*Manager{next, other} {
 		for _, tk := range []string{tok, tok2, all} {
-			if a := kbSearch(m, tk); a.Extension != "" || a.OK {
+			if a := sessionsRead(m, tk); a.Extension != "" || a.OK {
 				t.Fatalf("a recorded token opens on a manager that did not issue it this run: %+v", a)
 			}
 		}
@@ -194,7 +194,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	}
 	live := func() []string { t.Helper(); return liveTokens(tokenRows(t, database, owner)) }
 
-	installDir(t, mux, master, scopedPackage(t, `["inbox.read", "agents.read"]`))
+	installDir(t, mux, master, scopedPackage(t, `["agents.control", "agents.read"]`))
 	tok1 := started(h, mux, master, "")
 	r := tokenRows(t, database, owner)[hashToken(tok1)]
 	noPlaintext(t, r, tok1)
@@ -220,13 +220,13 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	if r := tokenRows(t, database, owner)[hashToken(tok2)]; r.RevokedAt != nil || !slices.Equal(r.Scopes, []string{extension.ScopeAgentsRead}) {
 		t.Fatalf("the token granted less: %+v", r)
 	}
-	if a := kbSearch(h, tok1); a.Extension != "" {
+	if a := sessionsRead(h, tok1); a.Extension != "" {
 		t.Fatalf("the old token after the upgrade: %+v", a)
 	}
-	if a := h.authorize(extwire.Authorize{Hash: hashToken(tok2), Pattern: "GET /api/v1/sessions", Method: "GET", Path: "/api/v1/sessions"}); a.OK || a.Scope != extension.ScopeAgentsRead {
+	if a := h.authorize(extwire.Authorize{Hash: hashToken(tok2), Pattern: "POST /api/v1/sessions/{mid}/{sid}/messages", Method: "POST", Path: "/api/v1/sessions/m/s/messages"}); a.OK || a.Scope != extension.ScopeAgentsControl {
 		t.Fatalf("the scope the upgrade dropped: %+v", a)
 	}
-	if a := kbSearch(h, tok2); !a.OK {
+	if a := sessionsRead(h, tok2); !a.OK {
 		t.Fatalf("the scope kept: %+v", a)
 	}
 
@@ -240,7 +240,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	if got := live(); !slices.Equal(got, []string{hashToken(tok3)}) {
 		t.Fatalf("live after the restart: %v, want only the new run's", got)
 	}
-	if a := kbSearch(h, tok2); a.Extension != "" {
+	if a := sessionsRead(h, tok2); a.Extension != "" {
 		t.Fatalf("the last run's token on the new run: %+v", a)
 	}
 
@@ -258,7 +258,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 	if got := live(); len(got) != 0 {
 		t.Fatalf("a token live for a switched-off extension after a restart: %v", got)
 	}
-	if a := kbSearch(h, tok3); a.Extension != "" {
+	if a := sessionsRead(h, tok3); a.Extension != "" {
 		t.Fatalf("a switched-off extension's token after a restart: %+v", a)
 	}
 
@@ -278,7 +278,7 @@ func TestExtensionTokenRecordAcrossRestarts(t *testing.T) {
 		t.Fatalf("a token live for an uninstalled extension after a restart: %v", got)
 	}
 	for _, tok := range []string{tok1, tok2, tok3, tok4} {
-		if a := kbSearch(h, tok); a.Extension != "" {
+		if a := sessionsRead(h, tok); a.Extension != "" {
 			t.Fatalf("an old token after the uninstall and a restart: %+v", a)
 		}
 	}
@@ -332,11 +332,11 @@ func TestExtensionTokenRecordFailing(t *testing.T) {
 	h.extTokens.keepRecord(rec, "example-manager", logf)
 	h.extTokens.revokeLastRun(context.Background())
 	tok := h.extTokens.issue("example-x", "Example X", []string{extension.ScopeAgentsRead})
-	if a := kbSearch(h, tok); !a.OK || a.Extension != "example-x" {
+	if a := sessionsRead(h, tok); !a.OK || a.Extension != "example-x" {
 		t.Fatalf("a token issued while the record fails: %+v", a)
 	}
 	h.extTokens.revoke("example-x", db.ExtensionTokenDisabled)
-	if a := kbSearch(h, tok); a.Extension != "" {
+	if a := sessionsRead(h, tok); a.Extension != "" {
 		t.Fatalf("a token revoked while the record fails: %+v", a)
 	}
 	mu.Lock()

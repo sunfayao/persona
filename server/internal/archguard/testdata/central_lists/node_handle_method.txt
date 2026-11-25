@@ -92,8 +92,6 @@
 "workspace.close"
 "workspace.resolve"
 "workspaces.list"
-devicewire.KnowledgeRead
-devicewire.KnowledgeSearch
 methodFileChmod
 methodFileChunk
 methodFileConvert

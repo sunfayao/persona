@@ -14,12 +14,6 @@ AssistantSelectedSkill
 AssistantViewRepair
 BriefAccept
 BriefCriterion
-BriefDay
-BriefDayAction
-BriefDayEntry
-BriefDayGap
-BriefDayPart
-BriefDayRunes
 BriefDirection
 BriefDisabledRoutine
 BriefFacts
@@ -169,7 +163,6 @@ TaskRun
 TurnContext
 TurnSection
 WorkspaceMention
-WorkspaceProject
 WorkspaceSession
 
 # Pending: the names the PRs open when this freeze landed were adding, each with its PRs

@@ -212,9 +212,9 @@ func TestConnectorsListTheSameCapabilities(t *testing.T) {
 		got = append(got, fmt.Sprintf("%s %s hosts=%v options=%v", info.ID, strings.Join(info.Capabilities, ","), info.Hosts, info.Options != nil))
 	}
 	want := []string{
-		"mail tools,actions,archive hosts=[] options=false",
-		"github status,tools,actions,events,hosts,inbox,archive,login,options,threads hosts=[github.com] options=true",
-		"imessage status,tools,catalog,events,inbox,archive hosts=[] options=false", // catalog: inbox_things (#6317)
+		"mail tools,actions hosts=[] options=false",
+		"github status,tools,actions,events,hosts,inbox,login,options,threads hosts=[github.com] options=true",
+		"imessage status,tools,catalog,events,inbox hosts=[] options=false", // catalog: inbox_things (#6317)
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -260,7 +260,7 @@ func TestSwitchedOffProgramSignsInAndOut(t *testing.T) {
 	h := newTestManager(t)
 	h.connectors = connector.NewRegistry(nil)
 	item := extension.ConnectorItem{ID: "examplechat", Name: "Example Chat", Kinds: []string{"dm"},
-		Capabilities: []string{"status", "tools", "actions", "events", "inbox", "archive", "login", "threads"}}
+		Capabilities: []string{"status", "tools", "actions", "events", "inbox", "login", "threads"}}
 	if err := h.addConnectorOff(programConnector(t, h, item, "/nonexistent/example-chat")); err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestSwitchedOffProgramSignsInAndOut(t *testing.T) {
 	}
 	_, out = call(t, mux, "GET", "/api/v1/connectors", h.cfg.Token, "")
 	list := out["connectors"].([]any)
-	if len(list) != 1 || fmt.Sprint(list[0].(map[string]any)["capabilities"]) != "[status tools actions events inbox archive login threads]" ||
+	if len(list) != 1 || fmt.Sprint(list[0].(map[string]any)["capabilities"]) != "[status tools actions events inbox login threads]" ||
 		list[0].(map[string]any)["status"] != "disabled" {
 		t.Fatalf("listed %v", list)
 	}

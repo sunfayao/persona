@@ -119,7 +119,6 @@ func TestExtensionScopedToken(t *testing.T) {
 		t.Fatalf("agents.read opens the sessions: %+v", a)
 	}
 	for _, c := range []struct{ pattern, path, scope string }{
-		{"GET /api/v1/sessions", "/api/v1/sessions", "agents.read"},
 		{"POST /api/v1/sessions/{mid}/{sid}/messages", "/api/v1/sessions/m/s/messages", "agents.control"},
 		{"GET /api/v1/assistant/dispatch-guard", "/api/v1/assistant/dispatch-guard", "dispatch.guard"},
 		{"PUT /api/v1/assistant/dispatch-guard", "/api/v1/assistant/dispatch-guard", "dispatch.guard"},
@@ -153,7 +152,7 @@ func TestExtensionScopedToken(t *testing.T) {
 	}
 	// (An extension's token from the internet is refused by the hub before it asks: hub/http.go auth.)
 	gone := func(tok string) bool {
-		return h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/kb-search", Method: "GET", Path: "/api/v1/kb-search"}).Extension == ""
+		return h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/sessions", Method: "GET", Path: "/api/v1/sessions"}).Extension == ""
 	}
 
 	// Switched off: its token goes. On again: a new one.
@@ -287,7 +286,7 @@ func TestScopeOpens(t *testing.T) {
 			t.Errorf("all-scope token opened self refresh: %+v", a)
 		}
 	}
-	if a := h.authorize(extwire.Authorize{Hash: hashToken("pext_nope"), Pattern: "GET /api/v1/kb/{kind}", Method: "GET", Path: "/api/v1/kb/chats"}); a.Extension != "" || a.OK {
+	if a := h.authorize(extwire.Authorize{Hash: hashToken("pext_nope"), Pattern: "GET /api/v1/sessions", Method: "GET", Path: "/api/v1/sessions"}); a.Extension != "" || a.OK {
 		t.Fatalf("an unknown token: %+v", a)
 	}
 }

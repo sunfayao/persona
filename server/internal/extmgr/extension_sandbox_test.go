@@ -54,7 +54,7 @@ func serveBoxedExtensionForTest() {
 			resp.Body.Close()
 			return fmt.Sprint(resp.StatusCode)
 		}
-		out["hub"] = get(hub.URL+"/api/v1/kb-search?q=x", hub.Token)
+		out["hub"] = get(hub.URL+"/api/v1/sessions?q=x", hub.Token)
 		out["denied"] = get("http://denied.example.org/", "")
 		c, err := net.DialTimeout("tcp", "192.0.2.1:80", 2*time.Second)
 		if c != nil {
@@ -138,7 +138,7 @@ func TestExtensionSandbox(t *testing.T) {
 	// whether it opens the route (extensions.authorize), as the hub does.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tok := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		a := h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/kb-search", Method: r.Method, Path: r.URL.Path})
+		a := h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/sessions", Method: r.Method, Path: r.URL.Path})
 		switch {
 		case a.Extension == "":
 			w.WriteHeader(http.StatusUnauthorized)
