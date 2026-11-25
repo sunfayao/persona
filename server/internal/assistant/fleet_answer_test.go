@@ -295,4 +295,3 @@ func TestElicitationNeedsAnApp(t *testing.T) {
 		t.Fatalf("pushes %+v", got)
 	}
 }
-

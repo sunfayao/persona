@@ -28,4 +28,3 @@ func TestStructuredDeliveryKeepsDispositionGateAndOwner(t *testing.T) {
 		}
 	}
 }
-
