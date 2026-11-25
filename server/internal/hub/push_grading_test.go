@@ -130,10 +130,6 @@ func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawM
 	return nil
 }
 
-// The device-focused test stores embed the Store interface without implementing its settings methods; newPusher now
-// reads the ln-mode state at startup, so give them no-op settings rows (they never test settings).
-func (s *forgetStore) Setting(context.Context, string, any) (bool, error) { return false, nil }
-func (s *forgetStore) PutSetting(context.Context, string, any) error      { return nil }
 func (s *deviceRows) Setting(context.Context, string, any) (bool, error)  { return false, nil }
 func (s *deviceRows) PutSetting(context.Context, string, any) error       { return nil }
 func (s *stuckPrefsStore) Setting(context.Context, string, any) (bool, error) {

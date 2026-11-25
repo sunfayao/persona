@@ -80,24 +80,9 @@ func (rt *historyRuntime) page(_ string, raw json.RawMessage) (any, error) {
 
 type failedHistoryStore struct{ *db.DB }
 
-func (failedHistoryStore) ConversationHistory(context.Context, string, string) (*db.ConversationHistory, error) {
-	return nil, errors.New("fake database failure")
-}
-
 type gatedHistoryStore struct {
 	*db.DB
 	entered, release chan struct{}
-}
-
-func (st gatedHistoryStore) ConversationItems(ctx context.Context, machine, sid, history string, after, through, limit int, newest bool) ([]conversationlog.Item, error) {
-	rows, err := st.DB.ConversationItems(ctx, machine, sid, history, after, through, limit, newest)
-	close(st.entered)
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-st.release:
-	}
-	return rows, err
 }
 
 func historyFixture(t *testing.T, logs ...func(string, ...any)) (*Service, *fakeHub, *db.DB, *historyRuntime) {

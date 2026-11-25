@@ -32,32 +32,11 @@ type orphanEndMem struct {
 	ended chan string
 }
 
-func (m *orphanEndMem) FinishInteraction(ctx context.Context, id, status string, r *proto.Resolution) error {
-	m.ended <- id
-	return m.fleetMem.FinishInteraction(ctx, id, status, r)
-}
-
 // delayedBackgroundStore lets a background database call finish only after its test has returned. A fixture that drains
 // the call before closing the database sees no error; without that drain, the closed-pool error logs through the ended T.
 type delayedBackgroundStore struct {
 	*db.DB
 	release chan struct{}
-}
-
-func (s *delayedBackgroundStore) Setting(ctx context.Context, key string, out any) (bool, error) {
-	if key == settingsKey {
-		select {
-		case <-s.release:
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
-	}
-	return s.DB.Setting(ctx, key, out)
-}
-
-func (s *delayedBackgroundStore) AddWorkEvent(ctx context.Context, e db.WorkEvent) error {
-	<-s.release
-	return s.DB.AddWorkEvent(ctx, e)
 }
 
 // acceptedSendStore pauses an accepted send record while it reads the conversation roles. The test can then stop new
@@ -69,18 +48,6 @@ type acceptedSendStore struct {
 	startedOnce  sync.Once
 }
 
-func (s *acceptedSendStore) Setting(ctx context.Context, key string, out any) (bool, error) {
-	if key == settingsKey {
-		s.startedOnce.Do(func() { close(s.rolesStarted) })
-		select {
-		case <-s.releaseRoles:
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
-	}
-	return s.DB.Setting(ctx, key, out)
-}
-
 // digestLoadStore holds a digest in its todo restoration, before it takes the delivery lock. Draining still has to
 // wait for that callback; otherwise the database fixture can close while the callback is only getting started.
 type digestLoadStore struct {
@@ -89,21 +56,6 @@ type digestLoadStore struct {
 	release chan struct{}
 	loaded  chan struct{}
 	once    sync.Once
-}
-
-func (s *digestLoadStore) ListTodos(context.Context) ([]db.TodoRow, error) {
-	s.once.Do(func() { close(s.started) })
-	<-s.release
-	close(s.loaded)
-	return nil, nil
-}
-
-func (s *digestLoadStore) ListAllTodoSpaces(context.Context) ([]db.TodoSpaceRow, error) {
-	return nil, nil
-}
-
-func (s *digestLoadStore) ListAllTodoAgents(context.Context) ([]db.TodoAgentRow, error) {
-	return nil, nil
 }
 
 // drainFleetBackground stops new background scheduling, then lets active calls finish before a test closes its store.

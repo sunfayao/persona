@@ -21,18 +21,6 @@ type dispatchPolicyHarness struct {
 	sideID   string
 }
 
-func (d *dispatchPolicyHarness) putPolicy(t *testing.T, p *DispatchPolicy) {
-	t.Helper()
-	setSettings(t, d.s, func(v *Settings) { v.DispatchPolicy = p })
-}
-
-func (d *dispatchPolicyHarness) tool(t *testing.T, session, name string, args string) proto.ToolResult {
-	t.Helper()
-	return d.s.Tool(context.Background(), ToolCall{
-		MachineID: "server", SessionID: session, Name: name, Arguments: json.RawMessage(args),
-	})
-}
-
 func TestDispatchPolicyValidation(t *testing.T) {
 	now := time.Now().UTC()
 	rule := func(class string, deny ...string) DispatchRule {

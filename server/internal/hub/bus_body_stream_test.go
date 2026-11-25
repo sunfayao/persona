@@ -155,32 +155,6 @@ type slowConn struct {
 	onBody func()
 }
 
-func (c *slowConn) Read(p []byte) (int, error) {
-	if len(p) > 16<<10 {
-		p = p[:16<<10]
-	}
-	n, err := c.Conn.Read(p)
-	c.read += n
-	if c.onBody != nil {
-		c.mu.Lock()
-		c.reads++
-		found := c.reads >= 16
-		notify := c.onBody
-		if found {
-			c.onBody = nil
-		}
-		c.mu.Unlock()
-		if found {
-			notify()
-		}
-	}
-	if ahead := time.Duration(float64(c.read)/float64(c.rate)*float64(time.Second)) - time.Since(c.start); ahead > 0 {
-		timer := time.NewTimer(ahead)
-		<-timer.C
-	}
-	return n, err
-}
-
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as
 // it answers a small one.
 func TestAssistantTakesBodyStreams(t *testing.T) {

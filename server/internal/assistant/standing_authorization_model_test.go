@@ -33,9 +33,3 @@ func TestStandingAuthorizationForcePushNeedsDeletionGrant(t *testing.T) {
 }
 
 type standingTimeoutModel struct{ calls int }
-
-func (m *standingTimeoutModel) JSON(ctx context.Context, _, _ string, _ any) error {
-	m.calls++
-	<-ctx.Done()
-	return ctx.Err()
-}

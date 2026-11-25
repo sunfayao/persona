@@ -97,23 +97,6 @@ type forceArchiveWindowStore struct {
 	beforeFinalize func()
 }
 
-func (s *forceArchiveWindowStore) PutSetting(ctx context.Context, key string, value any) error {
-	if key == agentArchivesKey && s.afterArchive == nil && s.beforeFinalize != nil {
-		check := s.beforeFinalize
-		s.beforeFinalize = nil
-		check()
-	}
-	if err := s.DB.PutSetting(ctx, key, value); err != nil {
-		return err
-	}
-	if key == agentArchivesKey && s.afterArchive != nil {
-		check := s.afterArchive
-		s.afterArchive = nil
-		check()
-	}
-	return nil
-}
-
 func TestForceArchiveFenceWriteFailureKeepsAgent(t *testing.T) {
 	ft, row := closeTestService(t, func(s *proto.Session) { s.Status = proto.StatusBlocked; s.State = proto.StateNeedsYou })
 	store := &archiveFailStore{fleetMem: ft.st, failWrite: true}

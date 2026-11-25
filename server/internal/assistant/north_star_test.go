@@ -13,16 +13,6 @@ import (
 
 type failingNorthStarStore struct{ Store }
 
-func (failingNorthStarStore) Setting(context.Context, string, any) (bool, error) {
-	return false, errors.New("unavailable")
-}
-func (failingNorthStarStore) NorthStarCards(context.Context, time.Time, time.Time) ([]db.NorthStarCard, error) {
-	return nil, errors.New("unavailable")
-}
-func (failingNorthStarStore) WorkEventsBetween(context.Context, time.Time, time.Time, []string) ([]db.WorkEvent, error) {
-	return nil, errors.New("unavailable")
-}
-
 func TestNorthStarHelpers(t *testing.T) {
 	for _, c := range []struct{ code, msg, want string }{
 		{"internal", "assistant exited: No conversation found with session ID: x", "conversation_not_found"},

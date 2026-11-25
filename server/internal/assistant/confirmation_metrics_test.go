@@ -104,16 +104,6 @@ func TestConfirmationMetricsDatabase(t *testing.T) {
 
 type unavailableConfirmationStore struct{ Store }
 
-func (unavailableConfirmationStore) MarkConfirmationNotified(context.Context, string, time.Time, time.Time, string) error {
-	return errors.New("unavailable")
-}
-func (unavailableConfirmationStore) MarkConfirmationAutoAuthorized(context.Context, string, time.Time, time.Time, string, string) error {
-	return errors.New("unavailable")
-}
-func (unavailableConfirmationStore) ConfirmationCounts(context.Context, time.Time, time.Time) ([]db.ConfirmationCount, error) {
-	return nil, errors.New("unavailable")
-}
-
 func TestGoldenConfirmationBriefFacts(t *testing.T) {
 	golden(t, "routine_facts.confirmations", prompts.RenderBriefFacts(prompts.BriefFacts{Hours: 12,
 		ConfirmationSummary: "Today: 3 confirmation cards sent to you · 2 automatically authorized",

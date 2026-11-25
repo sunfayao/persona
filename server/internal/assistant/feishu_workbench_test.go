@@ -521,10 +521,6 @@ type tokenSpanStore struct {
 	spans []db.UsageSpan
 }
 
-func (u tokenSpanStore) UsageSpans(context.Context, []time.Time, db.UsageBy) ([]db.UsageSpan, error) {
-	return u.spans, nil
-}
-
 // What waits for the owner is rows pressed whole: a card that holds something up comes down. An agent's row says its
 // state as a tag, not a coloured dot.
 func TestWorkbenchHomeRowsArePressedWhole(t *testing.T) {

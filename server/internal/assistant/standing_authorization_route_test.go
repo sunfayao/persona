@@ -49,10 +49,6 @@ func TestStandingCardPathsPunctuation(t *testing.T) {
 
 type failingStandingStore struct{ *db.DB }
 
-func (f failingStandingStore) FinishStandingInteraction(context.Context, string, string, proto.Interaction, proto.Resolution, db.TodoDecisionRow, time.Time) error {
-	return errors.New("audit unavailable")
-}
-
 func TestStandingAuthorizationConditions(t *testing.T) {
 	for _, test := range []string{"pass", "pending", "empty", "incomplete", "conflict", "unknown", "wrong_pr", "unavailable", "draft", "closed"} {
 		t.Run(test, func(t *testing.T) {

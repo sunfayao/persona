@@ -58,13 +58,6 @@ func (e *todoEventEnv) told() []recordedEvent {
 	return nil
 }
 
-// settle lets the second after a change pass and returns what the extensions were told by it.
-func (e *todoEventEnv) settle() []recordedEvent {
-	e.t.Helper()
-	e.clock.advance(todoChangedSettle)
-	return e.told()
-}
-
 // A hub with no extensions (the in-process tests' fake, an embedder without them) gets nothing and nothing waits.
 func TestTodoEventsAreOffWithoutAPublisher(t *testing.T) {
 	e := newTodoEnv(t, nil)
