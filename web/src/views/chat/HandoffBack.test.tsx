@@ -45,9 +45,6 @@ describe("the way back", () => {
     expect(fromTitle(s, "/todos?id=blank")).toBe(t("sidebar.nav_todos"));
     expect(fromTitle(s, "/todos?id=gone")).toBe(t("sidebar.nav_todos"));
     expect(fromTitle(s, "/s/m1/a1")).toBe("Fix the login page");
-    expect(fromTitle(s, "/kb/projects/p1")).toBe(t("sidebar.nav_kb"));
-    expect(fromTitle(s, "/kb/recordings/r1")).toBe(t("sidebar.nav_kb"));
-    expect(fromTitle(s, "/workspace-board")).toBe(t("sidebar.nav_board"));
     expect(fromTitle(s, "/machines/m1")).toBe(t("sidebar.nav_machines"));
     // nothing to call it: the strip says where Back goes instead
     expect(fromTitle(s, "/s/m1/gone")).toBeUndefined();
@@ -58,13 +55,13 @@ describe("the way back", () => {
     history.replaceState({ handoff: { path: "/compare/r1" } }, "", "/s/m1/s1");
     act(() => root.render(<HandoffBack onDismiss={() => {}} />));
     expect(host.querySelector("button")!.textContent).toBe(t("chat-backstrip.handoff_previous"));
-    history.replaceState({ handoff: { path: "/kb/projects/p1" } }, "", "/s/m1/s1");
+    history.replaceState({ handoff: { path: "/machines/m1" } }, "", "/s/m1/s1");
     act(() => root.render(<HandoffBack onDismiss={() => {}} />));
-    expect(host.querySelector("button")!.textContent).toBe(t("chat-backstrip.handoff_from", { title: t("sidebar.nav_kb") }));
+    expect(host.querySelector("button")!.textContent).toBe(t("chat-backstrip.handoff_from", { title: t("sidebar.nav_machines") }));
   });
 
   it("disappears when reselecting the Agent makes its page a root, without adding history (#12055)", () => {
-    history.pushState({ handoff: { path: "/kb/projects/p1" } }, "", "/s/m1/s1");
+    history.pushState({ handoff: { path: "/machines/m1" } }, "", "/s/m1/s1");
     const entries = history.length;
     act(() => root.render(<HandoffBack onDismiss={() => {}} />));
     expect(host.querySelector("[data-handoff-back]")).not.toBeNull();

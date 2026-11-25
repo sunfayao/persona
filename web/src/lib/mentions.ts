@@ -11,7 +11,7 @@ import { foldRows } from "./folded-rows";
 import { baseName, shortPath } from "./format";
 import type { Item, Session } from "./types";
 import { byTime } from "./times";
-import type { Workspace } from "./workspace-board";
+import type { HostWorkspace as Workspace } from "./workspace-catalog";
 
 export interface MentionToken {
   /** Offset of the `@`. */
@@ -142,7 +142,7 @@ export function sessionQuote(s: Session): { title: string; url: string; text: st
   return { title: displayTitle(s), url: `persona://session/${s.machine_id}/${s.session_id}`, text: lines.join("\n") };
 }
 
-/** Workspaces (GET /workspaces, docs/web/workspace-board.md) matching the query by title, folder or computer: ones whose
+/** Workspaces (GET /workspaces) matching the query by title, folder or computer: ones whose
  * title starts with it first, then available before unavailable, each keeping the hub's order. One per computer and
  * folder (a host space and a session folder can name the same place); folderless host spaces can't be worked in. */
 export function workspaceMatches(all: Workspace[], query: string, machineName: (id: string) => string, limit = 8): Workspace[] {

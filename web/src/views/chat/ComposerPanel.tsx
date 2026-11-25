@@ -17,7 +17,7 @@ import { browseTarget, byPrefix, displayTitle, nameMatches, otherSessions, pageS
 import type { RepositoryMentionRow } from "../../lib/mentions-repositories";
 import { modeTitle } from "../../lib/session-actions";
 import type { Session } from "../../lib/types";
-import type { Workspace } from "../../lib/workspace-board";
+import type { HostWorkspace as Workspace } from "../../lib/workspace-catalog";
 import { useStore } from "../../lib/store";
 import { useCloseOnBack } from "../../lib/back-close";
 import { hasFinePointer, NARROW, useMedia } from "../../lib/viewport";

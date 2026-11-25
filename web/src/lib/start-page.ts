@@ -4,7 +4,7 @@
 // first paint without waiting for the hub, and keeps the choice itself where the hub has no such route (404). Only an
 // opening at the root address goes there (a new tab, the installed app, the hub's address typed): a reload, Back /
 // Forward, a link to a page and the sidebar's Persona row are left alone. A page that is not there (its extension
-// removed or turned off, Messages or the workflow board switched off) opens the main chat instead; the choice stays,
+// removed or turned off, Messages switched off) opens the main chat instead; the choice stays,
 // and Settings says so.
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { api, ApiError } from "./api";
@@ -80,11 +80,11 @@ export function openStartPage() {
 }
 
 /** Whether the start page `key` is gone, `listed` saying whether the sidebar lists it now: undefined while that can't be
- *  told from the extension list, workflow board setting, or Starred index. */
-export function startPageGone(key: string, listed: boolean, known: { extensions: boolean; board: boolean; starred: boolean }): boolean | undefined {
+ *  told from the extension list or Starred index. */
+export function startPageGone(key: string, listed: boolean, known: { extensions: boolean; starred: boolean }): boolean | undefined {
   if (listed) return false;
   if (key === "starred") return known.starred || undefined;
-  return (key.startsWith("p:") ? known.extensions : key !== "workspace-board" || known.board) ? true : undefined;
+  return key.startsWith("p:") && !known.extensions ? undefined : true;
 }
 
 // The hub has answered which extension pages there are: their list changed after the hello, which is when
@@ -101,7 +101,7 @@ export const useExtensionPagesKnown = () => useSyncExternalStore(subscribe, () =
 
 /** In the sidebar's pages (useNavPages, always drawn): once it can be told whether the page this load opened on is there,
  *  one that is not opens the main chat in its place, unless the user has gone elsewhere since. */
-export function useStartPageCheck(listed: (key: string) => boolean, extensionPages: readonly unknown[], boardKnown: boolean, starredKnown: boolean) {
+export function useStartPageCheck(listed: (key: string) => boolean, extensionPages: readonly unknown[], starredKnown: boolean) {
   const online = useStore((s) => s.conn === "online");
   const slots = useStore((s) => hasSlots(s.features));
   // this list as it was at the first render after the hello: each caller's own, as each memoizes its list
@@ -114,7 +114,7 @@ export function useStartPageCheck(listed: (key: string) => boolean, extensionPag
       changed();
     }
     if (!opened) return;
-    const gone = startPageGone(opened.key, listed(opened.key), { extensions: answered || !slots, board: boardKnown, starred: starredKnown });
+    const gone = startPageGone(opened.key, listed(opened.key), { extensions: answered || !slots, starred: starredKnown });
     if (gone === undefined) return;
     if (gone && location.pathname === opened.path) navigate({ name: "persona" }, true);
     opened = null;

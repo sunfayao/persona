@@ -15,11 +15,8 @@ import { t } from "../../i18n";
 const PAGE_NAMES: Partial<Record<Route["name"], string>> = {
   home: "sidebar.nav_home",
   inbox: "sidebar.nav_inbox",
-  health: "sidebar.nav_health",
-  "workspace-board": "sidebar.nav_board",
   todos: "sidebar.nav_todos",
   routines: "sidebar.nav_routines",
-  kb: "sidebar.nav_kb",
   machines: "sidebar.nav_machines",
   machine: "sidebar.nav_machines",
   settings: "sidebar.nav_settings",

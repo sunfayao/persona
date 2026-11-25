@@ -48,12 +48,9 @@ describe("Persona is the front door (#1239)", () => {
 
   it("keeps the row of the page an Agent's page was opened from, a drill-down (#12055, #9971)", () => {
     const agent = { name: "session", mid: "mac", sid: "s" } as const;
-    // a to-do's Agent rows and hand-off, a knowledge project's Agents and a meeting's hand-off, the workflow board
+    // a to-do's Agent rows and hand-off
     expect(sidebarActiveKey(agent, "main", "/todos?id=t1")).toBe("todos");
     expect(sidebarActiveKey(agent, "main", "/todos?view=calendar&mode=week&id=t1")).toBe("todos");
-    expect(sidebarActiveKey(agent, "main", "/kb/projects/p1")).toBe("kb");
-    expect(sidebarActiveKey(agent, "main", "/kb/recordings/r1")).toBe("kb");
-    expect(sidebarActiveKey(agent, "main", "/workspace-board")).toBe("workspace-board");
     // a Persona conversation's card with How Agents open = Full page: the conversation's own row
     expect(sidebarActiveKey(agent, "main", "/")).toBe("persona");
     expect(sidebarActiveKey(agent, "main", "/persona/main")).toBe("persona");
@@ -83,7 +80,7 @@ describe("Persona is the front door (#1239)", () => {
   });
 
   it("orders the pages under Persona like the app", () => {
-    expect(NAV_PAGES).toEqual(["home", "inbox", "health", "messages", "starred", "workspace-board", "todos", "routines", "kb", "machines", "terminal", "settings"]);
+    expect(NAV_PAGES).toEqual(["home", "inbox", "messages", "starred", "todos", "routines", "machines", "terminal", "settings"]);
   });
 });
 

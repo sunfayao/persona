@@ -32,7 +32,6 @@ vi.mock("./settings/FeishuBot", () => ({ FeishuBot: () => null }));
 vi.mock("./settings/HubConnector", () => ({ ConnectorList: () => <div data-page="connector-list" />, ConnectorDetail: () => <div data-page="connector-detail" /> }));
 vi.mock("./settings/SentSettings", () => ({ SentSettings: () => <div data-page="sent" /> }));
 vi.mock("./settings/HubSettings", () => ({ HubSettings: () => <div data-page="hub" /> }));
-vi.mock("./settings/AgentGroup", () => ({ AgentGroup: () => <div data-page="agent-group" /> }));
 
 import { t } from "../i18n";
 import { chooseManager, resetManagerChoice } from "../lib/manager-choice";

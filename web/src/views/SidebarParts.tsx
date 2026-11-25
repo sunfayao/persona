@@ -23,7 +23,6 @@ import { useOwnerNeeds } from "../lib/todo-owner-needs";
 import { useLarkOn, useStore, type State } from "../lib/store";
 import { connPhase } from "../lib/connection";
 import { useStarredCount } from "../lib/starred-summary";
-import { useWorkspaceBoardSetting } from "../lib/workspace-board-setting";
 import type { Session } from "../lib/types";
 import type { MenuItem } from "../ui/atoms";
 import { agentsFoldAction, setAgentsFolded } from "../lib/sidebar-api";
@@ -127,22 +126,16 @@ export function useNavPages() {
   // Colored sidebar icons (#10822): a built-in page's color, an extension's page the one its manifest names; none otherwise
   const colored = useSidebarIconMode() === "colored";
   const tint = (p: NavPage, color: UIColor | undefined): NavPage => (colored && color ? { ...p, color } : p);
-  // off unless turned on in Settings › General › Agent (#2475); null until the hub answered
-  const board = useWorkspaceBoardSetting().enabled;
-  const boardOn = board === true;
   const stars = useStarredCount(useStore((s) => s.features.includes("starred_messages")));
 
   const main = assistant?.main ? assistant.conversations.find((c) => c.session_id === assistant.main) : undefined;
   const page: Record<(typeof NAV_PAGES)[number], NavPage | false> = {
     home: { k: "home", to: { name: "home" }, icon: "home", label: t("sidebar.nav_home"), short: t("sidebar.nav_home_short"), badge: counts.badge || undefined, badgeTone: "attention" },
     inbox: { k: "inbox", to: { name: "inbox" }, icon: "inbox", label: t("sidebar.nav_inbox"), short: t("sidebar.nav_inbox_short"), badge: inbox || undefined, badgeTone: "attention", title: inbox ? t("sidebar.inbox_badge_title", { count: inbox }) : undefined },
-    health: { k: "health", to: { name: "health" }, icon: "heart", label: t("sidebar.nav_health"), short: t("sidebar.nav_health_short") },
     messages: larkHome && { k: "messages", to: { name: "messages" }, icon: "chat", label: t("sidebar.nav_messages") },
     starred: stars != null && { k: "starred", to: { name: "starred" }, icon: "star", label: t("starred.title"), badge: stars || undefined, badgeLabel: t("starred.count", { count: stars }) },
-    "workspace-board": boardOn && { k: "workspace-board", to: { name: "workspace-board" }, icon: "layers", label: t("sidebar.nav_board"), short: t("sidebar.nav_board_short") },
     todos: todosSupported !== false && { k: "todos", to: { name: "todos" }, icon: "todo", label: t("sidebar.nav_todos"), badge: todosBadge || undefined, badgeLabel: todosBadgeLabel, title: todosBadgeLabel },
     routines: { k: "routines", to: { name: "routines" }, icon: "clock", label: t("sidebar.nav_routines"), short: t("sidebar.nav_routines_short") },
-    kb: { k: "kb", to: { name: "kb" }, icon: "book", label: t("sidebar.nav_kb"), short: t("sidebar.nav_kb_short") },
     machines: { k: "machines", to: { name: "machines" }, icon: "machine", label: t("sidebar.nav_machines"), short: t("sidebar.nav_machines_short"), hint: total ? `${online}/${total}` : undefined },
     terminal: false, // History belongs to Agents, not the general Pages grid (#10240).
     settings: { k: "settings", to: { name: "settings" }, icon: "gear", label: t("sidebar.nav_settings") },
@@ -164,7 +157,7 @@ export function useNavPages() {
   const pages = sections.flatMap((s) => s.pages);
   // the start page this load opened on, if it is not there after all, gives way to the main chat (lib/start-page.ts)
   const starredKnown = stars !== undefined;
-  useStartPageCheck((k) => all.some((p) => p.k === k), extensionPages, board !== null, starredKnown);
+  useStartPageCheck((k) => all.some((p) => p.k === k), extensionPages, starredKnown);
 
   return { phase, online, total, main, pages, sections, more, all, starredKnown };
 }

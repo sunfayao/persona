@@ -8,7 +8,7 @@ import { loadMentionRepositories, repositoryMentionRows, type MentionRepository 
 import { machineWithHub } from "../../lib/mesh";
 import { useStore } from "../../lib/store";
 import type { Machine } from "../../lib/types";
-import type { Workspace, WorkspaceList } from "../../lib/workspace-board";
+import type { HostWorkspace as Workspace, WorkspaceCatalogList as WorkspaceList } from "../../lib/workspace-catalog";
 import { ComposerPanel, type AssistantMentions, type MentionRow } from "./ComposerPanel";
 
 type PanelProps = Omit<ComponentProps<typeof ComposerPanel>, "assistant">;

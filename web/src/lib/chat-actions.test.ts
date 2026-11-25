@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyDraft, onDraftEvent, parseQuote, replaceNeedsConfirm, sendDraft, splitQuote, storedQuotes, withAppended, withQuote, withQuoteBlock, withUnsent } from "./drafts";
 import { browseTarget, byPrefix, chatFiles, displayTitle, mentionAt, nameMatches, otherSessions, pageSessions, relPath, replaceToken, sessionDetail, sessionQuote, workspaceContext, workspaceMatches, workspaceTitle } from "./mentions";
 import { contextXML } from "./links";
-import type { Workspace } from "./workspace-board";
+import type { HostWorkspace as Workspace } from "./workspace-catalog";
 import { keepAllBut, moved, movedTo, sameMessage } from "./queue";
 import { boxRect, fitRect, keepMark } from "./image-edit";
 import type { Item, Session } from "./types";

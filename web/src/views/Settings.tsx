@@ -36,7 +36,6 @@ import { AgentSettings } from "./settings/AgentSettings";
 import { SidebarPagesGroup } from "./settings/SidebarPages";
 import { StartPageGroup } from "./settings/StartPage";
 import { AgentsDisplayRow } from "./settings/AgentsDisplayRow";
-import { AgentGroup } from "./settings/AgentGroup";
 import { AssistantSettings } from "./settings/AssistantSettings";
 import { PersonaPicker } from "./assistant/Persona";
 import { TriageSettings } from "./settings/TriageSettings";
@@ -404,10 +403,7 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
               {tab === "shortcuts" && <ShortcutSettings />}
               {tab === "labs" && <Suspense fallback={<Loading />}><LabsSettings /></Suspense>}
               {tab === "devices" && <Devices />}
-              {tab === "hub" && <>
-                <HubSettings />
-                <AgentGroup />
-              </>}
+              {tab === "hub" && <HubSettings />}
               {tab === "managers" && <ManagersSettings />}
             </div>
           )}

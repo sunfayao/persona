@@ -164,7 +164,6 @@ describe("settings search", () => {
     finds("API Key", "models", "settings-providers");
     finds(t("settings-notifications.sound"), "notifications", "notify-sound");
     finds(t("settings.revoke"), "devices", "devices");
-    finds(t("workspace-board.setting_label"), "hub", "workflow-board");
   });
   it("finds the words people search for in Chinese", () => {
     const anchors = (q: string) => searchSettings(q).groups.map((g) => g.anchor);

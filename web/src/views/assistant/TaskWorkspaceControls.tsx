@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { t } from "../../i18n";
 import { api, enc, errorText } from "../../lib/api";
 import { conversationHeaders, type TaskPlan } from "../../lib/feed";
-import type { WorkspaceList } from "../../lib/workspace-board";
+import type { WorkspaceCatalogList as WorkspaceList } from "../../lib/workspace-catalog";
 import { fieldClass } from "./parts";
 import type { TaskWorkspaceEditorProps } from "./TaskWorkspace";
 

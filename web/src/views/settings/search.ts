@@ -121,7 +121,6 @@ export const SEARCH_INDEX: SearchGroup[] = [
   { tab: "persona", group: t("settings-triagesettings.reply_reminder"), anchor: "triage-reply-reminder" },
   // the hub's
   { tab: "avatar", group: t("settings.avatar"), anchor: "avatar" },
-  { tab: "hub", group: t("workspace-board.setting_group"), anchor: "agent-group" },
   // Models' sections and Agents' sections (their element ids)
   { tab: "models", group: t("settings-nav.tab_providers"), anchor: "settings-providers" },
   // a provider's key is "API Key" in every language, and people call it a key or a secret too
@@ -178,7 +177,6 @@ export const SEARCH_INDEX: SearchGroup[] = [
   { tab: "hub", group: t("settings-hubsettings.dev_backup"), hint: words(t("settings-hubsettings.backup_folder"), t("settings-hubsettings.backup_retain")), anchor: "hub-dev-backup" },
   { tab: "agents", group: t("settings.show_botmux"), hint: t("settings.show_botmux_hint"), anchor: "botmux-display" },
   { tab: "agents", group: t("settings.use_herdr_tab_name"), hint: t("settings.use_herdr_tab_name_hint"), anchor: "herdr-tab-session-name" },
-  { tab: "hub", group: t("workspace-board.setting_label"), anchor: "workflow-board" },
   { tab: "hub", group: t("settings-hubsettings.mirrors"), hint: words(t("settings-hubsettings.registry_mirror"), t("settings-hubsettings.catalog_mirror")), anchor: "mirrors" },
   // Devices: the list (each with its own token, revoked there) and pairing a new one
   { tab: "devices", group: t("settings.device_tokens"), anchor: "devices" },

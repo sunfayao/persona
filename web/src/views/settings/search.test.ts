@@ -27,7 +27,6 @@ const PAGES = [
   "./WebPushSettings.tsx",
   "./ShortcutSettings.tsx",
   "./HubSettings.tsx",
-  "./AgentGroup.tsx",
   "./ExtensionDownloadMirrors.tsx",
   "./KnowledgeTopics.tsx",
   "./KnowledgeSelection.tsx",

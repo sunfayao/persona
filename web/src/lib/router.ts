@@ -14,7 +14,6 @@ export type SessionView = "chat" | "term";
 export type Route =
   | { name: "home" }
   | { name: "request"; id: string }
-  | { name: "workspace-board" }
   | { name: "persona-new" }
   // `view` is the page's `?view=chat|term`; without it the page shows what it showed last (lib/session-view.ts)
   // `at`: the message to land on (?at=<item id>, the hub's links to one message, docs/protocol/deep-links.md)
@@ -29,9 +28,6 @@ export type Route =
   | { name: "persona"; sid?: string; mid?: string; manager?: string; at?: string }
   // "All chats"; `origin` filters it (lib/conversation-origins.ts): the sidebar's "Automatic" rows open it so
   | { name: "history"; origin?: string }
-  // the health space (docs/assistant/health.md): `/health` opens its latest conversation (#4329), `/health/new` its new
-  // conversation page (with its past ones), `/health/<id>` one of them
-  | { name: "health"; sid?: string; fresh?: boolean }
   | { name: "profile" }
   // `manager`: whose item it is when that is another manager than the default (`?manager=`, docs/assistant/managers.md
   // "Clients"): two managers may list the same id
@@ -39,7 +35,6 @@ export type Route =
   | { name: "messages"; id?: string }
   | { name: "starred" }
   | { name: "routines" }
-  | { name: "kb"; kind?: string; id?: string }
   | { name: "machines" }
   | { name: "machine"; mid: string }
   // one space of a machine by its name (lib/space-page.ts): its agents, the todos it hangs on, what can be done to it
@@ -93,11 +88,9 @@ export function parse(path: string, search = ""): Route {
   if (p[0] === "t" && p[1] && p[2] && p[3]) return { name: "tab", mid: p[1], space: p[2], slot: p[3], sid: p[4] || undefined, ...detail() };
   if (!p.length) return { name: "persona" };
   if (assistantPath(p[0])) return p[1] === "new" && !p[2] ? { name: "persona-new" } : p[1] ? { name: "persona", sid: p[1], ...conversationQuery(search) } : { name: "persona" };
-  if (p[0] === "workspace-board") return { name: "workspace-board" };
   if (p[0] === "requests" && p[1]) return { name: "request", id: p[1] };
   if (p[0] === "overview") return { name: "home" };
   if (p[0] === "history") return p[1] ? { name: "history", origin: p[1] } : { name: "history" };
-  if (p[0] === "health") return p[1] === "new" && !p[2] ? { name: "health", fresh: true } : { name: "health", sid: p[1] || undefined };
   if (p[0] === "assistant") return { name: "profile" };
   if (p[0] === "inbox") {
     const manager = p[1] ? new URLSearchParams(search).get("manager") : null;
@@ -106,7 +99,6 @@ export function parse(path: string, search = ""): Route {
   if (p[0] === "messages") return { name: "messages", id: p[1] };
   if (p[0] === "starred" && p.length === 1) return { name: "starred" };
   if (p[0] === "routines") return { name: "routines" };
-  if (p[0] === "kb") return { name: "kb", kind: p[1], id: p[2] };
   if (p[0] === "space" && p[1] && p[2]) return { name: "space", mid: p[1], space: p[2] };
   if (p[0] === "machines") return p[1] ? { name: "machine", mid: p[1] } : { name: "machines" };
   if (p[0] === "terminal") {
@@ -178,8 +170,6 @@ export function routePath(r: Route): string {
       return "/persona/new";
     case "history":
       return r.origin ? `/history/${encodeURIComponent(r.origin)}` : "/history";
-    case "health":
-      return r.sid ? `/health/${encodeURIComponent(r.sid)}` : r.fresh ? "/health/new" : "/health";
     case "profile":
       return "/assistant";
     case "inbox":
@@ -190,8 +180,6 @@ export function routePath(r: Route): string {
       return "/starred";
     case "routines":
       return "/routines";
-    case "kb":
-      return ["/kb", r.kind, r.kind && r.id].filter(Boolean).map((x, i) => (i ? encodeURIComponent(x as string) : x)).join("/");
     case "machines":
       return "/machines";
     case "machine":
@@ -202,8 +190,6 @@ export function routePath(r: Route): string {
       const path = r.mid && r.id ? `/terminal/${encodeURIComponent(r.mid)}/${encodeURIComponent(r.id)}` : "/terminal";
       return r.view ? `${path}?view=${r.view}` : path;
     }
-    case "workspace-board":
-      return "/workspace-board";
     case "settings":
       return "/settings";
     case "agents":

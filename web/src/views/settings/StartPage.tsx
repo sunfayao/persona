@@ -8,7 +8,6 @@ import { hasSlots } from "../../lib/extension-slots";
 import { LOCKED, ordered, useSidebarPrefs } from "../../lib/sidebar-pages";
 import { saveStartPage, startPageGone, useExtensionPagesKnown, useStartPage, useStartPageSynced } from "../../lib/start-page";
 import { useStore } from "../../lib/store";
-import { useWorkspaceBoardSetting } from "../../lib/workspace-board-setting";
 import { toast } from "../../ui/atoms";
 import { useNavPages } from "../Sidebar";
 import { Group, Row } from "./SettingsParts";
@@ -27,11 +26,10 @@ export function StartPageGroup() {
   const slots = useStore((s) => hasSlots(s.features));
   const online = useStore((s) => s.conn === "online");
   const extensionsKnown = useExtensionPagesKnown();
-  const boardKnown = useWorkspaceBoardSetting().enabled !== null;
   const byKey = new Map(all.map((p) => [p.k, p]));
   const pages = ordered(all.map((p) => p.k), order).filter((k) => k !== LOCKED).map((k) => byKey.get(k)!);
   const listed = !key || byKey.has(key);
-  const gone = !listed && online && startPageGone(key, false, { extensions: extensionsKnown || !slots, board: boardKnown, starred: starredKnown }) === true;
+  const gone = !listed && online && startPageGone(key, false, { extensions: extensionsKnown || !slots, starred: starredKnown }) === true;
   // an extension's page with the extension it comes from (its NavPage.title is "Page · Extension", as in Sidebar pages)
   const name = (p: (typeof all)[number]) => (p.k.startsWith("p:") && p.title?.startsWith(`${p.label} · `) ? p.title : p.label);
 

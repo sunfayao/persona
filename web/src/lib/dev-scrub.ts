@@ -10,12 +10,12 @@ export const DEV_API_WORDS = new Set(
     "channels chats check claude-dirs close code comments computer config connectors contributions conversations convert create " +
     "current data days decisions deploy diff dirs discover dismiss doc doctor documents done draft enabled engine error-reports " +
     "events extensions file files find fix flags fork fresh fs full git health herdr history hub image import inbox info install " +
-    "interactions interrupt items kb kb-search lark launchers log login logout looks machines mail managers markets memory messages " +
+    "interactions interrupt items lark launchers log login logout looks machines mail managers markets memory messages " +
     "metrics missing model-config modes moments move mutes notify oauth owner pair pair-codes panes people personas pinned pins posts " +
     "prefs prepare presets preview providers purposes queue quick quota raw reactions read reconnect refresh reject rename replies " +
     "reply resolve restore retry rewind route run runs screen secrets seen send sessions settings show skills spaces split start " +
     "status step suggestion tabs task-plans tasks thread thumb today todos token tokens translate trash tree triage ui unarchive " +
-    "update upgrade upgrades usage windows workspace-board workspaces worktree").split(" "),
+    "update upgrade upgrades usage windows workspaces worktree").split(" "),
 );
 
 /** An API path as a pattern: no host, query or `/api/v1`, every segment that isn't one of the API's words `:id`. */

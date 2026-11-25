@@ -41,7 +41,7 @@ describe("an address that is no page (web usability audit item 42)", () => {
   it("leaves every page's own address alone", () => {
     expect(parse("/")).toEqual({ name: "persona" });
     expect(parse("/overview")).toEqual({ name: "home" });
-    for (const path of ["/inbox", "/inbox/nope", "/kb", "/kb/x/y", "/todos", "/settings", "/machines", "/machines/nope", "/a", "/a/nope", "/agents", "/agents/archived", "/history", "/health", "/routines", "/messages", "/assistant", "/terminal", "/subscriptions", "/workspace-board", "/plugin/x/y", "/persona/new"]) {
+    for (const path of ["/inbox", "/inbox/nope", "/todos", "/settings", "/machines", "/machines/nope", "/a", "/a/nope", "/agents", "/agents/archived", "/history", "/routines", "/messages", "/assistant", "/terminal", "/subscriptions", "/plugin/x/y", "/persona/new"]) {
       expect(parse(path).name, path).not.toBe("not-found");
     }
   });

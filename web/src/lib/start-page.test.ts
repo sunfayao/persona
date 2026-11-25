@@ -112,7 +112,7 @@ describe("startRoute", () => {
     expect(startRoute("")).toBeNull();
     expect(startRoute("home")).toEqual({ name: "home" });
     expect(startRoute("inbox")).toEqual({ name: "inbox" });
-    expect(startRoute("workspace-board")).toEqual({ name: "workspace-board" });
+    expect(startRoute("todos")).toEqual({ name: "todos" });
     expect(startRoute(TODAY)).toEqual({ name: "extension", extension: "example-today", ui: "today" });
     for (const k of ["settings", "persona", "unknown", "p:", "p:/today", "p:example-today/", "p:example-today"]) expect(startRoute(k)).toBeNull();
   });
@@ -162,13 +162,11 @@ describe("opening the app", () => {
 describe("startPageGone", () => {
   it("says gone only once it can be told", async () => {
     const { startPageGone } = await load();
-    const none = { extensions: false, board: false, starred: false };
-    const all = { extensions: true, board: true, starred: true };
+    const none = { extensions: false, starred: false };
+    const all = { extensions: true, starred: true };
     expect(startPageGone(TODAY, true, none)).toBe(false);
     expect(startPageGone(TODAY, false, none)).toBeUndefined();
     expect(startPageGone(TODAY, false, all)).toBe(true);
-    expect(startPageGone("workspace-board", false, { ...all, board: false })).toBeUndefined();
-    expect(startPageGone("workspace-board", false, all)).toBe(true);
     expect(startPageGone("messages", false, none)).toBe(true);
     expect(startPageGone("starred", false, none)).toBeUndefined();
     expect(startPageGone("starred", false, all)).toBe(true);
