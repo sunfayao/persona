@@ -5,8 +5,14 @@ const edge = vi.hoisted(() => ({ reload: vi.fn() }));
 vi.mock("./edge-auth", async (original) => ({ ...await original<typeof import("./edge-auth")>(), reloadForSignIn: edge.reload }));
 
 import { api, credentialOwner, getToken, handleUnauthorized, setToken } from "./api";
-import { chooseManager, resetManagerChoice, setRosterDefault } from "./manager-choice";
-import { taskTrustContext } from "./task-trust";
+import { chooseManager, onDefaultManager, onManagerChoice, resetManagerChoice, setRosterDefault, shownManager } from "./manager-choice";
+
+// What a request is made for: the credential, the assistant shown, and how many times either of them changed since (a
+// round trip away from and back to the same assistant still retires the old request).
+let managerGeneration = 0;
+onManagerChoice(() => { managerGeneration++; });
+onDefaultManager(() => { managerGeneration++; });
+const taskTrustContext = () => JSON.stringify([credentialOwner(), shownManager(), managerGeneration]);
 
 let answer: (response: Response) => void;
 let request: RequestInit | undefined;

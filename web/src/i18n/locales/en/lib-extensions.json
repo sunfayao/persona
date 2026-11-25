@@ -81,7 +81,6 @@
   "sandbox_off": "Sandbox off",
   "machine_missing": "{name} (no such machine)",
   "launcher_missing": "{name} (no such launcher)",
-  "launchers_loading": "Loading launchers…",
   "from_provider": "From {provider}",
   "node_running_one": "Running on {count} machine",
   "node_running_other": "Running on {count} machines",

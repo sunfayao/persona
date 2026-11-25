@@ -2346,7 +2346,7 @@ and Needs You look exactly as before. Tests: `ChatBackgroundRoundsTests`.
 
 ## Agent follow-up settings (#7005)
 
-The web's Settings › Assistant groups "Starting tasks" and "Agent follow-up" (`web/src/views/settings/AssistantSettings.tsx`,
+The web's Settings › Assistant groups "Starting tasks" and "Agent follow-up" (`AssistantSettings.tsx`,
 `AgentAutoNaming.tsx`) on iPhone and iPad, as one page one tap below the profile: **Assistant Profile › On Its Own ›
 Agent Follow-Up** (`AgentFollowUpView`, `AgentFollowUpModel`; Settings search finds it, `SettingsPage.agentFollowUp`). The
 profile shows the row only when the hub sends at least one of its fields, and the page shows each row only for a field the

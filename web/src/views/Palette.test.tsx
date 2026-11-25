@@ -7,7 +7,6 @@ import { placeWords } from "./palette/PlaceWords";
 import { initI18n } from "../i18n";
 import { placeHits } from "../lib/palette";
 import { ShortcutHelp } from "./ShortcutHelp";
-import { ShortcutSettings } from "./settings/ShortcutSettings";
 
 // the modules read the colour scheme and this browser's settings when they load
 vi.hoisted(() => {
@@ -92,18 +91,6 @@ describe("the palette's command mode", () => {
 describe("the shortcut help", () => {
   it("is closed until it is opened (the dialog draws nothing)", () => {
     expect(renderToStaticMarkup(<ShortcutHelp />)).toBe("");
-  });
-});
-
-describe("设置 › 快捷键", () => {
-  it("lists every command with its chord, and offers 全部恢复默认", () => {
-    const html = renderToStaticMarkup(<ShortcutSettings />);
-    expect(html).toContain("命令面板");
-    expect(html).toContain("全部恢复默认");
-    expect(html).toContain("跳转到会话或终端窗格");
-    expect(html).toContain("切到第 1–9 台电脑");
-    // nothing is rebound: no per-row "Reset to default"
-    expect(html).not.toContain("的默认快捷键");
   });
 });
 

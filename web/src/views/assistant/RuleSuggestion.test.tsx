@@ -139,12 +139,11 @@ describe("the line under a card", () => {
     expect(posts).toEqual([{ path: "/api/v1/assistant/rule-suggestions/rs_merge/always", manager: "second", body: undefined }]);
     expect(line()).toBeNull();
     expect(result()!.textContent).toContain("Standing authorization added.");
-    expect(result()!.textContent).toContain("Listed and removed in Settings › Assistant profile › Standing authorizations.");
+    expect(result()!.textContent).toContain("Ask the main conversation to list or remove it.");
     // the hub takes the suggestion off the card: what was made stays said
     await render(card());
     expect(result()!.textContent).toContain("Standing authorization added.");
-    await act(async () => [...result()!.querySelectorAll("button")].find((b) => b.textContent === "Open settings")!.click());
-    expect(location.pathname + location.search).toBe("/settings?tab=persona");
+    expect([...result()!.querySelectorAll("button")]).toHaveLength(0);
   });
 
   it("under a plan card or a question too, what Always made is said in place and stays when the card comes without the suggestion", async () => {
@@ -153,15 +152,14 @@ describe("the line under a card", () => {
     await press("Always");
     expect(posts).toEqual([{ path: "/api/v1/assistant/rule-suggestions/rs_plan/always", manager: "second", body: undefined }]);
     expect(line()).toBeNull();
-    expect(result()!.textContent).toContain("Remembered: tasks like this now start without asking. Listed and removed in Settings › Assistant profile › Remembered auto-start rules.");
+    expect(result()!.textContent).toContain("Remembered: tasks like this now start without asking. Ask the main conversation to list or remove it.");
     expect(toast).not.toHaveBeenCalled();
     // the hub sends the card again without the suggestion, and the page draws it anew (another conversation and back)
     act(() => root.unmount());
     root = createRoot(host);
     await render(card(undefined, false));
     expect(result()!.textContent).toContain("Remembered: tasks like this now start without asking.");
-    await act(async () => [...result()!.querySelectorAll("button")].find((b) => b.textContent === "Open settings")!.click());
-    expect(location.pathname + location.search).toBe("/settings?tab=persona");
+    expect([...result()!.querySelectorAll("button")]).toHaveLength(0);
     // another card says nothing of it
     await render(card(undefined, false, { id: "card-2" }));
     expect(result()).toBeNull();
@@ -172,7 +170,7 @@ describe("the line under a card", () => {
     await render(card(planStart));
     expect(line()!.querySelector("[data-rule-creates]")!.textContent).toContain("Always remembers this kind of task");
     await press("Always");
-    expect(result()!.textContent).toContain("Listed and removed in Settings › Assistant profile › Remembered auto-start rules.");
+    expect(result()!.textContent).toContain("Ask the main conversation to list or remove it.");
     act(() => root.unmount());
     root = createRoot(host);
     answer = { status: 200, body: { ok: true, kind: "delegate", creates: "", setting: "agents.delegate" } };
@@ -291,7 +289,7 @@ describe("on each kind of card", () => {
     // what was made is said under the card, and stays when the plan is read again without the suggestion
     expect(result()!.textContent).toContain("Remembered: tasks like this now start without asking.");
     await render(<PlanCard plan={plan()} />);
-    expect(result()!.textContent).toContain("Listed and removed in Settings › Assistant profile › Remembered auto-start rules.");
+    expect(result()!.textContent).toContain("Ask the main conversation to list or remove it.");
     expect(result()!.previousElementSibling!.querySelector("[data-plan-actions]")).not.toBeNull();
     act(() => root.unmount());
     root = createRoot(host);

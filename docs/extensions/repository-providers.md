@@ -196,7 +196,7 @@ The web shows a provider extension's sources and repositories only once there is
 every screen is what it was before #10330, and the to-do requests are unchanged. Settings › Repositories sends one more
 request, the providers read beside the list.
 
-- **Settings › Repositories** (`web/src/views/settings/Repositories.tsx`) reads `GET …/repositories/providers` beside
+- **Settings › Repositories** (`Repositories.tsx`) reads `GET …/repositories/providers` beside
   the list (a 404 or a failure means the built-ins only, never an error). With an extension's source installed or a
   saved repository from one, a **Sources** part lists GitHub and GitLab as built in and each extension by its name and
   hosts, with an **Unavailable** pill when it is off. The provider menu keeps its three options and adds each extension

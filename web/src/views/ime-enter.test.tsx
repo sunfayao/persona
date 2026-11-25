@@ -19,7 +19,6 @@ import { AgentComposer } from "./agents/AgentsView";
 import { ChatSearch } from "./chat/ChatSearch";
 import { InteractionCard } from "./chat/Interactions";
 import { LinkTodoDialog } from "./LinkTodoDialog";
-import { ClaudeDirs } from "./settings/ClaudeDirs";
 import { ProviderWizard } from "./settings/ProviderWizard";
 import { INERT, ViewSections } from "./extensions/ViewBody";
 import { SHOWCASE } from "../showcase/snapshots";
@@ -105,29 +104,6 @@ describe("LinkTodoDialog's new todo", () => {
     type(input, " 会議の準備 ");
     await press(input, "Enter");
     expect(createTodo).toHaveBeenCalledExactlyOnceWith("会議の準備");
-  });
-});
-
-describe("ClaudeDirs' typed rule", () => {
-  const blockedPuts = () => api.mock.calls.filter(([path]) => path.endsWith("/blocked"));
-
-  const renderInput = async () => {
-    await act(async () => root.render(<ClaudeDirs mid="m1" name="mac" />));
-    return host.querySelector<HTMLInputElement>("input")!;
-  };
-
-  it("is not added by the Enter that confirms a composition", async () => {
-    const input = await renderInput();
-    type(input, "~/.work");
-    await press(input, "Enter", true);
-    expect(blockedPuts()).toHaveLength(0);
-  });
-
-  it("is added by a plain Enter", async () => {
-    const input = await renderInput();
-    type(input, "~/.work");
-    await press(input, "Enter");
-    expect(blockedPuts()).toHaveLength(1);
   });
 });
 

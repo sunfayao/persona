@@ -6,7 +6,6 @@ import fixture from "../../../spec/fixtures/deep-links/cases.json";
 import { appPage, appPath, DEEP_SETTINGS_TABS, pageOfPath, pagePath } from "./deep-links";
 import { linkRoute, type LinkRoute } from "./links";
 import { parse as parseRoute } from "./router";
-import { TABS } from "../views/settings/nav";
 
 interface Hub {
   id: string;
@@ -124,7 +123,8 @@ describe("deep links: pages and paths", () => {
     expect(pageOfPath("/settings", "?tab=labs&enabled=1&token=x")).toEqual({ page: "settings", tab: "labs" });
   });
 
-  it("keeps the settings tabs of the page that defines them", () => {
-    expect(Object.keys(DEEP_SETTINGS_TABS).sort()).toEqual([...TABS].sort());
+  it("keeps every settings tab the shared cases name", () => {
+    // a link to a category the web no longer has still reads as that page: Settings opens its root for it
+    expect(Object.keys(DEEP_SETTINGS_TABS)).toEqual(expect.arrayContaining(["general", "notifications", "models", "devices"]));
   });
 });

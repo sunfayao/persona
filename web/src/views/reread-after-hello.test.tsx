@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // The hub replays the broadcasts a page missed only when it resumes the stream (hello `resumed`, docs/operations/hub-restart.md
 // "Event resume"). After a hello it could not resume, what these pages follow by a push is read again: "Scheduled tasks"
-// (assistant_schedule), the looks and the chosen one (personas, look), Settings › hub (hub_update), and Settings › Extensions' list and
-// an extension's sign-in (extension_auth). A resumed hello reads nothing again.
+// (assistant_schedule), the looks and the chosen one (personas, look). A resumed hello reads nothing again.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -53,8 +52,6 @@ vi.mock("../ui/atoms", async (original) => ({ ...(await original<typeof import("
 vi.stubGlobal("Image", class { onload: (() => void) | null = null; onerror: (() => void) | null = null; set src(_: string) { queueMicrotask(() => this.onerror?.()); } });
 import { Routines } from "./assistant/Routines";
 import { refreshPersonas } from "./assistant/Persona";
-import { HubSettings } from "./settings/HubSettings";
-import { Extensions } from "./settings/Extensions";
 import { ExtensionUI } from "./settings/ExtensionView";
 
 vi.hoisted(() => {
@@ -134,39 +131,5 @@ describe("reads again after a hello the hub could not resume", () => {
     expect(count("render")).toBe(1);
     await hello(false);
     expect(count("render")).toBe(2);
-  });
-
-  it("设置 › hub: the update's state and the history", async () => {
-    act(() => root.render(<HubSettings />));
-    await flush();
-    expect([count("/hub/update"), count("/hub/update/history")]).toEqual([1, 1]);
-    await hello(true);
-    expect([count("/hub/update"), count("/hub/update/history")]).toEqual([1, 1]);
-    await hello(false);
-    expect([count("/hub/update"), count("/hub/update/history")]).toEqual([2, 2]);
-  });
-
-  it("设置 › 扩展: the list", async () => {
-    act(() => root.render(<Extensions open={null} onOpen={() => {}} />));
-    await flush();
-    const list = /^\/(extensions|plugins)$/;
-    expect(count(list)).toBe(1);
-    await hello(true);
-    expect(count(list)).toBe(1);
-    await hello(false);
-    expect(count(list)).toBe(2);
-  });
-
-  it("an extension's page: its sign-in, not the whole page (what is typed into its settings stays)", async () => {
-    act(() => root.render(<Extensions open="example-ext" onOpen={() => {}} />));
-    await flush();
-    const detail = /^\/(extensions|plugins)\/example-ext\/-\/\?entry_lists=1$/;
-    const auth = /^\/(extensions|plugins)\/example-ext\/-\/auth$/;
-    const before = [count(detail), count(auth)];
-    expect(before[0]).toBe(1);
-    await hello(true);
-    expect([count(detail), count(auth)]).toEqual(before);
-    await hello(false);
-    expect([count(detail), count(auth)]).toEqual([before[0], before[1] + 1]);
   });
 });

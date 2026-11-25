@@ -35,9 +35,8 @@ vi.mock("../../lib/store", async (original) => {
 });
 
 import { parse, href } from "../../lib/router";
-import { countsOf, subscriptionsHref, SUBSCRIPTIONS_FEATURE, SUBSCRIPTIONS_UI } from "../../lib/subscriptions";
+import { countsOf, subscriptionsHref, SUBSCRIPTIONS_UI } from "../../lib/subscriptions";
 import { LegacyExtensionUI } from "../settings/ExtensionView";
-import { countsText, SubscriptionsEntry } from "./SubscriptionsEntry";
 
 vi.hoisted(() => {
   const g = globalThis as Record<string, unknown>;
@@ -103,21 +102,5 @@ describe("entry rows", () => {
     expect(countsOf([line({ subscribable: false })], () => true)).toBeNull();
     expect(countsOf([line({})], () => true)).toBeNull(); // not known yet
     expect(countsOf([line({ subscribable: false, on: 1 })], () => true)).toEqual({ on: 1, failing: 0 }); // tools gone, subscriptions kept
-    expect(countsText({ on: 0, failing: 0 })).toBeTruthy();
-  });
-
-  it("appear only once the manager reports source_subscriptions", async () => {
-    hub.summary = [line({ subscribable: true, on: 2, failing: 1 })];
-    act(() => root.render(<SubscriptionsEntry pick={(l) => l.extension === "apps"} scope={{ ext: "apps" }} />));
-    await settle();
-    expect(host.querySelector("button")).toBeNull();
-    expect(hub.calls.some((c) => c.path === "/subscriptions/summary")).toBe(false);
-    act(() => root.unmount());
-    hub.features = [SUBSCRIPTIONS_FEATURE];
-    root = createRoot(host);
-    act(() => root.render(<SubscriptionsEntry pick={(l) => l.extension === "apps"} scope={{ ext: "apps" }} />));
-    await settle();
-    const row = host.querySelector("button");
-    expect(row?.textContent).toContain(countsText({ on: 2, failing: 1 }));
   });
 });

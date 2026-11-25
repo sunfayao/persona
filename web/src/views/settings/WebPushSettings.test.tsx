@@ -65,28 +65,22 @@ describe("Persona 关闭时 (#7459)", () => {
     expect(turnOn).toHaveBeenCalled();
   });
 
-  it("开着：说经哪个推送服务、上次送达，能发测试和关掉", async () => {
+  it("开着：说经哪个推送服务、上次送达，能关掉", async () => {
     state = { loaded: true, working: false, status: { subscribed: true, service: "FCM", current: true, last_ok_at: "2026-11-14T06:00:00Z" } };
     await render();
     expect(toggle().getAttribute("aria-checked")).toBe("true");
     expect(text()).toContain("已打开，经 FCM。上次送达：");
-    sendTest.mockResolvedValue(undefined);
-    await act(async () => button("发送测试")!.click());
-    expect(sendTest).toHaveBeenCalled();
-    expect(toast).toHaveBeenCalledWith("测试已发送，稍后就会出现。");
+    expect(button("发送测试")).toBeUndefined();
     turnOff.mockResolvedValue(undefined);
     await act(async () => toggle().click());
     expect(turnOff).toHaveBeenCalled();
   });
 
-  it("上一条没推出去时说原因，测试失败也说", async () => {
+  it("上一条没推出去时说原因", async () => {
     state = { loaded: true, working: false, status: { subscribed: true, service: "Apple", current: true, failed_at: "2026-11-14T06:00:00Z", status: 403, error: "403 BadJwtToken" } };
     await render();
     expect(text()).toContain("上一条通知没有发出去：403 BadJwtToken");
     expect(text()).toContain("未送达");
-    sendTest.mockRejectedValue(new Error("推送服务没有接收这条通知：410"));
-    await act(async () => button("发送测试")!.click());
-    expect(toast).toHaveBeenCalledWith("测试没有发出去：推送服务没有接收这条通知：410", "error");
   });
 
   it("浏览器拒绝了通知：说去网站设置里允许，开关不能打开", async () => {

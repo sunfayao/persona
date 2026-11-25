@@ -1,12 +1,11 @@
 // Settings › Notifications › When Persona is closed (#7459, docs/web/web.md "Web Push"): this browser's Web Push, off
 // until turned on here. What it needs is said in the row when the browser can't (https, the Home Screen app on iPhone
-// and iPad, not the desktop app), its state when it can (through which push service, the last delivery or failure),
-// and a test that shows a notification at once.
+// and iPad, not the desktop app), its state when it can (through which push service, the last delivery or failure).
 import { useEffect, useState } from "react";
 import { formatDate, t } from "../../i18n";
 import { errorText } from "../../lib/api";
-import { loadWebPush, sendTestPush, turnOffWebPush, turnOnWebPush, useWebPush, WebPushError, webPushSupport, type WebPushState, type WebPushSupport } from "../../lib/web-push";
-import { Button, toast } from "../../ui/atoms";
+import { loadWebPush, turnOffWebPush, turnOnWebPush, useWebPush, WebPushError, webPushSupport, type WebPushState, type WebPushSupport } from "../../lib/web-push";
+import { toast } from "../../ui/atoms";
 import { Group, Pill, Row, Switch } from "./SettingsParts";
 
 const SUPPORT_KEY: Record<Exclude<WebPushSupport, "ok">, string> = {
@@ -59,15 +58,6 @@ export function WebPushSettings() {
     }
   };
 
-  const test = async () => {
-    try {
-      await sendTestPush();
-      toast(t("settings-notifications.webpush_test_sent"));
-    } catch (e) {
-      toast(t("settings-notifications.webpush_test_failed", { error: errorText(e) }), "error");
-    }
-  };
-
   return (
     <Group title={t("settings-notifications.webpush_title")} anchor="web-push" footer={t("settings-notifications.webpush_footer")}>
       <Row icon="send" label={t("settings-notifications.webpush")} hint={webPushHint(support, s, permission)} wrapHint>
@@ -80,13 +70,6 @@ export function WebPushSettings() {
           label={t("settings-notifications.webpush")}
         />
       </Row>
-      {on && usable && (
-        <Row label={t("settings-notifications.webpush_test_label")} hint={t("settings-notifications.webpush_test_hint")} wrapHint>
-          <Button tone="secondary" onClick={() => void test()} disabled={s.working} busy={s.working}>
-            {t("settings-notifications.webpush_test")}
-          </Button>
-        </Row>
-      )}
     </Group>
   );
 }

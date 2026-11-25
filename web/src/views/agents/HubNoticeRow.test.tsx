@@ -13,7 +13,7 @@ import { HubNoticeView } from "./HubNoticeRow";
 import type { HubNotice } from "../../lib/hub-update";
 
 const noop = () => {};
-const draw = (notice: HubNotice) => renderToStaticMarkup(<HubNoticeView notice={notice} onOpen={noop} onAutoOff={noop} onSeen={noop} onUpdate={noop} onDismiss={noop} />);
+const draw = (notice: HubNotice) => renderToStaticMarkup(<HubNoticeView notice={notice} onAutoOff={noop} onSeen={noop} onUpdate={noop} onDismiss={noop} />);
 const ids = (html: string) => [...html.matchAll(/data-testid="(hub-notice-[a-z-]+)"/g)].map((m) => m[1]);
 
 describe("the hub line", () => {

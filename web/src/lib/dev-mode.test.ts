@@ -1,12 +1,10 @@
 // Developing Persona on the web (#9617, docs/operations/developing-persona.md): what may go into the package
 // (scrubbing, route patterns, the same cases as iOS DevModeTests), what the recorder writes a minute and per visible
-// period, what the package holds for each choice of categories, and that the error reporter feeds the recorder with the
+// period, and that the error reporter feeds the recorder with the
 // hub's reports off.
 import { readFileSync } from "node:fs";
-import JSZip from "jszip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DevRecorder, errorReport, freezeReport, line, MAX_AGE_MS, MAX_BYTES, MemoryStore, pageName, stackFrames } from "./dev-mode";
-import { buildPackage, packageFiles, packageName, readme, type DevDevice } from "./dev-package";
 import { frameType, setDevSink, watchSockets, type DevSink } from "./dev-probe";
 import { DEV_API_WORDS, devRoute, devWord, MAX_TEXT, scrubText } from "./dev-scrub";
 import { pathPattern } from "./error-reports";
@@ -146,73 +144,6 @@ describe("recorder", () => {
 
   it("writes keys sorted, kind and t among them", () => {
     expect(line(T0, "app", { b: 1, a: 2 })).toBe('{"a":2,"b":1,"kind":"app","t":"2027-01-15T08:00:00.000Z"}');
-  });
-});
-
-describe("package", () => {
-  const device: DevDevice = { platform: "web", os: "macos", os_version: "15", browser: "Chrome 142", build: "index-abc", hub_version: "1.2.3", utc_offset_minutes: 480 };
-
-  async function recorded() {
-    const c = clock();
-    const store = new MemoryStore();
-    const r = new DevRecorder(store, c.now, "index-abc");
-    r.request("GET", "/sessions", 200, 1, 1);
-    c.advance(60);
-    r.roll();
-    r.page("settings");
-    r.report({ id: "1", source: "web", kind: "error", level: "error", time: "2027-01-15T08:00:00Z", message: "boom" });
-    r.log("warn", "careful");
-    await r.flush();
-    return { store, now: c.now() };
-  }
-
-  it("holds what was picked", async () => {
-    const { store, now } = await recorded();
-    const all = await packageFiles(store, new Set(["logs", "errors", "energy"]), "2027-01-15T08:00:00.000Z", device, now);
-    expect(Object.keys(all.files).sort()).toEqual(["README.md", "errors.jsonl", "events.jsonl", "log.txt", "manifest.json"]);
-    expect(all.summary).toMatchObject({ errors: 1, logLines: 1 });
-    const manifest = JSON.parse(all.files["manifest.json"]);
-    expect(manifest).toMatchObject({ format: "persona-diagnostics", version: 1, platform: "web", browser: "Chrome 142", categories: ["device", "logs", "errors", "energy"] });
-    expect(manifest.window.to).toBe(new Date(now).toISOString());
-
-    const energy = await packageFiles(store, new Set(["energy"]), null, device, now);
-    expect(Object.keys(energy.files).sort()).toEqual(["README.md", "events.jsonl", "manifest.json"]);
-    expect(energy.files["events.jsonl"]).toContain('"kind":"minute"');
-    expect(energy.files["events.jsonl"]).not.toContain('"kind":"page"');
-    expect(energy.files["README.md"]).toContain("Left out by the owner: logs, errors.");
-  });
-
-  it("adds the desktop shell's lines by category, and counts its crash dumps without reading them", async () => {
-    const { store, now } = await recorded();
-    const shell = {
-      lines: [
-        '{"kind":"shell_minute","processes":{},"t":"2027-01-15T08:01:00.000Z"}',
-        '{"exit_code":5,"kind":"process_gone","process":"renderer","reason":"crashed","t":"2027-01-15T08:02:00.000Z"}',
-        '{"event":"recording","kind":"shell","t":"2027-01-15T08:00:00.000Z"}',
-      ],
-      crashDumps: 2,
-    };
-    const all = await packageFiles(store, new Set(["logs", "errors", "energy"]), null, { ...device, platform: "desktop" }, now, shell);
-    expect(all.files["desktop.jsonl"].trim().split("\n")).toHaveLength(3);
-    expect(JSON.parse(all.files["manifest.json"]).counts).toMatchObject({ desktop_lines: 3, crash_dumps: 2 });
-    const energy = await packageFiles(store, new Set(["energy"]), null, { ...device, platform: "desktop" }, now, shell);
-    expect(energy.files["desktop.jsonl"]).toContain("shell_minute");
-    expect(energy.files["desktop.jsonl"]).not.toContain("process_gone");
-    expect(JSON.parse(energy.files["manifest.json"]).counts.crash_dumps).toBeUndefined();
-    const browser = await packageFiles(store, new Set(["logs"]), null, device, now, null);
-    expect(browser.files["desktop.jsonl"]).toBeUndefined();
-  });
-
-  it("is a zip with its files in a folder of its name", async () => {
-    const { store, now } = await recorded();
-    const file = await buildPackage(store, new Set(["energy"]), null, device, now);
-    expect(file.name).toBe(packageName(device, new Date(now)));
-    expect(file.name).toMatch(/^persona-diagnostics-web-\d{8}-\d{4}\.zip$/);
-    const zip = await JSZip.loadAsync(await file.arrayBuffer());
-    const folder = file.name.replace(/\.zip$/, "");
-    expect(zip.file(`${folder}/README.md`)).toBeTruthy();
-    expect(zip.file(`${folder}/manifest.json`)).toBeTruthy();
-    expect(readme(new Set(["logs", "errors", "energy"]))).not.toContain("Left out");
   });
 });
 

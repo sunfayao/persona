@@ -2005,7 +2005,7 @@ manifest can ask for four things. A hub from before them refuses the manifest, s
 
 Code: `extension/configured.go`, `extension/egress` (`Target`, `dialConfigured`, `Proxy.Check`), `extmgr/extension_settings_check.go`,
 `sdk/go/ext/settings_check.go`;
-the clients `web/src/lib/extensions.ts`, `web/src/views/settings/Extensions.tsx`,
+the clients `web/src/lib/extensions.ts`, `Extensions.tsx`,
 `apple/Persona/Views/Settings/ExtensionsModel.swift`, `ExtensionUIModel.swift`.
 
 ## The hub's API
@@ -3802,7 +3802,7 @@ Views, components, actions, responses, placements and context all use schema-gen
   UI tests `ExtensionSettingsTests`, `ExtensionMarketTests` (marketplace installation, upgrade preview, marketplace management, saving extension pages, launcher section; `TEST_RUNNER_PERSONA_EXTENSIONS_HUB`),
   `ExtensionSlotsTests` (cards, entries/badges, usage-page segmented controls and chart, opening cards, machine sections),
   unit tests `ExtensionsModelTests`, `ExtensionMarketModelTests`, `ExtensionViewModelTests`, `ExtensionSlotsModelTests`.
-- Web (#1207): **Settings › Extensions**, same lists and details (`web/src/views/settings/Extensions.tsx`, `web/src/lib/extensions.ts`, `/settings?tab=extensions&extension=<id>`; old `?tab=plugins&plugin=<id>` links still open), see `docs/web/web.md` ("Settings").
+- Web (#1207): **Settings › Extensions**, same lists and details (`Extensions.tsx`, `web/src/lib/extensions.ts`, `/settings?tab=extensions&extension=<id>`; old `?tab=plugins&plugin=<id>` links still open), see `docs/web/web.md` ("Settings").
   #1330 adds declarative UI (`settings/ExtensionView.tsx`, `lib/extension-ui.ts`: **Pages** in extension details, launcher-detail sections) and the extension marketplace (`settings/ExtensionMarket.tsx`, `lib/extension-market.ts`: catalog, details, marketplace management).
   #1699 adds auto-upgrade ("Auto-upgrade"): an **Upgrades** group in marketplace-extension details (switch, new-version row and **Review**, last result, `UpgradeGroup`), master switch at the top of marketplace management, same wording as the app (`upgradeDetail` etc. in `lib/extensions.ts`).
   #1895: with `auto_upgrade_paused: "market_removed"` the switch and **Check for updates** are greyed out and the group says that adding the marketplace again with the same address brings upgrades back; a marketplace's delete confirmation says how many installed extensions stop upgrading (`upgradingFrom` in `lib/extension-market.ts`, from `ExtensionView.market`; without it, only that they stop).

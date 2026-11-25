@@ -11,7 +11,6 @@ import { t } from "../../i18n";
 import { ApiError, credentialOwner, errorText } from "../../lib/api";
 import { conversationHeaders } from "../../lib/feed";
 import { itemHeaders } from "../../lib/manager-choice";
-import { navigate } from "../../lib/router";
 import { answerRuleSuggestion, markRuleAnswered, markRuleMade, ruleAnswered, ruleCreates, ruleJoin, ruleMade, ruleResult, ruleScope, ruleSuggestion, subscribeRuleAnswered, type RuleCard } from "../../lib/rule-suggestion";
 import { Button, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
@@ -30,7 +29,6 @@ export default function RuleSuggestionLine({ of }: { of: RuleCard }) {
   const result = useSyncExternalStore(subscribeRuleAnswered, () => ruleMade(of.id));
   // what Always made, until another suggestion comes to this card
   if (result && (!suggestion || gone)) {
-    const page = result.page;
     return (
       <div data-rule-result role="status" className="mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-xs text-ink-2">
         <p className="flex min-w-0 flex-1 basis-64 items-start gap-1.5 [overflow-wrap:anywhere]">
@@ -39,11 +37,6 @@ export default function RuleSuggestionLine({ of }: { of: RuleCard }) {
             {ruleJoin([result.text, result.where])}
           </span>
         </p>
-        {page && (
-          <Button size="sm" tone="quiet" onClick={() => navigate(page)}>
-            {t("assistant-rulesuggestion.open_settings")}
-          </Button>
-        )}
       </div>
     );
   }

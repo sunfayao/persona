@@ -214,7 +214,7 @@ holds every answer to it before it reaches the manager:
 
 ## In the apps
 
-- **Web** (`web/src/views/chat/Interactions.tsx` `SecretHandoffCard`, `web/src/views/settings/Extensions.tsx`): the hand-off card
+- **Web** (`web/src/views/chat/Interactions.tsx` `SecretHandoffCard`, `Extensions.tsx`): the hand-off card
   names each variable with its provider and item, the Agent and its computer, the directory and the start of the prompt, with
   Deny, Always allow (when the card offers it, with what it covers) and Allow; only its own buttons approve it, their request
   carrying `X-Persona-Features: secret_handoff`, while Overview's rows and the browser's notifications open the chat

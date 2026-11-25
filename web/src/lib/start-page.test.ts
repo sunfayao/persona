@@ -20,7 +20,6 @@ vi.mock("./store", () => ({
 // collected, outside the test timeout (as highlight-lazy.test.tsx, #4955). Each test still resets and runs them again;
 // only the initial cold module-graph work must not consume the five-second deadline.
 import "./start-page";
-import "../views/settings/StartPage";
 vi.hoisted(() => {
   // the Settings row's module draws with the sidebar's pages, which read these
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
@@ -103,7 +102,7 @@ async function load(stored?: string) {
 // load() can still spend seconds evaluating the graph, and the two-device test calls it three times. No socket is
 // connected, no request is made and no state is asserted here; every test resets these modules before its own load.
 beforeAll(async () => {
-  await Promise.all([import("./start-page"), import("./store"), import("../views/settings/StartPage")]);
+  await Promise.all([import("./start-page"), import("./store")]);
 });
 
 describe("startRoute", () => {
