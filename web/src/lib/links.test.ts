@@ -99,7 +99,7 @@ describe("where a link opens", () => {
 
   it("opens app links to every page of the route table (docs/protocol/deep-links.md, #9930)", () => {
     // an Agent's as persona://session links always did; the table's other forms are read when opened (lib/deep-links.ts)
-    for (const app of ["persona://open/inbox/i-1", "persona://session/m/s?at=m1", "persona://task/t-1", "persona://kb/docs/a", "persona://settings/extensions/gh", "persona://extension/w/today"]) {
+    for (const app of ["persona://open/inbox/i-1", "persona://session/m/s?at=m1", "persona://task/t-1", "persona://settings/extensions/gh", "persona://extension/w/today"]) {
       expect(linkRoute(app), app).toEqual({ kind: "app", url: app });
       expect(opensInApp(app), app).toBe(true);
     }

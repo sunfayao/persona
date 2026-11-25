@@ -42,8 +42,5 @@
   "until_minutes_other": "还有 {count} 分钟",
   "until_hours_minutes": "还有 {hours} 小时 {minutes} 分",
   "until_hours_other": "还有 {count} 小时",
-  "next_wake": "下次唤醒 {time}（{until}）",
-  "elapsed_seconds_other": "{count} 秒",
-  "elapsed_minutes_seconds": "{minutes} 分 {seconds} 秒",
-  "elapsed_hours_minutes": "{hours} 时 {minutes} 分"
+  "next_wake": "下次唤醒 {time}（{until}）"
 }

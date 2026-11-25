@@ -17,7 +17,6 @@
   "filter_empty": "No agents in \"{filter}\"",
   "show_all": "Show all",
   "pinned_section": "Pinned",
-  "task_agents": "Agents of {name}",
   "launching": "Starting",
   "launch_untitled": "New agent",
   "launch_failed": "Couldn't start",

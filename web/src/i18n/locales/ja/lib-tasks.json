@@ -42,8 +42,5 @@
   "until_minutes_other": "あと{count}分",
   "until_hours_minutes": "あと{hours}時間{minutes}分",
   "until_hours_other": "あと{count}時間",
-  "next_wake": "次回起動：{time}（{until}）",
-  "elapsed_seconds_other": "{count}秒",
-  "elapsed_minutes_seconds": "{minutes}分{seconds}秒",
-  "elapsed_hours_minutes": "{hours}時間{minutes}分"
+  "next_wake": "次回起動：{time}（{until}）"
 }

@@ -24,9 +24,10 @@ const conversation = (session_id: string, title: string): Session => ({
 });
 const main = conversation("main", "Persona");
 const agent: Session = { machine_id: "mac", session_id: "agent", title: "Build docs", cwd: "/code", status: "working", state: "working" };
+const second: Session = { machine_id: "mac", session_id: "second", title: "Lead pane", cwd: "/code", status: "working", state: "working" };
 const answers: Record<string, unknown> = {
   "/api/v1/assistant": { machine_id: "hub", online: true, main: "main", conversations: [main] },
-  "/api/v1/sessions": { sessions: [main, agent] },
+  "/api/v1/sessions": { sessions: [main, agent, second] },
   "/api/v1/machines": { machines: [{ id: "hub", name: "Hub", online: true }, { id: "mac", name: "MacBook", online: true }] },
 };
 const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));

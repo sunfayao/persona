@@ -10,7 +10,5 @@
   "hint_general": "Appearance, navigation, and translation",
   "hint_notifications": "When to notify and play a sound",
   "hint_models": "Accounts and keys for models",
-  "hint_devices": "Signed-in phones and browsers",
-  "switch": "Switch",
-  "switch_label": "Switch assistant"
+  "hint_devices": "Signed-in phones and browsers"
 }
