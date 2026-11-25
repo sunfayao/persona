@@ -231,6 +231,8 @@ const page = el();
 const cleanups: (() => void)[] = [];
 const on = (id: string, run: Parameters<typeof registerShortcut>[1]) => cleanups.push(registerShortcut(id, run));
 afterEach(() => {
+  while (cleanups.length) cleanups.pop()!();
+});
 
 describe("focus", () => {
   it("tells the terminal from a text field from the page", () => {
