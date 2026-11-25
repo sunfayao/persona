@@ -9,7 +9,6 @@ internal/connectorwire
 internal/devicewire
 internal/dialogwire
 internal/extwire
-internal/kbwire
 internal/nodeproto
 internal/proto
 internal/repositorywire
