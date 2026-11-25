@@ -20,8 +20,6 @@ import {
 
 const counts = (working = 0, needs_you = 0, stuck = 0, review = 0, planned = 0) => ({ working, needs_you, stuck, review, planned });
 
-const session = (mid: string, sid: string, state: Session["state"] = "working", extra: Partial<Session> = {}): Session => ({ machine_id: mid, session_id: sid, title: sid, cwd: "/code/app", status: "", state, ...extra });
-
 const TREE: DirectionTree = {
   directions: [
     {

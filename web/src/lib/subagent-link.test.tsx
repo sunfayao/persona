@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import { childOfCall } from "./child-cards";
 import { closePanel, getPanel, openPanel } from "./panel";
 import { doneSubagentLink, followChildSession, followSubagentLink, splitSubagentLink, useSubagentLink } from "./subagent-link";
-import type { Session } from "./types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
