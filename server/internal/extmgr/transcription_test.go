@@ -345,9 +345,9 @@ func TestVoiceManifestTranscribes(t *testing.T) {
 	}
 }
 
-// A meeting's audio socket (assistantwire.SocketRoutes), relayed here as the extensions' sockets are, is the
+// An assistant socket (assistantwire.SocketRoutes), relayed here as the extensions' sockets are, is the
 // assistant's to answer, with who is calling in the hub's headers. It does not count in Serving: it lasts as long
-// as the meeting records and must not hold a redeploy. Without the assistant it is 404.
+// as the peer stays and must not hold a redeploy. Without the assistant it is 404.
 func TestAssistantSocketIsNotServing(t *testing.T) {
 	h := newTestManager(t)
 	ctx := context.Background()
@@ -381,7 +381,7 @@ func TestAssistantSocketIsNotServing(t *testing.T) {
 	ws := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	phone := deviceToken("phone", roleFull)
-	c, _, err := websocket.Dial(ctx, ws+"/api/v1/recordings/r1/audio?at=1&token="+phone, nil)
+	c, _, err := websocket.Dial(ctx, ws+"/api/v1/a2a/m1/s1/.well-known/agent-card.json?at=1&token="+phone, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,7 +396,7 @@ func TestAssistantSocketIsNotServing(t *testing.T) {
 		t.Fatalf("%v %q %v", typ, b, err)
 	}
 	if n := h.Serving(); n != 0 {
-		t.Fatalf("an open audio socket counts: %d", n)
+		t.Fatalf("an open assistant socket counts: %d", n)
 	}
 	if code, _ := call(t, mux, "GET", "/api/v1/serving-now", h.cfg.Token, ""); code != 200 || <-counted != 1 {
 		t.Fatal("another request counts")
@@ -404,12 +404,12 @@ func TestAssistantSocketIsNotServing(t *testing.T) {
 	c.Close(websocket.StatusNormalClosure, "")
 
 	h.opts.AssistantSocket = nil
-	if code, _ := call(t, mux, "GET", "/api/v1/recordings/r1/audio", h.cfg.Token, ""); code != http.StatusNotFound {
+	if code, _ := call(t, mux, "GET", "/api/v1/a2a/m1/s1/.well-known/agent-card.json", h.cfg.Token, ""); code != http.StatusNotFound {
 		t.Fatalf("without the assistant: %d", code)
 	}
-	if !isAssistantSocket(httptest.NewRequest("GET", "/api/v1/recordings/x/audio", nil)) ||
-		isAssistantSocket(httptest.NewRequest("PUT", "/api/v1/recordings/x/audio", nil)) ||
-		isAssistantSocket(httptest.NewRequest("GET", "/api/v1/recordings/x", nil)) {
+	if !isAssistantSocket(httptest.NewRequest("GET", "/api/v1/a2a/m/s/.well-known/agent-card.json", nil)) ||
+		isAssistantSocket(httptest.NewRequest("PUT", "/api/v1/a2a/m/s/.well-known/agent-card.json", nil)) ||
+		isAssistantSocket(httptest.NewRequest("GET", "/api/v1/a2a/m/s", nil)) {
 		t.Fatal("isAssistantSocket")
 	}
 }

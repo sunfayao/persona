@@ -25,7 +25,6 @@ var movedClusters = []struct {
 	{"node", "node/nodekit", nil}, // helpers shared by the clusters: no file prefix, names only
 	{"assistant", "assistant/chatsearch", []string{"search_text"}},
 	{"assistant", "assistant/saved", []string{"saved_"}},
-	{"assistant", "assistant/archiverecovery", []string{"kb_archive_recovery"}},
 	{"assistant", "assistant/kbsent", []string{"kb_sent"}},
 	{"db", "assistant/repositorystore", []string{"todo_repositories", "workspace_naming", "task_workspaces"}},
 }

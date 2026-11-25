@@ -326,7 +326,7 @@ func TestSubscriptionSaveCreatesPausesAndDeletes(t *testing.T) {
 	}
 	line := out["subscription"].(map[string]any)
 	id, rev := line["id"].(string), int64(line["revision"].(float64))
-	if line["label"] != "Office notices" || line["to_inbox"] != true || line["to_kb"] != false {
+	if line["label"] != "Office notices" || line["to_inbox"] != true {
 		t.Fatalf("made: %v", line)
 	}
 	out, isErr = e.call("subscription_save", fmt.Sprintf(`{"action":"update","id":%q,"revision":%d,"pause":true}`, id, rev))

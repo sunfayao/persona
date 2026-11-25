@@ -30,7 +30,7 @@ func TestSubscriptionGraphRoute(t *testing.T) {
 	h.startSubscriptions(ctx)
 	code, out := call("/api/v1/subscriptions/-/graph?locale=zh-Hans")
 	dests, _ := out["destinations"].([]any)
-	if code != http.StatusOK || len(dests) != 2 || out["sources"] == nil || out["reads"] == nil || out["extensions"] == nil {
+	if code != http.StatusOK || len(dests) != 1 || out["sources"] == nil || out["reads"] == nil || out["extensions"] == nil {
 		t.Fatalf("an answer-only device reads the graph: %d %v", code, out)
 	}
 	if d, _ := dests[0].(map[string]any); d["id"] != "inbox" || d["name"] != "收件箱" {
