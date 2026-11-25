@@ -12,7 +12,7 @@ type ExpandedProps = {
   value: string;
   placeholder: string;
   selection: [number, number];
-  onChange: (v: string) => void;
+  onChange: (v: string, caret: number) => void;
   onCollapse: (sel: [number, number]) => void;
   canSend: boolean;
   blocked: boolean;
@@ -76,7 +76,7 @@ function ExpandedComposer({ editLabel, value, placeholder, selection, onChange, 
       <textarea
         ref={field}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
         {...ime.handlers}
         onBlur={ime.onBlur}
         onKeyDown={(e) => {

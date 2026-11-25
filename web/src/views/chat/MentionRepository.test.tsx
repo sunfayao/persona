@@ -104,12 +104,12 @@ const render = (
 
 const box = () => host.querySelector("textarea")!;
 
-async function type(text: string) {
+async function type(text: string, caret = text.length) {
   const el = box();
   await act(async () => {
     el.focus();
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(el, text);
-    el.setSelectionRange(text.length, text.length);
+    el.setSelectionRange(caret, caret);
     el.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await act(async () => {
@@ -176,7 +176,7 @@ describe("@ assistant-bound repositories (#12531)", () => {
     expect(api.mock.calls.filter(([path]) => path === "/assistant/repositories")).toHaveLength(1);
   });
 
-  it("picks via keyboard Enter into a removable chip and sends clean repository context without local checkout paths", async () => {
+  it("picks a repository inline and sends its context without local checkout paths", async () => {
     const onSend = vi.fn(async (_m: Outgoing) => true);
     render({ self: "persona-new", files: () => [], repositories: "assistant" }, onSend);
 
@@ -186,26 +186,25 @@ describe("@ assistant-bound repositories (#12531)", () => {
     key("ArrowDown");
     key("Enter");
     expect(options()).toHaveLength(0);
-    expect(box().value).toBe("");
-    expect(host.textContent).toContain(t("link-contextchips.repository"));
-    expect(host.textContent).toContain("Persona");
+    expect(box().value).toBe("@Persona ");
+    expect(host.querySelector(`button[aria-label="${t("link-contextchips.remove_label")}"]`)).toBeNull();
 
-    await type("Check open issues");
+    await type(box().value + "Check open issues");
     await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("chat-composer.send")}"]`)!.click());
 
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
     expect(text).toMatch(
-      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/nwverse\/persona" repo_id="repo-1" provider="github" path="nwverse\/persona">\n/,
+      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/nwverse\/persona" repo_id="repo-1" provider="github" path="nwverse\/persona" inline_label="@Persona" inline_start="0">\n/,
     );
     expect(text).toContain("nwverse/persona");
     expect(text).toContain("https://github.com/nwverse/persona");
     expect(text).not.toContain('cwd="');
     expect(text).not.toContain('machine="');
-    expect(text.endsWith("</persona-context>\n\nCheck open issues")).toBe(true);
+    expect(text.endsWith("</persona-context>\n\n@Persona Check open issues")).toBe(true);
   });
 
-  it("supports Tab selection, pointer click selection, chip removal, and Escape dismissal", async () => {
+  it("supports Tab and pointer picks, text removal, and Escape dismissal", async () => {
     const onSend = vi.fn(async (_m: Outgoing) => true);
     render({ self: "persona-new", files: () => [], repositories: "assistant" }, onSend);
 
@@ -213,7 +212,7 @@ describe("@ assistant-bound repositories (#12531)", () => {
     await type("@invoice");
     await waitForOptions(1);
     key("Tab");
-    expect(box().value).toBe("");
+    expect(box().value).toBe("@team/billing-api ");
     expect(getContexts("persona-new")).toHaveLength(1);
     expect(getContexts("persona-new")[0]).toMatchObject({
       kind: "repository",
@@ -222,15 +221,16 @@ describe("@ assistant-bound repositories (#12531)", () => {
     });
 
     // Click picks a second repository
-    await type("@release-bot");
+    await type(box().value + "and @release-bot");
     await waitForOptions(1);
     await act(async () => options()[0].click());
     expect(getContexts("persona-new")).toHaveLength(2);
 
-    // Remove the first chip
-    await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("link-contextchips.remove_label")}"]`)!.click());
+    // Delete the first visible mention. Its hidden repository must leave with it.
+    await type(box().value.replace("@team/billing-api ", ""), 0);
     expect(getContexts("persona-new")).toHaveLength(1);
     expect(getContexts("persona-new")[0].title).toBe("Deploy Kit");
+    expect(getContexts("persona-new")[0].attrs?.inline_start).toBe("4");
 
     // Escape closes the menu without selecting
     await type("@persona");

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { t } from "../../i18n";
 import { isRelayContext, sourceLabel } from "../../lib/message-source";
+import { inlineMentionAt } from "../../lib/inline-mentions";
 import { parseUserText } from "../../lib/turns";
 import type { UserMessage } from "../../lib/turns";
 import { cx } from "../../ui/atoms";
@@ -42,7 +43,8 @@ function RelayedSourceMessage({ msg, mid, sid }: SourceProps) {
     return () => setOpen(false);
   });
   const label = sourceLabel(msg.source!);
-  const contexts = (full.text ? parseUserText(full.text).contexts : msg.contexts).filter((context) => context.kind !== "message-source" && !isRelayContext(context));
+  const contexts = (full.text ? parseUserText(full.text).contexts : msg.contexts).filter((context) =>
+    context.kind !== "message-source" && !isRelayContext(context) && !inlineMentionAt(context, text));
   return (
     <div className="chat-source" data-message-source={msg.source!.kind} data-source-conversation={msg.source!.conversation_id} data-items={[msg.id, ...msg.images.map((item) => item.id)].join(" ")}>
       {!msg.continuedSource && <span className="chat-source-label" title={label}>@{label}</span>}

@@ -4,7 +4,7 @@
 // Pure functions of their arguments (`now` passed in), so they are tested without a DOM.
 import { formatDate, t } from "../i18n";
 import { launcherTitle, type Named } from "./provider-names";
-import { splitSkillDraft } from "./skill-mentions";
+import { splitComposerDraft } from "./skill-mentions";
 
 export type Repeat = "once" | "daily" | "interval" | "cron";
 
@@ -267,7 +267,7 @@ export function untilLabel(d: Date, now: Date): string {
 export function taskTitle(task: Pick<Task, "title" | "prompt" | "prompt_selections" | "repeat">): string {
   if (task.title?.trim()) return task.title.trim();
   const prompt = task.prompt ?? "";
-  const text = task.prompt_selections ? splitSkillDraft(prompt, true).text : prompt;
+  const text = task.prompt_selections ? splitComposerDraft(prompt, true).text : prompt;
   const first = text.split("\n").find((l) => l.trim()) ?? "";
   return first.trim() || (task.repeat === "once" ? t("lib-routines.scheduled_follow_up") : t("lib-routines.scheduled_task"));
 }

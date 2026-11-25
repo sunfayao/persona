@@ -5259,6 +5259,11 @@ every device of theirs follows it.
 | `<persona-context kind="forward" title="…" url="persona://session/…?at=…" msg="…" role="…" author="…" chat="…" project="…" machine="…" time="…">` | iOS (Forward on a message, #3807; several at once, #3838), web (#3899), Android (#3901) | the user forwarded a message (or several, one block each) from another chat: a card at the top of the user's bubble that opens the original; see "Forwarded messages" below |
 | `<cross-session-message from-name="…">…</cross-session-message>` | Claude Code (cross-session messages) | a left-side "From name" card, body rendered as Markdown |
 
+The web composer keeps a typed @ selection visible in the sentence and still sends its original leading context tag.
+The tag carries `inline_label` and `inline_start`. The latter is a zero-based UTF-16 offset into the trimmed message body.
+The web hides the separate context card when that range still matches its label. Agents read the original structured
+reference, including the existing A2A session address. Contexts attached directly keep their cards.
+
 ### Quote and comment blocks at the start of messages (web and iOS, #2427, #2437, #151)
 
 Web "Quote" and "Comment" use no tags or structured fields: on send they become `> ` blocks at the start of the message (`withQuoteBlock` in `web/src/lib/drafts.ts`, `web/src/lib/comments.ts`); the assistant and Agents on computers read them as text, and other clients that don't recognize them simply see `>` lines.

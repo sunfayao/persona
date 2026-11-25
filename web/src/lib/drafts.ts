@@ -10,6 +10,8 @@ import { canonicalStorageKey, storedKeyAlias, storedValue, storeValue, removeSto
 import { useSyncExternalStore } from "react";
 import { clampComment, commentBlock, isCommentHead, parseCommentBlock, type QuoteComment } from "./comments";
 import { uuid } from "./format";
+import { composerDraft, joinComposerDrafts, splitComposerDraft } from "./skill-mentions";
+import { shiftInlineMentions } from "./inline-mentions";
 import type { EditedImage } from "./image-edit";
 
 export interface DraftImage {
@@ -441,7 +443,7 @@ export function useLeftDraft(key: string | null): { text: string; quoted: boolea
   const hasQuotes = () => away() && getQuotes(key!).list.length > 0;
   const text = useSyncExternalStore(subscribeRows, read, read);
   const quoted = useSyncExternalStore(subscribeRows, hasQuotes, hasQuotes);
-  return { text, quoted };
+  return { text: splitComposerDraft(text).text, quoted };
 }
 
 /** Sends an event to the composer of `key`. False when none is mounted and it could not be kept (an image). */
@@ -459,9 +461,16 @@ export function sendDraft(key: string, e: DraftEvent): boolean {
   }
   // "Edit" / "Rewind" a message sent with a quote while its box is away: as the composer would, the quotes go back to the bar
   // above the input (any it had are replaced) and only the words into the draft.
-  const split = e.type === "replace" ? splitQuotes(e.text) : null;
-  if (e.type === "replace") setQuotes(key, split ? parseQuotes(split.quotes) : []);
-  const next = split ? split.rest : applyDraft(storedValue(`draft:${key}`) ?? "", e);
+  const current = storedValue(`draft:${key}`) ?? "";
+  let next: string;
+  if (e.type === "replace") {
+    const selected = splitComposerDraft(e.text);
+    const split = splitQuotes(selected.text);
+    setQuotes(key, split ? parseQuotes(split.quotes) : []);
+    next = split ? composerDraft(shiftInlineMentions(selected.refs, -selected.text.lastIndexOf(split.rest)), split.rest) : e.text;
+  } else {
+    next = e.type === "append" ? joinComposerDrafts(current, e.text) : joinComposerDrafts(e.text, current);
+  }
   storeDraft(key, next);
   return true;
 }

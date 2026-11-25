@@ -319,8 +319,10 @@ on-demand model panel, not the everyday Assistant home (#6887).
   skills in the scoped catalog can be browsed in `@` or searched via `/<keyword>`. The slash menu keeps up to 25 ranked commands first.
   A skill row shows its name and short description. The focused skill's detail shows the full description and the source
   supplied by the node, including any visible directory. It fits beside the list where space permits and scrolls beneath
-  the list on a phone. The list fits the space around the composer and the keyboard. Selecting a skill adds an opaque
-  context chip. Opening either picker refreshes the inventory and can display the composer's last same-scope result
+  the list on a phone. The list fits the space around the composer and the keyboard. Typed @ selections keep the
+  chosen label at the caret in the draft and in the sent sentence. Removing the label removes its reference.
+  Explicit attachments through the + menu and slash-selected skills can still use context chips.
+  Opening either picker refreshes the inventory and can display the composer's last same-scope result
   while waiting. Fresh results preserve the selected identity while it is available.
 - Editing state (web, #4503): editing the last message puts its words and quotes back into the box under a one-line bar at the box's top, above the context chips and quote bars. The bar has an accent pencil, **Editing last message** (`ink-2`, medium), a truncating hint (`ink-3`, precise pointers only) and a × with the quote bar's 24 px look. It is the only sign of the state, and the text field stays the same field. The irreversible step (the rewind) waits for an explicit send, which the bar's hint names. Esc or × leaves with nothing changed (`docs/web/web.md` "Pages", **Edit last message**).
 - Queued messages (web, #5327): drawn as cindy's pending queue at the owner's request (where cindy and the older design
