@@ -157,5 +157,3 @@ func TestPushedItemsReachTheInboxOnceItIsOn(t *testing.T) {
 		t.Fatalf("a connector was called %d times", calls)
 	}
 }
-
-
