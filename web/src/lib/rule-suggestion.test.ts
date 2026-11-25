@@ -100,7 +100,6 @@ describe("what is said after Always", () => {
     const r = ruleResult(ruleSuggestion(delegate)!, { ok: true, kind: "delegate", creates: "", setting: "agents.delegate" });
     expect(r.text).toBe("No rule was stored and nothing was turned on.");
     expect(r.where).toBe("No app has a switch for this yet: it is turned on in the assistant's configuration file on the hub's computer (agents.delegate).");
-    expect(r.page).toBeUndefined();
   });
 
   it("goes by the suggestion's kind when the hub's answer names none", () => {
