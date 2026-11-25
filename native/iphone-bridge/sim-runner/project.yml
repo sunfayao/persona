@@ -1,5 +1,5 @@
 # The simulator backend's test runner (docs/extensions/iphone-bridge.md "Simulator backend"): a UI-test bundle
-# that serves the bridge on 127.0.0.1. Self-contained: not part of apple/project.yml or CI, built only by
+# that serves the bridge on 127.0.0.1. Self-contained: not part of any other project or CI, built only by
 # native/iphone-bridge/build.sh --sim-runner, for the simulator only, without signing or a team.
 name: PersonaSimRunner
 options:

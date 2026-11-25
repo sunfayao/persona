@@ -1,7 +1,7 @@
 //! The simulator backend, for development and testing: the same operations on an iOS simulator on this
 //! computer, through `xcrun simctl`, so everything above the bridge can run end to end without a phone.
 //!
-//! It never boots, shuts down or erases a simulator: booting is `scripts/app/sim-boot.sh`'s job. The
+//! It never boots, shuts down or erases a simulator: booting is `xcrun simctl boot`'s job. The
 //! accessibility tree and input go through the test runner (`runner.rs`, `sim-runner/`), started on first use
 //! (or with `serve`) and stopped with the bridge.
 
@@ -227,7 +227,7 @@ impl<R: Commands> SimDevice<R> {
             return Err(BridgeError::new(
                 Code::Unreachable,
                 format!(
-                    "simulator {} is {}; boot it with scripts/app/sim-boot.sh",
+                    "simulator {} is {}; boot it with xcrun simctl boot",
                     info.udid,
                     info.state.to_lowercase()
                 ),
@@ -858,7 +858,7 @@ mod tests {
             .err()
             .unwrap();
         assert_eq!(err.code, Code::Unreachable);
-        assert!(err.message.contains("sim-boot.sh"));
+        assert!(err.message.contains("simctl boot"));
 
         let fake = Fake::default().answer("xcrun simctl list devices", true, r#"{"devices":{}}"#, "");
         let err = SimDevice::connect(fake, &SimRecord { udid: UDID.into() }, UDID, no_runner())
