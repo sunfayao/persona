@@ -483,7 +483,7 @@ func (s *Service) savedPromptsSetting() ownSetting {
 				return "", err
 			}
 			if len(prompts) == 0 {
-				return "（无）", nil
+				return "（无）", nil // i18n-ignore: the settings tool's reply to the model, not shown to people
 			}
 			var b strings.Builder
 			for _, p := range prompts {
