@@ -151,7 +151,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(radios[0].querySelector("[data-menu-badge]")).toBeNull();
     expect(radios[2].textContent).toContain("离线 · 最后同步于");
     expect(row("测试").textContent).toContain("安装中 · 码 7 分钟后过期");
-    expect(rows().map((r) => r.textContent).filter((x) => x === "新建助手" || x === "管理助手…")).toEqual(["新建助手", "管理助手…"]);
+    expect(rows().map((r) => r.textContent).filter((x) => x === "新建助手")).toEqual(["新建助手"]);
   });
 
   it("leaves out the built-in assistant while it is hidden, still counting it, and goes back to the default from it (#9055)", async () => {
@@ -218,7 +218,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(document.body.textContent).toContain("mi_again");
   });
 
-  it("shows one assistant's identity and roster, with New and Manage but no default tag or counts", async () => {
+  it("shows one assistant's identity and roster, with New but no default tag or counts", async () => {
     setRoster({ default: "assistant", managers: [ROSTER.managers[0]] });
     await render();
     expect(head().textContent).toContain("助手");
@@ -238,7 +238,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(radios[0].textContent).toContain("助手");
     expect(radios[0].textContent).not.toContain("默认");
     expect(radios[0].querySelector("[data-menu-badge]")).toBeNull();
-    expect(rows().slice(1).map((r) => r.textContent)).toEqual(["新建助手", "管理助手…", "跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"]);
+    expect(rows().slice(1).map((r) => r.textContent)).toEqual(["新建助手", "跟随系统", "浅色", "深色", "设置", "断开这个浏览器…"]);
     await choose("设置");
     expect(navigate).toHaveBeenCalledWith({ name: "settings" });
   });
@@ -275,7 +275,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(row("测试").textContent).toContain("安装中");
     expect(document.body.querySelector("[data-menu-badge]")).toBeNull();
     expect(row("新建助手")).toBeDefined();
-    expect(row("管理助手…")).toBeDefined();
   });
 
   it("moves a mounted head from no roster to one, two and one assistant without a reload", async () => {
@@ -344,7 +343,7 @@ describe("the sidebar's assistant switcher", () => {
     await open();
     expect(document.body.querySelector<HTMLElement>("[role=menu]")!.style.width).toBe("220px");
     expect(menuHeader()).toBe("外观");
-    expect(rows().some((r) => r.textContent === "新建助手" || r.textContent === "管理助手…")).toBe(false);
+    expect(rows().some((r) => r.textContent === "新建助手")).toBe(false);
   });
 
   it("keeps identity and a one-row roster when two assistants become one", async () => {
@@ -451,7 +450,7 @@ describe("the sidebar's assistant switcher", () => {
     expect(head().querySelector("[data-assistant-avatar]")).toBeNull();
     expect(document.body.querySelector<HTMLElement>("[role=menu]")!.style.width).toBe("220px");
     expect(menuHeader()).toBe("外观");
-    expect(rows().some((r) => r.textContent === "新建助手" || r.textContent === "管理助手…")).toBe(false);
+    expect(rows().some((r) => r.textContent === "新建助手")).toBe(false);
   });
 
   it("shows a kept pick by the name the roster last gave it until the roster is read again", async () => {

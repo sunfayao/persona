@@ -1,7 +1,1 @@
-{
-  "via_connector": " · Follows connector",
-  "via_config": " · Follows settings",
-  "online": "Online",
-  "offline": "Offline",
-  "entry_rebind_hint": "Saving a changed address clears that entry's secret."
-}
+{}

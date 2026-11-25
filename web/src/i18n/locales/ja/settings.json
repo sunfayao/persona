@@ -117,7 +117,6 @@
   "from_zshrc": "aliasからインポート",
   "start_page_footer_synced": "すべてのデバイスに反映されます。",
   "start_page_footer_local": "このブラウザにのみ保存されます。このハブはまだほかのデバイス用に保存できません。",
-  "sidebar_pages_footer": "ドラッグまたは矢印で並べ替えます。ページのメニューで別のグループへ移せます。オフにしたページはサイドバー下部の「その他」に入り、そこから開けます。バッジも表示されます。拡張機能のページはサイドバーに最大{cap}つまで並び、それ以降は「その他」に入ります。常に表示したい場合はここでオンにしてください。",
   "builtin_title": "内蔵 {count}",
   "builtin_footer": "各コンピューターでそのまま実行する claude で、Claude Code 自身のログインとデフォルトのモデルを使います。開くと Persona で非表示にできます。",
   "builtin_row": "内蔵 {name} · {machine}",

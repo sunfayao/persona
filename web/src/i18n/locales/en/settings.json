@@ -120,7 +120,6 @@
   "from_zshrc": "Imported from an alias",
   "start_page_footer_synced": "All your devices follow.",
   "start_page_footer_local": "Saved in this browser only: this hub can't keep it for your other devices yet.",
-  "sidebar_pages_footer": "Drag, or use the arrows, to reorder; a page's menu moves it to another group. Pages switched off go under More at the bottom of the sidebar, still a click away, with their badges. The sidebar holds up to {cap} extension pages; more go under More until you switch them on here.",
   "builtin_title": "Built in {count}",
   "builtin_footer": "Plain claude on each computer, with Claude Code's own sign-in and default model. Open it to hide it in Persona.",
   "builtin_row": "Built-in {name} · {machine}",

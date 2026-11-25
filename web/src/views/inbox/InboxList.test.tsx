@@ -78,14 +78,14 @@ describe("收件箱：列表不会横向滚动", () => {
 });
 
 describe("收件箱：还没接入消息来源", () => {
-  it("an empty inbox with nothing connected says so and offers 邮箱, not 都处理完了", async () => {
+  it("an empty inbox with nothing connected says so, not 都处理完了", async () => {
     fail = false;
     mailAccounts = [];
     act(() => root.render(<InboxList />));
     await flush();
     const none = host.querySelector("[data-inbox-no-sources]");
     expect(none?.textContent).toContain("还没接入消息来源");
-    expect([...none!.querySelectorAll("button")].map((b) => b.textContent?.trim())).toContain("接入邮箱");
+    expect(none!.querySelectorAll("button")).toHaveLength(0);
     expect(host.textContent).not.toContain("都处理完了");
   });
 });

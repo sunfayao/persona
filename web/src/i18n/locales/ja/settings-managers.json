@@ -41,7 +41,6 @@
   "offline_page_title": "{name} はオフラインです",
   "offline_page_body": "最終同期 {time}。オンラインに戻ると更新されます。",
   "offline_page_body_never": "オンラインに戻ると更新されます。",
-  "delete_machines": "このアシスタントの {count} 台のコンピューターは hub 自身のアシスタントに戻ります。",
   "move_to": "移動…",
   "move_title": "移動先のアシスタント",
   "moved": "「{name}」に移動しました",

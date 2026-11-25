@@ -1,8 +1,1 @@
-{
-  "package_downloads": "扩展包下载 {downloads} 次",
-  "via_connector": " · 跟着连接器",
-  "via_config": " · 跟着扩展设置",
-  "online": "在线",
-  "offline": "离线",
-  "entry_rebind_hint": "保存更改后的地址会清除该条目的密钥。"
-}
+{}

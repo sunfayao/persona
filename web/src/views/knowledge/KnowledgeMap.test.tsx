@@ -94,12 +94,12 @@ describe("the knowledge map", () => {
     expect(host.textContent).not.toContain("Open Settings");
   });
 
-  it("says where to turn curation on when it is off", async () => {
+  it("says curation is off", async () => {
     act(() => root.render(<KnowledgeMap onToggleSidebar={() => {}} />));
     await answer("/api/v1/kb/topics", empty);
     await answer("/api/v1/assistant", { kb_topics: false });
     expect(host.textContent).toContain("Knowledge points are off");
-    expect(host.textContent).toContain("Open Settings");
+    expect(host.textContent).not.toContain("Open Settings");
   });
 
   it("draws the topics and opens a point in the panel", async () => {

@@ -263,14 +263,10 @@ describe("catalogs", () => {
     }
   });
 
-  it("explains the purpose of the Chinese Lark display settings title", () => {
-    expect(source["settings-larkdisplay"].title).toContain("消息显示");
-  });
-
   // A file in this repository means nothing to someone using the app and is nowhere they can open it (#3597): say what
   // to do or link to the page. The ones still left may only go away.
   it("names no file of the repository's docs", () => {
-    const LEFT = new Set(["admin-pages-usage.url_hint_generic", "settings-connectors.lark_footer_unconfigured"]);
+    const LEFT = new Set(["admin-pages-usage.url_hint_generic"]);
     const found: string[] = [];
     for (const [ns, cat] of Object.entries(source)) {
       for (const k of Object.keys(cat)) {

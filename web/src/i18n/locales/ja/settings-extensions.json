@@ -1,8 +1,1 @@
-{
-  "package_downloads": "パッケージのダウンロード {downloads} 回",
-  "via_connector": " · コネクタに連動",
-  "via_config": " · 設定に連動",
-  "online": "オンライン",
-  "offline": "オフライン",
-  "entry_rebind_hint": "変更したアドレスを保存すると、その項目のシークレットは消去されます。"
-}
+{}

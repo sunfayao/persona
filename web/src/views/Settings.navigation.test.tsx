@@ -24,7 +24,7 @@ vi.mock("./settings/ModelConfiguration", () => ({
 vi.mock("../lib/pwa", async (original) => ({ ...(await original<typeof import("../lib/pwa")>()), useInstall: () => "installed" }));
 vi.mock("../lib/api", async (original) => ({ ...(await original<typeof import("../lib/api")>()), api: () => Promise.resolve({ launchers: [], tokens: [] }) }));
 
-import { initI18n, t } from "../i18n";
+import { t } from "../i18n";
 import { Settings } from "./Settings";
 import { FROM_LIST } from "./settings/nav";
 
@@ -32,19 +32,17 @@ import { FROM_LIST } from "./settings/nav";
 let host: HTMLDivElement;
 let root: Root;
 
-beforeEach(async () => {
-  await initI18n("en");
+beforeEach(() => {
   viewport.phone = false;
   localStorage.clear();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
 });
-afterEach(async () => {
+afterEach(() => {
   act(() => root.unmount());
   host.remove();
   vi.restoreAllMocks();
-  await initI18n("zh-Hans");
 });
 const mount = async (url: string) => {
   history.replaceState(null, "", url);

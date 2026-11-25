@@ -41,7 +41,6 @@
   "offline_page_title": "{name} 离线",
   "offline_page_body": "最后同步于 {time}。它上线后这里会更新。",
   "offline_page_body_never": "它上线后这里会更新。",
-  "delete_machines": "它的 {count} 台电脑会回到 hub 自己的助手。",
   "move_to": "移到…",
   "move_title": "移到哪个助手",
   "moved": "已移到「{name}」",
