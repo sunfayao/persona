@@ -231,7 +231,7 @@ func TestModelTiersSetting(t *testing.T) {
 // agent_start resolves its tier before the card, which says what the agent runs on (Model Settings' Agents laid over a
 // tier that leaves the model to it, as the start does); an unknown tier asks nothing.
 func TestAgentStartCardShowsTheTier(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 	putTierProfiles(t, s, "economy", map[string]ModelTier{"review": {Launcher: "claude", Model: "gw/model-x", Effort: "high"}, "plain": {Launcher: "claude"}}, nil)

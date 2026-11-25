@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// A track's SPACE.md, read and written on the assistant's machine (#13472, docs/assistant/health.md "Tracks and
+// A track's SPACE.md, read and written on the assistant's machine (#13472, docs/assistant/tracks.md "Tracks and
 // kinds"): the apps read it and the user writes the part that is theirs (GET / PUT
 // /api/v1/assistant/tracks/{slug}/space-md); the track's own conversations replace the state block Persona keeps
 // (space_state_update, offered to them only). The node does both (assistant.space_md, nodeproto.TrackSpaceMD): it
@@ -56,7 +56,7 @@ func (s *Service) spaceMD(ctx context.Context, slug string, c assistantwire.Spac
 		return assistantwire.SpaceMD{}, "", http.StatusServiceUnavailable, errSpaceMDNode
 	}
 	if !s.trackSpaceMDNode(machine) {
-		return assistantwire.SpaceMD{}, "", http.StatusServiceUnavailable, i18n.Err("assistant-health.node_no_track_spaces", i18n.Args{"machine": s.machineName(machine)})
+		return assistantwire.SpaceMD{}, "", http.StatusServiceUnavailable, i18n.Err("assistant-spaces.node_no_track_spaces", i18n.Args{"machine": s.machineName(machine)})
 	}
 	c.Dir, c.Slug = trackRel(e), e.Slug
 	var out assistantwire.SpaceMD
@@ -155,14 +155,13 @@ func (s *Service) trackSpaceMDPut(w http.ResponseWriter, r *http.Request) {
 }
 
 // spaceTools are the tools conversation session on machine gets for being in a space track (spaceTrack): the one
-// that replaces its SPACE.md's state block. None for any other conversation, the main chat's and the health space's
-// included, so their lists stay as they were.
+// that replaces its SPACE.md's state block. None for any other conversation, the main chat's included, so its list stays as it was.
 func (s *Service) spaceTools(ctx context.Context, machine, session string) []proto.Tool {
 	if session == "" || !s.sameMachine(machine, s.settings(ctx).MachineID) {
 		return nil
 	}
 	space, ok := s.selfSpace(ctx, session)
-	if !ok || space == "" || space == SpaceHealth {
+	if !ok || space == "" {
 		return nil
 	}
 	if _, ok := s.spaceTrack(ctx, space); !ok {

@@ -1249,7 +1249,7 @@ func (s *Service) assistantConversation(ctx context.Context, id string) (proto.S
 }
 
 // spaceConversation is assistantConversation among the conversations of one space only (in == nil: any): a
-// conversation's tools reach only the conversations of its own space (docs/assistant/health.md "How directories and memory are isolated").
+// conversation's tools reach only the conversations of its own space (docs/assistant/tracks.md "How directories and memory are isolated").
 func (s *Service) spaceConversation(ctx context.Context, id string, in *string) (proto.Session, error) {
 	list, err := s.sessions(ctx, s.settings(ctx).MachineID)
 	if errors.Is(err, ErrNoDevice) {

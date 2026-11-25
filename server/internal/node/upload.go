@@ -16,7 +16,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -549,40 +548,18 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// healthReportsDir is where the health space's reports go (dest=health): reports/ in the health directory, kept for
-// good. The health conversations run there; the others are denied the directory (healthdeny.go).
-func healthReportsDir(home string) string {
-	return filepath.Join(identity.HealthDir(home), "reports")
-}
-
-// healthReportsDirOf is healthReportsDir for the health space named space: "" the built-in manager's (as ever),
-// another manager's health-<id> beside it (identity.HealthDirName); any other name is refused, "health" too (the
-// built-in's is named by leaving it out).
-func healthReportsDirOf(home, space string) (string, error) {
-	if space == "" {
-		return healthReportsDir(home), nil
-	}
-	if space == identity.SpaceHealth || !identity.IsManagerDirName(space, identity.SpaceHealth) {
-		return "", fmt.Errorf("bad health space %q", space)
-	}
-	return filepath.Join(filepath.Dir(identity.HealthDir(home)), space, "reports"), nil
-}
-
 // uploadCall serves the file.upload.* methods.
 func (n *Node) uploadCall(method string, params json.RawMessage) (any, error) {
 	var p struct {
 		UploadID string `json:"upload_id"`
 		Name     string `json:"name"`
-		Dest     string `json:"dest"` // "terminal": a paste into a terminal (terminalUploadDir); "file": a task's file for its conversation (fileUploadDir); "health": a report (healthReportsDir); "dir": Dir; "inbox": the receive folder; "attachment": a chat attachment kept (attachmentDir); "" the temp directory
-		// HealthDir: dest=health, the manager's health space ("health-<id>"; "": the built-in's), echoed back so the hub
-		// can tell a node that does not know it (and would put the report in the built-in's).
-		HealthDir string `json:"health_dir"`
-		Dir       string `json:"dir"`      // dest=dir: the folder, ~/ or relative to Cwd; dest=inbox: the receive folder ("": the default)
-		Cwd       string `json:"cwd"`      // dest=dir
-		Conflict  string `json:"conflict"` // dest=dir: proto.UploadConflict*
-		Size      int64  `json:"size"`
-		Offset    int64  `json:"offset"`
-		Data      []byte `json:"data"` // base64 in JSON
+		Dest     string `json:"dest"`     // "terminal": a paste into a terminal (terminalUploadDir); "file": a task's file for its conversation (fileUploadDir); "dir": Dir; "inbox": the receive folder; "attachment": a chat attachment kept (attachmentDir); "" the temp directory
+		Dir      string `json:"dir"`      // dest=dir: the folder, ~/ or relative to Cwd; dest=inbox: the receive folder ("": the default)
+		Cwd      string `json:"cwd"`      // dest=dir
+		Conflict string `json:"conflict"` // dest=dir: proto.UploadConflict*
+		Size     int64  `json:"size"`
+		Offset   int64  `json:"offset"`
+		Data     []byte `json:"data"` // base64 in JSON
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, fmt.Errorf("bad params: %w", err)
@@ -604,13 +581,6 @@ func (n *Node) uploadCall(method string, params json.RawMessage) (any, error) {
 			if err = os.MkdirAll(dir, 0o700); err == nil {
 				id, err = n.ups.beginIn(dir, p.Name, p.Size, proto.MaxFileUploadBytes, true)
 			}
-		case proto.UploadDestHealth:
-			var dir string
-			if dir, err = healthReportsDirOf(n.home, p.HealthDir); err == nil {
-				if err = os.MkdirAll(dir, 0o700); err == nil {
-					id, err = n.ups.beginIn(dir, p.Name, p.Size, proto.MaxUploadBytes, false)
-				}
-			}
 		case proto.UploadDestDir:
 			id, err = n.beginInto(p.Dir, p.Cwd, p.Name, p.Conflict, p.Size, proto.MaxDirUploadBytes)
 		case proto.UploadDestInbox:
@@ -626,9 +596,6 @@ func (n *Node) uploadCall(method string, params json.RawMessage) (any, error) {
 		res := map[string]any{"upload_id": id, "chunk_bytes": proto.UploadChunkBytes}
 		if p.Dest == proto.UploadDestDir || p.Dest == proto.UploadDestInbox || p.Dest == proto.UploadDestFile || p.Dest == proto.UploadDestAttachment {
 			res["dest"] = p.Dest // the hub checks it: a node from before dest=dir would quietly use the temp directory
-		}
-		if p.Dest == proto.UploadDestHealth && p.HealthDir != "" {
-			res["health_dir"] = p.HealthDir // the same for another manager's health space
 		}
 		return res, nil
 	case methodFileUploadChunk:

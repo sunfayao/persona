@@ -18,7 +18,7 @@ func assistantWorkspace(m Device, cwd string) bool {
 	if identity.ValidTrackSlug(name) && identity.IsManagerDirName(path.Base(path.Dir(clean)), "tracks") {
 		return m.DataDir != "" && path.Dir(path.Dir(clean)) == data // a track's directory (tracks/<slug>, #13472)
 	}
-	if !identity.IsManagerDirName(name, "assistant") && !identity.IsManagerDirName(name, identity.SpaceHealth) {
+	if !identity.IsManagerDirName(name, "assistant") {
 		return false
 	}
 	return m.DataDir != "" && path.Dir(clean) == data

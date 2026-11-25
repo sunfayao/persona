@@ -7,7 +7,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// How loud a track may be (#13472, docs/assistant/health.md "Tracks and kinds"): a push from a track's conversation
+// How loud a track may be (#13472, docs/assistant/tracks.md "Tracks and kinds"): a push from a track's conversation
 // that is not a card (notify_user, a turn's finished push) carries at most its track's push_cap (attention.push_cap
 // of its effective config). The manager settles the level before the hub gets the push, so the hub needs nothing new.
 // A card (a question, an approval, a decision) keeps its own level: what needs the owner is never held back by it.

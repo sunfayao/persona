@@ -79,7 +79,7 @@ forgotten. So a stopped session carries `awaits_reply` (`state` is unchanged; ol
   after a deploy); at worst one that was about to be reminded is not. A question is its turn end and its words: the same words
   with a moved `updated_at` (a line written after the turn) are not reminded of again, unless the agent worked in between (any turn start drops the mark).
   Turned off and on again, the reminders prime each machine again; until the seen times are read back after a restart
-  nothing is reminded of. Agents in the health space are never reminded of (their questions are not for the lock screen). The reminder is laid out as a finished
+  nothing is reminded of. Agents in a track are never reminded of (their questions are not for the lock screen). The reminder is laid out as a finished
   turn's push but is no `agent.finished` to extensions; on the WebSocket it is a `reply` notify (Android files it with the
   finished ones and puts it away when the session is seen). A reminder the hub refuses (one that is behind) is tried again
   the next minute. It reads the lists as last told to the hub, not decorating them again. The switch is in Settings › Session Triage (`reply_reminder`, `reply_reminder_minutes` in `agents.triage`):

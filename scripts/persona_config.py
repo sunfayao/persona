@@ -163,7 +163,7 @@ def provisioning_profiles(cfg: dict) -> dict[str, str]:
 
 
 # The app's entitlements. The opt-in ones need the capability on the App ID first (CarPlay voice: Apple's approval,
-# docs/apple/carplay.md; HealthKit background delivery, docs/assistant/health.md; HomeKit, docs/apple/phone-tools.md "Home";
+# docs/apple/carplay.md; HealthKit background delivery, docs/assistant/tracks.md; HomeKit, docs/apple/phone-tools.md "Home";
 # Siri calls, SIRIKIT, docs/operations/release.md "Siri calls"); the generated copy sits in apple/,
 # outside the Persona/ source folder, so XcodeGen does not pick it up as a resource.
 APP_ENTITLEMENTS = os.path.join("Persona", "Resources", "Persona.entitlements")

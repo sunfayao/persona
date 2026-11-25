@@ -32,8 +32,8 @@ const (
 // scopeSession is a session of the owner's, idle.
 func scopeSession(id, title, cwd string) proto.Session {
 	c := proto.Session{SessionID: id, Title: title, Cwd: cwd, Status: proto.StatusIdle, State: proto.StateIdle}
-	if identity.InHealthSpace(cwd) {
-		c.Space = SpaceHealth
+	if identity.SpaceAt(cwd) != "" {
+		c.Space = testSpace
 	}
 	return c
 }
@@ -41,7 +41,7 @@ func scopeSession(id, title, cwd string) proto.Session {
 // scopeListed are the sessions server lists: the main conversation conv1, a health conversation h0, a health run h1
 // whose last reply is scopeReply, a health run h3 in the Journal workspace and a run s1 outside the space.
 func scopeListed() []proto.Session {
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	main, h0 := scopeSession("conv1", "Persona", ""), scopeSession("h0", "Health", health)
 	main.Assistant, h0.Assistant = true, true
 	h1, journal := scopeSession("h1", "Sleep log", health), scopeSession("h3", "Journal notes", health)
@@ -80,7 +80,7 @@ func TestTodoRowsToAnExtension(t *testing.T) {
 		"Compared the sleep diary with the new dose"
 	const clinic, notes, asked = "Book the sleep clinic for the insomnia", "Bring the sleep diary and the new dose",
 		"I can't sleep since the new dose, please book the clinic"
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	todoStores(t, func(t *testing.T, e *todoEnv, database *db.DB) {
 		ctx := context.Background()
 		// Universal-main supervision requires the fixture's supervisor to be the actual main conversation (#5732).
@@ -336,7 +336,7 @@ func TestTodoListToAnExtensionReadsEachComputerOnce(t *testing.T) {
 // and closing it, which would read its run's last reply as its outcome, is refused. Writes to a to-do outside the
 // space answer as a device's.
 func TestTodoWritesOfAnExtensionToAHiddenTodo(t *testing.T) {
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	todoStores(t, func(t *testing.T, e *todoEnv, database *db.DB) {
 		e.sessions("server", scopeListed()...)
 		hidden := e.create("Log the week").ID

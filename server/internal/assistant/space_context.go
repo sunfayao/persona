@@ -10,7 +10,7 @@ import (
 )
 
 // A conversation in a track other than the main space (a domain space, the health space) gets a short context of its
-// own with each message instead of the main chat's snapshot (#13499, docs/assistant/health.md "Tracks and kinds"):
+// own with each message instead of the main chat's snapshot (#13499, docs/assistant/tracks.md "Tracks and kinds"):
 // the time, the track and the owner's language. What the snapshot tells (Agents, computers, unread Lark chats, tasks,
 // the knowledge base) is the main chat's work, and a track's conversation neither acts on it nor should see it.
 
@@ -55,18 +55,16 @@ func (s *Service) contextTrack(ctx context.Context, p ContextParams, background 
 // conversation's, and a track of the orchestration kind has no leaders of its own yet.
 func (s *Service) spaceContext(ctx context.Context, slug string) string {
 	title := slug
-	health := false
 	if e, ok := s.trackEntryOf(ctx, slug); ok {
 		if e.Config.Context == "none" {
 			return ""
 		}
-		title, health = e.Title, e.Title == "" && slug == SpaceHealth
-		if title == "" {
+		if title = e.Title; title == "" {
 			title = slug
 		}
 	}
 	hello := s.hello(ctx)
-	c := prompts.SpaceContext{Now: time.Now().In(s.location(ctx)), Health: health, Language: answerLanguage(hello.Locale),
+	c := prompts.SpaceContext{Now: time.Now().In(s.location(ctx)), Language: answerLanguage(hello.Locale),
 		Title: textfmt.Cut(oneLine(title), trackTitleMax), Owner: textfmt.Cut(oneLine(hello.Owner), spaceOwnerMax)}
 	c.Zone = c.Now.Location().String()
 	return textfmt.Cut(prompts.RenderSpaceContext(c), spaceContextMax)

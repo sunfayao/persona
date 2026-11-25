@@ -58,7 +58,6 @@ type Task struct {
 	// runGrantBasis belongs only to the model/task snapshot consumed by this run, never the stored task.
 	runGrantBasis string
 
-	WorkoutID        string `json:"workout_id,omitempty"`
 	ID               string `json:"id"`
 	Title            string `json:"title"`
 	Prompt           string `json:"prompt"`
@@ -120,7 +119,7 @@ type Task struct {
 	ModelRevision  int64  `json:"model_revision,omitempty"`
 	PermissionMode string `json:"permission_mode,omitempty"`
 	Effort         string `json:"effort,omitempty"`
-	// Space is the space of the conversation that set it up (e.g. "health", docs/assistant/health.md): a run that starts a conversation
+	// Space is the space of the conversation that set it up (e.g. "health", docs/assistant/tracks.md): a run that starts a conversation
 	// starts it there. "" is the assistant's own.
 	Space string `json:"space,omitempty"`
 	// StartGrant: the owner let this schedule's own rounds start some kinds of task without the plan card (#8045,
@@ -1140,10 +1139,6 @@ func (s *Service) deleteTaskFrom(ctx context.Context, id, sessionID string) (boo
 	}
 	i := sc.indexLocked(id)
 	if i >= 0 {
-		if err := s.keepWorkoutReceipt(ctx, sc.tasks[i]); err != nil {
-			sc.mu.Unlock()
-			return false, err
-		}
 		tasks := slices.Delete(slices.Clone(sc.tasks), i, i+1)
 		if err := s.saveLocked(sc, tasks); err != nil {
 			sc.mu.Unlock()
@@ -1179,7 +1174,7 @@ func (sc *schedule) noteDeletionLocked(id, sessionID string, now time.Time) {
 }
 
 // describeSchedule lists the tasks of space ("" the assistant's own, or a registered space): a conversation sees and changes only
-// its own space's (docs/assistant/health.md).
+// its own space's (docs/assistant/tracks.md).
 func (s *Service) describeSchedule(ctx context.Context, space string) string {
 	loc := s.location(ctx)
 	now := time.Now()
@@ -1266,7 +1261,7 @@ func (s *Service) toolScheduleRoutine(ctx context.Context, machine, self string,
 	if a.Cron != "" && (a.Time != "" || a.Weekdays != nil) {
 		return "", errors.New("cron replaces time and weekdays: give either cron, or time (and weekdays)")
 	}
-	space, _ := s.selfSpace(ctx, self) // a new routine runs in the space it was asked from (docs/assistant/health.md)
+	space, _ := s.selfSpace(ctx, self) // a new routine runs in the space it was asked from (docs/assistant/tracks.md)
 	var push *string
 	if a.Push != nil {
 		p, err := pushArg(*a.Push)
@@ -1823,7 +1818,7 @@ func (s *Service) runDue(ctx context.Context, now time.Time) {
 	// A one-off that ran a day ago is only history now.
 	kept := tasks[:0:0]
 	for _, t := range tasks {
-		if t.done() && now.Sub(t.LastRun) > doneKeep && s.keepWorkoutReceipt(ctx, t) == nil {
+		if t.done() && now.Sub(t.LastRun) > doneKeep {
 			changed = true
 			continue
 		}

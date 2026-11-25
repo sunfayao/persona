@@ -27,14 +27,14 @@ func (d spaceDevs) NodeAnnounced(_, capability string) bool {
 // no directory of their own here: one elsewhere, an archived one, one with another template.
 func spaceTrackService(t *testing.T) (*Service, *fakeHub) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	f.devices[0].Online = true
 	gone := time.Unix(1_800_000_000, 0)
 	st := &trackKindMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{
 		{Slug: "qa-plain", Kind: trackKindSpace, Title: "QA plain", Template: trackTemplateSpace, Revision: 1},
 		{Slug: "qa-elsewhere", Kind: trackKindSpace, Title: "QA elsewhere", Template: trackTemplateSpace, DirName: "kept/elsewhere", Revision: 1},
 		{Slug: "qa-gone", Kind: trackKindSpace, Title: "QA gone", Template: trackTemplateSpace, ArchivedAt: &gone, Revision: 1},
-		{Slug: "qa-health-like", Kind: trackKindSpace, Title: "QA health-like", Template: trackTemplateHealth, Revision: 1},
+		{Slug: "qa-health-like", Kind: trackKindSpace, Title: "QA health-like", Template: "health", Revision: 1},
 	}}}
 	s := newServiceOn(t, f, st)
 	setSettings(t, s, func(v *Settings) { v.MachineID = "server" })
@@ -62,8 +62,8 @@ func TestSpaceTrackPrepare(t *testing.T) {
 			t.Errorf("%s: prepared", slug)
 		}
 	}
-	if got := s.spaceCwd(ctx, d, SpaceHealth); got != "/home/me/.persona/health" {
-		t.Errorf("health's directory = %q", got)
+	if got := s.spaceCwd(ctx, d, testSpace); got != "" {
+		t.Errorf("a track this registry does not know: directory %q, want none", got)
 	}
 
 	// A node that does not keep track directories is not asked.
@@ -71,8 +71,8 @@ func TestSpaceTrackPrepare(t *testing.T) {
 		t.Fatalf("an older node: %v, %d prepared", err, len(f.prepared))
 	}
 	s.refreshInstructions(ctx)
-	if len(f.prepared) != 2 {
-		t.Fatalf("an older node's refresh: %d prepared, want the assistant's and health's", len(f.prepared))
+	if len(f.prepared) != 1 {
+		t.Fatalf("an older node's refresh: %d prepared, want the assistant's", len(f.prepared))
 	}
 
 	s.devs = spaceDevs{fleetDevs: newFleetDevs()}
@@ -105,12 +105,12 @@ func TestSpaceTrackPrepare(t *testing.T) {
 	for _, p := range f.prepared {
 		dirs = append(dirs, p["dir"].(string))
 	}
-	// The assistant's and health's are written once, the track's node asked both times.
-	if strings.Join(dirs, " ") != s.assistantRel()+" "+s.healthRel()+" "+trackDir+" "+trackDir {
+	// The assistant's is written once, the track's node asked both times.
+	if strings.Join(dirs, " ") != s.assistantRel()+" "+trackDir+" "+trackDir {
 		t.Errorf("refreshed: %v", dirs)
 	}
-	if _, ok := f.prepared[1]["space"]; ok {
-		t.Error("the health space is prepared as a track")
+	if _, ok := f.prepared[0]["space"]; ok {
+		t.Error("the assistant's own directory is prepared as a track")
 	}
 }
 
@@ -118,7 +118,7 @@ func TestSpaceTrackPrepare(t *testing.T) {
 // without the owner's notes.
 func TestSpaceClaudeMDRules(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	e := trackEntry{Slug: "qa-plain", Kind: trackKindSpace, Title: "QA plain", Template: trackTemplateSpace, DirName: "tracks/qa-plain"}
 	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
@@ -143,7 +143,7 @@ func TestGoldenSpaceClaudeMD(t *testing.T) {
 	ctx := context.Background()
 	e := trackEntry{Slug: "qa-plain", Kind: trackKindSpace, Title: "Example space", Template: trackTemplateSpace, DirName: "tracks/qa-plain"}
 	for _, locale := range []string{"zh-Hans", "en", "ja"} {
-		f := healthHub()
+		f := spaceHub()
 		f.hello.Owner = "Example user"
 		f.hello.OwnerNotes = "I run every day."
 		f.hello.Locale = locale

@@ -105,21 +105,6 @@ func RenderAssistantClaudeMD(d AssistantClaudeMD) string { return render("assist
 // RenderSupervisionInstructions is identical for every authorized supervisor and event.
 func RenderSupervisionInstructions() string { return render("assistant/supervision_instructions", nil) }
 
-// AssistantHealthClaudeMD is the health space's CLAUDE.md (docs/assistant/health.md).
-type AssistantHealthClaudeMD struct {
-	Owner    string // "" is "user"
-	Notes    string // Settings › Assistant › About me, trimmed
-	StateDir string
-	// HealthDir is the health space's directory name in StateDir: "" is the built-in manager's "health", another's
-	// "health-<id>" (identity.HealthDirName).
-	HealthDir string
-	Language  string
-}
-
-func RenderAssistantHealthClaudeMD(d AssistantHealthClaudeMD) string {
-	return render("assistant/health_claude_md", d)
-}
-
 // AssistantGuestClaudeMD is a guest conversation's CLAUDE.md (docs/assistant/assistant.md ("Guest conversations")).
 type AssistantGuestClaudeMD struct {
 	Owner    string // An empty name uses the generic user label.
@@ -1373,9 +1358,6 @@ type WorkspaceSession struct {
 func RenderWorkspaceMention(w WorkspaceMention) string {
 	return render("assistant/workspace_mention", w)
 }
-
-// RenderWorkoutReport describes one consented workout, never a medical diagnosis.
-func RenderWorkoutReport(data string) string { return render("assistant/workout_report", data) }
 
 // SuperviseCloseout is an agent's own closeout as a supervision message shows it: its claim, to be checked.
 type SuperviseCloseout struct {

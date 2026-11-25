@@ -54,10 +54,10 @@ func (st *trustMemStore) ForgetExtensionTrust(_ context.Context, ext string) err
 // that keeps extension trusts and information categories.
 func trustService(t *testing.T) (*Service, *trustMemStore) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	f.sessions["server"] = []proto.Session{
 		{MachineID: "server", SessionID: "main-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "Persona", UpdatedAt: convDay.Add(5 * time.Hour)},
-		{MachineID: "server", SessionID: "slee-0000-0000", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth, UpdatedAt: convDay.Add(4 * time.Hour)},
+		{MachineID: "server", SessionID: "slee-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace, UpdatedAt: convDay.Add(4 * time.Hour)},
 	}
 	st := &trustMemStore{infoCategoryMemStore: &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}}}}
 	s := newServiceOn(t, f, st)
@@ -124,10 +124,10 @@ func TestExtensionTrustDecidesReads(t *testing.T) {
 	}
 
 	// Other reads follow the same grant: the health space's memory is the owner's to read, not a third party's.
-	if !s.extensionHides(s.withExtensionReader(ctx, "qa-third"), SpaceHealth) || s.extensionHides(s.withExtensionReader(ctx, "qa-memory"), SpaceHealth) {
+	if !s.extensionHides(s.withExtensionReader(ctx, "qa-third"), testSpace) || s.extensionHides(s.withExtensionReader(ctx, "qa-memory"), testSpace) {
 		t.Fatal("extensionHides does not follow the grant")
 	}
-	if !s.extensionHides(ctx, SpaceHealth) || s.extensionHides(ctx, "") {
+	if !s.extensionHides(ctx, testSpace) || s.extensionHides(ctx, "") {
 		t.Fatal("a read with no extension named is not a third party's with no grant")
 	}
 
@@ -136,7 +136,7 @@ func TestExtensionTrustDecidesReads(t *testing.T) {
 	if err := askConversations(t, s, assistantwire.MethodExtensionTrustForget, `{"extension":"qa-memory"}`, &none); err != nil {
 		t.Fatal(err)
 	}
-	if _, kept := st.trusts["qa-memory"]; kept || !s.extensionHides(s.withExtensionReader(ctx, "qa-memory"), SpaceHealth) {
+	if _, kept := st.trusts["qa-memory"]; kept || !s.extensionHides(s.withExtensionReader(ctx, "qa-memory"), testSpace) {
 		t.Fatal("a removed extension is still the user's own")
 	}
 }

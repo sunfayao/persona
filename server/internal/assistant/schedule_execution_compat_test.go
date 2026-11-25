@@ -61,7 +61,7 @@ func TestTaskExecutionStrictContextsRefuseAnOlderNode(t *testing.T) {
 			case "effort":
 				setModel(t, s, "task.job", ModelBinding{Provider: "launcher.claude", Effort: "low"})
 			case "health":
-				task.Space = SpaceHealth
+				task.Space = testSpace
 			case "strict snapshot":
 				f.known["own"] = true
 				task.RunSessionID, task.RunMachineID, task.RunLauncher = "own", "server", "claude"

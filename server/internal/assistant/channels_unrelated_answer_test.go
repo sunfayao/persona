@@ -236,7 +236,7 @@ func TestUnrelatedChannelEndPreservesMirrorScope(t *testing.T) {
 				s.chans.mu.Unlock()
 			case "health":
 				f.setSessions("server", proto.Session{SessionID: "s1", Assistant: true, Status: proto.StatusDone,
-					Cwd: "/home/example/.persona/health", LastText: "The new answer"})
+					Cwd: "/home/example/.persona/tracks/qa-private", LastText: "The new answer"})
 			case "ordinary non-main conversation":
 				setSettings(t, s, func(v *Settings) { v.Main = "another-main" })
 			}

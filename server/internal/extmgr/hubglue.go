@@ -102,7 +102,7 @@ func (h *Manager) assistantToolsNow() []proto.Tool {
 
 // inSpace: an assistant conversation working in cwd is in a space (any space: this side does not read the manager's
 // registry, and asking more is the safe answer). What it says leaves the space only with
-// the user knowing (docs/assistant/health.md "Outbound"): its writes are confirmed on the phone each time, whatever the gate rules
+// the user knowing (docs/assistant/tracks.md "Outbound"): its writes are confirmed on the phone each time, whatever the gate rules
 // allow. A directory inside the space counts too (identity.InSpace, #2368): this can only ask more.
 func inSpace(cwd string) bool { return cwd != "" && identity.InSpace(cwd) }
 

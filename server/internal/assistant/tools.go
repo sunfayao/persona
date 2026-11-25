@@ -140,14 +140,11 @@ func (s *Service) appTool(ctx context.Context, app string, call ToolCall, args j
 }
 
 func (s *Service) runTool(ctx context.Context, machine, self, name string, args json.RawMessage) (string, error) {
-	// What is said in a space stays there (docs/assistant/health.md "How directories and memory are isolated"): a space
+	// What is said in a space stays there (docs/assistant/tracks.md "Tool isolation"): a space
 	// whose policy says so writes nothing to the knowledge base, nor changes or starts what is imported into it
 	// (kb_history_status only reads).
 	if name == "kb_update" || strings.HasPrefix(name, "kb_history_") && name != "kb_history_status" {
 		if space, _ := s.selfSpace(ctx, self); s.trackPolicy(ctx, space).NoKBWrite {
-			if space == SpaceHealth {
-				return "", errors.New("the health space doesn't write the knowledge base: health information stays in its conversations and memory")
-			}
 			return "", errors.New("this space doesn't write the knowledge base: what is said here stays in its conversations and memory")
 		}
 	}

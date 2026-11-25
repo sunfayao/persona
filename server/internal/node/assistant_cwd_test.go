@@ -62,7 +62,7 @@ func TestQuickMetaKeepsAnAssistantConversationWhereItStarted(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	home := t.TempDir()
 	assistant := filepath.Join(home, ".persona", "assistant")
-	health := filepath.Join(home, ".persona", "health")
+	health := filepath.Join(home, ".persona", "tracks", "qa-private")
 	skill := filepath.Join(assistant, ".claude", "skills", "x")
 	for i, c := range []struct{ name, start, later, want string }{
 		{"assistant into a skill's folder", assistant, skill, assistant},
@@ -70,7 +70,7 @@ func TestQuickMetaKeepsAnAssistantConversationWhereItStarted(t *testing.T) {
 		{"assistant out to the data directory", assistant, filepath.Join(home, ".persona", "data"), assistant},
 		{"health out to /tmp", health, "/tmp/x", health},
 		{"health subdirectory out to /tmp", filepath.Join(health, "reports"), "/tmp/x", filepath.Join(health, "reports")},
-		{"another manager's health subdirectory", filepath.Join(home, ".persona", "health-m-0b0b0b", "reports"), "/tmp/x", filepath.Join(home, ".persona", "health-m-0b0b0b", "reports")},
+		{"another manager's track subdirectory", filepath.Join(home, ".persona", "tracks-m-0b0b0b", "qa-private", "inbox"), "/tmp/x", filepath.Join(home, ".persona", "tracks-m-0b0b0b", "qa-private", "inbox")},
 		{"another manager's assistant", filepath.Join(home, ".persona", "assistant-m-0b0b0b"), "/tmp/x", filepath.Join(home, ".persona", "assistant-m-0b0b0b")},
 		{"an agent into a subfolder", "/work/app", "/work/app/web", "/work/app/web"},
 		{"an agent into the assistant's skills", "/work/app", skill, skill},
@@ -126,15 +126,11 @@ func TestMetaWithoutAHeadGoesByTheAssistantProject(t *testing.T) {
 		}
 		return n.meta(p, st)
 	}
-	assistant, health := identity.AssistantDir(n.home), identity.HealthDir(n.home)
+	assistant := identity.AssistantDir(n.home)
 	own := n.assistantProject()
 	p := write(own, "cccccccc-0000-0000-0000-000000000001", assistant, filepath.Join(assistant, ".claude", "skills", "x"))
 	if m := meta(p); m.start != "" || m.cwd != assistant {
 		t.Errorf("the assistant's project: start %q cwd %q, want no start and %q", m.start, m.cwd, assistant)
-	}
-	p = write(strings.TrimSuffix(own, "-assistant")+"-health", "cccccccc-0000-0000-0000-000000000002", health, filepath.Join(health, "reports"))
-	if m := meta(p); m.cwd != health {
-		t.Errorf("the health project: cwd %q, want %q", m.cwd, health)
 	}
 	p = write("-src-app", "cccccccc-0000-0000-0000-000000000003", "/src/app", "/src/app/web")
 	if m := meta(p); m.cwd != "/src/app/web" {
@@ -155,7 +151,7 @@ func TestMetaWithoutAHeadGoesByTheAssistantProject(t *testing.T) {
 func TestOfflineAssistantConversationIsListedWhereItStarted(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	n, _, home := herdrNode(t)
-	assistant, health := identity.AssistantDir(home), identity.HealthDir(home)
+	assistant, health := identity.AssistantDir(home), testSpaceDir(home)
 	skill := filepath.Join(assistant, ".claude", "skills", "x")
 	reports := filepath.Join(health, "reports")
 	for _, d := range []string{filepath.Join(skill, ".git"), reports} {
@@ -280,11 +276,11 @@ func TestStartRecordPlacesARowAtRest(t *testing.T) {
 		t.Errorf("a pane's row decorated: %q", s.Cwd)
 	}
 	const healthRun = "eeeeeeee-0000-0000-0000-000000000004"
-	healthWork := filepath.Join(n.home, ".persona", "health", "work")
+	healthWork := filepath.Join(n.home, ".persona", "tracks", "qa-private", "work")
 	n.state.Sessions[healthRun] = sessionState{Cwd: healthWork, Launcher: "claude", StartedAt: time.Now()}
 	s = proto.Session{SessionID: healthRun, Cwd: "/work/x", PaneID: "w1:p1"}
 	n.decorate(&s)
-	if s.Cwd != "/work/x" || s.Space != identity.SpaceHealth {
+	if s.Cwd != "/work/x" || s.Space != "qa-private" {
 		t.Errorf("health pane: cwd %q, space %q", s.Cwd, s.Space)
 	}
 	n.state.Sessions["eeeeeeee-0000-0000-0000-000000000003"] = sessionState{Cwd: "/work/app", Launcher: "claude", StartedAt: time.Now()}
@@ -362,7 +358,7 @@ func TestHookCardsArePlacedInTheConversationsDirectory(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	n := codexTestNode(t)
 	fh := withFakeHub(t, n)
-	assistant, health := identity.AssistantDir(n.home), identity.HealthDir(n.home)
+	assistant, health := identity.AssistantDir(n.home), testSpaceDir(n.home)
 	const healthSession, mainSession, agentSession = "11111111-0000-4000-8000-000000000001", "11111111-0000-4000-8000-000000000002", "11111111-0000-4000-8000-000000000003"
 	n.procs[healthSession] = &assistantProc{id: healthSession, agent: "claude", cwd: health, exited: make(chan struct{})}
 	n.procs[mainSession] = &assistantProc{id: mainSession, agent: "claude", cwd: assistant, exited: make(chan struct{})}
@@ -402,7 +398,7 @@ func TestCodexApprovalCardIsPlacedInTheConversationsDirectory(t *testing.T) {
 	n.mu.Lock()
 	n.larkCfg, n.larkCfgAt = olCfg(proto.LarkRule{Method: "POST", Path: "/conversations/7123/messages", Action: "allow"}), time.Now().Add(time.Hour)
 	n.mu.Unlock()
-	assistant, health := identity.AssistantDir(n.home), identity.HealthDir(n.home)
+	assistant, health := identity.AssistantDir(n.home), testSpaceDir(n.home)
 	skill := filepath.Join(assistant, ".claude", "skills", "x")
 	p, c, f := newFakeCodex(t, n, assistant)
 	p.id = testThread
@@ -433,12 +429,11 @@ func TestCodexApprovalCardIsPlacedInTheConversationsDirectory(t *testing.T) {
 	}
 }
 
-// A runtime's card or row in a folder of the health space is the health space's; the permission rules a process is
-// started with still take only the space's own directory (they assume it is that directory).
+// A runtime's card or row in a folder of a track is the track's.
 func TestHealthChecksCountItsSubfolders(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	home := t.TempDir()
-	health := filepath.Join(home, ".persona", "health")
+	health := filepath.Join(home, ".persona", "tracks", "qa-private")
 	reports := filepath.Join(health, "reports")
 	if !runtimeInSpace(&runtimeConn{}, proto.Interaction{SessionID: "r1", Cwd: reports}) {
 		t.Error("a runtime card from the health space's reports")
@@ -449,8 +444,5 @@ func TestHealthChecksCountItsSubfolders(t *testing.T) {
 	}
 	if runtimeInSpace(h, proto.Interaction{SessionID: "r2", Cwd: "/tmp/x"}) {
 		t.Error("a folder named health elsewhere is not the space")
-	}
-	if healthReportRules(reports) != nil || healthReportRules(health) == nil {
-		t.Error("the report rules take the health directory itself only")
 	}
 }

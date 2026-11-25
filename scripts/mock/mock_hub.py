@@ -340,7 +340,7 @@ if RESUME_TERMINAL:
                      "hostname": "Mini", "os": "darwin", "arch": "arm64", "home": "/Users/me", "claude_version": "2.1.320",
                      "last_seen": ago()})
 
-# ---------- workspaces (GET /api/v1/workspaces, docs/web/workspace-board.md) ----------
+# ---------- workspaces (GET /api/v1/workspaces) ----------
 # A few host spaces and session folders on the mock machines: what the assistant's @ menu lists (#5594). Placeholders.
 def mock_workspaces():
     rows = [("server", "herdr", "persona", "/home/me/code/persona", "master"), ("macbook", "herdr", "weather-app", "/Users/me/code/weather-app", "main"),
@@ -2279,7 +2279,7 @@ def mock_leaders_list():
     return {"leaders": out}
 
 
-# The health space (docs/assistant/health.md): its conversations run in a directory of their own and carry space "health"; they
+# The health space (docs/assistant/tracks.md): its conversations run in a directory of their own and carry space "health"; they
 # are listed by GET /api/v1/assistant?space=health only, and its memory is its own (?space=health).
 def health_sess(sid, title, minutes, last):
     return {**assistant_sess(sid, title, minutes, last), "cwd": "/home/me/.persona/health", "space": "health"}
@@ -2292,7 +2292,7 @@ ASSISTANT += [] if os.environ.get("MOCK_HEALTH_EMPTY") else [
     health_sess("hlth0003-0000-4000-8000-000000000003", "步数目标", 60 * 70, "最近 7 天平均 7,860 步，离每天 8,000 步差一点。"),
     health_sess("hlth0004-0000-4000-8000-000000000004", "今天吃了什么", 15, "今天吃了 1,830 kcal，还能吃 420 kcal。"),
 ]
-# The health space's reports/ (docs/assistant/health.md"Health reports"): originals with their records, an original not summarized yet,
+# The health space's reports/ (docs/assistant/tracks.md"Health reports"): originals with their records, an original not summarized yet,
 # a record alone (a photo sent in a conversation).
 HEALTH_REPORT_RECORD = "报告日期：2026-10-28\n机构：示例体检中心\n类型：年度体检\n\n| 项目 | 结果 | 单位 | 参考范围 | 异常 |\n| --- | --- | --- | --- | --- |\n| 总胆固醇 | 5.8 | mmol/L | < 5.2 | 偏高 |\n| 低密度脂蛋白 | 3.6 | mmol/L | < 3.4 | 偏高 |\n| 空腹血糖 | 5.1 | mmol/L | 3.9–6.1 | |\n\n结论：血脂略高，建议三个月后复查。\n"
 HEALTH_REPORTS_DIR = "/home/me/.persona/health/reports/"
@@ -17798,7 +17798,7 @@ if os.environ.get("MOCK_CARDS") == "1":
             "```persona-card\n{\"type\": \"stat\", \"title\": \"步\n```",
         ])),
     ]
-# The health space's conversations (docs/assistant/health.md "Charts", #3140): the numbers in each answer come with the charts its
+# The health space's conversations (docs/assistant/tracks.md "Charts", #3140): the numbers in each answer come with the charts its
 # CLAUDE.md asks for: sleep and steps by day as lines, a stat for today's steps, each meal's calories as bars, how the
 # day's calories split as a stacked bar, the details as a table. Made-up numbers.
 _hcard = lambda d: "```persona-card\n" + json.dumps(d, ensure_ascii=False) + "\n```"

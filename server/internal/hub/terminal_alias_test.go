@@ -17,7 +17,7 @@ func TestTerminalSubscribedByAbsorbedIDGetsFramesAndEnds(t *testing.T) {
 	h := newTestHub(t)
 	var mu sync.Mutex
 	watches := 0
-	boardNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
+	answerNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
 		if method == "terminal.watch" {
 			mu.Lock()
 			watches++
@@ -82,7 +82,7 @@ func TestTerminalSubscribedByAbsorbedIDGetsFramesAndEnds(t *testing.T) {
 // Input and unsubscribe by the absorbed id reach the relay the subscribe made.
 func TestTerminalUnsubscribeByAbsorbedIDDropsTheRelay(t *testing.T) {
 	h := newTestHub(t)
-	boardNode(t, h, "canonical", func(context.Context, string, json.RawMessage) (any, error) {
+	answerNode(t, h, "canonical", func(context.Context, string, json.RawMessage) (any, error) {
 		return map[string]any{"control": false}, nil
 	})
 	h.devices.absorbed = map[string]string{"alias": "canonical"}
@@ -101,7 +101,7 @@ func TestTerminalUnsubscribeByAbsorbedIDDropsTheRelay(t *testing.T) {
 // drives it by the alias hears its control state under the alias; and closing one page leaves the other watching.
 func TestTerminalOneAppByBothIDsKeepsEachPage(t *testing.T) {
 	h := newTestHub(t)
-	boardNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
+	answerNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
 		return map[string]any{"control": true}, nil
 	})
 	h.devices.absorbed = map[string]string{"alias": "canonical"}

@@ -15,7 +15,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// What an extension may read of the assistant's sensitive information (#13246, scene 6 of docs/assistant/health.md
+// What an extension may read of the assistant's sensitive information (#13246, scene 6 of docs/assistant/tracks.md
 // "Using information by scene"): the user's own extension (trust owner, such as their memory extension) reads
 // everything; a third party's (every extension the user did not mark) reads sensitive information only of the
 // categories the user granted it, each one. Only the user changes either, in the app.

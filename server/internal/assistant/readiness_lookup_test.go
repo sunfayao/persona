@@ -52,7 +52,7 @@ func TestReadinessMainLocalParityAndStateContinuity(t *testing.T) {
 }
 
 func TestReadinessMainLegacyFallback(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	got, ok := s.readinessMain(context.Background(), "server", "main-0000-0000")
 	if !ok || got.SessionID != "main-0000-0000" || got.Title != "Persona" {

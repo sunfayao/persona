@@ -14,7 +14,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -27,7 +26,7 @@ import (
 // conv_lead that supervises tasks, a health conversation h0, and a run s1 outside the space.
 func quietSessions() (main, chat, lead, health, run proto.Session) {
 	main, chat = scopeSession("conv1", "Persona", ""), scopeSession("conv2", "Moving house", "")
-	lead, health = scopeSession("conv_lead", "Home", ""), scopeSession("h0", "Sleep", identity.HealthDir("/home/owner"))
+	lead, health = scopeSession("conv_lead", "Home", ""), scopeSession("h0", "Sleep", testSpaceDir("/home/owner"))
 	main.Assistant, chat.Assistant, lead.Assistant, health.Assistant = true, true, true, true
 	return main, chat, lead, health, scopeSession("s1", "Paperwork", "/home/owner/forms")
 }
@@ -288,7 +287,7 @@ func TestOutcomeLineWaitsForItsVerdict(t *testing.T) {
 				}
 				conv1 := proto.Session{SessionID: "conv1", Title: "Persona", Assistant: true}
 				if health {
-					conv1.Cwd, conv1.Space = identity.HealthDir("/home/owner"), SpaceHealth
+					conv1.Cwd, conv1.Space = testSpaceDir("/home/owner"), testSpace
 				}
 				f.setSessions("server", conv1) // listed again, as the backfill asks
 				if n := timers.fire(); n != 1 {
@@ -319,7 +318,7 @@ func TestOutcomeLineOfAQuietHealthFeedConversation(t *testing.T) {
 	timers := fakeOutcomeTimers(e.s)
 	ctx := context.Background()
 	setSettings(t, e.s, func(v *Settings) { v.Main = "conv1" })
-	main, h1 := scopeSession("conv1", "Persona", ""), scopeSession("h1", "Heart", identity.HealthDir("/home/owner"))
+	main, h1 := scopeSession("conv1", "Persona", ""), scopeSession("h1", "Heart", testSpaceDir("/home/owner"))
 	main.Assistant, h1.Assistant = true, true
 	run := scopeSession("s2", "Charts", "/home/owner/charts")
 	run.LastText = "Charted the resting heart rate against the new dose"
@@ -359,7 +358,7 @@ func TestOutcomeLineOfAQuietHealthFeedConversation(t *testing.T) {
 func TestConversationSpaceHealthNoteWins(t *testing.T) {
 	todoStores(t, func(t *testing.T, e *todoEnv, database *db.DB) {
 		ctx := context.Background()
-		e.s.noteConversationSpaces(ctx, []db.ConversationSpace{{MachineID: "laptop", SessionID: "x", Space: SpaceHealth}})
+		e.s.noteConversationSpaces(ctx, []db.ConversationSpace{{MachineID: "laptop", SessionID: "x", Space: testSpace}})
 		chat := scopeSession("x", "Sleep", "")
 		chat.Assistant = true
 		e.sessions("server", chat) // listed outside the space on the assistant's computer
@@ -369,12 +368,12 @@ func TestConversationSpaceHealthNoteWins(t *testing.T) {
 		if got := e.s.conversationSpaces(ctx, []string{"y"})["y"]; !got.known || got.space != "" {
 			t.Fatalf("y listed outside the space: %+v", got)
 		}
-		moved.Space = SpaceHealth
+		moved.Space = testSpace
 		e.sessions("server", chat, moved)
 		e.sessions("server")
 		got := e.s.conversationSpaces(ctx, []string{"x", "y"})
 		for _, id := range []string{"x", "y"} {
-			if !got[id].known || got[id].space != SpaceHealth {
+			if !got[id].known || got[id].space != testSpace {
 				t.Errorf("%s: %+v, want the health space", id, got[id])
 			}
 		}
@@ -386,7 +385,7 @@ func TestConversationSpaceHealthNoteWins(t *testing.T) {
 		again.sessions("server", chat)
 		got = again.s.conversationSpaces(ctx, []string{"x", "y"})
 		for _, id := range []string{"x", "y"} {
-			if !got[id].known || got[id].space != SpaceHealth {
+			if !got[id].known || got[id].space != testSpace {
 				t.Errorf("after a restart, %s: %+v, want the health space", id, got[id])
 			}
 		}
@@ -642,7 +641,7 @@ func TestNeverNotedChatIsNotToldByASessionUnderItsID(t *testing.T) {
 		e.s.tasks.outcomeRuns.Wait()
 		timers.fire()
 		hidden("closed, its outcome line judged again")
-		h0 := scopeSession("h0", "Sleep", identity.HealthDir("/home/owner"))
+		h0 := scopeSession("h0", "Sleep", testSpaceDir("/home/owner"))
 		h0.Assistant = true
 		e.sessions("server", main, forged, h0) // the chat's own row, in the space, as the backfill asks
 		waitFor(t, "the note written", e.s.listedSpacesWritten)

@@ -990,7 +990,7 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 			return
 		}
 		if identity.InSpace(startCwd(m, p.Cwd)) {
-			writeErrCode(w, http.StatusForbidden, "permission_denied", i18n.Err("apierr-apierr.health_start_forbidden"))
+			writeErrCode(w, http.StatusForbidden, "permission_denied", i18n.Err("apierr-apierr.space_start_forbidden"))
 			return
 		}
 	}

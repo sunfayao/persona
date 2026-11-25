@@ -478,12 +478,12 @@ To call the hub's HTTP API, an extension lists the scopes it uses in `permission
 | `kb.write` | Change entries in the knowledge base | `PUT /api/v1/kb/{kind}/{id}`, not with terminal control characters (see below) |
 | `inbox.read` | Read the Inbox | `GET /api/v1/inbox`, `/inbox/{id}`, `/inbox/mutes`, `/inbox/policies` |
 | `inbox.write` | Handle the Inbox | Mark as handled, draft, reply (text only: replies with `changes` or `/agent` still require full access), document status, mute, set policies, refresh |
-| `agents.read` | See the Agents and chats on your computers | `GET /api/v1/sessions…` (list, info, items, images, screen), `/interactions`, `/interactions/history` (paged by time, see "Question history"), `/agents…` (personal Agents), `/workspaces`, `/workspace-board`; never the health space's chats or a private card (see "Never shown to extensions") |
+| `agents.read` | See the Agents and chats on your computers | `GET /api/v1/sessions…` (list, info, items, images, screen), `/interactions`, `/interactions/history` (paged by time, see "Question history"), `/agents…` (personal Agents), `/workspaces`; never a track's chats or a private card (see "Never shown to extensions") |
 | `agents.control` | Drive Agents | `POST /api/v1/sessions` (create), a chat's `messages` / `interrupt` / `queue` / `queue/send-now` / `seen` / `rename`, `POST /api/v1/interactions/{id}/resolve` (approving a plan, or answering a terminal card with anything but a bare `dismiss`, also needs `agents.permission_mode`), `/choose` and `/reanswer`, sending messages to and marking read for personal Agents; with no terminal control characters in the text it sends (messages, prompts, notes, titles, answers; see below) |
 | `agents.permission_mode` | Change the permission mode of the chats it started itself | A chat's `modes` with `permission_mode` only, `POST /api/v1/sessions` resuming a chat with a `permission_mode`, approving a plan (`POST /api/v1/interactions/{id}/resolve` with `approve: true`, which sets the chat's mode) and answering a terminal card (`kind: "screen"`, whose keys can change it): only of a chat its extension opened (see below) |
 | `machines.read` | See your computers | `GET /api/v1/machines`, `/machines/{id}/metrics`, `/machines/{mid}/stat` |
 | `notify` | Send notifications to your devices | `POST /api/v1/notify` (see "Sending notifications") |
-| `assistant.ask` | Start chats with Persona and read chat activity | `GET /api/v1/assistant`, `POST /api/v1/assistant/conversations`, `GET …/conversations/{id}/feed`; never the health space's chats, nor what a feed holds of a to-do it is not shown (see "Never shown to extensions") |
+| `assistant.ask` | Start chats with Persona and read chat activity | `GET /api/v1/assistant`, `POST /api/v1/assistant/conversations`, `GET …/conversations/{id}/feed`; never a track's chats, nor what a feed holds of a to-do it is not shown (see "Never shown to extensions") |
 | `todos.read` | See to-dos | `GET /api/v1/todos`, `GET /api/v1/todos/{id}`, `GET /api/v1/todos/places`, `GET /api/v1/todos/{id}/decisions`, `GET /api/v1/todos/{id}/repositories`, `GET /api/v1/todos/{id}/timeline`. From a manager naming `todo_timeline`, the to-do's conversation too: the timeline, and on `GET /api/v1/todos/{id}` its latest rounds, recap and results (what the owner told its runs and their turn summaries), less what "Never shown to extensions" leaves out. Never a to-do it is not shown (same section): it is not listed, and every route of it answers 404 |
 | `leaders.read` | See directions and what they report | `GET /api/v1/assistant/leaders`; the events `leader.changed` and `leader.report` (see "Leader events"). Does not permit writes |
 | `leaders.write` | Create directions and report their progress | `POST /api/v1/assistant/directions` and `POST /api/v1/assistant/directions/{id}/progress` only. Does not imply `leaders.read`; direction names, notes, ends and to-do aggregation are unchanged |
@@ -737,8 +737,8 @@ sends, renames, archives or changes a conversation. The manager, which owns the 
 The schema is `schema/extension/assistant.schema.json`; the Go SDK has them as `ext.Hub.AssistantConversations` and `AssistantMessages`.
 
 - **Which conversations**: the assistant's own, each shown by its information categories and what the user lets this extension read
-  (docs/assistant/health.md "Using information by scene", scene 6): an extension the user marked as their own reads every track's; any
-  other reads a conversation carrying a sensitive category (a health space's, one tagged finance) only when granted that category.
+  (docs/assistant/tracks.md "Using information by scene", scene 6): an extension the user marked as their own reads every track's; any
+  other reads a conversation carrying a sensitive category (a track's, one tagged finance) only when granted that category.
   Guest conversations are never listed or read (`not_found`), nor are other agents' sessions (those are `agents.read`'s).
   `assistant.conversations` lists the ones last active at or after `since`, newest first, 50 a page (at most 200); with `until`, one
   known to have started at or after it is left out (`started` is set when the manager knows when it began). `origin` says who opened it
@@ -773,7 +773,7 @@ answer an extension's token 403). The manager answers it from the assistant's co
 
 The schema is `schema/extension/assistant.schema.json`; the Go SDK has it as `ext.Hub.AssistantMemory`.
 
-- **Which memory**: the assistant's own space only. The health space keeps a memory of its own (`docs/assistant/health.md`), which is
+- **Which memory**: the assistant's own space only. A track keeps a memory of its own (`docs/assistant/tracks.md`), which is
   never read here; the params are strict, so there is no space to ask for. The index file `MEMORY.md` is not an entry.
 - **What each entry says**: `name` is the file name; `description` and `type` come from the file's YAML frontmatter (`type` also from
   `metadata.type`), empty when it has none, as entries may be in any language or shape. `created` is when the file was made where the
@@ -889,7 +889,7 @@ user in an app (`answered_by`, with `reason`), and how a permission or plan ende
 on the user's behalf that the user may still change ("Change answer"). A daily reader passes `since`; a first read walks back with the
 cursor.
 
-An extension's token is never shown a private card, one of the health space, or one whose space cannot be told, and a card's
+An extension's token is never shown a private card, one of a track, or one whose space cannot be told, and a card's
 `resolution.values` (what was filled into its fields on the phone, such as a password) is left out (see "Never shown to
 extensions"). A page may then hold fewer cards than `limit` while the cursor still says there is more.
 
@@ -932,22 +932,22 @@ the run that went wrong without reading any tool output, then opens only that ru
 Whatever scopes it was granted, an extension's token never sees what follows, with one exception (#13246): an extension the
 user marked as their own (`PUT /api/v1/assistant/extension-trust/{id}` with `trust: owner`, such as their memory extension) reads
 the tracks' conversations and cards on the read routes below, and the manager's reads by the user's grants
-(docs/assistant/health.md "Using information by scene"). It still never controls a track's session or sees a private card,
+(docs/assistant/tracks.md "Using information by scene"). It still never controls a track's session or sees a private card,
 and the extensions' `agent.needs_you` / `agent.finished` events still leave the tracks out.
 
-- **The health space's conversations** (`docs/assistant/health.md`): not in `GET /api/v1/sessions` (the full list, the paged list, its
+- **A track's conversations** (`docs/assistant/tracks.md`): not in `GET /api/v1/sessions` (the full list, the paged list, its
   totals and counts) or `/sessions/archived`, and their items, images, info and screen answer 404 as for a chat that does not exist.
   Sessions started in a health directory or one of its subdirectories keep that protection when their working directory
   changes. A chat the hub does not list answers 404 too, as its space cannot be told, unless the caller has a history
   read grant. Session controls (a message, interrupt, queue changes, rename, modes, seen) require a listed session outside
-  the health space; a resume is decided as "Resuming a chat" says. Extension tokens cannot start sessions in the health
+  a track; a resume is decided as "Resuming a chat" says. Extension tokens cannot start sessions in the health
   space. `assistant.conversations` and `assistant.messages` leave health sessions out, and `assistant.memory` reads only
   the memory of tracks the extension may read. The assistant's `agents_list`, `agent_read` and `agent_send` use the calling
-  conversation's space to filter their targets. `GET /api/v1/assistant` lists none of them (`?space=health` lists
+  conversation's space to filter their targets. `GET /api/v1/assistant` lists none of them (`?space=<slug>` lists
   nothing), and a chat's feed (`GET …/conversations/{id}/feed`) answers 404 for one of them, or for one whose space
   cannot be told. `agent.finished` is not sent of such a chat either.
 - **Private and health cards**: a card a Just me turn raised (`private`, `docs/assistant/meeting-minutes.md` "Just me"), a card of
-  the health space (by its directory or its conversation's space), and a card without a directory whose conversation cannot be found
+  a track (by its directory or its conversation's space), and a card without a directory whose conversation cannot be found
   are left out of `GET /api/v1/interactions` and `/interactions/history`, and `agent.needs_you` is not sent of them. An extension
   page's own confirmation card (`confirm` on an action) names no computer or directory, so it is one of them: the page's action
   already waits for its answer. A token that nonetheless holds or guesses such a pending card's id cannot act on it either:
@@ -957,10 +957,10 @@ and the extensions' `agent.needs_you` / `agent.finished` events still leave the 
   `reanswer` names an answered, not pending, card and is not part of that guard.
 - **Values typed into a card's fields** (`resolution.values` in the history), and the answer to a card: a `resolve` of a card
   answered already says so (`already`) without its `resolution`.
-- **A to-do that may hold the health space's words, and a to-do's answered cards** (#10941;
+- **A to-do that may hold a track's words, and a to-do's answered cards** (#10941;
   `docs/assistant/todo-status-sop.md` "The to-do's timeline"): the timeline leaves out every answered card, since its
   record holds what was typed into the card and does not say whose card it was. A to-do may hold the space's words when
-  it was opened from a health conversation, when a health conversation wrote to it (a hand-off the owner confirmed
+  it was opened from a track's conversation, when a track's conversation wrote to it (a hand-off the owner confirmed
   included), when any run it ever had works in the space (taken off it or not, done or not), and when one of its steps
   or a to-do on its brief may (its row carries their asks, log and lineage). This is decided from what the manager keeps
   of the to-do (the directory each run's link keeps, the conversations its history was written in, the record of a
@@ -1007,7 +1007,7 @@ A stopped Agent takes no message (#4754), so `POST /api/v1/sessions` with `resum
 a `permission_mode`, also `agents.permission_mode`) is the only way back to one the extension started. What its token
 may resume, on its own manager's computers (#10941):
 
-- **A chat its computer lists** outside the health space, as the owner would. One listed in the space, in a folder set
+- **A chat its computer lists** outside a track, as the owner would. One listed in the space, in a folder set
   to Hide, or deleted by the owner answers 404 `not_found`, as a chat that does not exist (the rule every session
   control follows).
 - **A chat its computer no longer lists.** A computer lists a quiet Claude Code chat only for a week, among its 80
@@ -1022,7 +1022,7 @@ may resume, on its own manager's computers (#10941):
   large inline image), and a terminal chat whose transcript is gone (Claude Code removes one after about 30 quiet
   days). Its record alone is not enough, since every resume writes it anew with the folder the resume names; resumed,
   such a chat would start empty under its old id anyway, so start a new one instead.
-- **The answer does not tell a health chat from no chat.** The hub decides the resume after every check that holds
+- **The answer does not tell a track chat from no chat.** The hub decides the resume after every check that holds
   for any id (the computer's trust, the agent type, the manager's start settings), so a request refused for another
   reason is answered the same whichever chat it names. Only the time differs: an id the hub does not list is asked of
   the computer.
@@ -2110,7 +2110,7 @@ The [source handler contract](source-api-handlers.md) defines the separate typed
     So commands the gate cannot parse (loops, scripts, `$(…)`) are denied outright if they contain a write, with a hint to send it as a separate command. A resident node's proxy is process-wide: chats that survive a hub reconnect keep using the original address, and calls allowed on the new connection still pass.
     Once the extension is disabled, both the command and the credentials are gone. Gates with no `auth` that do not meet the default condition (several secrets, no `base_env`) still put credentials into the assistant's environment, as do gates provided by older hubs (before #1317).
   - **Card**: the confirmation card's title is `title`; the extension can answer `assistant.summary {contribution, summary}` → `{summary}` to replace ids in the card with names (left as-is if they cannot be resolved).
-  - **Space** (#6003): every assistant process has `PERSONA_SPACE` in its environment: `health` in the health space (`docs/assistant/health.md`), `main` everywhere else, decided by the conversation's directory when the node starts the process (`assistantSpace` in `node/larkgate_env.go`). An extension's skills and commands reach every space; a command meant for one space checks this rather than its working directory, which a `cd` in front of the command changes without a confirmation. Overriding it takes `PERSONA_SPACE=… <command>`, which the gate does not let through unless the gate lists the variable in `allowed_env`, so it goes to the normal permission prompt. Next to it, `PERSONA_TRACK_KIND` names the kind of the conversation's track (#13472, `docs/assistant/health.md` "Tracks and kinds"): `orchestration` in the main space, `space` in the health space and a domain space, a user's kind in a track of that kind; a command may serve some kinds only. It is missing when the node was not told the kind (an older node or manager, or a process resumed before its directory was prepared since the node started), which such a command takes as unknown.
+  - **Space** (#6003): every assistant process has `PERSONA_SPACE` in its environment: `health` in a track (`docs/assistant/tracks.md`), `main` everywhere else, decided by the conversation's directory when the node starts the process (`assistantSpace` in `node/larkgate_env.go`). An extension's skills and commands reach every space; a command meant for one space checks this rather than its working directory, which a `cd` in front of the command changes without a confirmation. Overriding it takes `PERSONA_SPACE=… <command>`, which the gate does not let through unless the gate lists the variable in `allowed_env`, so it goes to the normal permission prompt. Next to it, `PERSONA_TRACK_KIND` names the kind of the conversation's track (#13472, `docs/assistant/tracks.md` "Tracks and kinds"): `orchestration` in the main space, `space` in a track and a domain space, a user's kind in a track of that kind; a command may serve some kinds only. It is missing when the node was not told the kind (an older node or manager, or a process resumed before its directory was prepared since the node started), which such a command takes as unknown.
   - The gate file is read in strict mode and checked at install time (the script must be inside a skill); credentials cannot start with `PERSONA_` / `PERSONA_` or be `PATH`.
 
 ### Assistant content from the data directory (#5770)
@@ -2130,7 +2130,7 @@ writing the file is the whole interface.
 | | Instructions (`prompts`, `kind: instructions`) | Skills (`skills`) |
 | --- | --- | --- |
 | Where | `file`, an `.md` relative to the data directory | `dir` relative to the data directory; each subdirectory named `^[a-z0-9][a-z0-9_-]{0,63}$` with a `SKILL.md` is one skill, its name the subdirectory's |
-| Goes to | The assistant's CLAUDE.md / AGENTS.md after the package instructions, under `<!-- plugin <id> (data) -->`; never the health space's | The computer running the assistant, like package skills (`assistant.prepare`); in the skill list their source is `plugin` |
+| Goes to | The assistant's CLAUDE.md / AGENTS.md after the package instructions, under `<!-- plugin <id> (data) -->`; never a track's | The computer running the assistant, like package skills (`assistant.prepare`); in the skill list their source is `plugin` |
 | Limit | 6 KB per file; a larger file is **not adopted** (the text adopted before stays) and the status says `too_large` | 256 KB and 32 skills per extension, Markdown files only (anything else in the directory is left out); past a limit that contribution sends none |
 | Checked | Valid UTF-8 (else `invalid`); control characters except tab and newline, byte order marks, bidirectional embedding / isolate marks and line / paragraph separators removed; every `<!--` removed, so no part can pose as another extension's header | Valid UTF-8; a name another extension's skill has already is left out |
 | When it changes | Adopted **at most once every 24 hours** per contribution (below) | Read on every render (every minute): a skill change restarts nothing |

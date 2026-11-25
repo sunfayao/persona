@@ -143,7 +143,7 @@ batch is the same as the last one the hub took.
 ### Workouts
 
 `phone_workouts_recent` and `phone_workout_detail` (#2526) read workouts that the Workout app or any other app saved to Apple Health.
-They let a workout report compare a workout with recent ones of the same activity (`docs/assistant/health.md`, "Automatic workout
+They let a workout report compare a workout with recent ones of the same activity (`docs/assistant/tracks.md`, "Automatic workout
 reports (iOS)"), and let later questions ("how was last week's run?") use the same data. `WorkoutReader` holds the queries that the
 reports share.
 
@@ -177,7 +177,7 @@ reports share.
   - A snapshot is valid for at most 48 hours after `as_of`. An older snapshot is treated as absent: the tool fails with the same bilingual `device_locked` message as when no snapshot exists, instead of putting the English HealthKit error into the day fields.
   - A snapshot answer keeps every field of the live answer and adds `"source": "snapshot"` plus `"as_of"`; the hub prepends a plain-text note with the same `as_of`. Both `start` and `end` are computed from the snapshot time, with `end` equal to `as_of`, rather than the time of the locked-phone request. The save-time timezone is persisted too, so travel cannot move the day window or its partial marker onto a different row. The row for the snapshot's own day has `"partial": true` because it contains only the data collected before `as_of`; earlier rows omit `partial`.
 
-For the iPhone acceptance steps using 薄荷健康, see `docs/assistant/health.md` ("How to verify").
+For the iPhone acceptance steps using 薄荷健康, see `docs/assistant/tracks.md` ("How to verify").
 
 ### Reminders by place (#6564)
 
@@ -380,7 +380,7 @@ Both the assistant and Agents can use them (connector `AgentTools: mail_*`). See
 
 `mail_send` confirmation is separate from phone writes: it is a connector write passing through the hub gate (`server/internal/connector/gate.go`).
 If no rule matches, the default is confirm: the hub sends an approval card to the phone ("Send mail to …: subject"), returning `The user declined mail_send.` if denied;
-`connector_gate` rules in the manager's manager.json can set allow (send without asking) or deny (reject outright). Writes in health chats always ask; allow rules do not bypass confirmation (`docs/assistant/health.md`).
+`connector_gate` rules in the manager's manager.json can set allow (send without asking) or deny (reject outright). Writes in health chats always ask; allow rules do not bypass confirmation (`docs/assistant/tracks.md`).
 
 ## Permissions
 

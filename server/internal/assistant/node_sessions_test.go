@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The readers of a machine's sessions that keep a few rows (nodeSessionsWhere, boardSessions) answer as they did when
+// The readers of a machine's sessions that keep a few rows (nodeSessionsWhere, workspaceSessions) answer as they did when
 // each copied the whole list: the duplicate ids, parent chains, directories and aliases below are where a filter that
 // kept the wrong rows would differ.
 func TestSessionReadersAnswerAsBefore(t *testing.T) {
@@ -75,12 +75,6 @@ func TestSessionReadersAnswerAsBefore(t *testing.T) {
 	if len(listed.Workspaces) != len(want) || fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("workspaces %v, want %v", listed.Workspaces, want)
 	}
-	id := workspaceForSession("laptop", proto.Session{Cwd: "/work/app"}).ID
-	st := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board",
-		`{"revision":0,"action":"add_card","machine_id":"laptop","workspace_id":"`+id+`","column_id":"todo"}`, roleFull))
-	if len(st.Cards) != 1 || st.Cards[0].Title != "App" {
-		t.Errorf("a card for a session's directory takes its first session's name: %+v", st.Cards)
-	}
 }
 
 // busyBoard is a manager whose computer lists 8,200 sessions in 20 directories.
@@ -98,7 +92,7 @@ func busyBoard(t *testing.T) *Service {
 }
 
 // On a machine listing 8,200 sessions the readers copy the rows they keep, not the list: a copy is 12.1 MB, which
-// agentGone and the board read once each before, completionChildrenRunning twice (25.1 MB) and decoratedUnarchived
+// agentGone and the workspace list read once each before, completionChildrenRunning twice (25.1 MB) and decoratedUnarchived
 // twice (25.8 MB; it still needs one, as its own to decorate). publishList, telling the same list again, also encoded
 // it into new bytes (28.4 MB in all); now it allocates the decorated list alone. Each bound is the measured bytes per
 // call + 3%.

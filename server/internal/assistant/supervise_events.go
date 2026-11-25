@@ -368,7 +368,7 @@ func (s *Service) notifyTaskNeedsUser(ctx context.Context, t Todo, work time.Tim
 	title := i18n.T(l, "assistant-tasks.task_needs_user_title", i18n.Args{"name": t.Title})
 	// the lock screen does not name a task whose push says something sensitive (usage.go, scene 4)
 	if space, _ := s.selfSpace(ctx, t.Origin); s.exitPolicy(ctx, t.Title+"\n"+reason, t.Origin, space).Redact {
-		title = i18n.T(l, "assistant-tasks.task_needs_user_title_health")
+		title = i18n.T(l, "assistant-tasks.task_needs_user_title_redacted")
 	}
 	body := clip(strings.TrimSpace(reason), 500)
 	if link := todoLink(s.webBase(ctx), t.ID); link != "" {
@@ -428,7 +428,7 @@ func (s *Service) supervisedWorking(ctx context.Context, t Todo) {
 
 // notifyTaskFailed pushes a failure notification to the user's phone when a task started from a side conversation
 // (neither supervised nor quiet) could not start, so the user is informed with next steps (#5081).
-// Muted conversations send nothing; health conversations omit the task title.
+// Muted conversations send nothing; a conversation of a space that redacts omits the task title.
 func (s *Service) notifyTaskFailed(ctx context.Context, t Todo, machine, reason string) {
 	here := s.settings(ctx).MachineID
 	if here == "" {
@@ -441,7 +441,7 @@ func (s *Service) notifyTaskFailed(ctx context.Context, t Todo, machine, reason 
 	title := i18n.T(l, "assistant-tasks.task_failed_title", i18n.Args{"name": t.Title})
 	// the lock screen does not name a task whose push says something sensitive (usage.go, scene 4)
 	if space, _ := s.selfSpace(ctx, t.Origin); s.exitPolicy(ctx, t.Title+"\n"+reason, t.Origin, space).Redact {
-		title = i18n.T(l, "assistant-tasks.task_failed_title_health")
+		title = i18n.T(l, "assistant-tasks.task_failed_title_redacted")
 	}
 	r := strings.TrimRight(strings.TrimSpace(reason), ".。") // i18n-ignore: trailing full stops trimmed, not text
 	body := i18n.T(l, "assistant-tasks.task_failed_body_no_reason")

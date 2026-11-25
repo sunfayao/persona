@@ -265,7 +265,6 @@ func (n *Node) claudeAssistantMCPAndToolsFor(id, cwd string, legacyMCP bool, too
 		allow = append(allow, "Read")
 		allow = append(allow, n.inboxReadRules()...) // inbox_policy.go
 	}
-	allow = append(allow, healthReportRules(cwd)...) // healthdeny.go
 	toolFlags := []string{"--mcp-config", string(mcp), "--allowedTools", strings.Join(append([]string{n.assistantTools(legacyMCP)}, allow...), ","), "--tools", builtins}
 	if toolSet != "" {
 		toolFlags = append(toolFlags, "--strict-mcp-config")
@@ -277,7 +276,7 @@ func (n *Node) claudeAssistantMCPAndToolsFor(id, cwd string, legacyMCP bool, too
 	if inbox {
 		deny = append(deny, n.inboxSecretDenyRules()...)
 	}
-	deny = append(deny, n.healthDenyRules(cwd)...) // healthdeny.go
+	deny = append(deny, n.trackDenyRules(cwd)...) // trackdeny.go
 	if len(deny) > 0 {
 		toolFlags = append(toolFlags, append([]string{"--disallowedTools"}, deny...)...)
 	}

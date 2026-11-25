@@ -173,7 +173,7 @@ func workspaceSessions(list []proto.Session, dir string) []proto.Session {
 	return out
 }
 
-// sessionDir is where a session works: the node-verified folder when it has one (docs/web/workspace-board.md).
+// sessionDir is where a session works: the node-verified folder when it has one.
 func sessionDir(ss proto.Session) string {
 	return firstNonEmpty(ss.WorkspaceCwd, ss.Cwd)
 }

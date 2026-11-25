@@ -49,8 +49,6 @@
 "engine.use"
 "grok.settings"
 "grok.settings.set"
-"health.reports.delete"
-"health.reports.list"
 "herdr.client.open"
 "herdr.server.start"
 "herdr.server.status"

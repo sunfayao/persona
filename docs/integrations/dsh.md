@@ -125,7 +125,7 @@ The plugin goes first (`prepend`) on DSH's two response chains, `approval/reques
   `agent: "dsh"`, `agent_label: "DSH"`; the app renders it as an "other Agent" card ("DSH needs authorization," Allow / Deny, like Codex cards),
   with "Don't ask again for <tool> in this session (main Agent and subagents)" (`always_label`; subagent cards attach to the parent, sharing authorization). DSH itself supports only "Allow once,"
   so the plugin declares `caps.keep_always` in hello and the hub remembers it: node sets `always_keys: ["runtime:dsh:tool:<tool>"]` (ignoring runtime-supplied keys). Tapping Always stores it in `assistant_always` for this chat;
-  subsequent cards for this chat and tool are directly allowed by the hub, while DSH still receives `allowed-once` (#3974). Scope is only this chat + tool; not offered in health space or on cards requiring fields.
+  subsequent cards for this chat and tool are directly allowed by the hub, while DSH still receives `allowed-once` (#3974). Scope is only this chat + tool; not offered in track or on cards requiring fields.
   Approve → `allowed-once`, deny → `rejected` (even Always + deny rejects only once, without remembering). If a denial includes text,
   deny first, then steer that text into the active turn (DSH authorizations have no reason field; Codex works the same way), so the Agent can read why.
 - **Questions**: `ask_user_question` questions, options, and multi-select go unchanged to the phone; match answers by option text back to DSH `{id, selected, custom}`, with non-option text as `custom`.

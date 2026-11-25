@@ -1,7 +1,7 @@
 package prompts
 
 // AssistantSpaceClaudeMD is the instructions of a track whose template is space (assistant/space_claude_md, #13472,
-// docs/assistant/health.md "Tracks and kinds"): a short baseline, which the node follows with the track's SPACE.md.
+// docs/assistant/tracks.md "Tracks and kinds"): a short baseline, which the node follows with the track's SPACE.md.
 type AssistantSpaceClaudeMD struct {
 	Owner    string // "" is 用户
 	Title    string // the track's title, one line

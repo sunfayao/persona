@@ -2,7 +2,7 @@ package assistantwire
 
 import "time"
 
-// captureRoutes are quick capture's (#13502, docs/assistant/health.md "Quick capture"): what the user jots down from
+// captureRoutes are quick capture's (#13502, docs/assistant/tracks.md "Quick capture"): what the user jots down from
 // the share sheet, the watch, Siri or the web goes into a list of its own, never into a conversation; only a
 // full-access client (the user's own devices) adds to it or reads it.
 var captureRoutes = []string{

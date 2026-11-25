@@ -104,7 +104,7 @@ func TestSearchDeletedPostgresCleanup(t *testing.T) {
 	if err := database.PurgeSearch(ctx); err != nil {
 		t.Fatal(err)
 	}
-	f := healthHub()
+	f := spaceHub()
 	s := newServiceOn(t, f, database)
 	setSettings(t, s, func(v *Settings) { v.MachineID = "server"; v.Main = "main-0000-0000" })
 	for _, id := range []string{"work-0000-0000", "main-0000-0000"} {

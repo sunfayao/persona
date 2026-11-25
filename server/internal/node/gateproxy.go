@@ -33,7 +33,7 @@ import (
 // larkCheck let that very call through (the phone confirmed it, or "Always allow in this session" covers it). Printing the
 // environment so yields an address that works on this machine only and skips nothing.
 //
-// In a conversation in a space (docs/assistant/health.md "Outbound") every write goes that way, whatever the rules say: the address of
+// In a conversation in a space (docs/assistant/tracks.md "Outbound") every write goes that way, whatever the rules say: the address of
 // a process started in a space is marked so when it is opened, and a write there goes only with the grant larkCheck
 // gave it after the phone confirmed, as larkCheck itself holds it. Reads go as everywhere.
 //

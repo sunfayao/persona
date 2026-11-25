@@ -397,7 +397,7 @@ func TestProjectionAsksByTheRunsCard(t *testing.T) {
 		{ID: "ix_visa", MachineID: "server", SessionID: "s1", Kind: proto.IxPermission, ToolName: "Bash", CreatedAt: began,
 			ExpiresAt: began.Add(time.Hour)},
 		{ID: "ix_visa_q", MachineID: "server", SessionID: "s1", Kind: proto.IxQuestion, CreatedAt: began,
-			ExpiresAt: began.Add(time.Hour), Cwd: "/home/user/.persona/health", Questions: []proto.Question{{
+			ExpiresAt: began.Add(time.Hour), Cwd: "/home/user/.persona/tracks/qa-private", Questions: []proto.Question{{
 				Question: "Which clinic?", Options: []proto.QuestionOption{{Label: "The one by the station"}}}}},
 	}
 	e.s.fleet.mu.Lock()

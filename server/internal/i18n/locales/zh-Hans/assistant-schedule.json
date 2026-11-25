@@ -54,7 +54,6 @@
   "execution_offline": "所选电脑离线或不可用，请重新连接后重试。",
   "execution_directory": "无法使用此工作目录，请在所选电脑上检查目录后重试。详情：{error}",
   "execution_directory_whitespace": "工作目录包含首尾空白，请移除后重试。",
-  "execution_health_directory": "健康任务只能使用健康空间目录。请清空工作目录后重试。",
   "execution_own_chat": "请关闭“接着原来的对话”后使用任务执行选项，或清空这些选项以继续跟随原对话。",
   "run_if_approval": "允许在每次定时运行前，在任务电脑上执行此命令吗？",
   "run_if_skipped": "运行前检查要求跳过本次运行。",

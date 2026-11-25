@@ -201,7 +201,7 @@ func foldRune(r rune) rune {
 type confirmEachKey struct{}
 
 // ConfirmEach is ctx for a call whose writes the user confirms every time, whatever a rule allows (a health
-// conversation's, docs/assistant/health.md "Outbound"). Deny stays Deny.
+// conversation's, docs/assistant/tracks.md "Outbound"). Deny stays Deny.
 func ConfirmEach(ctx context.Context) context.Context {
 	return context.WithValue(ctx, confirmEachKey{}, true)
 }

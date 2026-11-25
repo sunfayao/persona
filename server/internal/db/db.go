@@ -537,7 +537,7 @@ func renumberMigration(ctx context.Context, conn *pgxpool.Conn, from, to string)
 
 // TruncateForTest clears tables in tests: those of them the database's sets have, with what refers to them.
 func (d *DB) TruncateForTest(ctx context.Context) error {
-	cascade, err := d.truncateCascade(ctx, []string{"workspace_board", "workspace_snapshots", "push_device_retirements", "devices",
+	cascade, err := d.truncateCascade(ctx, []string{"workspace_snapshots", "push_device_retirements", "devices",
 		"assistant_entries",
 		"device_tokens", "live_activities", "phone_tools", "phone_write_queue", "node_sessions", "mail_accounts", "interactions",
 		"settings", "inbox_items", "kb_entities", "connector_secrets", "machine_systems", "machine_metrics", "sent_messages",

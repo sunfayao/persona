@@ -243,18 +243,18 @@ func TestIsAssignmentMatchesShellNames(t *testing.T) {
 	}
 }
 
-// Every assistant process learns its conversation's space from its trusted directory, so a command meant for the
-// health space alone need not trust its working directory, which a `cd` changes (#6003).
+// Every assistant process learns its conversation's space from its trusted directory, so a command meant for one
+// space alone need not trust its working directory, which a `cd` changes (#6003).
 func TestAssistantProcessKnowsItsSpace(t *testing.T) {
 	t.Setenv("PERSONA_SKILLS_DIR", t.TempDir())
 	n := &Node{dir: t.TempDir(), larkCfgAt: time.Now(), logger: log.New(io.Discard, "", 0), larkCfg: olCfg()}
 	state := filepath.Join(t.TempDir(), ".persona")
 	for dir, want := range map[string]string{
-		filepath.Join(state, identity.SpaceHealth):                "health",
-		filepath.Join(state, identity.HealthDirName("m-1a2b")):    "health", // another manager's health space
+		filepath.Join(state, "tracks", "qa-private"):              "qa-private",
+		filepath.Join(state, "tracks-m-1a2b", "qa-private"):       "qa-private", // another manager's track
 		filepath.Join(state, identity.AssistantDirName("")):       "main",
 		filepath.Join(state, identity.AssistantDirName("m-1a2b")): "main",
-		filepath.Join(t.TempDir(), identity.SpaceHealth):          "main", // named health, not in the state directory
+		filepath.Join(t.TempDir(), "qa-private"):                  "main", // named like a track, not in the state directory
 	} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)

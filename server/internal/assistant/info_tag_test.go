@@ -125,7 +125,7 @@ func TestConversationCategories(t *testing.T) {
 	s.noteConversationSpaces(ctx, []db.ConversationSpace{{MachineID: "qa-machine", SessionID: "qa-main", Space: ""},
 		{MachineID: "qa-machine", SessionID: "qa-plain-1", Space: "qa-plain"},
 		{MachineID: "qa-machine", SessionID: "qa-finance-1", Space: "qa-finance"},
-		{MachineID: "qa-machine", SessionID: "qa-health-1", Space: SpaceHealth}})
+		{MachineID: "qa-machine", SessionID: "qa-health-1", Space: testSpace}})
 	cats := func(sid string) []string {
 		t.Helper()
 		got, ok := s.conversationCategories(ctx, sid)

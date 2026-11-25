@@ -104,7 +104,7 @@ func TestDefaultPermissionNewConversationInheritance(t *testing.T) {
 			if wantMode == "" {
 				wantMode = proto.ModeBypass
 			}
-			for _, p := range []StartParams{{}, {Main: true}, {Space: SpaceHealth}, {Purpose: "assistant"}} {
+			for _, p := range []StartParams{{}, {Main: true}, {Space: testSpace}, {Purpose: "assistant"}} {
 				p.Untitled = true
 				sess, err := s.Start(context.Background(), p)
 				if err != nil {

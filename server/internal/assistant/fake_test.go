@@ -1075,6 +1075,20 @@ func (f *fakeHub) eventTypes() string {
 
 // memStore keeps settings as JSON, like Postgres does; it has no plans or feed (a hub without a database keeps those
 // in memory, as Service does with no store).
+// testSpace is the track every memStore registers: a space whose information is private (its default category is
+// health), as the tests need one whose rules are all on.
+const testSpace = "qa-private"
+
+// testSpaceRow is testSpace's registry row.
+var testSpaceRow = db.Track{Slug: testSpace, Kind: trackKindSpace, Title: "QA private", Template: trackTemplateSpace,
+	DefaultCategories: []string{categoryHealth}, Revision: 1}
+
+// testSpaceDir is testSpace's directory in the state directory of home.
+func testSpaceDir(home string) string { return filepath.Join(home, ".persona", "tracks", testSpace) }
+
+// Tracks is the registry (assistant_tracks): testSpace, as a store that keeps tracks has it.
+func (st *memStore) Tracks(context.Context) ([]db.Track, error) { return []db.Track{testSpaceRow}, nil }
+
 type memStore struct {
 	noPlans
 	mu      sync.Mutex

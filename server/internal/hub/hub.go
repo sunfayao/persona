@@ -649,7 +649,6 @@ func (h *Hub) callPhoneWithWait(ctx context.Context, name string, args json.RawM
 	}
 	select {
 	case r := <-ch:
-		r = annotateHealthSnapshot(name, r)
 		if !r.IsError && (name == "phone_calendar_create_event" || name == "phone_reminders_create") {
 			// A completed quick-result write came from this selected connection. Queued receipts returned above have
 			// no executing device, and older clients leave whichever identity fields they do not supply absent.
@@ -694,7 +693,6 @@ var phoneConfirmedTools = map[string]bool{
 	"phone_reminders_complete":    true,
 	"phone_reminders_update":      true,
 	"phone_reminders_delete":      true,
-	"phone_health_write_sample":   true,
 	"phone_alarm_create":          true, // #2278
 	"phone_timer_start":           true,
 	"phone_alarm_cancel":          true,

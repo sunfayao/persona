@@ -1,0 +1,5 @@
+{
+  "err_no_store": "工作区发现需要支持此功能的数据库",
+  "err_snapshot_read": "工作区历史快照无法读取",
+  "err_snapshot_save": "保存工作区快照失败"
+}

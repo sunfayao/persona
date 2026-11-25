@@ -12,27 +12,23 @@ func TestWindowsNodeDirectoriesOnAnyHub(t *testing.T) {
 		path      string
 		assistant bool
 		space     string
-		health    bool
 	}{
-		{`C:\Users\me\.persona\assistant`, true, "", false},
-		{`c:\Users\me\.persona\assistant\`, true, "", false},
-		{`C:/Users/me/.persona/assistant`, true, "", false},
-		{`\\server\share\me\.persona\assistant`, true, "", false},
-		{`C:\Users\me\.persona\assistant-m-0a1b2c`, true, "", false},
-		{`C:\Users\me\.persona\health`, true, SpaceHealth, true},
-		{`C:\Users\me\.persona\health\reports`, false, "", true},
-		{`C:\Users\me\.persona\assistant-bin`, false, "", false},
-		{`C:\Users\me\.persona\assistant\.claude\skills\health`, false, "", false},
-		{`C:\work\repo`, false, "", false},
+		{`C:\Users\me\.persona\assistant`, true, ""},
+		{`c:\Users\me\.persona\assistant\`, true, ""},
+		{`C:/Users/me/.persona/assistant`, true, ""},
+		{`\\server\share\me\.persona\assistant`, true, ""},
+		{`C:\Users\me\.persona\assistant-m-0a1b2c`, true, ""},
+		{`C:\Users\me\.persona\tracks\qa-plain`, true, "qa-plain"},
+		{`C:\Users\me\.persona\tracks\qa-plain\inbox`, false, ""},
+		{`C:\Users\me\.persona\assistant-bin`, false, ""},
+		{`C:\Users\me\.persona\assistant\.claude\skills\qa-plain`, false, ""},
+		{`C:\work\repo`, false, ""},
 	} {
 		if got := IsAssistantDir(c.path); got != c.assistant {
 			t.Errorf("IsAssistantDir(%q) = %v, want %v", c.path, got, c.assistant)
 		}
 		if got := SpaceOf(c.path); got != c.space {
 			t.Errorf("SpaceOf(%q) = %q, want %q", c.path, got, c.space)
-		}
-		if got := InHealthSpace(c.path); got != c.health {
-			t.Errorf("InHealthSpace(%q) = %v, want %v", c.path, got, c.health)
 		}
 	}
 	if !IsAssistantDirOf(`C:\Users\me\.persona\assistant-m-0a1b2c`, "m-0a1b2c") || IsAssistantDirOf(`C:\Users\me\.persona\assistant`, "m-0a1b2c") {

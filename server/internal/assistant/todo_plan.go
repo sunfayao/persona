@@ -465,7 +465,7 @@ func (s *Service) remind(ctx context.Context, id string, at, now time.Time) {
 	// with the notice it always had then.
 	lark := &todoReminderSend{private: private || !known, space: space}
 	if !private && !known {
-		lark.noticeTitle, lark.noticeBody = spaceNotice(s.botLang(ctx))
+		lark.noticeTitle, lark.noticeBody = s.redactedNotice(ctx, s.botLang(ctx), space)
 	}
 	go s.feishuTodoReminderSend(set.MachineID, set.Main, larkTitle, larkBody, todo, lark)
 	go s.channelPush(set.MachineID, set.Main, channelTitle, channelBody)

@@ -1,6 +1,6 @@
 package assistantwire
 
-// A track's SPACE.md, read and written on the assistant's machine (#13472, docs/assistant/health.md "Tracks and
+// A track's SPACE.md, read and written on the assistant's machine (#13472, docs/assistant/tracks.md "Tracks and
 // kinds"): the apps edit the part the user writes; the track's own conversations replace the state block Persona keeps
 // (space_state_update). The node answers either through DeviceAssistantSpaceMD (capability nodeproto.TrackSpaceMD).
 

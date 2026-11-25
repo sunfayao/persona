@@ -108,7 +108,7 @@ type RecordingUpload struct {
 	TZ       string             `json:"tz,omitempty"`
 	Part     int                `json:"part,omitempty"`
 	Coverage *RecordingCoverage `json:"coverage,omitempty"`
-	// Space is the track the recording goes to instead of the knowledge base (#13501, docs/assistant/health.md
+	// Space is the track the recording goes to instead of the knowledge base (#13501, docs/assistant/tracks.md
 	// "Tracks and kinds"): the manager writes its transcript into that track's recordings/ and never hands the upload
 	// to PutRecording. "" (and absent): the knowledge base, as ever. Never stored here.
 	Space string `json:"space,omitempty"`

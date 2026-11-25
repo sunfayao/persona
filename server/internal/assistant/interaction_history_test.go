@@ -119,15 +119,15 @@ func TestInteractionHistoryHidesPrivateAndHealthFromExtensions(t *testing.T) {
 	ft := newFleetTest(t)
 	ft.sessions("mac",
 		proto.Session{MachineID: "mac", SessionID: "s1", Cwd: "/work/project"},
-		proto.Session{MachineID: "mac", SessionID: "h1", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth},
-		proto.Session{MachineID: "mac", SessionID: "h2", Cwd: "/home/me/.persona/health", Assistant: true}, // the space from its directory
+		proto.Session{MachineID: "mac", SessionID: "h1", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace},
+		proto.Session{MachineID: "mac", SessionID: "h2", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true}, // the space from its directory
 	)
 	at := func(m int) time.Time { return historyDay.Add(time.Duration(m) * time.Minute) }
 	keepCard(ft, historyCard("plain", "s1", "/work/project", at(1)), "resolved", &proto.Resolution{Answers: map[string]string{"Which one?": "B"}})
 	private := historyCard("private", "s1", "/work/project", at(2))
 	private.Private = true
 	keepCard(ft, private, "resolved", nil)
-	keepCard(ft, historyCard("health-cwd", "s1", "/home/me/.persona/health/reports", at(3)), "pending", nil)
+	keepCard(ft, historyCard("health-cwd", "s1", "/home/me/.persona/tracks/qa-private/reports", at(3)), "pending", nil)
 	keepCard(ft, historyCard("health-session", "h1", "", at(4)), "pending", nil)
 	keepCard(ft, historyCard("health-dir-session", "h2", "", at(5)), "pending", nil)
 	keepCard(ft, historyCard("unknown-session", "gone", "", at(6)), "pending", nil)
@@ -173,7 +173,7 @@ func TestInteractionHistoryHidesPrivateAndHealthFromExtensions(t *testing.T) {
 func TestInteractionHistoryDecisionFieldsForExtensions(t *testing.T) {
 	ft := newFleetTest(t)
 	ft.sessions("mac", proto.Session{MachineID: "mac", SessionID: "s1", Cwd: "/work/project"},
-		proto.Session{MachineID: "mac", SessionID: "h1", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth})
+		proto.Session{MachineID: "mac", SessionID: "h1", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace})
 	at := func(m int) time.Time { return historyDay.Add(time.Duration(m) * time.Minute) }
 	deadline, yes, no := at(60), true, false
 	decided := func(id, session, cwd string, m int, reversible *bool) proto.Interaction {

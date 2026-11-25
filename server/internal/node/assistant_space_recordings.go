@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// A recording saved into a track (#13501, nodeproto.TrackRecordings, docs/assistant/health.md "Tracks and kinds"):
+// A recording saved into a track (#13501, nodeproto.TrackRecordings, docs/assistant/tracks.md "Tracks and kinds"):
 // the manager renders the transcript and names the file; the node writes it into the track's recordings/ on this
 // machine, or removes it, and nothing else. The track's conversations read it there like any file of the track.
 

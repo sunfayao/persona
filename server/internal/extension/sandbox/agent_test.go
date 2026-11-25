@@ -172,7 +172,7 @@ func TestDarwinAgentRefuses(t *testing.T) {
 	if _, err := DarwinAgent(AgentPlan{DataDirs: []string{f.dir}, Home: f.home, Cwd: proj}); err == nil || !strings.Contains(err.Error(), "工作目录") {
 		t.Errorf("project inside: %v", err)
 	}
-	for _, ws := range []string{"assistant", "health", "guest/x"} {
+	for _, ws := range []string{"assistant", "tracks/qa-plain", "guest/x"} {
 		cwd := filepath.Join(f.dir, ws)
 		_ = os.MkdirAll(cwd, 0o700)
 		if _, err := DarwinAgent(AgentPlan{DataDirs: []string{f.dir}, Home: f.home, Cwd: cwd}); err != nil {
@@ -399,7 +399,7 @@ func TestLinuxAgentRefuses(t *testing.T) {
 	if _, err := LinuxAgent("bwrap", AgentPlan{DataDirs: []string{f.dir}, Home: f.home, Cwd: project}); err == nil || !strings.Contains(err.Error(), "工作目录") {
 		t.Errorf("project inside: %v", err)
 	}
-	for _, workspace := range []string{"assistant", "health", "guest/x"} {
+	for _, workspace := range []string{"assistant", "tracks/qa-plain", "guest/x"} {
 		cwd := filepath.Join(f.dir, workspace)
 		if err := os.MkdirAll(cwd, 0o700); err != nil {
 			t.Fatal(err)

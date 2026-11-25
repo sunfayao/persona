@@ -6,7 +6,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// Using information by its categories and the scene it goes to (#13246, docs/assistant/health.md "Using information
+// Using information by its categories and the scene it goes to (#13246, docs/assistant/tracks.md "Using information
 // by scene"). Collecting is not limited; what a piece of information may do is decided where it is used, by one
 // function, usage, from what the information is (its categories, whether they are all known, the track it came from)
 // and where it goes (one of seven scenes). It never reads a track's name or kind: a track takes part only through
@@ -97,7 +97,7 @@ func (g extensionGrant) covers(info infoUse) bool {
 	return true
 }
 
-// usage is what info may do in scene sc (docs/assistant/health.md "Using information by scene"); grant is the reading
+// usage is what info may do in scene sc (docs/assistant/tracks.md "Using information by scene"); grant is the reading
 // extension's, for sceneExtension only. General information is used as usual everywhere, by relevance outside its
 // track; sensitive information (or information whose categories are not known) is used freely in its own track only:
 // elsewhere only when on topic, handed out or sent to others only once the phone confirmed it, on the lock screen

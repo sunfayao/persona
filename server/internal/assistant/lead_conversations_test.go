@@ -60,7 +60,7 @@ func TestProfileKeepsCurrentLeads(t *testing.T) {
 // that names the way out; once its direction ends the same delete goes through.
 func TestDeleteRefusesACurrentLead(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	lead := "work-0000-0000"
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main, v.Leaders = "server", "main-0000-0000", []string{lead} })

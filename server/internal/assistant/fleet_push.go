@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -351,11 +350,7 @@ func (s *Service) notifyFinishedNow(machine, id string, gen int, t fleetTimings)
 	}
 	redact := s.exitPolicy(bg, head+"\n"+text, id, space).Redact
 	if redact {
-		if floor, _ := s.trackFloor(bg, space); slices.Contains(floor, categoryHealth) {
-			head, text = doneAlertIn(l, sess, true) // as the health space always said
-		} else {
-			head, text = s.redactedNotice(bg, l, space)
-		}
+		head, text = s.redactedNotice(bg, l, space)
 	}
 	if report && strings.HasPrefix(head, "⚠️") && s.briefOf(id) != nil {
 		return // the scheduled-run watcher sends the one fixed-facts fallback, not this model error
@@ -475,7 +470,7 @@ func doneAlert(l i18n.Lang, sess proto.Session) (head, text string) {
 // doneAlertIn is doneAlert with whether sess's space redacts (redact) decided by the caller.
 func doneAlertIn(l i18n.Lang, sess proto.Session, redact bool) (head, text string) {
 	if redact { // the lock screen hears there is news, not what it is, nor the conversation's title
-		return i18n.T(l, "push.health_title"), i18n.T(l, "push.health_body")
+		return i18n.T(l, "push.space_title"), i18n.T(l, "push.space_body")
 	}
 	title := pushTitle(sess)
 	head, text = title, sess.LastText // no mark: a finished turn is the usual news

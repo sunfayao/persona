@@ -16,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistant/todo/timeline"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -247,7 +246,7 @@ func TestTodoTimelineToAnExtension(t *testing.T) {
 	todoStores(t, func(t *testing.T, e *todoEnv, database *db.DB) {
 		ctx := context.Background()
 		e.sessions("server", proto.Session{SessionID: "s1", Title: "Passport renewal", Status: proto.StatusIdle, State: proto.StateIdle},
-			proto.Session{SessionID: "h1", Title: "Sleep log", Status: proto.StatusIdle, State: proto.StateIdle, Space: SpaceHealth},
+			proto.Session{SessionID: "h1", Title: "Sleep log", Status: proto.StatusIdle, State: proto.StateIdle, Space: testSpace},
 			proto.Session{SessionID: "conv1", Title: "Persona", Assistant: true, Status: proto.StatusIdle, State: proto.StateIdle})
 		id, health := e.create("Renew the passport").ID, e.create("Log the week's sleep").ID
 		e.must("PUT", "/api/v1/todos/"+id+"/agents/server/s1", "")
@@ -298,21 +297,21 @@ func TestTodoTimelineToAnExtension(t *testing.T) {
 // reads every one.
 func TestTodoTimelineHiddenFromAnExtension(t *testing.T) {
 	const told, summary = "Resting heart rate was 48 all week", "Logged the new prescription"
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	idle := proto.Session{Status: proto.StatusIdle, State: proto.StateIdle}
 	session := func(id, title, space, cwd string, assistant bool) proto.Session {
 		c := idle
 		c.SessionID, c.Title, c.Space, c.Cwd, c.Assistant = id, title, space, cwd, assistant
 		return c
 	}
-	journal := session("h3", "Journal notes", SpaceHealth, health, false)
+	journal := session("h3", "Journal notes", testSpace, health, false)
 	journal.SpaceName = "Journal" // a workspace a space link brings in
 	listed := []proto.Session{
 		session("conv1", "Persona", "", "", true),
 		session("c0", "Garden plans", "", "", true),
-		session("h0", "Health", SpaceHealth, health, true),
-		session("h1", "Sleep log", SpaceHealth, health, false),
-		session("h2", "Sleep diary", SpaceHealth, "", false), // its link keeps no directory
+		session("h0", "Health", testSpace, health, true),
+		session("h1", "Sleep log", testSpace, health, false),
+		session("h2", "Sleep diary", testSpace, "", false), // its link keeps no directory
 		journal,
 		session("s1", "Paperwork", "", "", false),
 		session("s2", "Letters", "", "/home/owner/letters", false),
@@ -481,7 +480,7 @@ func TestTodoTimelineHiddenFromAnExtension(t *testing.T) {
 					LinkedAt: at, ReleasedAt: &at}}}
 			e.s.todos.mu.Unlock()
 			for range 20 {
-				if space, _ := e.s.leaderSpace(context.Background(), "server", "lead1"); space != SpaceHealth {
+				if space, _ := e.s.leaderSpace(context.Background(), "server", "lead1"); space != testSpace {
 					t.Fatalf("the leader's space: %q", space)
 				}
 			}

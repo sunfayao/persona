@@ -16,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -28,16 +27,16 @@ func TestExtensionTokensNeverSeeTheHealthSpace(t *testing.T) {
 	h, url, _, b := reachHub(t)
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project"},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/health", Assistant: true, Space: "health"},
-		{MachineID: "mb", SessionID: "bd", Title: "HEALTH-DIR", Cwd: "/home/me/.persona/health/notes", Assistant: true},
-		{MachineID: "mb", SessionID: "bm", Title: "HEALTH-MOVED", Cwd: "/work/project", Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: "qa-private"},
+		{MachineID: "mb", SessionID: "bd", Title: "HEALTH-DIR", Cwd: "/home/me/.persona/tracks/qa-private/notes", Assistant: true},
+		{MachineID: "mb", SessionID: "bm", Title: "HEALTH-MOVED", Cwd: "/work/project", Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bd"); return ok })
 	cards := []proto.Interaction{
 		{ID: "ix_ok", MachineID: "mb", SessionID: "b1", Cwd: "/work/project", Kind: proto.IxQuestion, Summary: "OK-CARD"},
 		{ID: "ix_private", MachineID: "mb", SessionID: "b1", Cwd: "/work/project", Kind: proto.IxQuestion, Private: true, Summary: "PRIVATE-CARD"},
 		{ID: "ix_health", MachineID: "mb", SessionID: "bh", Kind: proto.IxQuestion, Summary: "HEALTH-CARD"},
-		{ID: "ix_health_cwd", MachineID: "mb", SessionID: "b1", Cwd: "/home/me/.persona/health", Kind: proto.IxQuestion, Summary: "HEALTH-CWD-CARD"},
+		{ID: "ix_health_cwd", MachineID: "mb", SessionID: "b1", Cwd: "/home/me/.persona/tracks/qa-private", Kind: proto.IxQuestion, Summary: "HEALTH-CWD-CARD"},
 	}
 	for _, ix := range cards {
 		if err := b.peer.Notify(assistantwire.EventFleetInteraction, assistantwire.FleetInteraction{Interaction: ix}); err != nil {
@@ -88,9 +87,9 @@ func TestExtensionTokensNeverSeeTheHealthSpace(t *testing.T) {
 func TestExtensionsAreNotToldWhatTheyAreNotShown(t *testing.T) {
 	h, a, _ := pathsHub(t, quiet, quiet)
 	heardA := heard(a, extwire.EventEmit)
-	health := identity.HealthDir("/home/me")
+	health := testSpaceDir("/home/me")
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "ma", Sessions: []proto.Session{{MachineID: "ma", SessionID: "s3", Title: "A's work"},
-		{MachineID: "ma", SessionID: "sh", Title: "HEALTH-CONVERSATION", Cwd: health, Assistant: true, Space: "health"}}})
+		{MachineID: "ma", SessionID: "sh", Title: "HEALTH-CONVERSATION", Cwd: health, Assistant: true, Space: "qa-private"}}})
 	eventually(t, 5*time.Second, "ma's sessions", func() bool { _, ok := h.localMachine("ma").session("sh"); return ok })
 	cards := []proto.Interaction{
 		{ID: "ix_health_cwd", MachineID: "ma", SessionID: "s3", Cwd: health, Kind: proto.IxQuestion, Summary: "HEALTH-CWD-CARD"},
@@ -145,7 +144,7 @@ func TestAnExtensionResumesOnlyAListedChatOutsideTheHealthSpace(t *testing.T) {
 	eventually(t, 5*time.Second, "mb's node", func() bool { return h.localMachine("mb").nodeReported() })
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project"},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/health", Assistant: true, Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bh"); return ok })
 	starts := func(id string) int {
@@ -263,7 +262,7 @@ func TestAnExtensionResumesAnUnlistedChatOnlyThroughItsComputersCheck(t *testing
 	})
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project", Status: proto.StatusOffline},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/health", Assistant: true, Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bh"); return ok })
 	resume := func(id string) string {
@@ -358,7 +357,7 @@ func TestAnExtensionsResumeIsDecidedAfterTheRequestsOtherChecks(t *testing.T) {
 	})
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project", Status: proto.StatusOffline},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/health", Assistant: true, Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bh"); return ok })
 	const unlisted = "6f1d2c3b-4a5e-4f60-8a7b-9c0d1e2f3a4b"
@@ -519,8 +518,8 @@ func TestRestrictedSessionQueueRoutes(t *testing.T) {
 	dirs.rules[node.m.cfg.ID] = []proto.HiddenAgentDir{{Pattern: "/work/hidden", Enabled: true, Action: proto.AgentDirHide}}
 	node.m.setSessions([]proto.Session{
 		{SessionID: "ordinary", Cwd: "/work/project"},
-		{SessionID: "private-dir", Cwd: "/home/me/.persona/health/reports"},
-		{SessionID: "private-marker", Cwd: "/work/project", Space: "health"},
+		{SessionID: "private-dir", Cwd: "/home/me/.persona/tracks/qa-private/reports"},
+		{SessionID: "private-marker", Cwd: "/work/project", Space: "qa-private"},
 		{SessionID: "hidden", Cwd: "/work/hidden"},
 	})
 	h.historyReads.remember(node.m.cfg.ID, "history-only", time.Now())
@@ -572,10 +571,10 @@ func TestRestrictedSessionQueueRoutes(t *testing.T) {
 // goes through.
 func TestExtensionCardActionsRefuseHiddenPendingCards(t *testing.T) {
 	h, url, _, b := reachHub(t)
-	health := identity.HealthDir("/home/me")
+	health := testSpaceDir("/home/me")
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project"},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: health, Assistant: true, Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: health, Assistant: true, Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bh"); return ok })
 	cards := []proto.Interaction{
@@ -624,7 +623,7 @@ func TestTheUsersOwnExtensionReadsTheTracks(t *testing.T) {
 	h, url, _, b := reachHub(t)
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{
 		{MachineID: "mb", SessionID: "b1", Title: "B-SESSION", Cwd: "/work/project"},
-		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/health", Assistant: true, Space: "health"},
+		{MachineID: "mb", SessionID: "bh", Title: "HEALTH-SESSION", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: "qa-private"},
 	}})
 	eventually(t, 5*time.Second, "mb's sessions", func() bool { _, ok := h.localMachine("mb").session("bh"); return ok })
 	for _, ix := range []proto.Interaction{

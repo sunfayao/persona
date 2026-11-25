@@ -223,9 +223,7 @@ func (n *Node) scanOffline() []proto.Session {
 			if dir := n.assistantDirOfProject(base); dir != "" {
 				cwd = dir
 			} else if !isMeetingRoomProject(base) {
-				if strings.HasSuffix(base, "-health") {
-					cwd = identity.HealthDir(n.home)
-				} else if strings.HasSuffix(base, "-assistant") {
+				if strings.HasSuffix(base, "-assistant") {
 					cwd = identity.AssistantDir(n.home)
 				}
 			}
@@ -334,16 +332,13 @@ func (n *Node) assistantProject() string {
 	return nonAlnum.ReplaceAllString(identity.AssistantDir(n.home), "-")
 }
 
-// assistantDirOfProject is the directory of this node's assistant (or its health space) whose projects directory
+// assistantDirOfProject is the directory of this node's assistant whose projects directory
 // Claude Code names base, "" for any other. Only this node's own names map back: the projects directory's name is
 // lossy ("/", ".", "-" and "_" all become "-"), so the former state directory's or a symlinked home's cannot be told
 // apart from another directory's (assistant-bin, another manager's assistant-m-<hex>).
 func (n *Node) assistantDirOfProject(base string) string {
-	switch own := n.assistantProject(); base {
-	case own:
+	if base == n.assistantProject() {
 		return identity.AssistantDir(n.home)
-	case strings.TrimSuffix(own, "-assistant") + "-health":
-		return identity.HealthDir(n.home)
 	}
 	return ""
 }
@@ -365,9 +360,8 @@ func (n *Node) assistantHome(id, cwd string) string {
 // (own: this node's, assistantProject). The assistant may have run under ~/.persona or the former state directory
 // (compat.StateDir), through a symlinked home, so the name is matched by its end as well (#1423: a copy under the
 // former name is the assistant's too).
-// The health space's directory (docs/assistant/health.md) sits next to it and counts as the assistant's too.
 func isAssistantProject(base, own string) bool {
-	if base == own || base == strings.TrimSuffix(own, "-assistant")+"-health" {
+	if base == own {
 		return true
 	}
 	if isMeetingRoomProject(base) { // a meeting's room (assistant_guest.go): an assistant conversation, whatever runs it now
@@ -397,7 +391,7 @@ func isMeetingRoomProject(base string) bool {
 // personad command would pay for the regexp) instead of on every call, once per Codex thread and transcript per list.
 var assistantProjectSuffixes = sync.OnceValue(func() []string {
 	former := "-" + nonAlnum.ReplaceAllString(compat.StateDir, "-") // "." becomes "-" as in the project's name
-	return []string{"--persona-assistant", former + "-assistant", "--persona-health", former + "-health"}
+	return []string{"--persona-assistant", former + "-assistant"}
 })
 
 // isLauncherCheckRun: the transcript at path is a launcher health check's: its directory — a temp directory the check

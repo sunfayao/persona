@@ -947,11 +947,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		TabName                 *string       `json:"tab_name"`
 		ExpectedTabName         string        `json:"expected_tab_name"` // guarded session tab rename from automatic naming
 		TZ                      string        `json:"tz"`                // the user's time zone
-		DesktopApp              string        `json:"desktop_app"`
 		DesktopProjectID        string        `json:"desktop_project_id"`
-		CreateDirectory         bool          `json:"create_directory"`
-		IdempotencyKey          string        `json:"idempotency_key"`
-		BoundDirectories        []string      `json:"bound_directories"`
 		// HTTP is a quota plugin's request to send to a launcher's gateway (launchers.http); nil asks for the gateway.
 		HTTP             *quota.Request                `json:"http,omitempty"`
 		Async            bool                          `json:"async"`
@@ -1555,8 +1551,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		}
 		_ = json.Unmarshal(params, &a)
 		return n.resolveWorkspace(p.Path, a.Terminal)
-	case "workspace.create":
-		return n.createWorkspaceProjectWithBindings(ctx, p.Path, p.Name, p.DesktopApp, p.IdempotencyKey, p.CreateDirectory, p.BoundDirectories)
 	case "sessions.list":
 		var handoff struct {
 			UpdateHandoff *bool `json:"update_handoff"`
@@ -2572,8 +2566,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		return n.fileEditCall(method, params)
 	case methodFileMkdir, methodFileWrite, methodFileZip, methodFileCopy, methodFileChmod, methodFileOperation: // new folders, text files, zips, copies, permissions and their progress (filemake.go, filecopy.go)
 		return n.fileMake(ctx, method, params)
-	case "health.reports.list", "health.reports.delete":
-		return n.healthReportsCall(method, params)
 	case methodFileChunk:
 		var chunk proto.FileChunkRequest
 		if err := json.Unmarshal(params, &chunk); err != nil {

@@ -188,10 +188,10 @@ var (
 	agentSocketDirs = []string{"extensions/run", "plugins/run", "run"}
 )
 
-// agentWorkspaces are the folders in the data directory Persona's own agents run in (the assistant, the health
-// space, the tracks' directories, guests): an agent there is expected. Anywhere else in it, the data directory holds
+// agentWorkspaces are the folders in the data directory Persona's own agents run in (the assistant, the tracks'
+// directories, guests): an agent there is expected. Anywhere else in it, the data directory holds
 // the user's projects.
-var agentWorkspaces = []string{"assistant", identity.SpaceHealth, "tracks", "guest"}
+var agentWorkspaces = []string{"assistant", "tracks", "guest"}
 
 // DarwinAgent is the sandbox-exec profile for plan: allow everything (version 1, allow default), then
 //   - deny reading and writing the data directory's secrets where they are written, at its top (identity's list, as

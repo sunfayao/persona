@@ -24,7 +24,7 @@ var convDay = time.Date(2026, 1, 2, 9, 0, 0, 0, time.UTC)
 // guest's), the health space's, and an agent's session; f.items is what every session.items answers.
 func conversationsService(t *testing.T) (*Service, *fakeHub) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	at := func(h int) time.Time { return convDay.Add(time.Duration(h) * time.Hour) }
 	f.sessions["server"] = []proto.Session{
 		{MachineID: "server", SessionID: "main-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "Persona", UpdatedAt: at(5)},
@@ -32,7 +32,7 @@ func conversationsService(t *testing.T) (*Service, *fakeHub) {
 		{MachineID: "server", SessionID: "old0-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "assistant", UpdatedAt: at(-48)},
 		{MachineID: "server", SessionID: "arch-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Archived: true, UpdatedAt: at(2)},
 		{MachineID: "server", SessionID: "gues-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, UpdatedAt: at(4)},
-		{MachineID: "server", SessionID: "slee-0000-0000", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth, UpdatedAt: at(4)},
+		{MachineID: "server", SessionID: "slee-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace, UpdatedAt: at(4)},
 		{MachineID: "server", SessionID: "agen-0000-0000", Cwd: "/home/me/code", UpdatedAt: at(4)},
 	}
 	s := newTestService(t, f)

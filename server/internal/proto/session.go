@@ -276,7 +276,7 @@ type Session struct {
 	// ServiceTier is the acknowledged native speed, omitted while unknown.
 	ServiceTier  string        `json:"service_tier,omitempty"`
 	ServiceTiers []ServiceTier `json:"service_tiers,omitempty"`
-	// Space is "health" for a session in the health space (docs/assistant/health.md), or empty otherwise.
+	// Space is "health" for a session in the health space (docs/assistant/tracks.md), or empty otherwise.
 	// The node can preserve it from the start directory even when a live pane's working directory moves.
 	Space string `json:"space,omitempty"`
 	// ModelPick is the launcher / model / effort picked for one of the assistant's conversations, which its next

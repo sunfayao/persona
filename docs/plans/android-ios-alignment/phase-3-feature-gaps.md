@@ -117,7 +117,7 @@ Each gets an iOS issue: answering questions and terminal choices from notificati
 
 | Area | Hub | Android today | Size |
 | --- | --- | --- | --- |
-| Health | health chats and memory, health reports (`docs/assistant/health.md`) | none | L |
+| Health | health chats and memory, health reports (`docs/assistant/tracks.md`) | none | L |
 | Meeting recording | recordings, minutes, live, ask | minutes in Knowledge; recording itself is an open question (long audio on Android) | L |
 | Live view | VNC over a forwarded port | `android/core/hub/src/main/kotlin/persona/core/hub/PortForwarder.kt` already connects ports | L |
 | Usage chart | per-computer usage | reuse the metric charts | M |

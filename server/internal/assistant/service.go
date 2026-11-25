@@ -303,7 +303,7 @@ type Service struct {
 	companions companionState    // feishu_companions.go: the notices for a companion bot
 	kb         kbState           // kb.go
 	inbox      inboxBook         // inbox_book.go
-	board      boardBook         // workspace_board.go: the workspace board
+	workspaces workspaceBook     // workspaces.go: workspace discovery
 	viewEvents viewNotifications // views.go: only coalesced notifications; contents are stored first
 	viewMemo   viewMemo          // views.go: encoded cards for the feed snapshot, checked against the database
 
@@ -415,7 +415,6 @@ func New(o Options) *Service {
 	s.availabilityRoutes()
 	s.startRoutes()
 	s.skillRoutes()
-	s.workoutRoutes()
 	s.scheduleRoutes()
 	s.scheduleGrantRoutes()
 	s.placeRoutes()
@@ -429,7 +428,7 @@ func New(o Options) *Service {
 	s.todoRoutes()
 	s.agentRoutes()
 	s.sessionReviewRoutes()
-	s.workspaceBoardRoutes()
+	s.workspaceRoutes()
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
 	s.companionRoutes()
@@ -829,7 +828,7 @@ type startParams struct {
 	Text                string               `json:"text"`
 	PermissionMode      string               `json:"permission_mode,omitempty"`
 	Purpose             string               `json:"purpose,omitempty"` // the model configuration's purpose; "" is the assistant's
-	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space (docs/assistant/health.md)
+	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space (docs/assistant/tracks.md)
 	Origin              string               `json:"origin,omitempty"`  // where it comes from (origins.go); "" is the user's
 	OriginRef           string               `json:"origin_ref,omitempty"`
 	Source              *proto.MessageSource `json:"source,omitempty"`

@@ -1521,7 +1521,7 @@ func TestSideConversationTaskFailedToStartPushes(t *testing.T) {
 	f3.hello.Assistant.MachineID = "box"
 	f3.hello.Assistant.Machines = []string{"box"}
 	setSettings(t, s3, func(v *Settings) { v.Main, v.MachineID = "main1", "box" })
-	f3.setSessions("box", proto.Session{SessionID: "health1", Space: SpaceHealth})
+	f3.setSessions("box", proto.Session{SessionID: "health1", Space: testSpace})
 	f3.failStart = errors.New("Failed to authenticate")
 	if _, err := s3.toolTaskPlan(ctx, "health1", planArgs(true)); err != nil {
 		t.Fatal(err)

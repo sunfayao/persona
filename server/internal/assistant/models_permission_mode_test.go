@@ -807,7 +807,7 @@ func TestLauncherViewsMergeUnrestrictedPermissionModes(t *testing.T) {
 }
 
 func TestAgentStartConfirmationShowsPermissionMode(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	f.launcherList = []proto.Launcher{
 		{Name: "claude", Agent: "claude"},
 		{Name: "codex", Agent: "codex"},

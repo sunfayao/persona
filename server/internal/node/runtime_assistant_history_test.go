@@ -11,7 +11,7 @@ import (
 func TestRuntimeAssistantHistorySurvivesRediscovery(t *testing.T) {
 	n, _ := runtimeNode(t)
 	assistantDir := filepath.Join(n.home, ".persona", "assistant")
-	healthDir := filepath.Join(n.home, ".persona", "health")
+	healthDir := filepath.Join(n.home, ".persona", "tracks", "qa-private")
 	workspace := filepath.Join(n.home, "project")
 	for id, cwd := range map[string]string{
 		"assistant-session": assistantDir,

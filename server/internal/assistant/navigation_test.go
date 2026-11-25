@@ -65,7 +65,7 @@ func TestNavigationStartPage(t *testing.T) {
 	if code, got := navigationCall(t, s, "GET", "", roleFull); code != http.StatusOK || len(got) != 0 {
 		t.Fatalf("never chosen: %d %v, want 200 {}", code, got)
 	}
-	for _, start := range []string{"p:example-today/today", "inbox", "workspace-board", ""} {
+	for _, start := range []string{"p:example-today/today", "inbox", "todos", ""} {
 		code, got := navigationCall(t, s, "PUT", `{"start":"`+start+`"}`, roleFull)
 		if code != http.StatusOK || got["start"] != start {
 			t.Fatalf("PUT %q: %d %v", start, code, got)

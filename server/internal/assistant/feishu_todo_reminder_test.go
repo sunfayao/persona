@@ -25,7 +25,7 @@ func todoReminderHub(t *testing.T) (*fakeHub, *Service, *[]map[string]any) {
 	})
 	f.settings = &Settings{MachineID: "server", Main: "m1"}
 	f.setSessions("server", proto.Session{SessionID: "m1", MachineID: "server", Assistant: true},
-		proto.Session{SessionID: "health1", MachineID: "server", Assistant: true, Space: SpaceHealth})
+		proto.Session{SessionID: "health1", MachineID: "server", Assistant: true, Space: testSpace})
 	n := 0
 	f.answerApp(AppFeishu, FeishuPost, func(p json.RawMessage) (any, error) {
 		var m map[string]any
@@ -171,7 +171,7 @@ func TestFeishuTodoReminderHealthContentStaysOffChannels(t *testing.T) {
 	if strings.Contains(cards, todo.Title) || strings.Contains(cards, todo.Notes) {
 		t.Fatalf("health content reached Feishu: %s", cards)
 	}
-	wantTitle, wantBody := spaceNotice(s.lang(context.Background()))
+	wantTitle, wantBody := s.redactedNotice(context.Background(), s.lang(context.Background()), testSpace)
 	if !strings.Contains(cards, wantTitle) || !strings.Contains(cards, wantBody) {
 		t.Fatalf("generic health notice missing: %s", cards)
 	}
@@ -199,7 +199,7 @@ func TestTodoReminderHealthPhoneUsesGenericNotice(t *testing.T) {
 	if len(pushes) != 1 {
 		t.Fatalf("phone pushes %d, want 1", len(pushes))
 	}
-	wantTitle, wantBody := spaceNotice(s.lang(context.Background()))
+	wantTitle, wantBody := s.redactedNotice(context.Background(), s.lang(context.Background()), testSpace)
 	if pushes[0].Title != wantTitle || pushes[0].Body != wantBody ||
 		strings.Contains(pushes[0].Title+pushes[0].Body, "私密") {
 		t.Fatalf("health phone push = %q / %q, want generic notice", pushes[0].Title, pushes[0].Body)

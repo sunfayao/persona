@@ -137,7 +137,7 @@ func testAssistantCLICallerVerifiedRuntimeWorkers(t *testing.T, engine string) {
 		t.Setenv("PERSONA_PLUGIN_SKILLS_DIR", t.TempDir())
 		n.bin = "/opt/example/personad"
 		stateCwd := prepareAssistantForTest(t, n, ".persona/assistant", []string{"example"}, nil)
-		rowCwd := prepareAssistantForTest(t, n, ".persona/health", []string{"other"}, nil)
+		rowCwd := prepareAssistantForTest(t, n, ".persona/tracks/qa-private", []string{"other"}, nil)
 		n.runtimes.setSessions(host, []proto.Session{{SessionID: assistantID, Cwd: rowCwd}, {SessionID: agentID}})
 		n.state.put(assistantID, sessionState{Cwd: stateCwd})
 		calls := assistantHub(hub)

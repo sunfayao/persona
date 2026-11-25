@@ -189,7 +189,7 @@ func TestUploadAbortDuringChunkRPC(t *testing.T) {
 }
 func TestUploadAbortBeforePublicationRPC(t *testing.T) {
 	for _, tc := range []struct{ dest, conflict string }{
-		{}, {dest: proto.UploadDestTerminal}, {dest: proto.UploadDestHealth},
+		{}, {dest: proto.UploadDestTerminal}, {dest: proto.UploadDestFile},
 		{dest: proto.UploadDestDir}, {dest: proto.UploadDestDir, conflict: proto.UploadConflictKeep},
 		{dest: proto.UploadDestDir, conflict: proto.UploadConflictReplace},
 	} {

@@ -147,7 +147,7 @@ func TestFeishuAgentDoneGated(t *testing.T) {
 		}, agentSession, 1},
 		{"health conversation", true, func(ft *fleetTest) {}, func() proto.Session {
 			sess := agentSession()
-			sess.Space = SpaceHealth
+			sess.Space = testSpace
 			return sess
 		}, 1},
 		{"turn asked from Feishu", true, func(ft *fleetTest) {

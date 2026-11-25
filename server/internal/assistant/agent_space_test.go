@@ -16,14 +16,14 @@ func TestAgentToolsRespectConversationSpace(t *testing.T) {
 	s, f := newQuietService(t)
 	f.setSessions("server",
 		proto.Session{SessionID: "conv1", Assistant: true},
-		proto.Session{SessionID: "health-chat", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth},
+		proto.Session{SessionID: "health-chat", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace},
 	)
-	healthChild := proto.Session{SessionID: "folded-private", Space: SpaceHealth}
+	healthChild := proto.Session{SessionID: "folded-private", Space: testSpace}
 	healthChild.SetFold("agent-project", "", "", nil)
 	f.setSessions("box",
 		proto.Session{SessionID: "agent-project", Cwd: "/work/project", Title: "Project", Status: proto.StatusIdle},
-		proto.Session{SessionID: "agent-private", Cwd: "/work/other", Space: SpaceHealth, Title: "Private", Status: proto.StatusIdle},
-		proto.Session{SessionID: "agent-notes", Cwd: "/home/me/.persona/health-m-0b0b0b/notes", Title: "Notes"},
+		proto.Session{SessionID: "agent-private", Cwd: "/work/other", Space: testSpace, Title: "Private", Status: proto.StatusIdle},
+		proto.Session{SessionID: "agent-notes", Cwd: "/home/me/.persona/tracks-m-0b0b0b/qa-private/notes", Title: "Notes"},
 		healthChild,
 	)
 	f.hubCards = []proto.Interaction{{ID: "folded-card", MachineID: "box", SessionID: healthChild.SessionID,
@@ -95,7 +95,7 @@ func TestExtensionConversationStartSpace(t *testing.T) {
 		code  int
 	}{
 		{"", http.StatusOK},
-		{SpaceHealth, http.StatusForbidden},
+		{testSpace, http.StatusForbidden},
 	} {
 		body, err := json.Marshal(map[string]string{"space": tc.space, "prompt": "Check the fixtures"})
 		if err != nil {

@@ -129,7 +129,7 @@ func TestReadonlyTaskWaitingPlanEdits(t *testing.T) {
 				if health {
 					f.hello.Assistant.MachineID, f.hello.Assistant.Machines = "box", []string{"box"}
 					setSettings(t, s, func(v *Settings) { v.Main, v.MachineID = "main", "box" })
-					f.setSessions("box", proto.Session{SessionID: conversation, Space: SpaceHealth})
+					f.setSessions("box", proto.Session{SessionID: conversation, Space: testSpace})
 				} else {
 					edit := readonlyTestTask("bypassPermissions")
 					edit.Title, edit.Prompt, edit.Readonly = "Fix login", "Fix the login flow and add tests.", false

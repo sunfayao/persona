@@ -14,7 +14,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -347,46 +346,5 @@ func TestFileUploadLandsUnderUploadsFiles(t *testing.T) {
 	again, err := callUpload(t, n, proto.UploadDestFile, "manual.md", data)
 	if err != nil || again.Path == out.Path {
 		t.Fatalf("again: %v %v", again.Path, err)
-	}
-}
-
-// A report for the health space (dest=health) lands in the health directory's reports/ under its own name plus the
-// time, and stays there: no part file beside it, nothing in the temp directory.
-func TestHealthUploadLandsInReports(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("TMPDIR", tmp)
-	home := t.TempDir()
-	n := &Node{dir: t.TempDir(), home: home, logger: log.New(io.Discard, "", 0)}
-	data := []byte("%PDF-1.7 pretend")
-	out, err := callUpload(t, n, proto.UploadDestHealth, "2026 体检报告.pdf", data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantDir := filepath.Join(identity.HealthDir(home), "reports")
-	if filepath.Dir(out.Path) != wantDir {
-		t.Fatalf("path %s, want it in %s", out.Path, wantDir)
-	}
-	if b := filepath.Base(out.Path); !regexp.MustCompile(`^2026 体检报告-\d{8}-\d{6}\.pdf$`).MatchString(b) {
-		t.Fatalf("name %q", b)
-	}
-	if got, _ := os.ReadFile(out.Path); !bytes.Equal(got, data) {
-		t.Fatal("content differs")
-	}
-	if st, _ := os.Stat(wantDir); st.Mode().Perm() != 0o700 {
-		t.Fatalf("dir mode %v", st.Mode())
-	}
-	if ents, _ := os.ReadDir(wantDir); len(ents) != 1 {
-		t.Fatalf("dir has %v", ents)
-	}
-	if ents, _ := os.ReadDir(tmp); len(ents) != 0 {
-		t.Fatalf("temp dir has %v", ents)
-	}
-	// The main conversation is denied the directory the report is in.
-	denied := false
-	for _, r := range n.healthDenyRules(identity.AssistantDir(home)) {
-		denied = denied || strings.HasPrefix(r, "Read(/"+identity.HealthDir(home)+"/")
-	}
-	if !denied {
-		t.Fatalf("main conversation's deny rules miss %s: %v", wantDir, n.healthDenyRules(identity.AssistantDir(home)))
 	}
 }

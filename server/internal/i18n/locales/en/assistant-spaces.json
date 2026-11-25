@@ -1,0 +1,6 @@
+{
+  "notice_title": "Persona",
+  "notice_body": "There is something new. Open Persona to see it.",
+  "outbound": "Hand content that may be personal (health, money, relationships, feelings or legal matters) to somewhere outside this conversation (once handed over, the copy there stays):\n\n{what}",
+  "node_no_track_spaces": "Update Persona Link on {machine} to use this space there. Nothing was written."
+}

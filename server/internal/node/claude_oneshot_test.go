@@ -83,7 +83,7 @@ func TestOfflineListLeavesOneShotRunsOut(t *testing.T) {
 		fork      = "5d500000-0000-4000-8000-000000000006"
 		assistant = "5d500000-0000-4000-8000-000000000007" // this manager's assistant
 		manager   = "5d500000-0000-4000-8000-000000000008" // another manager's assistant
-		health    = "5d500000-0000-4000-8000-000000000009" // another manager's health space
+		health    = "5d500000-0000-4000-8000-000000000009" // another manager's track
 		guest     = "5d500000-0000-4000-8000-00000000000a"
 		driven    = "5d500000-0000-4000-8000-00000000000b" // the node keeps state for it
 		hugeTail  = "5d500000-0000-4000-8000-00000000000c" // a one-shot run with more than a tail of Claude Code's records after it
@@ -106,7 +106,7 @@ func TestOfflineListLeavesOneShotRunsOut(t *testing.T) {
 	writeClaudeRun(t, dir, fork, 6*time.Minute, "sdk-cli")
 	writeClaudeRun(t, filepath.Join(projects, n.assistantProject()), assistant, 7*time.Minute, "sdk-cli")
 	writeClaudeRun(t, under(identity.DataDir(home), "assistant-m-1a2b3c"), manager, 8*time.Minute, "sdk-cli")
-	writeClaudeRun(t, under(identity.DataDir(home), "health-m-1a2b3c"), health, 9*time.Minute, "sdk-cli")
+	writeClaudeRun(t, under(identity.DataDir(home), "tracks-m-1a2b3c/qa-private"), health, 9*time.Minute, "sdk-cli")
 	writeClaudeRun(t, under(identity.DataDir(home), "guest"), guest, 10*time.Minute, "sdk-cli")
 	writeClaudeRun(t, dir, driven, 11*time.Minute, "sdk-cli")
 	big := writeClaudeRun(t, dir, hugeTail, 12*time.Minute, "sdk-cli")

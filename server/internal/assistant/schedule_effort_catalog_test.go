@@ -44,28 +44,14 @@ func scheduledCatalogFixture(t *testing.T, assistantEfforts []string) (*Service,
 }
 
 func TestScheduledAssistantUsesExecutionCatalog(t *testing.T) {
-	for _, entry := range []string{"due", "retry", "workout", "edit"} {
+	for _, entry := range []string{"due", "retry", "edit"} {
 		for _, model := range []string{"", "default", "shell-model"} {
 			t.Run(entry+"/"+model, func(t *testing.T) {
 				s, f := scheduledCatalogFixture(t, []string{"low", "medium", "high", "xhigh", "max"})
 				binding := ModelBinding{Provider: "launcher.shared", Model: model, Effort: "xhigh"}
 				setModel(t, s, "assistant", binding)
 				task := Task{ID: "report", Title: "Report", Prompt: "Give the report", Repeat: repeatOnce, At: time.Now(), Enabled: true}
-				if entry == "workout" {
-					v := sampleWorkout()
-					raw, _ := json.Marshal(v)
-					r := request(s, http.MethodPost, "/api/v1/assistant/health/workouts", string(raw))
-					if r.Code != http.StatusOK {
-						t.Fatalf("workout admission: %d %s", r.Code, r.Body)
-					}
-					var ok bool
-					task, ok = taskByID(s, "workout-"+v.ID)
-					if !ok {
-						t.Fatal("admitted workout has no task")
-					}
-				} else {
-					setTasks(s, task)
-				}
+				setTasks(s, task)
 				if entry == "edit" {
 					body, _ := json.Marshal(map[string]any{"title": "Report", "prompt": "Give the report", "repeat": "interval", "every_minutes": 30, "enabled": true,
 						"launcher": "shared", "model": model, "effort": "xhigh", "model_revision": 0})
@@ -135,7 +121,7 @@ func TestScheduledProviderOverrideKeepsItsOwnDefaults(t *testing.T) {
 }
 
 func TestScheduledConfigurationFailureIsNotRetried(t *testing.T) {
-	for _, kind := range []string{"one-off", "workout", "facts", "report"} {
+	for _, kind := range []string{"one-off", "facts", "report"} {
 		t.Run(kind, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				s, f := scheduledCatalogFixture(t, []string{"low"})
@@ -147,13 +133,7 @@ func TestScheduledConfigurationFailureIsNotRetried(t *testing.T) {
 				if task.Facts || task.Report {
 					task.Repeat, task.EveryMinutes = repeatInterval, 30
 				}
-				if kind == "workout" {
-					if err := s.acceptWorkout(t.Context(), sampleWorkout()); err != nil {
-						t.Fatal(err)
-					}
-				} else {
-					setTasks(s, task)
-				}
+				setTasks(s, task)
 				s.runDue(t.Context(), time.Now().Add(time.Second))
 				synctest.Wait()
 				time.Sleep(2 * s.runRetry) // sleep-ok: advances synctest's virtual clock beyond the retry deadline

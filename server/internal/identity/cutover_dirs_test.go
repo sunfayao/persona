@@ -7,8 +7,7 @@ import (
 )
 
 // A conversation recorded before the Persona-only cutover names the folder it ran in under the previous state
-// directory. On a machine whose state directory is the default ~/.persona now, it is still the assistant's, and a
-// health one is still in the health space (#163). The previous directory is spelled out of parts so the identifier
+// directory. On a machine whose state directory is the default ~/.persona now, it is still the assistant's (#163). The previous directory is spelled out of parts so the identifier
 // scan does not take it for a compatibility name.
 func TestAssistantDirsFromBeforeTheCutover(t *testing.T) {
 	home := t.TempDir()
@@ -23,9 +22,7 @@ func TestAssistantDirsFromBeforeTheCutover(t *testing.T) {
 		want     bool
 	}{
 		{old("assistant"), "", true},
-		{old("health"), "", true},
 		{old("assistant-m-0b0b0b"), "m-0b0b0b", true},
-		{old("health-m-0b0b0b"), "m-0b0b0b", true},
 		{old("assistant-m-0b0b0b"), "", false}, // another manager's
 		{old("assistant-bin"), "", false},      // not an assistant directory
 		{old("assistant/patrol"), "", false},   // inside it, not it
@@ -34,7 +31,7 @@ func TestAssistantDirsFromBeforeTheCutover(t *testing.T) {
 			t.Errorf("IsAssistantDirOf(%s, %q) = %v, want %v", c.path, c.id, got, c.want)
 		}
 	}
-	if SpaceOf(old("health")) != SpaceHealth || SpaceOf(old("assistant")) != "" {
-		t.Error("SpaceOf: the previous health space is the health space")
+	if SpaceOf(old("assistant")) != "" {
+		t.Error("SpaceOf: the assistant's directory is no space")
 	}
 }

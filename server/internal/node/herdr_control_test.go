@@ -310,7 +310,7 @@ func TestHerdrAnExtensionsResumeOfAnUnlistedChat(t *testing.T) {
 	)
 	n, f, home := herdrNode(t)
 	work := mkdir(t, filepath.Join(home, "errands"))
-	health := mkdir(t, filepath.Join(home, ".persona", "health"))
+	health := mkdir(t, filepath.Join(home, ".persona", "tracks", "qa-private"))
 	charts := mkdir(t, filepath.Join(health, "charts"))
 	private := mkdir(t, filepath.Join(home, "private"))
 	quiet := time.Now().Add(-9 * 24 * time.Hour) // no longer in the offline list
@@ -390,7 +390,7 @@ func TestHerdrAnExtensionsResumeOfAnUnlistedChat(t *testing.T) {
 func TestHerdrAResumeElsewhereDoesNotLetAnExtensionPastAHealthRunsRecord(t *testing.T) {
 	const run = "0a1b2c3d-7777-4f60-8a7b-9c0d1e2f3a41"
 	n, f, home := herdrNode(t)
-	charts := mkdir(t, filepath.Join(home, ".persona", "health", "charts"))
+	charts := mkdir(t, filepath.Join(home, ".persona", "tracks", "qa-private", "charts"))
 	elsewhere := mkdir(t, filepath.Join(home, "elsewhere"))
 	prompt := func(cwd, text string) string {
 		return `{"type":"user","timestamp":"2026-11-05T07:31:12Z","cwd":"` + cwd + `","message":{"role":"user","content":"` + text + `"}}`
@@ -440,7 +440,7 @@ func TestHerdrAResumeElsewhereDoesNotLetAnExtensionPastAHealthRunsRecord(t *test
 func TestHerdrOwnersResumeOfAHealthRunIsUnchecked(t *testing.T) {
 	const run = "0a1b2c3d-7777-4f60-8a7b-9c0d1e2f3a41"
 	n, f, home := herdrNode(t)
-	charts := mkdir(t, filepath.Join(home, ".persona", "health", "charts"))
+	charts := mkdir(t, filepath.Join(home, ".persona", "tracks", "qa-private", "charts"))
 	writeTranscript(t, home, charts, run, time.Now().Add(-9*24*time.Hour),
 		`{"type":"user","timestamp":"2026-11-05T07:31:12Z","cwd":"`+charts+`","message":{"role":"user","content":"chart it"}}`)
 	f.reply("workspace.list", map[string]any{"workspaces": []any{}})

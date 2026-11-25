@@ -16,12 +16,12 @@ import (
 // their own; a card from inside a health space keeps that (a mix-up can only hide more).
 func TestNodeCardsArePlacedInTheConversationsDirectory(t *testing.T) {
 	ft := newFleetTest(t)
-	const health, assistant = "/home/u/.persona/health", "/home/u/.persona/assistant"
+	const health, assistant = "/home/u/.persona/tracks/qa-private", "/home/u/.persona/assistant"
 	ft.sessions("mac",
 		proto.Session{SessionID: "health-1", Cwd: health},
 		proto.Session{SessionID: "main-1", Cwd: assistant},
 		proto.Session{SessionID: "agent-1", Cwd: "/work/app", PaneID: "w1:p1"},
-		proto.Session{SessionID: "other-1", Cwd: "/home/u/.persona/health-m-0c0c0c"}, // another manager's, left behind
+		proto.Session{SessionID: "other-1", Cwd: "/home/u/.persona/tracks-m-0c0c0c/qa-private"}, // another manager's, left behind
 	)
 	for _, c := range []struct{ name, session, cwd, want string }{
 		{"health, from /tmp", "health-1", "/tmp/x", health},
@@ -61,14 +61,14 @@ func TestNodeCardsArePlacedInTheConversationsDirectory(t *testing.T) {
 		byID[ix.ID] = ix
 	}
 	h, m := byID["ix_health"], byID["ix_main"]
-	if h.Cwd != health || ft.s.ixSpace(ctx, h) != SpaceHealth {
-		t.Fatalf("the health card waits in %q (health %v)", h.Cwd, ft.s.ixSpace(ctx, h) == SpaceHealth)
+	if h.Cwd != health || ft.s.ixSpace(ctx, h) != testSpace {
+		t.Fatalf("the health card waits in %q (health %v)", h.Cwd, ft.s.ixSpace(ctx, h) == testSpace)
 	}
 	if ft.s.feishuCardWanted(ctx, h) {
 		t.Error("the Lark bot's all cards takes a health conversation's card")
 	}
-	if m.Cwd != assistant || ft.s.ixSpace(ctx, m) == SpaceHealth || !ft.s.feishuCardWanted(ctx, m) {
-		t.Errorf("the main conversation's card: %q, health %v, posted %v", m.Cwd, ft.s.ixSpace(ctx, m) == SpaceHealth, ft.s.feishuCardWanted(ctx, m))
+	if m.Cwd != assistant || ft.s.ixSpace(ctx, m) == testSpace || !ft.s.feishuCardWanted(ctx, m) {
+		t.Errorf("the main conversation's card: %q, health %v, posted %v", m.Cwd, ft.s.ixSpace(ctx, m) == testSpace, ft.s.feishuCardWanted(ctx, m))
 	}
 }
 
@@ -78,19 +78,19 @@ func TestHealthCardsCountTheSpacesFolders(t *testing.T) {
 	ft := newFleetTest(t)
 	ctx := context.Background()
 	for cwd, want := range map[string]bool{
-		"/home/u/.persona/health":         true,
-		"/home/u/.persona/health/reports": true,
-		"/home/u/.persona/health-bin":     false,
-		"/tmp/health":                     false,
+		"/home/u/.persona/tracks/qa-private":         true,
+		"/home/u/.persona/tracks/qa-private/reports": true,
+		"/home/u/.persona/health-bin":                false,
+		"/tmp/health":                                false,
 	} {
-		if got := ft.s.ixSpace(ctx, proto.Interaction{MachineID: "mac", Cwd: cwd}) == SpaceHealth; got != want {
+		if got := ft.s.ixSpace(ctx, proto.Interaction{MachineID: "mac", Cwd: cwd}) == testSpace; got != want {
 			t.Errorf("ixSpace(%s) == health = %v, want %v", cwd, got, want)
 		}
 	}
-	if spaceOf(proto.Session{Cwd: "/home/u/.persona/health/reports"}) != "" {
+	if spaceOf(proto.Session{Cwd: "/home/u/.persona/tracks/qa-private/reports"}) != "" {
 		t.Error("spaceOf takes a folder of the health space for the space")
 	}
-	ft.sessions("mac", proto.Session{SessionID: "drift-1", Cwd: "/home/u/.persona/health/reports"})
+	ft.sessions("mac", proto.Session{SessionID: "drift-1", Cwd: "/home/u/.persona/tracks/qa-private/reports"})
 	listed := false
 	for _, s := range ft.lastList("mac") {
 		if s.SessionID == "drift-1" {
