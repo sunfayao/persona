@@ -38,6 +38,8 @@ const flush = async () => {
 
 beforeEach(() => {
   localStorage.clear();
+  // the list is quiet and long: its "other agents" section starts folded
+  localStorage.setItem("fold:loose", "0");
   previews.clear();
   vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(answers[new URL(url, "http://x").pathname] ?? {}), { headers: { "Content-Type": "application/json" } }))));
   history.replaceState(null, "", "/");
