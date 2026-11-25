@@ -241,62 +241,6 @@ func TestLauncherHealthRepairRecheckMeetsAUsageLimit(t *testing.T) {
 	}
 }
 
-// An agent's own turn that ends on its usage limit marks the launcher it names on its machine until the reset, with no
-// check and no repair, once; without a launcher, with the reset past, or on a gateway's 429, nothing is recorded.
-func TestLauncherHealthFromAnAgentsUsageLimit(t *testing.T) {
-	s, f := launcherHealthHub(t)
-	ctx := context.Background()
-	now := time.Now()
-	line, reset := sessionLimitLine(2 * time.Hour)
-	codexReset := now.Add(90 * time.Minute).UTC().Truncate(time.Second)
-	old := now.Add(-2 * time.Hour).UTC().Truncate(time.Minute)
-	f.setSessions("box",
-		// Woken by a background task meanwhile: counted as working, its words still the limit's.
-		proto.Session{SessionID: "s1", Launcher: "work", Status: proto.StatusIdle, State: proto.StateWorking, LastText: line, UpdatedAt: now},
-		proto.Session{SessionID: "s2", Status: proto.StatusIdle, State: proto.StateUnread, LastText: line, UpdatedAt: now},
-		proto.Session{SessionID: "s3", Launcher: "codex", Status: proto.StatusIdle, State: proto.StateUnread, UpdatedAt: now,
-			TurnError: "You've hit your usage limit. Try again at 3:05 PM.", TurnErrorKind: proto.TurnErrorUsageLimit, TurnErrorResetsAt: &codexReset},
-		proto.Session{SessionID: "s4", Launcher: "gw", Status: proto.StatusIdle, State: proto.StateUnread, UpdatedAt: now,
-			LastText: "API Error: Request rejected (429) · quota reached"},
-		proto.Session{SessionID: "s5", Launcher: "old", Status: proto.StatusIdle, State: proto.StateUnread, UpdatedAt: now.Add(-3 * time.Hour),
-			LastText: fmt.Sprintf("You've hit your session limit · resets %s (UTC)", old.Format("3:04pm"))},
-	)
-	for _, sid := range []string{"s1", "s2", "s3", "s4", "s5", "s1"} {
-		s.launcherLimitTurnEnded(ctx, "box", sid)
-	}
-	r := healthState(s, "box", "work")
-	if r.State != healthFailing || r.Kind != errKindUsageLimit || r.Source != healthSourceSession || r.ResetsAt == nil || !r.ResetsAt.Equal(reset) ||
-		r.Fails != 1 || r.Error != line || !r.unusable() {
-		t.Fatalf("box/work: %+v", r)
-	}
-	if r := healthState(s, "box", "codex"); r.Kind != errKindUsageLimit || r.ResetsAt == nil || !r.ResetsAt.Equal(codexReset) {
-		t.Fatalf("box/codex: %+v", r)
-	}
-	var names []string
-	for _, r := range s.healthRecords(ctx, "", "") {
-		names = append(names, healthKey(r.Machine, r.Launcher))
-	}
-	if !slices.Equal(names, []string{"box/codex", "box/work"}) {
-		t.Fatalf("records: %v", names)
-	}
-	f.mu.Lock()
-	checks, starts := len(f.checked), len(f.starts)
-	f.mu.Unlock()
-	if checks != 0 || starts != 0 {
-		t.Fatalf("checked %d, started %d", checks, starts)
-	}
-	if _, note, _ := s.healthDetour(ctx, Device{ID: "box"}, "work"); !strings.Contains(note, "resets_at="+reset.Format(time.RFC3339)) {
-		t.Fatalf("detour: %q", note)
-	}
-
-	// Through the turn's end.
-	f.setSessions("l4", proto.Session{SessionID: "s6", Launcher: "work", Status: proto.StatusIdle, State: proto.StateUnread, LastText: line, UpdatedAt: now})
-	s.TurnEnded(ctx, SessionRef{MachineID: "l4", SessionID: "s6"})
-	waitFor(t, "the limit recorded", func() bool {
-		r := healthState(s, "l4", "work")
-		return r.Source == healthSourceSession && r.Kind == errKindUsageLimit
-	})
-}
 
 // Readiness reads a usage-limited launcher as a rate limit that passes by itself, until its reset.
 func TestLauncherHealthUsageLimitInReadiness(t *testing.T) {

@@ -1133,14 +1133,6 @@ func TestUpdateManagedLauncherPreservesAgentWhenOmitted(t *testing.T) {
 	}
 }
 
-func mustManagedForNodes(t *testing.T, s *Service, ctx context.Context) []proto.ManagedLauncher {
-	t.Helper()
-	list, err := s.managedForNodes(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return list
-}
 
 func TestAskLauncherModelsAddsOnlyExactCatalogPrices(t *testing.T) {
 	s, f, _ := modelService(t)

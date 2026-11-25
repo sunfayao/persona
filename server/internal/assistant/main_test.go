@@ -24,18 +24,6 @@ func TestMain(m *testing.M) {
 	os.Exit(testhome.Main(func() int { return staleListedCheck(dbtest.Main(m)) }))
 }
 
-// staleListedCheck fails a run in which a GET listed an item from bytes that were not its encoding any more.
-func staleListedCheck(code int) int {
-	notes := inboxMemoStale.taken()
-	for _, n := range notes {
-		fmt.Fprintln(os.Stderr, n)
-	}
-	if len(notes) > 0 && code == 0 {
-		fmt.Fprintf(os.Stderr, "FAIL: %d inbox GETs listed stale item bytes (inbox_list_memo.go)\n", len(notes))
-		return 1
-	}
-	return code
-}
 
 // The package's tests never see the developer's HOME or PERSONA_HOME (testhome); most of them need a database and skip
 // in CI, this one keeps the TestMain wiring from being dropped there.

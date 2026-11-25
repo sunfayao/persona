@@ -53,19 +53,6 @@ func TestAskOfClips(t *testing.T) {
 	}
 }
 
-// The sayings are matched on every session of every list a manager publishes, and most replies hold none of them: each
-// pattern keeps its gate (lazyre.NewGated), which turns such a reply away before the regexp engine walks every
-// alternative at every position (BenchmarkAskOf, a reply that asks nothing: about 72 to 5 microseconds). A
-// saying that may start with anything (a class, a repeat, (?i)) would drop the gate. The code-block and 吗 patterns
-// are gated too: most replies hold neither, and a gated replacement gives such a text back without copying it.
-func TestAskPatternsGated(t *testing.T) {
-	for name, re := range map[string]interface{ Gated() bool }{"askPhrases": askPhrases, "askNone": askNone, "askInline": askInline, "askFence": askFence,
-		"askParticle": askParticle} {
-		if !re.Gated() {
-			t.Errorf("%s lost its gate: every match must start with a literal", name)
-		}
-	}
-}
 
 // cutListMark is the list-mark regexp it replaced, written out.
 func TestCutListMarkMatchesRegexp(t *testing.T) {

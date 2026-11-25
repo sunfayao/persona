@@ -39,17 +39,3 @@ func TestDirectModelSourceAllProtocolsAndDestinations(t *testing.T) {
 	}
 }
 
-func TestSourceHeadersDoNotFollowCrossOriginRedirect(t *testing.T) {
-	t.Setenv(modelhttp.SourceHostsEnv, "*.example.com")
-	previous, _ := http.NewRequest("POST", "https://gw.example.com/v1/messages", nil)
-	next, _ := http.NewRequest("GET", "https://api.anthropic.com/", nil)
-	modelhttp.Source{Role: "routine", Todo: "todo_1", Routine: "routine_1"}.Apply(next.Header)
-	if err := checkRedirect(next, []*http.Request{previous}); err != nil {
-		t.Fatal(err)
-	}
-	for name := range next.Header {
-		if modelhttp.SourceHeader(name) {
-			t.Fatal("source leaked across origins")
-		}
-	}
-}

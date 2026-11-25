@@ -9,20 +9,6 @@ import (
 
 // #7391: a relay hop is a request; the first message back, its answer, keeps the hop.
 
-// relayChain is a Service whose conversations message each other as conversation_send does: checked and counted
-// (relayAllowed), then delivered at once (relayDelivered). send returns the hop the message went at.
-func relayChain(t *testing.T) (*Service, func(from, to string) (int, error)) {
-	t.Helper()
-	s := newTestService(t, newFakeHub())
-	send := func(from, to string) (int, error) {
-		hop, answer, err := s.relayAllowed(from, to, time.Now())
-		if err == nil {
-			s.relayDelivered(context.Background(), to, relayMsg{From: from, Tool: "conversation_send", Hop: hop, Answer: answer, At: time.Now().UTC()})
-		}
-		return hop, err
-	}
-	return s, send
-}
 
 // forgetRate drops the per-pair and per-sender counts, as ten minutes going by does.
 func forgetRate(s *Service) {

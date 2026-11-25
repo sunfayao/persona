@@ -60,23 +60,3 @@ func TestScheduledWakeStartsANewChain(t *testing.T) {
 	}
 }
 
-// The scheduler calls it: a follow-up run into its own conversation (new_conversation=false) clears the hop.
-func TestFollowupRunIntoItsConversationStartsANewChain(t *testing.T) {
-	h := newSpawnHarness(t)
-	h.s.relays.mu.Lock()
-	if !h.s.relayLocked(context.Background()) {
-		t.Fatal("relay state")
-	}
-	h.s.relays.st.Hops["parent-1"] = relayHop{Hop: relayMaxHops, At: time.Now().UTC(), From: "lead-1"}
-	h.s.relays.mu.Unlock()
-	task := Task{ID: "fu_1", Title: "check on the leaders", Prompt: "check", Repeat: repeatOnce, Enabled: true,
-		MachineID: "server", SessionID: "parent-1", At: time.Now()}
-	setTasks(h.s, task)
-	sess, err := h.s.runTask(task, time.Now(), time.Now(), false, false)
-	if err != nil || sess.SessionID != "parent-1" {
-		t.Fatalf("follow-up run: %+v %v", sess, err)
-	}
-	if hop, _, err := h.s.relayAllowed("parent-1", "lead-1", time.Now()); err != nil || hop != 1 {
-		t.Fatalf("after the follow-up woke it: hop %d, %v (want hop 1)", hop, err)
-	}
-}

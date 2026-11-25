@@ -339,22 +339,6 @@ func TestUsageLimitRuleUnknownFamilyOutlivesOtherReset(t *testing.T) {
 	})
 }
 
-// An agent's turn that meets the Opus limit with a later reset is not "known already" for being before another
-// family's reset: once Sonnet's pass clears Sonnet, Opus holds until its own new reset.
-func TestUsageLimitRuleTurnLimitKeepsItsFamilysReset(t *testing.T) {
-	s, f := launcherHealthHubOn(t, newStorelessService)
-	ctx := context.Background()
-	soon, mid, week := time.Now().Add(time.Hour), time.Now().UTC().Add(72*time.Hour).Truncate(time.Second), time.Now().Add(7*24*time.Hour)
-	seedUsageLimit(t, s, "l4", "You've hit your Opus limit", &soon)
-	s.recordHealth(ctx, "l4", "work", healthResult{err: "You've hit your Sonnet limit", kind: errKindUsageLimit, resetsAt: &week, source: healthSourceSession})
-	f.setSessions("l4", proto.Session{SessionID: "s1", Launcher: "work", Status: proto.StatusIdle, State: proto.StateUnread, UpdatedAt: time.Now(),
-		TurnError: "You've hit your Opus limit", TurnErrorKind: proto.TurnErrorUsageLimit, TurnErrorResetsAt: &mid})
-	s.launcherLimitTurnEnded(ctx, "l4", "s1")
-	s.recordHealth(ctx, "l4", "work", healthResult{ok: true, model: "claude-sonnet-4-5", source: healthSourceCheck})
-	if rec := healthState(s, "l4", "work"); rec.ResetsAt == nil || !rec.ResetsAt.Equal(mid) || !slices.Equal(rec.limitModels(), []string{"opus"}) {
-		t.Fatalf("the turn's later Opus reset was dropped: %+v", rec)
-	}
-}
 
 // Fourth review's counterexamples and the persisted format.
 

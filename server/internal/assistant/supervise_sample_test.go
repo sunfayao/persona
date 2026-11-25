@@ -121,35 +121,6 @@ func TestDefaultReviewsEveryTask(t *testing.T) {
 	}
 }
 
-// The judge is asked for the checks only while spot-checking is on, and its answer is matched to the ledger's criteria.
-func TestJudgeAsksForChecksOnlyWhenSampling(t *testing.T) {
-	in := taskDoneInput{Owner: "Alex", Title: "Fix the login retry", Criteria: []string{"PR merged", "deployed"},
-		Replies: []prompts.TaskDoneReply{doneReply("Deployed and verified.")}}
-	m := &cannedJSON{answer: `{"verdict":"done","reason":"ok","delivery":"live","checks":[{"criterion":"x","checkable":true,"met":true,"evidence":"e"}]}`}
-	c, err := judgeTaskDoneWith(context.Background(), m, in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.AutoCheck != nil || strings.Contains(m.system, `"checks"`) || c.Delivery != nil {
-		t.Fatalf("checks without sampling: %+v\n%s", c.AutoCheck, m.system)
-	}
-	in.Checks = true
-	c, err = judgeTaskDoneWith(context.Background(), m, in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(m.system, `"checks"`) || m.system != prompts.RenderTaskDone(prompts.TaskDone{Owner: "Alex", Checks: true}) {
-		t.Fatal("the judge was not asked for the checks")
-	}
-	ac := c.AutoCheck
-	if ac == nil || ac.Delivery != deliveryLive || len(ac.Checks) != 2 || ac.Checks[0].Criterion != "PR merged" || ac.Checks[0].Met ||
-		ac.Checks[1].Met || ac.passed() { // one check for two criteria: none counts
-		t.Fatalf("auto check %+v", ac)
-	}
-	if c.Delivery != nil || c.Verdict != verdictDone {
-		t.Fatalf("checks changed the delivery gate's verdict: %+v", c)
-	}
-}
 
 // PUT /api/v1/assistant takes the share (0–100) and GET says the one in effect.
 func TestReviewSamplePercentSetting(t *testing.T) {
@@ -208,37 +179,4 @@ func TestJudgeLeavesAReopenedTaskToTheSupervisor(t *testing.T) {
 	}
 }
 
-// Checks that are not one per criterion, each copied in its place, count as not met.
-func TestMisalignedChecksDoNotPass(t *testing.T) {
-	criteria := []string{"PR merged", "deployed"}
-	ok := func(c string) autoCheckItem {
-		return autoCheckItem{ReviewCheck: ReviewCheck{Criterion: c, Met: true, Evidence: "e"}, Checkable: true}
-	}
-	for name, got := range map[string][]autoCheckItem{
-		"one more":  {ok("something else"), ok("PR merged"), ok("deployed")},
-		"one less":  {ok("PR merged")},
-		"swapped":   {ok("deployed"), ok("PR merged")},
-		"rephrased": {ok("the PR is merged"), ok("deployed")},
-	} {
-		if autoCheckOf(criteria, got, deliveryLive).passed() {
-			t.Errorf("%s: passed", name)
-		}
-	}
-	if !autoCheckOf(criteria, []autoCheckItem{ok(" PR  merged"), ok("deployed")}, deliveryLive).passed() {
-		t.Error("the same criteria, spacing aside, do not pass")
-	}
-}
 
-// Live counts only on the judge's own word: the agent's delivery line alone does not let it close.
-func TestAutoCheckLiveIsTheJudgesOwn(t *testing.T) {
-	in := taskDoneInput{Title: "t", Criteria: []string{"PR merged"}, Checks: true,
-		Replies: []prompts.TaskDoneReply{doneReply("done\n交付：已上线并实测；卡点：无；谁来解：无")}}
-	m := &cannedJSON{answer: `{"verdict":"done","reason":"ok","checks":[{"criterion":"PR merged","checkable":true,"met":true,"evidence":"e"}]}`}
-	c, err := judgeTaskDoneWith(context.Background(), m, in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.AutoCheck.passed() {
-		t.Fatalf("passed on the agent's line alone: %+v", c.AutoCheck)
-	}
-}

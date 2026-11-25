@@ -73,13 +73,6 @@ func (b *inboxBook) inboxAgentPrompt(it *InboxItem, owner string) string {
 	return b.inboxAgentPromptFor(it, owner, nil, 1, time.UTC)
 }
 
-// inboxAgentPromptFor is inboxAgentPrompt for an item about one of the user's tasks (linked: its progress).
-// larkDefault is lark.account: the Feishu account lark_messages reads unless the prompt names another.
-// loc: the user's time zone, which the chain's times are read in.
-func (b *inboxBook) inboxAgentPromptFor(it *InboxItem, owner string, linked *prompts.InboxTask, larkDefault int, loc *time.Location) string {
-	a := b.inboxAgentFor(it, owner, linked, larkDefault, loc)
-	return prompts.RenderInboxAgent(a)
-}
 
 // waitWorkEvents returns once the events recorded so far are in the store (or failed): what reads the stats right
 // after acting sees them. The caller must know nothing else is recording events meanwhile (no Run,

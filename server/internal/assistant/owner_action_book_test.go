@@ -95,18 +95,6 @@ func validOwnerProof(batch, item string) ownerReplyProof {
 	}
 }
 
-func createOwnerTestBatch(t *testing.T, book *ownerActionBook, inputs ...string) ownerActionBatch {
-	t.Helper()
-	drafts := make([]ownerActionDraft, len(inputs))
-	for i, input := range inputs {
-		drafts[i] = ownerActionDraft{Tool: "mail_send", Input: json.RawMessage(input)}
-	}
-	batch, err := book.create(context.Background(), "machine-1", "session-1", drafts)
-	if err != nil {
-		t.Fatalf("create batch: %v", err)
-	}
-	return batch
-}
 
 func TestOwnerActionCanonicalPayload(t *testing.T) {
 	a, err := canonicalOwnerAction(json.RawMessage(` {"subject":"hello","to":[{"email":"a@example.test"}],"n":1} `))

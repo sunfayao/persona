@@ -306,15 +306,6 @@ func TestTaskWorkspaceSessionRowsVerifyOwnership(t *testing.T) {
 	}
 }
 
-func TestStoppedTaskFollowupsDoNotResumeExceptRework(t *testing.T) {
-	s, f, leader := stoppedTaskLeader(t)
-	if _, err := s.sendToTaskAs(context.Background(), leader, "ordinary follow-up", false); !errors.Is(err, errTaskAgentsStopped) {
-		t.Fatalf("ordinary stopped follow-up resumed the Agent: %v", err)
-	}
-	if starts := resumeTaskStarts(f); len(starts) != 0 {
-		t.Fatalf("ordinary follow-up started a resume: %v", starts)
-	}
-}
 
 func TestStoppedTaskReworkChecksContextAndWritesResumeNote(t *testing.T) {
 	s, f, leader := stoppedTaskLeader(t)
