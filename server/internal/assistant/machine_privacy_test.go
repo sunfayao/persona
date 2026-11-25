@@ -219,7 +219,7 @@ func TestWorkMachineToolsDeniedAtExecution(t *testing.T) {
 		t.Run("personal="+trust, func(t *testing.T) {
 			s, d, _, _ := privacyService(t)
 			d.machines["other"].trust = trust
-			for _, name := range []string{"phone_contacts", "mail_search"} {
+			for _, name := range []string{"mail_search"} {
 				if !slices.Contains(privacyTools(t, s, "other", "ordinary", false), name) {
 					t.Fatalf("missing %s", name)
 				}

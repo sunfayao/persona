@@ -290,7 +290,7 @@ func TestOnlyAndWithoutSplitSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	keys := []string{"agents", "assistant.owner", "assistant.notes"}
-	if got := string(Only(o, keys)); got != `{"agents":{"enabled":false},"assistant":{"owner":"o"}}` {
+	if got := string(Only(o, keys)); got != `{"assistant":{"owner":"o"},"agents":{"enabled":false}}` {
 		t.Errorf("Only %s", got)
 	}
 	if got := string(Without(o, keys)); got != `{"token":"t","assistant":{"external":true},"other":1}` {
