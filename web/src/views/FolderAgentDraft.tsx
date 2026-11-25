@@ -168,7 +168,7 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   const permissionControl = modes.length > 0 && (
     <select value={permissionMode ?? ""} onChange={(e) => changeMode(e.target.value)} aria-label={t("chat-sessiondialogs.permission_mode")}
       title={permissionMode === BYPASS_MODE ? BYPASS_WARNING : undefined}
-      className={cx("h-7 min-w-0 max-w-24 shrink rounded-control bg-transparent pl-2 text-label text-ink-2 hover:bg-hover sm:max-w-none", permissionMode === BYPASS_MODE && "text-red")}>
+      className={cx("h-7 min-w-0 max-w-40 shrink rounded-control bg-transparent pl-2 text-label text-ink-2 hover:bg-hover sm:max-w-none", permissionMode === BYPASS_MODE && "text-red")}>
       <option value="">{t("newagent.follow_launcher")}</option>
       {modes.map((value) => <option key={value} value={value}>{modeTitle(value)}</option>)}
     </select>
