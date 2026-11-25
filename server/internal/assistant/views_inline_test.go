@@ -3,16 +3,19 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -344,5 +347,143 @@ func TestInlineTurnRegistersWhenStoppedAssistantRevAdvances(t *testing.T) {
 		if got := strings.Count(f.eventTypes(), "assistant_view_block"); got != 2 {
 			t.Fatalf("after settleDelay: assistant_view_block count=%d, want 2 (%q)", got, f.eventTypes())
 		}
+	})
+}
+
+func TestInlineAgyMainRecoversMissedChoices(t *testing.T) {
+	dsn := os.Getenv("PERSONA_TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("PERSONA_TEST_DATABASE_URL not set")
+	}
+	ctx := context.Background()
+	database, err := db.Open(ctx, dsn, db.ManagerSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(database.Close)
+	f := newFakeHub().withMachine()
+	const machine = "server"
+	conversation := "agy-main-" + randomHex(8)
+	f.settings = &Settings{Main: conversation, MainMachineID: machine, MachineID: machine, Launcher: "agy", Timezone: "Asia/Shanghai"}
+	d := newFleetDevs()
+	d.add(machine, "Test computer")
+	s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return repositorystore.New(database) }, Logf: testLogf(t), Devices: d}))
+	ft := &fleetTest{t: t, s: s, d: d, f: f}
+	m, _ := s.fleetMachine(machine)
+	row := proto.Session{SessionID: conversation, Cwd: m.assistantCwd(), Launcher: "agy", Status: proto.StatusDone, Rev: 1111, UpdatedAt: time.Now().UTC()}
+	ref := SessionRef{MachineID: machine, SessionID: conversation}
+	card := `{"fallback":"Choose","sections":[{"items":[{"type":"row","title":"One","action":{"id":"one","reply":"Trusted first choice"}},{"type":"row","title":"Two","action":{"id":"two","reply":"Trusted second choice"}}]}]}`
+	text := "Options:\n```persona-view\n" + card + "\n```\n"
+	it := proto.Item{ID: "1111@native#1", Seq: 1111, TS: row.UpdatedAt, Role: "assistant", Kind: proto.KindText, Text: text}
+	const key = "1111@native#1/0"
+	var tail atomic.Pointer[historyPage]
+	readTail := func(_ string, _ json.RawMessage) (any, error) { return tail.Load(), nil }
+	f.answerNode(DeviceSessionItems, readTail)
+	seq := it.Seq
+	oldSeq := seq - 1
+	d.setSessions(machine, []proto.Session{row})
+	keys := func() []string {
+		result, err := database.AssistantViewBlockKeys(ctx, conversation)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+	for _, unavailable := range []historyPage{
+		{Items: []proto.Item{it}, ToSeq: &seq, Partial: true},
+		{Items: []proto.Item{it}, ToSeq: &oldSeq},
+		{Items: []proto.Item{{ID: "1111@wrong#0", Seq: seq, Role: "user", Kind: proto.KindText, Text: text}}, ToSeq: &seq},
+		{Items: []proto.Item{{ID: "1111@draft#0", Seq: seq, Role: "assistant", Kind: proto.KindText, Text: "```persona-view\n" + card}}, ToSeq: &seq},
+	} {
+		// An unreadable or unauthorized block is never published.
+		row.UpdatedAt = row.UpdatedAt.Add(time.Second)
+		d.setSessions(machine, []proto.Session{row})
+		tail.Store(&unavailable)
+		s.reconcileInlineMain(ctx, ref)
+		if got := keys(); len(got) != 0 {
+			t.Fatalf("registered an unverified card: %v", got)
+		}
+	}
+	row.UpdatedAt = row.UpdatedAt.Add(time.Second)
+	d.setSessions(machine, []proto.Session{row})
+	tail.Store(&historyPage{Items: []proto.Item{it}, ToSeq: &seq})
+	f.answerNode(DeviceSessionItems, func(_ string, _ json.RawMessage) (any, error) {
+		newer := row
+		newer.Status, newer.Rev = proto.StatusWorking, row.Rev+1
+		d.setSessions(machine, []proto.Session{newer})
+		return tail.Load(), nil
+	})
+	s.reconcileInlineMain(ctx, ref)
+	if got := keys(); len(got) != 0 {
+		t.Fatalf("registered the old reply after a newer turn started: %v", got)
+	}
+	f.answerNode(DeviceSessionItems, readTail)
+	d.setSessions(machine, []proto.Session{row})
+
+	post := func(cardKey, body, role string) *httptest.ResponseRecorder {
+		path := "/api/v1/assistant/conversations/" + conversation + "/views/" + url.PathEscape(cardKey) + "/actions"
+		r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		r.Header.Set(RoleHeader, role)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w
+	}
+	const input = `{"action":"two","client_msg_id":"synthetic-answer","expected_version":1}`
+	if w := post(key, input, roleFull); w.Code != http.StatusNotFound {
+		t.Fatalf("unregistered card press: %d %s", w.Code, w.Body.String())
+	}
+
+	feed := func() *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/assistant/conversations/"+conversation+"/feed?paginate=1", nil)
+		r.Header.Set(RoleHeader, roleFull)
+		w := httptest.NewRecorder()
+		s.ServeHTTP(w, r)
+		return w
+	}
+	if w := feed(); w.Code != http.StatusOK {
+		t.Fatalf("main feed: %d %s", w.Code, w.Body.String())
+	}
+	waitFor(t, "native card registration notification", func() bool {
+		return slices.Equal(keys(), []string{key}) && strings.Count(f.eventTypes(), "assistant_view_block") == 1
+	})
+	var snapshot struct {
+		ViewBlocks []string `json:"view_blocks"`
+	}
+	if w := feed(); w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &snapshot) != nil || !slices.Equal(snapshot.ViewBlocks, []string{key}) {
+		t.Fatalf("main feed after notification: %d %s", w.Code, w.Body.String())
+	}
+	if w := post(key, input, roleExtension); w.Code != http.StatusForbidden {
+		t.Fatalf("extension card press: %d %s", w.Code, w.Body.String())
+	}
+	if w := post(key, strings.Replace(input, `"expected_version":1`, `"expected_version":2`, 1), roleFull); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "view_changed") {
+		t.Fatalf("stale version: %d %s", w.Code, w.Body.String())
+	}
+	if w := post(key, input, roleFull); w.Code != http.StatusOK {
+		t.Fatalf("reconciled card press: %d %s", w.Code, w.Body.String())
+	}
+	waitFor(t, "trusted choice delivery", func() bool {
+		a, err := database.AssistantViewAction(ctx, conversation, key)
+		return err == nil && a != nil && a.Status == "sent" && strings.HasPrefix(a.Text, "Trusted second choice")
+	})
+
+	// A later load of the same native content must keep the one receipt even if the row's timestamp advances.
+	row.UpdatedAt = row.UpdatedAt.Add(time.Second)
+	d.setSessions(machine, []proto.Session{row})
+	s.reconcileInlineMain(ctx, ref)
+	if w := post(key, strings.Replace(input, `"action":"two"`, `"action":"one"`, 1), roleFull); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "already_answered") {
+		t.Fatalf("second choice after replay: %d %s", w.Code, w.Body.String())
+	}
+	if got := keys(); !slices.Equal(got, []string{key}) || strings.Count(f.eventTypes(), "assistant_view_block") != 1 {
+		t.Fatalf("registration replay: keys %v, events %s", got, f.eventTypes())
+	}
+
+	// The first settled list can already contain the next final reply without an observed working-to-done edge.
+	next := it
+	next.ID, next.Seq, next.TS = "1112@native#1", it.Seq+1, row.UpdatedAt.Add(time.Second)
+	row.Rev, row.UpdatedAt = int64(next.Seq), next.TS
+	tail.Store(&historyPage{Items: []proto.Item{next}, ToSeq: &next.Seq})
+	ft.sessions(machine, row)
+	waitFor(t, "first settled list registration", func() bool {
+		return slices.Equal(keys(), []string{key, next.ID + "/0"})
 	})
 }

@@ -684,6 +684,7 @@ type mainBook struct {
 	mu        sync.Mutex
 	handoff   mainHandoff
 	execution mainExecutionBook
+	inline    inlineMainBook
 }
 
 func (s *Service) loadHandoff(ctx context.Context) mainHandoff {

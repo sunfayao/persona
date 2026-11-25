@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nwverse/persona/sdk/go/wire"
@@ -20,16 +21,17 @@ type inlineViewStore interface {
 	RecordAssistantViewErrors(context.Context, string, string, string, []string, time.Time) error
 }
 
-func (s *Service) registerInlineViews(parent context.Context, p SessionItems) {
+func (s *Service) registerInlineViews(parent context.Context, p SessionItems) bool {
 	st, ok := s.store().(inlineViewStore)
 	if !ok {
-		return
+		return false
 	}
 	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
 	if session, known := s.session(ctx, p.MachineID, p.SessionID); !known || !session.Assistant {
-		return
+		return false
 	}
+	complete := true
 	for _, it := range p.Items {
 		if it.ID == "" || it.Role != "assistant" || it.Kind != proto.KindText {
 			continue
@@ -37,6 +39,7 @@ func (s *Service) registerInlineViews(parent context.Context, p SessionItems) {
 		if it.FullSize > 0 {
 			var full proto.Item
 			if err := s.call(ctx, p.MachineID, "session.item", map[string]any{"session_id": p.SessionID, "item_id": it.ID}, &full); err != nil || full.ID != it.ID || full.Role != "assistant" || full.Kind != proto.KindText || full.FullSize > 0 {
+				complete = false
 				continue
 			}
 			it = full
@@ -66,6 +69,7 @@ func (s *Service) registerInlineViews(parent context.Context, p SessionItems) {
 			row := db.AssistantViewBlockRow{Conversation: p.SessionID, Key: wire.AssistantBlockKey(it.ID, b.Index), MachineID: p.MachineID, ItemID: it.ID, Index: b.Index, View: raw, CreatedAt: at}
 			created, err := st.RegisterAssistantViewBlock(ctx, row)
 			if err != nil {
+				complete = false
 				s.logf("assistant inline view registration failed: %v", err)
 				continue
 			}
@@ -81,9 +85,72 @@ func (s *Service) registerInlineViews(parent context.Context, p SessionItems) {
 			at = it.TS // a passing reply clears earlier problems only by when it was really written, not when it was replayed
 		}
 		if err := st.RecordAssistantViewErrors(ctx, p.SessionID, p.MachineID, it.ID, problems, at); err != nil {
+			complete = false
 			s.logf("assistant view errors could not be recorded: %v", err)
 		}
 	}
+	return complete
+}
+
+type inlineMainSnapshot struct {
+	Ref       SessionRef
+	Rev       int64
+	UpdatedAt time.Time
+}
+
+type inlineMainBook struct {
+	mu      sync.Mutex
+	checked inlineMainSnapshot
+}
+
+func (s *Service) inlineMainSnapshot(ctx context.Context, ref SessionRef) (inlineMainSnapshot, bool) {
+	cfg := s.settings(ctx)
+	if cfg.Main != ref.SessionID || !s.sameMachine(cfg.mainRouteMachine(), ref.MachineID) {
+		return inlineMainSnapshot{}, false
+	}
+	row, known := s.session(ctx, ref.MachineID, ref.SessionID)
+	if !known || !row.Assistant || row.Launcher != "agy" || row.Rev <= 0 || (row.Status != proto.StatusDone && row.Status != proto.StatusIdle) {
+		return inlineMainSnapshot{}, false
+	}
+	return inlineMainSnapshot{Ref: ref, Rev: row.Rev, UpdatedAt: row.UpdatedAt}, true
+}
+
+// reconcileInlineMain repairs a missed completion after the runtime exports its final reply. Use the current
+// main chat, a settled revision and the native tail. Never promote a previous turn or a cached partial page.
+func (s *Service) reconcileInlineMain(parent context.Context, ref SessionRef) {
+	if _, ok := s.store().(inlineViewStore); !ok {
+		return
+	}
+	book := &s.main.inline
+	if !book.mu.TryLock() {
+		return
+	}
+	defer book.mu.Unlock()
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
+	defer cancel()
+	before, ok := s.inlineMainSnapshot(ctx, ref)
+	if !ok || before == book.checked {
+		return
+	}
+	var tail historyPage
+	if err := s.historySource(ctx, ref.MachineID, DeviceSessionItems, map[string]any{"session_id": ref.SessionID, "limit": 1, "lazy_images": true}, &tail); err != nil || tail.Partial || tail.MoreAfter || int64(intValue(tail.ToSeq)) != before.Rev {
+		return
+	}
+	after, ok := s.inlineMainSnapshot(ctx, ref)
+	if !ok || after != before {
+		return
+	}
+	// agy's sequence is the native step. One sequence may have thought and text items. Only its final text
+	// can answer, and only under the stable source item key that the client and the action endpoint both use.
+	for _, it := range tail.Items {
+		if int64(it.Seq) == before.Rev && it.ID != "" && it.Role == "assistant" && it.Kind == proto.KindText {
+			if !s.registerInlineViews(context.WithValue(ctx, historySourceKey{}, true), SessionItems{MachineID: ref.MachineID, SessionID: ref.SessionID, Items: []proto.Item{it}}) {
+				return
+			}
+			break
+		}
+	}
+	book.checked = before
 }
 
 // registerInlineTurn also registers cards when no app was watching the conversation during its reply.
