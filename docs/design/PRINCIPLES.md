@@ -14,7 +14,7 @@ Persona is an Agent product for everyone. Assistant is for everyday people and m
 
 **How to check the audience**: the issue and PR name the intended audience. For an everyday-facing flow, verify that someone with no programming or Agent-tool knowledge can understand the task and next action without choosing a runtime or repository. For specialist work, name its home in Agents or advanced settings and explain why the detail is needed there.
 
-These seven principles decide product questions before any visual rule applies. They cover UI, settings and defaults, and how numbers and states are counted, on every client and in the hub. Each one has a few rules and a "How to check" that a reviewer can verify on a PR. Visual and interaction detail lives in `docs/design/DESIGN_SYSTEM.md`; known gaps against Apple's Human Interface Guidelines are in `docs/design/HIG_AUDIT.md`. Ideas taken from the HIG are rewritten here as Persona rules, not quoted.
+These seven principles decide product questions before any visual rule applies. They cover UI, settings and defaults, and how numbers and states are counted, on every client and in the hub. Each one has a few rules and a "How to check" that a reviewer can verify on a PR. Visual and interaction detail lives in `docs/design/DESIGN_SYSTEM.md`. Ideas taken from Apple's Human Interface Guidelines are rewritten here as Persona rules, not quoted.
 
 Where they apply: requirements (the issue's acceptance criteria), development (the PR template's self-check) and acceptance (the reviewer checks the evidence below). See "How the principles enter the workflow" at the end.
 
@@ -64,7 +64,7 @@ Reuse the existing interaction, visual and data patterns; a new pattern needs a 
 Speed, model, persona and features are four separate settings; changing one never changes another.
 
 - Model choice and speed live in model settings and profiles; product features never hard-code a model or rely on one model's quirks.
-- The avatar, theme color and interface style are independent (`docs/apple/persona.md`); the avatar does not pick a model, and switching models does not change the avatar or the UI.
+- The avatar, theme color and interface style are independent; the avatar does not pick a model, and switching models does not change the avatar or the UI.
 - Feature switches decide what Persona can do, not which model does it; switching profiles does not turn features on or off.
 
 **How to check**: the PR names which of the four it touches; a test or manual check shows that switching any other one leaves the change's behavior unchanged.

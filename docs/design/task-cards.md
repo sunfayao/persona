@@ -19,7 +19,7 @@ Web 是本地 vite 页面，视口 430 px 宽（手机宽度，和 iPhone 可比
 | 结论（做完了 / 停了 / 失败） | 聊天里**不画**，只画「被模型服务打断」的那种（`interruptLook`）；其余靠交接卡的状态字（#5569 起四态都画，见 §3.3） | 聊天里 `ReceiptCard`，四种：done / stopped / failed / interrupted |
 | 要你拍板 | Needs you 托盘的 `TaskDecision`，早报卡的 `AcceptRow` | 托盘的 `BriefAcceptRow`（早报卡同一个组件） |
 
-`web/src/views/assistant/Tasks.tsx` 里的 `TaskCard`、`TaskLine`，和 iOS `TaskViews.swift` 里的 `TaskCard`、`TaskLine`
+`web/src/views/assistant/Tasks.tsx` 里的 `TaskCard`、`TaskLine`
 在生产路径上没有调用点（Web 要 `FeedLineView` 不带 `simplified` 才走到，`ChatView` 恒带；iOS 全仓没有 `TaskCard(` 的实例化），
 只有测试在用。上一轮清单里「失败卡缺 Retry」「Web 的计划进度行 / 孤儿行」等条目比较的是这些**死代码**，本稿不再把它们当作差异；
 P7 已定，Web 一侧已删（§7）。**更正**：`OutcomeReceipt`、`ReceiptCard`、`InterruptedReceipt` 不是死代码：`ReceiptCard` 一直是活的，
@@ -35,7 +35,7 @@ P7 已定，Web 一侧已删（§7）。**更正**：`OutcomeReceipt`、`Receipt
 | 权限 chip 是否常显 | **两端都常显**（截图里都是「Can edit files」）。上一轮「iOS 只在只读时显示」说错了；只读时两端都把它换成「Read-only」。不再是差异 |
 | Web 失败文案 | 「Didn't start: <原因>」，红色，在交接卡下面（`web-handoff-failed-*`） |
 | Web 绿 / 红 / 橙取值 | 见 §4 token 表。注意 Web 浅色的 `--red-tint` 是 `#f7f8f9`，几乎是中性灰，失败结论卡在浅色下看不出红 |
-| iOS 有没有 Later / Don't handle（Web 叫「Dismiss」的那个，实际用词是 Don't handle） | 任务拍板行没有：`apple/Persona/Views/Assistant/Tasks` 和 `TasksStore` 里没有对应的写接口调用；Web 的 `TaskDecision` 有 Later（只在本浏览器会话里推迟）和 Dismiss（落库，可撤销）。「Actions」菜单里的项我没有逐个展开看 |
+| iOS 有没有 Later / Don't handle（Web 叫「Dismiss」的那个，实际用词是 Don't handle） | 任务拍板行没有对应的写接口调用；Web 的 `TaskDecision` 有 Later（只在本浏览器会话里推迟）和 Dismiss（落库，可撤销）。「Actions」菜单里的项我没有逐个展开看 |
 
 ## 2. 差异、取舍和理由
 

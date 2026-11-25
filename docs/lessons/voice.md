@@ -409,9 +409,6 @@ Other values: allowing 450 tokens per append (500-token limit, rejection observe
   model, which for a form upstream without `default_model` means reading the service's `/models`; when that read failed, `/voices` failed with it,
   although the voice list itself has a built-in fallback. Now the last good model list stands in, and with none the voices still come (the last
   good list of any of the upstream's models, else the built-in one), marked `stale`.
-- **A SwiftUI submenu in a menu shows no second line**: neither a menu-style `Picker`'s label nor a nested `Menu`'s label with `Text` + `Text`
-  draws the subtitle (iOS 27 simulator), so the current voice goes into the title ("Voice: Marin"). Buttons do draw one, but only from a second
-  `Text` right in the label (docs/lessons/ios.md, #1307).
 - **A SwiftUI `Menu`'s items appear when it opens**: `onAppear` on an item is the cue to ask again for a list that is missing. A menu drawn again as
   the state changes (loading → failed) must not turn that into a loop: an open asks only 2 s after the last ask began (`VoiceVoicesLoader.reopenGap`).
   Checked with a failure slower than the gap (the mock's `slowfail`, 3 s): with the menu closed the asks followed 2, 5, 15 s only; with it open

@@ -9,13 +9,12 @@ explain. It checks two things:
 
 - Lanes. A check-fast check counts for a CI lane when it runs a fast part of that lane's work (FAST_LANES): the web
   check for web, Go tests and builds for server, the integration and sdk/ts tests for runtimes. A CI lane check-fast
-  runs no part of must be named in its plan (the INFO line it reads from paths.py --lanes-for, or the apple SKIP
-  line). The scripts lane is CI's "**", so every path selects it.
+  runs no part of must be named in its plan (the INFO line it reads from paths.py --lanes-for). The scripts lane is CI's "**", so every path selects it.
 - Readers. Where CI runs a whole lane and check-fast runs only what reads the changed file, the readers are worked out
   here from the tests themselves (Readers), without check-fast, and each must be in check-fast's plan: the Go packages
-  whose tests name a client source, fixture, schema, runtime file or protocol doc; the integrations/<pkg> and sdk/ts
+  whose tests name a fixture, schema, runtime file or protocol doc; the integrations/<pkg> and sdk/ts
   packages that name a fixture or schema; the scripts/**/test_*.py suites that import a scripts module. CI must
-  select the lane of each reader too (a client source a Go test reads is in the server lane's inputs).
+  select the lane of each reader too.
 
     python3 scripts/ci/affected_drift.py                 # every tracked file: a summary by top-level area
     python3 scripts/ci/affected_drift.py --table out.tsv # also the per-path table
@@ -44,7 +43,7 @@ import paths  # noqa: E402
 import pr_watch_verify  # noqa: E402
 
 # CI's platform lanes. scripts is "**" in CI, so it is left out of the lane comparison.
-LANES = ("server", "web", "android", "apple", "core", "runtimes", "desktop", "image")
+LANES = ("server", "web", "runtimes", "image")
 
 # The check-fast lines that cover a lane: a queued check that runs a fast part of the lane's work. A SKIP or INFO line
 # runs nothing, so it covers nothing.
@@ -53,9 +52,8 @@ FAST_LANES = (
     ("server", re.compile(r"  queued: (server go test |server go build |server repo-wide guards$|sdk/go go test$)")),
     ("runtimes", re.compile(r"  queued: (integrations/|sdk/ts \(bun\)$)")),
 )
-# The lines that name a CI lane check-fast does not run: its INFO line (from paths.py --lanes-for) and the apple SKIP.
+# The line that names a CI lane check-fast does not run: its INFO line (from paths.py --lanes-for).
 _NOT_RUN = re.compile(r"INFO  CI lanes this change selects that check-fast does not run: ([a-z, ]+) \(")
-_APPLE_SKIP = "SKIP  apple/** builds and tests"
 
 # One disagreement of a path. side: "ci" CI selects the lane and check-fast runs no part of it, "fast" the other way
 # round, "watcher" the watcher does not run a lane CI selects, "named" check-fast neither runs nor names a lane CI
@@ -66,26 +64,14 @@ Disagreement = namedtuple("Disagreement", "lane side reason detail")
 
 # The differences that are meant, each with the reason. A row is (lane, side, patterns, reason). A path is explained
 # when it matches one of the patterns (fnmatch: * matches / too).
-_NAMED = "check-fast names it instead (the apple SKIP line, or the INFO line of the CI lanes it does not run)"
+_NAMED = "check-fast names it instead (the INFO line of the CI lanes it does not run)"
 _READERS = "; the reader check holds check-fast to every one"
-_SAMPLE_CONSUMERS = ("apple/Persona/Views/Machines/MachinesView.swift",
-                     "android/feature/machines/src/main/kotlin/persona/feature/machines/MachineConcern.kt")
-_SAMPLE_REASON = ("internal/hub's wire samples name these client decoders as the samples' consumers without reading "
-                  "them; check-fast runs internal/hub for them, CI's server lane does not watch them")
 ALLOWED = (
     # Lanes check-fast never runs: they need a toolchain or a build that takes minutes.
-    ("android", "ci", ("**",), "check-fast never runs Gradle; " + _NAMED),
-    ("apple", "ci", ("**",), "check-fast never runs Xcode; " + _NAMED),
-    ("core", "ci", ("**",), "check-fast never runs cargo; " + _NAMED),
-    ("desktop", "ci", ("**",), "check-fast never installs Electron; " + _NAMED),
     ("image", "ci", ("**",), "check-fast never builds the hub image (CI builds it for releases)"),
     ("image", "watcher", ("**",), "the watcher never builds the hub image (CI builds it for releases)"),
-    ("apple", "watcher", ("**",), "the watcher has no Mac; it records a policy line for the apple lane instead"),
     # CI watches whole directories that tests outside the lane's tree read; check-fast runs the tests that read the
     # changed file, and names the lane when none does.
-    ("server", "ci", tuple(paths.SERVER_CLIENT_INPUTS),
-     "CI runs the server lane for every client contract source; check-fast runs the Go tests that read the file"
-     + _READERS),
     ("server", "ci", ("spec/**",),
      "CI runs the server lane for all of spec/; check-fast runs the Go tests that read the changed fixture" + _READERS),
     ("server", "ci", ("docs/protocol/**", "docs/assistant/prompts.md"),
@@ -94,8 +80,6 @@ ALLOWED = (
     ("server", "fast", ("docs/**",),
      "check-fast runs the Go tests that mention a changed doc outside a comment line, in a message or an example "
      "too; CI's server lane watches the docs Go tests read"),
-    ("server", "fast", _SAMPLE_CONSUMERS, _SAMPLE_REASON),
-    ("server", "ci-reader", _SAMPLE_CONSUMERS, _SAMPLE_REASON),
     ("runtimes", "ci", ("schema/**", "spec/**"),
      "CI runs the runtimes lane for all fixtures and schemas; check-fast runs the runtime packages that name the path"
      + _READERS),
@@ -116,10 +100,8 @@ ALLOWED = (
 GO_READ_INPUTS = tuple(pattern for pattern in paths.FILTERS["server"]
                        if not pattern.startswith(("server/", "sdk/", "scripts/ci/", ".github/"))
                        and pattern != "scripts/test/go_trimpath.sh")
-# Where a Go test's reads are held to check-fast's plan and to CI's server lane: those inputs, and the whole of each
-# tree CI watches only in part (apple/, android/: the client contract sources), so a client file a Go test reads but
-# CI's server lane does not watch is a gap too.
-GO_READ_SCOPE = GO_READ_INPUTS + tuple(sorted({pattern.split("/")[0] + "/**" for pattern in paths.SERVER_CLIENT_INPUTS}))
+# Where a Go test's reads are held to check-fast's plan and to CI's server lane: those inputs.
+GO_READ_SCOPE = GO_READ_INPUTS
 # The runtimes lane's shared inputs (fixtures and schemas), whose runtime readers check-fast runs instead of the lane.
 RUNTIME_READ_INPUTS = tuple(pattern for pattern in paths.FILTERS["runtimes"]
                             if not pattern.startswith(("integrations/", "sdk/ts/", "scripts/ci/", ".github/")))
@@ -128,10 +110,6 @@ DEDICATED = {
     "scripts/test/test_external_service_refs.py": "external service refs",
     "scripts/test/test_sdk_bundle.py": "sdk bundle snapshot",
     "scripts/test/test_extension_schema.py": "extension schema conformance",
-    "scripts/app/test_android_i18n_check.py": "android i18n",
-    "scripts/app/test_android_token_baseline.py": "android i18n",
-    "scripts/app/test_android_motion_baseline.py": "android i18n",
-    "scripts/app/test_android_slot_order.py": "android i18n",
 }
 
 _GO_LITERAL = re.compile(r'"((?:[^"\\\n]|\\.)*)"|`([^`\n]*)`')
@@ -339,14 +317,12 @@ def fast_lanes(lines):
 
 
 def named_lanes(lines):
-    """The CI lanes a plan names as not run: its INFO line, and apple for the apple SKIP line."""
+    """The CI lanes a plan names as not run: its INFO line."""
     named = set()
     for line in lines:
         match = _NOT_RUN.match(line)
         if match:
             named.update(lane.strip() for lane in match.group(1).split(","))
-        elif line.startswith(_APPLE_SKIP):
-            named.add("apple")
     return named
 
 

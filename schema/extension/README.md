@@ -38,10 +38,8 @@ python3 scripts/test/test_extension_schema.py     # --check, and the examples ho
 | --- | --- | --- |
 | Go | `sdk/go/wire/wire_gen.go` (its own module `github.com/nwverse/persona/sdk/go`, without dependencies) | Structs; a union is **one flat struct** (every variant's fields together, all optional, `Type` says which), like the hub's `UIElem`; an enum is string constants and a list (`Tones`); `ComponentSince` is the UI version each component came with; `Calls` is the calls and events of the extension points (below) |
 | TypeScript | `sdk/ts/src/wire.ts`; the web app has a copy without the plugin-side schemas, `web/src/lib/extension-wire.ts` | Interfaces; a union is the union of its variants (`Component = TextComponent \| …`); an enum is a union of literals plus `string & {}` (values from a newer hub still read); `CALLS` as in Go |
-| Swift | `apple/Packages/PersonaWire/Sources/PersonaWire/ExtensionWire.swift` | Type names with an `Extension` prefix (`ExtensionView`), `public nonisolated`, `Codable`, `Hashable`, `Sendable`; legacy models take zero/nil for missing or mistyped fields, while stream envelopes reject missing required and mistyped present fields; a union is an enum, an unknown or unreadable component is `.unknown(type:)`; free JSON is `JSONValue` |
-| Kotlin | `android/core/contracts/src/main/kotlin/persona/core/contracts/generated/ExtensionWire.kt` | kotlinx.serialization data classes, also with the `Extension` prefix, every field with a default; a union is a sealed interface plus a serializer reading `type`, an unknown or unreadable one is `Unknown(type, raw)` and written back as it was. Unlike Swift, an object other than a component with a field of the wrong type does not read at all (the hub checks Views against the schema first, so what the apps get holds) |
 
-The same generator also writes the hub wire types of `schema/wire/` (TypeScript, Swift, Go and Kotlin, each where its
+The same generator also writes the hub wire types of `schema/wire/` (TypeScript and Go, each where its
 schema's `x-out` says; `schema/wire/README.md`). It also copies the schemas here as they are to `sdk/go/wire/schema/`
 (`go:embed` cannot reach outside the module): `wire.Validate(<definition>, value)` checks against them. The hub checks
 extensions' Views with it (`extension.CheckView`), the conformance tests check `initialize`'s answer and every connector
@@ -113,7 +111,7 @@ owner, extension, contribution, active generation and node/callback; enforce all
 replacement key/kind equality, parent/sibling existence and kinds, no cycles/root removal/tile operations, version
 ordering, capability support and complete View semantics. Stage and validate the entire resulting tree before an
 atomic commit. Unknown operations and any invalid batch require a full snapshot, never partial application or
-skipping. Generated Swift/Kotlin unknown variants are recovery/rejection signals, not permission to draw/apply them.
+skipping.
 Schema validation and successful decoding are not authorization or proof of atomicity. Validate raw stream numbers
 before float64/JavaScript rounding: near-limit fractions can otherwise become apparently safe integral versions.
 Go's raw stream validator retains numeric literals; Python stream fixtures use Decimal. Already-decoded floating
@@ -208,9 +206,9 @@ headless shortcuts keep working while UI sessions are suspended or disposed.
 
 A schema file with `"x-side": "plugin"` (`connector.schema.json`, `channel.schema.json`, `kb.schema.json`) describes only what the hub and an
 extension's program say to each other. Its types are generated into the SDKs (Go `sdk/go/wire`, TypeScript
-`sdk/ts/src/wire.ts`) and not into the apps (Swift, Kotlin, the web copy), which never read these messages; a
-definition the apps have may not refer to one of them (the generator stops). Its examples are in `examples/plugin/`,
-apart from the top level the apps' own round-trip tests read.
+`sdk/ts/src/wire.ts`) and not into the web copy, which never reads these messages; a
+definition the web app has may not refer to one of them (the generator stops). Its examples are in `examples/plugin/`,
+apart from the top level the web app's own round-trip tests read.
 
 Such a file names its calls and events, with the definitions they hold to:
 
@@ -269,24 +267,21 @@ The generator understands only what is below; anything else stops it with an err
     `additionalProperties: true` or a sub-schema also keeps extra keys (see "Custom contributions" below); one that
     says nothing or `false` is generated as before.
   - **A string enum**: `"type": "string"` + `enum`. The field stays a string in every language (an unknown value
-    still reads), with constants and a list besides. A value named like the list (`all`) is the constant `allValue`
-    in Swift and `ALL_VALUE` in Kotlin.
+    still reads), with constants and a list besides.
   - **A named scalar**: `"type": "string"` (or integer / number / boolean) without `enum`, such as `ID` or `Host`:
     where it is referenced it is that scalar; `pattern` and the like only validate.
   - **A union told apart by a field**: `oneOf` of `$ref`s only, with `"x-discriminator": "type"`; each variant is a
     struct that has the field as a distinct `const` string.
   - **Free JSON**: `oneOf` with `"x-untagged": true` (such as `runtime.command`, a string or an object): generated
-    as free JSON (Go `json.RawMessage`, TS `unknown`, Swift `JSONValue`, Kotlin `JsonElement`). With
+    as free JSON (Go `json.RawMessage`, TS `unknown`). With
     `"x-json-value": true`, TS instead generates the schema's scalar/array/map union (including `null`); the other
-    languages retain their native JSON values and require schema validation for bounds.
-  - `"x-preserve-required": true` retains required zero/empty fields in Go's flat unions and in Kotlin stream
-    serializers, including empty native children under the production codec, without changing legacy encoding.
-    Swift stream envelopes reject missing required or mistyped present fields instead of normalizing them.
+    language retains its native JSON values and requires schema validation for bounds.
+  - `"x-preserve-required": true` retains required zero/empty fields in Go's flat unions, without changing legacy
+    encoding.
     Union variants inherit it. `"x-unknown-policy": "recover" | "reject"` documents how generated client
     unknown variants must be handled; it is not a reducer. `const` fields retain literal types in TS.
 - Field types: `string` (`format: date-time` is a time: Go `time.Time`, a string elsewhere), `integer`
-  (`"x-go-type": "int64"` is 64 bits: Go `int64`, Swift `Int64`, Kotlin `Long`; `Int` on the watch is 32 bits and
-  cannot hold a build number), `number`, `boolean`, `array` + `items`, an `object` **without** `properties` +
+  (`"x-go-type": "int64"` is 64 bits: Go `int64`), `number`, `boolean`, `array` + `items`, an `object` **without** `properties` +
   `additionalProperties` (a map whose values are `additionalProperties`), `$ref`, or nothing (free JSON).
   On a map, `propertyNames` and `required` only validate: every language still generates a plain map, so the producer
   writes each required key itself (and Go allocates the map, or writes `null`).
@@ -318,25 +313,23 @@ typed while custom `<extension id>.<extension point id>` keys are not lost in a 
 types. The generator does the same for every other object that is explicitly open, without looking at whether its
 name is `Contributes`.
 
-- Go uses `AdditionalProperties map[string]json.RawMessage`, Swift `additionalProperties: [String: JSONValue]`,
-  Kotlin `additionalProperties: Map<String, JsonElement>`. These are only where the code keeps them: encoded, the
+- Go uses `AdditionalProperties map[string]json.RawMessage`. This is only where the code keeps them: encoded, the
   extra keys stay **at the object's own level**, not wrapped in an `additionalProperties`.
 - TypeScript keeps the known properties' types and adds `[key: string]: unknown`. A caller reads a dynamic value by
   its own extension point's schema; it is not a built-in contribution.
 - Known fields always win: an extra key named `ui`, `providers` and so on, even written into the map by hand, never
   replaces a typed field or brings back one that was left out. `UI` is not `ui`; the extra keys' case, underscores,
-  dots and nested `config` / `state` / `plugin` / `extension` keys and values all stay as they are. Swift encodes
-  open objects as dictionaries, untouched by a caller's snake_case strategy.
+  dots and nested `config` / `state` / `plugin` / `extension` keys and values all stay as they are.
 - This is no exemption from authorization or installation. A custom extension point is still checked by the hub
   against `exports`, dependencies, contribution ids and the exported schema; closed objects such as `permissions`
   are not opened.
-- `examples/Manifest.custom-contributions.json` is the round-trip fixture of all four languages: built-in UI, several
+- `examples/Manifest.custom-contributions.json` is the round-trip fixture of both languages: built-in UI, several
   custom contribution points, nested JSON, keys differing only in case, a literal `additionalProperties`,
   `__proto__` and `constructor`. The last keys test JSON passing through; **they do not mean these install as
   extension points**. The Go / TS SDKs' manifest and initialize tests read this fixture too.
 
 After changing the generator run `python3 scripts/test/test_extension_schema.py`, `python3 scripts/test/test_sdk_bundle.py`,
-the Go SDK's tests, the TS SDK's `bun test`, and build the Kotlin contracts and the matching Swift tests.
+the Go SDK's tests, the TS SDK's `bun test`.
 `extension_schema.py` also rebuilds `sdk/go/bundle/sdk.tar.gz` deterministically; commit the generated types and the
 bundle together, so a new extension does not get old types.
 
@@ -381,8 +374,7 @@ a View's `search` / `filter`, a section's `more`, `Action.push`, `ActionResult.p
 `sdk/go/wire/personacard.go` and `examples/persona-card/`.
 UI version 6 (#5464) was added the same way: the `image` / `grid` / `carousel` components and fields such as
 `row.control`, `row.actions` and `spark`. Its numeric fields live in sub-objects of their own (`RowControl`,
-`ChartPoint`) rather than in `Component`'s flat struct; `Thumbnail.url` is optional now (exactly one of it and `ref`),
-which Swift reads as `String?`. Its examples are `examples/View.v6-*.json`; the showcase's version 6 pages come from
+`ChartPoint`) rather than in `Component`'s flat struct; `Thumbnail.url` is optional now (exactly one of it and `ref`). Its examples are `examples/View.v6-*.json`; the showcase's version 6 pages come from
 the extensions repository (#5477), and until then `SHOWCASE_UI` in `test_extension_schema.py` stays at 5.
 UI version 8 (#9158) adds no component, only fields: `View.layout: "columns"` and a section's `span`, `icon`,
 `icon_color`, `link` (`SectionLink`) and `columns`, each `x-since: 8`. The hub's `downgrade8`

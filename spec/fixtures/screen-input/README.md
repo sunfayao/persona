@@ -5,4 +5,4 @@ inside the RFB stream as client message type 200, which the node takes out and h
 
 `records.json` holds records that decode (`valid`: their hex and what they say) and records that are refused
 (`invalid`: their hex and which check refuses them: `length`, `type`, `version`, `kind`, `phase` or `momentum`).
-Checked by `PersonaInputKit` (Swift: the helper and the iOS app) and by the node (Go).
+Checked by the node (Go).

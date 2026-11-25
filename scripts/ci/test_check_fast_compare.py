@@ -434,17 +434,17 @@ class CompareTests(HelperTestCase):
                          description="python3 scripts/privacy_check.py")
         more = self.step("FAIL", ".", "x.go: 1 -> 2\ny.go: 0 -> 1\n", "python3", "scripts/ci/sleep_ratchet.py",
                          description="python3 scripts/ci/sleep_ratchet.py")
-        fixed = self.step("FAIL", "scripts/app", "missing ja\n", "python3", "-B", "android_slot_order.py",
-                          description="scripts/app: android_slot_order.py")
-        (self.root / "scripts/app").mkdir(parents=True)
+        fixed = self.step("FAIL", "scripts/gen", "missing ja\n", "python3", "-B", "slot_checker.py",
+                          description="scripts/gen: slot_checker.py")
+        (self.root / "scripts/gen").mkdir(parents=True)
 
         def answer(argv, cwd):
             if "base" not in cwd.parts:
                 return 1, "missing ja\n"
             return {"scripts/privacy_check.py": (1, "scripts/a.py:3: a host name (0.4s)\n"),
                     "scripts/ci/sleep_ratchet.py": (1, "x.go: 1 -> 2\n"),
-                    "android_slot_order.py": (0, "")}[argv[-1]]
-        runner = FakeRunner(answer, files=("scripts/app/android_slot_order.py",))
+                    "slot_checker.py": (0, "")}[argv[-1]]
+        runner = FakeRunner(answer, files=("scripts/gen/slot_checker.py",))
         self.comparison([same, more, fixed], runner).compare()
         lines = self.lines()
         self.assertIn("ALREADY  python3 scripts/privacy_check.py: also fails at bbbbbbbbbb (merge base with "
@@ -452,7 +452,7 @@ class CompareTests(HelperTestCase):
         self.assertIn("ALREADY  python3 scripts/ci/sleep_ratchet.py: also fails at bbbbbbbbbb (merge base with "
                       "origin/main); 1 line(s) of its output here are not in the base's, so this change may add to it, "
                       "the first: y.go: 0 -> 1", lines)
-        self.assertIn("NEW      scripts/app: android_slot_order.py: passes at bbbbbbbbbb (merge base with origin/main) "
+        self.assertIn("NEW      scripts/gen: slot_checker.py: passes at bbbbbbbbbb (merge base with origin/main) "
                       "and fails again when rerun here on its own, so likely caused by this change", lines)
         self.assertEqual({None}, {slot for argv, _, _, slot in runner.calls if argv[0] != "git"})
 

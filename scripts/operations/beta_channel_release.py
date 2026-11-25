@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Publish only the pointer for verified immutable beta artifacts.
 
-The beta-channel prerelease contains latest.json and optionally android.json,
-not replacement binaries. Those index files belong to the immutable beta tag
+The beta-channel prerelease contains latest.json, not
+replacement binaries. That index file belongs to the immutable beta tag
 whose bytes have already been uploaded and verified. The pointer never becomes
 GitHub's stable releases/latest.
 """
@@ -72,7 +72,7 @@ def main():
     if manifest.get("channel") != "beta" or manifest.get("version") != args.tag[1:] or manifest.get("commit") != commit:
         raise ConfigError("latest.json is not this beta version's beta-channel manifest and immutable commit")
     # The pointer may copy only the indexes, never binaries from another tag.
-    for name in ("latest.json", "android.json"):
+    for name in ("latest.json",):
         if name not in index:
             continue
         remote = json.loads(subprocess.check_output(
@@ -101,7 +101,7 @@ def main():
     existing = {asset["name"]: asset for asset in remote.get("assets", [])}
     pointers = []
     same = True
-    for name in ("latest.json", "android.json"):
+    for name in ("latest.json",):
         if name not in index:
             continue
         item = next(item for item in assets if item["name"] == name)

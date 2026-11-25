@@ -1,10 +1,10 @@
 # What the minutes line says while the minutes wait
 
 A hub-mode meeting's minutes wait for the final pass, which replays the whole recording once it is complete (#13461).
-While they wait, the minutes line on the iPhone and the web says the hub is checking the whole recording, with
+While they wait, the minutes line on the web says the hub is checking the whole recording, with
 minutes done of the total once the pass has started, instead of "Writing the minutes…" for the whole wait. The rules
 are in [docs/assistant/meeting-minutes.md "Gaps and the final pass"](../../../docs/assistant/meeting-minutes.md). These
-cases hold the hub (what it keeps → what it sends) and the clients (what they get → which line, which numbers) to
+cases hold the hub (what it keeps → what it sends) and the web (what it gets → which line, which numbers) to
 the same rule. All data is made up.
 
 ## Rules
@@ -33,11 +33,9 @@ the same rule. All data is made up.
   there. `expected.line` is `checking`, `writing` or `none`; `done_minutes` and `total_minutes` are present only when
   the line carries them.
 - The hub checks the cases with `hub`: the view it builds has `final_done` and `end` exactly when `transcription`
-  has them, with the same values. The clients check every case.
+  has them, with the same values. The web checks every case.
 
 ## Verification
 
 - hub: `cd server && go test ./internal/kb -run MinutesWaitFixture` (`server/internal/kb/transcription_progress_test.go`).
-- iPhone: `apple/PersonaTests/MinutesWaitFixtureTests.swift` (the rule in `MinutesWaitLine`,
-  `apple/Persona/Recording/MeetingAudioWire.swift`).
-- A new case: work out the expected line and numbers by hand from the rules above, then run both.
+- A new case: work out the expected line and numbers by hand from the rules above, then run it.

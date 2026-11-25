@@ -5,10 +5,8 @@ reason, line 2, times, marks, asks and steps, by the decision table of `docs/des
 The shape is `TodoSummary` in `schema/wire/todo-view.schema.json`. The manager's projection
 (`server/internal/assistant/todo/projection`) answers every case exactly, and its `next_change_at` is the moment the
 view reads differently (`server/internal/assistant/todo/projection/fixtures_test.go`);
-`scripts/test/test_wire_schema.py` holds every expected view to the schema, and the generated types read each one back
-unchanged (Go `server/internal/assistantwire/todo_view_gen_test.go`, Kotlin
-`android/core/contracts/src/test/kotlin/persona/core/contracts/TodoViewWireTest.kt`, Swift
-`apple/PersonaTests/TodoViewWireTests.swift`).
+`scripts/test/test_wire_schema.py` holds every expected view to the schema, and the generated Go type reads each one back
+unchanged (`server/internal/assistantwire/todo_view_gen_test.go`).
 
 | File | What it pins | Cases |
 | --- | --- | --- |

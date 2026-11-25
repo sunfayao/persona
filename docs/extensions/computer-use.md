@@ -332,55 +332,6 @@ Only through the hub tunnel, no new externally exposed port:
   moving box (`MOCK_COMPUTER=ready MOCK_SCREEN=fake MOCK_SCREEN_ANIMATE=1`) `node web/e2e/screen-stats.mjs <web URL>`:
   off by default, measured numbers in light and dark, kept per Mac, no round-trip line while the hub's health is refused.
 
-### Native client in the App (#1343, `apple/Persona/Screen/`)
-
-Picture in Picture (`AVSampleBufferDisplayLayer`) needs access to each frame, which noVNC in a WebView can't provide, so the App speaks RFB itself. The web still uses noVNC.
-
-- **Connection**: hub's 5900 forwarding (`RFBWebSocket`), a binary WebSocket over the same route as the App's hub connection (`APIClient.url`: via SSH tunnel when used; `APIClient.session`: pinning for public TLS), with device token (`Authorization`).
-- **Login** (`RFBAuth`):
-  - macOS Screen Sharing offers 30 (Apple Remote Desktop), 33, 35, 36. This uses 30:
-    1. Server sends the generator, prime and its public key: macOS 26 a 4096-bit prime with generator 5, older macOS 1024 bits.
-    2. Client calculates the DH shared secret, using its MD5 as the AES-128 key (ECB). This needs no account or password,
-       so `RFBAuth.exchange` runs as soon as the server's numbers arrive, while the sign-in form waits (#7809).
-    3. Account and password each occupy 64 bytes, NUL-terminated and padded with random bytes. Send the encrypted 128 bytes first, then the client's public key.
-  - Large-number arithmetic is a custom Montgomery modular exponentiation (`RFBBigUInt`: 64-bit limbs on raw buffers,
-    a 4-bit window, the two exponentiations side by side), checked against Python `pow`. With a 4096-bit prime the old
-    32-bit-limb array version took 48 s in a Debug build after Connect (0.6 s optimized); this takes 0.65 s and 0.03 s.
-    A shared Rust implementation in PersonaCore was weighed and not taken: a new big-number crate and entry points on
-    three clients for one function the Swift fix makes fast enough.
-  - Mock Screen Sharing also offers VeNCrypt Plain (19 → 256) for tests; no authentication (1) is accepted too.
-  - Account/password come from saved credentials (`ScreenCredentials`, #1322).
-- **Frames** (`RFBFramebuffer`):
-  - Requests 32-bit, depth 24, little-endian pixels with red at bit 16; BGRA in memory, directly usable as `CVPixelBuffer` 32BGRA.
-  - Encoding preference: ZRLE (16), CopyRect (1), Raw (0), plus DesktopSize, ExtendedDesktopSize, Cursor and LastRect pseudo-encodings.
-  - What macOS's Screen Sharing really does (macOS 26.6, `vncbench probe`, #3067): of the standard encodings only ZRLE,
-    Zlib and Raw (ZRLE whatever the order asked; no Tight, JPEG, Hextile or H.264), and none of the pseudo-encodings:
-    no Cursor (it draws the pointer into the framebuffer), no ContinuousUpdates or Fence, no ExtendedDesktopSize. It
-    takes a 16-bit pixel format (ZRLE then sends about 43% of the bytes, no longer lossless). Its own encodings are
-    1000 (1-bit), 1001 (4-bit grey), 1002 (16-bit colour through zlib, larger than ZRLE at 16 bits) and 1011, a
-    DCT codec of its own (a tenth of ZRLE's bytes) whose entropy coding is undocumented; 1101, 1107, 1109 and 1110 carry
-    the display layout, formats, the keyboard layout and the model. Asked for 100 or more encodings at once it answers
-    nothing. So lossless ZRLE is the most a standard client gets.
-  - One zlib stream for ZRLE over the whole connection, using Compression raw DEFLATE after skipping the two-byte zlib header (`RFBInflater`).
-  - All five ZRLE tile types: raw, solid, packed palette, plain RLE, palette RLE, written into the framebuffer a row at a time (#3067).
-  - The next incremental FramebufferUpdateRequest goes out once an update is in (stop-and-wait). Asking earlier was measured and left out (#3067, `vncbench run -mode early|gated|pipeline`, over a 25 ms each way, 30 Mbit/s link): asked for as each update starts, macOS's server goes quiet for up to two seconds whenever the request reaches it while it is still writing a big update (video at 1.8 frames a second instead of 5.3); asked for early only when the update is one rectangle of at most 64 KB, typing came back later (p50 374 ms against 215, slower in all 5 interleaved pairs at a load of 25–80); two requests in flight were slower still on loopback.
-  - Requests always cover the whole framebuffer, also when zoomed in or showing one display of several (#3067): macOS's Screen Sharing leaves most incremental requests for less unanswered while that part changes (`vncbench trace -trace-area`: the bench page's part, a full-width band not starting at the top, or anything 1850 of 1920 pixels wide got no updates for 5 s while video played inside it, nor the page's own redraws; only near-whole requests from the top worked), so asking for the part shown would freeze a zoomed-in picture.
-- **Showing frames** (`RFBFrameSink`, #3067): at most 60 a second, into IOSurface-backed pixel buffers from a pool. Each buffer the pool has handed out keeps the region that changed since it was last filled (by its IOSurface id; the client's damage comes with the framebuffer, `RFBClient.withDamage`), and a frame copies only that region: a new buffer, or one the pool let go and handed out again, is filled whole. The page's fps / latency numbers are reported at most four times a second, so the page doesn't redraw for every frame.
-- **Sending back**: pointer (button bits: left, middle, right, wheel up/down), keys (keysym), clipboard (through the node; ClientCutText only when the node is too old for it, see "Clipboard" below).
-  - All use one outgoing queue (`RFBOutbox`), sent in order by one task after the handshake. Previously a `Task` per message could reorder press/release or move/click on the Mac. Messages before the handshake wait and can't interrupt it.
-  - A pointer event that only moves (the same buttons as the event before it) replaces one still waiting that only moved: when the way to the Mac stalls, the pointer goes to where the finger is instead of replaying the path. Presses, releases (where they were made) and wheel notches are never folded (#3067).
-  - The queue's wait ends when its task is cancelled: the client's task group waits for both of its tasks when the reader ends.
-- **Tests**:
-  - `RFBClientTests`:
-    - large numbers checked against Python;
-    - ARD bytes checked against Python plus openssl encryption;
-    - ZRLE checked against a Python encoder, all five tiles sharing one stream across two rectangles;
-    - complete scripted session, outgoing bytes checked byte for byte;
-    - ARD handshake and rejected login;
-    - pointer, key and clipboard bytes and order (pre-handshake messages after handshake; 120 messages in original order).
-  - `RFBFrameTests` (#3067): region merging, the outbox folding motion but not presses, releases or notches and ending on cancel, the frame sink copying only what changed with every pixel matching the framebuffer, and the next request going out only after an update's data.
-  - Mock `MOCK_SCREEN=fake` now offers ARD first like macOS (DH in Python, AES with openssl), then ZRLE or Raw as the client requests. It records pointer, clicks, wheel and clipboard (read at `/mock/screen-password`; `?clip=…` sends clipboard to the client). `MOCK_SCREEN_ANIMATE=1` moves a square at about 30 frames per second to measure frame rate.
-
 ### Measuring (#3067)
 
 `server/cmd/vncbench` measures a VNC server the way the app uses it, from the computer the server runs on (straight to
@@ -459,73 +410,6 @@ displays to offer; on a narrow screen the button keeps only its icon). The rules
   (`MOCK_COMPUTER=ready MOCK_SCREEN=fake MOCK_SCREEN_DISPLAYS=2:node`) `node web/e2e/screen-displays.mjs <web URL> <mock hub URL>`: the
   chosen display fills its box, a click lands on it, drags out over a fractional edge and the top edge stay on it, a new page reopens it.
 
-### App
-
-- **Control Computer on the machine page**:
-  - Ready: offers VNC.
-  - Granting permissions, or still missing them after a request: prominent VNC button to click Allow remotely from the phone.
-  - Screen Sharing off: explains how to enable it in System Settings › General › Sharing on that Mac.
-- **Chat page**: VNC (`ScreenEntry`) also appears below tool details for two types of tool, provided the extension and Screen Sharing are enabled for that Mac:
-  - assistant `computer_state` / `computer_run`: the named machine;
-  - Cua Driver MCP tools registered directly by a computer's Agent (`mcp__cua-driver__…`): that Agent's machine.
-- **The pill above the composer** (`ComputerActivityPill`): while the chat's newest computer tool call runs, and six seconds
-  after it ends, "Controlling MacBook · Click AC → 6" sits over an Agent chat's composer and after the entries in a Persona
-  conversation; a tap opens that Mac's VNC (disabled where its screen can't be shown). The app reads it from the transcript, as above:
-  no hub field says a session is operating a computer. Android (Glass, #4339) draws the same pill from the same items
-  (`ComputerActivity` in core/domain) and has no VNC, so its tap opens the work line that holds the call; the web shows none.
-- **Full page** (`VNCPage`, #1343): native client fills the screen in its own window (`ScreenWindow`, #1604: iOS `UIWindow` above the shell, below toasts; separate Mac window; follows `AppModel.screenOpen`). Previously a `fullScreenCover` on `RootView`, whose presentation was swallowed when the machine page was in a sheet. The old web drawer (WKWebView + noVNC + bridge) is removed; the web still uses noVNC.
-  - Top bar: Close, Picture in Picture (iOS, right of Close, #3075), connection stage (connecting / login required / connected / disconnected) and machine name, Help, "…" (Mouse Mode / Trackpad Mode, Zoom In or Zoom to Fit (iOS, #6196), Center Pointer, Picture in Picture Diagnostics; Picture in Picture itself on the Mac). Where the row is too narrow (the largest text sizes) the name and stage go on a line under the buttons, never cut to less than the name's first four letters, and where even the buttons don't fit, Picture in Picture goes into "…". When the assistant or an Agent operates this Mac, another line: "Now: tap AC → 6 → × → 7 → =".
-  - Bottom bar: Clipboard, Rotate (iPhone only, #6196), I'm Done (only when the Agent that opened it is waiting for you), Keyboard.
-  - **Rotate** (#6196): right of Clipboard on an iPhone, a tap turns the page on its side (`requestGeometryUpdate`), and on its side, where it sits under Clipboard down the trailing rail, back upright; its symbol and VoiceOver label name where the tap turns it (`Theme.Icon.rotateToLandscape` / `rotateToPortrait`). Once tapped, the page keeps that orientation however the phone is held (`AppOrientation.screenTurned`: `.landscape`, either side, or `.portrait`) until it is tapped again or the page closes, so it works with Portrait Orientation Lock on; untapped, the page turns with the phone as below. An iPad is never made to turn, so it has no button.
-  - **Landscape** (#3075): on an iPhone the page turns to either landscape while it is up; the rest of the app stays upright (`AppOrientation`: the app delegate's mask, upright unless the page is up; Info.plist still lists only portrait, so the app launches upright however the phone is held). The bars become rails down either side (`verticalSizeClass == .compact`; one `AnyLayout`, so the picture and the keyboard's catcher stay the same views as the phone turns): Close, Picture in Picture, the status dot (name and stage for VoiceOver), Help and "…" down the leading rail; Clipboard, Rotate, I'm Done (icon only) and Keyboard down the trailing one; short of room (the keyboard up), a rail's buttons close up; at the largest text sizes Picture in Picture then goes into "…" so Close, Help and "…" stay above the keyboard, and only then does a rail scroll. Each rail stays one set of views whichever way it fits (#5289): a menu opened from it hides the keyboard and gives it room, and the menu morphs out of its button, which must still be there. The picture takes the whole height between them; the sign-in form scrolls. UIKit decides from the shell window's controllers and what they present (a machine's page in a sheet), not the screen window's, so opening and closing the page asks every controller in the scene to read the mask again; closing on its side turns the app upright at once (`requestGeometryUpdate`).
-  - **Reconnects on return** (#4243): a suspended app's connection is often gone. Coming back from the background with the full page up (not Control Center or a dismissed alert), a connection already closed reconnects at once, and a drop reported within 5 seconds of returning reconnects once by itself. Login required, connecting and connected are left alone, so Reconnect is no longer needed. If it still says connected on return, the page asks the Mac for the whole screen once; when no frame arrives within 10 seconds, the connection is taken as silently gone in the background and reconnects once (#4380), instead of staying on a frozen picture.
-  - **Two modes** (remembered per Mac, `vnc.mode.<group>/<machine>`):
-    - Mouse Mode (default): pointer follows the finger. Tap clicks there; one-finger drag drags; two-finger drag scrolls; two-finger tap or long-press right-clicks; pinch zooms, then two-finger drag pans the zoomed view. A two-finger touch is a scroll or a pinch, never both (`VNCTwoFingers`, #6196): pinch and pan are recognized together, and any change in the fingers' spread used to zoom, so a scroll whose fingers drifted apart zoomed (and, zoomed in, turned into a pan). Whichever the fingers show first wins until they lift: a pinch needs the spread to change by 15% (10 pt at least) and by more than the fingers travel together; a scroll, 6 pt of travel, at least as much as the spread changed. Until then neither acts, and the travel is kept for the scroll.
-    - Trackpad Mode: finger moves the pointer relatively; tap clicks at the pointer, tap then immediately drag drags, two-finger drag scrolls at the pointer. Use Center Pointer if it strays. No pinch (#6196): two fingers only scroll.
-    - **Zoom** from "…" (#6196): Zoom In is twice the fitted size, around the pointer (the middle when the pointer is not on the part shown); once zoomed in, by it or a pinch, "…" offers Zoom to Fit instead. It is the only zoom in Trackpad Mode, where the zoomed picture moves to keep the pointer 32 pt inside the view (`VNCZoom.following`), so the pointer can reach every edge. When the page turns, a zoomed picture keeps its zoom against the new fit and the part that was in the middle of the view stays in the middle (`VNCZoom.turned`).
-    - **Two-finger scrolling** (same in both modes, `VNCWheel`, #4878, #7775):
-      - **What a notch does on the Mac** (measured with `vncbench`'s wheel probe on macOS 26.6, #7775): macOS's Screen Sharing scrolls a wheel notch one point, however fast notches come and with no speed-up: a browser page gets a 1-pixel wheel event (`deltaY` 1 in pixels; notches close together merge into one larger event, none lost) and a Finder list moves 1 pixel. A terminal (Terminal.app) scrolls a whole line (15 px) for each event it gets, and notches that arrive together merge into one or a few lines. Screen Sharing keeps up with 2000 notches a second (the page stopped 0.1 s after the last); at 6000 a second every notch arrived but the page went on scrolling for 6.5 s. Before #7775 the app sent a notch every 8 pt of finger travel, so a slow 300 pt drag scrolled a page 37 points.
-      - **Speed curve**: a notch is a Mac point. While the fingers go no faster than 250 pt/s the Mac's content moves as far as they travel over its picture at the current zoom (view points × framebuffer pixels a view point ÷ framebuffer pixels a Mac point, `VNCDisplays.pixelsPerMacPoint`: 2 where Screen Sharing sends a Retina display at its full size, else 1), as if dragging it. Faster, each point counts for more: the gain rises in a straight line to 4× at 2000 pt/s (1.6× at 600, 3.1× at 1500), from UIKit's pan velocity.
-      - **Pacing**: the fingers and the coast only move where the wheel should be. A display link sends what that has come to once a frame, about 12 ms behind, at most 2000 notches a second (33 a frame at 60 Hz). No more than 0.1 s worth waits; beyond that the fingers are held to that top speed, so the Mac stops scrolling soon after they do. `RFBSession.scroll` sends every notch it is given (it once dropped any past 20 in a call). The first notch is sent at half a notch; remainders are retained and reverse motion subtracts them.
-      - **Coast**: letting go at 250 pt/s or faster continues from the speed the notches were going, with UIScrollView's normal deceleration (0.998 remaining per millisecond), sent no faster than 2000 a second: a harder flick keeps that pace longer before it slows, so it goes further. Touching again stops it and anything not yet sent.
-      - In numbers (model of 300 pt drags reaching their speed in 50 ms and lifted moving; a 1920-point Mac on an iPhone's fitted picture, about 4.9 Mac points a view point): slow (200 pt/s) 1470 points, medium (600) about 2990, fast (1500) about 3930; before, 37, 61 and 66.
-      - **Scroll Speed** (Settings › Live Screen, `VNCScrollSpeed`): Slower, Default or Faster scale the whole curve by 0.6, 1 or 1.6, read as two fingers go down; the 2000-a-second top speed stays.
-      - Natural scrolling: pulling down reveals content above, like iOS and Mac defaults. Measuring: `VNCTests/testScrollMeasure` (`PERSONA_VNC_SCROLL_MEASURE=1`) plays slow, medium and fast 300 pt drags against the mock, whose relay stamps each notch as it arrives (`wheel_in`). A terminal still moves line by line, and a page stops dead at its ends: smooth, trackpad-like scrolling there needs a process on the Mac that posts continuous scroll events (#7775).
-    - Pointer draws the cursor sent by the Mac (Cursor pseudo-encoding), or the app's own arrow until it does, through `VNCPointerArt` (#3075). Drawn at the picture's scale it was a speck: a 1920-pixel Mac on a 402-point phone is 4.8 pixels a point, so macOS's arrow came out about 4 points tall and its one-pixel white outline averaged into the black body; on a dark window or terminal it vanished. Now it is at least `Theme.Size.pointer` (22 pt) tall (its visible part; the Mac's own size when zoomed in further), scaled about the hot spot by whole device pixels so the outline stays a crisp line, and given the rings it needs to read on any background: a pointer that reads on both black and white (macOS's own arrow and I-beam, black with a white outline) is only enlarged; one with no light edge gets a 1 pt white ring, one with no dark edge a 1 pt black ring ("reads": every outline pixel has one within 2 pt that differs from the background by 0.5 in luminance). Any background is far from black or from white, so a pointer that reads on both reads on all. `VNCPointerArtTests` check macOS's arrow (with and without its shadow as a rim), the I-beam and black / white / red crosses over black, white, gray, a dark terminal and a busy picture.
-  - **Keyboard**: the bottom-bar Keyboard opens the system keyboard; typed text goes directly to the Mac (`VNCKeyInputView`). A row of Mac keys above it (`VNCShortcutBar`, in the page, moving up with the keyboard): ⌘ ⌥ ⌃ ⇧ tap to hold, tap again to release; Esc, Tab, arrow keys, ⌘C ⌘V ⌘Z ⌘Tab ⌘Space. Latin-1 characters are sent as keys; Chinese and other characters are pasted via clipboard (put in the Mac clipboard, then ⌘V). ⌘ sends Super_L (0xffeb), interpreted as Command by macOS Screen Sharing.
-  - **Clipboard**: Paste from iPhone puts the phone clipboard text in the Mac clipboard and presses ⌘V; Copy to Mac's Clipboard Only skips the keypress; Copy to iPhone retrieves the Mac clipboard text. Writing and reading go through the node (`computer.clipboard`: `pbcopy` / `pbpaste`, up to 1 MB; hub `GET/POST /api/v1/machines/{mid}/computer/clipboard`, requiring `cua` or `ego` enabled for the machine, like 5900 forwarding), which answers once the text is on the clipboard, and only then ⌘V goes out (`RFBInputQueue`). RFB cut text (ClientCutText) is used only when the node can't (one too old): it carries Latin-1 alone and has no answer, and macOS's Screen Sharing stores it only as the legacy `com.apple.traditional-mac-plain-text` type, with no `public.utf8-plain-text`, which `pbpaste` and Terminal don't read: on macOS 26 a ⌘V after it pasted nothing into Terminal (0 of 12, with or without a 0.5 s wait). It used to be the path for all Latin-1 text, so English pasted into a terminal never arrived (#3075). The node runs `pbcopy` / `pbpaste` in `en_US.UTF-8` (`LANG`, `LC_ALL`, `LC_CTYPE`): the resident node runs under launchd with no locale, where they take text as MacRoman and a pasted 中文 arrived as ‰∏≠Êñá (`TestMacClipboardRealRoundTrip`, `PERSONA_REAL_CLIPBOARD=1` on a Mac). Reading text copied by another App on the phone causes iOS to ask Allow Paste once. The page reads it off the main thread, where the read would hold the picture and the session still until it is answered; refused, the page says why rather than that there is no text (#3075).
-  - **A new session's first seconds** (#3075): macOS's Screen Sharing drops every key event it gets in roughly the first 2 to 3 seconds after a client signs in (measured on macOS 26 against Terminal: a ⌘V or Return then never arrived, the latest loss 3.05 s in on a heavily loaded Mac, 2.2 s on a quiet one), while pointer events land at once, and nothing on the wire says when keys start to count. The page signs in again whenever the app comes back from the background, so text copied in another app and pasted right away was lost. `RFBInputQueue` holds keys, and a paste's ⌘V (not its clipboard write), for 3.5 s after each sign-in and then sends them in order; One-Tap Unlock's pause after its Shift is queued too (`pause`), so it counts from when the Shift goes out.
-  - **I'm Done**: when the Agent waits for you to act on the computer (its chat opened this page), tapping sends 我在电脑上操作完了，你继续吧。 ("I'm done on the computer; please continue.") to its chat. Closing the page also hands control back.
-  - **Help**: Using VNC page covers touch controls (zoom in each mode, and Rotate on an iPhone), input and clipboard, when to use Trackpad Mode, Picture in Picture, and handing back the computer.
-- **Picture in Picture** (`VNCPiP`, #1343):
-  - On iOS, system Picture in Picture: `AVPictureInPictureController` + `AVSampleBufferDisplayLayer`, floats over other Apps and the home screen, draggable and resizable. View-only; all input is on the full page. Restore (or tap the small window) returns to the full page; the full page's Picture in Picture button (right of Close) returns to the small window.
-  - Background: audio session `.playback` (`mixWithOthers`, silent and doesn't interrupt other audio), `audio` in `UIBackgroundModes`; the small window keeps updating in the background. Closing it disconnects (unless the full page is still open).
-  - Mac: a panel above other windows (`NSPanel`, `.floating`, on all desktops); clicking opens the full-page window, closing disconnects.
-  - One connection per Mac (`VNC.hold` / `release`), shared by full page and PiP. Disconnects 2 seconds after the last release, so switching doesn't reconnect.
-  - Frames: between updates, `RFBFrameSink` copies the framebuffer (locked) into `CVPixelBufferPool` (32BGRA, IOSurface), up to 30 fps, with increasing host-clock timestamps. The full-page layer sets DisplayImmediately; PiP's source layer has its own `controlTimebase` (host clock, rate 1) and receives samples without DisplayImmediately (AVFoundation advises against mixing them).
-  - **PiP source** (#1839): a 192pt-wide display layer matching the Mac screen ratio (`Theme.Size.pictureInPictureSource`), in the App's main window behind content: in the window, not hidden, but not visible. Previously 2×2pt, and attached to the full-page window when opened from there; closing the full page removed it and PiP couldn't start on real devices (TestFlight 161).
-  - **Where the source lies** (#6333): the system's zoom into the small window starts at the source layer's frame, and Restore's ends there. It used to sit in the main window's bottom-left corner, so a small copy of the picture popped up there before it jumped into the small window. Now, while the full page is up, the source lies exactly over the page's whole picture (`VNCScreenUIView` reports it in screen points through `onPicture`; zoomed in it runs off the screen as the picture does), so the picture itself shrinks into the small window; with no page, it is in the top trailing corner, where the small window comes up (`VNCPiPPlacement`).
-  - **Handing the picture over** (#6333): at `willStart` the page closes with the transition (`AppModel.vncPiP` set then, not at `didStart`) and its picture turns transparent, so the picture never shows twice and no blank frame shows between them; the source stays where it was while the page goes. On Restore the full page opens first, and the system is told to animate (`restoreUserInterfaceForPictureInPictureStopWithCompletionHandler`'s completion) once the page has drawn its picture and the source lies over it, or after 0.6 seconds at the latest (`VNCPiPRestore`, answered once; the wait runs on a timer of its own, so a page slow to open on a busy main thread never holds the system's restore), so the small window grows back into the page's picture. The page's picture fades as the small window starts (`Theme.Motion.conceal`), since the system's copy comes over it a few frames later, and is back at once on Restore. Left: on the iPad simulator the system sometimes draws the small window's first frames (about 0.1 s) at the size it last had, in the top-left of a window that starts at the source's frame, before the picture fills it. The old corner source, about that size, hid it; a new content source, or a new controller and source for each start, did not change it, so it stays the system's.
-  - **When it opens**: once the full page connects, prepare PiP (source, controller, audio session). The Picture in Picture button calls `startPictureInPicture` directly from the tap; as it starts (`willStart`), the full page closes as if × were tapped. Going home with the full page open starts PiP automatically (`canStartPictureInPictureAutomaticallyFromInline`). Tapping VNC from a machine page or chat (with login remembered) also starts from the tap: first put a card in the source (next item), don't wait for connection. If `isPictureInPicturePossible` is false or the system doesn't respond, try again when it becomes true, after 0.4 seconds, then every second, at most 6 times, only in the foreground (background relies on automatic start). If it can't start within 8 seconds, or the system refuses (`failedToStart`), show "Picture in Picture couldn't open: reason; switched to full page" and open the full page.
-  - **Card** (`VNCPiPCard`, #1839 follow-up: user found "PiP only after connecting" sluggish): before a Mac frame arrives, the source shows an `ImageRenderer` frame (black background, machine name, spinning Connecting…, every 0.1 seconds), converted to a sample with the host clock and fed to the source layer. The first frame of this connection (`RFBSession.pictured`, reset each connection) replaces it with the Mac view. Failure or disconnection shows the reason and "Tap ▶ to reconnect, or Restore to return to the App"; mark playback paused, and PiP's ▶ (`setPlaying(true)`) reconnects. Saved password wrong: in the foreground, open the full page to sign in again (PiP hands over); in the background, the card asks you to return to the App to sign in.
-  - Why a card (TestFlight 161 PiP diagnostics): `startPictureInPicture` with an empty source (still connecting), even with `isPictureInPicturePossible` true, made the system do nothing—neither opening nor reporting failure. Picture in Picture on the full page (already displaying frames) opened immediately. #1928 waited for the first frame, making it work, but requiring connection first.
-  - **PiP diagnostics** (full-page "…" menu): device PiP support, audio session, background audio, and each recent step (`VNCPiPLog`: tapped VNC, prepared, possible, started during tap or after waiting for a frame, opened, closed, why fallback). Copy All sends it to us. DEBUG runtime CLI `state` includes `vncPiP`; system logs use subsystem persona, category vnc.
-  - **No PiP in iPhone simulators** (`isPictureInPictureSupported()` is false in iOS 27.0 and 27.1 iPhone simulators, slim or stock); tapping VNC opens the full page. DEBUG `-showPiPSource YES` shows the source over the app (without system PiP), so card → frame → disconnection (`VNCTests.testTheSmallWindowConnectsInIt`) and where the source lies, over the page's picture upright and turned, else the top trailing corner (`VNCTests.testTheSourceLiesOverThePicture`), can be checked there. A stock iPad simulator (`scripts/app/sim-boot.sh --profile stock`) has system PiP: `VNCTests.testPictureInPictureRoundTrips` (`TEST_RUNNER_PERSONA_PIP_ROUNDS=1`) goes into the small window and back twice, for recordings. How it feels on a phone still needs a real device.
-- **Where VNC opens**: with that Mac's login saved, no full page open and PiP supported, go straight to PiP (`AppModel.openVNC`); otherwise full page (always full page when login is needed).
-- **Remember login** (#1322):
-  - Login form adds Remember on This iPhone (Remember on This Mac on Mac), checked by default. Browser pages lack this; the form uses `username` / `current-password`, leaving it to browser password management.
-  - What and where: account/password per machine in the device keychain (`ScreenCredentials`), with its own service. iOS `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, no iCloud Keychain sync; Mac login keychain. Never uploaded to the hub or logged.
-  - When: only after that Mac accepts login. Unchecked Remember deletes previous saved credentials.
-  - Use: when the Mac requests login, the native client (`RFBSession`) tries saved keychain credentials first, otherwise shows the form. Password is handed to the client only in App memory, never through a web page.
-  - Password changed on the Mac: form returns with Saved password no longer works and account prefilled; after a successful new login, replace the saved password.
-  - In Control Computer on the machine page, saved login adds Forget Screen Sharing Password beside VNC.
-  - One-tap unlock (plan a-2 above) uses the same credentials.
-- **Entry points**:
-  - **Activity bar**: while the latest computer-control tool in the chat (assistant `computer_*`, Agent `mcp__cua-driver__*`) is running or finished within 6 seconds, the front of the task bar above input adds "Operating MacBook · tap …" (`ComputerActivityPill`). Tap to open that machine's screen.
-  - **··· menu** (`ScreenMenu`, #1604): an Agent chat has "VNC · <its Mac>"; absent if not a Mac, extension off or Screen Sharing off. An assistant chat uses its most recently controlled Mac, or lists viewable Macs if none (submenu for several).
-  - VNC (`ScreenEntry`) on the machine page and in tool details opens the same thing (PiP or full page).
-- **Readable tools** (#1323, `ComputerSteps`): tool details show a step summary first (consecutive clicks become "tap AC → 6 → × → 7 → =", Calculator key names become symbols), then screenshot and VNC. Original JSON is tucked into Raw Input, visible only when expanded. Titles use machine display names (MacBook), resolving by id or name (same as hub), falling back to the tool's text if unknown. Truncate at the end if it doesn't fit (file paths still truncate in the middle).
-
 ### Live screen video (#3954)
 
 A hardware video channel next to RFB, so the phone shows a Mac's screen at a fraction of today's bitrate for the same
@@ -535,7 +419,7 @@ advertises `screen_video`, which a node does once it has the helper (the picture
 otherwise). The web plays it too (Chrome, Edge and Safari as HEVC, Firefox as H.264; "Browser" below). The Mac app and
 Android don't decode video yet: they keep RFB and show no switcher.
 
-- **Persona Screen** (`apple/PersonaLink/Sources/PersonaScreen`, `apple/Packages/PersonaScreenCore`): a Swift helper app inside
+- **Persona Screen**: a Swift helper app inside
   Persona Link.app (`Contents/Helpers/Persona Screen.app`, bundle id `<link id>.screen`) that captures one display
   with ScreenCaptureKit and encodes it with VideoToolbox (HEVC Main, else H.264 High). It is an app bundle so its
   Screen Recording grant is its own, not the node's: the node starts it through LaunchServices
@@ -612,14 +496,11 @@ Android don't decode video yet: they keep RFB and show no switcher.
   WebSocket instead and closes it at once with 4000 + the status and the node's code as the reason (4429 `busy`).
 - **Wire** (length-prefixed messages: u32 big-endian length, u8 type, body). Helper → phone: `hello`, `format`,
   `frame`, `heartbeat`, `paused`, `resumed`, `timing`, `encoding`. Phone → helper: `start`, `report`, `keyframe`, `update`. Unknown types
-  are skipped by length, so either side may add more. `PersonaScreenCore` (`apple/Packages/PersonaScreenCore`, its own
-  package for macOS and iOS) is the codec, shared by the helper and the app's client through `PersonaScreenKit`
-  (`apple/Packages/PersonaScreenKit`), which re-exports it. `update.path`
+  are skipped by length, so either side may add more. `update.path`
   `{kind, via, min_rtt_ms}` (#6398) says the stream moved to another network route, so the helper can start its delay
   baseline again (#6396); helpers that don't know the field skip it. `kind` (`lan`, `tailscale`, `ipv6`, `relay`) and
   `via` (the phone's `wifi`, `cellular`, `wired` or `other` interface) name the cases of `LinkStats`, the route
-  measurement the route choice and the quality tiers share (`LinkStats.swift`, with `PathChange` and the
-  `UpdateMessage.Path` conversions, in `PersonaScreenKit`: the helper only carries the strings). `start.path` (same
+  measurement the route choice and the quality tiers share (the helper only carries the strings). `start.path` (same
   shape) is the route a stream starts on, and `hello.encoder` / `hello.fallback` say what encodes it: "x264 on a
   direct LAN (#8859)".
 - **Adaptation** (`RateController`): the phone reports when each frame arrived; the helper turns that into a queueing
@@ -723,34 +604,6 @@ Android don't decode video yet: they keep RFB and show no switcher.
   closes, no frame or heartbeat for 3 s, a decoding error, or the Mac locks (`paused`), then retries video after 30 s
   doubling to 5 min, and at once when the helper reports the Mac unlocked (`resumed`). While capture is paused the
   helper sends no heartbeat, so the 3 s rule waits for `resumed`.
-- **iPhone** (`apple/Persona/Screen/ScreenVideoStream.swift`, `ScreenVideoLink.swift`): the iOS app links
-  `PersonaScreenKit` (Mac and Vision compile the same sources and leave video out). `ScreenVideoStream` sends `start`,
-  decodes each frame with VideoToolbox as it comes (the helper never reorders), sends a `report` for every frame, and
-  shows only the newest picture of a burst. `ScreenVideoLink`, one per RFB session, opens the stream once RFB is
-  signed in, shows its pictures in a layer over RFB's on the same display (`hello.rect`, else the display shown; RFB's layer is
-  hidden meanwhile, so a picture of another shape leaves black, not a stale frame), and holds RFB's update requests while
-  they show; the request held goes out when video stops, so RFB's picture catches up.
-  Video is chosen by default on a Mac that offers it (⋯ › Picture, kept per Mac; ⋯ › Quality appears only once the
-  helper's `hello.features` has `tiers` and the app has its side of them too, `ScreenTiers.appSupported`, since one
-  release carries both and before #6396's iPhone policy the choice would change nothing) and runs only while one display is
-  shown: the Mac's only one, or one picked from several the node numbered; all of several displays at once stay RFB.
-  It pauses while Picture in Picture shows the screen or the app is in the background (RFB carries the picture then).
-  When VNC shows instead, a line under the bars says why in plain words: the video stopped, the Mac is locked, the
-  Mac hasn't allowed video yet (`permission` missing, so no stream is opened), or two devices already watch its video
-  (the hub's 429 for the node's `busy`, read from the WebSocket task's response, #8320; tried again as a stopped one).
-  Connection Stats (⋯, off by default) reads the video once a second: frames shown and megabits that arrived, the
-  helper's capture, encode and network from `timing`, the phone's decode, and their total first when encode, network
-  and decode are all known (a helper before `timing` gives the phone's numbers only). With quality tiers (#6396) a Tier
-  line shows the Quality choice, the picture's own scale and frame rate ("Auto · 1.5× · 60 fps", `ScreenTierText`;
-"1×" on a display at one pixel per point, #7842) and why it last
-  changed in plain words with how long ago (picked for this connection, the connection slowed down or is steady, the
-  network changed, the iPhone is warm or saving power or couldn't keep up, you changed Quality); the resolution is the
-  encoder's after an in-place change (`encoding`), not `hello`'s. Over VNC it shows RFB's bitrate
-  and frame rate and, on a line of its own, **Round trip to the hub** (#6558): while the overlay is shown and the app is
-  in front, the page pings the app's own connection to that Mac's hub every 2 s (`LiveConnection.roundTrip`, the
-  heartbeat's kind of ping) and shows the median of the last 5 from the last 20 s (`HubRoundTrips`). It is the same leg
-  the web overlay times ("Connection stats on the web"), and like it never sits on the first line. Bitrates have two
-  decimals under 1 Mbps, one above, as on the web.
 - **Browser** (#6558; on since it was checked on a real Mac on 2026-11-15, over the hub's relay, all at 1920×1080:
   Chrome 157, Edge 157 and Safari 26.6 with HEVC on the hardware decoder, Firefox 160 with H.264, as it has no HEVC
   decoder. Each showed video in at least 39 of 41 two-second samples, about 15 ms end to end, 2–3 ms to decode, and
@@ -893,40 +746,6 @@ iPhone's side comes next.
   node isn't explicitly allowed through it (read with `socketfilterfw`, at most once a minute, never changed), the node
   doesn't listen and `paths` says `unavailable: "firewall"`, so no prompt appears on the Mac. Beside the TCP listener the
   node opens a UDP socket on each candidate address for the video over UDP ("Video over UDP (#7873)" below).
-- **The phone's side** (`PersonaScreenKit`, pure and tested with `swift test`): `ScreenLinkMessage` frames the wire
-  exactly as the node does (both check `spec/fixtures/screen-link`); `LinkReceiver` / `LinkSender` keep each channel's
-  offsets (bytes once and in order, what the node hasn't acknowledged kept within a window); `VideoMessageAssembler`
-  hands the decoder whole video messages only and drops a partial one on a `reset` that moves the receiver (one at or
-  behind it, a late copy of an owed reset from a route the channel left, changes nothing, #10005); `LinkMeter` turns
-  pongs into `LinkStats`; `RouteEligibility` names the phone interface a candidate may be dialed on (a LAN address only from
-  Wi-Fi or Ethernet on its subnet, a Tailscale address only through the phone's own Tailscale tunnel, never cellular,
-  another VPN or a proxy); `PathPolicy` picks the route: by minimum round trip, a direct route winning a tie with the
-  relay; at the stream's start at once, later only after 10 s healthy, a clear gain and 20 s since the last move; a lost
-  route left at once and a degraded one (loss ≥ 5 %, or 50 ms over its own floor for 5 s) when another is healthy.
-- **The iPhone** (`apple/Persona/Screen/ScreenLinkRoutes.swift`): on since the acceptance before real devices passed
-  (a simulator on a real hub and a Mac on the same LAN: the direct route within a second, back on the relay 2.6 s after
-  it went silent and 1.1 s after it broke, direct again 39 s after it recovered, every typed byte once). Still to check
-  on a real iPhone: the Tailscale route, the local network question, and Wi-Fi to cellular. `ScreenRoutes.releaseEnabled`
-  false turns it off in the next build; the hub's `screen_link_off` keeps every live screen on its relays at once.
-  **Settings › This Device › Live Screen** (`LiveScreenSettingsView`, shown when a computer offers its live screen)
-  has one switch, "Choose the Fastest Route Automatically", on by default; turned off, the
-  phone asks for no session (everything through the hub, as before) and live sessions move back to their relays at
-  once. The quality tiers (#6396) add their own section to the same page, and Scroll Speed (#7775) a third: Slower,
-  Default or Faster (`VNCScrollSpeed`, this device's, for every computer: 0.6×, 1× and 1.6× the two-finger scroll's
-  distance, slow drags too; the top speed stays Screen Sharing's). Since Scroll Speed applies to every computer that
-  shows its live screen, the page is there whenever one does. The stats overlay's Route row shows the route's
-  round trip and packet loss and why it last changed ("Faster route", "Previous route dropped", "Network changed", …, or
-  that the computer's firewall blocks direct connections). The first try of a same-network route shows iOS's local
-  network question with `NSLocalNetworkUsageDescription`; refused, those routes fail quietly and the relay stays.
-  How it works: the RFB and video relays offer the subprotocol beside `binary`; `ScreenLinkRFBStream` /
-  `ScreenLinkVideoStream` (`PersonaScreenKit`) read the first message, and when the hub selected the subprotocol the
-  stream is the session's channel (`ScreenLinkSession`, an actor holding the channels, the transports, the pings and
-  `PathPolicy`), else the same raw stream as before, so the RFB client and the video stream don't change. A session
-  starts a `ScreenLinkProber` (its own actor): it reads the phone's interfaces (`NWPathMonitor`, `getifaddrs`), dials each
-  candidate `RouteEligibility` allows on that interface (`NWParameters.requiredInterface`, TLS 1.3 with the ALPN, the
-  certificate accepted only by its SHA-256 from `paths`) as `ProbePlan` says (at once, then 30 s doubling to 5 min after a
-  failure, again at once when the phone's networks change), and hands what connects to the session, which pings and
-  measures every route (the one in use every second, the others every two) and runs the policy once a second.
 - **Moving**: when the policy picks another route, every live channel moves
   there (to its own relay for the relay): `use` with what the phone has of each, and nothing more goes out on it until
   the node's `resumed` says what the node has; each side then sends on from there, so RFB loses and repeats nothing,
@@ -1055,7 +874,7 @@ itself, as a trackpad's are, scroll by the point with no such ceiling, with the 
 Approved on #7775: a helper of its own posts them, with the Accessibility permission asked for once; without it,
 scrolling stays on RFB's notches.
 
-- **Persona Input** (`apple/PersonaLink/Input`, a package of its own; bundle `Persona Link.app/Contents/Helpers/Persona
+- **Persona Input** (bundle `Persona Link.app/Contents/Helpers/Persona
   Input.app`, bundle id `<link id>.input`): started by the node through LaunchServices as Persona Screen is, on a 0600
   Unix socket whose first line is a token. It then says `granted` or `missing` (`CGPreflightPostEventAccess()`; missing
   ends it) and posts every scroll record that comes as `CGEvent(scrollWheelEvent2Source:units: .pixel, …)` with
@@ -1064,13 +883,6 @@ scrolling stays on RFB's notches.
   `post_event: granted|missing`, asking nothing; `--request-permission` asks macOS once (`CGRequestPostEventAccess()`),
   whose window only the user answers. Persona Screen is not touched: its package, binary and Screen Recording grant stay
   as they were, and the two share no code.
-- **Same bits from build to build**: macOS ties the permission to the helper's code. The package builds in Swift 6 mode
-  (`#file` is the module and file name) and links no debug map, so a build does not depend on its path:
-  `scripts/app/mac-link.sh verify-input` builds it twice from clean copies at two paths and compares the executable and
-  the signed bundle's cdhash (the same on 2026-11-15: executable `659dc1e66ff90a6f`, cdhash `da868531…`). On top of that,
-  `mac-link.sh` keeps the built executable in `~/.persona/cache/persona-input/<key>` (`PERSONA_INPUT_CACHE`), the key a
-  hash of the helper's and `PersonaInputKit`'s sources and the architectures, and reuses it byte for byte: a Persona Link
-  update that leaves those sources alone never changes the helper, whatever checkout or Xcode builds it.
 - **The record** (`PersonaInputKit`'s `ScrollRecord`, the helper and the iOS app; the node's codec in Go, both checked
   against `spec/fixtures/screen-input`): 16 bytes, big-endian. Byte 0 is **200**, an RFB client message type that IANA's
   registry leaves unassigned (151–244 are, checked 2026-11-15); the phone sends it inside the RFB stream and the node
@@ -1204,8 +1016,7 @@ comes back in 1.5–2.8 ms p50 (1.7–4.5 ms p95), against VideoToolbox's 7–8 
   not used: route …") and why it stopped ("x264 off: slow: frame 12: 61.0 ms on its own") to the Mac's unified log:
   `log show --predicate 'subsystem == "persona-screen" AND category == "x264"'` (its stderr goes nowhere under
   LaunchServices).
-- **Verifying**: `PERSONA_TEST_FFMPEG=/opt/homebrew/bin/ffmpeg swift test --filter X264` in
-  `apple/Packages/PersonaScreenCore` (encodes, decodes with VideoToolbox as the phone does, a keyframe from the spare)
+- **Verifying**: `PERSONA_TEST_FFMPEG=/opt/homebrew/bin/ffmpeg swift test --filter X264` (encodes, decodes with VideoToolbox as the phone does, a keyframe from the spare)
   and `PERSONA_TEST_FFMPEG=… go test -run 'X264|FFmpeg' ./internal/node/` (the probe on the real thing). Without the
   variable both skip the parts that need ffmpeg.
 
@@ -1222,7 +1033,7 @@ keeps its notice, `THIRD_PARTY_NOTICES.md`).
   windows needs Accessibility (`AXIsProcessTrusted`), which the same System Settings switch gives it. `--preflight`
   prints a second line, `phone_screen: <version> granted|missing`; a helper from before prints none, and the node then
   offers nothing.
-- **The virtual display** (`PhoneScreenDisplay.swift`, the sizes in `PersonaInputKit`'s `PhoneScreenFit`): private
+- **The virtual display**: private
   `CGVirtualDisplay`, portrait, aspect = the picture's height / width (clamped 1…2.2). macOS offers a 2× desktop mode only
   from 540 × 800 points, so the base width is 540 (wider for a short picture); every 10 points up to 1080 is a mode of the
   same aspect, HiDPI on, so a window with a large minimum size gets a wider mode and the picture only scales. Three fixed
@@ -1244,7 +1055,7 @@ keeps its notice, `THIRD_PARTY_NOTICES.md`).
 - **Other displays and windows stay put**: before adding and after removing, the helper records the other displays' modes
   and the frames of every window on screen; once the virtual display is offline it sets back any mode macOS changed (it
   applies the modes it remembers per combination of displays) and moves back windows that moved.
-- **Windows** (`PhoneScreenSession.swift`, `PhoneScreenAX.swift`): the list is the standard windows of apps in the Dock
+- **Windows**: the list is the standard windows of apps in the Dock
   (Accessibility, minimized ones included), front to back as on screen. Placing a window writes where it was (frame,
   minimized, full screen) to `~/.persona/phone-screen.json` first (no record, no move), takes it out of full screen or the
   Dock, sets size, position, size and checks (up to 10 tries; the same frame twice means the app or the menu bar holds it
@@ -1500,7 +1311,6 @@ Follow the order above, one PR per area. Item 6 can go with b, or a separate sma
   - `server/internal/node/computer_install_test.go`: fake download source and installer, verifies all three scripts run from disk, arguments/environment, telemetry off, permission grant afterward, rejection of non-installer scripts, cancellation.
     `PERSONA_CUA_INSTALLER_CHECK=1` downloads and checks only against real cua.ai (passed 2026-11-04).
   - `server/internal/extmgr/computer_test.go`: extension off by default, per-machine enabling, tools appear/disappear, calls through a fake node, denied confirmation.
-  - `apple/PersonaTests/ComputerTests.swift`: machine `computer` field, Chinese tool names, readable steps, latest operation considered running before result arrives.
 - **Real device (node side)**: run node package `TestCuaEndToEnd` on a Mac with Cua Driver installed.
   - Enable with `PERSONA_CUA_E2E=1`, optionally `PERSONA_CUA_SHOT=<image path>`; compile the test binary with `GOOS=darwin go test -c` and copy it over.
   - Uses `run_steps` to calculate 6×7 in Calculator, then reads the window, asserts 42, and writes a screenshot.

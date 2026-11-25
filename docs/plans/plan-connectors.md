@@ -346,7 +346,7 @@ per-minute quota is kept apart and below 10% only pauses the knowledge-base arch
 ### Conversation page (#1055)
 
 User request: "Make the github & Telegram UI richer, based on the Lark conversation page and GitHub thread page." Opening an `Inbox` PR / `issue`
-now shows a native GitHub thread page rather than hub-collected plain text (`apple/Persona/Views/Inbox/ConnectorThread/GitHubThreadView.swift`).
+now shows a native GitHub thread page rather than hub-collected plain text.
 It shares the `connector` `threads` capability with Telegram (`docs/extensions/connectors.md`); the App selects this page for `ThreadChat.Kind` `pr` / issue.
 
 - **Page**:
@@ -498,7 +498,6 @@ Implemented (#449): Settings › Connectors › Messages (which Mac, status, ste
 3. **Settings › Connectors status**: below existing "This iPhone / `Mail` / Lark", add rows from `/api/v1/connectors`:
    - GitHub: state, account, pasted token (instructions for methods A / B, `SecureField`, only "Configured" after saving), `base_url`, last sync, remaining rate limit.
    - Messages: source Mac, permissions (step-by-step setup when missing), conversations to collect (contacts only / all), exclusions, retention days.
-   - DEBUG entries `openConnectorGitHub`, `openConnectorMessages` (like `openConnectorFeishu`; names cannot clash with Swift identifiers and must be added to `scripts/release/debug_switches.txt`).
    - Mock hub (`scripts/mock/mock_hub.py`) adds two connectors and synthetic items; use it for UI tests and dark/light screenshots.
 
 ## VII. Privacy

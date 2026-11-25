@@ -9,13 +9,6 @@ Pitfalls, odd behavior, and the tradeoffs made at the time (originally in `CLAUD
   the shared task workspace instead. Older herdr versions have no checkout-only RPC, so the node uses its existing Git
   fallback for this path. Closing that workspace is not deleting its Git checkout.
 - herdr `pane read --source recent` returns at most about 1000 lines (even with a larger --lines), has no offset or scrolling API, and does not persist them: terminal history can only be read in chunks within those 1000 lines; the transcript holds the complete history.
-- For keys that distinguish single tap / quick double tap / hold (terminal key-bar modifiers), do not track press and release with `DragGesture(minimumDistance: 0)`: it misses the second tap of a quick double tap
-  (XCUITest's doubleTap sends only one down / up pair). Overlay a UIView that overrides touchesBegan / Ended (`TouchArea` in `TerminalKeys.swift`).
-- Writing a wide character into a grid takes two steps: write the left half normally; the right half (a zero-width placeholder cell) must not use the rule "overwriting the right half of a wide character clears its left half".
-  Otherwise rewriting a wide character at the same position clears the character just written. This is exactly how herdr redraws streaming Chinese, causing whole passages to lose characters on the phone (`TerminalGrid.putRightHalf`).
-  Always validate terminal parser changes by replaying recorded real frames and comparing line by line with `herdr pane read` (`TerminalWrapTests`).
-- When a custom view receives keyboard input directly (`UITextInput`), keep `hasText` true, or the keyboard automatically switches to uppercase for an empty document. Pinyin uses marked text.
-  Selecting a candidate may call `insertText`, or `setMarkedText` + `unmarkText`; treat both as commits (`TerminalInput.swift`).
 - The terminal stream's frame-rate limit is the Agent's own redraw cadence, not our link. Claude Code 2.1.312 redraws about every 110 ms while streaming (mostly the spinner line),
   with body text appearing in several large full-screen updates. herdr observe can emit a frame every 16 ms; node / hub forward unchanged, merging only frames within 30 ms (`termMinGap`).
   See section 10 of `docs/integrations/terminal.md` for measurements by segment.

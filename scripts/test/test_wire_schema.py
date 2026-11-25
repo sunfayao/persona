@@ -137,26 +137,16 @@ def walk(doc, schema, value, at, reached):
 # ---- hand-written copies ----
 # A schema's names are declared only by its generated files, in every language it generates (x-out) and in the ones it
 # guards before or instead of generating them (x-guard): its definitions and the names it reserves for later
-# (x-reserved). Per schema, so a schema that guards only TypeScript and Swift (recents) does not fail on copies in other
+# (x-reserved). Per schema, so a schema that guards only TypeScript (recents) does not fail on copies in other
 # languages that predate the rule.
 
-ANNOTATED = r"^[ \t]*(?:@\w+(?:\([^)\n]*\))?\s+)*"  # Swift, Kotlin and ArkTS attributes or annotations first
 TS_DECL = r"(?:export\s+)?(?:default\s+)?(?:declare\s+)?(?:abstract\s+)?"
 # A type alias, not an inline `type` specifier on its own line in a wrapped import or export (`  type TodoSummary,`).
 TS_ALIAS = r"type(?=\s+(?:NAMES)\s*[<=])"
 LANGUAGES = {  # language: (suffixes, a declaration of one of NAMES)
-    "swift": ((".swift",), ANNOTATED + r"(?:(?:public|private|fileprivate|internal|package|open|final|nonisolated|"
-                                       r"indirect)\s+)*(?:struct|class|enum|protocol|actor|typealias)\s+(NAMES)\b"),
     "ts": ((".ts", ".tsx", ".mts", ".cts"),
            r"^[ \t]*" + TS_DECL + r"(?:class|interface|enum|const\s+enum|" + TS_ALIAS + r")\s+(NAMES)\b"),
-    "arkts": ((".ets",), ANNOTATED + TS_DECL + r"(?:class|interface|enum|struct|const\s+enum|" + TS_ALIAS +
-              r")\s+(NAMES)\b"),
-    "kotlin": ((".kt", ".kts"), ANNOTATED + r"(?:(?:public|private|internal|protected|data|sealed|enum|value|inline|"
-                                            r"annotation|open|abstract|inner|fun|companion|expect|actual)\s+)*"
-                                            r"(?:class|interface|object|typealias)\s+(NAMES)\b"),
     "go": ((".go",), r"^[ \t]*type\s+(NAMES)\b"),  # and the specs of a type ( … ) group, below
-    "rust": ((".rs",), r"^[ \t]*(?:#\[[^\]\n]*\]\s*)*(?:pub(?:\([^)\n]*\))?\s+)?(?:struct|enum|type|trait|union)"
-                       r"\s+(NAMES)\b"),
 }
 
 
@@ -193,41 +183,6 @@ def hand_copies(schemas, read, tracked):
     return sorted(set(out))
 
 
-# ---- hand-written decoders ----
-# A decoder that reads the JSON key by key declares no type (HarmonyOS's Wire.text(obj, 'key')), so the name guard above
-# never sees it. A schema's x-guard-keys are keys and values distinctive enough that a quoted one in a Swift, Kotlin or
-# ArkTS source it guards, outside its generated files and the tests, is such a copy. TypeScript and Go are left out:
-# plain code there compares the generated types' string values, and the Go hub produces them.
-KEY_LANGUAGES = {"swift", "kotlin", "arkts"}
-TEST_SOURCE = re.compile(r"(?:^|/)(?:src/[A-Za-z]*[Tt]est[A-Za-z]*|[^/]*Tests)/")  # src/test, src/androidTest, XTests
-
-
-def hand_decoders(schemas, read, tracked):
-    """(file, key) of every quoted x-guard-keys literal outside the generated files and the tests. Arguments as
-    hand_copies'."""
-    generated = {rel for doc in schemas.values() for rel in doc["x-out"].values()}
-    out = []
-    for doc in schemas.values():
-        languages = (set(doc["x-out"]) | set(doc.get("x-guard", []))) & KEY_LANGUAGES
-        if not doc.get("x-guard-keys") or not languages:
-            continue
-        suffixes = tuple(s for language in sorted(languages) for s in LANGUAGES[language][0])
-        quoted = re.compile(r"""(["'])(""" + "|".join(map(re.escape, sorted(doc["x-guard-keys"]))) + r")\1")
-        for rel in tracked:
-            if rel in generated or not rel.endswith(suffixes) or TEST_SOURCE.search(rel):
-                continue
-            out += [(rel, m.group(2)) for m in quoted.finditer(read(rel))]
-    return sorted(set(out))
-
-
-def schema_words(doc):
-    """Every property name and enum value doc's definitions use."""
-    words = set()
-    for d in doc["$defs"].values():
-        words |= set(d.get("properties", {})) | {v for v in d.get("enum", []) if isinstance(v, str)}
-    return words
-
-
 def wire_schemas():
     return {p.name: json.loads(p.read_text()) for p in sorted(WIRE.glob("*.schema.json"))}
 
@@ -250,8 +205,6 @@ class WireSchema(unittest.TestCase):
         for name, doc in wire_schemas().items():
             self.assertLessEqual(set(doc["x-out"]) | set(doc.get("x-guard", [])), set(LANGUAGES), name)
             self.assertFalse(set(doc.get("x-reserved", [])) & set(doc["$defs"]), f"{name}: reserved and defined")
-            # A key the schema does not use (a typo, a field renamed since) would guard nothing.
-            self.assertLessEqual(set(doc.get("x-guard-keys", [])), schema_words(doc), f"{name}: x-guard-keys")
 
     def test_samples_are_exactly_the_schema(self):
         for fname, source in SAMPLES.items():
@@ -285,65 +238,26 @@ class WireSchema(unittest.TestCase):
         schemas = wire_schemas()
         for rel, name in hand_copies(schemas, read, tracked):
             self.fail(f"{rel} declares {name}, which schema/wire generates or reserves")
-        for rel, key in hand_decoders(schemas, read, tracked):
-            self.fail(f"{rel} reads {key!r} by hand: use the type schema/wire generates for it")
-
-    def test_hand_decoder_guard_reads_quoted_keys(self):
-        schemas = {
-            "a.schema.json": {"x-out": {"ts": "web/a.ts", "swift": "apple/A.swift"}, "$defs": {},
-                              "x-guard-keys": ["next_change_at"]},  # no Kotlin or ArkTS
-            "b.schema.json": {"x-out": {"kotlin": "android/B.kt"}, "x-guard": ["arkts"], "$defs": {},
-                              "x-guard-keys": ["default_at", "finished_seen"]},
-        }
-        files = {
-            "apple/A.swift": 'case nextChangeAt = "next_change_at"\n',  # generated
-            "apple/Row.swift": 'let at = view["next_change_at"] as? String\n',
-            "apple/PersonaTests/RowTests.swift": 'let json = #"{"next_change_at": "x"}"#\n',
-            "android/B.kt": '@SerialName("default_at") val defaultAt: String? = null\n',  # generated
-            "android/app/src/main/Row.kt": 'if (reason == "finished_seen") hide()\n',
-            "android/app/src/test/RowTest.kt": 'val sample = """{"default_at": "x"}"""\n',
-            "android/app/src/main/Next.kt": 'val k = "next_change_at"\n',  # b.schema.json does not guard it
-            "harmony/entry/src/main/ets/Todo.ets": "const at = Wire.text(view, 'default_at')\n",
-            "harmony/entry/src/ohosTest/ets/Todo.test.ets": "expect(Wire.text(v, 'default_at'))\n",
-            "harmony/entry/src/main/ets/Words.ets": "const s = 'the default_at field'\n",
-            "web/src/row.ts": 'const order = ["next_change_at", "since"]\n',  # a.schema.json's TypeScript is not scanned
-        }
-        self.assertEqual(hand_decoders(schemas, files.__getitem__, sorted(files)), [
-            ("android/app/src/main/Row.kt", "finished_seen"), ("apple/Row.swift", "next_change_at"),
-            ("harmony/entry/src/main/ets/Todo.ets", "default_at"),
-        ])
 
     def test_hand_copy_guard_reads_each_language(self):
         schemas = {
-            "a.schema.json": {"x-out": {"ts": "web/a.ts", "swift": "apple/A.swift"}, "$defs": {"Thing": {}}},
-            "b.schema.json": {"x-out": {"go": "server/b_gen.go", "kotlin": "android/B.kt"},
-                              "x-guard": ["arkts", "rust"], "x-reserved": ["Later"], "$defs": {"Widget": {}}},
+            "a.schema.json": {"x-out": {"ts": "web/a.ts"}, "$defs": {"Thing": {}}},
+            "b.schema.json": {"x-out": {"go": "server/b_gen.go"}, "x-reserved": ["Later"], "$defs": {"Widget": {}}},
         }
         files = {
-            "android/B.kt": "@Serializable\ndata class Widget(\n",  # generated
-            "android/Thing.kt": "internal data class Thing(\n",  # a.schema.json guards no Kotlin
-            "android/Widget.kt": "@Serializable\ninternal data class Widget(\n",
             "server/b_gen.go": "type Widget struct {}\n",  # generated
             "server/group.go": "type (\n\tLater struct {\n\t\tWidget Widget\n\t}\n)\n",
             "server/field.go": "type Holder struct {\n\tWidget Widget\n\tLater  string\n}\n",
             "server/local.go": "func f() {\n\ttype Widget int\n}\n",
-            "core/src/thing.rs": "pub struct Thing {}\n",  # a.schema.json guards no Rust
-            "core/src/widget.rs": "#[derive(Debug)]\npub(crate) struct Widget {}\n",
-            "harmony/Widget.ets": "@Observed\nexport class Widget {\n",
-            "harmony/use.ets": "let w: Widget = new Widget()\n",
-            "apple/Thing.swift": "@MainActor private final class Thing {}\n",
-            "apple/use.swift": "let thing: Thing = .init()\n",
             "web/thing.ts": "export type Thing = {\n",
             "web/generic.ts": "type Thing<T> =\n  T[]\n",
             "web/import.ts": "import {\n  type Thing,\n  other,\n} from \"./a\";\n",  # a wrapped import uses it
-            "harmony/export.ets": "export {\n  type Widget,\n} from \"./widget\";\n",
             "web/use.ts": "const x: Thing = y;\n",
             "web/a.ts": "export interface Thing {}\n",  # generated
             "web/notes.md": "struct Widget\n",
         }
         self.assertEqual(hand_copies(schemas, files.__getitem__, sorted(files)), [
-            ("android/Widget.kt", "Widget"), ("apple/Thing.swift", "Thing"), ("core/src/widget.rs", "Widget"),
-            ("harmony/Widget.ets", "Widget"), ("server/group.go", "Later"), ("server/local.go", "Widget"),
+            ("server/group.go", "Later"), ("server/local.go", "Widget"),
             ("web/generic.ts", "Thing"), ("web/thing.ts", "Thing"),
         ])
 

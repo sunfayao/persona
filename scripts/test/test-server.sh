@@ -25,8 +25,7 @@ rsync -a --delete schema/extension/ "$H":"$D/schema/extension/"
 rsync -a --delete schema/wire/ "$H":"$D/schema/wire/"
 # The configuration form tests read the portable definitions from ../../../schema/configuration (#10028).
 rsync -a --delete schema/configuration/ "$H":"$D/schema/configuration/"
-# Wire, continuity and resolution tests read the shared fixtures next to server/ (../../../spec from a package),
-# and the resolution ones check the apps' Swift sources against them.
+# Wire, continuity and resolution tests read the shared fixtures next to server/ (../../../spec from a package).
 rsync -a --delete spec/ "$H":"$D/spec/"
 # The Antigravity pane tests (internal/node agypane_test.go) replay the integration's recorded wake fixtures from
 # ../../../integrations/antigravity/test/fixtures (#11841).
@@ -35,7 +34,6 @@ rsync -a --delete integrations/antigravity/test/fixtures/ "$H":"$D/integrations/
 rsync -a scripts/mock/inbox_events.json "$H":"$D/scripts/mock/inbox_events.json"
 # pgdocker's server-args test compares the container with this deployment script next to the Go module (#3575).
 rsync -a scripts/deploy/db.sh "$H":"$D/scripts/deploy/db.sh"
-rsync -a --delete --prune-empty-dirs --include '*/' --include '*.swift' --exclude '*' apple/ "$H":"$D/apple/"
 # Some tests read docs next to the code they describe (docs/**/*.md).
 rsync -a --delete --prune-empty-dirs --include '*/' --include '*.md' --exclude '*' docs/ "$H":"$D/docs/"
 # kb's minutes tests compare their section names with the web's locale files (web/src/i18n/locales/<lang>/*.json).

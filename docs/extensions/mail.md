@@ -94,26 +94,10 @@ Steps (for reference when recreating):
 7. Write it into the built-in manager's `~/.persona/managers/assistant/manager.json` on the hub machine: `"google": {"client_id": "…apps.googleusercontent.com"}`, and restart the hub (`scripts/deploy/deploy.sh <hub machine id>`).
    An iOS client's client ID is public information, not a secret.
 
-Without `google.client_id` the hub can't start Google sign-in (#2442). iOS / Mac, web and Android ask `GET /api/v1/mail/oauth/google/config` when the add-account page opens; on `{"configured": false}`
+Without `google.client_id` the hub can't start Google sign-in (#2442). The web asks `GET /api/v1/mail/oauth/google/config` when the add-account page opens; on `{"configured": false}`
 they don't show "Sign In with Google" but say that an admin adds `google.client_id` here, and offer Gmail address + app-specific password instead (`auth: password`, `imap.gmail.com:993` / `smtp.gmail.com:465`).
 A hub too old to answer `config` (404) counts as configured. `POST …/google/start` on such a hub answers 400 with `code: google_not_configured` and the same explanation in the client's language;
-every language's text keeps the phrase "not configured", which older Android apps match (below).
-
-### Android
-
-The hub's OAuth client is the iOS type, the callback is the reversed-client-ID custom scheme, and the hub builds the authorization URL and exchanges the token, so Android only needs to open the URL and
-catch the callback (`android/…/mail/GoogleSignIn.kt`): the system browser opens `auth_url`, and `ui/mail/OAuthRedirectActivity` receives
-`<scheme>:/oauth2redirect?code&state`, hands it to the hub's `finish`, then brings the App back to the foreground. Only this flow's `state` is accepted (callbacks forged by other apps are ignored);
-the flow survives process death: the awaited `state` is stored in SharedPreferences, so if the process is killed while the browser is in front, the callback still completes.
-
-- Android can't register arbitrary schemes at runtime: the intent filter's scheme comes from `android.google_oauth_scheme` in the build config `~/.config/persona/config.json`
-  (`scripts/app/android.sh` passes it to gradle; the env var `PERSONA_GOOGLE_OAUTH_SCHEME` also works), never in the repo. When unset it is a placeholder;
-  the App uses `PackageManager.queryIntentActivities` to check whether it can catch the `callback_scheme` the hub returns, and if not, explains why
-  and falls back to "Gmail + app-specific password" (the hub still supports `auth: password`). A hub without `google.client_id` gets the same form from the start, read from `google/config` like iOS and web.
-  On a hub too old to answer `config`, the app still finds out after the tap, from the `start` error containing "not configured" (case-insensitive); app versions before this read only that error.
-- Not verified on a real device: whether Google allows a callback to an iOS client's custom scheme when initiated from an Android browser (custom schemes are already disabled for the Android client type).
-  If not, either add an Android / Web type client on the hub (Web needs a client secret and an https callback), or keep using app-specific passwords.
-- When the user returns from the browser directly (without authorizing), no callback within 1.5 s of returning to the page counts as cancelled.
+every language's text keeps the phrase "not configured".
 
 ## Outlook: Sign In with Microsoft (OAuth2 + XOAUTH2)
 
@@ -133,7 +117,7 @@ the system browser opens Microsoft sign-in and authorization → back to the App
   "Sent" itself, so the hub doesn't append another copy.
 - **Refresh tokens rotate**: Microsoft issues a new one on every refresh (and the old one becomes invalid), so the hub encrypts and stores it back into `oauth_enc` right away (Google doesn't rotate).
 - Credentials: `{provider: "microsoft", client_id, refresh_token}` encrypted in `mail_accounts.oauth_enc`, same as Gmail.
-- Code: `server/internal/mail/microsoft.go`; App: `apple/Persona/Views/Mail/MailOutlookViews.swift`.
+- Code: `server/internal/mail/microsoft.go`.
 - API: `GET` / `PUT /api/v1/mail/oauth/microsoft/config` (`{configured, client_id, source: app|config, redirect_uri}`; PUT `{client_id}`, an empty string clears it),
   `POST …/microsoft/start` (`{login_hint?}` → `{auth_url, callback_scheme, state}`), `POST …/microsoft/finish` (the callback's `{state, code}` or
   `{state, error, error_description}` → `{account}`). A callback carrying an error is still passed to the hub: it turns Microsoft's error code into what to do (see below).

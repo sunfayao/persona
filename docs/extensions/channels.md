@@ -2,7 +2,7 @@
 
 A channel is "where the user talks to Persona from": Persona's own App, the WeChat bot, the Lark bot, `/agent` in Lark, voice… each is a channel.
 A message comes in from a channel; the assistant (`personad assistant`, a manager on the hub bus) sends it into a chat, watches the turn, and when it's answered sends the answer back to the same channel. When an Agent in that chat needs the user to answer or approve something, that goes to this channel too,
-and it's withdrawn once answered elsewhere. The "Channels" page lists every supported channel and which ones are connected, and each can be opened to configure it (#1466). Apple, web, and Android all enter from Settings › Channels, as its own entry placed before connectors (#2195, #2196; see "UI").
+and it's withdrawn once answered elsewhere. The "Channels" page lists every supported channel and which ones are connected, and each can be opened to configure it (#1466). The web app enters from Settings › Channels, as its own entry placed before connectors (see "UI").
 
 **Channels and connectors are different things**:
 
@@ -19,9 +19,7 @@ The WeChat extension contributes a connector `wechat`, but that connector only h
 
 | Entry point | Where the code is | Which chat it goes to | How the answer gets back | Questions / approvals | Classified as |
 | --- | --- | --- | --- | --- | --- |
-| Persona App: iOS, Mac, Android, web | Each client's chat page, `POST /api/v1/sessions/{m}/{s}/messages` (`client_msg_id` is a random id) | The one the user picked in the App | Live stream (WebSocket) | Cards, answered in place | Channel `app` |
-| Apple Watch | The watch App, via the same hub API | Main chat / the one picked | Same as above | Notification buttons, cards on the watch | One client of channel `app` |
-| Siri / Shortcuts (Ask Persona) | `apple/Persona/Intents` (`docs/apple/siri.md`) | Main chat | The App polls `items` for up to 24 seconds and reads out the last words | None | One client of channel `app` (its own polling is a second copy of "wait for the turn to finish", see "Not done yet") |
+| Persona web app | Each client's chat page, `POST /api/v1/sessions/{m}/{s}/messages` (`client_msg_id` is a random id) | The one the user picked in the App | Live stream (WebSocket) | Cards, answered in place | Channel `app` |
 | WeChat bot | Public marketplace extension `wechat` (`nwverse/persona-extensions`, `docs/extensions/wechat.md`) | Main chat, or a chat started with `/new` | The shared channel pipeline tracks this turn and calls the extension's `channel.send` | Text round trip (reply with a number, allow / deny) | Channel `wechat` (contributed by the extension) |
 | Lark bot | Sending and receiving in the hub (`hub/bots*.go`, `feishubot/`), chat logic in the assistant (`assistant/feishu*.go`, `docs/extensions/bots.md`) | Main chat, a `/new` chat, the Agent picked with `/agents`, or the chat bound to the message being replied to | The hub watches the session internally, replies right away with a progress card refreshed every 3 seconds, and writes the answer into that card at the end (process folded); turns for which an old version created an agent message still finish the old way | Card buttons | Channel `feishu` (built in) |
 | `/agent` in Lark | In the extension that connects Lark (since #1571; previously the hub's lark_agent.go, lark_agent_docs.go; `docs/extensions/lark-agent.md`) | A new headless chat per request / thread by default; with the mention channel's explicit `target: {kind: "main"}`, the owner's main chat through the unified pipeline | The Agent calls `lark_agent_reply` in the default mode; a main-chat turn returns through the extension's ordinary `channel.send` reply path, to the original request | None | `mention` channel; the host accepts the contribution and its optional main target, while the extension chooses when to adopt it |
@@ -32,8 +30,8 @@ The WeChat extension contributes a connector `wechat`, but that connector only h
 | botmux | A node host (`docs/integrations/engines.md` ("botmux")) | Lark thread ↔ Claude Code on some computer | botmux itself | botmux itself | Not a Persona channel: it's the Agent's own entry point; the Agents page shows it as usual |
 | Extension `assistant`, `api`, `events`, `hub_api` | `docs/extensions/extensions.md` | — | — | — | Not channels but the parts channels are assembled from; the first WeChat version was built from `connectors` + `hub_api` + `events` |
 
-Conclusion: **there are three implementations of "outside messages go into a chat and the answer goes back"**: the Lark bot (then in the hub, bots_runs.go), the WeChat bot (then in a plugin, wechat/turns.go,
-whose comments say the rules follow the Lark bot), and Siri (in the App). `/agent` was a fourth shape (one replies as me with a new chat each time), and voice is a model itself. The host now also lets a `mention` channel opt into the unified pipeline with `target: {kind: "main"}`; without that explicit target its extension-owned new-chat behavior is unchanged.
+Conclusion: **there are two implementations of "outside messages go into a chat and the answer goes back"**: the Lark bot (then in the hub, bots_runs.go) and the WeChat bot (then in a plugin, wechat/turns.go,
+whose comments say the rules follow the Lark bot). `/agent` was a fourth shape (one replies as me with a new chat each time), and voice is a model itself. The host now also lets a `mention` channel opt into the unified pipeline with `target: {kind: "main"}`; without that explicit target its extension-owned new-chat behavior is unchanged.
 
 > The bots_runs.go and wechat/turns.go from the inventory have been deleted: since #1521 both the Lark bot and the WeChat bot use the unified pipeline (now in `assistant/channels_runs.go`; reading this turn's answer from the chat is in `channel/read.go`, #3497). Since #2079 the Lark bot's chat logic lives in the assistant (`assistant/feishu.go`), and the hub only sends and receives (`extmgr/bots.go`, `bots_chat.go`).
 
@@ -306,9 +304,9 @@ if the assistant is disconnected, return `503 assistant_offline`; fields are unc
 
 ## 7. UI
 
-- **Entry point**: Apple (iOS / iPadOS / macOS, #2195), web, and Android (#2196) have a separate "Channels" item in Settings, before "Connectors"; the extension page no longer repeats it. Apple shows the connected count, red if any errors; hidden when hub lacks the `channels` feature.
+- **Entry point**: The web app has a separate "Channels" item in Settings, before "Connectors"; the extension page no longer repeats it. It shows the connected count, red if any errors; hidden when hub lacks the `channels` feature.
 - **List**: each row has the channel icon (brand mark, `Theme.Brand` / the equivalent token on each client; name initial if no mark), name, bound account (or one sentence of description), and state on the right: Connected (green dot) /
-  Not connected (gray) / Error (red, with a reason) / Disabled. Three sections: "Persona" (`app`: iOS, Mac, watch, Android, web, Siri, simply telling users all are available), "Connected", "Available" (market entries open extension market details).
+  Not connected (gray) / Error (red, with a reason) / Disabled. Three sections: "Persona" (`app`: the web app, simply telling users it is available), "Connected", "Available" (market entries open extension market details).
 - **Individual channel**:
   - Top status: icon, name, state, account, latest message time; error reason and how to fix it.
   - "Enabled" switch.
@@ -317,9 +315,9 @@ if the assistant is disconnected, return `503 assistant_offline`; fields are unc
   - Feature switches: drawn from `features`.
   - "Send Test Message" (only to yourself), or "Check Connection" for `reply_only` channels (checks readiness without sending a proactive message).
   - With `settings_url` (Lark bot), an extra "More Settings" row opens the old page.
-- **Connector page**: existing WeChat connector and Lark bot entries in Settings › Connectors remain; a top explanation says it's a chat channel and links to "Settings › Channels". Apple says "Set it up in Settings › Channels". Binding on the channel page and login on the connector page use the same API; either works identically.
+- **Connector page**: existing WeChat connector and Lark bot entries in Settings › Connectors remain; a top explanation says it's a chat channel and links to "Settings › Channels". Binding on the channel page and login on the connector page use the same API; either works identically.
 - **Chat page**: a small "From WeChat" line below channel-origin user messages (channel icon + name, secondary color); no marker for App-origin messages.
-- **Chat list**: if session `channels` is nonempty, show a small icon of the most recent channel beside the title. A chat an extension opened (`origin` `lark_agent` / `extension`) shows its source's mark there instead (on the web, iOS, iPadOS and Android the opening extension's own icon when it has one, #10358), and its first message gets "From Lark /agent" / "From an extension" (there "From <that extension>" while its icon is drawn) (iOS, iPadOS, the web and Android; #4203; `docs/protocol/protocol.md` "Origin of assistant chats", #3758).
+- **Chat list**: if session `channels` is nonempty, show a small icon of the most recent channel beside the title. A chat an extension opened (`origin` `lark_agent` / `extension`) shows its source's mark there instead (on the web the opening extension's own icon when it has one, #10358), and its first message gets "From Lark /agent" / "From an extension" (there "From <that extension>" while its icon is drawn) (the web; #4203; `docs/protocol/protocol.md` "Origin of assistant chats", #3758).
 
 ## 8. Steps
 
@@ -327,13 +325,10 @@ if the assistant is disconnected, return `503 assistant_offline`; fields are unc
 | --- | --- |
 | 1 | This doc; the `channel` package (types, `Check` / `Decide`, `Split`, `AskText` / `ReadAnswer`, sources); hub channel registry and API; the `channel` extension point; unified pipeline: migrate Lark bot runs, change WeChat to the `channel` extension point (the extension keeps only iLink sending / receiving and QR binding), state migration; session `channels`; conformance tests |
 | 2 | Web: Settings › Channels, source markers on the chat page |
-| 3 | Android: same |
-| — | iOS / Mac / watch (#1529): Settings › Channels (`apple/Persona/Views/Settings/ChannelsViews.swift`, binding reuses the connector step-by-step login component, with `pair_code` added), "From …" on the chat page and watch, small channel icons in the sidebar, connector pages (WeChat, Lark bot) link to channels |
 
 ## 9. Not done yet
 
 - **Telegram bot** (Bot API, different from the current Telegram connector): with the `channel` extension point, only sending and receiving need to be written; deferred.
-- **Siri polling**: "Ask Persona" waits for the turn to finish in the App itself (24 seconds), not through hub's pipeline. To use it, hub would add a long-poll API to "send one message, wait for its answer, then return", called by Siri.
 - **Voice**: a different shape, listed in the channel table and configured where it was, not using this pipeline. Lark `/agent` can now use the host's `mention` contract and explicit main target; the Lark extension's adoption of that contract is outside this host change.
 - One owner per channel; group chats in `im` channels are not handled. A public mention turn is the exception: only the owner's own request enters main, while a non-owner request uses a guest conversation.
 - Once `text` questions have been answered elsewhere, already-sent text can't be withdrawn.

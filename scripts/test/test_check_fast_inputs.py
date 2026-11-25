@@ -189,62 +189,12 @@ class CheckFastServerInputsTests(unittest.TestCase):
         out, packages = self.check_fast()
         self.assertEqual(["./internal/db/dbtest/..."], packages, out)
 
-    def test_a_client_source_runs_the_packages_that_name_it_whole(self):
-        # The Go contract tests read Swift and Kotlin sources by their whole path (internal/proto, #11026); a longer
-        # string that only mentions the path, such as a wire sample's "apple/Shared/Models.swift: Fold", reads nothing.
-        self.write("server/internal/contract/contract_test.go",
-                   'package contract\n\nvar models = read("apple/Shared/Models.swift")\n'
-                   'var calls = read("android/core/contracts/src/Calls.kt")\n')
-        self.write("server/internal/samples/samples_test.go",
-                   'package samples\n\nconst source = "apple/Shared/Models.swift: Fold"\n')
-        self.write("apple/Shared/Models.swift", "struct Fold {}\n")
-        self.write("apple/Shared/Other.swift", "struct Other {}\n")
-        self.write("android/core/contracts/src/Calls.kt", "class Calls\n")
-        self.git("add", "-A")
-        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "readers")
-        self.git("tag", "-f", "base")
-        self.write("apple/Shared/Other.swift", "struct Other { let id = 1 }\n")
-        out, packages = self.check_fast()
-        self.assertEqual([], packages, out)
-        self.write("apple/Shared/Models.swift", "struct Fold { let id = 1 }\n")
-        out, packages = self.check_fast()
-        self.assertEqual(["./internal/contract/..."], packages, out)
-        self.git("checkout", "-q", "--", "apple")
-        self.write("android/core/contracts/src/Calls.kt", "class Calls(val id: Int)\n")
-        # A plan only: the android checks it also queues need the real checkers.
-        run = subprocess.run(["bash", "scripts/test/check-fast.sh", "--dry-run", "--base", "base"], cwd=self.repo,
-                             env=self.env, capture_output=True, text=True, timeout=300)
-        self.assertEqual(0, run.returncode, run.stdout + run.stderr)
-        self.assertIn("queued: server go test ./internal/contract/...", run.stdout)
-        self.assertIn("queued: android i18n", run.stdout)
-
     def plan(self, listed, env=None):
         """check-fast's plan for the listed paths: (exit code, output)."""
         run = subprocess.run(["bash", "scripts/test/check-fast.sh", "--dry-run", "--changed-from", "-"], cwd=self.repo,
                              env=env or self.env, input="".join(p + "\n" for p in listed), capture_output=True,
                              text=True, timeout=300)
         return run.returncode, run.stdout + run.stderr
-
-    def test_a_large_client_diff_still_runs_the_packages_that_name_its_files(self):
-        # One alternation of every changed client path once grew past what git grep compiles, and every Go reader of a
-        # large apple/ or android/ diff was dropped without a word (#11250).
-        self.write("server/internal/contract/contract_test.go",
-                   'package contract\n\nvar models = read("apple/Shared/Models.swift")\n')
-        self.write("server/internal/kotlin/kotlin_test.go",
-                   'package kotlin\n\nvar sources = []string{"x", "android/core/contracts/src/Calls.kt"}\n')
-        self.write("server/internal/samples/samples_test.go",
-                   'package samples\n\nconst source = "apple/Shared/Models.swift: Fold"\n'
-                   '// Not "apple/Persona/Commented.swift" either: a comment line.\n')
-        self.git("add", "-A")
-        self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "readers")
-        listed = [f"apple/Generated/Group{i // 100}/File{i}.swift" for i in range(4000)]
-        listed += [f"android/generated/src/main/kotlin/File{i}.kt" for i in range(1000)]
-        listed += ["apple/Shared/Models.swift", "android/core/contracts/src/Calls.kt", "apple/Persona/Commented.swift"]
-        code, out = self.plan(listed)
-        self.assertEqual(0, code, out[-2000:])
-        queued = sorted(line.strip() for line in out.splitlines() if line.startswith("  queued: server go test"))
-        self.assertEqual(["queued: server go test ./internal/contract/...",
-                          "queued: server go test ./internal/kotlin/..."], queued, out[-2000:])
 
     def test_a_search_that_fails_stops_the_plan(self):
         # A reader a failed search would have found is not run otherwise: check-fast stops and says so (#11250).
@@ -260,7 +210,7 @@ class CheckFastServerInputsTests(unittest.TestCase):
         self.write("scripts/tools/helper.py", "")
         self.git("add", "-A")
         self.git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "helper")
-        for path in ("apple/Shared/Models.swift", "docs/example-guide.md", "spec/fixtures/x.json",
+        for path in ("docs/example-guide.md", "spec/fixtures/x.json",
                      "scripts/tools/helper.py"):
             with self.subTest(path=path):
                 code, out = self.plan([path], env=env)
@@ -960,7 +910,6 @@ class CheckFastPlanTests(unittest.TestCase):
         self.write("scripts/privacy_check.py", "print('clean')\n")
         self.write("server/go.mod", "module example.com/server\n")
         self.write("server/internal/foo/foo.go", "package foo\n")
-        self.write("android/app/build.gradle.kts", "\n")
         self.write("spec/fixtures/input-clip/cases.json", "[]\n")
         self.write("spec/fixtures/other/cases.json", "[]\n")
         self.write("schema/extension/examples/Manifest.x.json", "{}\n")
@@ -1011,19 +960,19 @@ class CheckFastPlanTests(unittest.TestCase):
         out = self.check_fast("--dry-run", "--changed-from", "../list.txt", cwd=self.repo / "sub")  # from the caller
         self.assertIn("1 listed file(s) from", out)
         self.assertIn("queued: server go test ./internal/foo/...", out)
-        out = self.check_fast("--dry-run", "--changed-from", "-", stdin="android/app/build.gradle.kts\n")
-        self.assertIn("queued: android i18n", out)
+        out = self.check_fast("--dry-run", "--changed-from", "-", stdin="integrations/clip/test/clip.test.mjs\n")
+        self.assertIn("queued: integrations/clip", out)
         self.assertNotIn("server go test", out)
 
     def test_each_listed_path_is_planned_on_its_own(self):
         out = self.check_fast("--dry-run", "--changed-from", "-", "--each",
-                              stdin="android/app/build.gradle.kts\nserver/internal/foo/foo.go\n")
-        android, server = out.split("== server/internal/foo/foo.go\n")
-        self.assertTrue(android.startswith("== android/app/build.gradle.kts\n"), out)
-        self.assertIn("queued: android i18n", android)
-        self.assertNotIn("server go test", android)
+                              stdin="integrations/clip/test/clip.test.mjs\nserver/internal/foo/foo.go\n")
+        integration, server = out.split("== server/internal/foo/foo.go\n")
+        self.assertTrue(integration.startswith("== integrations/clip/test/clip.test.mjs\n"), out)
+        self.assertIn("queued: integrations/clip", integration)
+        self.assertNotIn("server go test", integration)
         self.assertIn("queued: server go test ./internal/foo/...", server)
-        self.assertNotIn("android i18n", server)
+        self.assertNotIn("integrations/clip", server)
 
     def test_listed_paths_only_plan(self):
         for args in (("--changed-from", "-"), ("--dry-run", "--all", "--changed-from", "-"),
@@ -1033,20 +982,20 @@ class CheckFastPlanTests(unittest.TestCase):
         self.check_fast("--dry-run", "--changed-from", "missing.txt", code=2)
 
     def test_the_ci_lanes_it_runs_no_part_of_are_named(self):
-        out = self.check_fast("--dry-run", "--changed-from", "-", stdin="android/app/build.gradle.kts\n")
-        self.assertIn("INFO  CI lanes this change selects that check-fast does not run: android (", out)
+        out = self.check_fast("--dry-run", "--changed-from", "-", stdin="scripts/ci/runtimes.sh\n")
+        self.assertIn("INFO  CI lanes this change selects that check-fast does not run: runtimes (", out)
         out = self.check_fast("--dry-run", "--changed-from", "-", stdin="server/internal/foo/foo.go\n")
         self.assertNotIn("CI lanes this change selects", out)
-        # A shared fixture: CI's server, android, apple and runtimes lanes; check-fast runs the runtime package
-        # that reads it, so only the lanes it cannot run are named.
+        # A shared fixture: CI's server and runtimes lanes; check-fast runs the runtime package that reads it, so
+        # only the lane it cannot run is named.
         out = self.check_fast("--dry-run", "--changed-from", "-", stdin="spec/fixtures/input-clip/cases.json\n")
-        self.assertIn("does not run: server, android, apple (", out)
+        self.assertIn("does not run: server (", out)
 
     def test_each_path_names_the_ci_lanes_it_runs_no_part_of(self):
         out = self.check_fast("--dry-run", "--changed-from", "-", "--each",
-                              stdin="android/app/build.gradle.kts\nserver/internal/foo/foo.go\n")
-        android, server = out.split("== server/internal/foo/foo.go\n")
-        self.assertIn("INFO  CI lanes this change selects that check-fast does not run: android (", android)
+                              stdin="scripts/ci/runtimes.sh\nserver/internal/foo/foo.go\n")
+        runtimes, server = out.split("== server/internal/foo/foo.go\n")
+        self.assertIn("INFO  CI lanes this change selects that check-fast does not run: runtimes (", runtimes)
         self.assertNotIn("CI lanes this change selects", server)
 
     def test_a_runtime_package_that_reads_a_fixture_or_schema_runs(self):

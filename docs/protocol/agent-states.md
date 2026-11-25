@@ -23,13 +23,10 @@ A dispatched session with an unknown host status reads as `state unknown` in `di
 List order (each client's rank: web `lib/format.ts`, iOS / Mac `AgentListOrder.rank`, Android `agentRank`): Needs you → Unread → Awaiting reply → Working → Just finished → Seen → Unknown → Not running.
 
 Sort priority of a folded row or tab (which agent it speaks for and which pane it opens on; web `lib/herdr-tree.ts`, Android `tabUrgency`): Needs you → Working → Unread → Seen → Unknown → Not running, with Awaiting reply and then Just finished right after Unread on Android.
-iOS / Mac tab rows (`TabPanes.swift`) go by `AgentState.priority` instead: Needs you → Unread → Working → Seen → Unknown → Not running.
 
 ### Needs you that is not counted
 
-D6 and D11 of `docs/plans/plan-derived-counts.md` ("6. Decisions") decided this; `spec/fixtures/needs-you` pins the
-counts. Each client draws the groups in its own D6 change; until then its fixture replay keeps today's numbers behind
-marks.
+D6 and D11 of `docs/plans/plan-derived-counts.md` ("6. Decisions") decided this.
 
 - **What the count leaves out**: the Agents count (the tab's badge, and the Needs you section's header and filter)
   leaves out a muted agent, a quiet task's agent and a session whose only pending cards are held. A held card is a
@@ -257,7 +254,6 @@ The `sessions/<pid>.json` Claude Code writes also has `status` (busy / idle) and
 and adds a work state `work` to the session: working / blocked on a named precondition (waiting for your decision, another Agent, an external event, a transient error) / done, with a line saying "what it's waiting for" or the conclusion.
 State computation takes it into account: **done**, or **blocked on something the hub waits on for it** (the hub retries automatically, wakes it at the set time), is no longer `unread` but `idle` (a done one nobody had seen is Just finished for three hours, "Just finished" above);
 for a decision you need to make, the hub opens a question card, so it's `needs_you`. Anything not triaged (just stopped, model failure, can't tell) stays `unread`.
-There is only one set of colors: `apple/Shared/StatusPalette.swift`, shared by the App, the watch and Live Activities (`docs/apple/ios.md` ("Design language")).
 The Agents list also has "Waiting": the state is Seen, but a `/loop` hasn't fired yet (`Session.isWaiting`), so a new message will come. Sessions whose background commands / sub-Agents are still running are counted as Working directly by the hub (#2228, `backgroundState`) and no longer go into Waiting; the assistant chat's background tasks and Monitor are always running and don't count.
 A long-running process started in the background (such as a dev server) keeps the Agent Working until it exits (node stops listing background tasks older than 24 hours). Stop on such a session, once its turn is over, interrupts nothing: the node presses the Escape as always and answers `turn_over_background`, so the app says the turn had ended and the background work still runs instead of "Interrupted" (#10828); ending the background work itself is done in the terminal. Turn-end decisions such as the "done" push and hub self-update look at the host state and aren't affected by this.
 
@@ -286,7 +282,7 @@ They count as background work just like background commands: the Agent is Workin
 - **Summary rows** (#5888, #5950): a `summary=1` row (for example iOS Agents › Recent) has no `workflows`. Clients take its `workflow_progress` as the running run (name, phase with `phase_count`, counts, time) and `running_workflows > 0` alone as background work, so the row's workflow line and "Working (Background)" read the same in every grouping (iOS `Session.runningWorkflows` / `isBackgroundWorking`, web `runningWorkflows`, Android `Session.runningWorkflows` / `AgentSession.isBackgroundWorking`). They key on the summary marker (`waiting` present), not on `workflows` being absent: a client keeps an older complete row's `workflows` under a summary (iOS `preservingDetails`, Android `keepingDetails`, the web store's merge), and the summary's own counts win over that kept array, as in "Summary rows" in `docs/protocol/protocol.md` (#3588). A chat whose row a summary last updated reads its running run the same way; its header cards (`workflows`) wait for the complete row. A summary names only the newest run, so its line has no "and N more".
 - **Fallback**: with no notification and no status file, 30 minutes without any write counts as `stalled` (its claude is gone) and no longer as running; a Monitor past `expires_at` doesn't count; finished ones stop being listed after a day.
 - The assistant's live snapshot and `agents_list` spell out running workflows ("this turn stopped to wait for results, it isn't done"), so it won't nudge or close these Agents.
-List order (the same for all three groupings): Needs you → Unread → Awaiting reply → Working → Waiting in the background → Just finished → Waiting → Muted → Seen; within a state, by last update time (`docs/apple/ios.md`).
+List order (the same for all three groupings): Needs you → Unread → Awaiting reply → Working → Waiting in the background → Just finished → Waiting → Muted → Seen; within a state, by last update time.
 
 ### "Seen"
 
@@ -391,20 +387,13 @@ A common pattern: an Agent runs `herdr pane split` in its own tab, then starts C
   If the top-left is a shell rather than an Agent, the group has no number 0 and the Agents are peers (the web doesn't mark a starter).
 - Parent/child relationships across tabs (an Agent opening a subtask in another tab / workspace) are not inferred; if needed later, agree on an explicit marker (like to-dos' `persona_from`).
 
-For the web, see `docs/web/web.md`; Android, `docs/android/android.md` ("Session controls, session origin and capabilities") (#2515). iOS / Mac (#2516; the pure logic is in `apple/Persona/Views/Chats/TabPanes.swift`, same rules as the web's `herdr-tree.ts`):
-
-- In the Agents list (by repository / by project; cards, capsules, compact list), a tab with several Agents first gets a tab row: the status dot of the one most in need of attention, the tab name and its title, "N Agents"; tap it to collapse / expand.
-  Below it, ordered by pane position: the starter on top, labeled **Started It**, the rest indented one level beneath it. Each row names its own Agent (when both are Claude they're numbered "Claude 2"; the starter is told apart by its label) and no longer repeats the tab name.
-  Expanded by default; the collapsed state is remembered per `machine/space name/tab number` (`tab/…` in `dev.folded`, still recognized after renames). The whole group counts as one item: if any member is busy, it doesn't go into "N more idle".
-  Expanding an idle space / repository adds no tab rows; members of the same tab are kept together and the starter is still labeled. The number on a space counts Agents ("N Agents"). Grouping by state / by machine / by to-do doesn't group by tab.
-- The peer capsules and ⋯ popover at the top of the chat page, the Mac peer menu, and the space page: members of the same tab are kept together and ordered by position, named "#1 · Codex"; the starter is marked **Starter** (the popover and menu write **Started It**, branches are indented; the Mac menu has one section per tab).
+For the web, see `docs/web/web.md`.
 
 How it looks in the App:
 
 - **The dev list is grouped by space**: each active space (with Needs you / Working / Unread) gets a card whose header shows the space name, machine and per-state counts,
   listing each agent in tab order (tab name, title, state, latest line). Spaces that are all Seen are folded into **Idle Spaces**, one row each, expandable;
-  sessions that aren't running are under "Recent (not running)". On Android (since 2026-11-02) it's a computer → space → session tree, with no **Idle Spaces** group or heading:
-  idle spaces stay under their computer, after the active spaces, collapsed by default and styled more subtly, showing how many sessions they contain when collapsed (`docs/android/android-design.md` section 2.4).
+  sessions that aren't running are under "Recent (not running)".
 - **The peer menu in the chat page's top bar**: when a space has several agents, the leftmost button on the top bar's second line lists them (tab name + state; the button has a red dot when another agent needs you); tap one to switch straight to it without going back to the list.
   The subtitle is "machine · space › tab · state".
 - **Space page**: opened from a space card's header; a grid shows each tab's state, title, latest progress and pending count. You can **Open a new tab in this space**,

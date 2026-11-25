@@ -157,10 +157,6 @@ without injected prompts or tools) is a few tens of MB at most: a scan of 10 to 
   lands on that message, paging back (each page 10 exchanges, at most 20, cancellable, "Finding the message…") when it
   is not loaded; the message is ringed as search in chat rings it. If it is not reached, the chat stays at the latest
   message and says the message is further up. "All chats"' placeholder becomes "Search chats".
-- **iOS** sidebar and the Duo's full search: a result is the title and one line of the snippet with the match in bold
-  (a new design-system row, in `docs/design/DESIGN_SYSTEM.md`); opening it lands on the message through the existing
-  `?at=` landing (`docs/apple/ios.md`), with a larger page budget for search. Offline, the local results stay and say why.
-- **Android** (#6285): the same endpoint and rows, and the shared rule for search in chat.
 - **Search in chat** (web now, Android in #6285): section 2's rule. Folded work is fetched for the search when the panel
   searches: the loaded folds' items through `from_seq` / `through_seq`, the request that opens a fold, two at a time
   and up to about 4 MB per chat, kept while the chat is open. Going to such a hit opens its fold as today. No protocol

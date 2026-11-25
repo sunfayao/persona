@@ -230,11 +230,8 @@ An open task whose delivery is held for the owner appears in **Needs you** with 
 A structured decision already shown for the task keeps its controls. A wait assigned to CI, a reviewer or an Agent
 continues to use the normal task placement.
 
-The split is one pure function per client: web `assistantEntries` (`web/src/lib/assistant-entries.ts`), Android
-`assistantEntries` (`persona.core.domain.tasks`), iOS / iPad / Mac `AssistantEntries.split`
-(`apple/Persona/Views/Assistant/Tasks/AssistantActionBar.swift`, #3393). All three replay `spec/fixtures/entries`, which pins
-which entry every case goes to, which tasks Finished lists and which of those are new, and which In progress rows say their supervisor is reviewing them (Apple:
-`AssistantEntriesFixtureTests`); the web reads those rows, and the overdue reviews, from `web_review` as its Persona
+The split is one pure function: web `assistantEntries` (`web/src/lib/assistant-entries.ts`, #3393). It replays `spec/fixtures/entries`, which pins
+which entry every case goes to, which tasks Finished lists and which of those are new, and which In progress rows say their supervisor is reviewing them; the web reads those rows, and the overdue reviews, from `web_review` as its Persona
 reviewing entry (#8678). The older Pending / Progress / Agents / To start entries
 below are the earlier presentation (#2878, #3162).
 
@@ -259,21 +256,17 @@ existing `background`, `subagents` and `workflows` arrays. Missing fields on old
 rather than fabricate phase or progress. Newer summary revisions win over cached chat detail, including same-state
 phase/count updates and completion; a row projection is not installed as an open chat's complete state.
 
-Apple (iPhone, iPad, Mac; #3591) decodes `background_tasks_count` and `workflow_progress` with the existing
-`WorkflowRun` model and applies the same spinner and subtitle rules (`AssistantTrayActivity` in `apple/Shared/Tasks.swift`).
 A summary row's counts, including omitted zeros, win over retained chat arrays; a later complete response clears the
 summary hints. `phase_count` gives the phase position without `phases`. An older hub's complete response that only sets
 `background_working` shows Working with a generic line. Task rows read only their linked sessions; manual-Agent rows
 carry a value-only activity snapshot in `DockAgent`, so the composer does not observe every session.
-`AssistantEntriesFixtureTests` replays `expected.activity` from the shared fixtures. The opt-in mock
-`MOCK_TASKS=1 MOCK_TASKS_NO_ASKS=1 MOCK_TASK_TRAY_ACTIVITY=1|summary` (`summary`: compact fields only) supplies four
-rows for `AssistantTrayActivityUITests` on iPhone and Mac. No new endpoint, task storage or model call is required.
+No new endpoint, task storage or model call is required.
 
 ### Progress tray: one task, one row (#2878)
 
 The approved simplified Assistant presentation places a task's **only card in the Progress tray**, not in the conversation.
 Planning, running, blocked progress, PR references and acceptance update that same task row in place. Tapping the row opens
-the existing task details. On iOS and Android the dispatch answer is one hand-off card per Agent a dispatch started or a task took over (#5110; iOS `DispatchHandoffCard`: title, New / Already Active / Resumed, when that Agent last moved and its state, ↗). A card with an Agent opens that Agent's page. The web draws the same cards, which open that Agent in the side panel or as its page, as Settings says ("Hand-off cards (web)" below). Historical plan/task/receipt/review/report cards use the same lightweight entry or are omitted from the chat; receipts, reviews and reports are not drawn at all since #8237 (Android: #8312; "Receipts" below). Persona's hand-offs, message cards and the hub's notice lines stay in the conversation (`docs/plans/android-ios-alignment/chats.md` C13).
+the existing task details. The dispatch answer is one hand-off card per Agent a dispatch started or a task took over (#5110: title, New / Already Active / Resumed, when that Agent last moved and its state, ↗). A card with an Agent opens that Agent's page. The web draws the same cards, which open that Agent in the side panel or as its page, as Settings says ("Hand-off cards (web)" below). Historical plan/task/receipt/review/report cards use the same lightweight entry or are omitted from the chat; receipts, reviews and reports are not drawn at all since #8237 ("Receipts" below). Persona's hand-offs, message cards and the hub's notice lines stay in the conversation.
 
 **Pending** holds plans that still require Start and acceptance decisions, alongside ordinary questions/approvals. Drafts sent
 on the user's behalf are a separate group and require their own explicit Send; Approve all never sends drafts or chooses an
@@ -330,8 +323,6 @@ to the live text. iOS reads the same check (`TodoItem.stoppedReason`, the row's 
 - Snapshot tasks (`snapshotTasks`) also include the latest text, current working step and duration, and running sub-Agents: "Working, <machine> session_id=…: latest text; now running tests (3 minutes); sub-Agents running: …".
 - Link latency (measured on the hub machine 2026-11-04): Claude Code writes a line in 0.1–3 seconds; node rebuilds the list every second and rereads a growing transcript at most every 3 seconds (`metaMinInterval`).
   List changes (including new `activity`) are pushed to hub immediately, hub broadcasts directly, and web replaces on receipt. There is no model-generated summary in this path: cards and snapshots use original text; completion receipts also truncate the Agent's final text block.
-- Cards read sessions through `AppModel.sessionWithLine`, not `session(_:)`. To reduce redraws, the latter ignores pushes changing only `last_text` / `updated_at` / `rev`,
-  which would leave the card stuck on the message from the last state change (`docs/lessons/ios.md`).
 - Progress **does not insert new chat messages**. Only two cases append at the bottom: needs your answer (question card) and answered (collapsed line); how a task ended is its row, not a receipt card (#8237, "Receipts" below).
 - Card footers offer "Message" (targeting this task; see "Routing" below) and "Stop" (interrupt, with confirmation first). Tapping the card opens task details.
 - When the to-do has a PR URL (`pr_url`, #2768), the card adds a "PR #N" line under the current step; tapping it opens the PR in the in-app link sheet, matching "Open PR" on the Feishu task report card (#5033). Cards without a PR are unchanged.
@@ -456,13 +447,7 @@ lines, and in the user's own color and alignment they read as something the user
 - What the user sends to a task (its card's Message, or the composer's routing label) has no `from` and keeps the bubble.
 - Older entries: migration `0441_feed_routed_from.sql` marks those Persona wrote before the field existed (see "Chat activity").
   Older apps ignore `from` and keep drawing the bubble.
-- Apple: `AgentSentLine` (`apple/Persona/Views/Assistant/Tasks/SentViews.swift`; `TaskSentList` was removed in #5569; iOS no longer applies `takenIn`, so a task's hand-off is drawn in the chat like any other message of Persona's), the pure rules in
-  `SentToAgents` (`apple/Shared/Tasks.swift`); web: `web/src/views/assistant/Sent.tsx`, `takenIn` / `sentTo` in `web/src/lib/feed.ts`;
-  Android (#1623): `SentLine`, `TaskSentList` in `android/feature/chat/.../AssistantTasks.kt`, the pure rules in `SentToAgents`
-  (`android/core/domain/.../tasks/SentToAgents.kt`), the chat page filtering the feed with `SentToAgents.shown`; checked by
-  `SentToAgentsTest` and `SentToAgentsShotsTest` (every style, light and dark, folded and opened).
-  Mock: `MOCK_TASKS=1 MOCK_TASKS_SENT=1 MOCK_TASKS_NO_ASKS=1` (a hand-off after its card, a rework to an older task, the
-  user's own word); UI test `SentToAgentTests`.
+- Web: `web/src/views/assistant/Sent.tsx`, `takenIn` / `sentTo` in `web/src/lib/feed.ts`.
 
 ### Task details
 
@@ -484,26 +469,16 @@ lines, and in the user's own color and alignment they read as something the user
 - On the web, that header and the empty panel say Starting only for a pending dispatch, using the same rule as the task tray.
   Without one, the panel explains that no Agent is currently working on the task; a start failure keeps its reason and retry controls.
 - **What a dispatch opens (#3700, #3711, contract in #3718, card since #5569, one card per Agent #5110)**: each Agent a dispatch started or a task took over is one hand-off card
-  (iOS `DispatchHandoffCard`, in a `DispatchHandoffCards` list; no "Dispatched N" heading). These cards name only that dispatch's Agents,
+  (no "Dispatched N" heading). These cards name only that dispatch's Agents,
   never the whole In Progress tray. The ids are already on the client: a standalone `task` feed item's `ref` is the
   to-do and its `wake` (`created`, `active`, `resumed`) is the badge; a started plan's `tasks[].todo_id` identify its tasks
   (a plan's tasks are New). Live to-do titles override plan titles. A plan task without a to-do keeps its title as a card
   with no link, red "Didn't start: <reason>" from the plan task's `error`, and its per-task feed items do not add
   duplicate cards. Agents linked within 120 s of the first are each a card; a later Agent is not on this hand-off. The web
-  anchors "the first" at the card's feed line (#11854, below); iOS and Android still take the to-do's earliest Agents.
+  anchors "the first" at the card's feed line (#11854, below).
   The title is the session's, then the Agent row's, then the task's. The second line is that Agent's `activity_at` (else `updated_at`) as a relative time and
   its state; before there is an Agent it says "Starting the agent", a task closed without one "Closed
   before an Agent started", a task the list no longer has "This task no longer exists".
-  Apple renders this with `DispatchHandoffCards` and `DispatchedTasks`: on iPhone and iPad that Agent is pushed using
-  `TasksStore.expand`, and Back returns to the same Assistant conversation without switching to Agents. In the Sidebar
-  layout too it is pushed on the page's path, not made a root: the sidebar's choice stays on the conversation (#9971). On Mac the
-  task's own detail hosts the Agent chat, carrying that `SessionKey` into its initial selection (validated
-  against that task's active sessions); while no Agent is available, the detail shows its starting/failure state.
-  The card is one accessibility element and button (`dispatch.task.<todo id>`); the badge never wraps.
-  Open plans keep Start / Edit / Don't Start. No new hub field or setting is needed. A dispatch has no full task
-  card instruction list, so Persona's routed hand-offs remain separate folded feed lines instead of being hidden.
-  Tests: `DispatchedTasksTests`, `TaskCardsFusionTests`, `TaskSheetExpandTests`, `DispatchedTaskCardTests`; synthetic hub:
-  `apple/PersonaUITests/Fixtures/dispatch_hub.py` (`PERSONA_MOCK_HUB`, screenshots with `PERSONA_SHOTS`).
 - On the web, where task details open is the browser's setting (#5424, "Where everything opens" below): the side panel
   (`TaskPanel`, the task's Agent's chat under the task's title, its report and the question it waits on; the default), or
   the task's Agent's page.
@@ -784,9 +759,8 @@ human-to-Agent work keep their existing optional ledger values but get no `estim
 and no calibration history. A continuation or reuse through `task_plan` is a new automatic dispatch even when its
 brief began as manual or legacy work. The web, iOS and Android draw `tasks[i].brief` on the plan card; the web also draws
 the to-do's `brief` and `lineage` on its page (the criteria stay in the page's one list, the ledger's; a finished task adds the
-dropped ones and `also_done` under it) (`docs/web/web.md`, "Pages": **A task's brief**). Web, iOS and Android task pages all expose the
-lineage's previous / next cards and cancellation reason (#5732). Android task-detail briefs and receipts remain later work
-(`docs/android/android.md`, "Unified main-chat entry").
+dropped ones and `also_done` under it) (`docs/web/web.md`, "Pages": **A task's brief**). The web task page exposes the
+lineage's previous / next cards and cancellation reason (#5732).
 
 **How the estimate learns.** Persona groups work by its existing task kind, read-only mode, role and tier. It looks
 at the newest 256 accepted samples of that kind in the past 90 days, within one manager. It uses the most specific
@@ -922,8 +896,7 @@ Direction leads supervise their own newly dispatched tasks, and main supervises 
 - **Its own queue and its rounds**: the owner comes first there as in any assistant conversation (`docs/assistant/assistant.md` "Messages from the system wait for the owner"): what waits for it goes in by rank, and the owner is present there only for 2 minutes after a message they wrote to it themselves, so their talking in the main chat holds nothing that is for the background supervisor. In the availability metrics its rounds are `supervision` rounds with `main: false`, the one its start begins included (`availStartedBy`); a task notice delivered to it is a `notice` round as anywhere.
 - **Pushes**: its turns are held from the pushes as any supervision round is (a normal finish is not pushed; a failed turn is). It counts as an assistant conversation everywhere else: not triaged, not in the dock's agents, no badge; a round of it shows as "assistant answering" on the Live Activity, as a supervision round in the main chat does.
 - **Its reviews say so**: the `review` entry of a review the legacy background supervisor wrote carries `by: "background"` (`reviewFeedBody.By`, #5084); ordinary planning-chat, leader and main-chat reviews have no `by`. Such a review took no turn of the chat that planned the task, so a client may keep the entry in that chat as the only record of it there. Historical sampled judge reviews remain readable but no new ones are written (#5732).
-- **In the clients today**: it has `origin: "task"` with no `origin_ref`, so the apps list it where they list the scheduled tasks' conversations, titled "Background supervisor" (zh 后台督办, ja バックグラウンド監督). The web (#5082, `docs/web/web.md` "Background supervisor") marks the conversation built in with a menu that only copies its id, has the switch in Settings › Assistant, lists the model purpose after Main chat in Model settings, and drew each `review` entry marked `by: "background"` as one line in the main chat until #8237 (a review is no line in the chat since: the task's row says how it went). So do the Apple apps for the setting and the model (#5083, `docs/apple/ios.md` "Background supervisor"): the switch in Settings › Assistant, the model use in Settings › Models, and no Archive, Pin or End on the conversation's row; and Android, as the next entry says. Its Fresh rounds still show in that one row in file order: every round hangs from the first turn, and the transcript reader keeps a marked round in view instead of taking it for a rewind (`docs/protocol/protocol.md` "Continuity of items").
-- **On Android** (#5084, `docs/android/android.md` "The background supervisor (#5084)"): the same rule, in that app's drawer: it has no group of its own for scheduled tasks' conversations, they are under All chats with every other conversation Persona opened itself, and so is this one; never under 常驻 or Recent, named by the app and without Pin, Archive or End chat. Settings › Assistant has the switch for `main_supervises_own_tasks` and a row for the `assistant.supervise` model, which Settings › Model configuration lists too. A `review` entry marked `by: "background"` is one line in the conversation that opens the task; in Brief and Board the others stay in the background record as before, and Glass draws every review (`docs/plans/android-ios-alignment/chats.md` C13).
+- **In the clients today**: it has `origin: "task"` with no `origin_ref`, so the apps list it where they list the scheduled tasks' conversations, titled "Background supervisor" (zh 后台督办, ja バックグラウンド監督). The web (#5082, `docs/web/web.md` "Background supervisor") marks the conversation built in with a menu that only copies its id, has the switch in Settings › Assistant, lists the model purpose after Main chat in Model settings, and drew each `review` entry marked `by: "background"` as one line in the main chat until #8237 (a review is no line in the chat since: the task's row says how it went). Its Fresh rounds still show in that one row in file order: every round hangs from the first turn, and the transcript reader keeps a marked round in view instead of taking it for a rewind (`docs/protocol/protocol.md` "Continuity of items").
 
 ### Task leaders (#3656)
 
@@ -1080,13 +1053,6 @@ call; nothing is turned on for the owner without the tap.
 - **A card already rung** keeps the suggestion it went out with (a plan and a to-do's decision are worded each time
   they are read). When a suggestion is answered, the manager takes it off every pending card that carries it and
   sends those cards again, so the line is gone on every device.
-- **Drawn by**: the Apple apps (#5802's Apple part, `docs/apple/ios.md` "Suggested standing rule and held decisions"):
-  one line under the plan card, the to-do's decision and the question card, with what Always creates, Always and Not
-  Now, and after Always where the rule is listed and removed. Apple lists them on the assistant's profile and in
-  Settings (#7002), and Android lists them the same way (#9247); after Always, those apps say where that list is.
-  Android draws the suggestion line too (#5802, `docs/android/android.md` "Rule suggestions, held
-  decisions, recommended setup and purpose descriptions"). No event is sent for a plan when its suggestion is
-  answered, so the Apple apps take the line off the plans they hold themselves (`TasksStore.ruleSuggestionSettled`).
 - **Two taps on Always at once** make one rule: the grant is stored only if no standing authorization covers the
   directory and action yet, checked under the lock every change of the list takes; the second tap gets 404.
 
@@ -1102,9 +1068,7 @@ authorizations changed meanwhile; read again and retry. 503: storage unavailable
 `docs/protocol/protocol.md`, "Tasks and the chat feed".
 
 Clients (#5802): the web draws the line under the plan card, the decision's row and the passed-up question, with
-what Always stores, the two actions and the result in the same place (`docs/web/web.md` "Suggested rules"); the Apple
-apps (`docs/apple/ios.md` "Suggested standing rule and held decisions") and the Android app
-(`docs/android/android.md` "Rule suggestions, held decisions, recommended setup and purpose descriptions") draw it too.
+what Always stores, the two actions and the result in the same place (`docs/web/web.md` "Suggested rules").
 
 #### Asks go to the supervisor first (#3589)
 
@@ -1528,67 +1492,7 @@ Hub-inserted chat entries do not enter Claude's transcript (that would trigger a
 - **Speak to a task**: `POST /api/v1/assistant/conversations/{id}/route {todo_id, text}`; hub uses `session.send` to send to the task's highest-priority Agent and writes `routed`.
 - **Persona learns about it**: the live snapshot adds "Tasks started from this chat," with each task's state, latest text, and changes since the previous snapshot (finished, waiting for you). No extra turn is triggered. A conversation other than the main one sees only the tasks it handed out or supervises there (#8666, `docs/assistant/todos.md`).
 
-## App (iOS)
-
-- The assistant's `ChatView(style: .assistant)` merges chat activity (inserted by time in `ChatLines`). New row types: plan card, task card, receipt, answered question, routed bubble, Persona's folded message to an agent (without the hand-offs the cards take in, `SentToAgents.shown`).
-  Instant phone-tool calls (`phone_reminders_create`, `phone_calendar_create_event`, etc.) are extracted from the "Tools N" row and rendered as result cards.
-- `mainFooter` adds a question-card queue (task interactions with task names) and dock above `InteractionPanel`; the input gains `@` and routing labels.
-- New components belong in the design system (`apple/Persona/DesignSystem`), using `AgentState.tone` colors and `Theme.Motion` animations.
-  No hardcoded values in pages (`CLAUDE.md`, "Design system (iOS)"). Logic lives in an `@Observable` `TasksModel` (dependencies from `Deps`, tests with `FakeHub`);
-  chat-activity merging is a pure function covered by unit tests.
-- Screenshots: add mock plan, task, and activity data to the mock hub (`scripts/mock/mock_hub.py`). DEBUG argument `-openUnifiedStep <n>` stops at the corresponding prototype step;
-  capture light and dark for each step and compare to the prototype.
-
-## Implementation (iOS, step 3)
-
-| Part | Location |
-| --- | --- |
-| Data types (plans, chat activity, to-dos, task state) and APIs | `apple/Shared/Tasks.swift` |
-| To-do list, local cache, ID index | `apple/Persona/App/TodoStore.swift` (`todos` events and reconnect share refresh logic; in-flight refreshes are coalesced with a follow-up fetch) |
-| Plans, per-chat activity, routing target, opened task | `apple/Persona/App/TasksStore.swift` (to-dos read from the `TodoStore` index; `assistant_feed` / `task_plan` events update plans and activity; reconnect refetches each chat's feed) |
-| Plan cards, task cards, receipts, answered questions, routed bubbles, dock, question cards, routing labels, `@` list | `apple/Persona/Views/Assistant/Tasks/TaskViews.swift` |
-| Task details (embedded Agent chat), task board | `apple/Persona/Views/Assistant/Tasks/TaskSheets.swift` |
-| Feed inserted into chat at the end of its turn (before the next message) | `ChatLines.mergeFeed`, `ChatLine.Content.feed` |
-| Above the input: question card (earliest only, with "N more"), `@` list, dock, routing label; routed messages go directly to the task | `ChatView.taskFooter`, `Composer.sendText` |
-| Action bar on iPhone, iPad and Mac: Needs You and In Progress in place of the dock, each opening its tray, each thing in one of them (#3393, the Apple side of #3387); in the main conversation with push grading on, Held Pushes after them, its tray in the same place (#7782, #8223) | `apple/Persona/Views/Assistant/Tasks/AssistantActionBar.swift` (`ActionTrayContent`, `DockCapsule`), `apple/Persona/Views/Assistant/Tasks/PushInterceptsView.swift` |
-
-- Reuse Agent state colors (`AgentState.tone`: Needs you red, Working amber, Unread green), not the prototype's orange waiting state, to match Agents.
-- If dock pills do not fit, truncate the title but never "Waiting for you."
-- **Action bar on iPhone, iPad and Mac (#3393, replacing #2879's Pending / To Start / Progress / Agents and the Mac's
-  dock)**: Needs You and In Progress, and Finished (#10922) while it has rows, as "Needs you and In progress: each thing
-  once" above defines them. The split is
-  `AssistantEntries.split`, a port of the web's `assistantEntries`; `ActionTrayContent` puts the conversation's own cards
-  in front of Needs You (their row closes the tray onto the card below). The web (`OwnAskRow` in `AssistantActionBar`,
-  the cards in `ChatView`'s dock) and Android (`panelRequests`, the chat's `InteractionPanel`) do the same since #4883:
-  the conversation's own cards are above its composer, never only inside the closed tray. On the web, a card its own turn
-  waits on (`TurnAsk`, `lib/turn-asks.ts`, #11794) stands open above the capsules instead and Needs you leaves it out;
-  only the cards of sessions folded under the conversation keep a row there. An Agent linked to a to-do made by hand (no
-  `origin`) is that to-do's row in the main chat, not a second row of its own (#3387's `dockAgents` leaves out only the
-  agents of conversations' tasks, so web and Android list it twice; the fixture has no such case yet). Message cards also leave Needs You once the inbox
-  has the item handled or the user put the card off with Later. Rows: a task opens its details (right-click or long press
-  removes one that is not running) and says its status and, past one, its Agent count; an Agent opens its page; a plan or
-  a message card is the card itself, Start or Send right there; shelved tasks are one uncounted line under In Progress that
-  opens the board. Each tray's All opens the board.
-  The entries are the dock's capsule (`DockCapsule`, also the trays' All): caption medium (13 pt at the default text size,
-  Dynamic Type), 12 pt horizontal and 6 pt vertical padding, a full capsule radius, `Theme.Fill.chip` behind secondary
-  text, 28 pt tall at the default size, 8 pt apart. Open is the filter chip's on look in the same size (accent fill, white
-  semibold); Needs You with rows takes the waiting pill's tint, empty it is the plain grey capsule and opens "All Caught Up".
-  In the main conversation with push grading on, Held Pushes (#7782) is an entry in the same capsule after
-  them; its tray of today's held pushes opens in the trays' place, above the row at the bar's width, and one tray is open
-  at a time (#8223; Android's `AssistantTray.HeldPushes` shares the slot the same way, the web opens a dialog).
-  The entries (and Held Pushes and the computer pill after them) are one row, Needs You first. When they do not fit the
-  bar (Finished beside the two with Held Pushes, a long translation, the largest text size the interface allows, #6813),
-  the row scrolls sideways, as the web's and Android's do, instead of making the chat page wider than the screen with
-  the header and the composer cut off at both edges (#5702); while they fit, nothing moves (#10922). From #5884 until
-  #7083 a `FlowLayoutRow` wrapped them at the accessibility text sizes, which the interface no longer reaches.
-  Tests: `AssistantEntriesFixtureTests` (the shared fixture), `AssistantActionBarTests`, UI `AssistantActionBarUITests`
-  (`MOCK_TASKS=1 MOCK_TASKS_NO_ASKS=1`; `testEntriesStayOnScreenAtEveryTextSize` in zh-Hans, English and Japanese at
-  the default and the largest size, light and dark), UI `PushInterceptsUITests` (`MOCK_LN=1`; the held pushes tray's
-  place and width, the three entries on one row, one tray at a time).
-- Task details have one header layer: the embedded Agent page takes over the task name, Close, and task ⋯ (#3255; see "Task details" above).
-- Screenshots: `MOCK_TASKS=1`, `MOCK_TASKS_AT`, `-showTaskDetail`, `-showTaskBoard` (`docs/operations/testing.md`).
-
-#### Manual Agents in the main-chat dock (#1113)
+## Manual Agents in the main-chat dock (#1113)
 
 Agents started manually in Agents have no to-do, or a to-do with empty `origin`, so no chat's dock sees them. The main chat must watch all tasks, so only its dock and board include them too:
 
@@ -1601,7 +1505,6 @@ Agents started manually in Agents have no to-do, or a to-do with empty `origin`,
 - Disappearance: remove from the dock when finished (Unread), idle, or offline. Unlike tasks, Unread manual Agents do not remain in the dock (they remain in Agents).
 - "All N" includes them; the board lists them after tasks in Waiting for you / Working. Tapping a pill or board row opens the Agent's chat in the task-details sheet.
 - Data: `AppModel.goingAgents` derives from the existing session list and updates only when pill-visible content changes. No new polling, and no dock redraw on every push.
-  Filtering: `DockAgent.shown` (`apple/Shared/Tasks.swift`); unit tests `DockAgentTests`; UI tests `TaskDockAgentTests` (`MOCK_TASKS_DOCK=pair` for two pills, otherwise six).
 - No chat-stream cards for manual Agents: they were not started from the chat.
 - Web does the same (#1275): `dockAgents` (`web/src/lib/todos.ts`) filters and sorts; tapping a pill opens that Agent in the side panel (`AgentPanel`) or as its page, as Settings says (#5424); "All N" goes to To-dos.
 - Step 4 (#996 and this step's iOS work):
@@ -1644,7 +1547,7 @@ Agents started manually in Agents have no to-do, or a to-do with empty `origin`,
 | 2 ✅ | hub: migrations (`todos.origin` / `plan_id`, `task_plans`, `assistant_feed`), `task_plan` tool and prompts, start / dismiss plan APIs, feed APIs and pushes, completion / answer / routing hooks, tasks in snapshots |
 | 3 ✅ | iOS: models and `FakeHub`, feed merging, plan cards, task cards, dock, question cards, receipts, `@` and routing, task-details sheet, task board |
 | 4 ✅ | Instant result cards, main-chat Today card, day sections and collapsing, `tasks.trust` Settings page (message-card task links are separate work) |
-| 5 | Web ✅ (`docs/web/web.md`, "Unified main-chat entry (#930)"); Watch ✅ (questions carry `task_title`, displaying "Task · xx" in Needs you; working / waiting counts already exist in Live Activities and Watch and include task Agents); Android ✅ (`docs/android/android.md`, "Unified main-chat entry (#930)") |
+| 5 | Web ✅ (`docs/web/web.md`, "Unified main-chat entry (#930)") |
 
 ## Decisions (2026-11-03)
 

@@ -1,5 +1,5 @@
 """check-fast.sh runs the scripts/ unittests a change needs (#3968), and the scripts/test suites that guard docs,
-markdown, apple/ and deploy/docker/; Ctrl-C, SIGTERM and SIGHUP stop the checks it started; the per-path table it reads
+markdown and deploy/docker/; Ctrl-C, SIGTERM and SIGHUP stop the checks it started; the per-path table it reads
 its plan from (scripts/ci/check_fast_map.py, #11535) answers one line per path and names only checks it knows. The
 server and web checks' inputs are tested in test_check_fast_inputs.py, split off so each file stays well under the
 per-suite limit of scripts/ci/python-tests.py on a loaded machine (#11017).
@@ -26,7 +26,7 @@ PASSING = "import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self)
 FAILING = "import unittest\n\nclass T(unittest.TestCase):\n    def test_broken(self):\n        self.fail('broken on purpose')\n"
 # The scripts/test suites that guard files outside scripts/; stubbed passing unless a test breaks one.
 GUARD_SUITES = ("test_doc_paths.py", "test_doc_go_paths.py", "test_doc_sections.py", "test_doc_wire.py",
-                "test_apple_l10n.py", "test_docker_entrypoint.py")
+                "test_docker_entrypoint.py")
 # A python3 that records each call ("<cwd>|<args>") instead of running anything.
 FAKE_PYTHON = '#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "$FAKE_PYTHON_LOG"\n'
 # check-fast.sh, the per-path table it reads its plan from (#11535), the helper that names a failure's rerun and
@@ -301,8 +301,6 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
         found = {str(p.relative_to(self.repo)): is_suite(p) for p in self.repo.joinpath("scripts").rglob("test_*.py")}
         dedicated = {"scripts/test/test_external_service_refs.py", "scripts/test/test_sdk_bundle.py",
                      "scripts/test/test_extension_schema.py"}
-        dedicated.update("scripts/app/test_android_%s.py" % name  # job_i18n runs these four
-                         for name in ("i18n_check", "token_baseline", "motion_baseline", "slot_order"))
         expected = sorted(p for p, suite in found.items() if suite and p not in dedicated)
         bin_dir = Path(self.toolchain_without_node_and_go())
         (bin_dir / "python3").unlink()
@@ -385,20 +383,15 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
         self.assertNotIn("scripts/tools/test_other.py", out)
 
     def test_a_suite_a_dedicated_check_runs_schedules_that_check(self):
-        # test_external_service_refs.py imports compatibility_identifiers.py and runs as its own check; four of the
-        # scripts/app/test_android_* suites run in the android check, the others as suites.
+        # test_external_service_refs.py imports compatibility_identifiers.py and runs as its own check.
         self.commit_on_top("scripts/test/compatibility_identifiers.py", "NAMES = []\n", "base")
         self.commit_on_top("scripts/test/test_external_service_refs.py",
                            "from compatibility_identifiers import NAMES\n" + PASSING, "base")
-        self.commit_on_top("scripts/app/test_android_new_tool.py", PASSING, "base")
         self.write("scripts/test/compatibility_identifiers.py", "NAMES = ['x']\n")
-        self.write("scripts/app/android_new_tool.py", "# changed\n")
         code, out = self.check_fast("--dry-run", "--base", "base")
         self.assertEqual(0, code, out)
         self.assertIn("queued: external service refs", out)
         self.assertNotIn("queued: scripts/test/test_external_service_refs.py", out)
-        self.assertIn("queued: scripts/app/test_android_new_tool.py", out)
-        self.assertIn("queued: android i18n", out)
 
     def test_a_ci_lane_or_watcher_file_runs_the_slot_callers_test(self):
         # test_heavy_slot.py reads these: a CI lane or a watcher step that names a script taking a slot must set
@@ -444,9 +437,8 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
         # test_check_fast_inputs.py runs check-fast.sh with heavy_slot.py, so a change to any of them, or to the table
         # check-fast.sh plans from, runs them. So does a change to a helper they copy into their throwaway
         # repositories (CHECK_FAST_FILES), which no name or import leads to.
-        # android.sh's own suite does not run for check-fast.sh.
         everything = ("test_check_fast.py", "test_check_fast_guards.py", "test_check_fast_inputs.py")
-        for suite in (*everything, "test_heavy_slot.py", "test_android_sh.py"):
+        for suite in (*everything, "test_heavy_slot.py"):
             self.commit_on_top(f"scripts/test/{suite}", FAILING, "base")
         self.commit_on_top("scripts/heavy_slot.py", "", "base")
         self.commit_on_top("scripts/check-fast.sh", "#!/bin/bash\n", "base")
@@ -458,8 +450,7 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
             "scripts/ci/check_fast_compare.py": everything,  # a failure's rerun and the merge base's verdict (#12733)
             "scripts/test/go_test_partitioned.py": everything,  # every Go group runs through it (#12765)
             "scripts/test/go_partitions.py": everything,  # what it splits
-            # test_android_sh.py runs android.sh with it (#11250).
-            "scripts/heavy_slot.py": ("test_heavy_slot.py", "test_check_fast_inputs.py", "test_android_sh.py"),
+            "scripts/heavy_slot.py": ("test_heavy_slot.py", "test_check_fast_inputs.py"),
         }
         for path, suites in cases.items():
             with self.subTest(path=path):
@@ -470,26 +461,6 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
                 self.assertEqual(1, code, out)
                 for suite in suites:
                     self.assertIn(f"FAIL     scripts/test/{suite}", out)
-                if "test_android_sh.py" not in suites:
-                    self.assertNotIn("test_android_sh.py", out)
-                self.assertNotIn("scripts/tools/test_other.py", out)
-
-    def test_the_debug_switch_list_and_its_checker_run_the_suites_that_read_them(self):
-        # debug_switches.txt matches no script name, yet a union merge can leave it out of order (#10616) and a new
-        # name can equal one that ships; the checker and release.sh, which runs it, are tested by the same suites.
-        self.commit_on_top("scripts/release/test_debug_switches.py", FAILING, "base")
-        self.commit_on_top("scripts/release/test_release_debug_guard.py", FAILING, "base")
-        self.break_suite("test_apple_release_switch_names.py")
-        for path in ("scripts/release/debug_switches.txt", "scripts/release/debug_switches.py",
-                     "scripts/release/release.sh"):
-            with self.subTest(path=path):
-                self.write(path, "changed\n")
-                code, out = self.check_fast()
-                (self.repo / path).unlink()
-                self.assertEqual(1, code, out)
-                self.assertIn("FAIL     scripts/release/test_debug_switches.py", out)
-                self.assertIn("FAIL     scripts/release/test_release_debug_guard.py", out)
-                self.assertIn("FAIL     scripts/test/test_apple_release_switch_names.py", out)
                 self.assertNotIn("scripts/tools/test_other.py", out)
 
     def run_raw(self, *command, env=None):

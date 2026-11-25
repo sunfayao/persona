@@ -296,7 +296,7 @@ class HeavySlotTests(unittest.TestCase):
 
 class HeavySlotDefaultsTests(unittest.TestCase):
     def test_default_counts_follow_the_cores(self):
-        self.assertEqual({"xcode": 2, "gradle": 2, "go": 3, "web": 3},
+        self.assertEqual({"go": 3, "web": 3},
                          {kind: heavy_slot.default_count(kind, 14) for kind in heavy_slot.CORES_PER_SLOT})
         self.assertEqual({1}, {heavy_slot.default_count(kind, 1) for kind in heavy_slot.CORES_PER_SLOT})
 
@@ -322,7 +322,7 @@ class HeavySlotDefaultsTests(unittest.TestCase):
 
 
 # The scripts whose run takes a slot, as a CI lane or a watcher step would name them.
-WRAPPED = ("heavy_slot.py", "app/sim.sh", "app/android.sh", "check-fast.sh", "scripts/sim.sh", "scripts/android.sh")
+WRAPPED = ("heavy_slot.py", "check-fast.sh")
 # The files where a CI lane's or a watcher's steps live: CI, the watchers' scripts and example configs, and the skills
 # that run them (their scripts and the SKILL.md an Agent follows); the lanes they call are the CI scripts. Patterns as
 # Path.glob reads them: * stays in one directory, **/ crosses any number.
@@ -378,14 +378,14 @@ class HeavySlotCallersTests(unittest.TestCase):
             root = Path(directory)
             subprocess.run(["git", "init", "-q", str(root)], check=True, timeout=60)
             (root / "scripts/ci/nested").mkdir(parents=True)
-            (root / "scripts/ci/lane.sh").write_text("scripts/app/android.sh test\n")
+            (root / "scripts/ci/lane.sh").write_text("scripts/check-fast.sh test\n")
             (root / "scripts/ci/picture.sh").write_bytes(b"\xff\xd8\xff not text")
-            (root / "scripts/ci/test_lane.sh").write_text("scripts/app/android.sh test\n")
-            (root / "scripts/ci/nested/deeper.sh").write_text("scripts/app/android.sh test\n")
+            (root / "scripts/ci/test_lane.sh").write_text("scripts/check-fast.sh test\n")
+            (root / "scripts/ci/nested/deeper.sh").write_text("scripts/check-fast.sh test\n")
             subprocess.run(["git", "-C", str(root), "add", "-A"], check=True, timeout=60)
             (root / "scripts/ci/stray.sh").write_bytes(b"\xff untracked")
             texts, skipped = tracked_text(root, ("scripts/ci/*.sh",))
-        self.assertEqual([("scripts/ci/lane.sh", "scripts/app/android.sh test\n")], texts)
+        self.assertEqual([("scripts/ci/lane.sh", "scripts/check-fast.sh test\n")], texts)
         self.assertEqual(["scripts/ci/picture.sh"], skipped)
 
 

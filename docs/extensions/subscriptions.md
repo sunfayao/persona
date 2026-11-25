@@ -347,7 +347,7 @@ A built-in source's Inbox feed can be switched to its default subscription and b
 
 Some things reach the phone only as a notification or something seen in another app, with no connector behind them. A
 push source (#3848, `server/internal/subscriptions/push.go`) takes them from the device instead of pulling: the iOS
-Shortcuts action **Handle Notification** ([intents.md](../apple/intents.md) "Handle Notification") hands an item to
+Shortcuts action **Handle Notification** hands an item to
 `POST /api/v1/subscriptions/-/push`, and it goes through the same destinations, triage and history as any subscription.
 
 - **One per device.** Its connector is the reserved `-shortcuts` (no extension or connector id starts with `-`) and its

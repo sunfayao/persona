@@ -5,7 +5,7 @@ decisions grouped by topic with their key figure or status in bold, then the act
 an AI note. The hub writes it as `detail.minutes.overview` and renders it as the minutes' Markdown; the clients decode
 it on their own, apart from the legacy fields, and show the card only when a bullet is left after cleaning. The rules
 are in [docs/assistant/meeting-minutes.md "Summary card (#6563)"](../../../docs/assistant/meeting-minutes.md). These
-cases hold the hub, the mock hub, the iPhone and the web to the same bold rule, the same cleaning and the same
+cases hold the hub, the mock hub and the web to the same bold rule, the same cleaning and the same
 fallback. All data is made up.
 
 ## Rules
@@ -52,6 +52,6 @@ this README says so.
   `TestMinutesOverviewFixture` cleans each overview as the clients do and compares the segments and the layout, and
   renders the Markdown of the cases that have one; `TestMinutesOverview` has a model's answer in the summary card's
   shape written as minutes and compares them with `rich`, overview, legacy lists and Markdown.
-- The mock hub, the iPhone and the web read the same file in their own tests.
+- The mock hub and the web read the same file in their own tests.
 - A new case: work the expected values out by hand from the rules above, then run every consumer; never write an
   expectation from the output of the implementation it checks.

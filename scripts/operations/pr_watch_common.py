@@ -306,8 +306,6 @@ def test_or_fix(pr, names):
     def test_file(name):
         path = Path(name)
         parts = path.parts
-        if len(parts) > 1 and parts[1] in ("PersonaTests", "PersonaUITests"):
-            return True
         if path.name.endswith(("_test.go", "_test.py", ".test.ts", ".test.tsx", ".test.js", ".test.mjs")):
             return True
         return any(part.lower() in TEST_PARTS and "test" in path.name.lower() for part in parts)
@@ -333,8 +331,8 @@ def verification_env():
                 "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
                 "http_proxy", "https_proxy", "all_proxy", "no_proxy",
                 "NODE_ENV", "NPM_CONFIG_REGISTRY", "GOPROXY", "GOSUMDB", "GOFLAGS",
-                "GRADLE_USER_HOME", "GOCACHE", "GOMODCACHE", "GOPATH", "GOENV",
-                "ANDROID_HOME", "ANDROID_SDK_ROOT", "JAVA_HOME"):
+                "GOCACHE", "GOMODCACHE", "GOPATH", "GOENV",
+                ):
         value = os.environ.get(key)
         if value:
             env[key] = value

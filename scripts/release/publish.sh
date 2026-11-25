@@ -22,7 +22,7 @@
 # download that started before the deploy finishes. Only the newest version is served there. Every release also goes
 # to release/<version>/ (its node and connector builds and its manifest as manifest.json), kept: a hub's manager
 # fetches those builds of the hub's own version from there (dl/<version>/…, docs/operations/node-update.md), a Docker
-# image's version too (X.Y.Z, when the release is the tag vX.Y.Z). release.sh runs this after uploading to TestFlight.
+# image's version too (X.Y.Z, when the release is the tag vX.Y.Z).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 _env=$(python3 scripts/persona_config.py env) || exit $?
@@ -360,8 +360,7 @@ for gz in "$PWD/$OUT/bin/"*.gz; do
 done
 # The versioned copies, kept: release/<version>/ (and release/X.Y.Z/ when the release is the tag vX.Y.Z, the version
 # of the Docker image built from that tag), the node_archives builds and the manifest only: a manager fetches a node
-# build or the connector from there (docs/operations/node-update.md). The tag is looked up among all the commit's tags
-# (release.sh tags it testflight/<build> too).
+# build or the connector from there (docs/operations/node-update.md). The tag is looked up among the commit's tags.
 VERSIONS=("$VERSION")
 # A build with changes not committed (-dirty) is not the tag's release, and gets no alias.
 if [[ "$VERSION" != *-dirty* ]] && tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)" && [ -n "$tag" ]; then

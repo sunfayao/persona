@@ -31,7 +31,7 @@ Pitfalls, odd behavior and the trade-offs made at the time (formerly in `CLAUDE.
 
 - Synthetic Git tests must remove inherited repository-locator variables from each child process environment (#1161): `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` and `GIT_ALTERNATE_OBJECT_DIRECTORIES` can redirect a command even when it uses `git -C` with a temporary fixture. Use independent test Git metadata, not the reviewed worktree's refs or index. If a test accidentally writes to that worktree, verify its branch, HEAD, index and protected files after restoring only the test's changes; report the write rather than claiming an entirely read-only review. This occurred during the Sentry source review: a local test commit changed refs/index; those changes were restored and protected source/diff hashes remained unchanged. No push occurred. Never prune the shared repository to hide test objects.
 
-- Multiple agents working in this repo at once: each uses its own simulator (`SIM=<udid> scripts/app/sim.sh`); when someone else's unfinished files do not compile, build your own changes in a `git worktree`;
+- Multiple agents working in this repo at once: when someone else's unfinished files do not compile, build your own changes in a `git worktree`;
   commits stage only your own files / hunks.
 - mock hub ports collide too (2026-10-31: another lane's `mock_hub.py` held 18794, your own mock with `MOCK_DRAWER=1` could not start, the tests connected to someone else's mock
   and reported "chat not loaded"): before starting a mock, check with `lsof -nP -iTCP:<port> -sTCP:LISTEN`; on failure read the mock's log, not just the test error.
@@ -49,13 +49,9 @@ Pitfalls, odd behavior and the trade-offs made at the time (formerly in `CLAUDE.
   recovery, and keep delivery retries separate from action retries. A deploy guard rejecting a checkout missing upstream
   commits is deferred work, not a failed build; match both its exact diagnostic and exit code. When logs append across
   retries, inspect only the current attempt's output or an older stale-checkout line can hide a real later failure.
-- Unattended releases need locks shared with manual entry points, not only a worker lock (#1477). Use the hub's existing promotion lock for deployments from every build computer, resolving its state root from the installed service rather than assuming a default directory; use a build-computer release lock through upload and TestFlight processing. A successful upload followed by a processing timeout must resume the same build number, not upload another binary. Hub notification acceptance is not a phone-display receipt; installation acceptance needs an observed notification.
-- Two sessions releasing at once collide on the build number (2026-11-04): both started `release.sh` (without a build number) in the same minute and got the same time-based number `202611040002`;
-  the one that finished uploading first went into TestFlight, the later upload was rejected by App Store Connect (`Redundant Binary Upload`, exit 70), and only one archive with that name was left in Organizer.
-  Before releasing, check `pgrep -fl scripts/release/release.sh` for someone else releasing; to release, get a number with `asc_testflight.py next-build` and pass it explicitly to `release.sh <build number>`.
-  To retry the rejected one with the same commit without changing the number: first check with `asc_testflight.py status` whether that number is already VALID and the same commit; if so, continue with `wait` / `external`.
+- Unattended releases need locks shared with manual entry points, not only a worker lock (#1477). Use the hub's existing promotion lock for deployments from every build computer, resolving its state root from the installed service rather than assuming a default directory. Hub notification acceptance is not a phone-display receipt; installation acceptance needs an observed notification.
 - Multiple agents merging into `main` at once: on a merge or rebase conflict, do not overwrite others' changes with your own old copy of the whole file (on 2026-10-25 one rebase reverted the light-blue bubbles and the notification navigation fix entirely);
-  resolve only the conflict hunks, and before pushing check `git diff origin/main...HEAD --stat` for files that are not yours. Before building for TestFlight, confirm `main` is the fixed version.
+  resolve only the conflict hunks, and before pushing check `git diff origin/main...HEAD --stat` for files that are not yours.
 - When both sides of a merge add a test at the end of the same file, the conflict block ends inside the braces they share: the lines after `>>>>>>>` close only one of the two functions, so taking ours then theirs leaves the first test unclosed (2026-11-10: a Kotlin test file lost its `}` this way, and only the Android lane's compile caught it). Read the lines right after the block before choosing, and compile every platform whose files the merge touched.
 - Multiple agents changing the same repo in parallel (6 workers on the Lark workplace, see `docs/extensions/feishu.md`): each gets its own worktree + its own cloned simulator; new types get a domain prefix
   (`FeishuSearchXxx`…, otherwise names collide on `main` and the build fails); on merge or rebase conflicts, files outside your own directory always take the `origin/main` version; before pushing check
@@ -80,8 +76,6 @@ Pitfalls, odd behavior and the trade-offs made at the time (formerly in `CLAUDE.
   at the same time, and run the migration tests again after merging `origin/main`. A data fix that merges under a
   version databases already recorded never runs there, so keep the code that copes with the old rows as a backstop.
 - A migration already on the default branch is frozen (`scripts/ci/migration_freeze.py`, also from `scripts/check-fast.sh`): editing, deleting or renaming it fails. A comment-only or whitespace-only change passes. Repair an applied migration by adding a new one.
-- On 2026-11-01 `ios/` was renamed to `apple/` (the iOS, watch and macOS Apps and shared code are in the same XcodeGen project): when rebasing an old branch / worktree,
-  files newly created under `ios/` must be moved to `apple/` by hand (git follows the rename for changes to existing files).
 - On 2026-10-28 the whole git history was rewritten once (removing intranet and personal information; the GitHub repo was deleted and recreated): all earlier commit hashes are invalid;
   old clones on other machines must be deleted and cloned again, and must not push, or the old history would be pushed back.
 - Scripts that wait on background jobs / logs always have a timeout, and exit with a one-line verdict on success, failure and timeout (on 2026-10-29 an `until grep` that waited only for success idled for over five hours).
@@ -124,9 +118,7 @@ SDK synchronization intentionally replaces only the selected SDK subtree (#1471)
   lines (#12258). An optional greedy prefix in the XcodeGen expression backtracked on long unrelated source lines and
   exceeded 60 seconds; keep the same path exclusions, inspect working-tree edits, and fail on Git errors rather than
   returning an empty inventory. Synthetic paths must not look like real dependency literals to the check-fast input
-  inventory; extensionless fixture scripts still exercise the same tracked-path scan. Build-mode guards must check
-  actual arguments per lane: the iOS 18.6 lane intentionally
-  requests only the simulator Rust-core slice, while release and the other Apple CI lanes still require the full framework.
+  inventory; extensionless fixture scripts still exercise the same tracked-path scan.
 
 - The web lane's inputs outside `web/` are derived, not listed (#10619): `scripts/ci/paths.py` scans `web/src` and the web tests for the paths they name relative to themselves, and both CI's web lane and `check-fast` use that scan. The hand list it replaced named 6 of the ~25 fixture directories the tests read. Read a fixture by a path relative to the file (an import, `new URL("../…", import.meta.url)`, `join(__dirname, "../…")` or `".."` elements); a path built from the working directory or a variable root is invisible to the scan. Legacy JSON fixture members must be composed from their existing compatibility carrier, not repeated in a new test file or allowed by broadening the identifier registry. Fix the source of failures rather than weakening portable guards.
 
@@ -181,7 +173,7 @@ SDK synchronization intentionally replaces only the selected SDK subtree (#1471)
   (which include computers handed over by member hubs and computers newly added in the admin UI), while the to-dos, connectors, Lark bot and self-update newly added on master still read `h.byID` directly. grep for it after merging.
 - Each side's tests carry assumptions the other side does not know: the source 192.0.2.1 of `httptest.NewRequest` is a public address, and the integration branch's entry point blocks plaintext and the main token (403),
   so master's tests must be changed to come from loopback; the integration branch's errors all carry a `code`; a new pairing pushes "New device paired" to existing devices. Do not change the implementation to make tests pass; first work out whose assumption it is.
-- Things two modules share go with the tests that read them: `spec/fixtures` is the server tests' golden data, so it merges with the server module, not the Android module.
+- Things two modules share go with the tests that read them: `spec/fixtures` is the server tests' golden data, so it merges with the server module.
 
 ## Rootless Docker CI fixtures
 
@@ -230,13 +222,6 @@ keeps the command's own failure fatal and consumes its complete output before
 applying the same content assertion; so does a grep without `-q` that reads all
 of it (`holds` in `scripts/ci/image-smoke.sh`, where `hub pair` writes a QR code
 after the link and failed two runs in three).
-
-Inside an `if`, the same early exit makes a check pass instead: with pipefail,
-`if strings "$APP/Persona" | grep -qx …; then exit 1; fi` takes the status of
-`strings`, killed by SIGPIPE (141) once grep stopped reading, so a match
-followed by more output than the pipe holds counts as no match. The release's
-DEBUG checks (the switch list and the runtime CLI's names) read all of `strings`
-in `scripts/release/debug_switches.py` for that reason (#10616, #10654).
 
 - In zsh, a glob that matches no files (`rm -rf /tmp/x-*`) makes the whole command fail (nomatch), and nothing after `&&` runs (2026-11-04: the end-to-end test never ran, yet the result was recorded as a failure).
   To clean temp directories use `find /tmp -maxdepth 1 -name 'x-*' -exec rm -rf {} +` or `setopt nullglob` first; before recording a check result, confirm the command actually ran.
@@ -296,8 +281,8 @@ set `max-parallel`, and measure normal-load PRs separately from peak queues.
 
 ## Two fixes for the same breakage both merged (2026-11-12, #5609)
 
-- #5554 and #5608 fixed the same token drift (#5589) within the hour, each adding `Theme.Size.slimBar` in a different
-  place of `Theme.swift`. Git merged both without a conflict, and `main` declared it twice: no Apple target compiled.
+- #5554 and #5608 fixed the same token drift (#5589) within the hour, each adding the same constant in a different
+  place of one file. Git merged both without a conflict, and `main` declared it twice: nothing compiled.
   A clean squash merge says nothing about whether the result builds.
 - Right before merging a fix for something on `main` that others hit too (a failing check, a broken build), fetch
   `main`, look at what landed since your branch (`git log HEAD..origin/main -- <your files>`), and merge it into your
@@ -328,28 +313,16 @@ set `max-parallel`, and measure normal-load PRs separately from peak queues.
 For every platform:
 
 - While iterating, run only the one relevant test: `go test ./internal/<package> -run '^TestName$'` in `server/`,
-  `npx vitest run <file>` in `web/`, `./gradlew :<module>:testDebugUnitTest --tests '<Class>.<method>'` in `android/`,
-  `-only-testing:Target/Class/method` with Xcode. Run the area's whole suite (UI tests included) once, before pushing.
+  `npx vitest run <file>` in `web/`. Run the area's whole suite (UI tests included) once, before pushing.
 - Reuse one checkout and its build caches; don't open a new worktree per experiment. Every new one starts its builds
   and dependency installs from nothing.
 - While a build or test runs, do the work that doesn't depend on its result (docs, the PR body, reading the next piece of
   code). Run it as a background task with a completion notification; never a long foreground `sleep` / `until` poll.
-- Run independent test lanes in parallel (two simulators or emulators, the server and the web), not one after another.
+- Run independent test lanes in parallel (the server and the web), not one after another.
 - Performance problems: first confirm from measurements which step got slower (per-frame data for UI). Then put each
   suspected change behind its own temporary switch, split as finely as possible, and compare them all in one round
   before changing anything. Don't commit a fix on a guess. When measuring, stop unrelated load (minimize simulator or
   emulator windows you aren't using, for example) and alternate runs between `main` and the branch.
-
-Apple builds, where a cold build costs the most:
-
-- Each worktree uses fixed DerivedData folders: one for Debug simulator builds, plus one for an optimized build and one
-  for a device build when needed. Every new folder or worktree costs a 15–35 minute cold build.
-- Run UI tests on different simulators in parallel (one iPad, one iPhone Duo).
-- An optimized build takes 35–45 minutes, so put the temporary performance switches in as DEBUG launch arguments in one
-  optimized build: every round saved is close to an hour.
-- After merging `main`, `cannot find 'persona_core_…'` means the Rust core's XCFramework is stale: run
-  `native/app-core/scripts/build-apple.sh` first. If `ContinuityFixture` reports a wrong `fold_id` argument, delete the old
-  `PersonaCore*.swiftmodule` at the root of `Build/Products/<config>/` in DerivedData.
 
 - Finish static review, generated tool snapshots and fixture corrections before queuing expensive shared-runner verification. A dedupe key prevents repeated submissions of one commit/group set; it cannot coalesce a series of intermediate commits. While a run waits, collect further fixes into one candidate instead of queuing each edit. Reuse an earlier shard result only when its relevant source is unchanged, and record the exact candidate and baseline commits in the PR.
 

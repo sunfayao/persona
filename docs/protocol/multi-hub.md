@@ -10,7 +10,7 @@
   The Machines page has separate sections by group, with a connection-status dot in each header. The menu at the top left of Agents gains a "hub" selector to show just one group. The group it shows is always the current hub (#11657):
   picking a group there makes it the current hub, and making another hub current anywhere moves a list narrowed to one group along with it, so Agents and the
   hub-level pages (Persona and its sidebar, the Inbox) never show two different hubs. "All Hubs" leaves the current hub as it is.
-- The Persona assistant, Inbox, the avatar (#2406, [persona.md](../apple/persona.md) "On the phone": each hub keeps its own choice), and hub-related settings (models, connectors, devices, notifications…) belong to each hub and are **not merged**. They display the "current hub":
+- The Persona assistant, Inbox, the avatar (#2406: each hub keeps its own choice), and hub-related settings (models, connectors, devices, notifications…) belong to each hub and are **not merged**. They display the "current hub":
   switch it in the sidebar's assistant switcher (on Apple its first group lists the hubs, then the current hub's assistants under its name, #12594; a hub without a roster keeps a hub menu under the sidebar's title), at the top left of the Inbox, at the top of the Settings home page, or by showing one group in the Agents menu. The conversation's own menu (the Persona face or name in its top bar) has no hub section: it holds only that conversation's actions.
 - With only one group, none of these additions appear, and the UI is exactly as before (screenshots compared pixel by pixel; see "Tests").
 
@@ -24,8 +24,6 @@
 
 ## Storage
 
-- The pairing registry `HubRegistry` (`apple/Shared/Hubs.swift`) is stored in the keychain's `hubs` item: one `PairedHub` per hub (address + this device's credentials on that hub,
-  group membership, `hub_id` / `hub_name`, the last hello's `mesh`, this device's token id, and answer-only Watch credentials), plus user-defined group names.
 - Migration: on the first registry read, the old `server` (single `ServerConfig`), UserDefaults `auth.deviceID`, and keychain `watch` item move together into the default group's hub.
   Old entries are deleted only after the registry has been written and read back byte-for-byte identically. If writing fails, keep them, use the in-memory registry this time, and retry migration at the next launch.
 - Unreadable ≠ unpaired: if a keychain read fails (`errSecInteractionNotAllowed` before the first unlock after boot, which can happen when a push wakes the App in the background), or this version cannot decode the stored data,
@@ -82,12 +80,6 @@
 - Push registration: register once per group with its first hub (the credential issuer; contract 2.6 forwards other hubs' events to it for pushing, with one registration per device), using that group's own push public key.
 - On receiving a push, determine its group in this order: payload top-level `hub_id` (contract 2.6, added in L1) → the group whose key decrypts it (the notification service extension tries each key and writes the successful one into `persona_group`)
   → the group containing the session → the first group. Notification buttons (allow / deny / approve / send back) target that group's hub; tapping opens that group's session; silent wakeups wake only that group's connection.
-- Disconnecting signs this device out first (`apple/Persona/App/HubSignOut.swift`): Disconnect This Group, Disconnect This Hub, Disconnect and Forget Server, Disconnect All Hubs, and Revoke and Unpair in Settings › Devices.
-  On each hub it forgets, the App reads its own credential id (`current` of `GET /api/v1/auth/tokens`), revokes the watch's answer-only credential made there, then its own (`DELETE /api/v1/auth/tokens/{id}`), all hubs at once with a 10-second timeout per request.
-  The hub then drops the push registration and Live Activity tokens that credential made (`Pusher.signedOut`), so pushes and remote Live Activity starts stop. A credential already revoked (401) counts as signed out, unless the device never traded its pairing token there: that token has expired, and the pushes registered with it stay.
-  The local cleanup runs either way. A hub out of reach, one that refuses (for this device's credential or the watch's), or one where this device is still on the master token (no id) or the pairing token (`pair_<hash>`: its trade failed) is named in a toast: it may keep pushing until this device is revoked in Settings › Devices on another device.
-  While it runs, the row that started it shows progress, the disconnect, Add Hub and Pair Again entries are disabled, and `AppModel.pair` refuses any pairing, links included (`AppModel.hubSignOut`): a hub paired meanwhile could be removed with the others without being signed out.
-  When the removed hub was its group's first hub, the App registers for pushes again and gets the watch a new credential at the group's next hub; a socket on the removed hub's credential reconnects through the group's other hubs.
 
 ## Live Activities
 
@@ -117,12 +109,3 @@
 - When a group's first hub goes offline, push registration remains there (the contract has the issuer send pushes), so that group's pushes may not arrive during the outage.
 - Hubs known only through mesh (not paired with this device) use only the addresses they advertise. With TLS enabled, these are https addresses with self-signed certificates. iOS does not yet pin them using `fp`,
   so probes fail and those addresses are not selected (routing switches only among paired hubs). To let the phone switch directly to a particular hub in a group, pair it too (it will join the same group).
-
-## Tests
-
-- Unit tests in `apple/PersonaTests/MultiHubTests.swift`: unchanged default-group keys and JSON, other-group keys, mesh-field decoding, grouping (merge / one-sided / transitive / split / pairing the same hub twice),
-  new group ids, candidate addresses and routing, hello decoding, event group stamping, Fleet merging, multi-group connection status, and per-group push keys.
-  The avatar with two hubs (the current one's, a choice sent to it alone, the old local choice moved up only to the first) is in `apple/PersonaTests/AvatarSyncTests.swift`.
-- UI tests in `apple/PersonaUITests/MultiHubTests.swift`: three fake hubs in two groups (one group has two hubs): merged lists label groups, allow actions target the right hub, disconnecting one group leaves the other unaffected,
-  and a group switches to its other hub if one goes down. See [testing.md](../operations/testing.md) ("Multiple hubs") for starting fake hubs.
-- Zero changes with only one group: using the same mock and launch arguments, capture 14 screens × light/dark before and after, then compare pixel by pixel. Differences were confined to random noise in the system spinner and glass highlights (testing.md, "Multiple hubs").

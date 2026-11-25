@@ -122,7 +122,7 @@ def feature_subject(subject):
     # explicit addition, not every imperative verb: "Fix", "Test" and "Document" remain patch changes.
     if re.match(r"add(?:s|ed)?\s+\S", subject, re.IGNORECASE):
         return True
-    client = re.match(r"(?:android|ios|iphone|ipad|watch|watchos|web|desktop)(?:\([^)]*\))?:\s+(.+)", subject, re.IGNORECASE)
+    client = re.match(r"(?:web)(?:\([^)]*\))?:\s+(.+)", subject, re.IGNORECASE)
     if not client:
         return False
     # Platform-qualified features also use imperative nouns: "saved prompts" or "location sharing".

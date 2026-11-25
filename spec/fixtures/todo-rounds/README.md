@@ -5,9 +5,8 @@ its work produced, and what changed since the owner last looked. The shapes are 
 their `TodoTimelineEntry`s), `TodoResult` and `TodoRecap` in `schema/wire/todo-view.schema.json`. The manager's timeline
 (`server/internal/assistant/todo/timeline`) answers every case exactly, whatever order the rows come in
 (`server/internal/assistant/todo/timeline/fixtures_test.go`); `scripts/test/test_wire_schema.py` holds every expected
-value to the schema, and the generated types read each one back unchanged (Apple
-`apple/PersonaTests/TodoViewWireTests.swift`, Go `server/internal/assistantwire/todo_view_gen_test.go`, Kotlin
-`android/core/contracts/src/test/kotlin/persona/core/contracts/TodoViewWireTest.kt`).
+value to the schema, and the generated Go type reads each one back unchanged
+(`server/internal/assistantwire/todo_view_gen_test.go`).
 
 Stage 2 reads the timeline from the stores the hub already keeps, and keeps nothing new; stage 3 stores the entries
 themselves (`todo_activity`, proposal 7.6), and these cases still hold for what both can say, ids aside. The manager

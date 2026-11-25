@@ -1,4 +1,4 @@
-"""The image, deploy.sh, mac-link.sh and publish.sh build every program with server/build-tags.txt, as the release
+"""The image, deploy.sh and publish.sh build every program with server/build-tags.txt, as the release
 is built (server/internal/buildtags). Nothing else fails when one of their builds drops the tags: the binary only
 gets bigger."""
 from pathlib import Path
@@ -6,7 +6,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-BUILDS = ("Dockerfile", "scripts/deploy/deploy.sh", "scripts/app/mac-link.sh", "scripts/release/publish.sh")
+BUILDS = ("Dockerfile", "scripts/deploy/deploy.sh", "scripts/release/publish.sh")
 FROM_FILE = r'"\$\(cat (?:server/)?build-tags\.txt\)"'
 TAGGED = re.compile(r'go build .*-tags (?:' + FROM_FILE + r'|"\$TAGS")')
 TAGS_SET = re.compile(r"(?m)^\s*TAGS=" + FROM_FILE + r"$")

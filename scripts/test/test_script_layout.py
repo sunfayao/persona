@@ -16,9 +16,8 @@ from urllib.request import urlopen
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
 ALIASES = {
-    "sim.sh": "app/sim.sh", "android.sh": "app/android.sh", "ui-test.sh": "app/ui-test.sh",
     "deploy.sh": "deploy/deploy.sh", "publish.sh": "release/publish.sh",
-    "release.sh": "release/release.sh", "test-server.sh": "test/test-server.sh",
+    "test-server.sh": "test/test-server.sh",
     "check-fast.sh": "test/check-fast.sh",
 }
 
@@ -29,7 +28,7 @@ class ScriptLayoutTests(unittest.TestCase):
         self.assertEqual(files, {"README.md", "persona_config.py", "persona_identity.py", "privacy_check.py",
                                  "heavy_slot.py", "compatibility-identifiers.json", "jarvis_config.py", *ALIASES})
         directories = {p.name for p in SCRIPTS.iterdir() if p.is_dir() and p.name != "__pycache__"}
-        self.assertEqual(directories, {"app", "assets", "ci", "deploy", "diag", "gen", "hooks", "i18n", "migrate", "mock", "operations", "release", "test"})
+        self.assertEqual(directories, {"assets", "ci", "deploy", "diag", "gen", "hooks", "migrate", "mock", "operations", "release", "test"})
         self.assertEqual(os.readlink(SCRIPTS / "jarvis_config.py"), "persona_config.py")
 
     def test_compatibility_entries_preserve_arguments_environment_stdin_and_exit(self):
@@ -97,8 +96,8 @@ class ScriptLayoutTests(unittest.TestCase):
                 self.assertTrue(postponed or not lines,
                                 f"`X | Y` annotations on lines {lines} need `from __future__ import annotations`")
 
-    def test_generators_and_entitlements_resolve_the_repository_root(self):
-        for name in ("assets/make_icon.py", "assets/make_alt_icons.py", "assets/make_persona.py", "release/entitlements.py"):
+    def test_generators_resolve_the_repository_root(self):
+        for name in ("assets/make_persona.py",):
             path = SCRIPTS / name
             tree = ast.parse(path.read_text())
             expression = next(node.value for node in tree.body if isinstance(node, ast.Assign)
@@ -110,18 +109,16 @@ class ScriptLayoutTests(unittest.TestCase):
     def test_release_modules_import_shared_config_from_another_directory(self):
         with tempfile.TemporaryDirectory(prefix="script-import-test-") as directory:
             config = Path(directory) / "config.json"
-            config.write_text(json.dumps({"app": {"bundle_id": "com.example.persona", "team_id": "ABCDE12345"},
-                                          "app_store": {"app_id": "1234567890"}}))
+            config.write_text(json.dumps({"publish": {"site_url": "https://example.com"}}))
             code = (
                 "import importlib.util,pathlib,sys; "
                 "sys.path.insert(0,sys.argv[1]); "
-                "import asc,asc_signing,asc_testflight,check_bundle_privacy; "
-                "assert pathlib.Path(asc.persona_config.ROOT)==pathlib.Path(sys.argv[2]); "
-                "print(asc_testflight.APP_ID)"
+                "import check_bundle_privacy; "
+                "assert pathlib.Path(check_bundle_privacy.persona_config.ROOT)==pathlib.Path(sys.argv[2]); "
+                "print(check_bundle_privacy.persona_config.get(check_bundle_privacy.persona_config.load(), 'publish.site_url'))"
             )
             legacy_config = Path(directory) / "legacy-config.json"
-            legacy_config.write_text(json.dumps({"app": {"bundle_id": "com.example.persona", "team_id": "ABCDE12345"},
-                                                 "app_store": {"app_id": "9876543210"}}))
+            legacy_config.write_text(json.dumps({"publish": {"site_url": "https://legacy.example.com"}}))
             former_prefix = ('jar' + 'vis').upper() + '_'
             environment = {key: value for key, value in os.environ.items()
                            if key not in {"PERSONA_CONFIG", former_prefix + "CONFIG"}}
@@ -136,16 +133,7 @@ class ScriptLayoutTests(unittest.TestCase):
                                             cwd=directory, env={**environment, **variables},
                                             capture_output=True, text=True, timeout=15)
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout.strip(), "1234567890")
-
-    def test_runtime_cli_has_one_canonical_entry(self):
-        self.assertEqual(os.readlink(SCRIPTS / 'app' / (('jar' + 'vis') + 'ctl.py')), 'personactl.py')
-        for name in ("personactl.py", ('jar' + 'vis') + 'ctl.py'):
-            with self.subTest(entry=name):
-                result = subprocess.run([sys.executable, "-I", str(SCRIPTS / "app" / name), "--help"],
-                                        capture_output=True, text=True, timeout=15)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("usage:", result.stdout)
+                    self.assertEqual(result.stdout.strip(), "https://example.com")
 
     def test_mock_scenarios_starts_its_relocated_child(self):
         reservations = []

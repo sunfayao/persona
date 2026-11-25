@@ -4,7 +4,7 @@
 
 This is a **one-time, coordinated maintenance operation**, not runtime compatibility. The final installation has only Persona names: no previous command aliases, environment fallbacks, dual writes, directory aliases, or parallel old/new services. It supersedes the compatibility approach in [rename.md](rename.md) for this cutover. The historical document is not permission to run its compatibility commands.
 
-**Production operations are currently prohibited.** The authorized work is source text and sandbox rehearsals only; Apple work is text-only at this stage. A successful Linux rehearsal, a merged change, or an `--approve` flag does not lift that restriction. Mac verification must finish, then the user must explicitly approve the production maintenance window. No deployment, service restart, live database connection, client release, or TestFlight upload is authorized by this document.
+**Production operations are currently prohibited.** The authorized work is source text and sandbox rehearsals only. A successful Linux rehearsal, a merged change, or an `--approve` flag does not lift that restriction. Mac verification must finish, then the user must explicitly approve the production maintenance window. No deployment, service restart, live database connection, client release, or TestFlight upload is authorized by this document.
 
 Freeze one commit and a complete artifact set for the hub, every manager, every node/link/runtime, relay, web, iOS, watch, Mac, Android, and extensions before scheduling the window. Do not use a blue-green switch: its old and new processes overlap. Do not bring an unconverted machine or old client back into the fleet. An unreachable computer/device delays acceptance; it is not silently left on the old release.
 

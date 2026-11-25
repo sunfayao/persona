@@ -2,7 +2,7 @@
 """One-shot, standard-library release worker for a systemd service/timer.
 
 Private JSON configuration requires absolute repo, worktree and state_dir paths,
-plus targets (hub/web/testflight) and notify_command. branch defaults to main;
+plus targets (hub/web) and notify_command. branch defaults to main;
 git_proxy defaults to an empty string. Each target has paths, command and timeout.
 A command is an argv array, or an array of argv arrays for sequential steps; its
 only substitutions are {commit}, {worktree} and {build}. Paths without glob
@@ -26,8 +26,8 @@ before executing commands and reused for retries at the same target/commit.
 Adapters receive PERSONA_AUTORELEASE_CHECKPOINT (an external JSON checkpoint
 path), STATE_DIR, TARGET, COMMIT and BUILD with the same prefix. Adapters must
 persist their own upload receipt there (privately/atomically), check it before
-uploading, and return success only after all verification steps (including Apple
-VALID) pass. The worker deliberately retries all steps, not partial pipelines.
+uploading, and return success only after all verification steps pass. The worker
+deliberately retries all steps, not partial pipelines.
 
 --dry-run only reads local refs/state: no fetch, checkout, locks, notifications,
 commands or state writes. --inject-failure executes only the real notification
@@ -54,7 +54,7 @@ import sys
 import tempfile
 import time
 
-TARGETS = {"hub", "web", "testflight"}
+TARGETS = {"hub", "web"}
 COMMIT = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 LOG_PATH = None
 GIT_LOCATORS = {
@@ -403,7 +403,7 @@ def read_state(path, identity=None):
             # Validate persisted messages before allowing them to enter logs/notifications.
             for message in state["outbox"]:
                 if (not isinstance(message, str) or not re.fullmatch(
-                        r"autorelease target=(hub|web|testflight|worker) commit=(-|[0-9a-f]{40}|[0-9a-f]{64}) "
+                        r"autorelease target=(hub|web|worker) commit=(-|[0-9a-f]{40}|[0-9a-f]{64}) "
                         r"result=[a-z0-9-]+", message)):
                     raise WorkerError("invalid-state")
         except (OSError, ValueError, TypeError, KeyError):

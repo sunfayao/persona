@@ -30,19 +30,16 @@ Not private: loopback addresses (127.0.0.0/8, ::1, also with a port or as a URL'
 CLAUDE.local.md holds one, hosts under the example domains (RFC 2606, RFC 6761: example and example.com/.net/.org,
 and the .test, .invalid and .localhost TLDs) held there as placeholders, the documentation and IETF protocol ranges
 (192.0.0.0/24), an `xcode` in /Applications,
-values config.example.json ships as defaults, exact generic provisioning profile labels already published in origin/main's
-mapping/fixture (only under app_store.provisioning_profiles), a config value made only of ASCII letters that a `!word` line in
+values config.example.json ships as defaults, a config value made only of ASCII letters that a `!word` line in
 private-words.txt takes back (an ordinary word, a machine id named after a room), the repo's own Go module path (it
 names the GitHub owner),
 CLAUDE.local.md spans that only name repo files, commands or config keys, a listed word of one case run where the text
 spells it only across a camel-case join ("fooBar", only_in_camel_joins), and in site/ and the public installation docs
 the contact address and domain the App Store and the OAuth consent screen publish anyway. Generic email-pattern
-hits are also exempt only in the hash-pinned Harmony SSH third-party license bundle; config values, private words,
+hits are no exception; config values, private words,
 banned names and private IPs still scan.
 """
-import ast, hashlib, io, ipaddress, json, os, plistlib, re, stat, subprocess, sys
-from functools import lru_cache
-from pathlib import PurePosixPath
+import ast, io, ipaddress, json, os, plistlib, re, subprocess, sys
 from urllib.parse import unquote, urlsplit
 from xml.parsers.expat import ExpatError
 
@@ -55,17 +52,6 @@ CONFIG_ENV = ("PERSONA_CONFIG", "JARVIS_CONFIG")
 IGNORE = {"darwin", "linux", "local", "ssh", "true", "false", "server", "localhost"}
 # Files that may hold placeholders that look like the real thing.
 SKIP_FILES = {"scripts/privacy_check.py"}
-PUBLIC_ATTRIBUTION_MANIFEST = "harmony/native/ssh/licenses/public-attribution.json"
-PUBLIC_ATTRIBUTION_INVENTORIES = (
-    "harmony/native/ssh/licenses/locked-inventory.json",
-    "harmony/native/ssh/licenses/sdk-runtime/supplemental-inventory.json",
-)
-PUBLIC_ATTRIBUTION_HTML = "harmony/entry/src/main/resources/rawfile/native-ssh-licenses.html"
-PUBLIC_ATTRIBUTION_SUPPORT = (PUBLIC_ATTRIBUTION_MANIFEST, *PUBLIC_ATTRIBUTION_INVENTORIES,
-                              PUBLIC_ATTRIBUTION_HTML)
-SHA256 = re.compile(r"[0-9a-f]{64}")
-PUBLIC_CRATE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
-PUBLIC_CRATE_VERSION = re.compile(r"[0-9][A-Za-z0-9.+-]*")
 # Config keys whose values are published on purpose (App Store contact, the site's address, where personad is published):
 # fine in PUBLIC_DIRS.
 PUBLIC_KEYS = {"feedback_email", "privacy_url", "site_url"}
@@ -110,64 +96,6 @@ def standard_app(key, value):
     return key == "xcode" and re.fullmatch(r"/Applications/[\w .-]+\.app/?", value) is not None
 
 
-def profile_labels(source, function_name):
-    """Read public literal profile labels, never execute a config helper or a historical fixture."""
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return set()
-    labels = set()
-    for function in tree.body:
-        if not isinstance(function, ast.FunctionDef) or function.name != function_name:
-            continue
-        for node in ast.walk(function):
-            if not isinstance(node, ast.Assign):
-                continue
-            names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-            if function_name == "provisioning_profiles" and "profiles" in names and isinstance(node.value, ast.Dict):
-                labels.update(value.value for value in node.value.values
-                              if isinstance(value, ast.Constant) and isinstance(value.value, str) and value.value.strip())
-            if function_name != "export_options" or "plist" not in names:
-                continue
-            value = node.value
-            marker = "__privacy_dynamic_field__"
-            if isinstance(value, ast.JoinedStr):
-                text = "".join(part.value if isinstance(part, ast.Constant) and isinstance(part.value, str)
-                               else marker for part in value.values)
-            elif isinstance(value, ast.Constant) and isinstance(value.value, str):
-                text = value.value
-            else:
-                continue
-            try:
-                options = plistlib.loads(text.encode())
-                profiles = options.get("provisioningProfiles", {}) if isinstance(options, dict) else {}
-            except (ValueError, plistlib.InvalidFileException, ExpatError):
-                continue
-            if isinstance(profiles, dict):
-                labels.update(name for name in profiles.values()
-                              if isinstance(name, str) and name.strip() and marker not in name)
-    return labels
-
-
-@lru_cache(maxsize=1)
-def public_profile_labels():
-    """Exact generic labels already published as defaults or deployment fixture data (#1245)."""
-    source_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    sources = (("scripts/persona_config.py", "provisioning_profiles"),
-               ("scripts/test/fixtures/deployment/persona_config.py.fixture", "export_options"))
-    labels = set()
-    for path, function in sources:
-        try:
-            source = subprocess.run(["git", "-C", source_root, "show", "origin/main:" + path],
-                                    capture_output=True, text=True, timeout=10)
-        except (OSError, subprocess.TimeoutExpired):
-            continue
-        if source.returncode == 0:
-            labels.update(profile_labels(source.stdout, function))
-        # No published definition means no waiver; adding a private label in this PR cannot approve itself.
-    return frozenset(labels)
-
-
 def config_values():
     """The config's values, each with the key paths it is held under, and the subset that is published on purpose
     (PUBLIC_KEYS)."""
@@ -187,8 +115,6 @@ def config_values():
             key = key_path[-1] if key_path else ""
             if key in ("os", "simulator") or o in defaults or standard_app(key, o):
                 continue
-            if len(key_path) == 3 and key_path[:2] == ("app_store", "provisioning_profiles") and o in public_profile_labels():
-                continue  # Only this config source is generic; another key or an explicit private word still wins.
             if key == "url" or key.endswith("_url"):
                 o = url_term(o)
                 if not o:
@@ -651,200 +577,6 @@ def git_file_data(files, prefix):
     return data
 
 
-def safe_public_path(value):
-    if (not isinstance(value, str) or not value or "\\" in value or
-            any(ord(char) < 32 or ord(char) == 127 for char in value)):
-        return None
-    path = PurePosixPath(value)
-    if (str(path) != value or path.is_absolute() or
-            any(part in ("", ".", "..") for part in path.parts)):
-        return None
-    return path
-
-
-def inventory_notice_records(data, inventory_path):
-    """Read only the pinned notice paths and hashes from the two exact SSH attribution inventories."""
-    try:
-        inventory = json.loads(data)
-    except (UnicodeDecodeError, ValueError, TypeError, RecursionError):
-        return None
-    expected = {}
-    if inventory_path == PUBLIC_ATTRIBUTION_INVENTORIES[0]:
-        if not isinstance(inventory, list) or not inventory:
-            return None
-        entries = inventory
-        for entry in entries:
-            if not isinstance(entry, dict):
-                return None
-            name, version = entry.get("name"), entry.get("version")
-            if (not isinstance(name, str) or not PUBLIC_CRATE_NAME.fullmatch(name) or
-                    not isinstance(version, str) or not PUBLIC_CRATE_VERSION.fullmatch(version)):
-                return None
-            identity = name + "-" + version
-            prefix = "licenses/" + identity + "/"
-            notices = entry.get("notices")
-            if not isinstance(notices, list) or not notices:
-                return None
-            for notice in notices:
-                if not isinstance(notice, dict):
-                    return None
-                raw_path, digest = notice.get("path"), notice.get("sha256")
-                relative = safe_public_path(raw_path)
-                if (relative is None or len(relative.parts) < 3 or relative.parts[0] != "licenses" or
-                        relative.parts[1] != identity or not raw_path.startswith(prefix) or
-                        not isinstance(digest, str) or not SHA256.fullmatch(digest)):
-                    return None
-                path = "harmony/native/ssh/" + raw_path
-                if path in expected:
-                    return None
-                expected[path] = digest
-    elif inventory_path == PUBLIC_ATTRIBUTION_INVENTORIES[1]:
-        if (not isinstance(inventory, dict) or type(inventory.get("schema_version")) is not int or
-                inventory.get("schema_version") != 1 or not isinstance(inventory.get("items"), list) or
-                not inventory["items"]):
-            return None
-        for entry in inventory["items"]:
-            if not isinstance(entry, dict) or not isinstance(entry.get("notices"), list) or not entry["notices"]:
-                return None
-            for notice in entry["notices"]:
-                if not isinstance(notice, dict):
-                    return None
-                raw_path, digest = notice.get("path"), notice.get("sha256")
-                relative = safe_public_path(raw_path)
-                if (relative is None or len(relative.parts) < 3 or
-                        relative.parts[:2] != ("licenses", "sdk-runtime") or
-                        not isinstance(digest, str) or not SHA256.fullmatch(digest)):
-                    return None
-                path = "harmony/native/ssh/" + raw_path
-                if path in expected:
-                    return None
-                expected[path] = digest
-    else:
-        return None
-    return expected or None
-
-
-def public_attribution_records(manifest_data, support_data):
-    """Validate the fixed public bundle and return only its exact, inventory-backed files."""
-    try:
-        manifest = json.loads(manifest_data)
-    except (UnicodeDecodeError, ValueError, TypeError, RecursionError):
-        return {}
-    if (not isinstance(manifest, dict) or type(manifest.get("schema_version")) is not int or
-            manifest.get("schema_version") != 1 or
-            set(manifest) != {"schema_version", "inventories", "notices", "generated_html"}):
-        return {}
-
-    inventory_records = manifest.get("inventories")
-    if not isinstance(inventory_records, list) or len(inventory_records) != len(PUBLIC_ATTRIBUTION_INVENTORIES):
-        return {}
-    inventory_hashes = {}
-    for record in inventory_records:
-        if not isinstance(record, dict) or set(record) != {"path", "sha256"}:
-            return {}
-        path, digest = record.get("path"), record.get("sha256")
-        if path not in PUBLIC_ATTRIBUTION_INVENTORIES or not isinstance(digest, str) or not SHA256.fullmatch(digest):
-            return {}
-        if path in inventory_hashes:
-            return {}
-        data = support_data.get(path)
-        if not isinstance(data, bytes) or hashlib.sha256(data).hexdigest() != digest:
-            return {}
-        inventory_hashes[path] = digest
-    if set(inventory_hashes) != set(PUBLIC_ATTRIBUTION_INVENTORIES):
-        return {}
-
-    html_record = manifest.get("generated_html")
-    if not isinstance(html_record, dict) or set(html_record) != {"path", "sha256"}:
-        return {}
-    if html_record.get("path") != PUBLIC_ATTRIBUTION_HTML:
-        return {}
-    html_hash = html_record.get("sha256")
-    html_data = support_data.get(PUBLIC_ATTRIBUTION_HTML)
-    if (not isinstance(html_hash, str) or not SHA256.fullmatch(html_hash) or not isinstance(html_data, bytes) or
-            hashlib.sha256(html_data).hexdigest() != html_hash):
-        return {}
-
-    expected_notices = {}
-    for path in PUBLIC_ATTRIBUTION_INVENTORIES:
-        expected = inventory_notice_records(support_data[path], path)
-        if expected is None or expected_notices.keys() & expected.keys():
-            return {}
-        expected_notices.update(expected)
-    manifest_notices = manifest.get("notices")
-    if not isinstance(manifest_notices, list) or not manifest_notices:
-        return {}
-    noticed = {}
-    paths = []
-    for record in manifest_notices:
-        if not isinstance(record, dict) or set(record) != {"path", "sha256"}:
-            return {}
-        path, digest = record.get("path"), record.get("sha256")
-        relative = safe_public_path(path)
-        if (relative is None or not path.startswith("harmony/native/ssh/licenses/") or
-                path == PUBLIC_ATTRIBUTION_MANIFEST or not isinstance(digest, str) or not SHA256.fullmatch(digest) or
-                path in noticed):
-            return {}
-        noticed[path] = digest
-        paths.append(path)
-    if paths != sorted(paths) or noticed != expected_notices:
-        return {}
-
-    return {**noticed, **inventory_hashes, PUBLIC_ATTRIBUTION_HTML: html_hash}
-
-
-def repo_regular_file(path):
-    """Whether a safe repository path is a regular, nonsymlink worktree file."""
-    relative = safe_public_path(path)
-    if relative is None:
-        return False
-    current = ROOT
-    try:
-        for part in relative.parts:
-            current = os.path.join(current, part)
-            mode = os.lstat(current).st_mode
-            if stat.S_ISLNK(mode):
-                return False
-        return stat.S_ISREG(mode)
-    except OSError:
-        return False
-
-
-def git_regular_files(files, prefix):
-    """The regular-file paths in the same index or commit snapshot as a staged/range scan."""
-    if not files:
-        return set()
-    if prefix == ":":
-        output = git("ls-files", "--stage", "-z", "--", *files)
-        groups = {}
-        for record in output.split(b"\0"):
-            if not record:
-                continue
-            header, separator, raw_path = record.partition(b"\t")
-            fields = header.split()
-            if not separator or len(fields) != 3:
-                raise ValueError("invalid staged file mode output")
-            name = raw_path.decode("utf-8")
-            groups.setdefault(name, []).append((fields[0], fields[2]))
-        return {name for name, entries in groups.items()
-                if len(entries) == 1 and entries[0][0] in (b"100644", b"100755") and entries[0][1] == b"0"}
-    if not prefix.endswith(":"):
-        raise ValueError("invalid attribution snapshot")
-    head = prefix[:-1]
-    output = git("ls-tree", "-r", "-z", "--full-tree", head, "--", *files)
-    regular = set()
-    for record in output.split(b"\0"):
-        if not record:
-            continue
-        header, separator, raw_path = record.partition(b"\t")
-        fields = header.split()
-        if not separator or len(fields) != 3:
-            raise ValueError("invalid commit file mode output")
-        if fields[0] in (b"100644", b"100755") and fields[1] == b"blob":
-            regular.add(raw_path.decode("utf-8"))
-    return regular
-
-
 GIT_OID = re.compile(rb"[0-9a-f]{40}|[0-9a-f]{64}")
 # Git's empty tree, by object id length (SHA-1, SHA-256): the base of a range whose two ends share no history.
 EMPTY_TREE = {40: "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
@@ -967,43 +699,11 @@ def main():
     if from_git:
         try:
             snapshot_prefix = span[1] + ":" if span and not staged else ":"
-            snapshots = git_file_data(list(dict.fromkeys(from_git + list(PUBLIC_ATTRIBUTION_SUPPORT))), snapshot_prefix)
+            snapshots = git_file_data(list(dict.fromkeys(from_git)), snapshot_prefix)
         except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             sys.exit("privacy_check: cannot read Git objects; scan did not complete")
     from_git = set(from_git)
 
-    snapshot_prefix = span[1] + ":" if span and not staged else ":"
-    if staged or span:
-        attribution_support = {path: snapshots.get(path) for path in PUBLIC_ATTRIBUTION_INVENTORIES +
-                              (PUBLIC_ATTRIBUTION_HTML,)}
-        attribution_manifest = snapshots.get(PUBLIC_ATTRIBUTION_MANIFEST)
-    else:
-        attribution_support = {}
-        for path in PUBLIC_ATTRIBUTION_INVENTORIES + (PUBLIC_ATTRIBUTION_HTML,):
-            if repo_regular_file(path):
-                try:
-                    with open(os.path.join(ROOT, path), "rb") as source:
-                        attribution_support[path] = source.read()
-                except OSError:
-                    pass
-        attribution_manifest = None
-        if repo_regular_file(PUBLIC_ATTRIBUTION_MANIFEST):
-            try:
-                with open(os.path.join(ROOT, PUBLIC_ATTRIBUTION_MANIFEST), "rb") as source:
-                    attribution_manifest = source.read()
-            except OSError:
-                pass
-    attribution = public_attribution_records(attribution_manifest, attribution_support)
-    if attribution:
-        try:
-            regular_paths = git_regular_files(list(attribution) + [PUBLIC_ATTRIBUTION_MANIFEST], snapshot_prefix) \
-                if staged or span else {
-                    path for path in list(attribution) + [PUBLIC_ATTRIBUTION_MANIFEST] if repo_regular_file(path)
-                }
-        except (OSError, UnicodeDecodeError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            regular_paths = set()
-        if regular_paths != (set(attribution) | {PUBLIC_ATTRIBUTION_MANIFEST}):
-            attribution = {}
     bad, hit = [], set()
 
     def report(f, where, w):
@@ -1044,10 +744,9 @@ def main():
         if modules:
             text = modules.sub("", text)
         published_lines = governance if f in from_git or not os.path.islink(path) else {}
-        public_attribution = (f in attribution and hashlib.sha256(data).hexdigest() == attribution[f])
         for n, line in enumerate(text.splitlines(), 1):
             line_words = governance_words(f, line, allowed, sources, published_lines)
-            for w in problems(line, line_words, emails=not public and not public_attribution):
+            for w in problems(line, line_words, emails=not public):
                 report(f, n, w)
     if span:
         try:

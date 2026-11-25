@@ -8,24 +8,21 @@ REPO = "${{ github.repository }}"
 BRANCH = "${{ github.ref_name }}"
 FULL = "${{ inputs.full }}"
 CI_LANE = "${{ inputs.lanes }}"
-APPLE_LANE = "${{ inputs.lane || 'ios' }}"
 
 
 def workflow(filename):
     return yaml.load((ROOT / '.github/workflows' / filename).read_text(), Loader=yaml.BaseLoader)
 
 
-def group(filename, repo='example/project', branch='main', full='true', lanes='auto', lane='ios'):
+def group(filename, repo='example/project', branch='main', full='true', lanes='auto'):
     template = workflow(filename)['concurrency']['group']
     return (template.replace(REPO, repo).replace(BRANCH, branch).replace(FULL, full)
-            .replace(CI_LANE, lanes).replace(APPLE_LANE, lane))
+            .replace(CI_LANE, lanes))
 
 
 class ConcurrencyTests(unittest.TestCase):
     def test_all_manual_entry_points_cancel_same_branch_lane_not_same_commit_key(self):
-        for filename, prefix in [('ci.yml', 'ci'), ('apple-test.yml', 'apple'),
-                                 ('server-test.yml', 'server'), ('android-test.yml', 'android'),
-                                 ('scripts-tests.yml', 'scripts')]:
+        for filename, prefix in [('ci.yml', 'ci'), ('server-test.yml', 'server'), ('scripts-tests.yml', 'scripts')]:
             with self.subTest(filename=filename):
                 config = workflow(filename)['concurrency']
                 self.assertEqual(config['cancel-in-progress'], 'true')
@@ -40,22 +37,20 @@ class ConcurrencyTests(unittest.TestCase):
 
     def test_lanes_and_caller_groups_remain_independent(self):
         self.assertNotEqual(group('ci.yml', full='false', lanes='server'),
-                            group('ci.yml', full='false', lanes='android'))
+                            group('ci.yml', full='false', lanes='web'))
         self.assertNotEqual(group('ci.yml', full='true', lanes='auto'),
                             group('ci.yml', full='false', lanes='auto'))
-        self.assertNotEqual(group('apple-test.yml', lane='ios'), group('apple-test.yml', lane='macos'))
-        self.assertNotEqual(group('ci.yml', lanes='apple'), group('apple-test.yml', lane='ios'))
+        self.assertNotEqual(group('ci.yml', lanes='server'), group('server-test.yml'))
         # Stable file prefixes deduplicate direct/reusable lane dispatches without
         # reusing the caller's github.workflow group, which would cancel the caller.
-        for filename in ('apple-test.yml', 'server-test.yml', 'android-test.yml', 'scripts-tests.yml'):
+        for filename in ('server-test.yml', 'scripts-tests.yml'):
             self.assertNotIn('github.workflow', workflow(filename)['concurrency']['group'])
         self.assertEqual(set(workflow('ci.yml')['on']), {'workflow_dispatch'})
-        self.assertIn('workflow_call', workflow('apple-test.yml')['on'])
-        self.assertIn('workflow_dispatch', workflow('apple-test.yml')['on'])
+        self.assertIn('workflow_call', workflow('server-test.yml')['on'])
+        self.assertIn('workflow_dispatch', workflow('server-test.yml')['on'])
 
     def test_heavy_matrices_keep_all_shards_with_bounded_parallelism(self):
         for filename, job, maximum, size in [('server-test.yml', 'server', 2, 4),
-                                              ('android-test.yml', 'android', 2, 2),
                                               ('scripts-tests.yml', 'scripts', 1, 2)]:
             with self.subTest(filename=filename):
                 strategy = workflow(filename)['jobs'][job]['strategy']

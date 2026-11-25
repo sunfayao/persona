@@ -180,12 +180,6 @@ jobs:
           from pathlib import Path
           plan=json.loads(Path('release/plan.json').read_text())
           assert plan['pr']==int(os.environ['PR_NUMBER'])
-          store=plan['stores']['iphone_watch']
-          assert store['build']==str(plan['build'])
-          assert store['processing']=='VALID'
-          assert store['groups']==['Internal','Friends']
-          assert store['external']=='IN_BETA_TESTING'
-          assert json.loads(Path('release/store-verified.json').read_text())==plan['stores']
           print('Verified merged release plan',plan['tag'],plan['commit'])
           PY
       - name: Create the immutable tag only after the merged source passed every platform check
@@ -290,15 +284,8 @@ jobs:
           from windows_release import check_windows_artifacts
           assets=[{'name':item['name'],'path':item['path']} for item in plan['artifacts']]
           check_windows_artifacts(assets,plan['version'])
-          from tag_release import check_android_index
-          check_android_index(assets,plan['version'])
           assert any(item['name'].endswith('.verification.json') for item in assets)
-          assert any(item['name'].endswith('.apk') for item in assets)
           assert {path.name for path in Path('release/downloads').iterdir()} == {item['name'] for item in assets}
-          if plan['channel']=='beta':
-              assert (Path('release/downloads')/'beta.yml').is_file()
-          else:
-              assert (Path('release/downloads')/'latest.yml').is_file()
           PY
       - name: Upload verified downloads and verify remote SHA-256
         env:
@@ -311,11 +298,11 @@ jobs:
             test -f "$path"
             name="$(basename "$path")"
             case "$name" in
-              latest.json|SHA256SUMS|VERSION|android.json)
+              latest.json|SHA256SUMS|VERSION)
                 # Update indexes go last: a hub must never see metadata whose referenced downloads are absent.
                 continue
                 ;;
-              *.verification.json|receipt.json|plan.json|release.json|merged-pr.json|store-verified.json|authorization.json|beta-receipt.json)
+              *.verification.json|receipt.json|plan.json|release.json|merged-pr.json|authorization.json|beta-receipt.json)
                 printf 'receipt_kept_out_of_release_assets %s\n' "$name"
                 continue
                 ;;
@@ -326,7 +313,7 @@ jobs:
             test "$remote" = "sha256:$expected"
             printf 'verified %s %s\n' "$name" "$expected"
           done
-          for name in VERSION SHA256SUMS android.json latest.json; do
+          for name in VERSION SHA256SUMS latest.json; do
             path="release/downloads/$name"
             test -f "$path" || continue
             gh release upload "$TAG" "$path" --repo "$REPOSITORY" --clobber
@@ -372,10 +359,8 @@ jobs:
           from pathlib import Path
           plan=json.loads(Path('release/plan.json').read_text())
           receipt={'commit':os.environ['COMMIT'],'assets':[]}
-          for name in ('latest.json','android.json'):
-              path=Path('release/downloads')/name
-              if path.is_file():
-                  receipt['assets'].append({'path':str(path),'name':name,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+          path=Path('release/downloads')/'latest.json'
+          receipt['assets'].append({'path':str(path),'name':'latest.json','sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
           Path('release/beta-receipt.json').write_text(json.dumps(receipt)+'\n')
           PY
           python3 scripts/operations/beta_channel_release.py --repo . --repository "$REPOSITORY" --tag "$TAG" --receipt release/beta-receipt.json

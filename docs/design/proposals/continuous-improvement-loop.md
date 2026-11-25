@@ -58,11 +58,11 @@ until then batch work stays with Opus.
 
 ## 5. Keeping execution models to the repository's rules
 
-- **Injected before work**: `docs/design/PRINCIPLES.md`, `docs/design/DESIGN_SYSTEM.md`, `docs/design/HIG_AUDIT.md`,
-  `CLAUDE.md`, `docs/operations/collaboration.md`, `.github/pull_request_template.md`, plus the platform doc and the iOS code
+- **Injected before work**: `docs/design/PRINCIPLES.md`, `docs/design/DESIGN_SYSTEM.md`,
+  `CLAUDE.md`, `docs/operations/collaboration.md`, `.github/pull_request_template.md`, plus the platform doc and the code
   the brief names. The agent definition requires reading them; the brief quotes the sections that matter.
 - **Opus checklist**, item by item, written into the PR as "Opus verification": PRINCIPLES.md 1 to 6; the DESIGN_SYSTEM.md
-  "UI change self-check"; no new kind of finding from HIG_AUDIT.md; repository conventions (folder, naming, component and
+  "UI change self-check"; repository conventions (folder, naming, component and
   test style of the neighbouring code, English, privacy scan, tokens instead of literals, docs updated with new tokens);
   reduced motion; counts and states unchanged; screenshots light and dark.
 - **Bounce**: any item that fails goes back to the execution model with the failing item quoted. After two bounces Opus

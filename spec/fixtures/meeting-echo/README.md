@@ -25,5 +25,4 @@ Persona 在会议里把答案说出来时，录音的麦克风也会听到；转
 ## 验证
 
 - hub：`cd server && go test ./internal/kb -run MeetingEcho`（`server/internal/kb/echo_test.go`，规则在 `server/internal/kb/echo.go`）。
-- iPhone：`apple/PersonaTests/MeetingEchoFixtureTests.swift`（规则在 `apple/Shared/Recording/MeetingEcho.swift`），由 Xcode 跑 PersonaTests。
-- 新增用例：先按上面的规则手算期望，写明哪几个二元组对上；两端都跑一遍，不要用被测的实现生成期望。
+- 新增用例：先按上面的规则手算期望，写明哪几个二元组对上；不要用被测的实现生成期望。

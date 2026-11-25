@@ -15,8 +15,7 @@ def failures(needs):
         if result != "success":
             bad.append(f"{label} did not succeed: {result}")
     selected = needs.get("changes", {}).get("outputs", {})
-    # apple is the required iOS/Watch/HTML lane; the former native Mac lane was removed with PersonaMac.
-    for platform in ("server", "web", "android", "apple", "core", "runtimes", "desktop", "scripts"):
+    for platform in ("server", "web", "runtimes", "scripts"):
         expected = selected.get(platform)
         result = needs.get(platform, {}).get("result")
         if expected == "true" and result != "success":

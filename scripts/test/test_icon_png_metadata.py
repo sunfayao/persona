@@ -127,19 +127,6 @@ class PNGMetadataTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     png.strip_exif_user_comments(data)
 
-    def test_bundled_system_icons_have_no_text_metadata(self):
-        assets = ROOT / "apple/Persona/Resources/Assets.xcassets/Brands"
-        for name in ["calendar", "contacts", "health", "maps", "photos", "reminders"]:
-            with self.subTest(icon=name):
-                files = sorted((assets / f"ios-app-{name}.imageset").glob("*.png"))
-                self.assertTrue(files)
-                for path in files:
-                    records = list(png.chunks(path.read_bytes()))
-                    self.assertFalse(any(kind in png.TEXT_CHUNKS for kind, _ in records))
-                    for kind, raw in records:
-                        if kind == b"eXIf":
-                            self.assertEqual(png.strip_exif_user_comments(raw[8:-4]), raw[8:-4])
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -118,22 +118,6 @@ Requirements get `enhancement`, fixes get `bug`, docs get `documentation`. The c
 
 When creating an issue on the web, choose the `Bug report` or `Feature request` form (`.github/ISSUE_TEMPLATE/`) to add the `bug` / `enhancement` label automatically. Field names and issue bodies are in English. You can also use a blank issue or the command above.
 
-#### TestFlight feedback
-
-Issues created from TestFlight feedback (crash reports in App Store Connect, testers' text / screenshot feedback) must be filterable by source:
-
-- **Always add the `testflight` label** (together with `bug` / `enhancement`); if you don't have permission to add labels, prefix the title with `[TestFlight]`, and someone with permission adds the label when they see it.
-- **Check for duplicates first**: one issue per piece of feedback. End the body with the dedup marker `<!-- testflight-intake:<sha256(feedback submission id)> -->`,
-  and before creating, check with `gh search issues --repo <owner/repo> "testflight-intake:<hash>"` whether it already exists; if an issue for the same crash cause exists, add a "Note:" on it.
-- **Redact**: include only the technical summary, a symbol-only call stack (addresses removed), App version, OS version and device model. Leave out the tester's email and identity,
-  crash / install / device identifiers of any kind, Bundle ID, memory addresses and image UUIDs, container and personal paths, network / battery / storage, language and time zone, exact times,
-  the specific build number and raw attachments; raw logs stay only in a 0600 file on your machine. End the body with a "Privacy handling" section saying what was removed.
-  Examples: #752, #1144.
-
-```sh
-gh issue create --label bug --label testflight --title "<one sentence describing the symptom>" --body-file <redacted body>
-```
-
 ### 4. Claim, renew, take over, abandon
 
 ```sh
@@ -172,7 +156,7 @@ EOF
 
 - Updating a PR branch with `main`: prefer `git merge origin/main` on the branch to a rebase. PRs are squash-merged, so the merge commit never reaches `main`;
   conflicts are resolved once instead of once per commit, and the push is a plain push with no force while other Agents work in the repository (#5988).
-  In a merge "ours" is your branch and "theirs" is `main`, the reverse of a rebase: mind it with `git checkout --ours/--theirs` and `scripts/i18n/apple_l10n.py merge`.
+  In a merge "ours" is your branch and "theirs" is `main`, the reverse of a rebase: mind it with `git checkout --ours/--theirs`.
   A rebase is still allowed, for example for a single-commit branch.
 - Merging: once the PR's relevant local verification passes, `scripts/hooks/merge-pr.sh <number>`, not `gh pr merge` directly. It first scans the PR's changed files, commit messages, title and body with this machine's private values (`docs/operations/testing.md`, "Privacy scan"), checks that the merge adds no fixed-sleep or web font ratchet failure in the files the PR changes (`docs/operations/testing.md`, "Hosted CI"), and only squash-merges and deletes the branch if both pass. PRs do not automatically start hosted CI.
 - `Fixes #N` / `Closes #N`: GitHub closes the issue automatically after merging. `Refs #N`: links without closing (an issue split into several PRs, or only partly fixed).

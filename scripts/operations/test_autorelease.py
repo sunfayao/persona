@@ -206,9 +206,8 @@ class AutoreleaseTests(unittest.TestCase):
 
     def test_initial_runs_all_targets_without_a_baseline(self):
         self.target("web", ["never-matched/"])
-        self.target("testflight", ["also-absent/*.swift"])
         self.invoke()
-        self.assertEqual({entry["target"] for entry in self.actions()}, {"hub", "web", "testflight"})
+        self.assertEqual({entry["target"] for entry in self.actions()}, {"hub", "web"})
         for entry in self.actions():
             self.assertEqual(entry["args"][0], self.initial)
             self.assertEqual(entry["head"], self.initial)
@@ -224,7 +223,7 @@ class AutoreleaseTests(unittest.TestCase):
         self.assertEqual((self.state_dir / "state.json").stat().st_mode & 0o777, 0o600)
         self.assertEqual((self.state_dir / "autorelease.lock").stat().st_mode & 0o777, 0o600)
         self.invoke()
-        self.assertEqual(len(self.actions()), 3)
+        self.assertEqual(len(self.actions()), 2)
 
     def test_unrelated_does_not_advance_success_and_diff_uses_success(self):
         self.target("web", ["web/"])
@@ -535,17 +534,17 @@ class AutoreleaseTests(unittest.TestCase):
 
     def test_checkpoint_preserves_build_and_does_not_repeat_upload(self):
         self.config["targets"] = {}
-        self.target("testflight", ["apple/"])
-        self.modes["testflight"].write_text("checkpoint")
-        invalid = Path(str(self.modes["testflight"]) + ".invalid")
+        self.target("web", ["web/"])
+        self.modes["web"].write_text("checkpoint")
+        invalid = Path(str(self.modes["web"]) + ".invalid")
         invalid.write_text("not VALID yet")
         self.invoke(code=1)
-        self.assertNotIn("last_success", self.state()["targets"]["testflight"])
+        self.assertNotIn("last_success", self.state()["targets"]["web"])
         invalid.unlink()
         self.invoke()
         self.assertEqual(self.actions()[0]["args"][2], self.actions()[1]["args"][2])
         self.assertEqual(len([e for e in self.entries(self.action_log) if e["kind"] == "upload"]), 1)
-        self.assertEqual(self.state()["targets"]["testflight"]["last_success"], self.initial)
+        self.assertEqual(self.state()["targets"]["web"]["last_success"], self.initial)
 
     def test_outbox_retries_next_round_without_extra_action_failure(self):
         self.modes["hub"].write_text("fail")

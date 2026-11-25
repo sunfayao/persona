@@ -188,8 +188,4 @@ entries (calls outside the conversation), orchestration tokens included, under t
   covers a live pane's file, a start for a runtime's session, the fallback row moving to its session, and the calls a stopped
   session refuses. `server/internal/node/omp_start_model_test.go` checks the new session's recorded model and the arguments
   the terminal receives for default, short and provider-qualified model IDs.
-- iOS: `apple/PersonaTests/OmpNewAgentTests.swift` covers telling an omp launcher, no modes or efforts and no attachments;
-  against `MOCK_OMP=1 PORT=<dedicated port> python3 scripts/mock/mock_hub.py` (which lists an `omp` launcher and refuses an omp
-  start that is async or sets those options, as the node does), `PersonaUITests/NewAgentAttachmentsTests/testOmpStartsWithItsFirstMessageAndNoOptions`
-  picks omp in New Agent and checks the start's body.
 - Hub: `TestRuntimePushTitle` (`server/internal/hub/runtime_test.go`) covers an omp card's push title.

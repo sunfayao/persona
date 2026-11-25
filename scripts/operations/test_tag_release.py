@@ -38,7 +38,7 @@ class TagReleaseTests(unittest.TestCase):
             "worktree": str(self.root / "release-worktree"),
             "state_dir": str(self.root / "state"),
             "repository": "example/project",
-            "platform": "android",
+            "platform": "worker",
             "command": ["/usr/bin/true", "{commit}", "{tag}"],
             "receipt": str(self.root / "state" / "artifacts.json"),
         }))
@@ -55,7 +55,7 @@ class TagReleaseTests(unittest.TestCase):
 
     def test_config_is_private_and_commands_are_argv_with_known_fields(self):
         config = self.config()
-        self.assertEqual(config["platform"], "android")
+        self.assertEqual(config["platform"], "worker")
         self.config_path.chmod(0o644)
         with self.assertRaisesRegex(tag_release.ConfigError, "0600"):
             self.config()
@@ -109,13 +109,13 @@ class TagReleaseTests(unittest.TestCase):
             call.assert_not_called()
 
     def test_receipt_requires_commit_and_matching_artifact_digest(self):
-        artifact = self.root / "signed.apk"
+        artifact = self.root / "signed.pkg"
         artifact.write_bytes(b"verified APK")
         digest = tag_release.hashlib.sha256(artifact.read_bytes()).hexdigest()
         receipt = self.root / "receipt.json"
         receipt.write_text(json.dumps({"commit": self.commit, "assets": [{"path": str(artifact), "sha256": digest}]}))
         assets = tag_release.read_receipt(receipt, self.commit)
-        self.assertEqual(assets, [{"path": str(artifact), "name": "signed.apk"}])
+        self.assertEqual(assets, [{"path": str(artifact), "name": "signed.pkg"}])
         artifact.write_bytes(b"replaced")
         with self.assertRaisesRegex(tag_release.ConfigError, "digest"):
             tag_release.read_receipt(receipt, self.commit)
@@ -132,7 +132,7 @@ class TagReleaseTests(unittest.TestCase):
             self.assertEqual(view.call_args.args[0][:3], ["gh", "release", "view"])
 
     def test_upload_refuses_a_view_without_an_asset_list(self):
-        artifact = self.root / "Persona-1.0.0.apk"
+        artifact = self.root / "Persona-1.0.0.pkg"
         artifact.write_bytes(b"signed")
         views = [json.dumps({"tagName": "v1.0.0", "isDraft": False, "assets": []})]
         for answer in ("null", json.dumps({"assets": None}), json.dumps("assets")):
@@ -142,7 +142,7 @@ class TagReleaseTests(unittest.TestCase):
                     tag_release.upload("example/project", "v1.0.0", [{"path": str(artifact), "name": artifact.name}])
 
     def test_upload_views_existing_release_and_verifies_remote_digests(self):
-        artifact = self.root / "Persona-1.0.0.apk"
+        artifact = self.root / "Persona-1.0.0.pkg"
         artifact.write_bytes(b"signed")
         assets = [{"path": str(artifact), "name": artifact.name}]
         digest = tag_release.hashlib.sha256(artifact.read_bytes()).hexdigest()
@@ -172,7 +172,7 @@ class TagReleaseTests(unittest.TestCase):
                 tag_release.upload("example/project", "v1.0.0", assets)
 
     def test_old_gh_without_digests_uses_rest_and_downloads_as_a_last_resort(self):
-        artifact = self.root / "Persona-1.0.0.apk"
+        artifact = self.root / "Persona-1.0.0.pkg"
         artifact.write_bytes(b"signed")
         assets = [{"path": str(artifact), "name": artifact.name}]
         digest = tag_release.hashlib.sha256(artifact.read_bytes()).hexdigest()
@@ -574,7 +574,7 @@ class TagReleaseTests(unittest.TestCase):
 
     def test_only_successful_stable_hub_publication_marks_release_latest(self):
         cases = (
-            ("stable non-hub", self.android_receipt(), "v0.3.0", "android", False),
+            ("stable non-hub", self.platform_receipt(), "v0.3.0", "worker", False),
             ("prerelease hub", self.release_receipt(version="0.7.0-beta.2", channel="beta"),
              "v0.7.0-beta.2", "hub", True),
         )
@@ -690,22 +690,17 @@ class TagReleaseTests(unittest.TestCase):
         self.assertEqual(uploads[-2:], [["SHA256SUMS"], ["latest.json"]])
         self.assertEqual(sorted(uploads[0]), sorted(item["name"] for item in assets if item["name"].endswith(".gz")))
 
-    def android_receipt(self, **change):
-        """An Android receipt as android_tag_release.py leaves it: the signed APK and android.json describing it."""
-        directory = self.root / "android"
+    def platform_receipt(self, **change):
+        """A receipt of a platform worker other than the hub: one signed download."""
+        directory = self.root / "worker"
         directory.mkdir(exist_ok=True)
-        apk = directory / "Persona-0.3.0-android.apk"
-        apk.write_bytes(b"PK signed")
-        index = {"version": "0.3.0", "name": apk.name, "package_name": "org.example.persona", "version_code": 105432,
-                 "version_name": "0.3.0", "min_sdk": 29, "certificate_sha256": "c" * 64, "size": apk.stat().st_size,
-                 "sha256": tag_release.hashlib.sha256(apk.read_bytes()).hexdigest(), "source_sha": self.commit, "notes": ""}
-        index.update(change)
-        (directory / "android.json").write_text(json.dumps(index))
-        return [{"path": str(directory / name), "name": name} for name in (apk.name, "android.json")]
+        package = directory / "Persona-0.3.0-worker.pkg"
+        package.write_bytes(b"signed fixture")
+        return [{"path": str(package), "name": package.name}]
 
     def test_beta_platform_receipt_does_not_need_a_hub_manifest(self):
         # Each platform publishes independently to the immutable beta prerelease. Only the hub owns latest.json.
-        assets = self.android_receipt()
+        assets = self.platform_receipt()
         tag_release.check_beta_manifest(assets, "0.7.0-beta.2")
         tag_release.check_beta_manifest([], "0.7.0-beta.2")  # a store-only iOS receipt
         path = self.root / "latest.json"
@@ -721,57 +716,18 @@ class TagReleaseTests(unittest.TestCase):
             tag_release.check_beta_manifest([{"path": str(path), "name": "latest.json"},
                                              {"path": str(path), "name": "latest.json"}], "0.7.0-beta.2")
 
-    def test_beta_android_receipt_passes_publication_without_latest_json(self):
+    def test_beta_platform_receipt_passes_publication_without_latest_json(self):
         config = self.config()
         config["worktree"].mkdir()
         receipt = Path(config["receipt"])
         receipt.parent.mkdir(parents=True)
-        assets = self.android_receipt(version="0.7.0-beta.2")
+        assets = self.platform_receipt()
         receipt.write_text(json.dumps({"commit": self.commit, "assets": assets}))
         with patch.object(tag_release, "resolve_tag", return_value=self.commit), \
                 patch.object(tag_release, "prepare_worktree"), patch.object(tag_release, "upload") as upload:
             tag_release.invoke_agent(config, "v0.7.0-beta.2", self.commit)
         self.assertEqual([item["name"] for item in upload.call_args.args[2]],
-                         ["Persona-0.3.0-android.apk", "android.json"])
-
-    def test_android_index_must_describe_its_apk_and_version(self):
-        tag_release.check_android_index(self.android_receipt(), "0.3.0")
-        with self.assertRaisesRegex(tag_release.ConfigError, "not version 0.3.1"):
-            tag_release.check_android_index(self.android_receipt(), "0.3.1")
-        with self.assertRaisesRegex(tag_release.ConfigError, "size or sha256"):
-            tag_release.check_android_index(self.android_receipt(sha256="0" * 64), "0.3.0")
-        with self.assertRaisesRegex(tag_release.ConfigError, "not an APK in the receipt"):
-            tag_release.check_android_index(self.android_receipt(name="Persona-0.2.1-android.apk"), "0.3.0")
-        for change in ({"version_code": 0}, {"version_code": "105432"}, {"package_name": ""}, {"certificate_sha256": "c"}):
-            with self.subTest(change=change), self.assertRaisesRegex(tag_release.ConfigError, "no valid package"):
-                tag_release.check_android_index(self.android_receipt(**change), "0.3.0")
-        # Another platform's receipt, without android.json, is not an Android index to check.
-        tag_release.check_android_index(self.release_receipt(), "0.3.0")
-
-    def test_android_index_goes_up_after_its_apk(self):
-        assets = self.android_receipt()
-        uploads = []
-
-        def run(command, **kwargs):
-            uploads.append([Path(arg).name for arg in command[6:]])
-            return subprocess.CompletedProcess(command, 0)
-
-        remote = [{"name": item["name"], "digest": "sha256:" + tag_release.hashlib.sha256(Path(item["path"]).read_bytes()).hexdigest()}
-                  for item in assets]
-        with patch.object(tag_release.subprocess, "run", side_effect=run), patch.object(tag_release.subprocess, "check_output", side_effect=[
-                json.dumps({"tagName": "v0.3.0", "isDraft": False, "assets": []}), json.dumps(remote)]):
-            tag_release.upload("example/project", "v0.3.0", assets)
-        self.assertEqual(uploads, [["Persona-0.3.0-android.apk"], ["android.json"]])
-
-    def test_mismatched_android_index_is_never_uploaded(self):
-        config = self.config()
-        receipt = Path(config["receipt"])
-        receipt.parent.mkdir(parents=True, exist_ok=True)
-        receipt.write_text(json.dumps({"commit": self.commit, "assets": self.android_receipt(size=1)}))
-        with patch.object(tag_release, "prepare_worktree", side_effect=lambda config, commit: config["worktree"].mkdir()), patch.object(tag_release, "upload") as upload:
-            with self.assertRaisesRegex(tag_release.ConfigError, "size or sha256"):
-                tag_release.publish_once(config, "v0.3.0", self.commit)
-            upload.assert_not_called()
+                         ["Persona-0.3.0-worker.pkg"])
 
     def test_mismatched_release_manifest_is_never_uploaded(self):
         data = json.loads(self.config_path.read_text())
@@ -876,7 +832,7 @@ class TagReleaseTests(unittest.TestCase):
             events.append(command)
             self.assertEqual(command[-2:], [str(Path(tag_release.__file__).with_name("tag_release_prompt.md")), str(config["state_dir"] / "agent.log")])
             self.assertEqual(kwargs["env"]["PERSONA_RELEASE_COMMIT"], self.commit)
-            self.assertEqual(kwargs["env"]["PERSONA_RELEASE_PLATFORM"], "android")
+            self.assertEqual(kwargs["env"]["PERSONA_RELEASE_PLATFORM"], "worker")
             return subprocess.CompletedProcess(command, 0)
 
         with patch.object(tag_release, "prepare_worktree", side_effect=lambda config, commit: events.append("prepared")), patch.object(tag_release.subprocess, "run", side_effect=run), patch.object(tag_release, "publish_once", side_effect=lambda *args: events.append("published")):
@@ -897,7 +853,6 @@ class TagReleaseTests(unittest.TestCase):
         self.assertIn("--once", prompt)
         self.assertIn("store_verified", prompt)
         self.assertIn("<owner>/<name>", prompt)
-        self.assertIn("frozen native Mac", prompt)
 
 
 if __name__ == "__main__":

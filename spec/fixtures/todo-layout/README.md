@@ -4,9 +4,8 @@ The To-dos window rule (#10465; `docs/design/proposals/todos-redesign.md` ("3.8 
 window, its text size and what the owner asked for → which regions show, in which form and how wide.
 `scripts/test/test_todo_fixtures.py` checks the format, that the regions fill the window, that every window of the
 proposal's table is here at the default text size with the conversation closed and open and the table's widths, and
-holds every case to the rule below. No client reads them yet: each will replay them with its own pure function
-(proposal 3.8's `todoPanes`), never in the shared core (proposal 7.2), iOS first (#10465), the web and Android from
-their stages.
+holds every case to the rule below. No client reads them yet (#10465); a client would replay them with its own pure function
+(proposal 3.8's `todoPanes`).
 
 | File | What it pins | Cases |
 | --- | --- | --- |

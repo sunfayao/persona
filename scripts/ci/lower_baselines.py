@@ -17,9 +17,6 @@ ratchet reported as left alone, as is one whose update fails: a count above its 
 would let take sizes that moved to it, or a prompt-size move between pieces is a change's business, not tidying. A
 ratchet whose tools are missing here (go, or web/node_modules) is skipped and says so.
 
-Apple's ratchets (TokenRatchetTests and the other PersonaTests baselines, the isolation and performance baselines under
-scripts/test) are not here yet: they are lowered and verified on a Mac.
-
 Exit codes: 0 every ratchet was lowered, already at its counts or skipped; 1 one was left alone; 2 bad arguments.
 """
 import argparse
@@ -57,17 +54,6 @@ RATCHETS = (
             [PYTHON, "scripts/ci/web_font_ratchet.py", "--update"], timeout=300),
     Ratchet("prompt-language", "prompt templates without language handling", ["scripts/ci/prompt_language_baseline.json"],
             [PYTHON, "scripts/ci/prompt_language_ratchet.py", "--update"], timeout=300),
-    Ratchet("android-i18n", "hard-coded Chinese, Japanese and English text in Android code",
-            ["android/**/i18n-baseline.json", "android/**/i18n-english-baseline.json"],
-            [PYTHON, "scripts/app/android_i18n_check.py", "--update"], timeout=300),
-    Ratchet("android-tokens", "hard-coded Android design values and Material 3 components in pages",
-            ["android/core/designsystem/tools/token-baseline.json"],
-            [PYTHON, "scripts/app/android_token_baseline.py", "--update-baseline"], timeout=300),
-    Ratchet("android-motion", "literal Android animation specs", ["android/core/designsystem/tools/motion-baseline.json"],
-            [PYTHON, "scripts/app/android_motion_baseline.py", "--update-baseline"], timeout=300),
-    Ratchet("android-slot-order", "Android design-system components that end after their slot",
-            ["android/core/designsystem/tools/slot-order-baseline.json"],
-            [PYTHON, "scripts/app/android_slot_order.py", "--update-baseline"], timeout=300),
     Ratchet("hub-hardcoded-text", "hard-coded Chinese in the hub's code and command lines",
             ["server/internal/i18n/hardcoded-baseline.json", "server/internal/i18n/hardcoded-terminal-baseline.json"],
             ["go", "test", "-count=1", "-run", "^(TestHardcodedChineseBaseline|TestHardcodedTerminalBaseline)$",

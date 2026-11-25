@@ -3,7 +3,6 @@
 MOCK_DOCK=1 (with MOCK_TASKS): the To Decide pager over the composer gets several kinds: the widget fix asks to run a
 command (a tool approval) and the blog migration asks a question read off its terminal (a screen card with no tool use
 id). GET /mock/reset puts both back unanswered, and the network tests' question.
-apple/PersonaUITests/QuestionDockTests.swift drives it.
 """
 import copy
 import os

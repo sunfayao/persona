@@ -31,25 +31,16 @@ class ReleaseWorkflowTests(unittest.TestCase):
 
     def test_all_platforms_feed_the_one_verified_plan(self):
         jobs = self.pr["jobs"]
-        self.assertEqual(jobs["verify"]["needs"], ["plan", "cli-web", "android", "apple", "windows"])
-        self.assertEqual(jobs["apple"]["needs"], ["plan", "cli-web", "android"])
-        self.assertEqual(jobs["windows"]["needs"], ["plan", "cli-web", "android"])
-        self.assertEqual(jobs["android"]["environment"], "persona-release")
-        self.assertEqual(jobs["apple"]["environment"], "persona-release")
+        self.assertEqual(jobs["verify"]["needs"], ["plan", "cli-web", "windows"])
+        self.assertEqual(jobs["windows"]["needs"], ["plan", "cli-web"])
         self.assertEqual(jobs["windows"]["environment"], "persona-release")
-        for name in ("android", "apple", "windows"):
-            self.assertIn("release-pr-" + name + "-", str(jobs[name]))
+        self.assertIn("release-pr-windows-", str(jobs["windows"]))
         self.assertNotIn("cli-web", jobs["cli-web"].get("environment", ""))
         self.assertNotIn("secrets.", str(jobs["cli-web"]))
         upload = next(step for step in jobs["cli-web"]["steps"] if step.get("uses") == "actions/upload-artifact@v4")
         self.assertEqual(upload["if"], "always()")
         self.assertIn("unverified artifacts are diagnostic only", str(jobs["cli-web"]))
-        self.assertEqual(jobs["android"]["steps"][2]["with"]["packages"], "platform-tools")
         self.assertEqual(jobs["cli-web"]["steps"][5]["env"]["NODE_OPTIONS"], "--max-old-space-size=4096")
-        self.assertIn('--receipt "$RUNNER_TEMP/android-receipt.json"', str(jobs["android"]))
-        self.assertEqual(jobs["android"]["steps"][4]["with"]["path"], "${{ runner.temp }}/release-plan")
-        self.assertIn('RUNNER_TEMP', str(jobs["android"]))
-        self.assertNotIn("Path('release/plan.json')", str(jobs["android"]))
         self.assertIn('release-pr-plan-${{ needs.plan.outputs.pr }}', str(jobs))
         self.assertIn('release-pr-plan-${{ steps.source.outputs.number }}', str(jobs["plan"]))
         self.assertNotIn('release-pr-plan-${{ steps.plan.outputs.pr }}-${{ steps.plan.outputs.commit }}', str(jobs["plan"]))
@@ -67,18 +58,16 @@ class ReleaseWorkflowTests(unittest.TestCase):
                     if step.get("name") == "Require every platform job to succeed before verification")
         self.assertEqual(gate["env"], {
             "CLI_WEB": "${{ needs.cli-web.result }}",
-            "ANDROID": "${{ needs.android.result }}",
-            "APPLE": "${{ needs.apple.result }}",
             "WINDOWS": "${{ needs.windows.result }}",
         })
         for failed in ("failure", "skipped", "cancelled"):
             with self.subTest(platform_result=failed):
                 result = subprocess.run(["bash", "-c", gate["run"]],
-                                        env=dict(os.environ, CLI_WEB=failed, ANDROID="success", APPLE="success", WINDOWS="success"),
+                                        env=dict(os.environ, CLI_WEB=failed, WINDOWS="success"),
                                         capture_output=True, text=True, timeout=10)
                 self.assertNotEqual(result.returncode, 0)
         self.assertEqual(subprocess.run(["bash", "-c", gate["run"]],
-                                        env=dict(os.environ, CLI_WEB="success", ANDROID="success", APPLE="success", WINDOWS="success"),
+                                        env=dict(os.environ, CLI_WEB="success", WINDOWS="success"),
                                         capture_output=True, text=True, timeout=10).returncode, 0)
         self.assertIn('test "$result" = success', verify_script)
         self.assertIn("--conclusion success", verify_script)
@@ -128,46 +117,14 @@ class ReleaseWorkflowTests(unittest.TestCase):
                 self.assertEqual(failed.returncode, 37)
                 self.assertIn("unverified artifacts are diagnostic only", failed.stderr)
 
-    def test_android_release_reuses_exact_source_shards_before_signing(self):
-        workflow = (ROOT / ".github/workflows/android-test.yml").read_text()
-        release = PR.read_text()
-        self.assertIn("required: true", workflow)
-        self.assertEqual(yaml.load((ROOT / ".github/workflows/ci.yml").read_text(), Loader=yaml.BaseLoader)["jobs"]["android"]["with"]["commit"], "${{ github.sha }}")
-        self.assertIn("ref: ${{ inputs.commit || github.sha }}", workflow)
-        self.assertIn("lane: [lint-build-test-0, test-1]", workflow)
-        self.assertIn("android-source-receipt-${{ inputs.commit || github.sha }}-${{ matrix.lane }}", workflow)
-        self.assertIn("JOB_STATUS: ${{ job.status }}", workflow)
-        self.assertIn("uses: ./.github/workflows/android-test.yml", release)
-        self.assertIn("commit: ${{ needs.plan.outputs.commit }}", release)
-        self.assertIn("pattern: android-source-receipt-${{ needs.plan.outputs.commit }}-*", release)
-        self.assertIn("--release-only", release)
-        self.assertIn("Android test evidence belongs to another commit", release)
-        self.assertEqual(self.pr["jobs"]["android"]["needs"], ["plan", "android-tests"])
-
-    def test_apple_archive_stages_exact_source_and_resolved_input(self):
-        text = PR.read_text()
-        for required in ('scripts/ci/apple_release_source.py', '--source "$GITHUB_WORKSPACE"',
-                         '--destination "$RUNNER_TEMP/apple-release-source"', '--meta "$meta"',
-                         'PERSONA_RELEASE_SOURCE'):
-            self.assertIn(required, text)
-        release = (ROOT / 'scripts/release/release.sh').read_text()
-        self.assertIn('cd "$PERSONA_RELEASE_SOURCE"', release)
-        self.assertLess(release.index('cd "$PERSONA_RELEASE_SOURCE"'), release.index('python3 scripts/persona_config.py xcconfig'))
-
-    def test_windows_requires_native_execution_and_authenticode(self):
+    def test_windows_requires_native_execution(self):
         text = PR.read_text()
         for program in ("persona-link", "personad", "persona-node"):
             self.assertIn(program + "-windows-amd64.exe.gz", text)
-        self.assertIn("PERSONA_DESKTOP_REQUIRE_SIGNING", text)
-        self.assertIn("Get-AuthenticodeSignature", text)
-        self.assertIn("beta.yml", text)
-        self.assertIn("latest.yml", text)
-        # Native Windows checks must still run when Apple signing fails. Apple is a separate dependency of the
-        # final aggregate, not an input to the Windows executables or desktop package.
+        self.assertNotIn("Authenticode", text)
         windows = self.pr["jobs"]["windows"]
-        self.assertNotIn("apple", windows["needs"])
-        self.assertNotIn("release-pr-apple", str(windows))
-        self.assertEqual(self.pr["jobs"]["verify"]["needs"], ["plan", "cli-web", "android", "apple", "windows"])
+        self.assertEqual(windows["needs"], ["plan", "cli-web"])
+        self.assertEqual(self.pr["jobs"]["verify"]["needs"], ["plan", "cli-web", "windows"])
 
     def test_pr_metadata_survives_the_clean_source_checkout(self):
         text = PR.read_text()
@@ -224,7 +181,6 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn("Independently download every uploaded artifact", text)
         self.assertLess(text.index("independent_download_verified"), text.index("beta_channel_release.py"))
         self.assertIn("check_windows_artifacts", text)
-        self.assertIn("check_android_index", text)
         self.assertNotIn("--no-verify", text)
 
     def test_schedule_opens_only_release_prs_and_never_publishes_directly(self):
@@ -353,22 +309,19 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('ref: ${{ github.event.workflow_run.head_sha || github.sha }}', publish)
         self.assertLess(publish.index('actions/checkout@v4'), publish.index('verify-merged-pr'))
         self.assertLess(pr.index('actions/checkout@v4', pr.index('name: All available release-PR checks passed')), pr.index('verify-artifacts --plan', pr.index('name: All available release-PR checks passed')))
-        self.assertIn('GITHUB_WORKSPACE', pr)
         self.assertIn('ci_release_config.py public', pr)
         self.assertIn('releases/latest/download', (ROOT / 'scripts/operations/ci_release_config.py').read_text())
         self.assertIn('targetCommitish', publish)
-        self.assertLess(publish.index('for name in VERSION SHA256SUMS android.json latest.json'), publish.index('Independently download every uploaded artifact'))
+        self.assertLess(publish.index('for name in VERSION SHA256SUMS latest.json'), publish.index('Independently download every uploaded artifact'))
         self.assertLess(publish.index('Wait for the tag-triggered container and Release workflow'), publish.index('Upload verified downloads'))
         self.assertIn('github.event.workflow_run.actor.login', publish)
-        self.assertIn('PERSONA_APPLE_DISTRIBUTION_P12_BASE64', pr)
-        self.assertIn('PERSONA_APPLE_PROFILE_6_BASE64', pr)
 
     def test_old_darwin_job_cannot_overwrite_release_pr_artifacts(self):
         text = (ROOT / '.github/workflows/release.yml').read_text()
         self.assertIn('release-pr: [0-9]+', text)
         self.assertIn("steps.owner.outputs.release_pr == 'false'", text)
         self.assertIn('release-publish owns its exact artifacts', text)
-        self.assertIn('for name in VERSION SHA256SUMS android.json latest.json', PUBLISH.read_text())
+        self.assertIn('for name in VERSION SHA256SUMS latest.json', PUBLISH.read_text())
 
     def test_stable_latest_promotion_follows_independent_artifact_verification(self):
         text = PUBLISH.read_text()

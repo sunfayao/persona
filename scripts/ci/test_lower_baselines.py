@@ -197,7 +197,6 @@ class CheckoutTests(unittest.TestCase):
                 for script in scripts:
                     self.assertTrue((ROOT / ratchet.cwd / script).is_file(), script)
                 self.assertTrue((ROOT / ratchet.cwd).is_dir())
-                self.assertFalse(any(pattern.startswith("apple/") for pattern in ratchet.files))
 
     def test_list_names_every_ratchet(self):
         out = io.StringIO()

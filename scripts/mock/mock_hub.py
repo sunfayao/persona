@@ -2541,7 +2541,7 @@ RUNS = sorted([
 ], key=lambda r: r["at"], reverse=True)
 if os.environ.get("MOCK_SCHEDULE") == "empty":
     SCHEDULE[:], RUNS[:] = [], []
-SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})  # a dict, so scripts/android.sh anonymises it too
+SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
@@ -8369,7 +8369,7 @@ if os.environ.get("MOCK_WORKFLOW") == "1":
             ITEMS[_a["session_id"]] = [it("user", "text", 14, text="%s：审这一块，列出问题" % _a["label"]),
                                        it("assistant", "text", 13, text=_a.get("last_text") or "这一块看完了，没有发现问题。")]
 # MOCK_MENTIONS=1 (#2319, the composer's @ list): the review agent read two files of its folder, each call alone between
-# replies, so the hub leaves them unfolded (fold_work) and they are this chat's files in the app (PersonaUITests/MentionMenuTests).
+# replies, so the hub leaves them unfolded (fold_work) and they are this chat's files in the app (the mention menu's tests).
 if os.environ.get("MOCK_MENTIONS"):
     ITEMS[REVIEW] = (_REVIEW_BEFORE + [it("user", "text", 100, text="看一下 PR #42")]
                      + tool("Read", {"file_path": "/Users/me/code/weather/README.md"}, "# Weather", 99)
@@ -14539,7 +14539,7 @@ if os.environ.get("MOCK_LARK_TOPIC"):
                   "lark": {"feed_id": "f4", "is_group": True, "is_topic": True, "start_position": "405", "read_position": "404"}})
 
 
-# MOCK_LARK_RICH=1 (docs/operations/testing.md "Jank measurement"): f3's history is heavier, like a busy work group's: every third message
+# MOCK_LARK_RICH=1 (docs/operations/testing.md): f3's history is heavier, like a busy work group's: every third message
 # before the unread ones is a card, a picture or a rich post instead of a line of chatter.
 if os.environ.get("MOCK_LARK_RICH"):
     for _i, _m in enumerate(m for m in LARK_MESSAGES["f3"] if int(m["position"]) < 300 and not m.get("is_mine")):
@@ -17798,7 +17798,7 @@ if os.environ.get("MOCK_CARDS") == "1":
             "```persona-card\n{\"type\": \"stat\", \"title\": \"步\n```",
         ])),
     ]
-# The health space's conversations (docs/assistant/tracks.md "Charts", #3140): the numbers in each answer come with the charts its
+# The health space's conversations (docs/assistant/tracks.md, #3140): the numbers in each answer come with the charts its
 # CLAUDE.md asks for: sleep and steps by day as lines, a stat for today's steps, each meal's calories as bars, how the
 # day's calories split as a stacked bar, the details as a table. Made-up numbers.
 _hcard = lambda d: "```persona-card\n" + json.dumps(d, ensure_ascii=False) + "\n```"
@@ -18141,7 +18141,7 @@ if os.environ.get("MOCK_TITLES") == "1":
 
 # MOCK_LONG_ASSISTANT=1: the Persona tab's main conversation is a long one, like the one a user keeps for weeks: sixty
 # exchanges, each with a few tool calls and a long Markdown reply (headings, lists, a table, a code block), for measuring
-# the Persona page's frames (docs/operations/testing.md "Jank measurement").
+# the Persona page's frames (docs/operations/testing.md).
 if os.environ.get("MOCK_LONG_ASSISTANT") == "1":
     _long = []
     for _n in range(60):
@@ -24844,9 +24844,7 @@ def upgrades_route(handler, p, req):
 
 # ---------- MOCK_EXTENSIONS: places outside the app (docs/extensions/extensions.md "System-level placements") ----------
 # example-gateway draws a widget "today" (small / medium / Lock Screen and watch face complications) that opens its
-# nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename). A sample of an
-# extension's notification with buttons is scripts/mock/apns/extension-notification.apns:
-#   xcrun simctl push <udid> <bundle id> scripts/mock/apns/extension-notification.apns
+# nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename).
 _WIDGETS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "today", "title": "今天的用量",
              "families": ["small", "medium", "accessory_circular", "accessory_rectangular", "accessory_inline"], "refresh_minutes": 30, "opens": "usage"}]
 _SHORTCUTS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "usage_today", "title": "今天用了多少",

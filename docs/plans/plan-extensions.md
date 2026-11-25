@@ -57,10 +57,9 @@ Each has half: hub extensions have generic process management and HTTP forwardin
   `extension/serve` (the program side), `extension/conformance`; migration `0291`; hub endpoints and `personad extension`; voice (hub.json) and Telegram (built-in) moved over;
   `connector/serve` recognizes the extension handshake, `connector/proc` can talk through an extension process (`Link`); docs `docs/extensions/extensions.md`, `docs/protocol/connector-protocol.md`.
 - [x] **1b: App Settings › Extensions** (iOS, page shared with Mac): list, details (permissions, contributions, about), config form drawn from `form.fields`, write-only secrets, switch;
-  mock hub `MOCK_EXTENSIONS=1`, UI tests and unit tests, screenshots checked in default / BeautifulUI styles × light and dark (`docs/extensions/extensions.md` ("App: Settings › Extensions")).
+  mock hub `MOCK_EXTENSIONS=1`, UI tests and unit tests, screenshots checked in default / BeautifulUI styles × light and dark (`docs/extensions/extensions.md`).
 - [x] The admin UI's **Extensions** page (#1208): list, switch, install (directory / package / https / upload / remote, preview first), upgrade (an explicit warning when permissions grow), rollback, uninstall (data can be kept).
 - [x] The web extensions page (#1207).
-- [x] The Android extensions page (#1206, `docs/android/android.md` ("Extensions (Settings › Extensions)")).
 - [x] **Step 2 (server)**: extension point `quota` (extensions never see the Key: `quota.query` + `quota.http` sent on their behalf by the hub / node, placeholder `${launcher_key}`, same-origin restriction, permission `launcher_keys`),
   `providers` (declare providers, `GET /api/v1/launchers/presets`, new launchers carry `preset`); node's `launchers.quota` replaced by `launchers.http`; `server/internal/quota` keeps only the generic part,
   and the two gateways' readers moved to a private extension repository (ownership in `CLAUDE.local.md`). The spec is in `docs/extensions/extensions.md` ("Quota", "Model providers").

@@ -5,7 +5,6 @@ cutaway walls with a doorway and a glass window, a sofa, a round table, a TV and
 pins in plain words. Tapping a pin pushes its device page; each draw toggles the bedroom lamp so a redraw changes pin
 and light state while keeping the same key and shapes. An overview card shows the scene as a still preview. All names
 are invented. MOCK_EXTENSION_SCENE_DOWNGRADE=1 answers as for an app before UI version 11 (the scene's fallback items).
-apple/PersonaUITests/ExtensionSceneUITests.swift drives it.
 """
 import json
 import os

@@ -190,8 +190,7 @@ def read_receipt(path, commit):
 
 # The release index files hubs and install.sh read: uploaded after the downloads they list, latest.json the very last,
 # so a hub never reads a manifest whose files are not there yet (GitHub serves an asset as soon as it is uploaded).
-# android.json is the Android platform's: the signed APK hubs offer their phones (android_tag_release.py).
-INDEX_FILES = ("VERSION", "SHA256SUMS", "android.json", "latest.json")
+INDEX_FILES = ("VERSION", "SHA256SUMS", "latest.json")
 
 
 def host_platform():
@@ -336,30 +335,6 @@ def check_release_manifest(assets, repository=None, expected_version=None):
             ran = True
     if not ran:
         raise ConfigError("latest.json has no personad that runs on this machine (%s) to check it with" % here)
-
-
-def check_android_index(assets, version):
-    """A receipt with android.json (the Android platform's) must ship the APK it names, at its size and sha256, for
-    this version: hubs download that APK and offer it to every phone (docs/operations/release.md "Android on version tags")."""
-    by_name = {item["name"]: Path(item["path"]) for item in assets}
-    if "android.json" not in by_name:
-        return
-    try:
-        index = json.loads(by_name["android.json"].read_text())
-    except (OSError, ValueError) as error:
-        raise ConfigError("android.json does not read: " + str(error)) from error
-    if not isinstance(index, dict) or index.get("version") != version:
-        raise ConfigError("android.json is not version " + version)
-    code = index.get("version_code")
-    if type(code) is not int or not 0 < code <= 2100000000 or not isinstance(index.get("package_name"), str) \
-            or not index["package_name"] or not re.fullmatch(r"[0-9a-f]{64}", str(index.get("certificate_sha256"))):
-        raise ConfigError("android.json has no valid package, version code or certificate")
-    name = index.get("name")
-    path = by_name.get(name) if isinstance(name, str) and name.endswith(".apk") else None
-    if path is None:
-        raise ConfigError("android.json names %s, which is not an APK in the receipt" % name)
-    if path.stat().st_size != index.get("size") or hashlib.sha256(path.read_bytes()).hexdigest() != index.get("sha256"):
-        raise ConfigError("%s is not the APK android.json describes (size or sha256)" % name)
 
 
 def verify_remote_assets(repository, tag, assets, listed, gh="gh", missing=False):
@@ -690,11 +665,10 @@ def validate_assets(config, tag, assets):
     except ValueError as error:
         raise ConfigError(str(error)) from error
     if is_beta_tag(tag):
-        # A platform receipt is independent: Android has its signed APK and index, iOS only its store receipt.
+        # A platform receipt is independent of the hub's.
         # Only the hub worker has latest.json; if present it can never point beta at a stable or another version.
         check_beta_manifest(assets, tag[1:])
     check_release_manifest(assets, config["repository"], tag[1:])
-    check_android_index(assets, tag[1:])
 
 
 def finish_publication(config, tag, commit, platform, assets):

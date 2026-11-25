@@ -3,8 +3,7 @@
 - **Status:** decided 2026-11-18 (#10051): V1 Paper and Pane, decisions 2–7 as recommended, and the section bar puts
   All first. Being built in the stages of section 7.6 (#10174).
 - **Built on** (decided elsewhere; a change to one is named where it happens and again in section 5): the super rules,
-  `docs/design/PRINCIPLES.md`, the navigation options of `docs/design/sidebar-navigation.md` (option 2 on phones,
-  option 3 at regular widths), task cards P1–P7 (`docs/design/task-cards.md`), the Inbox's section bar (#9053) and the
+  `docs/design/PRINCIPLES.md`, task cards P1–P7 (`docs/design/task-cards.md`), the Inbox's section bar (#9053) and the
   message states of DESIGN_SYSTEM 4.3. "DESIGN_SYSTEM 4.3" is a section of `docs/design/DESIGN_SYSTEM.md`; a bare
   "section 4.3" is this document's.
 - **Decided:** the seven owner decisions in section 5, after the owner clicked through the three prototypes in
@@ -68,15 +67,14 @@ Line numbers in this document are as of `origin/main` d2187cc84b (2026-11-18).
 
 | # | Problem | Evidence (repository) |
 | --- | --- | --- |
-| 1 | **Two to-do pages on every client**, showing different things: a record-first form and a conversation-first sheet or panel. Some features exist on only one (on iOS and Android the one-tap answer to a to-do's ask lives only on the chat side) | iOS `TodoDetailView` (`apple/Persona/Views/Todos/TodoDetailView.swift`) and `TaskDetailSheet` (`apple/Persona/Views/Assistant/Tasks/TaskSheets.swift`); web `TodoDetail` (`web/src/views/Todos.tsx:2019`) and `TaskPanel` (`web/src/views/assistant/TaskPanel.tsx`); Android `TodoDetailScreen` and `TaskDetailSheet` / `TaskDetailPage` (`android/feature/agents/…/TodoDetailScreen.kt`, `android/feature/chat/…/AssistantTaskSheets.kt`) |
-| 2 | **The conversation is a detour.** Opening an Agent from a to-do leaves To-dos; on iPhone the app switches to Agents, and Back lands on the Agents list, not on the to-do. From the main chat the to-do shrinks to a banner over the Agent's chat | `TodoDetailView.swift:407-413` → `apple/Persona/App/AppModel.swift:1574-1604`; web `Todos.tsx:2316` navigates to the session, and "Answer in chat" opens the origin conversation; `docs/assistant/unified-entry.md` "Task details" |
+| 1 | **Two to-do pages on every client**, showing different things: a record-first form and a conversation-first sheet or panel. Some features exist on only one | web `TodoDetail` (`web/src/views/Todos.tsx:2019`) and `TaskPanel` (`web/src/views/assistant/TaskPanel.tsx`) |
+| 2 | **The conversation is a detour.** Opening an Agent from a to-do leaves To-dos. From the main chat the to-do shrinks to a banner over the Agent's chat | web `Todos.tsx:2316` navigates to the session, and "Answer in chat" opens the origin conversation; `docs/assistant/unified-entry.md` "Task details" |
 | 3 | **No to-do has a conversation of its own.** "Talking to a to-do" routes text through the conversation that created it to its most urgent Agent, refused for any other caller. Only a bound Lark topic behaves like a thread of its own. A to-do attaches to conversations in 16 ways, with no timeline and no "send to this to-do" | `server/internal/assistant/tasks_follow.go:749` (`routeToTaskAs`) and the same guard in `decision.go:364` (`routeDecisionAnswer`) |
-| 4 | **Feature soup on the page.** The web detail stacks about 20 blocks in one 760-px column; iOS stacks about 10 sections. A new to-do already shows about nine blocks. "Project" means three things on one screen (the knowledge-base project, linked workspaces, and a Folder grouping that falls back to the repository). The web list offers 4 groupings × 5 due filters × 3 sorts | `TodoDetailView.swift:188-340`; `apple/Persona/Views/Todos/TodoPlanViews.swift:127-167`; `web/src/views/Todos.tsx:2019-2470` |
+| 4 | **Feature soup on the page.** The web detail stacks about 20 blocks in one 760-px column. A new to-do already shows about nine blocks. "Project" means three things on one screen (the knowledge-base project, linked workspaces, and a Folder grouping that falls back to the repository). The web list offers 4 groupings × 5 due filters × 3 sorts | `web/src/views/Todos.tsx:2019-2470` |
 | 5 | **One object, five domains**: the owner's intent, delegation, oversight and acceptance, requests to the owner, and software delivery, plus bindings to conversations and channels. One row with 26 columns, 12 more tables, about 16 settings blobs and about 25 in-memory books; the `Todo` struct has about 40 JSON fields. About 77 concepts hang off it, about 15 of them essential; about 10 implicit signals decide what kind of thing a row is, and 13 server paths create to-dos | `server/internal/assistant/todos.go:49-132`; `server/internal/db/migrations/manager/` |
-| 6 | **Status chaos.** About 26 independent status axes; the visible status is computed in at least nine places with six vocabularies. The status rules are hand-copied in Go (612 lines), TypeScript (353), Swift (432) and Kotlin (389), and HarmonyOS has a six-state view of its own; only the web and Go replay the 82 shared fixture cases. Four partitions of open work compete: the status rules' eight sections, the tray's entries, the direction tree's five states and PR #9823's five groups. A failed start is stored as done | `server/internal/assistant/todo_triage.go`, `web/src/lib/todo-triage.ts`, `apple/Shared/TodoTriage.swift`, `android/core/domain/…/tasks/TodoTriage.kt`, `harmony/entry/src/main/ets/models/TodoWorkspace.ets:192`; `spec/fixtures/triage`; `docs/assistant/todo-status-sop.md` ("Sections"); `server/internal/assistant/direction_tree.go:52` |
-| 7 | **Counts disagree on one screen.** The iOS sidebar's To-dos number counts every open, non-quiet to-do and draws it in the needs-you tone, while the page's own "open" rule leaves out shelved, accepted and deployed ones. On the web, the sidebar's Agents block counts its Needs you filter in sessions while the To-dos page beside it counts its Needs you section in to-dos, so one screen shows Needs you with two numbers | `apple/Persona/App/TodoStore.swift:129`; `apple/Persona/Views/Assistant/AssistantSidebar.swift:1304`, `:1515`; `apple/Shared/TodoTriage.swift:227-231`; `docs/design/DESIGN_SYSTEM.md` ("One count, per session") |
-| 8 | **A developer flow on an everyday page.** Hand to Agent asks for a computer, folder, worktree, launcher and model. The list shows "PR to Merge" next to Needs you. HarmonyOS already hands to the Assistant by default, which is the closest to super rule 4 | `apple/Persona/Views/Todos/TodoHandoffSheet.swift:103`; `apple/Shared/TodoTriage.swift:13-40` |
-| 9 | **No list beside the detail on iPad, the open Duo or Android regular windows.** The detail pushes over a list stretched to the full page; there is no inspector anywhere under `apple/`. The web already has sidebar, list and detail | `apple/Persona/Views/Todos/TodosView.swift:116`; Android `paneMetadata` gives list/detail roles only to Agents, Inbox and Settings (`android/app/src/main/java/persona/android/ui/Root.kt:1247`) |
+| 6 | **Status chaos.** About 26 independent status axes; the visible status is computed in at least nine places with six vocabularies. The status rules are hand-copied in Go (612 lines) and TypeScript (353); both replay the 82 shared fixture cases. Four partitions of open work compete: the status rules' eight sections, the tray's entries, the direction tree's five states and PR #9823's five groups. A failed start is stored as done | `server/internal/assistant/todo_triage.go`, `web/src/lib/todo-triage.ts`; `spec/fixtures/triage`; `docs/assistant/todo-status-sop.md` ("Sections"); `server/internal/assistant/direction_tree.go:52` |
+| 7 | **Counts disagree on one screen.** On the web, the sidebar's Agents block counts its Needs you filter in sessions while the To-dos page beside it counts its Needs you section in to-dos, so one screen shows Needs you with two numbers | `docs/design/DESIGN_SYSTEM.md` ("One count, per session") |
+| 8 | **A developer flow on an everyday page.** Hand to Agent asks for a computer, folder, worktree, launcher and model. The list shows "PR to Merge" next to Needs you. | `web/src/lib/todo-triage.ts` |
 | 10 | **The whole list is fetched again on every change.** Every to-do write sends a bare `{"type":"todos"}` and every client re-reads the merged, unpaginated list (about 200 KB on a busy hub). On the web a tick is not optimistic: PATCH, a whole-list read, `refresh()`, then the push's read: about 3 full list reads and 9 requests | `server/internal/assistant/todos.go:422-465`; `web/src/views/Todos.tsx:553-561`; `web/src/lib/store.ts:1359-1384` |
 
 For scale: iOS To-dos views are 14 files and 4,480 lines; `web/src/views/Todos.tsx` is 3,387 lines; Android has about
@@ -120,9 +118,6 @@ the conversation unfolding only when wanted. The research keeps the idea and its
    Back history. On phones it becomes the destination.
 4. **Phones keep the to-do in view** with a docked composer for quick notes and a pushed conversation whose header is
    the to-do collapsed. No sheet.
-5. **Under the Duo's side bars, nothing slides sideways.** Moving the shell's pages sideways there cost about 28 ms a
-   frame (p95) (`docs/lessons/ios.md`, "Pages that move sideways under iPhone Duo's side bars"), so the left → right
-   flow is drawn as cross-fades.
 
 ---
 
@@ -174,7 +169,7 @@ selection. The zh-Hans words of every label in this section are in section 3.11.
   pick replaces the root, never animated (option 3). **Everywhere:** the list's title ("All To-dos ▾") is a menu of the
   same places, the second way in that the HIG asks for.
 
-**States are a Filter at the list's foot** (amended 2026-11-21, `docs/design/DECISIONS.md` "11-21 The To-dos list";
+**States are a Filter at the list's foot** (amended 2026-11-21, `docs/design/DECISIONS.md`;
 first drawn as the Inbox's section bar), in All To-dos and each project's place: the same choices as the Inbox's bar, as
 a pop-up at the leading end of the foot toolbar, Mail's, beside the system's search field and **+** (New To-Do). Its
 menu always lists all five with how many each would show; a choice on names itself, with its own ×; the choice is not
@@ -400,8 +395,7 @@ closing the pane, folding, resizing and relaunch, and is cleared only when the h
   message). In a Persona chat it is `interrupt` with `send_now`: the step it was on stops or, when it can, goes on in
   the background. Elsewhere the hub refuses with 409 `send_now_unsupported`.
 - **Which runs support it is not on the wire today**: `SessionCapabilities` has no such field
-  (`server/internal/proto/codex.go`), and clients guess (web `QueuePanel.tsx`, Apple `steersQueue`, Android
-  `SessionSource.kt`). A new session capability, `send_now`, set by the node, replaces the guesses.
+  (`server/internal/proto/codex.go`), and clients guess (web `QueuePanel.tsx`). A new session capability, `send_now`, set by the node, replaces the guesses.
 - **To the steward:** it decides, and its relay line says what it did. "Stop" and "wait" go now; scope and detail queue.
 
 **Message states** (super rule 5; DESIGN_SYSTEM 4.3, said once: the round's status line is replaced as it advances):
@@ -474,7 +468,6 @@ The mock values are the prototypes' data (section 4.2).
 | A place's part of N | the same rule within a project | the project's sidebar row; a group header in By Project | Kyoto trip 1 · Weather App 1 · Home 1 |
 | **The Assistant's Needs you** | N + M, where M = sessions needing the owner that belong to no to-do + the conversation's own cards + plans waiting for Start + drafts (DESIGN_SYSTEM 4.8) | the composer's Needs you entry, grouped "To-dos · 3" / "Elsewhere · 1" so the parts add up | 4 |
 | Agents badge | sessions needing the owner (unchanged, `docs/design/DECISIONS.md` ("11-10 Needs You counts sessions")); a to-do's run counts here as the session it is | the Agents tab, the Agents list's Needs you section and filter | 2 |
-| Fleet Live Activity header | sessions needing the owner (unchanged, `docs/apple/live-activity.md`) | the Lock Screen and the Dynamic Island | 2 |
 | In progress | the rows of Working and Waiting; Just finished is listed at its foot but not counted (unchanged, #8237) | the Filter menu's In Progress line; the tray's In progress entry | 5 |
 | App icon | unchanged (the tab badges added up, #5824); its double counting belongs to #5974 | — | — |
 | Section counts | rows in the section in the current place; tinted only for Needs you | section headers, the Filter menu's lines | Working 2 · Waiting 3 · To do 2 · Just finished 2 |
@@ -513,19 +506,13 @@ homes and never copy a card, and the Agents count stays per session.
   `lockscreen` per ask: `answer` for safe choices, `open_only` for payments, merges, sends to other people and anything
   irreversible. One push per ask round, collapsed per to-do (as `TODO_DECIDE` is today). No push for a to-do that only
   finished, in line with #8237, which added no push for receipts or finished work.
-- **Live Activity.** The phone keeps one hub-pushed Live Activity, Fleet (`docs/apple/live-activity.md`), unchanged: it
-  lists the sessions that need the owner, at most two items with buttons on the first actionable one, then "+N". A run
-  working for a to-do may show the to-do's title as its subtitle; a to-do's own asks reach the Lock Screen through the
-  `TODO_DECIDE` notification above, not through Fleet.
-- **Widget.** The To-dos widget lists Needs you first, then Today, and ticks in place as today.
 
 ### 3.8 Layout per device: the window rule
 
 `todoPanes(window, insets, duoSideColumn, textScale, fold, wants) → [region: form, width]` is one pure function per
 client, replaying the new `todo-layout` fixtures. Each region's form is *beside*, *over*, *pushed* or *hidden*.
 Thresholds have 24 pt of hysteresis. Minimums scale with `scaledFrame` up to the xxxLarge cap, so larger text drops a
-region by arithmetic; there is no accessibility-size branch (DESIGN_SYSTEM 6.2,
-`scripts/test/test_apple_ax_branches.py`). Nothing is written while the scene is inactive.
+region by arithmetic; there is no accessibility-size branch (DESIGN_SYSTEM 6.2). Nothing is written while the scene is inactive.
 
 **Widths:**
 
@@ -558,8 +545,7 @@ region by arithmetic; there is no accessibility-size branch (DESIGN_SYSTEM 6.2,
 silent, such as how the 24-pt band holds a region.
 
 - **Per-place overlay.** While To-dos is in front, the sidebar lies over the page on windows where list and paper
-  don't fit beside it: iPad 11" portrait, iPad 13" portrait and the Duo inner landscape. Today the rule is "beside or
-  over by width alone" (`docs/apple/ios.md`), so this is owner decision 2 (iii). ☰ at the list's leading edge brings
+  don't fit beside it: iPad 11" portrait, iPad 13" portrait and the Duo inner landscape. This is owner decision 2 (iii). ☰ at the list's leading edge brings
   the sidebar over; a pick slides it away.
 - **The keyboard.** With the composer focused on an iPhone, the paper folds so that the title, state and open ask stay
   above the keyboard: the bar shows the title with the state as a subtitle, the ask folds to one line (44 pt), and
@@ -585,9 +571,6 @@ silent, such as how the 24-pt band holds a region.
 
 - **One thing moves at a time**: the sidebar stepping aside and the pane arriving are one transition. **Every enter has
   its reverse** on the same edge, and Back returns to where it started.
-- **The Duo's cross-faded pushes need a mechanism and a measurement.** Today only the shell's page switch cross-fades
-  under side bars (`ShellPageSlide`, `docs/apple/ios.md`); pushes inside a navigation stack still slide. The build names
-  a UIKit navigation animator for the To-dos stack and measures it on the Duo simulator before stage 2.
 - **Loops:** the working spinner on a ◐ mark (paused off screen) and the needs-you breath of DESIGN_SYSTEM 2.7, as on
   Agents rows. Nothing else loops.
 
@@ -598,8 +581,7 @@ silent, such as how the 24-pt band holds a region.
   pinned header is one element ("Plan the Kyoto trip, needs you, Which ryokan?") with the actions Answer Ryokan Hanami,
   Options and Back to To-do. Inline answers and swipes are accessibility actions on the row.
 - **Text size.** The pinned header caps at the title (1 line) plus the ask's name; its answers fold into Options ⌄ when
-  they don't fit. Fitting uses `ViewThatFits` with each candidate wrapped in `MeasuredOnce` (`docs/apple/performance.md`
-  P7), never a bare `ViewThatFits` in a row.
+  they don't fit.
 - **Keyboard on iPad and the web:** ⌘N New To-Do, ⌘F search To-dos, ⌃⌘I Show/Hide Conversation, ⌥⌘↑/↓ previous/next
   to-do (the pane stays), ⌘L show the list. The View menu lists Show Sidebar, Show List and Show Conversation (closes
   HIG-064 in To-dos). Web: Mod+B toggles the conversation, Mod+I focuses the composer, Esc closes only overlays.
@@ -944,10 +926,8 @@ page per to-do with its conversation beside it").
 **7. Where to-do status is computed.**
 
 - **Options:** (a) **the hub's manager** computes phase, section, reason, line, rank, counts, places and rounds; clients
-  draw them with a small optimistic overlay; the Rust core carries cache, deltas, overlay and outbox (section 7.5).
-  (b) The client-side Rust core computes to-do status: a new scope, since no core plan covers to-dos (its phase 3
-  "attention" is the Agent sessions' Needs you) and the plan keeps triage on the Go hub; the web, watch, widgets and
-  the hub's own tree would still need copies.
+  draw them with a small optimistic overlay.
+  (b) The client computes to-do status: the web and the hub's own tree would still need copies.
 - **Recommendation: (a)**, to be agreed with the core plan's owner (#6793). The hub's copy already passes the shared
   triage fixtures.
 - **Replaces:** the three client copies of the status rules (TypeScript 353, Swift 432 and Kotlin 389 lines: 1,174) and
@@ -1106,10 +1086,8 @@ redesign adds:
   `TodoTimelineEntry`, `TodoRound` and `TodoMessageState`. The obvious names are taken (`TodoRow`, `Ask`, `TodoAsk`,
   `Place`, `Counts` and `MessageState` are declared in Swift or TypeScript today), and `test_wire_schema.py` fails on a
   wire name any tracked Swift or TypeScript file declares.
-- **Generation:** `scripts/gen/extension_schema.py` emits only TypeScript and Swift for `schema/wire` today. Go,
-  Kotlin and ArkTS outputs are new work: Kotlin exists only for `schema/extension`, and the repository's only ArkTS
-  generator is the Rust core's typegen, which works from Rust types. `test_wire_schema.py` scans only Swift and
-  TypeScript and grows to Kotlin, ArkTS and Go; each schema needs fixture samples.
+- **Generation:** `scripts/gen/extension_schema.py` emits only TypeScript for `schema/wire` today. Go
+  output is new work. `test_wire_schema.py` scans only TypeScript and grows to Go; each schema needs fixture samples.
 - **First step:** `view` and `OwnerAsk` only, generated before the first client ships, so the first UI wave does not
   re-create the five-way hand copy.
 - **Fixtures** (new, under `spec/fixtures/`), replayed by every client: `todo-view` (hub facts → row; extends `triage`);
@@ -1169,16 +1147,6 @@ as the frozen fallback until every supported manager advertises `todo_view`; the
 - **Watch, widgets, Live Activity:** read rows, places and `assistant_needs`; Fleet is unchanged (a run may name its to-do); the
   watch's `answer` role answers safe asks.
 
-### 7.5 Rust core alignment
-
-The core (#6793) covers iOS, Android and HarmonyOS; the web and the Go hub are outside it, and the watch, widgets, Live
-Activity and Persona Link don't link it (`docs/plans/plan-rust-core.md`). No core plan mentions to-dos today, and phase
-4's launch snapshot holds machines, sessions, interactions, the assistant, managers and picks, but no to-dos
-(`docs/plans/plan-rust-core-phase4-storage.md`). The proposal adds to-dos to the core's scope where they fit it: the
-mobile row cache and delta apply (phase 2, sync); the outbox for messages and answers and the optimistic overlay
-(`todo-overlay`); to-do rows in the launch snapshot (phase 4, C11). The core never triages (the plan keeps triage on
-the hub), never lays out (the core is client logic without UI), and never groups rounds.
-
 ### 7.6 Staged order
 
 | Stage | Hub and manager | Clients | Targets | Unlocks (V1 frames) |
@@ -1201,8 +1169,7 @@ Stages 1 and 2 are additive and ship visible value, the merged page, before any 
 - **No runtime words in everyday fixtures**: the `todo-detail` fixtures for everyday to-dos contain no engine, runtime,
   model, path, repository or session-id word.
 - **Hand-written copies banned** for every wire type, in every client language the generator emits.
-- **No accessibility-size branch** (`scripts/test/test_apple_ax_branches.py`) and the token ratchets, as for every
-  Apple screen.
+- **No accessibility-size branch** and the token ratchets.
 
 ### 7.8 Risks and how the plan limits them
 
@@ -1240,8 +1207,7 @@ Stages 1 and 2 are additive and ship visible value, the merged page, before any 
 | Super rule 4 (Persona for everyone) | met by the design; the fixture guard verifies | No runtime, engine, model, path, repository or session-id words on everyday screens (rows, paper, chip); organizing a trip never asks for a computer or folder; developer facts only in Work details and run sessions; a computer appears only by the owner's name for it, in a failure or waiting reason |
 | Super rule 5 (fast, local-first, stateful) | met by the design; to measure in the build | As P7: receipt, delivery and execution are three visible states; failure keeps the text; retries reuse the op id |
 
-The build PRs run the "UI change self-check" of `DESIGN_SYSTEM.md` with simulator screenshots, light and dark, and the
-performance rules of `docs/apple/performance.md` for every Apple change.
+The build PRs run the "UI change self-check" of `DESIGN_SYSTEM.md` with screenshots, light and dark.
 
 ---
 
@@ -1277,8 +1243,8 @@ Open-source sources are linked; the rest are general engineering practice.
 
 | Area | Documents |
 | --- | --- |
-| Rules | `docs/SUPER_RULES.md` · `docs/design/PRINCIPLES.md` · `docs/design/DESIGN_SYSTEM.md` (2.7, 3.4, 4.3, 4.8, 5.6, 6.2) · `docs/design/DECISIONS.md` · `docs/design/HIG_AUDIT.md` · `docs/design/sidebar-navigation.md` · `docs/design/task-cards.md` |
+| Rules | `docs/SUPER_RULES.md` · `docs/design/PRINCIPLES.md` · `docs/design/DESIGN_SYSTEM.md` (2.7, 3.4, 4.3, 4.8, 5.6, 6.2) · `docs/design/DECISIONS.md` · `docs/design/task-cards.md` |
 | To-dos and the assistant | `docs/assistant/todos.md` · `docs/assistant/todo-status-sop.md` · `docs/assistant/unified-entry.md` · `docs/assistant/inbox.md` · `docs/assistant/agent-work.md` · `docs/design/proposals/owner-at-a-glance.md` |
-| Platforms | `docs/apple/ios.md` · `docs/apple/live-activity.md` · `docs/apple/performance.md` · `docs/lessons/ios.md` · `docs/android/android-design.md` · `docs/web/web.md` |
-| Wire and architecture | `docs/protocol/protocol.md` · `docs/server/architecture.md` · `docs/plans/plan-rust-core.md` · `docs/plans/plan-rust-core-phase4-storage.md` · `schema/wire/README.md` · `spec/fixtures/triage/README.md` |
+| Platforms | `docs/web/web.md` |
+| Wire and architecture | `docs/protocol/protocol.md` · `docs/server/architecture.md` · `schema/wire/README.md` · `spec/fixtures/triage/README.md` |
 | Prototypes | `docs/design/prototypes/todos/README.md` · `docs/operations/collaboration.md` ("Screenshots in PRs") |

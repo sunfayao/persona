@@ -324,7 +324,7 @@ class ServerTestEnvironmentTests(unittest.TestCase):
                  "else:\n"
                  " assert source.is_dir() and destination.parent.is_dir()\n"
                  " if '--delete' in sys.argv and destination.exists(): shutil.rmtree(destination)\n"
-                 # a plain --exclude NAME leaves NAME out; with --include filters (apple/, docs/) the fixture copies all
+                 # a plain --exclude NAME leaves NAME out; with --include filters (docs/) the fixture copies all
                  " skip=[a for i,a in enumerate(sys.argv) if i and sys.argv[i-1]=='--exclude'] if '--include' not in sys.argv else []\n"
                  " shutil.copytree(source,destination,dirs_exist_ok=True,ignore=shutil.ignore_patterns(*skip) if skip else None)\n"
                  "if str(source)=='sdk/go':\n"

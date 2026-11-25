@@ -2005,8 +2005,7 @@ manifest can ask for four things. A hub from before them refuses the manifest, s
 
 Code: `extension/configured.go`, `extension/egress` (`Target`, `dialConfigured`, `Proxy.Check`), `extmgr/extension_settings_check.go`,
 `sdk/go/ext/settings_check.go`;
-the clients `web/src/lib/extensions.ts`, `Extensions.tsx`,
-`apple/Persona/Views/Settings/ExtensionsModel.swift`, `ExtensionUIModel.swift`.
+the web client `web/src/lib/extensions.ts`.
 
 ## The hub's API
 
@@ -2901,12 +2900,6 @@ A hub picture that fails to load may have outlived its token, so the page is dra
 A row's extra actions open from a right click, a half-second press on a touch screen and the … button at its end (no swipe on the web).
 The component showcase's version 6 pages are `web/src/showcase/v6` (with their pictures in `web/src/showcase/images`) until the showcase extension's own snapshots have them.
 
-**iOS** (#827) draws all of it, with the rest of UI version 5, and sends 6: whole pages and the native stream (`ExtensionUIContext.pageVersion`,
-`ExtensionPageStream.uiVersion`) and the app's own cards and sections (`ExtensionUIContext.cardVersion`; version 4–5's code components there read-only, `ExtensionCodeSummary`),
-every `ExtensionViewModel` saying what the app's renderer draws (`drawnByApp`). Widgets, the watch and the system extensions keep the Shared version, 3: they draw none of it.
-The retired native Mac app compiled the same code but kept what it reported before (pages 4, the stream 5, cards 3), so the hub downgraded for it (`docs/archive/apple/mac.md`: new features skipped it).
-See "App: Settings › Extensions" below for each part. One difference from the web and Android: a switch that asks first has already moved when the alert shows (a system switch cannot be held where it was), and Cancel puts it back.
-
 ## UI version 8 (#9158)
 
 A dashboard page: section cards side by side on a wide screen, such as a personal "Today" page with a full-width "Needs me" card on top
@@ -2952,36 +2945,6 @@ three do; at 1440 × 900 with the sidebar open that is two. A card's rows go two
 by side they have no hairline between them. The card's head is an overview card's (`text-meta` medium title), the icon in its named
 color, the link in the accent with ›, a spinner in its place while its action is on its way. The web's native stream still sends 7.
 `web/e2e/extension-columns.mjs` checks the grid in a browser against the mock (`MOCK_EXTENSIONS=1 MOCK_EXTENSION_COLUMNS=1`).
-
-**Android** (#9158) draws all of it and sends `8`, its native stream too, which draws through the same renderer (a section's link
-is pressed as the section's own node; `ExtensionColumns.kt` in `android/feature/settings`). The page measures the pane it fills and
-follows the native card grid's rule (`docs/design/DESIGN_SYSTEM.md` "Adaptive card grids"): `floor((width + Space.m) / (cardColumn + Space.m))`
-columns, at most three, so a phone is one column and is drawn as the stack (each section's head with its icon and link, the stack's
-groups), a foldable or a portrait tablet two, a landscape tablet three. With two or more a columns view takes the pane's whole width
-(`JListPage` `fullWidth`) and is a grid of cards inserted into the page's list a row at a time: each card is the section's group panel
-with its head inside (the icon in its named color, the `headline` title, the link as the design system's text button, 48 dp to touch,
-read out as its words), every card in a row as tall as the tallest. A section's rows go side by side where each keeps `cardColumn`, with
-a hairline between lines and none between the rows of a line. Cards (`compact`), sections on a machine's or a launcher's page and an inbox
-item's body are drawn as the stack, with icons, links and rows side by side.
-
-**iOS** draws all of it and sends `8`: whole pages, the native stream and the app's own cards and sections (`ExtensionUIContext.pageVersion`,
-`ExtensionPageStream.uiVersion`, `ExtensionUIContext.cardVersion`); widgets, the watch and the system extensions keep 3. The drawing is
-`apple/Persona/Views/Settings/ExtensionColumns.swift`. A columns view on a page (`ExtensionPageView`, `ExtensionWidthPage`) is the page's
-list, exactly a stack, until the page's own width (never the kind of device) holds two columns of `Theme.Size.cardColumn` (330 pt at the
-default text size, larger with the text, as every `Theme.Size`) with `Space.m` between them inside the page's margins; then its sections
-are cards in lines of two, or three when three fit (`ExtensionColumnsGrid`): an iPhone upright and an iPad's narrow window are one column,
-an iPad's detail column on its side two, a 13-inch iPad's whole width three; with larger text a column needs more (about 446 pt at the
-interface's largest size, xxxLarge), so a window that just holds two at the default size holds one. Each
-line is one row of a lazy stack and as tall as its tallest card (`ExtensionColumnsLayout` offers every card the line's height); a section
-that spans takes a line of its own. A card is a `.card()` with its head inside: the icon in its named color, the title in the card grids'
-`Theme.Font.heading`, the link at the end. Elsewhere (a list's section header, a card's or a machine page's section title) the icon and the
-link sit where the title is; a section with neither keeps the title it always had. The link is the accent's words and ›, a spinner in place
-of › while its action runs, pressed through `ExtensionActionButton` as a row is, at least 44 × 44 pt and spoken as its words.
-`Section.columns` lays a section's runs of rows side by side, as many as keep `cardColumn` each in the width the run is given, and stacks
-them below that; in a page's list a run side by side is one list row (no hairline between its rows, each row's own button, their swipe
-actions only in their menu), measured from the page's width; a launcher's page and an Inbox item, whose width nobody measures, keep a row to
-a line. In the native stream a link press goes back as its section's key, as the section's other controls do. Unit tests
-`ExtensionColumnsTests`, UI test `ExtensionColumnsUITests` against the mock (`MOCK_EXTENSIONS=1 MOCK_EXTENSION_COLUMNS=1`).
 
 
 ## UI version 9 (#9337)
@@ -3161,34 +3124,6 @@ one long line. The opening viewport stays readable: when the fitted scale would 
 25% to show all of it.
 `web/e2e/extension-graph.mjs` checks it in a browser against the mock (`MOCK_EXTENSIONS=1 MOCK_EXTENSION_GRAPH=1`), keyboard included.
 
-**iOS** (#9727) draws all of it and sends `10` for whole pages and the app's cards and sections
-(`ExtensionUIContext.pageVersion` and `cardVersion`); the native stream stays at `8` and receives rows, and the frozen
-Mac app keeps its earlier version. `apple/Persona/Views/Settings/ExtensionGraphLayout.swift` is a pure, nonisolated
-copy of the shared layout, checked against every field of every shared case by `ExtensionGraphLayoutTests`.
-`apple/Persona/Views/Settings/ExtensionGraph.swift` draws one edge `Canvas`, the group frames and native node cards,
-with 44 pt fold targets, reading-order VoiceOver elements and a fold custom action (without a duplicate spoken chip).
-Drag, pinch and iPad pointer scrolling move the canvas; Command/Control + wheel zooms around the pointer. The floating
-Zoom out, Zoom in, Fit and Full screen controls use the design system, and the cover keeps the same model, transform
-and folds, closing by its button, Esc or VoiceOver Back. A page (including an Inbox item's full-size detail) gives it 70%
-of the visible height, clamped to 320–900 pt; a compact card has an always-fitted still 200 pt preview which opens
-the cover. `ExtensionGraphModel` lays out and restores off the main actor, persists the transform and explicit fold
-choices per component key, scoped to the hub, page and placement, in a bounded `StateCache` document with serialized,
-coalesced wheel-end writes. Interactive canvases refit only while untouched. `ExtensionGraphModelTests` covers
-restoration, folding, gesture saving and fitting;
-`ExtensionGraphUITests` checks zoom, fold, node push, full screen and the compact preview against the mock
-(`MOCK_EXTENSIONS=1 MOCK_EXTENSION_GRAPH=1`).
-
-**Android** (#9727) draws the canvas in `android/feature/settings/src/main/kotlin/persona/feature/settings/ExtensionGraph.kt` and
-sends `10` (`HttpExtensionManagement.UI_VERSION`). The pure-Kotlin `ExtensionGraphLayout` reproduces the shared slot layout and
-reading order; the Compose canvas draws its curves, group frames, node cards, selected ring and separate 48 dp fold targets with
-the design system's tokens in every style and theme. Transformable gestures and the floating controls zoom from 25% to 200%, Fit
-includes the whole graph, and `JFullScreen` shares the originating canvas's transform and folds. `rememberSaveable`, keyed by the
-graph key, keeps both across recreation; an untouched canvas takes its opening view again after a redraw. A compact card is a
-200 dp still preview whose only action opens Full screen. Nodes use the existing row-action path and read aloud in shared order,
-including badge, subtitle, progress and parent; the graph never enters the native stream's component set, whose clients still
-receive the hub's rows. `ExtensionGraphLayoutTest` replays every shared case, while the Compose tests cover actions, folding,
-restoration, full-screen continuity and compact-preview boundaries.
-
 ## UI version 11 (#12544)
 
 A small 3D model the person turns, zooms and taps: a home with its rooms and furniture, each device pinned where it is with
@@ -3196,10 +3131,7 @@ its state, and a light in the model for each lamp that is on. The app sends `11`
 `hub.extension_points.ui` is `11`; there is no new `features` entry (an older hub holds the app's version to its own, and the
 extension sees that). One new component, `scene`, authoritative in `schema/extension/view.schema.json` (`SceneComponent` and
 its `Scene*` definitions, `x-since: 11`); the example is `schema/extension/examples/View.v11-scene-flat.json`. **An app sends
-11 only when it draws all of the below** (and all of 10). **iOS** (#12544) draws `scene` in
-`apple/Persona/Views/Settings/ExtensionScene.swift` (`ExtensionSceneGeometry.swift`, `ExtensionSceneModel.swift`) and sends `11`
-for pages and cards (`pageVersion` and `cardVersion`, including Share as Image's direct still snapshot); **web** (#12641) and
-**Android** (#12642) stay on `10` and get the downgrade below until their renderers land.
+11 only when it draws all of the below** (and all of 10). The **web** (#12641) stays on `10` and gets the downgrade below until its renderer lands.
 
 Extensions still run no code in the app and send no model file: they say what the shapes are, and each app builds them with
 its own engine. A list of simple shapes is the contract because no 3D file format is drawn by every client (SceneKit reads
@@ -3249,7 +3181,7 @@ Extension content **outside the app**: Home Screen widgets, Lock Screen and Appl
 and buttons on extension notifications. Extensions still do not run code in the app: widgets draw a subset of declarative View, while button and shortcut actions go back to the extension.
 Server implementation: `server/internal/extmgr/extension_system.go` (widgets, shortcuts, device widgets) and `FitWidget` in `server/internal/extension/ui_widget.go`;
 schema in `schema/extension/` (`WidgetFamily`, `WidgetPlace`, `WidgetAnswer`, `DeviceWidget`, `ShortcutItem`, `ShortcutResult`, `NotifyAction`, `ExtensionNotification`),
-with types generated for all four clients. **#1147 adds Apple system surface wiring**, with build, visual, signing and device acceptance kept separate (see "Apple system surface boundaries" below); Android Home Screen widgets (Glance) can use the same endpoints later, not in this round.
+with types generated for all four clients.
 
 The corresponding capabilities exist only when `features` includes `extension_widgets` / `extension_shortcuts` / `extension_notify_actions` (see "Notification buttons" below).
 Public `/api/v1/health` deliberately omits `features` for some ingress paths, including with an Authorization header. An omitted field means unknown, not unsupported: system clients read the authenticated WebSocket `hello` before querying a catalog. An explicit feature list without the capability does not query that catalog.
@@ -3296,9 +3228,8 @@ Returns 502 if nothing drawable remains. Prefer drawing directly for `size`: a `
 - Normally: the app schedules timelines by `expires_at`, and the system asks the widget extension for new content when due (served directly if the hub has a cache).
 - Extension reports a change: sends `ui.invalidate {contribution: <widget id>}` (omitting `contribution` means all its widgets). The hub drops this widget's cache; online apps receive `extension_ui {invalidate}` as usual (foreground apps call `reloadTimelines` themselves);
   it also sends a background push to devices **that reported this widget**: `{"aps": {"content-available": 1}, "extension_widget": {"extension", "id"}}` (`apns-push-type: background`, priority 5),
-  **at most once per device per widget in 15 minutes** (iOS budgets background pushes and widget refreshes). On receipt the app calls `WidgetCenter.shared.reloadTimelines(ofKind:)`.
+  **at most once per device per widget in 15 minutes** (iOS budgets background pushes and widget refreshes).
 - Extension lifecycle changes (disable, uninstall, enable, install, upgrade, rollback or reconfigure): the manager clears all cached widget families and contexts for that extension and rejects render replies from its earlier lifecycle. After applying the change, it sends the same background push to every device that reported one of its widgets, including widget IDs removed from the manifest. Targets come from persisted device reports, so uninstall does not need a surviving manifest. Each device/widget gets one push regardless of reported families. These lifecycle wakes bypass the 15-minute content refresh limit; ordinary `ui.invalidate` remains throttled.
-- Widget and complication extensions cannot read the keychain (on real devices, though simulators allow it; see CLAUDE.md, "Most common pitfalls"): hub addresses and device credentials are supplied through the existing App Group approach.
 
 ### Shortcuts (extension point `shortcuts`)
 
@@ -3324,21 +3255,6 @@ Manifest:
 | `GET /api/v1/extensions/-/shortcuts` | `{shortcuts: [{extension, extension_name, id, title, description?, params?, ui?}]}`: all shortcuts from enabled, running extensions |
 | `POST /api/v1/extensions/{id}/-/shortcut/{sid}` `{values: {name: string}, context: {tz, locale, platform, ui_version}}` | The hub checks values first: only declared parameters, required values present, numbers parseable, toggles `"true"` / `"false"`, choices one of the declared values; invalid input returns 400 `bad_request`. Then calls the extension's `shortcut.run {contribution, values, ui_version, tz?, locale?, platform?}` (20-second timeout), returning `{text?, view?}`: `text` is a sentence spoken / shown by Siri (at most 2000 characters), `view` trimmed to the `large` widget subset (Siri result card). Missing extension / shortcut returns 404, extension failure 502 `plugin_failed` |
 
-**App side** (#1147): one generic App Intent, **Run Extension Action**, with an **Action** parameter (dynamic choices from `GET …/-/shortcuts`, labelled with the hub group and extension).
-App Intents cannot generate `@Parameter` declarations from a runtime manifest. Optional **Text**, **Number**, **Toggle** and **Choice** map to the first declared parameter of each kind; **JSON Values** accepts a string-to-string object for additional fields, with explicit JSON names winning. The client checks required values and declared kinds; the hub remains authoritative. Choice options come from the selected action, not another group.
-Running it uses the exact selected group's credential with `APIClient`, without the ordinary intent client's first-group fallback. `text` becomes the result value and dialog; iOS/visionOS on Swift 6.4+ adds a read-only card and **Open** when `ui` exists. Xcode 26.x, macOS and watchOS return the text/dialog without a snippet. The watch executes with its own credential.
-
-### Apple system surface boundaries (#1147)
-
-- `apple/Shared/ExtensionSurfaceStore.swift` holds a dedicated, bounded App Group snapshot: per-group credentials, widget/action directories and family/locale/time-zone content caches. Files are atomically replaced under a cross-process lock, mode 0600, excluded from backups and protected until first unlock. Nothing is written into Fleet's appearance store, URLs, logs or the repository. Group removal, credential rotation and authenticated 401/403 clear the affected content; generation and invalidation fences reject late render replies. A successful empty directory removes disabled/uninstalled contributions. Offline reads retain content, marked stale at `expires_at` rather than pretending it is current.
-- `apple/Shared/ExtensionSystemWidget.swift` provides one configurable widget kind: iOS small/medium/large and circular/rectangular/inline accessories; `PersonaWatchWidgets` supplies watchOS 10 complications for the three accessory families. Timelines use `expires_at` and include a stale entry at expiry. Foreground reconciliation reports the **entire** current configuration set per group, including empty lists; a WidgetCenter enumeration failure is unknown, never an empty report. Foreground refresh prewarms configured content. On iOS, `extension_ui` invalidations and authenticated `extension_widget` background pushes invalidate caches and request timeline reloads, without changing notification-button handling. The refreshed directory removes disabled, uninstalled or removed widget contributions. WidgetKit/APNs scheduling remains the system's decision, not a guaranteed refresh time. The watch app does not yet handle `extension_widget` pushes; prompt complication invalidation needs a separate client change, and the existing foreground/timeline refresh remains its fallback.
-- The widget transport uses the configured direct hub URL, system TLS trust and no redirects; app-only tunnels are unavailable to extension processes. Offline cached content is the fallback, not another group's token. The phone forwards optional per-group `WatchConfigs.features` from the exported hub's authenticated hello. The wrist snapshot records `answerOnly` and optional `capabilities`: missing means unknown, `[]` means known unsupported. watchOS also treats pre-metadata snapshots as answer-only, including a complication launched before its containing app updates the snapshot. When public health omits features, an answer-only wrist uses that metadata, **never** `/api/v1/ws`; unknown metadata preserves credentials and cached projections and asks for a phone sync. Full-credential phone processes retain the authenticated hello fallback. Only hello metadata changes trigger the phone's extra snapshot sync and WatchConfigs push; identical exports do not rewrite the snapshot, and metadata-only changes preserve the pairing generation/cache while fencing older catalog replies.
-- Device widget reports need a formally issued device id. The wrist never lists `/api/v1/auth/tokens`. The phone migrates old watch credentials without ids by explicitly issuing a new `kind: watch` token and accepting only `role: answer`. The token listing exposes ids but no token hash, so names cannot safely identify the old token. Adoption is fenced by primary hub id, phone config, old watch config and old watch id. Unidentified legacy tokens and newly issued tokens orphaned by a concurrent pairing change are not automatically revoked: review and manually revoke obsolete Apple Watch entries in Settings › Devices after confirming the replacement works. A failed migration leaves the old wrist credential working but does not fabricate a device report.
-- `apple/Shared/ExtensionSurfaceView.swift` draws only metric/stat-grid/progress/chart/text/row with `apple/Shared/Design/ExtensionSurfaceTokens.swift`, without app renderer dependencies or interactive callbacks. Charts use monochrome labelled small multiples and VoiceOver data equivalents; pie/donut data uses bars, candles use an OHLC text projection. There is no hover on system widgets. This constrained rendering is not the full interactive page renderer.
-- Pairing, rotation and foreground entry sync the containing app's snapshot. The watch writes **only** its own WatchConfigs to a separate watch App Group; missing watch credentials never fall back to phone credentials. Complication links preserve group/owner/page/state, contain no credentials and reject unpaired groups. The watch resolves a complication's `opens` page to a widget contributed by the same owner and group, then uses its best-fitting declared family and context-matched cache/widget endpoint. It never requests the full `/-/ui` directory or page renderer; interactive controls and deep-link page state remain on iPhone.
-- The complication requires a **new** configured/derived Bundle ID and a **new** watch App Group attached to both watch app and complication. Existing IDs and the phone's App Group stay unchanged. See [release signing](../operations/release.md) and [configuration](../operations/config.md). This change does not register identities or modify account capabilities, profiles or private configuration.
-- Verification for #1147 is compiler-free only while Apple builds are paused. Swift tests were added, not executed. Xcode 26.0 compilation, Release App Intent metadata, light/dark widget and watch screenshots, actual WidgetCenter configuration removal, and first-unlock/offline/revocation/background-APNs behavior on paired devices are **pending**, not passing evidence.
-
 ### Notification buttons
 
 When an extension sends a notification (hub `POST /api/v1/notify`, scope `notify`; the endpoint itself is in #1576, connected here after merging), it may include:
@@ -3357,23 +3273,12 @@ When an extension sends a notification (hub `POST /api/v1/notify`, scope `notify
   Direct APNs with extension buttons also includes `aps.mutable-content: 1`, so the Notification Service Extension registers a category from `actions` before delivering the notification (`UNNotificationCategory`; `input` uses `UNTextInputNotificationAction`), covering the first background notification with new buttons. The relay keeps its existing encrypted envelope and `mutable-content`; ordinary notifications and extension notifications without buttons do not enable the service extension for this, and existing static interaction categories keep their behavior.
 - **Button tap**: the app calls `POST /api/v1/extensions/{id}/-/ui/{ui}` `{action: <button id>, state, values: {"text": <input text>}}`, going through `ui.action` exactly like a page button;
   for background actions, response `toast` is shown as a local notification and `open_url` / `push` ignored; `foreground` opens the app on the `ui` page first, then calls and handles the response as a page would. Tapping the notification itself opens `ui` with `state`.
-- The server already supports `actions` / `ui` / `state` on `POST /api/v1/notify` (scope `notify`) and reports `extension_notify_actions` in `features`; example: `scripts/mock/apns/extension-notification.apns`.
-- **Apple notification integration (part of #1862)**: the iOS / macOS notification service extension registers dynamic categories before delivery, and app startup merges static categories without overwriting extension buttons. Foreground notifications register first too, before deciding whether to show.
-  When the source is clear, use only the group specified by `hub_id` or the decryption key; unknown or conflicting sources do not execute and do not fall back to the current hub. Old notifications without a source route only when there is one hub group.
-- Foreground actions are first claimed by the system entry point held by AppModel, then executed with the notification's original `state`, afterwards sharing the ordinary extension page. Execute before rendering so a new state returned by rendering cannot replace the notification state; appearance changes or page rebuilding do not replay the action.
-  The system entry temporarily shows a full page without competing for modal presentation with an open Settings sheet; **Done** returns to the original main page. Background buttons show only `toast`, not pages, links or navigation results; expiry cancels the request and completes the notification delegate callback once.
-- **Validation boundary**: `simctl push` does not run the Notification Service Extension. Dedicated local notifications can verify buttons, input and app callbacks, and unit tests of the shared registration logic can verify category merging, but neither proves that the first real-device background APNs notification was verified.
-  Home Screen widgets, watch complications and the generic App Intent are wired in #1147; device acceptance remains pending. Notification integration and compiler-free checks do not establish system-surface acceptance.
-
-- **Android integration**: `NotifyEvent.extension_notification` is additive; an absent or `null` field is an ordinary alert, and a malformed optional payload loses only the extension fields. The platform validates safe extension/UI segments, at most three unique actions, roles, declarations and the 16 KiB state/input limits again before posting buttons. A body with `ui` opens that page; without `ui` it opens the extension details and never invents a page id.
-  A body and its buttons are registered atomically in a bounded process-local store (64 records), with independent random 128-bit tokens. Every actual alert replacement first retires the exact notification tag's earlier tokens, including a replacement with no actions, no extension payload, an invalid payload or an unprovable source; other tags remain valid. Tokens expire after 15 minutes and short callback dedupe lasts five minutes; separate buttons still run independently. Deep links carry only an opaque token, never an action id, input or credential. A token is not permission: a missing or forged token can show only the ordinary page, and execution also requires the original pairing scope, hub-group namespace and manager to match. With several open groups, an alert carrying neither a machine nor an alert id has no provable source and its actions stay disabled; an unscoped alert is routable only when one open group makes its origin unambiguous. When both ids are present their namespaces must agree: primary versus namespaced and two different namespaces are rejected instead of preferring the machine id. The current WS payload has no manager field, so its hub-owned manager is recorded as `assistant`; Android never substitutes the currently selected assistant for a different recorded owner.
-  Background buttons use the non-exported receiver and the existing `ui.action` transport on the exact pairing's existing connection. Only a non-empty `toast` becomes a result notification; `view`, `open_url`, `push` and `pop` are not claimed to have been shown. The eight-second receiver deadline means unconfirmed completion, never success or an automatic retry. Foreground buttons require authentication, deliver declared RemoteInput through the Activity intent, and check `KeyguardManager` on the page before claiming (including API 30, where the system action flag alone is not enough). The page waits for the existing unlock-settle interval, fails closed while still locked, and retries the same token on a later resume; an already claimed token is never replayed. It then calls the HTTP `ExtensionViewModel.press` once before any render, with no native-stream-only execution or replay after recomposition, rotation or Back. Toast, links, push/pop and returned view/state then use the ordinary page handlers.
+- The server already supports `actions` / `ui` / `state` on `POST /api/v1/notify` (scope `notify`) and reports `extension_notify_actions` in `features`.
 
 ### Mock hub
 
 In the `MOCK_EXTENSIONS=1` mock hub, `example-gateway` has a `today` widget (five sizes, opens `usage`) and two shortcuts (`usage_today` returns a sentence and a card; `set_budget` requires an amount).
-`PUT /api/v1/devices/{id}/widgets` stores in memory; notifications with buttons use the `.apns` example above. Only on the new `/api/v1/extensions/…` paths.
-
+`PUT /api/v1/devices/{id}/widgets` stores in memory; only on the new `/api/v1/extensions/…` paths.
 
 ## Personal Agent sources
 
@@ -3540,16 +3445,6 @@ What extensions with only a manifest and a few files, no program, can do (model 
 - **Quick prompts**: clients list them in input quick prompts / slash menus (single-line truncated titles); selection puts `text` in the input, without sending it.
 - **Triage templates**: when editing a source's **Triage Rules** in Settings, available templates add **Fill from Template**; selection fills `text` (confirm before replacing).
 
-### Apple management and declarative contributions (#1861)
-
-- Details prioritize individual `contributions` switches. `can_disable: false` is not actionable; `via: connector` says "Follows connector". Older hubs without these fields still show the original `contributes` summary, without guessing switches. `depends` shows current dependency state; `extension_pack` lists bundle members.
-- When disabling or uninstalling returns `has_dependents`, list the affected objects returned by the server and send `cascade` only after a second confirmation. Bundles offer uninstalling just the bundle or its members too; report successful member counts only from `removed_members`, never describing partial success as complete.
-- Install confirmation lists permissions for the main preview and every package in `bundle`, submitting each `preview_id` and `permissions_digest` in original order. Confirmation is blocked if the main preview or any member expired, has `unresolved`, or still has unready dependencies; the page task waits for the earliest expiry among main and member packages, updates confirmation state when due, and checks once more before submission.
-- Extension prompts join the existing input's plus menu; BeautifulUI inputs outside the new shell also wire them into the slash menu. Selection only fills and focuses, never sends. Templates appear only for `triage_rules` string fields in existing config forms: confirm before replacing, still require Save afterwards, and do not restore the old triage-management page.
-- Themes enter the design system through `ColorSpec` / `StyleSpec`, changing colors only when **Extension Theme** is selected, without altering existing styles or fixed themes. Reject server `problems`, malformed values or insufficient contrast on actual backgrounds; check light/dark pages and cards in all five styles, white text against accent colors, and bubble text. Missing roles keep original defaults, without auto-adjusting colors to pass.
-- Themes, prompts and templates are read only while the page and app are foregrounded, refreshed every 60 seconds. If the selected theme contribution disappears or the hub returns 404, fall back to following the style; temporary network errors for the same source keep the previous result. Switching hubs never borrows themes or prompts from another group.
-- Offline cache for the selected theme lives in local Application Support, atomically written with `0600` permissions, only when content changes. Unsaved forms stay in `ExtensionDrafts` memory, isolated by hub and extension; appearance rebuilding and refetching do not overwrite them. Remove after successful save; never store secrets or write UserDefaults.
-
 ## Avatars (`looks`, #3200)
 
 Extensions add avatars to Persona: name, avatar image (multisize PNG, optional SVG, optional light/dark variants), colors, animated status dot in the top bar, and which built-in avatar's icon to use where only app-bundled icons work.
@@ -3568,12 +3463,12 @@ Extensions add avatars to Persona: name, avatar image (multisize PNG, optional S
 
 | Field | Rules |
 | --- | --- |
-| `id` | Avatar-package id rules (clients use it as a cache-directory name); globally unique among `looks`. `persona` and all five retired bundled IDs remain reserved (see [persona.md](../apple/persona.md)); `nwverse` belongs to the compiled hub pack and the hub's version wins. A valid disk pack with the same nonreserved id takes precedence over an extension |
+| `id` | Avatar-package id rules (clients use it as a cache-directory name); globally unique among `looks`. `persona` and all five retired bundled IDs remain reserved; `nwverse` belongs to the compiled hub pack and the hub's version wins. A valid disk pack with the same nonreserved id takes precedence over an extension |
 | `name` / `names` | Source language 1–20 characters; `names` only allows `zh-Hans` / `en` / `ja`, each 1–40. Clients resolve `names[UI language]` → `names.en` → `name` |
 | `subtitle` / `subtitles` | Second line on the Settings card, ≤40 characters |
 | `avatar.sizes` | Side length (16–1024) → square PNG in the package, actual side length matching the key; at least one (bitmaps for watch, Lock Screen and places without SVG rendering) |
 | `avatar.svg` / `avatar.dark` / `avatar.safe` | Optional vector avatar (≤256 KB, sanitized by the hub before delivery, preferred by web); dark `sizes` / `svg` (missing entries use light ones); `safe` as for avatar packages |
-| `colors` | `light` / `dark`, keys only `primary`, `secondary`, `accent`, `bubble`, `bubble_text` (aligned with Apple's `PersonaPalette`, docs/apple/persona.md ("Color scheme → design tokens")), `#RRGGBB`. Insufficient contrast is darkened by clients under avatar-package rules, not rejected |
+| `colors` | `light` / `dark`, keys only `primary`, `secondary`, `accent`, `bubble`, `bubble_text`, `#RRGGBB`. Insufficient contrast is darkened by clients under avatar-package rules, not rejected |
 | `dot` | Optional APNG or PNG per each of five states (`idle` required), frame side ≤512, matching `size` if specified. Without `dot`, the hub uses the largest avatar PNG as `idle` |
 | `app_icon_fallback` | New manifests must name `persona`, the only bundled drawing/icon. For a valid custom look in an older manager report, the hub normalizes retired or unknown icon values to Mochi without dropping the custom picture |
 
@@ -3593,7 +3488,7 @@ Extensions add avatars to Persona: name, avatar image (multisize PNG, optional S
 
 - **Retired bundled IDs**: neither disk packs nor extension reports can reclaim them. A saved retired or unknown choice receives `current.effective: "persona"`; the raw ID and timestamp remain for compatibility. Clients never try to draw a removed built-in option.
 - **Disable** the extension or contribution: selection remains, `current.effective` returns `persona`; re-enabling restores it. **Uninstall**: if its avatar is selected, reset selection to `persona` and broadcast `look`.
-- **Migration from old local client settings** (iOS / iPadOS / macOS `UserDefaults persona.id.v2` / `persona.id`, once per device: docs/apple/persona.md "On the phone", Android `persona` in `persona-appearance`, web `localStorage persona.persona`):
+- **Migration from old local client settings** (web `localStorage persona.persona`, once per device):
   connect to a hub with `/api/v1/looks`; if hub `current.id` is `null` and a local choice was explicitly made → `PUT {"id": local selection, "if_unset": true}`, honoring the response (the first connected device's choice becomes everyone's); if the hub already has a choice → use it;
   no local choice → do not upload; old hub (404) → use the local choice as before. Local selection remains a cache, displayed on startup without waiting for the hub.
 
@@ -3635,180 +3530,22 @@ once on connection, again on rule changes, followed by another session-list fetc
 
 ## In-App tunnels
 
-An extension contributes `tunnels` to tell the App that this hub can also be reached through an **in-App tunnel**. When the phone cannot reach the hub's own address (for example, the hub is on a dedicated network), the App starts a tunnel inside its own process and connects to the hub's address on that network through it. Only Persona's traffic to the hub uses it; it does not create a system VPN. See [network.md](../operations/network.md) ("Connecting to hub through an in-app tunnel").
+An extension contributes `tunnels` to tell the App that this hub can also be reached through an **in-App tunnel**. When the phone cannot reach the hub's own address (for example, the hub is on a dedicated network), the App starts a tunnel inside its own process and connects to the hub's address on that network through it. Only Persona's traffic to the hub uses it; it does not create a system VPN. See [network.md](../operations/network.md).
 
 - **Pure declaration**: no program runs on the hub. The tunnel is a tunnel core compiled into the App at build time (a C static library; interface in network.md). Apps without this core show no entry.
 - **Destination**: extension settings `target_host` (required, hostname or IP resolved by DNS inside the tunnel) and `target_port` (default 18660, the hub's HTTP port). Install and upgrade validate both fields; invalid values prevent installation.
-- **SSH port** (optional): `ssh_port`, the hub machine's SSH port inside the tunnel's network (usually 22), for a hub that listens only on loopback and is reached through an SSH tunnel the App dials through this tunnel ([network.md](../operations/network.md), "Connecting to hub through SSH"). The App then brings the tunnel core up with `target_host:ssh_port` as its probe for that SSH path, which answers even when the hub's HTTP port is not reachable in the network. Without it nothing changes; the direct in-app tunnel always goes to `target_port`. Older hubs install a manifest with it (they check only `target_host` and `target_port`), and older Apps ignore it.
+- **SSH port** (optional): `ssh_port`, the hub machine's SSH port inside the tunnel's network (usually 22), for a hub that listens only on loopback and is reached through an SSH tunnel the App dials through this tunnel ([network.md](../operations/network.md)). The App then brings the tunnel core up with `target_host:ssh_port` as its probe for that SSH path, which answers even when the hub's HTTP port is not reachable in the network. Without it nothing changes; the direct in-app tunnel always goes to `target_port`. Older hubs install a manifest with it (they check only `target_host` and `target_port`), and older Apps ignore it.
 - **How the App reads it**: on every hello, request `GET /api/v1/extensions` once and find enabled extensions whose `contributes` contains `tunnels`. Then read `config` and `contributions` from details (full-access devices), using the enabled item with `point` equal to `tunnels` and `title` equal to `name`. Store the result in pairing information for use when the hub is unreachable. Disabling or removing the extension, or disabling this contribution, removes both the entry and tunnel. Only the first tunnel is used for each hub.
 - Sign-in information such as accounts and nodes is managed by the tunnel core's own control panel, only on the phone, never through the hub.
 
-## App: Settings › Extensions
+## Settings › Extensions (web)
 
-On iOS (Mac shares the same pages), when the hub reports `extension_manager`, the Settings home gains an **Extensions** row below connectors (count and how many need attention). Code in
-`apple/Persona/Views/Settings/ExtensionsModel.swift` (data, endpoints, view model) and `ExtensionsViews.swift`.
-
-**New and old hubs** (#1859): when the hub's `features` includes `extensions`, extension requests use `/api/v1/extensions/…` (`APIClient.extensionsAPI`, set from features by `HubLink.api`;
-all paths through `APIClient.extensionPath`); otherwise (old hub) `/api/v1/plugins/…`. Responses accept both key sets: lists/catalog `extensions` / `plugins`,
-UI placements `extension` / `extension_name` and `plugin` / `plugin_name`, marketplace counts `extensions` / `plugins`; marketplace-preview request bodies use `extension` on new hubs and `plugin` on old ones.
-Features accept new and old names (`hasExtensionFeature("ui_slots")` means `extension_ui_slots` or `plugin_ui_slots`, likewise `"manager"`); both `extension_ui` and `plugin_ui` events
-are accepted (new hubs send both; badges are set values, so receiving twice is harmless); channel `settings_url` accepts `settings/extensions/<id>` and `settings/plugins/<id>`.
-Views, components, actions, responses, placements and context all use schema-generated types (`apple/Packages/PersonaWire/Sources/PersonaWire/ExtensionWire.swift`, #1860); the app only adds decoding helpers alongside them
-(`ExtensionUIModel.swift`: `ExtensionUIPlace.owner` accepts both key forms, `ExtensionUIContext.here(…)` includes time zone, language, platform and `ui_version: 3`, the Shared version widgets and the watch send; every page or card the app draws sends 8, #827, #9158).
-
-- List: each extension's name and status (**On** / **Starting** / **Needs Setup** / **Off** / **Not available on this hub** / **Something Went Wrong**; both `running` and `stopped` are **On**), opening details on tap; footer explains installation via the hub's admin UI (`/admin`) or on the hub machine (`personad extension`).
-- Details: status, version, source, description, small running-state text ("Running" / "Not running; starts when needed"), "Missing: …" and errors; **Enabled** switch; **Settings** form drawn from `form.fields` (text, numbers, toggles, choices, text lists / multiselect,
-  objects as separate sections), **Save** at top right submits the whole config; hub-rejected fields show the reason below that item and preserve the draft; **Secrets** only shows set / not set per item, opening a separate input form (a saved value is never echoed; while typing, the eye button can show it for a moment; on iOS the field goes back to hidden and empty as soon as it gives up the keyboard),
-  with clear available for set values; **Provides**, **It Can**, **About** (version, previous version, source, installed from, publisher, homepage, warnings). Ones from manager.json are read-only, without switches or forms.
-- Contributed connectors (#3178, iOS / Mac #3228): when contributing a connector with Inbox support (`contributes.connectors`, connector has `inbox`), web, Android and iOS / iPad / Mac details show a section per connector after **Pages**:
-  its **Show in Inbox** switch (the hub connector switch `PUT /api/v1/connectors/{id}/settings {"inbox"}`, shared with **Settings › Connectors › …**, not stored separately) and a **Connector Settings** row (opens the connector page, refetches on return).
-  Hidden without error when the extension is disabled, connector lists cannot be read, the hub lacks `connectors`, or the connector has no `inbox` field (old hub). Settings for which items enter the Inbox (e.g. GitHub repositories/types) remain the extension's own `configuration`, rendered as a form.
-  Mock hub: `MOCK_EXTENSIONS=1 MOCK_GITHUB_EXTENSION=1` (`=old` is an old hub without the switch); UI test `ExtensionConnectorInboxTests`.
-- Pages (#1328, "Declarative UI"): details lists each extension `plugin_page` as a row (**Pages** section), opening a full page; launcher details add one section per
-  `launcher_section` after quota and availability. `ExtensionViewRenderer` (`ExtensionViewRenderer.swift`) draws eight item types with the design system: dividers split a section into two groups (title on the first, footer on the last),
-  `tone` maps to `Theme.positive` / `caution` / `danger` (neutral: secondary color, accent for progress), five `field` kinds (`secret` uses SecureField,
-  never prefilled), single-line buttons; `confirm` asks first, `submit` includes all page fields; a returned `view` replaces the current one, `toast` uses app feedback, `open_url` and `link`
-  open in the app's link card (Mac side panel), https only; errors have empty states and retry. A launcher-section response of 404 `{"code":"unsupported"}`
-  (without `hosts`, it is listed on every launcher, #1339) hides the whole section without an error. Logic in `ExtensionUIModel.swift` (`ExtensionViewModel`, `ExtensionLauncherModel`).
-- UI slots (#1517, "UI slots"): query and draw only when hub `features` includes `extension_ui_slots`. `ExtensionSlots` (`ExtensionSlots.swift`) fetches
-  `nav_page` and `overview_card` together without `placement`, updating badges in place on `extension_ui`. iPhone / iPad: cards first below the Settings-home header (compact, tapping pushes `opens`),
-  then an **Extensions** section with one row per `nav_page` (`icon` maps to `Theme.Icon.plugin…`, unknown icons use the extension icon; numeric badges use `CountBadge`, text `Chip`),
-  summing badges on the Settings tab and the new shell drawer's Settings button (a dot for text-only badges). Mac: `nav_page` in the left section column before Settings (`MacShellState.pluginPage`),
-  cards above the **Settings › Extensions** list. Machine details add each `machine_section` after the machine's own sections (`ExtensionMachineModel`, using the machine's hub group),
-  hiding the section on hub 404. Every draw/action includes `context` (`ExtensionUIContext.here`: `tz`, `locale`, `platform`, `ui_version` (6 for the app's pages and cards, #827), `size`, `launcher` / `machine` / `item`).
-  New items: `chart` uses Swift Charts (`DataChart`: side-by-side / stacked bars, lines, data colors when series lack `tone`; press or hover a column to show each series' `display`,
-  no axes in compact, only endpoint labels, thinning labels when numerous); `stat_grid` (`ViewThatFits`: all in one row if possible, otherwise 3 or 2 per row); `segmented`
-  (`SegmentedChoice`, immediately sends `values: {name: value}` on selection); unknown items skipped, unknown `tone` treated as `neutral`. `refresh_after` counts only with the page and
-  app foregrounded (`.pluginRefresh`, at least 30 seconds), immediately redrawing on return if overdue, and preserving fields during auto redraw. Cards and machine sections do not render link panels inside list rows:
-  links go through the page (Mac's side panel wraps the whole page; putting it in a row compresses that row to just its title).
-- UI version 3 (#1860, "UI version 3"): same renderer (`ExtensionViewRenderer` for list pages, `ExtensionViewStack` for cards, machine sections and assistant cards),
-  components in `ExtensionComponents.swift`.
-  `markdown` uses the chat's Markdown theme (`ExtensionMarkdown`: never loads images, https-only links opened in-app); `table` keeps cells single-line and scrolls horizontally when wide (`ExtensionTable`);
-  `empty` uses the design-system `EmptyStateView` (button calls its action); `loading` is a small spinner and sentence. Rows may include an icon (set mapped by `ExtensionUIStyle.icon`, also for `nav_page` entries and empty states),
-  avatar (https image; absent or failed images become a 1–2-character `Monogram`), or thumbnail (square / wide); images load through a separate session without any cookies or credentials (`ExtensionRemoteImage`).
-  Components with `key` are identified by it (positions do not jump on a new page). Search is full-page navigation-bar search (`.extensionSearch`, sends `values: {q}` after 0.3 seconds, shows only the last search response);
-  filters are `FilterChip`s below search (send immediately, with current `q`); section `more` is a final **Load more** row, triggered once on scrolling into view (not again during `loadingMore`), also tappable.
-  `push` does not ask the extension: Settings and Inbox push a page by value through `SplitNavigation` paths (`splitPush`, target `ExtensionPushTarget` registered alongside other pages with `extensionPushDestination()`),
-  elsewhere `navigationDestination(item:)`; pushed pages are the same `ExtensionPageView`, first draw with `push.state`, at most 8 levels; returning redraws the underlying page.
-  Response `pop` closes this page. `.extensionPushes(…)` goes on pages (list rows cannot push): extension pages, Settings-home cards, launcher pages, machine pages, Inbox-item pages.
-  `extension_ui {invalidate}` (`ServerEvent.extensionInvalidate`) marks models of that extension (that UI) in the same hub group `stale` through `ExtensionUIRegistry`: visible pages redraw immediately,
-  off-screen ones on appearance (same `.pluginRefresh` timer as `refresh_after`), preserving fields. Task keys use the invalidation version; marks are handled only after requests end,
-  so refresh does not cancel itself. Events during an operation are retried afterwards; canceled refreshes do not consume events, and new events arriving during a request remain pending.
-- Assistant cards (#1860, "Assistant cards"): both ```` ```persona-view ```` and ```` ```persona-card ```` are in `PersonaCard.swift` (`AssistantCardBlock`):
-  `persona-card` converts to components under `sdk/go/wire/personacard.go` rules (`ExtensionPersonaCard.view()`, number formatting like `Number`; `PersonaCardTests` compares every field of every case in
-  `schema/extension/examples/persona-card/`), `persona-view` is a View or one component; both draw in a card with `ExtensionViewStack`,
-  with no model, so rows, buttons, fields, search, filters and more are inactive; links still work. Undrawable content remains a code block (iOS shows an undrawable persona-card in words, #3397).
-- Screenshots: `example-gateway` in the `MOCK_EXTENSIONS=1` mock hub has a "Notes (components v3)" page (`-openExtension example-gateway -openExtensionPage notes`),
-  `GET /mock/invalidate` syncs one note and sends `ui.invalidate`; UI test `ExtensionV3Tests` (list, filters, more, search to empty state, push note page, edit/save/pop, invalidate),
-  unit tests `ExtensionUIv3Tests`, `PersonaCardTests`. `MOCK_EXTENSION_CARDS=1` with `ExtensionAssistantCardTests` checks in a real assistant chat that
-  `persona-view` and old `persona-card` share the renderer, actions are not tappable, links remain, and saves light/dark screenshots. Four-client showcase comparison depends on #1852, not replaceable by notes screenshots.
-- UI version 6's styles (#827): every name of the icon set (UI version 4's code hosting and version 6's 45 for homes and markets) is drawn as the app's own symbol
-  (`ExtensionUIStyle.icon`; meanings the app already has, such as home, lock, camera, play, use its own); the 11 named colors are `Theme.Hue`'s (`ExtensionUIStyle.color`), on marks only:
-  a row's icon in its color on the design system's `IconTile`, a metric's icon before its label, an empty state's mark, and a badge as a soft tint of the color behind words in the text's
-  own color (a tone, when it has one, wins). `text` takes `title` and `headline` (heading levels for VoiceOver). Unit tests `ExtensionStylesTests` read the schema's names; screenshots of
-  `showcase › styles` with `ExtensionShowcaseShotsUITests`.
-- UI version 6's row actions (#827, `ExtensionRowActions.swift`): a row's `actions` in a long press's menu (a right click on the Mac), usual ones first and destructive ones red and last,
-  with their icons; those with `swipe` also under a swipe from the trailing edge (the destructive one at the edge, a full swipe runs none); one with `confirm` asks in an alert with **Cancel**
-  (a stream page asks in its own way); VoiceOver has them as the row's actions; on a card without a page they are left out. Screenshots of `showcase › row-actions`.
-- UI version 6's charts (#827): `area` (`DataChart`'s areas: overlapping and see-through with their lines, or stacked), `candlestick` (`CandleChart`: one series of open / high / low /
-  close, volume bars under it when every point has one, rising green unless `rising` is red, the falling one the other color; holding a candle reads its prices), a series' named `color`
-  (after its tone); `spark` (`TrendLine`) before a row's value, under a metric's number and a stat's, in its named color, else its tone's, else the quiet ink. Unit tests
-  `ExtensionChartsTests`; screenshots of `showcase › chart-v6` and `showcase › spark`.
-- UI version 6's tiles (#827, `ExtensionTiles.swift`): a `grid` in as many columns as fit (two on a phone, at most `max_columns`, 4 when absent), a `carousel` in one line that scrolls
-  sideways and snaps to a tile (narrow, regular, or wide: most of the width), both on the page's background as wide as the sections. A tile has its picture across the top (https; a hub one
-  comes with pictures) or its icon in its color, the title, a state line, a value and a spark, a badge and a switch in its corner (the controls' model: shown at once, confirm asks); `active`,
-  or its switch on, lays its color under and around it, the text staying in the ink. Tapping does its action, a long press shows its `actions`; VoiceOver reads it as one element. Unit tests
-  `ExtensionTilesTests`; screenshots of `showcase › grid`, `carousel` and `home-demo`.
-- UI version 6's fields (#827, `ExtensionFields.swift`, `ExtensionFieldValues.swift`): `date`, `time` and `datetime` with the system's picker, held to `earliest`…`latest` (a pair the wrong
-  way round allows any), written as the wire writes them in the page's time zone (this device's, `context.tz`); empty, the row says **Not Set** and a tap sets it to now (held to the range)
-  rather than showing a date nobody chose, and a set one has a clear button. `multichoice`: a menu of toggles that stays open while picking, the chosen ones named beside the label, sent as a
-  JSON array in the choices' order (anything else reads as none chosen). `multiline`: a field that grows from 3 to 8 lines. A field's `detail` is a line of help under it. Unit tests
-  `ExtensionFieldValuesTests`; screenshots of `showcase › inputs-v6`.
-- UI version 6's pictures (#827, `ExtensionMedia.swift`): an `image` in its shape (`aspect`; `auto` from `width` / `height`), cropped or fitted (`fit`), its caption under it, VoiceOver
-  reading its `alt`; a tap opens the app's `ImageViewer` unless `no_zoom`. A tile's picture, a row's thumbnail and avatar likewise. A `url` loads without the app's credentials; a `path`
-  only when it is the hub's image route for the page's own extension (`ExtensionViewModel.isHubPicture`), through the page with the device's credentials and `w` about as many pixels as it
-  is drawn; when a hub picture fails (its token may have run out) the page is drawn again, at most once a minute. Not loaded: the plain fill; failed: the alt text over a broken-picture mark.
-  Mock: `showcase` pages get a `path` beside every `ref` and the route answers a made-up picture of its shape (`missing`: 404). Unit tests `ExtensionMediaTests`; screenshots of `showcase › image`.
-  A section whose every component this app leaves out (one it doesn't know) is not drawn, rather than its title alone over
-  nothing; a section sent with no components keeps its title (`ExtensionParts.of`).
-- UI version 5's code review (#827, "UI version 5: code review").
-  Reading (`ExtensionCodeReview.swift`, the code page): the words that changed in a removed and added pair on a stronger fill (PersonaKit's `LineDiff` word comparison, worked out once per hunk);
-  generated files and lockfiles (by the extension's `generated` or the web's path list), changes over 400 lines and viewed files start folded with a line saying why and **Show**; a generated
-  file without hunks is not loaded by itself. Each diff's header has a **Viewed** tick box (`.toggleStyle(.tickBox)`): checked, the file folds; unchecked, it stays as it is. With `mark_viewed`
-  the mark changes at once and is sent quietly (`ExtensionViewModel.quiet`: nothing waits, an empty answer draws nothing, a failure puts the mark back); without it the mark is kept on the
-  device by `path` + `revision` (or a digest of the lines), at most 5,000 (`CodeViewedMarks`). The tree ticks viewed files. Over the diffs: "Viewed x / y", "N unresolved" (each tap unfolds
-  and scrolls to the next open thread; drafts don't count) and a ⋯ menu with **Ignore Whitespace** (kept for every page). A rename shows its similarity. An action's `items` replace their
-  components without drawing the page again, and a page drawn again keeps diffs loaded since. Hidden lines (`context`): between hunks a bar says how many lines are hidden, with the next hunk's
-  header, and shows 20 more down or up, or all (a few: all at once; the first gap only up, the last only down, to the end of the file once its length is known); the lines are asked quietly for the
-  new side (`to` "end" when the length is not known yet), kept per file so showing more of a gap that came needs no request, and `expand` is not used then. `code.line_url` adds **Copy Link to
-  Line** to the code viewer's line menu (https only). Commenting: a second line number on the same side picks the lines between (`start_line`, the picked lines tinted, the box under the
-  last one, what is typed kept); the box sends alone (**Comment**) or as a draft of the pending review (`draft`, **Add to Review**, first once a review is under way), its ✕ closes it, and
-  **Suggest Change** (`suggestions`, new side) starts a ```suggestion block from the lines as they are. A comment's suggestion is drawn as a small diff of the lines it is on; **Resolve** /
-  **Reopen** send `resolve`; a resolved thread is folded to its first comment. Unit tests `ExtensionCodeReviewTests`, UI test `ExtensionCodeReviewUITests` (`showcase › snapshots › code-review-v5`; the mock answers
-  `context` with made-up lines of a 90-line file).
-- UI version 6 (#827, "UI version 6"): pages, the native stream and the app's cards and sections send 6 (`pageVersion`, `ExtensionPageStream.uiVersion`, `cardVersion`), so the hub sends
-  version 6 as it is; a card or a section draws version 4–5's code components read-only (`ExtensionCodeSummary`: a header, a path, up to 12 files with what changed, 20 lines of code,
-  5 comments of a thread, a composer with only the buttons the card can use: none in the assistant's read-only cards, so none is drawn there); widgets, the watch and the system extensions keep 3.
-  Row controls (`ExtensionControls.swift`, `ExtensionControlRow`): a switch or a stepper at the row's end, a slider on a line under it, all system controls labeled by the row's title and read out with
-  their value as written (`display` for the value the extension drew, else the number in the user's locale and the unit); a row with its own action does it from its words, the control beside them.
-  A switch sends at once, a slider when the finger lifts (moved without a drag, by VoiceOver or a keyboard, 0.6 s after the last move), a stepper 0.6 s after the last tap. `action.confirm` asks
-  with an alert (the confirm words, **Turn On** / **Turn Off** or **Confirm**, and **Cancel**); the system switch has already moved, so Cancel puts it back. `ExtensionViewModel.change` sends:
-  one request a control at a time and only the latest change made meanwhile, the answer's `view` or `items` drawn (an answer with neither draws the page again), a failure puts back the extension's
-  value with the error as a toast, a redraw meanwhile keeps the user's value, a spinner after a second. A disabled control, or one on a card without a model, is dimmed. Mock: `showcase › controls`
-  (`-openExtension showcase -openExtensionPage controls`) keeps what its controls are changed to, answers with the row (`items`), fails `fails` with 502, and asks first for two switches
-  (`GET /mock/controls/reset` forgets); unit tests `ExtensionControlsTests`, UI test `ExtensionControlsUITests`.
-- UI version 8 (#9158, "UI version 8"): pages, the native stream and the app's cards and sections send 8. A columns view is the page's list
-  until the page's width holds two columns of cards, then a grid of them, each line as tall as its tallest card; a section's icon and link
-  beside its title; its rows side by side where there is room (`ExtensionColumns.swift`). Mock: `MOCK_EXTENSION_COLUMNS=1`'s Today page
-  (the navigation's Today); unit tests `ExtensionColumnsTests`, UI test `ExtensionColumnsUITests`.
-- Inbox-item body (#1682, `inbox_item`, see "Inbox items" above): when the hub has `extension_ui_slots` (also query immediately after app startup before hello arrives: an item opened at launch must not be permanently assigned the original body because of that;
-  hubs not knowing this slot simply return an empty list), query each hub once via `GET /api/v1/extensions/-/ui?placement=inbox_item` (again on pairing / hub switch or opening Inbox),
-  recording connectors with extension rendering (`InboxItemSlots`, `connector` matched to item `source`). Opening such items calls `POST …/-/ui/{ui}` with the item id in `context.item`,
-  rendering a returned View below the detail header with `ExtensionViewRenderer`, replacing the conversation / body (like `plugin_page`, pull-to-refresh and `refresh_after`); redraw on item changes (new messages, done / moved back).
-  Header unchanged: iPhone action bar below navigation (✦ summary, **AI Draft Reply** / **Hand to AI**) and Done at top right, Mac right column. Sources absent from the list immediately use the original body; before the first query, show a spinner.
-  403 / 404 / `unsupported` quietly use the original body; extension errors (502), hub connection failures or no View also use it, with a "<extension name> details could not be shown: <reason>" line and **Retry**.
-  An action returning `open_url: persona://inbox/<this item>/source` (view in chat, `InboxSourceLink`; only this drawn item allowed) switches to the original body (Lark chat positioned at the event's first message),
-  with "Back to <page title>" returning to the extension page (same `ExtensionViewModel`, preserving state and entered text); other `open_url`s and links follow extension-page rules through page `openURL`
-  (Lark docs in the reader, Mac adjacent panel). Code `Persona/Views/Inbox/InboxItemSlot.swift` (`InboxItemSlots`, `InboxItemSlotModel`, `InboxExtensionItemPage`),
-  unit test `InboxItemSlotTests`; screenshots: add `MOCK_INBOX_ITEM_UI=1` to mock (extension `example-chat`), `-tab mail -openInboxItem lark:f1:100`
-  (`lark:f3:300` is the group chat / extension-error item).
-- Extension marketplace (#1328, "Extension marketplace"): when `GET /api/v1/extensions` returns `markets: true`, the list starts with **Extension Market**. The catalog has search (waits 0.3 seconds before querying),
-  marketplace filter chips (`FilterChip`, only with more than one marketplace), extension names, versions, descriptions, tags and status (available / upgradable / installed / reason unavailable),
-  with unreadable-marketplace reasons above; details list permissions. **Install** / **Update to …** first call `catalog/preview`, opening a confirmation page with permissions (upgrades separately list "New permissions" first),
-  then install / upgrade with `permissions_digest`; **Uninstall** available only for `from_this_market` (confirm first). Top-right **Markets** opens marketplace management: address, count,
-  fetch time, errors, warnings, with **Refresh**, **Set / Change Token**, **Delete** per row; **Add** takes an address and optional token (write-only, no echo), passed unchanged to the hub without client-side format validation,
-  retaining hub rejection reasons in the form (#1373: https, `github:owner/repo`, `git:<address>[#branch]`; git uses the hub machine's SSH credentials, no token).
-  Logic in `ExtensionMarketModel.swift` (`ExtensionMarketModel`, `MarketExtensionModel`), pages in `ExtensionMarketViews.swift`.
-- Auto-upgrade (#1699, "Auto-upgrade"): details for marketplace-installed extensions (with `ExtensionView.auto_upgrade`) add an **Update** section below **Enabled**:
-  - **Auto-Update** switch (`PUT …/{id}/-/auto-upgrade`) keeps the saved preference visible. With `auto_upgrade_paused: "disabled"`, the footer says auto-update is paused until the extension is on again;
-    Apple still allows editing that saved preference, while web and Android grey it out (mock hub `MOCK_PLUGIN_UPGRADE=disabled`).
-  - With `auto_upgrade_paused: "market_removed"` (#1895), **Auto-Update** and **Check for updates** are greyed out and the page says that adding the marketplace again with the same address restores the saved setting and update checks.
-  - While the master switch is off (`GET /api/v1/extensions/-/upgrades` says `auto: false`), **Auto-Update** keeps showing the extension's saved value but is greyed out, and its footer says the setting applies again once the master switch is back on (#1828).
-    An unknown master switch (still loading, or an older hub without the route) leaves it editable. Web and Apple (`ExtensionSettingsPolicy.canFlipAutoUpgrade`, #4747) do this; Android is #4748.
-    A marketplace's delete confirmation first counts the default manager's installed extensions with that `ExtensionView.market`; 0, 1 and several have their own wording, while a read failure or an old hub that omits `market` gets the generic stopped-upgrading note rather than a false 0.
-    Covered by `ExtensionSettingsLifecycleTests`, `ExtensionMarketModelTests`, `ExtensionMarketTests.testRemovedMarketKeepsPreferenceButPausesUpdates` and `testRemoveMarketConfirmationCountsAffectedExtensions`.
-  - With a new version, "New version 1.1.0" plus small status text: auto-update when idle / auto-update off / needs one more permission: … (orange) / last version failed to start, no further auto-update (orange) / you rolled back from this version, no auto-update to it (orange, `skipped_by: "user"`) / failed to install / incompatible.
-    Actionable rows end with **Review** or **Update**, opening the marketplace upgrade page with permissions and confirmation.
-  - Without a new version, show the last result: "Auto-updated to 1.0.0 (was 0.9.0) · 3 hours ago", or "1.1.0 failed to start, reverted to 1.0.0".
-
-  Marketplace management starts with a master **Auto-Update Extensions** switch (`GET/PUT /api/v1/extensions/-/upgrades`), hidden on old hubs without the endpoint and when there are no marketplaces.
-  Extensions awaiting consent append "· New version needs approval" to their status. Mock hub `MOCK_PLUGIN_UPGRADE` (`needs_permission` (default) / `waiting_idle` / `skipped` / `rolled_back_by_user` / `upgraded` / `renamed`: 1.1.0 under the new ID `example-gateway-next`)
-  determines `example-gateway`'s state; UI tests `ExtensionMarketTests.testAutoUpgrade`, `testAutoUpgradeForAll`, unit test `ExtensionUpgradeTests`.
-- Screenshots: the `MOCK_EXTENSIONS=1` mock hub (like a new hub: reports `extensions` and `extension_*`, returns new keys on `/api/v1/extensions/…`; add `MOCK_EXTENSIONS_LEGACY=1` for a pre-rename hub) has five sample extensions with different states, plus `example-gateway` pages and a launcher section (and one always returning unsupported),
-  two marketplaces and their catalogs; `-tab settings -openExtensions YES` (`-openExtension <id>` opens details directly, add `-openExtensionPage <ui>` for its page and `-openExtensionManager <id>` for another manager's copy; old `-openPlugin…` forms still work),
-  `-openExtensionMarket YES` (catalog), `-openExtensionMarkets YES` (marketplace management), `-openMarketExtension <marketplace id>/<extension id>`, `-openLauncherPage <launcher>`.
-  UI slots: `-tab settings` shows cards and entries; `-openExtension example-gateway -openExtensionPage usage` opens usage; `-openMachines YES -openMachineDetail macbook`
-  shows the machine section. Desktop uses the Electron smoke's captured web pages; iOS uses `scripts/app/sim.sh` (`DEMO=0` plus `-pairURL`); `-openMacExtensionPage example-gateway/usage` opens that sidebar page.
-  UI tests `ExtensionSettingsTests`, `ExtensionMarketTests` (marketplace installation, upgrade preview, marketplace management, saving extension pages, launcher section; `TEST_RUNNER_PERSONA_EXTENSIONS_HUB`),
-  `ExtensionSlotsTests` (cards, entries/badges, usage-page segmented controls and chart, opening cards, machine sections),
-  unit tests `ExtensionsModelTests`, `ExtensionMarketModelTests`, `ExtensionViewModelTests`, `ExtensionSlotsModelTests`.
-- Web (#1207): **Settings › Extensions**, same lists and details (`Extensions.tsx`, `web/src/lib/extensions.ts`, `/settings?tab=extensions&extension=<id>`; old `?tab=plugins&plugin=<id>` links still open), see `docs/web/web.md` ("Settings").
+- Web (#1207): **Settings › Extensions**, same lists and details (`web/src/views/settings/Extensions.tsx`, `web/src/lib/extensions.ts`, `/settings?tab=extensions&extension=<id>`; old `?tab=plugins&plugin=<id>` links still open), see `docs/web/web.md` ("Settings").
   #1330 adds declarative UI (`settings/ExtensionView.tsx`, `lib/extension-ui.ts`: **Pages** in extension details, launcher-detail sections) and the extension marketplace (`settings/ExtensionMarket.tsx`, `lib/extension-market.ts`: catalog, details, marketplace management).
   #1699 adds auto-upgrade ("Auto-upgrade"): an **Upgrades** group in marketplace-extension details (switch, new-version row and **Review**, last result, `UpgradeGroup`), master switch at the top of marketplace management, same wording as the app (`upgradeDetail` etc. in `lib/extensions.ts`).
   #1895: with `auto_upgrade_paused: "market_removed"` the switch and **Check for updates** are greyed out and the group says that adding the marketplace again with the same address brings upgrades back; a marketplace's delete confirmation says how many installed extensions stop upgrading (`upgradingFrom` in `lib/extension-market.ts`, from `ExtensionView.market`; without it, only that they stop).
   #1828: while the master switch is off, the switch is greyed out too, keeping the extension's saved value (`globalAuto` in `ExtensionSettingsPage.tsx`).
   #1681 adds `inbox_item` (`inbox/InboxExtensionBody.tsx`: Inbox detail body; list from `lib/extension-slots.ts` cache), see "UI slots" under "Settings" in `docs/web/web.md`.
-- Android (#1206) has the same features, entered through **Extensions** on the Settings home; code and screenshots in [android.md](../android/android.md) ("Extensions (Settings › Extensions)"). Extension-rendered UI (extension pages, launcher sections) and the marketplace (#1329) are covered by "Extension-rendered UI and the extension marketplace" in that section. Auto-upgrade, per-machine switches and detail-page uninstall (**Keep data** checked by default) are in "Auto-upgrade, per-machine switches and uninstall" (#3049).
 
 ## Admin UI: Extensions
 
@@ -3931,8 +3668,7 @@ and the node follows (`node/plugins.go`). Reconciliation runs on computer connec
 ## Schema and types for all four clients
 
 Manifests, process protocol, Views and components have one definition: JSON Schema in `schema/extension/` (#1849). Generate types from it, never hand-write them:
-Go `sdk/go/wire` (used directly by the hub, `server/go.mod` uses `replace` to `../sdk/go`), TypeScript `sdk/ts/src/wire.ts` and web `web/src/lib/extension-wire.ts`,
-Swift `apple/Packages/PersonaWire/Sources/PersonaWire/ExtensionWire.swift`, Kotlin `android/core/contracts/.../generated/ExtensionWire.kt`.
+Go `sdk/go/wire` (used directly by the hub, `server/go.mod` uses `replace` to `../sdk/go`), TypeScript `sdk/ts/src/wire.ts` and web `web/src/lib/extension-wire.ts`.
 
 - After schema changes, regenerate with `python3 scripts/gen/extension_schema.py`; `--check` compares only (`scripts/test/test_extension_schema.py` runs it and checks examples/counterexamples under `examples/`).
 - Hub validation of extension Views and conformance checks of `initialize` responses first use the schema (`wire.Validate`), then checks the schema cannot express (`extension.CheckView`).
@@ -4307,13 +4043,6 @@ Extension → app:
 | `{"type":"error","message":"…","fatal":true,"code":"…"}` | With `fatal`, extension closes the connection afterwards. `code` optional; built-in voice has `no_upstream` (fatal: upstream not configured), `model_unavailable` (nonfatal: selected model's upstream gone, default model used this time); app chooses wording by `code`, with `message` as detail |
 
 Closing the WebSocket ends this conversation.
-
-### App
-
-- Android: tap the **Persona** tab title, then **Voice chat** in its menu (only with a `running` voice extension) to open voice; **Voice** at top right
-  (a **Model configuration / Voice** menu once model configuration is wired into the host). Model comes from purpose `plugin.<id>`; old hubs use the extension's default.
-  Recording uses `VOICE_COMMUNICATION` plus system echo cancellation (so the model does not hear itself on speaker), see `docs/android/android.md`.
-- iOS: duplex voice chat in CarPlay (`docs/apple/carplay.md`), using the plugin's default model and voice.
 
 ## Transcription
 

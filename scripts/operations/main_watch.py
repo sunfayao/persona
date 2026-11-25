@@ -30,7 +30,6 @@ MARKER = "main-verify-fix"
 WORKTREE_TIMEOUT = 180
 PROTECTED_REPAIR_PATHS = (
     "docs/SUPER_RULES.md", ".github/", "scripts/", "schema/", "spec/",
-    "apple/PersonaTests/TokenBaseline.json",
 )
 
 
@@ -47,7 +46,6 @@ def repair_publication(branch, head, issue, verified):
     title = "fix: restore main verification at " + head[:12]
     body = ("## What changed and why\n\nRepair the reproduced main verification failure at `%s`.\n\n"
             "## Verification\n\n%s\n\n"
-            "## Apple performance\n\nNot applicable; this automatic repair makes no Apple UI changes.\n\n"
             "## Design principles self-check\n\nNot applicable.\n\nFixes #%d" %
             (head, "\n".join("- PASS: " + check["name"] for check in verified), issue))
     return title, body

@@ -56,9 +56,8 @@ Agents                                   (only agents under no task; unchanged b
   | Working | Working, or the leader's own turn is running |
   | Stopped | Just finished, PR to merge, Other open, Shelved, Done; the hint names which |
 
-  Each client feeds its existing triage copy (`web/src/lib/todo-triage.ts`, `apple/Shared/TodoTriage.swift`,
-  `android/core/domain/src/main/kotlin/persona/core/domain/tasks/TodoTriage.kt`) and one small aggregation with the
-  same test cases on all three. A leader stopped for 48 hours folds as the SOP shelves.
+  The web feeds its existing triage copy (`web/src/lib/todo-triage.ts`) and one small aggregation with the
+  same test cases. A leader stopped for 48 hours folds as the SOP shelves.
 - **To-dos page**: List › Status | **Leader** | Folder (iOS has no such switch yet; I1 adds it). Leader view = the same tree (secretary, then leaders by status,
   then tasks); inside a leader, tasks keep the SOP's section order. The header count is unchanged.
 - **Progress count** (the main chat's Needs you / In progress, `docs/assistant/unified-entry.md` "Needs you and In progress: each thing once (#3387)"):
@@ -154,7 +153,7 @@ Only done inside the PRs of section 4, never on their own.
 
 | # | Where | Fix |
 | --- | --- | --- |
-| U1 | New chat, all clients | The compose icon at the right of the Persona chats title, always (on web today it shows only while folded); web drops the `j:new` row (`web/src/views/Sidebar.tsx`), iOS drops the action row in `phoneActions` (`apple/Persona/Views/Assistant/AssistantSidebar.swift`), Android moves `JSidebarNewChat` into a `JSectionHeader` action |
+| U1 | New chat, all clients | The compose icon at the right of the Persona chats title, always (on web today it shows only while folded); web drops the `j:new` row (`web/src/views/Sidebar.tsx`) |
 | U2 | Web chat rows | Show waiting on you and unread like iOS, not only working (`showState={false}` today) |
 | U3 | Web recent chats | A Recent heading with ⋯ (All chats, Archived) and 30 rows + Show all, as iOS; today 5 |
 | U4 | Web auto chats | Right under the heading as on iOS, so a waiting one stays in view |

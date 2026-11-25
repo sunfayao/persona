@@ -286,7 +286,6 @@ Question, permission, and plan cards, including appearance, answer, replacement,
 | Node reports hub | Enter / leave blocked events bypass one-per-second list rebuild; snapshot and `sessions.changed` after 50 ms coalescing |
 | Hub creates card | No delay for unhooked sessions; hooked sessions wait 1.5 s (`docs/protocol/protocol.md`, “Terminal dialogs”). Read screen, parse, broadcast interaction immediately |
 | Push to app | WebSocket immediately queues per connection; APNs sends immediately; Needs you Dynamic Island changes are not coalesced or limited to 30 s interval |
-| App renders | Apply to model on receipt; Needs you / questions land even while Agents list updates are held (`landCritical`, `docs/apple/ios-state.md`); chat reads model directly |
 
 Measurements (2026-11-03, isolated herdr + real Claude Code 2.1.317, no Persona hook; node / hub in same process linked like SSH, `hub/cardlatency_live_test.go`):
 
@@ -677,7 +676,7 @@ Without Docker, use system Postgres (Ubuntu postgresql, version 16 tested, local
 
 | Table | Content |
 | --- | --- |
-| `live_activities` | Per-device activity / push-to-start tokens and start time, `docs/apple/live-activity.md` |
+| `live_activities` | Per-device activity / push-to-start tokens and start time |
 | devices | APNs registrations; 410 / BadDeviceToken uses a persisted registration compare-and-delete, never another slot's newer token. Enrollment publishes only after ownership/retirement commit. JSONB prefs are not overwritten on registration |
 | `phone_tools` | iPhone's last declared phone_* tools, visible to Claude even offline |
 | `node_sessions` | Persona-started sessions per machine: pane, launcher, directory. Node uses hub `state.load` / `state.put`, Mac no direct DB. `state.load` reads last 60 days via `node_sessions_started` index (machine_id, started_at), not entire machine history |
@@ -824,7 +823,6 @@ Foreground app keeps WebSocket to hub, receiving change broadcasts. A 19-minute 
 - Stop identical full-list broadcasts for old apps (`broadcastSessions`). Questions appearing / answered, viewing sessions, Codex cards often rebroadcast unchanged machine lists. `sessionsSent` stores last emitted encoded bytes per session; `sameSessions` skips identical. Recording / enqueue share lock, so remembered list equals last app received. Replay 37 → 30 messages/min but only 6% fewer bytes; remaining changes are real rev / `updated_at` / last-text changes needing delta protocol.
 - Decode and re-encode only what changed (#2250): the hub (`fleet.sessions`) and the manager (`sessions.changed`) decode only the sessions whose bytes differ from the last list (`proto.SessionListDecoder`); the hub keeps each session's row with the bytes, rev and manager it came from and pushes the same row again while they stay (`Machine.encodeKept`), projects the whole-list message once per kind of older app and works out a delta once per group of delta apps in sync. Wire bytes are unchanged; `proto.DecodeChangedSessions = false` goes back to whole lists. One changed session of 150, bytes in to messages queued for 5 delta and 2 older apps: 2.69 → 0.70 ms, 1.32 MB → 431 KB, 571 → 43 allocations; the manager's ingestion 1.12 → 0.28 ms. The price is memory: for that 150-session machine the hub keeps about 470 KiB more and the manager about 440 KiB (the last list's bytes and decoded sessions, and the hub's row map).
 - Disconnect lagging connections: full send queue, 512 messages behind, previously dropped one message; now disconnect like `sendJSON` and reload full snapshot after reconnect. Once duplicates suppressed, dropped message cannot rely on a later identical list to repair it.
-- Live Activity cadence: `docs/apple/live-activity.md` (“Push cadence”).
 
 ## Self-update (`hub/selfupdate.go`, `docs/operations/hub-update.md`)
 

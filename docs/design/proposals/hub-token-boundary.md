@@ -96,8 +96,7 @@ closed admin routes, which need the password session. The WebSocket message path
 - **Extensions**: through `PERSONA_HUB_TOKEN`, from the built-in manager only. A relayed manager already gives scoped
   `pext_` tokens (`hubStartEnv`).
 - **Scripts**: `scripts/operations/hub_action.py`, `scripts/release/promote_hub_release.py`,
-  `scripts/release/promote_node_release.py`, `scripts/app/sim.sh` and `scripts/app/ui-test.sh` (which pair the simulator
-  with it), `scripts/app/personactl.py`,
+  `scripts/release/promote_node_release.py`,
   `scripts/test/hub_restart_seamless.py`, `scripts/ci/image-smoke.sh`. `scripts/deploy/deploy.sh` does not use it.
 - **Tests**: about 97 test files in `server/internal/hub` use the config's token, most through `call()` and
   `newTestHub`; around 100 writes in 37 files.

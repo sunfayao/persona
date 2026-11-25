@@ -1761,10 +1761,10 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(verify.call_count, 1)
 
     def test_title_and_test_only_visual_exemption(self):
-        for title in ("test(web): wait for lazy details", "test(ios): correct an assertion",
-                      "fix(ios): repair a view", "fix(android): repair a layout"):
+        for title in ("test(web): wait for lazy details", "test(web): correct an assertion",
+                      "fix(web): repair a view", "fix(server): repair a handler"):
             self.assertTrue(pr_watch_repair.test_or_fix(pr(title=title), ["web/src/views/ChatView.tsx"]))
-        self.assertFalse(pr_watch_repair.test_or_fix(pr(title="feat(ios): a new view"), ["apple/Persona/Views/ChatView.swift"]))
+        self.assertFalse(pr_watch_repair.test_or_fix(pr(title="feat(web): a new view"), ["web/src/views/ChatView.tsx"]))
         self.assertTrue(pr_watch_repair.test_or_fix(pr(title="feat(web): refine a test"),
                                                      ["web/src/views/chat/ContextGroup.test.tsx"]))
         self.assertFalse(pr_watch_repair.test_or_fix(pr(title="chore: change a view"),
@@ -1792,32 +1792,14 @@ class WatcherTests(unittest.TestCase):
         self.assertEqual(check.call_args_list[0].kwargs["cwd"], str(root / "web"))
         self.assertEqual(check.call_args_list[1].kwargs["cwd"], str(root / "web"))
 
-    def test_production_apple_fix_does_not_use_test_only_fast_path(self):
-        self.assertIsNone(pr_watch_verify.scoped_test_checks(".", SHA_BASE, SHA_A,
-                                                               ["apple/Persona/Views/ChatView.swift"]))
-        self.assertIsNone(pr_watch_verify.scoped_test_checks(".", SHA_BASE, SHA_A,
-                                                               ["apple/Shared/Models.swift"]))
-        self.assertIsNotNone(pr_watch_verify.scoped_test_checks(".", SHA_BASE, SHA_A,
-                                                                  ["apple/PersonaTests/ChatTests.swift"]))
-        self.assertIsNotNone(pr_watch_verify.scoped_test_checks(".", SHA_BASE, SHA_A,
-                                                                  ["apple/PersonaUITests/MinutesCardsUITests.swift"]))
-
-    def test_apple_test_only_change_uses_portable_guards_without_macos_adapter(self):
-        names = "apple/PersonaUITests/MinutesCardsUITests.swift\n"
-        with patch.object(pr_watch_verify, "checked", return_value=names):
-            commands = pr_watch_verify.persona_checks(".", pr(title="test(ios): refine UI assertions"), 1, {})
-        self.assertIn(("Apple test-only review policy", ["true"]), commands)
-        self.assertTrue(any(command[0] == "Privacy and documentation guards" for command in commands))
-        self.assertFalse(any(command[0].startswith("CI ") for command in commands))
-
     def test_shared_test_support_keeps_full_lanes(self):
         names = "web/src/test/setup.ts\n"
         with patch.object(pr_watch_verify, "checked", return_value=names), \
                 patch.object(pr_watch_verify, "load_paths") as selector:
-            selector.return_value.select.return_value = {"web": True, "desktop": True, "scripts": True}
+            selector.return_value.select.return_value = {"web": True, "runtimes": True, "scripts": True}
             commands = pr_watch_verify.persona_checks(".", pr(title="test(web): update shared setup"), 1, {})
         self.assertEqual(commands[:2], [("CI web", ["bash", "scripts/ci/web.sh"]),
-                                    ("CI desktop", ["bash", "scripts/ci/desktop.sh"])])
+                                    ("CI runtimes", ["bash", "scripts/ci/runtimes.sh"])])
 
     def test_changed_go_and_python_tests_use_focused_commands(self):
         names = ["server/internal/agents/cache_test.go", "scripts/operations/test_pr_watch.py"]
@@ -2124,8 +2106,8 @@ class WatcherTests(unittest.TestCase):
         self.assertIn("Ran 0 tests", result["summary"])
 
     def test_focused_test_change_keeps_other_selected_platform_lanes(self):
-        for name, lane in (("apple/PersonaTests/ChatTests.swift", "CI server"),
-                           ("scripts/mock/test_desktops_mock.py", "CI desktop")):
+        for name, lane in (("integrations/runtime-sdk/test/input-clip.test.js", "CI runtimes"),
+                           ("scripts/mock/test_mock_hub.py", "CI server")):
             with self.subTest(name=name):
                 with patch.object(pr_watch_verify, "checked", return_value=name + "\n"), \
                         patch.object(pr_watch_verify, "load_paths") as selector:
@@ -3702,93 +3684,6 @@ class EventTests(unittest.TestCase):
 
 
 class VerifyTests(unittest.TestCase):
-    def test_apple_change_does_not_require_macos_verifier(self):
-        path = "apple/Persona/App/View.swift"
-        with patch.object(pr_watch_verify, "checked", side_effect=[path + "\n", "+import SwiftUI"]), \
-                patch.object(pr_watch_verify, "load_paths") as selector:
-            selector.return_value.select.return_value = {"apple": True, "scripts": True}
-            commands = pr_watch_verify.persona_checks(".", pr(title="feat: an example"), 1,
-                                                       {"ui_evidence_command": ["visual", "{worktree}"]})
-        self.assertIn(("Apple semantic and portable verification policy", ["true"]), commands)
-        self.assertIn(("visual evidence", ["visual", "."]), commands)
-        self.assertFalse(any(command[0] == "trusted Apple verification" for command in commands))
-
-    def test_non_ui_apple_paths_are_explicit_and_diff_is_checked(self):
-        path = "apple/Packages/PersonaKit/Sources/PersonaKit/StreamChunks.swift"
-        with patch.object(pr_watch_verify, "checked", return_value="+chunks.removeFirst()\n"):
-            self.assertTrue(pr_watch_verify.non_ui_apple_change(".", SHA_BASE, SHA_A, [path]))
-        for changed in ("+import SwiftUI\n+struct ChunkView: View {}", "+Text(localized: \"Ready\")",
-                        "+NavigationStack { Content() }", "+.sheet(isPresented: $shown) { Content() }",
-                        "+.padding(8)", "+Image(systemName: \"checkmark\")"):
-            with patch.object(pr_watch_verify, "checked", return_value=changed):
-                self.assertFalse(pr_watch_verify.non_ui_apple_change(".", SHA_BASE, SHA_A, [path]))
-        for changed in ("+import SwiftUI", "+NavigationStack { Content() }"):
-            with patch.object(pr_watch_verify, "checked", return_value=changed):
-                self.assertFalse(pr_watch_verify.non_ui_apple_change(
-                    ".", SHA_BASE, SHA_A, ["apple/Persona/Views/Session/FilesPane.swift"]))
-        with patch.object(pr_watch_verify, "checked", return_value="+.padding(8)"):
-            self.assertFalse(pr_watch_verify.non_ui_apple_change(
-                ".", SHA_BASE, SHA_A, ["apple/PersonaUITests/MinutesTests.swift", "apple/Persona/Views/Session/FilesPane.swift"]))
-        for names in ([path, "web/src/views/ChatView.tsx"],
-                      ["apple/Shared/Localization/Localizable.xcstrings"]):
-            self.assertFalse(pr_watch_verify.non_ui_apple_change(".", SHA_BASE, SHA_A, names))
-        with patch.object(pr_watch_verify, "checked", return_value="+import SwiftUI"):
-            self.assertFalse(pr_watch_verify.non_ui_apple_change(
-                ".", SHA_BASE, SHA_A, ["apple/Persona/App/TestsSupport/Feature.swift"]))
-        with patch.object(pr_watch_verify, "checked", return_value="+Text(ready)"):
-            self.assertFalse(pr_watch_verify.non_ui_apple_change(
-                ".", SHA_BASE, SHA_A, ["apple/Persona/Recording/RecordingMinutesView.swift"]))
-
-        self.assertTrue(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["apple/PersonaUITests/MinutesTests.swift"]))
-        with patch.object(pr_watch_verify, "checked", return_value="+chunks.removeFirst()\n"):
-            self.assertTrue(pr_watch_verify.non_ui_apple_change(
-                ".", SHA_BASE, SHA_A, ["apple/Persona/App/TasksStore.swift"]))
-        self.assertTrue(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["native/app-core/crates/persona-core-runtime/src/lib.rs",
-                                    "android/core/rustcore/src/main/kotlin/persona/core/rustcore/Codec.kt",
-                                    "schema/extension/manifest.json"]))
-        self.assertFalse(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["native/app-core/crates/persona-core-ffi/src/lib.rs"]))
-        self.assertFalse(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["native/app-core/crates/persona-core-typegen/src/main.rs"]))
-        self.assertFalse(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["native/app-core/crates/persona-core-runtime/src/wire.rs"]))
-        self.assertFalse(pr_watch_verify.non_ui_apple_change(
-            ".", SHA_BASE, SHA_A, ["web/src/views/ChatView.tsx"]))
-
-    def test_eligible_non_ui_apple_change_runs_remaining_lanes(self):
-        names = "apple/Packages/PersonaKit/Sources/PersonaKit/StreamChunks.swift\n"
-        with patch.object(pr_watch_verify, "checked", return_value=names), \
-                patch.object(pr_watch_verify, "non_ui_apple_change", return_value=True) as classifier, \
-                patch.object(pr_watch_verify, "load_paths") as selector:
-            selector.return_value.select.return_value = {"apple": True, "scripts": True, "server": True}
-            commands = pr_watch_verify.persona_checks(".", pr(title="chore: an example"), 1, {})
-        self.assertEqual(commands, [("CI server", ["bash", "scripts/ci/server.sh"]),
-                                    ("Exact-head privacy scan", commands[1][1]),
-                                    ("Apple semantic and portable verification policy", ["true"])])
-        classifier.assert_called_once()
-
-    def test_shared_core_lane_is_not_dropped(self):
-        names = "native/app-core/crates/persona-core-runtime/src/lib.rs\n"
-        with patch.object(pr_watch_verify, "checked", return_value=names), \
-                patch.object(pr_watch_verify, "non_ui_apple_change", return_value=True), \
-                patch.object(pr_watch_verify, "load_paths") as selector:
-            selector.return_value.select.return_value = {"apple": True, "core": True, "android": True, "scripts": True}
-            commands = pr_watch_verify.persona_checks(".", pr(), 1, {})
-        self.assertEqual(commands[:2], [("CI android", ["bash", "scripts/ci/android.sh"]),
-                                    ("CI core", ["bash", "scripts/ci/core.sh"])])
-        self.assertEqual(commands[-1], ("Apple semantic and portable verification policy", ["true"]))
-
-    def test_apple_ffi_keeps_semantic_and_portable_checks_without_macos(self):
-        names = "native/app-core/crates/persona-core-ffi/src/lib.rs\n"
-        with patch.object(pr_watch_verify, "checked", return_value=names), \
-                patch.object(pr_watch_verify, "load_paths") as selector:
-            selector.return_value.select.return_value = {"apple": True, "core": True, "scripts": True}
-            commands = pr_watch_verify.persona_checks(".", pr(title="feat: an example"), 1, {})
-        self.assertIn(("CI core", ["bash", "scripts/ci/core.sh"]), commands)
-        self.assertIn(("Apple semantic and portable verification policy", ["true"]), commands)
-
     def test_extension_shared_changes_use_full_ci(self):
         with patch.object(pr_watch_verify, "extension_modules", return_value=None), \
                 patch.object(pr_watch_verify, "checked", return_value="scripts/ci.sh\n"):

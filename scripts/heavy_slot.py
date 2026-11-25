@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Machine-wide slots for heavy builds, so parallel worktrees queue instead of thrashing (#10714).
 
-    python3 scripts/heavy_slot.py run --kind xcode|gradle|go|web -- <command> [<argument>...]
+    python3 scripts/heavy_slot.py run --kind go|web -- <command> [<argument>...]
     python3 scripts/heavy_slot.py status
 
 run takes one of the kind's slots (an exclusive fcntl.flock on <dir>/<kind>.<n>.lock), runs the command as its child
@@ -10,7 +10,7 @@ wait, one when it gets a slot and one when it gives up. status lists every kind'
 
   PERSONA_HEAVY_SLOTS=0           off: run execs the command, so it runs exactly as without the helper
   PERSONA_HEAVY_SLOTS_<KIND>=<n>  that kind's slot count (0: no limit for that kind); the default comes from the
-                                  core count (CORES_PER_SLOT: 14 cores give xcode 2, gradle 2, go 3, web 3)
+                                  core count (CORES_PER_SLOT: 14 cores give go 3, web 3)
   PERSONA_HEAVY_SLOT_TIMEOUT=<s>  the longest wait in seconds (default 2700, 45 minutes)
   PERSONA_HEAVY_SLOT_DIR=<dir>    the lock files' directory (default ~/Library/Caches/persona/slots on macOS, else
                                   $XDG_CACHE_HOME/persona/slots or ~/.cache/persona/slots)
@@ -46,10 +46,9 @@ try:
 except ImportError:  # Windows
     fcntl = None
 
-# Cores per slot: an xcodebuild or a Gradle build already uses every core and several GB of memory; a go test or a
-# vitest run uses fewer for most of its run.
-CORES_PER_SLOT = {"xcode": 7, "gradle": 7, "go": 4, "web": 4}
-ARTICLE = {"xcode": "an", "gradle": "a", "go": "a", "web": "a"}
+# Cores per slot: a go test or a vitest run uses a few cores for most of its run.
+CORES_PER_SLOT = {"go": 4, "web": 4}
+ARTICLE = {"go": "a", "web": "a"}
 DEFAULT_TIMEOUT = 45 * 60
 POLL_SECONDS = 0.25
 HELD = "PERSONA_HEAVY_SLOT_HELD"
