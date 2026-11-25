@@ -5,7 +5,7 @@ import { CONTEXT_RE } from "../compatibility";
 import type { Item } from "../types";
 
 /** The conversation a call is bound to, as `start.target` sends it. */
-export interface VoiceTarget {
+interface VoiceTarget {
   machine_id: string;
   session_id: string;
 }
@@ -27,10 +27,10 @@ export interface VoiceLine {
   text: string;
 }
 
-export const RECENT_TURNS = 3;
-export const RECENT_LENGTH = 300;
+const RECENT_TURNS = 3;
+const RECENT_LENGTH = 300;
 /** At most this many lines of `recent`: an agent's turn can be a long run of short texts between tool calls. */
-export const RECENT_LINES = 12;
+const RECENT_LINES = 12;
 /** How many of the call's captions a reconnect hands back (`history`). */
 export const HISTORY_LINES = 40;
 
@@ -38,7 +38,7 @@ export const DEFAULT_INPUT_RATE = 16000;
 export const DEFAULT_OUTPUT_RATE = 24000;
 
 /** Text without the page's context blocks, its runs of blank space made one. */
-export function cleanLine(raw: string): string {
+function cleanLine(raw: string): string {
   return raw.replace(new RegExp(CONTEXT_RE.source, "g"), " ").split(/\s+/).filter(Boolean).join(" ");
 }
 
@@ -109,10 +109,10 @@ export interface VoiceRun {
   resendable?: boolean;
 }
 
-export type VoiceAskState = "asking" | "answered" | "released" | (string & {});
+type VoiceAskState = "asking" | "answered" | "released" | (string & {});
 
 /** Which card the call is asking about by voice (`ask` frame). */
-export interface VoiceAsk {
+interface VoiceAsk {
   interactionID: string;
   state: VoiceAskState;
   by?: string;

@@ -76,8 +76,8 @@ import { t } from "../../../i18n";
 
 /** Driving: not asked (off), asked (starting), granted (active), another program holds it and the user is to say
  * whether to take it (busy), or watching although it wanted to drive (declined, `why`). */
-export type Control = "off" | "starting" | "active" | "busy" | "declined";
-export type Why = "" | "taken" | "lost" | "unsupported" | "chosen";
+type Control = "off" | "starting" | "active" | "busy" | "declined";
+type Why = "" | "taken" | "lost" | "unsupported" | "chosen";
 
 export interface FeedView {
   /** xterm is loaded and open. */

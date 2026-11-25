@@ -217,14 +217,14 @@ export function withoutViewErrors(raw: string): string {
 }
 
 /** An older hub's user item holding nothing but that feedback: no message of the user's. */
-export function viewFeedbackOnly(it: Item): boolean {
+function viewFeedbackOnly(it: Item): boolean {
   return it.role === "user" && it.kind === "text" && !!it.text?.includes("<persona-view-errors") && !withoutViewErrors(it.text).trim();
 }
 
 /** The hub's mid-turn interject note (server/internal/prompts/assistant/interject.md): instructions for the model
  *  inside `<persona-context kind="context" title="插话">`, never a quote the owner picked, so it never renders as one.
  *  The title is pinned by server/internal/node/assistant_interject_test.go. */
-export const INTERJECT_TITLE = "插话"; // i18n-ignore: canonical hub prompt title
+const INTERJECT_TITLE = "插话"; // i18n-ignore: canonical hub prompt title
 
 /** A persona-context block that is the hub's interject note rather than user-picked context. */
 export function isInterjectContext(attrs: { kind?: string; title?: string }): boolean {
@@ -538,7 +538,7 @@ const SPELLED: Record<string, string> = {
 const SPELLED_VALUES = new Set(Object.values(SPELLED));
 
 /** An identifier cut into words at _ - . / : and spaces, and where camel case turns ("getPRComments": get, PR, Comments). */
-export function nameWords(id: string): string[] {
+function nameWords(id: string): string[] {
   return id
     .split(/[_\-./: ]+/)
     .flatMap((part) => part.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/))
@@ -564,12 +564,12 @@ export function mcpServerName(server: string): string {
   return words.map((w) => ownEntry(SPELLED, w.toLowerCase()) ?? w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-export function shortFile(p: string) {
+function shortFile(p: string) {
   const parts = p.split("/");
   return parts.length > 3 ? `…/${parts.slice(-2).join("/")}` : p;
 }
 
-export const TOOL_LABEL: Record<string, string> = {
+const TOOL_LABEL: Record<string, string> = {
   Bash: t("lib-turns.tool_run"),
   exec_command: t("lib-turns.tool_run"),
   shell: t("lib-turns.tool_run"),
@@ -594,7 +594,7 @@ export const TOOL_LABEL: Record<string, string> = {
 const AGY_PERSONA_MCP_RE = new RegExp(`^mcp_(?:${[...PERSONA_SERVERS].join("|")})(?:_[0-9a-fA-F]{8,16})?_([a-z][a-z0-9_]*)$`);
 
 /** Normalize Antigravity's single-underscore Persona MCP names (`mcp_persona_<tool>`, `mcp_persona_<hex>_<tool>`) to `mcp__persona__<tool>`. */
-export function canonicalMcpToolName(name?: string): string | undefined {
+function canonicalMcpToolName(name?: string): string | undefined {
   if (!name || !name.startsWith("mcp_") || name.startsWith("mcp__")) return name;
   const m = AGY_PERSONA_MCP_RE.exec(name);
   return m ? `mcp__persona__${m[1]}` : name;
@@ -715,7 +715,7 @@ export function personaToolVerb(rawName?: string): { verb: string; what?: string
 // idle agent starts an exchange of its own (#9140): the turn before it had ended, and its last words stay its answer.
 // The lines are then what the chat draws, one per row.
 
-export interface Turn {
+interface Turn {
   id: string;
   /** Your messages and their pictures. */
   users: Item[];
@@ -731,7 +731,7 @@ export interface Turn {
 export type Block = { kind: "turn"; turn: Turn } | { kind: "row"; item: Item };
 
 /** One of your messages, or a picture sent with one. */
-export function isUserInput(i: Item): boolean {
+function isUserInput(i: Item): boolean {
   return i.role === "user" && (i.kind === "text" || (i.kind === "image" && !i.tool_use_id));
 }
 
@@ -805,7 +805,7 @@ const BACKGROUND_SOURCES: ReadonlySet<string> = new Set(["conversation", "follow
 /** The input's source when it starts a background round. A `followup` is one only as a scheduled follow-up (the hub
  *  titles those): Persona continuing the user's own work after a usage limit reset (`limit_continue`) or waking the chat
  *  for what it said it waits on (`wake`) carries the same source, and folding it would hide the answer to the user. */
-export function backgroundSource(it: Item): MessageSource | undefined {
+function backgroundSource(it: Item): MessageSource | undefined {
   if (!isUserInput(it) || it.kind !== "text") return undefined;
   const injected = injectedOf(it);
   const source = sourceOf(it, injected);
@@ -1115,7 +1115,7 @@ function isRetryLine(l: ChatLine): boolean {
 
 /** Model API errors become cards; the same error again right after, with nothing but a retry between, folds into the
  *  first with a count (iOS ChatLines.foldAPIErrors). */
-export function foldAPIErrors(lines: ChatLine[]): ChatLine[] {
+function foldAPIErrors(lines: ChatLine[]): ChatLine[] {
   const out: ChatLine[] = [];
   for (const line of lines) {
     const e = lineError(line);
@@ -1138,7 +1138,7 @@ export function foldAPIErrors(lines: ChatLine[]): ChatLine[] {
 }
 
 /** Several recaps in a row (nothing else between) are one line, keeping the first one's id. */
-export function foldRecaps(lines: ChatLine[]): ChatLine[] {
+function foldRecaps(lines: ChatLine[]): ChatLine[] {
   const out: ChatLine[] = [];
   for (const l of lines) {
     const prev = out[out.length - 1];
@@ -1160,7 +1160,7 @@ export function openRecap(lines: ChatLine[], pending?: Item): OpenRecap | undefi
 }
 
 /** Sent by another Persona conversation (conversation_new / conversation_send), not typed by you. */
-export function isRelayed(msg: UserMessage): boolean {
+function isRelayed(msg: UserMessage): boolean {
   if (msg.client_msg_id || msg.rawInput?.some((item) => userSourceSentinel(item.text ?? ""))) return false;
   return msg.source?.kind === "conversation";
 }

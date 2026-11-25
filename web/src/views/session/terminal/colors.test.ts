@@ -6,8 +6,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { terminalPalette } from "../../../lib/terminal";
-import { scopedThemeCSS } from "../../../ui/extension-theme";
-import { applyLook } from "../../../ui/look";
 import { findDecorations, terminalColors } from "./colors";
 
 const css = readFileSync(join(__dirname, "../../../styles.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -38,11 +36,8 @@ beforeEach(() => addStyle(tokenRules.map((r) => `${r.selectors.join(", ")} {${r.
 
 afterEach(() => {
   styles.splice(0).forEach((el) => el.remove());
-  document.getElementById("persona-accent")?.remove();
   root.className = "";
   root.removeAttribute("style");
-  delete root.dataset.accent;
-  delete root.dataset.extensionTheme;
   localStorage.clear();
 });
 
@@ -76,36 +71,6 @@ describe("the terminal's colors", () => {
     expect(terminalColors("dark")).toEqual(dark);
     expect(lightOnDark).toEqual(light);
     expect(terminalColors("light")).toEqual(light);
-  });
-
-  it("keeps a theme color in the terminal's scheme", () => {
-    localStorage.setItem("persona.accent", "teal");
-    applyLook();
-    pageScheme(true);
-    const dark = terminalColors("page");
-    pageScheme(false);
-    expect(terminalColors("page").blue).not.toBe(dark.blue);
-    expect(terminalColors("dark")).toEqual(dark);
-  });
-
-  it("keeps an extension theme in the terminal's scheme, over a theme color", () => {
-    localStorage.setItem("persona.accent", "teal");
-    applyLook();
-    const theme = { light: { "--accent": "#0b6e4f", "--green": "#1d6b2f" }, dark: { "--accent": "#5fd4a8", "--green": "#7fdc8f" } };
-    root.dataset.extensionTheme = "example/forest";
-    addStyle(scopedThemeCSS(theme));
-    // what ExtensionThemePicker puts on <html>: the page's scheme's tokens, inline
-    const inline = (dark: boolean) => {
-      root.removeAttribute("style");
-      for (const [k, v] of Object.entries(theme[dark ? "dark" : "light"])) root.style.setProperty(k, v);
-      pageScheme(dark);
-    };
-    inline(true);
-    const dark = terminalColors("page");
-    expect(dark.blue).toBe("#5fd4a8");
-    inline(false);
-    expect(terminalColors("page").blue).toBe("#0b6e4f");
-    expect(terminalColors("dark")).toEqual(dark);
   });
 
   it("marks find matches in the terminal's scheme", () => {

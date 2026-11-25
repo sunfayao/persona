@@ -24,9 +24,9 @@ export interface Sheet {
 }
 
 /** Rows kept per sheet: beyond this the viewer says it shows only the start. */
-export const MAX_ROWS = 500_000;
+const MAX_ROWS = 500_000;
 /** Cells kept per workbook, across sheets (a wide sheet hits this before MAX_ROWS). */
-export const MAX_CELLS = 20_000_000;
+const MAX_CELLS = 20_000_000;
 
 /** Which separator a delimited text file uses: TSV by name, else the commonest of , ; tab on the first lines. */
 export function separatorOf(name: string, text: string): string {

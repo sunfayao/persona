@@ -18,7 +18,7 @@
 export const WIFI_KBPS = 12_000;
 export const MOBILE_KBPS = 4_000;
 export const SAVER_KBPS = 1_500;
-export const FPS = 60;
+const FPS = 60;
 
 /** What the browser says about the network it is on. `cellular` null: it doesn't say. */
 export type Network = { saveData: boolean; cellular: boolean | null; phone: boolean };
@@ -72,7 +72,6 @@ export function budgetOf(net: Network, mobileData: MobileData | null): Budget {
   return { maxKbps: mobile ? MOBILE_KBPS : WIFI_KBPS, fps: FPS };
 }
 
-export const sameBudget = (a: Budget, b: Budget) => a.maxKbps === b.maxKbps && a.fps === b.fps && a.maxScale === b.maxScale;
 
 // The choice, kept in this browser for every computer. localStorage can throw (private mode, disabled): the page still
 // works, starting from Data Saver and asking again next time.

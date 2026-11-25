@@ -39,10 +39,6 @@ export function inFolderFilter(it: Filed, folder: string): boolean {
   return path === folder || path.startsWith(`${folder}/`);
 }
 
-/** A folder's name: its last segment. */
-export function folderName(path: string): string {
-  return path.slice(path.lastIndexOf("/") + 1);
-}
 
 /** The crumbs down to a folder: each level's name and path ("work", "work/alerts"…). */
 export function folderCrumbs(path: string): { name: string; path: string }[] {
@@ -110,7 +106,7 @@ const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
 /** Reads the settings (the default manager's) once; an older hub without them leaves folders off. */
-export function loadFolderSettings(force = false): Promise<void> {
+function loadFolderSettings(force = false): Promise<void> {
   if (loading && !force) return loading;
   loading = api<Partial<FolderSettings>>("/inbox/folders", { headers: itemHeaders(undefined) }).then(
     (r) => {

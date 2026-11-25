@@ -13,7 +13,7 @@ export interface AvatarSession {
   avatarVersion?: string;
 }
 
-export function agentAvatarURL(s: AvatarSession) {
+function agentAvatarURL(s: AvatarSession) {
   return `${BASE}/api/v1/agents/sessions/${enc(s.id)}/avatar?v=${enc(s.avatarVersion ?? "")}&token=${enc(getToken())}`;
 }
 

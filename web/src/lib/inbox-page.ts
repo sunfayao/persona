@@ -23,7 +23,7 @@ export function muteShortName(o: InboxMuteOption): string {
 }
 
 /** What kind of thing a mute is, for people: "Repository" / "Chat" / "Sender". */
-export function muteTagName(tag: string): string {
+function muteTagName(tag: string): string {
   return t(tag === "repo" ? "lib-inbox-page.mute_tag_repo" : tag === "chat" ? "lib-inbox-page.mute_tag_chat" : "lib-inbox-page.mute_tag_sender");
 }
 
@@ -33,7 +33,7 @@ export function muteLine(m: InboxMute): string {
 }
 
 /** The mutes, newest first (iOS InboxMutesView). */
-export function sortMutes(list: InboxMute[]): InboxMute[] {
+function sortMutes(list: InboxMute[]): InboxMute[] {
   // By time, not by string: RFC3339Nano drops trailing zeros, so "…:05Z" and "…:05.1Z" compare the wrong way.
   const ts = (m: InboxMute) => (m.created_at ? Date.parse(m.created_at) || 0 : 0);
   return [...list].sort((a, b) => ts(b) - ts(a));
@@ -145,7 +145,7 @@ export async function recordHandOff(item: InboxItem, session: Pick<Session, "mac
 }
 
 /** Inline parts flow in one paragraph; the others (pictures, files, code, cards, system lines) stand alone. */
-export function isInlinePart(p: LarkPart): boolean {
+function isInlinePart(p: LarkPart): boolean {
   switch (p.kind) {
     case "text":
       return !p.metadata?.markdown && !p.metadata?.system;

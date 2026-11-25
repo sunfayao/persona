@@ -7,7 +7,7 @@ import { Button, cx, Dialog, Loading, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { t } from "../../i18n";
 
-export interface ListeningPort {
+interface ListeningPort {
   protocol: string;
   bind_addr: string;
   port: number;

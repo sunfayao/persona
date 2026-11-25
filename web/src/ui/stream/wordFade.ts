@@ -51,7 +51,7 @@ export interface WordFadeState {
 export const FADE_MS = 150;
 export const STEP_MS = 16;
 /** Once a new segment would wait this long, the step shrinks to BACKLOG_STEP_MS. */
-export const BACKLOG_MS = 96;
+const BACKLOG_MS = 96;
 export const BACKLOG_STEP_MS = 4;
 /** No segment waits longer than this: past it a burst fades in together instead of sitting invisible. */
 export const MAX_WAIT_MS = 160;
@@ -63,10 +63,10 @@ export const MAX_WAIT_MS = 160;
  * without a new word over 100 ms halved, each word starting about 0.4 s after it arrived. A whole block fading in at
  * once keeps the steps above.
  */
-export const PACE_AFTER_MS = 500;
-export const PACE_SHARE = 0.8;
-export const PACE_MAX_STEP_MS = 60;
-export const PACE_BACKLOG_MS = 360;
+const PACE_AFTER_MS = 500;
+const PACE_SHARE = 0.8;
+const PACE_MAX_STEP_MS = 60;
+const PACE_BACKLOG_MS = 360;
 export const PACE_MAX_WAIT_MS = 600;
 
 const clock = (t: WordFadeTimeline) => (t.now ?? (() => performance.now()))();

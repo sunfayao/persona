@@ -10,7 +10,5 @@
   "hint_general": "外観、ナビゲーション、翻訳",
   "hint_notifications": "通知と通知音のタイミング",
   "hint_models": "モデル用のアカウントとキー",
-  "hint_devices": "ログイン中のスマホとブラウザ",
-  "switch": "切り替え",
-  "switch_label": "アシスタントを切り替え"
+  "hint_devices": "ログイン中のスマホとブラウザ"
 }

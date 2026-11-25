@@ -27,10 +27,5 @@
   "cmd_collapse_tree": "Collapse all sidebar groups",
   "cmd_expand_tree": "Expand all sidebar groups",
   "local_terminal_find": "Find in terminal",
-  "local_terminal_find_note": "On Windows / Linux, Ctrl+F works too when you're not driving the terminal",
-  "check_key": "This key can't be used in a shortcut",
-  "check_mod": "Include {mod}",
-  "check_digits": "Use a number key 1–9 for this one",
-  "check_reserved": "{chord}: {why}. Pick another",
-  "check_conflict": "Already used by \"{label}\""
+  "local_terminal_find_note": "On Windows / Linux, Ctrl+F works too when you're not driving the terminal"
 }

@@ -7,7 +7,7 @@ import { uuid } from "./format";
 import { apiOp } from "./ops";
 import type { Interaction } from "./types";
 
-export interface OwnerApprovalReply {
+interface OwnerApprovalReply {
   ok?: boolean;
   approval_reply?: boolean;
   interaction_id?: string;

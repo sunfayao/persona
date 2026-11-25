@@ -16,7 +16,7 @@ export const STALE_QUIET_MS = 4000;
 /** At most one ask this often per session. */
 export const STALE_PULL_EVERY_MS = 10000;
 /** The list's `updated_at` is the file's mtime and an item's `ts` the line's own clock: closer than this is the same write. */
-export const STALE_SLACK_MS = 1000;
+const STALE_SLACK_MS = 1000;
 /** Asks in a row that found what the stream should have brought (or failed) before the page says it is not live. */
 export const STALE_HINT_AFTER = 2;
 

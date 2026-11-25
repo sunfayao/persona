@@ -24,7 +24,7 @@ export const TASK_PUSH_FEATURE = "task_push";
 export const TASK_CRON_FEATURE = "task_cron";
 
 /** A new cron task's expression: 09:00 on weekdays. */
-export const DEFAULT_CRON = "0 9 * * 1-5";
+const DEFAULT_CRON = "0 9 * * 1-5";
 
 /** The editor's quick picks for "Cron". */
 export const CRON_EXAMPLES = [
@@ -117,7 +117,7 @@ export interface Task {
   start_grant?: StartGrant | null;
 }
 
-export interface StartGrant {
+interface StartGrant {
   kinds: string[];
   granted_at?: string;
 }
@@ -165,7 +165,7 @@ export interface Run {
 export const DAY_NAMES = t("lib-routines.day_names").split(",");
 export const WORKDAYS = [1, 2, 3, 4, 5];
 export const WEEKEND = [6, 7];
-export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const MIN_EVERY = 5;
 export const MAX_EVERY = 7 * 24 * 60;
 /** Quick picks for "Interval". */
@@ -340,14 +340,14 @@ export const PERMISSION_MODES: ModeOption[] = [
   { id: "bypassPermissions", title: t("lib-session-actions.mode_bypass_permissions"), detail: t("lib-routines.bypass_detail") },
 ];
 
-export const EFFORTS: ModeOption[] = [
+const EFFORTS: ModeOption[] = [
   ...["low", "medium", "high", "xhigh", "max"].map((id) => ({ id, title: t(`lib-session-actions.effort_${id}`), detail: t(`lib-session-actions.effort_${id}_detail`) })),
 ];
 
 export const BYPASS = "bypassPermissions";
 
 /** "Auto-edit" for a known mode, the raw value otherwise; "" for the default. */
-export function modeLabel(id?: string): string {
+function modeLabel(id?: string): string {
   if (!id || id === "default") return "";
   return PERMISSION_MODES.find((m) => m.id === id)?.title ?? id;
 }

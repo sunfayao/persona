@@ -6,7 +6,7 @@ import { devModeSince } from "../../../lib/dev-probe";
 import { hubHas } from "../../../lib/store";
 
 /** The hello feature that says every manager puts `view` on its rows. */
-export const TODO_VIEW_FEATURE = "todo_view";
+const TODO_VIEW_FEATURE = "todo_view";
 /** This browser's switch for drawing the To-dos sections from the view: "1" while on. No settings row: set by hand. */
 export const VIEW_DRAW_KEY = "persona.todos.viewDraw";
 

@@ -1,6 +1,4 @@
 [
-  "starred.count",
-  "starred.title",
   "agent-goal.plan_",
   "agent-mark",
   "agentmenus.archive",
@@ -429,7 +427,6 @@
   "settings-managers.moved",
   "settings-managers.offline",
   "settings-managers.online",
-  "settings-nav.switch",
   "shellswitch",
   "sidebar",
   "sidepanel",
@@ -448,7 +445,6 @@
   "ui-atoms",
   "ui-attachmenttray",
   "ui-errornotice",
-  "ui-extensionthemepicker",
   "ui-markdown",
   "ui-media",
   "ui-mermaid",

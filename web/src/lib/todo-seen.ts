@@ -6,7 +6,7 @@ import { getState, hubHas, putTodo } from "./store";
 import type { Todo } from "./todos";
 
 /** The hub keeps seen marks (hello `features`): `PUT` / `DELETE /todos/{id}/seen` and `seen_at` on a to-do. */
-export const TODO_SEEN_FEATURE = "todo_seen";
+const TODO_SEEN_FEATURE = "todo_seen";
 
 /** Whether the page offers Got it and counts opening a to-do as seeing it: only when the hub says it keeps the mark. */
 export function todoSeenOn(features: string[]): boolean {

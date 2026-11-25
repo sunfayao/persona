@@ -16,7 +16,7 @@ import { usePersona } from "../assistant/Persona";
 const text = (key: string, vars?: Record<string, string | number>) => t(`chat-export.${key}`, vars);
 
 /** The document's words in this page's language; `persona`: the assistant's name, for the messages it typed in. */
-export function exportWords(persona: string): ExportWords {
+function exportWords(persona: string): ExportWords {
   return {
     you: text("you"),
     persona,
@@ -39,7 +39,7 @@ export function exportWords(persona: string): ExportWords {
 }
 
 /** How many messages the document holds: yours and the agent's replies with words in them. */
-export function messageCount(items: readonly Item[]): number {
+function messageCount(items: readonly Item[]): number {
   return items.filter((i) => i.kind === "text" && (i.role === "user" || i.role === "assistant") && i.text?.trim()).length;
 }
 

@@ -28,7 +28,7 @@ const areaClass =
 
 /** `editing`: the prompt changed, null for a new one; `from`: the words of the message it is saved from (its name is
  *  suggested from them until the user types one). */
-export function SavedPromptDialog({ open, editing, from, onClose }: {
+function SavedPromptDialog({ open, editing, from, onClose }: {
   open: boolean;
   editing: SavedPrompt | null;
   from?: string;

@@ -241,9 +241,9 @@ function RepositoryPicker({ catalog, selected, disabled, onPick }: { catalog: Re
   </div>;
 }
 
-export type TaskRepositoryBindingsEditorProps = { catalog: RepositoryCatalog; value: TaskRepositoryInput[]; snapshots?: TaskRepository[]; pending?: boolean; onChange: (value: TaskRepositoryInput[]) => void };
+type TaskRepositoryBindingsEditorProps = { catalog: RepositoryCatalog; value: TaskRepositoryInput[]; snapshots?: TaskRepository[]; pending?: boolean; onChange: (value: TaskRepositoryInput[]) => void };
 /** Structured controlled editor, shared by to-do creation and the detail's link dialog. */
-export function TaskRepositoryBindingsEditor({ catalog, value, snapshots = [], pending, onChange }: TaskRepositoryBindingsEditorProps) {
+function TaskRepositoryBindingsEditor({ catalog, value, snapshots = [], pending, onChange }: TaskRepositoryBindingsEditorProps) {
   const latest = useRef({ value, pending });
   latest.current = { value, pending };
   const aliasCounts = new Map<string, number>();

@@ -112,7 +112,7 @@ const groupOf = (s: Session): Group => {
 };
 
 /** The computer's Agents: needs you, working, idle (with how long), as the native cards count them. */
-export function AgentGroups({ agents, known }: { agents: readonly Session[]; known: "yes" | "loading" | "failed" }) {
+function AgentGroups({ agents, known }: { agents: readonly Session[]; known: "yes" | "loading" | "failed" }) {
   const now = useNow(60_000);
   if (known !== "yes") return <p className="mt-3 text-meta text-ink-3">{known === "loading" ? t("machines-alerts.agents_loading") : t("machines-alerts.agents_failed")}</p>;
   const groups: Record<Group, Session[]> = { needs_you: [], working: [], idle: [] };

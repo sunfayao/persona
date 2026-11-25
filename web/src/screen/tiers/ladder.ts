@@ -12,12 +12,12 @@ export type Bias = "auto" | "sharper" | "smoother";
 export type Tier = { scale: number; fps: number; width: number; height: number; minKbps: number; maxKbps: number; pixelsPerPoint: number };
 
 /** Bits per pixel per frame at a band's floor and at its ceiling. */
-export const FLOOR_BITS_PER_PIXEL = 0.02;
-export const CEILING_BITS_PER_PIXEL = 0.08;
+const FLOOR_BITS_PER_PIXEL = 0.02;
+const CEILING_BITS_PER_PIXEL = 0.08;
 
 /** How many more bits per pixel a codec needs than HEVC (TierLadder.bitsFactor): 1 for both until the encoding bench
  *  measures H.264. */
-export function bitsFactor(codec: string): number {
+function bitsFactor(codec: string): number {
   return codec.toLowerCase() === "h264" ? 1.0 : 1.0;
 }
 

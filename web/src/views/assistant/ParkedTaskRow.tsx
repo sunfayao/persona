@@ -18,7 +18,7 @@ export function ParkedTaskRows({ items }: { items: readonly RunningItem[] }) {
 }
 
 /** Preserve the dedicated waiting tray's row contract and group membership. */
-export function ParkedTaskRow({ todo, countsOpen }: { todo: Todo; countsOpen: boolean }) {
+function ParkedTaskRow({ todo, countsOpen }: { todo: Todo; countsOpen: boolean }) {
   const prs = openMergePRs(todo, Date.now());
   return <div data-parked-task-row={todo.id} data-counts-open={countsOpen ? "true" : "false"}
     data-pr-waiting-row={prs.length ? todo.id : undefined} className="flex items-start gap-2 px-3 py-2.5">

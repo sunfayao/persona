@@ -565,7 +565,7 @@ function PlanCard({ ix }: { ix: Interaction }) {
 // and permission editor out of the first screen. Its slot stays identifiable while the chunk loads or cannot load.
 const PermissionCard = lazyPage(() => import("./PermissionCard").then((m) => m.PermissionCard));
 
-export function PermissionCardLoading({ ix }: { ix: Interaction }) {
+function PermissionCardLoading({ ix }: { ix: Interaction }) {
   return (
     <Card kicker={t("chat-interactions.permission_kicker")} title={t("chat-interactions.permission_title", { tool: cardToolName(ix) })} footer={null}>
       <Loading />
@@ -1227,7 +1227,7 @@ function ElicitationField({ field: f, value, error, onChange }: { field: Field; 
 
 /** What an answered card was about, in one line of plain text: what it asked (interactionAsk), a plan's first line;
  *  empty when it says nothing of its own (never its kind's title, "Plan awaits your approval", which would read as still waiting). */
-export function receiptAbout(ix: Interaction): string {
+function receiptAbout(ix: Interaction): string {
   const raw = ix.kind === "plan" ? ((ix.plan ?? "").split("\n").find((l) => l.trim()) ?? "").replace(/^\s*#+\s*/, "") || ix.summary || "" : interactionAsk(ix);
   return plainMarkdown(raw).replace(/\s+/g, " ").trim();
 }

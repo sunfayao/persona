@@ -25,7 +25,7 @@ export function permissionLabel(mode: string): string {
 }
 
 /** The hub keeps the plan's model when the field is sent empty (applyPlanEdit): say so rather than "use the default". */
-export function modelPlaceholder(planned?: string, tier?: string): string {
+function modelPlaceholder(planned?: string, tier?: string): string {
   const m = planned?.trim();
   if (m) return t("assistant-taskeditor.plan_edit_model_placeholder_kept", { model: m });
   return tier ? t("assistant-taskeditor.plan_edit_model_placeholder_tier", { tier }) : t("assistant-taskeditor.plan_edit_model_placeholder");

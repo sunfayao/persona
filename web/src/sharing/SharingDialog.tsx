@@ -13,7 +13,7 @@ import type { PublicMessage, Selection } from "./types";
 
 const label = (key: string, params?: Record<string, string | number>) => t(`agent-sharing.${key}`, params);
 const reasons = new Set(["ownership_unbound", "owner_enrollment_required", "not_owner", "source_unsupported", "source_incomplete", "source_limit", "authority_unavailable", "manager_unsupported", "public_origin_unavailable", "scope_changed", "lost"]);
-export function sharingError(code: string | null) {
+function sharingError(code: string | null) {
   if (!code) return "";
   return label(reasons.has(code) ? code : /conflict|expired|changed|stale/.test(code) ? "conflict" : "failure");
 }
@@ -165,7 +165,7 @@ function MessageChoice({ message, type, name, checked, disabled, onChange }: { m
   const id = useId();
   return <div className="share-selection"><input id={id} type={type} name={name} checked={checked} disabled={disabled} onChange={onChange} /><label htmlFor={id}><PlainMessage message={message} /></label></div>;
 }
-export function PlainMessage({ message: m }: { message: PublicMessage }) {
+function PlainMessage({ message: m }: { message: PublicMessage }) {
   return <article><div className="share-label">{t(m.role === "user" ? "public-share.user" : "public-share.assistant")}</div><div className="share-text">{m.text}</div>
     {!!m.execution?.length && <details className="share-work"><summary>{label("execution")}</summary>{m.execution.map((item, index) => <div className="share-box" key={index}>{item.kind === "tool" ? <><strong>{item.name}</strong><p>{label("arguments")}</p><pre>{item.arguments}</pre><p>{label("results")}</p>{item.results.map((r, i) => <pre key={i}>{r.text}</pre>)}</> : <>{item.kind === "agent" && <strong>{label("agent_work")}</strong>}<div className="share-text">{item.text}</div></>}</div>)}</details>}
   </article>;

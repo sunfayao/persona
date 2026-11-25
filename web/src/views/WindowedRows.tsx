@@ -32,14 +32,14 @@ export type WindowedProps<T> = {
 };
 
 /** Whether a list of `n` rows is drawn a part at a time. */
-export const windowed = (n: number) => n > HEAD + PART && typeof IntersectionObserver !== "undefined" && typeof ResizeObserver !== "undefined";
+const windowed = (n: number) => n > HEAD + PART && typeof IntersectionObserver !== "undefined" && typeof ResizeObserver !== "undefined";
 /** How many parts a long list of `n` rows has: the head, parts of `windowPart`, and its last row on its own (always
  *  drawn: the previous-row shortcut from the list's first row wraps round to it). */
 export const partCount = (n: number) => 2 + Math.ceil((n - 1 - HEAD) / PART);
 /** The part holding row `index` of a long list of `n` rows. */
-export const partOf = (index: number, n: number) => (index < HEAD ? 0 : index >= n - 1 ? partCount(n) - 1 : 1 + Math.floor((index - HEAD) / PART));
+const partOf = (index: number, n: number) => (index < HEAD ? 0 : index >= n - 1 ? partCount(n) - 1 : 1 + Math.floor((index - HEAD) / PART));
 /** Where part `i` of a long list of `n` rows starts and ends. */
-export const partRows = (i: number, n: number): [number, number] =>
+const partRows = (i: number, n: number): [number, number] =>
   i === 0 ? [0, HEAD] : i === partCount(n) - 1 ? [n - 1, n] : [HEAD + (i - 1) * PART, Math.min(n - 1, HEAD + i * PART)];
 
 /** The parts of a long list of `items` that hold the rows drawn before (`had`, keyed elements), found by key. */

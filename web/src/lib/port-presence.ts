@@ -56,7 +56,7 @@ async function ask(mid: string, port: number) {
 }
 
 /** Asks about the ports of mid that no agent lists and that are not known (or known too long ago). */
-export function askPorts(mid: string, ports: number[], listed: readonly Port[]) {
+function askPorts(mid: string, ports: number[], listed: readonly Port[]) {
   const now = Date.now();
   for (const port of ports) {
     const k = key(mid, port);
@@ -66,7 +66,7 @@ export function askPorts(mid: string, ports: number[], listed: readonly Port[]) 
 }
 
 /** A port's state: listed by an agent on mid, else what the hub said last; undefined while unknown. */
-export function portState(mid: string, port: number, listed: readonly Port[]): PortState | undefined {
+function portState(mid: string, port: number, listed: readonly Port[]): PortState | undefined {
   const p = listed.find((x) => x.port === port);
   if (p) return { kind: "live", title: p.title || undefined };
   return known.get(key(mid, port))?.state;
@@ -88,7 +88,7 @@ function subscribe(l: () => void) {
 }
 
 /** The ports the agents on mid list (Session.ports of each of its sessions), one entry per port. */
-export function listedPorts(sessions: readonly { ports?: Port[] }[] | undefined): Port[] {
+function listedPorts(sessions: readonly { ports?: Port[] }[] | undefined): Port[] {
   const out: Port[] = [];
   for (const s of sessions ?? []) for (const p of s.ports ?? []) if (!out.some((x) => x.port === p.port)) out.push(p);
   return out;

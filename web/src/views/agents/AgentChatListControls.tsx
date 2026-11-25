@@ -47,7 +47,7 @@ const FACET_PAGES: { key: FacetKey; labelKey: string }[] = [
 ];
 
 /** How many filters are on (the Filter button's count): the query ⌘K put on the list is one, Search as Code is a mode. */
-export function activeFilterCount(f: AgentDimensionFilters): number {
+function activeFilterCount(f: AgentDimensionFilters): number {
   return (
     (f.query.trim() ? 1 : 0) + f.harnesses.length + f.projects.length + f.models.length + f.machines.length + (f.pinnedOnly ? 1 : 0) + (f.scope !== "all" ? 1 : 0) + (f.since ? 1 : 0)
   );

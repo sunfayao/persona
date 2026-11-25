@@ -29,7 +29,7 @@ export interface LinkSwitchAttempt {
 
 /** How long a finished start may speak for the list at most: the list catches up within seconds (pushed, or the admin
  *  page's poll), and a start nobody watched retire must not come back when the list returns to what it was. */
-export const LINK_SWITCH_ATTEMPT_TTL_MS = 2 * 60_000;
+const LINK_SWITCH_ATTEMPT_TTL_MS = 2 * 60_000;
 
 const live = (a: LinkSwitchAttempt | undefined): LinkSwitchAttempt | undefined =>
   a && (a.starting || a.settled === undefined || Date.now() - a.settled < LINK_SWITCH_ATTEMPT_TTL_MS) ? a : undefined;

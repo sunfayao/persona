@@ -98,7 +98,7 @@ export function projectOf(cwds: string[]): string {
 }
 
 /** A todo's project from its active agents (the live session's cwd, else the cwd the link recorded); "" for none. */
-export function projectOfTodo(todo: Todo, lookup?: SessionLookup): string {
+function projectOfTodo(todo: Todo, lookup?: SessionLookup): string {
   const cwds = (todo.agents ?? [])
     .filter((a) => !a.released_at)
     .map((a) => lookup?.(a.machine_id, a.session_id)?.cwd || a.cwd || "");

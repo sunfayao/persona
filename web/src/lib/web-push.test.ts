@@ -11,7 +11,6 @@ const {
   loadWebPush,
   madeWith,
   pushedOver,
-  sendTestPush,
   settlePushed,
   syncWebPush,
   turnOffWebPush,
@@ -210,12 +209,6 @@ describe("turning Web Push on and off", () => {
   it("says an older hub has none", async () => {
     api.mockRejectedValue(new ApiError(404, "not found", {}));
     expect(await loadWebPush()).toMatchObject({ loaded: true, hubMissing: true });
-  });
-
-  it("sends a test and reads the status again", async () => {
-    api.mockResolvedValue({ ok: true, subscribed: true });
-    await sendTestPush();
-    expect(api).toHaveBeenCalledWith(`/push/web/${encodeURIComponent(device())}/test`, { method: "POST" });
   });
 });
 

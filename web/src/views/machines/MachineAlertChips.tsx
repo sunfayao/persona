@@ -5,7 +5,7 @@ import { alertLabel, alertSpoken, type AlertKind, type MachineAlert } from "../.
 import { cx } from "../../ui/atoms";
 import { Icon, type IconName } from "../../ui/icons";
 
-export const ALERT_ICON: Record<AlertKind, IconName> = {
+const ALERT_ICON: Record<AlertKind, IconName> = {
   offline: "wifi",
   deploy_failed: "warning",
   memory: "layers",
@@ -16,7 +16,7 @@ export const ALERT_ICON: Record<AlertKind, IconName> = {
   mismatch: "retry",
 };
 
-export const SEVERITY_ICON_TONE = { critical: "text-red", warning: "text-orange", info: "text-ink-3" } as const;
+const SEVERITY_ICON_TONE = { critical: "text-red", warning: "text-orange", info: "text-ink-3" } as const;
 
 /** `card`: on a computer's card (lib/machine-alerts.ts alertLabel). */
 export function AlertChip({ alert, onOpen, selected, card, className }: { alert: MachineAlert; onOpen: (kind: AlertKind) => void; selected?: boolean; card?: boolean; className?: string }) {

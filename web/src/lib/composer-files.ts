@@ -17,7 +17,7 @@ export const MAX_FILES = 10;
 /** How many upload at once; the others wait their turn. */
 export const TOGETHER = 3;
 /** What the hub takes in one chat upload (proto.MaxUploadBytes). */
-export const MAX_FILE_BYTES = 200 * 1024 * 1024;
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
 export interface ComposerFile {
   id: string;

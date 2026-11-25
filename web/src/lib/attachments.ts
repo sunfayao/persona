@@ -3,7 +3,7 @@ import { uuid } from "./format";
 import { t } from "../i18n";
 
 export const MAX_IMAGE = 8 * 1024 * 1024;
-export const MAX_FILE = 200 * 1024 * 1024;
+const MAX_FILE = 200 * 1024 * 1024;
 
 export interface LocalAttachment {
   id: string;

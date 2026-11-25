@@ -38,7 +38,7 @@ export type BrowserView =
   | { kind: "ready"; text: string; steps: BrowserStep[]; recheck: boolean };
 
 /** ego lite's first-run setup, done on the Mac (checked on 0.6.2, 2026-11-04). */
-export function setUpSteps(): BrowserStep[] {
+function setUpSteps(): BrowserStep[] {
   return [
     { id: "open", done: false, text: t("lib-browser.step_open") },
     { id: "import", done: false, text: t("lib-browser.step_import") },

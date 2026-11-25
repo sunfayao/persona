@@ -85,7 +85,7 @@ export interface HostChoice {
 }
 
 /** The set a single engine stands for (proto.EngineHostsOf). */
-export function hostsOf(engine: string | undefined): HostChoice {
+function hostsOf(engine: string | undefined): HostChoice {
   if (engine === "herdr-both") return { hosts: ["herdr", "herdr-core"], default: "herdr" };
   if (engine && ENGINE_HOSTS.includes(engine)) return { hosts: [engine], default: engine };
   return { hosts: ["herdr"], default: "herdr" };

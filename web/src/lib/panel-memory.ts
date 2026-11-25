@@ -26,7 +26,7 @@ const STORE = "persona.panel.back";
 export const KEPT = 20;
 
 /** The session a pane is, as the memory keys it. */
-export function sessionKey(pane: { mid: string; sid: string }): string {
+function sessionKey(pane: { mid: string; sid: string }): string {
   return `${pane.mid}/${pane.sid}`;
 }
 

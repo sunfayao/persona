@@ -1,5 +1,5 @@
 // A nonsecret sign-in marker shared by tabs. It follows the same storage scope as persona.token.
-export const CREDENTIAL_EPOCH_KEY = "persona.credentialEpoch";
+const CREDENTIAL_EPOCH_KEY = "persona.credentialEpoch";
 
 export function credentialEpoch(): string {
   try { return localStorage.getItem(CREDENTIAL_EPOCH_KEY) ?? ""; }

@@ -154,7 +154,7 @@ export function priceOf(id: string): Price | undefined {
 }
 
 /** Whether the catalog is still being asked for any of `ids`. */
-export const pricesPending = (ids: Iterable<string>) => [...ids].some((id) => asking.has(id));
+const pricesPending = (ids: Iterable<string>) => [...ids].some((id) => asking.has(id));
 
 /** For tests: forget every answer. */
 export function forgetPrices() {

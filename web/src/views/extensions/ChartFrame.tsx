@@ -14,7 +14,7 @@ export function plotHeight(compact?: boolean): number {
 }
 
 /** The chart's mark kind: a line chart, or bars (the default). */
-export function chartKind(item: UIItem): "bar" | "line" {
+function chartKind(item: UIItem): "bar" | "line" {
   return item.kind === "line" ? "line" : "bar";
 }
 

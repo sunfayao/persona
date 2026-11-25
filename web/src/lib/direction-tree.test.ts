@@ -1,8 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Session } from "./types";
 
-import { directionTaskNode } from "./direction-agent-tree";
 import {
   DIRECTION_STATE_TONE,
   directionStateName,
@@ -20,8 +18,6 @@ import {
 } from "./direction-tree";
 
 const counts = (working = 0, needs_you = 0, stuck = 0, review = 0, planned = 0) => ({ working, needs_you, stuck, review, planned });
-
-const session = (mid: string, sid: string, state: Session["state"] = "working", extra: Partial<Session> = {}): Session => ({ machine_id: mid, session_id: sid, title: sid, cwd: "/code/app", status: "", state, ...extra });
 
 const TREE: DirectionTree = {
   directions: [
@@ -122,16 +118,6 @@ describe("direction tree", () => {
     expect(DIRECTION_STATE_TONE.planned).toBe("text-ink-3");
     expect(directionTitle(TREE.directions[2])).toBe("书记官");
     expect(directionTitle({ id: "x", name: "", counts: counts(), running: false }, "Title")).toBe("Title");
-  });
-
-  it("draws a task's agents as the 常驻 rows do: a child under its parent, an agent the list lacks giving its place to its child", () => {
-    const all = [session("m", "s1", "needs_you"), session("m", "s2"), session("m", "s3")];
-    const sessions = new Map(all.map((s) => [`${s.machine_id}/${s.session_id}`, s]));
-    const placed = new Set<string>();
-    const [t1, t2] = (TREE.directions[0].tasks ?? []).map((td) => directionTaskNode(td, sessions, placed, { keyPrefix: "k:", folded: false, standIns: false }));
-    expect([[t1.todoId, t1.taskState, t1.state], [t2.todoId, t2.taskState, t2.state]]).toEqual([["t1", "needs_you", "needs_you"], ["t2", "working", "working"]]);
-    expect(t1.agents.map((n) => [n.session.session_id, n.children.map((c) => c.session.session_id)])).toEqual([["s1", ["s2"]]]);
-    expect(t2.agents.map((n) => n.session.session_id)).toEqual(["s3"]);
   });
 
   it("is read once for everyone asking while a read is out, again after it for a change; a 404 is no tree", async () => {

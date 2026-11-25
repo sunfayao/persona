@@ -14,7 +14,7 @@ export const CLOCK_SLACK_MS = 120_000;
 const CUT_MARK = "\n…（已截断";
 
 /** Comparable form: the phone's image note, pasted wrappers and Claude's "[Image #21]" placeholders removed, no whitespace. */
-export function normalizeWords(s: string): string {
+function normalizeWords(s: string): string {
   return s
     .replace(/<attached_images>[\s\S]*?<\/attached_images>/g, "")
     .replace(/<[\\/]*pasted_content[^>]*>/g, "")

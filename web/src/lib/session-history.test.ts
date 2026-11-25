@@ -3,10 +3,10 @@ import { historyGroups, historySessions } from "./session-history";
 import type { Session } from "./types";
 const row = (session_id: string, extra: Partial<Session> = {}): Session => ({ machine_id: "computer", session_id, status: "offline", state: "offline", ...extra } as Session);
 describe("History (#10240)", () => {
-  it("uses the folded sidebar state and excludes running, pending, health, deleted and assistant rows", () => {
+  it("uses the folded sidebar state and excludes running, pending, deleted and assistant rows", () => {
     const rows = [row("stopped"), row("running", { status: "idle", state: "idle" }), row("working", { state: "working" }),
       row("pending", { state: "needs_you" }), row("parent", { children: { working: 1 } as Session["children"] }),
-      row("health", { space: "health" }), row("deleted", { deleted: true }), row("assistant", { assistant: true })];
+      row("deleted", { deleted: true }), row("assistant", { assistant: true })];
     expect(historySessions(rows).map(s => s.session_id)).toEqual(["stopped"]);
   });
   it("folds children before filtering, so a child never becomes a second history row", () => {

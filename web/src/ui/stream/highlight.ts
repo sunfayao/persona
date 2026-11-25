@@ -68,7 +68,7 @@ function toReact(nodes: ElementContent[]): ReactNode[] {
 }
 
 /** What rehype-highlight 7 makes of a <code className={className}> holding `text` inside a <pre>. Null: left as it is. */
-export function highlightCode(lowlight: Lowlight, className: string | undefined, text: string): Highlighted | null {
+function highlightCode(lowlight: Lowlight, className: string | undefined, text: string): Highlighted | null {
   if (!className) return null;
   const classes = className.split(" ");
   const lang = languageOf(classes);

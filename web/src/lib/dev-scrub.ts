@@ -19,7 +19,7 @@ export const DEV_API_WORDS = new Set(
 );
 
 /** An API path as a pattern: no host, query or `/api/v1`, every segment that isn't one of the API's words `:id`. */
-export function devPathPattern(path: string): string {
+function devPathPattern(path: string): string {
   const p = path.trim().replace(/^[a-z][a-z0-9+.-]*:\/\/[^/?#\s]*/i, "").replace(/[?#].*$/s, "").replace(/^\/api\/v1(?=\/|$)/, "");
   return p.split("/").map((seg) => (seg === "" || DEV_API_WORDS.has(seg) ? seg : ":id")).join("/") || "/";
 }
@@ -54,7 +54,7 @@ export function scrubText(raw: string): string {
 }
 
 /** `s` cut to at most `bytes` UTF-8 bytes on a character boundary, with an ellipsis when it was cut. */
-export function clip(s: string, bytes: number): string {
+function clip(s: string, bytes: number): string {
   const enc = new TextEncoder();
   if (enc.encode(s).length <= bytes) return s;
   let out = "";

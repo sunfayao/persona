@@ -57,7 +57,7 @@ export type MentionRow =
   | { kind: "session"; id: string; name: string; detail: string; session: Session };
 
 /** The panel's own rows: the box's file picker and the session's Plan mode. */
-export type PanelAction = "attach" | "plan";
+type PanelAction = "attach" | "plan";
 export type PanelPick = { kind: "action"; action: PanelAction } | { kind: "row"; row: MentionRow };
 
 export interface ComposerPanelHandle {

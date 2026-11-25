@@ -3,7 +3,7 @@ import { repositoryRequestOptions, type RepositoryLayout, type RepositoryRequest
 
 export const WORKSPACE_NAMING_VERSION = "workspace-naming/v1";
 export const RULE_FIELDS = ["base_directory", "task_directory_template", "branch_template"] as const;
-export type RuleField = typeof RULE_FIELDS[number];
+type RuleField = typeof RULE_FIELDS[number];
 export type WorkspaceRules = Partial<Record<RuleField, string>>;
 export type WorkspaceRulesPatch = Record<RuleField, string | null>;
 export type WorkspaceNamingSettings = {
@@ -12,7 +12,7 @@ export type WorkspaceNamingSettings = {
 };
 export type WorkspaceRulesRecord = { todo_id: string; revision: number; workspace_rules: WorkspaceRules };
 export type NamingDiagnostic = { code: string; field: string; repo_id?: string; severity: "error" | "warning" };
-export type WorkspaceNamingPlan = {
+type WorkspaceNamingPlan = {
   version: string; digest: string; base_path: string; root_path: string; task_slug: string;
   node: { home: string; persona_home?: string; path_flavor?: string };
   source: { manager: string; todo_id: string; title: string; machine_id: string; planned_at: string; timezone: string;

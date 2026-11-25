@@ -69,7 +69,7 @@ export function withoutParkInteraction(todo: Todo): Todo {
   return { ...todo, supervision: { ...supervision, parked: { ...parked, evidence: { ...parked.evidence!, interaction_id: undefined } } } };
 }
 
-export interface ReviewCheck {
+interface ReviewCheck {
   criterion: string;
   met: boolean;
   evidence?: string;
@@ -113,7 +113,7 @@ export interface Supervision {
   auto_review?: AutoReview;
 }
 
-export interface CriterionStatus {
+interface CriterionStatus {
   criterion: string;
   state: "pending" | "met" | "not_met";
   evidence?: string;
@@ -123,7 +123,7 @@ export interface CriterionStatus {
 }
 
 /** An independent reviewer's run over a supervised task's change: its state, counts and report. */
-export interface AutoReview {
+interface AutoReview {
   id: string;
   state: "running" | "clean" | "blocking" | "failed" | "cancelled";
   round?: number;
@@ -153,10 +153,10 @@ export function autoReviewLine(sup: Supervision | undefined): string | undefined
   return undefined;
 }
 
-export type ReportKind = "progress" | "question" | "blocked" | "done";
+type ReportKind = "progress" | "question" | "blocked" | "done";
 
 /** A supervised task's agent's latest report: the step of how many (0 or absent: not said), what it said in a line. */
-export interface TaskProgress {
+interface TaskProgress {
   kind: ReportKind;
   step?: number;
   steps?: number;

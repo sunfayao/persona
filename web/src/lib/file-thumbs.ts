@@ -8,7 +8,7 @@ import { fileThumbURL } from "./api";
 export const FILE_THUMB_FEATURE = "file_thumb";
 
 /** How many thumbnails load at once. */
-export const THUMB_PARALLEL = 4;
+const THUMB_PARALLEL = 4;
 
 /** A file's thumbnail at `px` on its long side, versioned by what the listing says about the file. */
 export function thumbSrc(mid: string, path: string, cwd: string, px: number, size: number, mtime?: string): string {

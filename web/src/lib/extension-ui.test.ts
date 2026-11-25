@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
 import {
-  actUI, applyBadge, askText, barSpans, blocks, chartExtent, compactNumber, edgeLabels, extensionSettingsHref, fieldValues, inboxItemPlace, inboxSourceItem, isHttps, isUnsupported, labelWidth, linear, niceTicks, numberProblem, outcome,
+  actUI, applyBadge, askText, barSpans, blocks, chartExtent, compactNumber, edgeLabels, fieldValues, inboxItemPlace, inboxSourceItem, isHttps, isUnsupported, labelWidth, linear, niceTicks, numberProblem, outcome,
   percent, placesOf, pointText, readView, refreshDelay, renderUI, seriesColors, stackedShare, submitValues, thinLabels, toneOf, uiContext, uiIcon, uiPlaces, UI_VERSION, type UIPlace, type UIView,
 } from "./extension-ui";
 
@@ -239,19 +239,8 @@ describe("收件箱条目（inbox_item）", () => {
     expect(uiContext({ assistant: "Claude" })).toMatchObject({ assistant: "Claude" });
     expect(uiContext()).not.toHaveProperty("assistant");
   });
-  it("opens an extension's own settings in the app (persona://settings/extensions/<id>)", () => {
-    expect(extensionSettingsHref("persona://settings/extensions/example-gateway")).toBe("/settings?tab=extensions&extension=example-gateway");
-    expect(extensionSettingsHref("persona://settings/extensions/a%20b")).toBe("/settings?tab=extensions&extension=a%20b");
-    for (const bad of [
-      "persona://settings/extensions/", "persona://settings/extensions/a/b", "persona://settings/extensions/a?x=1", "persona://settings/extensions/-market",
-      "persona://settings/extensions/a%2Fb", "persona://settings/extensions/%E0", "persona://settings", "persona://inbox/a/source", "https://example.com/settings/extensions/a",
-      "previous://settings/extensions/a",
-    ]) {
-      expect(extensionSettingsHref(bad)).toBeUndefined();
-    }
-    expect(outcome({ open_url: "persona://settings/extensions/example-gateway" })).toEqual({ view: undefined, reload: false, toast: undefined, url: undefined, settings: "/settings?tab=extensions&extension=example-gateway" });
-    // any other persona:// link stays as it was: nothing opens, nothing is drawn again
-    expect(outcome({ open_url: "persona://settings/other" })).toEqual({ view: undefined, reload: false, toast: undefined, url: undefined });
+  it("leaves a persona://settings link alone: nothing opens, nothing is drawn again", () => {
+    expect(outcome({ open_url: "persona://settings/extensions/example-gateway" })).toEqual({ view: undefined, reload: false, toast: undefined, url: undefined });
   });
   it("tells the hub which item, with every draw and press", async () => {
     const calls: string[] = [];

@@ -158,7 +158,7 @@ export function stepAnchor(anchor: number, mode: CalendarMode, n: number): numbe
 }
 
 /** All-day first, then by time; at one time open before done, then by title. */
-export function drawOrder(a: CalendarEntry, b: CalendarEntry): number {
+function drawOrder(a: CalendarEntry, b: CalendarEntry): number {
   if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
   if (a.start !== b.start) return a.start - b.start;
   if (a.done !== b.done) return a.done ? 1 : -1;
@@ -239,7 +239,7 @@ export interface CalendarDrop {
 }
 
 /** What a drag on the axis snaps to, in minutes. */
-export const DROP_SNAP = 15;
+const DROP_SNAP = 15;
 
 /** A block dropped with its top edge `minutes` into day: due at the nearest quarter hour, within the day. */
 export function dropOnAxis(day: number, minutes: number, snap = DROP_SNAP): CalendarDrop {

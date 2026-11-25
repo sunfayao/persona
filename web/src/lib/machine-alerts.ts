@@ -152,7 +152,7 @@ export function alertTitle(a: Pick<MachineAlert, "kind" | "busy">): string {
 }
 
 /** What a screen reader says before the chip's words. */
-export function severityText(s: Severity): string {
+function severityText(s: Severity): string {
   return s === "critical" ? t("lib-machine-alerts.severity_critical") : s === "warning" ? t("lib-machine-alerts.severity_warning") : t("lib-machine-alerts.severity_info");
 }
 

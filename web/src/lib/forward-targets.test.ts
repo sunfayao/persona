@@ -15,7 +15,6 @@ const all = [
   session("studio", "ended", 300, { status: "offline", state: "offline" }),
   session("server", "notes", 400, { assistant: true }),
   session("server", "main", 500, { assistant: true }),
-  session("server", "health", 600, { assistant: true, space: "health" }),
   session("nas", "away", 700),
   session("macbook", "archived", 800, { archived: true }),
   session("macbook", "readonly", 900, { source_kind: "codex_history", capabilities: { read: true } }),
@@ -40,7 +39,7 @@ describe("Forward to's lists", () => {
   });
 
   it("start with the recent targets, each listed once", () => {
-    const r = sections(["studio/photos", "server/health", "macbook/here", "gone/x", "server/main", "server/notes"]);
+    const r = sections(["studio/photos", "macbook/here", "gone/x", "server/main", "server/notes"]);
     expect(r[0]).toMatchObject({ kind: "recent" });
     expect(r[0].sessions.map((x) => x.session_id)).toEqual(["photos", "notes"]);
     expect(ids(r.slice(1))).toEqual(["tests"]);
@@ -52,11 +51,11 @@ describe("Forward to's lists", () => {
     expect(r[0].sessions).toHaveLength(5);
   });
 
-  it("search also finds ended Agents and Persona's other conversations, never Health, the main chat or an offline computer's", () => {
+  it("search also finds ended Agents and Persona's other conversations, never the main chat or an offline computer's", () => {
     expect(ids(sections([], "mac studio"))).toEqual(["ended", "photos"]);
     expect(ids(sections([], "notes"))).toEqual(["notes"]);
     expect(ids(sections([], "codex weather"))).toEqual(["tests"]);
-    for (const q of ["health", "main", "away", "here", "archived"]) expect(sections([], q)).toEqual([]);
+    for (const q of ["main", "away", "here", "archived"]) expect(sections([], q)).toEqual([]);
   });
 
   it("list a chat the page holds twice once", () => {

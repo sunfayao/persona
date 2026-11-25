@@ -1,6 +1,6 @@
 // End-to-end check of Web Push (#7459, docs/web/web.md "Web Push") in a real Chrome, as the user does it: Settings ›
 // Notifications › "Notify this browser when Persona is closed" subscribes the browser at its real push service (FCM)
-// with the hub's key and hands the hub the subscription; Send Test; a push the service worker gets shows as the hub's
+// with the hub's key and hands the hub the subscription; a push the service worker gets shows as the hub's
 // message says, under the page's tag, opening the conversation; a pushed notification whose event is over goes once a
 // page opens; turning it off unsubscribes. --live also has the Go sender (server/internal/webpush TestLiveDelivery)
 // push one through FCM and waits for the service worker to show it.
@@ -139,10 +139,6 @@ if (!kept || kept.endpoint !== sub.endpoint || kept.key !== VAPID.public || kept
   fail(`the hub got ${JSON.stringify(kept)} for ${device}`);
 ok(`turning it on subscribes at FCM with the hub's key; the hub has it (${kept.browser}, en)`);
 
-await page.getByRole("button", { name: "Send Test" }).click();
-await page.getByText("Test sent. It should appear in a moment.").waitFor({ state: "visible" });
-await hint("Last delivered");
-ok("Send Test says it went, and the row says when it was last delivered");
 await shot("wide-light-2-on");
 
 // A push, as the browser hands it to the worker: shown with the hub's words, under the page's tag, opening the agent.

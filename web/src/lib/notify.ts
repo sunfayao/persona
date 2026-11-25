@@ -15,7 +15,7 @@ import { byTime } from "./times";
 import { requestHome } from "./child-sessions";
 import type { Interaction, Session } from "./types";
 
-export type DonePref = "off" | "long" | "always";
+type DonePref = "off" | "long" | "always";
 
 /** The part of a device's prefs this page reads and writes; the rest (the phone's Live Activity, translation) stays as
  *  the hub has it: a PUT decodes over the device's stored prefs. */
@@ -33,7 +33,7 @@ export interface NotifyPrefs {
 }
 
 /** "HH:MM" local times; an empty `tz` is this browser's time zone. The window may cross midnight. */
-export interface QuietHours {
+interface QuietHours {
   enabled: boolean;
   start: string;
   end: string;
@@ -41,11 +41,11 @@ export interface QuietHours {
 }
 
 /** The times the switch shows before any are set. */
-export const DEFAULT_QUIET: QuietHours = { enabled: false, start: "23:00", end: "07:00" };
+const DEFAULT_QUIET: QuietHours = { enabled: false, start: "23:00", end: "07:00" };
 
 /** The hub's defaults (notify.go defaultPrefs, longTurn). */
 export const DEFAULT_PREFS: NotifyPrefs = { input: true, done: "long" };
-export const DEFAULT_LONG_TURN_SECONDS = 60;
+const DEFAULT_LONG_TURN_SECONDS = 60;
 
 // ── which events speak ───────────────────────────────────
 
@@ -133,57 +133,31 @@ export function managerMuted(prefs: NotifyPrefs, manager: string | undefined, fa
   return (prefs.muted_managers ?? []).includes(manager || fallback);
 }
 
-/** Turns one manager's pushes on or off for this device: optimistic, as saveNotifyPrefs; only the list is sent. */
-export async function saveManagerPush(manager: string, on: boolean): Promise<void> {
-  return savePrefs((current) => {
-    const list = (current.muted_managers ?? []).filter((x) => x !== manager);
-    return { muted_managers: on ? list : [...list, manager] };
-  });
-}
-
 let prefs: NotifyPrefs = typeof localStorage === "undefined" ? DEFAULT_PREFS : readCached();
 const listeners = new Set<() => void>();
-type PrefsPatch = Partial<Pick<NotifyPrefs, "input" | "done" | "quiet" | "muted_managers">>;
-type PrefsChange = (current: NotifyPrefs) => PrefsPatch;
-type PendingSave = { change: PrefsChange; path: string; controller: AbortController; resolve: () => void; reject: (error: unknown) => void };
+// The login the prefs belong to, and the reads on their way for it: another login ends them (its answers are not ours).
+let owner = loginOwner();
+const loads = new Set<AbortController>();
+let loadSeq = 0;
+const cancelled = () => new DOMException("Notification preference session ended", "AbortError");
 
-function prefsCredentialOwner() {
+function loginOwner() {
   try { return credentialOwner(); } catch { /* Without storage, preferences remain local to this page. */ }
 }
 
-function createPrefsSession(owner: string | undefined, confirmed = DEFAULT_PREFS) {
-  return { owner, confirmed, pending: [] as PendingSave[], loads: new Set<AbortController>(), saving: false, revision: 0, loadSeq: 0 };
-}
-let prefsSession = createPrefsSession(prefsCredentialOwner(), prefs);
-const cancelledPrefs = () => new DOMException("Notification preference session ended", "AbortError");
-
-onCredentialChange((owner) => {
-  if (owner === prefsSession.owner) return;
-  const retired = prefsSession;
-  prefsSession = createPrefsSession(owner);
-  retired.pending.splice(0).forEach((save) => {
-    save.controller.abort();
-    save.reject(cancelledPrefs());
-  });
-  retired.loads.forEach((controller) => controller.abort());
-  // A previous login's optimistic cache is not a baseline for the next login. Its reads will populate this session.
+onCredentialChange((next) => {
+  if (next === owner) return;
+  owner = next;
+  loads.forEach((controller) => controller.abort());
+  // A previous login's cache is not a baseline for the next login. Its reads will populate this one.
   try { localStorage.removeItem(PREFS_KEY); } catch { /* Storage may be unavailable. */ }
   set(DEFAULT_PREFS, false);
 });
 
-function currentPrefsSession() {
-  prefsCredentialOwner(); // Also observe credentials replaced directly in storage, without setToken().
-  return prefsSession;
-}
-
-// Another tab of the app changed them (its own save or load): this one follows at once, sounds and notifications too.
+// Another tab of the app changed them (its own load): this one follows at once, sounds and notifications too.
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => {
-    const session = currentPrefsSession();
-    if (e.key !== PREFS_KEY) return;
-    session.confirmed = readCached();
-    session.revision++;
-    publishPrefs(session, false);
+    if (e.key === PREFS_KEY) set(readCached(), false);
   });
 }
 
@@ -203,102 +177,25 @@ export function notifyPrefs(): NotifyPrefs {
   return prefs;
 }
 
-function publishPrefs(session: ReturnType<typeof createPrefsSession>, cache = true) {
-  if (session !== currentPrefsSession()) return;
-  set(session.pending.reduce((current, save) => ({ ...current, ...save.change(current) }), session.confirmed), cache);
-}
-
-// One PUT at a time: response fencing alone cannot stop the hub committing older snapshots last. Reapply queued
-// intents over each confirmed answer; a rejected edit must not become another field's implicit retry.
-async function flushSaves(session: ReturnType<typeof createPrefsSession>) {
-  session.saving = true;
-  try {
-    while (session.pending.length && session === currentPrefsSession()) {
-      const save = session.pending[0];
-      let failed = false;
-      let error: unknown;
-      try {
-        const answer = await api<Partial<NotifyPrefs>>(save.path, { method: "PUT", json: save.change(session.confirmed), signal: save.controller.signal });
-        if (session !== currentPrefsSession()) return;
-        session.confirmed = normalize(answer);
-      } catch (e) {
-        if (session !== currentPrefsSession()) return;
-        failed = true;
-        error = e;
-      }
-      session.pending.shift();
-      session.revision++;
-      publishPrefs(session);
-      if (failed) save.reject(error);
-      else save.resolve();
-    }
-  } finally {
-    session.saving = false;
-  }
-}
-
-function savePrefs(change: PrefsChange): Promise<void> {
-  const session = currentPrefsSession();
-  const { id, kept } = deviceId();
-  session.revision++;
-  if (!kept) {
-    session.confirmed = { ...prefs, ...change(prefs) };
-    set(session.confirmed);
-    return Promise.resolve();
-  }
-  const result = new Promise<void>((resolve, reject) => session.pending.push({ change, path: `/devices/${enc(id)}/prefs`, controller: new AbortController(), resolve, reject }));
-  publishPrefs(session);
-  if (!session.saving) void flushSaves(session);
-  return result;
-}
-
 /** The hub's prefs for this browser; the cached copy until it answers (and if it can't). */
 export async function loadNotifyPrefs(): Promise<NotifyPrefs> {
-  const session = currentPrefsSession();
+  const mine = loginOwner(); // also observes credentials replaced directly in storage, without setToken()
   const { id, kept } = deviceId();
   if (!kept) return prefs;
-  const seq = ++session.loadSeq;
-  const revision = session.revision;
+  const seq = ++loadSeq;
   const controller = new AbortController();
-  session.loads.add(controller);
+  loads.add(controller);
   try {
     const p = normalize(await api<Partial<NotifyPrefs>>(`/devices/${enc(id)}/prefs`, { signal: controller.signal }));
-    if (session !== currentPrefsSession()) throw cancelledPrefs();
-    if (seq === session.loadSeq && revision === session.revision && !session.pending.length) {
-      session.confirmed = p;
-      set(p);
-    }
+    if (mine !== owner || loginOwner() !== owner) throw cancelled();
+    if (seq === loadSeq) set(p);
     return prefs;
   } catch (e) {
-    if (session !== currentPrefsSession()) throw cancelledPrefs();
+    if (mine !== owner) throw cancelled();
     throw e;
   } finally {
-    session.loads.delete(controller);
+    loads.delete(controller);
   }
-}
-
-/** Optimistic: the control moves at once and goes back if the hub says no (the error is the caller's to show). */
-export async function saveNotifyPrefs(patch: Partial<Pick<NotifyPrefs, "input" | "done" | "quiet">>): Promise<void> {
-  const intent = { ...patch, ...(patch.quiet && { quiet: { ...patch.quiet } }) };
-  return savePrefs(() => intent);
-}
-
-function subscribe(l: () => void) {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
-
-export function useNotifyPrefs(): NotifyPrefs {
-  return useSyncExternalStore(subscribe, notifyPrefs, () => DEFAULT_PREFS);
-}
-
-/** Mounted consumers must reread when pairing changes, even when both generations have identical default prefs. */
-export function notifyPrefsGeneration() {
-  return prefsSession.owner;
-}
-
-export function useNotifyPrefsGeneration() {
-  return useSyncExternalStore(subscribe, notifyPrefsGeneration, () => undefined);
 }
 
 // ── the browser's system notifications ───────────────────
@@ -306,7 +203,7 @@ export function useNotifyPrefsGeneration() {
 /** unsupported: this browser has no Notification API (an iPhone's Safari outside a home-screen app, an old browser). */
 export type Permission = "unsupported" | "default" | "granted" | "denied";
 
-export function permission(): Permission {
+function permission(): Permission {
   if (typeof window !== "undefined" && window.personaDesktop) return window.personaDesktop.notificationPermission() as Permission;
   if (typeof Notification === "undefined") return "unsupported";
   return Notification.permission;
@@ -316,7 +213,7 @@ const SYSTEM_KEY = "persona.systemNotify";
 const systemListeners = new Set<() => void>();
 
 /** The page's own switch, off until turned on here (turning it on asks the browser). */
-export function systemNotifyOn(): boolean {
+function systemNotifyOn(): boolean {
   try {
     return localStorage.getItem(SYSTEM_KEY) === "1";
   } catch {
@@ -355,34 +252,12 @@ export function systemNotifyActive(): boolean {
   return systemNotifyOn() && permission() === "granted";
 }
 
-const ALWAYS_KEY = "persona.systemNotifyAlways";
-
-/** "Always show system notifications" (#2451): also while a tab of the app is in front. Kept apart from the main
- *  switch and only counts while that one is active, so turning the main one off and on again keeps this choice. */
-export function systemNotifyAlways(): boolean {
-  try {
-    return localStorage.getItem(ALWAYS_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function setSystemNotifyAlways(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(ALWAYS_KEY, "1");
-    else localStorage.removeItem(ALWAYS_KEY);
-  } catch {
-    // storage unavailable
-  }
-  systemListeners.forEach((l) => l());
-}
-
 /**
- * May a system notification go out now? Only while they are on (`active`); then only while no tab of the app is in front
- * (`here`: this one, `other`: another), unless `always` is on. Which tab posts it is claimNotification's, either way.
+ * May a system notification go out now? Only while they are on (`active`) and no tab of the app is in front (`here`: this
+ * one, `other`: another). Which tab posts it is claimNotification's.
  */
-export function systemNotifyAllowed(front: { here: boolean; other: boolean }, s = { active: systemNotifyActive(), always: systemNotifyAlways() }): boolean {
-  return s.active && (s.always || (!front.here && !front.other));
+export function systemNotifyAllowed(front: { here: boolean; other: boolean }, active = systemNotifyActive()): boolean {
+  return active && !front.here && !front.other;
 }
 
 function subscribeSystem(l: () => void) {
@@ -399,17 +274,17 @@ function subscribeSystem(l: () => void) {
 
 export function onSystemNotifyChange(listener: () => void): () => void { return subscribeSystem(listener); }
 
-const snapshot = () => `${systemNotifyOn() ? 1 : 0}|${permission()}|${systemNotifyAlways() ? 1 : 0}`;
+const snapshot = () => `${systemNotifyOn() ? 1 : 0}|${permission()}`;
 
-export function useSystemNotify(): { on: boolean; permission: Permission; always: boolean } {
-  const s = useSyncExternalStore(subscribeSystem, snapshot, () => "0|unsupported|0");
-  const [on, p, always] = s.split("|");
-  return { on: on === "1", permission: p as Permission, always: always === "1" };
+export function useSystemNotify(): { on: boolean; permission: Permission } {
+  const s = useSyncExternalStore(subscribeSystem, snapshot, () => "0|unsupported");
+  const [on, p] = s.split("|");
+  return { on: on === "1", permission: p as Permission };
 }
 
 // ── between the app's tabs ───────────────────────────────
 // Every open tab watches the same sessions. A notification is for when the user is not looking at the app at all, so
-// none goes out while any tab of it is in front (unless "Always" is on), and one event makes one notification, not one per tab.
+// none goes out while any tab of it is in front, and one event makes one notification, not one per tab.
 
 const FRONT_KEY = "persona.frontTab";
 const NOTIFIED_KEY = "persona.notified";

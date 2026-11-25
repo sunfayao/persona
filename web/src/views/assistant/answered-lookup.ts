@@ -30,7 +30,7 @@ function answeredCopy(s: Session): Session {
 
 /** An agent's answers here: the latest one's time (ms, the card's `at` from endInteraction; 0 without one, so any
  *  needs_you with a time counts as newer), and whether the hub has yet to withdraw one of the cards. */
-export interface AnsweredMark {
+interface AnsweredMark {
   at: number;
   pending: boolean;
 }
@@ -49,7 +49,7 @@ function answeredBy(answered: Record<string, AnsweredCard>): Map<string, Answere
 }
 
 /** Whether an agent's needs_you is only the hub not having caught up with a card answered here. */
-export function answeredHere(s: Session, waiting: ReadonlySet<string>, answered: ReadonlyMap<string, AnsweredMark>): boolean {
+function answeredHere(s: Session, waiting: ReadonlySet<string>, answered: ReadonlyMap<string, AnsweredMark>): boolean {
   const k = key(s.machine_id, s.session_id);
   const mark = answered.get(k);
   if (mark === undefined || foldedState(s) !== "needs_you" || waiting.has(k)) return false;

@@ -77,7 +77,7 @@ export interface PagedSessionListProps<T> {
   holdCounts?: (counts: ListCounts, rows: readonly T[]) => ListCounts;
 }
 
-export interface PagedGrouping<T> {
+interface PagedGrouping<T> {
   dimension: GroupDimension; quick?: PagedQuickFilters;
   /** The sections follow this scope's fold-all (useFolded). */ foldScope?: string;
   /** Stable structural placement. The transport still uses `compare`, whose newest-first order binds the hub's cursors. */

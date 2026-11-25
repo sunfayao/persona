@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import { onHubEvent } from "./store";
 
-export interface GraphBadge {
+interface GraphBadge {
   text: string;
   tone?: string;
 }
 
-export interface GraphExtension {
+interface GraphExtension {
   /** The extension's id, or "persona" for what Persona reads itself. */
   id: string;
   extension?: string;
@@ -18,7 +18,7 @@ export interface GraphExtension {
   line: string;
 }
 
-export interface GraphRead {
+interface GraphRead {
   id: string;
   extension: string;
   title: string;
@@ -45,7 +45,7 @@ export interface GraphSource {
   ask?: string;
 }
 
-export interface GraphDestination {
+interface GraphDestination {
   id: "inbox" | (string & {});
   name: string;
   line: string;

@@ -75,7 +75,7 @@ export interface LarkDisplayDeps {
   write: (body: { account_id: string; key: LarkDisplayKey; value: boolean; expected: boolean }) => Promise<LarkMessageDisplay>;
 }
 
-export function liveLarkDisplayDeps(ol?: number, manager?: string): LarkDisplayDeps {
+function liveLarkDisplayDeps(ol?: number, manager?: string): LarkDisplayDeps {
   return {
     read: () => api<LarkMessageDisplay>(larkPath("/lark/message-display", ol, manager)),
     write: (body) => api<LarkMessageDisplay>(larkPath("/lark/message-display", ol, manager), { method: "POST", json: body }),
@@ -178,7 +178,7 @@ const modelKey = (ol: number | undefined, manager: string | undefined) => `${ite
 
 /** The page's one model for a Feishu account (`ol`, lark-accounts.ts; undefined: the hub's own) of manager's Lark
  *  (an inbox item's, docs/assistant/managers.md "Clients"; undefined: the default's). */
-export function larkDisplayModel(ol?: number, manager?: string): LarkDisplayModel {
+function larkDisplayModel(ol?: number, manager?: string): LarkDisplayModel {
   const key = modelKey(ol, manager);
   let m = models.get(key);
   if (!m) {
@@ -190,7 +190,7 @@ export function larkDisplayModel(ol?: number, manager?: string): LarkDisplayMode
 
 /** A `lark` push that says the settings changed (docs/protocol/protocol.md `settings_changed`): read that account's again,
  *  of the manager the push is from. */
-export function onLarkPush(msg: Record<string, unknown>) {
+function onLarkPush(msg: Record<string, unknown>) {
   if (msg.settings_changed !== true) return;
   models.get(modelKey(olAccount(msg.ol_account), fromDefaultManager(msg) ? undefined : messageManager(msg)))?.refresh();
 }

@@ -18,7 +18,7 @@ import { settingsHref } from "../settings/nav";
 import { DiagnosisLoading, SheetPart } from "./AlertParts";
 
 /** What kind of failure a record is, in a line (lib/launcher-health.ts's words where they fit). */
-export function failureKind(kind: string | undefined): string {
+function failureKind(kind: string | undefined): string {
   if (kind === "usage_limit") return t("machines-alerts.launcher_usage_limit");
   if (kind === "onboarding") return t("machines-alerts.launcher_onboarding");
   return blockReason(kind ?? "");

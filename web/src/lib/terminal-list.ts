@@ -47,13 +47,13 @@ export function finishedCount(spaces: readonly TermSpace[]): number {
 
 // ── Close finished terminals (`POST /machines/{mid}/panes/close_finished`, docs/protocol/protocol.md) ──
 
-export interface FinishedPane {
+interface FinishedPane {
   pane: string;
   session_id: string;
   tab_id?: string;
   workspace_id?: string;
 }
-export interface KeptPane {
+interface KeptPane {
   pane: string;
   session_id: string;
   /** Why the node kept it (a program in front of the shell…), in the node's words: not shown. */

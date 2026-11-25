@@ -32,7 +32,7 @@ const utc = (date: string) => new Date(`${date}T00:00:00Z`);
 const dayName = (date: string) => formatDate(utc(date), { month: "short", day: "numeric", weekday: "short", timeZone: "UTC" });
 
 /** The days, read on mount and when the tab comes back to the front. */
-export function useUsageDays(enabled = true): UsageDays | null {
+function useUsageDays(enabled = true): UsageDays | null {
   const [data, setData] = useState<UsageDays | null>(null);
   useEffect(() => {
     if (!enabled) return;

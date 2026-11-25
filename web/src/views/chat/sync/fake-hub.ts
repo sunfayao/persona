@@ -14,7 +14,7 @@ export interface SyncCase {
   end: Record<string, View>;
 }
 
-export interface HubState {
+interface HubState {
   history: string;
   lines: Item[];
   to_seq: number;

@@ -9,7 +9,7 @@ import { hex6 } from "../../../lib/terminal-details";
 export const pageDark = () => document.documentElement.classList.contains("dark");
 
 /** Calls `read` with the terminal's tokens (`token("--page")` → its value) and whether its scheme is dark. */
-export function withTerminalTokens<T>(read: (token: (name: string) => string, dark: boolean) => T, appearance: TerminalAppearance = terminalAppearance()): T {
+function withTerminalTokens<T>(read: (token: (name: string) => string, dark: boolean) => T, appearance: TerminalAppearance = terminalAppearance()): T {
   const dark = terminalDark(appearance, pageDark());
   const scope = schemeScope(appearance);
   if (!scope) {

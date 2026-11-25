@@ -5,7 +5,7 @@ import { sameValue } from "./stable-lines";
 
 export const SAVED_SEARCH_LIMIT = 50;
 export const SAVED_SEARCH_NAME_MAX = 64;
-export const SAVED_SEARCH_QUERY_MAX = 1024;
+const SAVED_SEARCH_QUERY_MAX = 1024;
 export interface SavedAgentSearch { id: string; name: string; query: string; created_at: string; updated_at: string }
 export interface SavedAgentSearches { revision: string; searches: SavedAgentSearch[]; can_write: boolean }
 export type SavedSearchMutation =

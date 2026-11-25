@@ -57,7 +57,7 @@ export interface HealthContext {
 }
 
 /** The checks the node reports and no feature stands on: the user's own settings, shown as information. */
-export const INFO_CHECKS = ["global-permission-hooks"];
+const INFO_CHECKS = ["global-permission-hooks"];
 
 export const FEATURES: FeatureSpec[] = [
   {
@@ -178,7 +178,7 @@ export function doctorUnavailable(e: { status?: number; message?: string; isJson
   return null;
 }
 
-export { classifyConnection, type ConnectionFailure, type ConnectionFailureKind } from "./connection-failure";
+export { classifyConnection,   } from "./connection-failure";
 
 /** `currentEngine` for the derivation, so the card needs one import. */
 export function healthContext(m: Pick<Machine, "engine">): HealthContext {

@@ -47,7 +47,6 @@ import { LarkTopicCard, LarkTopicDialog, useTopicReplies } from "./LarkTopicCard
 
 const PAGE = 30;
 
-export type { LarkReplyTarget };
 
 /** What the hub's Feishu extension lets the composer send: pictures and files, and those quoting or in a thread. */
 function useAttachmentSupport() {
@@ -58,7 +57,7 @@ function useAttachmentSupport() {
 
 /** Text, then each attachment, as the messages to send. False when the extension cannot route the attachments as
  * asked (a quote): nothing goes and it all stays in the box (docs/extensions/lark-attachments.md, #1035). */
-export function outgoingOf(text: string, attachments: LarkAttachment[], route: LarkOutgoing["route"], quote?: LarkOutgoing["quote"],
+function outgoingOf(text: string, attachments: LarkAttachment[], route: LarkOutgoing["route"], quote?: LarkOutgoing["quote"],
   features: string[] = getState().features, mentions?: LarkOutgoing["mentions"]): LarkOutgoing[] | false {
   if (attachments.length && !routeAllowed(route, features)) return false;
   const out: LarkOutgoing[] = [];

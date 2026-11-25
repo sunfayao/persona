@@ -135,7 +135,7 @@ function AssistantModelFallback({ session }: { session: Session }) {
 }
 
 /** The conversation asked for the Agent SDK and runs on the CLI: why (no Node.js 22+, no bridge, no claude). */
-export function RuntimeFallbackNote({ reason }: { reason: string }) {
+function RuntimeFallbackNote({ reason }: { reason: string }) {
   const text = runtimeFallbackText(reason);
   return (
     <div role="status" title={text} className="flex min-h-8 items-center gap-2 rounded-[12px] bg-orange-tint px-3 py-1 text-[12px] text-orange">

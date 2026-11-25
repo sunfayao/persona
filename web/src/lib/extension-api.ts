@@ -4,7 +4,7 @@
 // asks the new routes when the hub says so and reads either set of keys, so it works against both.
 import { getState, hubHas } from "./store";
 
-export const EXTENSIONS_FEATURE = "extensions";
+const EXTENSIONS_FEATURE = "extensions";
 
 /** Whether the hub has the new routes. Unknown (before hello) is no: the old routes answer on every hub. */
 export function newRoutes(features: string[] = getState().features): boolean {

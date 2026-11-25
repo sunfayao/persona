@@ -36,7 +36,7 @@ export type { MailAccount };
 
 // ── wire types (docs/protocol/protocol.md "Inbox API") ─────────
 
-export interface DocOption {
+interface DocOption {
   name: string;
   color?: string;
 }
@@ -73,7 +73,7 @@ export interface InboxDoc {
   error?: string;
 }
 
-export interface InboxAgent {
+interface InboxAgent {
   /** The business task this event is about; distinct from its draft-processing session. */
   todo_id?: string;
   state: string; // skipped | queued | running | drafted | failed
@@ -222,7 +222,7 @@ export function itemRoute(it: { id: string; manager?: string }): Extract<Route, 
   return other ? { name: "inbox", id: it.id, manager: other } : { name: "inbox", id: it.id };
 }
 
-export interface InboxConnector {
+interface InboxConnector {
   thread: string;
   /** The row's tag: "review requested". */
   label?: string;
@@ -618,7 +618,7 @@ export interface InboxTriage {
   sources?: InboxTriageSource[];
 }
 
-export interface InboxTriageSource {
+interface InboxTriageSource {
   source: string;
   name?: string;
   state: string;
@@ -726,7 +726,7 @@ class WatchedMap<V> extends Map<string, V> {
 export const unsentReplies = new WatchedMap<string>();
 /** The proposed status moves the user unticked in the draft dialog, by item (itemKey), as docChangeKey; kept, cleared
  *  and restored with the item's text. */
-export const droppedChanges = new WatchedMap<readonly string[]>();
+const droppedChanges = new WatchedMap<readonly string[]>();
 
 /** Keeps the item's unticked proposed changes (none: forgets them). */
 export function keepDropped(key: string, dropped: readonly string[]) {
@@ -897,7 +897,7 @@ function start() {
 
 /** `next` with every item that reads the same as the one of that id we have kept as our object, and our array when
  *  nothing changed: a re-read is fresh JSON, and new objects would render every memoized row again on each push. */
-export function keepSameItems(prev: InboxItem[], next: InboxItem[]): InboxItem[] {
+function keepSameItems(prev: InboxItem[], next: InboxItem[]): InboxItem[] {
   const before = new Map(prev.map((it) => [itemKey(it), it]));
   let all = prev.length === next.length;
   const out = next.map((it, i) => {

@@ -84,7 +84,7 @@ export function useCloseFinished({ spacesOf, reload }: { spacesOf: (mid: string)
 
 /** A finished terminal's line in the confirmation: its row's title in the tree ("Finished: <the Agent's title>"), else
  *  the Agent's title, else a short id. */
-export function finishedLabel(spaces: readonly TermSpace[], pane: string, sessionId: string, mid: string): string {
+function finishedLabel(spaces: readonly TermSpace[], pane: string, sessionId: string, mid: string): string {
   for (const sp of spaces) for (const tab of sp.tabs) for (const p of tab.panes) if (p.pane === pane) return p.title;
   const s = sessionId ? getSession(mid, sessionId) : undefined;
   return t("lib-terminals.finished", { title: s ? sessionTitle(s) : sessionId.slice(0, 8) || pane });

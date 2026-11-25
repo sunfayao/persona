@@ -5,12 +5,12 @@ import type { Step } from "./turns";
 import type { FoldSource, Item } from "./types";
 
 /** As proto.FoldSourcesMax. */
-export const MAX_SOURCES = 10;
+const MAX_SOURCES = 10;
 const TITLE_MAX = 200;
 const CLIP_NOTE = "\n…（已截断"; // i18n-ignore: the hub's note ending a cut result (transcript/clip.go)
 
 /** An http(s) URL with something after the scheme and no white space. */
-export function webURL(s: string): boolean {
+function webURL(s: string): boolean {
   return /^https?:\/\/\S+$/i.test(s);
 }
 

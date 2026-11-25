@@ -6,7 +6,7 @@ import type { VoiceAvailability } from "./availability";
 import type { VoiceEnd } from "./conversation";
 
 /** Where "Open settings" goes (the voice model's purpose): an in-app path. */
-export function modelSettings(id: string): string {
+function modelSettings(id: string): string {
   return `/settings?tab=model-config&purpose=${encodeURIComponent(`plugin.${id}`)}`;
 }
 

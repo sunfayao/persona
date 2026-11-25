@@ -1,11 +1,11 @@
 import type { Todo, TodoCreateOptions } from "./todos";
 import { confirmTodoCreate } from "./todos";
-import { api, ApiError, credentialOwner, getToken, pastHub } from "./api";
+import { api, credentialOwner, getToken, pastHub } from "./api";
 import { MANAGER_HEADER } from "./manager-choice";
 import { parseRepository, type RepositoryIdentity } from "./repository-identity";
 
-export type RepositoryTaskWorkflow = "isolated" | "shared_branch";
-export type RepositoryBinding = RepositoryIdentity & {
+type RepositoryTaskWorkflow = "isolated" | "shared_branch";
+type RepositoryBinding = RepositoryIdentity & {
   id: string; name?: string; aliases?: string[]; purpose?: string; verified_at: string; clone_url?: string;
   /** An extension source's name when the reference was saved, so it still reads once the source is gone. */
   provider_name?: string;
@@ -16,19 +16,19 @@ export type RepositoryLinkKind = "issue" | "pull_request";
 /** A source's own word for a link kind (MR for a pull request); the kinds stay these two. */
 export type RepositoryLinkLabel = { kind: RepositoryLinkKind; label: string };
 /** How a to-do's extension row's source is now: `missing` once it is uninstalled. */
-export type RepositoryProviderState = "available" | "off" | "missing";
+type RepositoryProviderState = "available" | "off" | "missing";
 /** A source of repositories (docs/extensions/repository-providers.md): GitHub and GitLab built in, then extensions'. */
 export type RepositoryProvider = {
   id: string; name: string; builtin: boolean; hosts: string[]; state: "available" | "off"; link_kinds?: RepositoryLinkLabel[];
 };
 export type RequestedRef = { kind: "default"; value?: never } | { kind: "branch" | "tag" | "commit" | "ref"; value: string };
 export type RepositoryLayout = "root" | "container";
-export type RepositorySourceSnapshot = {
+type RepositorySourceSnapshot = {
   /** `provider`: an extension's row cloned from the address its source answered (never a GitHub or GitLab row). */
   identity: RepositoryIdentity; clone_url: string; transport_origin: "catalog" | "canonical_default" | "provider"; catalog_revision: number;
   provider_name?: string;
 };
-export type RepositoryLinkRole = "delivery" | "reference";
+type RepositoryLinkRole = "delivery" | "reference";
 export type RepositoryLinkInput = { url: string; kind?: never; number?: never; title?: string; role?: RepositoryLinkRole } | { kind: "issue" | "pull_request"; number: string; url?: never; title?: string; role?: RepositoryLinkRole };
 export type TaskRepositoryLink = { kind: "issue" | "pull_request"; number: string; canonical_url: string; title?: string; role?: RepositoryLinkRole };
 export type TaskRepositoryInput = { repo_id: string; directory_alias?: string; requested_ref?: RequestedRef; links?: RepositoryLinkInput[] };
@@ -101,7 +101,7 @@ const linkURL = (identity: RepositoryIdentity, kind: "issue" | "pull_request", n
  * below the repository's own, of plain path segments, so with no credentials, query or fragment. The web cannot build
  * such a link from a kind and number; it keeps and opens the address the manager stored.
  */
-export function underRepository(identity: RepositoryIdentity, url: unknown): boolean {
+function underRepository(identity: RepositoryIdentity, url: unknown): boolean {
   const prefix = `${identity.canonical_url}/`;
   if (typeof url !== "string" || url.length > 2048 || !url.startsWith("https://") || !url.startsWith(prefix)) return false;
   const rest = url.slice(prefix.length).replace(/\/$/, "");
@@ -212,7 +212,7 @@ export function validRequestedRef(ref?: RequestedRef | null): boolean {
 }
 
 /** A normalized link identity inside its repository: public aliases/case and structured kind+number meet here. */
-export function repositoryLinkKey(identity: RepositoryIdentity, link: RepositoryLinkInput | TaskRepositoryLink, saved: readonly TaskRepositoryLink[] = []): string | undefined {
+function repositoryLinkKey(identity: RepositoryIdentity, link: RepositoryLinkInput | TaskRepositoryLink, saved: readonly TaskRepositoryLink[] = []): string | undefined {
   const prefix = `${identity.provider}|${identity.instance_url}|${identity.path}|`;
   const view = repositoryLinkView(identity, link, saved);
   // A provider decides a new address's kind/number on save. Distinct pending addresses must not collapse into an
@@ -286,24 +286,13 @@ export function validRepositoryDraft(rows: TaskRepositoryInput[], identities?: R
 }
 
 /** A source's name as saved beside an identity: absent, or at most 80 characters (the manifest's `name`). */
-export const validProviderName = (name: unknown): boolean => name === undefined || (typeof name === "string" && [...name].length <= 80);
+const validProviderName = (name: unknown): boolean => name === undefined || (typeof name === "string" && [...name].length <= 80);
 /** Optional per-repository task workflow preference: absent/empty (default isolated), "isolated", or "shared_branch". */
-export const validTaskWorkflow = (value: unknown): boolean => value === undefined || value === "" || value === "isolated" || value === "shared_branch";
+const validTaskWorkflow = (value: unknown): boolean => value === undefined || value === "" || value === "isolated" || value === "shared_branch";
 const LINK_KINDS = ["issue", "pull_request"];
 const validLinkKinds = (value: unknown): boolean => value === undefined || (Array.isArray(value) && value.length <= LINK_KINDS.length
   && value.every((entry: RepositoryLinkLabel) => !!entry && LINK_KINDS.includes(entry.kind) && typeof entry.label === "string"
     && !!entry.label.trim() && [...entry.label].length <= 24));
-function validRepositoryProvider(value: RepositoryProvider): boolean {
-  return !!value && typeof value.id === "string" && (value.builtin === true ? ["github", "gitlab"].includes(value.id) : value.builtin === false && isExtensionProvider(value.id))
-    && typeof value.name === "string" && !!value.name.trim() && [...value.name].length <= 80
-    && Array.isArray(value.hosts) && value.hosts.length <= 16 && value.hosts.every((host) => typeof host === "string")
-    && ["available", "off"].includes(value.state) && validLinkKinds(value.link_kinds);
-}
-/** GitHub and GitLab, as the manager lists them first; all an older manager (no providers route) knows. */
-export const BUILTIN_REPOSITORY_PROVIDERS: readonly RepositoryProvider[] = [
-  { id: "github", name: "GitHub", builtin: true, hosts: ["github.com"], state: "available" },
-  { id: "gitlab", name: "GitLab", builtin: true, hosts: ["gitlab.com"], state: "available" },
-];
 /**
  * The name a repository's source is shown by: the live source's, else the one saved with the repository, else the
  * built-in's. Never the raw `ext:` id: undefined lets the caller say "another source" in its own words.
@@ -353,23 +342,6 @@ export async function loadRepositoryCatalog(context: RepositoryRequestContext): 
   if (!context.isCurrent() || result.manager !== context.manager || !revision(result.catalog_revision)
     || !Array.isArray(result.repositories) || !result.repositories.every((r) => typeof r.id === "string" && validRepositoryIdentity(r) && validProviderName(r.provider_name) && validTaskWorkflow(r.task_workflow))) throw new Error("Invalid repository catalog response");
   return result;
-}
-/**
- * The sources of repositories (`GET /assistant/repositories/providers`), built-ins first. An older manager has no such
- * route and answers 404 (its `/{id}` read): only the built-ins then. Any other failure throws, for the caller to fall
- * back to the built-ins without failing what it shows.
- */
-export async function loadRepositoryProviders(context: RepositoryRequestContext): Promise<readonly RepositoryProvider[]> {
-  let result: { manager?: string; providers?: RepositoryProvider[] };
-  try {
-    result = await api<typeof result>("/assistant/repositories/providers", repositoryRequestOptions(context));
-  } catch (failure) {
-    if (failure instanceof ApiError && failure.status === 404 && context.isCurrent()) return BUILTIN_REPOSITORY_PROVIDERS;
-    throw failure;
-  }
-  if (!context.isCurrent() || result.manager !== context.manager || !Array.isArray(result.providers)
-    || !result.providers.every(validRepositoryProvider)) throw new Error("Invalid repository providers response");
-  return result.providers;
 }
 export async function loadTaskRepositories(context: RepositoryRequestContext, todoId: string): Promise<TaskRepositorySet> {
   const result = await api<TaskRepositorySet>(`/todos/${encodeURIComponent(todoId)}/repositories`, repositoryRequestOptions(context));

@@ -13,7 +13,7 @@ export interface GitCheck {
   url?: string;
 }
 
-export interface GitPRComment {
+interface GitPRComment {
   author: string;
   body: string;
   url?: string;

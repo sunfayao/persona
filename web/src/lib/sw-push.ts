@@ -22,7 +22,7 @@ export interface PushMessage {
 }
 
 /** What the notification's click reads (sw-click.ts takes `url`); `pushed` tells the page it came by Web Push. */
-export interface PushedData {
+interface PushedData {
   url: string;
   pushed: true;
   kind: string;

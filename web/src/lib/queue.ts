@@ -68,7 +68,7 @@ export interface QueuedParts {
   contexts: QueuedContext[];
 }
 
-export interface QueuedContext {
+interface QueuedContext {
   kind: string;
   title: string;
   url: string;

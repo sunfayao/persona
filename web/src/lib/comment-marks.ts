@@ -23,7 +23,7 @@ export function textOf(root: Node): string {
 }
 
 /** Where (node, offset) is in the root's text; -1 when it is outside the root. */
-export function offsetIn(root: Node, node: Node, offset: number): number {
+function offsetIn(root: Node, node: Node, offset: number): number {
   if (!root.contains(node)) return -1;
   const pre = document.createRange();
   pre.selectNodeContents(root);

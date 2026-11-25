@@ -12,7 +12,7 @@ import { Card, CODE_BOX, resolve, useCardKeys } from "./Interactions";
 
 /** A command-input card's command, prompt and the output before it (untrimmed, as the command wrote it), and whether the
  *  prompt reads as secret, so the line is hidden until Show. */
-export function commandInputInput(input: Record<string, unknown> | undefined): { command: string; prompt: string; output: string; masked: boolean } {
+function commandInputInput(input: Record<string, unknown> | undefined): { command: string; prompt: string; output: string; masked: boolean } {
   const text = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   return { command: text(input?.command), prompt: text(input?.prompt), output: typeof input?.output === "string" ? input.output : "", masked: input?.masked === true };
 }
@@ -22,7 +22,7 @@ const URL_RE = /https?:\/\/[^\s<>"'`)\]]+/g;
 
 /** The output's lines with each web address a link, opened where links open (lib/links.ts): the sign-in page a login
  *  prints is one tap away. Everything else is the command's text as it is. */
-export function OutputLines({ text }: { text: string }) {
+function OutputLines({ text }: { text: string }) {
   const parts: React.ReactNode[] = [];
   let at = 0;
   for (const m of text.matchAll(URL_RE)) {

@@ -8,7 +8,7 @@ import { onHubEvent, useStore } from "./store";
 const EMPTY: never[] = [];
 
 // Declarative lists refresh on reconnect, visibility and local extension changes, never while the page is hidden.
-export function useDeclaredResult<T>(path: string, key: string, refreshMs = 0): { items: T[]; loaded: boolean } {
+function useDeclaredResult<T>(path: string, key: string, refreshMs = 0): { items: T[]; loaded: boolean } {
   const enabled = useStore((s) => s.features.includes("extensions") || s.features.includes("plugins"));
   const known = useStore((s) => s.conn === "online");
   const [items, setItems] = useState<T[]>([]);
@@ -31,5 +31,5 @@ export function useDeclaredResult<T>(path: string, key: string, refreshMs = 0): 
   return { items: enabled ? items : EMPTY, loaded: enabled ? loaded : known };
 }
 
-export function useDeclaredList<T>(path: string, key: string): T[] { return useDeclaredResult<T>(path, key).items; }
+function useDeclaredList<T>(path: string, key: string): T[] { return useDeclaredResult<T>(path, key).items; }
 export function useQuickPrompts(): QuickPrompt[] { return useDeclaredList<QuickPrompt>("prompts", "prompts"); }

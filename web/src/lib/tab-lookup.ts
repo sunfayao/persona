@@ -9,7 +9,7 @@ export interface TabRoute { mid: string; space: string; slot: string; sid?: stri
 
 export type TabLookup = { state: "idle" } | { state: "asking" } | { state: "found"; mid: string; sid: string } | { state: "missing" };
 
-export const tabLookupKey = (r: TabRoute) => `${r.mid}\u0000${r.space}\u0000${r.slot}\u0000${r.sid ?? ""}`;
+const tabLookupKey = (r: TabRoute) => `${r.mid}\u0000${r.space}\u0000${r.slot}\u0000${r.sid ?? ""}`;
 
 type Page = { sessions?: Session[] | null; next_cursor?: string };
 const MAX_PAGES = 20;

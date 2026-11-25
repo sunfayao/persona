@@ -69,7 +69,7 @@ let sidesAt = -1;
 
 /** The side sessions of mid/sid (#7944) when an open chat holds its folded rows (its page, its Side sessions panel);
  *  undefined when none does. A paged list's row reads its side part here, so a side seen here shows at once. */
-export function heldSides(mid: string, sid: string): Session[] | undefined {
+function heldSides(mid: string, sid: string): Session[] | undefined {
   if (sidesAt !== heldVersion) {
     const next = new Map<string, Session[]>();
     for (const h of held.values()) {

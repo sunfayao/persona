@@ -58,7 +58,7 @@ async function setEffort(s: Session, effort: string): Promise<boolean> {
 }
 
 /** The strip on top: where the setup comes from and, for a pick, the way back. */
-export function PickStrip({ chat, setup, named, onBack }: { chat: AssistantChat; setup: AssistantSetup; named: string; onBack?: () => void }) {
+function PickStrip({ chat, setup, named, onBack }: { chat: AssistantChat; setup: AssistantSetup; named: string; onBack?: () => void }) {
   const text = !chat.session
     ? t("chat-modelpill.header_new", { setup: named })
     : setup.source === "pick"

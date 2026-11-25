@@ -40,7 +40,7 @@ export interface DeployProgress {
 
 /** The stepper's state from what the page saw: `started` (Redeploy was pressed here), `sawBusy` (the hub has said it is
  *  updating since), the furthest step seen, and the machine as pushed now. */
-export function deployProgress(m: Machine, started: boolean, sawBusy: boolean, furthest: number, requesting: boolean, refused: string): DeployProgress {
+function deployProgress(m: Machine, started: boolean, sawBusy: boolean, furthest: number, requesting: boolean, refused: string): DeployProgress {
   const busy = !!(m.deploying || m.deploy_phase);
   if (busy) return { step: m.deploy_phase ? STEPS.indexOf(m.deploy_phase) : Math.max(0, furthest), outcome: "running" };
   if (!started) return { step: 0, outcome: "idle" };

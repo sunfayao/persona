@@ -5,7 +5,7 @@
 import { useEffect, useState, type RefObject } from "react";
 
 /** The nearest ancestor that scrolls vertically: where a card's sticky answer row sticks. */
-export function scrollBox(el: Element | null): HTMLElement | null {
+function scrollBox(el: Element | null): HTMLElement | null {
   for (let p = el?.parentElement; p; p = p.parentElement) {
     const y = getComputedStyle(p).overflowY;
     if (y === "auto" || y === "scroll") return p;

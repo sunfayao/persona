@@ -158,7 +158,7 @@ function inDoubtReason(code: unknown, relay?: unknown): string | undefined {
 }
 
 /** Why it didn't go, in words. */
-export function failureText(e: unknown): string {
+function failureText(e: unknown): string {
   if (e instanceof ApiError && e.code === "input_draft") return t("lib-outbox.input_draft");
   if (e instanceof ApiError && e.code === "dialog_open") return t("lib-outbox.dialog_open");
   if (e instanceof ApiError && e.body.delivered === "unknown") return inDoubtReason(e.code, e.body.relay_reason) ?? t("lib-outbox.delivery_unknown");

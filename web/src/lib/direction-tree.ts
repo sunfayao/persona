@@ -11,15 +11,15 @@ import { t } from "../i18n";
 import { api, ApiError } from "./api";
 import type { TodoResponsible } from "./todos";
 
-export const DIRECTION_TREE_PATH = "/assistant/directions/tree";
+const DIRECTION_TREE_PATH = "/assistant/directions/tree";
 
 /** A task's state in the tree, as the hub decides it (one rule, in this precedence). planned: no agent has worked on
  *  it yet, such as a piece of a direction a leader recorded and has not handed out (#5846). */
 export type DirectionTaskState = "needs_you" | "review" | "stuck" | "working" | "planned";
 
-export const DIRECTION_TASK_STATES: readonly DirectionTaskState[] = ["needs_you", "review", "stuck", "working", "planned"];
+const DIRECTION_TASK_STATES: readonly DirectionTaskState[] = ["needs_you", "review", "stuck", "working", "planned"];
 
-export interface DirectionCounts {
+interface DirectionCounts {
   working: number;
   needs_you: number;
   stuck: number;
@@ -187,16 +187,7 @@ export function directionStateName(s: DirectionTaskState): string {
  *  token classes). */
 export const DIRECTION_STATE_TONE: Record<DirectionTaskState, string> = { needs_you: "text-attention", working: "text-orange", stuck: "text-orange", review: "text-orange", planned: "text-ink-3" };
 
-/** Every agent of a task, its children included, depth first. */
-export function taskAgents(td: DirectionTask): DirectionAgent[] {
-  const out: DirectionAgent[] = [];
-  const walk = (list: readonly DirectionAgent[] | undefined) => list?.forEach((a) => (out.push(a), walk(a.children)));
-  walk(td.agents);
-  return out;
-}
 
-/** The "machine/session" key of an agent. */
-export const agentRef = (a: Pick<DirectionAgent, "machine_id" | "session_id">) => `${a.machine_id}/${a.session_id}`;
 
 // ── the store: one tree for the page ─────────────────────────
 // The only place the web reads the tree. lib/store.ts asks on hello (readDirectionTreeOnce) and on every `directions`

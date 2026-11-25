@@ -73,7 +73,7 @@ export interface HerdrApi {
   start: (mid: string) => Promise<HerdrState>;
 }
 
-export const herdrApi: HerdrApi = {
+const herdrApi: HerdrApi = {
   read: (mid) => api<HerdrState>(`/machines/${enc(mid)}/herdr`),
   start: (mid) => api<HerdrState>(`/machines/${enc(mid)}/herdr/start`, { method: "POST" }),
 };

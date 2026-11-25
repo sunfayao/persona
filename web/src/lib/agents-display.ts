@@ -5,14 +5,13 @@ import { api, credentialOwner, onCredentialChange } from "./api";
 
 const LEGACY = "persona.agentHideBotmux";
 const PATH = "/agents/display-settings";
-export interface AgentsDisplay { show_botmux: boolean; configured: boolean; use_herdr_tab_name?: boolean }
+interface AgentsDisplay { show_botmux: boolean; configured: boolean; use_herdr_tab_name?: boolean }
 type DisplayChange = { show_botmux: boolean } | { use_herdr_tab_name: boolean };
 interface State { value: AgentsDisplay | null; saving: boolean; error?: unknown; change?: DisplayChange }
 let state: State = { value: null, saving: false };
 let revision = 0;
 let reading: Promise<void> | undefined;
 const listeners = new Set<() => void>();
-const snapshot = () => state;
 const subscribe = (f: () => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
 const set = (next: State) => { state = next; listeners.forEach((f) => f()); };
 function checked(value: AgentsDisplay): AgentsDisplay {
@@ -70,13 +69,7 @@ export function resetAgentsDisplay() {
   set({ value: null, saving: false });
 }
 onCredentialChange(resetAgentsDisplay);
-export function useAgentsDisplay() {
-  return useSyncExternalStore(subscribe, snapshot, snapshot);
-}
 
-export function retryAgentsDisplay(): Promise<void> {
-  return state.change === undefined ? refreshAgentsDisplay() : saveAgentsDisplay(state.change);
-}
 
 // A session-list refresh also refreshes display settings. Rows subscribe to
 // the choice they use so a fresh answer or error with the same choice does not

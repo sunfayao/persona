@@ -208,7 +208,7 @@ export function prepareMarkdown(md: string, title?: string, token = "", base = B
 }
 
 /** Removes Markdown backslash escapes (`\-`, `\.`…) for plain display. */
-export function unescape(s: string): string {
+function unescape(s: string): string {
   return s.replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1");
 }
 

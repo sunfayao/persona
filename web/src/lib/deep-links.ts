@@ -1,6 +1,6 @@
 // The route table every client follows (docs/protocol/deep-links.md, #9926): which links are pages of Persona's, and
 // which page. On the web a link to this hub is read by its router (lib/links.ts hubPage); this module reads the app links
-// (persona://open<path>, the desktop app's persona://open?route=, and the older persona://session|task|kb|settings|
+// (persona://open<path>, the desktop app's persona://open?route=, and the older persona://session|task|settings|
 // extension forms) into the path of the page they name, when one is opened (off the first screen). The iPhone
 // (apple/Shared/HubPageLink.swift) and Android read the same table; spec/fixtures/deep-links/cases.json is what every
 // client checks (lib/deep-links.test.ts for both kinds of link here). Only the keys a page lists are read: a link only
@@ -18,26 +18,16 @@ export type DeepPage =
   | { page: "inbox-item"; id: string; manager?: string }
   | { page: "todos"; view?: "calendar"; mode?: string; date?: string }
   | { page: "todo"; id: string }
-  | { page: "knowledge"; kind?: string }
-  | { page: "knowledge-entry"; kind: string; id: string }
   | { page: "machines" }
   | { page: "machine"; id: string; range?: string }
   | { page: "settings"; tab?: string; item?: string; manager?: string }
   | { page: "extension"; extension: string; ui: string; state?: string };
 
-/** The knowledge base's kinds in the shared link table (spec/fixtures/deep-links/cases.json); this web app has no such page now. */
-export const DEEP_KB_KINDS = ["projects", "topics", "chats", "people", "docs", "meetings", "events", "recordings"];
-
 /** Settings tabs and the query key that names an item of the ones that have one (views/settings/nav.ts; a test keeps
- *  the two the same). */
+ *  the two the same). A link to any other tab opens the Settings root. */
 export const DEEP_SETTINGS_TABS: Record<string, string | null> = {
-  general: null, persona: null, prompts: null, notifications: null, models: "purpose", agents: null, channels: "channel",
-  connectors: "connector", sources: null, extensions: "extension", shortcuts: null, devices: null, hub: null,
-  managers: null, avatar: null, labs: null,
+  general: null, notifications: null, models: "purpose", devices: null,
 };
-
-/** Sent records: an item of the connectors tab (views/settings/nav.ts SENT_SUB). */
-const SENT = "-sent";
 
 /** The page without its undefined values, so two pages compare by what they say. */
 function clean(o: DeepPage): DeepPage {
@@ -55,7 +45,6 @@ function segments(path: string): string[] | null {
 function settingsPage(q: URLSearchParams): DeepPage {
   const tab = q.get("tab") ?? "";
   const manager = q.get("manager") ?? undefined;
-  if (tab === "sent") return clean({ page: "settings", tab: "connectors", item: SENT, manager });
   if (!(tab in DEEP_SETTINGS_TABS)) return clean({ page: "settings", manager });
   const key = DEEP_SETTINGS_TABS[tab];
   return clean({ page: "settings", tab, item: key ? q.get(key) ?? undefined : undefined, manager });
@@ -90,16 +79,10 @@ export function pageOfPath(path: string, search = ""): DeepPage | null {
       if (id) return { page: "todo", id };
       return clean({ page: "todos", view: view === "calendar" ? ("calendar" as const) : undefined, mode: v("mode"), date: v("date") });
     }
-    case "kb":
-      if (p.length === 1) return { page: "knowledge" };
-      if (!DEEP_KB_KINDS.includes(p[1]!)) return null;
-      if (p.length === 2) return { page: "knowledge", kind: p[1]! };
-      return p.length === 3 ? { page: "knowledge-entry", kind: p[1]!, id: p[2]! } : null;
     case "machines":
       if (p.length === 1) return { page: "machines" };
       return p.length === 2 ? clean({ page: "machine", id: p[1]!, range: v("range") }) : null;
     case "settings":
-      if (p.length === 2 && p[1] === "sent") return { page: "settings", tab: "connectors", item: SENT };
       return p.length === 1 ? settingsPage(q) : null;
     case "extension":
     case "plugin":
@@ -152,12 +135,8 @@ export function appPage(u: URL): { page: DeepPage; hub?: string } | null {
     case "task":
       if (parts.length === 1) page = { page: "todo", id: parts[0]! };
       break;
-    case "kb":
-      if (parts.length >= 2 && DEEP_KB_KINDS.includes(parts[0]!)) page = { page: "knowledge-entry", kind: parts[0]!, id: parts.slice(1).join("/") };
-      break;
     case "settings":
-      if (parts.length === 1 && parts[0] === "sent") page = { page: "settings", tab: "connectors", item: SENT };
-      else if (parts.length === 2 && parts[0] === "extensions") page = { page: "settings", tab: "extensions", item: parts[1]! };
+      page = { page: "settings" };
       break;
     case "extension":
       if (parts.length === 2) page = clean({ page: "extension", extension: parts[0]!, ui: parts[1]!, state: u.searchParams.get("state") || undefined });
@@ -167,7 +146,7 @@ export function appPage(u: URL): { page: DeepPage; hub?: string } | null {
 }
 
 /** The page an app link (a URL string) opens, or null: what a message keeps of a persona:// link. */
-export function appLinkPage(url: string): DeepPage | null {
+function appLinkPage(url: string): DeepPage | null {
   try {
     return appPage(new URL(url.trim()))?.page ?? null;
   } catch {
@@ -203,10 +182,6 @@ export function pagePath(p: DeepPage): string {
       return withQuery("/todos", [["view", p.view], ["mode", p.mode], ["date", p.date]]);
     case "todo":
       return `/todos/${enc(p.id)}`;
-    case "knowledge":
-      return p.kind ? `/kb/${enc(p.kind)}` : "/kb";
-    case "knowledge-entry":
-      return `/kb/${enc(p.kind)}/${enc(p.id)}`;
     case "machines":
       return "/machines";
     case "machine":

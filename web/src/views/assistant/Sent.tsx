@@ -12,7 +12,7 @@ import { Markdown } from "../../ui/Markdown";
 import { t } from "../../i18n";
 
 /** "Sent to “task”", or "Stopped “task” and sent" when Persona cut in first. */
-export function sentTitle(item: FeedItem, title: string): string {
+function sentTitle(item: FeedItem, title: string): string {
   return item.body?.interrupted === true ? t("assistant-tasks.sent_interrupting", { title }) : t("assistant-tasks.sent_to", { title });
 }
 

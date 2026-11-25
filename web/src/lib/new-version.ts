@@ -14,7 +14,7 @@ import { onHello } from "./store";
 /** How long the page has to be left alone before it reloads by itself. */
 export const QUIET_MS = 60_000;
 /** How often an open page asks for the shell. */
-export const CHECK_EVERY_MS = 5 * 60_000;
+const CHECK_EVERY_MS = 5 * 60_000;
 /** A check asked for within this long of the last one is skipped (focus flapping, several reconnects). */
 export const CHECK_GAP_MS = 20_000;
 /** While a new build waits for a quiet moment, how often the page looks again. */

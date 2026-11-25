@@ -17,7 +17,7 @@ export const isTodoListFilter = (v: unknown): v is TodoListFilter => TODO_LIST_F
 export const isTodoListSort = (v: unknown): v is TodoListSort => TODO_LIST_SORTS.includes(v as TodoListSort);
 
 /** When a to-do is due, for the filter: its due moment, or the local midnight starting its due day. */
-export function todoDueStart(todo: Todo): number | undefined {
+function todoDueStart(todo: Todo): number | undefined {
   if (todo.due_at) {
     const at = Date.parse(todo.due_at);
     if (!Number.isNaN(at)) return at;
@@ -74,7 +74,7 @@ export function hiddenWaiting(
   return searched.filter((td) => !shown(td) && triage(td, lookup, now, restored.get(td.id) ?? 0, superseded.has(td.id)).section === "waiting").length;
 }
 
-export function priorityRank(todo: Todo): number {
+function priorityRank(todo: Todo): number {
   return todo.priority === "high" ? 0 : todo.priority === "low" ? 2 : 1;
 }
 

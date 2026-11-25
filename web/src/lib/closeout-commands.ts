@@ -30,7 +30,7 @@ function harmlessAssignment(word: string): boolean {
   return Boolean(flags) && flags.split(/\s+/).every((flag) => SAFE_EXTRA.test(flag));
 }
 
-export type CloseoutCommandState = "exit" | "error" | "background" | "running" | "not_found" | "unavailable";
+type CloseoutCommandState = "exit" | "error" | "background" | "running" | "not_found" | "unavailable";
 
 export interface CloseoutCommandEvidence {
   claim: string;

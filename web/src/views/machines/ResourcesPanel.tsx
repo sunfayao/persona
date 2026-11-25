@@ -19,7 +19,7 @@ export interface ResourceStatus extends ResourceDefinition {
   mirror_state: { unknown: boolean; observed_at: string; raw?: string; queue?: { slots: number; running: ResourceJob[]; waiting: ResourceJob[] } };
   leases: { id: string; state: string; holder: { label?: string; machine: string }; joiners?: string[] }[];
 }
-export function ageSeconds(at: string | undefined, now = Date.now()) {
+function ageSeconds(at: string | undefined, now = Date.now()) {
   const parsed = at ? Date.parse(at) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? Math.max(0, Math.floor((now - parsed) / 1000)) : null;
 }

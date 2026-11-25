@@ -46,7 +46,7 @@ export interface UIPush {
   ui?: string;
 }
 
-export interface UIChoice {
+interface UIChoice {
   value: string;
   title?: string;
 }
@@ -220,7 +220,7 @@ export interface ChartPoint {
 }
 
 /** One number of a stat_grid; the tone colors its detail. */
-export interface UIStat {
+interface UIStat {
   label: string;
   value: string;
   detail?: string;
@@ -232,14 +232,14 @@ export interface UIStat {
 // ── UI version 10: a graph ───────────────────────────────
 
 /** One label/value reading of a node's inspector (UI version 10). */
-export interface UIFact {
+interface UIFact {
   label?: string;
   value: string;
   icon?: string;
 }
 
 /** One https link of a node's inspector (UI version 10): a title and a credential-free https url. */
-export interface UIGraphNodeLink {
+interface UIGraphNodeLink {
   title: string;
   url: string;
 }
@@ -283,7 +283,7 @@ export interface UIGraphNode {
 }
 
 /** A graph component (UI version 10): nodes joined by edges, laid out by the app (lib/graph-layout.ts). */
-export interface UIGraph {
+interface UIGraph {
   /** Keeps the person's pan, zoom and folding across redraws of the page. */
   key?: string;
   nodes: UIGraphNode[];
@@ -339,7 +339,7 @@ export interface UIView {
 }
 
 /** The pending review (UI version 5): how many drafts, a summary sent as name with the button pressed, discard. */
-export interface UIReview {
+interface UIReview {
   count: number;
   name: string;
   placeholder?: string;
@@ -373,7 +373,7 @@ export interface UIPlace {
   icon_color?: string;
 }
 
-export interface UIBadge {
+interface UIBadge {
   text: string;
   tone?: UITone;
 }
@@ -542,18 +542,16 @@ export function blocks(items: UIItem[]): UIBlock[] {
 /**
  * What to do after a press: the view to show (new, or "reload" to draw again), a word to say, a link to open; `source`:
  * open the inbox item's own source page (an inbox_item's open_url persona://inbox/<item>/source, for the item it is
- * drawn for); `settings`: the in-app path of an extension's own settings (open_url persona://settings/extensions/<id>);
- * `ask`: the text for the assistant's main conversation (open_url persona://ask?text=…), taken only from the manager's
+ * drawn for); `ask`: the text for the assistant's main conversation (open_url persona://ask?text=…), taken only from the manager's
  * own subscription pages (`extension` SUBSCRIPTIONS_UI, docs/extensions/subscriptions.md "Pages").
  */
 export function outcome(
   r: UIActionResult,
   item?: string,
   extension?: string,
-): { view?: UIView; items?: UIItem[]; reload: boolean; toast?: string; url?: string; source?: true; settings?: string; ask?: string; push?: UIPush; pop?: true } {
+): { view?: UIView; items?: UIItem[]; reload: boolean; toast?: string; url?: string; source?: true; ask?: string; push?: UIPush; pop?: true } {
   const url = r.open_url && isHttps(r.open_url) ? r.open_url : undefined;
   const source = !!item && !!r.open_url && inboxSourceItem(r.open_url) === item;
-  const settings = r.open_url ? extensionSettingsHref(r.open_url) : undefined;
   const ask = extension === SUBSCRIPTIONS_UI && r.open_url ? askText(r.open_url) : undefined;
   const push = readPush(r.push);
   const pop = r.pop === true && !push;
@@ -565,7 +563,6 @@ export function outcome(
     toast: r.toast || undefined,
     url,
     ...(source ? { source: true as const } : {}),
-    ...(settings ? { settings } : {}),
     ...(ask ? { ask } : {}),
     ...(push ? { push } : {}),
     ...(pop ? { pop: true as const } : {}),
@@ -607,7 +604,7 @@ export const NEW_ICONS_6 = [
 ] as const;
 
 /** The fixed icons a row may have (docs/extensions/extensions.md "Declarative UI"): each app draws its own; unknown ones are left out. */
-export const ROW_ICONS = [
+const ROW_ICONS = [
   "extension", "plugin", "chart", "gauge", "list", "bell", "doc", "calendar", "money", "person", "chat", "mail", "link", "folder",
   "star", "check", "warning", "clock", "tag", "search", "settings", "branch", "commit", "code", "pull_request", "merge", "file",
   // UI version 6: the home's and the markets' meanings
@@ -647,24 +644,6 @@ export function inboxSourceItem(url: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-/**
- * The in-app path of an extension's settings page that persona://settings/extensions/<id> names (the id escaped as one
- * path segment): /settings?tab=extensions&extension=<id>. undefined for any other link, and for an id the hub keeps for
- * itself (one starting with "-") or one with a "/".
- */
-export function extensionSettingsHref(url: string): string | undefined {
-  const m = /^persona:\/\/settings\/extensions\/([^/?#]+)$/.exec(canonicalAppURL(url));
-  if (!m) return undefined;
-  let id: string;
-  try {
-    id = decodeURIComponent(m[1]);
-  } catch {
-    return undefined;
-  }
-  if (!id || id.startsWith("-") || id.includes("/")) return undefined;
-  return `/settings?tab=extensions&extension=${encodeURIComponent(id)}`;
 }
 
 // ── reading what the hub sent (UI version 2) ─────────────
@@ -816,7 +795,7 @@ function readSection8(s: Record<string, unknown>): Partial<UISection> {
  * `folded` id that is gone is dropped. The tone and the color are kept as sent (never both; the drawing holds a
  * progress to 0–1 and leaves an unknown color or icon out).
  */
-export function readGraph(raw: unknown): UIGraph | undefined {
+function readGraph(raw: unknown): UIGraph | undefined {
   if (!isObject(raw) || !Array.isArray(raw.nodes)) return undefined;
   const byId = new Map<string, UIGraphNode>();
   for (const n of raw.nodes) {
@@ -928,14 +907,14 @@ export function refreshDelay(view: UIView | null | undefined): number {
 
 /** A nav_page's icons (docs/extensions/extensions.md "UI slots"); each app draws its own. `plugin` is `extension` under its name
  *  before #1844 (the hub still sends it). */
-export const UI_ICONS = ["extension", "plugin", "chart", "gauge", "list", "bell", "doc", "calendar", "money", "branch", "code", "pull_request", "merge", ...NEW_ICONS_6] as const;
+const UI_ICONS = ["extension", "plugin", "chart", "gauge", "list", "bell", "doc", "calendar", "money", "branch", "code", "pull_request", "merge", ...NEW_ICONS_6] as const;
 export type UIIcon = (typeof UI_ICONS)[number];
 
 /** An icon the web knows, else extension. */
 export const uiIcon = (name?: string): UIIcon => ((UI_ICONS as readonly string[]).includes(name ?? "") ? (name as UIIcon) : "extension");
 
 /** The slots the web draws, besides an extension's own pages in its settings. */
-export const SLOTS = ["nav_page", "overview_card", "machine_section", "inbox_item"] as const;
+const SLOTS = ["nav_page", "overview_card", "machine_section", "inbox_item"] as const;
 export type SlotName = (typeof SLOTS)[number];
 
 /** The places of one placement, in the hub's order; a placement the web does not know is never asked for. */

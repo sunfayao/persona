@@ -32,7 +32,7 @@ export function TodoDialogHost() {
 
 type Pick = "hour" | "today" | "at" | "none";
 
-export function TodoDialog({ items, onDone, onClose }: { items: InboxItem[]; onDone?: () => void; onClose: () => void }) {
+function TodoDialog({ items, onDone, onClose }: { items: InboxItem[]; onDone?: () => void; onClose: () => void }) {
   const [pick, setPick] = useState<Pick>("today");
   const [at, setAt] = useState(pickerStart);
   const [busy, setBusy] = useState(false);

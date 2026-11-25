@@ -25,7 +25,7 @@ import { Group, RowFailed, settingsInputClass, Switch } from "../SettingsParts";
 
 /** What went wrong, in this client's words for a code it knows, else the source's own (localized) message, else a
  *  generic line. */
-export function problemText(p: Problem): string {
+function problemText(p: Problem): string {
   if (p.code === "invalid_guidance") return t("settings-configuration.invalid_guidance");
   if ((ERROR_CODES as readonly string[]).includes(p.code)) return t(`settings-configuration.error_${p.code}`);
   return p.message || t("settings-configuration.error_failed");

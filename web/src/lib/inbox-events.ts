@@ -15,7 +15,7 @@ import type { Route } from "./router";
 // ── wire types ───────────────────────────────────────────
 
 export type InboxStatus = "action" | "working" | "fyi" | "noise";
-export type HandlingState = "looking" | "agent" | "waiting" | "done" | "failed";
+type HandlingState = "looking" | "agent" | "waiting" | "done" | "failed";
 
 export interface InboxHandling {
   owner?: string;
@@ -27,7 +27,7 @@ export interface InboxHandling {
   error?: string;
 }
 
-export type SuggestionKind = "reply" | "agent" | "conclusion" | "todo";
+type SuggestionKind = "reply" | "agent" | "conclusion" | "todo";
 
 export interface InboxSuggestion {
   version: number;
@@ -57,13 +57,13 @@ export interface InboxSuggestionAttempt {
   conversation?: { machine_id: string; session_id: string };
 }
 
-export type ChainLink =
+type ChainLink =
   | { type: "source"; position?: string; uid?: number; url?: string }
   | { type: "session"; machine_id: string; session_id: string }
   | { type: "item"; id: string }
   | { type: "todo"; id: string };
 
-export interface ChainMessage {
+interface ChainMessage {
   sender?: string;
   text: string;
   at?: string;

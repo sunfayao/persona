@@ -23,7 +23,7 @@ function resetIso(s: Session): string | undefined {
 
 /** The CLI said it goes on by itself, or the hub scheduled this limit's continuation.
  *  A wake counts only with the limit's own resets_at (the hub's limitTakenUp): another wait's wake_at does not. */
-export function usageLimitContinues(s: Session): boolean {
+function usageLimitContinues(s: Session): boolean {
   if (s.turn_error_resumes) return true;
   const w = s.work;
   return Boolean(

@@ -37,7 +37,7 @@ const codes = new Map<string, InstallCode>();
 
 /** Makes `m` the current assistant and shows the page that is its own: a page about one thing of the assistant left
  *  behind goes back to that thing's list (lib/persona-nav.ts routeAfterSwitch). */
-export function switchAssistant(m: Manager, route: Route) {
+function switchAssistant(m: Manager, route: Route) {
   chooseManager(m.id);
   const to = routeAfterSwitch(route);
   if (to) navigate(to);
@@ -251,37 +251,5 @@ const SwitcherRow = memo(function SwitcherRow({ phase, online, total, route, bad
   );
 });
 
-/** Settings' Switch beside "<name>'s settings": the sidebar's list of assistants (the same rows: switch, New assistant,
- *  Manage assistants…) under a text button. Shown with one assistant too; a hub without a roster has none to show. */
-export function AssistantSwitchButton({ route }: { route: Route }) {
-  return multiManager(useRoster()) ? <CountedSwitchButton route={route} /> : <SwitchButton route={route} badges={NO_BADGES} />;
-}
 
-function CountedSwitchButton({ route }: { route: Route }) {
-  return <SwitchButton route={route} badges={useManagerBadges()} />;
-}
 
-function SwitchButton({ route, badges }: { route: Route; badges: Record<string, number> }) {
-  const menu = useMenu();
-  const roster = useRoster();
-  const list = useAssistantList(route, badges, Boolean(menu.anchor));
-  if (!roster) return null;
-  return (
-    <>
-      <button
-        type="button"
-        onClick={menu.open}
-        aria-haspopup="menu"
-        aria-expanded={Boolean(menu.anchor)}
-        aria-label={t("settings-nav.switch_label")}
-        data-settings-switch
-        className="touch-hit inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-0.5 text-[12px] font-medium whitespace-nowrap text-accent-ink transition-colors hover:bg-hover"
-      >
-        {list.asking ? <Spinner size={12} /> : null}
-        {t("settings-nav.switch")}
-      </button>
-      {menu.anchor && <Menu anchor={menu.anchor} onClose={menu.close} width={264} header={t("sidebar.assistants")} items={list.items} />}
-      {list.dialogs}
-    </>
-  );
-}

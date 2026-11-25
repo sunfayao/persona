@@ -7,10 +7,10 @@ import { BUILTIN_MANAGER } from "./manager-choice";
 import { hubHas } from "./store";
 import type { Machine } from "./types";
 
-export const MACHINES_ADD_FEATURE = "machines_add";
+const MACHINES_ADD_FEATURE = "machines_add";
 
 /** Machines carry `trust` and take POST /machines/{id}/confirm | reject (docs/protocol/protocol.md "Computer trust"). */
-export const MACHINE_TRUST_FEATURE = "machine_trust";
+const MACHINE_TRUST_FEATURE = "machine_trust";
 
 /** The systems the dialog has instructions for; the hub takes the same words (`add.os`). */
 export type ComputerOS = "mac" | "linux" | "windows";
@@ -35,7 +35,7 @@ export function rememberOS(machine: string, os: ComputerOS): void {
   }
 }
 
-export function rememberedOS(machine: string): ComputerOS | null {
+function rememberedOS(machine: string): ComputerOS | null {
   try {
     const v = localStorage.getItem(OS_KEY + machine);
     return COMPUTER_OSES.includes(v as ComputerOS) ? (v as ComputerOS) : null;

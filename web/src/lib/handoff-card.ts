@@ -78,7 +78,7 @@ function handoffCardAttempt(card: HandoffCardBody, conversation: string, item: I
 }
 
 /** How many "Wrap up" chips a conversation shows at most, newest hand-off first. */
-export const WRAP_UP_MAX = 2;
+const WRAP_UP_MAX = 2;
 
 /** What a "Wrap up" chip says besides its title: a reply waiting to be sent, another suggestion (a conclusion, an
  *  Agent to start) waiting to be confirmed, or nothing while the item is still being worked on. */

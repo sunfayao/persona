@@ -13,7 +13,7 @@ const MAX_SCRIPTS = 8;
 
 export type FreezeMechanism = "long-animation-frame" | "longtask";
 
-export interface FreezeScript {
+interface FreezeScript {
   sourceURL?: string;
   sourceFunctionName?: string;
   duration?: number;
@@ -22,7 +22,7 @@ export interface FreezeScript {
 }
 
 /** A long task's frame attribution. containerId and containerName are never read: they are page content. */
-export interface FreezeAttribution {
+interface FreezeAttribution {
   containerSrc?: string;
 }
 
@@ -49,14 +49,14 @@ export interface FreezeGap {
   end: number | null;
 }
 
-export function freezeOverlaps(start: number, duration: number, gaps: readonly FreezeGap[]): boolean {
+function freezeOverlaps(start: number, duration: number, gaps: readonly FreezeGap[]): boolean {
   if (!Number.isFinite(start) || !Number.isFinite(duration) || duration < 0) return true;
   const end = start + duration;
   return gaps.some((g) => start < (g.end ?? Number.POSITIVE_INFINITY) && end > g.start);
 }
 
 /** Script frames for one entry, innermost last. The longest script is last, so the hub fingerprints by it. */
-export function freezeFrames(entry: FreezeEntry, mechanism: FreezeMechanism, origin: string): ErrorFrame[] {
+function freezeFrames(entry: FreezeEntry, mechanism: FreezeMechanism, origin: string): ErrorFrame[] {
   const frames: ErrorFrame[] = [];
   if (mechanism === "long-animation-frame") {
     const ranked = (entry.scripts ?? [])
@@ -158,7 +158,7 @@ export interface FreezeObserverCtor {
   readonly supportedEntryTypes: readonly string[];
 }
 
-export interface FreezeDocument {
+interface FreezeDocument {
   visibilityState: string;
   addEventListener(type: string, listener: () => void): void;
   removeEventListener(type: string, listener: () => void): void;

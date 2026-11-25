@@ -107,7 +107,7 @@ function ToolPermissionCard({ ix }: { ix: Interaction }) {
 /** What the tool will do, field by field (Android PermissionRequestSummary): the agent's sentence, then the command,
  *  file or address under a small label, an edit's changes; a tool it does not know shows the hub's summary. The raw
  *  input stays one click away, open from the start only when nothing else says what the tool does. */
-export function PermissionBody({ ix }: { ix: Interaction }) {
+function PermissionBody({ ix }: { ix: Interaction }) {
   const input = ix.tool_input ?? {};
   const hasInput = Object.keys(input).length > 0;
   const detail = permissionDetail(ix.tool_name, input);

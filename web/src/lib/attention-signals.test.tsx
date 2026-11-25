@@ -72,7 +72,7 @@ class FakeNotification {
 }
 
 function Probe() {
-  useAttentionSignals("Persona", undefined);
+  useAttentionSignals("Persona");
   return null;
 }
 
@@ -163,37 +163,9 @@ describe("系统通知", () => {
   });
 });
 
-describe("Always show system notifications (#2451)", () => {
-  beforeEach(() => localStorage.setItem("persona.systemNotifyAlways", "1"));
-
-  it("posts while this page is in front, and clicking opens the conversation", async () => {
-    focused = true;
-    await show([session("a", "working")]);
-    await show([session("a", "needs_you")]);
-    expect(posted).toEqual([{ title: "a 需要你", body: "a 的最后一句", tag: "m/a#needs" }]);
-    act(() => notifications[0].onclick?.());
-    expect(location.pathname).toBe("/s/m/a");
-  });
-
-  it("posts while another tab is in front", async () => {
-    _setTabId("tab-other");
-    markFront(true);
-    _setTabId("tab-me");
-    await show([session("a", "working")]);
-    await show([session("a", "needs_you")]);
-    expect(posted.map((p) => p.title)).toEqual(["a 需要你"]);
-  });
-
-  it("still once for all tabs: one another tab just posted is not posted again", async () => {
-    focused = true;
-    localStorage.setItem("persona.notified", JSON.stringify({ "m/a#needs": Date.now() }));
-    await show([session("a", "working"), session("b", "working")]);
-    await show([session("a", "needs_you"), session("b", "needs_you")]);
-    expect(posted.map((p) => p.title)).toEqual(["b 需要你"]);
-  });
-
+describe("the system notifications switch", () => {
   it("does nothing while the main switch is off", async () => {
-    focused = true;
+    focused = false;
     localStorage.removeItem("persona.systemNotify");
     await show([session("a", "working")]);
     await show([session("a", "needs_you")]);
@@ -423,7 +395,7 @@ describe("the hub's notify events: the assistant's conversations (#8145)", () =>
     localStorage.removeItem("persona.systemNotify");
     act(() => void window.dispatchEvent(new Event("storage")));
     expect(hellos.at(-1)).toEqual([]);
-    localStorage.setItem("persona.attentionSound", "1");
+    localStorage.setItem("persona.systemNotify", "1");
     act(() => void window.dispatchEvent(new Event("storage")));
     expect(hellos.at(-1)).toEqual(["ws_notify"]);
     const before = hellos.length;
@@ -431,7 +403,7 @@ describe("the hub's notify events: the assistant's conversations (#8145)", () =>
     expect(hellos).toHaveLength(before);
   });
 
-  it("does not ask while both the sound and system notifications are off", async () => {
+  it("does not ask while the system notifications are off", async () => {
     localStorage.removeItem("persona.systemNotify");
     await open();
     expect(hellos).toEqual([]);
@@ -473,14 +445,11 @@ describe("the hub's notify events: the assistant's conversations (#8145)", () =>
     expect(posted).toEqual([]);
   });
 
-  it("nothing while the page is in front, unless Always show is on", async () => {
+  it("nothing while the page is in front", async () => {
     await open();
     focused = true;
     await notify({ kind: "assistant", machine_id: "server", session_id: "main", title: "Persona", body: "one" });
     expect(posted).toEqual([]);
-    localStorage.setItem("persona.systemNotifyAlways", "1");
-    await notify({ kind: "assistant", machine_id: "server", session_id: "main", title: "Persona", body: "two" });
-    expect(posted.map((p) => p.body)).toEqual(["two"]);
   });
 
   it("a manager this browser turned off says nothing here either", async () => {
@@ -493,22 +462,7 @@ describe("the hub's notify events: the assistant's conversations (#8145)", () =>
 });
 
 describe("push grading open-page signals (#11771)", () => {
-  it("suppresses P1 cards, finished (P2) turns, sound, and P1/P2 notify events when grading is on while P0 still interrupts", async () => {
-    let chimeOscillators = 0;
-    class FakeAudioContext {
-      state = "running";
-      currentTime = 0;
-      destination = {};
-      resume = async () => {};
-      createGain = () => ({ gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} }, connect: () => this.destination });
-      createOscillator = () => {
-        chimeOscillators++;
-        return { type: "sine", frequency: { value: 0 }, connect: (g: unknown) => g, start: () => {}, stop: () => {} };
-      };
-    }
-    localStorage.setItem("persona.attentionSound", "1");
-    vi.stubGlobal("AudioContext", FakeAudioContext);
-
+  it("suppresses P1 cards, finished (P2) turns, and P1/P2 notify events when grading is on while P0 still interrupts", async () => {
     pushGrading = true;
     const setBadge = vi.fn();
     Object.defineProperty(window, "personaDesktop", { value: { setBadge, notify: () => false, closeNotification: () => {}, clearNotifications: () => {}, notificationPermission: () => "granted" }, configurable: true });
@@ -520,29 +474,25 @@ describe("push grading open-page signals (#11771)", () => {
     badgeCount = 0;
     await show([session("p1", "working"), session("p0", "working"), session("fin", "working", "2026-01-01T09:57:00Z")], []);
     await act(async () => {});
-    // Trigger a user gesture so armAudio activates AudioContext.
-    window.dispatchEvent(new Event("pointerdown"));
 
-    // P1 escalated card + finished (P2) turn: silent (no notification, no sound, badge stays 0).
+    // P1 escalated card + finished (P2) turn: silent (no notification, badge stays 0).
     await show(
       [session("p1", "needs_you"), session("p0", "working"), session("fin", "unread")],
       [{ id: "ix_p1", machine_id: "m", session_id: "p1", kind: "permission", summary: "run tests", push_level: "P1" }],
     );
     await act(async () => void vi.advanceTimersByTime(SETTLE_MS + BATCH_QUIET_MS + 10));
     expect(posted).toEqual([]);
-    expect(chimeOscillators).toBe(0);
     expect(document.title).toBe("Persona");
     expect(setBadge).toHaveBeenLastCalledWith(0);
 
-    // Defensive WS notify check: held P1/P2 notify does not pop or chime when grading is on; P0 still does.
+    // Defensive WS notify check: held P1/P2 notify does not pop when grading is on; P0 still does.
     await act(async () => {
       hubListeners.get("notify")?.forEach((l) => l({ kind: "assistant", push_level: "P1", title: "Held", body: "briefing" }));
       hubListeners.get("notify")?.forEach((l) => l({ kind: "alert", push_level: "P2", title: "Silent", body: "bg" }));
     });
     expect(posted).toEqual([]);
-    expect(chimeOscillators).toBe(0);
 
-    // P0 needs_you + badgeCount=1: immediate popup, chime, tab title, and Mac Dock badge.
+    // P0 needs_you + badgeCount=1: immediate popup, tab title, and Mac Dock badge.
     badgeCount = 1;
     await show(
       [session("p1", "needs_you"), session("p0", "needs_you"), session("fin", "unread")],
@@ -552,12 +502,10 @@ describe("push grading open-page signals (#11771)", () => {
       ],
     );
     expect(posted.map((p) => p.tag)).toEqual(["m/p0#needs"]);
-    expect(chimeOscillators).toBe(2); // needs chime plays two notes
     expect(document.title).toBe("(1) Persona");
     expect(setBadge).toHaveBeenLastCalledWith(1);
 
-    // New P1 card added to already-waiting p0 does not re-notify or chime; new P0 alert does.
-    chimeOscillators = 0;
+    // New P1 card added to already-waiting p0 does not re-notify; new P0 alert does.
     vi.advanceTimersByTime(4000);
     await show(
       [session("p1", "needs_you"), session("p0", "needs_you"), session("fin", "unread")],
@@ -568,7 +516,6 @@ describe("push grading open-page signals (#11771)", () => {
       ],
     );
     expect(posted).toHaveLength(1);
-    expect(chimeOscillators).toBe(0);
 
     // Turning grading OFF restores finished notifications and P1 card alerts.
     pushGrading = false;

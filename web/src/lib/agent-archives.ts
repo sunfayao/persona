@@ -18,7 +18,7 @@ export const AGENT_ARCHIVE_CLOSE_FEATURE = "agent_session_archive_close";
 
 /** Busy as the manager counts it for an archive (agent_archives.go agentArchiveBusy): working, starting, waiting for an
  *  answer, background work, running subagents or workflows. Awaiting the user's reply is not busy. */
-export function archiveBusy(s: Session): boolean {
+function archiveBusy(s: Session): boolean {
   const st = stateOf(s);
   return Boolean(
     s.starting || s.status === "working" || s.status === "blocked" || st === "working" || st === "needs_you" ||
@@ -102,7 +102,7 @@ export function archiveSession(s: Pick<Session, "machine_id" | "session_id">, cl
   return api(`${sessionPath(s.machine_id, s.session_id)}/archive${force ? "?force=1" : close ? "?close=1" : ""}`, { method: "POST", json: {} });
 }
 
-export function unarchiveSession(s: Pick<Session, "machine_id" | "session_id">): Promise<unknown> {
+function unarchiveSession(s: Pick<Session, "machine_id" | "session_id">): Promise<unknown> {
   return api(`${sessionPath(s.machine_id, s.session_id)}/unarchive`, { method: "POST", json: {} });
 }
 
@@ -114,7 +114,7 @@ export async function listArchived(signal?: AbortSignal): Promise<Session[]> {
 }
 
 /** Why the hub refused an archive, in this page's words. */
-export function archiveErrorText(e: unknown, close = false): string {
+function archiveErrorText(e: unknown, close = false): string {
   if (e instanceof ApiError && e.status === 409) return t(close ? "lib-agent-archives.close_busy" : "lib-agent-archives.busy");
   if (e instanceof ApiError && e.status === 501) return t(close ? "lib-agent-archives.close_upgrade" : "lib-agent-archives.upgrade");
   return t("lib-agent-archives.failed", { error: errorText(e) });
@@ -138,7 +138,7 @@ export function noteArchivedList(rows: Session[]) {
   knownChanged();
 }
 
-export function noteArchived(s: Session, archived: boolean) {
+function noteArchived(s: Session, archived: boolean) {
   if (archived) known.set(keyOf(s.machine_id, s.session_id), { ...s, archived: true });
   else known.delete(keyOf(s.machine_id, s.session_id));
   knownChanged();

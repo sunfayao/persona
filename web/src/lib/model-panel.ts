@@ -54,7 +54,7 @@ export interface PanelModel {
 }
 
 /** A model's levels listed as models of their own (PanelModel.variants). */
-export interface EffortVariants {
+interface EffortVariants {
   /** The ID without its level: what the row's key and its override go by, whichever level it stands for. */
   base: string;
   /** Each level and the model ID that runs it, weakest first. */
@@ -320,7 +320,7 @@ const defaultLevel = (levels: PanelModel[]) => (levels.some((m) => m.defaultEffo
 /** One row's model for the levels of one model (two or more, from variantGroups), standing for `chosen`: the model's
  *  name without the level ("Gemini 4 Neon (High)" → "Gemini 4 Neon"; the base ID when the names disagree), the levels
  *  as its efforts, and `chosen`'s level as its own. */
-export function foldVariants(levels: PanelModel[], chosen: PanelModel): PanelModel {
+function foldVariants(levels: PanelModel[], chosen: PanelModel): PanelModel {
   const base = variantBase(levels[0]) ?? chosen.id;
   const names = new Set(levels.map((m) => m.name.replace(/\s*\([^()]*\)\s*$/, "")));
   const name = names.size === 1 ? [...names][0] || base : base;
@@ -366,9 +366,8 @@ export function levelSetup(row: Pick<PanelRow, "provider" | "model" | "setup">, 
 }
 
 /** What the list shows: one rail cell's view. A search shows "all" whatever cell is on. */
-export type PanelView = { kind: "recent" } | { kind: "favorites" } | { kind: "all" } | { kind: "provider"; provider: string };
+type PanelView = { kind: "recent" } | { kind: "favorites" } | { kind: "all" } | { kind: "provider"; provider: string };
 
-export const sameView = (a: PanelView, b: PanelView) => a.kind === b.kind && (a.kind !== "provider" || (b.kind === "provider" && a.provider === b.provider));
 
 /** A ready-made setup offered as one row of its own (New Agent's Agent presets, #2225): a name and what it is for. */
 export interface PanelPreset {

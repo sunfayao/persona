@@ -499,8 +499,6 @@ export function LegacyExtensionUI({
       if (r.toast) toast(r.toast, "ok");
       if (r.url) openLink(r.url, undefined, linkManager);
       if (r.source) onOpenSource?.();
-      // an extension's own settings (persona://settings/extensions/<id>) open in the app
-      if (r.settings) navigate(r.settings);
       // the subscription pages' Set Up with … (persona://ask): the text to the assistant's main conversation, which opens
       if (r.ask) askAssistant(r.ask);
       if (r.push) push(r.push);

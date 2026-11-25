@@ -82,7 +82,7 @@ export function Badge({ badge }: { badge: { text: string; tone?: string; color?:
 // ── a control in a row or a tile ─────────────────────────
 
 /** The value shown for a control: the user's while it is on its way, else what the extension drew. */
-export const shownValue = (c: UIRowControl, h: V6Handlers) => h.controls?.[c.name] ?? controlValue(c);
+const shownValue = (c: UIRowControl, h: V6Handlers) => h.controls?.[c.name] ?? controlValue(c);
 
 /** A switch or a stepper at a row's end (a slider has a line of its own: SliderLine). */
 export function TrailingControl({ control: c, label, h }: { control: UIRowControl; label: string; h: V6Handlers }) {

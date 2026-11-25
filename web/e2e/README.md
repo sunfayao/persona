@@ -97,24 +97,6 @@ reload and a second browser draw the same, and Reset puts Overview back. Light a
 was, the edit state and 进行中的任务 moved first, at 1440 × 1300 and 390 × 1600, and `results-sections.json`, go to the
 artifact directory; a 300-second watchdog ends the run.
 
-## Sidebar groups (#9071)
-
-```sh
-MOCK_EXTENSIONS=1 MOCK_EXTENSION_COLUMNS=1 MOCK_SIDEBAR_GROUPS=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
-node web/e2e/sidebar-groups.mjs <loopback-web-origin> <artifact-directory> [Chromium executable]
-# a hub without the route: the mock with MOCK_NAVIGATION=off as well
-node web/e2e/sidebar-groups.mjs <loopback-web-origin> <artifact-directory> --old-hub [Chromium executable]
-```
-
-Against an exclusively owned mock-backed web server, in Simplified Chinese. Made-up extension pages name 工作台, 资产 and
-家里; the run checks that Today comes in under 工作台, then in Settings › General › Sidebar pages makes "Life" and renames
-it 生活, moves built-in and extension pages between groups (Calendar from its manifest's 工作台 to 生活), moves 生活 up and
-Pages to the end, and removes a group with Undo. It checks the sidebar's groups and their pages, that no page is lost, that
-the hub keeps the arrangement and that a second browser draws the same groups; `--old-hub` that the arrangement stays in
-the browser and the setting says so. Light and dark screenshots of the sidebar (the phone's drawer open) and of the editor
-at 1440 × 900 and 390 × 844, and `results.json`, go to the artifact directory; a 300-second watchdog ends the run.
-
 ## Sidebar heading spacing (#10637)
 
 ```sh
@@ -132,45 +114,6 @@ tall and its title centred as far down it, that folded the title-to-title gaps a
 stands as far below the group before it, all within 0.5 px (iOS: `SidebarHeadingGapsUITests`, #10561). Only the
 mock's own requests leave the browser. Screenshots and `results.json` go to the artifact directory; a four-minute
 watchdog ends the run, and the last line is the verdict.
-
-## Unread Persona chats in the sidebar (#13425)
-
-```sh
-MOCK_LEADERS=1 MOCK_RECENT=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --host 127.0.0.1 --port <web port> --strictPort &)
-node web/e2e/sidebar-unread-chats.mjs <loopback-web-origin> <loopback-mock-origin> <artifact-directory> [Chromium executable]
-```
-
-Against an exclusively owned mock-backed web server, in English, at 1440 × 1000 and 390 × 844 (the phone's drawer),
-standard and Large text, light and dark. The mock's `GET /mock/incoming` puts a reply nobody has opened in two pinned leads (one with Agents
-at work under it, whose arc its own Unread replaces) and two Recent chats, pushed as the hub pushes it; each row is
-measured before and after: its height and where its mark's slot, title and time sit stay, the slot draws the unread
-mark in place of the chat icon and the title takes the unread weight. Folded, Recent's heading counts its two and the
-Persona chats heading all four ("Folded chats: N unread"); open, neither does. Opening a chat clears its mark at once
-(the time from the click is recorded) and it stays clear after the hub has it; closed, a later reply brings it back.
-Screenshots of the sidebar read, unread and folded, and `results.json`, go to the artifact directory; a four-minute
-watchdog ends the run, and the last line is the verdict.
-
-## Start page (#9071)
-
-```sh
-MOCK_EXTENSIONS=1 MOCK_EXTENSION_COLUMNS=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
-node web/e2e/start-page.mjs <loopback-web-origin> <artifact-directory> [Chromium executable]
-# a hub without the route: the mock with MOCK_NAVIGATION=off as well
-node web/e2e/start-page.mjs <loopback-web-origin> <artifact-directory> --old-hub [Chromium executable]
-```
-
-Against an exclusively owned mock-backed web server, in English. It checks that a fresh hub opens on the main chat, that
-Settings › General › Start page lists the main chat first and selected, then Overview and the made-up extension's Today;
-that choosing Today saves it to the hub (`PUT /api/v1/navigation`) and a new tab opens on Today while the Persona row and a
-reload stay on the main chat; that a second browser (another device) opens on the main chat the first time, reads the
-choice at its hello and opens on Today from its next opening; and that a Today the hub's extension list leaves out opens
-from the browser's copy and then gives way to the main chat, the choice kept and the setting saying why. `--old-hub`
-checks that a hub answering 404 leaves the choice in the browser and the setting says so. Light and dark screenshots of
-the setting and of the app opened on Today (Today moved first with Sidebar pages' ↑, as that setting already allows) at
-1440 × 900 and 390 × 844, and `results.json`, go to the artifact directory. The run sets the mock's start page and puts it
-back to the default; a 240-second watchdog ends it, and the last line is the verdict.
 
 ## An extension's dashboard page: UI version 8's columns layout (#9158)
 
@@ -280,18 +223,6 @@ node web/e2e/user-history-navigation.mjs <loopback-web-origin> <artifact-directo
 ```
 
 The production-built app uses only synthetic intercepted HTTP/WebSocket responses, not a live hub. The default fixture has 678 genuine inputs, with automated supervision and compaction records between them, and only two input bodies in its first page. In wide/narrow light/dark runs it verifies 50 initial marks with full-history ordinals, no body reads on metadata loading or hover, unloaded-target landing through backward pages, and more marks after upward scrolling. Pass `36` for the same short-history check: all 36 marks are present. Pass `120 main 120` to restore a complete larger first page: it still starts at 50 marks, and reaching its earlier body content reveals the remainder without an unnecessary backward request. It saves inspected-state screenshots and `results.json`, and ends with a pass/fail/timeout verdict.
-
-## The sidebar's Agents groupings on a paging hub (#6662)
-
-```sh
-MOCK_SESSIONS_LIST=1 MOCK_SESSIONS_CATALOG=1 MOCK_MANAGERS=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
-node web/e2e/agents-paged-groupings.mjs <loopback-web-origin> <artifact-directory> [--before] [--channel chrome]
-```
-
-Run against an exclusively owned mock-backed web server. It checks the one grouping bar (待办 / 机器 / 仓库 / 项目 / 状态) over the paged and the complete list, By to-do paged as a section per open to-do (open) and 没挂待办的 (folded) against the mock's `todo` counts, By machine and By state paged, and By repository and a pin taking the complete list; it saves light and dark screenshots. `MOCK_MANAGERS=1` keeps one assistant, since with several the sidebar reads the complete list. The runner clears the mock's default pins for the run (they also keep the complete list), sets one for the pinned case, and puts them back. `--before` takes the same screenshots of a build from before #6662 with no checks. (It replaces `agents-browse-by.mjs`, whose sidebar view by catalog project the sidebar no longer offers; `PagedSessionList.groups.test.tsx` still covers that view.)
-
-It reads the mock's own catalog and holds the page to it, in English at 1280 x 900 (light and dark), a 240 px sidebar and a 390 px touch phone: Browse by Computer draws one section per computer in the hub's order, the first three open on their first six sessions in stable computer → workspace → tab → pane order and the counts adding up to the list's total; Project lists the catalog's projects in fixed name order, the repository on two computers as one section with its remote and both directories and the sessions of both; the value pill's menu is as wide as its pill and names each computer under the project; a picked project is the one flat list of its sessions; Space names each computer's spaces, tells two of one name apart and ends with the sessions in no space; the chosen Browse by survives a reload; Recently updated is the flat list. With `--hub` it also drives 20 s of the mock's churn while the list is drawn by project and prints the mock's read counters by kind, failing when the groups were read more than once per 1.5 s or a complete list was read. Screenshots of each step go to the artifact directory. A three-minute watchdog ends the run with a timeout verdict. Browser and mock checks only: no real hub, node or Git repository is involved.
 
 ## Machines and Overview at desktop widths (web audit items 3, 25, 30 and 76)
 
@@ -427,45 +358,6 @@ asks first. It then checks that the session waits (`bypass_pending`, the chip st
 mock's restart comes up in Full access. It prints one line per check and a verdict, and exits nonzero on a failure or
 its five-minute timeout.
 
-## Settings: hints, search, provider errors, disconnect, hubs and lists (web audit)
-
-```sh
-MOCK_EXTENSIONS=1 MOCK_CHANNELS=1 MOCK_SENT=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort --host 127.0.0.1 &)
-node web/e2e/settings-audit.mjs <loopback-web-origin> <artifact-directory>
-```
-
-Run against an exclusively owned mock-backed web server; a server proxying a real hub is refused (the runner checks the
-mock's health reply). Each check opens a fresh headless Chrome context signed in to the mock; requests to other origins
-are blocked, and a write that revokes a token or saves a provider is answered in the browser with an error and never
-reaches the mock. It checks, in light and dark:
-
-- General's setting sentences wrap instead of being cut at one line (1280 and a 390 phone), Translation's note keeps
-  its spacing above Agent preferences, and on a phone the language menu sits under its sentence; in English, Chinese
-  and Japanese nothing in General is cut off with an ellipsis on a 390 phone (audit item 17).
-- In English, Chinese and Japanese, typing a setting's name ("Language") in the settings search lists that setting
-  first, Enter scrolls to its row and lights it, and Esc clears the box; the settings of the other pages are found by
-  their labels (thinking effort, time zone, default permissions, quiet hours, continue after errors, secrets, device
-  tokens, revoke; in Chinese also the audit's own words, in English "timezone" and "effort"), Revoke is listed as
-  Revoke, and an agent's setting opens that agent's section (audit item 18); the hub's category reads "This hub" (audit item 66).
-- Next on an empty custom gateway focuses the first field with a problem, marks it invalid, and its note is inside
-  the dialog's visible area at 1280 x 600; every field that needs something says so, the others with a red edge;
-  nothing is saved (audit item 19).
-- Disconnect this browser asks first, saying pairing is needed again; Cancel revokes nothing and keeps the sign-in.
-  With the question's chunk refused (a redeploy), Disconnect from the account menu leaves the app drawn, says
-  reloading should fix it and revokes nothing (audit item 20).
-- Add hub refuses "not a url" and an escaped host under the field and keeps the list as it was, and still adds a real
-  address (audit item 67).
-- On a 390 phone a connector's page, Sent and an extension's page each draw one Back, the top bar's, which goes to the
-  category; so do the market's catalog, one of its extensions and the list of markets, whose Back goes to the catalog;
-  under the Lark bot's address the top bar's Back goes to Settings; a wide screen keeps the page's own Back (audit
-  item 64).
-- With the list beside an open extension or connector, the open row is the only one marked `aria-current`, its name is
-  whole and its state sits under it; a list on its own marks nothing (audit item 68).
-
-It prints one line per check and a final verdict, writes `results.json` and screenshots to the artifact directory, and
-exits nonzero on a failure or its five-minute timeout. Against a build from before these fixes nearly every check fails.
-
 ## The app shell's connection states, dead links and keyboard focus (web usability audit)
 
 ```sh
@@ -537,29 +429,3 @@ slowest answer and the stuck ones; a screenshot of each is taken when the page c
 1 second, a stuck answer, a page error, a request leaving the origin, or a conversation not drawn within 30 seconds;
 the last line is the verdict, and a watchdog ends a run that overruns with a timeout verdict.
 
-## Local interface and code fonts (#10243)
-
-```sh
-PORT=<mock-port> python3 scripts/mock/mock_hub.py
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<mock-port> npx vite --port <web-port> --strictPort)
-node web/e2e/font-preferences.mjs http://127.0.0.1:<web-port> <artifact-directory>
-```
-
-Use exclusively owned mock/Vite processes and a fresh Chrome profile. This drives the real Settings page at wide/phone widths, light/dark and standard/large text, captures Default and Custom, checks immediate and cross-tab application/reset, before-paint reload, zero additional font requests and actual CJK/symbol fallback faces. It mounts the production single-pane and Full UI renderers against the synthetic hub and checks their first font family, retained-view attachment and unchanged size; it does not verify a live shell. All network access is restricted to the supplied loopback origin. Results and sixteen screenshots go outside the repository; a four-minute watchdog bounds the run.
-
-## Sidebar icon colors (#10822)
-
-```sh
-MOCK_EXTENSIONS=1 MOCK_NAV_ICON_COLOR=1 PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
-node web/e2e/sidebar-icon-colors.mjs <loopback-web-origin> <artifact-directory> [--monochrome-only] [--chromium <executable>]
-```
-
-Against an exclusively owned mock-backed web server, in Simplified Chinese, light and dark, at 1440 × 900 and 390 × 844
-(touch). With nothing stored (Monochrome), every page icon of the wide sidebar, the icon rail and the phone's drawer is
-`--ink-3` and the open page's `--ink`. It then picks 彩色 in Settings › General › Appearance › 侧栏图标 and checks that
-each built-in page's icon is its named color, that the made-up extension page naming `icon_color` (花园) is green and
-the gateway's 用量 (none named) neutral, that the open page keeps `--ink`, that Inbox keeps its orange under the pointer,
-and that every colored icon reads at 3:1 on the sidebar and on the hover fill, as the browser resolves them.
-`--monochrome-only` takes only the Monochrome part, to set its screenshots beside another build's. Screenshots and
-`results.json` go to the artifact directory; a five-minute watchdog ends the run, and the last line is the verdict.

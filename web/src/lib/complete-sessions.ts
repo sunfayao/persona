@@ -9,7 +9,7 @@ import type { ListPage } from "./session-list";
 import type { Session } from "./types";
 
 /** The hub's largest page (docs/protocol/protocol.md "Opt-in parameters"): a few hundred agents are two requests. */
-export const COMPLETE_PAGE_LIMIT = 200;
+const COMPLETE_PAGE_LIMIT = 200;
 
 const isPage = (page: Partial<ListPage<Session>>): page is ListPage<Session> =>
   Array.isArray(page.sessions) && Array.isArray(page.remove) && typeof page.revision === "string" && !!page.revision

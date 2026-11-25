@@ -15,7 +15,7 @@ export interface VoiceProbe {
   info?: VoiceInfoState;
 }
 
-export const PROBE_TTL = 60_000;
+const PROBE_TTL = 60_000;
 
 let probe: VoiceProbe = {};
 let askedAt = 0;
@@ -46,7 +46,7 @@ export function helloAddresses() {
 }
 
 /** Asks the hub unless its answer is younger than a minute (a failed /info is asked again at once next time). */
-export async function refreshVoice(now = Date.now()): Promise<void> {
+async function refreshVoice(now = Date.now()): Promise<void> {
   if (asking) return;
   if (probe.extensions && now - askedAt < PROBE_TTL && probe.info?.kind !== "failed") return;
   asking = true;

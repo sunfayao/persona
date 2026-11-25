@@ -5,14 +5,14 @@
 // for what changes (page, visibility, network, socket, errors, console). Lines are buffered and appended in batches to
 // IndexedDB, kept 24 hours and 5 MB at most. iOS's twin is apple/Persona/DevMode/DevRecorder.swift.
 import type { ErrorFrame, ErrorReport } from "./extension-wire";
-import { DEV_MODE_KEY, setDevSink, watchSockets, type DevSink } from "./dev-probe";
+import { setDevSink, watchSockets, type DevSink } from "./dev-probe";
 import { devRoute, devWord, scrubText } from "./dev-scrub";
 import { startFreezeWatch, type FreezeHit } from "./freeze-watch";
 
 
 export const MAX_AGE_MS = 24 * 3600_000;
 export const MAX_BYTES = 5 * 1024 * 1024;
-export const MINUTE_MS = 60_000;
+const MINUTE_MS = 60_000;
 /** Lines kept in memory before they are written without waiting for the minute. */
 const BUFFER_LIMIT = 200;
 
@@ -67,7 +67,7 @@ function req<T>(r: IDBRequest<T>): Promise<T> {
 }
 
 /** The lines in IndexedDB (`persona-dev-mode`), one record each, in the order written. */
-export class IndexedStore implements DevStore {
+class IndexedStore implements DevStore {
   private db: Promise<IDBDatabase>;
   constructor() {
     this.db = new Promise((done, fail) => {
@@ -345,7 +345,7 @@ function seconds(pages: Record<string, number>): Record<string, number> {
 let running: { recorder: DevRecorder; stop: () => void } | null = null;
 
 /** The build this page runs: its entry script's hashed name. */
-export function webBuild(): string {
+function webBuild(): string {
   const src = document.querySelector<HTMLScriptElement>('script[type="module"][src]')?.getAttribute("src") ?? "";
   return src.split("/").pop()?.replace(/\.js$/, "") ?? "";
 }
@@ -529,34 +529,10 @@ export function startDevMode(): DevRecorder {
 }
 
 /** The recorder while it runs. */
-export function devRecorder(): DevRecorder | null {
+function devRecorder(): DevRecorder | null {
   return running?.recorder ?? null;
 }
 
-/** Turns the switch on (recording from now) or off (stopping, and deleting what was recorded). */
-export async function setDevMode(on: boolean): Promise<void> {
-  if (on) {
-    try {
-      localStorage.setItem(DEV_MODE_KEY, new Date().toISOString());
-    } catch {
-      // a private window without storage: records for this page only
-    }
-    startDevMode();
-    return;
-  }
-  try {
-    localStorage.removeItem(DEV_MODE_KEY);
-  } catch {
-    // nothing kept
-  }
-  const r = running;
-  running?.stop();
-  running = null;
-  void window.personaDesktop?.setDevDiagnostics?.(false).catch(() => {});
-  const store = r?.recorder.store ?? openStore();
-  await r?.recorder.flush();
-  await store.clear();
-}
 
 function safeJSON(v: unknown): string {
   try {

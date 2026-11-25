@@ -22,10 +22,8 @@
 <script type="module">
   import "/src/styles.css";
   import { initI18n } from "/src/i18n/index.ts";
-  import { applyLook } from "/src/ui/look.ts";
   import { buildShowcase, shell } from "/e2e/configuration-showcase-data.mjs";
 
-  applyLook();
   // The app's theme (index.html does this for the real app): the saved choice, else the system's scheme.
   const savedTheme = (() => {
     try {

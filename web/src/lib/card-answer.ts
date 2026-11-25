@@ -37,7 +37,7 @@ export interface AnswerFrom {
 
 /** A manager work-card answer that sends nothing to the Agent. The server marks built-in and legacy defer choices with
  *  `action: "defer"`; a bare dismiss is the card's hand-back action. Continue, retry and free text still need approve. */
-export function workCardLocalResolution(ix: Interaction, body: Resolution): boolean {
+function workCardLocalResolution(ix: Interaction, body: Resolution): boolean {
   if (ix.kind !== "question" || ix.tool_name !== "persona_triage") return false;
   if (body.dismiss === true) return Object.keys(body).length === 1;
   const entries = Object.entries(body.answers ?? {}).filter(([, answer]) => answer.trim());
@@ -135,7 +135,7 @@ const watch = (l: () => void) => {
 };
 
 /** The answer on its way for this card, as its receipt will show it (redacted); undefined when there is none. */
-export function usePendingAnswer(id: string): Resolution | undefined {
+function usePendingAnswer(id: string): Resolution | undefined {
   const read = () => pending.get(id)?.shown;
   return useSyncExternalStore(watch, read, read);
 }

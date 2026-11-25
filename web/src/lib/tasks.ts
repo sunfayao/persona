@@ -72,7 +72,7 @@ export function buildTaskIndex(items: Item[]): TaskIndex {
   return x;
 }
 
-export function taskFailed(n: TaskNote): boolean {
+function taskFailed(n: TaskNote): boolean {
   return n.status === "failed" || (n.exit_code ?? 0) !== 0;
 }
 
@@ -240,15 +240,6 @@ export function backgroundDurationMs(task: BackgroundTask, running: boolean, now
   return Number.isFinite(end) ? Math.max(0, end - started) : null;
 }
 
-/** "40s" / "5m 12s" / "1h 5m". */
-export function elapsed(fromIso: string | undefined, now: number): string {
-  const start = Date.parse(fromIso ?? "");
-  if (!Number.isFinite(start)) return "";
-  const s = Math.max(0, Math.floor((now - start) / 1000));
-  if (s < 60) return t("lib-tasks.elapsed_seconds", { count: s });
-  if (s < 3600) return t("lib-tasks.elapsed_minutes_seconds", { minutes: Math.floor(s / 60), seconds: s % 60 });
-  return t("lib-tasks.elapsed_hours_minutes", { hours: Math.floor(s / 3600), minutes: Math.floor((s % 3600) / 60) });
-}
 
 export function subagentTitle(a: Subagent): string {
   return a.description || a.type || t("lib-tasks.kind_agent");

@@ -3,7 +3,7 @@
 // then move the row, and setting scrollTop to keep the view still stops it. This one asks `aim()` each frame. Its pace
 // is Chromium's own (measured): √distance × 15 ms, at most 1.5 s, easing out.
 
-export function glideMs(distance: number): number {
+function glideMs(distance: number): number {
   return Math.min(1500, 15 * Math.sqrt(Math.abs(distance)));
 }
 

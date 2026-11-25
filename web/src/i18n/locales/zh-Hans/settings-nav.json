@@ -10,7 +10,5 @@
   "hint_general": "外观、导航和翻译",
   "hint_notifications": "什么时候弹通知、响提示音",
   "hint_models": "接入模型用的账号和 Key",
-  "hint_devices": "已登录的手机、浏览器，连新设备",
-  "switch": "切换",
-  "switch_label": "切换助手"
+  "hint_devices": "已登录的手机、浏览器，连新设备"
 }

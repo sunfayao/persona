@@ -9,7 +9,7 @@ import { t } from "../i18n";
 const KIND_LABEL: Record<StartKind, string> = { main: "newagent-workspace.kind_main", worktree: "newagent-workspace.kind_worktree", folder: "newagent-workspace.kind_folder" };
 
 /** "Worktree · fix-login": the kind word, with the branch when the name does not already say it. */
-export function kindLine(w: HostWorkspace): string {
+function kindLine(w: HostWorkspace): string {
   const kind = t(KIND_LABEL[startKind(w)]);
   const branch = startBranch(w);
   return branch ? `${kind} · ${branch}` : kind;

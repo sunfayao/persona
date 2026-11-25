@@ -10,7 +10,7 @@ import { hubHas, useStore } from "../../../lib/store";
 import { formatDate, formatNumber, t } from "../../../i18n";
 import { Button, copyText, Dialog, Loading } from "../../../ui/atoms";
 
-export const FILE_INFO_FEATURE = "file_info";
+const FILE_INFO_FEATURE = "file_info";
 
 /** What one class (owner, group, others) may do, in words. */
 export function accessWords(bits: number): string {
@@ -18,7 +18,7 @@ export function accessWords(bits: number): string {
 }
 
 /** "Owner: Read & Write · Everyone else: Read Only" (the group named only when it differs from everyone else). */
-export function permissionWords(mode: number): string {
+function permissionWords(mode: number): string {
   const owner = (mode >> 6) & 7,
     group = (mode >> 3) & 7,
     others = mode & 7;

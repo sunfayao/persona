@@ -13,7 +13,7 @@ import { COLLAPSED_KEY, getLayout, setSidebarCollapsed, useLayout } from "../lib
 import { setAllFolded } from "../lib/sidebar-api";
 import { refresh, reset } from "../lib/store";
 import type { AssistantInfo, Session } from "../lib/types";
-import { checkBinding, eventChord, getBindings, matchShortcut } from "../lib/shortcuts";
+import { BINDINGS, eventChord, matchShortcut } from "../lib/shortcuts";
 import { useShortcuts } from "../lib/use-shortcuts";
 import { initI18n } from "../i18n";
 import { NavGrid, Sidebar, SidebarRail, useNavPages } from "./Sidebar";
@@ -183,11 +183,9 @@ describe("the shortcut", () => {
   const press = () => dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB", ctrlKey: true, altKey: true, bubbles: true, cancelable: true }));
 
   it("is Mod+Alt+B: Mod+B is already the right panel's, Mod+Shift+B the browser's", () => {
-    const b = getBindings();
+    const b = BINDINGS;
     expect(b["left-sidebar"]).toBe("Mod+Alt+B");
     expect(b["right-panel"]).toBe("Mod+B");
-    expect(checkBinding("left-sidebar", { mod: true, alt: false, shift: false, key: "B" }, b, "other")).toMatchObject({ ok: false, reason: "conflict", with: "right-panel" });
-    expect(checkBinding("left-sidebar", { mod: true, alt: false, shift: true, key: "B" }, b, "other")).toMatchObject({ ok: false, reason: "reserved" });
     const ev = { key: "b", code: "KeyB", ctrlKey: true, metaKey: false, altKey: true, shiftKey: false };
     expect(eventChord(ev, "other")?.mod).toBe(true);
     expect(matchShortcut(ev, b, "other")?.def.id).toBe("left-sidebar");

@@ -47,11 +47,11 @@ export type StreamEvent =
   | { type: "tier"; change: Change }
   | { type: "ended"; why: Ending };
 
-export const SILENCE_MS = 3000;
-export const OPENING_MS = 15_000;
+const SILENCE_MS = 3000;
+const OPENING_MS = 15_000;
 
 /** WebCodecs' decoder, with each output handed on as a picture (its `decode` takes an EncodedVideoChunk). */
-export const webCodecsDecoder: DecoderMaker = (output, error) => {
+const webCodecsDecoder: DecoderMaker = (output, error) => {
   const d = new VideoDecoder({ output: (f) => output(f), error: (e) => error(e) });
   return {
     configure: (c) => d.configure(c),

@@ -198,7 +198,7 @@ const LANE_COLOR = { short: "var(--hue-teal)", long: "var(--hue-blue)" } as cons
 /** One reset timeline for a whole provider card (#13173): a shared axis (now, 6h, 12h, 1d, 3d, 5d, 7d; the first day
  *  takes 45% of the width), one row per account in the card's order, a capsule per window from the now line to its
  *  reset with a hollow end dot and the time left. Geometry is `providerTimeline` / `timelinePosition`. */
-export function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: number }) {
+function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: number }) {
   const rows = providerTimeline(accounts, now);
   if (!rows.length) return null;
   const tickLabel = (h: number) => (h < 24 ? tr("usage.hours", { h }) : tr("usage.days", { d: h / 24 }));

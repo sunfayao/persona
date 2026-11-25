@@ -1,0 +1,40 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.tsx!",
+    "src/sw.ts!",
+    "src/admin/main.tsx!",
+    "src/showcase/*.tsx!",
+    "public-share/main.ts!",
+    "vite.config.ts",
+    "vite.public.config.ts",
+    "src/**/*.test.{ts,tsx}",
+    "*.test.ts",
+    "scripts/*.mjs",
+    "e2e/*.mjs"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}!",
+    "public-share/**/*.ts!",
+    "*.ts",
+    "scripts/*.mjs",
+    "e2e/*.mjs"
+  ],
+  "ignoreDependencies": [
+    "hast"
+  ],
+  "ignore": [
+    "src/lib/extension-wire.ts",
+    "src/lib/todo-view-wire.ts",
+    "src/screen/video-wire.ts",
+    "src/startup-preload.ts",
+    "src/lib/configuration/**",
+    "src/showcase/snapshots.ts",
+    "src/i18n/locales/flatten.ts",
+    "src/i18n/startup-keys.ts",
+    "src/sw-entry-check.ts",
+    "src/lib/new-agent.ts",
+    "src/lib/drafts.ts",
+    "src/lib/agents.ts"
+  ]
+}

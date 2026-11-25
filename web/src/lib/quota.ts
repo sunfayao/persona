@@ -83,7 +83,7 @@ export function quotaCount(v: number): string {
   return v.toFixed(0);
 }
 
-export function quotaMoney(v: number): string {
+function quotaMoney(v: number): string {
   return v >= 100 ? v.toFixed(0) : v.toFixed(2);
 }
 

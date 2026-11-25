@@ -17,7 +17,7 @@ import { t } from "../i18n";
 export const PASTE_FEATURE = "launcher_import_parse";
 
 /** What the parse route read the text as; "" when nothing in it was recognized. */
-export type PasteFormat = "shell" | "settings" | "curl" | "cindy" | "link" | "";
+type PasteFormat = "shell" | "settings" | "curl" | "cindy" | "link" | "";
 
 /** Something the hub could not use, by code (the client says it in words): `line` is 1-based in the pasted text, `name`
  *  an alias, variable, header, option, protocol or kind, never a value. */
@@ -35,7 +35,7 @@ export interface PasteMatch {
 }
 
 /** A draft's provider: a POST /api/v1/launchers body, empty fields left out. */
-export type PasteProvider = Omit<ProviderView, "name" | "has_key" | "has_headers" | "has_env" | "origin"> & {
+type PasteProvider = Omit<ProviderView, "name" | "has_key" | "has_headers" | "has_env" | "origin"> & {
   /** The suggested startup ID (shell aliases only). */
   name?: string;
   api_key?: string;

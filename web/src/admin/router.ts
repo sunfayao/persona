@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import type { Page } from "./nav";
 import { NAV } from "./nav";
 
-export function pageOf(pathname: string): Page {
+function pageOf(pathname: string): Page {
   let seg = pathname.replace(/^\/admin\/?/, "").split("/")[0];
   if (seg === "plugins") seg = "extensions"; // a bookmark from before #1845
 

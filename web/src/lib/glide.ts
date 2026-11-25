@@ -11,7 +11,7 @@ export type Span = { top: number; bottom: number };
 export type GlideBox = { top: number; height: number };
 
 /** Less than this much of the row on show and the highlight goes away (a sliver at the end of a fold, rounding). */
-export const MIN_VISIBLE = 2;
+const MIN_VISIBLE = 2;
 
 /** The highlight for a row at `row`, clipped by the boxes it sits in (`clips`, the overflow-hidden ancestors between
  *  it and the list), in the coordinates of the list at `list` scrolled by `scrollTop`. null: no row, or none of it
@@ -39,7 +39,7 @@ export function clipsOverflow(overflowY: string): boolean {
 }
 
 /** How long the highlight takes to glide to its next row. */
-export const GLIDE_MS = 220;
+const GLIDE_MS = 220;
 
 /** The highlight's inline style over `at` (shown when `on`), for the sidebar and the admin page's nav. It moves by
  *  transform, which the compositor animates without laying the list out each frame (animating `top` / `height` did:

@@ -1,6 +1,5 @@
 import { useBotmuxHidden } from "../lib/agents-display";
 import { AgentsAdd } from "./agents/AgentsAdd";
-import { isSidebarAgent } from "../lib/sidebar-agent";
 import { launchDisplayEngine } from "../lib/new-agent";
 import { storedValue, storeValue } from "../lib/compatibility";
 // Beautiful UI's Sidebar Nav: workspace row, quick search, sections, one gliding highlight. Persona's main conversation
@@ -46,7 +45,7 @@ import { lazyDialog } from "./LazyOverlay";
 import { FoldScope, useFolded } from "../lib/use-folded";
 import { clipsOverflow, glideBox, glideStyle, sameBox, type GlideBox, type Span } from "../lib/glide";
 import { AGENTS_FOLD, pagedAgentList } from "../lib/sidebar-api";
-import { jumpHint, useBindings } from "../lib/shortcuts";
+import { BINDINGS, JUMP_HINT } from "../lib/shortcuts";
 import { markAllSeenLabel, stateCount } from "../lib/state-labels";
 import { PagedSessionList, type PagedQuickFilters } from "./agents/PagedSessionList";
 import { ListError } from "../ui/ListError";
@@ -56,7 +55,7 @@ import { SESSIONS_CATALOG_FEATURE, SESSIONS_QUICK_FILTERS_FEATURE } from "../lib
 import { SESSIONS_LIST_FEATURE, type ListCounts, type ListFilters } from "../lib/session-list";
 import { heldCounts } from "../lib/seen-outbox";
 import { NoComputers, useAddComputer } from "./machines/AddComputerEntry";
-import { BADGE_CLASS, DOT_CLASS, type GoFn, GroupCount, holdsRow, morePagesMenu, type NavPage, pageIconStyle, pageLabel, type RegFn, rowKey, type RowMenuFn, Section, SidebarGroup, GroupFoldButton, useActiveKey, useGo, useNavPages } from "./SidebarParts";
+import { BADGE_CLASS, DOT_CLASS, type GoFn, GroupCount, holdsRow, morePagesMenu, type NavPage, pageLabel, type RegFn, rowKey, type RowMenuFn, Section, SidebarGroup, GroupFoldButton, useActiveKey, useGo, useNavPages } from "./SidebarParts";
 import { NavRow, PersonalAgents, PersonaRow, SessionRow } from "./SidebarRows";
 import { LooseSection, SessionTally, type SpaceMenuFn, SpaceSection } from "./SidebarTree";
 import { CollapseButton, PagesTally } from "./SidebarRail";
@@ -261,8 +260,7 @@ function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
 }
 
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
-  const bindings = useBindings();
-  const searchHint = jumpHint(bindings);
+  const searchHint = JUMP_HINT;
   const { phase, online, total, main: mainConversation, sections, more } = useNavPages();
   // a phone's drawer has the pages as two rows of icons, so its first screen reaches the Agents (#1996)
   const narrow = useMedia(NARROW);
@@ -278,7 +276,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
         <div className="mb-2 flex items-center gap-1">
           <div className="min-w-0 flex-1"><AssistantSwitcher phase={phase} online={online} total={total} route={route} /></div>
           {/* folds the column to the rail of icons (a wide screen; the drawer closes by its scrim) */}
-          {!narrow && <CollapseButton collapsed={false} chord={bindings["left-sidebar"]} />}
+          {!narrow && <CollapseButton collapsed={false} chord={BINDINGS["left-sidebar"]} />}
         </div>
         <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-control bg-inset px-2.5 text-left shadow-hairline transition-colors hover:bg-hover">
           <Icon name="search" size={12} stroke={2} className="text-ink-3" />
@@ -296,7 +294,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
         {/* the main conversation is the column's first row, Main chat with the home symbol, and only there (#2004, #5109); it
             stays at the top while the rest scrolls (#5581), with a solid divider above the sticky groups */}
         <div data-sidebar-sticky className="sticky top-0 z-30 flex flex-col gap-px bg-canvas pt-1">
-          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={bindings.persona} />
+          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={BINDINGS.persona} />
           <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line" />
         </div>
         {/* a phone's drawer has Pages as its grid of icons; every other group (#9071) is a section, as on a wide screen */}
@@ -406,7 +404,7 @@ export function NavGrid({ pages, more = [], activeKey, go, onNavigate }: { pages
             aria-current={active ? "page" : undefined}
             className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,transform] duration-150 active:scale-[0.96]", active ? "bg-hover" : "hover:bg-hover")}
           >
-            <span className={cx("relative", active ? "text-ink" : "text-ink-3")} style={pageIconStyle(p.color, active)}>
+            <span className={cx("relative", active ? "text-ink" : "text-ink-3")}>
               <Icon name={p.icon} size={17} stroke={1.8} />
               {p.badge !== undefined && (
                 <span className={cx("absolute -top-1.5 left-2.5 flex h-4 min-w-4 items-center justify-center whitespace-nowrap rounded-full px-1 text-[10px] font-semibold tabular-nums", BADGE_CLASS[p.badgeTone ?? "accent"])}>{p.badge}</span>
@@ -669,7 +667,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
     return keys;
   }, [launches]);
   const [agents, previewAgents] = useMemo(() => {
-    const visible = (rows: Session[]) => rows.filter((s) => isSidebarAgent(s) && (!inFlightLaunchKeys.size || !inFlightLaunchKeys.has(`${s.machine_id}\u0000${s.session_id}`)));
+    const visible = (rows: Session[]) => rows.filter((s) => !s.assistant && (!inFlightLaunchKeys.size || !inFlightLaunchKeys.has(`${s.machine_id}\u0000${s.session_id}`)));
     return [visible(every), pagedTransport ? visible(summaryAgents) : []];
   }, [every, summaryAgents, pagedTransport, inFlightLaunchKeys]);
   const all = useScoped(agents);

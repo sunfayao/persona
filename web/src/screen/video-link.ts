@@ -33,9 +33,9 @@ export type Ready = { pair: string };
 /** The video's reading for the overlay, about once a second while it shows. */
 export type Reading = { fps?: number; mbps?: number; captureMs?: number; encodeMs?: number; networkMs?: number; decodeMs?: number; totalMs?: number };
 
-export const FIRST_WAIT_MS = 30_000;
-export const LONGEST_WAIT_MS = 300_000;
-export const STABLE_MS = 60_000;
+const FIRST_WAIT_MS = 30_000;
+const LONGEST_WAIT_MS = 300_000;
+const STABLE_MS = 60_000;
 
 export type LinkOptions = {
   /** Opens the stream's transport for a signed-in RFB connection. */

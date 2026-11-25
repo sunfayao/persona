@@ -99,7 +99,6 @@ import { useRevealedInputSeq, useUserInputs } from "./useUserInputs";
 import { useChatScrollbar } from "./useChatScrollbar";
 import { ChatLineView, closedRecap, closeRecap, dismissedError, dismissError, ErrorBanner, errorKey, OpenRecapLine } from "./Lines";
 import { useTranscript } from "./useTranscript";
-import type { LandingProof } from "./land-message";
 import { publishTranscript, unpublishTranscript } from "./transcript-share";
 import { useEarlierStretches } from "./useEarlierStretches";
 import { dayRowKey, withDayDividers } from "./day-dividers";
@@ -1822,11 +1821,9 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     if (!picked) origin.current = null;
   }, [picked]);
   // brings an item into view, opening what holds it, and lights it: a search hit, or a forward's original (#3899)
-  const seekItem = useCallback((itemId: string, quiet = false, proof?: LandingProof) => {
+  const seekItem = useCallback((itemId: string, quiet = false) => {
     const sc = scroller.current;
     if (!sc) return;
-    const sourceMatches = () => !proof || proof.matches(trNow.current.items);
-    if (!sourceMatches()) return proof?.unavailable();
     follow(false);
     revealItem(ctx.scope, itemId);
     const run = ++going.current;
@@ -1837,16 +1834,14 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       giveUpMs: GIVE_UP_MS,
       // the rows that hold it take a few frames to open: the line it is on only once they had the time
       locate: (waited) => {
-        if (!sourceMatches()) return null;
-        const exact = sc.querySelector<HTMLElement>(`[data-items~="${CSS.escape(itemId)}"]${proof?.selector ?? ""}`);
-        const lineId = exact || proof || waited <= FIND_MS ? undefined : lineOfItem(linesNow.current, trNow.current.items, itemId);
+        const exact = sc.querySelector<HTMLElement>(`[data-items~="${CSS.escape(itemId)}"]`);
+        const lineId = exact || waited <= FIND_MS ? undefined : lineOfItem(linesNow.current, trNow.current.items, itemId);
         const el = exact ?? (lineId ? sc.querySelector<HTMLElement>(`[data-line="${CSS.escape(lineId)}"]`)?.firstElementChild : null);
         return el instanceof HTMLElement ? { y: el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop, value: el } : null;
       },
     }).then((r) => {
       if (r === "cancelled") return;
       clearReveal();
-      if (proof && (r === "missing" || !sourceMatches() || !r.value.matches(proof.selector))) return proof.unavailable();
       if (r === "missing") return void (quiet || toast(t("chat-chatview.search_not_found")));
       const el = r.value;
       const tall = el.getBoundingClientRect().height > sc.clientHeight;
@@ -1926,7 +1921,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const msgLanding = useRef(0);
   useEffect(() => {
     const target = peekJump(mid, sid);
-    if (!target || tr.loading || target.startsWith("star:") && !tr.firstRead) return;
+    if (!target || tr.loading) return;
     takeJump(mid, sid);
     const run = ++msgLanding.current;
     const current = () => run === msgLanding.current;
@@ -1937,7 +1932,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       });
     }, () => { if (current()) toast(t("chat-chatview.search_not_found")); });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- a new landing is a new item asked for, not the items changing
-  }, [mid, sid, tr.loading, tr.firstRead, landAt, seekItem, loadForSearch]);
+  }, [mid, sid, tr.loading, landAt, seekItem, loadForSearch]);
   useEffect(() => () => void msgLanding.current++, [mid, sid, landAt]); // a different destination ends a pending landing
   const rounds = useMemo(() => segs.filter((x) => x.user).length, [segs]);
 

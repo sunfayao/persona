@@ -21,16 +21,6 @@ export function Group({ title, footer, children, right, anchor }: { title?: Reac
   );
 }
 
-/** A host-owned settings area containing several cards (extension configuration, for example). */
-/** A section of an extension's page; `showTitle` false keeps its name for assistive technology only (#8853). */
-export function SettingsSection({ name, title, showTitle = true, children }: { name: string; title: string; showTitle?: boolean; children: React.ReactNode }) {
-  return (
-    <section data-extension-section={name} aria-label={title}>
-      {showTitle && <h2 className="mb-1.5 px-1 text-label font-medium text-ink-3">{title}</h2>}
-      {children}
-    </section>
-  );
-}
 
 export function SettingsHint({ children, id, caution, alert }: { children: React.ReactNode; id?: string; caution?: boolean; alert?: boolean }) {
   return <p id={id} role={alert ? "alert" : undefined} className={cx("px-4 py-2.5 text-[11.5px] leading-relaxed", alert ? "text-red" : caution ? "text-orange" : "text-ink-3")}>{children}</p>;

@@ -7,7 +7,7 @@ import { hubHas } from "./store";
 import type { Todo, TodoThread } from "./todos";
 
 /** The hub binds to-dos to chat threads (hello `features`): the routes and `thread` on a to-do. A hub without it never sends one. */
-export const TODO_THREADS_FEATURE = "todo_threads";
+const TODO_THREADS_FEATURE = "todo_threads";
 
 /** Whether the page shows anything of to-do threads: only when the hub says it has them (not "unknown": an older hub has none). */
 export function todoThreadsOn(features: string[]): boolean {

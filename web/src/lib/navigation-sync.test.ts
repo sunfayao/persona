@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-// Where the app opens (#9071, lib/start-page.ts): the main chat by default; the start page the user chose at an opening
-// of the root address only; the hub's choice read at the hello and followed on its pushes; a choice kept here handed
-// to a hub that has none; a hub without the route leaving the choice in this browser.
+// The hub keeping Overview's cards and sections (lib/navigation-sync.ts): read at the hello and followed on its pushes, a
+// copy kept here handed to a hub that has none, each change sent in order, and a hub without the route leaving the
+// arrangement in this browser.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OverviewEntry } from "./overview-cards";
 
-// start-page listens to two event types. The mock below keeps that boundary without rebuilding store's entire module
-// graph on every simulated reload; the rest of start-page, sidebar-pages and overview-cards stays real.
+// navigation-sync listens to hub events. The mock below keeps that boundary without rebuilding store's entire module
+// graph on every simulated reload; the rest of navigation-sync and overview-cards stays real.
 const hubListeners = vi.hoisted(() => new Map<string, Set<(msg: Record<string, unknown>) => void>>());
 vi.mock("./store", () => ({
   onHubEvent: (type: string, listener: (msg: Record<string, unknown>) => void) => {
@@ -14,17 +14,11 @@ vi.mock("./store", () => ({
     hubListeners.get(type)!.add(listener);
     return () => void hubListeners.get(type)?.delete(listener);
   },
-  useStore: (select: (state: { conn: string; features: string[] }) => unknown) => select({ conn: "online", features: [] }),
 }));
-// The modules each test loads afresh (load(), the Settings row's), transformed and evaluated while the file is
+// The modules each test loads afresh (load()), transformed and evaluated while the file is
 // collected, outside the test timeout (as highlight-lazy.test.tsx, #4955). Each test still resets and runs them again;
 // only the initial cold module-graph work must not consume the five-second deadline.
-import "./start-page";
-vi.hoisted(() => {
-  // the Settings row's module draws with the sidebar's pages, which read these
-  globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
-  window.matchMedia ??= ((query: string) => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false })) as typeof window.matchMedia;
-});
+import "./navigation-sync";
 
 class Socket {
   static OPEN = 1;
@@ -45,9 +39,8 @@ class Socket {
   }
 }
 
-const TODAY = "p:example-today/today";
 // what the made-up hub keeps: undefined until something is stored; "missing" for a hub without the route
-let hub: { start?: string; pages?: unknown; overview?: unknown } | "missing";
+let hub: { overview?: unknown } | "missing";
 let puts: unknown[];
 
 beforeEach(() => {
@@ -66,7 +59,7 @@ beforeEach(() => {
       if (url.pathname !== "/api/v1/navigation") return Response.json({});
       if (hub === "missing") return Response.json({ error: "not found" }, { status: 404 });
       if (init?.method === "PUT") {
-        const body = JSON.parse(String(init.body)) as { start?: string; pages?: unknown };
+        const body = JSON.parse(String(init.body)) as { overview?: unknown };
         puts.push(body);
         hub = { ...hub, ...body };
       }
@@ -86,9 +79,8 @@ const flush = async () => {
 };
 
 /** This page's modules as a fresh load has them, with `stored` as this browser's copy. */
-async function load(stored?: string) {
-  if (stored !== undefined) localStorage.setItem("persona.startPage", stored);
-  const page = await import("./start-page");
+async function load() {
+  const page = await import("./navigation-sync");
   const hello = async (extra: Record<string, unknown> = {}) => {
     const message = { type: "hello", features: [], ...extra };
     new Socket("ws://test");
@@ -102,229 +94,7 @@ async function load(stored?: string) {
 // load() can still spend seconds evaluating the graph, and the two-device test calls it three times. No socket is
 // connected, no request is made and no state is asserted here; every test resets these modules before its own load.
 beforeAll(async () => {
-  await Promise.all([import("./start-page"), import("./store")]);
-});
-
-describe("startRoute", () => {
-  it("knows the sidebar's pages and an extension's, and nothing else", async () => {
-    const { startRoute } = await load();
-    expect(startRoute("")).toBeNull();
-    expect(startRoute("home")).toEqual({ name: "home" });
-    expect(startRoute("inbox")).toEqual({ name: "inbox" });
-    expect(startRoute("todos")).toEqual({ name: "todos" });
-    expect(startRoute(TODAY)).toEqual({ name: "extension", extension: "example-today", ui: "today" });
-    for (const k of ["settings", "persona", "unknown", "p:", "p:/today", "p:example-today/", "p:example-today"]) expect(startRoute(k)).toBeNull();
-  });
-});
-
-describe("opening the app", () => {
-  it("opens on the main chat when nothing was chosen", async () => {
-    const { openStartPage } = await load();
-    openStartPage();
-    expect(location.pathname).toBe("/");
-  });
-
-  it("opens on the chosen page, an extension's Today", async () => {
-    const { openStartPage } = await load(TODAY);
-    openStartPage();
-    expect(location.pathname).toBe("/extension/example-today/today");
-  });
-
-  it("opens on Overview when that is chosen", async () => {
-    const { openStartPage } = await load("home");
-    openStartPage();
-    expect(location.pathname).toBe("/overview");
-  });
-
-  it("leaves a reload, Back / Forward, another page's address and a query where they are", async () => {
-    const { openStartPage } = await load(TODAY);
-    for (const type of ["reload", "back_forward"]) {
-      vi.spyOn(performance, "getEntriesByType").mockReturnValue([{ type } as PerformanceNavigationTiming]);
-      openStartPage();
-      expect(location.pathname).toBe("/");
-    }
-    vi.restoreAllMocks();
-    for (const at of ["/inbox", "/persona", "/?machine=x"]) {
-      history.replaceState(null, "", at);
-      openStartPage();
-      expect(location.pathname + location.search).toBe(at);
-    }
-  });
-
-  it("opens on the main chat for a key this version does not know", async () => {
-    const { openStartPage } = await load("p:broken");
-    openStartPage();
-    expect(location.pathname).toBe("/");
-  });
-});
-
-describe("startPageGone", () => {
-  it("says gone only once it can be told", async () => {
-    const { startPageGone } = await load();
-    const none = { extensions: false, starred: false };
-    const all = { extensions: true, starred: true };
-    expect(startPageGone(TODAY, true, none)).toBe(false);
-    expect(startPageGone(TODAY, false, none)).toBeUndefined();
-    expect(startPageGone(TODAY, false, all)).toBe(true);
-    expect(startPageGone("messages", false, none)).toBe(true);
-    expect(startPageGone("starred", false, none)).toBeUndefined();
-    expect(startPageGone("starred", false, all)).toBe(true);
-    expect(startPageGone("starred", true, all)).toBe(false);
-  });
-});
-
-describe("the hub's choice", () => {
-  it("is read at the hello, kept for the next opening, and followed on its pushes", async () => {
-    hub = { start: TODAY };
-    const { hello, startPage, startPageSynced } = await load();
-    expect(startPage()).toBe("");
-    await hello();
-    expect(startPage()).toBe(TODAY);
-    expect(startPageSynced()).toBe(true);
-    expect(localStorage.getItem("persona.startPage")).toBe(TODAY);
-    Socket.last.push({ type: "navigation", start: "" });
-    expect(startPage()).toBe("");
-    expect(localStorage.getItem("persona.startPage")).toBeNull();
-    expect(puts).toEqual([]);
-  });
-
-  it("is not read again at a hello that resumed", async () => {
-    const { hello, store } = await load();
-    await hello();
-    const reads = vi.mocked(fetch).mock.calls.filter(([u]) => String(u).includes("/navigation")).length;
-    Socket.last.push({ type: "hello", features: [], resumed: true });
-    await flush();
-    expect(vi.mocked(fetch).mock.calls.filter(([u]) => String(u).includes("/navigation")).length).toBe(reads);
-    store.disconnect();
-  });
-
-  it("an empty start is the main chat chosen: it wins over this browser's older copy", async () => {
-    hub = { start: "" };
-    const { hello, startPage } = await load(TODAY);
-    await hello();
-    expect(startPage()).toBe("");
-    expect(puts).toEqual([]);
-  });
-
-  it("is handed the choice this browser kept while the hub had none", async () => {
-    const { hello, startPage } = await load("kb");
-    await hello();
-    expect(puts).toEqual([{ start: "kb" }]);
-    expect(startPage()).toBe("kb");
-  });
-
-  it("two devices: what one chooses, the other opens on from its next opening", async () => {
-    // the laptop chooses Today
-    const laptop = await load();
-    await laptop.hello();
-    const { saveStartPage } = await import("./start-page");
-    await saveStartPage(TODAY);
-    expect(puts).toEqual([{ start: TODAY }]);
-    laptop.store.disconnect();
-    // the phone: another browser, nothing kept yet; its first opening is the main chat, and it reads the hub's choice
-    vi.resetModules();
-    localStorage.clear();
-    localStorage.setItem("persona.token", "test-token");
-    const phone = await load();
-    phone.openStartPage();
-    expect(location.pathname).toBe("/");
-    await phone.hello();
-    expect(phone.startPage()).toBe(TODAY);
-    phone.store.disconnect();
-    // its next opening
-    vi.resetModules();
-    const next = await load();
-    next.openStartPage();
-    expect(location.pathname).toBe("/extension/example-today/today");
-  });
-});
-
-describe("the sidebar's arrangement (groups, #9071)", () => {
-  const arrangement = { order: ["routines"], shown: [], hidden: [], groups: [{ id: "u:life", title: "生活" }], assign: { routines: "u:life" } };
-
-  it("two devices: what one arranges, the other draws from its hello and on the push", async () => {
-    const laptop = await load();
-    await laptop.hello();
-    const pages = await import("./sidebar-pages");
-    const life = pages.addPageGroup([""], "生活");
-    pages.setPageGroup("routines", life);
-    await flush();
-    expect(hub).toMatchObject({ pages: { groups: [{ id: "" }, { id: life, title: "生活" }], assign: { routines: life } } });
-    laptop.store.disconnect();
-    vi.resetModules();
-    localStorage.clear();
-    localStorage.setItem("persona.token", "test-token");
-    const phone = await load();
-    await phone.hello();
-    const phonePages = await import("./sidebar-pages");
-    expect(phonePages.getSidebarPrefs().assign).toEqual({ routines: life });
-    expect(JSON.parse(localStorage.getItem("sidebar.pages")!).groups[1]).toEqual({ id: life, title: "生活" });
-    // another device renames it: the push brings it here
-    Socket.last.push({ type: "navigation", pages: { ...arrangement, groups: [{ id: life, title: "Life" }], assign: { routines: life } } });
-    expect(phonePages.getSidebarPrefs().groups).toEqual([{ id: life, title: "Life" }]);
-  });
-
-  it("is handed this browser's arrangement when the hub has none", async () => {
-    hub = { start: "" };
-    localStorage.setItem("sidebar.pages", JSON.stringify(arrangement));
-    const { hello } = await load();
-    await hello();
-    expect(puts).toEqual([{ pages: arrangement }]);
-  });
-
-  it("keeps a change the hub did not take and sends it again at the next hello", async () => {
-    hub = { pages: { order: [], shown: [], hidden: [] } };
-    const { hello } = await load();
-    await hello();
-    const pages = await import("./sidebar-pages");
-    vi.mocked(fetch).mockImplementationOnce(async () => Response.json({ error: "database down" }, { status: 503 }));
-    pages.setPageShown("kb", false);
-    await flush();
-    expect(pages.getSidebarPrefs().hidden).toEqual(["kb"]);
-    await hello();
-    expect(pages.getSidebarPrefs().hidden).toEqual(["kb"]);
-    expect(hub).toMatchObject({ pages: { hidden: ["kb"] } });
-  });
-
-  it("stays in this browser on a hub without the route", async () => {
-    hub = "missing";
-    const { hello } = await load();
-    await hello();
-    const pages = await import("./sidebar-pages");
-    pages.setPageShown("kb", false);
-    await flush();
-    expect(JSON.parse(localStorage.getItem("sidebar.pages")!).hidden).toEqual(["kb"]);
-    expect(vi.mocked(fetch).mock.calls.filter(([, i]) => (i as RequestInit | undefined)?.method === "PUT")).toEqual([]);
-  });
-});
-
-describe("a hub without the route", () => {
-  it("keeps the choice in this browser and opens on it", async () => {
-    hub = "missing";
-    const { hello, startPage, startPageSynced } = await load();
-    await hello();
-    expect(startPageSynced()).toBe(false);
-    const { saveStartPage } = await import("./start-page");
-    await saveStartPage("inbox");
-    expect(startPage()).toBe("inbox");
-    expect(localStorage.getItem("persona.startPage")).toBe("inbox");
-    // no PUT after the hub said it has no route
-    expect(vi.mocked(fetch).mock.calls.filter(([, i]) => (i as RequestInit | undefined)?.method === "PUT")).toEqual([]);
-    vi.resetModules();
-    const next = await load();
-    next.openStartPage();
-    expect(location.pathname).toBe("/inbox");
-  });
-
-  it("a refused save puts the last choice back", async () => {
-    hub = { start: "inbox" };
-    const { hello, startPage } = await load();
-    await hello();
-    vi.mocked(fetch).mockImplementationOnce(async () => Response.json({ error: "database down" }, { status: 503 }));
-    const { saveStartPage } = await import("./start-page");
-    await saveStartPage("kb");
-    expect(startPage()).toBe("inbox");
-  });
+  await Promise.all([import("./navigation-sync"), import("./store")]);
 });
 
 describe("Overview's cards (#9745)", () => {
@@ -368,12 +138,12 @@ describe("Overview's cards (#9745)", () => {
     const { hello } = await load();
     await hello();
     const cards = await import("./overview-cards");
-    Socket.last.push({ type: "navigation", start: "inbox" });
+    Socket.last.push({ type: "navigation", pages: [] });
     expect(cards.getOverviewPrefs()).toEqual(arrangement);
   });
 
   it("is handed this browser's arrangement when the hub has none, on its own", async () => {
-    hub = { start: "" };
+    hub = {};
     await keepHere(arrangement);
     const { hello } = await load();
     await hello();
@@ -392,7 +162,7 @@ describe("Overview's cards (#9745)", () => {
 
   // review of #9778, P1: the copy was one for every hub and account of the browser
   it("another account or hub in this browser neither draws this one's copy nor hands it to its hub", async () => {
-    hub = { start: "" };
+    hub = {};
     await keepHere(arrangement);
     const { hello } = await load();
     const cards = await import("./overview-cards");
@@ -442,12 +212,12 @@ describe("Overview's cards (#9745)", () => {
 
   it("stays in this browser on a hub without the route", async () => {
     hub = "missing";
-    const { hello, startPageSynced } = await load();
+    const { hello, navigationSynced } = await load();
     await hello();
     const cards = await import("./overview-cards");
     cards.saveOverview(arrangement);
     await flush();
-    expect(startPageSynced()).toBe(false);
+    expect(navigationSynced()).toBe(false);
     expect(JSON.parse(localStorage.getItem(await copyKey())!)).toEqual(arrangement);
     expect(puts$()).toEqual([]);
   });
@@ -461,15 +231,15 @@ describe("Overview's cards (#9745)", () => {
     });
 
   it("stays in this browser with a default manager from before the field: its own 400 for a change of only it", async () => {
-    hub = { start: "inbox" };
+    hub = {};
     oldManager();
-    const { hello, startPageSynced } = await load();
+    const { hello, navigationSynced } = await load();
     await hello();
     const cards = await import("./overview-cards");
     cards.saveOverview(arrangement);
     await flush();
     expect(cards.overviewKept()).toBe(false);
-    expect(startPageSynced()).toBe(true); // the start page and the sidebar are still kept there
+    expect(navigationSynced()).toBe(true); // the hub has the route
     expect(cards.getOverviewPrefs()).toEqual(arrangement);
     // no more tries for each change in this load
     cards.saveOverview([...arrangement].reverse());
@@ -478,7 +248,7 @@ describe("Overview's cards (#9745)", () => {
   });
 
   it("knows #9328's words too", async () => {
-    hub = { start: "inbox" };
+    hub = {};
     oldManager("start is required");
     const { hello } = await load();
     await hello();
@@ -490,7 +260,7 @@ describe("Overview's cards (#9745)", () => {
 
   // review of #9778, P1: one refusal kept the arrangement off the hub until the page was reloaded
   it("asks again at the next hello, and a manager that has the field by then takes the arrangement", async () => {
-    hub = { start: "inbox" };
+    hub = {};
     oldManager();
     const { hello } = await load();
     await hello();
@@ -524,7 +294,7 @@ describe("Overview's cards (#9745)", () => {
   });
 
   it("stays in this browser when the manager answers a change without the field", async () => {
-    hub = { start: "inbox" };
+    hub = {};
     vi.mocked(fetch).mockImplementation(async () => Response.json(hub)); // takes the PUT, never says overview
     await keepHere(arrangement);
     const { hello } = await load();
@@ -592,17 +362,6 @@ describe("Overview's cards (#9745)", () => {
       Socket.last.push({ type: "navigation", overview: arrangement }); // the phone puts the first back, after ours
       releaseSecond();
       await flush();
-      expect(cards.getOverviewPrefs()).toEqual(arrangement);
-    });
-
-    it("a push of other fields meanwhile is taken field by field", async () => {
-      const { cards, release } = await inFlight();
-      Socket.last.push({ type: "navigation", start: "inbox", pages: { order: ["kb"], shown: [], hidden: [] } });
-      const page = await import("./start-page");
-      const pages = await import("./sidebar-pages");
-      expect(page.startPage()).toBe("inbox");
-      expect(pages.getSidebarPrefs().order).toEqual(["kb"]);
-      await release();
       expect(cards.getOverviewPrefs()).toEqual(arrangement);
     });
 
@@ -788,39 +547,22 @@ describe("Overview's cards (#9745)", () => {
       expect(puts$()).toEqual([]);
     });
 
-    // review of #9778, P2: the start page, the sidebar's pages and the hand-over were still taken from such a read
-    it("nor are an overtaken read's start page and sidebar pages taken, nor its failure", async () => {
+    // review of #9778, P2: a read overtaken by a later hello (or another sign-in) is left to that one, its failure too
+    it("nor is an overtaken read's failure taken", async () => {
       const { hello } = await loaded();
-      const page = await import("./start-page");
-      const pages = await import("./sidebar-pages");
-      hub = { overview: [], start: "inbox", pages: { order: ["kb"], shown: [], hidden: [] } };
+      const nav = await import("./navigation-sync");
+      hub = { overview: [] };
       const first = holdNext();
       let refuse!: () => void;
       const refused = new Promise<void>((r) => (refuse = r));
       queue.push(async () => (await refused, Response.json({ error: "not found" }, { status: 404 })));
       await hello();
       await hello(); // its read is refused later
-      hub = { overview: [], start: "todos", pages: { order: ["inbox"], shown: [], hidden: [] } };
       await hello();
-      expect(page.startPage()).toBe("todos");
       await first();
       refuse();
       await flush();
-      expect(page.startPage()).toBe("todos");
-      expect(pages.getSidebarPrefs().order).toEqual(["inbox"]);
-      expect(page.startPageSynced()).toBe(true);
-    });
-
-    it("nor is anything handed over from a read answered after signing in as someone else", async () => {
-      const { hello } = await loaded();
-      const page = await import("./start-page");
-      page.keepStartPage("inbox"); // this browser's choice; the hub has none to hand it to
-      const read = holdNext();
-      await hello();
-      localStorage.setItem("persona.token", "another-token");
-      const sent = puts$().length;
-      await read();
-      expect(puts$()).toHaveLength(sent);
+      expect(nav.navigationSynced()).toBe(true);
     });
 
     // review of #9778, P2: a change answered after a hello that did not resume left a newer push from another device unseen
@@ -1073,7 +815,7 @@ describe("Overview's own sections (#10905)", () => {
   });
 
   it("is handed over like the cards: an arrangement kept here goes to a hub that has none", async () => {
-    hub = { start: "" };
+    hub = {};
     localStorage.setItem(await copyKey(), JSON.stringify(IN_PROGRESS_FIRST));
     const { hello } = await load();
     await hello();
@@ -1100,12 +842,12 @@ describe("Overview's own sections (#10905)", () => {
 
   // a mixed deployment: the cards follow on every device while the manager can't keep the sections
   it("a default manager of #9745 refuses one that names a section: the cards go on their own at once, the sections stay in this browser", async () => {
-    const { cards, startPageSynced } = await refused();
+    const { cards, navigationSynced } = await refused();
     expect(puts$().map(([, i]) => body(i))).toEqual([{ overview: IN_PROGRESS_FIRST }, { overview: [QUOTA] }]);
     expect(hub).toMatchObject({ overview: [QUOTA] });
     expect(cards.overviewKept()).toBe(true);
     expect(cards.sectionsLocal()).toBe(true);
-    expect(startPageSynced()).toBe(true);
+    expect(navigationSynced()).toBe(true);
     expect(cards.getOverviewPrefs()).toEqual(IN_PROGRESS_FIRST);
   });
 

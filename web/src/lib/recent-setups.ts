@@ -14,14 +14,14 @@ export const MAX_RECENT_CARDS = 3;
 const FIELDS = ["machine", "cwd", "launcher", "model", "agent_type", "mode", "effort"] as const;
 
 /** The same setup: every field but `at`. */
-export const sameSetup = (a: RecentSetup, b: RecentSetup) => FIELDS.every((f) => a[f] === b[f]);
+const sameSetup = (a: RecentSetup, b: RecentSetup) => FIELDS.every((f) => a[f] === b[f]);
 
 /** A setup that started an agent goes first; the same one met again moves there with its new time; the first 20 stay. */
 export function recordSetup(before: RecentSetup[], setup: RecentSetup): RecentSetup[] {
   return [setup, ...before.filter((e) => !sameSetup(e, setup))].slice(0, MAX_RECENT_SETUPS);
 }
 
-export function removeSetup(entries: RecentSetup[], setup: RecentSetup): RecentSetup[] {
+function removeSetup(entries: RecentSetup[], setup: RecentSetup): RecentSetup[] {
   return entries.filter((e) => !sameSetup(e, setup));
 }
 

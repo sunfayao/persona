@@ -3,11 +3,9 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
-import { directionAgentNodes } from "./direction-agent-tree";
 import { childOfCall } from "./child-cards";
 import { closePanel, getPanel, openPanel } from "./panel";
 import { doneSubagentLink, followChildSession, followSubagentLink, splitSubagentLink, useSubagentLink } from "./subagent-link";
-import type { Session } from "./types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -59,17 +57,5 @@ describe("subagent links", () => {
     act(() => doneSubagentLink("m", "lead"));
     expect(seen).toBeUndefined();
     act(() => root.unmount());
-  });
-
-  it("the sidebar's direction tree draws no in-session subagent rows", () => {
-    const s = (sid: string): Session => ({ machine_id: "m", session_id: sid, title: sid, cwd: "", status: "", state: "working" });
-    const nodes = directionAgentNodes(
-      [{ machine_id: "m", session_id: "p1", title: "Lead", state: "working", children: [{ machine_id: "m", session_id: "p1@a1", title: "Sub", state: "working", children: [{ machine_id: "m", session_id: "p1@a2", title: "Nested", state: "working", children: [] }] }, { machine_id: "m", session_id: "codex-kid", title: "Codex kid", state: "working", children: [] }] }],
-      new Map([["m/p1", s("p1")], ["m/codex-kid", s("codex-kid")]]),
-      new Set(),
-      true,
-    );
-    expect(nodes.map((n) => n.session.session_id)).toEqual(["p1"]);
-    expect(nodes[0].children.map((n) => n.session.session_id)).toEqual(["codex-kid"]);
   });
 });

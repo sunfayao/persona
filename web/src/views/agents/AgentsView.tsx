@@ -93,7 +93,7 @@ function BoundedAgentList({ onToggleSidebar }: { onToggleSidebar: () => void }) 
 
 /** Sources that list nothing (failing, or not set up) while others list Agents: one quiet notice above those Agents, so
  *  the missing ones don't go unnoticed. An empty list shows the same hints on their own. */
-export function SourceNotice({ hints }: { hints: string[] }) {
+function SourceNotice({ hints }: { hints: string[] }) {
   if (!hints.length) return null;
   return (
     <div role="status" className="mb-3 flex items-start gap-2 px-2 py-1.5">
@@ -108,7 +108,7 @@ export function SourceNotice({ hints }: { hints: string[] }) {
 
 /** "Removed (N)" at the end of the page, folded (as All chats keeps its archived ones): the conversations removed from
  *  the list, each with Restore. Re-read when the list changes (a hide, a restore, a new message bringing one back). */
-export function RemovedAgents() {
+function RemovedAgents() {
   const [list, setList] = useState<AgentSession[]>([]);
   const [open, setOpen] = useState(false);
   useEffect(() => {

@@ -20,9 +20,9 @@ export interface AssistantBlock {
 }
 
 /** At most this many bytes of a card (AssistantViewMost). */
-export const CARD_MOST = 64 << 10;
+const CARD_MOST = 64 << 10;
 /** At most this many named pages (AssistantPagesMost). */
-export const PAGES_MOST = 8;
+const PAGES_MOST = 8;
 /** The most characters of a fallback, a reply or an HTML bridge text. */
 export const TEXT_MOST = 2000;
 
@@ -84,7 +84,7 @@ export const blockKey = (itemId: string, index: number) => `${itemId}/${index}`;
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** The same JSON, whatever its spacing: how a rendered block is told apart from the others of its text. */
-export function sameJSON(a: string, b: string): boolean {
+function sameJSON(a: string, b: string): boolean {
   try {
     return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
   } catch {
@@ -188,7 +188,7 @@ export type OpenTarget =
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/;
 
 /** Why `target` may not be opened ("" it may). */
-export function openProblem(target: string): string {
+function openProblem(target: string): string {
   return openTarget(target) ? "" : "open";
 }
 

@@ -22,7 +22,7 @@ export function commentKey(mid: string, sid?: string): string | null {
 }
 
 /** The comments of the list as (number, quote) pairs: the number a card carries. */
-export function numbered(list: readonly DraftQuote[]): { n: number; q: DraftQuote }[] {
+function numbered(list: readonly DraftQuote[]): { n: number; q: DraftQuote }[] {
   let n = 0;
   return list.filter((q) => q.comment).map((q) => ({ n: ++n, q }));
 }

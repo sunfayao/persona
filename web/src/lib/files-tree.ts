@@ -6,8 +6,8 @@ import { joinPath, type FsEntry, type FsListing } from "./files";
 // ── cache ────────────────────────────────────────────────────────────────
 
 /** How many folders and how many bytes of listings are kept per machine and session folder. */
-export const CACHE_DIRS = 12;
-export const CACHE_BYTES = 8 * 1024 * 1024;
+const CACHE_DIRS = 12;
+const CACHE_BYTES = 8 * 1024 * 1024;
 /** How many session folders keep a cache; the least recently used one is let go (at most 8 x CACHE_BYTES). */
 export const CACHE_FOLDERS = 8;
 

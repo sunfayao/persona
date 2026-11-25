@@ -8,7 +8,7 @@ import { getState } from "./store";
 
 export interface SparsePreset { id: string; name?: string; directories: string[] }
 export interface WorktreeSource { type: "pr" | "issue"; number: number; title: string; url: string; branchName?: string; baseRefName?: string; isCrossRepository?: boolean }
-export interface ComposerOptions { project: string; base_ref: string; refs: string[]; presets: SparsePreset[]; capabilities: string[] }
+interface ComposerOptions { project: string; base_ref: string; refs: string[]; presets: SparsePreset[]; capabilities: string[] }
 /** Repository metadata and capabilities returned by worktree/prepare. */
 export interface WorktreePrepare {
   composer?: ComposerOptions;
@@ -125,7 +125,7 @@ export function worktreeAdmission(target: WorktreeTarget): boolean {
     && (!target.manager || target.manager === (getState().machines.find((m) => m.id === target.mid)?.manager || defaultManager()));
 }
 
-export function worktreeHeaders(target: WorktreeTarget): Record<string, string> {
+function worktreeHeaders(target: WorktreeTarget): Record<string, string> {
   if (!worktreeAdmission(target)) throw new Error(tr("worktree.owner_changed"));
   return { [MANAGER_HEADER]: target.manager || getState().machines.find((m) => m.id === target.mid)?.manager || defaultManager() };
 }

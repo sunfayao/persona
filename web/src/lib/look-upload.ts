@@ -21,7 +21,7 @@ export const MIN_SIDE = 64;
 export const EXPORT_MAX = 1024;
 /** A PNG past this goes as a JPEG instead (the hub takes 8 MB; base64 and the rest of the body on top). */
 export const PNG_LIMIT = 6 * 1024 * 1024;
-export const JPEG_QUALITY = 0.92;
+const JPEG_QUALITY = 0.92;
 /** How far the slider zooms in at most, before the crop would get under MIN_SIDE. */
 export const ZOOM_MAX = 8;
 

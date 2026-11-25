@@ -231,7 +231,7 @@ export function phaseTitle(b: PhaseBlock): string {
 }
 
 /** At most this many agents are rows in a block; the quiet ones after them fold into "n more". */
-export const PHASE_ROWS = 12;
+const PHASE_ROWS = 12;
 
 /** How a block's rows stand: `rows` in start order; `folded` the listed ones not shown ("n more" opens them all), the
  *  first of them where `breakAt` rows have been shown; `unlisted` the block's earliest agents, which the hub no longer

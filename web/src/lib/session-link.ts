@@ -8,7 +8,7 @@ import type { Route, SessionView } from "./router";
 import type { Session } from "./types";
 
 /** The shortest prefix that is looked up; anything shorter is taken as a whole id. */
-export const MIN_PREFIX = 8;
+const MIN_PREFIX = 8;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

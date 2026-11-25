@@ -278,17 +278,6 @@ export async function turnOffWebPush(): Promise<void> {
   }
 }
 
-/** Has the hub push a test now; the notification shows even with this page open. Says what the push service answered. */
-export async function sendTestPush(): Promise<void> {
-  setState({ working: true });
-  try {
-    await api(`${statusPath()}/test`, { method: "POST" });
-  } finally {
-    setState({ working: false });
-    void loadWebPush();
-  }
-}
-
 let synced: string | undefined;
 let syncing: { key: string; promise: Promise<void> } | undefined;
 

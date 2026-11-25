@@ -13,10 +13,10 @@ export const SESSIONS_QUICK_FILTERS_FEATURE = "sessions_quick_filters";
 export type GroupDimension = "machine" | "project" | "group";
 
 // needs_you: how many of them need the user, left out when none do
-export interface CatalogPlace { machine_id: string; path: string; total: number; needs_you?: number }
-export interface CatalogProject { id: string; name: string; origin?: string; total: number; needs_you?: number; places: CatalogPlace[] }
+interface CatalogPlace { machine_id: string; path: string; total: number; needs_you?: number }
+interface CatalogProject { id: string; name: string; origin?: string; total: number; needs_you?: number; places: CatalogPlace[] }
 /** `path`: the folder its rows are in, from a hub that says it (#13522). */
-export interface CatalogSpace { machine_id: string; id: string; name: string; path?: string; total: number; needs_you?: number }
+interface CatalogSpace { machine_id: string; id: string; name: string; path?: string; total: number; needs_you?: number }
 export interface SessionCatalog {
   revision: string;
   total: number;
@@ -41,7 +41,7 @@ export function validCatalog(v: unknown): v is SessionCatalog {
 }
 
 /** One directory of a project, or the computer of a space and its folder ("" when the hub does not say). */
-export interface GroupPlace { machine: string; path: string; count: number }
+interface GroupPlace { machine: string; path: string; count: number }
 
 export interface SessionGroup {
   /** What the value pill holds and what a section is remembered by; unique within its dimension. */

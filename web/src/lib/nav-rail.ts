@@ -23,8 +23,8 @@ export interface NavRailTick {
 
 /** Even a single loaded input is a useful position and selection target. */
 export const NAV_RAIL_MIN_TICKS = 1;
-export const NAV_RAIL_TICK_PITCH = NAV_RAIL_METRICS.tickPitch;
-export const NAV_RAIL_TICK_MIN_PITCH = NAV_RAIL_METRICS.minTickPitch;
+const NAV_RAIL_TICK_PITCH = NAV_RAIL_METRICS.tickPitch;
+const NAV_RAIL_TICK_MIN_PITCH = NAV_RAIL_METRICS.minTickPitch;
 export const NAV_RAIL_MIN_HEIGHT = NAV_RAIL_METRICS.minHeight;
 /** The card renders at most two excerpt lines; this also bounds the underlying accessible description. */
 export const NAV_RAIL_EXCERPT_MAX = 200;

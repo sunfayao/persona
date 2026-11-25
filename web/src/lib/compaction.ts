@@ -70,10 +70,10 @@ export function compactionView(c: Compaction | undefined, prev: Compaction["stat
 export const COMPACTED_TEXT = "上下文已压缩";
 /** The summary it carries on with. */
 // i18n-ignore: matches the hub's notice text in the transcript
-export const CONTINUED_TEXT = "已从压缩的上下文继续";
+const CONTINUED_TEXT = "已从压缩的上下文继续";
 /** A /compact sent to it (the hub's text for the command). */
 // i18n-ignore: matches the hub's text for the /compact command
-export const COMMAND_TEXT = "压缩上下文";
+const COMMAND_TEXT = "压缩上下文";
 
 function isNotice(it: Item, text: string): boolean {
   return it.kind === "notice" && !it.task && !it.wake && (it.text ?? "").trim() === text;

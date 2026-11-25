@@ -19,7 +19,7 @@ export const FILE_LIMIT = 100 * 1024 * 1024;
 /** A picture's JPEG, after it is scaled down. */
 export const IMAGE_LIMIT = 15 << 19;
 /** The long side a picture is scaled down to. */
-export const IMAGE_SIDE = 2560;
+const IMAGE_SIDE = 2560;
 
 export interface LarkAttachment {
   id: string;
@@ -48,7 +48,7 @@ export function sendsAsImage(mime: string): boolean {
  * (location) on the way. Null when the browser cannot decode it. */
 export type JPEGEncoder = (file: Blob) => Promise<Blob | null>;
 
-export const canvasJPEG: JPEGEncoder = async (file) => {
+const canvasJPEG: JPEGEncoder = async (file) => {
   if (typeof createImageBitmap !== "function" || typeof document === "undefined") return null;
   let bitmap: ImageBitmap;
   try {

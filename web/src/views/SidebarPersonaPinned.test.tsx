@@ -11,7 +11,6 @@ vi.hoisted(() => {
 });
 import { setSidebarCollapsed } from "../lib/layout";
 import { reset } from "../lib/store";
-import { clearBinding, resetAllBindings, setBinding, setShortcutEnabled } from "../lib/shortcuts";
 import { useShortcuts } from "../lib/use-shortcuts";
 import { Sidebar, SidebarRail } from "./Sidebar";
 
@@ -39,7 +38,6 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   reset();
-  resetAllBindings();
   vi.unstubAllGlobals();
 });
 
@@ -78,24 +76,12 @@ describe("the pinned Persona row", () => {
 });
 
 describe("the Persona shortcut on the row", () => {
-  it("shows the default chord, and follows a rebinding, clearing and turning it off", async () => {
+  it("shows its chord", async () => {
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     // jsdom is not a Mac: Ctrl
     expect(hint()).toBe("Ctrl+Alt+P");
     expect(row().getAttribute("aria-keyshortcuts")).toBe("Control+Alt+P");
-    act(() => setBinding("persona", "Mod+Shift+Y"));
-    expect(hint()).toBe("Ctrl+Shift+Y");
-    expect(row().getAttribute("aria-keyshortcuts")).toBe("Control+Shift+Y");
-    act(() => setShortcutEnabled("persona", false));
-    expect(hint()).toBeNull();
-    expect(row().hasAttribute("aria-keyshortcuts")).toBe(false);
-    act(() => setShortcutEnabled("persona", true));
-    expect(hint()).toBe("Ctrl+Shift+Y");
-    act(() => clearBinding("persona"));
-    expect(hint()).toBeNull();
-    act(() => resetAllBindings());
-    expect(hint()).toBe("Ctrl+Alt+P");
   });
 
   it("is in the folded rail's tooltip too", async () => {
@@ -103,8 +89,6 @@ describe("the Persona shortcut on the row", () => {
     await flush();
     const persona = host.querySelector<HTMLAnchorElement>('nav a[aria-label="Persona"]')!;
     expect(persona.title).toBe("Persona 的主对话 (Ctrl+Alt+P)");
-    act(() => setBinding("persona", "Mod+Shift+Y"));
-    expect(persona.title).toBe("Persona 的主对话 (Ctrl+Shift+Y)");
   });
 
   it("Ctrl+Alt+P opens the main conversation, as a click on the row does", async () => {

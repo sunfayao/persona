@@ -25,7 +25,7 @@ export interface TranslatePrefs {
 }
 
 /** The targets in `server/internal/assistantwire/inbox.go` (`TranslateLanguages`), as the app lists them. */
-export const LANGUAGES: { code: string; name: string }[] = [
+const LANGUAGES: { code: string; name: string }[] = [
   { code: "zh-Hans", name: "简体中文" }, // i18n-ignore: each language by its own name
   { code: "zh-Hant", name: "繁體中文" }, // i18n-ignore: each language by its own name
   { code: "en", name: "English" },
@@ -38,7 +38,7 @@ export const LANGUAGES: { code: string; name: string }[] = [
   { code: "pt", name: "Português" },
 ];
 
-export const DEFAULT_TARGET = "zh-Hans";
+const DEFAULT_TARGET = "zh-Hans";
 
 export function languageName(code: string): string {
   return LANGUAGES.find((l) => l.code === code)?.name ?? code;

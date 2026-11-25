@@ -1,7 +1,7 @@
 // Only the Ctrl+R panel needs cross-conversation search; keep it out of the first-screen recall path.
 import { browserStore, composing, HISTORY_PREFIX, plainCtrl, readHistory, type HistoryStore, type KeyLike, type SentEntry } from "./send-history";
 
-export const SEARCH_MAX = 100;
+const SEARCH_MAX = 100;
 
 /** Every conversation's sent messages, newest first: the candidates of the search. */
 export function readAllHistory(store: HistoryStore | undefined = browserStore()): (SentEntry & { draftKey: string })[] {

@@ -21,6 +21,11 @@ interface ParseCase {
 const hubs = fixture.hubs as Record<string, Hub>;
 const cases = fixture.parse as ParseCase[];
 
+/** The shared table still names pages this web app no longer has (the knowledge base, the Settings categories it dropped):
+ *  such a link opens nothing here, or Settings' root. */
+const hasPage = (page: Record<string, string> | null) =>
+  !page || (!page.page.startsWith("knowledge") && (page.page !== "settings" || !page.tab || page.tab in DEEP_SETTINGS_TABS));
+
 /** A page as the fixture writes it, without the values the web does not carry in a link it opens (an Agent's `view`, a
  *  computer's `range`: the pages read those from the address bar themselves). */
 function kept(page: Record<string, string> | null): Record<string, string> | null {
@@ -78,8 +83,7 @@ describe("deep links: the shared cases", () => {
     expect(fixture.version).toBe(1);
     expect(cases.length).toBeGreaterThan(60);
   });
-  // the shared table still names the knowledge base; this web app no longer has it
-  for (const c of cases.filter((c) => c.hubs.length === 1 && !String(c.page?.page).startsWith("knowledge"))) {
+  for (const c of cases.filter((c) => c.hubs.length === 1 && hasPage(c.page))) {
     it(c.name, () => {
       expect(kept(opened(c.url, hubs[c.hubs[0]!]!))).toEqual(kept(c.page));
       expect(c.page === null).toBe(c.reason !== undefined);
@@ -90,21 +94,21 @@ describe("deep links: the shared cases", () => {
 describe("deep links: pages and paths", () => {
   it("every page's path reads back as the same page, and the router opens it", () => {
     for (const c of cases) {
-      if (!c.page) continue;
+      if (!c.page || !hasPage(c.page)) continue;
       const { hub: _hub, ...page } = c.page;
       void _hub;
       const path = pagePath(page as never);
       const [p, q = ""] = path.split("?");
       expect(pageOfPath(p!, q ? `?${q}` : ""), `${c.name}: ${path}`).toEqual(page);
-      // the shared table still names the knowledge base; this web app no longer has it
-      if (!page.page.startsWith("knowledge")) expect(parseRoute(p!, q).name, path).not.toBe("not-found");
+      expect(parseRoute(p!, q).name, path).not.toBe("not-found");
     }
   });
 
   it("opens an app link as the path of the page it names, or nothing", () => {
     expect(appPath("persona://open/inbox/i-1?manager=m2&token=x")).toBe("/inbox/i-1?manager=m2");
-    expect(appPath("persona://kb/docs/a/b")).toBe("/kb/docs/a%2Fb");
-    expect(appPath("persona://settings/extensions/gh")).toBe("/settings?tab=extensions&extension=gh");
+    expect(appPath("persona://kb/docs/a/b")).toBeNull();
+    expect(appPath("persona://settings/extensions/gh")).toBe("/settings");
+    expect(appPath("persona://open/settings?tab=models&purpose=supervise")).toBe("/settings?tab=models&purpose=supervise");
     expect(appPath("persona://open?route=%2Fpersona%2Fc-1")).toBe("/persona/c-1");
     expect(appPath("persona://task/t-1")).toBe("/todos/t-1");
     expect(appPath("persona://session/m/s?at=x")).toBe("/s/m/s?at=x");
@@ -113,18 +117,13 @@ describe("deep links: pages and paths", () => {
     }
   });
 
-  it("opens Labs settings from web and app links", () => {
-    expect(pageOfPath("/settings", "tab=labs")).toEqual({ page: "settings", tab: "labs" });
-    expect(appPage(new URL("persona://open/settings?tab=labs"))?.page).toEqual({ page: "settings", tab: "labs" });
+  it("opens a Settings category the web no longer has as the Settings root", () => {
+    expect(pageOfPath("/settings", "tab=labs")).toEqual({ page: "settings" });
+    expect(appPage(new URL("persona://open/settings?tab=labs&enabled=1&token=x"))?.page).toEqual({ page: "settings" });
+    expect(appPath("persona://open/settings?tab=labs&enabled=1&token=x")).toBe("/settings");
   });
 
-  it("opens Labs without carrying setting changes or credentials from the link", () => {
-    expect(appPath("persona://open/settings?tab=labs&enabled=1&token=x")).toBe("/settings?tab=labs");
-    expect(pageOfPath("/settings", "?tab=labs&enabled=1&token=x")).toEqual({ page: "settings", tab: "labs" });
-  });
-
-  it("keeps every settings tab the shared cases name", () => {
-    // a link to a category the web no longer has still reads as that page: Settings opens its root for it
-    expect(Object.keys(DEEP_SETTINGS_TABS)).toEqual(expect.arrayContaining(["general", "notifications", "models", "devices"]));
+  it("names the categories Settings has", () => {
+    expect(Object.keys(DEEP_SETTINGS_TABS)).toEqual(["general", "notifications", "models", "devices"]);
   });
 });

@@ -233,7 +233,7 @@ describe("the shell's session links", () => {
 
   it.each(["kid1", "side-kid", "conv-claude", "s1@child-agent"])("keeps %s's exact transcript for message links", async (sid) => {
     setSideFold(true);
-    const at = `star:${"a".repeat(32)}:line12#0`;
+    const at = "line12#0";
     await open(`/s/mac/${encodeURIComponent(sid)}?at=${encodeURIComponent(at)}`);
     expect(drawn.chatSid).toBe(sid);
     expect(drawn.at).toBe(at);

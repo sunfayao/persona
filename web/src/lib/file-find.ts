@@ -275,7 +275,7 @@ export interface FileIndex {
 /** How long a list is reused when the palette opens again. */
 export const INDEX_TTL_MS = 20_000;
 /** The node lists a big tree in one go; give it as long as the hub gives a call. */
-export const INDEX_TIMEOUT_MS = 30_000;
+const INDEX_TIMEOUT_MS = 30_000;
 
 interface FindResponse {
   files?: string[];
@@ -293,7 +293,7 @@ export interface WalkLimits {
   files: number;
   parallel: number;
 }
-export const WALK_LIMITS: WalkLimits = { folders: 300, files: 20_000, parallel: 4 };
+const WALK_LIMITS: WalkLimits = { folders: 300, files: 20_000, parallel: 4 };
 
 // Folders that are not worth a request each; the node's own listing leaves these out too (git ignores them).
 const WALK_SKIP = new Set([".git", ".hg", ".svn", "node_modules", "__pycache__", ".cache", ".gradle", ".next", ".nuxt", ".venv", ".turbo", "DerivedData"]);

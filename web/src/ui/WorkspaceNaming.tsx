@@ -11,7 +11,7 @@ import { settingsInputClass } from "../views/settings/SettingsParts";
 import { Button, Loading } from "./atoms";
 
 /** An empty field removes its override; placeholders describe the current fallback without materializing it. */
-export function WorkspaceRulesEditor({ value, inherited, defaultSource = "system", disabled, diagnostics = [], onChange }: {
+function WorkspaceRulesEditor({ value, inherited, defaultSource = "system", disabled, diagnostics = [], onChange }: {
   value: WorkspaceRules; inherited: WorkspaceRules; defaultSource?: "system" | "assistant";
   disabled?: boolean; diagnostics?: NamingDiagnostic[]; onChange: (value: WorkspaceRules) => void;
 }) {

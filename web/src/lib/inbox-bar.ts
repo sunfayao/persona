@@ -6,14 +6,14 @@ import { statusOf } from "./inbox-events";
 
 /** A choice in the bar: one section, or All (every section stacked, as the page was). Collapsed has none of its own. */
 export type BarChoice = "action" | "working" | "fyi" | "done" | "all";
-export const BAR_CHOICES: readonly BarChoice[] = ["action", "working", "fyi", "done", "all"];
+const BAR_CHOICES: readonly BarChoice[] = ["action", "working", "fyi", "done", "all"];
 
 /** A section the list can draw: the open ones (Collapsed included) and Done, in the list's order. */
 export type BarSection = SectionKey | "done";
 const ORDER: readonly BarSection[] = ["action", "working", "fyi", "noise", "done"];
 
 /** `needs`: Needs you's count (what waits for the user); `neutral`: a passive total. Done and All carry none. */
-export type BarTone = "needs" | "neutral";
+type BarTone = "needs" | "neutral";
 export interface BarEntry {
   id: BarChoice;
   count: number | null;
@@ -22,7 +22,7 @@ export interface BarEntry {
 
 /** Why the list draws nothing under the choice: nothing open anywhere (caught_up, or filtered / no_match under the chips
  *  or the search), or only this choice is empty (section). */
-export type BarEmpty = "caught_up" | "section" | "filtered" | "no_match" | null;
+type BarEmpty = "caught_up" | "section" | "filtered" | "no_match" | null;
 
 /** Each section's rows under the filters and the search: Needs you's items and the Agents waiting, In progress, FYI,
  *  Collapsed, and the done rows loaded (the list's and its history's). */

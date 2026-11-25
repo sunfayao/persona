@@ -7,7 +7,7 @@ import type { Session } from "./types";
 import { byTime } from "./times";
 
 /** What a space's name is, as the sidebar and the pins call it. */
-export function spaceNameOf(s: Session): string {
+function spaceNameOf(s: Session): string {
   return s.space_name || s.space_id || "";
 }
 

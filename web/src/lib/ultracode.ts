@@ -16,7 +16,7 @@ import { isWarn, liveAccounts, sampleAge, windowMinutes, type UsageAccount } fro
 /** The hub takes the switch (hello `features`): an older hub never shows it. */
 export const ULTRACODE_FEATURE = "ultracode";
 /** The first Claude Code with the independent switch; older ones are refused (the node's version gate). */
-export const ULTRACODE_MIN_VERSION: readonly [number, number, number] = [2, 1, 284];
+const ULTRACODE_MIN_VERSION: readonly [number, number, number] = [2, 1, 284];
 /** Its name everywhere: a proper name, not translated (docs/protocol/i18n.md). */
 export const ULTRACODE = "ultracode";
 
@@ -222,7 +222,7 @@ export async function setUltracode(s: Session, on: boolean): Promise<{ ok: true 
 
 /** The node holds a message back while an ultracode change waits for the turn (docs/protocol/protocol.md "Claude Code ultracode":
  *  the next turn must not overtake it); the client keeps it and tries again once the change is through. */
-export const ULTRACODE_PENDING_CODE = "ultracode_pending";
+const ULTRACODE_PENDING_CODE = "ultracode_pending";
 
 export function isUltracodeQueued(e: unknown): boolean {
   return e instanceof ApiError && e.code === ULTRACODE_PENDING_CODE;

@@ -3,6 +3,5 @@
   "menu_empty": "Nothing to choose",
   "close": "Close",
   "copied": "Copied",
-  "copy_failed": "Couldn't copy",
-  "about": "About “{name}”"
+  "copy_failed": "Couldn't copy"
 }

@@ -575,7 +575,7 @@ function agentSession(e: ChainEntry): { key: string; machine: string; session: s
 }
 
 /** The handling chain: folded to the three newest entries, "Show all (N)" shows them all, oldest first. */
-export function Chain({ item, onSource }: { item: InboxItem; onSource: (at: SourceAt) => void }) {
+function Chain({ item, onSource }: { item: InboxItem; onSource: (at: SourceAt) => void }) {
   const view = useInboxView();
   const key = itemKey(item);
   const revision = view.revision;

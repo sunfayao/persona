@@ -20,7 +20,7 @@ import {
   type MachinePanes,
   type PaletteCommand,
 } from "./palette";
-import { bindingsOf, SHORTCUTS } from "./shortcuts";
+import { SHORTCUTS } from "./shortcuts";
 import { buildTerminalTree, type PanesResponse } from "./terminals";
 import type { Session } from "./types";
 
@@ -113,7 +113,7 @@ describe("context commands (the hook other modules register into)", () => {
 
 describe("registered commands", () => {
   const all = new Set(SHORTCUTS.map((s) => s.id));
-  const base = { bindings: bindingsOf({}), available: (id: string) => all.has(id), run: () => {}, machines: [] as { id: string; name: string }[] };
+  const base = { available: (id: string) => all.has(id), run: () => {}, machines: [] as { id: string; name: string }[] };
 
   it("lists every available command with its chord, grouped by where it works", () => {
     const list = appCommands(base);
@@ -126,10 +126,6 @@ describe("registered commands", () => {
   it("leaves out commands nothing handles", () => {
     const list = appCommands({ ...base, available: (id) => id === "settings" });
     expect(list.map((c) => c.id)).toEqual(["app:settings"]);
-  });
-  it("shows the user's chord, not the default", () => {
-    const list = appCommands({ ...base, bindings: bindingsOf({ jump: "Mod+Shift+O" }) });
-    expect(list.find((c) => c.id === "app:jump")!.chord).toBe("Mod+Shift+O");
   });
   it("runs a command by id", () => {
     const ran: unknown[][] = [];

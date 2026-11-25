@@ -2,7 +2,7 @@
 // quoting a turn's changes): importing it from code-view.ts put the whole code viewer on every first screen.
 import type { Hunk } from "./code-view";
 
-export type RowKind = "context" | "add" | "del" | "note";
+type RowKind = "context" | "add" | "del" | "note";
 
 /** One line of a hunk: its kind, its numbers in the old and the new file, its text without the prefix. */
 export interface DiffRow {

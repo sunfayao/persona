@@ -180,7 +180,7 @@ export function updateDraft(conversation: string, key: CardKey, f: (d: CardDraft
 
 /** What POST …/views/{key}/actions takes: the generated ViewActionInput, with expected_version always sent (the schema
  *  only requires it with confirm; the web names the version it showed on every submit). */
-export type ViewActionRequest = ViewActionInput & { expected_version: number };
+type ViewActionRequest = ViewActionInput & { expected_version: number };
 
 /** A version the hub takes: a safe positive integer (ViewActionInput.expected_version's minimum 1). */
 export const isCardVersion = (v: unknown): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= 1;
@@ -188,7 +188,7 @@ export const isCardVersion = (v: unknown): v is number => typeof v === "number" 
 export type SubmitOutcome = "sent" | "answered_elsewhere" | "changed" | "failed" | "busy";
 
 /** The path of a card's actions: the key escaped once, as one segment. */
-export const actionsPath = (conversation: string, key: CardKey) => `/assistant/conversations/${enc(conversation)}/views/${enc(key)}/actions`;
+const actionsPath = (conversation: string, key: CardKey) => `/assistant/conversations/${enc(conversation)}/views/${enc(key)}/actions`;
 
 /**
  * Submits a reply action at the version the user saw. The same request again ("Retry" after a failure) keeps its

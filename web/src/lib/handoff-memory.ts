@@ -5,7 +5,7 @@
  *  never synced, forgotten on sign-out. */
 import type { InboxMuteOption } from "./inbox";
 
-export const HANDOFF_MEMORY_KEY = "inbox.handOffBySource";
+const HANDOFF_MEMORY_KEY = "inbox.handOffBySource";
 export const HANDOFF_MEMORY_LIMIT = 200;
 /** Most specific first: an item from a repository goes by the repository, not by who wrote it. */
 const TAGS = ["repo", "chat", "sender"];

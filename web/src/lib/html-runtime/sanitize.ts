@@ -77,7 +77,7 @@ const SVG_ATTRS = new Set([
 ]);
 
 /** An element the card may not draw here, and nothing under it: script, iframe, object, link, meta, base, and the rest. */
-export function drawnTag(tag: string, ns: string): { tag: string; ns: string } | null {
+function drawnTag(tag: string, ns: string): { tag: string; ns: string } | null {
   if (ns === "svg") return SVG_TAGS.has(tag) ? { tag, ns } : null;
   const t = tag.toLowerCase();
   if (HTML_TAGS.has(t)) return { tag: t, ns: "" };
@@ -117,7 +117,7 @@ export function drawnAttr(tag: string, ns: string, name: string, value: string):
 }
 
 /** A canvas side the page will make: a whole number of pixels, within the bounds. */
-export function canvasSide(v: string): string | null {
+function canvasSide(v: string): string | null {
   const n = Number(v.trim());
   return Number.isInteger(n) && n >= 0 && n <= CANVAS_SIDE_MOST ? String(n) : null;
 }

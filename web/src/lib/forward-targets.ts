@@ -5,7 +5,7 @@ import { agentLabel, displayTitle, folderName } from "./mentions";
 import type { Session } from "./types";
 
 /** Recent targets shown at most (ForwardMemory keeps more). */
-export const RECENT_LIMIT = 5;
+const RECENT_LIMIT = 5;
 
 export interface TargetSection {
   id: string;
@@ -22,7 +22,7 @@ export const keyOf = (s: Pick<Session, "machine_id" | "session_id">) => `${s.mac
  *  live or (`ended`) one the send resumes; never Health's conversations or an archived chat. This page holds one hub
  *  (linked hubs' computers are its own), so every chat it has is on the same hub. */
 export function takesForward(s: Session, from: string, ended: boolean, online: (mid: string) => boolean): boolean {
-  if (keyOf(s) === from || !sessionCan(s, "send") || s.space === "health" || s.archived) return false;
+  if (keyOf(s) === from || !sessionCan(s, "send") || s.archived) return false;
   if (s.assistant) return true;
   return online(s.machine_id) && (ended || stateOf(s) !== "offline");
 }

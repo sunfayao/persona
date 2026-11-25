@@ -2,7 +2,7 @@
 // for this hub (localStorage is per origin, as Hand to AI's memory, lib/handoff-memory.ts): ids only, at most
 // FORWARD_MEMORY_LIMIT, never synced, forgotten on sign-out (lib/disconnect.ts).
 
-export const FORWARD_MEMORY_KEY = "forward.recentTargets";
+const FORWARD_MEMORY_KEY = "forward.recentTargets";
 export const FORWARD_MEMORY_LIMIT = 8;
 
 /** "persona" (the main chat) or "session:<machine>/<session>"; New agent is not a place to go back to. */

@@ -113,7 +113,7 @@ export function NetworkBlock({ p, onChanged, linked }: { p: AdminExtension; onCh
 }
 
 /** How a host the owner allowed reads: host, host:port, [v6]:port. */
-export function hostText(h: { host: string; port?: string }): string {
+function hostText(h: { host: string; port?: string }): string {
   const host = h.host.includes(":") ? `[${h.host}]` : h.host;
   return h.port ? `${host}:${h.port}` : host;
 }

@@ -3,7 +3,7 @@
 // other modules add commands through (`registerContextCommands`). Pure apart from the small store.
 import { t } from "../i18n";
 import { useSyncExternalStore } from "react";
-import { chordParts, SCOPE_LABEL, SHORTCUTS, DIGITS, type Bindings, type Platform } from "./shortcuts";
+import { chordParts, SCOPE_LABEL, SHORTCUTS, DIGITS, type Platform } from "./shortcuts";
 import type { Route } from "./router";
 import type { PaneState, TermSpace } from "./terminals";
 import type { AgentSurface } from "./agent-kind";
@@ -124,7 +124,6 @@ export function contextCommands(ctx: PaletteContext): PaletteCommand[] {
 }
 
 export interface AppCommandInput {
-  bindings: Bindings;
   /** Which commands have a handler here (shortcuts.ts handlerOf). */
   available: (id: string) => boolean;
   run: (id: string, digit?: number) => void;
@@ -140,7 +139,7 @@ export function appCommands(input: AppCommandInput): PaletteCommand[] {
   const out: PaletteCommand[] = [];
   for (const def of SHORTCUTS) {
     if (!input.available(def.id)) continue;
-    const chord = input.bindings[def.id] ?? def.chord;
+    const chord = def.chord;
     const section = SCOPE_LABEL[def.scope];
     if (chord.endsWith(`+${DIGITS}`)) {
       input.machines.slice(0, 9).forEach((m, i) => {
@@ -251,7 +250,7 @@ export function terminalHits(machines: readonly MachinePanes[], query: string): 
 // ── Inbox and "Go to" (the Mac's quick open, MacQuickOpen) ──────────
 
 /** Mac's match: the title starting with what is typed, then holding it, then every word somewhere; 1 with nothing typed. */
-export function textScore(title: string, hay: readonly (string | undefined)[], text: string): number {
+function textScore(title: string, hay: readonly (string | undefined)[], text: string): number {
   const q = text.trim().toLowerCase();
   if (!q) return 1;
   const ti = title.toLowerCase();
@@ -305,7 +304,7 @@ export interface InboxHit<T extends InboxLike = InboxLike> {
 }
 
 /** How many inbox items a jump lists (the Mac's otherLimit). */
-export const INBOX_LIMIT = 5;
+const INBOX_LIMIT = 5;
 
 /** The open inbox items whose title, sender, preview or account match: the best first, then the newest. */
 export function inboxHits<T extends InboxLike>(items: readonly T[], text: string, limit = INBOX_LIMIT): InboxHit<T>[] {

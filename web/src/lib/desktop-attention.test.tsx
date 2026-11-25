@@ -61,7 +61,7 @@ function desktopMock(overrides: Partial<DesktopBridge> = {}): DesktopBridge {
 }
 
 function Probe() {
-  useAttentionSignals("Persona", undefined);
+  useAttentionSignals("Persona");
   return null;
 }
 

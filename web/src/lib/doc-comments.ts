@@ -9,7 +9,7 @@ import type { LarkPerson } from "./lark-people";
 import { itemHeaders } from "./manager-choice";
 import { t } from "../i18n";
 
-export interface DocSegment {
+interface DocSegment {
   kind: string; // text | mention | link…
   text: string;
   href?: string;

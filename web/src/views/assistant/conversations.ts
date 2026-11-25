@@ -3,7 +3,7 @@ import type { Session } from "../../lib/types";
 import { t } from "../../i18n";
 
 /** What a row calls it: an untitled one (empty, or Claude Code's placeholder) is "New chat". The main conversation's title: it has none of its own (the hub refuses renaming it), whatever its first message was (#1313). */
-export const MAIN_TITLE = "Persona";
+const MAIN_TITLE = "Persona";
 
 export function conversationTitle(s: Pick<Session, "title">, isMain = false): string {
   if (isMain) return MAIN_TITLE;
@@ -27,12 +27,4 @@ function readableTitle(title: string): string {
   return typed || decodeAttr(/\btitle="([^"]*)"/.exec(open[1])?.[1] ?? "").trim();
 }
 
-function time(s: Session): number {
-  const at = s.updated_at ? Date.parse(s.updated_at) : NaN;
-  return Number.isFinite(at) && at > 86_400_000 ? at : 0;
-}
 
-/** Newest first, a fixed order for equal times. */
-export function newestFirst<T extends Session>(list: T[]): T[] {
-  return list.slice().sort((a, b) => time(b) - time(a) || a.session_id.localeCompare(b.session_id));
-}

@@ -27,10 +27,5 @@
   "cmd_collapse_tree": "サイドバーのグループをすべて折りたたむ",
   "cmd_expand_tree": "サイドバーのグループをすべて展開",
   "local_terminal_find": "ターミナル内を検索",
-  "local_terminal_find_note": "Windows / Linuxでターミナルを操作していないときはCtrl+Fも使えます",
-  "check_key": "このキーはショートカットに使えません",
-  "check_mod": "{mod}と組み合わせてください",
-  "check_digits": "この項目には数字キー1～9を使ってください",
-  "check_reserved": "{chord}：{why}。別のキーを選んでください",
-  "check_conflict": "「{label}」で使用中"
+  "local_terminal_find_note": "Windows / Linuxでターミナルを操作していないときはCtrl+Fも使えます"
 }

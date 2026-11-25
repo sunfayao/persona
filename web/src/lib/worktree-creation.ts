@@ -209,4 +209,3 @@ export function openChildWorktree(parent: WorkspaceTarget, options: { source?: W
   emitWorktreeRequest(request);
 }
 
-export const openNewWorktreeFromTarget = openChildWorktree;

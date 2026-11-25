@@ -52,9 +52,9 @@ export interface MarkdownOptions {
 }
 
 /** At most this much of a tool's result is kept in the document; the rest is said to be cut. */
-export const RESULT_MAX = 4000;
+const RESULT_MAX = 4000;
 /** At most this much of a tool's input, as JSON. */
-export const INPUT_MAX = 4000;
+const INPUT_MAX = 4000;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

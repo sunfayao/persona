@@ -6,7 +6,7 @@ import type { HostWorkspace } from "./workspace-catalog";
 
 /** The engines whose workspaces are checkouts and folders a start can name (`workspace_id` + `host`). A terminal host's
  *  space (herdr) is joined from its own menu, not chosen here. */
-export const START_SOURCES: ReadonlySet<string> = new Set(["orca", "paseo"]);
+const START_SOURCES: ReadonlySet<string> = new Set(["orca", "paseo"]);
 
 export type StartKind = "main" | "worktree" | "folder";
 const KIND_ORDER: Record<StartKind, number> = { main: 0, worktree: 1, folder: 2 };

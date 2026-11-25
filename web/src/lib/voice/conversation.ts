@@ -12,7 +12,7 @@ import {
 import type { Session } from "../types";
 import type { VoiceCue } from "./cues";
 
-export type VoiceLiveState = "listening" | "hearing" | "speaking";
+type VoiceLiveState = "listening" | "hearing" | "speaking";
 
 export type VoicePhase =
   | { kind: "connecting" }
@@ -59,7 +59,7 @@ export function endedByUser(end: VoiceEnd): boolean {
 }
 
 /** A read-only function tool at work. */
-export interface VoiceTool {
+interface VoiceTool {
   id: string;
   label: string;
 }
@@ -154,17 +154,17 @@ export interface VoiceDeps {
 }
 
 /** 1, 4 and 10 seconds before each of the three reconnects (docs/assistant/voice.md 1.2 M). */
-export const RETRY_DELAYS = [1000, 4000, 10_000];
+const RETRY_DELAYS = [1000, 4000, 10_000];
 /** A connection that has not said `ready` by then is given up like a dropped one. */
-export const READY_TIMEOUT = 15_000;
+const READY_TIMEOUT = 15_000;
 /** The user's caption stops counting as "hearing you" this long after it last changed. */
-export const HEARING_QUIET = 2000;
-export const IDLE_LIMIT = 600_000;
-export const IDLE_CHECK = 30_000;
+const HEARING_QUIET = 2000;
+const IDLE_LIMIT = 600_000;
+const IDLE_CHECK = 30_000;
 const RUN_LIMIT = 20;
 
 /** When a call that nothing happens in ends by itself (docs/assistant/voice.md 6.5). */
-export function idleExpired(o: { now: number; lastActivity: number; openRuns: boolean; targetWorking: boolean; playing: boolean }): boolean {
+function idleExpired(o: { now: number; lastActivity: number; openRuns: boolean; targetWorking: boolean; playing: boolean }): boolean {
   return !o.playing && !o.openRuns && !o.targetWorking && o.now - o.lastActivity >= IDLE_LIMIT;
 }
 
