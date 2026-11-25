@@ -20,10 +20,6 @@ import { MochiFace } from "./MochiFace";
 import { useReducedMotion } from "./face-motion";
 import { personaAccent, setPersonaAccent } from "../../ui/look";
 import { currentLanguage, t } from "../../i18n";
-import { tRich } from "../../i18n/rich";
-import { BASE } from "../../lib/base";
-import { navigate } from "../../lib/router";
-import { settingsHref } from "../settings/href";
 import { setLookIcon } from "../../lib/look-icon";
 
 // the upload dialog (picking, cropping, sending an image) loads on its first open, not with the persona page
@@ -410,37 +406,17 @@ function Swatches({ p }: { p: PersonaInfo }) {
 }
 
 /**
- * Avatar (Settings › General and the profile page; the app's Settings › Appearance › Avatar): the one setting for Persona's face, name, the
+ * Avatar (the profile page): the one setting for Persona's face, name, the
  * page's mark and icon (#3200): the default dumpling, then the hub's packages (including the bundled frog) and the
  * extensions' looks, and the chosen one's dot in each state. On a hub that keeps the choice every device follows it; the
  * page's colors follow it only with theme color "Match avatar" (ui/look.ts).
  */
-/**
- * What the picker says when the hub has no looks beyond the built-in ones: where to get one, with Settings › Extensions as a link
- * (#3597). onExtensions opens it in place (Settings keeps its own tab state); without it the link goes to the page.
- */
-export function NoOtherLooks({ onExtensions }: { onExtensions?: () => void }) {
-  const to = settingsHref("extensions", null, false);
-  const open = (e: React.MouseEvent) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    if (onExtensions) onExtensions();
-    else navigate(to);
-  };
-  return (
-    <p className="px-1 text-[11.5px] leading-relaxed text-ink-3">
-      {tRich("assistant-persona.none", {
-        extensions: (
-          <a href={BASE + to} onClick={open} className="text-accent hover:underline">
-            {t("assistant-persona.none_extensions")}
-          </a>
-        ),
-      })}
-    </p>
-  );
+/** What the picker says when the hub has no looks beyond the built-in ones. */
+export function NoOtherLooks() {
+  return <p className="px-1 text-[11.5px] leading-relaxed text-ink-3">{t("assistant-persona.none")}</p>;
 }
 
-export function PersonaPicker({ onExtensions }: { onExtensions?: () => void } = {}) {
+export function PersonaPicker() {
   const s = usePersonaStore();
   const current = usePersona();
   const lang = currentLanguage();
@@ -550,7 +526,7 @@ export function PersonaPicker({ onExtensions }: { onExtensions?: () => void } = 
         <p role="alert" className="min-w-0 flex-1 text-[11.5px] break-words text-orange">{s.error}</p>
         <Button icon="retry" onClick={load} busy={refreshing}>{t("assistant-persona.retry")}</Button>
       </div>}
-      {s.loaded && !s.error && !s.list.length && <NoOtherLooks onExtensions={onExtensions} />}
+      {s.loaded && !s.error && !s.list.length && <NoOtherLooks />}
       {uploads && (
         <LookUploadDialog
           key={upload.key}

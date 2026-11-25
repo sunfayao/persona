@@ -137,7 +137,6 @@ function useAssistantList(route: Route, badges: Record<string, number>, open: bo
     ? [
         ...[...listed, ...installing].map(row),
         { key: "new-assistant", label: t("sidebar.new_assistant"), icon: "plus" as const, divider: true, onSelect: () => setCreating(true) },
-        { key: "manage-assistants", label: t("sidebar.manage_assistants"), icon: "gear" as const, onSelect: () => navigate("/settings?tab=managers") },
       ]
     : [];
   const dialogs = (

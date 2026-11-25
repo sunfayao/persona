@@ -5,11 +5,7 @@ import { t } from "../../i18n";
 import type { VoiceAvailability } from "./availability";
 import type { VoiceEnd } from "./conversation";
 
-/** Where "Open settings" goes: an in-app path. */
-export function extensionSettings(id?: string): string {
-  return id ? `/settings?tab=extensions&extension=${encodeURIComponent(id)}` : "/settings?tab=extensions";
-}
-
+/** Where "Open settings" goes (the voice model's purpose): an in-app path. */
 export function modelSettings(id: string): string {
   return `/settings?tab=model-config&purpose=${encodeURIComponent(`plugin.${id}`)}`;
 }
@@ -18,7 +14,7 @@ export function modelSettings(id: string): string {
 export interface VoiceUnavailableNote {
   title: string;
   message: string;
-  /** Settings › Extensions (› the voice extension). */
+  /** Settings › Models › the voice model's purpose, when the problem is the model. */
   settings?: string;
   /** Open this page over HTTPS: the hub's advertised address, when it has one. */
   https?: string;
@@ -28,10 +24,10 @@ export function unavailableNote(a: VoiceAvailability, https: string | null): Voi
   switch (a.kind) {
     case "needsSetup": {
       const why = a.reasons.filter(Boolean).join("\n");
-      return { title: t("voice.unavailable_setup_title"), message: why || t("voice.unavailable_setup"), settings: extensionSettings(a.extensionID) };
+      return { title: t("voice.unavailable_setup_title"), message: why || t("voice.unavailable_setup") };
     }
     case "outdated":
-      return { title: t("voice.unavailable_outdated_title"), message: t("voice.unavailable_outdated"), settings: extensionSettings() };
+      return { title: t("voice.unavailable_outdated_title"), message: t("voice.unavailable_outdated") };
     case "insecure":
       return https
         ? { title: t("voice.unavailable_insecure_title"), message: t("voice.unavailable_insecure_https"), https }
@@ -76,7 +72,7 @@ export function endNote(end: VoiceEnd, extensionID: string): VoiceEndNote | null
     case "rejected":
       if (end.status === 401) return note(t("voice.end_rejected_token"), null);
       if (end.status === 403) return note(t("voice.end_rejected_limited"), null);
-      return note(t("voice.end_rejected_missing"), "retry", { settings: extensionSettings() });
+      return note(t("voice.end_rejected_missing"), "retry");
     case "incompatible":
       return note(t("voice.end_incompatible"), null);
     case "modelUnavailable":
@@ -86,13 +82,13 @@ export function endNote(end: VoiceEnd, extensionID: string): VoiceEndNote | null
     case "failed":
       switch (end.code) {
         case "upstream_forbidden":
-          return note(t("voice.end_upstream_forbidden"), "retry", { settings: extensionSettings(extensionID), details: end.message });
+          return note(t("voice.end_upstream_forbidden"), "retry", { details: end.message });
         case "upstream_unavailable":
           return note(t("voice.end_upstream_unavailable"), "retry", { details: end.message });
         case "upstream_failed":
           return note(t("voice.end_upstream_failed"), "retry", { details: end.message });
         case "no_upstream":
-          return note(t("voice.unavailable_setup_title"), "retry", { settings: extensionSettings(extensionID), details: end.message });
+          return note(t("voice.unavailable_setup_title"), "retry", { details: end.message });
         case "target_gone":
         case "target_read_only":
           return note(t("voice.end_target"), null, { details: end.message });

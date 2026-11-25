@@ -88,13 +88,11 @@ describe("what is said after Always", () => {
   it("the rule made, and where it is listed and removed", () => {
     expect(ruleResult(ruleSuggestion(plan)!, { ok: true, kind: "plan_start", creates: "tasks.trust", key: "k" })).toEqual({
       text: "Remembered: tasks like this now start without asking.",
-      where: "Listed and removed in Settings › Assistant profile › Remembered auto-start rules.",
-      page: "/settings?tab=persona",
+      where: "Ask the main conversation to list or remove it.",
     });
     expect(ruleResult(ruleSuggestion(standing)!, { ok: true, kind: "standing_authorization", creates: "standing_authorization", authorization: { directory: "/code/example" } })).toEqual({
       text: "Standing authorization added.",
-      where: "Listed and removed in Settings › Assistant profile › Standing authorizations.",
-      page: "/settings?tab=persona",
+      where: "Ask the main conversation to list or remove it.",
     });
   });
 

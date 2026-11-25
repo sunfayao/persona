@@ -61,8 +61,6 @@ describe("settings read retries", () => {
   it.each([
     { tab: "devices", path: "/auth/tokens", keepsError: true, result: { tokens: [{ id: "browser", name: "Example browser", kind: "web", role: "full" }], current: "browser" }, content: "Example browser" },
     { tab: "models", path: "/launchers", keepsError: false, result: { launchers: [{ name: "example", display_name: "Example provider", source: "persona" }] }, content: "Example provider" },
-    { tab: "hub", path: "/hub/update", keepsError: false, result: { version: "1.2.3", build: 123, channel: "release", can_update: true, state: "idle", busy: [], auto: false, auto_notice: false, confirmed: true }, content: "1.2.3" },
-    { tab: "persona", path: "/assistant", keepsError: false, result: { machine_id: "example-computer", notes_effective: "Example notes" }, content: "example-computer" },
   ])("retries $tab without changing categories and can recover after another failure", async ({ tab, path, keepsError, result, content }) => {
     await render(tab, path);
     expect(host.textContent).toContain(t("common.loading"));
@@ -98,13 +96,5 @@ describe("settings read retries", () => {
     expect(host.textContent).not.toContain("still unavailable");
     expect(retry()).toBeUndefined();
     expect(location.search).toBe(`?tab=${tab}`);
-  });
-
-  it("keeps the older hub's unsupported message when its update endpoint is missing", async () => {
-    await render("hub", "/hub/update");
-    await fail(0, new ApiError(404, "not found", {}));
-    expect(host.textContent).toContain(t("settings-hubsettings.unsupported"));
-    expect(retry()).toBeUndefined();
-    expect(host.textContent).not.toContain(t("common.loading"));
   });
 });

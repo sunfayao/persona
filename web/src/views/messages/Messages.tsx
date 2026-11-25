@@ -20,7 +20,6 @@ import { Icon } from "../../ui/icons";
 import { Chip, Count, LarkAvatar } from "../inbox/InboxParts";
 import { LarkThread } from "../inbox/LarkThread";
 
-const SETTINGS = "/settings?tab=connectors";
 
 export function Messages({ id, onToggleSidebar }: { id?: string; onToggleSidebar: () => void }) {
   const lark = useLarkOn();
@@ -101,7 +100,6 @@ export function Messages({ id, onToggleSidebar }: { id?: string; onToggleSidebar
             <>
               <p className="text-[13.5px] font-medium text-ink">{t("messages-messages.off_title")}</p>
               <p className="max-w-[340px] text-[12.5px] text-ink-3">{t("messages-messages.off_hint")}</p>
-              <Button tone="secondary" icon="gear" className="mt-2" onClick={() => navigate(SETTINGS)}>{t("messages-messages.goto_lark_settings")}</Button>
             </>
           ) : (
             <>
@@ -125,7 +123,6 @@ export function Messages({ id, onToggleSidebar }: { id?: string; onToggleSidebar
         {s.loading && s.loaded && <Spinner />}
         {id && <IconButton icon="pin" label={t("messages-messages.pin_messages")} onClick={() => setPins(true)} />}
         <IconButton icon="retry" label={t("messages-messages.refresh")} onClick={() => void larkChats.refresh()} disabled={s.loading} />
-        <IconButton icon="gear" label={t("messages-messages.lark_settings")} onClick={() => navigate(SETTINGS)} />
       </header>
       <div className="flex min-h-0 flex-1">
         <section aria-label={t("messages-messages.chat_list")} className={cx("min-h-0 w-full flex-col @4xl:flex @4xl:w-[380px] @4xl:shrink-0 @4xl:border-r @4xl:border-line", id ? "hidden" : "flex")}>
@@ -219,10 +216,8 @@ function ChatList({ selected, store: larkChats, accounts }: { selected?: string;
           <div className="mt-3 flex items-start gap-3 rounded-[14px] bg-surface px-3 py-3 shadow-card">
             <Icon name="info" size={14} className="mt-0.5 shrink-0 text-orange" />
             <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-ink-2">{s.problem.text}</p>
-            {s.problem.kind === "other" ? (
+            {s.problem.kind === "other" && (
               <Button tone="secondary" icon="retry" busy={s.loading} onClick={() => void larkChats.refresh()}>{t("messages-messages.retry")}</Button>
-            ) : (
-              <Button tone="secondary" icon="gear" onClick={() => navigate(SETTINGS)}>{t("messages-messages.lark_settings")}</Button>
             )}
           </div>
         )}

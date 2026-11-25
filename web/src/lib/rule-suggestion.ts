@@ -112,24 +112,22 @@ export interface RuleMade {
   setting?: string;
 }
 
-/** What is said once Always went through: what was made, and where it is listed and removed. `page` is where this
- *  app lists it; `delegate` stores nothing and its setting has no switch in any app yet (the assistant's configuration
- *  file on the hub's computer), so it has none. */
+/** What is said once Always went through: what was made, and where it is listed and removed (by asking the main
+ *  conversation; `delegate` stores nothing and its setting has no switch in any app yet: the assistant's configuration
+ *  file on the hub's computer). */
 export interface RuleResult {
   text: string;
   where: string;
-  page?: string;
 }
 
 export function ruleResult(s: RuleSuggestion & { kind: RuleKind }, made: RuleMade): RuleResult {
   const kind = KINDS.includes(made.kind ?? "") ? (made.kind as RuleKind) : s.kind;
-  // both lists are on the assistant's own settings page, each under its own heading
-  const where = (list: string) => t("assistant-rulesuggestion.where", { tab: t("settings-nav.tab_profile"), list });
+  const where = t("assistant-rulesuggestion.where");
   switch (kind) {
     case "plan_start":
-      return { text: t("assistant-rulesuggestion.made_plan_start"), where: where(t("settings-assistantsettings.trust_title")), page: "/settings?tab=persona" };
+      return { text: t("assistant-rulesuggestion.made_plan_start"), where };
     case "standing_authorization":
-      return { text: t("assistant-rulesuggestion.made_standing"), where: where(t("settings-standing.title")), page: "/settings?tab=persona" };
+      return { text: t("assistant-rulesuggestion.made_standing"), where };
     case "delegate":
       return { text: t("assistant-rulesuggestion.made_delegate"), where: t("assistant-rulesuggestion.where_delegate", { setting: made.setting || s.setting || "agents.delegate" }) };
   }

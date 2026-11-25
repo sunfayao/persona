@@ -23,9 +23,3 @@ export function useHelpOpen(): boolean {
     () => open,
   );
 }
-
-/** Settings › Keyboard shortcuts (also when Settings is the page already: its category follows the address). */
-export function openShortcutSettings(go: (to: string) => void) {
-  go("/settings?tab=shortcuts");
-  dispatchEvent(new PopStateEvent("popstate"));
-}

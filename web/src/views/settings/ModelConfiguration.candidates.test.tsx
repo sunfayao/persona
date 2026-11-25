@@ -7,7 +7,6 @@ vi.hoisted(() => {
   window.matchMedia ??= ((query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })) as typeof window.matchMedia;
 });
 vi.mock("./ConfigurationManager", () => ({ ConfigurationManager: ({ children }: { children: (id: string) => unknown }) => children("manager-b") }));
-vi.mock("./ModelProfiles", () => ({ ModelProfiles: () => null }));
 vi.mock("../../lib/store", () => ({ useStore: (select: (s: { machines: []; features: [] }) => unknown) => select({ machines: [], features: [] }) }));
 vi.mock("../../ui/atoms", async (original) => ({ ...(await original<typeof import("../../ui/atoms")>()), toast: vi.fn() }));
 import { formatDate, initI18n, t } from "../../i18n";

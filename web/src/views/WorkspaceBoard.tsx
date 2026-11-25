@@ -67,7 +67,7 @@ function BoardPage({ onToggleSidebar, children }: { onToggleSidebar?: () => void
 }
 
 /** One message in place of the board, with the one thing to do about it. */
-function BoardNotice({ title, body, action, alert }: { title: string; body: string; action: React.ReactNode; alert?: boolean }) {
+function BoardNotice({ title, body, action, alert }: { title: string; body: string; action?: React.ReactNode; alert?: boolean }) {
   return <div role={alert ? "alert" : undefined} className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
     <Icon name="layers" size={28} className="text-ink-3" />
     <h2 className="text-base font-semibold text-ink">{title}</h2>
@@ -76,12 +76,9 @@ function BoardNotice({ title, body, action, alert }: { title: string; body: stri
   </div>;
 }
 
-const openHubSettings = () => navigate("/settings?tab=hub");
-
 /** What /workspace-board says while the board is off: where to turn it on. */
 export function WorkspaceBoardOff() {
-  return <BoardNotice title={t("workspace-board.off_title")} body={t("workspace-board.off_body")}
-    action={<Button tone="primary" icon="gear" className="whitespace-nowrap" onClick={openHubSettings}>{t("workspace-board.open_settings")}</Button>} />;
+  return <BoardNotice title={t("workspace-board.off_title")} body={t("workspace-board.off_body")} />;
 }
 
 function Board({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
@@ -189,8 +186,7 @@ function Board({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   // the board's controls (they would change nothing) and no Retry (the page reads again by itself, so an update shows it).
   // The title says what to do, so the body gives only why (state.error, the inline line's words, says to update again).
   if (state.unsupported && !board) return <BoardPage onToggleSidebar={onToggleSidebar}>
-    <BoardNotice title={t("workspaceboard.unsupported_title")} body={t("workspaceboard.unsupported_body")}
-      action={<Button tone="primary" icon="gear" className="whitespace-nowrap" onClick={openHubSettings}>{t("workspaceboard.open_hub_settings")}</Button>} />
+    <BoardNotice title={t("workspaceboard.unsupported_title")} body={t("workspaceboard.unsupported_body")} />
   </BoardPage>;
   return <div ref={selection.containerRef} className="@container flex h-full flex-col bg-page">
     <span data-board-wide aria-hidden="true" className="pointer-events-none invisible absolute hidden @3xl:block" />

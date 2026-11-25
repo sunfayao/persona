@@ -6,7 +6,6 @@ import { initI18n } from "../../i18n";
 import { setToken } from "../../lib/api";
 import type { KBDetailResponse, KBList } from "../../lib/kb";
 import { setRosterDefault } from "../../lib/manager-choice";
-import { KnowledgeTopicsSwitch } from "../settings/KnowledgeTopics";
 import { EntryDetail } from "./KBDetail";
 import { KnowledgeMap } from "./KnowledgeMap";
 
@@ -133,29 +132,5 @@ describe("the knowledge map", () => {
     await answer("/api/v1/kb/projects/alpha", { detail: { kind: "projects", id: "alpha", path: "", meta: { name: "Project Alpha", goal: "Ship it" } } });
     expect(host.querySelector("svg[data-map]")?.getAttribute("aria-label")).toBe("Mind map: Projects");
     expect(tab.getAttribute("aria-selected")).toBe("true");
-  });
-});
-
-describe("the knowledge points switch", () => {
-  it("reads the setting as on when unset, and writes the change", async () => {
-    act(() => root.render(<KnowledgeTopicsSwitch manager="assistant" />));
-    await answer("/api/v1/assistant", {});
-    const sw = host.querySelector<HTMLButtonElement>("[role=switch]")!;
-    expect(sw.getAttribute("aria-checked")).toBe("true");
-    act(() => sw.click());
-    const put = requests.find((r) => r.init.method === "PUT")!;
-    expect(JSON.parse(put.init.body as string)).toEqual({ kb_topics: false });
-    expect(new Headers(put.init.headers).get("X-Persona-Manager")).toBe("assistant");
-    await reply(put, { kb_topics: false });
-    expect(sw.getAttribute("aria-checked")).toBe("false");
-  });
-
-  it("puts the switch back when the write fails", async () => {
-    act(() => root.render(<KnowledgeTopicsSwitch manager="assistant" />));
-    await answer("/api/v1/assistant", { kb_topics: false });
-    const sw = host.querySelector<HTMLButtonElement>("[role=switch]")!;
-    act(() => sw.click());
-    await reply(requests.find((r) => r.init.method === "PUT")!, { error: "nope" }, 500);
-    expect(sw.getAttribute("aria-checked")).toBe("false");
   });
 });

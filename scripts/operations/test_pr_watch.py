@@ -1782,16 +1782,15 @@ class WatcherTests(unittest.TestCase):
             with patch.object(pr_watch_verify, "run_check", return_value={"name": "test", "ok": True}) as check, \
                     patch.object(pr_watch_verify, "checked", return_value=names):
                 pr_watch_verify.verify("example/one", pr(), str(root), {"profile": "persona"})
-        self.assertEqual(commands[2], ("Changed web tests", ["node", "./node_modules/vitest/vitest.mjs", "run",
+        self.assertEqual(commands[1], ("Changed web tests", ["node", "./node_modules/vitest/vitest.mjs", "run",
                                                              "src/views/chat/ContextGroup.test.tsx"], "web"))
         guard = next(command[1] for command in commands if command[0] == "Changed test-file baseline guards")
         self.assertEqual(guard[guard.index("--worktree") + 1], str(root))
         self.assertFalse(any(command[0] in {"CI web", "CI scripts"} for command in commands))
         self.assertTrue(any(command[0] == "Web typecheck" for command in commands))
         self.assertTrue(any(command[0] == "Privacy and documentation guards" for command in commands))
-        self.assertTrue(any(command[0] == "Web extension mirror cleanup tests" for command in commands))
         self.assertEqual(check.call_args_list[0].kwargs["cwd"], str(root / "web"))
-        self.assertEqual(check.call_args_list[2].kwargs["cwd"], str(root / "web"))
+        self.assertEqual(check.call_args_list[1].kwargs["cwd"], str(root / "web"))
 
     def test_production_apple_fix_does_not_use_test_only_fast_path(self):
         self.assertIsNone(pr_watch_verify.scoped_test_checks(".", SHA_BASE, SHA_A,

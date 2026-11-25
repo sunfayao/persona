@@ -100,7 +100,7 @@ describe("the words around a call", () => {
   it("explains HTTP with the hub's HTTPS address when it has one", () => {
     expect(unavailableNote({ kind: "insecure", extensionID: "voice" }, "https://hub.example.com/s/m/s")).toMatchObject({ title: "麦克风要在 HTTPS 下才能用", https: "https://hub.example.com/s/m/s" });
     expect(unavailableNote({ kind: "insecure", extensionID: "voice" }, null)?.https).toBeUndefined();
-    expect(unavailableNote({ kind: "needsSetup", extensionID: "voice", reasons: ["No key"] }, null)).toEqual({ title: "还没配实时语音服务", message: "No key", settings: "/settings?tab=extensions&extension=voice" });
+    expect(unavailableNote({ kind: "needsSetup", extensionID: "voice", reasons: ["No key"] }, null)).toEqual({ title: "还没配实时语音服务", message: "No key" });
     expect(unavailableNote({ kind: "available", extensionID: "voice" }, null)).toBeNull();
   });
 
@@ -112,7 +112,7 @@ describe("the words around a call", () => {
     expect(endNote({ kind: "permissionDenied" }, "voice")).toMatchObject({ again: "retry" });
     expect(endNote({ kind: "rejected", status: 401 }, "voice")).toMatchObject({ again: null });
     expect(endNote({ kind: "failed", code: "upstream_forbidden", message: "401 from upstream" }, "voice")).toEqual({
-      text: "连不上实时语音服务（Key 不对，或所在地区不支持）", again: "retry", settings: "/settings?tab=extensions&extension=voice", details: "401 from upstream",
+      text: "连不上实时语音服务（Key 不对，或所在地区不支持）", again: "retry", details: "401 from upstream",
     });
     expect(endNote({ kind: "modelUnavailable", why: "读不到插件模型列表" }, "voice")).toMatchObject({ settings: "/settings?tab=model-config&purpose=plugin.voice" });
     expect(endNote({ kind: "failed", message: "" }, "voice")).toEqual({ text: "语音出了问题", again: "retry", details: undefined });

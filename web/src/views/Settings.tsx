@@ -1,57 +1,28 @@
 import { managedProvider } from "../lib/compatibility";
-// Settings (docs/web/web.md): appearance, where the assistant runs, "Models" (every launcher: rc-file and PATH ones synced, the
-// built-in claude, Persona ones kept by the hub — docs/integrations/launchers.md), this browser and the other devices, about. The same data as the app's Settings.
+// Settings (docs/web/web.md): appearance and language, this browser, "Notifications" (this browser's), "Models" (every
+// launcher: rc-file and PATH ones synced, the built-in claude, Persona ones kept by the hub — docs/integrations/launchers.md)
+// and the other devices. Everything else is changed by telling the main conversation.
 import { BASE, stripBase } from "../lib/base";
 import { href } from "../lib/router";
-import { takeOverlayEntry } from "../lib/back-close";
 import { useScrollMemory } from "../lib/scroll-memory";
-import { Suspense, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { api, enc, errorText } from "../lib/api";
 import { splitDevices } from "../lib/devices";
 import { ago } from "../lib/format";
 import { agentName, isTraeCli } from "../lib/agent-kind";
 import { install, useInstall, type InstallState } from "../lib/pwa";
 import { useStore } from "../lib/store";
-import { composing } from "../lib/send-history";
 import { Button, cx, Dialog, EASE, IconButton, Loading, Menu, Spinner, toast, useMenu } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
-import { ExtensionThemePicker } from "../ui/ExtensionThemePicker";
 import { setTheme, useTheme, type Theme } from "./theme";
-import { Group, Row, Pill, RowConfirm, Switch } from "./settings/SettingsParts";
+import { Group, Row, Pill, RowConfirm } from "./settings/SettingsParts";
 import { LanguageRow } from "./settings/LanguageRow";
-import { FontRows, RecentChatsRow, SidebarIconsRow, SidebarUsageRow, TextSizeRow, ThemeColorPicker } from "./settings/LookSettings";
-import { setStarredEnabled, useStarredSetting } from "../lib/starred-summary";
-import { setReplyMotionEnabled, useReplyMotionSetting } from "../ui/stream/motion";
-import { setAgentDetails, useAgentDetails } from "../lib/context-usage";
-import { setSidebarTerminals, useSidebarTerminals } from "../lib/sidebar-terminals";
-import { HubList } from "./Hubs";
 import { useDisconnect } from "./DisconnectBrowser";
-import { KnowledgeSelection } from "./settings/KnowledgeSelection";
-import { SavedPrompts } from "./settings/SavedPrompts";
-import { SourcesUI } from "./subscriptions/SourcesUI";
-import { useInboxSourcesShown } from "../lib/subscriptions";
 import { ModelConfiguration } from "./settings/ModelConfiguration";
-import { HiddenAgentDirs } from "./settings/HiddenAgentDirs";
-import { AgentSettings } from "./settings/AgentSettings";
-import { SidebarPagesGroup } from "./settings/SidebarPages";
-import { StartPageGroup } from "./settings/StartPage";
-import { AgentsDisplayRow } from "./settings/AgentsDisplayRow";
-import { AgentGroup } from "./settings/AgentGroup";
-import { AssistantSettings } from "./settings/AssistantSettings";
-import { PersonaPicker } from "./assistant/Persona";
-import { TriageSettings } from "./settings/TriageSettings";
-import { TranslationSettings } from "./settings/TranslationSettings";
-import { ShortcutSettings } from "./settings/ShortcutSettings";
 import { NotificationSettings } from "./settings/NotificationSettings";
 import { DesktopSettings } from "./settings/DesktopSettings";
-import { DevModeRows } from "./settings/DevModeSettings";
-import { ChannelList, ChannelPage } from "./settings/Channels";
 import { ConnectDevice } from "./settings/ConnectDevice";
-import { settingsTarget } from "../lib/channels";
-import { extensionsRoute, routeSub } from "../lib/extension-market";
-import { otherManager, ownedSub, parseOwnedSub, pinManagerAt, useChosenManager } from "../lib/manager-choice";
-import { HubSettings } from "./settings/HubSettings";
-import { ManagersSettings } from "./settings/ManagersSettings";
+import { otherManager, pinManagerAt, useChosenManager } from "../lib/manager-choice";
 import { LauncherQuota } from "./settings/LauncherQuota";
 import { LauncherExtensionSections } from "./settings/ExtensionView";
 import { hubHasExt } from "../lib/extension-api";
@@ -64,15 +35,9 @@ import { dropImportLink, importLinkHeld, onImportLink } from "../lib/import-link
 import { linkable } from "../lib/provider-link";
 import { ProviderLinkCopy } from "./settings/ProviderLinkCopy";
 import { builtinRows, loadLaunchers, rcFilesOf, rcGroups, syncStateText, type LauncherSync } from "../lib/launcher-list";
-import { TerminalModeRow } from "./settings/TerminalModeSetting";
-import { AgentOpenRow } from "./settings/AgentOpenSetting";
-import { BusySendRow } from "./settings/BusySendSetting";
-import { AGENT_KINDS, ASSISTANT_TABS, categoryState, FROM_LIST, itemIsPage, itemState, NAV_GROUPS, openedFromSub, redirectLegacySettings, settingsAt, settingsHref, SENT_SUB, stepsToList, TAB_INFO, TABS, type AgentTab, type SettingsSection, type Tab } from "./settings/nav";
-import { searchSettings, type SearchGroup } from "./settings/search";
-import { GroupAction, GroupFooter, GroupTitle, hasFooter } from "./settings/SettingsGroups";
+import { ASSISTANT_TABS, categoryState, FROM_LIST, redirectLegacySettings, settingsAt, settingsHref, stepsToList, TAB_INFO, TABS, type SettingsSection, type Tab } from "./settings/nav";
 import { SHEET_QUERY, useMedia } from "../ui/overlay";
 import { lazyDialog, lazyOverlay, useOpened } from "./LazyOverlay";
-import { lazyPage } from "../lib/lazy-page";
 import { formatList, t } from "../i18n";
 
 // ── types (docs/integrations/launchers.md) ───────────────────────────
@@ -134,9 +99,8 @@ interface DeviceToken {
 const enLauncher = (n: string) => `/launchers/${enc(n)}`;
 
 /** What the current assistant's pages ask of its manager besides their merged lists and configuration editors (which
- *  name it themselves): the model providers, session triage, mail accounts, the chat connector (all its routes: accounts, status, message display), the
- *  chat bot, and the messages sent as you. Pinned to the current assistant while one of those pages is open. */
-const ASSISTANT_PREFIXES = ["/launchers", "/agents/triage", "/mail", "/lark", "/bots", "/connectors/sent"];
+ *  name it themselves): the model providers. Pinned to the current assistant while the Models page is open. */
+const ASSISTANT_PREFIXES = ["/launchers"];
 
 export function tokens(n: number): string {
   if (n >= 1_000_000 && n % 100_000 === 0) return `${n % 1_000_000 === 0 ? n / 1_000_000 : (n / 1_000_000).toFixed(1)}M`;
@@ -146,35 +110,20 @@ export function tokens(n: number): string {
 
 // ── page ────────────────────────────────────────────────
 
-// The Extensions and Connectors pages, with what only they draw (the market, an extension's own settings and sign-in, the
-// hub's connectors, the Lark bot, the sent-message rules), are about 44% of what the Settings chunk renders (#8897):
-// chunks of their own, loaded when one of them is opened, or ahead of it when the pointer or the focus reaches its row in
-// the sidebar (NavRow). Every other category draws with the Settings chunk as before.
-const Extensions = lazyPage(() => import("./settings/Extensions").then((m) => m.Extensions));
-const Connectors = lazyPage(() => import("./settings/Connectors").then((m) => m.Connectors));
-// Labs and its configuration form come with their own chunk, on first open (src/startup-preload.ts FIRST_SCREEN_BUDGET)
-const LabsSettings = lazyPage(() => import("./settings/Labs").then((m) => m.LabsSettings));
-const TAB_PAGES: Partial<Record<Tab, { preload: () => Promise<unknown> }>> = { extensions: Extensions, connectors: Connectors };
-// a failed load is not kept (lazyPage): opening the page asks again, and PageBoundary shows the failure then
-const preloadTab = (k: Tab) => void TAB_PAGES[k]?.preload().catch(() => {});
-
 function readSettingsLocation() {
-  const redirect = redirectLegacySettings(location.search, location.hash, stripBase(location.pathname));
+  const redirect = redirectLegacySettings(location.search, location.hash);
   if (redirect) history.replaceState(history.state, "", BASE + redirect);
   return settingsAt(location.search, location.hash);
 }
 
 export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const phone = useMedia(SHEET_QUERY);
-  // list pages (channels / connectors / extensions) keep their list beside the open item from this width
-  const twoCol = useMedia("(min-width: 900px)");
-  // The category (null: none named, the phone's list) and the purpose (model configuration) or extension ("Extensions") it has open.
+  // The category (null: none named, the phone's list) and the purpose (model configuration) it has open.
   const [at, setAt] = useState(readSettingsLocation);
   // Back from a category opened from the list: the URL went back, the page follows it.
   useEffect(() => {
     const back = () => {
-      const path = stripBase(location.pathname);
-      if (path !== "/settings" && path !== "/settings/sent" && path !== "/settings/sent/") return;
+      if (stripBase(location.pathname) !== "/settings") return;
       const now = readSettingsLocation();
       setAt((was) => (was.tab === now.tab && was.sub === now.sub && was.section === now.section ? was : now));
     };
@@ -183,25 +132,23 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   }, []);
   const listed = phone && !at.tab;
   const tab: Tab = at.tab ?? "general";
-  // one scroller shows the list and every page: each keeps its own spot, and Back to the list lands where it was (#5133).
-  // An item that opens in a dialog over its category's page (a model purpose) is not a page: the key leaves it out, so
-  // opening and closing it leave the page where it was (#4282).
+  // one scroller shows the list and every page: each keeps its own spot, and Back to the list lands where it was.
+  // A purpose opens in a dialog over the Models page, not a page: the key leaves it out, so opening and closing it
+  // leave the page where it was.
   const scroller = useRef<HTMLDivElement>(null);
-  useScrollMemory(scroller, listed ? "settings" : `settings/${tab}/${itemIsPage(tab) ? (at.sub ?? "") : ""}`);
+  useScrollMemory(scroller, listed ? "settings" : `settings/${tab}`);
   const { sub } = at;
-  // The current assistant's group (docs/assistant/managers.md "The current assistant"): its pages read and write that
-  // assistant only. Their merged lists are filtered by it, its configuration editors name it, and what else they ask of
-  // its manager (ASSISTANT_PREFIXES) names it while the page is open.
+  // The Models page reads and writes the current assistant only (docs/assistant/managers.md "The current assistant"):
+  // its model providers ask that assistant's manager while the page is open.
   const picked = useChosenManager();
   useLayoutEffect(() => (ASSISTANT_TABS.has(tab) ? pinManagerAt(ASSISTANT_PREFIXES, otherManager(picked ?? undefined)) : undefined), [tab, picked]);
-  // Another assistant made current with one of the group's items open (a connector, an extension, a channel, a model
-  // purpose): that item is the last assistant's, so the page goes back to its list, which then lists the new one's.
+  // Another assistant made current with a purpose open: that purpose is the last assistant's, so the page goes back to its list.
   const [pickSeen, setPickSeen] = useState(picked);
   if (pickSeen !== picked) {
     setPickSeen(picked);
     if (ASSISTANT_TABS.has(tab) && sub) setAt({ tab, sub: null, section: null });
   }
-  // the address follows an item closed so
+  // the address follows a purpose closed so
   useLayoutEffect(() => {
     if (ASSISTANT_TABS.has(tab) && !sub && settingsAt(location.search, location.hash).sub) history.replaceState(categoryState(history.state), "", BASE + settingsHref(tab, null, phone));
   }, [tab, sub, phone]);
@@ -217,37 +164,17 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
     const timer = setTimeout(() => observer.disconnect(), 500);
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, [tab, at.section, listed]);
-  // "Extensions" only on a hub with the extension base (docs/extensions/extensions.md "The hub's API"); a link to it still opens it.
-  const hasExtensions = useStore((s) => hubHasExt(s.features, "manager"));
-  const hasChannels = useStore((s) => s.features.includes("channels"));
-  // Inbox Sources (#5278) only with a manager that draws them; a link to it still opens it
-  const hasSources = useInboxSourcesShown();
-  const shown = (k: Tab) => (k !== "extensions" || hasExtensions || tab === "extensions") && (k !== "channels" || hasChannels || tab === "channels") &&
-    (k !== "sources" || hasSources || tab === "sources");
   const contentId = useId();
   const configurationOwner = useRef<string | null>(new URLSearchParams(location.search).get("manager"));
   const pick = (k: Tab, id: string | null = null, section?: SettingsSection) => {
     configurationOwner.current = new URLSearchParams(location.search).get("manager") ?? configurationOwner.current;
     const state: unknown = history.state;
-    // Out of an item's page opened on its category's page: back to that page's entry, as Back does, so neither a copy of
-    // it nor the item is left to go back to. A sheet open over the item has an entry of its own on top: off with both,
-    // its marker taken first so its close does not go back once more.
-    if (k === tab && sub && !id && openedFromSub(state)) {
-      setAt({ tab: k, sub: null, section: section ?? null });
-      if (!takeOverlayEntry()) return history.back();
-      history.replaceState(null, "", location.href);
-      return history.go(-2);
-    }
     setAt({ tab: k, sub: id, section: section ?? null });
-    // the hub's page keeps its own choice of manager (the download mirrors); the current assistant's pages follow the pick
-    const to = settingsHref(k, id, phone, k === "hub" ? configurationOwner.current : null, section);
-    // from the phone's list the category goes on top of it, and an item's page on top of its category's page, so Back
-    // returns to each; another item of the category keeps the entry's way back, another category only the way to the list
+    const to = settingsHref(k, id, phone, null, section);
+    // from the phone's list the category goes on top of it, so Back returns to it; another category or purpose keeps the
+    // entry's way back to the list
     if (listed) history.pushState({ [FROM_LIST]: true }, "", BASE + to);
-    else if (k === tab && !sub && id && itemIsPage(k)) {
-      if (takeOverlayEntry()) history.replaceState(itemState(state), "", BASE + to);
-      else history.pushState(itemState(state), "", BASE + to);
-    } else history.replaceState(k === tab && sub && id && openedFromSub(state) ? state : categoryState(state), "", BASE + to);
+    else history.replaceState(categoryState(state), "", BASE + to);
   };
   const toList = () => {
     configurationOwner.current = new URLSearchParams(location.search).get("manager") ?? configurationOwner.current;
@@ -256,74 +183,12 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
     history.replaceState(null, "", href({ name: "settings" }));
     setAt({ tab: null, sub: null, section: null });
   };
-  // On a phone the top bar's Back steps out of an item's page (a connector, a channel, an extension) to where the page's
-  // own Back went, so that page draws none (audit item 64): its category's page, or, from a page inside an extension's
-  // or the market's, that page; from a category it goes to the list. The Lark bot's settings are a dialog over the
-  // Connectors list, not a page, so its address leaves the top bar going to the list.
-  const itemOpen = phone && !!sub && itemIsPage(tab) && !(tab === "connectors" && sub === "feishu-bot");
-  const up = itemOpen && sub ? itemParent(tab, sub) : null;
-  // Settings search: filters the sidebar categories, and jumps to a group or a setting's row inside a page (scroll +
-  // brief highlight).
-  const [query, setQuery] = useState("");
-  const search = searchSettings(query);
-  // Inbox Sources' relationship view (#5741) takes the wide page while it is shown; the list keeps its width.
-  const [sourcesGraph, setSourcesGraph] = useState(false);
-  const [scrollAnchor, setScrollAnchor] = useState<string | null>(null);
-  useEffect(() => {
-    if (!scrollAnchor) return;
-    const box = scroller.current;
-    const find = () => box?.querySelector<HTMLElement>(`[data-settings-group="${scrollAnchor}"], [data-settings-row="${scrollAnchor}"]`) ?? document.getElementById(scrollAnchor);
-    let card: HTMLElement | null = null;
-    let prev = "";
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let observer: MutationObserver | undefined;
-    // a group's card is lit, a row itself; a row is brought to the middle, a group to the top
-    const show = (el: HTMLElement) => {
-      clearTimeout(timer);
-      const row = el.hasAttribute("data-settings-row");
-      el.scrollIntoView({ block: row ? "center" : "start" });
-      card = row ? el : el.querySelector<HTMLElement>(":scope > div") ?? el;
-      prev = card.style.boxShadow;
-      card.style.boxShadow = "inset 0 0 0 2px var(--accent)";
-      timer = setTimeout(() => {
-        if (card) card.style.boxShadow = prev;
-        setScrollAnchor(null);
-      }, 1200);
-    };
-    const found = find();
-    if (found) show(found);
-    else if (box && typeof MutationObserver !== "undefined") {
-      // a page that reads what it shows first (Devices, hub) draws the group or row a moment later
-      observer = new MutationObserver(() => {
-        const el = find();
-        if (!el) return;
-        observer?.disconnect();
-        show(el);
-      });
-      observer.observe(box, { childList: true, subtree: true });
-      timer = setTimeout(() => {
-        observer?.disconnect();
-        setScrollAnchor(null);
-      }, 3000);
-    } else setScrollAnchor(null);
-    return () => {
-      observer?.disconnect();
-      clearTimeout(timer);
-      if (card) card.style.boxShadow = prev;
-    };
-  }, [scrollAnchor, tab]);
-  const goGroup = (g: SearchGroup) => {
-    setQuery("");
-    const agent = g.tab === "agents" ? AGENT_KINDS.find((id) => g.anchor === `settings-${id}`) : undefined;
-    pick(g.tab, null, agent);
-    setScrollAnchor(g.anchor);
-  };
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-line px-3 py-2 sm:px-4">
         {phone && at.tab ? (
           <>
-            <IconButton icon="chevronLeft" label={up ? up.label : t("settings.back")} onClick={up ? () => pick(tab, up.sub) : toList} />
+            <IconButton icon="chevronLeft" label={t("settings.back")} onClick={toList} />
             <h1 className="min-w-0 truncate text-[14px] font-semibold text-ink">{TAB_INFO[tab].label}</h1>
           </>
         ) : (
@@ -334,81 +199,27 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
         )}
       </header>
       <div className="flex min-h-0 min-w-0 flex-1">
-        {!phone && (
-          <SettingsNav tab={tab} query={query} onQuery={setQuery} search={search} shown={shown} onPick={pick} onGroup={goGroup} contentId={contentId} />
-        )}
+        {!phone && <SettingsNav tab={tab} onPick={pick} contentId={contentId} />}
         <div ref={scroller} id={contentId} role={listed ? undefined : "region"} aria-label={listed ? undefined : TAB_INFO[tab].label} tabIndex={0} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
           {listed ? (
             <div className="px-4 py-5" style={{ animation: `fade-up 320ms ${EASE} both` }}>
-              <SettingsList shown={shown} onPick={pick} />
+              <SettingsList onPick={pick} />
             </div>
           ) : (
-            <div key={ASSISTANT_TABS.has(tab) ? `${tab}@${picked ?? ""}` : tab} className={cx("mx-auto px-5 py-6 sm:px-8", tab === "channels" || tab === "connectors" || tab === "extensions" || (tab === "sources" && sourcesGraph) ? "max-w-[1120px]" : "max-w-[760px]")} style={{ animation: `fade-up 320ms ${EASE} both` }}>
-              {tab === "general" && <General onModel={() => pick("models", "translate", "model-config")} />}
-              {tab === "persona" && <AssistantProfile onTriageModel={() => pick("models", "agent.triage", "model-config")} />}
-              {tab === "avatar" && (
-                <Group title={t("settings.avatar")} footer={t("settings.avatar_footer")} anchor="avatar">
-                  <PersonaPicker onExtensions={() => pick("extensions")} />
-                </Group>
-              )}
+            <div key={ASSISTANT_TABS.has(tab) ? `${tab}@${picked ?? ""}` : tab} className="mx-auto max-w-[760px] px-5 py-6 sm:px-8" style={{ animation: `fade-up 320ms ${EASE} both` }}>
+              {tab === "general" && <General />}
               {tab === "notifications" && <NotificationSettings />}
-              {tab === "knowledge" && <KnowledgeSelection />}
-              {tab === "prompts" && <SavedPrompts />}
-              {tab === "sources" && <SourcesUI title={TAB_INFO.sources.label} onGraph={setSourcesGraph} />}
               {tab === "models" && <>
                 <section id="settings-providers" className="scroll-mt-4">
                   <h2 className="mb-2 px-1 text-[15px] font-semibold text-ink">{TAB_INFO.models.label}</h2>
                   <Models />
                 </section>
                 <section id="settings-model-config" className="scroll-mt-4">
-                  {/* no section: the row is on the page in view, which stays where it is (#4282) */}
+                  {/* no section: the row is on the page in view, which stays where it is */}
                   <ModelConfiguration open={sub} onOpen={(id) => pick("models", id)} onProviders={() => pick("models", null, "providers")} />
                 </section>
               </>}
-              {tab === "agents" && <>
-                <Group title={t("settings.agent_preferences")} anchor="agents-display"><AgentsDisplayRow /></Group>
-                <AgentSections section={at.section} />
-              </>}
-              {tab === "channels" && (sub ? (twoCol ? (
-                <div className="flex gap-6">
-                  <div className="w-[300px] shrink-0"><ChannelList openBeside={sub} onOpen={(id) => pick("channels", id)} onMarketItem={(market, id) => pick("extensions", routeSub({ kind: "item", market, id }))} /></div>
-                  <div className="min-w-0 flex-1"><ChannelPage key={sub} {...parseOwnedSub(sub)} onBack={() => pick("channels")} onSettings={(url) => {
-                    const target = settingsTarget(url);
-                    if (target && TABS.includes(target.tab as Tab)) pick(target.tab as Tab, target.sub);
-                  }} /></div>
-                </div>
-              ) : (
-                <ChannelPage key={sub} {...parseOwnedSub(sub)} onBack={() => pick("channels")} headerBack={phone} onSettings={(url) => {
-                  const target = settingsTarget(url);
-                  if (target && TABS.includes(target.tab as Tab)) pick(target.tab as Tab, target.sub);
-                }} />
-              )) : (
-                <ChannelList onOpen={(id) => pick("channels", id)} onMarketItem={(market, id) => pick("extensions", routeSub({ kind: "item", market, id }))} />
-              ))}
-              {tab === "connectors" && <Suspense fallback={<Loading />}>{sub && sub !== SENT_SUB && sub !== "feishu-bot" && twoCol ? (
-                <div className="flex gap-6">
-                  <div className="w-[300px] shrink-0"><Connectors open={null} openBeside={sub} onOpen={(id) => pick("connectors", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} /></div>
-                  <div className="min-w-0 flex-1"><Connectors open={sub} onOpen={(id) => pick("connectors", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} /></div>
-                </div>
-              ) : (
-                <Connectors open={sub} headerBack={phone} onOpen={(id) => pick("connectors", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} />
-              )}</Suspense>}
-              {tab === "extensions" && <Suspense fallback={<Loading />}>{extensionsRoute(sub).kind === "extension" && twoCol ? (
-                <div className="flex gap-6">
-                  <div className="w-[300px] shrink-0"><Extensions open={null} openBeside={sub} onOpen={(id) => pick("extensions", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} onConnector={(id, manager) => pick("connectors", ownedSub(id, manager))} /></div>
-                  <div className="min-w-0 flex-1"><Extensions open={sub} onOpen={(id) => pick("extensions", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} onConnector={(id, manager) => pick("connectors", ownedSub(id, manager))} /></div>
-                </div>
-              ) : (
-                <Extensions open={sub} headerBack={phone} onOpen={(id) => pick("extensions", id)} onChannel={(id, manager) => pick("channels", ownedSub(id, manager))} onConnector={(id, manager) => pick("connectors", ownedSub(id, manager))} />
-              )}</Suspense>}
-              {tab === "shortcuts" && <ShortcutSettings />}
-              {tab === "labs" && <Suspense fallback={<Loading />}><LabsSettings /></Suspense>}
               {tab === "devices" && <Devices />}
-              {tab === "hub" && <>
-                <HubSettings />
-                <AgentGroup />
-              </>}
-              {tab === "managers" && <ManagersSettings />}
             </div>
           )}
         </div>
@@ -417,145 +228,15 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   );
 }
 
-/** Where the phone's top bar's Back goes from an item's page `sub` of `tab`, and its label: what the page's own Back did.
- *  An extension's own page (one it draws) goes back to the extension, and a market's extension or the list of markets to
- *  the catalog, unless the market's extension was opened as another assistant's upgrade (MarketItem's Back); any other
- *  item's page goes to its category's page. */
-function itemParent(tab: Tab, sub: string): { sub: string | null; label: string } {
-  if (tab === "extensions") {
-    const r = extensionsRoute(sub);
-    if (r.kind === "page" || (r.kind === "item" && r.manager)) return { sub: routeSub({ kind: "extension", id: r.id, manager: r.manager }), label: t("settings-extensionview.back") };
-    if (r.kind === "item" || r.kind === "markets") return { sub: routeSub({ kind: "catalog" }), label: t("settings.back_to", { name: t("settings-extensionmarket.market_title") }) };
-  }
-  return { sub: null, label: t("settings.back_to", { name: TAB_INFO[tab].label }) };
-}
-
-const AGENT_LABEL: Record<AgentTab, string> = { claude: "Claude Code", codex: "Codex", agy: "Antigravity", omp: "omp", grok: "Grok" };
-
-function isAgentSection(section: SettingsSection | null): section is AgentTab {
-  return section != null && (AGENT_KINDS as readonly string[]).includes(section);
-}
-
-/** The original stacked launcher sections. Each heading folds its own settings; all start open. */
-function AgentSections({ section }: { section: SettingsSection | null }) {
-  const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set());
-  useEffect(() => {
-    if (!isAgentSection(section)) return;
-    setClosed((cur) => {
-      if (!cur.has(section)) return cur;
-      const next = new Set(cur);
-      next.delete(section);
-      return next;
-    });
-  }, [section]);
-  const toggle = (id: AgentTab) => {
-    setClosed((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-  return (
-    <>
-      <HiddenAgentDirs />
-      {AGENT_KINDS.map((id) => {
-        const shown = !closed.has(id);
-        return (
-          <section key={id} id={`settings-${id}`} className="scroll-mt-4">
-            <button
-              type="button"
-              aria-expanded={shown}
-              aria-controls={`settings-${id}-body`}
-              aria-label={t(shown ? "settings-agentsettings.hide_agent" : "settings-agentsettings.show_agent", { agent: AGENT_LABEL[id] })}
-              onClick={() => toggle(id)}
-              className="mb-2 flex w-full items-center gap-1 px-1 py-0.5 text-left"
-            >
-              <h2 className="text-[15px] font-semibold text-ink">{AGENT_LABEL[id]}</h2>
-              <Icon name="chevronRight" size={14} className={cx("shrink-0 text-ink-3 transition-transform", shown && "rotate-90")} />
-            </button>
-            <div id={`settings-${id}-body`} hidden={!shown}>
-              <AgentSettings agent={id} />
-            </div>
-          </section>
-        );
-      })}
-    </>
-  );
-}
-
-/** The desktop left sidebar: a sticky "Settings" title and search box, then the grouped categories. */
-function SettingsNav({ tab, query, onQuery, search, shown, onPick, onGroup, contentId }: {
-  tab: Tab;
-  query: string;
-  onQuery: (q: string) => void;
-  search: ReturnType<typeof searchSettings>;
-  shown: (k: Tab) => boolean;
-  onPick: (k: Tab) => void;
-  onGroup: (g: SearchGroup) => void;
-  contentId: string;
-}) {
-  const nav = useRef<HTMLElement>(null);
-  // A deep link or a width change can select a category below the sidebar's fold.
-  useEffect(() => {
-    nav.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({ block: "nearest" });
-  }, [tab, query]);
-  const tabs = search.tabs.filter(shown);
-  const groups = search.groups.filter((g) => shown(g.tab));
-  const none = !!query && !tabs.length && !groups.length;
+/** The desktop left sidebar: a "Settings" title, then the categories. */
+function SettingsNav({ tab, onPick, contentId }: { tab: Tab; onPick: (k: Tab) => void; contentId: string }) {
   return (
     <aside className="flex w-[236px] shrink-0 flex-col border-r border-line bg-inset">
       <div className="shrink-0 border-b border-line px-3 pt-3 pb-2.5">
         <div className="text-[14px] font-semibold text-ink">{t("settings.title")}</div>
-        <label className="mt-2 flex h-8 items-center gap-2 rounded-control bg-surface px-2.5 shadow-btn focus-within:shadow-[inset_0_0_0_1px_var(--accent)]">
-          <Icon name="search" size={13} stroke={2} className="shrink-0 text-ink-3" />
-          <input
-            value={query}
-            onChange={(e) => onQuery(e.target.value)}
-            // Esc clears what was typed; Enter opens the first result (not while an input method is composing, nor the Enter
-            // that confirms its text, which Safari sends with isComposing already false)
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && query) {
-                e.preventDefault();
-                e.stopPropagation();
-                onQuery("");
-              } else if (e.key === "Enter" && query && !composing(e.nativeEvent)) {
-                e.preventDefault();
-                if (tabs.length) onPick(tabs[0]);
-                else if (groups.length) onGroup(groups[0]);
-              }
-            }}
-            placeholder={t("settings.search_placeholder_settings")}
-            aria-label={t("settings.search_settings")}
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
-          />
-          {query && <IconButton icon="x" label={t("settings.clear")} size={22} iconSize={12} onClick={() => onQuery("")} />}
-        </label>
       </div>
-      <nav ref={nav} aria-label={t("settings.categories")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-        {query ? (
-          <>
-            {tabs.map((k) => <NavRow key={k} k={k} selected={tab === k} contentId={contentId} onPick={onPick} />)}
-            {groups.length > 0 && <div className="px-3 pt-3 pb-1 text-[11px] font-medium text-ink-3">{t("settings.search_in_page")}</div>}
-            {groups.map((g) => <GroupResult key={`${g.tab}/${g.anchor}/${g.group}`} g={g} onGroup={onGroup} />)}
-            {none && <p className="px-3 py-3 text-[12.5px] leading-relaxed text-ink-3">{t("settings.search_no_results")}</p>}
-          </>
-        ) : (
-          NAV_GROUPS.map((g) => {
-            const its = g.tabs.filter(shown);
-            if (!its.length) return null;
-            return (
-              <div key={g.key} data-settings-nav-group={g.key}>
-                <div className="flex min-h-7 items-center gap-1 pt-2 pr-1 pl-3 text-[11px] font-medium text-ink-3">
-                  <span className="min-w-0 flex-1"><GroupTitle group={g.key} compact /></span>
-                  <GroupAction group={g.key} />
-                </div>
-                {its.map((k) => <NavRow key={k} k={k} selected={tab === k} contentId={contentId} onPick={onPick} />)}
-                {hasFooter(g.key) && <p className="px-3 pt-1 pb-1.5 text-[11px] leading-snug text-ink-3"><GroupFooter group={g.key} /></p>}
-              </div>
-            );
-          })
-        )}
+      <nav aria-label={t("settings.categories")} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+        {TABS.map((k) => <NavRow key={k} k={k} selected={tab === k} contentId={contentId} onPick={onPick} />)}
       </nav>
     </aside>
   );
@@ -567,8 +248,6 @@ function NavRow({ k, selected, contentId, onPick }: { k: Tab; selected: boolean;
     <button
       type="button"
       onClick={() => onPick(k)}
-      onPointerEnter={() => preloadTab(k)}
-      onFocus={() => preloadTab(k)}
       aria-current={selected ? "page" : undefined}
       aria-controls={contentId}
       className={cx(
@@ -583,34 +262,15 @@ function NavRow({ k, selected, contentId, onPick }: { k: Tab; selected: boolean;
   );
 }
 
-// a result wraps rather than cutting the setting's name ("Agents › Claude Code › Thinking effort" is longer than the sidebar)
-function GroupResult({ g, onGroup }: { g: SearchGroup; onGroup: (g: SearchGroup) => void }) {
-  return (
-    <button type="button" onClick={() => onGroup(g)} className="flex w-full items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-left text-[12.5px] text-ink-2 transition-colors hover:bg-hover hover:text-ink">
-      <span className="min-w-0 break-words">
-        <span className="font-medium text-ink">{TAB_INFO[g.tab].label}</span>
-        <span className="mx-1 text-ink-3">›</span>
-        <span>{g.group}</span>
-      </span>
-    </button>
-  );
-}
-
-/** The phone's first page of Settings: the categories in grouped cards, each opening its page (as on iOS). */
-function SettingsList({ shown, onPick }: { shown: (k: Tab) => boolean; onPick: (k: Tab) => void }) {
+/** The phone's first page of Settings: the categories in a grouped card, each opening its page (as on iOS). */
+function SettingsList({ onPick }: { onPick: (k: Tab) => void }) {
   return (
     <nav aria-label={t("settings.categories")}>
-      {NAV_GROUPS.map((g) => {
-        const tabs = g.tabs.filter(shown);
-        if (!tabs.length) return null;
-        return (
-          <Group key={g.key} anchor={`nav-${g.key}`} title={<GroupTitle group={g.key} />} right={<GroupAction group={g.key} />} footer={hasFooter(g.key) ? <GroupFooter group={g.key} /> : undefined}>
-            {tabs.map((k) => (
-              <Row key={k} icon={TAB_INFO[k].icon} label={TAB_INFO[k].label} hint={TAB_INFO[k].hint} onClick={() => onPick(k)} />
-            ))}
-          </Group>
-        );
-      })}
+      <Group anchor="nav">
+        {TABS.map((k) => (
+          <Row key={k} icon={TAB_INFO[k].icon} label={TAB_INFO[k].label} hint={TAB_INFO[k].hint} onClick={() => onPick(k)} />
+        ))}
+      </Group>
     </nav>
   );
 }
@@ -619,11 +279,8 @@ const host = hostOf;
 
 // ── General ─────────────────────────────────────────────
 
-function General({ onModel }: { onModel: () => void }) {
+function General() {
   const theme = useTheme();
-  const replyMotion = useReplyMotionSetting();
-  const starred = useStarredSetting();
-
   const themes: { k: Theme; label: string; icon: IconName }[] = [
     { k: "system", label: t("language.system"), icon: "monitor" },
     { k: "light", label: t("settings.theme_light"), icon: "sun" },
@@ -650,88 +307,17 @@ function General({ onModel }: { onModel: () => void }) {
             </button>
           ))}
         </div>
-        <ThemeColorPicker />
-        <ExtensionThemePicker />
-        <TextSizeRow />
-        <FontRows />
         <LanguageRow />
-        <Row label={t("settings.reply_motion")} hint={t("settings.reply_motion_hint")} wrapHint anchor="reply-motion">
-          <Switch on={replyMotion} onChange={setReplyMotionEnabled} label={t("settings.reply_motion")} />
-        </Row>
-        <RecentChatsRow />
-        <Row label={t("settings.starred_messages")} hint={t("settings.starred_messages_hint")} wrapHint anchor="starred-messages">
-          <Switch on={starred} onChange={setStarredEnabled} label={t("settings.starred_messages")} />
-        </Row>
-        <SidebarIconsRow />
-        <SidebarUsageRow />
       </Group>
 
       <DesktopSettings />
-      <StartPageGroup />
-      <SidebarPagesGroup />
-
-      <section id="settings-translation" className="scroll-mt-4">
-        <TranslationSettings onConfigure={onModel} />
-      </section>
-
-      <AgentPreferences />
-      <HubList />
       <About />
-      <Group title={t("settings.about_persona")} anchor="about-persona">
-        <Row label={t("settings.source_code")} stackOnNarrow>
-          <a href="https://github.com/nwverse/persona" target="_blank" rel="noopener noreferrer" className="touch-hit break-all text-accent-ink underline underline-offset-2">
-            github.com/nwverse/persona
-          </a>
-        </Row>
-        <DevModeRows />
-      </Group>
     </>
   );
-}
-
-/** The assistant's profile (the current assistant's): About me, memory, skills, scheduled tasks and where it runs, then
- *  session triage. Its avatar is the hub's (the Avatar page), and what was about this browser is under General. */
-function AssistantProfile({ onTriageModel }: { onTriageModel: () => void }) {
-  return (
-    <>
-      <AssistantSettings bare />
-      <TriageSettings onModel={onTriageModel} />
-    </>
-  );
-}
-
-/** This browser's own switches for Agents (where they open, the terminal, the sidebar, the details shown). */
-function AgentPreferences() {
-  const workBrowserReady = useStore((s) => s.features.includes("sessions_dimensions"));
-  const sidebarTerminals = useSidebarTerminals();
-  const agentDetails = useAgentDetails();
-  return (
-    <Group title={t("settings.agent_preferences")} anchor="agent-preferences">
-      <AgentOpenRow />
-      <BusySendRow />
-      <TerminalModeRow />
-      {!workBrowserReady && <Row label={t("settings.sidebar_terminals")} hint={t("settings.sidebar_terminals_hint")} wrapHint>
-        <Switch on={sidebarTerminals} onChange={setSidebarTerminals} label={t("settings.sidebar_terminals")} />
-      </Row>}
-      <Row label={t("context.details")} hint={t("context.details_hint")} wrapHint anchor="agent-details">
-        <Switch on={agentDetails} onChange={setAgentDetails} label={t("context.details")} />
-      </Row>
-    </Group>
-  );
-}
-
-/** Settings › General's line under "Runs on": the computer by name; none yet ("" from the hub) says so; nothing before it is read. */
-export function assistantFooter(machine: string | undefined, loaded: boolean): string | undefined {
-  if (machine) return t("settings.assistant_footer", { machine });
-  return loaded ? t("settings.assistant_footer_none") : undefined;
 }
 
 function About() {
-  const machines = useStore((s) => s.machines);
   const hubName = useStore((s) => s.hubName);
-  // interconnected hubs (docs/archive/operations/plan-hub-mesh.md 2.6): this page talks to one hub and sees its whole group
-  const mesh = useStore((s) => s.mesh);
-  const others = mesh.filter((h) => !h.self);
   const disconnect = useDisconnect();
   return (
     <Group title={t("settings.this_browser")} footer={t("settings.this_browser_footer")} anchor="this-browser">
@@ -739,17 +325,6 @@ function About() {
         {location.host}
       </Row>
       {hubName && <Row label={t("settings.hub")}>{hubName}</Row>}
-      {others.length > 0 && (
-        <Row label={t("settings.linked_hubs")} hint={t("settings.linked_hubs_hint")} wrapHint>
-          {others.map((h) => (
-            <span key={h.hub_id} className="flex items-center gap-1.5">
-              <span className={cx("size-1.5 rounded-full", h.online === false ? "bg-ink-3" : "bg-green")} />
-              {h.name || h.hub_id}
-            </span>
-          ))}
-        </Row>
-      )}
-      <Row label={t("settings.computers")} anchor="computers">{t("settings.computers_online", { online: machines.filter((m) => m.online).length, total: machines.length })}</Row>
       <InstallRow />
       <div className="flex justify-end px-4 py-2.5" data-settings-row="disconnect">
         <Button tone="quiet" icon="logout" onClick={disconnect.start} busy={disconnect.busy} className="text-red enabled:hover:text-red">

@@ -519,9 +519,9 @@ export function InboxList({ selected, routed, picked = null, onPicked, listBesid
               { key: "rules", label: t("inbox-inboxlist.rules_list"), icon: "target", onSelect: () => setRulesOpen(true) },
               { key: "folders", label: t("inbox-folders.settings_menu"), icon: "folder", onSelect: () => setFoldersOpen(true) },
               // source subscriptions (#2041): every subscription, with the Inbox's other settings
-              // with inbox_sources (#5278): every source of the Inbox, Settings' Inbox Sources (one home for them)
+              // with inbox_sources (#5278): every source of the Inbox (one home for them)
               ...(subscriptionsShown ? [{ key: "subscriptions", label: sourcesShown ? t("inbox-inboxlist.sources") : t("inbox-inboxlist.subscriptions"), icon: "loop" as const,
-                onSelect: () => navigate(sourcesShown ? "/settings?tab=sources" : subscriptionsHref()) }] : []),
+                onSelect: () => navigate(subscriptionsHref()) }] : []),
             ]} />
         )}
         {mutesOpen && <MutesDialog onClose={() => setMutesOpen(false)} />}
@@ -564,13 +564,6 @@ export function InboxList({ selected, routed, picked = null, onPicked, listBesid
             </span>
             <p className="text-[13.5px] font-medium text-ink">{t("inbox-inboxlist.no_sources_title")}</p>
             <p className="max-w-80 text-[12.5px] leading-relaxed text-ink-3">{t("inbox-inboxlist.no_sources_hint")}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-              {unconnected.offers.map((o, i) => (
-                <Button key={o.id} tone={i === 0 ? "primary" : "secondary"} icon={i === 0 ? "plus" : undefined} onClick={() => navigate(o.href)}>
-                  {t("inbox-inboxlist.no_sources_connect", { name: o.name })}
-                </Button>
-              ))}
-            </div>
           </div>
         )}
         {/* nothing open: the green "All caught up", or, where the chips, a folder or the search point, a neutral mark that

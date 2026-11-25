@@ -14,9 +14,8 @@
   "made_plan_start": "已记住：这类任务以后不再询问，直接开始。",
   "made_standing": "已新增长期授权。",
   "made_delegate": "没有存下规则，也没有开启任何设置。",
-  "where": "在「设置 › {tab} › {list}」里查看和移除。",
+  "where": "想查看或移除，请在主对话里告诉助手。",
   "where_delegate": "目前各端都还没有这个开关：要在 hub 所在的电脑上助手的配置文件里开启（{setting}）。",
-  "open_settings": "打开设置",
   "hidden": "30 天内不再建议。",
   "failed": "没能保存你的回答。{error}"
 }

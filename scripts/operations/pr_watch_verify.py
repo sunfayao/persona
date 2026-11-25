@@ -181,8 +181,6 @@ def scoped_test_checks(worktree, base, head, names):
     if groups["web"]:
         runnable = [name for name in groups["web"] if (Path(worktree) / name).is_file()]
         commands.append(("Web dependencies", ["npm", "ci", "--no-audit", "--no-fund"], "web"))
-        commands.append(("Web extension mirror cleanup tests",
-                         ["node", "--test", "e2e/extension-mirrors-cleanup.node-test.mjs"], "web"))
         if runnable:
             commands.append(("Changed web tests", ["node", "./node_modules/vitest/vitest.mjs", "run"] +
                              [name[len("web/"):] for name in runnable], "web"))

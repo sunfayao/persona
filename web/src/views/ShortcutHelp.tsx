@@ -1,8 +1,7 @@
 // ⌘/: every shortcut with the chord it has now (the user's own, if rebound), grouped by where it works.
-import { closeHelp, openShortcutSettings, useHelpOpen } from "../lib/shortcut-help";
+import { closeHelp, useHelpOpen } from "../lib/shortcut-help";
 import { chordParts, currentPlatform, LOCAL_SHORTCUTS, SCOPE_LABEL, SHORTCUTS, useBindings, useShortcutPrefs, type ShortcutScope } from "../lib/shortcuts";
-import { navigate } from "../lib/router";
-import { Button, Dialog, Kbd } from "../ui/atoms";
+import { Dialog, Kbd } from "../ui/atoms";
 import { t } from "../i18n";
 
 const SCOPES: ShortcutScope[] = ["global", "session", "sidebar"];
@@ -18,17 +17,6 @@ export function ShortcutHelp() {
       onClose={closeHelp}
       title={t("shortcuthelp.title")}
       width={460}
-      footer={
-        <Button
-          tone="quiet"
-          onClick={() => {
-            closeHelp();
-            openShortcutSettings(navigate);
-          }}
-        >
-          {t("shortcuthelp.edit_in_settings")}
-        </Button>
-      }
     >
       <div className="flex flex-col gap-4 pt-1">
         {SCOPES.map((scope) => (

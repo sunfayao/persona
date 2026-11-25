@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { t } from "../../i18n";
 import { api, enc, errorText, isAbort } from "../../lib/api";
-import { BASE } from "../../lib/base";
 import { type KBDetail, type KBDetailResponse, type KBEntry, type KBList } from "../../lib/kb";
 import { pointDay, pointSources, pointWarns, POINT_KINDS, pointKindLabel } from "../../lib/kb-points";
 import { buildProjectMap, buildTopicMap, layout, pointsUnder, walk, type Box, type MapNode, type Placed, type SummaryItem, type TopicData } from "../../lib/kb-map";
@@ -13,7 +12,6 @@ import { navigate } from "../../lib/router";
 import { onHubEvent } from "../../lib/store";
 import { Button, cx, IconButton, Loading } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
-import { settingsHref } from "../settings/nav";
 import { ErrorBox } from "./KBList";
 import { Card, SectionTitle, TonePill } from "./KBParts";
 
@@ -318,11 +316,6 @@ function Empty({ view, off }: { view: View; off: boolean }) {
       <p className="mt-1 max-w-[380px] text-[12.5px] leading-relaxed text-ink-3">
         {t(view === "projects" ? "knowledge-knowledgemap.empty_projects_body" : off ? "knowledge-knowledgemap.empty_off_body" : "knowledge-knowledgemap.empty_topics_body")}
       </p>
-      {view === "topics" && off && (
-        <div className="mt-4">
-          <Button tone="secondary" icon="gear" onClick={() => { location.href = BASE + settingsHref("knowledge", null, false); }}>{t("knowledge-knowledgemap.open_settings")}</Button>
-        </div>
-      )}
     </div>
   );
 }

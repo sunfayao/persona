@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The sidebar's switcher (docs/assistant/managers.md "Clients"): the current assistant in the sidebar's head, the roster it
 // opens (status, where each runs, what waits there, the default tagged, the current one checked), switching, New
-// assistant and Manage assistants…, an installing one's install commands, and the earlier product row without a roster.
+// assistant, an installing one's install commands, and the earlier product row without a roster.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -206,13 +206,6 @@ describe("the sidebar's assistant switcher", () => {
     expect(document.body.textContent).toContain("安装「书房」");
     expect(document.body.textContent).toContain("mi_new");
     expect(document.body.textContent).toContain("curl -fsSL <hub address>/i/mi_new | sh");
-  });
-
-  it("opens Settings › Assistants from Manage assistants…", async () => {
-    await render();
-    await open();
-    await choose("管理助手…");
-    expect(navigate).toHaveBeenCalledWith("/settings?tab=managers");
   });
 
   it("shows an installing assistant's install code instead of switching to it", async () => {

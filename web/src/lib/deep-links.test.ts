@@ -7,7 +7,6 @@ import { appPage, appPath, DEEP_KB_KINDS, DEEP_SETTINGS_TABS, pageOfPath, pagePa
 import { linkRoute, type LinkRoute } from "./links";
 import { KB_KINDS } from "./kb";
 import { parse as parseRoute } from "./router";
-import { TABS } from "../views/settings/nav";
 
 interface Hub {
   id: string;
@@ -123,8 +122,9 @@ describe("deep links: pages and paths", () => {
     expect(pageOfPath("/settings", "?tab=labs&enabled=1&token=x")).toEqual({ page: "settings", tab: "labs" });
   });
 
-  it("keeps the knowledge kinds and settings tabs of the pages that define them", () => {
+  it("keeps the knowledge kinds of the page that defines them, and every settings tab the shared cases name", () => {
     expect(DEEP_KB_KINDS).toEqual([...KB_KINDS]);
-    expect(Object.keys(DEEP_SETTINGS_TABS).sort()).toEqual([...TABS].sort());
+    // a link to a category the web no longer has still reads as that page: Settings opens its root for it
+    expect(Object.keys(DEEP_SETTINGS_TABS)).toEqual(expect.arrayContaining(["general", "notifications", "models", "devices"]));
   });
 });

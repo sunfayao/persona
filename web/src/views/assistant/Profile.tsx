@@ -1,6 +1,5 @@
 // Persona's profile (/assistant, the app's AssistantProfileView), opened from the Persona page and a conversation's menu:
-// who it is and where it runs, what it will do on its own next, its persona, then what shapes it (Settings › Assistant's
-// groups: "On its own", "About you", "Runs on") and what it can reach.
+// who it is and where it runs, what it will do on its own next, its persona, and what it can reach.
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { conversationPage } from "../../lib/conversation-page";
@@ -11,7 +10,6 @@ import { dayLabel, hm, untilLabel, upcoming, type Task } from "../../lib/routine
 import { useStore } from "../../lib/store";
 import { EASE, IconButton, useNow } from "../../ui/atoms";
 import { Icon, type IconName } from "../../ui/icons";
-import { AssistantSettings } from "../settings/AssistantSettings";
 import { Group, Pill } from "../settings/SettingsParts";
 import { lazyDialog } from "../LazyOverlay";
 import { PersonaAvatar, PersonaPicker, usePersona } from "./Persona";
@@ -99,8 +97,6 @@ export function Profile({ onToggleSidebar }: { onToggleSidebar: () => void }) {
           <Group title={t("assistant-profile.avatar")} footer={t("assistant-profile.avatar_footer")}>
             <PersonaPicker />
           </Group>
-
-          <AssistantSettings bare />
 
           <Group title={t("assistant-profile.access")} footer={t("assistant-profile.access_footer")}>
             {reach.map((r) => (

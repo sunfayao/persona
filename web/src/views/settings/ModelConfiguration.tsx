@@ -26,7 +26,6 @@ import { MANAGER_HEADER } from "../../lib/manager-choice";
 import { ConfigurationManager } from "./ConfigurationManager";
 import { DirectAPIEditor, DirectEffortSelect, directEffortState } from "./DirectAPIEditor";
 import { ModelPicker, useLauncherModels } from "./ModelBindingPickers";
-import { ModelProfiles } from "./ModelProfiles";
 import { candidateDraft, candidateProblem, candidateProviders, candidateUpdate, type CandidateDraft } from "../../lib/model-candidates";
 import { ExtensionCandidates } from "./ExtensionCandidates";
 
@@ -99,7 +98,6 @@ function ModelConfigurationForManager({ manager, open, onOpen, onProviders }: { 
   return (
     <>
       <h2 className="mb-3 px-1 text-[15px] font-semibold text-ink">{t("settings-nav.tab_model_config")}</h2>
-      <ModelProfiles manager={manager} providers={data?.providers} purposes={data?.purposes} onChanged={() => void load()} />
       <div className="mb-4 flex items-center gap-2">
         <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-control bg-surface px-3 shadow-btn focus-within:shadow-[inset_0_0_0_1px_var(--accent)]">
           <Icon name="search" size={13} stroke={2} className="text-ink-3" />
