@@ -259,27 +259,3 @@ type flakyPutStore struct {
 	mu        sync.Mutex
 	failsLeft int
 }
-
-func (s *flakyPutStore) fail() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.failsLeft > 0 {
-		s.failsLeft--
-		return true
-	}
-	return false
-}
-
-func (s *flakyPutStore) PutSetting(ctx context.Context, key string, v any) error {
-	if s.fail() {
-		return errors.New("database down")
-	}
-	return s.gradingStore.PutSetting(ctx, key, v)
-}
-
-func (s *flakyPutStore) AddPushSent(ctx context.Context, entries []db.PushSent) error {
-	if s.fail() {
-		return errors.New("database down")
-	}
-	return s.gradingStore.AddPushSent(ctx, entries)
-}

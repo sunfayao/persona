@@ -22,19 +22,3 @@ type fixture struct {
 		App  string            `json:"app"`
 	} `json:"links"`
 }
-
-func readFixture(t *testing.T) fixture {
-	t.Helper()
-	raw, err := os.ReadFile("../../../spec/fixtures/deep-links/cases.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var f fixture
-	if err := json.Unmarshal(raw, &f); err != nil {
-		t.Fatal(err)
-	}
-	if f.Version != 1 || len(f.Build) == 0 || len(f.Links) == 0 {
-		t.Fatalf("fixture version %d with %d build and %d links cases", f.Version, len(f.Build), len(f.Links))
-	}
-	return f
-}

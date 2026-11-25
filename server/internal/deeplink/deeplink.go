@@ -34,9 +34,6 @@ func Session(machine, session string) string { return "/s/" + seg(machine) + "/"
 // At is path at one message (item, the message's id): the page lands on it. path unchanged when item is "".
 func At(path, item string) string { return query(path, "at", item) }
 
-// Agents is the list of Agents.
-func Agents() string { return "/agents" }
-
 // Todo is one to-do. It is a path: the older /todos?id=<id> is still read by every client, never written.
 func Todo(id string) string { return "/todos/" + seg(id) }
 

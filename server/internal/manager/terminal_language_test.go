@@ -388,26 +388,6 @@ func managerUninstallGolden(language, dir string) string {
 	}
 }
 
-func managerTokenGolden(language string, renewed bool) string {
-	switch language {
-	case "zh-Hans":
-		if renewed {
-			return "manager: [m-0a1b2c] manager.json 里有了新 token，重新连 hub\n"
-		}
-		return "manager: [m-0a1b2c] hub 又认这个 token 了：重新连 hub\n"
-	case "ja":
-		if renewed {
-			return "manager: [m-0a1b2c] manager.jsonに新しいtokenがあります。ハブに再接続します\n"
-		}
-		return "manager: [m-0a1b2c] ハブがこのtokenを再び受け付けました。ハブに再接続します\n"
-	default:
-		if renewed {
-			return "manager: [m-0a1b2c] manager.json has a new token; reconnecting to the hub\n"
-		}
-		return "manager: [m-0a1b2c] the hub accepts this token again; reconnecting\n"
-	}
-}
-
 func TestManagerHelpersSpeakTheTerminalLanguage(t *testing.T) {
 	for _, tc := range managerTerminalCases() {
 		t.Run(tc.name, func(t *testing.T) {

@@ -18,14 +18,6 @@ type stuckPrefsStore struct {
 	entered chan struct{}
 }
 
-func (s *stuckPrefsStore) Devices(context.Context) ([]Device, error) { return nil, nil }
-
-func (s *stuckPrefsStore) SetDevicePrefs(ctx context.Context, _, _ string, _ json.RawMessage) error {
-	close(s.entered)
-	<-ctx.Done()
-	return ctx.Err()
-}
-
 // heldPrefs is deviceRows whose first prefs write waits for release (a slow database row), closing entered as it starts.
 type heldPrefs struct {
 	*deviceRows

@@ -140,17 +140,6 @@ func TestPlausibleUsageIsKept(t *testing.T) {
 	}
 }
 
-// replyLine is an assistant reply whose usage has one count, input tokens, so a long text puts it where a test wants.
-func replyLine(t *testing.T, id string, input int, text string) string {
-	t.Helper()
-	b, err := json.Marshal(map[string]any{"type": "assistant", "uuid": id, "message": map[string]any{"role": "assistant",
-		"content": []map[string]any{{"type": "text", "text": text}}, "usage": map[string]any{"input_tokens": input}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b) + "\n"
-}
-
 // A copy that fails is removed: it is no backup, and on a full disk it holds the space.
 func TestBackupCopyRemovesAFailedCopy(t *testing.T) {
 	dir := t.TempDir()

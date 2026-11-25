@@ -73,16 +73,6 @@ func (st *ownerActionTestStore) CompareSetting(_ context.Context, key string, re
 	return true, nil
 }
 
-func newOwnerActionTestBook(t *testing.T) (*ownerActionBook, *ownerActionTestStore) {
-	t.Helper()
-	st := &ownerActionTestStore{}
-	book, ok := newOwnerActionBook(st)
-	if !ok {
-		t.Fatal("a revision-aware store must support owner-action grants")
-	}
-	return book, st
-}
-
 func validOwnerProof(batch, item string) ownerReplyProof {
 	return ownerReplyProof{
 		AuthenticatedOwner: true,
@@ -116,33 +106,4 @@ func TestOwnerActionCanonicalPayload(t *testing.T) {
 	if _, err := canonicalOwnerAction(json.RawMessage(`{"to":"a@example.test","to":"b@example.test"}`)); err == nil {
 		t.Fatal("duplicate object keys are ambiguous and must be rejected")
 	}
-}
-
-func (book *ownerActionBook) putForTest(ctx context.Context, batch ownerActionBatch) error {
-	for range 10 {
-		doc, err := book.read(ctx)
-		if err != nil {
-			return err
-		}
-		found := false
-		for i := range doc.Batches {
-			if doc.Batches[i].ID == batch.ID {
-				doc.Batches[i] = batch
-				found = true
-				break
-			}
-		}
-		if !found {
-			return errors.New("test batch not found")
-		}
-		doc.Revision++
-		saved, err := book.cas.CompareSetting(ctx, ownerActionBookKey, doc.Revision-1, doc)
-		if err != nil {
-			return err
-		}
-		if saved {
-			return nil
-		}
-	}
-	return errors.New("test batch CAS conflict")
 }

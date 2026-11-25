@@ -172,43 +172,6 @@ func TestAnExtensionResumesOnlyAListedChatOutsideTheHealthSpace(t *testing.T) {
 	}
 }
 
-// sessionStarts are the session.start calls m got that resume id, as sent.
-func sessionStarts(m *guardManager, id string) []string {
-	var out []string
-	for _, l := range reached(m) {
-		if strings.Contains(l, `"method":"session.start"`) && strings.Contains(l, `"resume_session_id":"`+id+`"`) {
-			out = append(out, l)
-		}
-	}
-	return out
-}
-
-// ownerDo is extDo with the owner's token.
-func ownerDo(t *testing.T, h *Hub, url, method, path, body string, header map[string]string) (int, string) {
-	t.Helper()
-	return tokenDo(t, h.cfg.Token, url, method, path, body, header)
-}
-
-// tokenDo is extDo with token.
-func tokenDo(t *testing.T, token, url, method, path, body string, header map[string]string) (int, string) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, method, url+path, strings.NewReader(body))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	for k, v := range header {
-		req.Header.Set(k, v)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return 0, err.Error()
-	}
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	return resp.StatusCode, strings.TrimSpace(string(out))
-}
-
 // Exercise the registered HTTP handlers with in-memory credentials and a fake node that records queue calls.
 func TestRestrictedSessionQueueRoutes(t *testing.T) {
 	h := newTestHub(t)

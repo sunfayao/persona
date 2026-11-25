@@ -110,44 +110,11 @@ func newCatalogGateway(t *testing.T, handler func(w http.ResponseWriter, r *http
 	return g
 }
 
-func (g *catalogGateway) requests() []*http.Request {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return append([]*http.Request(nil), g.seen...)
-}
-
 func codexProvider(base string) proto.ManagedLauncher {
 	return proto.ManagedLauncher{Name: "gw", Agent: "codex", BaseURL: base, APIKey: "sk-test", Model: "example-big"}
 }
 
 func quietNode() *Node { return &Node{logger: log.New(io.Discard, "", 0)} }
-
-// ageCodexCatalogs makes every kept answer d older, as if it had been given d earlier.
-func ageCodexCatalogs(d time.Duration) {
-	codexCatalogCache.Lock()
-	defer codexCatalogCache.Unlock()
-	for k, a := range codexCatalogCache.got {
-		a.at, a.fresh = a.at.Add(-d), a.fresh.Add(-d)
-		codexCatalogCache.got[k] = a
-	}
-}
-
-// waitAsked waits until g has had n requests and the answer they gave is kept (fresh again).
-func waitAsked(t *testing.T, g *catalogGateway, n int) {
-	t.Helper()
-	waitWithin(t, 10*time.Second, "the gateway asked again and its answer kept", func() bool {
-		if len(g.requests()) < n {
-			return false
-		}
-		codexCatalogCache.Lock()
-		defer codexCatalogCache.Unlock()
-		kept := len(codexCatalogCache.got) > 0
-		for _, a := range codexCatalogCache.got {
-			kept = kept && time.Now().Before(a.fresh)
-		}
-		return kept
-	})
-}
 
 // A codex whose --version fails is not run again on every start, and is again once codexCatalogRetry has passed.
 func TestCodexVersionFailureKeptBriefly(t *testing.T) {
@@ -227,18 +194,6 @@ func TestCodexVersionWords(t *testing.T) {
 	}
 	if strings.Contains(codexCatalogClientVersion("0.167.0"), "-") {
 		t.Error("a release's client_version")
-	}
-}
-
-// cutOff answers 200 with a length it does not send: part, then the connection closes.
-func cutOff(part string) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", "100000")
-		io.WriteString(w, part)
-		w.(http.Flusher).Flush()
-		if conn, _, err := w.(http.Hijacker).Hijack(); err == nil {
-			conn.Close()
-		}
 	}
 }
 

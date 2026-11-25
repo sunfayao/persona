@@ -96,13 +96,3 @@ type landedThenFailed struct {
 	*db.DB
 	fail atomic.Int32
 }
-
-func (s *landedThenFailed) AddPushSent(ctx context.Context, entries []db.PushSent) error {
-	if err := s.DB.AddPushSent(ctx, entries); err != nil {
-		return err
-	}
-	if s.fail.Add(-1) >= 0 {
-		return errors.New("timeout after commit")
-	}
-	return nil
-}

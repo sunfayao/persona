@@ -24,19 +24,3 @@ func TestTodoViewBusHelloCapabilities(t *testing.T) {
 		}
 	}
 }
-
-// todoViewRows makes a plain to-do, one a run works on, a closed one and a failed start, and answers their ids.
-func todoViewRows(t *testing.T, e *todoEnv) (plain, worked, closed, failed string) {
-	t.Helper()
-	began := time.Now().UTC().Add(-time.Minute)
-	e.sessions("server", proto.Session{SessionID: "s1", Title: "Hedge trimming", Status: proto.StatusWorking,
-		State: proto.StateWorking, StateSince: began, UpdatedAt: began, Activity: "measuring the hedge"})
-	plain, worked, closed, failed = e.create("Water the roses").ID, e.create("Prune the hedge").ID, e.create("Order compost").ID,
-		e.create("Book the ferry").ID
-	e.must("PUT", "/api/v1/todos/"+worked+"/agents/server/s1", "")
-	e.must("PATCH", "/api/v1/todos/"+closed, `{"done":true}`)
-	if err := e.s.failTodo(context.Background(), failed, "The computer is offline"); err != nil {
-		t.Fatal(err)
-	}
-	return plain, worked, closed, failed
-}

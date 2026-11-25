@@ -38,15 +38,6 @@ func todoReminderHub(t *testing.T) (*fakeHub, *Service, *[]map[string]any) {
 	return f, newTestService(t, f), posts
 }
 
-func postedCards(posts []map[string]any) string {
-	var b strings.Builder
-	for _, p := range posts {
-		card, _ := p["card"].(string)
-		b.WriteString(card)
-	}
-	return b.String()
-}
-
 // postedCardBodies leaves out config.summary, which intentionally repeats the first 60 runes on every card.
 func postedCardBodies(posts []map[string]any) string {
 	var b strings.Builder

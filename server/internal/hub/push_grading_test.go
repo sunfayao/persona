@@ -129,10 +129,6 @@ func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawM
 
 func (s *deviceRows) Setting(context.Context, string, any) (bool, error) { return false, nil }
 func (s *deviceRows) PutSetting(context.Context, string, any) error      { return nil }
-func (s *stuckPrefsStore) Setting(context.Context, string, any) (bool, error) {
-	return false, nil
-}
-func (s *stuckPrefsStore) PutSetting(context.Context, string, any) error { return nil }
 
 // gradingHub is a pusher with one device and an in-memory settings store, so the ln mode switch and the held-push list
 // persist like hub_settings. The pusher is built with no store; the settings store is attached before the ln-mode state
