@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { onOverlayEntry, useCloseOnBack } from "../lib/back-close";
 import { closePalette, getPalette, openPalette, registerContextCommands, usePalette } from "../lib/palette";
+import { navigate } from "../lib/router";
 import { NARROW } from "../lib/viewport";
 import { Palette } from "./Palette";
 
@@ -100,19 +101,24 @@ describe("the palette and Back on a narrow screen", () => {
   });
 
   it("a pick that goes to a page replaces its entry instead of stacking a copy of this page under the new one", async () => {
-    act(() => openPalette("command"));
-    const opened = history.length;
-    act(() => option("新对话")!.click());
-    await settle();
-    expect(getPalette().open).toBe(false);
-    expect(location.pathname).toBe("/persona/new");
-    expect(history.length).toBe(opened);
-    expect(onOverlayEntry()).toBe(false);
-    // one Back lands where the palette opened
-    act(() => history.back());
-    await settle();
-    expect(location.pathname).toBe("/agents");
-    expect(onOverlayEntry()).toBe(false);
+    const off = registerContextCommands(() => [{ id: "test:go", section: "测试", title: "去设置页", run: () => navigate({ name: "settings" }) }]);
+    try {
+      act(() => openPalette("command"));
+      const opened = history.length;
+      act(() => option("去设置页")!.click());
+      await settle();
+      expect(getPalette().open).toBe(false);
+      expect(location.pathname).toBe("/settings");
+      expect(history.length).toBe(opened);
+      expect(onOverlayEntry()).toBe(false);
+      // one Back lands where the palette opened
+      act(() => history.back());
+      await settle();
+      expect(location.pathname).toBe("/agents");
+      expect(onOverlayEntry()).toBe(false);
+    } finally {
+      off();
+    }
   });
 
   it("a command that opens a sheet hands its entry over: one entry, and Back closes the sheet", async () => {
