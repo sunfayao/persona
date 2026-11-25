@@ -364,8 +364,8 @@ func TestHookCardsArePlacedInTheConversationsDirectory(t *testing.T) {
 	n.procs[mainSession] = &assistantProc{id: mainSession, agent: "claude", cwd: assistant, exited: make(chan struct{})}
 	question, _ := json.Marshal(map[string]any{"questions": []map[string]any{{"question": "Which one?", "options": []map[string]any{{"label": "A"}, {"label": "B"}}}}})
 	for i, c := range []struct{ name, session, hookCwd, want, title string }{
-		{"health, from its reports", healthSession, filepath.Join(health, "reports"), health, "health"},
-		{"health, from /tmp", healthSession, "/tmp/x", health, "health"},
+		{"health, from its reports", healthSession, filepath.Join(health, "reports"), health, "qa-private"},
+		{"health, from /tmp", healthSession, "/tmp/x", health, "qa-private"},
 		{"main, from inside health", mainSession, filepath.Join(health, "x"), filepath.Join(health, "x"), "x"},
 		{"main, from a skill's folder", mainSession, filepath.Join(assistant, ".claude", "skills", "x"), assistant, "assistant"},
 		{"no process", agentSession, "/work/app/web", "/work/app/web", "web"},

@@ -42,7 +42,7 @@ func (h olderTaskNodeHub) DeviceCall(ctx context.Context, call DeviceCall) (json
 }
 
 func TestTaskExecutionStrictContextsRefuseAnOlderNode(t *testing.T) {
-	for _, name := range []string{"directory", "computer", "launcher", "model", "effort", "health", "strict snapshot"} {
+	for _, name := range []string{"directory", "computer", "launcher", "model", "effort", "strict snapshot"} {
 		t.Run(name, func(t *testing.T) {
 			f := readyHub()
 			f.hello.Assistant.TaskExecutionWaitSeconds = ptr(1)
@@ -60,8 +60,6 @@ func TestTaskExecutionStrictContextsRefuseAnOlderNode(t *testing.T) {
 				setModel(t, s, "task.job", ModelBinding{Provider: "launcher.claude", Model: "chosen-model"})
 			case "effort":
 				setModel(t, s, "task.job", ModelBinding{Provider: "launcher.claude", Effort: "low"})
-			case "health":
-				task.Space = testSpace
 			case "strict snapshot":
 				f.known["own"] = true
 				task.RunSessionID, task.RunMachineID, task.RunLauncher = "own", "server", "claude"

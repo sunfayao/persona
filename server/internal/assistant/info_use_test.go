@@ -18,6 +18,7 @@ func infoUseService(t *testing.T) (*Service, *fakeHub, *infoCategoryMemStore) {
 	st := &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{
 		{Slug: "qa-finance", Kind: trackKindSpace, Template: trackTemplateSpace, DefaultCategories: []string{categoryFinance}},
 		{Slug: "qa-plain", Kind: trackKindSpace, Template: trackTemplateSpace},
+		testSpaceRow,
 	}}}
 	f := newFakeHub()
 	f.infoTagModel = true
@@ -151,7 +152,7 @@ func TestSensitiveTextOutsideHealth(t *testing.T) {
 	l := s.lang(context.Background())
 	p := f.pushed()
 	if len(p) != 2 || p[0].Title != "qa build" || p[0].Body != "all green" ||
-		p[1].Title != i18n.T(l, "assistant-health.sensitive_notice_title") || p[1].Body != i18n.T(l, "assistant-health.sensitive_notice_body") {
+		p[1].Title != i18n.T(l, "assistant-spaces.notice_title") || p[1].Body != i18n.T(l, "assistant-spaces.notice_body") {
 		t.Fatalf("pushes: %+v", p)
 	}
 	// Words the owner just confirmed on the phone (an Inbox suggestion's instruction) are not asked about again.

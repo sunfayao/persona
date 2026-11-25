@@ -271,7 +271,7 @@ func TestEntriesCollectOwnerCardAnswersAcrossSourceSpaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := database.ListAssistantEntries(ctx, proto.AssistantEntriesParams{By: "user"}, true)
-	if err != nil || len(out.Entries) != 1 || out.Entries[0].OriginSpace != "health" || len(out.Entries[0].Category) != 0 {
+	if err != nil || len(out.Entries) != 1 || out.Entries[0].OriginSpace != testSpace || len(out.Entries[0].Category) != 0 {
 		t.Fatalf("source/category: %+v %v", out, err)
 	}
 }

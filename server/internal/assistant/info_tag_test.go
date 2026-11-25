@@ -120,6 +120,7 @@ func TestConversationCategories(t *testing.T) {
 	st := &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{
 		{Slug: "qa-finance", Kind: trackKindSpace, Template: trackTemplateSpace, DefaultCategories: []string{categoryFinance}},
 		{Slug: "qa-plain", Kind: trackKindSpace, Template: trackTemplateSpace},
+		testSpaceRow,
 	}}}
 	s := newServiceOn(t, newFakeHub(), st)
 	s.noteConversationSpaces(ctx, []db.ConversationSpace{{MachineID: "qa-machine", SessionID: "qa-main", Space: ""},

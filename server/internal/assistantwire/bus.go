@@ -267,7 +267,6 @@ const (
 // http.request. The assistant registers exactly these (assistant.TestRoutesAreTheWireOnes).
 var Routes = []string{
 	"POST /api/v1/skills/import",
-	"POST /api/v1/assistant/health/workouts",
 	"GET /api/v1/sessions/archived",
 	"POST /api/v1/sessions/{mid}/{sid}/archive",
 	"POST /api/v1/sessions/{mid}/{sid}/unarchive",

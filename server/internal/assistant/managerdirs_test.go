@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"github.com/nwverse/persona/server/internal/compat"
-	"strings"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"
@@ -22,17 +21,13 @@ func TestAManagersOwnDirectories(t *testing.T) {
 	} {
 		f := spaceHub()
 		s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return &memStore{} }, Logf: testLogf(t), ID: c.id}))
-		for _, space := range []string{"", testSpace} {
+		for _, space := range []string{""} {
 			if _, err := s.prepareSpace(ctx, "server", space); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if len(f.prepared) != 2 || f.prepared[0]["dir"] != compat.StateDir+"/"+c.assistant[len(".persona/"):] || f.prepared[1]["dir"] != compat.StateDir+"/"+c.health[len(".persona/"):] {
+		if len(f.prepared) != 1 || f.prepared[0]["dir"] != compat.StateDir+"/"+c.assistant[len(".persona/"):] {
 			t.Fatalf("%q prepared %v", c.id, f.prepared)
-		}
-		// Its health CLAUDE.md names its own space, where its reports are.
-		if md, _ := f.prepared[1]["claude_md"].(string); !strings.Contains(md, "/"+c.health[len(".persona/"):]+"/reports/") {
-			t.Fatalf("%q: the health CLAUDE.md does not name its space: %s", c.id, md)
 		}
 		d := Device{ID: "server", Home: "/home/me"}
 		if got := s.assistantCwd(d); got != "/home/me/"+c.assistant {

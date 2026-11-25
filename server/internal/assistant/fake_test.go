@@ -1391,6 +1391,14 @@ func withSettings(t testing.TB, f *fakeHub, s *Service) *Service {
 	// These tests are about what a plan does once it exists; what task_plan requires of a brief is task_brief_test.go's,
 	// which turns this off.
 	s.briefsOptional = true
+	if s.store() == nil { // no registry to read: testSpace is registered by hand, until the registry is changed
+		e := trackEntry{Slug: testSpaceRow.Slug, Kind: testSpaceRow.Kind, Title: testSpaceRow.Title, Template: testSpaceRow.Template,
+			DefaultCategories: testSpaceRow.DefaultCategories, DirName: s.defaultTrackDir(testSpace), Revision: 1}
+		e.Config, _ = effectiveTrackConfig(builtinKindConfigs()[trackKindSpace], e.Template, e.DefaultCategories, nil)
+		s.trackReg.mu.Lock()
+		s.trackReg.list, s.trackReg.kinds, s.trackReg.at = []trackEntry{e}, builtinKinds(), time.Now().Add(100*365*24*time.Hour)
+		s.trackReg.mu.Unlock()
+	}
 	// And about what a supervisor does with its tasks, told to the main conversation: the background supervisor that
 	// takes them by default is supervise_background_test.go's, which turns this off.
 	s.noBackground = true
