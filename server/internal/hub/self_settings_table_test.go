@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/i18n"
 )
 
 // The table-driven hub settings: settings.list names each with its current value, get reads it, and a set is held to
@@ -61,7 +62,7 @@ func TestHubValueSettingsListGetAndRefuse(t *testing.T) {
 		`{"device_id":"d1","quiet":{"enabled":true}}`, // quiet hours need a window
 		`"d1"`,
 	} {
-		if out, err := run(`{"action":"set","key":"notifications.devices","value":` + bad + `}`); err == nil && !strings.Contains(out, "no change") {
+		if out, err := run(`{"action":"set","key":"notifications.devices","value":` + bad + `}`); err == nil && out != tableText(h.userLang(), "no_change", i18n.Args{"title": tableText(h.userLang(), "title_notifications_devices")}) {
 			t.Errorf("value %s reached the card: %q", bad, out)
 		}
 	}
@@ -71,7 +72,7 @@ func TestHubValueSettingsListGetAndRefuse(t *testing.T) {
 	// the prefs the device has already: no change, no card
 	cur := h.push.prefs("d1")
 	same, _ := json.Marshal(map[string]any{"device_id": "d1", "input": cur.Input, "done": cur.Done})
-	if out, err := run(`{"action":"set","key":"notifications.devices","value":` + string(same) + `}`); err != nil || !strings.Contains(out, "no change") || len(h.pendingInteractions()) != 0 {
+	if out, err := run(`{"action":"set","key":"notifications.devices","value":` + string(same) + `}`); err != nil || out != tableText(h.userLang(), "no_change", i18n.Args{"title": tableText(h.userLang(), "title_notifications_devices")}) || len(h.pendingInteractions()) != 0 {
 		t.Fatalf("same prefs: %q %v", out, err)
 	}
 }
