@@ -201,9 +201,9 @@ TEXT
 	en:node_pair_prompt) printf '%s' 'Paste the pairing link (Enter to skip and run persona-link pair later): ' ;;
 	zh-Hans:node_pair_prompt) printf '%s' '粘贴配对链接（回车跳过，以后再 persona-link pair）：' ;;
 	ja:node_pair_prompt) printf '%s' 'ペアリングリンクを貼り付けてください（Enter で省略し、後で persona-link pair を実行）：' ;;
-	en:mac_connector) printf '%s' 'The independent Persona Link service is installed and starts at login; the Electron desktop is optional. Check its status with %s status.' ;;
-	zh-Hans:mac_connector) printf '%s' '独立 Persona Link 服务已安装，会在登录时启动，不依赖 Electron 桌面应用。用 %s status 查看状态。' ;;
-	ja:mac_connector) printf '%s' '独立した Persona Link サービスをインストールし、ログイン時に開始するように設定しました。Electron デスクトップは不要です。%s status で状態を確認できます。' ;;
+	en:mac_connector) printf '%s' 'The independent Persona Link service is installed and starts at login. Check its status with %s status.' ;;
+	zh-Hans:mac_connector) printf '%s' '独立 Persona Link 服务已安装，会在登录时启动。用 %s status 查看状态。' ;;
+	ja:mac_connector) printf '%s' '独立した Persona Link サービスをインストールし、ログイン時に開始するように設定しました。%s status で状態を確認できます。' ;;
 	en:node_switch_warning) printf '%s' 'personad: warning: the node service still runs persona-node; run %s node switch --to personad (on a Mac, in Terminal on the Mac)' ;;
 	zh-Hans:node_switch_warning) printf '%s' 'personad：警告：node 服务仍在运行 persona-node；请运行 %s node switch --to personad（Mac 上请在终端运行）' ;;
 	ja:node_switch_warning) printf '%s' 'personad：警告：node サービスはまだ persona-node を実行しています。%s node switch --to personad を実行してください（Mac ではターミナルで実行）' ;;

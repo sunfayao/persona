@@ -333,8 +333,8 @@ def verification_env():
                 "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
                 "http_proxy", "https_proxy", "all_proxy", "no_proxy",
                 "NODE_ENV", "NPM_CONFIG_REGISTRY", "GOPROXY", "GOSUMDB", "GOFLAGS",
-                "GRADLE_USER_HOME", "GOCACHE", "GOMODCACHE", "GOPATH", "GOENV",
-                "ANDROID_HOME", "ANDROID_SDK_ROOT", "JAVA_HOME"):
+                "GOCACHE", "GOMODCACHE", "GOPATH", "GOENV",
+                ):
         value = os.environ.get(key)
         if value:
             env[key] = value

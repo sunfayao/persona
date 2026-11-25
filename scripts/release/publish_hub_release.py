@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deliver a verified release over SSH; optionally publish matching node packages without touching Android artifacts."""
+"""Deliver a verified release over SSH; optionally publish matching node packages."""
 import argparse
 import json
 from pathlib import Path

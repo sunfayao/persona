@@ -1,5 +1,5 @@
 [Unit]
-Description=Persona default-branch deployment and TestFlight worker
+Description=Persona default-branch deployment worker
 After=network-online.target
 Wants=network-online.target
 

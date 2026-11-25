@@ -18,10 +18,6 @@ PERSONA_LANES = (
 EXTRA_LANES = {
     "server": ["bash", "{trusted}/scripts/ci/server.sh"],
     "web": ["bash", "{trusted}/scripts/ci/web.sh"],
-    "android": ["bash", "{trusted}/scripts/ci/android.sh"],
-    "apple": ["bash", "{trusted}/scripts/ci/apple.sh", "ios"],
-    "macos": ["bash", "{trusted}/scripts/ci/apple.sh", "macos"],
-    "core": ["bash", "{trusted}/scripts/ci/core.sh"],
     "runtimes": ["bash", "{trusted}/scripts/ci/runtimes.sh"],
 }
 

@@ -70,92 +70,12 @@ def external_check(command, pr, worktree, name):
     return name, argv
 
 
-# Tests do not change the interface they exercise. Production source outside
-# the known UI paths must still be read; SwiftUI in any file stays gated.
-APPLE_NON_UI_PATHS = ("apple/",)
-APPLE_VISUAL_PATHS = (
-    "apple/Packages/BeautifulUI/",
-    "apple/Shared/Design/",
-    "apple/Shared/Localization/",
-    "apple/Persona/DesignSystem/",
-    "apple/Persona/Views/",
-    "apple/Persona/Resources/",
-    "apple/PersonaWidgets/",
-    "apple/PersonaWatch/",
-    "apple/LiveActivity/",
-    "apple/Vision/",
-)
-APPLE_VISUAL_MARKERS = re.compile(
-    r"\b(?:SwiftUI|UIKit|AppKit|UIView|NSView|View|ViewModifier|ViewBuilder|"
-    r"NavigationStack|NavigationSplitView|TabView|GeometryReader|"
-    r"Image|Color|Font|Theme|StyleSpec|ComponentSpec|ColorSpec|AppStyle|"
-    r"localized|String\(localized|Text\s*\(|Button\s*\(|Label\s*\(|"
-    r"XCUIApplication|XCUITest)\b|@(?:MainActor|State|Binding|ObservedObject)\b|"
-    r"\.(?:frame|padding|font|foregroundStyle|background|sheet|fullScreenCover|"
-    r"foregroundColor|opacity|offset|position|lineLimit|minimumScaleFactor)\s*\(")
-
-
-APPLE_NON_UI_SHARED = (
-    "schema/",
-    "spec/",
-    "scripts/ci/",
-    "scripts/app/",
-    "docs/",
-)
-APPLE_PORTABLE_CORE = (
-    "native/app-core/crates/persona-core-runtime/",
-    "native/app-core/crates/persona-core-ohos/",
-)
-APPLE_ANDROID_SHARED = (
-    "android/core/rustcore/",
-)
-
-
-def non_ui_apple_change(worktree, base, head, names):
-    """Shared backend/schema changes can use the Linux non-visual policy too."""
-    if not names or not all(name.startswith(APPLE_NON_UI_PATHS + APPLE_NON_UI_SHARED +
-                                          APPLE_PORTABLE_CORE + APPLE_ANDROID_SHARED) for name in names):
-        return False
-    for path in names:
-        if path == "native/app-core/crates/persona-core-runtime/src/wire.rs":
-            return False
-        if not path.startswith("apple/"):
-            continue
-        parts = path.split("/")
-        test_path = (len(parts) >= 2 and parts[1] in ("PersonaTests", "PersonaUITests")) or (
-            len(parts) >= 5 and parts[1] == "Packages" and parts[3] == "Tests") or (
-            len(parts) >= 4 and parts[1] == "PersonaLink" and parts[2] == "Tests")
-        if path.startswith(APPLE_VISUAL_PATHS) and not test_path:
-            return False
-        if "/Assets" in path or "/Design" in path or "/Localization" in path:
-            return False
-        if path.endswith((".xcstrings", ".strings", ".stringsdict", ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".svg")):
-            return False
-        # A UI test's own imports and assertions do not change the interface.
-        if not test_path and not path.endswith(".swift"):
-            return False
-        if path.endswith(".swift") and not test_path:
-            diff = checked(["git", "diff", "--unified=0", "--no-renames", base + "..." + head, "--", path], cwd=worktree)
-            changed = [line[1:] for line in diff.splitlines()
-                       if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
-            if any(APPLE_VISUAL_MARKERS.search(line) for line in changed):
-                return False
-    return True
-
-
 def ui_change(names):
     for path in names:
-        if path.startswith(("apple/", "web/src/", "android/", "harmony/")):
-            if "/test" not in path and "/docs/" not in path and not path.endswith((".md", ".xcstrings", "strings.xml")):
+        if path.startswith("web/src/"):
+            if "/test" not in path and "/docs/" not in path and not path.endswith(".md"):
                 return True
     return False
-
-
-def apple_test_file(name):
-    parts = name.split("/")
-    return ((len(parts) > 1 and parts[1] in ("PersonaTests", "PersonaUITests")) or
-            (len(parts) >= 5 and parts[1] == "Packages" and parts[3] == "Tests") or
-            (len(parts) >= 4 and parts[1] == "PersonaLink" and parts[2] == "Tests"))
 
 
 def python_test_suite(worktree, name):
@@ -173,9 +93,8 @@ def scoped_test_checks(worktree, base, head, names):
         "python": [name for name in names if name.startswith("scripts/") and
                    Path(name).name.startswith("test_") and name.endswith(".py") and
                    python_test_suite(worktree, name)],
-        "apple": [name for name in names if name.startswith("apple/") and apple_test_file(name)],
     }
-    if sorted(groups["web"] + groups["go"] + groups["python"] + groups["apple"]) != sorted(names):
+    if sorted(groups["web"] + groups["go"] + groups["python"]) != sorted(names):
         return None
     commands = []
     if groups["web"]:
@@ -200,10 +119,6 @@ def scoped_test_checks(worktree, base, head, names):
         for name in groups["python"]:
             relative = str(Path(name).parent)
             commands.append(("Changed Python tests", ["python3", "-I", "-B", "-m", "unittest", Path(name).name], relative))
-    if groups["apple"]:
-        # Test-only Apple changes retain semantic review and portable guards;
-        # this host does not claim a Swift build, simulator or visual acceptance.
-        commands.append(("Apple test-only review policy", ["true"]))
     guard = str(Path(__file__).resolve().parent / "pr_watch_test_guards.py")
     commands.extend([
         ("Changed test-file baseline guards", ["python3", "-I", guard, "--base", base, "--head", head,
@@ -214,9 +129,8 @@ def scoped_test_checks(worktree, base, head, names):
     return commands
 
 
-# The CI lanes the watcher runs, each as scripts/ci/<lane>.sh. CI's image lane builds the release image, and the
-# apple lane needs a Mac (persona_checks records a policy line for it instead).
-WATCHER_LANES = ("server", "web", "android", "runtimes", "scripts", "core", "desktop")
+# The CI lanes the watcher runs, each as scripts/ci/<lane>.sh. CI's image lane builds the release image.
+WATCHER_LANES = ("server", "web", "runtimes", "scripts")
 
 
 def watcher_lanes(selected, names, focused=False):
@@ -256,15 +170,7 @@ def persona_checks(worktree, pr, timeout, config):
         scanner = Path(__file__).resolve().parents[2] / "scripts/privacy_check.py"
         commands.append(("Exact-head privacy scan", ["python3", "-I", str(scanner),
                                                     "--range", base + ".." + head]))
-    if selected.get("apple"):
-        # Maintainer policy: a Mac verifier is not a merge prerequisite.
-        # Keep semantic review and every selected portable check; do not claim
-        # an Apple build, simulator or visual acceptance on this host.
-        commands.append(("Apple semantic and portable verification policy", ["true"]))
-        non_ui = non_ui_apple_change(worktree, base, head, names)
-    else:
-        non_ui = False
-    if ui_change(names) and not non_ui and not test_or_fix(pr, names):
+    if ui_change(names) and not test_or_fix(pr, names):
         if config.get("ui_evidence_command"):
             commands.append(external_check(config["ui_evidence_command"], pr, worktree, "visual evidence"))
         else:
