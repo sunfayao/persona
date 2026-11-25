@@ -1,0 +1,9 @@
+{
+  "retry": "Retry",
+  "inspect": "Include hidden sessions",
+  "temporary_view": "Temporary view only. Assistant visibility and rules stay unchanged.",
+  "close": "Close",
+  "more": "Load more",
+  "hidden": "Hidden",
+  "normal": "Visible"
+}

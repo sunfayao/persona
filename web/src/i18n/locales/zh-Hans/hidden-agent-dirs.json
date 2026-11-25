@@ -1,0 +1,9 @@
+{
+  "retry": "重试",
+  "inspect": "包括隐藏的会话",
+  "temporary_view": "仅临时查看，不改变规则或助手可见性。",
+  "close": "关闭",
+  "more": "加载更多",
+  "hidden": "已隐藏",
+  "normal": "可见"
+}
