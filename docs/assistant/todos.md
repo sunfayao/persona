@@ -1196,7 +1196,7 @@ them.
   to the next Agent, off by default and byte-identical, no call for a smooth acceptance, nothing without a model,
   merges and deletions, selection bounds, friction, the routes); goldens `todo_lessons.*`, `todo_lessons_input.*`,
   `todo_project_lessons.*` in `server/internal/hub/testdata/prompts`; web `web/src/views/knowledge/ProjectLessons.test.tsx`
-  and `web/src/views/settings/AssistantSettings.task-lessons.test.tsx`.
+  and `AssistantSettings.task-lessons.test.tsx`.
 - **Not yet**: the iOS, Android and HarmonyOS project pages and switches; ranking lessons by how well they match the new
   task's words; promoting a lesson into the direction's notes; showing lessons to the supervisor or leader as it plans;
   measuring rework rounds and owner corrections per accepted task before and after (the evaluation #8231 asks for).

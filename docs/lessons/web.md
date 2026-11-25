@@ -1441,7 +1441,7 @@ right after `getByRole("dialog").waitFor()` reads the first frame: `getBoundingC
 px, while `offsetHeight` and the computed height say 44. Reduced motion only shortens the animation to 1 ms; the first
 frame is still drawn. Wait for the panel's animations before measuring:
 `await dialog.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).map(a => a.finished)))`
-(`web/e2e/standing-authorizations.mjs`).
+(`standing-authorizations.mjs`).
 
 ## A focus trap that lists only controls misses Chrome's focusable scrollers
 

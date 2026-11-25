@@ -2690,7 +2690,7 @@ read, a report for another conversation or routed through another node, the `unk
 drawn at all and Settings adds no row. The line used to read "Main conversation · Runtime not reported" to everyday
 users, and named the host, container and harness when they were known (web usability audit 2026-11-14, item 80;
 `web/src/lib/main-runtime.ts`, `web/src/views/assistant/MainRuntimeBadge.tsx`,
-`web/src/views/settings/AssistantSettings.tsx`).
+`AssistantSettings.tsx`).
 
 
 ### Hiding ambient Agent sessions

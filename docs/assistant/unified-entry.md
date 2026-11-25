@@ -1390,7 +1390,7 @@ HTTP route exists: the app route and the tool share persistence, sanitation, con
   connection they came on, an unknown outcome), `server/internal/hub/assistant_sent_test.go` (the
   notice names its message) and the
   goldens `direction_notes.*` / `todo_direction.*`; the web editor's browser check runs against the mock
-  hub with `MOCK_LEADERS=1`: `node web/e2e/direction-notes.mjs` (desktop and phone width, light and dark).
+  hub with `MOCK_LEADERS=1`: `node direction-notes.mjs` (desktop and phone width, light and dark).
 
 ### Agent tasks (#3617)
 

@@ -2924,7 +2924,7 @@ The same rule as a chosen look whose extension is switched off ("the choice stay
 Overview's extension cards (web) are arranged where they are drawn, not in a settings list: the result is a layout (which
 card is wide, which sit side by side), and a list would show neither widths nor neighbours. Overview's top bar has
 **Arrange Overview** (`IconButton` with the `grid` icon, `aria-pressed` while on) beside **New agent**, always: Overview's
-own sections are arranged with the cards (#10905). The edit state reuses the sidebar pages editor's pieces (`web/src/views/settings/SidebarPages.tsx`): the `grip`
+own sections are arranged with the cards (#10905). The edit state reuses the sidebar pages editor's pieces (`SidebarPages.tsx`): the `grip`
 handle and an HTML drag onto another item, which takes its place; ↑ / ↓ `IconButton`s at 26 px for the keyboard and touch;
 a native select for the width (**Half row** / **Full row**); `Switch` for shown or hidden; the hub footer's words for where
 it is kept; and **Reset** with Undo in a toast (4.4). Each card keeps its surface and its content, made `inert`; its head

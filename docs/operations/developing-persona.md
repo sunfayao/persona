@@ -276,9 +276,9 @@ Tests: `apple/PersonaTests/DevModeTests.swift`, `apple/PersonaTests/ConnectionTa
 ## Code (web)
 
 `web/src/lib/dev-probe.ts` (the switch's key, the WebSocket wrap), `web/src/lib/dev-mode.ts` (recorder, store, hooks),
-`web/src/lib/dev-scrub.ts`, `web/src/lib/dev-package.ts`, `web/src/views/settings/DevModeSettings.tsx` (About Persona's
-rows), `web/src/views/settings/DevExportDialog.tsx` (export, Send To, Download), `web/src/features/todos/model/view-shadow.ts`
-(the To-dos view's shadow). Tests: `web/src/lib/dev-mode.test.ts`, `web/src/views/settings/DevModeSettings.test.tsx`,
+`web/src/lib/dev-scrub.ts`, `dev-package.ts`, `DevModeSettings.tsx` (About Persona's
+rows), `DevExportDialog.tsx` (export, Send To, Download), `web/src/features/todos/model/view-shadow.ts`
+(the To-dos view's shadow). Tests: `web/src/lib/dev-mode.test.ts`, `DevModeSettings.test.tsx`,
 `web/src/features/todos/model/view-shadow.test.ts`.
 
 ## Code (Android)

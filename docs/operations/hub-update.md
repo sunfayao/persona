@@ -663,7 +663,7 @@ The settings list is the Persona-provisioned inventory, not every skill a runtim
 immediately; start a new chat to safely pick up installation/Undo, as already-running sessions may retain old context.
 Tests exercise actual import/list/provisioning entry points and resource reads, not a paid Claude/Codex turn.
 
-`TestImport*`, `TestSkillImport*` and `web/src/views/settings/Skills.test.tsx` cover archive safety, atomic races,
+`TestImport*`, `TestSkillImport*` and `Skills.test.tsx` cover archive safety, atomic races,
 environment/credential changes, strict server-derived targeting and the confirmation/Undo states. The opt-in
 `TestSkillImportBrowserHarness` uses the real manager handler and archive store with synthetic device transport
 and a temporary directory; unrelated routes use `scripts/mock/mock_hub.py`. It is UI integration evidence, not a
