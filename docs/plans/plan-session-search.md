@@ -23,7 +23,7 @@ It also rules out writing a second indexer inside Persona. This plan answers how
 | --- | --- | --- | --- |
 | `GET /api/v1/sessions?search=` (#7624) | Title, project, computer, launcher, model, state, latest text (`sessionsearch.Document` in `server/internal/sessionsearch/document.go`; operators `machine:`, `project:`, `harness:`, `since:` in `parseSearch`, `server/internal/sessionlist/search.go`) | The hub's in-memory list index (`runtimeSearchContext`, `server/internal/hub/sessions_search.go`) | Never opens a transcript (`SearchDocument` is "not a transcript"), so an earlier message is never matched |
 | Search in chat (#2977) | Every loaded item of one open chat (`web/src/lib/chat-search.ts`, Android `ChatSearchScreen.kt`) | The client | One session the user already found |
-| `GET /api/v1/assistant/search` (#6282) | The user's words and the replies in assistant chats (`server/internal/assistant/chatsearch/text.go`, `server/internal/db/assistant_search.go`) | The manager's Postgres, filled through `session.items` | Assistant chats only: its design (`docs/design/proposals/assistant-search.md`) leaves Agents' own history to #757, and it is an app endpoint, not a model tool |
+| `GET /api/v1/assistant/search` (#6282) | The user's words and the replies in assistant chats (text.go, assistant_search.go) | The manager's Postgres, filled through `session.items` | Assistant chats only: its design (`docs/design/proposals/assistant-search.md`) leaves Agents' own history to #757, and it is an app endpoint, not a model tool |
 | `kb_search` | Knowledge-base files | The manager (server/internal/kb/) | Agent transcripts are not knowledge-base files |
 | `agent_read` | The last turns of one named session (`server/internal/prompts/mcp/agents/agent_read.md`) | The manager, through the node | Needs the session id first |
 
@@ -79,7 +79,7 @@ It also rules out writing a second indexer inside Persona. This plan answers how
 - `transcript.SanitizeShareText` (`server/internal/transcript/share_sanitize.go`, session sharing): private-key blocks,
   `Bearer` values, known token shapes (`sk-…`, `ghp_…`, `xox?-…`, `AIza…` and more), `NAME=value` assignments whose
   name says secret, credentials inside URLs, `curl -u`. It runs over the whole text before any clipping.
-- `chatsearch` (`server/internal/assistant/chatsearch/text.go`): what of an item is searchable (`IndexText`), folding
+- `chatsearch` (text.go): what of an item is searchable (`IndexText`), folding
   (`Fold`: NFKC and lower case), query words (`Words`), matching (`Holds`) and snippets (`Snippet`: about 40 characters
   before the match and 80 after, UTF-16 ranges). The node cannot link it where it is: `cmd/persona-node`'s guard
   refuses anything under `internal/assistant` (`server/cmd/persona-node/main_test.go`).

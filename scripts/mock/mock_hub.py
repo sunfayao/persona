@@ -2237,7 +2237,7 @@ if os.environ.get("MOCK_RECENT") == "1":
         c["origin"] = "user"
         ASSISTANT.append(c)
 
-# MOCK_LEADERS=1 (#3623, docs/assistant/unified-entry.md "Leader conversations"): four side conversations are leaders. GET
+# MOCK_LEADERS=1 (#3623, docs/assistant/unified-entry.md): four side conversations are leaders. GET
 # /api/v1/assistant lists them in `leaders`; GET /api/v1/assistant/leaders names each direction (#3695), and the web
 # sidebar shows them first among the Persona chats as the "Directions" group under those names, on any browser.
 MOCK_LEADERS = []
@@ -20551,7 +20551,7 @@ if os.environ.get("MOCK_CHAT_SEARCH") == "1":
     mock_chat_search()
 
 
-# GET /api/v1/assistant/search (#6282, docs/protocol/protocol.md "Assistant chat search"): the assistant's conversations
+# GET /api/v1/assistant/search (#6282, docs/protocol/protocol.md): the assistant's conversations
 # found by their title, the user's words or the replies, the way the manager answers (search_routes.go there), over the
 # whole of ITEMS at once (no index to wait for). What a message counts as is spec/fixtures/chat-search's "index"
 # (test_assistant_search_mock.py checks it). MOCK_ASSISTANT_SEARCH=0 is a hub from before it: no feature, 404.

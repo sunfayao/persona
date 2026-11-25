@@ -1756,7 +1756,7 @@ No test enforces items 1, 2, 7 (composites) or 8.
 | ID | What | Where | Impact | Recommended unification |
 | --- | --- | --- | --- | --- |
 | DS-01 | Needs-you color: blue by the decision of 11-11, amber on the web | `web/src/styles.css:233` | The web shows another color for the same state | Move the web to the blue (its own issue) |
-| DS-31 | Web working and caution are one color: `--status-working` is `var(--orange)`, the caution role, so a direction-tree task's 在做 and its 卡住 / 待验收 (#4352) differ only by their word | `web/src/styles.css:264`; `web/src/lib/direction-tree.ts` (`DIRECTION_STATE_TONE`) | Working and stuck read as the same urgency at a glance | Give the web an amber working token of its own (with DS-01's move of needs-you to blue), then point `--status-working` at it |
+| DS-31 | Web working and caution are one color: `--status-working` is `var(--orange)`, the caution role, so a working task and a stuck or awaiting-review one differ only by their word | `web/src/styles.css:264` | Working and stuck read as the same urgency at a glance | Give the web an amber working token of its own (with DS-01's move of needs-you to blue), then point `--status-working` at it |
 
 ## UI change self-check
 

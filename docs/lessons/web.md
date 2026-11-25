@@ -147,7 +147,7 @@ the first pages (`sessionSummaries`) is not a computer's count either while the 
   with a failed start the sections show open. Count a merged row's to-dos under the row's section, as the section titles
   do, not each under its own.
 - A grouping drawn from a hub list that holds only some to-dos (the pinned directions' tree lists only open ones,
-  `server/internal/assistant/direction_tree.go`) must still place the ones it leaves out: a to-do moved out of the
+  direction_tree.go) must still place the ones it leaves out: a to-do moved out of the
   page's Done fold vanished from 常驻 and was counted as "open, under no direction". Check every grouping for each
   to-do state a rule change moves.
 

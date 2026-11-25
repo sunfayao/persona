@@ -192,30 +192,6 @@ on a new transport, through the same relays:
 
 Nothing is stored: tokens live in each process's memory, so a restarted manager or node connects anew.
 
-### Direction session filings (#11463, #11490)
-
-Since #11463 the assistant manager's filing book (settings `assistant.direction_sessions`) keeps three fields per entry
-that a manager from before does not know: `parent` (a Codex sub-agent session's parent, for placement rule 1),
-`was` (the entry the write replaced, for its Undo) and `removed_at` (an entry taken out, kept seven days for its
-Undo). Every manager answers the filing route and keeps its own book: the hub relays a write to the manager the request
-names, else to the default one (`server/internal/hub/assistant_link.go`), so a rollback of any manager meets them in
-the book that manager keeps:
-
-| Case | What happens |
-| --- | --- |
-| A new manager reads a book an older one wrote | Its entries have none of the three fields: the Undo of their last write is only `null` (taking the entry out), and a sub-agent session its computer no longer lists is placed by its filing, as before. Nothing is lost. |
-| An older manager (rolled back) reads a book a new one wrote | It reads an entry taken out (`removed_at`) as a filing: the session shows filed in that direction again and counts toward its 50. It ignores `was` and `parent`. |
-| That older manager writes the book once | It saves every entry without `removed_at`, `was` and `parent`. Rolled forward again, the entries taken out before are filings for good (the owner takes them out again), no write before the rollback can be undone exactly, and a not-listed sub-agent session is placed by its filing until it is listed again. |
-| Answers of an older manager | The write's `previous` is the opener of a chat a leader opened, or `""`, never `null`; a `null` direction is taken as `""` (on its own); every write, `null` and `""` included, needs the session listed on its computer (404 `session_not_found` otherwise), and an Undo into an ended or full direction is refused (409 `direction_ended`, `direction_full`); a session whose computer could not be read is `offline`, one whose computer has given no list `not_listed`, and the read has no `sessions_unavailable`. Both versions name `direction_sessions`, so clients reach the same routes and get the older values. |
-
-What an operator can do: rolling forward again before the older manager's first write to the book loses nothing, as
-it reads the extra fields without saving. After such a write, a copy of the setting that holds the book
-(`assistant.direction_sessions`), taken before the rollback, is the only way to get the entries taken out and the
-`was` of each entry back. A manager from before #11515 also leaves the sessions placed under directions out of the
-profile's `keep`: a quiet one leaves its computer's list again and its automatic archive goes on, while the book stays
-as it was. Rolling forward lists again the ones that only dropped out of a computer's list; one the older manager's
-automatic archive took stays archived until the owner restores it, as nothing restores an archive by itself.
-
 ### Resumes a computer has nothing of, and an extension's resumes (#10941)
 
 Since #10941 a node refuses a Claude Code resume of an id it has no transcript, start or record of with
@@ -240,22 +216,6 @@ The records are the node's own (the hub keeps its copy, as for any start), of th
 writes for a start with a creation identity, plus `engine_runtime` in the model settings the hub keeps with each one
 (no table changes), so rolling the node back leaves them to be read as those, the mark ignored. Nothing else is
 stored: rolling either side back or forward changes only what the next resume does.
-
-### Outside reporting directions (#8236)
-
-The manager migration `20261120081453_outside_directions.sql` adds only `assistant_outside_directions`; existing
-settings, directions, conversations and to-do ownership are not rewritten. A new manager on an older database therefore
-starts with no outside bindings until one is created. The table is separate because an older settings writer does not
-know the outside marker and would otherwise discard it.
-
-An older manager or hub has neither new write route nor `leaders.write`; those calls keep its previous 404 / 403
-behavior. A new CLI talking to an older node receives its legacy `unknown kind` answer and exits unavailable without
-retrying. `leaders.read` keeps its existing routes and events. On rollback, an older manager does not read the outside
-binding table or emit `external` / Agent-target metadata, and its legacy direction code may treat the stored opaque id
-as a conversation id; outside directions are therefore not a supported rollback interface. Existing
-conversation-backed directions keep their old behavior. Rolling forward again rejoins bindings that remain in the
-table to the surviving direction records; an owner or older manager removing a direction from `assistant.leaders`
-still ends its current membership as before.
 
 ### Launcher default models (#4663)
 

@@ -100,8 +100,7 @@ Once a chat is open it behaves like any other assistant chat: sending, archiving
 The `conversation*` tools in a chat only see chats in the same space (`server/internal/assistant/conversations.go`: `spaceConversation`, `ownSpaceConversation`, `selfSpace`):
 
 - `conversations_list`: in a track's chat it lists only that space's chats; in an assistant chat only assistant chats.
-- `conversation_read`, `conversation_rename`, `conversation_archive`, `conversation_send`: a target in another space is treated as not found.
-- `conversation_new`: a new chat started from a track's chat stays in the track.
+- `conversation_read`, `conversation_send`: a target in another space is treated as not found.
 - Calls not made from a chat (no caller session id) count as the assistant's own space.
 - `kb_update` from a space whose policy says so (`NoKBWrite`) fails outright: what is said there does not go into the knowledge base (`assistant/tools.go` `runTool`). Knowledge base reads (`kb_search` etc.) work as usual.
 - Scheduled follow-ups and scheduled tasks created in a track's chat (`schedule_followup`, `schedule_routine`) record their space (`Task.space`); when one fires and needs a new chat, it opens in that track. The space owns the task's working directory: a nonempty task `cwd` is rejected when saving and before dispatch, including an older stored override. Clear it to restore the canonical directory. Launcher, model, effort and execution computer remain configurable under their existing validation; the selected computer prepares the track's instructions and directory. A follow-up continues its source chat only when its actual directory matches the freshly prepared directory, with the node enforcing that directory on resume. Missing or mismatched source context uses the existing safe replacement path. Normal-space tasks keep their custom directories.
