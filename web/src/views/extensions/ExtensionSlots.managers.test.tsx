@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // The extensions' places with several managers (docs/assistant/managers.md "Clients"): another manager's inbox item is drawn by
 // its own extensions and a computer of another manager gets that manager's sections, each asked for and drawn with the
-// manager's name. The sidebar's badges and the workflow board's switch are the default's: before the roster says which
-// manager that is none of their pushes is taken, and both are read again once it does.
+// manager's name. The sidebar's badges are the default's: before the roster says which
+// manager that is none of their pushes is taken, and they are read again once it does.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -27,7 +27,6 @@ vi.mock("../../lib/store", async (original) => {
 
 import { useExtensionSlot } from "../../lib/extension-slots";
 import { resetManagerChoice, setRosterDefault } from "../../lib/manager-choice";
-import { getWorkspaceBoardSetting } from "../../lib/workspace-board-setting";
 import { InboxExtensionBody } from "../inbox/InboxExtensionBody";
 import { MachineExtensionSections } from "./ExtensionSlots";
 
@@ -53,7 +52,6 @@ beforeEach(() => {
       // each manager's own places
       body = { ui: header === "m-1" ? [place("work-ext", "item", "inbox_item"), place("work-ext", "mac", "machine_section")] : [place("home-ext", "nav", "nav_page", "2")] };
     } else if (url.includes("/-/ui/")) body = { view: { sections: [{ items: [{ type: "text", text: "drawn" }] }] } };
-    else if (url.includes("/workspace-board/settings")) body = { enabled: true, can_write: true };
     return { ok: true, status: 200, text: async () => JSON.stringify(body), headers: new Headers() };
   }));
   host = document.createElement("div");
@@ -121,21 +119,5 @@ describe("the extensions' places of each manager", () => {
     await flush();
     expect(host.textContent).toContain("work-ext mac");
     expect(calls.find((c) => c.url.includes("/work-ext/-/ui/mac"))?.header).toBe("m-1");
-  });
-});
-
-describe("the workflow board's switch", () => {
-  it("is read again once the roster says which manager is the default; another manager's push is not it", async () => {
-    resetManagerChoice();
-    act(() => emit("workspace_board_settings", { enabled: false, manager: "m-2" }));
-    expect(getWorkspaceBoardSetting().enabled).not.toBe(false);
-    act(() => setRosterDefault("m-2"));
-    await flush();
-    expect(calls.some((c) => c.url.includes("/workspace-board/settings"))).toBe(true);
-    expect(getWorkspaceBoardSetting().enabled).toBe(true);
-    act(() => emit("workspace_board_settings", { enabled: false }));
-    expect(getWorkspaceBoardSetting().enabled).toBe(true);
-    act(() => emit("workspace_board_settings", { enabled: false, manager: "m-2" }));
-    expect(getWorkspaceBoardSetting().enabled).toBe(false);
   });
 });

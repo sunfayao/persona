@@ -5,7 +5,6 @@ import { ago } from "../lib/format";
 import { composing } from "../lib/send-history";
 import { useAgentSessions } from "../lib/sessions";
 import { refresh, refreshTodos, setSpacesSupported, useStore } from "../lib/store";
-import { projectNames, useTodoProjects } from "../lib/todo-projects";
 import {
   createTodo,
   isLegacySpacesRouteError,
@@ -31,11 +30,11 @@ import { t } from "../i18n";
  *  sixth, so a longer list is seen to scroll), so from six one has to be scrolled to. */
 export const LINK_SEARCH_FROM = 6;
 
-/** The open to-dos whose title, notes or project name hold `query` (all of them for an empty one). */
-export function matchTodos(todos: readonly Todo[], query: string, project: (slug: string) => string = (slug) => slug): Todo[] {
+/** The open to-dos whose title, notes or project hold `query` (all of them for an empty one). */
+export function matchTodos(todos: readonly Todo[], query: string): Todo[] {
   const q = query.trim().toLocaleLowerCase();
   if (!q) return [...todos];
-  return todos.filter((todo) => [todo.title, todo.notes ?? "", todo.project ? project(todo.project) : ""].some((text) => text.toLocaleLowerCase().includes(q)));
+  return todos.filter((todo) => [todo.title, todo.notes ?? "", todo.project ?? ""].some((text) => text.toLocaleLowerCase().includes(q)));
 }
 
 export interface LinkTargetSpace {
@@ -271,11 +270,10 @@ export function LinkTodoDialog({
 function TodoChoices({ todos, currentTodoId, busy, onPick }: { todos: Todo[]; currentTodoId?: string; busy: boolean; onPick: (todo: Todo) => void }) {
   const sessions = useAgentSessions();
   const lookup = useMemo(() => makeSessionLookup(sessions), [sessions]);
-  const project = projectNames(useTodoProjects());
   const now = useNow(60_000);
   const [query, setQuery] = useState("");
   const searchable = todos.length >= LINK_SEARCH_FROM;
-  const shown = searchable ? matchTodos(todos, query, project) : todos;
+  const shown = searchable ? matchTodos(todos, query) : todos;
   return (
     <>
       {searchable && (
@@ -302,7 +300,7 @@ function TodoChoices({ todos, currentTodoId, busy, onPick }: { todos: Todo[]; cu
             const status = todoStatus(todo, lookup);
             // a waiting one's word says what it waits on, attention only on the owner (#11090)
             const look = todoLook(todo, status, waitOf(todo, status, lookup));
-            const where = [todo.project ? project(todo.project) : "", ago(todo.updated_at, now, "narrow")].filter(Boolean);
+            const where = [todo.project ?? "", ago(todo.updated_at, now, "narrow")].filter(Boolean);
             return (
               <button
                 key={todo.id}

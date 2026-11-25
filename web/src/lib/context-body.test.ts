@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { contextBody } from "./context-body";
 import { contextXML as inboxContext, type InboxItem } from "./inbox";
 import { handOffMessage } from "./inbox-page";
-import { contextXml as kbContext } from "./kb";
 import { contextXML as linkContext } from "./links";
 import { formatTodoContext } from "./todo-details";
 import { parseUserText } from "./turns";
@@ -38,7 +37,6 @@ describe("a context block's text cannot close it (#3676)", () => {
   it("does the same for every block the page writes", () => {
     const blocks = [
       inboxContext("context", "t", "", NESTED),
-      kbContext({ kind: "context", title: "t", text: NESTED }),
       linkContext({ kind: "context", title: "t", url: "", text: NESTED }),
       formatTodoContext("t", NESTED),
     ];

@@ -75,7 +75,7 @@ export class ApiError extends Error {
   isJson: boolean;
   /** The hub logs a failed request under this id (X-Request-Id): for a report, not for the message itself. */
   requestId?: string;
-  constructor(status: number, message: string, body: Record<string, unknown>, isJson = true, requestId?: string, readonly requestPath?: string) {
+  constructor(status: number, message: string, body: Record<string, unknown>, isJson = true, requestId?: string) {
     super(message);
     this.status = status;
     this.body = body;
@@ -83,14 +83,7 @@ export class ApiError extends Error {
     this.requestId = requestId;
   }
   get code(): string | undefined {
-    const code = typeof this.body.code === "string" ? this.body.code : undefined;
-    const path = this.requestPath?.split("?")[0];
-    // Older hubs lost this business code. Match only their exact refusal on knowledge/recording routes,
-    // never a phrase in an arbitrary internal error. Keep the original body for diagnostics.
-    const knowledge = path === "/kb" || path?.startsWith("/kb/") || path === "/kb-search"
-      || path === "/recordings" || path?.startsWith("/recordings/");
-    if (knowledge && this.status === 503 && code === "internal" && this.body.detail === "the knowledge base is off") return "kb_disabled";
-    return code;
+    return typeof this.body.code === "string" ? this.body.code : undefined;
   }
 }
 
@@ -274,7 +267,7 @@ async function request<T>(path: string, init: ApiOptions, binary = false): Promi
     if (res.status === 401 && owner !== undefined && owner === credentialOwner() && (init.token === undefined || init.token === getToken())
       && (isAuthContextCurrent?.() ?? true)) onUnauthorized();
     const msg = typeof data.error === "string" && data.error ? data.error : `HTTP ${res.status}`;
-    throw new ApiError(res.status, msg, data, isJson, res.headers?.get("X-Request-Id") ?? undefined, path);
+    throw new ApiError(res.status, msg, data, isJson, res.headers?.get("X-Request-Id") ?? undefined);
   }
   onResponse?.(res.headers, res.status);
   return compatibleEnvelope(data) as T;
@@ -337,9 +330,6 @@ export function isTransient(e: unknown): boolean {
 /** A coded business refusal is an answer, not evidence of a hub outage. `delivered: none` marks a plainly offline
  * computer where nothing went out. Original fields stay on ApiError for diagnostics, never interpolated here. */
 function businessFailureText(e: ApiError): string | undefined {
-  if (e.code === "kb_disabled") return t("lib-api.knowledge_disabled");
-  if (e.code === "kb_unavailable") return t("lib-api.knowledge_unavailable");
-  if (e.code === "kb_read_only") return t("lib-api.knowledge_read_only");
   if (e.code === "assistant_offline") return t("lib-api.manager_offline");
   if (e.code === "node_unreachable") return t(e.body.delivered === "none" ? "lib-api.computer_offline" : "lib-api.computer_dropped");
   if (e.code === "timeout") return t("lib-api.computer_timeout");

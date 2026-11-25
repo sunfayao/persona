@@ -90,21 +90,21 @@ export function filesBusy(key: string): boolean {
   return getComposerFiles(key).some((f) => f.state === "waiting" || f.state === "uploading");
 }
 
-/** Where a file goes: the composer's own destination (a health conversation's reports), else kept with the chat's
+/** Where a file goes: kept with the chat's
  *  pictures where the hub knows how or may (its features not in yet: an older hub refuses it and the file goes again
  *  without), else the temp directory as before. */
-export function fileDestination(own: string | undefined, features: readonly string[]): string | undefined {
-  return own ?? (!features.length || features.includes("upload_attachment") ? "attachment" : undefined);
+export function fileDestination(features: readonly string[]): string | undefined {
+  return !features.length || features.includes("upload_attachment") ? "attachment" : undefined;
 }
 
 /** Files picked for the composer `key` of a conversation on machine `mid`. Returns what was refused and why, for the
  *  composer to say: over the count, or too big. */
-export function addFiles(key: string, mid: string, picked: File[], dest?: string): { tooMany: number; tooBig: string[] } {
+export function addFiles(key: string, mid: string, picked: File[]): { tooMany: number; tooBig: string[] } {
   if (conversationKeyDeleted(key)) return { tooMany: 0, tooBig: [] };
   const room = Math.max(0, MAX_FILES - getComposerFiles(key).length);
   const tooBig = picked.slice(0, room).filter((f) => f.size > MAX_FILE_BYTES).map((f) => f.name);
   const taken = picked.slice(0, room).filter((f) => f.size <= MAX_FILE_BYTES);
-  const where = fileDestination(dest, getState().features);
+  const where = fileDestination(getState().features);
   const added = taken.map((blob) => {
     const id = `f${++seq}`;
     jobs.set(id, { key, mid, blob, dest: where, owner: currentOwner() });

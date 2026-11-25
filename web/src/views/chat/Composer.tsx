@@ -143,7 +143,6 @@ export const Composer = memo(function Composer({
   placeholder,
   machineId,
   agent,
-  uploadDest,
   working,
   needsYou,
   disabled,
@@ -178,8 +177,6 @@ export const Composer = memo(function Composer({
   /** The session's agent (Session.agent): which of the hub's image limits its messages are held to (lib/image-limits.ts);
    *  none for a conversation not started yet. */
   agent?: string;
-  /** Where a file sent to machineId lands: "health" keeps it in the health space's reports/ (docs/assistant/health.md "Checkup reports"). */
-  uploadDest?: "health";
   working?: boolean;
   /** Waits on a question, plan or approval card: no suggestion pill then (iOS status.isActive). */
   needsYou?: boolean;
@@ -342,7 +339,7 @@ export const Composer = memo(function Composer({
       toast(why === "count" ? t("chat-composer.too_many_images", { max: limits().per_message }) : t("chat-composer.images_too_large"), "error");
       return;
     }
-    const r = addComposerFiles(draftKey, machineId, files, uploadDest);
+    const r = addComposerFiles(draftKey, machineId, files);
     const went = files.length - r.tooMany;
     if (went > 0) toast(why === "count" ? t("chat-composer.images_as_files", { max: limits().per_message, count: went }) : t("chat-composer.images_bytes_as_files", { count: went }));
     if (r.tooMany) toast(t("chat-composer.too_many_files", { max: MAX_FILES }), "error");
@@ -812,7 +809,7 @@ export const Composer = memo(function Composer({
     spillImages(spill.bytes, "bytes");
     // other files go to the session's machine as tiles above the input, never words in it (lib/composer-files.ts, #8361)
     if (others.length) {
-      const r = addComposerFiles(draftKey, machineId!, others, uploadDest);
+      const r = addComposerFiles(draftKey, machineId!, others);
       if (r.tooMany) toast(t("chat-composer.too_many_files", { max: MAX_FILES }), "error");
       if (r.tooBig.length) toast(t("chat-composer.file_too_large"), "error");
     }

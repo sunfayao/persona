@@ -61,11 +61,10 @@ describe("composer files", () => {
     expect(withFiles(typed, [])).toBe(typed);
   });
 
-  it("keeps files where the hub can, or may, and a health conversation's in its reports", () => {
-    expect(fileDestination(undefined, ["file_upload", "upload_attachment"])).toBe("attachment");
-    expect(fileDestination(undefined, [])).toBe("attachment");
-    expect(fileDestination(undefined, ["file_upload"])).toBeUndefined();
-    expect(fileDestination("health", ["upload_attachment"])).toBe("health");
+  it("keeps files where the hub can, or may", () => {
+    expect(fileDestination(["file_upload", "upload_attachment"])).toBe("attachment");
+    expect(fileDestination([])).toBe("attachment");
+    expect(fileDestination(["file_upload"])).toBeUndefined();
   });
 
   it("uploads three at a time, the rest waiting, and hands the ready ones to the message", async () => {

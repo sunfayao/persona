@@ -35,9 +35,7 @@ describe("the manager the assistant page shows", () => {
     expect(managerHeaderFor("/usage/hours")).toBe("m-1");
     expect(managerHeaderFor("/usage")).toBeUndefined();
     expect(managerHeaderFor("/usage/windows")).toBeUndefined();
-    // the health page has no switcher; others go by ownership
-    expect(managerHeaderFor("/assistant?space=health")).toBeUndefined();
-    expect(managerHeaderFor("/assistant/memory?space=health")).toBeUndefined();
+    // others go by ownership
     expect(managerHeaderFor("/assistants")).toBeUndefined();
     expect(managerHeaderFor("/sessions/m/s/messages")).toBeUndefined();
     expect(managerHeaderFor("/inbox")).toBeUndefined();
@@ -102,12 +100,11 @@ describe("whose a request is", () => {
     // unknown to this page: no header, the hub sends it to the conversation's manager
     expect(managerHeaderFor("/assistant/conversations/c9/feed")).toBeUndefined();
     noteConversation("c1", "m-1");
-    noteConversation("h1", "assistant"); // the default's (its health space, or listed while it was shown)
+    noteConversation("h1", "assistant"); // the default's (listed while it was shown)
     expect(managerHeaderFor("/assistant/conversations/c1/feed?since=1")).toBe("m-1");
     expect(managerHeaderFor("/assistant/conversations/h1/stop")).toBeUndefined();
-    // a new one goes to the page's pick; the health space's to the default
+    // a new one goes to the page's pick
     expect(managerHeaderFor("/assistant/conversations")).toBe("m-1");
-    expect(managerHeaderFor("/assistant/conversations?space=health")).toBeUndefined();
   });
 
   it("a pin holds while its view is open, the latest one winning", () => {
@@ -163,11 +160,11 @@ describe("whose a request is", () => {
   });
 
   it("the default's own messages are told from the others'", () => {
-    expect(fromDefaultManager({ type: "workspace_board_settings" })).toBe(true);
-    expect(fromDefaultManager({ type: "workspace_board_settings", manager: "m-1" })).toBe(false);
+    expect(fromDefaultManager({ type: "hub_settings" })).toBe(true);
+    expect(fromDefaultManager({ type: "hub_settings", manager: "m-1" })).toBe(false);
     setRosterDefault("m-1");
-    expect(fromDefaultManager({ type: "workspace_board_settings" })).toBe(false);
-    expect(fromDefaultManager({ type: "workspace_board_settings", manager: "m-1" })).toBe(true);
+    expect(fromDefaultManager({ type: "hub_settings" })).toBe(false);
+    expect(fromDefaultManager({ type: "hub_settings", manager: "m-1" })).toBe(true);
   });
 });
 
@@ -281,12 +278,6 @@ describe("api", () => {
       await api("/machines");
       // picking it also reads its page again (lib/store.ts)
       expect(seen).toEqual(["GET /assistant null", "GET /assistant m-1", "POST /assistant/conversations m-1", "GET /machines null"]);
-      // the health space stays the default manager's whatever the pick (docs/assistant/health.md): its list and a new conversation
-      seen.length = 0;
-      const { startHealthConversation } = await import("../views/health/reports");
-      await api("/assistant?space=health");
-      await startHealthConversation({ prompt: "x" }).catch(() => {});
-      expect(seen).toEqual(["GET /assistant?space=health null", "POST /assistant/conversations?space=health null"]);
     } finally {
       globalThis.fetch = real;
     }

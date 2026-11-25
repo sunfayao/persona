@@ -27,7 +27,7 @@ export function ContextRestartNotice({ session, assistant, isMain }: { session: 
   const [starting, setStarting] = useState(false);
   const operation = useRef<string | undefined>(undefined);
   if (dismissed || session.archived || session.is_subagent || session.read_only_reason ||
-      session.space === "health" || supervisor ||
+      supervisor ||
       session.compaction?.state === "running" || (isMain && !canNewMain)) return null;
 
   const dismiss = () => {

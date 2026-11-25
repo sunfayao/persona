@@ -106,7 +106,6 @@ import { useOwnerNeeds, useTodoLookup, useTodoMinute } from "../lib/todo-owner-n
 import { autoReviewLine, checklist, latestReview, parkedLine, progressLine, type CheckMark, type Supervision } from "../lib/supervision";
 import { resultExtras } from "../lib/brief";
 import { prLink } from "./TodoStageBar";
-import { projectChoices, projectNames, useTodoProjects } from "../lib/todo-projects";
 import { useFolded } from "../lib/use-folded";
 import { stateName } from "../lib/state-labels";
 import { Empty, Segmented, Tag } from "./assistant/parts";
@@ -363,12 +362,10 @@ export function TodosView({
     useMemo(() => sortTodos(todos.filter((td) => placed.row.get(td.id) === "cancelled"), lookup), [todos, placed, lookup]),
     sameList,
   );
-  // open todos under the knowledge-base project they are in (#2581), else the one their agents work in (#2526)
-  const kbProjects = useTodoProjects();
-  const projectName = useMemo(() => projectNames(kbProjects), [kbProjects]);
+  // open todos under the project they were put in, else the one their agents work in (#2526)
   const projectGroups = useSteady(
     // a folder holding a to-do in Needs you says so, a failed start waiting on the owner too (audit item 13)
-    useMemo(() => groupTodosByProject(filteredUncompleted, lookup, Date.now(), projectName, (td) => sectionOf.get(td.id) === "waiting"), [filteredUncompleted, lookup, projectName, sectionOf]),
+    useMemo(() => groupTodosByProject(filteredUncompleted, lookup, Date.now(), (td) => sectionOf.get(td.id) === "waiting"), [filteredUncompleted, lookup, sectionOf]),
     steadyGroups,
   );
   // each section gets only its own rows' views, so one row's change re-renders that row's section alone
@@ -1963,11 +1960,10 @@ function PlanField({ value, onCommit, ...field }: { value: string; onCommit: (va
   );
 }
 
-/** The detail's due date (a day, with a time when one is set), reminder, priority and project. A pick from a menu is
+/** The detail's due date (a day, with a time when one is set), reminder and priority. A pick from a menu is
  *  saved at once, a date or time once it is entered (PlanField); no field is disabled while it saves, so the focus stays. */
 function TodoPlanEditor({ todo }: { todo: Todo }) {
   const [busy, setBusy] = useState(false);
-  const projects = projectChoices(useTodoProjects(), todo.project);
   const save = async (patch: TodoPatch) => {
     setBusy(true);
     try {
@@ -2030,24 +2026,6 @@ function TodoPlanEditor({ todo }: { todo: Todo }) {
           <option value="high">{t("todos.priority_option_high")}</option>
           <option value="">{t("todos.priority_normal")}</option>
           <option value="low">{t("todos.priority_low")}</option>
-        </select>
-      </span>
-      <span className="inline-flex min-w-0 items-center gap-1.5">
-        <Icon name="folder" size={13} stroke={2} />
-        <span className="whitespace-nowrap">{t("todos.project_label")}</span>
-        <select
-          aria-label={t("todos.project_label")}
-          value={todo.project ?? ""}
-          onChange={(e) => void save({ project: e.target.value })}
-          className={cx(PLAN_FIELD, "max-w-56 truncate")}
-          data-testid="todo-plan-project"
-        >
-          <option value="">{t("todos.project_none")}</option>
-          {projects.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {p.name}
-            </option>
-          ))}
         </select>
       </span>
     </div>

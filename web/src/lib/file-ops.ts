@@ -62,7 +62,7 @@ export const UPLOAD_ATTACHMENT_FEATURE = "upload_attachment";
 
 /**
  * Sends `file` with a chat message to machine `mid` (docs/protocol/protocol.md "Sending files", #8361), reporting the
- * bytes sent: `dest` "attachment" keeps it beside the chat's pictures, "health" in the health space's reports, none in
+ * bytes sent: `dest` "attachment" keeps it beside the chat's pictures, none in
  * the temp directory. Rejects as `uploadToDir` does.
  */
 export function uploadAttachment(

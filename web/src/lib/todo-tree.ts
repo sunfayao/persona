@@ -324,14 +324,13 @@ function liveAgents(td: Todo, lookup: SessionLookup): Session[] {
   return (td.agents ?? []).filter((a) => !a.released_at).map((a) => lookup(a.machine_id, a.session_id)).filter((s): s is Session => Boolean(s));
 }
 
-/** Open to-dos by project (#2526, #2581): the knowledge-base project a to-do was put in first (named by projectName),
+/** Open to-dos by project (#2526, #2581): the project a to-do was put in first,
  *  else the repository its agents work in; those with neither last ("Unsorted"). Groups that need the user come
  *  first within each of the three; the to-dos keep their order. */
 export function groupTodosByProject(
   todos: Todo[],
   lookup: SessionLookup,
   now = Date.now(),
-  projectName: (slug: string) => string = (slug) => slug,
   /** A to-do the To-dos page has in Needs you (its status section): its folder says Needs you whatever its agents do,
    *  so a failed start waiting on the owner (which the hub closed) does not read Done or fold away. */
   waiting: (td: Todo) => boolean = () => false,
@@ -340,7 +339,7 @@ export function groupTodosByProject(
   for (const td of todos) {
     const repo = td.project ? "" : projectOfTodo(td, lookup);
     const [key, name, tier] = td.project
-      ? [`todos-kb:${td.project}`, projectName(td.project), 0]
+      ? [`todos-kb:${td.project}`, td.project, 0]
       : repo
         ? [`todos-project:${repo}`, repo, 1]
         : ["todos-project:\u0000", t("lib-todo-tree.unsorted"), 2];

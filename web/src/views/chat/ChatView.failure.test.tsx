@@ -1113,20 +1113,6 @@ describe("sending in order, and with no row yet", () => {
     }
   });
 
-  it("asks in a space's own words in an idle Persona chat (Health's), and the box's other states still say theirs", async () => {
-    captured.session = { machine_id: "hub", session_id: "c1", title: "Conversation", cwd: "/code", state: "idle", status: "idle" } as Session;
-    act(() => root.render(<ChatView mid="hub" sid="c1" assistant placeholder="Ask about your health" />));
-    await flush();
-    expect(captured.composer?.placeholder).toBe("Ask about your health");
-    act(() => root.render(<ChatView mid="hub" sid="c1" assistant />));
-    await flush();
-    expect(captured.composer?.placeholder).toBe(t("chat-chatview.ask_placeholder", { name: "Persona" }));
-    captured.session = { ...captured.session, state: "working" } as Session;
-    act(() => root.render(<ChatView mid="hub" sid="c1" assistant placeholder="Ask about your health" />));
-    await flush();
-    expect(captured.composer?.placeholder).toBe(t("chat-chatview.queue_placeholder"));
-  });
-
   it("the main conversation with no row is not connecting, and its failed bubble keeps Retry", async () => {
     captured.session = undefined;
     setOutbox(outboxKey("hub", "c1"), [{ id: "live", text: "did not go", images: [], at: Date.now(), state: "failed", error: "no" }]);

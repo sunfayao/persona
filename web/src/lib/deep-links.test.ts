@@ -3,9 +3,8 @@
 // hub's page, so it reads the cases whose only paired hub is its own (that hub's addresses are its origins).
 import { describe, expect, it } from "vitest";
 import fixture from "../../../spec/fixtures/deep-links/cases.json";
-import { appPage, appPath, DEEP_KB_KINDS, DEEP_SETTINGS_TABS, pageOfPath, pagePath } from "./deep-links";
+import { appPage, appPath, DEEP_SETTINGS_TABS, pageOfPath, pagePath } from "./deep-links";
 import { linkRoute, type LinkRoute } from "./links";
-import { KB_KINDS } from "./kb";
 import { parse as parseRoute } from "./router";
 import { TABS } from "../views/settings/nav";
 
@@ -97,7 +96,8 @@ describe("deep links: pages and paths", () => {
       const path = pagePath(page as never);
       const [p, q = ""] = path.split("?");
       expect(pageOfPath(p!, q ? `?${q}` : ""), `${c.name}: ${path}`).toEqual(page);
-      expect(parseRoute(p!, q).name, path).not.toBe("not-found");
+      // the shared table still names the knowledge base; this web app no longer has it
+      if (!page.page.startsWith("knowledge")) expect(parseRoute(p!, q).name, path).not.toBe("not-found");
     }
   });
 
@@ -123,8 +123,7 @@ describe("deep links: pages and paths", () => {
     expect(pageOfPath("/settings", "?tab=labs&enabled=1&token=x")).toEqual({ page: "settings", tab: "labs" });
   });
 
-  it("keeps the knowledge kinds and settings tabs of the pages that define them", () => {
-    expect(DEEP_KB_KINDS).toEqual([...KB_KINDS]);
+  it("keeps the settings tabs of the page that defines them", () => {
     expect(Object.keys(DEEP_SETTINGS_TABS).sort()).toEqual([...TABS].sort());
   });
 });

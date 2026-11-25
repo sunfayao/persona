@@ -336,19 +336,18 @@ function itemManager(path: string): string | undefined {
 
 const CONVERSATION = /^\/assistant\/conversations\/[^/?]+/;
 // The routes that are the current assistant's as a whole: its page, conversations, scheduled tasks and memory
-// (`/assistant…`), its knowledge base with the recordings it keeps there, and its computers' token history (the
+// (`/assistant…`), and its computers' token history (the
 // new-chat page's calendar, #9506; the island's `/usage` stays the default's).
-const CURRENT = /^\/(?:assistant|kb|kb-search|recordings|usage\/days|usage\/hours)(?=$|[/?])/;
+const CURRENT = /^\/(?:assistant|usage\/days|usage\/hours)(?=$|[/?])/;
 
 /** The header value for a request to path (under /api/v1), or undefined.
  *  - One conversation's routes name its manager when a page listed it, else none: the hub then sends them to the
  *    conversation's manager itself (ownership.go byConversation), and naming the page's pick would override that.
- *  - The assistant's other routes and its knowledge base name the current assistant, but not the health space's
- *    (`?space=`, docs/assistant/health.md: that page stays the default manager's).
+ *  - The assistant's other routes name the current assistant.
  *  - Anything else: a pin or a thing a merged list showed as another manager's names that one. */
 export function managerHeaderFor(path: string): string | undefined {
   if (CONVERSATION.test(path)) return itemManager(path);
-  if (chosen && CURRENT.test(path) && !/[?&]space=/.test(path)) return chosen;
+  if (chosen && CURRENT.test(path)) return chosen;
   return itemManager(path);
 }
 

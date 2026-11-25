@@ -135,14 +135,14 @@ describe("the pick", () => {
     expect(pickedName()).toBeNull();
   });
 
-  it("names the current assistant on its knowledge base and on what it makes, never the health space", () => {
+  it("names the current assistant on what it makes", () => {
     setRoster(ROSTER);
     expect(currentHeaders()).toBeUndefined();
     chooseManager("m-1");
-    for (const path of ["/kb/projects", "/kb-search?q=x", "/recordings/r1/minutes", "/assistant/tasks"]) expect(managerHeaderFor(path)).toBe("m-1");
+    for (const path of ["/assistant/tasks"]) expect(managerHeaderFor(path)).toBe("m-1");
     expect(currentHeaders()).toEqual({ "X-Persona-Manager": "m-1" });
-    // the merged lists stay whole (the pages filter them), and the health space stays the default's
-    for (const path of ["/inbox?sources=all", "/todos", "/machines", "/assistant?space=health", "/kbx"]) expect(managerHeaderFor(path)).toBeUndefined();
+    // the merged lists stay whole (the pages filter them)
+    for (const path of ["/inbox?sources=all", "/todos", "/machines"]) expect(managerHeaderFor(path)).toBeUndefined();
   });
 });
 
@@ -285,14 +285,13 @@ describe("the page after a switch", () => {
     expect(routeAfterSwitch({ name: "machine", mid: "mac" })).toEqual({ name: "machines" });
     expect(routeAfterSwitch({ name: "inbox", id: "i1", manager: "m-1" })).toEqual({ name: "inbox" });
     expect(routeAfterSwitch({ name: "inbox" })).toBeNull();
-    expect(routeAfterSwitch({ name: "kb", kind: "people", id: "p1" })).toEqual({ name: "kb", kind: "people" });
     expect(routeAfterSwitch({ name: "todos", id: "t1", view: "calendar", mode: "week" })).toEqual({ name: "todos", view: "calendar", mode: "week" });
-    for (const name of ["settings", "machines", "routines", "home", "health", "agent-list"] as const) expect(routeAfterSwitch({ name })).toBeNull();
+    for (const name of ["settings", "machines", "routines", "home", "agent-list"] as const) expect(routeAfterSwitch({ name })).toBeNull();
   });
 
   it("opens again where a page that stays reads the assistant's things itself", () => {
-    for (const route of [{ name: "history" }, { name: "profile" }, { name: "routines" }, { name: "kb", kind: "docs" }] as const) expect(reopensOnSwitch(route)).toBe(true);
+    for (const route of [{ name: "history" }, { name: "profile" }, { name: "routines" }] as const) expect(reopensOnSwitch(route)).toBe(true);
     // these follow the pick by themselves, or are no assistant's
-    for (const name of ["persona", "home", "inbox", "machines", "todos", "agent-list", "settings", "health", "messages", "terminal"] as const) expect(reopensOnSwitch({ name } as never)).toBe(false);
+    for (const name of ["persona", "home", "inbox", "machines", "todos", "agent-list", "settings", "messages", "terminal"] as const) expect(reopensOnSwitch({ name } as never)).toBe(false);
   });
 });

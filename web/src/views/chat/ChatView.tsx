@@ -254,13 +254,12 @@ const ULTRACODE_SEND_TRIES = 4;
 const STOP_SETTLE_MS = 15_000;
 
 /** "Start a new session" (#2137, #5314): the node copies the conversation up to this reply's turn into a new one, which opens here. */
-async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean, space?: string, manager?: string) {
+async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean, manager?: string) {
   try {
     const r = await api<{ session_id: string }>(`${sessionPath(mid, sid)}/fork`, { method: "POST", json: { at_item_id: itemId } });
     await refresh();
-    // a health conversation's branch runs in the health space too (docs/assistant/health.md)
     // a Persona conversation's branch is on its computer and its manager's (lib/conversation-page.ts)
-    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : space === "health" ? { name: "health", sid: r.session_id } : conversationPage(r.session_id, mid, manager));
+    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : conversationPage(r.session_id, mid, manager));
     toast(t("chat-chatview.forked"), "ok");
   } catch (e) {
     toast(t("chat-chatview.fork_failed", { error: errorText(e) }), "error");
@@ -306,7 +305,7 @@ export function ChatView(props: Parameters<typeof ActiveChatView>[0]) {
   return <ActiveChatView {...props} />;
 }
 
-function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt, placeholder: askPlaceholder }: {
+function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
   mid: string;
   sid: string;
   assistant?: boolean;
@@ -332,13 +331,10 @@ function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSide
   mainCache?: { scope: string; manager?: string };
   refreshError?: string;
   onRefresh?: () => void;
-  /** The page's own buttons at the header's end, before the permission mode and ⋯ (Health's New and its past conversations, #4329). */
+  /** The page's own buttons at the header's end, before the permission mode and ⋯ (Persona's Start session button). */
   headerActions?: React.ReactNode;
   /** A message to open the chat at (`?at=`, a search hit's, #6283): landed on once it is in, paging back for it. */
   landAt?: string;
-  /** What an idle Persona chat's box asks, in place of the main chat's: a space's own (Health's, docs/assistant/health.md).
-   *  The box's other states (offline, queued, unavailable…) say theirs as before. */
-  placeholder?: string;
 }) {
   const { session, detail, retry: retryDetail, known } = useRuntimeSession(mid, sid);
   // The main conversation is always Persona (#1313): not its first message, the node's title for it.
@@ -697,7 +693,7 @@ function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSide
       pick: picker,
       speaker: assistant ? persona.name : "Agent",
       images: () => items.current.filter((i) => i.kind === "image"),
-      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant), session?.space, session?.manager) : undefined,
+      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant), session?.manager) : undefined,
       assistant: Boolean(assistant),
       rewind: canRewind ? { block: rewindLive, code: rewindCode, run: (messageId, text, restore) => rewindTo(mid, sid, draftKey, items.current, messageId, text, restore, rewindDeclared) } : undefined,
     }),
@@ -2163,7 +2159,7 @@ function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSide
 
   // the header's Team button (#5180): on a lead with workers, at every width (a phone has no other way to the panel); its dot
   // says a worker needs you while the panel is shut
-  const showConversationTasks = Boolean((assistant || inPage) && !embedded && !chrome && session?.space !== "health");
+  const showConversationTasks = Boolean((assistant || inPage) && !embedded && !chrome);
   const conversationTasksOpen = panel?.kind === "conversation-tasks" && panel.mid === mid && panel.sid === sid;
   const conversationTasks = useMemo(() => (showConversationTasks
     ? { open: conversationTasksOpen, onToggle: () => togglePanel({ kind: "conversation-tasks", mid, sid, manager: skillManager }) }
@@ -2615,10 +2611,9 @@ function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSide
         ) : (
         <Composer
           draftKey={draftKey}
-          placeholder={offlineLine ? offlineLine : waitsFirst ? t("chat-chatview.codex_first_placeholder") : refusedNoRow ? t(gone ? "chat-chatview.session_gone_placeholder" : "chat-chatview.connecting_placeholder") : viewOnlyRow(session) ? t("chat-chatview.view_only") : computerAway && awayLine ? awayLine : state === "working" || state === "needs_you" ? t("chat-chatview.queue_placeholder") : assistant ? askPlaceholder ?? t("chat-chatview.ask_placeholder", { name: persona.name }) : state === "offline" ? t("chat-chatview.resume_placeholder") : t("chat-chatview.agent_placeholder")}
+          placeholder={offlineLine ? offlineLine : waitsFirst ? t("chat-chatview.codex_first_placeholder") : refusedNoRow ? t(gone ? "chat-chatview.session_gone_placeholder" : "chat-chatview.connecting_placeholder") : viewOnlyRow(session) ? t("chat-chatview.view_only") : computerAway && awayLine ? awayLine : state === "working" || state === "needs_you" ? t("chat-chatview.queue_placeholder") : assistant ? t("chat-chatview.ask_placeholder", { name: persona.name }) : state === "offline" ? t("chat-chatview.resume_placeholder") : t("chat-chatview.agent_placeholder")}
           machineId={mid}
           agent={session?.agent}
-          uploadDest={session?.space === "health" ? "health" : undefined}
           working={state === "working" || awaiting}
           needsYou={state === "needs_you"}
           onSend={send}
@@ -3229,7 +3224,7 @@ export const Header = memo(function Header({
         </span>
       )}
       {/* wide screens have New chat at the top of the sidebar; a phone's sidebar is a drawer */}
-      {assistant && !chrome && session?.space !== "health" && <IconButton icon="compose" label={t("chat-chatview.new_chat")} onClick={() => navigate({ name: "persona-new" })} className="lg:hidden" />}
+      {assistant && !chrome && <IconButton icon="compose" label={t("chat-chatview.new_chat")} onClick={() => navigate({ name: "persona-new" })} className="lg:hidden" />}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
       {!chrome && actions}
       {!assistant && session && (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&

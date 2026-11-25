@@ -25,7 +25,7 @@ export type DeepPage =
   | { page: "settings"; tab?: string; item?: string; manager?: string }
   | { page: "extension"; extension: string; ui: string; state?: string };
 
-/** The knowledge base's kinds (lib/kb.ts KB_KINDS; a test keeps the two the same). */
+/** The knowledge base's kinds in the shared link table (spec/fixtures/deep-links/cases.json); this web app has no such page now. */
 export const DEEP_KB_KINDS = ["projects", "topics", "chats", "people", "docs", "meetings", "events", "recordings"];
 
 /** Settings tabs and the query key that names an item of the ones that have one (views/settings/nav.ts; a test keeps

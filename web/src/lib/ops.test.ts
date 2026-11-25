@@ -27,7 +27,7 @@ beforeEach(() => vi.stubGlobal("localStorage", { getItem: () => "tok" }));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("what counts as a gap", () => {
-  it.each(["kb_disabled", "kb_unavailable", "kb_read_only", "assistant_offline"])("never retries a coded %s as a connection gap", (code) => {
+  it.each(["assistant_offline"])("never retries a coded %s as a connection gap", (code) => {
     expect(isTransient(new ApiError(503, "Request failed", { code }))).toBe(false);
   });
 

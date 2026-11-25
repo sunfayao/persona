@@ -125,23 +125,21 @@ describe("By to-do: to-dos at the top level, no repository rows (#2526, #6458)",
     const failedStart = todo("f1", [], { done_at: old, updated_at: old, start_error: "machine offline", origin: "conv" });
     // by its agents alone it reads Done, and a quiet folder of it folds away
     expect(groupTodosByProject([failedStart], makeSessionLookup([]), NOW).map((g) => [g.state, g.folded])).toEqual([["done", true]]);
-    const waiting = groupTodosByProject([failedStart, todo("t2", [])], makeSessionLookup([]), NOW, undefined, (td) => td.id === "f1");
+    const waiting = groupTodosByProject([failedStart, todo("t2", [])], makeSessionLookup([]), NOW, (td) => td.id === "f1");
     expect(waiting.map((g) => [g.state, g.folded, g.todos.map((t) => t.id)])).toEqual([["needs_you", false, ["f1", "t2"]]]);
   });
 
   it("待办页先按待办所属的知识库项目分段，再按仓库，都没有的最后 (#2581)", () => {
     const all = [s("a", "working", "/code/persona"), s("b", "needs_you", "/code/persona")];
     const inArea = (id: string, project: string, links: ReturnType<typeof link>[] = []) => ({ ...todo(id, links), project });
-    const names = (slug: string) => (slug === "community" ? "社群运营" : slug);
     const groups = groupTodosByProject(
       [todo("t1", [link("a")]), inArea("t2", "community"), todo("t3", []), inArea("t4", "community", [link("b")]), inArea("t5", "gone")],
       makeSessionLookup(all),
       NOW,
-      names,
     );
-    // an area's to-dos stay together whatever their agents' repository; its order kept; a project not in the list shows its slug
+    // an area's to-dos stay together whatever their agents' repository; its order kept; a project shows its slug
     expect(groups.map((g) => [g.key, g.name, g.todos.map((t) => t.id)])).toEqual([
-      ["todos-kb:community", "社群运营", ["t2", "t4"]],
+      ["todos-kb:community", "community", ["t2", "t4"]],
       ["todos-kb:gone", "gone", ["t5"]],
       ["todos-project:persona", "persona", ["t1"]],
       ["todos-project:\u0000", "未归类", ["t3"]],
@@ -149,9 +147,9 @@ describe("By to-do: to-dos at the top level, no repository rows (#2526, #6458)",
     expect(groups[0].state).toBe("needs_you");
     // an area with nothing at work stays open however long it was quiet; a repository's folds as before
     const old = { updated_at: new Date(NOW - 3 * STALE_MS).toISOString() };
-    const quiet = groupTodosByProject([todo("q1", [], { ...old, project: "community" }), todo("q2", [link("gone")], old)], makeSessionLookup([]), NOW, names);
+    const quiet = groupTodosByProject([todo("q1", [], { ...old, project: "community" }), todo("q2", [link("gone")], old)], makeSessionLookup([]), NOW);
     expect(quiet.map((g) => [g.name, g.state, g.folded, g.area ?? false])).toEqual([
-      ["社群运营", "done", false, true],
+      ["community", "done", false, true],
       ["未归类", "done", true, false],
     ]);
   });

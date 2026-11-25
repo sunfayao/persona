@@ -132,11 +132,11 @@ describe("Link to to-do", () => {
 });
 
 describe("matchTodos", () => {
-  it("matches title, notes and the project's name, case-insensitively", () => {
+  it("matches title, notes and the project, case-insensitively", () => {
     const list = [todo("a", "Blog to Astro"), todo("b", "整理", { notes: "发布说明" }), todo("c", "备份", { project: "nas" })];
     expect(matchTodos(list, "  astro ").map((t) => t.id)).toEqual(["a"]);
     expect(matchTodos(list, "发布").map((t) => t.id)).toEqual(["b"]);
-    expect(matchTodos(list, "家里", (slug) => (slug === "nas" ? "家里的 NAS" : slug)).map((t) => t.id)).toEqual(["c"]);
+    expect(matchTodos(list, "nas").map((t) => t.id)).toEqual(["c"]);
     expect(matchTodos(list, "")).toHaveLength(3);
   });
 });

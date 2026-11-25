@@ -47,7 +47,7 @@ describe("scrubbing", () => {
   });
 
   it("uses the error reports' route words", () => {
-    for (const p of ["/machines/m/sessions/s/items", "/assistant/chats/c/messages", "/api/v1/kb-search?q=x", "https://h.example/api/v1/todos/t1"]) {
+    for (const p of ["/machines/m/sessions/s/items", "/assistant/chats/c/messages", "/api/v1/inbox?q=x", "https://h.example/api/v1/todos/t1"]) {
       expect(devRoute("GET", p)).toBe(`GET ${pathPattern(p)}`);
     }
     const source = readFileSync(new URL("./error-reports.ts", import.meta.url), "utf8");
