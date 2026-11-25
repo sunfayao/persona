@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { answeredTags, badgeText, BATCH_MAX_MS, BATCH_QUIET_MS, batchDue, finishedBatch, detectNewCards, FORGET_CARD_MS, detectTransitions, heldOnlyNeeds, isHeldLevel, SETTLE_MS, tabTitle, trackTurns } from "./attention";
 import { stateCounts } from "./sessions";
-import { agentKey } from "./pins";
 import type { AgentMutes } from "./agent-groups";
 import type { AgentState, Interaction, Session } from "./types";
 
