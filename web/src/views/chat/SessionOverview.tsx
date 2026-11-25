@@ -17,7 +17,7 @@ import { Icon, type IconName } from "../../ui/icons";
 import { StatusMark } from "../../ui/StatusMark";
 import { BackgroundList } from "./BackgroundPanel";
 import { SessionInfoDialog } from "./SessionDialogs";
-import { BreakdownCard } from "./SessionInsightsPopover";
+import { BreakdownCard, StackedBreakdownBar } from "./SessionInsightsPopover";
 import { normalizeContextBreakdown } from "../../lib/session-insights";
 
 interface OverviewProps {
@@ -141,6 +141,7 @@ function OverviewContext({ session }: { session: Session }) {
   if (breakdown) return (
     <section className="flex flex-col gap-2 border-t border-line py-3">
       <h3 className="text-xs font-semibold text-ink-2">{t("chat-sessioninfo.context")}</h3>
+      <StackedBreakdownBar breakdown={breakdown} />
       <BreakdownCard breakdown={breakdown} />
     </section>
   );

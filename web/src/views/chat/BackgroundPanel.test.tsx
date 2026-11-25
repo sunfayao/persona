@@ -181,6 +181,7 @@ describe("Session overview", () => {
     const session = getSession("m", "s")!;
     act(() => root.render(<SessionOverview id="overview" session={session} machineName="Machine" items={[]} tasks={emptyTaskIndex()} children={[]} />));
     expect(q('[data-breakdown-row="conversation"]')).not.toBeNull();
+    expect(q('[data-breakdown-segment="conversation"]')).not.toBeNull();
     const buttons = host.querySelectorAll<HTMLButtonElement>('button[title="/tmp/out/b1.log"]');
     expect(buttons).toHaveLength(1);
     expect(buttons[0].textContent).toContain("b1.log");

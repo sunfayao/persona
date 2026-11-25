@@ -74,7 +74,7 @@ async function requestAssistantCompaction(session: Session): Promise<boolean> {
   }
 }
 
-function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown }) {
+export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown }) {
   const markerShare = breakdown.autoCompactShare !== null ? Math.min(99, Math.max(1, breakdown.autoCompactShare)) : null;
   const markerLabel =
     breakdown.autoCompactThreshold !== null && breakdown.autoCompactShare !== null
