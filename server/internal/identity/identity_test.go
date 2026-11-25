@@ -158,7 +158,7 @@ func TestIndependentHomes(t *testing.T) {
 	if SocketDir(home) != root || !IsAssistantDir(filepath.Join(root, "assistant")) {
 		t.Fatal("custom directory identity lost")
 	}
-	for _, path := range []string{"/tmp/.persona/assistant", "/tmp/.persona/health"} {
+	for _, path := range []string{"/tmp/.persona/assistant", "/tmp/.persona/tracks/qa-plain"} {
 		if !IsAssistantDir(path) {
 			t.Fatal(path)
 		}
