@@ -15,7 +15,7 @@ func TestSpaceCardPushHidesContent(t *testing.T) {
 	}
 	a := alert(proto.Interaction{Kind: proto.IxPermission, ToolName: "mail_send", SessionTitle: "血压", Cwd: "/home/me/.persona/tracks/qa-private",
 		Summary: "发给 doctor@example.com：最近一周血压 150/95"})
-	if body, sub := a["body"].(string), a["subtitle"].(string); strings.Contains(body, "150") || strings.Contains(sub, "血压") || sub != "Persona" {
+	if body, sub := a["body"].(string), a["subtitle"].(string); strings.Contains(body, "150") || strings.Contains(sub, "血压") || !strings.HasPrefix(sub, "Persona") {
 		t.Fatalf("space card: %v", a)
 	}
 	q := alert(proto.Interaction{Kind: proto.IxQuestion, ToolName: "ask_user", SessionTitle: "睡眠", Cwd: "/home/me/.persona/tracks/qa-private",

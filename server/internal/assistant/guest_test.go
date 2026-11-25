@@ -235,7 +235,7 @@ func TestGuestConversationRefusals(t *testing.T) {
 		}
 	}
 	// In the health space: an extension may start nothing there (#12097), and for anyone else a guest is not in a space.
-	inSpace := `{"prompt":"x","space":"health","guest":{"tools":["lark_agent_reply"]}}`
+	inSpace := `{"prompt":"x","space":"qa-private","guest":{"tools":["lark_agent_reply"]}}`
 	if w := postConversation(t, s, inSpace); w.Code != http.StatusForbidden || !strings.Contains(w.Body.String(), "permission_denied") {
 		t.Errorf("an extension's guest in the health space: %d %s", w.Code, w.Body)
 	}

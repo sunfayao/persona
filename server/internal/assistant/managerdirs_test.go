@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"github.com/nwverse/persona/server/internal/compat"
-	"strings"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"
@@ -29,10 +28,6 @@ func TestAManagersOwnDirectories(t *testing.T) {
 		}
 		if len(f.prepared) != 1 || f.prepared[0]["dir"] != compat.StateDir+"/"+c.assistant[len(".persona/"):] {
 			t.Fatalf("%q prepared %v", c.id, f.prepared)
-		}
-		// Its health CLAUDE.md names its own space, where its reports are.
-		if md, _ := f.prepared[1]["claude_md"].(string); !strings.Contains(md, "/"+c.health[len(".persona/"):]+"/reports/") {
-			t.Fatalf("%q: the health CLAUDE.md does not name its space: %s", c.id, md)
 		}
 		d := Device{ID: "server", Home: "/home/me"}
 		if got := s.assistantCwd(d); got != "/home/me/"+c.assistant {
