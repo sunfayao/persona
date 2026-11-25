@@ -7,7 +7,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Item, Session } from "../../lib/types";
-import { initI18n } from "../../i18n";
+import { initI18n, t } from "../../i18n";
 
 await initI18n("zh-Hans");
 
@@ -143,6 +143,25 @@ describe("the Persona conversation says its foreground turn exactly once (#6230)
     act(() => { transcript.loading = true; root.render(<ChatView mid="hub" sid="c1" />); });
     await flush();
     expect(dockBar()).not.toBeNull();
+  });
+
+  it("leaves an idle agy composer ready to send while its background command runs", async () => {
+    captured.session = { machine_id: "hub", session_id: "c1", title: "Conversation", cwd: "/code", agent: "agy",
+      status: "done", state: "working", background_working: true, capabilities: { send: true, interrupt: true },
+      background: [{ id: "preview", kind: "shell", command: "npm run dev", started_at: "2026-11-13T01:00:02Z" }] } as Session;
+    act(() => root.render(<ChatView mid="hub" sid="c1" />));
+    await flush();
+    const placeholder = () => host.querySelector("[data-composer-input]")?.getAttribute("placeholder");
+    const stop = () => host.querySelector('[data-testid="composer-stop"]');
+    expect(dockBar()?.getAttribute("data-running-background")).toBe("command");
+    expect(placeholder()).toBe(t("chat-chatview.agent_placeholder"));
+    expect(stop()).toBeNull();
+
+    captured.session = { ...captured.session, status: "working", background_working: false };
+    act(() => root.render(<ChatView mid="hub" sid="c1" />));
+    await flush();
+    expect(placeholder()).toBe(t("chat-chatview.queue_placeholder"));
+    expect(stop()).not.toBeNull();
   });
 
   it("keeps an Agent's existing wait and subagent bars while the answer streams", async () => {
