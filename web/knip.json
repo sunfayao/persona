@@ -1,16 +1,18 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/main.tsx",
-    "src/sw.ts",
-    "src/admin/main.tsx",
+    "src/main.tsx!",
+    "src/sw.ts!",
+    "src/admin/main.tsx!",
+    "src/showcase/*.tsx!",
+    "public-share/main.ts!",
     "vite.config.ts",
     "vite.public.config.ts",
-    "public-share/main.ts",
     "src/**/*.test.{ts,tsx}",
     "*.test.ts",
     "scripts/*.mjs",
     "e2e/*.mjs"
   ],
-  "project": ["src/**/*.{ts,tsx}", "public-share/**/*.ts", "*.ts", "scripts/*.mjs", "e2e/*.mjs"]
+  "project": ["src/**/*.{ts,tsx}!", "public-share/**/*.ts!", "*.ts", "scripts/*.mjs", "e2e/*.mjs"],
+  "ignoreDependencies": ["hast"]
 }
