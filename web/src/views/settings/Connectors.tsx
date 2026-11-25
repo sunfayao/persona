@@ -166,7 +166,7 @@ function Mail() {
 }
 
 /** Mail's Add to Inbox (#5307): the same switch as Settings › Inbox Sources' mail page; off, no account's mail comes into
- *  the Inbox (search, replies and the knowledge base go on). Only a hub that has the switch lists it (`inbox`). */
+ *  the Inbox (search and replies go on). Only a hub that has the switch lists it (`inbox`). */
 function MailInboxSwitch() {
   const [on, setOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -483,7 +483,6 @@ export function OutlookClient() {
 
 const USES: { icon: IconName; title: string; detail: string }[] = [
   { icon: "inbox", title: t("settings-connectors.use_inbox"), detail: t("settings-connectors.use_inbox_detail") },
-  { icon: "book", title: t("settings-connectors.use_knowledge"), detail: t("settings-connectors.use_knowledge_detail") },
   { icon: "spark", title: t("settings-connectors.use_assistant"), detail: t("settings-connectors.use_assistant_detail") },
   { icon: "agent", title: "/agent", detail: t("settings-connectors.use_agent_detail") },
 ];

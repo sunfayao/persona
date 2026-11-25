@@ -395,9 +395,6 @@ export function openTargetOf(target: string, manager?: string) {
     case "task":
       openTask(to.id);
       return;
-    case "kb":
-      navigate({ name: "kb", kind: to.path[0], id: to.path.slice(1).join("/") || undefined });
-      return;
     case "file":
       openPanel({ kind: "file", mid: to.mid, path: to.path });
       return;

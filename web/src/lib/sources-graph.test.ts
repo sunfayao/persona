@@ -13,14 +13,14 @@ const g: SourcesGraph = {
     { id: "t.apps/slack/list", extension: "apps", title: "List messages" },
   ],
   sources: [
-    { id: "b.mail", read: "d.persona", kind: "builtin", name: "Mail", icon: "mail", color: "blue", line: "", reading: true, to: ["inbox", "kb"], duplicates: ["s.outlook"], state: "{}" },
+    { id: "b.mail", read: "d.persona", kind: "builtin", name: "Mail", icon: "mail", color: "blue", line: "", reading: true, to: ["inbox", "digest"], duplicates: ["s.outlook"], state: "{}" },
     { id: "b.github", read: "d.persona", kind: "builtin", name: "GitHub", icon: "code", color: "green", line: "", reading: true, to: ["inbox"], state: "{}" },
-    { id: "s.outlook", read: "t.apps/outlook/search", kind: "subscription", name: "Outlook", icon: "mail", color: "blue", line: "", reading: true, to: ["inbox", "kb"], duplicates: ["b.mail"], state: "{}" },
+    { id: "s.outlook", read: "t.apps/outlook/search", kind: "subscription", name: "Outlook", icon: "mail", color: "blue", line: "", reading: true, to: ["inbox", "digest"], duplicates: ["b.mail"], state: "{}" },
     { id: "s.slack", read: "t.apps/slack/list", kind: "subscription", name: "Slack", icon: "chat", color: "teal", line: "", reading: false, to: ["inbox"], state: "{}" },
   ],
   destinations: [
     { id: "inbox", name: "Inbox", line: "4 sources · 3 reading", sources: 4, reading: 3 },
-    { id: "kb", name: "Knowledge base", line: "2 sources · 2 reading", sources: 2, reading: 2 },
+    { id: "digest", name: "Digest", line: "2 sources · 2 reading", sources: 2, reading: 2 },
   ],
 };
 
@@ -30,17 +30,17 @@ describe("the relationship view (#5741)", () => {
     expect([...p.sources]).toEqual(["s.outlook"]);
     expect([...p.reads]).toEqual(["t.apps/outlook/search"]);
     expect([...p.extensions]).toEqual(["apps"]);
-    expect([...p.destinations]).toEqual(["inbox", "kb"]);
+    expect([...p.destinations]).toEqual(["inbox", "digest"]);
     expect([...p.duplicates]).toEqual(["b.mail"]);
     expect(pathOf(g, null)).toBeNull();
   });
 
   it("lights up every source of an extension, or into a destination", () => {
     expect([...pathOf(g, { kind: "extension", id: "persona" })!.sources]).toEqual(["b.mail", "b.github"]);
-    const kb = pathOf(g, { kind: "destination", id: "kb" })!;
-    expect([...kb.sources]).toEqual(["b.mail", "s.outlook"]);
-    expect([...kb.extensions].sort()).toEqual(["apps", "persona"]);
-    expect(kb.duplicates.size).toBe(0);
+    const digest = pathOf(g, { kind: "destination", id: "digest" })!;
+    expect([...digest.sources]).toEqual(["b.mail", "s.outlook"]);
+    expect([...digest.extensions].sort()).toEqual(["apps", "persona"]);
+    expect(digest.duplicates.size).toBe(0);
   });
 
   it("puts each read level with its sources and each extension with its reads", () => {
@@ -59,7 +59,7 @@ describe("the relationship view (#5741)", () => {
 
   it("filters the tree by destination and by sources that can't read now", () => {
     expect(filtered(g, "all")).toHaveLength(4);
-    expect(filtered(g, "kb").map((s) => s.id)).toEqual(["b.mail", "s.outlook"]);
+    expect(filtered(g, "inbox")).toHaveLength(4);
     expect(filtered(g, "idle").map((s) => s.id)).toEqual(["s.slack"]);
   });
 });

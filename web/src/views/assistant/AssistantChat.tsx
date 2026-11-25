@@ -1,5 +1,5 @@
 // What a Persona conversation adds to the chat page (the app's AssistantTopBar): the persona's dot in the header,
-// moving with the conversation's state; the header menu's "Details" / "Knowledge" / "Back to main chat" / "Copy info"; the
+// moving with the conversation's state; the header menu's "Details" / "Back to main chat" / "Copy info"; the
 // conversation's "Compact context", the main conversation's "New main chat", and the strip while it compacts (#1727). Its
 // model is the composer's model pill (views/chat/ModelPill.tsx AssistantModelPill, #5033).
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -38,7 +38,7 @@ export function AssistantFace({ session, last }: { session?: Session; last?: Pic
   return <PersonaDot size={30} state={state} fallback={null} className="-my-1" />;
 }
 
-/** The header menu's Persona part: "Details" (the profile), "Knowledge", "Back to main chat", an ordinary conversation's
+/** The header menu's Persona part: "Details" (the profile), "Back to main chat", an ordinary conversation's
  *  "Archive" (the sidebar row's action), "Compact context", the main conversation's "Clear context" and "New main chat"
  *  (when the hub can), "Copy info"; `dialogs` goes with them. Empty for an agent. */
 const NewMainDialog = lazyDialog(() => import("./NewMainDialog").then((m) => m.NewMainDialog));
@@ -59,7 +59,6 @@ export function useAssistantMenu(session: Session | undefined): { items: MenuIte
   const compacting = session.compaction?.state === "running";
   const items: MenuItem[] = [
     { key: "profile", label: t("assistant-assistantchat.details"), icon: "info", onSelect: () => navigate({ name: "profile" }) },
-    { key: "kb", label: t("assistant-assistantchat.knowledge"), icon: "book", onSelect: () => navigate({ name: "kb" }) },
     ...(assistant?.main && !isMain ? [{ key: "main", label: t("assistant-assistantchat.back_to_main"), icon: "home" as const, onSelect: () => navigate(conversationPage(assistant.main!, assistant.machine_id, shownManager())) }] : []),
     ...(!isMain && !isBackgroundSupervisor(assistant, session.session_id) ? [conversationArchiveItem(session)] : []),
     ...(canCompact

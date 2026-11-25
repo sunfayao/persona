@@ -2,7 +2,7 @@
 // GitHubConnectorSections, GitHubInboxSettings; docs/extensions/connectors.md): GitHub, Telegram and any extension's connector, as
 // GET /api/v1/connectors lists them. A page shows how one is doing, as whom, where its sign-in comes from and what is
 // wrong (with the steps to fix it); one the user signs in to here (`login`) also gets its switch, the sign-in a step
-// at a time (fields the hub asks for, GitHub's device code, or a QR code to scan), "Add to knowledge base" / "Add to Inbox", sign-out and delete. GitHub adds
+// at a time (fields the hub asks for, GitHub's device code, or a QR code to scan), "Add to Inbox", sign-out and delete. GitHub adds
 // where its token comes from (a computer's gh, or the device flow), the scopes it lacks, and its inbox options.
 // Messages (iMessage) adds "Hand to Persona" and deleting what the hub kept (iOS MessagesConnectorView, /api/v1/imessage…).
 import { OwnerMark } from "./OwnerMark";
@@ -11,7 +11,7 @@ import { errorText } from "../../lib/api";
 import { otherManager, ownedSub, pinManagerAt, sameManager, useChosenManager } from "../../lib/manager-choice";
 import { isOpenBeside } from "./open-beside";
 import {
-  canSendStep, CI_MODES, deleteIMessageData, imessageAIFooter, imessageStatus, setIMessageAI, connectorBrand, connectorLogin, connectorLogout, connectorState, connectorSummary, connectorTone, deleteConnectorArchive,
+  canSendStep, CI_MODES, deleteIMessageData, imessageAIFooter, imessageStatus, setIMessageAI, connectorBrand, connectorLogin, connectorLogout, connectorState, connectorSummary, connectorTone,
   deleteConnectorData, deletedLine, feedsFooter, fieldInput, githubAuth, githubInboxFooter, githubMachineLine, githubMachineWarns, githubOptions, larkcliOptions,
   githubScopeAdvice, isEnabled, isPolledStep, isSignedIn, isStarting, listConnectors, logoutMessage, mutableRepo, otherConnectors, setConnector, setGitHubAuth,
   signInFooter, signsInHere, stepView, storesData, switchFooter, switchLabel, undescribed,
@@ -287,10 +287,8 @@ function SwitchGroup({ c, a }: { c: HubConnector; a: Actions }) {
 }
 
 function FeedsGroup({ c, a }: { c: HubConnector; a: Actions }) {
-  const [confirm, setConfirm] = useState(false);
-  const [deleted, setDeleted] = useState("");
-  if (c.archive === undefined && c.inbox === undefined) return null;
-  const toggle = (title: string, on: boolean, feed: "archive" | "inbox") => (
+  if (c.inbox === undefined) return null;
+  const toggle = (title: string, on: boolean, feed: "inbox") => (
     <div className="flex items-center gap-3 px-4 py-2.5">
       <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{title}</span>
       {a.busy === feed && <Spinner />}
@@ -298,23 +296,8 @@ function FeedsGroup({ c, a }: { c: HubConnector; a: Actions }) {
     </div>
   );
   return (
-    <Group footer={<span className="whitespace-pre-line">{deleted || feedsFooter(c)}</span>}>
-      {c.archive !== undefined && toggle(t("settings-hubconnector.to_knowledge"), c.archive, "archive")}
+    <Group footer={<span className="whitespace-pre-line">{feedsFooter(c)}</span>}>
       {c.inbox !== undefined && toggle(t("settings-hubconnector.to_inbox"), c.inbox, "inbox")}
-      {c.archive !== undefined && (
-        <div className="px-4 py-2.5">
-          <button type="button" disabled={!!a.busy} onClick={() => setConfirm(true)} className="text-[13px] whitespace-nowrap text-red hover:underline disabled:opacity-50">{t("settings-hubconnector.delete_archive")}</button>
-        </div>
-      )}
-      <Confirm
-        open={confirm}
-        title={t("settings-hubconnector.delete_archive_title", { name: c.name })}
-        message={t("settings-hubconnector.delete_archive_message", { name: c.name })}
-        action={t("settings-hubconnector.delete")}
-        busy={a.busy === "deleteArchive"}
-        onClose={() => setConfirm(false)}
-        onConfirm={() => void a.run("deleteArchive", () => deleteConnectorArchive(c.id), (r) => (setDeleted(deletedLine(r as object, false)), setConfirm(false)))}
-      />
     </Group>
   );
 }

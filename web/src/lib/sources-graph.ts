@@ -46,7 +46,7 @@ export interface GraphSource {
 }
 
 export interface GraphDestination {
-  id: "inbox" | "kb" | (string & {});
+  id: "inbox" | (string & {});
   name: string;
   line: string;
   sources: number;
@@ -178,8 +178,8 @@ export function layoutColumns(g: SourcesGraph, width: number): GraphLayout {
   return { width: columns[3] + widths[3], height, columns, widths, top, heights: HEIGHTS };
 }
 
-/** The filters of the tree view (a phone-wide page): all, into the Inbox, into the knowledge base, can't read now. */
-export type GraphFilter = "all" | "inbox" | "kb" | "idle";
+/** The filters of the tree view (a phone-wide page): all, into the Inbox, can't read now. */
+export type GraphFilter = "all" | "inbox" | "idle";
 
 export function filtered(g: SourcesGraph, f: GraphFilter): GraphSource[] {
   return g.sources.filter((s) => (f === "all" ? true : f === "idle" ? !s.reading : s.to.includes(f)));

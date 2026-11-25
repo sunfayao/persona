@@ -74,7 +74,7 @@ describe("连接器的状态", () => {
     expect(switchFooter(wechat(false))).toBe("打开后才能登录。");
     for (const text of [switchFooter(wechat(true)), switchFooter(wechat(false))]) expect(text).not.toMatch(/知识库|收件箱|不再读/);
 
-    const telegram = conn("ok", { id: "telegram", name: "Telegram", capabilities: ["status", "login", "archive", "inbox"] });
+    const telegram = conn("ok", { id: "telegram", name: "Telegram", capabilities: ["status", "login", "inbox"] });
     expect(storesData(telegram)).toBe(true);
     expect(switchLabel(telegram)).toBe("同步 Telegram");
     expect(storesData(conn("ok", { capabilities: ["status", "inbox"] }))).toBe(true);
@@ -99,12 +99,9 @@ describe("连接器的状态", () => {
 
   it("words the footers", () => {
     expect(switchFooter(conn("ok"))).toContain("关掉后不再读 GitHub");
-    expect(feedsFooter(conn("ok", { archive: true, inbox: false }))).toBe(
-      "进知识库：GitHub 的内容存进知识库，助手和 AI 分身都能查。关掉后不再存新的，已存的留着。\n不进收件箱：不再收新的，已有的条目留着。",
-    );
+    expect(feedsFooter(conn("ok", { inbox: false }))).toBe("不进收件箱：不再收新的，已有的条目留着。");
     expect(feedsFooter(conn("ok"))).toBe("");
     expect(deletedLine({ chats: 3, people: 5, inbox: 2 })).toBe("已删除：知识库里 3 个会话、5 个人，收件箱里 2 条。");
-    expect(deletedLine({ chats: 1 }, false)).toBe("已删除：知识库里 1 个会话、0 个人。");
   });
 });
 

@@ -182,7 +182,6 @@ export type OpenTarget =
   | { kind: "web"; url: string }
   | { kind: "session"; mid: string; sid: string }
   | { kind: "task"; id: string }
-  | { kind: "kb"; path: string[] }
   | { kind: "file"; mid: string; path: string };
 
 // eslint-disable-next-line no-control-regex
@@ -228,8 +227,6 @@ export function openTarget(target: string): OpenTarget | undefined {
       return decoded.length === 2 ? { kind: "session", mid: decoded[0], sid: decoded[1] } : undefined;
     case "task":
       return decoded.length === 1 ? { kind: "task", id: decoded[0] } : undefined;
-    case "kb":
-      return decoded.some((p) => p === "." || p === "..") ? undefined : { kind: "kb", path: decoded };
     case "file":
       return decoded.length === 2 && !decoded[0].includes("/") && decoded[1].startsWith("/") ? { kind: "file", mid: decoded[0], path: decoded[1] } : undefined;
   }

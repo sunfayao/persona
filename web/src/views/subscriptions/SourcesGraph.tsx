@@ -170,7 +170,7 @@ function Columns({ graph, width, pick, onPick }: { graph: SourcesGraph; width: n
       {graph.destinations.map((d) => (
         <button key={d.id} type="button" onClick={() => onPick({ kind: "destination", id: d.id })} aria-pressed={pick?.kind === "destination" && pick.id === d.id}
           className={cx(node, "px-3", path && (on("destinations", d.id) ? "shadow-[0_0_0_2px_var(--accent)]" : "opacity-30"))} style={{ ...pos("destination", d.id, 3), height: L.heights.destination }}>
-          <Icon name={d.id === "kb" ? "book" : "inbox"} size={17} className="shrink-0 text-accent" />
+          <Icon name="inbox" size={17} className="shrink-0 text-accent" />
           <span className="min-w-0"><span className="block truncate text-[14px] font-medium text-ink">{d.name}</span><span className="block truncate text-[11.5px] text-ink-2">{d.line}</span></span>
         </button>
       ))}
@@ -185,7 +185,6 @@ function Tree({ graph, pick, onPick }: { graph: SourcesGraph; pick: GraphPick; o
   const chips: { f: GraphFilter; label: string }[] = [
     { f: "all", label: t("subscriptions.graph_filter_all", { count: graph.sources.length }) },
     { f: "inbox", label: t("subscriptions.graph_filter_inbox", { count: filtered(graph, "inbox").length }) },
-    { f: "kb", label: t("subscriptions.graph_filter_kb", { count: filtered(graph, "kb").length }) },
     { f: "idle", label: t("subscriptions.graph_filter_idle", { count: filtered(graph, "idle").length }) },
   ];
   return (
@@ -224,10 +223,8 @@ function Tree({ graph, pick, onPick }: { graph: SourcesGraph; pick: GraphPick; o
                       <span className={cx("min-w-0 truncate text-[14px] font-medium", lit ? "text-accent" : "text-ink")}>{s.name}</span>
                       {s.badge?.text && <Badge badge={s.badge} />}
                       <span className="ml-auto flex shrink-0 gap-1.5">
-                        {(["inbox", "kb"] as const).map((d) => (
-                          <Icon key={d} name={d === "kb" ? "book" : "inbox"} size={16} aria-label={s.to.includes(d) ? graph.destinations.find((x) => x.id === d)?.name : undefined}
-                            className={cx(!s.to.includes(d) && "invisible", s.reading ? "text-accent" : "text-ink-3")} />
-                        ))}
+                        <Icon name="inbox" size={16} aria-label={s.to.includes("inbox") ? graph.destinations.find((x) => x.id === "inbox")?.name : undefined}
+                          className={cx(!s.to.includes("inbox") && "invisible", s.reading ? "text-accent" : "text-ink-3")} />
                       </span>
                     </button>
                   </li>

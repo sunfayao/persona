@@ -38,8 +38,7 @@ export interface HubConnector {
   hosts?: string[];
   /** Switched on (absent: a hub from before the switch, always on). */
   enabled?: boolean;
-  /** "Add to knowledge base" / "Add to Inbox": only there when it has an archive, an inbox. */
-  archive?: boolean;
+  /** "Add to Inbox": only there when it has an inbox. */
   inbox?: boolean;
   /** Its own settings (GitHub's: GitHubInboxOptions). */
   options?: unknown;
@@ -78,7 +77,7 @@ export interface ConnectorPrompt {
   account?: string;
 }
 
-/** What deleting a connector's data removed (DELETE …/data, …/archive). */
+/** What deleting a connector's data removed (DELETE …/data). */
 export interface ConnectorDeleted {
   chats?: number;
   people?: number;
@@ -176,13 +175,13 @@ export function isEnabled(c: HubConnector): boolean {
   return c.enabled ?? true;
 }
 
-/** It brings things into the knowledge base or the inbox (Telegram), so its switch syncs and it has data to delete; a
+/** It brings things into the inbox (Telegram), so its switch syncs and it has data to delete; a
  * chat bot (WeChat: a status and a sign-in, docs/extensions/channels.md) only talks. One not described yet (no capabilities, or a
  * hub from before them) counts as bringing them, as before there were bots (the apps do the same). */
 export function storesData(c: HubConnector): boolean {
   const caps = c.capabilities;
   if (!caps?.length) return true;
-  return caps.includes("archive") || caps.includes("inbox");
+  return caps.includes("inbox");
 }
 
 /** The connector's switch: "Sync X" for one that brings data in, "Enable X" for one that does not. */
@@ -230,16 +229,12 @@ export function logoutMessage(c: HubConnector): string {
 
 export function feedsFooter(c: HubConnector): string {
   const lines: string[] = [];
-  if (c.archive !== undefined) {
-    lines.push(c.archive ? t("lib-connectors.feeds_archive_on", { name: c.name }) : t("lib-connectors.feeds_archive_off", { name: c.name }));
-  }
   if (c.inbox === false) lines.push(t("lib-connectors.feeds_inbox_off"));
   return lines.join("\n");
 }
 
-export function deletedLine(r: ConnectorDeleted, withInbox = true): string {
-  const vars = { chats: r.chats ?? 0, people: r.people ?? 0, inbox: r.inbox ?? 0 };
-  return withInbox ? t("lib-connectors.deleted_with_inbox", vars) : t("lib-connectors.deleted", vars);
+export function deletedLine(r: ConnectorDeleted): string {
+  return t("lib-connectors.deleted_with_inbox", { chats: r.chats ?? 0, people: r.people ?? 0, inbox: r.inbox ?? 0 });
 }
 
 /** Every field of the step on screen is filled in. */
@@ -389,18 +384,14 @@ export function connectorLogout(id: string): Promise<unknown> {
   return api(`/connectors/${enc(id)}/logout`, { method: "POST" });
 }
 
-/** The switch (`enabled`), "Add to knowledge base" (`archive`), "Add to Inbox" (`inbox`) or its own settings (`options`).
+/** The switch (`enabled`), "Add to Inbox" (`inbox`) or its own settings (`options`).
  *  `manager`: whose connector (another manager's extension page names it); none: the default's, or the page's pin. */
-export function setConnector(id: string, body: { enabled?: boolean; archive?: boolean; inbox?: boolean; options?: unknown }, manager?: string): Promise<HubConnector> {
+export function setConnector(id: string, body: { enabled?: boolean; inbox?: boolean; options?: unknown }, manager?: string): Promise<HubConnector> {
   return api<HubConnector>(`/connectors/${enc(id)}/settings`, { method: "PUT", json: body, headers: itemHeaders(manager) });
 }
 
 export function deleteConnectorData(id: string): Promise<ConnectorDeleted> {
   return api<ConnectorDeleted>(`/connectors/${enc(id)}/data`, { method: "DELETE" });
-}
-
-export function deleteConnectorArchive(id: string): Promise<ConnectorDeleted> {
-  return api<ConnectorDeleted>(`/connectors/${enc(id)}/archive`, { method: "DELETE" });
 }
 
 // ── Messages (iMessage): "Hand to Persona" and deleting what the hub kept (iOS MessagesConnectorView) ──
@@ -424,7 +415,7 @@ export function setIMessageAI(on: boolean): Promise<IMessageStatus> {
   return api<IMessageStatus>("/imessage/settings", { method: "PUT", json: { ai: on } });
 }
 
-/** What the hub kept of iMessage (knowledge base chats and people, inbox items); the hub refuses while "Hand to Persona" is on. */
+/** What the hub kept of iMessage (chats and people, inbox items); the hub refuses while "Hand to Persona" is on. */
 export function deleteIMessageData(): Promise<ConnectorDeleted> {
   return api<ConnectorDeleted>("/imessage/data", { method: "DELETE" });
 }

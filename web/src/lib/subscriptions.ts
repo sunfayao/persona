@@ -1,6 +1,6 @@
 // Source subscriptions (#2041, docs/extensions/subscriptions.md "Pages"): the manager draws the pages as declarative UI
 // (POST /api/v1/subscriptions/-/ui); the web opens them at /subscriptions and shows entry rows, once the manager reports
-// that subscriptions deliver to the Inbox and the knowledge base (feature source_subscriptions).
+// that subscriptions deliver to the Inbox (feature source_subscriptions).
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { onHubEvent, useStore } from "./store";

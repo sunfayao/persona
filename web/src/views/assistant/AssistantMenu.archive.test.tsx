@@ -66,7 +66,7 @@ afterEach(() => reset());
 describe("Archive in a Persona conversation's title menu (#6565)", () => {
   it("uses the sidebar action, refreshes to the archived result, and offers Undo without leaving the chat", async () => {
     render(SESSION);
-    expect(keys()).toEqual(["profile", "kb", "main", "archive", "copyinfo"]);
+    expect(keys()).toEqual(["profile", "main", "archive", "copyinfo"]);
     const archive = items.find((i) => i.key === "archive")!;
     expect(archive).toMatchObject({ label: "归档", icon: "archive" });
 
