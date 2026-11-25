@@ -198,7 +198,6 @@ func TestLarkCLIInComplexCommands(t *testing.T) {
 	}
 }
 
-
 // The risk level comes from the command's --help, asked once per command; the binary is the configured one, with the
 // configured profile, and the assistant gets a wrapper doing the same.
 func TestLarkCLIRiskAndWrapper(t *testing.T) {

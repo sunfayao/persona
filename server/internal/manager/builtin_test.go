@@ -10,9 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/managerconf"
@@ -120,7 +118,6 @@ func TestRunBuiltinNotBound(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
-
 
 // A manager.json that does not read stops the built-in join before the code is spent.
 func TestJoinBuiltinReadsManagerJSONFirst(t *testing.T) {

@@ -1,9 +1,6 @@
 package assistant
 
 import (
-	"context"
-	"strings"
-	"testing"
 	"time"
 )
 
@@ -15,8 +12,3 @@ func forgetRate(s *Service) {
 	s.relays.sent = map[[2]string][]time.Time{}
 	s.relays.mu.Unlock()
 }
-
-
-
-
-

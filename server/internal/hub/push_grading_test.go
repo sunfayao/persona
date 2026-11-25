@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -319,7 +316,6 @@ func TestPushGradingLevelDerivedFromKind(t *testing.T) {
 	}
 }
 
-
 // The read-only intercepts view is newest first and its JSON shape is what extensions and the nightly review read.
 func TestPushGradingInterceptsViewShape(t *testing.T) {
 	h := gradingHub(t)
@@ -346,7 +342,6 @@ func TestPushGradingInterceptsViewShape(t *testing.T) {
 		t.Fatalf("view = %s, want newest first with two entries", raw)
 	}
 }
-
 
 // Review fix: same-minute P1 entries merge only within one manager, so one extension never reads another's titles.
 func TestPushGradingMergeStaysWithinManager(t *testing.T) {

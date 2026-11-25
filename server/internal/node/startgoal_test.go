@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -212,7 +211,6 @@ func TestCleanStartGoal(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
-
 
 // An async start (the shape every App start uses) sets the goal too: still after the first message is in, not before.
 func TestStartGoalOnAnAsyncStart(t *testing.T) {

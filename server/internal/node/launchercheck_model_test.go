@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -27,4 +26,3 @@ printf '{"type":"result","subtype":"success","is_error":false,"result":"ok","mod
 		t.Fatalf("model override did not reach the probe: %s, error=%v", res, err)
 	}
 }
-

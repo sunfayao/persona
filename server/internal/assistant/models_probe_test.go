@@ -245,7 +245,6 @@ func TestProviderDiscoverErrors(t *testing.T) {
 	}
 }
 
-
 // A bypass list that is the gateway's host alone (iOS's Proxy › No Proxy, #6238) follows the gateway to a new address,
 // as the web form sends it back unchanged; any other list stays as it is.
 func TestNoProxyOfTheGatewayFollowsItsAddress(t *testing.T) {
@@ -271,8 +270,6 @@ func TestNoProxyOfTheGatewayFollowsItsAddress(t *testing.T) {
 		}
 	}
 }
-
-
 
 func TestLauncherProviderFieldsAreChecked(t *testing.T) {
 	ok := launcherInput{Name: "gw", BaseURL: "https://gw.example.com", Model: "m"}

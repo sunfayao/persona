@@ -395,7 +395,6 @@ func TestNodeScriptNotify(t *testing.T) {
 	}
 }
 
-
 // A script's notification within the node's character limits always goes out (docs/integrations/script-cli.md: cut, not
 // refused), even when its bytes would not fit a push: 1000 emoji, or 1000 of < (six bytes each in JSON), #3798.
 func TestNodeScriptNotifyCutsToFit(t *testing.T) {

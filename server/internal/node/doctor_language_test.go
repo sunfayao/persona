@@ -436,4 +436,3 @@ func TestAgentSandboxReasonMetadataIsAdditive(t *testing.T) {
 		t.Errorf("old reader sees %+v, want state %q and why %q; JSON: %s", got, sandbox.AgentSkipped, wantWhy, raw)
 	}
 }
-

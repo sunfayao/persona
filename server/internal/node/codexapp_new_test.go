@@ -387,7 +387,6 @@ func TestACodexAppStartRefusesWhatTheAppCannotRun(t *testing.T) {
 	}
 }
 
-
 // A chat Persona started in the App is one of the App's chats without a record in the App's state, and its subagents
 // are the App's subagents; Persona's other Codex threads (the assistant's, originator "persona") are not.
 func TestPersonasAppChatsAreTheAppsChats(t *testing.T) {

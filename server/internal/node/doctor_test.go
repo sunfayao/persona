@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 )
@@ -486,4 +485,3 @@ func TestPrintDoctorOneLinePerCheck(t *testing.T) {
 		}
 	}
 }
-

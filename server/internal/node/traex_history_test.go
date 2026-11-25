@@ -3,14 +3,12 @@ package node
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -178,4 +176,3 @@ func TestTraexNonPaginatedRunningTurnCompletesInPlace(t *testing.T) {
 		t.Fatalf("completed transcript: %s", got)
 	}
 }
-

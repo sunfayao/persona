@@ -151,7 +151,6 @@ func replyLine(t *testing.T, id string, input int, text string) string {
 	return string(b) + "\n"
 }
 
-
 // A copy that fails is removed: it is no backup, and on a full disk it holds the space.
 func TestBackupCopyRemovesAFailedCopy(t *testing.T) {
 	dir := t.TempDir()

@@ -102,7 +102,6 @@ func ownershipGet(t *testing.T, h *Hub, srv *httptest.Server, method, path strin
 	return resp.StatusCode, out
 }
 
-
 // One manager: a list's answer is the manager's own with each item stamped, nothing else changed.
 func TestMergeListOneManager(t *testing.T) {
 	rec := httptest.NewRecorder()

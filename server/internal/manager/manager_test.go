@@ -610,8 +610,6 @@ func TestWaitNewToken(t *testing.T) {
 	}
 }
 
-
-
 // A database the user gave is used as it is: no docker, and uninstall leaves it alone.
 func TestGivenDatabaseIsLeftAlone(t *testing.T) {
 	home := isolate(t)

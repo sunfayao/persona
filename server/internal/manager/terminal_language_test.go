@@ -388,7 +388,6 @@ func managerUninstallGolden(language, dir string) string {
 	}
 }
 
-
 func managerTokenGolden(language string, renewed bool) string {
 	switch language {
 	case "zh-Hans":

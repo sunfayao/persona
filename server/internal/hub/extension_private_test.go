@@ -175,7 +175,6 @@ func TestAnExtensionResumesOnlyAListedChatOutsideTheHealthSpace(t *testing.T) {
 	}
 }
 
-
 // sessionStarts are the session.start calls m got that resume id, as sent.
 func sessionStarts(m *guardManager, id string) []string {
 	var out []string

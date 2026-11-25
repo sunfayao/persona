@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -89,8 +88,6 @@ func answerOwnerProof(f *fakeHub, action, interaction string, calls *int, mutate
 	})
 }
 
-
-
 func TestOwnerApprovalPhraseIsTrimmedAndCaseFoldedOnly(t *testing.T) {
 	on := true
 	settings := Settings{OwnerReplyApproval: &on, OwnerApprovalPhrases: []string{"发", "Agree", "Yes"}}
@@ -109,6 +106,3 @@ func TestOwnerApprovalPhraseIsTrimmedAndCaseFoldedOnly(t *testing.T) {
 		t.Fatal("default-off setting matched an approval phrase")
 	}
 }
-
-
-

@@ -195,4 +195,3 @@ func TestAnOutsideClaudesQuestionCardOnlyWhileAnswerable(t *testing.T) {
 		t.Fatalf("a permission prompt can be approved from the phone: %+v", s.Capabilities)
 	}
 }
-

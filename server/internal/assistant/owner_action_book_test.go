@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 // ownerActionTestStore has the same revision-checked replacement semantics as
@@ -118,16 +117,6 @@ func TestOwnerActionCanonicalPayload(t *testing.T) {
 		t.Fatal("duplicate object keys are ambiguous and must be rejected")
 	}
 }
-
-
-
-
-
-
-
-
-
-
 
 func (book *ownerActionBook) putForTest(ctx context.Context, batch ownerActionBatch) error {
 	for range 10 {

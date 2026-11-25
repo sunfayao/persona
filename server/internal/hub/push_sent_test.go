@@ -32,7 +32,6 @@ func sentPusher(t *testing.T, store *gradingStore, now time.Time) *Pusher {
 	return p
 }
 
-
 // statsViews are what the readers of the record answer: the daily counts for every manager and for one, over the
 // default day, two days and the whole 14 days.
 func statsViews(p *Pusher) map[string][]pushDayStats {

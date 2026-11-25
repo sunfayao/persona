@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"io"
 	"log"
 	"os"
@@ -219,8 +218,6 @@ func TestAgentSandboxFallsBack(t *testing.T) {
 	})
 }
 
-
-
 // codex-start wraps a Codex that runs danger-full-access in its own process, leaves a managed launcher to `personad
 // launch` and other words (pi) alone, and says why when it does not wrap a Codex.
 func TestCodexStartExec(t *testing.T) {
@@ -373,4 +370,3 @@ func TestAgentSandboxCoversPathGuard(t *testing.T) {
 		}
 	}
 }
-

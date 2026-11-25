@@ -209,7 +209,6 @@ func TestASessionOnAnotherManagersMachineCannotBecomeItsOwn(t *testing.T) {
 	}
 }
 
-
 // nodeAnswers answers devices.call as a node would for session.start: a resume of a running session answers that
 // session, an async start the id it was given.
 func nodeAnswers(method string, params json.RawMessage) (any, error) {
@@ -450,7 +449,6 @@ func TestACardIsNotReplacedByAnotherManager(t *testing.T) {
 		t.Fatalf("resolve went to the wrong manager\nA:\n%s\nB:\n%s", a.log(), b.log())
 	}
 }
-
 
 // A source move whose release failed, done again, releases it at the old manager.
 func TestASourceMoveDoneAgainReleasesIt(t *testing.T) {

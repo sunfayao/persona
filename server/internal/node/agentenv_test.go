@@ -13,7 +13,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/nodeclient"
 )
 
 // inAgentEnv is agentCommand's line for cmd in an sh-family pane of a node whose directory is dir, written out: what
@@ -50,7 +49,6 @@ func twoStores(t *testing.T) (home, dir, legacy string) {
 	}
 	return home, dir, legacy
 }
-
 
 // What a start types (agentCommand): the directory and the unset in the sh family, the directory alone in fish, the
 // command as it was in a shell that takes no `VAR=val cmd`, and from a node that has no directory.

@@ -55,7 +55,6 @@ func TestQuietOffCardPushIgnoresLevel(t *testing.T) {
 	}
 }
 
-
 // The switch reaches the manager over the bus, end to end: the hub's hello carries it (Hello.QuietPush), and turning
 // it on or off through its route sends manager.updated, which the connected assistant takes. The manager never reads
 // the hub's settings itself.

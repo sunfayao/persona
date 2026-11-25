@@ -234,8 +234,6 @@ func TestModelConfigurationPreservesLegacyBaselines(t *testing.T) {
 	}
 }
 
-
-
 func TestModelProviderSwitchDoesNotInheritAnotherProvidersModel(t *testing.T) {
 	b := mergeModel(ModelBinding{Provider: "legacy.ai", Model: "old-model", Effort: "high"}, ModelBinding{Provider: "launcher.other"})
 	if b.Model != "" || b.Effort != "" {
@@ -783,7 +781,6 @@ func slicesContain(list []string, s string) bool {
 	}
 	return false
 }
-
 
 // The hub's quota plugins and launcher sections reach a managed provider's gateway through the assistant, which puts
 // the key in (models.launcher_http); another name is no_launcher (the hub goes to the machines' ~/.zshrc then).

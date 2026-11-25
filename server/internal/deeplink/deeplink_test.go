@@ -38,4 +38,3 @@ func readFixture(t *testing.T) fixture {
 	}
 	return f
 }
-

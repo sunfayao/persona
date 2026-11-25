@@ -18,7 +18,6 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-
 // A node on herdr (the default) makes no herdr-core call while it lists, polls, watches, sends, reads and presses keys,
 // even with a herdr-core running at the socket it would use.
 func TestEngineHerdrMakesNoHerdrCoreCall(t *testing.T) {

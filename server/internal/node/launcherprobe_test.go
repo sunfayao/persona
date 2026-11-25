@@ -2,8 +2,6 @@ package node
 
 import (
 	"context"
-	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -336,8 +334,6 @@ func TestProbeInBashAndZsh(t *testing.T) {
 		})
 	}
 }
-
-
 
 // A check that runs out of time says what was printed before it did: the upstream's error, not only that no answer
 // came. Keys and gateway addresses stay out of it.

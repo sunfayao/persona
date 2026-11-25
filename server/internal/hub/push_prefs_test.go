@@ -3,7 +3,6 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -26,7 +25,6 @@ func (s *stuckPrefsStore) SetDevicePrefs(ctx context.Context, _, _ string, _ jso
 	<-ctx.Done()
 	return ctx.Err()
 }
-
 
 // heldPrefs is deviceRows whose first prefs write waits for release (a slow database row), closing entered as it starts.
 type heldPrefs struct {

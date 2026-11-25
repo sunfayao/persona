@@ -179,7 +179,6 @@ EOF`, "other"},
 	}
 }
 
-
 // hub.json rules come first: the user can let a write through, or forbid one.
 func TestLarkRulesFromConfig(t *testing.T) {
 	send := larkCall{Method: "POST", Path: "/conversations/7123/messages", Body: `{"text":"hi"}`}

@@ -446,7 +446,6 @@ func TestBotmuxRefusalsAndUnsupported(t *testing.T) {
 	}
 }
 
-
 // An observe that fails (a timeout, a CLI error) is not botmux stopping: the sessions stay as listed, and a reply in
 // the gap still goes to botmux.
 func TestBotmuxFailedObserveKeepsSessions(t *testing.T) {

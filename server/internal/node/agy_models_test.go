@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
 
 func fakeAgyModels(t *testing.T, home string) (catalog, calls string) {
 	t.Helper()

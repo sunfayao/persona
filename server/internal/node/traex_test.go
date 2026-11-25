@@ -10,7 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 )
 
-
 func TestTraexChoice(t *testing.T) {
 	blocked := "Would you like to run the following command?\n\n  $ rm -rf build\n\n› 1. Yes, proceed (y)\n  2. No, and tell Codex what to do differently (esc)\n"
 	if !traexChoiceRe.MatchString(blocked) {
@@ -71,7 +70,6 @@ const (
 	threadOld      = "01a00000-0000-7000-8000-00000000000c"
 	threadNew      = "01a00000-0000-7000-8000-00000000000d"
 )
-
 
 // Codex writes its thread_spawn subagents' rollouts next to the conversation, in the same directory and newer.
 func TestCodexSessionSkipsSubagents(t *testing.T) {

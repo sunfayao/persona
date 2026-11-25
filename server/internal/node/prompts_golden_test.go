@@ -4,9 +4,6 @@ package node
 // intended change with UPDATE_GOLDEN=1 go test ./internal/node -run Golden, and read the diff.
 
 import (
-	"encoding/json"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
 	"io"
 	"log"
 	"os"
@@ -14,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func goldenNode(t *testing.T, name, got string) {
@@ -80,5 +79,3 @@ func TestGoldenLostTasksNotice(t *testing.T) {
 		t.Fatalf("got\n%s\nwant (%v)\n%s", got, err, want)
 	}
 }
-
-

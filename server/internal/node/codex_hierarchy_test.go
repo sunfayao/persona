@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"testing"
 
@@ -61,7 +60,6 @@ func TestCodexProjectRootRealWorktrees(t *testing.T) {
 		}
 	})
 }
-
 
 // A Guardian approval review is Codex's own check of a tool call before it runs. It writes a rollout next to its chat,
 // but it is no Agent: neither the list nor its chat's sub-Agents have it, while a thread_spawn sub-Agent stays (#5486).
@@ -124,8 +122,6 @@ func TestCodexHierarchyCycleTerminates(t *testing.T) {
 	}
 }
 
-
-
 func TestCodexProjectCacheRetriesAfterExpiry(t *testing.T) {
 	root := t.TempDir()
 	cwd := filepath.Join(root, "nested")
@@ -174,6 +170,3 @@ func TestCodexHistoryAttachesToAlreadySeenTerminalParent(t *testing.T) {
 		t.Fatalf("terminal child=%+v", list[1])
 	}
 }
-
-
-

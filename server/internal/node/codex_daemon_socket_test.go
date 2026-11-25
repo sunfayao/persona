@@ -1,14 +1,12 @@
 package node
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -38,4 +36,3 @@ func codexDaemonHome(t *testing.T, home string, pid int) {
 		t.Fatal(err)
 	}
 }
-

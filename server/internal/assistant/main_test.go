@@ -3,12 +3,9 @@ package assistant
 import (
 	"os"
 	"testing"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
 	"github.com/nwverse/persona/server/internal/testhome"
 )
-
 
 // The package's tests never see the developer's HOME or PERSONA_HOME (testhome); most of them need a database and skip
 // in CI, this one keeps the TestMain wiring from being dropped there.

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/compat"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -72,9 +73,6 @@ func TestGuestProcessFlags(t *testing.T) {
 		t.Fatalf("an ordinary conversation lost %s: %q", assistantAllowedTools, v)
 	}
 }
-
-
-
 
 // Its directory holds only its instructions; a path out of the home is refused. Tool names are plain identifiers.
 func TestGuestPrepareAndTools(t *testing.T) {
@@ -273,7 +271,6 @@ func assertGuestSettings(t *testing.T, line, file, cwd string) {
 		t.Errorf("settings %s", raw)
 	}
 }
-
 
 // assistant.send with new_session_id: an id the node has (a process, or a transcript) is that conversation, answered
 // without sending anything; a state alone is not (a first start that failed left only that: its start asked again

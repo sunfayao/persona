@@ -427,7 +427,6 @@ func TestInboxModelsLive(t *testing.T) {
 	}
 }
 
-
 // A pass asked for while one runs is run after it, not dropped: every caller is an event, and nothing else would come
 // back for what it queued (a new message for an event's conversation waited for the next event). Still one pass at a
 // time, and the calls made meanwhile are one more pass, not one each.

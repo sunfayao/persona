@@ -171,7 +171,6 @@ func TestAgyHookFiles(t *testing.T) {
 	}
 }
 
-
 // node doctor's agy-herdr line: only where herdr answers and agy is used, warn without the hook or with an outdated one.
 func TestDoctorAgyHerdrLine(t *testing.T) {
 	t.Setenv("PATH", t.TempDir()) // no agy on PATH unless a case says so

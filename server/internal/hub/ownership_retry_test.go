@@ -9,7 +9,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -121,7 +120,6 @@ func TestEntriesRecoveryReadWaitsForWrite(t *testing.T) {
 		t.Fatalf("recovery reads after the write = %d, want 1", got)
 	}
 }
-
 
 func TestMachineListOmitsUnavailableOwner(t *testing.T) {
 	h := newTestHub(t)

@@ -7,23 +7,17 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/link"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 )
 
 // heard keeps the events of one kind a fake manager is told (its extensions' agent.*, the mutes…).
@@ -133,7 +127,6 @@ func TestAPushOnlyAboutItsOwn(t *testing.T) {
 		t.Fatalf("B's extensions heard (its own card as the hub keeps it, nothing of A's):\n%s", bh)
 	}
 }
-
 
 // app.call naming a machine goes only to its manager, and what is a manager's (its settings, through its
 // extensions) is the caller's: B reads neither A's machine's settings nor A's mail accounts.

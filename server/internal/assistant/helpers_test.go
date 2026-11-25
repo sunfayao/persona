@@ -68,7 +68,6 @@ func (svc *Service) agentArchiveChanges(machine string) map[string]time.Time {
 	return out
 }
 
-
 // waitWorkEvents returns once the events recorded so far are in the store (or failed): what reads the stats right
 // after acting sees them. The caller must know nothing else is recording events meanwhile (no Run,
 // no triage goroutine from workTick), as a WaitGroup's Add from zero must not race its Wait.

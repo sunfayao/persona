@@ -22,7 +22,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // managersHub is newBusHub with no install codes and no default picked.
@@ -317,7 +316,6 @@ func TestManagersPatchAndRevoke(t *testing.T) {
 		t.Fatalf("a called-off code traded: %d", code)
 	}
 }
-
 
 // Only the apps that asked for "managers" hear that the roster changed (a manager connected).
 func TestManagersEventIsOptIn(t *testing.T) {

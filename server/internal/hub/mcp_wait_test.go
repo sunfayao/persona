@@ -2,7 +2,6 @@ package hub
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -103,4 +102,3 @@ func TestMCPWaitReporterChecksMachineOwnership(t *testing.T) {
 		t.Fatalf("an existing reporter followed the machine to another manager: %s", extra)
 	}
 }
-

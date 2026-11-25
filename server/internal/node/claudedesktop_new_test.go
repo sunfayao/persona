@@ -319,7 +319,6 @@ func TestTheDesktopLauncherNeedsNoTerminalEngine(t *testing.T) {
 	}
 }
 
-
 // With no folder, the session runs in the scratch folder beside most of the app's sessions' folders (made the first
 // time), so the app's sidebar shows them as one group; the scratch folder's own sessions count for the folder it is in.
 func TestADesktopStartWithNoFolderRunsInTheScratchFolder(t *testing.T) {

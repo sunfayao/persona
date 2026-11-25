@@ -9,14 +9,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/rpc"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -514,7 +512,6 @@ func TestUnlanded(t *testing.T) {
 		}
 	}
 }
-
 
 // The machine's setting (Settings › Claude Code › Live replies, node.configure claude_live_replies) decides whether an
 // Agent's start loads the live replies plugin. On when nothing said it (a new node, an older hub that never says, a

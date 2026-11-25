@@ -428,7 +428,6 @@ func TestAWarmMachineIsNotConnectedYet(t *testing.T) {
 	}
 }
 
-
 // A machine nobody is known to carry (the ownership setting could not be read: unknownMachineOwner) is offline at once,
 // hub start or not: there is no manager to wait for (#6795).
 func TestNoWaitForAMachineNobodyIsKnownToCarry(t *testing.T) {
@@ -477,8 +476,6 @@ func TestAGoneConnectionDoesNotForgetTheNewOnesUp(t *testing.T) {
 		t.Fatal("the up state outlived its connection")
 	}
 }
-
-
 
 // #6372: a chat subscribed through a node restart keeps getting its items. A node watches per connection, so the
 // manager tells the new connection to watch again.

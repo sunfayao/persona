@@ -22,7 +22,6 @@ import (
 	"github.com/nwverse/persona/server/internal/streams"
 )
 
-
 func TestPluginIdentityUninstallThenFreshCanonicalReinstall(t *testing.T) {
 	n, _ := pluginTestNode(t)
 	ph := n.plugins()

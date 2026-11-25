@@ -13,7 +13,6 @@ import (
 
 const traexOwnerPane = "w1:p2"
 
-
 func TestTraexPaginatedConversationDirectoryDiffersFromContainer(t *testing.T) {
 	n, _, _ := startNode(t)
 	traexHistoryFixture(t, n, nil)
@@ -128,7 +127,6 @@ func TestTraexPaneOwnersKeepOlderMainWriterForSameProcess(t *testing.T) {
 		t.Fatalf("the newer main thread displaced a still-owned host session: %+v, %+v", agents, added)
 	}
 }
-
 
 func TestTraexPaginatedGuardianRolloutIdentifiesPane(t *testing.T) {
 	n, _, _ := startNode(t)

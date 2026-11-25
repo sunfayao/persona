@@ -3,12 +3,10 @@ package node
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"image/jpeg"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +29,6 @@ body { margin: 0; background: #00f } #go { position: absolute; left: 0; top: 0; 
 <a id="ext" href="https://example.com/away">elsewhere</a>
 <a id="next" href="/second">second</a>
 </body></html>`
-
 
 type liveMsg struct {
 	kind byte

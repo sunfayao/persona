@@ -470,7 +470,6 @@ func TestRuntimeWithoutModelCapabilityRejectsModel(t *testing.T) {
 	}
 }
 
-
 func TestRuntimeAvailabilityCheckRequiresOptIn(t *testing.T) {
 	n, _ := runtimeNode(t)
 	host := dialRuntime(t, n, paseoEngineHello())

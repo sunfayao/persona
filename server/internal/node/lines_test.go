@@ -102,4 +102,3 @@ func TestEachLineAt(t *testing.T) {
 		t.Fatalf("read %d: %q, want 25: %q", n, got, want)
 	}
 }
-

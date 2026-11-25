@@ -108,7 +108,6 @@ func TestAnswerOnlyCannotRegisterDesktop(t *testing.T) {
 	}
 }
 
-
 // A client that is not a desktop leaving says nothing about desktops.
 func TestDropNonDesktopIsQuiet(t *testing.T) {
 	h := newTestHub(t)

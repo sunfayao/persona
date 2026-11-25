@@ -111,8 +111,6 @@ func TestPushGradingRouteAliasMatchesLegacy(t *testing.T) {
 	}
 }
 
-
-
 // gradingZonedClock installs one race-free clock whose instant and UTC offset can move independently.
 func gradingZonedClock(h *Hub) (instant, offset *atomic.Int64) {
 	instant, offset = &atomic.Int64{}, &atomic.Int64{}
@@ -255,7 +253,6 @@ func TestPushDailyStatsHeldToManager(t *testing.T) {
 	}
 }
 
-
 // flakyPutStore fails the first failsLeft PutSetting and AddPushSent calls, then delegates to the real in-memory store.
 type flakyPutStore struct {
 	*gradingStore
@@ -286,7 +283,3 @@ func (s *flakyPutStore) AddPushSent(ctx context.Context, entries []db.PushSent) 
 	}
 	return s.gradingStore.AddPushSent(ctx, entries)
 }
-
-
-
-

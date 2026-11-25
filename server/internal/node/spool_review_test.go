@@ -98,9 +98,6 @@ func answeredBy(t *testing.T) string {
 	return string(line)
 }
 
-
-
-
 // The hold counts from the last connection that held, not from each standby start: a flapping manager does not keep
 // every permission hook waiting.
 func TestStandbyHoldDoesNotRenewOnFlaps(t *testing.T) {

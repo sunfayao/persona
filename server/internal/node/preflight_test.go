@@ -3,15 +3,11 @@
 package node
 
 import (
-	"bufio"
 	"context"
-	"errors"
-	"net"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -54,13 +50,6 @@ func testPreflightEnv(home string) preflightEnv {
 	env.child, env.childEnv = preflightChildCmd("")
 	return env
 }
-
-
-
-
-
-
-
 
 func TestBlockedPath(t *testing.T) {
 	for _, tc := range []struct {
@@ -119,8 +108,6 @@ func TestLaunchedVia(t *testing.T) {
 		t.Errorf("a terminal: %q", got)
 	}
 }
-
-
 
 // The command line waits for the node longer than the node's longest run, so a slow run is not taken for no node.
 func TestPreflightAnswerWaitOutlastsTheRun(t *testing.T) {
@@ -208,5 +195,3 @@ func TestPreflightChildProtocolStaysByteIdentical(t *testing.T) {
 		})
 	}
 }
-
-

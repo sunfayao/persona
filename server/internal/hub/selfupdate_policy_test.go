@@ -2,12 +2,12 @@ package hub
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/hubedge"
-	"github.com/nwverse/persona/server/internal/proto"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
+
+	"github.com/nwverse/persona/server/internal/hubedge"
+	"github.com/nwverse/persona/server/internal/proto"
 
 	"github.com/nwverse/persona/server/internal/update"
 )
@@ -139,4 +139,3 @@ func TestHubOnlySlotKeepsRemoteAgentsIndependent(t *testing.T) {
 		t.Fatal("local agent was not protected")
 	}
 }
-

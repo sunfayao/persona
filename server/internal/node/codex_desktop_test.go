@@ -277,7 +277,6 @@ func TestCodexDesktopLongTurnKeepsItsState(t *testing.T) {
 	}
 }
 
-
 func TestCodexOriginTellsAppChatsFromCLIAndSubagents(t *testing.T) {
 	home, _ := startFakeCodexBus(t, "x")
 	write := func(name, meta string) codexSource {
@@ -306,7 +305,6 @@ func TestCodexOriginTellsAppChatsFromCLIAndSubagents(t *testing.T) {
 		t.Fatalf("work subagent origin = %+v", o)
 	}
 }
-
 
 func TestFileFollowsAMovedTranscript(t *testing.T) {
 	n, home := testNode(t)
@@ -358,7 +356,6 @@ func TestInterruptCodexDesktopRefusesAThreadTheAppHasNotLoaded(t *testing.T) {
 	default:
 	}
 }
-
 
 // session.interrupt for a chat of the App goes to the App, as a message does.
 func TestInterruptCodexSendsAnAppChatsStopToTheApp(t *testing.T) {
