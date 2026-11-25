@@ -34,7 +34,7 @@ func (w pushWants) fn() func(NotifyPrefs) bool {
 // devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
 // turned its pushes off get none (NotifyPrefs.MutedManagers).
 func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
-	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, "", pushPolicy{level: levelFor(kind, "")})
+	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, pushPolicy{level: levelFor(kind, "")})
 }
 
 // pushOutcome is where one push went: the devices it was handed to now (a ws_notify connection or a
