@@ -1,4 +1,7 @@
 {
+  "agy_external_terminal": "此会话已在 Antigravity CLI 中打开。请在原终端继续，或在原终端关闭会话后回到这里发送。",
+  "codex_desktop_transcript": "请在 Codex 桌面应用中继续此会话。",
+  "open_in_codex": "在 Codex 中打开",
   "skills_route": "所选技能属于当前助手，请先取消任务转发再发送。",
   "share": "分享…",
   "forked": "已分支到新聊天",

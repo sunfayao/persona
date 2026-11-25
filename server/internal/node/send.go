@@ -279,7 +279,7 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 	}
 	if len(paths) > 0 {
 		// In a tag so it never mixes with what the user typed; the phone shows these as thumbnails.
-		text = strings.TrimSpace(text) + "\n\n<attached_images>\n" + strings.Join(paths, "\n") + "\n</attached_images>"
+		text = withAttachedImages(text, paths)
 	}
 	text = inertControls(text) // as the host pastes it (hostPrompt): the box and the transcript are matched against it
 	var watch *promptWatch
@@ -374,6 +374,10 @@ func (n *Node) typeable(ctx context.Context, pane string) error {
 		}
 	}
 	return host.Mark(host.Mark(fmt.Errorf("no agent runs in %s, only %q", pane, names), host.ErrNotDelivered), errShellOnly)
+}
+
+func withAttachedImages(text string, paths []string) string {
+	return strings.TrimSpace(strings.TrimSpace(text) + "\n\n<attached_images>\n" + strings.Join(paths, "\n") + "\n</attached_images>")
 }
 
 func (n *Node) saveImages(images []proto.Image) ([]string, error) {

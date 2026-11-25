@@ -272,6 +272,7 @@ export interface Session {
   agent_name?: string;
   source_kind?: string;
   source_thread_id?: string;
+  aliases?: string[];
   source_instance_id?: string;
   parent_thread_id?: string;
   read_only_reason?: string;

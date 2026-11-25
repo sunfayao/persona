@@ -183,7 +183,7 @@ func TestCodexFirstMessageFromTheApp(t *testing.T) {
 	}
 }
 
-// What the computer has in the box, or a dialog not ours, refuses with nothing typed; so do photos.
+// What the computer has in the box, or a dialog not ours, refuses with nothing typed, including with images.
 func TestCodexFirstMessageRefusals(t *testing.T) {
 	n, f, _, _ := codexWaitHerdr(t)
 	s := startWaiting(t, n)
@@ -195,8 +195,8 @@ func TestCodexFirstMessageRefusals(t *testing.T) {
 	}
 	_, err = request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": "hello",
 		"images": []any{map[string]any{"media_type": "image/png", "data": "iVBORw0KGgo="}}})
-	if code, _ := refusalOf(t, err); code != "codex_first_text" {
-		t.Errorf("photo: %v", err)
+	if code, _ := refusalOf(t, err); code != "input_draft" {
+		t.Errorf("photo with existing draft: %v", err)
 	}
 	if typed := f.trace("pane.send_text", "pane.send_keys"); len(typed) != 0 {
 		t.Errorf("typed %q", typed)

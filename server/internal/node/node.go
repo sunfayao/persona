@@ -1227,6 +1227,10 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if err := n.switchNowElsewhere(method, p.SessionID, params); err != nil {
 			return nil, err // the runtime would take the message without the switch (launcher_switch.go)
 		}
+		if method == "session.send" && h.id() == agyRuntimeID && n.agyPresenceHeld(p.SessionID) {
+			n.notifySessionsSoon()
+			return nil, refusal(openElsewhere, i18n.T(i18n.From(ctx), "rpc-errors.agy_external_terminal"), map[string]any{"where": "agy_cli"})
+		}
 		if res, err, handled := n.runtimeHandle(ctx, h, method, params); handled {
 			return res, err
 		}
@@ -1582,20 +1586,27 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		rawPrompt := p.Prompt
 		echoImages := 0
 		var runtimeImages []proto.Image
-		if method == "session.start" && len(p.Images) > 0 &&
+		var codexImages []string
+		if (method == "session.start" || method == devicewire.MethodStartWorkSession && p.AgentType == "codex") && len(p.Images) > 0 &&
 			(p.ResumeSessionID == "" || p.AgentType != ompAgent && launcherAgentType(p.Launcher) != ompAgent) {
 			echoImages = len(p.Images)
 			startCtx := withStartHost(ctx, p.Host)
 			runtime, _ := n.startRuntimeIn(startCtx, p.Launcher)
-			if p.ResumeSessionID == "" && runtime != nil && runtime.id() == agyAgent && !n.usesAgyPane(startCtx, p.Launcher, p.AgentType) {
+			_, engineRuntime := engineRuntimes[n.startKind(startCtx)]
+			desktopCodex := isCodexAppLauncher(p.Launcher)
+			if p.ResumeSessionID == "" && (desktopCodex || runtime != nil && runtime.id() == agyAgent && !n.usesAgyPane(startCtx, p.Launcher, p.AgentType)) {
 				runtimeImages = p.Images
 			} else {
 				paths, err := n.saveImages(p.Images)
 				if err != nil {
 					return nil, err
 				}
-				// Terminal starts use the same attachment block as session.send.
-				p.Prompt = strings.TrimSpace(strings.TrimSpace(p.Prompt) + "\n\n<attached_images>\n" + strings.Join(paths, "\n") + "\n</attached_images>")
+				if p.ResumeSessionID == "" && runtime == nil && !engineRuntime && !p.Async &&
+					n.startAgentType(p.Launcher, p.AgentType) == "codex" {
+					codexImages = paths
+				} else {
+					p.Prompt = withAttachedImages(p.Prompt, paths)
+				}
 			}
 		}
 		ctx, taskSpace := withTaskSpace(ctx, p.TaskID, p.WorkspaceID, p.WorkspaceLabel)
@@ -1728,7 +1739,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		rp := runtimeStartParams{Cwd: p.Cwd, Prompt: taskFallback(taskFallback(p.Prompt, p.TaskInstructions), p.TaskAttachments), Launcher: p.Launcher, Model: p.Model, PermissionMode: p.PermissionMode,
 			Effort: p.Effort, WorkspaceID: p.WorkspaceID, DesktopProjectID: p.DesktopProjectID, Resume: p.ResumeSessionID, AgentType: p.AgentType, ClientMsgID: p.ClientMsgID, Images: runtimeImages, RequireLauncher: p.RequireLauncher}
 		if (isDesktopLauncher(p.Launcher) || isCodexAppLauncher(p.Launcher)) &&
-			strings.TrimSpace(p.Prompt) == "" && strings.TrimSpace(p.TaskAttachments) == "" {
+			strings.TrimSpace(p.Prompt) == "" && strings.TrimSpace(p.TaskAttachments) == "" && len(rp.Images) == 0 {
 			// Platform instructions configure a task; they are not a desktop conversation's first message.
 			rp.Prompt = ""
 		}
@@ -1811,6 +1822,9 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		mark := taskTerminalStart{token: p.TaskTerminalToken}
 		if method == "session.start" && p.ResumeSessionID == "" && p.InPane == "" && validID(mark.token) {
 			ctx = context.WithValue(ctx, taskTerminalStartKey{}, &mark)
+		}
+		if len(codexImages) > 0 {
+			ctx = context.WithValue(ctx, codexInitialImagesKey{}, codexImages)
 		}
 		s, err := n.start(ctx, r.cwd, r.launcher, p.Prompt, p.ResumeSessionID, r.workspaceID, r.mode, r.effort, r.tab, newID, p.AgentType, r.execution)
 		if err == nil && s != nil && p.ResumeSessionID == "" && p.Title != nil && strings.TrimSpace(*p.Title) != "" {

@@ -14,8 +14,10 @@ import (
 	"github.com/nwverse/persona/sdk/go/wire"
 	"github.com/nwverse/persona/server/internal/closeout"
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/transcript"
 )
 
 // hostTextSlack: the transcript's words this long after the host's record of the answer still belong to that turn.
@@ -392,6 +394,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			if s.SourceInstanceID == agyRuntimeID {
 				agyBackgroundTasks{running: s.Background, ended: s.BackgroundEnded()}.apply(s)
 				n.agyRuntimeTaskLogs(s)
+				n.markAgyExternalTerminal(s)
 			}
 		}
 		seen[s.SessionID] = true
@@ -758,4 +761,13 @@ func (n *Node) revsChanged(list []proto.Session) map[string]int64 {
 // folder, except the assistant's own conversations and the sessions the hub keeps.
 func (n *Node) listBlocked(sid, cwd string) bool {
 	return cwd != "" && n.cwdBlocked(cwd) && !n.isAssistantSession(sid) && !n.keptSessions()[sid]
+}
+
+func (n *Node) markAgyExternalTerminal(s *proto.Session) {
+	if s.PaneID != "" || s.Capabilities == nil || !s.Capabilities.Send || !n.agyPresenceHeld(s.SessionID) {
+		return
+	}
+	s.Capabilities = &proto.SessionCapabilities{Read: s.Capabilities.Read}
+	s.AgentSurface = transcript.SurfaceCLI
+	s.ReadOnlyReason = i18n.T(i18n.Default, "rpc-errors.agy_external_terminal")
 }

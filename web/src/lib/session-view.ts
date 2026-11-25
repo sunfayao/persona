@@ -56,6 +56,25 @@ export function viewOnlyRow(s: Session | undefined): boolean {
   return Boolean(s && !sessionCan(s, "send") && (s.source_kind || s.capabilities));
 }
 
+/** The same agy conversation may appear under a terminal row while a managed pane owns it. */
+export function agyTerminalAlias(rows: readonly Session[], sid: string): string | undefined {
+  if (!sid.startsWith("agy-") || rows.some((s) => s.session_id === sid)) return;
+  const matches = rows.filter((s) => s.agent === "agy" && s.pane_id && canShowTerminal(s) && s.aliases?.includes(sid));
+  if (matches.length === 1) return matches[0].session_id;
+}
+
+/** Host-specific ways to continue a transcript-only conversation. */
+export function externalTranscript(s: Session | undefined): "agy" | "codex" | undefined {
+  if (!s || !viewOnlyRow(s) || s.is_subagent || s.parent_thread_id) return;
+  if (s.agent === "agy" && s.source_instance_id === "agy" && s.agent_surface === "cli") return "agy";
+  if (s.agent === "codex" && s.space_kind === "codex_app" && s.agent_surface === "desktop") return "codex";
+}
+
+export function codexDesktopThreadLink(s: Session): string | undefined {
+  const id = s.source_thread_id;
+  if (id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)) return `codex://threads/${id}`;
+}
+
 /** The view to draw: the address's, else the one remembered, else the conversation; always the conversation when there is no terminal. */
 export function resolveView(url: SessionView | undefined, remembered: SessionView | undefined, canTerminal: boolean): SessionView {
   return canTerminal ? (url ?? remembered ?? "chat") : "chat";

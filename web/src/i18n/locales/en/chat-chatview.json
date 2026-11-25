@@ -1,4 +1,7 @@
 {
+  "agy_external_terminal": "This chat is open in Antigravity CLI. Continue in its terminal, or close it there to send here.",
+  "codex_desktop_transcript": "Continue this conversation in the Codex desktop app.",
+  "open_in_codex": "Open in Codex",
   "skills_route": "Selected skills belong to this assistant. Cancel task routing before sending.",
   "share": "Share…",
   "forked": "Branched to a new chat",

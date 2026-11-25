@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canShowTerminal, composerSlot, otherView, readView, rememberView, resolveView, terminalTarget, viewOnlyRow } from "./session-view";
+import { agyTerminalAlias, canShowTerminal, codexDesktopThreadLink, composerSlot, externalTranscript, otherView, readView, rememberView, resolveView, terminalTarget, viewOnlyRow } from "./session-view";
 import type { Session } from "./types";
 
 function memory() {
@@ -107,5 +107,29 @@ describe("a stopped Agent's page (#4754)", () => {
     expect(viewOnlyRow(agent({ status: "offline", state: "offline" }))).toBe(false);
     expect(viewOnlyRow(agent({ capabilities: { read: true, send: true } }))).toBe(false);
     expect(viewOnlyRow(undefined)).toBe(false);
+  });
+});
+
+
+describe("externally owned conversations", () => {
+  it("follows an old agy address only to a unique managed terminal", () => {
+    const pane = agent({ agent: "agy", pane_id: "w1:p1", aliases: ["agy-native"], capabilities: { read: true, send: true, terminal: true } });
+    expect(agyTerminalAlias([pane], "agy-native")).toBe(pane.session_id);
+    expect(agyTerminalAlias([pane, { ...pane, session_id: "other" }], "agy-native")).toBeUndefined();
+    expect(agyTerminalAlias([pane, { ...pane, session_id: "agy-native" }], "agy-native")).toBeUndefined();
+    expect(agyTerminalAlias([{ ...pane, pane_id: undefined }], "agy-native")).toBeUndefined();
+  });
+
+  it("identifies a read-only Codex Desktop conversation and validates its native link", () => {
+    const thread = "01234567-89ab-cdef-0123-456789abcdef";
+    const desktop = agent({ agent: "codex", source_kind: "codex_history", space_kind: "codex_app",
+      agent_surface: "desktop", capabilities: { read: true }, source_thread_id: thread });
+    expect(externalTranscript(desktop)).toBe("codex");
+    expect(codexDesktopThreadLink(desktop)).toBe(`codex://threads/${thread}`);
+    expect(codexDesktopThreadLink({ ...desktop, source_thread_id: "invalid/handoff" })).toBeUndefined();
+    expect(externalTranscript({ ...desktop, capabilities: { read: true, send: true } })).toBeUndefined();
+    expect(externalTranscript({ ...desktop, parent_thread_id: "parent" })).toBeUndefined();
+    expect(externalTranscript(agent({ agent: "agy", source_instance_id: "agy", source_kind: "runtime",
+      agent_surface: "cli", capabilities: { read: true } }))).toBe("agy");
   });
 });

@@ -107,7 +107,7 @@ func (n *Node) workSessionOptions(ctx context.Context, name, configuredAgent, ho
 	// A Codex in a terminal starts with no first message too: it waits in its box for one (codex_waiting.go).
 	opts.PromptRequired = false
 	opts.InlinePrompt = opts.AgentType != "claude"
-	opts.Attachments = opts.AgentType == "claude"
+	opts.Attachments = opts.AgentType == "claude" || codex && !codexOnRemote(argv)
 	if !codex && opts.AgentType != "claude" {
 		return opts, nil
 	}

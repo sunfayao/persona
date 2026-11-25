@@ -81,6 +81,20 @@ describe("本地优先启动", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
+  it.each(["codex", "codex-app"])("sends an image-only first turn in the %s start", async (launcher) => {
+    const image = pickAttachment(new File([new Uint8Array([1, 2, 3])], "figure.png", { type: "image/png" }));
+    const fetcher = vi.fn().mockResolvedValue(response({ session }));
+    vi.stubGlobal("fetch", fetcher);
+    const id = launchAgent({ ...input, launcher, agentType: "codex", inlinePrompt: true, text: "", attachments: [image] });
+    await advanceDelivery(0);
+    expect(getState().launches[id].phase).toBe("ready");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0][0]).toBe("/api/v1/sessions");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
+      launcher, images: [{ mime: "image/png", data: "AQID" }],
+    });
+  });
+
   it("keeps the real session and attachments on a refused send, and retries under a new id", async () => {
     const image = pickAttachment(new File(["image"], "figure.png", { type: "image/png" }));
     const fetcher = vi.fn().mockResolvedValueOnce(response({ session })).mockResolvedValueOnce(response({ code: "input_draft", error: "draft", delivered: "none", clearable: "existing" }, 409)).mockResolvedValueOnce(response({}));
