@@ -1,8 +1,6 @@
 {
   "auto_done": "Auto-completed",
   "model_request_failed": "Model request failed",
-  "unassigned": "Not on a to-do",
-  "unassigned_hint": "On no to-do: opened yourself in a terminal, or started from Lark, the phone or elsewhere. Right-click a row (or its ⋯) › Link to to-do… to file one.",
   "context_title": "To-do · {title}",
   "decision_manual": "Added by hand",
   "decision_agent_question": "Answered in an agent's question",
