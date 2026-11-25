@@ -2,7 +2,7 @@ package assistantwire
 
 import "encoding/json"
 
-// trackRoutes are the assistant's tracks and track kinds (#13472, docs/assistant/health.md "Tracks and kinds"): only
+// trackRoutes are the assistant's tracks and track kinds (#13472, docs/assistant/tracks.md "Tracks and kinds"): only
 // a full-access client (the user in the app) creates or changes either.
 var trackRoutes = []string{
 	"GET /api/v1/assistant/tracks",
@@ -109,7 +109,6 @@ type Track struct {
 	DefaultCategories []string        `json:"default_categories"`
 	Template          string          `json:"template"`
 	Config            TrackKindConfig `json:"config"`
-	Builtin           bool            `json:"builtin"`
 	Archived          bool            `json:"archived"`
 	Revision          int64           `json:"revision"`
 }

@@ -75,7 +75,7 @@ func interactionPayloadIn(l i18n.Lang, ix proto.Interaction, machine string) map
 	}
 	subtitle := transcript.Title(ix.SessionTitle)
 	if inSpace(ix.Cwd) { // a space conversation's card: the lock screen does not say what it is about (assistant.go)
-		subtitle, body = i18n.T(l, "push.health_title"), i18n.T(l, "push.health_body")
+		subtitle, body = i18n.T(l, "push.space_title"), i18n.T(l, "push.space_body")
 	}
 	if ix.Private { // a Just me turn's card (proto.Interaction.Private): the room may see the phone
 		subtitle, body = "", i18n.T(l, "push.private_card")

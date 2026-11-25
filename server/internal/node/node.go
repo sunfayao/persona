@@ -2566,8 +2566,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		return n.fileEditCall(method, params)
 	case methodFileMkdir, methodFileWrite, methodFileZip, methodFileCopy, methodFileChmod, methodFileOperation: // new folders, text files, zips, copies, permissions and their progress (filemake.go, filecopy.go)
 		return n.fileMake(ctx, method, params)
-	case "health.reports.list", "health.reports.delete":
-		return n.healthReportsCall(method, params)
 	case methodFileChunk:
 		var chunk proto.FileChunkRequest
 		if err := json.Unmarshal(params, &chunk); err != nil {

@@ -59,8 +59,7 @@ type Options struct {
 	Hub          Host
 	Store        Store // nil: nothing is kept (tests)
 	Logf         func(format string, args ...any)
-	// ManagerID is the manager these devices are ("" and "assistant": the built-in one): its health space on a computer
-	// is named after it (identity.HealthDirName, healthreports.go).
+	// ManagerID is the manager these devices are ("" and "assistant": the built-in one).
 	ManagerID string
 	// Answer answers a node's request that is the manager's own (assistant.model, assistant.context); handled false:
 	// not one, it goes to the hub.

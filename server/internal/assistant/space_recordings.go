@@ -21,7 +21,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Recordings saved into a track (#13501, docs/assistant/health.md "Tracks and kinds", docs/protocol/protocol.md
+// Recordings saved into a track (#13501, docs/assistant/tracks.md "Tracks and kinds", docs/protocol/protocol.md
 // "Recording sync"): an upload naming space goes to that track instead of the knowledge base. The manager renders its
 // transcript as a Markdown file headed by the track's categories and has the assistant's machine write it into the
 // track's recordings/ (assistant.space_recording, nodeproto.TrackRecordings); assistant_space_recordings keeps its

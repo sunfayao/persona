@@ -51,7 +51,7 @@ func TestSkillsUsesRequestManager(t *testing.T) {
 	const unreported = "m-0d0e0f"
 	h, store := newProfileTestHub(t, other, unreported)
 	for _, id := range []string{"builtin-box", "other-box"} {
-		pipeNode(t, h, id, func(_ context.Context, method string, _ json.RawMessage) (any, error) {
+		answerNode(t, h, id, func(_ context.Context, method string, _ json.RawMessage) (any, error) {
 			if method != "skills.list" {
 				return nil, errors.New("unexpected method: " + method)
 			}
@@ -118,7 +118,7 @@ func TestSkillsKeepsEmptyListAndNodeErrors(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "empty", true: "node error"}[fail], func(t *testing.T) {
 			h := newTestHub(t)
-			pipeNode(t, h, "box", func(_ context.Context, _ string, _ json.RawMessage) (any, error) {
+			answerNode(t, h, "box", func(_ context.Context, _ string, _ json.RawMessage) (any, error) {
 				if fail {
 					return nil, errors.New("skills unavailable")
 				}

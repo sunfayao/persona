@@ -415,7 +415,6 @@ func New(o Options) *Service {
 	s.availabilityRoutes()
 	s.startRoutes()
 	s.skillRoutes()
-	s.workoutRoutes()
 	s.scheduleRoutes()
 	s.scheduleGrantRoutes()
 	s.placeRoutes()
@@ -829,7 +828,7 @@ type startParams struct {
 	Text                string               `json:"text"`
 	PermissionMode      string               `json:"permission_mode,omitempty"`
 	Purpose             string               `json:"purpose,omitempty"` // the model configuration's purpose; "" is the assistant's
-	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space (docs/assistant/health.md)
+	Space               string               `json:"space,omitempty"`   // "health" starts it in the health space (docs/assistant/tracks.md)
 	Origin              string               `json:"origin,omitempty"`  // where it comes from (origins.go); "" is the user's
 	OriginRef           string               `json:"origin_ref,omitempty"`
 	Source              *proto.MessageSource `json:"source,omitempty"`

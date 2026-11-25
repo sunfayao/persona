@@ -802,7 +802,7 @@ type assistantView struct {
 }
 
 // view is GET /api/v1/assistant; withArchived lists archived conversations too (flagged `archived`). It lists the
-// assistant's own conversations; a space (space "health") lists that space's instead (docs/assistant/health.md), with
+// assistant's own conversations; a space (space "health") lists that space's instead (docs/assistant/tracks.md), with
 // that space's directory as Cwd.
 func (s *Service) view(ctx context.Context, withArchived bool, space ...string) assistantView {
 	sp := ""
@@ -1023,7 +1023,7 @@ func (s *Service) memory(ctx context.Context, op map[string]any, out any) error 
 	if !s.trackKnown(ctx, space) {
 		return badRequest(fmt.Errorf("space %q: not a registered space", space))
 	}
-	cwd := s.spaceCwd(ctx, d, space) // a space keeps a memory of its own (docs/assistant/health.md)
+	cwd := s.spaceCwd(ctx, d, space) // a space keeps a memory of its own (docs/assistant/tracks.md)
 	if cwd == "" {
 		return errMemoryMachineOffline
 	}

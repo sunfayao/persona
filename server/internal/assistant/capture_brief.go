@@ -10,7 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The briefing's quick-capture lines (#13502, docs/assistant/health.md "Quick capture"): how many captures wait to be
+// The briefing's quick-capture lines (#13502, docs/assistant/tracks.md "Quick capture"): how many captures wait to be
 // sorted, then those filed since the window began, each by its title and track, at most captureBriefRows of them.
 // Sensitive ones (a category, or not tagged) are only counted: "1 capture". None of it names a sensitive capture's
 // content, track or title.

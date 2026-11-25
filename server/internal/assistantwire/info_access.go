@@ -3,7 +3,7 @@ package assistantwire
 import "encoding/json"
 
 // infoAccessRoutes are who may read the assistant's sensitive information and which categories a conversation
-// carries (#13246, docs/assistant/health.md "Using information by scene"). Only a full-access client (the user in the
+// carries (#13246, docs/assistant/tracks.md "Using information by scene"). Only a full-access client (the user in the
 // app) changes either; an extension's token or an agent never does.
 var infoAccessRoutes = []string{
 	"GET /api/v1/assistant/extension-trust",

@@ -469,8 +469,6 @@ var Routes = []string{
 	"POST /api/v1/machines/{mid}/herdr/start",
 	"GET /api/v1/machines/{mid}/botmux",
 	"PUT /api/v1/machines/{mid}/botmux",
-	"GET /api/v1/machines/{mid}/health/reports",
-	"DELETE /api/v1/machines/{mid}/health/reports/{name}",
 	"POST /api/v1/machines/{mid}/deploy",
 	// Switching an ssh computer to Persona Link (#10662, internal/devices link_switch.go); the admin page's twin is
 	// the hub's POST /api/v1/admin/machines/{mid}/link-switch, relayed to the same handler.

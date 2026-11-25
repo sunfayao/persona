@@ -54,7 +54,6 @@
   "execution_offline": "The selected computer is offline or unavailable. Reconnect it and try again.",
   "execution_directory": "Cannot use this working directory. Check the directory on the selected computer and try again. Details: {error}",
   "execution_directory_whitespace": "The working directory has leading or trailing whitespace. Remove it and try again.",
-  "execution_health_directory": "Health tasks use the Health space folder. Clear the working directory to continue.",
   "execution_own_chat": "Turn off “Continue the original chat” to use task execution options, or clear those options to keep following that chat.",
   "run_if_approval": "Allow this command to run on the routine’s computer before each scheduled run?",
   "run_if_skipped": "The pre-run command asked to skip this run.",

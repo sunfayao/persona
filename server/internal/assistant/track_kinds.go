@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// Track kinds (#13472, docs/assistant/health.md "Tracks and kinds"). A kind is what its tracks do: a config whose every
+// Track kinds (#13472, docs/assistant/tracks.md "Tracks and kinds"). A kind is what its tracks do: a config whose every
 // field picks one of the options defined here (a new option is a code change; a new combination is a new kind, config
 // only). The built-in kinds are the manager's; the user's are rows (assistant_track_kinds). Nothing branches on a
 // kind's name: every decision reads a field of the track's effective config (its kind's, with what the track sets).

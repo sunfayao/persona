@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The scene matrix (#13246, docs/assistant/health.md "Using information by scene"): seven scenes × general, each
+// The scene matrix (#13246, docs/assistant/tracks.md "Using information by scene"): seven scenes × general, each
 // sensitive category and untagged information. Inside its own track (scene 1) everything is used; outside it general
 // information is used as usual (by relevance in the main chat or another track) and anything else, untagged included,
 // takes the strict side of its scene.
@@ -75,7 +75,7 @@ func TestPolicyOf(t *testing.T) {
 	}
 }
 
-// Every row of the health space's outbound table (docs/assistant/health.md "Outbound") is a scene whose rule for the
+// Every row of the health space's outbound table (docs/assistant/tracks.md "Outbound") is a scene whose rule for the
 // health space's information is what the row says: the health space behaves as before.
 func TestUsageHealthOutbound(t *testing.T) {
 	health := infoUse{Categories: []string{categoryHealth}, Known: true, SourceTrack: SpaceHealth}

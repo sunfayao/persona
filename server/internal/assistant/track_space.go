@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// A track's own directory (#13472, docs/assistant/health.md "Tracks and kinds"): a track whose template is space has
+// A track's own directory (#13472, docs/assistant/tracks.md "Tracks and kinds"): a track whose template is space has
 // one on the assistant's machine, tracks/<slug> in the state directory, with its SPACE.md, inbox/, recordings/ and
 // .space/. The manager names it on assistant.prepare (space); the node writes the first SPACE.md and the instructions,
 // this baseline followed by the SPACE.md it reads there. The health space keeps its own directory and template.
@@ -29,7 +29,7 @@ const (
 // process tells its conversations from the path alone.
 func (s *Service) spaceTrack(ctx context.Context, slug string) (trackEntry, bool) {
 	e, ok := s.trackEntryOf(ctx, slug)
-	if !ok || e.Builtin || e.Archived || e.Config.Template != trackTemplateSpace || !identity.TrackDirOf(e.DirName, s.id) {
+	if !ok || e.Archived || e.Config.Template != trackTemplateSpace || !identity.TrackDirOf(e.DirName, s.id) {
 		return trackEntry{}, false
 	}
 	return e, true

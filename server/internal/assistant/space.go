@@ -3,66 +3,28 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
-	"path"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The health space (docs/assistant/health.md, #2691): the assistant's conversations about health run in a directory of their
-// own next to the assistant's, so Claude Code's auto memory and the instructions are the space's own. Its
-// conversations are listed apart (GET /api/v1/assistant?space=health), and the conversation tools of one space see
-// only that space's conversations.
+// Spaces (docs/assistant/tracks.md): the assistant's conversations of a track run in a directory of their own next to
+// the assistant's, so Claude Code's auto memory and the instructions are the space's own. Its conversations are listed
+// apart (GET /api/v1/assistant?space=<slug>), and the conversation tools of one space see only that space's
+// conversations.
 
-// SpaceHealth is the health space's name (Session.Space, StartParams.Space, ?space=).
-const SpaceHealth = identity.SpaceHealth
-
-// healthRel is this manager's health space directory on a machine, relative to its home (node assistant.prepare):
-// health for the built-in manager, health-<id> for another (identity.HealthDirName), in the state directory, spelled as
-// assistantRel is.
-func (s *Service) healthRel() string { return path.Join(compat.StateDir, identity.HealthDirName(s.id)) }
-
-// healthCwd is this manager's health space directory on d, or "" while d has not reported its home.
-func (s *Service) healthCwd(d Device) string {
-	return stateDirOn(d.Home, d.DataDir, identity.HealthDirName(s.id))
-}
-
-// spaceCwd is the directory of space ("" the assistant's own) on d: the health space's, or a track's whose template is
-// space (spaceTrack, #13472); "" for a space that has none here, so nothing starts in the assistant's directory in
-// its stead.
+// spaceCwd is the directory of space ("" the assistant's own) on d: a track's whose template is space (spaceTrack,
+// #13472); "" for a space that has none here, so nothing starts in the assistant's directory in its stead.
 func (s *Service) spaceCwd(ctx context.Context, d Device, space string) string {
-	switch space {
-	case "":
+	if space == "" {
 		return s.assistantCwd(d)
-	case SpaceHealth:
-		return s.healthCwd(d)
 	}
 	if e, ok := s.spaceTrack(ctx, space); ok {
 		return stateDirOn(d.Home, d.DataDir, e.DirName)
 	}
 	return ""
-}
-
-// healthClaudeMD is the health space's CLAUDE.md for machine here (prompts/assistant/health_claude_md.md).
-func (s *Service) healthClaudeMD(ctx context.Context, here string) string {
-	hello := s.hello(ctx)
-	d := prompts.AssistantHealthClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), Language: answerLanguage(hello.Locale)}
-	if name := identity.HealthDirName(s.id); name != identity.SpaceHealth {
-		d.HealthDir = name // another manager's own space (the built-in's is the template's default)
-	}
-	devices := s.devices(ctx)
-	if i := slices.IndexFunc(devices, func(d Device) bool { return d.ID == here }); i >= 0 {
-		if cwd := s.assistantCwd(devices[i]); cwd != "" {
-			d.StateDir = path.Dir(cwd)
-		}
-	}
-	return prompts.RenderAssistantHealthClaudeMD(d)
 }
 
 // spaceOf is the space of an assistant conversation: its own Space when the hub set it, else its directory's.
@@ -82,12 +44,12 @@ func runSpace(c proto.Session) string {
 	return identity.SpaceAt(c.Cwd)
 }
 
-// What leaves a conversation (docs/assistant/health.md "Outbound", #3194, "Using information by scene", #13246): the
-// user may share their health with anyone they like (a doctor, a coach, family), so nothing is refused for being
-// sensitive. What must not happen is it leaving without them knowing: a push or a channel says only that there is
-// news, and a hand-off is confirmed on the phone each time. A text on its way out is judged by its own categories
-// and its track's default categories (exitPolicy), never by what its conversation said before; a track sensitive by
-// default (the health space) asks no model and keeps every switch on.
+// What leaves a conversation (docs/assistant/tracks.md "Using information by scene", #13246): the user may share what
+// is sensitive with anyone they like (a doctor, a coach, family), so nothing is refused for being sensitive. What must
+// not happen is it leaving without them knowing: a push or a channel says only that there is news, and a hand-off is
+// confirmed on the phone each time. A text on its way out is judged by its own categories and its track's default
+// categories (exitPolicy), never by what its conversation said before; a track sensitive by default asks no model and
+// keeps every switch on.
 
 // selfPolicy is the policy of the space conversation self runs in (the assistant's own, all off, for one that cannot
 // be told: as before, the tools that reach other conversations then reach the assistant's only).
@@ -123,20 +85,10 @@ func (s *Service) ixPolicy(ctx context.Context, ix proto.Interaction) TrackPolic
 	return s.trackPolicy(ctx, s.ixSpace(ctx, ix))
 }
 
-// spaceNotice is what a push or a channel says for a conversation of the health space: that there is news, not the
-// news.
-func spaceNotice(l i18n.Lang) (title, body string) {
-	return i18n.T(l, "assistant-health.notice_title"), i18n.T(l, "assistant-health.notice_body")
-}
-
-// redactedNotice is what a push or a channel says for something redacted from track space: the health space's notice
-// for a track whose default categories carry health (as it always said there), else only that there is news, not
-// even which track.
+// redactedNotice is what a push or a channel says for something redacted from track space: only that there is news,
+// not even which track.
 func (s *Service) redactedNotice(ctx context.Context, l i18n.Lang, space string) (title, body string) {
-	if floor, _ := s.trackFloor(ctx, space); slices.Contains(floor, categoryHealth) {
-		return spaceNotice(l)
-	}
-	return i18n.T(l, "assistant-health.sensitive_notice_title"), i18n.T(l, "assistant-health.sensitive_notice_body")
+	return i18n.T(l, "assistant-spaces.notice_title"), i18n.T(l, "assistant-spaces.notice_body")
 }
 
 // confirmOutbound asks the phone before conversation self hands text (said as summary) to somewhere outside it
@@ -174,11 +126,7 @@ func ownerConfirmed(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ownerConfirmedKey{}, true)
 }
 
-// outboundSummary is what the phone is asked before a hand-off of what (said as summary) from track space: as the
-// health space always asked for a track whose default categories carry health, else as for any sensitive content.
+// outboundSummary is what the phone is asked before a hand-off of what (said as summary) from a track.
 func (s *Service) outboundSummary(ctx context.Context, l i18n.Lang, space, what string) string {
-	if floor, _ := s.trackFloor(ctx, space); slices.Contains(floor, categoryHealth) {
-		return i18n.T(l, "assistant-health.outbound", i18n.Args{"what": what})
-	}
-	return i18n.T(l, "assistant-health.sensitive_outbound", i18n.Args{"what": what})
+	return i18n.T(l, "assistant-spaces.outbound", i18n.Args{"what": what})
 }

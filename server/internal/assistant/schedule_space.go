@@ -11,7 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// A scheduled task's track (#13501, docs/assistant/health.md "Tracks and kinds"). A task set up from a conversation
+// A scheduled task's track (#13501, docs/assistant/tracks.md "Tracks and kinds"). A task set up from a conversation
 // takes that conversation's track (selfSpace); the owner may also put a task into a track from the apps' editor
 // (space on POST / PUT /api/v1/assistant/tasks). A task of a track runs in the track's directory, never in a cwd of
 // its own (checkTaskExecutionSpace), its run conversation is one of the track's, and what reaches the phone follows
@@ -51,10 +51,10 @@ func readTopicPolicy(raw map[string]json.RawMessage, t *Task) error {
 	return nil
 }
 
-// taskSpaceAllowed: space is one a task may run in: the assistant's own (""), the health space, or a track with a
-// directory of its own here (spaceTrack); an archived track or one without a directory is not.
+// taskSpaceAllowed: space is one a task may run in: the assistant's own (""), or a track with a directory of its
+// own here (spaceTrack); an archived track or one without a directory is not.
 func (s *Service) taskSpaceAllowed(ctx context.Context, space string) bool {
-	if space == "" || space == SpaceHealth {
+	if space == "" {
 		return true
 	}
 	_, ok := s.spaceTrack(ctx, space)

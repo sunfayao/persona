@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
-// A track's directory (#13472, nodeproto.TrackSpaces, docs/assistant/health.md "Tracks and kinds"): the manager
+// A track's directory (#13472, nodeproto.TrackSpaces, docs/assistant/tracks.md "Tracks and kinds"): the manager
 // names it on assistant.prepare with space; the node keeps its folders, writes its SPACE.md once, and writes CLAUDE.md
 // and AGENTS.md as the instructions given followed by the SPACE.md it reads, so an edit of SPACE.md reaches the next
 // conversation without the manager reading the file.

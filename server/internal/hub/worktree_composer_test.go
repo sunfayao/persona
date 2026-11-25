@@ -17,7 +17,7 @@ func TestWorktreeComposerMountedRoutesAndReceipt(t *testing.T) {
 	h.store = &clientOpsStore{ops: map[string]db.ClientOp{}}
 	var creates atomic.Int32
 	var params map[string]any
-	pipeNode(t, h, "machine", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
+	answerNode(t, h, "machine", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
 		if method == "worktree.create" {
 			creates.Add(1)
 		}
@@ -83,7 +83,7 @@ func TestWorktreeComposerReceiptUnknownDoesNotCreateAgain(t *testing.T) {
 	h := newTestHub(t)
 	h.store = &clientOpsStore{ops: map[string]db.ClientOp{}}
 	var creates atomic.Int32
-	pipeNode(t, h, "machine", func(_ context.Context, _ string, _ json.RawMessage) (any, error) {
+	answerNode(t, h, "machine", func(_ context.Context, _ string, _ json.RawMessage) (any, error) {
 		creates.Add(1)
 		return nil, context.DeadlineExceeded
 	})

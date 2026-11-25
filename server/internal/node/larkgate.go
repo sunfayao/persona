@@ -185,7 +185,7 @@ func (n *Node) larkCheck(ctx context.Context, session, cwd, command string, ix p
 		}
 		return "", "", nil
 	}
-	// A conversation in a space has its writes confirmed each time: no rule's allow, no "Always allow for this session" (docs/assistant/health.md "Outbound").
+	// A conversation in a space has its writes confirmed each time: no rule's allow, no "Always allow for this session" (docs/assistant/tracks.md "Outbound").
 	// Its space is the one its process was started in (assistantLarkEnv notes it, and the gate proxy goes by the same),
 	// not the directory the hook says: that is where the model's last `cd` left it. A hook directory in a space
 	// (the space's own or one inside it, identity.InSpace) counts too, so a mix-up can only ask more.

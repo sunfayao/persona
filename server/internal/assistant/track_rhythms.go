@@ -8,7 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// A track's rhythms (#13472, docs/assistant/health.md "Tracks and kinds"): when a track is created, each rhythm of its
+// A track's rhythms (#13472, docs/assistant/tracks.md "Tracks and kinds"): when a track is created, each rhythm of its
 // effective config (its kind's, or its own override's) becomes one scheduled task of the track: it runs in the track
 // (Task.Space), on its cron, switched on or off as the rhythm says. From then on they are ordinary scheduled tasks the
 // user changes or deletes as any other; a later change of the kind's rhythms reaches only tracks created after it.

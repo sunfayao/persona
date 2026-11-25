@@ -9,7 +9,6 @@ AskTodoChoice
 AssistantClaudeMD
 AssistantContext
 AssistantGuestClaudeMD
-AssistantHealthClaudeMD
 AssistantMachine
 AssistantSelectedSkill
 AssistantViewRepair
@@ -57,7 +56,6 @@ RenderAskTodoAnswer
 RenderAssistantClaudeMD
 RenderAssistantContext
 RenderAssistantGuestClaudeMD
-RenderAssistantHealthClaudeMD
 RenderAssistantSelectedSkills
 RenderAssistantViewRepair
 RenderBriefFacts
@@ -107,7 +105,6 @@ RenderTaskRun
 RenderTodoDirection
 RenderTurnContext
 RenderUsageRetry
-RenderWorkoutReport
 RenderWorkspaceMention
 RouteInput
 RouteLeader

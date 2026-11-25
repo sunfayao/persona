@@ -77,7 +77,7 @@ func TestAssistantSearchDeletionReplyFence(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			h, srv, _ := newBusHub(t)
-			m := pipeNode(t, h, "server", func(context.Context, string, json.RawMessage) (any, error) { return map[string]any{}, nil })
+			m := answerNode(t, h, "server", func(context.Context, string, json.RawMessage) (any, error) { return map[string]any{}, nil })
 			m.setSessionList([]proto.Session{{MachineID: "server", SessionID: "trip", Assistant: true}, {MachineID: "server", SessionID: "control", Assistant: true}})
 			entered, release := make(chan struct{}), make(chan struct{})
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

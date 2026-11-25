@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
-// The tracks and track kinds API (#13472, docs/assistant/health.md "Tracks and kinds"): reads list everything, the
+// The tracks and track kinds API (#13472, docs/assistant/tracks.md "Tracks and kinds"): reads list everything, the
 // built-in ones and archived ones included; only the user (a full-access client) creates or changes a track or a kind,
 // and never a built-in one. A change is made against the revision it was read at (409 when another came first).
 
@@ -55,7 +55,7 @@ func wireTrack(e trackEntry) assistantwire.Track {
 		cats = []string{}
 	}
 	return assistantwire.Track{Slug: e.Slug, Kind: e.Kind, Title: e.Title, Icon: e.Icon, Description: e.Description,
-		DefaultCategories: cats, Template: e.Template, Config: e.Config, Builtin: e.Builtin, Archived: e.Archived, Revision: e.Revision}
+		DefaultCategories: cats, Template: e.Template, Config: e.Config, Archived: e.Archived, Revision: e.Revision}
 }
 
 // wireKind is k as the apps see it.
@@ -215,10 +215,6 @@ func (s *Service) trackChange(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		// A row left out (its kind not enabled, or not valid here) is not changed through this API either.
 		apierr.Write(w, http.StatusNotFound, db.ErrTrackNotFound)
-		return
-	}
-	if e.Builtin {
-		apierr.Write(w, http.StatusForbidden, errors.New("a built-in track is not changed"))
 		return
 	}
 	if in.Revision != e.Revision {

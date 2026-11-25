@@ -241,7 +241,7 @@ func withStandInNote(r proto.ToolResult, device, primary string) proto.ToolResul
 			}
 		}
 	}
-	// TextResult builds the block in the proto package (see annotateHealthSnapshot).
+	// TextResult builds the block in the proto package.
 	r.Content = append(r.Content, proto.TextResult(note, false).Content...)
 	return r
 }

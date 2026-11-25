@@ -20,7 +20,7 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Sorting quick captures (#13502, docs/assistant/health.md "Quick capture"): a work loop in the manager takes up each
+// Sorting quick captures (#13502, docs/assistant/tracks.md "Quick capture"): a work loop in the manager takes up each
 // new capture and, in one call of the capture.sort use, sorts it into one of the tracks that take captures and tags its
 // information categories. A capture the user put in a track, or one the model is sure of, is filed into that track's
 // inbox/ on the assistant's machine (nodeproto.TrackInbox); the others stay in the list, sorted, for the user. No

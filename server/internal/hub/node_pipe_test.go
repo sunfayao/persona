@@ -10,8 +10,8 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// pipeNode is a machine of the hub's whose node answers with fn, connected over a pipe.
-func pipeNode(t *testing.T, h *Hub, id string, fn rpc.Handler) *Machine {
+// answerNode is a machine of the hub's whose node answers with fn, connected over a pipe.
+func answerNode(t *testing.T, h *Hub, id string, fn rpc.Handler) *Machine {
 	t.Helper()
 	m := newMachine(h, MachineConfig{ID: id, Name: id})
 	registerMachine(h, m)

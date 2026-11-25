@@ -108,15 +108,6 @@ func AssistantDir(home string) string {
 	return filepath.Join(DataDir(home), "assistant")
 }
 
-// HealthDir is the health space's directory (docs/assistant/health.md): the assistant's conversations about health run there,
-// next to its own directory, so their memory and instructions are their own.
-func HealthDir(home string) string {
-	return filepath.Join(DataDir(home), SpaceHealth)
-}
-
-// SpaceHealth is the health space's name: its directory's and Session.Space.
-const SpaceHealth = "health"
-
 // builtinManager is the id of the manager the hub starts (assistantwire.AssistantID): its directories keep their
 // names.
 const builtinManager = "assistant"
@@ -124,9 +115,6 @@ const builtinManager = "assistant"
 // AssistantDirName is the name in the state directory of manager id's assistant directory: "assistant" for the
 // built-in manager's ("" too), "assistant-<id>" for another's (docs/assistant/managers.md "Directories on a computer").
 func AssistantDirName(id string) string { return managerDirName("assistant", id) }
-
-// HealthDirName is AssistantDirName for its health space: "health", or "health-<id>".
-func HealthDirName(id string) string { return managerDirName(SpaceHealth, id) }
 
 func managerDirName(base, id string) string {
 	if id == "" || id == builtinManager {
@@ -145,16 +133,15 @@ func IsManagerDirName(name, base string) bool {
 	return ok && hex != "" && strings.Trim(hex, "0123456789abcdef") == ""
 }
 
-// IsAssistantDir: path is one of the assistant's directories, its own, the health space's or a track's
-// (tracks/<slug>), of any manager.
+// IsAssistantDir: path is one of the assistant's directories, its own or a track's (tracks/<slug>), of any manager.
 func IsAssistantDir(path string) bool {
-	return isManagerStateDir(path, "assistant") || isManagerStateDir(path, SpaceHealth) || isTrackDir(path)
+	return isManagerStateDir(path, "assistant") || isTrackDir(path)
 }
 
-// IsAssistantDirOf: path is one of manager id's assistant directories, its own, its health space's or one of its
-// tracks' (another manager's, left on a computer moved away from it, is not).
+// IsAssistantDirOf: path is one of manager id's assistant directories, its own or one of its tracks' (another
+// manager's, left on a computer moved away from it, is not).
 func IsAssistantDirOf(path, id string) bool {
-	return isStateDir(path, AssistantDirName(id)) || isStateDir(path, HealthDirName(id)) || isTrackDirOf(path, id)
+	return isStateDir(path, AssistantDirName(id)) || isTrackDirOf(path, id)
 }
 
 // isTrackDir: path is a track's directory in a tracks directory of any manager (tracks/<slug>, tracks-<id>/<slug>):
@@ -180,12 +167,12 @@ func TrackDirOf(dir, id string) bool {
 
 // TracksDirName is the name in the state directory of manager id's tracks directory, where a new track's directory
 // goes by default (tracks/<slug>, whatever its kind, so a track that changes kind keeps it): "tracks", or
-// "tracks-<id>". A track's directory is data (its registry row's), so one made elsewhere (the health space's) stays.
+// "tracks-<id>". A track's directory is data (its registry row's), so one made elsewhere stays.
 func TracksDirName(id string) string { return managerDirName("tracks", id) }
 
-// reservedTrackSlugs name what a track must not be mistaken for: the main space, the built-in health space (supplied
-// by the manager, never created), the assistant's directory, a guest, the spaces and tracks directories.
-var reservedTrackSlugs = []string{"main", SpaceHealth, "assistant", "guest", "spaces", "tracks"}
+// reservedTrackSlugs name what a track must not be mistaken for: the main space, the assistant's directory, a guest,
+// the spaces and tracks directories.
+var reservedTrackSlugs = []string{"main", "assistant", "guest", "spaces", "tracks"}
 
 // ValidTrackSlug: slug can name a new track: a lowercase letter, then 1 to 31 lowercase letters, digits or dashes,
 // and none of the reserved names.
@@ -246,14 +233,10 @@ func namedTrackDir(path string) string {
 	return ""
 }
 
-// spaceDirSlug is the track whose directory path is exactly: SpaceHealth for a health space's (health, health-<id>,
-// of any manager), the slug of a track a manager named (SetTrackDirs), else the slug of one in a tracks directory
-// where a new track goes by default (tracks/<slug>, tracks-<id>/<slug>: a fallback before the manager named it,
-// which only hides more), "" for any other.
+// spaceDirSlug is the track whose directory path is exactly: the slug of a track a manager named (SetTrackDirs), else
+// the slug of one in a tracks directory where a new track goes by default (tracks/<slug>, tracks-<id>/<slug>: a
+// fallback before the manager named it, which only hides more), "" for any other.
 func spaceDirSlug(path string) string {
-	if isManagerStateDir(path, SpaceHealth) {
-		return SpaceHealth
-	}
 	p := filepath.Clean(NodePath(path))
 	if slug := namedTrackDir(p); slug != "" {
 		return slug
@@ -264,15 +247,14 @@ func spaceDirSlug(path string) string {
 	return ""
 }
 
-// SpaceOf is the space of an assistant directory: its slug for a space's (SpaceHealth for a health space's), "" for
-// the assistant's own and any other.
+// SpaceOf is the space of an assistant directory: its slug for a space's, "" for the assistant's own and any other.
 func SpaceOf(path string) string { return spaceDirSlug(path) }
 
 // SpaceAt is the space whose directory path is, of any manager, or is inside: "" for none. A conversation's directory
 // is where it started; a hook's or a card's is where the model's last `cd` left its shell (#2368), which may be a
-// subfolder of it (health/reports). This is for hiding and confirming only, where counting a subfolder as the space
+// subfolder of it (tracks/<slug>/inbox). This is for hiding and confirming only, where counting a subfolder as the space
 // can only hide or ask more: it never decides what a conversation is (SpaceOf and IsAssistantDirOf stay exact). A path
-// part named health elsewhere (assistant/.claude/skills/health, /tmp/health) is not one.
+// part named like a track elsewhere (assistant/.claude/skills/<slug>, /tmp/<slug>) is not one.
 func SpaceAt(path string) string {
 	if path == "" {
 		return ""
@@ -289,13 +271,9 @@ func SpaceAt(path string) string {
 	}
 }
 
-// InSpace: path is a track's directory (the health space's, or one a manager named), or a directory inside one
+// InSpace: path is a track's directory (one a manager named), or a directory inside one
 // (SpaceAt). A process that cannot read the manager's registry (the hub, a node) treats every such track as private.
 func InSpace(path string) bool { return SpaceAt(path) != "" }
-
-// InHealthSpace: path is a health space's directory, of any manager, or a directory inside one (SpaceAt). Hiding and
-// confirming go by InSpace or the space's policy; this tells the health space's own features (its reports) apart.
-func InHealthSpace(path string) bool { return SpaceAt(path) == SpaceHealth }
 
 // CardCwd is the directory a card (an interaction) of a conversation is placed in: the conversation's own directory
 // home, where it started, rather than where the hook ran (here, after the model's `cd`s). A hook directory inside a
@@ -309,8 +287,8 @@ func CardCwd(home, here string) string {
 
 // NodePath is a directory a node reported, made readable for filepath here. On a hub that is not Windows, a Windows
 // node's path (with a drive letter, C:\…, or on a share, \\server\…) gets forward slashes: filepath there splits only
-// at /, so C:\Users\me\.persona\assistant read as one name and the hub missed that computer's assistant and health
-// directories (#6419). Any other path, and every path on Windows, where filepath takes both, stays as it is.
+// at /, so C:\Users\me\.persona\assistant read as one name and the hub missed that computer's assistant
+// directory (#6419). Any other path, and every path on Windows, where filepath takes both, stays as it is.
 func NodePath(path string) string {
 	if runtime.GOOS == "windows" || !strings.Contains(path, `\`) {
 		return path

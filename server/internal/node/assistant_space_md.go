@@ -16,7 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// A track's SPACE.md, read and written for the manager (#13472, nodeproto.TrackSpaceMD, docs/assistant/health.md
+// A track's SPACE.md, read and written for the manager (#13472, nodeproto.TrackSpaceMD, docs/assistant/tracks.md
 // "Tracks and kinds"): the whole file the user edits in the apps, refused when it changes a block Persona manages or
 // its markers (byte for byte) or when the file changed since it was read; and the state block alone, which the track's
 // conversations replace (space_state_update), leaving every other byte as it was. Every write first keeps the file it

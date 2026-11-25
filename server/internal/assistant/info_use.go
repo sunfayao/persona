@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// What usage is told of a piece of information on its way somewhere (#13246, docs/assistant/health.md "Using
+// What usage is told of a piece of information on its way somewhere (#13246, docs/assistant/tracks.md "Using
 // information by scene"). Two sources, by scene:
 //
 //   - A text leaving Persona (handed to an agent, a push, sent to other people, written to the knowledge base: scenes

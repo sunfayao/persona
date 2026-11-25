@@ -37,7 +37,7 @@ func (n *Node) guardAgentDirectory(ctx context.Context, cwd string) error {
 				}
 				continue
 			}
-			if !identity.IsManagerDirName(dir.Name(), "assistant") && !identity.IsManagerDirName(dir.Name(), identity.SpaceHealth) {
+			if !identity.IsManagerDirName(dir.Name(), "assistant") {
 				continue
 			}
 			expected := filepath.Join(state, dir.Name())

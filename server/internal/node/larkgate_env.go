@@ -17,7 +17,7 @@ import (
 const spaceMain = "main"
 
 // assistantSpace is the space of the conversation an assistant process runs in, from its trusted directory (as
-// healthdeny.go and the gate decide it): its slug (identity.SpaceHealth for a health space) or spaceMain.
+// trackdeny.go and the gate decide it): its track's slug or spaceMain.
 func assistantSpace(cwd string) string {
 	if s := identity.SpaceOf(cwd); s != "" {
 		return s
@@ -36,7 +36,7 @@ func assistantSpace(cwd string) string {
 // the hub the commands say their API is not reachable.
 //
 // The process also learns its conversation's space, PERSONA_SPACE (assistantSpace): every gated command reaches every
-// space, and one meant for one space alone (the health space's) checks this instead of its working directory, which a
+// space, and one meant for one space alone checks this instead of its working directory, which a
 // `cd` in front of the command changes without a confirmation (#6003).
 func (n *Node) assistantLarkEnv(cwd, session string) (env []string, release func()) {
 	env, release, _ = n.assistantLarkEnvNamed(cwd, session)

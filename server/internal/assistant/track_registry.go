@@ -15,10 +15,10 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
-// The assistant's tracks (#13104, docs/assistant/health.md): a track is a named place the assistant's conversations
+// The assistant's tracks (#13104, docs/assistant/tracks.md): a track is a named place the assistant's conversations
 // run in, of a kind (a domain space is one kind), with a directory of its own. Its conversations name it by its slug
 // in the field the wire calls space (Session.Space, StartParams.Space, ?space=). The main space ("") is the
-// assistant's own directory and is no entry; the health space is the built-in entry, which the manager supplies.
+// assistant's own directory and is no entry; every track is the store's.
 // Every decision on how a track's information is used (the lock screen and channels, extensions, the knowledge base,
 // handing it out, the other conversations' file tools) is usage's (usage.go), by the information's categories and the
 // scene: a track takes part only through its default categories, never its name or kind.
@@ -52,10 +52,10 @@ func (p TrackPolicy) strictness() int {
 	return n
 }
 
-// strictPolicy turns every use rule on: sensitive information's outside its track, the health space's.
+// strictPolicy turns every use rule on: sensitive information's outside its track.
 var strictPolicy = TrackPolicy{Redact: true, HideFromExtensions: true, NoKBWrite: true, ConfirmOutbound: true, DenyMainRead: true}
 
-// The information categories (docs/assistant/health.md), checked here rather than in the database so adding one is a
+// The information categories (docs/assistant/tracks.md), checked here rather than in the database so adding one is a
 // code change with its use rules: infoCategoriesVersion goes up with every change to the list.
 const (
 	categoryHealth        = "health"
@@ -85,10 +85,9 @@ const (
 	// trackTemplateAssistant is kept for the main track's instructions.
 	trackTemplateAssistant = "assistant"
 	trackTemplateSpace     = "space"
-	trackTemplateHealth    = "health"
 )
 
-var trackTemplates = []string{trackTemplateAssistant, trackTemplateSpace, trackTemplateHealth}
+var trackTemplates = []string{trackTemplateAssistant, trackTemplateSpace}
 
 // trackEntry is one registered track.
 type trackEntry struct {
@@ -98,13 +97,12 @@ type trackEntry struct {
 	Icon        string
 	Description string
 	// DefaultCategories are the information categories everything produced in the track carries at least (the
-	// tagging default); the health space's is health.
+	// tagging default).
 	DefaultCategories []string
 	Template          string
-	// DirName is the track's directory, relative to the state directory: data, never derived from the kind. The
-	// health space's is the manager's (identity.HealthDirName); a new track's defaults to tracks/<slug>.
+	// DirName is the track's directory, relative to the state directory: data, never derived from the kind. A new
+	// track's defaults to tracks/<slug>.
 	DirName  string
-	Builtin  bool
 	Archived bool
 	// ArchivedAt is when it was archived (nil: it is not).
 	ArchivedAt *time.Time
@@ -114,16 +112,6 @@ type trackEntry struct {
 	Config assistantwire.TrackKindConfig
 	// Override is what the track sets apart from its kind (config_override), as stored.
 	Override []byte
-}
-
-// builtinTracks are the tracks every manager has whatever its store holds: the health space, of kind space, with the
-// health template and the health category as its overrides of that kind's defaults, in the manager's health
-// directory.
-func (s *Service) builtinTracks() []trackEntry {
-	e := trackEntry{Slug: SpaceHealth, Kind: trackKindSpace, DefaultCategories: []string{categoryHealth},
-		Template: trackTemplateHealth, DirName: identity.HealthDirName(s.id), Builtin: true, Revision: 1}
-	e.Config, _ = effectiveTrackConfig(builtinKindConfigs()[trackKindSpace], e.Template, e.DefaultCategories, nil)
-	return []trackEntry{e}
 }
 
 // builtinKinds are the kinds every manager has, in builtinKindOrder.
@@ -174,11 +162,9 @@ type trackRegistry struct {
 	kinds []kindEntry
 }
 
-// tracks are the registered tracks, archived ones included: the built-in ones as the manager has them, then those its
-// store registered. A row that is not valid here (its slug, template, categories, directory, kind or override) is left
+// tracks are the registered tracks, archived ones included: those its store registered. A row that is not valid here (its slug, template, categories, directory, kind or override) is left
 // out and logged: its conversations get the policy of an unknown track, the strictest. So is a row whose kind is not
-// enabled (unknown, or newer than this manager). A store that cannot be read leaves the built-in ones (and what it read
-// last).
+// enabled (unknown, or newer than this manager). A store that cannot be read leaves none (and what it read last).
 func (s *Service) tracks(ctx context.Context) []trackEntry {
 	list, _ := s.registry(ctx)
 	return list
@@ -198,7 +184,7 @@ func (s *Service) registry(ctx context.Context) ([]trackEntry, []kindEntry) {
 	if r.list != nil && time.Since(r.at) < trackRegistryTTL {
 		return r.list, r.kinds
 	}
-	list, kinds := s.builtinTracks(), builtinKinds()
+	list, kinds := []trackEntry{}, builtinKinds()
 	st, ok := s.store().(trackStore)
 	if !ok {
 		r.list, r.kinds, r.at = list, kinds, time.Now()
@@ -239,9 +225,6 @@ func (s *Service) registry(ctx context.Context) ([]trackEntry, []kindEntry) {
 		return list, kinds
 	}
 	for _, row := range rows {
-		if row.Builtin || row.Slug == SpaceHealth {
-			continue // the built-in ones are the manager's
-		}
 		e := trackEntry{Slug: row.Slug, Kind: row.Kind, Title: row.Title, Icon: row.Icon, Description: row.Description,
 			DefaultCategories: row.DefaultCategories, Template: row.Template, DirName: row.DirName,
 			Archived: row.ArchivedAt != nil, ArchivedAt: row.ArchivedAt, Revision: row.Revision, Override: row.ConfigOverride}
@@ -303,8 +286,8 @@ func (s *Service) trackEntryOf(ctx context.Context, slug string) (trackEntry, bo
 }
 
 // trackPolicy is the policy of track space, from what its information carries at least: the main space's (none) has
-// every switch off, a registered track's (archived or not) follows its default categories (the health space's, health,
-// turns every switch on), and a slug the registry does not know is taken for sensitive (strictPolicy).
+// every switch off, a registered track's (archived or not) follows its default categories (a sensitive one's turns every
+// switch on), and a slug the registry does not know is taken for sensitive (strictPolicy).
 func (s *Service) trackPolicy(ctx context.Context, space string) TrackPolicy {
 	if space == "" {
 		return policyOf(infoUse{Known: true})
@@ -355,13 +338,12 @@ type denyDir struct {
 }
 
 // trackDenyDirs are the directories of the registered tracks the assistant's other conversations' Read and Edit are
-// denied (DenyMainRead; archived ones too: their files stay), for the node to add to the health spaces it finds itself
-// (nodeproto.DenyDirs). The health space is not listed: every node finds every manager's. Never nil: an empty list
-// tells the node none is.
+// denied (DenyMainRead; archived ones too: their files stay), for the node to deny (nodeproto.DenyDirs). Never nil: an
+// empty list tells the node none is.
 func (s *Service) trackDenyDirs(ctx context.Context) []denyDir {
 	out := []denyDir{}
 	for _, e := range s.tracks(ctx) {
-		if e.Builtin || !s.trackPolicy(ctx, e.Slug).DenyMainRead {
+		if !s.trackPolicy(ctx, e.Slug).DenyMainRead {
 			continue
 		}
 		out = append(out, denyDir{Dir: path.Join(compat.StateDir, e.DirName), Track: e.Slug})

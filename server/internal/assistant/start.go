@@ -91,8 +91,8 @@ func (s *Service) prepare(ctx context.Context, machine string) (string, error) {
 	return s.prepareSpace(ctx, machine, "")
 }
 
-// prepareSpace is prepare for one of the assistant's spaces: "health" is the health space's directory with its own
-// CLAUDE.md (docs/assistant/health.md); the connectors and plugin skills go there as to the assistant's own.
+// prepareSpace is prepare for one of the assistant's spaces: a track's directory with its own CLAUDE.md
+// (docs/assistant/tracks.md); the connectors and plugin skills go there as to the assistant's own.
 func (s *Service) prepareSpace(ctx context.Context, machine, space string) (string, error) {
 	cwd, _, err := s.prepareSpaceIf(ctx, machine, space, false)
 	return cwd, err
@@ -108,8 +108,6 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	var track trackEntry
 	switch space {
 	case "":
-	case SpaceHealth:
-		dir, tmpl = s.healthRel(), trackTemplateHealth
 	default:
 		// A track with a directory of its own (spaceTrack, #13472); another must never fall back to the assistant's.
 		e, ok := s.spaceTrack(ctx, space)
@@ -126,7 +124,7 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 	}
 	if tmpl == trackTemplateSpace && !s.trackSpaceNode(machine) {
 		// An older node would write the instructions without the track's SPACE.md and folders.
-		return "", false, i18n.Err("assistant-health.node_no_track_spaces", i18n.Args{"machine": s.machineName(machine)})
+		return "", false, i18n.Err("assistant-spaces.node_no_track_spaces", i18n.Args{"machine": s.machineName(machine)})
 	}
 	var conns struct {
 		Connectors []string          `json:"connectors"`
@@ -162,12 +160,8 @@ func (s *Service) prepareSpaceIf(ctx context.Context, machine, space string, onl
 		plugins.Skills = json.RawMessage("null")
 	}
 	md := own + plugins.Instructions
-	switch tmpl {
-	case trackTemplateHealth:
-		md = s.healthClaudeMD(ctx, machine)
-	case trackTemplateSpace:
-		// Like the health space's: its own baseline, without the instructions plugins give the main chat; their
-		// skills still go there.
+	if tmpl == trackTemplateSpace {
+		// A track's own baseline, without the instructions plugins give the main chat; their skills still go there.
 		md = s.spaceClaudeMD(ctx, machine, track)
 	}
 	digests, files := skillDigests(plugins.Skills)
@@ -259,7 +253,7 @@ func skillDigests(raw json.RawMessage) (digests string, files bool) {
 // instructionsEvery is how often refreshInstructions looks at the CLAUDE.md the assistant's machine should have.
 const instructionsEvery = time.Minute
 
-// instructionsLoop keeps the CLAUDE.md of the assistant and of the health space on the assistant's machine the ones
+// instructionsLoop keeps the CLAUDE.md of the assistant and of its tracks on the assistant's machine the ones
 // this hub renders: right after it starts (a new version with new prompts) and whenever what they say changes (notes,
 // machines, plugins). They used to be written only when a conversation started, so the main conversation, which goes
 // on for days, kept the prompts of the hub that started it (#3235: #3068's ring cards never reached it). The node
@@ -279,8 +273,8 @@ func (s *Service) instructionsLoop(ctx context.Context) {
 	}
 }
 
-// refreshInstructions writes the assistant's and the health space's CLAUDE.md on the assistant's machine when they
-// differ from the ones this hub last wrote there (none yet after a start: both are written), and their plugin skills
+// refreshInstructions writes the assistant's and the tracks' CLAUDE.md on the assistant's machine when they
+// differ from the ones this hub last wrote there (none yet after a start: all are written), and their plugin skills
 // when those changed (prepareSpaceIf).
 func (s *Service) refreshInstructions(ctx context.Context) {
 	if s.hello(ctx).Assistant.Standby {
@@ -294,7 +288,7 @@ func (s *Service) refreshInstructions(ctx context.Context) {
 	if !ok || !d.Online || d.Home == "" {
 		return
 	}
-	spaces := []string{"", SpaceHealth}
+	spaces := []string{""}
 	if s.trackSpaceNode(machine) {
 		spaces = append(spaces, s.spaceTracks(ctx)...) // a node that keeps no track directory gets none (prepareSpaceIf)
 	}
@@ -1058,7 +1052,7 @@ func (s *Service) startRoutes() {
 			// MachineID one of the hub's machines instead of the assistant's (docs/protocol/protocol.md "REST (App → hub)").
 			Purpose   string `json:"purpose"`
 			MachineID string `json:"machine_id"`
-			Space     string `json:"space"` // a registered space, e.g. "health" (docs/assistant/health.md)
+			Space     string `json:"space"` // a registered space (docs/assistant/tracks.md)
 			// ReportTasks: the tasks it opens are told back to it, as the main conversation's quiet ones are (#3192,
 			// reporters.go); a plugin's /agent hands their results on.
 			ReportTasks bool `json:"report_tasks"`
@@ -1092,7 +1086,7 @@ func (s *Service) startRoutes() {
 			return
 		}
 		if in.Space != "" && s.trackPolicy(ctx, in.Space).HideFromExtensions && r.Header.Get(RoleHeader) == roleExtension { // a start is a control: trust and grants widen reads only
-			apierr.WriteCode(w, http.StatusForbidden, "permission_denied", i18n.Err("apierr-apierr.health_start_forbidden"))
+			apierr.WriteCode(w, http.StatusForbidden, "permission_denied", i18n.Err("apierr-apierr.space_start_forbidden"))
 			return
 		}
 		if in.Model = strings.TrimSpace(in.Model); checkModelID(in.Model) != nil {
