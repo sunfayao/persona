@@ -1,37 +1,6 @@
 [
   {
     "type": "function",
-    "name": "search_knowledge",
-    "description": "Search the user's knowledge base: archived chats, people, groups, projects, documents, meeting summaries and minutes of recorded meetings. Returns matching lines, newest first. Separate keywords with spaces; every keyword must match. Use specific terms such as a person, project or group name. For past recorded meetings (decisions, responsibilities or unresolved points), set kind=recordings and search by meeting title or words spoken in it.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "parameters": {
-      "type": "object",
-      "required": [
-        "query"
-      ],
-      "properties": {
-        "query": {
-          "type": "string",
-          "description": "Keywords separated by spaces"
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "projects",
-            "chats",
-            "people",
-            "docs",
-            "meetings",
-            "events",
-            "recordings",
-            "topics"
-          ],
-          "description": "Search only this kind: recordings = recorded meetings (minutes and retained transcripts), meetings = calendar meetings, projects = projects, chats = groups and chat history, people = people, docs = documents, events = events, topics = knowledge topics. Omit to search all kinds"
-        }
-      }
-    }
-  },
-  {
-    "type": "function",
     "name": "list_agents",
     "description": "List the coding Agents (Claude Code / Codex) on the user's computers: computer, title, status (needs you / working / finished unread / idle) and last words.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
     "parameters": {

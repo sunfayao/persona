@@ -41,12 +41,3 @@ Example ownerが提案を確認し、実行するようあなたに戻しまし�
 元の確定指示
 
 このとおり進めます。他人に見える操作は引き続き提案として提出する必要があります。終わったら inbox_suggest で次の提案か結論を提出してください。
-
-
-## ナレッジベースの背景（~/.persona/data）
-
-<persona-context kind="context" title="会話の記録 · 元の名前">
-Original <source>summary</source>
-</persona-context>
-
-会話 id：chat_1。詳細は kb_get / kb_search。対応で新しい結論（進捗、担当、締切）が得られたら kb_update で該当プロジェクトの log に記録します（この書込は許可されています）。

@@ -41,12 +41,3 @@ Example owner confirmed your suggestion and returned it to you to carry out (edi
 元の確定指示
 
 Follow this. Actions visible to others must still be submitted as suggestions; when done, call inbox_suggest with the next suggestion or conclusion.
-
-
-## Knowledge-base background (~/.persona/data)
-
-<persona-context kind="context" title="Conversation profile · 元の名前">
-Original <source>summary</source>
-</persona-context>
-
-Conversation id: chat_1. Use kb_get / kb_search for more. If handling yields new conclusions (project progress, responsibilities, deadlines), write them to the corresponding project's log with kb_update (this write is allowed).

@@ -413,48 +413,6 @@
     }
   },
   {
-    "name": "list_places",
-    "description": "The user's saved places (home, the office, …) with their coordinates and reminder radius, as the user set them in Settings › Assistant › Saved Places or as you saved them with save_place. Read them before a reminder by place, and before a route or directions to or from a place the user names (home, the office); never take a place's coordinates from memory.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "properties": {}
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "save_place",
-    "description": "Save a place to the user's saved places, or change the saved place of the same name. Only for a place the user just confirmed in this conversation (their current location while they are there, or a phone_location_search result they picked); the user sees and edits it in Settings › Assistant › Saved Places.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "name",
-        "latitude",
-        "longitude"
-      ],
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "What the user calls it, e.g. 家 or 公司 (at most 40 characters)"
-        },
-        "address": {
-          "type": "string",
-          "description": "The address, as phone_location_search gave it"
-        },
-        "latitude": {
-          "type": "number"
-        },
-        "longitude": {
-          "type": "number"
-        },
-        "radius_meters": {
-          "type": "integer",
-          "description": "The reminder circle, 100–2000; leave it out for 150"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
     "name": "machines_list",
     "description": "List computers' connection, system, resources, agents, launcher failures and node builds. Samples over 30 seconds old are stale. Nulls have reasons; do not infer or rank.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
     "input_schema": {
@@ -1357,364 +1315,6 @@
     "defer_loading": true
   },
   {
-    "name": "kb_search",
-    "description": "Search the knowledge base: summaries and metadata of chats, people, projects, docs, meetings, events, recordings (with their minutes and any transcript still retained), topics (curated knowledge points: how something works, what was decided and why, the steps and pitfalls), project timelines, the notes directories the user added (hits with an absolute path) and, with messages=true, the full message archive (newest days first). All words must match. Hits come in the order the files are read, not by relevance, so a broad search can fill the limit with chats: give kind to search one kind only, the entries whose name matches first, then as kb_list ranks them. A past meeting (its decisions, what is still open, who does what) is kind=recordings: found by its title, the calendar event's title, its minutes or any transcript still retained; then kb_get it. Transcripts expire before minutes: never promise a trimmed recording's full transcript.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "query"
-      ],
-      "properties": {
-        "query": {
-          "type": "string"
-        },
-        "kind": {
-          "type": "string",
-          "enum": [
-            "projects",
-            "chats",
-            "people",
-            "docs",
-            "meetings",
-            "events",
-            "recordings",
-            "topics"
-          ],
-          "description": "only this kind's entries (no notes directories; the message archive only with chats)"
-        },
-        "messages": {
-          "type": "boolean",
-          "description": "also search the message archive (default true)"
-        },
-        "limit": {
-          "type": "integer",
-          "description": "default 40"
-        }
-      }
-    }
-  },
-  {
-    "name": "kb_list",
-    "description": "List knowledge-base entities of one kind ranked by importance (P0 first), relevance to the user, recency: projects (short = a feature / launch, long = a team mission), chats, people, docs, meetings, events, recordings (the user's phone / watch recordings; newest first, saying which have meeting minutes, which are all-day recordings with a day recap and its state, and which transcripts have expired), topics (knowledge points curated by subject out of the timelines and chats: concepts, decisions with their reasons, practices, pitfalls, facts, open questions; the biggest first). Transcripts stay for recording_days (14 days by default), minutes and recaps for minutes_days (forever by default). Meetings, events and recordings show when they started, in the user's time zone. Optional tag filter.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "kind"
-      ],
-      "properties": {
-        "kind": {
-          "type": "string",
-          "enum": [
-            "projects",
-            "chats",
-            "people",
-            "docs",
-            "meetings",
-            "events",
-            "recordings",
-            "topics"
-          ]
-        },
-        "tag": {
-          "type": "string"
-        },
-        "limit": {
-          "type": "integer",
-          "description": "default 30"
-        }
-      }
-    }
-  },
-  {
-    "name": "kb_get",
-    "description": "Read one entity: its metadata (links to people / chats / projects, tags), compressed context (summary.md), a project's timeline, a chat's messages of the last 7 days, a recording's meeting minutes, or an all-day recording's day recap (the day's timeline, meetings, suggested to-dos), with each action item's state (suggested, or its to-do's) and its timestamped transcript while still retained (phone/watch recordings, text only), a meeting's / event's recordings, a topic's knowledge points by subtopic (each with its kind, reason and the entries it came from). Transcripts expire after recording_days (14 days by default); minutes and recaps stay for minutes_days (forever by default). id from kb_list / kb_search (a project also by name). A project lists its 20 most relevant people and a count (all: meta.json).\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "kind",
-        "id"
-      ],
-      "properties": {
-        "kind": {
-          "type": "string",
-          "enum": [
-            "projects",
-            "chats",
-            "people",
-            "docs",
-            "meetings",
-            "events",
-            "recordings",
-            "topics"
-          ]
-        },
-        "id": {
-          "type": "string"
-        }
-      }
-    }
-  },
-  {
-    "name": "kb_update",
-    "description": "Write settled facts to the KB. Projects: edit name, project_kind (short|long), status, goal, my_role, aliases, chats/people, code dirs (`\u003cmachine\u003e:\u003cpath\u003e`, linking Agents), timeline log or summary; merge_into folds duplicates, unmerge reverses it, with no other changes in that call. Annotate chats, people, docs, meetings, events, recordings (phone-owned content; tags, pinned and projects only) and topics (name, note, aliases, tags only). Explicit tags override automatic ones. remove_* (ids) permanently unlinks only that link; other updates proceed. Change project_mode/source_urls only at the user's direction: reference-only keeps pointers and aliases but leaves details at the source; full in a separate call restores detail writes.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "kind",
-        "id"
-      ],
-      "properties": {
-        "kind": {
-          "type": "string",
-          "enum": [
-            "projects",
-            "chats",
-            "people",
-            "docs",
-            "meetings",
-            "events",
-            "recordings",
-            "topics"
-          ]
-        },
-        "id": {
-          "type": "string",
-          "description": "id, or a project's name (created when new)"
-        },
-        "merge_into": {
-          "type": "string",
-          "description": "projects only: fold this project into the target (slug or name)"
-        },
-        "unmerge": {
-          "type": "boolean",
-          "description": "projects only: undo the merge that folded this project into another"
-        },
-        "name": {
-          "type": "string"
-        },
-        "project_kind": {
-          "type": "string",
-          "enum": [
-            "short",
-            "long"
-          ]
-        },
-        "project_mode": {
-          "type": "string",
-          "enum": [
-            "full",
-            "reference-only"
-          ],
-          "description": "user-directed"
-        },
-        "source_urls": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "user-directed; replace; empty list clears"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "active",
-            "paused",
-            "done"
-          ]
-        },
-        "goal": {
-          "type": "string"
-        },
-        "my_role": {
-          "type": "string"
-        },
-        "note": {
-          "type": "string"
-        },
-        "importance": {
-          "type": "string",
-          "enum": [
-            "P0",
-            "P1",
-            "P2",
-            "P3"
-          ]
-        },
-        "relevance": {
-          "type": "integer"
-        },
-        "tags": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "summary": {
-          "type": "string",
-          "description": "Markdown, replaces summary.md"
-        },
-        "log": {
-          "type": "string",
-          "description": "one line appended to a project's timeline"
-        },
-        "aliases": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "remove_aliases": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "projects: aliases that are not this project's (another's name, too generic)"
-        },
-        "chats": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "remove_chats": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "people": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "remove_people": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "dirs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "projects": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    }
-  },
-  {
-    "name": "kb_history_plan",
-    "description": "Show or change what a source's history import reads. What is read of each chat comes from the knowledge base's selection (the same rules as daily ingestion; per-chat settings are changed here with `set`): the whole chat, only the user's own messages (with the messages around them) and mentions of the user, or nothing. Without `set` or `back_days` it refreshes the source's chat list and lists the chats grouped that way, largest first, with each chat's id and any per-chat setting of the user's. `set` changes per-chat settings, which apply to daily ingestion too: a chat by its id or exact name (a name two chats share is refused with their ids, a name no chat has gets close names; then nothing is changed); `read: false` never reads it, `read: true, store: true` keeps the whole chat (for `days`, or as the rules say), `read: true, store: false` only the user's messages and mentions, `reset: true` back to the rules. `back_days` limits how far back the import goes (null: as far as the rules keep messages). A change, or a refreshed list, that reads more than the user approved takes the approval back, so the import needs kb_history_resume again; reading less does not. Listing or changing never starts the import: show the user the list, apply the exceptions they name, show the result again, and only when they say to start call kb_history_resume. Needs `kb.history.enabled` in manager.json.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "source": {
-          "type": "string",
-          "description": "connector id from kb.history.sources; omitted: every configured source (required with set or back_days)"
-        },
-        "set": {
-          "type": "array",
-          "description": "per-chat settings to change, all or none",
-          "items": {
-            "type": "object",
-            "required": [
-              "chat"
-            ],
-            "properties": {
-              "chat": {
-                "type": "string",
-                "description": "the chat's id, or its exact name"
-              },
-              "read": {
-                "type": "boolean",
-                "description": "false: never read it (required unless reset)"
-              },
-              "store": {
-                "type": "boolean",
-                "description": "true: keep the whole chat; false: only the user's messages and mentions"
-              },
-              "days": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "description": "with store: how many days its lines are kept (null: as the rules say)"
-              },
-              "reset": {
-                "type": "boolean",
-                "description": "remove the chat's setting: the rules decide again"
-              }
-            }
-          }
-        },
-        "back_days": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "description": "how many days back the import goes for this source; null: as far as the rules keep messages"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "kb_history_status",
-    "description": "How the history import is doing, per source: its state (running, resting, paused, stopped, done, waiting for approval or for the search index), whether its plan is approved, chats done / to go / paused / in error / unreadable with messages read and written, calls and messages in the last hour, the last slowdown, pause and stop with their reasons, and the last call. Read-only.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "source": {
-          "type": "string",
-          "description": "one connector id; omitted: all configured sources"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "kb_history_stop",
-    "description": "Stop the history import now: it makes no further call until the user resumes it (the call in flight, if any, finishes; nothing is cancelled). Use it whenever the user says to stop or pause importing history.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "properties": {
-        "reason": {
-          "type": "string",
-          "description": "why, in a few words, as the user said it; shown in the status, never written to the log"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
-    "name": "kb_history_resume",
-    "description": "Approve a source's history import plan, as the selection reads it now, and start or resume the import (it also clears a stop). Only when the user has seen the plan (kb_history_plan) and explicitly says to start or resume; never on your own. After a stop, check kb_history_status first and tell the user why it stopped; `slow` keeps the slowest pace for the first two hours after the import starts again, the safe choice after a stop.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
-    "input_schema": {
-      "type": "object",
-      "required": [
-        "source"
-      ],
-      "properties": {
-        "source": {
-          "type": "string",
-          "description": "connector id from kb.history.sources"
-        },
-        "slow": {
-          "type": "boolean",
-          "description": "the slowest pace for the first two hours of calls"
-        }
-      }
-    },
-    "defer_loading": true
-  },
-  {
     "name": "persona_settings",
     "description": "Read and change Persona's settings: inbox sorting and task links, 关于我, default launcher, mail accounts, machine Claude Code exclusions and extensions. List keys and inputs; get reads one. set/add/remove show before → after on the phone and wait for approval; secrets are entered there, never requested in chat. Change only what was asked.\n\nModel groups `model_config.kb`, `model_config.inbox.triage`, `model_config.agent.delegate` and `model_config.translate`: `get` returns their effective binding, revision and compatible `purpose.provider_ids`. `set` and `test` take one listed provider ID as value. A changed provider clears the old model, effort and permission mode. `test` only checks the connection, without approval or saving; an unverified or offline provider may still be saved.\n\n`assistant.standing_authorizations`: only the main conversation may replace the list at its current revision with the user’s phone approval. Each grant names `machine_id`, absolute `directory`, `actions` (merge, push, deploy-test, deploy-production, send, delete, spend), `conditions`, exact user `quote`, `source` and `reversible`. Keep unchanged grants by ID; replace one by removing it and adding it without an ID. Never invent a quote or expand scope. Only independently verifiable conditions may permit automatic answers. Revoke in Settings. Tool permissions are never automatically approved.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
     "input_schema": {
@@ -2564,7 +2164,7 @@
               },
               "project": {
                 "type": "string",
-                "description": "Existing kb_list projects slug/name for a clear long-term area; no near-duplicates."
+                "description": "Project label for a clear long-term area; reuse an existing one, no near-duplicates."
               },
               "part_of": {
                 "type": "string",
@@ -3504,7 +3104,7 @@
         },
         "project": {
           "type": "string",
-          "description": "Existing knowledge-base project slug/name."
+          "description": "Project label."
         },
         "kind": {
           "type": "string",
@@ -3581,7 +3181,7 @@
         },
         "project": {
           "type": "string",
-          "description": "Existing kb_list project slug/name; prefer long-term work. Only when clear; no near-duplicates."
+          "description": "Project label; prefer long-term work. Only when clear; reuse an existing one, no near-duplicates."
         },
         "part_of": {
           "type": "string",
@@ -3771,7 +3371,7 @@
         },
         "project": {
           "type": "string",
-          "description": "Existing knowledge-base project slug/name (kb_list projects), preferably a long-term work area. Set only when clear; do not invent near-duplicates. \"\" clears."
+          "description": "Project label, preferably a long-term work area. Set only when clear; reuse an existing one, do not invent near-duplicates. \"\" clears."
         },
         "part_of": {
           "type": "string",
@@ -3862,7 +3462,7 @@
   },
   {
     "name": "direction_name",
-    "description": "Name a direction (a leader conversation, one of assistant.leaders, current or ended): main conversation only. The name is what the app and the work-log extension show for the direction, so make it short and plain, the way the user calls that line of work (「Persona 产品」「基建」), never a conversation title with a date or kind in it. An empty name takes yours away: the direction then shows its knowledge-base project's name, else its conversation title without the date and kind. Whoever names it last, the user in the app or you, that name shows.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
+    "description": "Name a direction (a leader conversation, one of assistant.leaders, current or ended): main conversation only. The name is what the app and the work-log extension show for the direction, so make it short and plain, the way the user calls that line of work (「Persona 产品」「基建」), never a conversation title with a date or kind in it. An empty name takes yours away: the direction then shows its conversation title without the date and kind. Whoever names it last, the user in the app or you, that name shows.\n\nWrite newly generated user-facing arguments, such as titles, reasons, criteria and messages, in English unless the user requests another language or the field requires source wording. Preserve quoted source text, identifiers, tool and parameter names, enum values and command prefixes exactly. Language does not change approval requirements or permission boundaries.",
     "input_schema": {
       "type": "object",
       "required": [

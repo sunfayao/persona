@@ -41,12 +41,3 @@ Example owner确认了你的建议，交回给你去做（Example owner改过）
 元の確定指示
 
 照这个做。过程里会被别人看到的动作仍然只能交成建议；做完调 inbox_suggest 交下一步的建议或结论。
-
-
-## 知识库里的背景（~/.persona/data）
-
-<persona-context kind="context" title="会话档案 · 元の名前">
-Original <source>summary</source>
-</persona-context>
-
-会话 id：chat_1。更多用 kb_get / kb_search 查。处理完如果得出了新结论（项目进展、谁负责什么、截止时间），用 kb_update 写回对应项目的 log（这是允许的写操作）。

@@ -4,8 +4,6 @@
 电脑：Work laptop（box），现在离线
 目录：/code/weather
 分支：main
-知识库里的项目：
-- Weather App（weather-app）：The weather app for iOS and Android
 最近在这个目录的 agent（新的在前，agent_read 可看）：
 - 「Fix login」codex，working，11-06 09:30，session ios，在 /code/weather/ios
 - 「Old work」claude，idle，11-05 18:02，session old

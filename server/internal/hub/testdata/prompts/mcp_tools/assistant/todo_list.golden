@@ -35,7 +35,7 @@
       },
       "project": {
         "type": "string",
-        "description": "Existing knowledge-base project slug/name."
+        "description": "Project label."
       },
       "kind": {
         "type": "string",

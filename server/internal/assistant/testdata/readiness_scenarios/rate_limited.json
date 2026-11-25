@@ -57,14 +57,6 @@
         "title": "Show the largest folders on this computer"
       },
       {
-        "id": "today",
-        "needs": [
-          "phone_calendar"
-        ],
-        "prompt": "What's on my schedule today?",
-        "title": "What's on today"
-      },
-      {
         "id": "connect_mail",
         "prompt": "Teach me how to connect my email to Persona.",
         "title": "Teach me to connect email"
@@ -130,14 +122,6 @@
         "title": "このコンピューターで一番大きいフォルダーを見る"
       },
       {
-        "id": "today",
-        "needs": [
-          "phone_calendar"
-        ],
-        "prompt": "今日の予定は？",
-        "title": "今日の予定"
-      },
-      {
         "id": "connect_mail",
         "prompt": "メールを Persona に接続する方法を教えて。",
         "title": "メールの接続方法を教えて"
@@ -201,14 +185,6 @@
         "id": "largest_folders",
         "prompt": "看看这台电脑上最大的几个文件夹。",
         "title": "看看这台电脑上最大的几个文件夹"
-      },
-      {
-        "id": "today",
-        "needs": [
-          "phone_calendar"
-        ],
-        "prompt": "今天有什么安排？",
-        "title": "今天有什么安排"
       },
       {
         "id": "connect_mail",

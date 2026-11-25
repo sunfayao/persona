@@ -13,8 +13,6 @@ schedule_state_set
 delete_routine
 list_followups
 cancel_followup
-list_places
-save_place
 machines_list
 machine_redeploy
 agents_list
@@ -37,14 +35,6 @@ inbox_draft
 inbox_folders
 inbox_move
 inbox_post
-kb_search
-kb_list
-kb_get
-kb_update
-kb_history_plan
-kb_history_status
-kb_history_stop
-kb_history_resume
 persona_settings
 secret_run
 skill_import
