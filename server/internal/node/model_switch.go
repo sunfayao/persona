@@ -342,7 +342,7 @@ func (n *Node) setModel(ctx context.Context, id, model string) error {
 // then the mode and effort.
 func (n *Node) setModelAndModes(ctx context.Context, id, model, mode, effort string, queueEffort bool) (bool, error) {
 	if !n.isAssistantSession(id) {
-		if a, ok := n.agent(id); ok && a.Agent == traexAgent {
+		if a, ok := n.agent(id); ok && a.Agent == traexAgent && model != "" {
 			if mode != "" || effort != "" {
 				return false, traexModelRefusal(ctx, "traex_model_only")
 			}
