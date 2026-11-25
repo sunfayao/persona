@@ -22,7 +22,6 @@ const NOW = new Date(2026, 0, 15, 12).getTime();
 const minutesAgo = (m: number) => new Date(NOW - m * 60_000).toISOString();
 const todo = (id: string, title: string, patch: Partial<Todo> = {}): Todo => ({ id, title, created_at: minutesAgo(600), updated_at: minutesAgo(5), ...patch });
 const session: Session = { machine_id: "mac", session_id: "s1", title: "菜谱网站加搜索", cwd: "/Users/me/code/recipes", status: "running" };
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 let host: HTMLDivElement;
 let root: Root;
@@ -33,7 +32,6 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   closed = 0;
-  vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(json({ items: [{ id: "blog", name: "个人博客" }] }))));
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -43,7 +41,6 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   Object.assign(getState(), before);
-  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
