@@ -511,12 +511,11 @@ type Props = {
   meeting: MeetingState;
   auth: Auth;
   current: () => boolean;
-  manager: string;
 };
 
 /** **Conversation**: the one thread of a room meeting or of any recording with a follow-up, and **Talk about this
  *  meeting** for one that has none yet. */
-export function RecordingConversation({ detail, rec, meeting, auth, current, manager }: Props) {
+export function RecordingConversation({ detail, rec, meeting, auth, current }: Props) {
   const heading = useId();
   const { room, followup } = meeting;
   const roomIds = room?.machine_id && room.session_id && roomState(room) !== "deleted" && roomState(room) !== "none"

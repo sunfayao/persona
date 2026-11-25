@@ -17,18 +17,12 @@
   "nav_settings": "設定",
   "search_sessions": "チャットを検索",
   "persona_chats": "Personaのチャット",
-  "new_chat": "新規チャット",
-  "unarchived_chat_count_other": "アーカイブされていないPersonaのチャットは{count}件",
-  "all_chats": "Personaのすべてのチャット",
-  "recent_chats_help": "最近使った順に表示します。メインチャット、固定したチャット、アーカイブ済みのチャット、スケジュール済みタスクやバックグラウンド作業のチャットは含みません。",
-  "recent_chats": "最近",
   "pages": "ページ",
   "grouping_header": "エージェントのグループ分け",
   "new_agent": "新規エージェント",
   "filter_empty": "「{filter}」のエージェントはありません",
   "show_all": "すべて表示",
   "pinned_section": "ピン留め",
-  "directions": "常駐",
   "task_agents": "{name}のエージェント",
   "launching": "起動中",
   "launch_untitled": "新しいエージェント",
@@ -153,7 +147,5 @@
   "switcher_label_waiting": "{name}、アシスタントを切り替え。ほかのアシスタントに対応待ちがあります",
   "switcher_count": "対応待ち {count} 件",
   "leader_needs_you": "対応待ち {count}",
-  "codex_waiting": "最初のメッセージ待ち",
-  "direction_tasks_expand": "「{name}」の進行中タスクを開く",
-  "direction_tasks_collapse": "「{name}」の進行中タスクを閉じる"
+  "codex_waiting": "最初のメッセージ待ち"
 }

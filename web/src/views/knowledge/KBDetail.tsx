@@ -391,7 +391,7 @@ function OwnedEntryDetail({ kind, id, query, reloadKey, onToggleSidebar, onBack,
               />)}
               {/* While a room meeting records (phase 2): its topics and newest live lines, above its conversation. */}
               {rec && <RecordingLiveView rec={rec} meeting={meeting} />}
-              {rec && <RecordingConversation detail={d} rec={rec} meeting={meeting} auth={auth} current={current} manager={manager} />}
+              {rec && <RecordingConversation detail={d} rec={rec} meeting={meeting} auth={auth} current={current} />}
               {/* A room meeting's questions are in its thread; a #2981 meeting's stay here. */}
               {rec && !meeting.roomMeeting && <RecordingAsks
                 detail={d}
