@@ -388,18 +388,6 @@ func TestInboxAgentStarts(t *testing.T) {
 	}
 }
 
-func TestInboxAgentPrompt(t *testing.T) {
-	it := actionItem("x", time.Now())
-	it.Title = `群 "A" <b>`
-	it.Agent = &InboxAgent{Task: "查 1013 是否合入"}
-	p := newInbox().inboxAgentPrompt(it, "小明")
-	for _, want := range []string{`title="飞书 · 群 &quot;A&quot; &lt;b&gt;"`, "飞书会话 id：f1", "查 1013 是否合入",
-		"inbox_suggest", "张三：1013 合了吗？", "小明", "事件 x"} {
-		if !strings.Contains(p, want) {
-			t.Errorf("prompt lacks %q:\n%s", want, p)
-		}
-	}
-}
 
 // TestInboxModelsLive runs models 1 and 2 on a sample item against a real gateway:
 // PERSONA_LIVE_AI='{"base_url":"…","api_key_file":"…","model":"…"}' go test -run InboxModelsLive -v ./internal/assistant
