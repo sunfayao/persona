@@ -44,14 +44,6 @@ class ExtensionCodegenTests(unittest.TestCase):
         ts = GEN.gen_ts(definitions)
         self.assertIn("name: string;", ts)
         self.assertEqual(ts.count("[key: string]: unknown;"), 3)
-        swift = GEN.gen_swift(definitions)
-        self.assertIn("struct ExtensionEnvelope:", swift)
-        self.assertIn("var name: String", swift)
-        self.assertIn("var additionalProperties: [String: JSONValue]", swift)
-        kotlin = GEN.gen_kotlin(definitions)
-        self.assertIn("object ExtensionEnvelopeSerializer", kotlin)
-        self.assertIn("val name: String", kotlin)
-        self.assertIn("val additionalProperties: Map<String, JsonElement>", kotlin)
 
     def test_stream_extensions_are_generic(self):
         definitions = self.definitions({
@@ -78,16 +70,6 @@ class ExtensionCodegenTests(unittest.TestCase):
         self.assertIn("func (v Operation) MarshalJSON", go)
         self.assertRegex(go, r'Values\s+\[\]Value `json:"values"`')
         self.assertNotIn('var fields map[string]json.RawMessage', go)
-        kotlin = GEN.gen_kotlin(definitions)
-        self.assertIn("object ExtensionSendSerializer", kotlin)
-        self.assertIn("Json(output.json) { encodeDefaults = true; explicitNulls = false }", kotlin)
-        swift = GEN.gen_swift(definitions)
-        self.assertIn("self.protocol = try c.decode(Int.self, forKey: .`protocol`)", swift)
-        self.assertIn("self.left = c.contains(.left) ? try c.decode(ExtensionNative.self, forKey: .left) : nil", swift)
-        # Existing native models remain permissive; only new stream envelopes inherit preservation/strictness.
-        self.assertIn("self.key = try? c.decodeIfPresent(String.self, forKey: .key)", swift)
-        for output in [swift, kotlin]:
-            self.assertIn("request a full snapshot", output)
 
     def test_stream_native_wrappers_leave_legacy_encoding_unchanged(self):
         definitions = self.definitions({
@@ -130,7 +112,7 @@ class ExtensionCodegenTests(unittest.TestCase):
 
     def test_wire_outputs_name_their_package_imports_and_registry(self):
         # schema/wire files land in packages with hand-written code (#10226): no package doc, no unused import, a
-        # registry of their own, and Kotlin names without the Extension prefix.
+        # registry of their own.
         definitions = self.definitions({
             "Kind": {"type": "string", "enum": ["all", "some"]},
             "Count": {"type": "object", "properties": {"n": {"type": "integer"}, "kind": {"$ref": "#/$defs/Kind"}},
@@ -143,15 +125,6 @@ class ExtensionCodegenTests(unittest.TestCase):
         self.assertNotIn("import", go)
         self.assertIn("var countDefs = map[string]func() any{", go)
         self.assertNotIn("newDef", go)
-        kotlin = GEN.gen_kotlin(definitions, header=["// A test."], prefix="", package="persona.test")
-        self.assertIn("package persona.test", kotlin)
-        self.assertIn("data class Count(", kotlin)
-        self.assertNotIn("ExtensionCount", kotlin)
-        self.assertNotIn("import kotlinx.serialization.KSerializer", kotlin)
-        self.assertIn("import kotlinx.serialization.Serializable", kotlin)
-        # A value named like the list of values takes a suffix where both share a namespace.
-        self.assertIn('const val ALL_VALUE = "all"', kotlin)
-        self.assertIn('public static let allValue = "all"', GEN.gen_swift(definitions, prefix=""))
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "doc.go").write_text("// Package other.\npackage other\n")
             (Path(tmp) / "x_test.go").write_text("package todowire_test\n")

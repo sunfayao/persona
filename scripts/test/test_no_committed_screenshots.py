@@ -57,10 +57,10 @@ class NoCommittedScreenshotsTest(unittest.TestCase):
     def test_classification(self):
         self.assertTrue(is_screenshot("docs/web/screenshots/x/a.png"))
         self.assertTrue(is_screenshot("docs/design/some-review/a.jpg"))
-        self.assertTrue(is_screenshot("android/feature/settings/screenshots/a/b.png"))
+        self.assertTrue(is_screenshot("web/e2e/screenshots/a/b.png"))
         self.assertTrue(is_screenshot("web/e2e/shots/a.webp"))
         self.assertFalse(is_screenshot("docs/assets/readme/hero-en.png"))
-        self.assertFalse(is_screenshot("apple/Persona/Resources/icon.png"))
+        self.assertFalse(is_screenshot("web/src/assets/icon.png"))
         self.assertFalse(is_screenshot("web/public/logo.png"))
         self.assertFalse(is_screenshot("docs/web/screenshots/x/README.md"))
 

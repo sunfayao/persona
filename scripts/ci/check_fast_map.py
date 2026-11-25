@@ -9,13 +9,12 @@ one on every run; it imports nothing outside the standard library.
     python3 scripts/ci/check_fast_map.py < paths    # one line per path read: its checks, tab-separated, in order
 
 check-fast.sh keeps what it finds at run time or across a rename: the server packages whose tests read a changed
-fixture, schema, doc or client source (git grep), the runtime packages that name a changed fixture or schema, the
+fixture, schema or doc (git grep), the runtime packages that name a changed fixture or schema, the
 scripts suites named after a changed script or importing it, the suites a dedicated check runs instead
 (script_test_add), and the frozen-migration and fixed-sleep checks, which also look at a rename's old path.
 --all runs every check and does not read the table.
 """
 import fnmatch
-import json
 from pathlib import Path
 import posixpath
 import re
@@ -23,19 +22,6 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 
-
-def _counts_table_files(root=ROOT):
-    """Every file the counts surface table names (spec/fixtures/counts/surfaces.json, #11900): each surface's code and
-    tests, and a hub-fed surface's fallback. Its guard reads them all, so a rename in any of them runs it. Read on each
-    run, so a new row needs no edit here; a missing or unreadable table names none, and its own rule still runs the
-    guard."""
-    try:
-        rows = json.loads((root / "spec/fixtures/counts/surfaces.json").read_text(encoding="utf-8"))["surfaces"]
-        files = {entry["file"] for row in rows for key in ("code", "tests") for entry in row.get(key, ())}
-        files |= {row["view"]["fallback"]["file"] for row in rows if isinstance(row.get("view"), dict)}
-    except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        return ()
-    return tuple(sorted(path for path in files if isinstance(path, str) and path))
 
 # What each check is; check-fast.sh's plan_changes turns each one into the jobs it schedules. A check with a / in it is
 # a scripts/**/test_*.py suite, run from its own directory as CI's Scripts tests job does (script_test_add: one that
@@ -63,13 +49,10 @@ CHECKS = {
               "group, or of ./... for a server or sdk/go path outside every group, in one job of its own (#12894); a "
               "group with no package that builds for Windows, or that is gone, is left out of the Windows step",
     "sdk-go": "go test ./... in the sdk/go module",
-    "android": "scripts/app/android_i18n_check.py, the slot order, token and motion baselines, and four of their "
-               "unittests (no Gradle)",
     "pr-needs-issue": "node scripts/test/pr_needs_issue_test.mjs",
     "extension-schema": "python3 scripts/test/test_extension_schema.py (it needs gofmt)",
     "sdk-bundle": "python3 scripts/test/test_sdk_bundle.py",
     "external-refs": "python3 scripts/test/test_external_service_refs.py",
-    "apple": "a SKIP line: the iOS and macOS builds and tests need a Mac",
     "unmapped": "an INFO line naming the path: no fast check maps to it",
 }
 
@@ -109,29 +92,23 @@ TABLE = (
         (("sdk/ts/*",), ("sdk-ts",)),
         # Read by server tests: check-fast.sh finds the packages that read them.
         (("spec/fixtures/*",), ()),
-        # test_gen_tokens.py and test_gen_icon_meanings.py, in the suites below.
-        (("spec/tokens/*", "spec/icons/*"), ()),
         (("server/internal/*/*", "server/cmd/*/*", "server/plugins/*/*"), ("go-package",)),
         # A file directly in server/plugins/ is the plugins package, which the repo-wide guards run.
         (("server/plugins/*",), ()),
         (("server/*",), ("server-build",)),
         # sdk/go is its own module: its tests run there, not server's build.
         (("sdk/go/*",), ("sdk-go",)),
-        (("android/*",), ("android",)),
         ((".github/*",), ("pr-needs-issue",)),
         # CI's extension-schema job: the conformance test, the sdk bundle test and the Go wire round trip.
         (("schema/*",), ("extension-schema", "sdk-bundle", "sdk-go")),
-        # The i18n and token checkers and four of their test_android_* unittests belong to the android check.
-        (("scripts/app/*android*",), ("android",)),
         (("scripts/test/test_external_service_refs.py",), ("external-refs",)),
         (("scripts/gen/sdk_bundle.py", "scripts/test/test_sdk_bundle.py"), ("sdk-bundle",)),
         (("scripts/gen/*extension*", "scripts/test/test_extension_schema.py"), ("extension-schema",)),
         # Any other script, nested ones included: the seconds-long repository checks.
         (("scripts/*",), ("pr-needs-issue", "extension-schema")),
-        (("apple/*",), ("apple",)),
-        # Docs, markdown, deploy/docker and the root Dockerfile, and two native/ build scripts: their suites below.
+        # Docs, markdown, deploy/docker and the root Dockerfile, and the iPhone bridge's build script: their suites below.
         (("docs/*", "deploy/docker/*", "Dockerfile", "*.md"), ()),
-        (("native/app-core/scripts/build-apple.sh", "native/iphone-bridge/build.sh"), ()),
+        (("native/iphone-bridge/build.sh",), ()),
         (("*",), ("unmapped",)),
     ),
     # On top of those: the repo-wide guards fail on code outside their own package, and go vet checks the whole module
@@ -166,49 +143,10 @@ TABLE = (
          ("scripts/test/test_name_freezes.py",)),
         (("scripts/test/name_freezes.py",), ("scripts/mock/test_mock_hub.py",)),
     ),
-    # The Android modules where a dropped result is still a warning (#13024): test_android_return_values.py reads their
-    # list in android/build-logic and the call sites it names in the modules' sources.
-    (
-        (("android/*",), ("scripts/test/test_android_return_values.py",)),
-    ),
     # Most section names test_doc_sections.py checks sit in code comments under its SOURCE_DIRS (about a second).
     (
-        (("server/*", "web/src/*", "web/e2e/*", "scripts/*", "sdk/*", "apple/*", "android/*", "integrations/*",
+        (("server/*", "web/src/*", "web/e2e/*", "scripts/*", "sdk/*", "integrations/*",
           "spec/*", "schema/*"), ("scripts/test/test_doc_sections.py",)),
-    ),
-    # String Catalogs and Chinese Swift literals.
-    (
-        (("apple/*",), ("scripts/test/test_apple_l10n.py",)),
-    ),
-    # Every Apple source and build file, and the xcconfig persona_config.py writes, against CallKit (#9290).
-    (
-        (("apple/*", "scripts/persona_config.py"), ("scripts/test/test_apple_no_callkit.py",)),
-    ),
-    # The development build (#10713): the switch that leaves the watch app and the share extension out, who sets it,
-    # the Release-only commit stamp; and the Rust core's XCFramework cache shared between worktrees.
-    # test_apple_dev_build.py reads the project and the includes its xcodegen dumps turn on, every script that
-    # generates a project or builds the Rust core it names, and the note a lean build prints (#11250). Its two searches
-    # of the whole tree (who sets the switch, who runs xcodegen generate) also see a new caller; that one is not mapped.
-    (
-        (("apple/project.yml", "apple/app-entitlements.yml", "apple/watch-and-share.yml", "apple/lean-dev-build.yml",
-          "apple/siri-calls.yml", "scripts/app/sim.sh", "scripts/app/ui-test.sh", "scripts/app/perf-test.sh",
-          "scripts/app/share-from-apps.sh", "scripts/app/lean-build-note.sh", "scripts/app/island_peer.sh",
-          "scripts/app/stamp_debug_build_info.sh",
-          "scripts/diag/stream-scroll/run-ios.sh", "scripts/release/release.sh", "scripts/ci/apple.sh",
-          "native/iphone-bridge/build.sh"), ("scripts/test/test_apple_dev_build.py",)),
-        (("native/app-core/scripts/build-apple.sh",), ("scripts/test/test_app_core_apple_build.py",)),
-    ),
-    # test_gen_tokens.py checks the token sources against the iOS values and the committed Android Tokens.kt (#4209).
-    (
-        (("spec/tokens/*", "apple/Shared/Design/*",
-          "android/core/designsystem/src/main/kotlin/persona/core/designsystem/Tokens.kt"),
-         ("scripts/assets/test_gen_tokens.py",)),
-    ),
-    # test_gen_icon_meanings.py checks spec/icons against Theme.Icon and the Phosphor glyphs, and PersonaIcons.kt.
-    (
-        (("spec/icons/*", "apple/Shared/Design/Icons.swift",
-          "android/core/designsystem/src/main/kotlin/persona/core/designsystem/icons/*"),
-         ("scripts/assets/test_gen_icon_meanings.py",)),
     ),
     # Suites whose names do not match the file they test: test_privacy_check.py and test_check_deno_adapter_sh.py copy
     # scripts/hooks into their temp repositories and run the hooks there (the latter also scripts/gen/deno_adapter.sh);
@@ -217,8 +155,7 @@ TABLE = (
     # It copies changed_ratchets.py and the two ratchets it imports there too (#7977), with ratchet_base.py, which
     # they and the prompt-language ratchet import (#12785); test_changed_ratchets.py imports them, and the ratchets'
     # own suites load ratchet_base.py through them (test_prompt_language_ratchet.py copies both). test_ci.py and test_check_fast_inputs.py run server.sh and check-fast.sh with go_trimpath.sh, which composes
-    # their GOFLAGS; test_check_fast_inputs.py runs check-fast.sh with heavy_slot.py too, and test_android_sh.py runs
-    # android.sh with it (#11250). check-fast.sh's tests are three files (#11017): its own name picks
+    # their GOFLAGS; test_check_fast_inputs.py runs check-fast.sh with heavy_slot.py too (#11250). check-fast.sh's tests are three files (#11017): its own name picks
     # test_check_fast.py, and the other two, which import its fixtures, come along. They copy check_fast_compare.py,
     # which names a failure's rerun and compares it with the merge base (#12733), into their temp repositories too,
     # and go_test_partitioned.py with the go_partitions.py it imports, which every Go group runs through (#12765).
@@ -236,7 +173,7 @@ TABLE = (
           "scripts/ci/test_web_font_ratchet.py", "scripts/test/test_prompt_language_ratchet.py")),
         (("scripts/ci/prompt_language_ratchet.py",), ("scripts/test/test_prompt_language_ratchet.py",)),
         (("scripts/test/go_trimpath.sh",), ("scripts/ci/test_ci.py", "scripts/test/test_check_fast_inputs.py")),
-        (("scripts/heavy_slot.py",), ("scripts/test/test_check_fast_inputs.py", "scripts/test/test_android_sh.py")),
+        (("scripts/heavy_slot.py",), ("scripts/test/test_check_fast_inputs.py",)),
         (("scripts/check-fast.sh", "scripts/test/check-fast.sh", "scripts/test/test_check_fast.py"),
          ("scripts/test/test_check_fast_guards.py", "scripts/test/test_check_fast_inputs.py")),
         (("scripts/ci/check_fast_compare.py", "scripts/test/go_test_partitioned.py", "scripts/test/go_partitions.py"),
@@ -268,13 +205,6 @@ TABLE = (
          ("scripts/operations/test_pr_watch.py", "scripts/ci/test_affected_drift.py")),
         (("scripts/operations/pr_watch_*.py",), ("scripts/operations/test_pr_watch.py",)),
     ),
-    # The Release binary's DEBUG checks (#10616, #10654): a list that matches no script name, whose union merges can
-    # leave it out of order, the checker test_apple_release_switch_names.py imports, and release.sh, which runs it.
-    (
-        (("scripts/release/debug_switches.txt", "scripts/release/debug_switches.py", "scripts/release/release.sh"),
-         ("scripts/release/test_debug_switches.py", "scripts/release/test_release_debug_guard.py",
-          "scripts/test/test_apple_release_switch_names.py")),
-    ),
     # test_docker_entrypoint.py also reads the root Dockerfile.
     (
         (("deploy/docker/*", "docs/operations/docker.md", "Dockerfile"), ("scripts/test/test_docker_entrypoint.py",)),
@@ -293,13 +223,6 @@ TABLE = (
           "spec/fixtures/agent-names/*", "schema/wire/todo-view.schema.json", "server/internal/assistant/todos.go",
           "server/internal/assistant/todo_ask.go", "scripts/test/test_wire_schema.py",
           "scripts/test/test_extension_schema.py"), ("scripts/test/test_todo_fixtures.py",)),
-    ),
-    # The counts surface table (#11900): its guard reads the table, its README, the needs-you cases its replays report
-    # on, the plan's decisions and every file the table names; the lane differ's tests read the table and those cases.
-    (
-        (("spec/fixtures/counts/*", "spec/fixtures/needs-you/*"),
-         ("scripts/test/test_counts_surfaces.py", "scripts/test/test_counts_agreement.py")),
-        (("docs/plans/plan-derived-counts.md", *_counts_table_files()), ("scripts/test/test_counts_surfaces.py",)),
     ),
 )
 

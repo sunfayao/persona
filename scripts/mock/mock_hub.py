@@ -2541,7 +2541,7 @@ RUNS = sorted([
 ], key=lambda r: r["at"], reverse=True)
 if os.environ.get("MOCK_SCHEDULE") == "empty":
     SCHEDULE[:], RUNS[:] = [], []
-SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})  # a dict, so scripts/android.sh anonymises it too
+SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
@@ -8369,7 +8369,7 @@ if os.environ.get("MOCK_WORKFLOW") == "1":
             ITEMS[_a["session_id"]] = [it("user", "text", 14, text="%s：审这一块，列出问题" % _a["label"]),
                                        it("assistant", "text", 13, text=_a.get("last_text") or "这一块看完了，没有发现问题。")]
 # MOCK_MENTIONS=1 (#2319, the composer's @ list): the review agent read two files of its folder, each call alone between
-# replies, so the hub leaves them unfolded (fold_work) and they are this chat's files in the app (PersonaUITests/MentionMenuTests).
+# replies, so the hub leaves them unfolded (fold_work) and they are this chat's files in the app (the mention menu's tests).
 if os.environ.get("MOCK_MENTIONS"):
     ITEMS[REVIEW] = (_REVIEW_BEFORE + [it("user", "text", 100, text="看一下 PR #42")]
                      + tool("Read", {"file_path": "/Users/me/code/weather/README.md"}, "# Weather", 99)
@@ -24844,9 +24844,7 @@ def upgrades_route(handler, p, req):
 
 # ---------- MOCK_EXTENSIONS: places outside the app (docs/extensions/extensions.md "System-level placements") ----------
 # example-gateway draws a widget "today" (small / medium / Lock Screen and watch face complications) that opens its
-# nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename). A sample of an
-# extension's notification with buttons is scripts/mock/apns/extension-notification.apns:
-#   xcrun simctl push <udid> <bundle id> scripts/mock/apns/extension-notification.apns
+# nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename).
 _WIDGETS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "today", "title": "今天的用量",
              "families": ["small", "medium", "accessory_circular", "accessory_rectangular", "accessory_inline"], "refresh_minutes": 30, "opens": "usage"}]
 _SHORTCUTS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "usage_today", "title": "今天用了多少",

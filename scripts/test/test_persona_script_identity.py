@@ -311,30 +311,6 @@ class PersonaScriptIdentityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, f'{root}|{root}|status')
 
-    def test_cli_keeps_explicit_token_sources_and_accepts_current_bundle_variable(self):
-        spec = importlib.util.spec_from_file_location('runtime_ctl_under_test', ROOT / 'scripts/app/personactl.py')
-        ctl = importlib.util.module_from_spec(spec); spec.loader.exec_module(ctl)
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
-            root = home / 'profile'; root.mkdir()
-            (root / 'hub.json').write_text(json.dumps({'token': 'fixture-only-token'}))
-            token = home / 'token.fixture'; token.write_text('explicit-fixture')
-            with patch.dict(os.environ, environment(home, PERSONA_HOME=str(root), PERSONA_BUNDLE_ID='com.example.persona', **{FORMER_PREFIX + 'BUNDLE_ID': 'com.example.legacy'}), clear=True):
-                self.assertEqual(ctl.Ctl(udid='fixture-unused').bundle, 'com.example.persona')
-                self.assertEqual(ctl.hub_token(), 'fixture-only-token')
-                os.environ['PERSONACTL_HUB_TOKEN_FILE'] = str(token)
-                self.assertEqual(ctl.hub_token(), 'explicit-fixture')
-                os.environ['PERSONACTL_HUB_TOKEN'] = 'environment-fixture'
-                self.assertEqual(ctl.hub_token(), 'environment-fixture')
-                os.environ['PERSONA_BUNDLE_ID'] = ''
-                self.assertEqual(ctl.Ctl(udid='fixture-unused').bundle, 'com.example.persona')
-
-
-# A hang guard for one whole fixture deploy, not a speed check (#2264). The hub deploy starts about 48 Python processes
-# and a nested bash for each fake ssh hop: about 7s of CPU, whose wall time grows with the machine's load (24-27s at
-# load 45-50 on an 18-core Mac, past 30s at 80) without any step hanging.
-DEPLOY_TIMEOUT = 120
-
 
 class PersonaDeploymentScriptTests(unittest.TestCase):
     def setUp(self):
@@ -575,43 +551,6 @@ sys.exit(2)
         self.assertFalse((self.local / 'upload-pack.fixture').exists())
         self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
 
-    def test_android_apk_publish_uses_the_remote_profile_and_config_entrypoint(self):
-        # This integration fixture tests identity resolution and binary transport;
-        # provide SDK output for its synthetic APK while retaining production checks.
-        executable(self.commands / 'aapt2', '#!' + sys.executable + '\n' + r'''
-import argparse
-from pathlib import Path
-parser = argparse.ArgumentParser()
-parser.add_argument('command', choices=['dump'])
-parser.add_argument('format', choices=['badging'])
-parser.add_argument('apk', type=Path)
-args = parser.parse_args()
-assert args.apk.read_bytes() == b'anonymous-signed-apk-fixture'
-print("package: name='com.example.persona' versionCode='1' versionName='1.0'")
-print("minSdkVersion:'26'")
-''')
-        executable(self.commands / 'apksigner', '#!' + sys.executable + '\n' + r'''
-import argparse
-from pathlib import Path
-parser = argparse.ArgumentParser()
-parser.add_argument('command', choices=['verify'])
-parser.add_argument('--verbose', action='store_true', required=True)
-parser.add_argument('--print-certs', action='store_true', required=True)
-parser.add_argument('apk', type=Path)
-args = parser.parse_args()
-assert args.apk.read_bytes() == b'anonymous-signed-apk-fixture'
-print('Number of signers: 1')
-print('V3.0 Signer: certificate SHA-256 digest: ' + 'a' * 64)
-''')
-        apk = self.base / 'fixture.apk'; apk.write_bytes(b'anonymous-signed-apk-fixture')
-        self.run_script('scripts/release/publish_android_apk.sh', str(apk), '--version-code', '1',
-                        '--version-name', '1.0', '--min-sdk', '26',
-                        '--expected-package', 'com.example.persona', '--expected-cert-sha256', 'a' * 64)
-        manifest = json.loads((self.state / 'apps/android/latest.json').read_text())
-        self.assertEqual(manifest['version_code'], 1)
-        self.assertEqual(manifest['package_name'], 'com.example.persona')
-        self.assertEqual(manifest['certificate_sha256'], 'a' * 64)
-        self.assertEqual((self.state / 'apps/android' / (manifest['sha256'] + '.apk')).read_bytes(), apk.read_bytes())
 
 
 if __name__ == '__main__':

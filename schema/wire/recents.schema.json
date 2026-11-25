@@ -4,8 +4,7 @@
   "title": "Recent setups",
   "description": "New Agent's recent setups (#2134), kept per device and hub, ids only (spec/fixtures/recents). The rules are in the fixtures; these are the shapes they read and write.",
   "x-out": {
-    "ts": "web/src/lib/recents-wire.ts",
-    "swift": "apple/Packages/PersonaWire/Sources/PersonaWire/RecentsWire.swift"
+    "ts": "web/src/lib/recents-wire.ts"
   },
   "$defs": {
     "RecentSetup": {

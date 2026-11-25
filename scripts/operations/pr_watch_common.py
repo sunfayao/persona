@@ -306,8 +306,6 @@ def test_or_fix(pr, names):
     def test_file(name):
         path = Path(name)
         parts = path.parts
-        if len(parts) > 1 and parts[1] in ("PersonaTests", "PersonaUITests"):
-            return True
         if path.name.endswith(("_test.go", "_test.py", ".test.ts", ".test.tsx", ".test.js", ".test.mjs")):
             return True
         return any(part.lower() in TEST_PARTS and "test" in path.name.lower() for part in parts)

@@ -25,7 +25,7 @@ import paths  # noqa: E402
 import pr_watch_verify  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-_NAMED = re.compile(r"(?<![\w/.-])((?:\.github|android|apple|deploy|desktop|docs|harmony|integrations|native|schema|"
+_NAMED = re.compile(r"(?<![\w/.-])((?:\.github|deploy|docs|integrations|native|schema|"
                     r"scripts|sdk|server|site|spec|web)/[\w./{},*-]+)")
 
 
@@ -69,16 +69,15 @@ class LaneComparisonTests(unittest.TestCase):
         self.assertEqual({"server"}, affected_drift.fast_lanes(["  queued: sdk/go go test"]))
         self.assertEqual({"runtimes"}, affected_drift.fast_lanes(["  queued: sdk/ts (bun)"]))
         # A SKIP or INFO note runs nothing, and the privacy scan and the scripts suites are the scripts lane's.
-        self.assertEqual(set(), affected_drift.fast_lanes(["SKIP  apple/** builds and tests: need a Mac",
+        self.assertEqual(set(), affected_drift.fast_lanes(["SKIP  something: not run",
                                                            "INFO  CI lanes this change selects that check-fast does "
-                                                           "not run: android", "  queued: privacy scan"]))
+                                                           "not run: runtimes", "  queued: privacy scan"]))
 
     def test_the_lanes_a_plan_names_as_not_run(self):
-        lines = ["SKIP  apple/** builds and tests: iOS/macOS checks need a Mac",
-                 "INFO  CI lanes this change selects that check-fast does not run: server, android, core "
+        lines = ["INFO  CI lanes this change selects that check-fast does not run: server, runtimes "
                  "(bash scripts/ci/<lane>.sh)"]
-        self.assertEqual({"apple", "server", "android", "core"}, affected_drift.named_lanes(lines))
-        self.assertEqual(set(), affected_drift.named_lanes(["  queued: android i18n"]))
+        self.assertEqual({"server", "runtimes"}, affected_drift.named_lanes(lines))
+        self.assertEqual(set(), affected_drift.named_lanes(["  queued: web"]))
 
     def test_a_lane_only_one_side_runs_is_a_disagreement_unless_listed(self):
         found = affected_drift.compare("web/src/App.tsx", [])
@@ -89,14 +88,14 @@ class LaneComparisonTests(unittest.TestCase):
                               if row.reason is None and row.lane == "web"])
 
     def test_a_ci_lane_check_fast_does_not_run_must_be_named(self):
-        info = "INFO  CI lanes this change selects that check-fast does not run: android, apple, core (bash ...)"
-        self.assertEqual([], [row for row in affected_drift.compare("native/app-core/Cargo.toml", [info])
+        info = "INFO  CI lanes this change selects that check-fast does not run: runtimes (bash ...)"
+        self.assertEqual([], [row for row in affected_drift.compare("scripts/ci/runtimes.sh", [info])
                               if row.reason is None])
-        found = affected_drift.compare("native/app-core/Cargo.toml", [])
-        self.assertEqual({"android", "apple", "core"}, {row.lane for row in found if row.side == "named"})
+        found = affected_drift.compare("scripts/ci/runtimes.sh", [])
+        self.assertEqual({"runtimes"}, {row.lane for row in found if row.side == "named"})
         # Named, but run (or not CI's) is a disagreement too.
         found = affected_drift.compare("web/src/App.tsx", ["  queued: web", info])
-        self.assertIn(("android", "named", None, "named, but not CI's"), found)
+        self.assertIn(("runtimes", "named", None, "named, but not CI's"), found)
 
     def test_a_reader_missing_from_the_plan_is_a_disagreement(self):
         expected = [("server", "server go test ./internal/proto/..."), ("runtimes", "integrations/runtime-sdk"),
@@ -113,8 +112,8 @@ class LaneComparisonTests(unittest.TestCase):
                                                  {"server go test ./internal/pro/..."}))
 
     def test_listed_differences_say_why(self):
-        reason = affected_drift.allowed("android", "ci", "android/app/build.gradle.kts")
-        self.assertIn("Gradle", reason)
+        reason = affected_drift.allowed("image", "ci", "server/internal/hub/hub.go")
+        self.assertIn("hub image", reason)
         self.assertIsNone(affected_drift.allowed("web", "ci", "web/src/App.tsx"))
         for lane, side, patterns, reason in affected_drift.ALLOWED:
             self.assertIn(lane, affected_drift.LANES)
@@ -127,17 +126,15 @@ class ReadersTests(unittest.TestCase):
 
     FILES = {
         "server/internal/proto/contract_test.go":
-            'package proto\n\nvar models = read("apple/Shared/Models.swift")\n'
-            'var joined = filepath.Join(root, "apple", "Shared", "Joined.swift")\n'
+            'package proto\n\nvar models = read("docs/protocol/protocol.md")\n'
+            'var joined = filepath.Join(root, "docs", "protocol", "joined.md")\n'
             'var cases = filepath.Join("..", "..", "..", "spec", "fixtures", "answer", name)\n'
-            '// read("apple/Shared/Commented.swift")\n',
-        "server/internal/hub/samples_test.go": 'package hub\n\nconst consumer = "apple/Shared/Models.swift: Fold"\n',
+            '// read("docs/protocol/commented.md")\n',
+        "server/internal/hub/samples_test.go": 'package hub\n\nconst consumer = "docs/protocol/protocol.md: Fold"\n',
         "server/internal/configuration/configuration_test.go":
             'package configuration\n\nvar raw, _ = os.ReadFile("../../../schema/configuration/all-types.json")\n',
-        "server/internal/views/views_test.go": 'package views\n\nvar view = read("apple/Persona/Views/Unwatched.swift")\n',
-        "apple/Persona/Views/Unwatched.swift": "",
-        "apple/Shared/Models.swift": "", "apple/Shared/Joined.swift": "", "apple/Shared/Commented.swift": "",
-        "apple/Shared/Other.swift": "", "spec/fixtures/answer/a.json": "", "spec/fixtures/answer/b.json": "",
+        "docs/protocol/protocol.md": "", "docs/protocol/joined.md": "", "docs/protocol/commented.md": "",
+        "docs/protocol/other.md": "", "spec/fixtures/answer/a.json": "", "spec/fixtures/answer/b.json": "",
         "spec/fixtures/other/c.json": "", "schema/configuration/all-types.json": "",
         "schema/extension/examples/Manifest.x.json": "",
         "integrations/clip/test/clip.test.js":
@@ -172,26 +169,13 @@ class ReadersTests(unittest.TestCase):
 
     def test_a_go_test_reads_a_whole_path_a_joined_path_or_a_directory(self):
         proto = [("server", "server go test ./internal/proto/...")]
-        self.assertEqual(proto, self.expected("apple/Shared/Models.swift"))  # the wire sample's longer string reads nothing
-        self.assertEqual(proto, self.expected("apple/Shared/Joined.swift"))
+        self.assertEqual(proto, self.expected("docs/protocol/protocol.md"))  # the wire sample's longer string reads nothing
+        self.assertEqual(proto, self.expected("docs/protocol/joined.md"))
         self.assertEqual(proto, self.expected("spec/fixtures/answer/b.json"))
         self.assertEqual([("server", "server go test ./internal/configuration/...")],
                          self.expected("schema/configuration/all-types.json"))
-        for path in ("apple/Shared/Commented.swift", "apple/Shared/Other.swift"):
+        for path in ("docs/protocol/commented.md", "docs/protocol/other.md"):
             self.assertEqual([], self.expected(path), path)
-
-    def test_a_client_file_a_go_test_reads_must_be_in_cis_server_lane(self):
-        # apple/Persona/Views/** is outside CI's client contract inputs; a Go test that reads a file there is a gap of
-        # CI's even when check-fast runs the test.
-        expected = self.expected("apple/Persona/Views/Unwatched.swift")
-        self.assertEqual([("server", "server go test ./internal/views/...")], expected)
-        found = affected_drift.compare("apple/Persona/Views/Unwatched.swift",
-                                       ["  queued: server go test ./internal/views/..."], expected)
-        self.assertIn(("server", "ci-reader", None, "server go test ./internal/views/..."), found)
-        self.assertEqual([], [row for row in affected_drift.compare("apple/Shared/Models.swift",
-                                                                    ["  queued: server go test ./internal/proto/..."],
-                                                                    self.expected("apple/Shared/Models.swift"))
-                              if row.side in ("reader", "ci-reader")])
 
     def test_a_runtime_package_reads_a_fixture_or_a_directory_of_them(self):
         self.assertIn(("runtimes", "integrations/clip"), self.expected("spec/fixtures/answer/a.json"))
@@ -209,10 +193,10 @@ class ReadersTests(unittest.TestCase):
 
     def test_the_probes_are_the_paths_with_a_reader(self):
         probes = self.readers.probes()
-        for path in ("apple/Shared/Models.swift", "spec/fixtures/answer/a.json", "spec/fixtures/answer/b.json",
+        for path in ("docs/protocol/protocol.md", "spec/fixtures/answer/a.json", "spec/fixtures/answer/b.json",
                      "schema/configuration/all-types.json", "scripts/ci/paths.py"):
             self.assertIn(path, probes)
-        self.assertNotIn("apple/Shared/Other.swift", probes)
+        self.assertNotIn("docs/protocol/other.md", probes)
 
 
 class WatcherLaneTests(unittest.TestCase):
@@ -221,16 +205,13 @@ class WatcherLaneTests(unittest.TestCase):
         self.assertEqual(["server"], pr_watch_verify.watcher_lanes(paths.select(names), names))
         names = ["scripts/ci/gofmt.py"]
         self.assertEqual(["server", "scripts"], pr_watch_verify.watcher_lanes(paths.select(names), names))
-        # CI's apple and image lanes are not among the watcher's.
-        names = ["apple/Shared/Models.swift"]
-        self.assertNotIn("apple", pr_watch_verify.watcher_lanes(paths.select(names), names))
+        # CI's image lane is not among the watcher's.
+        names = ["Dockerfile"]
+        self.assertNotIn("image", pr_watch_verify.watcher_lanes(paths.select(names), names))
 
     def test_a_test_only_pr_runs_its_tests_instead_of_the_web_scripts_and_server_lanes(self):
         names = ["server/internal/hub/hub_test.go", "web/src/App.test.tsx"]
-        # The desktop lane loads the web client, so a web test still runs it.
-        self.assertEqual(["desktop"], pr_watch_verify.watcher_lanes(paths.select(names), names, focused=True))
-        names = ["android/app/src/test/FooTest.kt"]
-        self.assertEqual(["android"], pr_watch_verify.watcher_lanes(paths.select(names), names, focused=True))
+        self.assertEqual([], pr_watch_verify.watcher_lanes(paths.select(names), names, focused=True))
 
 
 class ResolverCommandLineTests(unittest.TestCase):
@@ -241,14 +222,12 @@ class ResolverCommandLineTests(unittest.TestCase):
                               capture_output=True, text=True, timeout=120, check=True).stdout
 
     def test_lanes_for_prints_the_lanes_ci_runs(self):
-        self.assertEqual("server android apple core scripts\n",
-                         self.run_paths("--lanes-for", "apple/Shared/Models.swift\nnative/app-core/Cargo.toml\n"))
+        self.assertEqual("runtimes scripts\n", self.run_paths("--lanes-for", "scripts/ci/runtimes.sh\n"))
         self.assertEqual("scripts\n", self.run_paths("--lanes-for", "docs/example.md\n"))
 
     def test_lanes_for_each_prints_the_lanes_of_each_path_on_its_own(self):
-        self.assertEqual("server apple scripts\nandroid apple core scripts\nscripts\n",
-                         self.run_paths("--lanes-for-each",
-                                        "apple/Shared/Models.swift\nnative/app-core/Cargo.toml\ndocs/example.md\n"))
+        self.assertEqual("runtimes scripts\nscripts\n",
+                         self.run_paths("--lanes-for-each", "scripts/ci/runtimes.sh\ndocs/example.md\n"))
 
     def test_the_web_plan_of_each_path_matches_its_own_web_plan(self):
         listed = ["web/src/App.tsx", "server/go.mod", "web/package.json", "spec/fixtures/agent-names/names.json"]
@@ -261,14 +240,14 @@ class ResolverCommandLineTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("timeout") or shutil.which("gtimeout"), "check-fast.sh needs GNU timeout")
 class DriftTests(unittest.TestCase):
-    # One path of each gap class #11026 fixed, and the plan line the fix added: the Go tests that read a client
-    # source, a schema family's Go reader, a runtime package that reads a fixture, a suite that imports a watcher
+    # One path of each gap class #11026 fixed, and the plan line the fix added: the Go tests that read a fixture, a
+    # schema family's Go reader, a runtime package that reads a fixture, a suite that imports a watcher
     # module, and the INFO line that names the CI lanes check-fast does not run.
-    FIXED = (("apple/Shared/Models.swift", "  queued: server go test ./internal/proto/..."),
+    FIXED = (("spec/fixtures/agent-sharing.json", "  queued: server go test ./internal/devices/..."),
              ("schema/configuration/all-types.json", "  queued: server go test ./internal/configuration/..."),
              ("spec/fixtures/input-clip/cases.json", "  queued: integrations/runtime-sdk"),
              ("scripts/operations/pr_watch_common.py", "  queued: scripts/operations/test_pr_watch_recovery.py"),
-             ("native/app-core/Cargo.toml", "INFO  CI lanes this change selects that check-fast does not run: "))
+             ("scripts/ci/runtimes.sh", "INFO  CI lanes this change selects that check-fast does not run: "))
 
     @classmethod
     def setUpClass(cls):

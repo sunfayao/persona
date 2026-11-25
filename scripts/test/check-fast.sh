@@ -5,7 +5,7 @@
 #                                         # the default branch is origin/HEAD, else origin/main, else origin/master
 #                                         # (local refs only, no network)
 #   scripts/check-fast.sh --base main     # diff against another ref
-#   scripts/check-fast.sh --all           # every local fast check except iOS/macOS builds and the Postgres suite,
+#   scripts/check-fast.sh --all           # every local fast check except the Postgres suite,
 #                                         # including every scripts/**/test_*.py suite CI's Scripts tests job runs
 #                                         # (a test_*.py that never mentions unittest is a SKIP line, as in
 #                                         # scripts/ci/python-tests.py; diff mode skips it too)
@@ -53,8 +53,6 @@
 #   spec/fixtures/**, schema/<dir>/**, integrations/**, docs/<file>, scripts/test/server_test_env.py
 #                              also go test on each server package whose _test.go names that input (server-test.yml's
 #                              path filter), found at run time with git grep (comment lines are ignored)
-#   apple/**, android/**       also go test on each server package whose _test.go names the file whole, in quotes
-#                              (internal/proto's Swift and Kotlin contract checks, #11026)
 #   spec/**, schema/**         also the tests of each integrations/<pkg> and of sdk/ts whose files name the path or a
 #                              directory it is in (CI's runtimes lane runs for all of them), found at run time
 #   scripts/**                 each changed scripts/<dir>/test_*.py and the test_<name>.py of each changed script
@@ -76,7 +74,7 @@
 # compiles nothing, so it reports in seconds even while every go slot is busy.
 # scripts/privacy_check.py runs on every invocation that has changes (it is a seconds-long local scan, no network).
 # The plan ends with an INFO line naming the CI lanes the change selects (python3 scripts/ci/paths.py --lanes-for, the
-# selection CI and the PR watcher read) that it runs no part of, such as android, core or desktop (#11026).
+# selection CI and the PR watcher read) that it runs no part of, such as the runtimes lane (#11026).
 #
 # Independent checks run in parallel; each command gets a GNU timeout (override with the CHECK_FAST_TIMEOUT_*
 # variables below). The go test / go build / go vet and vitest commands first take a machine-wide slot of their kind
@@ -108,9 +106,7 @@
 # core tool (node >= 22, go, python3) is a failure. A diff cannot be planned without python3, which reads the table:
 # check-fast stops with exit 2, as it does when a search the plan depends on fails.
 #
-# This script never runs iOS/macOS checks (use a Mac with scripts/app/sim.sh; PersonaKit: swift test, docs/operations/testing.md),
-# the Android gradle build (scripts/app/android.sh), or the full server suite against real Postgres
-# (scripts/test/test-server.sh).
+# This script never runs the full server suite against real Postgres (scripts/test/test-server.sh).
 set -uo pipefail
 # A caller that closed stderr (2>&-) would make every redirection that copies it fail: each job subshell's 4>&2, so no
 # check could report and every one would end "no status" (#11250). Open it on /dev/null instead: the checks run, only
@@ -657,23 +653,6 @@ job_sdk_go() {  # sdk/go is its own Go module (its own go.mod), not part of serv
   in_dir sdk/go step "$TIMEOUT_GO_TEST" "sdk/go: go test ./..." go test -count=1 -timeout "${_inner}s" ./...
 }
 
-job_i18n() {
-  [ "$HAVE_PY" -eq 1 ] || skip "python3 not found"
-  step "$TIMEOUT_OTHER" "python3 scripts/app/android_i18n_check.py" python3 scripts/app/android_i18n_check.py || return $?
-  # The checkers' own unittests, run from scripts/app the way CI does (their fixture paths are relative).
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: test_android_i18n_check.py self-test" \
-    python3 -B test_android_i18n_check.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: test_android_token_baseline.py self-test" \
-    python3 -B test_android_token_baseline.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: test_android_motion_baseline.py self-test" \
-    python3 -B test_android_motion_baseline.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: test_android_slot_order.py self-test" \
-    python3 -B test_android_slot_order.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: android_slot_order.py" python3 -B android_slot_order.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: android_token_baseline.py" python3 -B android_token_baseline.py || return $?
-  in_dir scripts/app step "$TIMEOUT_OTHER" "scripts/app: android_motion_baseline.py" python3 -B android_motion_baseline.py
-}
-
 job_external_refs() {
   [ "$HAVE_PY" -eq 1 ] || skip "python3 not found"
   step "$TIMEOUT_OTHER" "python3 scripts/test/test_external_service_refs.py" \
@@ -829,7 +808,7 @@ job_extension_schema() {
 # plan_reset empties the plan, so --each can plan one listed path after another.
 plan_reset() {
   CORE_FAIL=0
-  WEB=0; SDKTS=0; ANDROID=0; PRNEEDS=0; EXTSCHEMA=0; SERVER_BUILD=0; APPLE=0; UNMAPPED=0; GO_GUARDS=0
+  WEB=0; SDKTS=0; PRNEEDS=0; EXTSCHEMA=0; SERVER_BUILD=0; UNMAPPED=0; GO_GUARDS=0
   SITE=0; SDKGO=0; EXTREFS=0; SDKBUNDLE=0; WEB_INSTALL=0; DENO_ADAPTER=0
   INTEG=(); GO_GROUPS=(); UNMAPPED_FILES=(); SCRIPT_TESTS=(); TABLE_SUITES=(); GO_FMT_FILES=(); GO_VET_GROUPS=()
   CORE_MISSING=(); INFO=()
@@ -887,7 +866,7 @@ changed_files() {
 
 COMPARE_CHANGED=""  # the change's paths, for --compare-main's EDITED verdicts
 if [ "$ALL" -eq 1 ]; then
-  echo "check-fast: --all, running every local fast check (iOS/macOS and Postgres suites excluded)"
+  echo "check-fast: --all, running every local fast check (the Postgres suite excluded)"
   # --all plans no diff, but --compare-main needs the merge base to rerun at and the change's files to attribute by.
   if [ "$COMPARE" -gt 0 ]; then
     resolve_base
@@ -963,7 +942,7 @@ if [ "$ALL" -eq 0 ] && [ "$HAVE_PY" -eq 1 ] && [ -f scripts/ci/paths.py ]; then
   fi
 fi
 if [ "$ALL" -eq 1 ]; then
-  WEB=1; SDKTS=1; ANDROID=1; PRNEEDS=1; EXTSCHEMA=1; SITE=1; SDKGO=1; EXTREFS=1; SDKBUNDLE=1
+  WEB=1; SDKTS=1; PRNEEDS=1; EXTSCHEMA=1; SITE=1; SDKGO=1; EXTREFS=1; SDKBUNDLE=1
   for _d in integrations/*/; do
     if [ -f "$_d/package.json" ]; then
       _p=$(basename "$_d")
@@ -995,12 +974,10 @@ else
         go-vet:*) _g=${_c#go-vet:}; arr_has "$_g" "${GO_VET_GROUPS[@]:-}" || GO_VET_GROUPS+=("$_g") ;;
         go-fmt) GO_FMT_FILES+=("$f") ;;
         sdk-go) SDKGO=1 ;;
-        android) ANDROID=1 ;;
         pr-needs-issue) PRNEEDS=1 ;;
         extension-schema) EXTSCHEMA=1 ;;
         sdk-bundle) SDKBUNDLE=1 ;;
         external-refs) EXTREFS=1 ;;
-        apple) APPLE=1 ;;
         unmapped) UNMAPPED=1; UNMAPPED_FILES+=("$f") ;;
         suite:*) _listed="$_listed${_c#suite:}"$'\t' ;;
         *) echo "check-fast: python3 $CHECK_FAST_MAP named a check this script does not know: $_c; no plan made" >&2
@@ -1042,8 +1019,7 @@ fi
 
 # search <what> <output file> <git grep arguments...> runs git grep into the file; no match leaves it empty. Any other
 # failure stops the plan (exit 2): the checks the search would have found are not run otherwise, and nothing would
-# say so. One alternation of every changed client path once grew past what git grep compiles on a large apple/ diff,
-# and every Go reader of those files was dropped without a word (#11250).
+# say so.
 search() {
   local _what=$1 _out=$2 _rc
   shift 2
@@ -1063,33 +1039,10 @@ server_readers() {
     | while IFS= read -r _file; do _dir=$(dirname "$_file"); printf '%s\n' "${_dir#server/}"; done | sort -u
 }
 
-# client_named writes CLIENT_NAMED once a run: "<path><tab><package dir>" for each whole "apple/…" or "android/…"
-# string in a server _test.go outside a // comment line, the text between its quotes, so a longer string that only
-# mentions a file ("apple/Shared/Models.swift: Fold") names that longer string. A plan matches the changed client paths
-# against it, so a diff of thousands of client files still costs one search.
-CLIENT_NAMED=""; CLIENT_NAMED_READ=0
-client_named() {
-  [ "$CLIENT_NAMED_READ" -eq 1 ] && return 0
-  CLIENT_NAMED="$WORK/client-named.txt"
-  search "the server tests for the client sources they name" "$WORK/client-grep.txt" \
-    -nE '"(apple|android)/[^"]*"' -- 'server/*_test.go'
-  LC_ALL=C grep -vE '^[^:]*:[0-9]+:[[:space:]]*//' "$WORK/client-grep.txt" | LC_ALL=C awk '
-    {
-      file = $0; sub(/:.*/, "", file)
-      dir = file; sub(/\/[^\/]*$/, "", dir); sub(/^server\//, "", dir)
-      text = $0; sub(/^[^:]*:[0-9]+:/, "", text)
-      while (match(text, /"(apple|android)\/[^"]*"/)) {
-        print substr(text, RSTART + 1, RLENGTH - 2) "\t" dir
-        text = substr(text, RSTART + RLENGTH)
-      }
-    }' | LC_ALL=C sort -u > "$CLIENT_NAMED"
-  CLIENT_NAMED_READ=1
-}
-
 # Repository inputs that server tests read (the extra paths in server-test.yml's filter): a change to one also runs go
 # test on the packages that read it. Each regex matches the input as a path string or as filepath.Join elements.
 if [ "$ALL" -eq 0 ]; then
-  READER_RES=(); _client=0
+  READER_RES=()
   while IFS= read -r f; do
     _re=""
     case "$f" in
@@ -1099,7 +1052,6 @@ if [ "$ALL" -eq 0 ]; then
       integrations/*/*) _re='integrations/|"integrations"' ;;
       scripts/test/server_test_env.py) _re='server_test_env\.py' ;;
       docs/*) _re=$(printf '%s' "$f" | sed 's/[][\.^$*+?(){}|]/\\&/g') ;;  # docs/example-guide.md -> docs/example-guide\.md
-      apple/*|android/*) _client=1 ;;  # below
     esac
     [ -n "$_re" ] && { arr_has "$_re" "${READER_RES[@]:-}" || READER_RES+=("$_re"); }
   done <<< "$CHANGED"
@@ -1110,16 +1062,6 @@ if [ "$ALL" -eq 0 ]; then
       [ -n "$_g" ] && { arr_has "$_g" "${GO_GROUPS[@]:-}" || GO_GROUPS+=("$_g"); }
     done < "$READERS_FILE"
   done
-  # Client sources the Go contract tests read (internal/proto reads "apple/Shared/Models.swift"): only a test that names
-  # the whole path in quotes counts, not a longer string that mentions it (client_named).
-  if [ "$_client" -eq 1 ]; then
-    client_named
-    printf '%s\n' "$CHANGED" | LC_ALL=C grep -E '^(apple|android)/' > "$WORK/client-changed.txt"
-    while IFS= read -r _g; do
-      [ -n "$_g" ] && { arr_has "$_g" "${GO_GROUPS[@]:-}" || GO_GROUPS+=("$_g"); }
-    done < <(LC_ALL=C awk -F '\t' 'NR == FNR { changed[$0] = 1; next } $1 in changed { print $2 }' \
-               "$WORK/client-changed.txt" "$CLIENT_NAMED" | LC_ALL=C sort -u)
-  fi
 fi
 
 # runtime_named prints "<package> <path>" for each shared fixture or schema path (spec/..., schema/...) a file of an
@@ -1173,17 +1115,14 @@ if [ "$ALL" -eq 0 ] && [ "$DENO_ADAPTER" -eq 1 ]; then
 fi
 
 # script_test_add adds a scripts/<dir>/test_*.py that exists (a deleted one is not run); for one a dedicated job runs
-# (refs, bundle, extension schema, the android checkers) it schedules that job instead. A file that never mentions
+# (refs, bundle, extension schema) it schedules that job instead. A file that never mentions
 # unittest is a SKIP line instead, the rule of is_suite in scripts/ci/python-tests.py: python -m unittest runs no tests
 # in such a verification script and exits 5 ("NO TESTS RAN") on Python 3.12 and later.
 script_test_add() {
-  # job_i18n runs four of the scripts/app/test_android_* suites; the others run here (#11026).
   case "$1" in
     scripts/test/test_external_service_refs.py) EXTREFS=1; return 0 ;;
     scripts/test/test_sdk_bundle.py) SDKBUNDLE=1; return 0 ;;
     scripts/test/test_extension_schema.py) EXTSCHEMA=1; return 0 ;;
-    scripts/app/test_android_i18n_check.py|scripts/app/test_android_token_baseline.py|\
-    scripts/app/test_android_motion_baseline.py|scripts/app/test_android_slot_order.py) ANDROID=1; return 0 ;;
   esac
   # Already added: every file of a large diff adds the same few suites again, and the grep below is a process each.
   arr_has "$1" "${SCRIPT_TESTS[@]:-}" && return 0
@@ -1199,7 +1138,7 @@ script_test_add() {
 # <name>.py / <name>.sh anywhere under scripts/, every scripts/<dir>/test_<name>.py, and test_<name>_sh.py for a .sh
 # (CI's Scripts tests job runs scripts/**/test_*.py; sim-boot.sh is tested by test_sim_boot.py, db.sh by test_db_sh.py).
 # Then each path adds the suites the table maps it to (scripts/ci/check_fast_map.py): the ones guarding docs, markdown,
-# apple/, deploy/docker/ and the root Dockerfile, and the ones that run or read a script by its path.
+# deploy/docker/ and the root Dockerfile, and the ones that run or read a script by its path.
 # --all runs every scripts/**/test_*.py suite, the same find as CI's Scripts tests job, minus the few script_test_add
 # skips because a dedicated check above runs them; renaming or dropping one of those checks must update that skip list.
 # test_check_fast.py compares the --all selection with python-tests.py's.
@@ -1211,7 +1150,7 @@ script_test_add() {
 script_importers() {
   local _dir _mod _t
   _dir=$(dirname "$1"); _mod=$(basename "$1" .py)
-  case "$_mod" in ""|*[!A-Za-z0-9_]*) return 0 ;; esac  # android-shards.py cannot be imported by name
+  case "$_mod" in ""|*[!A-Za-z0-9_]*) return 0 ;; esac  # a file name that is not a module name cannot be imported
   search "the scripts suites that import $1" "$WORK/importers-grep.txt" \
     -lE "^[[:space:]]*(from[[:space:]]+$_mod[[:space:]]+import|import[[:space:]]+([A-Za-z0-9_]+[[:space:]]*,[[:space:]]*)*$_mod([[:space:],]|\$))" \
     -- 'scripts/*test_*.py'
@@ -1352,9 +1291,6 @@ else
   if [ "${#GO_FMT_FILES[@]}" -gt 0 ]; then schedule "gofmt (changed files)" job_go_fmt ""; fi
 fi
 
-if [ "$ANDROID" -eq 1 ]; then
-  if [ "$HAVE_PY" -eq 1 ]; then schedule "android i18n" job_i18n ""; else core_missing "python3 not found; android i18n check skipped"; fi
-fi
 if [ "$PRNEEDS" -eq 1 ]; then
   if node_ok; then schedule "pr-needs-issue workflow test" job_pr_needs_issue ""; else core_missing "node >= 22 not found; pr-needs-issue test skipped"; fi
 fi
@@ -1382,9 +1318,6 @@ if [ -f scripts/ci/sleep_ratchet.py ] && sleep_ratchet_wanted; then
   fi
 fi
 
-if [ "$APPLE" -eq 1 ]; then
-  INFO+=("SKIP  apple/** builds and tests: iOS/macOS checks need a Mac — scripts/app/sim.sh, PersonaKit swift test (docs/operations/testing.md)")
-fi
 if [ "$UNMAPPED" -eq 1 ]; then
   INFO+=("INFO  no fast check maps to: ${UNMAPPED_FILES[*]} (privacy scan still ran; full suites in docs/operations/testing.md)")
 fi
@@ -1398,7 +1331,6 @@ if [ "$LANES_READ" -eq 1 ] || { [ -n "$LANES_PID" ] && wait "$LANES_PID"; }; the
         { [ "${#GO_GROUPS[@]}" -gt 0 ] || [ "$SERVER_BUILD" -eq 1 ] || [ "$GO_GUARDS" -eq 1 ] || [ "$SDKGO" -eq 1 ] ||
           [ "${#GO_VET_GROUPS[@]}" -gt 0 ] || [ "${#GO_FMT_FILES[@]}" -gt 0 ]; } && continue ;;
       runtimes) { [ "${#INTEG[@]}" -gt 0 ] || [ "$SDKTS" -eq 1 ]; } && continue ;;
-      apple) [ "$APPLE" -eq 1 ] && continue ;;  # its own SKIP line names it
     esac
     _not_run="${_not_run:+$_not_run, }$_lane"
   done
@@ -1552,7 +1484,7 @@ fi
 if [ "$N_TIMEOUT" -gt 0 ]; then
   echo "check-fast: $N_PASS passed, $N_SKIP skipped, 0 failed, $N_TIMEOUT timed out (TIMEOUT); logs in $WORK"
   echo "check-fast: a timeout is not a pass. Rerun the timed-out job directly, or run the full suite for it"
-  echo "check-fast: (docs/operations/testing.md: web 'npm test', server scripts/test/test-server.sh, android scripts/app/android.sh)."
+  echo "check-fast: (docs/operations/testing.md: web 'npm test', server scripts/test/test-server.sh)."
   KEEP_WORK=1
   exit 124
 fi

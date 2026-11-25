@@ -50,54 +50,24 @@ class TrustedSourceRootTests(unittest.TestCase):
 
 
 class PathTests(unittest.TestCase):
-    def test_docs_do_not_start_macos(self):
+    def test_docs_do_not_start_a_build_lane(self):
         selected = paths.select(["docs/operations/testing.md"])
         self.assertTrue(selected["scripts"])
-        self.assertFalse(selected["apple"])
-        self.assertFalse(selected["android"])
         self.assertFalse(selected["web"])
         self.assertFalse(selected["server"])
         self.assertTrue(paths.select(["docs/assistant/prompts.md"])["server"])
         self.assertTrue(paths.select(["docs/protocol/protocol.md"])["server"])
 
     def test_platform_files_and_shared_inputs(self):
-        for platform, filename in [("server", "server/internal/hub/hub.go"), ("web", "web/src/App.tsx"), ("android", "android/app/build.gradle.kts"), ("apple", "apple/Shared/Hub.swift"), ("runtimes", "sdk/ts/src/index.ts")]:
+        for platform, filename in [("server", "server/internal/hub/hub.go"), ("web", "web/src/App.tsx"), ("runtimes", "sdk/ts/src/index.ts")]:
             self.assertTrue(paths.select([filename])[platform])
         self.assertTrue(paths.select(["scripts/mock/inbox_events.json"])["web"])
-        self.assertTrue(paths.select(["schema/extension/example.json"])["apple"])
-
-    def test_desktop_inputs_select_the_desktop_lane(self):
-        for filename in ["desktop/src/main.ts", "web/src/main.tsx", "scripts/mock/mock_hub.py", "scripts/mock/mock_domains.py",
-                         "scripts/mock/desktops_mock.py", "scripts/mock/github_mock.py", "scripts/mock/kb_selection_mock.py",
-                         "scripts/mock/mail_mock.py", "scripts/mock/hub_update_mock.py", "scripts/mock/imessage_mock.py",
-                         "scripts/mock/saved_prompts_mock.py", "scripts/mock/test_desktops_mock.py", "scripts/mock/stream_trace.py",
-                         "spec/desktop-bridge.d.ts",
-                         "server/cmd/password-wasm/main.go", "server/internal/passwordpake/pake.go", "server/go.mod", "server/go.sum"]:
-            self.assertTrue(paths.select([filename])["desktop"], filename)
-        self.assertFalse(paths.select(["server/internal/hub/hub.go"])["desktop"])
-        # The synthetic hub loads every module of mock_domains.DOMAINS as it starts, so each one is a lane input too.
-        registry = ast.parse((Path(paths.ROOT) / "scripts/mock/mock_domains.py").read_text())
-        domains = next(ast.literal_eval(node.value) for node in registry.body if isinstance(node, ast.Assign)
-                       and [getattr(t, "id", None) for t in node.targets] == ["DOMAINS"])
-        self.assertIn("desktops_mock", domains)
-        for name in domains:
-            self.assertTrue(paths.select(["scripts/mock/%s.py" % name])["desktop"], name)
+        self.assertTrue(paths.select(["schema/extension/example.json"])["runtimes"])
 
     def test_sdk_ts_sources_also_select_the_server_lane(self):
         # The trusted Deno adapter and the extension page tests bundle sdk/ts/src (#4221); the rest of sdk/ts is not.
         self.assertTrue(paths.select(["sdk/ts/src/wire.ts"])["server"])
         self.assertTrue(paths.select(["sdk/ts/src/wire.ts"])["runtimes"])
-        # The shared Rust core: its own lane, and Android, whose tests load it.
-        for filename in ["native/app-core/crates/persona-core/src/lib.rs", "spec/fixtures/continuity/append_and_gaps.json",
-                         "spec/fixtures/sync-driver/lifecycle.json", "scripts/ci/core.sh"]:
-            self.assertTrue(paths.select([filename])["core"], filename)
-        self.assertTrue(paths.select(["native/app-core/Cargo.lock"])["android"])
-        # The generated ArkTS codec and its host tests run in the same lane as the core they encode for (#7450).
-        for filename in ["harmony/entry/src/main/ets/core/rustcore/Wire.ts", "harmony/entry/src/main/ets/core/PersonaCore.ts",
-                         "harmony/entry/src/main/cpp/types/libpersona_core/index.d.ts", "harmony/tests/rustcore-wire.test.mjs",
-                         "harmony/tests/core-host/replay.test.mjs"]:
-            self.assertTrue(paths.select([filename])["core"], filename)
-        self.assertFalse(paths.select(["web/src/App.tsx"])["core"])
         self.assertFalse(paths.select(["sdk/ts/README.md"])["server"])
 
     def test_source_authoring_sdk_and_gate_paths_select_runtime_ci(self):
@@ -118,7 +88,7 @@ class PathTests(unittest.TestCase):
 
     def test_explicit_lanes_and_invalid_values(self):
         self.assertTrue(all(paths.select_lanes([], "all").values()))
-        selected = paths.select_lanes(["apple/Shared/Hub.swift"], "server, web")
+        selected = paths.select_lanes(["web/src/App.tsx"], "server, web")
         self.assertEqual({name for name, enabled in selected.items() if enabled}, {"server", "web"})
         for value in ("", "typo", "auto,web", "image", "web,"):
             with self.assertRaises(ValueError, msg=value):
@@ -141,25 +111,13 @@ class PathTests(unittest.TestCase):
         self.assertTrue(all(paths.select_lanes([], "all").values()))
         self.assertTrue(all(paths.select_lanes([], all_platforms=True).values()))
 
-    def test_unrelated_client_screens_do_not_start_server(self):
-        for filename in ("android/feature/settings/Screen.kt", "android/app/build.gradle.kts", "apple/Mac/Screen.swift"):
-            self.assertFalse(paths.select([filename])["server"], filename)
-        for filename in ("android/core/contracts/Message.kt", "apple/Shared/Models.swift", "apple/Persona/Views/Interactions/InteractionViews.swift"):
-            self.assertTrue(paths.select([filename])["server"], filename)
-
     def test_shard_implementation_changes_select_their_lane(self):
         self.assertTrue(paths.select(["scripts/ci/server-shards.py"])["server"])
         # server.sh composes every Go step's GOFLAGS with this helper (#10614).
         self.assertTrue(paths.select(["scripts/test/go_trimpath.sh"])["server"])
-        self.assertTrue(paths.select(["scripts/ci/android-shards.py"])["android"])
-
-    def test_the_callkit_guards_select_the_apple_lane(self):
-        # The Apple lane runs both against real builds (#9290).
-        for filename in ("scripts/release/check_no_callkit.py", "scripts/test/test_apple_no_callkit.py"):
-            self.assertTrue(paths.select([filename])["apple"], filename)
 
     def test_deleted_and_renamed_old_paths_are_relevant(self):
-        self.assertTrue(paths.select(["apple/Old.swift", "docs/archive/new.md"])["apple"])
+        self.assertTrue(paths.select(["web/src/Old.tsx", "docs/archive/new.md"])["web"])
         self.assertTrue(paths.select([".github/workflows/release.yml"])["image"])
         self.assertTrue(paths.select([".github/workflows/hub-image.yml"])["image"])
 
@@ -282,7 +240,7 @@ class ManualWorkflowTests(unittest.TestCase):
         self.assertIn('CI_FULL: ${{ inputs.full }}', selection)
         self.assertIn('if [ "$CI_FULL" = true ]; then', selection)
         self.assertIn('python3 scripts/ci/paths.py --all', selection)
-        for name in ('server', 'web', 'android', 'apple', 'core', 'runtimes', 'desktop', 'scripts'):
+        for name in ('server', 'web', 'runtimes', 'scripts'):
             block = re.split(r'\n  [a-z_]+:\n', ci.split('\n  ' + name + ':\n', 1)[1], maxsplit=1)[0]
             self.assertIn('needs: changes', block)
             self.assertIn('needs.changes.outputs.', block)
@@ -295,11 +253,11 @@ class ManualWorkflowTests(unittest.TestCase):
     def test_a_guard_failure_never_skips_a_platform_lane(self):
         root = Path(__file__).resolve().parents[2]
         jobs = yaml.load((root / '.github/workflows/ci.yml').read_text(), Loader=yaml.BaseLoader)['jobs']
-        platforms = ('server', 'web', 'android', 'apple', 'core', 'runtimes', 'desktop', 'scripts')
+        platforms = ('server', 'web', 'runtimes', 'scripts')
         # Display names other tools and people look for stay as they were; the old combined job is split in two.
-        self.assertEqual({name: jobs[name].get('name') for name in ('changes', 'guards', 'apple', 'required')},
+        self.assertEqual({name: jobs[name].get('name') for name in ('changes', 'guards', 'required')},
                          {'changes': 'Manual path selection', 'guards': 'Manual repository guards',
-                          'apple': 'iOS and Watch', 'required': 'CI required'})
+                          'required': 'CI required'})
         guards = jobs['guards']
         self.assertEqual(guards['needs'], 'changes')
         self.assertNotIn('if', guards)
@@ -378,9 +336,9 @@ class ManualWorkflowTests(unittest.TestCase):
     def test_stable_release_is_not_latest_before_complete_hub_publication(self):
         root = Path(__file__).resolve().parents[2]
         release = yaml.load((root / '.github/workflows/release.yml').read_text(), Loader=yaml.BaseLoader)
-        # When Darwin signing is enabled, its CI job is the complete hub artifact producer. Neither it nor desktop
-        # package attachment owns the stable Latest pointer; verified hub coordination owns that after reuse.
-        for job in ('darwin-cli-sign', 'desktop-publish'):
+        # When Darwin signing is enabled, its CI job is the complete hub artifact producer. It does not own the stable
+        # Latest pointer; verified hub coordination owns that after reuse.
+        for job in ('darwin-cli-sign',):
             text = yaml.dump(release['jobs'][job])
             self.assertNotIn('release edit', text)
             self.assertNotIn('--latest', text)
@@ -480,7 +438,7 @@ raise SystemExit(2)
 
 class RequiredTests(unittest.TestCase):
     def needs(self):
-        outputs = {name: "false" for name in ("server", "web", "android", "apple", "core", "runtimes", "desktop", "scripts")}
+        outputs = {name: "false" for name in ("server", "web", "runtimes", "scripts")}
         outputs["scripts"] = "true"
         needs = {name: {"result": "skipped"} for name in outputs}
         needs["scripts"] = {"result": "success"}
@@ -500,17 +458,8 @@ class RequiredTests(unittest.TestCase):
             needs["scripts"]["result"] = result
             self.assertTrue(required.failures(needs))
         needs = self.needs()
-        del needs["changes"]["outputs"]["apple"]
+        del needs["changes"]["outputs"]["web"]
         self.assertTrue(required.failures(needs))
-
-    def test_mac_removal_keeps_ios_required(self):
-        needs = self.needs()
-        needs['changes']['outputs']['apple'] = 'true'
-        needs['apple']['result'] = 'success'
-        self.assertEqual(required.failures(needs), [])
-        for ios_result in ('failure', 'cancelled', 'skipped', None):
-            needs['apple']['result'] = ios_result
-            self.assertTrue(required.failures(needs))
 
     def test_path_selection_failure_never_passes(self):
         needs = self.needs()
@@ -533,83 +482,6 @@ class RequiredTests(unittest.TestCase):
         needs["scripts"]["result"] = "failure"
         self.assertEqual(required.failures(needs),
                          ["repository guards did not succeed: failure", "scripts: selected but failure"])
-
-
-class DesktopWorkflowTests(unittest.TestCase):
-    def test_desktop_lane_and_explicit_unsigned_default(self):
-        root = Path(__file__).resolve().parents[2]
-        ci = (root / '.github/workflows/ci.yml').read_text()
-        self.assertIn('uses: ./.github/workflows/desktop-test.yml', ci)
-        self.assertIn('desktop: ${{ steps.paths.outputs.desktop }}', ci)
-        self.assertIn('needs: [changes, guards, server, web, android, apple, core, runtimes, desktop, scripts]', ci)
-        workflow = yaml.load((root / '.github/workflows/desktop-test.yml').read_text(), Loader=yaml.BaseLoader)
-        self.assertEqual(set(workflow['jobs']), {'linux', 'macos', 'windows', 'update'})
-        self.assertEqual(workflow['on']['workflow_call'], '')
-        self.assertEqual(workflow['on']['workflow_dispatch'], '')
-        text = (root / '.github/workflows/desktop-test.yml').read_text()
-        self.assertNotIn('inputs.signed', text)
-        self.assertNotIn('CSC_LINK', text)
-        unsigned = yaml.load((root / 'desktop/electron-builder.unsigned.yml').read_text(), Loader=yaml.BaseLoader)
-        self.assertEqual(unsigned['appId'], 'com.example.persona.desktop')
-        self.assertEqual(unsigned['mac']['identity'], 'null')
-        self.assertEqual(unsigned['mac']['notarize'], 'false')
-        self.assertEqual(unsigned['forceCodeSigning'], 'false')
-        self.assertEqual(unsigned['publish'], 'null')
-        production = (root / 'desktop/electron-builder.yml').read_text()
-        for fuse in ('runAsNode: false', 'enableCookieEncryption: true', 'enableNodeOptionsEnvironmentVariable: false',
-                     'enableNodeCliInspectArguments: false', 'enableEmbeddedAsarIntegrityValidation: true',
-                     'onlyLoadAppFromAsar: true', 'grantFileProtocolExtraPrivileges: false'):
-            self.assertIn(fuse, production)
-        self.assertIn('arch: [universal]', production)
-        self.assertIn('target: nsis', production)
-        for platform in ('server', 'web', 'android', 'apple', 'core', 'runtimes', 'desktop', 'scripts'):
-            self.assertIn(f'"{platform}"', (root / 'scripts/ci/required.py').read_text())
-
-
-class AppleWorkflowTests(unittest.TestCase):
-    def test_native_mac_is_removed_and_ios_stays_required(self):
-        root = Path(__file__).resolve().parents[2]
-        workflow = (root / '.github/workflows/ci.yml').read_text()
-        ios = workflow.split('\n  apple:\n', 1)[1].split('\n  core:\n', 1)[0]
-        self.assertIn('    needs: changes\n', ios)
-        self.assertIn("    if: needs.changes.outputs.apple == 'true'", ios)
-        self.assertIn('    uses: ./.github/workflows/apple-test.yml', ios)
-        self.assertIn('      lane: ios', ios)
-        self.assertNotIn('apple_macos', workflow)
-        gate = workflow.split('\n  required:\n', 1)[1]
-        self.assertIn('needs: [changes, guards, server, web, android, apple, core, runtimes, desktop, scripts]', gate)
-        self.assertNotIn('apple_macos', gate)
-        self.assertNotIn('continue-on-error:', workflow)
-
-    def test_reusable_lane_uses_quoted_environment_not_script_interpolation(self):
-        root = Path(__file__).resolve().parents[2]
-        workflow = (root / '.github/workflows/apple-test.yml').read_text()
-        self.assertIn('options: [ios, ios18, ios-build, packages, ios-focused, ios-regressions, ios-ipad-diagnostic]', workflow)
-        self.assertIn("if: github.event_name == 'workflow_dispatch' && inputs.lane == 'ios18'", workflow)
-        floor = workflow.split('\n  ios18:\n', 1)[1]
-        for required in ('runs-on: macos-15', '/Applications/Xcode_26.3.app/Contents/Developer',
-                         'run: scripts/ci/apple.sh ios18', 'timeout-minutes: 150'):
-            self.assertIn(required, floor)
-        self.assertIn('APPLE_CI_LANE: ${{ inputs.lane }}', workflow)
-        self.assertIn('run: scripts/ci/apple.sh "$APPLE_CI_LANE"', workflow)
-        self.assertNotIn('continue-on-error:', workflow)
-        script = (root / 'scripts/ci/apple.sh').read_text()
-        package_gate = script.split("ci_run 'PersonaKit unit tests'", 1)[0].rsplit('\nif ', 1)[1]
-        self.assertIn('[ "$LANE" = ios ]', package_gate)
-        for required_batch in ('Unsigned iOS and embedded watch/extensions build',
-                               'iOS offline unit and design/token tests',
-                               'iOS HTML card tests (separate batch)',
-                               'iOS bounded HTML security tests (separate batch)'):
-            self.assertIn(required_batch, script)
-
-    def test_resolved_variant_is_staged_only_in_the_disposable_source(self):
-        root = Path(__file__).resolve().parents[2]
-        script = (root / 'scripts/ci/apple.sh').read_text()
-        for required in ('scripts/ci/apple_resolved.py',
-                         '--tracked "$CI_ROOT/apple/Packages/PersonaSSH/Package.resolved"',
-                         '--staged "$SOURCE/apple/Packages/PersonaSSH/Package.resolved"',
-                         '--meta "$PERSONA_META_WEARABLES"'):
-            self.assertIn(required, script)
 
 
 class PostgresCleanupTests(unittest.TestCase):

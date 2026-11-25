@@ -1,5 +1,5 @@
-"""check-fast.sh on changes outside scripts/: docs, markdown, apple/, deploy/docker/, the wire schemas and shared
-fixtures, design tokens and icons select the scripts/test suites that guard them, and migrations the frozen
+"""check-fast.sh on changes outside scripts/: docs, markdown, deploy/docker/, the wire schemas and shared
+fixtures select the scripts/test suites that guard them, and migrations the frozen
 migrations check. And the server's repo-wide guard step names only tests and packages that exist (#12842).
 
 Split from test_check_fast.py (#11017), whose throwaway repository and helpers it uses, so each file stays well under
@@ -134,7 +134,6 @@ class CheckFastGuardSuitesTests(ScriptsRepoTestCase):
         self.assertIn("PASS     scripts/test/test_doc_go_paths.py", out)
         self.assertIn("PASS     scripts/test/test_doc_sections.py", out)
         self.assertIn("PASS     scripts/test/test_doc_wire.py", out)
-        self.assertNotIn("test_apple_l10n.py", out)
         self.assertNotIn("test_docker_entrypoint.py", out)
 
     def test_a_top_level_markdown_change_runs_the_doc_path_suites(self):
@@ -227,28 +226,6 @@ class CheckFastGuardSuitesTests(ScriptsRepoTestCase):
                 self.assertIn("FAIL     scripts/test/test_doc_sections.py", out)
                 self.assertNotIn("test_doc_paths.py", out)
 
-    def test_an_apple_change_runs_the_l10n_suite(self):
-        self.break_suite("test_apple_l10n.py")
-        self.commit_on_top("scripts/test/test_apple_no_callkit.py", PASSING, "base")
-        self.write("apple/Persona/Views/Settings/Options.swift", 'let s = "中文"\n')
-        code, out = self.check_fast()
-        self.assertEqual(1, code, out)
-        self.assertIn("FAIL     scripts/test/test_apple_l10n.py", out)
-        self.assertIn("PASS     scripts/test/test_apple_no_callkit.py", out)
-        self.assertIn("SKIP  apple/** builds and tests", out)  # the Mac-only checks are still reported
-        self.assertNotIn("test_doc_paths.py", out)
-
-    def test_an_apple_or_xcconfig_change_runs_the_callkit_guard(self):
-        # It reads every Apple source and build file, and the xcconfig scripts/persona_config.py writes (#9290).
-        self.break_suite("test_apple_no_callkit.py")
-        for path in ("apple/Persona/Calls/Call.swift", "scripts/persona_config.py"):
-            with self.subTest(path=path):
-                self.write(path, "changed\n")
-                code, out = self.check_fast(path=self.toolchain_without_node_and_go())
-                self.git("clean", "-fdq", "--", path.split("/", 1)[0])
-                self.assertEqual(1, code, out)
-                self.assertIn("FAIL     scripts/test/test_apple_no_callkit.py", out)
-
     def plans(self, paths):
         """check-fast's plan of each path on its own ({path: [lines]}), from --dry-run --changed-from --each."""
         self.write("listed.txt", "".join(p + "\n" for p in paths))
@@ -262,46 +239,6 @@ class CheckFastGuardSuitesTests(ScriptsRepoTestCase):
                 current.append(line.strip())
         self.assertEqual(sorted(paths), sorted(plans), out)
         return plans
-
-    def test_what_the_development_build_suite_reads_runs_it(self):
-        # test_apple_dev_build.py reads the project, the includes its xcodegen dumps turn on, the scripts it names (each
-        # that generates a project or builds the Rust core, and the lean build's note), and runs some of them (#11250).
-        # The scripts are taken from the suite itself, so one it starts to name is held to the map too.
-        self.commit_on_top("scripts/test/test_apple_dev_build.py", PASSING, "base")
-        suite = (ROOT / "scripts/test/test_apple_dev_build.py").read_text()
-        scripts = sorted(set(re.findall(r"'((?:scripts|native)/[\w./-]+\.sh)'", suite)))
-        self.assertIn("scripts/app/lean-build-note.sh", scripts)
-        self.assertIn("scripts/diag/stream-scroll/run-ios.sh", scripts)
-        project = ["apple/project.yml", "apple/app-entitlements.yml", "apple/watch-and-share.yml",
-                   "apple/lean-dev-build.yml", "apple/siri-calls.yml"]
-        others = ["apple/homekit-entitlements.yml", "scripts/app/android.sh", "native/app-core/scripts/build-apple.sh"]
-        plans = self.plans(scripts + project + others)
-        for path, lines in plans.items():
-            with self.subTest(path=path):
-                self.assertEqual(path not in others, "queued: scripts/test/test_apple_dev_build.py" in lines, lines)
-                self.assertFalse([line for line in lines if line.startswith("INFO  no fast check maps to")], lines)
-
-    def test_token_inputs_run_the_token_suite(self):
-        self.commit_on_top("scripts/assets/test_gen_tokens.py", FAILING, "base")
-        for path in ("spec/tokens/dimension.json", "apple/Shared/Design/Theme.swift",
-                     "android/core/designsystem/src/main/kotlin/persona/core/designsystem/Tokens.kt"):
-            with self.subTest(path=path):
-                self.write(path, "changed\n")
-                code, out = self.check_fast(path=self.toolchain_without_node_and_go())
-                self.git("clean", "-fdq", "--", path.split("/", 1)[0])
-                self.assertEqual(1, code, out)
-                self.assertIn("FAIL     scripts/assets/test_gen_tokens.py", out)
-
-    def test_icon_inputs_run_the_icon_suite(self):
-        self.commit_on_top("scripts/assets/test_gen_icon_meanings.py", FAILING, "base")
-        for path in ("spec/icons/meanings.json", "apple/Shared/Design/Icons.swift",
-                     "android/core/designsystem/src/main/kotlin/persona/core/designsystem/icons/PersonaIcons.kt"):
-            with self.subTest(path=path):
-                self.write(path, "changed\n")
-                code, out = self.check_fast(path=self.toolchain_without_node_and_go())
-                self.git("clean", "-fdq", "--", path.split("/", 1)[0])
-                self.assertEqual(1, code, out)
-                self.assertIn("FAIL     scripts/assets/test_gen_icon_meanings.py", out)
 
     def test_a_docker_change_runs_the_entrypoint_suite(self):
         self.break_suite("test_docker_entrypoint.py")
