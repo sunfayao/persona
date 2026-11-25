@@ -8,7 +8,6 @@ import (
 	"testing/synctest"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 // shutdownOrderStore records the production cleanup order. Closing saved also releases the finite node worker.
@@ -101,30 +100,4 @@ func TestHubCleanupDrainsHelloBeforeNodeJoinAndDatabaseClose(t *testing.T) {
 			t.Error("the database closed before the hello-writer shutdown step")
 		}
 	})
-}
-
-type firstPhoneWriteGate struct {
-	*helloStore
-	started     chan struct{}
-	released    chan struct{}
-	startOnce   sync.Once
-	releaseOnce sync.Once
-}
-
-func newFirstPhoneWriteGate() *firstPhoneWriteGate {
-	base := newHelloStore()
-	base.release()
-	return &firstPhoneWriteGate{helloStore: base, started: make(chan struct{}), released: make(chan struct{})}
-}
-
-func (s *firstPhoneWriteGate) ReplacePhoneTools(ctx context.Context, registration db.PhoneToolRegistration) error {
-	first := false
-	s.startOnce.Do(func() {
-		first = true
-		close(s.started)
-	})
-	if first {
-		<-s.released
-	}
-	return s.helloStore.ReplacePhoneTools(ctx, registration)
 }

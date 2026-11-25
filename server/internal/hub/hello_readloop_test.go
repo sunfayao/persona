@@ -279,4 +279,3 @@ func TestLocaleBatchUsesReceiptTimesForPruning(t *testing.T) {
 		t.Fatalf("the batch did not preserve receipt times and newer history: %+v", saved)
 	}
 }
-
