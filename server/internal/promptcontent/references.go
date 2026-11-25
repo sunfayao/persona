@@ -69,7 +69,7 @@ func Files(text string) ([]File, error) {
 				return nil, ErrFile
 			}
 			switch a.Name.Local {
-			case "kind", "title", "url", "path", "machine", "cwd", "launcher", "runtime":
+			case "kind", "title", "url", "path", "machine", "cwd", "launcher", "runtime", "inline_label", "inline_start":
 			default:
 				return nil, ErrFile
 			}

@@ -81,7 +81,7 @@ func References(text string) ([]string, error) {
 				return nil, ErrReference
 			}
 			switch key {
-			case "kind", "title", "url", "ref":
+			case "kind", "title", "url", "ref", "inline_label", "inline_start":
 			default:
 				return nil, ErrReference
 			}
