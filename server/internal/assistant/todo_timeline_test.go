@@ -16,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistant/todo/timeline"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 

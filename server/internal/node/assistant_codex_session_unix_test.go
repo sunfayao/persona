@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
 	"golang.org/x/sys/unix"
 )
 

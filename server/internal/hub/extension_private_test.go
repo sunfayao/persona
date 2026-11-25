@@ -16,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"

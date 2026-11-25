@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 

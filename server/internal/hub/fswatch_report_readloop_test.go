@@ -112,7 +112,7 @@ func newFSReadLoopFixture(t *testing.T) *fsReadLoopFixture {
 	t.Helper()
 	h := newTestHub(t)
 	n := newHeldFSNode()
-	m := pipeNode(t, h, "m1", rpc.Handler(n.handle))
+	m := answerNode(t, h, "m1", rpc.Handler(n.handle))
 	srv := httptest.NewTLSServer(h.routes())
 	t.Cleanup(func() { srv.CloseClientConnections(); srv.Close() })
 	mh := &testHub{h: h, srv: srv}
@@ -522,7 +522,7 @@ func TestHubShutdownJoinsFSWatchAndTheLastReportSave(t *testing.T) {
 	s := newReportStore(true)
 	h.store = s
 	n := newHeldFSNode()
-	pipeNode(t, h, "m1", rpc.Handler(n.handle))
+	answerNode(t, h, "m1", rpc.Handler(n.handle))
 	c := fsClient(h, roleFull)
 	defer func() {
 		h.dropClient(c)

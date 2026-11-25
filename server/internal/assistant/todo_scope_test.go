@@ -32,7 +32,7 @@ const (
 // scopeSession is a session of the owner's, idle.
 func scopeSession(id, title, cwd string) proto.Session {
 	c := proto.Session{SessionID: id, Title: title, Cwd: cwd, Status: proto.StatusIdle, State: proto.StateIdle}
-	if identity.InHealthSpace(cwd) {
+	if identity.SpaceAt(cwd) != "" {
 		c.Space = testSpace
 	}
 	return c
