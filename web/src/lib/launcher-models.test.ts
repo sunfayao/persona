@@ -206,11 +206,20 @@ describe("启动时发什么", () => {
     expect(startPicks({ agent: "claude", list: null, model: "opus", effort: "" })).toEqual({});
   });
 
-  it("sends an effort only to Claude Code and only one the model takes", () => {
+  it("sends only supported effort on each model and launch route", () => {
     expect(startPicks({ agent: "claude", list: claude, model: "gateway/glm-5.3", effort: "high" })).toEqual({ model: "gateway/glm-5.3", effort: "high" });
     expect(startPicks({ agent: "claude", list: claude, model: "haiku", effort: "high" })).toEqual({ model: "haiku" });
     expect(startPicks({ agent: "claude", list: null, model: "", effort: "max" })).toEqual({ effort: "max" });
     expect(startPicks({ agent: "codex", list: codex, model: "gpt-5.5-codex", effort: "high" })).toEqual({ model: "gpt-5.5-codex" });
+    const supported = { ...codex, supports_start_effort: true };
+    expect(startPicks({ agent: "codex", list: supported, model: "gpt-5.5-codex", effort: "high" }))
+      .toEqual({ model: "gpt-5.5-codex", effort: "high" });
+    expect(startPicks({ agent: "codex", list: supported, model: "gpt-5.5-codex", effort: "ultra" }))
+      .toEqual({ model: "gpt-5.5-codex" });
+    expect(startPicks({ agent: "codex", list: supported, model: "typed-model", effort: "high" }))
+      .toEqual({ model: "typed-model" });
+    expect(startPicks({ agent: "codex", list: { ...supported, locked: "fixed" }, model: "gpt-5.5-codex", effort: "high" }))
+      .toEqual({});
   });
 });
 

@@ -151,6 +151,8 @@ type LauncherModels struct {
 	Locked string `json:"locked,omitempty"`
 	// SupportsStartModel: the node verified a new native omp session can take a model in this host.
 	SupportsStartModel bool `json:"supports_start_model,omitempty"`
+	// SupportsStartEffort: this Codex launcher accepts a creation-time effort from its advertised catalog.
+	SupportsStartEffort bool `json:"supports_start_effort,omitempty"`
 }
 
 // ModelPrice is the catalog's reference price in USD per one million tokens. It is display metadata, not a gateway quote.

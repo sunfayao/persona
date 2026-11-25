@@ -106,7 +106,8 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       const startWithPrompt = async (tryTrae = false) => {
         const agent = agentId(launch.agentType ?? launch.launcher);
         const trae = agent === "traex" || tryTrae;
-        const takesAttachments = agent === "codex" || launch.launcher === "codex-app" || trae;
+        const codex = agent === "codex" || launch.launcher === "codex-app";
+        const takesAttachments = codex || trae;
         if (!takesAttachments && launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
         const out = launch.attachments.length ? await prepareOutgoing() : { text: launch.text, images: [] };
         if (!getState().launches[id]) controller.abort();
@@ -117,6 +118,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
         try {
           r = await launchOp<{ session: Session }>("/sessions", launch.startPromptOpId, controller.signal, {
             ...target, name_hint: nameHint, prompt: out.text || undefined, images: out.images.length ? out.images : undefined,
+            effort: codex && launch.inlinePrompt ? launch.effort || undefined : undefined,
           });
         } catch (e) {
           if (!out.text && !out.images.length && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "traex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));

@@ -125,6 +125,28 @@ func TestCodexStartWithoutAMessage(t *testing.T) {
 	}
 }
 
+func TestCodexEffortOnAStartWithoutAMessage(t *testing.T) {
+	n, _, _, _ := codexWaitHerdr(t)
+	res, err := request(t, n, "session.start", map[string]any{
+		"cwd": "~/proj", "launcher": "codex", "agent_type": "codex", "model": "gpt-test", "effort": "xhigh",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := decodeSessions(t, []any{res["session"]})[0]
+	if !row.AwaitingFirstMessage {
+		t.Fatalf("not waiting for a first message: %+v", row)
+	}
+	want := []string{"codex", "--model", "gpt-test", "-c", "model_reasoning_effort=xhigh"}
+	if !slices.Equal(ran, want) {
+		t.Fatalf("waiting start ran %q, want %q", ran, want)
+	}
+	state, ok := n.state.get(row.SessionID)
+	if !ok || state.Model != "gpt-test" || state.ModelEffort != "xhigh" {
+		t.Fatalf("waiting row lost its model and effort: %+v", state)
+	}
+}
+
 // The first message from the app: typed once the box is up, as one paste of exactly what was sent, and answered with
 // the thread it began, which the pane lists from then on; requests naming the row reach the thread.
 func TestCodexFirstMessageFromTheApp(t *testing.T) {

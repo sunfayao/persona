@@ -160,7 +160,7 @@ func TestCodexStartWithOnlyAnImage(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"codex": {"codex"}})
 	n, _, cwd, _ := codexStartHerdr(t, 20*time.Millisecond)
 	result, err := request(t, n, "session.start", map[string]any{
-		"cwd": cwd, "launcher": "codex", "agent_type": "codex",
+		"cwd": cwd, "launcher": "codex", "agent_type": "codex", "model": "gpt-test", "effort": "high",
 		"images": []proto.Image{{Mime: "image/png", Data: "aW1hZ2U="}},
 	})
 	if err != nil {
@@ -169,6 +169,10 @@ func TestCodexStartWithOnlyAnImage(t *testing.T) {
 	session := decodeSessions(t, []any{result["session"]})[0]
 	if session.SessionID != startThread || session.AwaitingFirstMessage {
 		t.Fatalf("image-only start returned %+v", session)
+	}
+	want := []string{"codex", "--model", "gpt-test", "-c", "model_reasoning_effort=high"}
+	if !slices.Equal(ran, want) {
+		t.Fatalf("image-only start ran %q, want %q", ran, want)
 	}
 	_, text, images := codexThreadFirstInput(rolloutPath(n.codexHome(), startThread))
 	if text != "" || len(images) != 1 {

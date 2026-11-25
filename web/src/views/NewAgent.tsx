@@ -28,7 +28,7 @@ import { agentId, providerAgent } from "../lib/agent-kind";
 import { modelPurpose, modelSummary, type ModelBinding } from "../lib/model-config";
 import { formatFollowDetail, resolveFollowBinding, resolvedStartModel } from "../lib/new-agent-follow";
 import {
-  effortChoices, effortRule, fitEffort, followedBinding, terminalTraeStart, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startCatalogHost, startPicks, takesEffort, tierLeftOut, type PickerTier,
+  effortChoices, effortRule, fitEffort, followedBinding, terminalTraeStart, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startCatalogHost, startPicks, tierLeftOut, type PickerTier,
   type UnavailableLauncher,
 } from "../lib/launcher-models";
 import { choiceCarries, type ModelChoice } from "../lib/new-agent-panel";
@@ -567,7 +567,7 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
     const targetLauncher = launchers.find((l) => l.name === x.launcher);
     const targetListed = listedModes(targetLauncher);
     const targetAgent = launcherAgent(x.launcher, launchers, undefined);
-    const targetClaudeModes = takesEffort(targetAgent) && !targetListed;
+    const targetClaudeModes = (targetAgent === "claude" || targetAgent === "agy") && !targetListed;
     if (targetListed) {
       setMode(base.mode);
       setProviderMode(x.permission_mode && targetListed.includes(x.permission_mode) ? x.permission_mode : "");
@@ -606,9 +606,8 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
       setTier(null);
     }
   }, [open, opensIn, nativeOmp, listLauncher, agent]);
-  // what a start on it takes besides the model (#8261): Claude Code's modes and efforts, or the permission modes a
-  // launcher lists (Paseo's other providers) and the efforts its model lists, or neither (Codex keeps its own)
-  const claudeModes = takesEffort(agent) && !listedModes(listEntry);
+  // Permission mode choices are independent of the model's reasoning effort.
+  const claudeModes = (agent === "claude" || agent === "agy") && !listedModes(listEntry);
   const providerModes = claudeModes || nativeOmp ? undefined : listedModes(listEntry);
   // Codex CLI can omit the first message when prompt_optional is advertised. The App needs one to expose its new chat.
   const codex = agent === "codex";
@@ -714,9 +713,12 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
   const helpBlock = helpLauncher ? launcherBlock(helpLauncher) : null;
   // what a launcher ID is called (#5029): this computer's launchers first, then the model configuration's providers
   const names: Named[] = [...launchers, ...providerNames];
-  const efforts = effortChoices(models.list, model, followed, effortRule(agent, listEntry));
+  const efforts = effortChoices(models.list, model, followed, effortRule(agent, listEntry, models.list));
   const effortsKey = efforts.join(" ");
-  useEffect(() => { setEffort((e) => fitEffort(e, effortsKey ? effortsKey.split(" ") : [])); }, [effortsKey]);
+  const checkingEffort = agent === "codex" && models.list === undefined && !models.error;
+  useEffect(() => {
+    if (!checkingEffort) setEffort((e) => fitEffort(e, effortsKey ? effortsKey.split(" ") : []));
+  }, [checkingEffort, effortsKey]);
   // offered with Claude Code whose effort can be set here; grayed when this computer's Claude Code is known to be too old
   const ultracodeShown = !desktopStart && !loadingModels && efforts.length > 0 && ultracodeStartOffered(features, agent);
   // what of the picked preset this launcher can't take, said once its list is in
@@ -749,7 +751,7 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
     presetModeRestore.current = null;
     touched.current = false;
     carrying.current = null;
-    setEffort(setup.agent_type === "claude" ? setup.effort : "");
+    setEffort(setup.agent_type === "claude" || setup.agent_type === "codex" ? setup.effort : "");
     pendingSetup.current = null;
     if (workspacePicked) clearWorkspace();
     if (setup.machine !== mid) {
@@ -804,13 +806,14 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
       else localStorage.removeItem(`new.mode.${mid}`);
     }
     // this start as a recent setup (#2134): the folder picked (not the worktree made from it), the model and effort sent;
-    // mode and effort only for Claude Code
+    // mode is remembered only for Claude Code
     const claude = agent === "claude";
-    const setup = { machine: mid, cwd: dir, launcher, model: picks.model ?? "", agent_type: agent, mode: claude ? permissionMode : "", effort: claude ? (picks.effort ?? "") : "" };
+    const setup = { machine: mid, cwd: dir, launcher, model: picks.model ?? "", agent_type: agent,
+      mode: claude ? permissionMode : "", effort: claude || codex ? (picks.effort ?? "") : "" };
     // only an explicit "on" is sent: off is what a new Claude is anyway
     const ultra = ultracodeShown && !ultracodeBlocked && ultracode ? true : undefined;
     // what every start of this sheet goes with (each run of a comparison too)
-    const launcherDefaultEffort = agent === "agy" && !!launcher && !picks.effort;
+    const launcherDefaultEffort = (agent === "agy" || (codex && models.list?.supports_start_effort)) && !!launcher && !picks.effort;
     const target = { launcher: projectDocument || desktopStart ? listLauncher : launcher, ...picks,
       nameHint: projectDocument ? `${projectDocument.snapshot.project}/${projectDocument.snapshot.document} r${projectDocument.snapshot.revision}` : undefined,
       launcherDefaultEffort: launcherDefaultEffort || undefined, permissionMode: permissionMode || undefined,
@@ -1332,7 +1335,7 @@ function RecentSetups({ cards, machines, names, picked, onPick, onForget, onClea
             claude && s.mode && (s.mode === BYPASS_MODE
               ? <span key="p" className="inline-flex items-center gap-0.5 font-medium text-orange"><Icon name="warning" size={11} className="shrink-0" />{modeTitle(s.mode)}</span>
               : modeTitle(s.mode)),
-            claude && s.effort && effortTitle(s.effort),
+            (claude || s.agent_type === "codex") && s.effort && effortTitle(s.effort),
             !c.online && t("machines.offline"),
           ].filter(Boolean);
           return (

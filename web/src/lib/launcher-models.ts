@@ -50,6 +50,8 @@ export interface LauncherModels {
   locked?: string;
   /** The node accepts a model when starting the native omp launcher on the queried host (#11964). */
   supports_start_model?: boolean;
+  /** This Codex launcher accepts an effort on creation for models whose levels it lists. */
+  supports_start_effort?: boolean;
 }
 
 /** What "Model configuration" runs when a launcher picker is left alone (GET /machines/{mid}/launchers's `default`, #2455):
@@ -241,18 +243,17 @@ export function listedModes(l: Pick<Launcher, "permission_modes"> | undefined): 
 }
 
 /** How a start takes a thinking effort: `any` (Claude Code, Antigravity: its model's levels, all of them while its list
- *  doesn't say), `listed` (a launcher that lists its permission modes, `listedModes`: only the levels its model lists,
- *  #8261), `none` (Codex and the rest keep their own). */
+ *  doesn't say), `listed` (a supported Codex start or a launcher that lists its permission modes, #8261: only the
+ *  levels its model lists), or `none` (the launcher keeps its own). */
 export type EffortRule = "any" | "listed" | "none";
 
-export function effortRule(agent: string, l?: Pick<Launcher, "permission_modes">): EffortRule {
+export function effortRule(agent: string, l?: Pick<Launcher, "permission_modes">, list?: LauncherModels | null): EffortRule {
   if (agent === "claude" || agent === "agy") return "any";
-  return listedModes(l) ? "listed" : "none";
+  return (agent === "codex" && list?.supports_start_effort && !list.locked) || listedModes(l) ? "listed" : "none";
 }
 
-/** Claude Code and Antigravity start with a thinking effort and permission mode, a launcher that lists its modes with
- *  the effort its model lists (`effortRule`); Codex and the rest keep their own. */
-export const takesEffort = (agent: string, l?: Pick<Launcher, "permission_modes">) => effortRule(agent, l) !== "none";
+/** Whether this start can select an effort, independent of its permission modes. */
+export const takesEffort = (agent: string, l?: Pick<Launcher, "permission_modes">, list?: LauncherModels | null) => effortRule(agent, l, list) !== "none";
 
 export function defaultModel(models: AgentModel[]): AgentModel | undefined {
   return models.find((m) => m.default);
@@ -341,7 +342,7 @@ export function startPicks(o: StartModelOptions & { model: string; effort: strin
   } else if (o.model && o.list !== null && typedModelOffered(o.agent, o.list) && validModelId(o.model)) {
     out.model = o.model;
   }
-  const rule = effortRule(o.agent, o.launcher);
+  const rule = effortRule(o.agent, o.launcher, o.list);
   if (o.effort && rule !== "none" && effortChoices(o.list, out.model ?? "", o.followed, rule).includes(o.effort)) out.effort = o.effort;
   return out;
 }
