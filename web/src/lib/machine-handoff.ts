@@ -7,7 +7,6 @@ import { t } from "../i18n";
 import { closeBusy } from "./agent-archives";
 import { api, errorText, sessionPath } from "./api";
 import { pickedLauncher, pickedModel } from "./assistant-chat";
-import { conversationPage } from "./conversation-page";
 import { sessionMenuActions, sessionTitle, stateOf } from "./format";
 import { chosenManager } from "./manager-choice";
 import { askPersona, outboxKey, sendToSession } from "./outbox";
@@ -49,7 +48,7 @@ export async function sendToPersona(text: string, notify: (text: string, tone: "
     return true;
   }
   const { machine_id: mid, main: sid } = a;
-  const open = { label: t("lib-machine-handoff.open_chat"), run: () => navigate(conversationPage(sid, mid, chosenManager() ?? undefined)) };
+  const open = { label: t("lib-machine-handoff.open_chat"), run: () => navigate({ name: "persona" }) };
   const key = outboxKey(mid, sid);
   const ok = await sendToSession(mid, sid, { text }, { launcher: pickedLauncher(key), model: pickedModel(key) });
   notify(ok ? t("lib-machine-handoff.sent") : t("lib-machine-handoff.not_sent"), ok ? "ok" : "error", open);

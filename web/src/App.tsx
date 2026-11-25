@@ -22,7 +22,7 @@ import { resolveSessionLink, sessionLinkRoute, type SessionLink } from "./lib/se
 import { engineSwitchHome } from "./lib/engine-switch";
 import { followChildSession, followSubagentLink, splitSubagentLink } from "./lib/subagent-link";
 import { href, inWorkView, navigate, onLinkClick, type Route, routePath, useRoute, withWorkView } from "./lib/router";
-import { agentChatKey, noteChatShown, personaChatKey } from "./lib/recent-chats";
+import { agentChatKey, noteChatShown } from "./lib/recent-chats";
 import { ago, sessionTitle, shortPath } from "./lib/format";
 import type { Session } from "./lib/types";
 import { useTabLookup } from "./lib/tab-lookup";
@@ -79,7 +79,6 @@ const MachineDetail = lazyPage(() => import("./views/machines/MachineDetail").th
 const SpacePage = lazyPage(() => import("./views/SpacePage").then((m) => m.SpacePage), { routes: ["space"] });
 const Settings = lazyPage(() => import("./views/Settings").then((m) => m.Settings), { routes: ["settings"] });
 const Health = lazyPage(() => import("./views/health/Health").then((m) => m.Health), { routes: ["health"] });
-const History = lazyPage(() => import("./views/assistant/History").then((m) => m.History), { routes: ["history"] });
 const Profile = lazyPage(() => import("./views/assistant/Profile").then((m) => m.Profile), { routes: ["profile"] });
 const Routines = lazyPage(() => import("./views/assistant/Routines").then((m) => m.Routines), { routes: ["routines"] });
 const Inbox = lazyPage(() => import("./views/inbox/Inbox").then((m) => m.Inbox), { routes: ["inbox"] });
@@ -480,23 +479,20 @@ function Shell() {
   const workPaneAvailable = (at: { mid: string; sid: string }) => workPane.current?.mid === at.mid && workPane.current?.sid === at.sid;
   useShortcuts({ route, pane, narrow, toggleDrawer: toggle, closeDrawer: close, workPaneAvailable });
 
-  useEffect(() => setDrawer(false), [route.name, pane ? pane.sid : route.name === "persona" ? route.sid : route.name === "agents" ? route.id : ""]);
+  useEffect(() => setDrawer(false), [route.name, pane ? pane.sid : route.name === "agents" ? route.id : ""]);
   // a session's files / Git belong to that conversation: moving to another page closes them (a link and a task stay),
-  // and coming back to it opens them again where they were (#5150, lib/panel-memory.ts); a Persona chat's panel too
+  // and coming back to it opens them again where they were (#5150, lib/panel-memory.ts); the main conversation's panel too
   // (#6199)
-  const chat = route.name === "persona" ? (route.sid ?? "") : undefined;
-  // the conversation on the page goes first among the recently opened ones, ⌘K's first group (#2191): an Agent's, or a
-  // Persona conversation (the main one when the page names none); any other page shows none
-  const personaMain = useStore((s) => s.assistant?.main ?? "");
-  const personaShown = route.name === "persona" ? (route.sid || personaMain) : "";
-  const shownChat = pane ? agentChatKey(pane.mid, pane.sid) : personaShown ? personaChatKey(personaShown) : "";
+  const chat = route.name === "persona" ? "" : undefined;
+  // the Agent on the page goes first among the recently opened ones, ⌘K's first group (#2191); any other page shows none
+  const shownChat = pane ? agentChatKey(pane.mid, pane.sid) : "";
   useEffect(() => noteChatShown(shownChat), [shownChat]);
   const at = pane ? `${pane.mid}/${pane.sid}` : chat !== undefined ? `persona/${chat}` : route.name;
   useSessionPanels(at, pane, chat);
 
   const extensionTitle = useExtensionPlace(route.name === "extension" ? route.extension : "", route.name === "extension" ? route.ui : "")?.title;
   const title =
-    inWorkView(route) || route.name === "terminal" ? t("work-entry.title") : pane ? agentTitle || "Agent" : route.name === "persona" ? "Persona" : route.name === "persona-new" ? t("app.title_new_chat") : route.name === "history" ? t("app.title_history") : route.name === "health" ? t("app.title_health") : route.name === "profile" ? t("app.title_profile") : route.name === "inbox" ? t("app.title_inbox") : route.name === "messages" ? t("app.title_messages") : route.name === "starred" ? t("starred.title")
+    inWorkView(route) || route.name === "terminal" ? t("work-entry.title") : pane ? agentTitle || "Agent" : route.name === "persona" ? "Persona" : route.name === "health" ? t("app.title_health") : route.name === "profile" ? t("app.title_profile") : route.name === "inbox" ? t("app.title_inbox") : route.name === "messages" ? t("app.title_messages") : route.name === "starred" ? t("starred.title")
       : route.name === "request" ? t("app.title_request") : route.name === "routines" ? t("app.title_routines") : route.name === "kb" ? t("app.title_kb") : route.name === "workspace-board" ? t("app.title_workspace_board") : route.name === "todos" ? t("app.title_todos") : route.name === "machines" || route.name === "machine" ? t("app.title_machines") : route.name === "space" ? route.space : route.name === "settings" ? t("app.title_settings")
       : route.name === "agents" ? t("app.title_agents") : route.name === "agent-list" ? "Agents" : route.name === "agent-archives" ? t("app.title_agent_archives") : route.name === "compare" ? t("app.title_compare_runs") : route.name === "extension" ? extensionTitle || t("app.title_extension") : route.name === "subscriptions" ? t("app.title_subscriptions") : route.name === "not-found" ? t("app.title_not_found") : t("app.title_home");
 
@@ -522,13 +518,7 @@ function Shell() {
       break;
     }
     case "persona":
-      main = <PersonaAssistant sid={route.sid} routed={route.mid || route.manager ? { mid: route.mid, manager: route.manager } : undefined} at={route.at} onToggleSidebar={toggle} />;
-      break;
-    case "persona-new":
-      main = <PersonaAssistant fresh onToggleSidebar={toggle} />;
-      break;
-    case "history":
-      main = <History origin={route.origin} onToggleSidebar={toggle} />;
+      main = <PersonaAssistant at={route.at} onToggleSidebar={toggle} />;
       break;
     case "health":
       main = <Health key={route.sid ?? (route.fresh ? "new" : "")} sid={route.sid} fresh={route.fresh} onToggleSidebar={toggle} />;

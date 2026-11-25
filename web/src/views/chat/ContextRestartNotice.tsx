@@ -4,7 +4,6 @@ import { archiveSession } from "../../lib/agent-archives";
 import { api, ApiError, errorText, isTransient, sessionPath } from "../../lib/api";
 import { isBackgroundSupervisor } from "../../lib/background-supervisor";
 import { NEW_MAIN_FEATURE } from "../../lib/compaction";
-import { conversationPage } from "../../lib/conversation-page";
 import { uuid } from "../../lib/format";
 import { adoptConversation } from "../../lib/outbox";
 import { apiOp } from "../../lib/ops";
@@ -58,7 +57,7 @@ export function ContextRestartNotice({ session, assistant, isMain }: { session: 
       upsertSession({ ...next, manager });
       if (assistant) adoptConversation(manager, next.session_id, next.machine_id);
       if (location.href === sourcePage) {
-        navigate(assistant ? conversationPage(next.session_id, next.machine_id, manager)
+        navigate(assistant ? { name: "persona" }
           : { name: "session", mid: next.machine_id, sid: next.session_id });
       }
       dismiss();

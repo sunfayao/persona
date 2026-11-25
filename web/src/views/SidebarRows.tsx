@@ -50,25 +50,21 @@ import type { UIColor } from "../lib/extension-ui-v6";
 
 // The main conversation uses the home symbol (Back to main chat's) and one Main conversation line.
 // The assistant's identity belongs to the sidebar head; a left draft keeps its existing second line.
-// Its menu (Copy session ID, End…: iOS's long press on the main row) opens on a right click, the menu key or its ⋯.
 // Memoized like SessionRow: a push that leaves the main conversation as it was does not render it again.
-export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, main, chord, onMenu: menuOf }: { reg: RegFn; hover: (k: string | null) => void; active: boolean; go: GoFn; main?: Session; /** The "Open Persona" shortcut as bound now ("": none). */ chord?: string; /** The conversation rows' menu, opened on `main`: none without it. */ onMenu?: RowMenuFn }) {
+export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, main, chord }: { reg: RegFn; hover: (k: string | null) => void; active: boolean; go: GoFn; main?: Session; /** The "Open Persona" shortcut as bound now ("": none). */ chord?: string }) {
   const to: Route = { name: "persona" };
   const st = main ? stateOf(main) : undefined;
   const pending = main?.pending_interactions ?? 0;
-  const onMenu = main && menuOf ? (anchor: HTMLElement, at?: MenuAt) => menuOf(main, anchor, at) : undefined;
   // one ref for the row's life, so a re-render does not let go of it and register it again (useGlide's reg)
   const ref = useMemo(() => reg("persona"), [reg]);
-  const aside = onMenu && !active ? "group-hover/row:invisible" : undefined;
   // words left unsent in the main conversation's box, once you are not in it (#5568)
   const draft = draftLine(useLeftDraft(main ? `${main.machine_id}/${main.session_id}` : null));
-  const link = (
+  return (
     <a
       ref={ref}
       href={href(to)}
       // set to Full page, picked from another place it opens the page the conversation kept over it (#13164)
       onClick={go(to, () => pickMainChat(active))}
-      {...(onMenu ? contextMenuProps((at, el) => onMenu(el, at)) : {})}
       onMouseEnter={() => hover("persona")}
       onFocus={() => hover("persona")}
       onBlur={() => hover(null)}
@@ -76,59 +72,22 @@ export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, mai
       aria-keyshortcuts={chord ? ariaKeyshortcuts(chord) : undefined}
       title={t("sidebar.persona_main")}
       // pinned over the list (#5581), its own hover fill: the gliding highlight passes under the pinned box
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-[background-color,transform] duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-[background-color,transform] duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
     >
       <Icon name="home" size={14} stroke={1.8} className="shrink-0 text-ink" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[13.5px] font-semibold text-ink">{t("sidebar.main_chat")}</span>
         {draft && <SecondLine line={draft} draft />}
       </span>
-      {chord && <span aria-hidden data-persona-chord className={cx("hidden sm:inline-flex [@media(hover:none)]:hidden", aside)}><Kbd>{formatChord(chord)}</Kbd></span>}
+      {chord && <span aria-hidden data-persona-chord className="hidden sm:inline-flex [@media(hover:none)]:hidden"><Kbd>{formatChord(chord)}</Kbd></span>}
       {pending > 0 ? (
-        <span className={cx("flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-field px-1 text-[10.5px] font-semibold text-attention tabular-nums", aside)}>{pending}</span>
+        <span className="flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-field px-1 text-[10.5px] font-semibold text-attention tabular-nums">{pending}</span>
       ) : st === "working" || st === "needs_you" || st === "unread" ? (
-        <span className={cx("flex", aside)}><StatusMark state={st} /></span>
+        <span className="flex"><StatusMark state={st} /></span>
       ) : null}
     </a>
   );
-  if (!onMenu) return link;
-  return (
-    <div className="group/row relative">
-      {link}
-      <button
-        type="button"
-        aria-label={t("conversation-menu.actions")}
-        aria-haspopup="menu"
-        title={t("sidebar.more")}
-        tabIndex={-1}
-        onClick={(e) => onMenu(e.currentTarget.parentElement ?? e.currentTarget)}
-        className={cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-hover hover:bg-hover-2")}
-      >
-        <Icon name="more" size={14} />
-      </button>
-    </div>
-  );
 });
-
-/** A subgroup title. Its disclosure and help are separate controls; `tally` is what a folded group still says of the rows
- *  it hides (Recent's unread chats, #13425), at the end before the help. */
-const SUB_HEADING_TYPE = "text-[11px] font-semibold text-ink-3";
-export function SubHeading({ label, folded, onToggle, help, tally }: { label: string; folded?: boolean; onToggle?: () => void; help?: string; tally?: ReactNode }) {
-  return (
-    <div className="flex items-center gap-1 px-2 py-0.5">
-      <div role="heading" aria-level={3} className={cx("min-w-0 flex-1", !onToggle && "truncate", SUB_HEADING_TYPE)}>
-        {onToggle ? (
-          <button type="button" aria-expanded={!folded} onClick={onToggle} className="touch-hit relative flex w-full min-w-0 items-center gap-1 whitespace-nowrap rounded-[5px] text-left hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
-            <span className="min-w-0 truncate">{label}</span>
-            <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
-          </button>
-        ) : label}
-      </div>
-      {tally}
-      {help && <InfoTip name={label} text={help} className="[@media(pointer:coarse)]:size-11" />}
-    </div>
-  );
-}
 
 type NavRowProps = { onMenu?: (at: MenuAt, el: HTMLElement, button: boolean) => void; menuLabel?: string; k: string; reg: RegFn; hover: (k: string | null) => void; active: boolean; to: Route; go: GoFn; icon: IconName; /** Engine mark ID shown in place of `icon` (e.g. a starting agent placeholder's resolved engine). */ agent?: string; label: string; badge?: number | string; badgeTone?: keyof typeof BADGE_CLASS; /** Spoken for the badge in place of its digits (NavPage). */ badgeLabel?: string; hint?: string; hintCount?: { n: number; label: string }; title?: string; /** A state shown as a dot before the hint ("Automatic"'s rows: some run). */ dot?: AgentState; /** A page's icon color (NavPage.color, #10822). */ color?: UIColor };
 

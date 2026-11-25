@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../i18n";
-import { conversationPage } from "../lib/conversation-page";
 import { shortTime } from "../lib/format";
 import { href, navigate, onLinkClick, type Route } from "../lib/router";
 import { restoredStarKey } from "../lib/starred-backup";
@@ -19,7 +18,7 @@ const PREVIEW_LINES = 6;
 export function starRoute(star: Star): Route {
   const { machine_id: mid, session_id: sid, item_id: item } = star;
   const at = positionalStar(item) ? (star.source_fingerprint && `star:${star.source_fingerprint}:${item}`) || undefined : item;
-  return star.conversation === "assistant" ? conversationPage(sid, mid, star.source_manager, at) : { name: "session", mid, sid, at, view: "chat" };
+  return star.conversation === "assistant" ? { name: "persona", at: at } : { name: "session", mid, sid, at, view: "chat" };
 }
 
 function starSpeaker(star: Star): string {

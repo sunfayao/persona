@@ -14,7 +14,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { api, ApiError, enc, errorText, imageURL, sessionPath } from "../../lib/api";
-import { conversationPage } from "../../lib/conversation-page";
 import { uuid } from "../../lib/format";
 import {
   countsAsMeeting,
@@ -541,8 +540,8 @@ export function RecordingConversation({ detail, rec, meeting, auth, current, man
   const showAsks = shownAsks.length > 0;
   const before = roomEntries.length > 0 || showAsks;
   const status = meeting.roomMeeting ? roomLine(room, rec.attendance, !!rec.notesOnly, !!rec.trimmedAt) : null;
-  const roomRoute = roomIds ? conversationPage(roomIds.session_id, roomIds.machine_id, manager) : null;
-  const followRoute = followup ? conversationPage(followup.session_id, followup.machine_id, manager) : null;
+  const roomRoute = roomIds ? { name: "persona" } : null;
+  const followRoute = followup ? { name: "persona" } : null;
   const loadingRoom = !!roomIds && !roomPart.items && !roomPart.error;
   const loadingFollow = !!followup && !followPart.items && !followPart.error;
 
@@ -818,7 +817,7 @@ function FollowupComposer({ id, auth, current, manager, onMade }: { id: string; 
       if (!current()) return;
       setText("");
       onMade(made);
-      navigate(conversationPage(made.session_id, made.machine_id, manager));
+      navigate({ name: "persona" });
     } catch (err) {
       if (err instanceof ApiError && err.status >= 400 && err.status < 500) op.current = "";
       if (current()) setError(followupError(err));

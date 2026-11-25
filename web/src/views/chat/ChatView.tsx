@@ -7,7 +7,6 @@ import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, u
 import { api, ApiError, errorText, pastHub, sessionPath } from "../../lib/api";
 import { attentionReason, externalLink, failureReason, isStoppedAgent, resumeCommand, sessionCan, sessionCanRename, sessionDeletable, sessionDisplayTab, sessionMenuActions, sourceSubtitle, sessionTitle, sessionTitleDetail, shortPath, stateOf, tabLabel, uuid } from "../../lib/format";
 import { useHerdrTabName } from "../../lib/agents-display";
-import { conversationPage } from "../../lib/conversation-page";
 import { navigate, type Route, type SessionView } from "../../lib/router";
 import { canShowTerminal, composerSlot, otherView, terminalJump, terminalWaits, useSessionView, viewOnlyRow } from "../../lib/session-view";
 import { invalidateOverviewPanel } from "../../lib/use-shortcuts";
@@ -260,7 +259,7 @@ async function forkAt(mid: string, sid: string, itemId: string, assistant: boole
     await refresh();
     // a health conversation's branch runs in the health space too (docs/assistant/health.md)
     // a Persona conversation's branch is on its computer and its manager's (lib/conversation-page.ts)
-    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : space === "health" ? { name: "health", sid: r.session_id } : conversationPage(r.session_id, mid, manager));
+    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : space === "health" ? { name: "health", sid: r.session_id } : { name: "persona" });
     toast(t("chat-chatview.forked"), "ok");
   } catch (e) {
     toast(t("chat-chatview.fork_failed", { error: errorText(e) }), "error");
@@ -295,18 +294,7 @@ export interface PanelChrome {
   beside?: React.ReactNode;
 }
 
-const DeletedConversation = lazy(() => import("../DeletedConversation").then((m) => ({ default: m.DeletedConversation })));
-
-/** A deleted chat has no composer or retained transcript, wherever its old link is opened. */
-export function ChatView(props: Parameters<typeof ActiveChatView>[0]) {
-  const deleted = useStore(() => getSession(props.mid, props.sid)?.deleted === true);
-  if (deleted) return <Suspense fallback={<div className="flex h-full items-center justify-center"><Loading /></div>}>
-    <DeletedConversation onToggleSidebar={props.onToggleSidebar} />
-  </Suspense>;
-  return <ActiveChatView {...props} />;
-}
-
-function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt, placeholder: askPlaceholder }: {
+export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt, placeholder: askPlaceholder }: {
   mid: string;
   sid: string;
   assistant?: boolean;

@@ -63,7 +63,7 @@ const visible = (el: Element) => el.getClientRects().length > 0;
 
 /** ⌘I: the conversation's input box, else the terminal that is showing. */
 function focusInput(route: Route): boolean {
-  const chat = ["session", "tab", "persona", "persona-new", "agents"].includes(route.name);
+  const chat = ["session", "tab", "persona", "agents"].includes(route.name);
   const box = chat ? [...document.querySelectorAll<HTMLTextAreaElement>("main textarea:not(.xterm-helper-textarea)")].find((t) => !t.disabled && visible(t)) : undefined;
   const el = box ?? [...document.querySelectorAll<HTMLTextAreaElement>(".xterm-helper-textarea")].find((t) => visible(t.closest(".xterm") ?? t));
   if (!el) return false;

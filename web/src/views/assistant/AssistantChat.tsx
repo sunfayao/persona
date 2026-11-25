@@ -5,20 +5,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { api, errorText } from "../../lib/api";
 import { assistantInfoText, conversationKey, effectiveLauncher, shortModel, usePickedLauncher } from "../../lib/assistant-chat";
-import { isBackgroundSupervisor } from "../../lib/background-supervisor";
 import { COMPACT_FEATURE, compactBody, compactionView, compactPath, NEW_MAIN_FEATURE, type CompactionView } from "../../lib/compaction";
 import { runtimeFallbackText } from "../../lib/runtime-fallback";
 import { personaState } from "../../lib/persona";
-import { conversationPage } from "../../lib/conversation-page";
 import { lazyPage } from "../../lib/lazy-page";
 import { CLEAR_MAIN_FEATURE, clearMainContext } from "../../lib/main-clear";
-import { shownManager } from "../../lib/manager-choice";
 import { navigate } from "../../lib/router";
 import { hubHas, useStore } from "../../lib/store";
 import type { Item, Session } from "../../lib/types";
 import { copyText, IconButton, Spinner, toast, type MenuItem } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
-import { conversationArchiveItem } from "../ConversationMenu";
 import { lazyDialog } from "../LazyOverlay";
 import { PersonaDot, usePersona } from "./Persona";
 import { t } from "../../i18n";
@@ -38,8 +34,7 @@ export function AssistantFace({ session, last }: { session?: Session; last?: Pic
   return <PersonaDot size={30} state={state} fallback={null} className="-my-1" />;
 }
 
-/** The header menu's Persona part: "Details" (the profile), "Knowledge", "Back to main chat", an ordinary conversation's
- *  "Archive" (the sidebar row's action), "Compact context", the main conversation's "Clear context" and "New main chat"
+/** The header menu's Persona part: "Details" (the profile), "Knowledge", "Compact context", the main conversation's "Clear context" and "New main chat"
  *  (when the hub can), "Copy info"; `dialogs` goes with them. Empty for an agent. */
 const NewMainDialog = lazyDialog(() => import("./NewMainDialog").then((m) => m.NewMainDialog));
 
@@ -60,8 +55,6 @@ export function useAssistantMenu(session: Session | undefined): { items: MenuIte
   const items: MenuItem[] = [
     { key: "profile", label: t("assistant-assistantchat.details"), icon: "info", onSelect: () => navigate({ name: "profile" }) },
     { key: "kb", label: t("assistant-assistantchat.knowledge"), icon: "book", onSelect: () => navigate({ name: "kb" }) },
-    ...(assistant?.main && !isMain ? [{ key: "main", label: t("assistant-assistantchat.back_to_main"), icon: "home" as const, onSelect: () => navigate(conversationPage(assistant.main!, assistant.machine_id, shownManager())) }] : []),
-    ...(!isMain && !isBackgroundSupervisor(assistant, session.session_id) ? [conversationArchiveItem(session)] : []),
     ...(canCompact
       ? [{ key: "compact", label: compacting ? t("assistant-assistantchat.compacting") : t("assistant-assistantchat.compact"), icon: "layers" as const, disabled: compacting, onSelect: () => void startCompaction(session) }]
       : []),

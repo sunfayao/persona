@@ -5,8 +5,8 @@ import { takeOverlayEntry } from "./back-close";
 import { BASE, stripBase } from "./base";
 import { decodeURIComponentSafe } from "./uri";
 
-// Persona's main conversation is the front door (like the app, which opens on the assistant): `/` and `/persona` open it, `/persona/<id>` is
-// one conversation, `/persona/new` starts a one-off one, and "Overview" lives at `/overview`. `/extension/<id>/<ui>` is an extension's page
+// Persona's main conversation is the front door (like the app, which opens on the assistant): `/` and `/persona` open it
+// (so does any `/persona/<id>` link of an older version), and "Overview" lives at `/overview`. `/extension/<id>/<ui>` is an extension's page
 // (docs/extensions/extensions.md "UI slots" nav_page).
 /** What the middle of an agent's page shows (docs/web/web.md "Terminal ⇄ chat"): its conversation, or its terminal in place. */
 export type SessionView = "chat" | "term";
@@ -15,20 +15,14 @@ export type Route =
   | { name: "home" }
   | { name: "request"; id: string }
   | { name: "workspace-board" }
-  | { name: "persona-new" }
   // `view` is the page's `?view=chat|term`; without it the page shows what it showed last (lib/session-view.ts)
   // `at`: the message to land on (?at=<item id>, the hub's links to one message, docs/protocol/deep-links.md)
   | { name: "session"; mid: string; sid: string; view?: SessionView; work?: true; at?: string }
   // one herdr tab (a slot) of a workspace; `sid` picks its pane (lib/herdr-tree.ts resolveTab)
   | { name: "tab"; mid: string; space: string; slot: string; sid?: string; view?: SessionView; work?: true; at?: string }
-  // `mid` / `manager`: the computer the conversation runs on and its manager when another than the default
-  // (`?machine=…&manager=…`, lib/conversation-page.ts): with several assistants a reload, a new tab or a link finds it
-  // where it runs, whichever assistant is current
-  // `at`: a message to open the chat at (`?at=<item id>`, a search hit's, #6283): the chat lands on it, paging back when it
-  // is further up
-  | { name: "persona"; sid?: string; mid?: string; manager?: string; at?: string }
-  // "All chats"; `origin` filters it (lib/conversation-origins.ts): the sidebar's "Automatic" rows open it so
-  | { name: "history"; origin?: string }
+  // `at`: a message to open the main conversation at (`?at=<item id>`, a search hit's, #6283): it lands on that message,
+  // paging back when it is further up
+  | { name: "persona"; at?: string }
   // the health space (docs/assistant/health.md): `/health` opens its latest conversation (#4329), `/health/new` its new
   // conversation page (with its past ones), `/health/<id>` one of them
   | { name: "health"; sid?: string; fresh?: boolean }
@@ -65,13 +59,10 @@ export type Route =
   // instead of Overview drawn under the wrong address (web usability audit item 42); `path` is the address as it came
   | { name: "not-found"; path: string };
 
-/** A conversation page's `?machine=` and `?manager=` (routePath writes them), each only when there. */
-function conversationQuery(search: string): { mid?: string; manager?: string; at?: string } {
-  const q = new URLSearchParams(search);
-  const mid = q.get("machine");
-  const manager = q.get("manager");
-  const at = q.get("at");
-  return { ...(mid ? { mid } : {}), ...(manager ? { manager } : {}), ...(at ? { at } : {}) };
+/** The main conversation's `?at=` (routePath writes it), when there. */
+function personaQuery(search: string): { at?: string } {
+  const at = new URLSearchParams(search).get("at");
+  return at ? { at } : {};
 }
 
 /** `?view=term|chat` of an agent page's address; anything else is no choice. */
@@ -91,12 +82,11 @@ export function parse(path: string, search = ""): Route {
   };
   if (p[0] === "s" && p[1] && p[2]) return { name: "session", mid: p[1], sid: p[2], ...detail() };
   if (p[0] === "t" && p[1] && p[2] && p[3]) return { name: "tab", mid: p[1], space: p[2], slot: p[3], sid: p[4] || undefined, ...detail() };
-  if (!p.length) return { name: "persona" };
-  if (assistantPath(p[0])) return p[1] === "new" && !p[2] ? { name: "persona-new" } : p[1] ? { name: "persona", sid: p[1], ...conversationQuery(search) } : { name: "persona" };
+  // an older version's conversation, new-chat and history links open the main conversation
+  if (!p.length || assistantPath(p[0]) || p[0] === "history") return { name: "persona", ...personaQuery(search) };
   if (p[0] === "workspace-board") return { name: "workspace-board" };
   if (p[0] === "requests" && p[1]) return { name: "request", id: p[1] };
   if (p[0] === "overview") return { name: "home" };
-  if (p[0] === "history") return p[1] ? { name: "history", origin: p[1] } : { name: "history" };
   if (p[0] === "health") return p[1] === "new" && !p[2] ? { name: "health", fresh: true } : { name: "health", sid: p[1] || undefined };
   if (p[0] === "assistant") return { name: "profile" };
   if (p[0] === "inbox") {
@@ -165,19 +155,8 @@ export function routePath(r: Route): string {
       return `/s/${encodeURIComponent(r.mid)}/${encodeURIComponent(r.sid)}${detailQuery(r)}`;
     case "tab":
       return ["/t", r.mid, r.space, r.slot, ...(r.sid ? [r.sid] : [])].map((x, i) => (i ? encodeURIComponent(x) : x)).join("/") + detailQuery(r);
-    case "persona": {
-      if (!r.sid) return "/";
-      const q = new URLSearchParams();
-      if (r.mid) q.set("machine", r.mid);
-      if (r.manager) q.set("manager", r.manager);
-      if (r.at) q.set("at", r.at);
-      const query = q.toString();
-      return `/persona/${encodeURIComponent(r.sid)}${query ? `?${query}` : ""}`;
-    }
-    case "persona-new":
-      return "/persona/new";
-    case "history":
-      return r.origin ? `/history/${encodeURIComponent(r.origin)}` : "/history";
+    case "persona":
+      return r.at ? `/?at=${encodeURIComponent(r.at)}` : "/";
     case "health":
       return r.sid ? `/health/${encodeURIComponent(r.sid)}` : r.fresh ? "/health/new" : "/health";
     case "profile":

@@ -12,7 +12,6 @@ import { t } from "../../i18n";
 import { ApiError, errorText } from "../../lib/api";
 import { acceptBrief, setRoute, type AskAnswer } from "../../lib/feed";
 import { clock } from "../../lib/format";
-import { conversationPage } from "../../lib/conversation-page";
 import { navigate } from "../../lib/router";
 import { refreshTodos } from "../../lib/store";
 import { askOptions, type AskOption, type AskResponse, type Todo, type TodoAsk } from "../../lib/todos";
@@ -121,7 +120,7 @@ export function DecisionRow({ todo, ask, rowKey, admission, onBusyChange, blocke
       return;
     }
     setRoute(todo.origin, todo.id, ask.asked_at);
-    navigate(conversationPage(todo.origin, undefined, todo.manager));
+    navigate({ name: "persona" });
   };
 
   const answer = (key: string, body: AskAnswer, done: string) => {

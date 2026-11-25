@@ -1,4 +1,3 @@
-import { conversationPage } from "../../lib/conversation-page";
 // The unified entry in the assistant's conversation (docs/assistant/unified-entry.md; iOS Views/Assistant/Tasks): the plan card,
 // task cards that follow their agents, the hub's lines (answered, routed; receipts, reviews and reports are not drawn,
 // #8237), the "Today" card, message cards about
@@ -1038,7 +1037,7 @@ function OpenEntry({ title, onOpen }: { title: string; onOpen: () => void }) {
 /** The whole card of a Needs you row, or the one line it is. `nested`: inside its opened row, which carries the row's key. */
 export function NeedsYouBody({ item, nested = false }: { item: NeedsYouItem; nested?: boolean }) {
   const rowKey = nested ? undefined : item.key;
-  if (item.kind === "plan") return <div><PlanCard plan={item.plan} /><OpenEntry title={t("assistant-tasks.needs_group_another")} onOpen={() => navigate(conversationPage(item.plan.conversation, undefined, item.plan.manager))} /></div>;
+  if (item.kind === "plan") return <div><PlanCard plan={item.plan} /><OpenEntry title={t("assistant-tasks.needs_group_another")} onOpen={() => navigate({ name: "persona" })} /></div>;
   if (item.kind === "message") return <MessageCard item={item.item} />;
   if (item.kind === "agent") {
     const { session, asks } = item;

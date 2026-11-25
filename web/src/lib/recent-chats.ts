@@ -13,8 +13,6 @@ export const PALETTE_RECENT_CHATS = 5;
 
 /** An Agent's conversation, keyed as ⌘K keys its rows. */
 export const agentChatKey = (machine: string, session: string) => `s:${machine}/${session}`;
-/** One of Persona's conversations. */
-export const personaChatKey = (session: string) => `j:${session}`;
 
 /** The conversation shown goes first; one already there moves (no second entry); the ten newest stay. */
 export function openChat(before: string[], key: string): string[] {
