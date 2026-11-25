@@ -332,6 +332,8 @@ type Service struct {
 	socketMux *http.ServeMux
 	// navMu: one change of the user's navigation choices at a time, each read and written whole (navigation.go)
 	navMu sync.Mutex
+	// savedPrompts: the saved prompts persona_settings reads and changes (saved/prompts_api.go)
+	savedPrompts *saved.Prompts
 }
 
 var _ Handler = (*Service)(nil)
@@ -392,7 +394,9 @@ func New(o Options) *Service {
 	s.skillRoutes()
 	s.scheduleRoutes()
 	s.scheduleGrantRoutes()
-	saved.Register(saved.Host{Store: func() any { return s.store() }, Event: s.event, Handle: s.handle, Full: fullRole, BodyErr: writeBodyErr})
+	savedHost := saved.Host{Store: func() any { return s.store() }, Event: s.event, Handle: s.handle, Full: fullRole, BodyErr: writeBodyErr}
+	s.savedPrompts = saved.NewPrompts(savedHost)
+	saved.Register(savedHost)
 	s.resourceRoutes()
 	s.repositoryRoutes()
 	s.taskRoutes()

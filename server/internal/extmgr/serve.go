@@ -521,7 +521,7 @@ func (h *Manager) hubCall(ctx context.Context, method string, params json.RawMes
 		login, known := h.githubLogin(ctx)
 		return map[string]any{"login": login, "known": known}, nil
 	case extwire.HubSettingsList:
-		return map[string]any{"settings": h.settingsList()}, nil
+		return map[string]any{"settings": h.settingsList(ctx)}, nil
 	case extwire.HubSettingsTool:
 		text, err := h.toolPersonaSettings(ctx, a.MachineID, a.SessionID, a.Arguments)
 		return map[string]any{"text": text}, err

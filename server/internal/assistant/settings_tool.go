@@ -31,6 +31,8 @@ type ownSetting struct {
 	cardTitle func(l i18n.Lang) string
 	// change is a setting's other actions (a list's add and remove: tasks.trust), in place of set.
 	change func(ctx context.Context, action string, v json.RawMessage) (*ownChange, error)
+	// noCurrent: list leaves the value out (reading it costs a call to another computer); get still reads it.
+	noCurrent bool
 }
 
 // ownChange is a change waiting for the phone: what the card says and how it is made (none: nothing to change).
@@ -54,7 +56,7 @@ func (c *ownChange) card(l i18n.Lang) string {
 
 func (s *Service) ownSettings() []ownSetting {
 	getSet := []string{"get", "set"}
-	return []ownSetting{
+	out := []ownSetting{
 		s.hiddenDirSetting(),
 		{Setting: Setting{Key: standingAuthorizationsKey, Title: "Standing authorizations", Actions: getSet,
 			About: "user-confirmed actions for one computer and absolute directory tree; only the main conversation may set them, and every change requires the user’s own permission approval",
@@ -317,6 +319,7 @@ func (s *Service) ownSettings() []ownSetting {
 			set: s.setAdmission},
 		s.trustSetting(),
 	}
+	return append(out, s.registrySettings()...)
 }
 
 func (s *Service) toolPersonaSettings(ctx context.Context, call ToolCall, args json.RawMessage) proto.ToolResult {
@@ -362,7 +365,8 @@ func (s *Service) toolPersonaSettings(ctx context.Context, call ToolCall, args j
 	return s.appTool(ctx, AppSettings, call, args) // the hub's
 }
 
-// listSettings is action list: the assistant's settings and the hub's, by key.
+// listSettings is action list: the assistant's settings and the hub's, by key, each with its one-line description and the
+// value in effect (a long one clipped; get reads it whole).
 func (s *Service) listSettings(ctx context.Context, own []ownSetting) (string, error) {
 	var res struct {
 		Settings []Setting `json:"settings"`
@@ -372,15 +376,25 @@ func (s *Service) listSettings(ctx context.Context, own []ownSetting) (string, e
 	}
 	all := res.Settings
 	for _, o := range own {
-		all = append(all, o.Setting)
+		st := o.Setting
+		if !o.noCurrent && o.get != nil {
+			if v, err := o.get(ctx); err == nil {
+				st.Current = clip(oneLine(v), 160)
+			}
+		}
+		all = append(all, st)
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Key < all[j].Key })
 	var b strings.Builder
-	b.WriteString("Settings you can read and (with the user's approval on the phone) change:\n")
+	b.WriteString("Persona's settings: this tool is how the user changes them. Reading is free; every set / add / remove shows the user an approval card " +
+		"(before → after) and changes nothing until they approve:\n")
 	for _, st := range all {
 		fmt.Fprintf(&b, "- %s (%s): %s. Actions: %s.", st.Key, st.Title, st.About, strings.Join(st.Actions, ", "))
 		if st.Value != "" {
 			fmt.Fprintf(&b, " Value: %s.", st.Value)
+		}
+		if st.Current != "" {
+			fmt.Fprintf(&b, " Now: %s.", st.Current)
 		}
 		b.WriteByte('\n')
 	}

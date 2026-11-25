@@ -1,0 +1,17 @@
+{
+  "title_hub_update_channel": "ハブの更新チャンネル",
+  "title_hub_auto_update": "ハブの自動更新",
+  "title_hub_auto_update_nodes": "ハブと一緒にコンピュータを更新",
+  "title_notifications_devices": "デバイスの通知",
+  "title_agent_settings_claude": "Claude Code の設定",
+  "title_agent_settings_codex": "Codex の設定",
+  "title_agent_settings_agy": "Antigravity の設定",
+  "title_agent_settings_omp": "Oh My Pi の設定",
+  "title_agent_settings_grok": "Grok の設定",
+  "on": "オン",
+  "off": "オフ",
+  "change": "「{title}」を変更：{before} → {after}",
+  "no_change": "「{title}」に変更はありません",
+  "device_prefs": "{device} の通知設定：{changes}",
+  "agent_setting": "{machine} の {agent} 設定 {key}：{before} → {after}"
+}

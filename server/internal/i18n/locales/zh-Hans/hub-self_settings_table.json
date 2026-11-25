@@ -1,0 +1,17 @@
+{
+  "title_hub_update_channel": "Hub 更新渠道",
+  "title_hub_auto_update": "Hub 自动更新",
+  "title_hub_auto_update_nodes": "随 Hub 一起更新各台电脑",
+  "title_notifications_devices": "设备通知",
+  "title_agent_settings_claude": "Claude Code 设置",
+  "title_agent_settings_codex": "Codex 设置",
+  "title_agent_settings_agy": "Antigravity 设置",
+  "title_agent_settings_omp": "Oh My Pi 设置",
+  "title_agent_settings_grok": "Grok 设置",
+  "on": "开",
+  "off": "关",
+  "change": "修改「{title}」：{before} → {after}",
+  "no_change": "「{title}」没有变化",
+  "device_prefs": "{device} 的通知设置：{changes}",
+  "agent_setting": "{machine} 上 {agent} 的设置 {key}：{before} → {after}"
+}

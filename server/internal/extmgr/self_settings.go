@@ -65,16 +65,19 @@ func (h *Manager) selfSettings() []selfSetting {
 				`"imap_port"?, "smtp_host"?, "smtp_port"?, "smtp_security"?: "tls|starttls"}; most providers need only the email. remove: the account id`,
 			get: h.getMailAccounts, add: h.addMailAccount, remove: h.removeMailAccount})
 	}
+	if h.store != nil {
+		out = append(out, h.downloadMirrorsSetting())
+	}
 	out = append(out, h.extensionSettings()...) // extension.<id> (self_settings_extensions.go)
 	sort.Slice(out, func(i, j int) bool { return out[i].key < out[j].key })
 	return out
 }
 
 // settingsList is extwire.HubSettingsList's answer.
-func (h *Manager) settingsList() []extwire.Setting {
+func (h *Manager) settingsList(ctx context.Context) []extwire.Setting {
 	out := []extwire.Setting{}
 	for _, s := range h.selfSettings() {
-		out = append(out, extwire.Setting{Key: s.key, Title: s.title, About: s.about, Value: s.value, Actions: s.actions()})
+		out = append(out, extwire.Setting{Key: s.key, Title: s.title, About: s.about, Current: s.current(ctx), Value: s.value, Actions: s.actions()})
 	}
 	return out
 }
@@ -94,6 +97,19 @@ type selfChange struct {
 	summary string
 	fields  []proto.Field
 	apply   func(ctx context.Context, values map[string]string) (string, error)
+}
+
+// current is the value in effect as list shows it: one clipped line. An extension's fields may hold secrets and a long
+// form, so only get shows them.
+func (s selfSetting) current(ctx context.Context) string {
+	if s.get == nil || strings.HasPrefix(s.key, extensionSettingPrefix) {
+		return ""
+	}
+	v, err := s.get(ctx)
+	if err != nil {
+		return ""
+	}
+	return clip(oneLine(v), 160)
 }
 
 func (s selfSetting) actions() []string {

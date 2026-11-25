@@ -1,0 +1,17 @@
+{
+  "title_hub_update_channel": "Hub update channel",
+  "title_hub_auto_update": "Hub auto-update",
+  "title_hub_auto_update_nodes": "Update computers with the hub",
+  "title_notifications_devices": "Device notifications",
+  "title_agent_settings_claude": "Claude Code settings",
+  "title_agent_settings_codex": "Codex settings",
+  "title_agent_settings_agy": "Antigravity settings",
+  "title_agent_settings_omp": "Oh My Pi settings",
+  "title_agent_settings_grok": "Grok settings",
+  "on": "on",
+  "off": "off",
+  "change": "Change {title}: {before} → {after}",
+  "no_change": "{title}: no change",
+  "device_prefs": "Notifications of {device}: {changes}",
+  "agent_setting": "{agent} setting {key} on {machine}: {before} → {after}"
+}

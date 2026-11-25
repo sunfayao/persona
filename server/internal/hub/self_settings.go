@@ -38,6 +38,22 @@ type selfChange struct {
 	apply   func(ctx context.Context, values map[string]string) (string, error)
 }
 
+// current is the value in effect as list shows it: one clipped line, "" when it cannot be read.
+func (s selfSetting) current(ctx context.Context) string {
+	if s.get == nil {
+		return ""
+	}
+	v, err := s.get(ctx)
+	if err != nil {
+		return ""
+	}
+	v = strings.Join(strings.Fields(v), " ")
+	if r := []rune(v); len(r) > 160 {
+		v = string(r[:160]) + "…"
+	}
+	return v
+}
+
 func (s selfSetting) actions() []string {
 	a := []string{"get"}
 	if s.set != nil {
@@ -61,6 +77,13 @@ func (h *Hub) selfSettings() []selfSetting {
 	}
 	if h.push != nil && h.push.store != nil { // the switch lives in hub_settings
 		out = append(out, h.pushGradingSelfSetting())
+	}
+	if h.push != nil {
+		out = append(out, h.devicePrefsSetting())
+	}
+	out = append(out, h.updateSettingsSelf()...)
+	for _, cli := range agentCLIs {
+		out = append(out, h.agentCLISetting(cli))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].key < out[j].key })
 	return out

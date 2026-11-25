@@ -216,6 +216,7 @@ type Setting struct {
 	Key     string   `json:"key"`
 	Title   string   `json:"title"`
 	About   string   `json:"about"`
+	Current string   `json:"current,omitempty"` // the value in effect, one clipped line (secrets only as set / unset)
 	Value   string   `json:"value,omitempty"`
 	Actions []string `json:"actions"`
 }

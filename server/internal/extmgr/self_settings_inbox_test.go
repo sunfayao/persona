@@ -29,7 +29,7 @@ func TestSelfSettingsInboxRulesPersist(t *testing.T) {
 		t.Fatalf("cleared rules: %v %q", err, h.inboxRules(ctx))
 	}
 	keys := map[string]bool{}
-	for _, s := range h.settingsList() {
+	for _, s := range h.settingsList(context.Background()) {
 		keys[s.Key] = true
 	}
 	if !keys["inbox.rules"] || !keys["inbox.agent_rules"] {
@@ -47,7 +47,7 @@ func TestSelfSettingsAgentRulesTellTheTwinSwitch(t *testing.T) {
 		h.store = newMemStore()
 		h.cfg.Inbox.Agent.Enabled = on
 		var about string
-		for _, s := range h.settingsList() {
+		for _, s := range h.settingsList(context.Background()) {
 			if s.Key == "inbox.agent_rules" {
 				about = s.About
 			}

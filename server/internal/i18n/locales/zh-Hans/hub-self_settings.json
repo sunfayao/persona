@@ -11,5 +11,6 @@
   "servers_feishu": "飞书邮箱的服务器",
   "auto": "自动",
   "add_mail": "添加邮箱 {email}（{servers}），填上密码后先连一遍再保存",
-  "remove_mail": "删除邮箱 {email}（Persona 不再收它的邮件，邮箱里的邮件不受影响）"
+  "remove_mail": "删除邮箱 {email}（Persona 不再收它的邮件，邮箱里的邮件不受影响）",
+  "title_download_mirrors": "扩展下载镜像"
 }

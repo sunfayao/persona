@@ -120,6 +120,25 @@ those ids cannot be guessed, but any process of the same user can read them from
 hub lists these tools only for assistant=true and forwards calls to the assistant (`assistant/tools.go`). Ordinary Agents in herdr can't see them, even with the assistant's environment;
 a program run under the assistant's own process (its Bash tool) counts as the assistant, as for `personad tool`, and so does an Agent in an engine whose server that shell started without detaching it.
 
+## Settings by conversation (`persona_settings`)
+
+The web Settings page keeps only appearance and language, this browser, this device's notifications, models and devices. Every other server-side setting is changed by asking the main conversation, which uses `persona_settings` (`assistant/settings_tool.go`): `list` shows every key with a one-line description, how to set it and its current value (secrets only as set or unset), `get` reads one, and `set` / `add` / `remove` show a before → after approval card on the phone and change nothing until the user approves. Translation preferences stay in the browser; the translation model is `model_config.translate`.
+
+Most assistant keys come from one table, `settingField` in `assistant/settings_registry.go` (key, kind, range, value in effect, check, write, and a title in `locales/*/assistant-settings_registry.json`). A new plain setting is one entry there. Writes reuse what the route does: the same checks, store and events as `PUT /api/v1/assistant`, `PUT /api/v1/agents/triage`, `PUT /api/v1/navigation`, the saved prompts' own book, `PUT /api/v1/hub/update/settings` (the hub calls the route's handler), `PUT /api/v1/devices/{id}/prefs`, the node's `<cli>.settings.set` and `PUT …/market-settings`.
+
+| Area | Keys |
+| --- | --- |
+| Assistant behavior | `assistant.*`: quiet tasks, start requested tasks, supervision and delivery gate, review sampling, idle compaction and release, idle close and archive days, auto-naming (`agent_auto_naming*`), cache keep-alive (`cache_keepalive*`), next suggestions, Inbox posting, owner reply approval and its phrases, read-only protection, workspace preference, folds, Recent, launcher and `assistant.machine` (the computer the main chat runs on), About Me, task trust, standing authorizations |
+| Session triage and close-out | `agents.triage.*`: one key per switch (`enabled`, `auto_continue`, `wake`, `decide`, `tool_loop`, `closeout`, `closeout_ask`, `reply_reminder`, `transient_retry`, `reply_reminder_minutes`) |
+| Navigation | `navigation.start_page`, `navigation.sidebar_pages` |
+| Saved prompts | `assistant.saved_prompts` (`get`, `add`, `set` by id, `remove` by id) |
+| Hub | `hub.update_channel`, `hub.auto_update`, `hub.auto_update_nodes`, `extensions.download_mirrors` |
+| Devices and computers | `notifications.devices` (each device's push choices), `agent_settings.<claude\|codex\|agy\|omp\|grok>` (that agent's own settings per computer), `agents.blocked_claude_dirs` |
+| Inbox, mail, extensions | `inbox.rules`, `inbox.agent_rules`, `inbox.rules.<plugin>`, `mail.accounts` (passwords typed on the phone), `extension.<id>` (every extension's form, so also channels and connectors; secrets stay on the phone / web path) |
+| Models | `model_config.*` groups and `model_profiles.tiers`; model profiles themselves have their own tools (`model_profiles_list`, `model_profile_get`, `model_profile_switch`, `model_profile_rollback`) |
+
+Not covered: dispatch policy, start defaults and workspace naming rules (structured policies with their own routes), permission modes, tokens, pairing, and settings of features that no longer exist.
+
 ## Role-scoped supervision instructions (#8251)
 
 **Audience: assistant supervisors.** All ordinary assistant conversations share a working directory and the generated `CLAUDE.md` / `AGENTS.md`. Those files contain common interaction and task-planning instructions, not a role-specific supervision manual. Never rewrite them per conversation; switching the main/background supervision mode leaves their bytes unchanged.
