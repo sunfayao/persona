@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.tsx",
+    "src/sw.ts",
+    "src/admin/main.tsx",
+    "vite.config.ts",
+    "vite.public.config.ts",
+    "public-share/main.ts",
+    "src/**/*.test.{ts,tsx}",
+    "*.test.ts",
+    "scripts/*.mjs",
+    "e2e/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "public-share/**/*.ts", "*.ts", "scripts/*.mjs", "e2e/*.mjs"]
+}
