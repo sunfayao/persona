@@ -77,7 +77,7 @@ describe("post-compaction context usage notice", () => {
     expect(apiOp).toHaveBeenNthCalledWith(1, "/sessions/hub/source/continue-in-new-chat",
       expect.objectContaining({ method: "POST", opId: expect.any(String) }));
     expect(vi.mocked(apiOp).mock.calls[0]).toEqual(vi.mocked(apiOp).mock.calls[1]);
-    expect(navigate).toHaveBeenCalledWith(assistant ? { name: "persona", sid: "fresh" } : { name: "session", mid: "hub", sid: "fresh" });
+    expect(navigate).toHaveBeenCalledWith(assistant ? { name: "persona" } : { name: "session", mid: "hub", sid: "fresh" });
     expect(archiveSession).not.toHaveBeenCalled();
     expect(api).not.toHaveBeenCalled();
     const archive = vi.mocked(toast).mock.calls[0]?.[2];

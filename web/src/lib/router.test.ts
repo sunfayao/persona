@@ -21,9 +21,9 @@ describe("a Persona chat opened at a message (#6283)", () => {
   it("reads ?at= and writes it back", async () => {
     const { href } = await import("./router");
     const r = parse("/persona/c1", "?machine=server&at=i1%230");
-    expect(r).toEqual({ name: "persona", sid: "c1", mid: "server", at: "i1#0" });
-    expect(href(r)).toBe("/persona/c1?machine=server&at=i1%230");
-    expect(parse("/persona/c1", "")).toEqual({ name: "persona", sid: "c1" });
+    expect(r).toEqual({ name: "persona", at: "i1#0" });
+    expect(href(r)).toBe("/?at=i1%230");
+    expect(parse("/persona/c1", "")).toEqual({ name: "persona" });
   });
 });
 

@@ -153,11 +153,10 @@ describe("an agent's row with 「Agent 行显示详情」 (#2430)", () => {
     expect(danger).toContain("text-orange");
     expect(danger).not.toContain("text-red");
   });
-  it("draws no second line for a session that says nothing, or for a conversation of the assistant", () => {
+  it("draws no second line for a session that says nothing", () => {
     setAgentDetails(true);
     const plain = { ...session, cwd: "" };
     expect(render(plain)).not.toContain("flex-col");
-    expect(render(detailed, { showState: false })).not.toContain("opus 5.5");
   });
 });
 

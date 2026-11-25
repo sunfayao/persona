@@ -212,7 +212,7 @@ describe("a to-do's page", () => {
     const buttons = [...panel.querySelectorAll("button")].map((b) => b.textContent);
     expect(buttons).toEqual(["按推荐来", "去对话里回答"]);
     act(() => [...panel.querySelectorAll("button")][1].click());
-    expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "conv1" });
+    expect(navigate).toHaveBeenCalledWith({ name: "persona" });
     expect(getFeedState().routes.conv1).toEqual({ todoId: "t1", askedAt: ASKED });
     setRoute("conv1", null);
   });

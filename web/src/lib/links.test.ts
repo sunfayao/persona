@@ -193,7 +193,7 @@ describe("where a link opens", () => {
       expect(opensInApp(`${hub}/persona/conv-1`)).toBe(true);
       openLink(`${hub}/persona/conv-1`);
       expect(getPanel()).toBeNull();
-      expect(vi.mocked(navigate).mock.calls.at(-1)).toEqual([{ name: "persona", sid: "conv-1" }]);
+      expect(vi.mocked(navigate).mock.calls.at(-1)).toEqual([{ name: "persona" }]);
     } finally {
       setAgentOpenMode("panel");
       vi.unstubAllGlobals();

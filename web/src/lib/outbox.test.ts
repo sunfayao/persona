@@ -496,7 +496,7 @@ describe("问 Persona", () => {
     const fetcher = vi.fn().mockResolvedValueOnce(response({ ok: true }));
     vi.stubGlobal("fetch", fetcher);
     await askPersona("说说进展");
-    expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "main1" });
+    expect(navigate).toHaveBeenCalledWith({ name: "persona" });
     expect(outbox()["hub/main1"][0].text).toBe("说说进展");
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({ text: "说说进展", launcher: "codex" });
     pickLauncher("hub/main1", undefined);
@@ -509,7 +509,7 @@ describe("问 Persona", () => {
     expect(fetcher.mock.calls[0][0]).toBe("/api/v1/assistant/conversations");
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ prompt: "说说进展", main: true });
     expect(outbox()["hub/new1"][0]).toMatchObject({ state: "sent", text: "说说进展" });
-    expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "new1" });
+    expect(navigate).toHaveBeenCalledWith({ name: "persona" });
   });
 });
 

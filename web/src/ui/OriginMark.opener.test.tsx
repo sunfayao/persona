@@ -211,7 +211,7 @@ describe("an extension's conversation is marked with the extension that opened i
 
   it("names the opener in the sidebar row's tooltip while its icon is drawn", async () => {
     const s: Session = { machine_id: "hub", session_id: "c1", title: "1105 | 研究 | 群里的需求汇总", cwd: "", status: "idle", assistant: true, origin: "lark_agent", opened_by: "chat-bridge" };
-    const props = { k: "j:c1", reg: () => () => {}, hover: () => {}, active: false, to: { name: "persona", sid: "c1" } as const, go: () => () => {}, showState: false };
+    const props = { k: "j:c1", reg: () => () => {}, hover: () => {}, active: false, to: { name: "persona" } as const, go: () => () => {} };
     const row = () => host.querySelector<HTMLAnchorElement>("a")!;
     act(() => root.render(<SessionRow {...props} s={s} />));
     await flush();
