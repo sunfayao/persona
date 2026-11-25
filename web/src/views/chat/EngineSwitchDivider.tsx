@@ -20,7 +20,7 @@ let loadedPanel: Panel | undefined;
 const loadPanel = () => import("./EngineHandoffPanel").then((m) => (loadedPanel = m.EngineHandoffPanel));
 
 /** The words the divider says: "Switched from Claude Code to Codex". */
-export function engineSwitchLabel(sw: Pick<EngineSwitch, "from" | "to">): string {
+function engineSwitchLabel(sw: Pick<EngineSwitch, "from" | "to">): string {
   return t("chat-lines.engine_switched", { from: agentName(sw.from), to: agentName(sw.to) });
 }
 

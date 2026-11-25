@@ -2,10 +2,9 @@
 // checking for and installing a release, what an update waits for, auto-update, the history; and the assistant's
 // skills (GET /api/v1/skills). Pure helpers here; the page is views/settings/HubSettings.tsx.
 import { t } from "../i18n";
-import { MANAGER_HEADER } from "./manager-choice";
 import { api } from "./api";
 
-export interface BusyItem {
+interface BusyItem {
   machine_id: string;
   machine: string;
   session_id?: string;
@@ -68,28 +67,9 @@ export interface HubUpdateStatus {
   source_behind?: boolean;
 }
 
-export interface HubUpdateRecord {
-  source?: string;
-  commit?: string;
-  backup?: HubUpdateStatus["backup"];
-  from_version: string;
-  to_version: string;
-  to_build: number;
-  started?: string;
-  ended?: string;
-  result: string; // updated | rolled_back | failed | held
-  reason?: string;
-  auto: boolean;
-}
 
-export interface Skill {
-  name: string;
-  description?: string;
-  source: string; // user | builtin
-}
 
 export const hubUpdate = () => api<HubUpdateStatus>("/hub/update");
-export const checkHubUpdate = () => api<HubUpdateStatus>("/hub/update/check", { method: "POST" });
 /** `now`: don't wait for the assistant and the agents to be idle. */
 export const startHubUpdate = (now: boolean) => api<HubUpdateStatus>("/hub/update", { method: "POST", json: now ? { now: true } : {} });
 export const setHubUpdateSettings = (s: {
@@ -101,30 +81,14 @@ export const setHubUpdateSettings = (s: {
   development_backup_directory?: string;
   development_backup_retain?: number;
 }) => api<HubUpdateStatus>("/hub/update/settings", { method: "PUT", json: s });
-export const hubUpdateHistory = () => api<{ history: HubUpdateRecord[] | null }>("/hub/update/history").then((r) => r.history ?? []);
-export interface HubUpdateBackup {
-  id: string;
-  version: string;
-  build: number;
-  commit: string;
-  updated_at: string;
-  created_at: string;
-}
-export const hubUpdateBackups = () => api<{ backups: HubUpdateBackup[] }>("/hub/update/backups").then(r => r.backups);
-export const applyHubUpdateBackup = (id: string) => api<HubUpdateStatus>(`/hub/update/backups/${encodeURIComponent(id)}/apply`, { method: "POST" });
-export const skills = (manager?: string) => api<{ machine_id: string; machine?: string; skills: Skill[] | null }>("/skills", { headers: manager ? { [MANAGER_HEADER]: manager } : undefined });
 
 /** An update is under way (the progress row, no buttons). */
-export function updateWorking(s: HubUpdateStatus): boolean {
+function updateWorking(s: HubUpdateStatus): boolean {
   return ["building", "applying_backup", "backing_up", "downloading", "waiting_idle", "restarting", "confirming"].includes(s.state);
 }
 
-/** A state that ends an update: the history has a new line. */
-export function updateFinished(prev: string | undefined, next: string): boolean {
-  return prev !== next && ["updated", "rolled_back", "failed"].includes(next);
-}
 
-export function updateStateTitle(s: HubUpdateStatus): string {
+function updateStateTitle(s: HubUpdateStatus): string {
   switch (s.state) {
     case "applying_backup":
       return t("lib-hub-update.state_applying_backup");

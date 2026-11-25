@@ -9,7 +9,7 @@ import type { Machine } from "../../lib/types";
 import { Button, cx, Dialog, Loading } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 
-export interface MountStat {
+interface MountStat {
   mount: string;
   device?: string;
   fs_type?: string;
@@ -33,7 +33,7 @@ export interface MachineStorageReport {
   collected_ms: number;
 }
 
-export interface StorageHotspotItem {
+interface StorageHotspotItem {
   label: string;
   path?: string;
   bytes: number;
@@ -42,7 +42,7 @@ export interface StorageHotspotItem {
   detail?: string;
 }
 
-export interface StorageHotspotCategory {
+interface StorageHotspotCategory {
   id: string;
   path?: string;
   bytes: number;
@@ -65,7 +65,7 @@ export interface MachineStorageHotspotsReport {
   categories: StorageHotspotCategory[];
 }
 
-export interface StorageCleanupItem {
+interface StorageCleanupItem {
   target_id: string;
   path?: string;
   action?: string;

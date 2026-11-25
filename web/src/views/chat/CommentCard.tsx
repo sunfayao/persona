@@ -25,7 +25,7 @@ export function spotWhere(s: CodeSpot): string {
 }
 
 /** `button.save · /settings`: an element comment's element and the page it is on. */
-export function elementWhere(e: ElementSpot): string {
+function elementWhere(e: ElementSpot): string {
   return [e.selector, e.port ? addressOf(e.url, e.port) : e.url].join(" · ");
 }
 

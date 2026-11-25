@@ -1,15 +1,13 @@
 // Source subscriptions (#2041, docs/extensions/subscriptions.md "Pages"): the manager draws the pages as declarative UI
 // (POST /api/v1/subscriptions/-/ui); the web opens them at /subscriptions and shows entry rows, once the manager reports
 // that subscriptions deliver to the Inbox (feature source_subscriptions).
-import { useEffect, useState } from "react";
-import { api } from "./api";
-import { onHubEvent, useStore } from "./store";
+import { useStore } from "./store";
 
-export const SUBSCRIPTIONS_FEATURE = "source_subscriptions";
+const SUBSCRIPTIONS_FEATURE = "source_subscriptions";
 /** The manager's pages are Inbox Sources (#5278): built-in sources beside the subscriptions; Settings has its row. */
-export const INBOX_SOURCES_FEATURE = "inbox_sources";
+const INBOX_SOURCES_FEATURE = "inbox_sources";
 /** The manager answers GET /api/v1/subscriptions/-/graph (#5741): Inbox Sources has its List / Relationships switch. */
-export const INBOX_SOURCES_GRAPH_FEATURE = "inbox_sources_graph";
+const INBOX_SOURCES_GRAPH_FEATURE = "inbox_sources_graph";
 
 export { SUBSCRIPTIONS_UI } from "./subscriptions-ui";
 
@@ -43,35 +41,6 @@ export function useInboxSourcesGraphShown(): boolean {
   return useStore((s) => s.features.includes(INBOX_SOURCES_GRAPH_FEATURE));
 }
 
-/** The summary, read when subscriptions are shown and again whenever one changes (at most once a second); null before. */
-export function useSubscriptionSummary(): SubscriptionSummaryLine[] | null {
-  const shown = useSubscriptionsShown();
-  const [lines, setLines] = useState<SubscriptionSummaryLine[] | null>(null);
-  useEffect(() => {
-    if (!shown) {
-      setLines(null);
-      return;
-    }
-    let alive = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const load = () =>
-      api<{ connectors?: SubscriptionSummaryLine[] }>("/subscriptions/summary").then(
-        (r) => alive && setLines(Array.isArray(r.connectors) ? r.connectors : []),
-        () => {}, // an entry row is a convenience: on a failure it keeps what it had (or stays hidden)
-      );
-    load();
-    const off = onHubEvent("subscription", () => {
-      clearTimeout(timer);
-      timer = setTimeout(load, 1000);
-    });
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-      off();
-    };
-  }, [shown]);
-  return lines;
-}
 
 /** The counts for the lines one entry row stands for; null when none of them can be subscribed (the row is hidden). */
 export function countsOf(lines: SubscriptionSummaryLine[] | null, pick: (l: SubscriptionSummaryLine) => boolean): SubscriptionCounts | null {

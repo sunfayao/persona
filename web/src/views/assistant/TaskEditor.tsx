@@ -576,7 +576,7 @@ export function RunLine({ run, now, onOpen, showTitle }: { run: Run; now: Date; 
   </div>;
 }
 
-export function RunMark({ status }: { status: string }) {
+function RunMark({ status }: { status: string }) {
   if (status === "ok")
     return (
       <span aria-label={t("assistant-taskeditor.status_ok")} role="img" className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-green-tint text-green">

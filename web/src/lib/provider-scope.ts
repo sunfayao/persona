@@ -7,11 +7,11 @@ import { formatList, t } from "../i18n";
 import type { Machine } from "./types";
 
 export type Share = "all" | "selected" | "none";
-export type Delivery = "on_demand" | "push";
+type Delivery = "on_demand" | "push";
 export type OwnService = "skip" | "use";
 
 /** The hub's hello feature for the scope fields; without it a new provider gets no "Devices" step. */
-export const LAUNCHER_SCOPE_FEATURE = "launcher_scope";
+const LAUNCHER_SCOPE_FEATURE = "launcher_scope";
 
 /** The scope fields of GET /api/v1/launchers' managed entry; all absent on an older hub. */
 export interface ScopeView {
@@ -72,10 +72,10 @@ export const scopeShown = (old: ScopeView | null, features: string[]) => (old ? 
 export const ownServiceOf = (f: ScopeForm, assign = false): OwnService => f.own_service ?? (assign ? "use" : "skip");
 
 /** The ids `scope_machines` carries for the share chosen. */
-export const scopeMachines = (f: ScopeForm): string[] => (f.share === "selected" ? f.machines : f.share === "all" ? f.work : []);
+const scopeMachines = (f: ScopeForm): string[] => (f.share === "selected" ? f.machines : f.share === "all" ? f.work : []);
 
 /** A work computer, when the hub's machine list says so (`trust: "work"`); hubs that only mark pending ones make none. */
-export const isWork = (m: Pick<Machine, "trust">) => (m.trust as string | undefined) === "work";
+const isWork = (m: Pick<Machine, "trust">) => (m.trust as string | undefined) === "work";
 const isPending = (m: Pick<Machine, "trust">) => m.trust === "pending";
 
 /** The computers "Chosen computers" offers: confirmed ones, plus whatever is already chosen (kept visible to uncheck). */
@@ -168,7 +168,7 @@ export const formScope = (f: ScopeForm, assign = false): ScopeView => ({ share: 
 export type Harness = "claude" | "codex" | "agy" | "omp" | "api" | (string & {});
 
 /** The harness a managed provider runs in: a direct API one its own group, a launcher its agent ("" is Claude Code). */
-export const harnessOf = (p: { kind?: string; agent?: string }): Harness => (p.kind === "api" ? "api" : p.agent || "claude");
+const harnessOf = (p: { kind?: string; agent?: string }): Harness => (p.kind === "api" ? "api" : p.agent || "claude");
 
 const HARNESS_ORDER = ["claude", "codex", "agy", "omp", "api"];
 

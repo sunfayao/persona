@@ -11,12 +11,12 @@
 // reads as the default and is left in place until a choice replaces it.
 
 export type TerminalRenderer = "standard" | "webgl";
-export const TERMINAL_RENDERERS: readonly TerminalRenderer[] = ["standard", "webgl"];
+const TERMINAL_RENDERERS: readonly TerminalRenderer[] = ["standard", "webgl"];
 export const TERMINAL_RENDERER_KEY = "persona.terminal.webgl";
 
 /** Where the value read came from. "invalid": something this build does not recognize was saved (left in place);
  *  "unreadable": this browser does not let the page read its storage. Both read as the default. */
-export type LabSource = "default" | "saved" | "invalid" | "unreadable";
+type LabSource = "default" | "saved" | "invalid" | "unreadable";
 
 export interface LabState<V> {
   value: V;

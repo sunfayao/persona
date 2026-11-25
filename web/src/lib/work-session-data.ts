@@ -25,7 +25,7 @@ export const WORK_FILTER_KEY = {
   harness: "harness",
 } as const satisfies Record<WorkDimension, string>;
 
-export function workDimensionId(session: WorkSession, dimension: WorkDimension): string | undefined {
+function workDimensionId(session: WorkSession, dimension: WorkDimension): string | undefined {
   switch (dimension) {
     case "device": return session.machine_id;
     case "project": return session.project_id;

@@ -15,7 +15,7 @@ import { launcherBlock, usableFirst } from "./launcher-health";
 import { providerIdNote, providerTitle } from "./provider-names";
 import { closeListedAgent } from "./close-agent";
 
-export type NodeKind = "machine" | "workspace" | "tab" | "pane";
+type NodeKind = "machine" | "workspace" | "tab" | "pane";
 
 export interface MenuNode {
   kind: NodeKind;
@@ -109,10 +109,10 @@ export const canRenameIn = (host: string | undefined) => canChangeHost(host) || 
  *  user's own shell (#5275): there Codex starts from "New agent" in a tab of its own. Never one that starts the session
  *  in a desktop app (#5480, lib/desktop-start.ts's sources, spelled out here so that module stays off the first screen):
  *  typed into a shell it would run nothing, and the computer refuses it. */
-export const launchableHere = (l: Launcher) =>
+const launchableHere = (l: Launcher) =>
   l.source !== "claude_desktop" && l.source !== "codex_app" && (l.run_here || (l.agent_type || l.agent || "claude") === "claude");
 
-export const GIT_OPS = [
+const GIT_OPS = [
   { op: "pull", label: t("lib-node-actions.git_pull"), accel: "p", done: "lib-node-actions.git_pull_done" },
   { op: "push", label: t("lib-node-actions.git_push"), accel: "u", done: "lib-node-actions.git_push_done" },
   { op: "fetch", label: t("lib-node-actions.git_fetch"), accel: "f", done: "lib-node-actions.git_fetch_done" },
@@ -126,7 +126,7 @@ export interface PaneGitResult {
 }
 
 /** What `panes/agent` answers: the session it started in the pane (`docs/protocol/protocol.md`). */
-export interface PaneAgentResult {
+interface PaneAgentResult {
   session_id?: string;
 }
 

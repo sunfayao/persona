@@ -4,9 +4,9 @@
 
 /** The lowest and highest bitrate the helper encodes at, in kbit/s. */
 export const MIN_KBPS = 200;
-export const MAX_KBPS = 50_000;
+const MAX_KBPS = 50_000;
 /** The scales (pixels per point) the helper takes; a request outside is clamped. */
-export const SCALES = { min: 0.25, max: 4 } as const;
+const SCALES = { min: 0.25, max: 4 } as const;
 
 const even = (v: number) => Math.max(2, v & ~1);
 /** Swift's `rounded()` for the positive values here: half away from zero, which is `Math.round` above 0. */
@@ -14,7 +14,7 @@ export const rounded = (v: number) => Math.round(v);
 
 /** The encoded size for a display `width` × `height`: the long edge at most `maxSize` (0 or less: no cap), the aspect
  *  ratio kept, never larger than the display, both sides even and at least 2. */
-export function sizeFor(width: number, height: number, maxSize: number): { width: number; height: number } {
+function sizeFor(width: number, height: number, maxSize: number): { width: number; height: number } {
   if (width <= 0 || height <= 0) return { width: 2, height: 2 };
   const long = Math.max(width, height), short = Math.min(width, height);
   if (maxSize <= 0 || long <= maxSize) return { width: even(width), height: even(height) };

@@ -13,7 +13,7 @@ import { navigate } from "./router";
 import { getState, refreshAssistant, subscribe } from "./store";
 
 export const CLEAR_MAIN_FEATURE = "assistant_main_clear";
-export const CLEAR_MAIN_PATH = "/assistant/main/clear";
+const CLEAR_MAIN_PATH = "/assistant/main/clear";
 
 /** The main conversation's command list: /clear, worded as an Agent's /clear is. */
 export function mainCommands(): ComposerCommand[] {

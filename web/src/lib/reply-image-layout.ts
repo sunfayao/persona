@@ -3,7 +3,7 @@
 // first screen needs.
 
 /** The sizes the hub draws (`GET /api/v1/remote-image`). */
-export const REMOTE_IMAGE_SIZES = [256, 512, 768, 1024, 1536, 2048];
+const REMOTE_IMAGE_SIZES = [256, 512, 768, 1024, 1536, 2048];
 /** A lone picture's height on a wide page, and in a narrow window (the iPhone's). */
 export const PICTURE_H = 300;
 export const PICTURE_H_NARROW = 240;
@@ -14,7 +14,7 @@ export const PICTURE_GAP = 4;
 /** A picture that did not load: a tile this many pixels square. */
 export const PICTURE_FAILED = 80;
 /** The narrowest a lone picture is drawn, as a share of its height (3:4), and its box before it arrives (4:3). */
-export const NARROWEST = 3 / 4;
+const NARROWEST = 3 / 4;
 export const PLACEHOLDER = 4 / 3;
 /** At most this many squares are drawn; the last of them says how many more there are. */
 export const MOST_SHOWN = 6;

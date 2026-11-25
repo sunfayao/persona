@@ -21,7 +21,7 @@ export interface TodoRowActions {
 }
 
 /** The hour a reminder for tomorrow goes off, local time. */
-export const MORNING_HOUR = 9;
+const MORNING_HOUR = 9;
 
 /** The days Due date offers, as local midnights: today, tomorrow, and the first day of next week (the week the
  *  calendar draws, from the browser's locale). */

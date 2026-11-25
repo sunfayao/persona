@@ -199,7 +199,7 @@ export function isGenerated(path: string, said?: boolean): boolean {
 }
 
 /** A file with more changed lines than this is folded at first. */
-export const BIG_DIFF = 400;
+const BIG_DIFF = 400;
 
 /** Why a diff is folded at first: the extension said so, a generated file, a big one; or not. */
 export function foldedAtFirst(item: { path?: string; collapsed?: boolean; generated?: boolean; additions?: number; deletions?: number; viewed?: boolean }): "collapsed" | "generated" | "big" | "viewed" | null {
@@ -245,7 +245,7 @@ export function gaps(hunks: readonly Hunk[], total?: number): Gap[] {
 }
 
 /** How many lines a gap hides (Infinity when its end is not known yet). */
-export const gapSize = (g: Gap) => (g.to === undefined ? Infinity : Math.max(0, g.to - g.from + 1));
+const gapSize = (g: Gap) => (g.to === undefined ? Infinity : Math.max(0, g.to - g.from + 1));
 
 /** The lines shown of a gap: `top` from its start down (below the hunk before), `bottom` from its end up. */
 export interface Shown {
@@ -254,7 +254,7 @@ export interface Shown {
 }
 
 /** A gap's lines shown at most this many at a time. */
-export const STEP = 20;
+const STEP = 20;
 
 /**
  * Showing more of a gap: down (below the hunk before it), up (above the hunk after it), or all. Says what is shown now

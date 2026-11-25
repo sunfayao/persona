@@ -23,7 +23,7 @@ export const SEEN_CONFIRM_MS = 5_000;
 /** Given up after this: the hub was out of reach all along. */
 export const SEEN_KEEP_MS = 10 * 60_000;
 /** The machine touched the finished agent's transcript without a new turn (the hub's own slack is 2 s). */
-export const SEEN_SAME_TURN_MS = 2_000;
+const SEEN_SAME_TURN_MS = 2_000;
 /** How long a mark the hub recorded still holds the rows of lists that have not read since (a list reads at most once
  *  in two seconds, a group's counts once in 1.5 s): well past both. */
 export const SEEN_SETTLE_MS = 15_000;
@@ -88,13 +88,13 @@ export function newMark(s: Session, now: number, localSeenAt?: string): SeenMark
 }
 
 /** The hub's row shows the mark taken: a `seen_at` later than the one it had (not the page's own). */
-export function markRecorded(s: Session, m: SeenMark): boolean {
+function markRecorded(s: Session, m: SeenMark): boolean {
   return timeMs(s.seen_at) > m.seenBefore && s.seen_at !== m.localSeenAt;
 }
 
 /** The hub's row says the agent moved on since the look (a new turn ended, it works or needs you again), or the mark is
  *  too old: the mark is done with, whatever any list says. */
-export function markEnded(s: Session, m: SeenMark, now: number): boolean {
+function markEnded(s: Session, m: SeenMark, now: number): boolean {
   const newTurn = timeMs(s.updated_at) > m.updatedBefore + SEEN_SAME_TURN_MS;
   const st = stateOf(s);
   return newTurn || st === "working" || st === "needs_you" || expired(m, now);

@@ -11,7 +11,7 @@ export function prefix(n: number): Uint8Array {
   const raws = new VideoParser().push(fixture).slice(0, n);
   return concat(raws.map((r) => encode(decode(r.type, r.body))));
 }
-export const concat = (parts: Uint8Array[]) => {
+const concat = (parts: Uint8Array[]) => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
   for (const p of parts) (out.set(p, at), (at += p.length));

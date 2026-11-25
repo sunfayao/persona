@@ -180,7 +180,7 @@ export interface ExtensionUpgradeNote {
   at: string;
 }
 
-export interface ExtensionChoice {
+interface ExtensionChoice {
   value: Json;
   title?: string;
 }
@@ -235,10 +235,9 @@ export interface ExtensionSecret {
   entry_title?: string;
 }
 
-export type { SecretReference } from "./secret-reference";
 
 /** A setting that holds one of a provider's references: another extension's secret, or a model provider's key. */
-export interface SecretUser {
+interface SecretUser {
   kind: "extension" | "launcher";
   extension?: string;
   extension_name?: string;
@@ -253,7 +252,7 @@ export interface SecretUser {
 }
 
 /** An "Always" of a hand-off card: this reference for this launcher on this computer, asked no more. */
-export interface HandoffRule {
+interface HandoffRule {
   id: string;
   reference: string;
   launcher: string;
@@ -309,15 +308,8 @@ const withEntryLists = (path: string) => `${path}${path.includes("?") ? "&" : "?
 type ListAnswer = { extensions?: HubExtension[]; plugins?: HubExtension[]; can_install?: boolean; markets?: boolean };
 
 export const listExtensions = () => api<ListAnswer>(extRoot()).then((r) => listOf(r));
-/** The list with what this hub allows: installing at all (a database), and markets (docs/extensions/extensions.md "Extension marketplace"). */
-export const listExtensionsInfo = () =>
-  api<ListAnswer>(extRoot()).then((r) => ({
-    extensions: listOf(r),
-    canInstall: !!r.can_install,
-    markets: !!r.markets,
-  }));
 /** A detail as either kind of hub sends it, its pages' places read with the new keys. */
-export const detailOf = (d: HubExtensionDetail): HubExtensionDetail => (d.ui ? { ...d, ui: d.ui.map(placeOf) } : d);
+const detailOf = (d: HubExtensionDetail): HubExtensionDetail => (d.ui ? { ...d, ui: d.ui.map(placeOf) } : d);
 export const extensionDetail = (id: string) => api<HubExtensionDetail>(withEntryLists(`${base(id)}/`)).then(detailOf);
 /** After a change that can start, stop or reconfigure an extension: its entries, cards and sections are asked for again. */
 export const changed = <T>(r: T): T => {
@@ -327,8 +319,6 @@ export const changed = <T>(r: T): T => {
 };
 export const setExtensionEnabled = (id: string, enabled: boolean, cascade = false) =>
   api<HubExtensionDetail>(withEntryLists(`${base(id)}/enabled`), { method: "PUT", json: { enabled, ...(cascade ? { cascade } : {}) } }).then(detailOf).then(changed);
-export const setContribution = (id: string, point: string, cid: string, enabled: boolean) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/contributions/${enc(point)}/${enc(cid)}`), { method: "PUT", json: { enabled } }).then(detailOf).then(changed);
 export const setExtensionAutoUpgrade = (id: string, auto: boolean) =>
   api<HubExtensionDetail>(withEntryLists(`${base(id)}/auto-upgrade`), { method: "PUT", json: { auto } }).then(detailOf);
 /** The auto-upgrade switch for all market extensions; a hub from before it has no route (null). */
@@ -400,7 +390,7 @@ export const runNote = (p: HubExtension) => {
 
 /** An attached extension's small print: online or offline since when, and why while it is still reconnecting (its
  *  status says no error yet); "" while it is switched off. */
-export function attachedNote(p: Pick<HubExtension, "status" | "attached">): string {
+function attachedNote(p: Pick<HubExtension, "status" | "attached">): string {
   const a = p.attached;
   if (!a || p.status === "disabled") return "";
   const time = clock(a.since);
@@ -411,12 +401,12 @@ export function attachedNote(p: Pick<HubExtension, "status" | "attached">): stri
 }
 
 /** The version as the detail's line says it: the approved one, and the program's when it says another. */
-export function versionText(p: Pick<HubExtension, "version" | "attached">): string | undefined {
+function versionText(p: Pick<HubExtension, "version" | "attached">): string | undefined {
   const current = p.attached?.version;
   return current ? t("lib-extensions.version_differs", { approved: p.version ?? "", current }) : p.version;
 }
 
-export const isProblem = (p: HubExtension) => p.status === "error" || p.status === "incompatible";
+const isProblem = (p: HubExtension) => p.status === "error" || p.status === "incompatible";
 
 /** The tone of an extension's dot: red broken, orange waiting on the user, green on (running or idle), gray otherwise. */
 export function extensionTone(p?: HubExtension | null): "red" | "orange" | "green" | "idle" {
@@ -430,9 +420,6 @@ export function sourceText(s?: string): string | undefined {
   return s === "builtin" ? t("lib-extensions.source_builtin") : s === "hub.json" ? "manager.json" : s === "installed" ? t("lib-extensions.source_installed") : undefined;
 }
 
-export function pointText(name: string): string {
-  return name === "connectors" ? t("lib-extensions.point_connectors") : name === "voice" ? t("lib-extensions.point_voice") : name;
-}
 
 /** The detail's line under the name: state · version · source. */
 /** The "Upgrade" group's line for a newer version: what happens to it (the App's ExtensionText.upgradeDetail). */
@@ -486,15 +473,13 @@ export function listSummary(list?: HubExtension[] | null): string {
   return attention ? t("lib-extensions.count_attention", { count: list.length, attention }) : t("lib-extensions.count", { count: list.length });
 }
 
-export const fieldLabel = (f: ExtensionField) => f.title || f.name;
+const fieldLabel = (f: ExtensionField) => f.title || f.name;
 
-/** Whether flipping a switch of the field asks its x-confirm sentence first: only turning one on, and only with a sentence. */
-export const asksFirst = (f: ExtensionField, on: boolean) => on && !!f.confirm;
 
 /** The title with "(required)" when it has to be filled in and has no default to fall back to. */
 export const fieldTitle = (f: ExtensionField) => (f.required && f.default === undefined ? t("lib-extensions.field_required", { label: fieldLabel(f) }) : fieldLabel(f));
 
-export const choiceLabel = (c: ExtensionChoice) => c.title || (typeof c.value === "string" ? c.value : JSON.stringify(c.value));
+const choiceLabel = (c: ExtensionChoice) => c.title || (typeof c.value === "string" ? c.value : JSON.stringify(c.value));
 
 /** What shows when a field is empty: the default it falls back to, or "Not set". */
 export function placeholder(f: ExtensionField): string {
@@ -506,40 +491,8 @@ export function placeholder(f: ExtensionField): string {
   return t("lib-extensions.not_set");
 }
 
-/** A launcher as the form's picker reads it (GET /launchers' entry). */
-export interface PickerLauncher {
-  name: string;
-  display_name?: string;
-  hidden?: boolean;
-}
 
-/** One choice of a machine or launcher picker; `missing`: the value names none of them (it still shows, to change it). */
-export interface PickerChoice {
-  value: string;
-  label: string;
-  missing?: boolean;
-}
 
-/** The picker a string field draws instead of a text box: the hub's machines (format machine, of the systems x-os names)
- *  or launchers (format launcher, the hidden ones left out), by name; a current value that names none of them comes
- *  first, so it can be seen and changed. null: the field is not one of these, or its list is not in yet. */
-export function pickerChoices(f: ExtensionField, current: Json | undefined, machines: Pick<Machine, "id" | "name" | "os">[], launchers: PickerLauncher[] | null): PickerChoice[] | null {
-  if (f.type !== "string" || f.enum?.length) return null;
-  let out: PickerChoice[];
-  if (f.format === "machine") {
-    const os = f.os ?? [];
-    out = machines.filter((m) => !os.length || os.includes(m.os ?? "")).map((m) => ({ value: m.id, label: m.name || m.id }));
-  } else if (f.format === "launcher") {
-    if (!launchers) return null;
-    out = launchers.filter((l) => !l.hidden).map((l) => ({ value: l.name, label: l.display_name?.trim() && l.display_name.trim() !== l.name ? `${l.display_name.trim()} (${l.name})` : l.name }));
-  } else {
-    return null;
-  }
-  if (typeof current === "string" && current && !out.some((c) => c.value === current)) {
-    out.unshift({ value: current, label: t(f.format === "machine" ? "lib-extensions.machine_missing" : "lib-extensions.launcher_missing", { name: current }), missing: true });
-  }
-  return out;
-}
 
 /**
  * The secret the header's "Still needs" line opens (#8853): the first one not set that is required or that the line

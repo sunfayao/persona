@@ -27,13 +27,13 @@ export function UltraMark({ size = 11, label = t("ultracode.on"), title = t("ult
 /** The Claude subscription's 5-hour and weekly use under the switch (#2432's windows), one line, and past 80% a
  *  warning when `warn` (a switch that is on or can simply be turned on; not under a reason it can't, nor while it is
  *  being turned off). Nothing without data. */
-export function UltracodeQuotaLine({ warn = true, className }: { warn?: boolean; className?: string }) {
+function UltracodeQuotaLine({ warn = true, className }: { warn?: boolean; className?: string }) {
   return <QuotaLine quota={ultracodeQuota(useUsageWindows())} warn={warn} className={className} />;
 }
 
 /** The line itself. Numbers the hub marked out of date fade and say so with their age, as the usage bars do (#1906):
  *  use only grows, so an old 62% may be past 80% by now. */
-export function QuotaLine({ quota, warn, className, now }: { quota: UltracodeQuota | null; warn: boolean; className?: string; now?: number }) {
+function QuotaLine({ quota, warn, className, now }: { quota: UltracodeQuota | null; warn: boolean; className?: string; now?: number }) {
   if (!quota) return null;
   const age = quotaAge(quota, now);
   return (

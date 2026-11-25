@@ -26,7 +26,7 @@ export const FALLBACK_LANGS = ["en", "zh-Hans"] as const;
 const PLURAL = /_(zero|one|two|few|many|other)$/;
 
 /** src/i18n/startup-namespaces.json, from a language's _meta.json: what client-startup holds. */
-export function startupNamespacesFile(metaPath: string): string {
+function startupNamespacesFile(metaPath: string): string {
   return join(dirname(metaPath), "..", "..", "startup-namespaces.json");
 }
 

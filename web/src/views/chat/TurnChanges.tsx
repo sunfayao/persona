@@ -14,7 +14,7 @@ import { Icon } from "../../ui/icons";
 import { t } from "../../i18n";
 
 /** Files listed before "Show N more files" (cindy's MAX_VISIBLE_FILES). */
-export const VISIBLE_FILES = 3;
+const VISIBLE_FILES = 3;
 
 /** The card's height as drawn (Chrome, 2026-11-12), for an exchange's estimate before it is first drawn: its 4 px
  *  margins, border, the 64 px head, and the files' padding, rows and Show more row. */

@@ -7,7 +7,7 @@ import type { IconName } from "./icons";
 /** Sidebar header menus: the earlier product menu and the assistant roster, in pixels. */
 export const ASSISTANT_MENU_WIDTH = { product: 220, roster: 264 } as const;
 
-export interface MenuRename {
+interface MenuRename {
   /** What the input starts with (selected, so typing replaces it). */
   value: string;
   placeholder?: string;

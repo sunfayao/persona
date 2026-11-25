@@ -68,11 +68,11 @@ export function collapseMounted(lazy: boolean, open: boolean, closing: boolean):
 /** At most this far from the end is at the end: following again whichever way the reader scrolled. */
 export const REPIN_AT_BOTTOM = 8;
 /** Scrolling down within this far of the end follows again. */
-export const REPIN_NEAR = 100;
+const REPIN_NEAR = 100;
 /** A finger has to move this far before it counts as pulling the list. */
-export const TOUCH_INTENT = 8;
+const TOUCH_INTENT = 8;
 /** A scroll bar drag moving the offset up by more than this leaves the end. */
-export const SCROLLBAR_DEAD_ZONE = 2;
+const SCROLLBAR_DEAD_ZONE = 2;
 /** Unfolding a card holds off following this long, the clicked row held where it was. */
 export const UNFOLD_PAUSE = 300;
 

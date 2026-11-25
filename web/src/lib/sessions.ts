@@ -302,7 +302,7 @@ const listStatus = (): AgentListStatus => {
   return list.loaded ? "loaded" : list.error || listFailed ? "failed" : "loading";
 };
 const listHasMore = () => runtimeSessions.getSnapshot().hasMore;
-export type AgentListStatus = "loaded" | "loading" | "failed";
+type AgentListStatus = "loaded" | "loading" | "failed";
 /** `whole`: the rows read are every agent (no page left to read), so they can be counted, e.g. by computer. */
 export type AgentList = { status: AgentListStatus; whole: boolean };
 const PUSHED_LIST: AgentList = { status: "loaded", whole: true };

@@ -12,7 +12,7 @@ import { routeText } from "./mesh";
 import { providerTitle } from "./provider-names";
 import type { Launcher, Machine, MachineMetrics } from "./types";
 
-export type MachinePresence = "online" | "offline" | "pending" | "not_connected";
+type MachinePresence = "online" | "offline" | "pending" | "not_connected";
 
 export interface RuntimeGroup {
   /** agentId of the runtime ("claude", "codex"). */
@@ -42,7 +42,7 @@ export interface CapabilityRow {
   reach: string;
 }
 
-export function presenceOf(m: Machine): MachinePresence {
+function presenceOf(m: Machine): MachinePresence {
   if (isPending(m)) return "pending";
   if (neverConnected(m)) return "not_connected";
   return m.online ? "online" : "offline";

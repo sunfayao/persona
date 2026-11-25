@@ -53,7 +53,7 @@ export function invalidateOverviewPanel(mid: string, sid: string) {
 export const SIDEBAR_LABEL = t("lib-use-shortcuts.sidebar");
 
 /** A dialog or the palette is open: the shortcuts that act on the page stand aside. */
-export function overlayOpen(doc: Pick<Document, "querySelector"> = document): boolean {
+function overlayOpen(doc: Pick<Document, "querySelector"> = document): boolean {
   return Boolean(doc.querySelector(`[data-shortcut-layer], [role="dialog"][aria-modal="true"]:not([aria-label=${JSON.stringify(SIDEBAR_LABEL)}])`));
 }
 

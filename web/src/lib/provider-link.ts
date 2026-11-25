@@ -16,7 +16,7 @@ export const IMPORT_LINK_FEATURE = "launcher_import_link";
 export type LinkSource = ProviderView & { source?: string };
 
 /** One model in a link: its ID alone, or with what Persona knows of it. */
-export type LinkModel = string | {
+type LinkModel = string | {
   id: string;
   name?: string;
   contextWindow?: number;

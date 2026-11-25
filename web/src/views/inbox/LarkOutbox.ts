@@ -27,7 +27,7 @@ export function newClientID(): string {
 }
 
 /** The local message drawn until the hub's copy comes. */
-export function localMessage(o: LarkOutgoing, position: string): LarkMessage {
+function localMessage(o: LarkOutgoing, position: string): LarkMessage {
   const a = o.attachment;
   const parts = a
     ? [a.kind === "image" ? { kind: "image", url: a.url, text: a.name } : { kind: "file", text: a.name, metadata: { size: a.size } }]
@@ -49,7 +49,7 @@ export function localMessage(o: LarkOutgoing, position: string): LarkMessage {
 }
 
 /** Sends `o` the way it is routed. */
-export function deliver(feed: string, o: LarkOutgoing, ol?: number, manager?: string): Promise<{ message_id?: string }> {
+function deliver(feed: string, o: LarkOutgoing, ol?: number, manager?: string): Promise<{ message_id?: string }> {
   if (o.attachment) return sendLarkAttachment(feed, o.attachment, o.clientID, o.route, ol, manager);
   if (o.route.replyTo) return replyLarkMessage(o.route.replyTo, o.text ?? "", Boolean(o.route.thread), o.clientID, ol, o.mentions, manager);
   return sendLarkMessage(feed, o.text ?? "", o.clientID, ol, o.mentions, manager);

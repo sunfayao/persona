@@ -146,7 +146,7 @@ export function appPage(u: URL): { page: DeepPage; hub?: string } | null {
 }
 
 /** The page an app link (a URL string) opens, or null: what a message keeps of a persona:// link. */
-export function appLinkPage(url: string): DeepPage | null {
+function appLinkPage(url: string): DeepPage | null {
   try {
     return appPage(new URL(url.trim()))?.page ?? null;
   } catch {

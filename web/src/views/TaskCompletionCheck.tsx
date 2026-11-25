@@ -86,7 +86,7 @@ const labelKey = (keys: Record<string, string>, code: string, fallback: string) 
 const appliedKey = (check: TaskDoneCheck, _supervised: boolean) =>
   check.verdict !== "done" ? "todos.check_applied_kept" : "todos.check_applied_review";
 
-export function CompletionCheckResult({ check, at, supervised = false }: { check: TaskDoneCheck; at: Date; supervised?: boolean }) {
+function CompletionCheckResult({ check, at, supervised = false }: { check: TaskDoneCheck; at: Date; supervised?: boolean }) {
   const delivery = check.delivery;
   return (
     <div role="status" className="mt-3 min-w-0 space-y-2 text-[13px] leading-[1.6] text-ink-2 break-words" data-testid="completion-check-result">

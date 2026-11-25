@@ -54,7 +54,7 @@ export async function adminApi<T>(path: string, method: Method = "GET", json?: u
 
 // adminUpload posts a file as it is (application/octet-stream): the one admin write whose body is not JSON (an extension
 // package, docs/operations/admin.md "Extensions"). query carries what the body cannot.
-export async function adminUpload<T>(path: string, file: Blob, query: Record<string, string>): Promise<T> {
+async function adminUpload<T>(path: string, file: Blob, query: Record<string, string>): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/octet-stream", "Accept-Language": currentLanguage() };
   if (csrf) CSRF_HEADERS.forEach(name => headers[name] = csrf);
   const q = new URLSearchParams(Object.entries(query).filter(([, v]) => v)).toString();

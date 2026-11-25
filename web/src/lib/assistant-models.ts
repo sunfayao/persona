@@ -39,7 +39,7 @@ export interface AssistantChat {
 
 /** Where a chat's setup comes from: its own pick; the default (the main chat, the new-conversation page); or what it
  *  started with (another chat). */
-export type SetupSource = "pick" | "default" | "own";
+type SetupSource = "pick" | "default" | "own";
 
 /** What the chat's next message runs on: model absent is the launcher's default entry, effort absent the default's. */
 export interface AssistantSetup {

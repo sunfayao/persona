@@ -7,7 +7,7 @@ import type { Element, ElementContent, Root, RootContent } from "hast";
 import { isMachineRef } from "../lib/files";
 import { isWebImage } from "../lib/reply-images";
 
-export const GROUP_TAG = "reply-images";
+const GROUP_TAG = "reply-images";
 
 type Node = ElementContent;
 type PictureKind = "web" | "local";

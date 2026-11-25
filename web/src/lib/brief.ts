@@ -4,7 +4,7 @@
 // here says a word, so the first screen can name the types without the strings (views/assistant/TaskBrief.tsx draws).
 
 /** The owner's message that led to the task, as they wrote it (`truncated`: the hub kept its first 2000 characters). */
-export interface BriefRequest {
+interface BriefRequest {
   text: string;
   truncated?: boolean;
   at: string;
@@ -28,7 +28,7 @@ export interface BriefEvent {
   approval?: BriefRequest;
 }
 
-export type CriterionState = "met" | "not_met" | "unchecked" | "dropped";
+type CriterionState = "met" | "not_met" | "unchecked" | "dropped";
 
 /** One criterion when the work ended (or, on a receipt, as it stood when the agent stopped). */
 export interface BriefCriterion {
@@ -50,7 +50,7 @@ export interface BriefResult {
   also_done?: string[];
 }
 
-export type BriefStarter = "owner" | "assistant" | "leader" | "routine" | "hub" | "unknown";
+type BriefStarter = "owner" | "assistant" | "leader" | "routine" | "hub" | "unknown";
 
 export interface TaskBrief {
   id: string;

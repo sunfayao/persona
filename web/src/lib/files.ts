@@ -232,8 +232,8 @@ export function normalizePath(p: string): string {
 
 // ── Git ───────────────────────────────────────────────────
 
-export const isUntracked = (f: GitFile) => f.index === "?";
-export const isConflicted = (f: GitFile) => f.index === "U" || f.worktree === "U";
+const isUntracked = (f: GitFile) => f.index === "?";
+const isConflicted = (f: GitFile) => f.index === "U" || f.worktree === "U";
 export const isStaged = (f: GitFile) => !isUntracked(f) && f.index !== ".";
 export const hasUnstaged = (f: GitFile) => !isUntracked(f) && f.worktree !== ".";
 
@@ -293,7 +293,7 @@ export function diffTotals(files: GitFile[]): { added: number; deleted: number }
   return files.reduce((t, f) => ({ added: t.added + (f.added || 0), deleted: t.deleted + (f.deleted || 0) }), { added: 0, deleted: 0 });
 }
 
-export type DiffKind = "add" | "del" | "context" | "hunk" | "info";
+type DiffKind = "add" | "del" | "context" | "hunk" | "info";
 
 export interface DiffLine {
   kind: DiffKind;

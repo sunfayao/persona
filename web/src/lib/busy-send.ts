@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type BusySend = "queue" | "follow_up";
+type BusySend = "queue" | "follow_up";
 const key = "persona.busy-send";
 const changed = "persona:busy-send";
 
@@ -21,7 +21,3 @@ export function useBusySend() {
   return useSyncExternalStore(subscribe, read, () => "follow_up" as BusySend);
 }
 
-export function setBusySend(value: BusySend) {
-  localStorage.setItem(key, value);
-  window.dispatchEvent(new Event(changed));
-}

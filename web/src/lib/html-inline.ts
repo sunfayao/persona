@@ -6,7 +6,7 @@ import { cssImports, isRelativeRef, resolveRelative, rewriteCssUrls } from "./ht
 
 export type ReadFile = (path: string) => Promise<Blob | null>;
 
-export const INLINE_LIMITS = { files: 150, fileBytes: 10 << 20, totalBytes: 40 << 20 };
+const INLINE_LIMITS = { files: 150, fileBytes: 10 << 20, totalBytes: 40 << 20 };
 
 const MIME: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", ico: "image/x-icon", avif: "image/avif", bmp: "image/bmp",

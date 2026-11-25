@@ -59,7 +59,7 @@ export function heatLevels(values: number[], count = 4): number[] {
 }
 
 /** One square of the calendar: its day, or null for a day still to come. */
-export interface CalendarCell {
+interface CalendarCell {
   date: string | null;
   level: number;
 }
@@ -146,7 +146,7 @@ export interface UsageHour extends Omit<UsageDay, "date"> {
 }
 
 /** A computer's share of the hours; `name` empty for a computer no longer there. */
-export interface UsageMachineShare extends Omit<UsageDay, "date"> {
+interface UsageMachineShare extends Omit<UsageDay, "date"> {
   id: string;
   name: string;
 }

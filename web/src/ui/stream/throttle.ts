@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 /** Where the page is: in front, in a window without focus, or in a hidden tab. */
 export type Pace = "front" | "unfocused" | "hidden";
 
-export const PACE_MS: Record<Pace, number> = { front: 33, unfocused: 100, hidden: 200 };
+const PACE_MS: Record<Pace, number> = { front: 33, unfocused: 100, hidden: 200 };
 export const THROTTLE_BASE_MS = PACE_MS.front;
 export const THROTTLE_MAX_MS = 400;
 
@@ -25,7 +25,7 @@ export function throttleInterval(text: string, pace: Pace = "front"): number {
 }
 
 /** The page's pace now. */
-export function pagePace(): Pace {
+function pagePace(): Pace {
   if (typeof document === "undefined") return "front";
   if (document.visibilityState === "hidden") return "hidden";
   return typeof document.hasFocus === "function" && !document.hasFocus() ? "unfocused" : "front";

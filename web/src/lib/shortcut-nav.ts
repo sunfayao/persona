@@ -43,7 +43,7 @@ export function terminalChat(route: Route, view: SessionView, canTerminal: boole
 }
 
 /** The pages of a machine's tabs in the sidebar's order: each tab, then what has no tab (loose agents, "Other"). */
-export function machineStops(tree: HerdrMachine): { sids: string[]; to: Route }[] {
+function machineStops(tree: HerdrMachine): { sids: string[]; to: Route }[] {
   const walk = (sp: HerdrSpace): { sids: string[]; to: Route }[] => [
     ...sp.tabs.map((t) => ({ sids: t.sessions.map((s) => s.session_id), to: { name: "tab", mid: t.lead.machine_id, space: t.spaceId, slot: t.slotId } as Route })),
     ...sp.loose.map((s) => ({ sids: [s.session_id], to: paneRoute(s) })),

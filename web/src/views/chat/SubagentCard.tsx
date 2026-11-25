@@ -29,7 +29,7 @@ export function compactText(text: string | undefined, max: number): string {
 }
 
 /** What a background subagent reported: its notice's words (the call's own result is only the launch receipt). */
-export function reportOf(result: Item | undefined, notes: TaskNote[] | undefined): string {
+function reportOf(result: Item | undefined, notes: TaskNote[] | undefined): string {
   if (!isLaunchReceipt(result)) return "";
   const done = notes?.findLast((n) => n.kind === "agent" && n.detail?.trim());
   return done?.detail?.trim() ?? "";

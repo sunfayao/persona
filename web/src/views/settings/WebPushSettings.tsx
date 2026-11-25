@@ -21,7 +21,7 @@ type Permission = NotificationPermission | "unsupported";
 const currentPermission = (): Permission => (typeof Notification === "undefined" ? "unsupported" : Notification.permission);
 
 /** The row's second line: why it can't, or how it stands. */
-export function webPushHint(support: WebPushSupport, s: WebPushState, permission: Permission): string {
+function webPushHint(support: WebPushSupport, s: WebPushState, permission: Permission): string {
   if (support !== "ok") return t(SUPPORT_KEY[support]);
   if (s.hubMissing) return t("settings-notifications.webpush_old_hub");
   if (!s.loaded) return t("settings-notifications.webpush_loading");

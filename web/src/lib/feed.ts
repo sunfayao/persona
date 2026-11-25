@@ -21,7 +21,7 @@ import type { Item } from "./types";
 import { upsertTaskCards, type TaskCardMetadata } from "./task-cards";
 
 export type TaskWorkspace = "new" | "none" | { existing: string } | { new: { branch?: string } };
-export interface TaskWorkspaceResolved { machine: string; path: string; branch?: string; workspace_id?: string; created?: boolean }
+interface TaskWorkspaceResolved { machine: string; path: string; branch?: string; workspace_id?: string; created?: boolean }
 
 export interface PlanTask {
   title: string;
@@ -77,7 +77,7 @@ export interface TaskPlan {
   suggestion?: RuleSuggestion;
 }
 
-export type FeedKind = "plan" | "task" | "answered" | "receipt" | "routed" | "today" | "message" | "view" | "review" | "report" | "notice" | "brief" | "inbox_suggestion" | "urgent_call";
+type FeedKind = "plan" | "task" | "answered" | "receipt" | "routed" | "today" | "message" | "view" | "review" | "report" | "notice" | "brief" | "inbox_suggestion" | "urgent_call";
 
 export interface FeedItem {
   id: string;
@@ -134,7 +134,7 @@ function text(v: unknown): string | undefined {
 }
 
 /** A row as drawn: only the fields it has, each of the type it is declared with. A field of another type is dropped. */
-export function briefRow(raw: unknown): BriefRow | undefined {
+function briefRow(raw: unknown): BriefRow | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const r = raw as Record<string, unknown>;
   const id = text(r.id);
@@ -172,7 +172,7 @@ export function failedKey(x: BriefFailed): string {
 }
 
 /** "did not start · 03:12 — rpc: connection closed": how it ended, when, and why when the hub said. */
-export function failedLine(x: BriefFailed): string {
+function failedLine(x: BriefFailed): string {
   const how = t(failedKey(x), { time: formatDate(x.at, { hour: "2-digit", minute: "2-digit" }) });
   const why = x.why?.trim();
   return why ? `${how} — ${why}` : how;
@@ -346,10 +346,10 @@ export function receiptState(it: FeedItem): "done" | "failed" | "interrupted" {
 }
 
 /** How an interrupted receipt's task was dealt with, as the hub worked it out (#3834): pending until it was. */
-export type InterruptResolution = "pending" | "cancelled" | "rerouted" | "resumed" | "accepted" | "done";
+type InterruptResolution = "pending" | "cancelled" | "rerouted" | "resumed" | "accepted" | "done";
 
 /** One task of a batch of interruptions (`batch.tasks`). */
-export interface InterruptBatchTask {
+interface InterruptBatchTask {
   receipt: string;
   todo_id: string;
   title: string;
@@ -358,7 +358,7 @@ export interface InterruptBatchTask {
 }
 
 /** What a batch's head says of the batch: interruptions with the same cause in one chat within ten minutes. */
-export interface InterruptBatch {
+interface InterruptBatch {
   cause: string;
   machine?: string;
   total: number;
@@ -1045,7 +1045,7 @@ export function startOfDay(t: number): Date {
 /** A day line over the first line of each later day. The lines keep their order, which is not always the order of their
  *  times (an exchange's feed items, a clock that was behind): a line from a day already passed gets no line of its own,
  *  so the days only go forward and each day line (`day-<date>`) is there once. */
-export function withDays(lines: DisplayLine[], now = Date.now()): DisplayLine[] {
+function withDays(lines: DisplayLine[], now = Date.now()): DisplayLine[] {
   const out: DisplayLine[] = [];
   let last = "";
   for (const l of lines) {
@@ -1078,7 +1078,7 @@ export function dayLabel(date: Date, now = new Date()): string {
   return day;
 }
 
-export function isToday(iso: string, now = new Date()): boolean {
+function isToday(iso: string, now = new Date()): boolean {
   return new Date(iso).toDateString() === now.toDateString();
 }
 

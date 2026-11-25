@@ -47,7 +47,7 @@ export function editLines(oldText: string, newText: string): [string[], string[]
 
 /** The fewest lines to remove and add to make `a` into `b` (Myers' forward pass, no trace kept), or null past
  *  lib/compare.ts diffLines' limits, where the diff draws everything removed and everything added. */
-export function editDistance(a: readonly string[], b: readonly string[], limit = 60_000, maxEdits = 6_000): number | null {
+function editDistance(a: readonly string[], b: readonly string[], limit = 60_000, maxEdits = 6_000): number | null {
   const n = a.length;
   const m = b.length;
   if (n + m > limit) return null;
@@ -70,7 +70,7 @@ export function editDistance(a: readonly string[], b: readonly string[], limit =
 }
 
 /** The lines added and removed between two texts, as their line diff draws them. */
-export function lineCounts(oldText: string, newText: string): Counts {
+function lineCounts(oldText: string, newText: string): Counts {
   const [a, b] = editLines(oldText, newText);
   const d = editDistance(a, b);
   return d === null ? { add: b.length, del: a.length } : { add: (b.length - a.length + d) / 2, del: (a.length - b.length + d) / 2 };
@@ -78,7 +78,7 @@ export function lineCounts(oldText: string, newText: string): Counts {
 
 /** The lines a Codex file change's unified diff adds and removes, read as its row reads them (lib/tool-detail.ts
  *  patchDiffs: the lines in its hunks, or the whole file without hunks). A patch is no Myers diff: nothing to save. */
-export function patchCounts(patch: string, change?: string): Counts {
+function patchCounts(patch: string, change?: string): Counts {
   const n = { add: 0, del: 0 };
   for (const d of patchDiffs(patch, change)) for (const o of d) if (o.kind !== "same") n[o.kind]++;
   return n;

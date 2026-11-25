@@ -26,7 +26,7 @@ export const RECHECK_MS = 10_000;
 /** A run at least this often while nothing changes (time alone moves rows), and a summary line at most this often. */
 export const SUMMARY_MS = 60_000;
 /** The same mismatch is noted again after this long. */
-export const REPEAT_MS = 3_600_000;
+const REPEAT_MS = 3_600_000;
 /** Rows compared between two idle moments. */
 const SLICE = 50;
 

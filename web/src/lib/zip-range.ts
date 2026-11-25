@@ -2,7 +2,7 @@
 // .key / .numbers): the end of the file for the central directory, then just that entry, by HTTP Range. Pure apart
 // from the `read` callback; tested in zip-range.test.ts.
 
-export interface ZipEntry {
+interface ZipEntry {
   name: string;
   method: number; // 0 stored, 8 deflate
   compSize: number;
@@ -20,7 +20,7 @@ const u16 = (b: Uint8Array, i: number) => b[i] | (b[i + 1] << 8);
 const u32 = (b: Uint8Array, i: number) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
 
 /** Where the central directory is, from the file's last bytes; null when this is no zip (or a zip64 one). */
-export function findDirectory(tail: Uint8Array): { offset: number; size: number; count: number } | null {
+function findDirectory(tail: Uint8Array): { offset: number; size: number; count: number } | null {
   for (let i = tail.length - 22; i >= 0; i--) {
     if (u32(tail, i) !== 0x06054b50) continue;
     const count = u16(tail, i + 10);
@@ -33,7 +33,7 @@ export function findDirectory(tail: Uint8Array): { offset: number; size: number;
 }
 
 /** The entries of a central directory. */
-export function readDirectory(dir: Uint8Array, count: number): ZipEntry[] {
+function readDirectory(dir: Uint8Array, count: number): ZipEntry[] {
   const out: ZipEntry[] = [];
   const names = new TextDecoder();
   let i = 0;

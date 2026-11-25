@@ -56,7 +56,7 @@ export interface LarkAccountsDeps {
   save: (id: number | undefined) => void;
 }
 
-export const liveAccountsDeps: LarkAccountsDeps = {
+const liveAccountsDeps: LarkAccountsDeps = {
   list: () => api<LarkAccountList>("/lark/accounts"),
   load: () => {
     try {

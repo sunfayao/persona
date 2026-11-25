@@ -58,7 +58,7 @@ export interface UsagePoint extends UsageTokens {
   gap?: boolean;
 }
 
-export interface UsageShare extends UsageTokens {
+interface UsageShare extends UsageTokens {
   name: string;
 }
 

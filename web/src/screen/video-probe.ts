@@ -6,7 +6,7 @@
 
 export type VideoCodec = "hevc" | "h264";
 /** Why this page plays no video although the computer offers it: not a secure address, or no codec decodes here. */
-export type NoVideo = "insecure" | "unsupported";
+type NoVideo = "insecure" | "unsupported";
 export type Probe = { codecs: VideoCodec[]; why?: NoVideo };
 
 type Decoders = { isConfigSupported(config: VideoDecoderConfig): Promise<{ supported?: boolean }> };

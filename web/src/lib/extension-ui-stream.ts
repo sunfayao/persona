@@ -350,7 +350,7 @@ export const streamPageKey = (i: StreamPageIdentity) => {
   if (parts.some((x) => typeof x !== "string" || !x || bytes(x) > 4096)) fail("Invalid local page identity");
   return JSON.stringify(parts);
 };
-export interface UIStreamTransport {
+interface UIStreamTransport {
   /** Resolve false for a known unaccepted receipt, void/true for accepted delivery; reject only on uncertainty. */
   send(request: UIStreamRequest): Promise<void | boolean>;
 }

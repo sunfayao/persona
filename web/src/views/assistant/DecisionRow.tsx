@@ -28,7 +28,7 @@ type Answering = { state: "idle" } | { state: "busy"; key: string } | { state: "
 type Blocker = { dialog: string; mid?: string; sid?: string };
 
 /** The blocker a failed answer is, or undefined for any other failure. */
-export function dialogBlocker(e: unknown): Blocker | undefined {
+function dialogBlocker(e: unknown): Blocker | undefined {
   if (!(e instanceof ApiError) || e.code !== "dialog_open") return undefined;
   const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
   return { dialog: str(e.body.dialog) ?? "", mid: str(e.body.machine_id), sid: str(e.body.session_id) };
@@ -54,7 +54,7 @@ const RESPONSE_DETAIL: Record<AskResponse, string> = {
 };
 
 /** What happens when nobody answers: the recommendation is taken at the deadline, or never; "" when the hub said neither. */
-export function defaultLine(ask: Pick<TodoAsk, "default" | "deadline">): string {
+function defaultLine(ask: Pick<TodoAsk, "default" | "deadline">): string {
   if (ask.default === "never") return t("assistant-decisionrow.default_never");
   const at = ask.default === "taken" ? clock(ask.deadline) : "";
   return at ? t("assistant-decisionrow.default_at", { time: at }) : "";

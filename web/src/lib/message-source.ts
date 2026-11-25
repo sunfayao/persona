@@ -40,7 +40,7 @@ export function userSourceSentinel(text: string): boolean {
 const unescape = (value: string) => value.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 /** Legacy identity requires the complete leading machine template, including matching sender/reply ids. */
-export function legacyConversationSource(raw: string): MessageSource | undefined {
+function legacyConversationSource(raw: string): MessageSource | undefined {
   for (const context of leadingContexts(raw)) {
     const title = RELAY_TITLE.exec(context.attrs);
     const body = RELAY_BODY.exec(context.text);

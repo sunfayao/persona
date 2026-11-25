@@ -69,14 +69,14 @@ export interface DoctorReport {
   ran_at: string;
 }
 
-export type MachineState = "active" | "pending_add" | "pending_remove";
+type MachineState = "active" | "pending_add" | "pending_remove";
 
 // How a hub reaches a computer (docs/archive/operations/plan-hub-center.md 4, 5). service: the hub dials the computer's connector; link:
 // the computer's persona-link dials the hub; hub: through a member hub of the group (configured on that member only).
-export type Via = "local" | "service" | "link" | "ssh" | "tailcat" | "hub";
+type Via = "local" | "service" | "link" | "ssh" | "tailcat" | "hub";
 
 // One way to a computer (plan 5 "paths"): which hub it goes through, the hub.json entry there, whether it works now.
-export interface MachinePath {
+interface MachinePath {
   via: Via | string;
   hub_id: string;
   id?: string;
@@ -169,7 +169,7 @@ export interface NetworkView {
 }
 
 // refused: the other hub no longer accepts our credential (most likely it disconnected us on its side).
-export type PeerState = "connected" | "connecting" | "offline" | "refused";
+type PeerState = "connected" | "connecting" | "offline" | "refused";
 
 export interface Peer {
   hub_id: string;
@@ -185,7 +185,7 @@ export interface Peer {
 
 // The group of hubs (docs/archive/operations/plan-hub-center.md 2, 6): exactly one center serves every client and keeps all state;
 // members pass requests and their computers on to it. A lone hub is its own center.
-export type Role = "center" | "member";
+type Role = "center" | "member";
 
 export interface MeshHub {
   hub_id: string;
@@ -296,7 +296,7 @@ export interface ExtensionPreview {
 
 export type MetricsWindow = "1h" | "24h" | "7d";
 
-export interface MetricsSummary {
+interface MetricsSummary {
   calls: number;
   errors: number;
   error_rate: number;
@@ -307,7 +307,7 @@ export interface MetricsSummary {
   codes?: Record<string, number>;
 }
 
-export interface ExitNote {
+interface ExitNote {
   at: string;
   reason: string;
 }
@@ -369,7 +369,7 @@ export interface LogsPage {
  *  an ordinary API key (#12311); generic: Persona's own JSON shape. */
 export type UsageSourceType = "relay" | "relay_key" | "generic";
 
-export interface UsageSeen {
+interface UsageSeen {
   accounts: number;
   windows: number;
   /** accounts with a drawable window, by provider */
@@ -380,7 +380,7 @@ export interface UsageSeen {
   quota_hidden?: boolean;
 }
 
-export interface UsageSourceStatus {
+interface UsageSourceStatus {
   ok_at?: string;
   tried_at?: string;
   /** the code of the last failed read (unauthorized, unreachable…); empty when it worked */

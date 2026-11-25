@@ -50,7 +50,7 @@ const targetId = (x: Target) => (x.kind === "session" ? sessionTarget(x.s.machin
 
 /** Every chat this page holds: the Agents list's rows and the chats opened here, and Persona's conversations. Send To
  *  (views/settings/DevExportDialog.tsx) lists the same. */
-export function heldSessions(): Session[] {
+function heldSessions(): Session[] {
   const st = getState();
   const rows = st.features.includes(SESSIONS_LIST_FEATURE) ? [...st.sessionSummaries, ...Object.values(st.sessions).flat()] : Object.values(st.sessions).flat();
   // a child session is no chat to forward to (#5120): it folds into its parent
@@ -270,7 +270,7 @@ function ForwardPicker({ batch, open, onClose }: { batch: ForwardBatch; open: bo
   );
 }
 
-export function Section({ section, children }: { section: TargetSection; children: React.ReactNode }) {
+function Section({ section, children }: { section: TargetSection; children: React.ReactNode }) {
   const heading = section.kind === "recent" ? t("chat-forwardto.recent") : section.kind === "machine" ? section.title : "";
   return (
     <div role="group" aria-label={heading || undefined} data-forward-section={section.kind}>
@@ -283,7 +283,7 @@ export function Section({ section, children }: { section: TargetSection; childre
 const ROW = "flex w-full min-w-0 items-center gap-3 rounded-control px-2.5 py-2 text-left transition-colors duration-100 enabled:hover:bg-hover disabled:opacity-60";
 
 /** Persona and New agent: a mark in the accent, the name and what it is. */
-export function FixedRow({ icon, title, detail, busy, disabled, onClick, id }: { icon: IconName; title: string; detail: string; busy: boolean; disabled: boolean; onClick: () => void; id: string }) {
+function FixedRow({ icon, title, detail, busy, disabled, onClick, id }: { icon: IconName; title: string; detail: string; busy: boolean; disabled: boolean; onClick: () => void; id: string }) {
   return (
     <button type="button" className={ROW} disabled={disabled && !busy} onClick={onClick} data-forward-target={id}>
       <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-control bg-accent-tint text-accent-ink">
@@ -300,7 +300,7 @@ export function FixedRow({ icon, title, detail, busy, disabled, onClick, id }: {
 
 /** A chat to forward to: the Agent's mark (Persona's for its conversations), its title, who answers there and its
  *  project (and computer where rows mix them), and its state, as the palette's rows show them. */
-export function TargetRow({ s, machine, busy, disabled, onClick }: { s: Session; machine?: string; busy: boolean; disabled: boolean; onClick: () => void }) {
+function TargetRow({ s, machine, busy, disabled, onClick }: { s: Session; machine?: string; busy: boolean; disabled: boolean; onClick: () => void }) {
   const st = stateOf(s);
   return (
     <button type="button" className={ROW} disabled={disabled && !busy} onClick={onClick} data-forward-target={keyOf(s)}>

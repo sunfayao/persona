@@ -4,7 +4,7 @@ import { cleanModelId } from "./model-id";
 import { typedModelProblem } from "./model-id-input";
 
 export type CandidateMode = "extension" | "off" | "custom";
-export interface CandidateView {
+interface CandidateView {
   model: string;
   provider?: string;
   provider_name?: string;

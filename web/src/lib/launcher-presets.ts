@@ -112,7 +112,7 @@ export function displayNameProblem(name: string): string {
 }
 
 /** The categories a provider added in the wizard takes over while they are still at their default (docs/assistant/onboarding.md 5.4). */
-export const ASSIGN_PURPOSES = ["assistant", "agent.new"] as const;
+const ASSIGN_PURPOSES = ["assistant", "agent.new"] as const;
 
 /** Whether the main conversation and Agents can run on a provider added from p (docs/assistant/model-config.md): Claude Code
  *  needs a Messages endpoint, so a direct API on Responses or Chat Completions serves only the hub's own calls. An

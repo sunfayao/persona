@@ -107,7 +107,7 @@ export class FrameOrder {
 // ── link status (iOS TerminalLinkStatus) ────────────────
 
 /** Older than this without a fresh screen counts as stale even before anything fails (a request may hang). */
-export const STALE_AFTER_MS = 4000;
+const STALE_AFTER_MS = 4000;
 /** How long a subscription may go unanswered (no first frame, no word on taking the terminal over) before the feed
  * gives up on it, says why and tries again: the takeover went with a node connection that dropped, or the computer
  * doesn't answer (iOS TerminalFeed.answerLimit, #6327). */
@@ -398,7 +398,7 @@ export function keyNameForBytes(data: string): string | null {
 /** One modifier on the key bar, as iOS (Moshi's): a tap arms it for the next key, a quick second tap locks it, holding keeps it down. */
 export type ModifierState = "off" | "once" | "held" | "locked";
 export type ModifierKey = "ctrl" | "alt" | "shift";
-export const MODIFIER_KEYS: ModifierKey[] = ["ctrl", "alt", "shift"];
+const MODIFIER_KEYS: ModifierKey[] = ["ctrl", "alt", "shift"];
 
 export interface Modifiers {
   ctrl: ModifierState;

@@ -27,7 +27,7 @@ export const ZOOM_MAX = 6;
 const DOUBLE_TAP_SCALE = 2.5;
 
 // fitIn and fitRect live in lib/image-fit.ts, which the image editor shares without the viewer's zoom and pan.
-export { fitIn, fitRect } from "./image-fit";
+export {  fitRect } from "./image-fit";
 
 /** Zoomed in at all (past rounding): drags pan, swipes do not page, a click beside it does not close. */
 export function isZoomed(v: View): boolean {

@@ -46,7 +46,7 @@ export interface ManagerList {
   bot_conflicts?: BotConflict[];
 }
 
-export interface BotConflict {
+interface BotConflict {
   platform: "feishu" | "wechat";
   managers: string[];
 }
@@ -60,12 +60,8 @@ export interface InstallCode {
 
 export const listManagers = () => api<ManagerList>("/managers");
 export const createManager = (name: string) => api<InstallCode & { manager: Manager }>("/managers", { method: "POST", json: { name } });
-export const newInstallCode = (id: string) => api<InstallCode>(`/managers/${enc(id)}/code`, { method: "POST" });
+const newInstallCode = (id: string) => api<InstallCode>(`/managers/${enc(id)}/code`, { method: "POST" });
 export const renameManager = (id: string, name: string) => api<{ manager: Manager }>(`/managers/${enc(id)}`, { method: "PATCH", json: { name } });
-export const makeDefault = (id: string) => api<{ manager: Manager }>(`/managers/${enc(id)}`, { method: "PATCH", json: { default: true } });
-/** Keeps the built-in assistant out of the switcher while it is not used, or shows it again (#9055). */
-export const hideManager = (id: string, hide: boolean) => api<{ manager: Manager }>(`/managers/${enc(id)}`, { method: "PATCH", json: { hide } });
-export const deleteManager = (id: string) => api<{ ok: boolean }>(`/managers/${enc(id)}`, { method: "DELETE" });
 
 /**
  * A new install code for manager id. A never-installed one (`fresh`) whose code ran out is gone from the hub's roster
@@ -180,8 +176,8 @@ let rosterWatched = false;
 const rosterListeners = new Set<() => void>();
 
 /** How often, and how long apart, a roster read that failed is tried again (besides the next hello). */
-export const ROSTER_RETRIES = 3;
-export const ROSTER_RETRY_MS = 5_000;
+const ROSTER_RETRIES = 3;
+const ROSTER_RETRY_MS = 5_000;
 let rosterRetries = 0;
 let rosterRetry: ReturnType<typeof setTimeout> | null = null;
 
@@ -345,7 +341,7 @@ export function ownerIn(list: ManagerList, id: string | undefined): string {
 
 /** An assistant's avatar color (the same rule on every client): the default one is the AI purple, any other the hue
  *  its id's UTF-8 bytes add up to, of five. A CSS color: a token of the stylesheet, light and dark. */
-export const AVATAR_HUES = ["blue", "green", "orange", "pink", "indigo"] as const;
+const AVATAR_HUES = ["blue", "green", "orange", "pink", "indigo"] as const;
 
 export function avatarColor(id: string, isDefault: boolean): string {
   if (isDefault) return "var(--ai)";

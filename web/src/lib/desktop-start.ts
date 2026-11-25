@@ -7,7 +7,7 @@ import type { Launcher, Session } from "./types";
 import { directory, directoryKey } from "./workspace-directory";
 
 /** `Launcher.source` of the launcher that starts the session in Claude's desktop app. */
-export const CLAUDE_DESKTOP_SOURCE = "claude_desktop";
+const CLAUDE_DESKTOP_SOURCE = "claude_desktop";
 /** `Launcher.source` of the launcher that starts the chat in the Codex App. */
 export const CODEX_APP_SOURCE = "codex_app";
 

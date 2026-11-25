@@ -100,9 +100,8 @@ export function storeCredentials(token: string, tokenId?: string, store: Storage
 
 // Cross-version identities are transport contracts, never product copy.
 // Baseline: 39a706a338; the naming-only migration did not bump the protocol major.
-export const LEGACY_SCHEME = "jarvis";
+const LEGACY_SCHEME = "jarvis";
 export const APP_SCHEMES = new Set(["persona", LEGACY_SCHEME]);
-export const isPersonaStateDir = (name: string): boolean => name === ".persona" || name === ".jarvis";
 export const canonicalAppURL = (url: string): string => url.replace(/^jarvis:\/\//i, "persona://");
 export const isAppLink = (url: string): boolean => APP_SCHEMES.has(/^([a-z]+):\/\//i.exec(url)?.[1]?.toLowerCase() ?? "");
 export const PERSONA_SERVERS = new Set(["persona", "jarvis"]);

@@ -1,7 +1,7 @@
 // An html component's height (#4215): the schema's bounds and default for the height a card gives, and the height its
 // frame takes, which follows what the card draws.
 
-export const HEIGHT_MIN = 160;
+const HEIGHT_MIN = 160;
 export const HEIGHT_MAX = 640;
 export const HEIGHT_DEFAULT = 320;
 

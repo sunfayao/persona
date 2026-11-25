@@ -9,7 +9,7 @@ const where = new Map<string, number>();
 const SETTLE_MS = 1500;
 const READER = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 
-export function rememberScroll(key: string, top: number) {
+function rememberScroll(key: string, top: number) {
   where.set(key, top);
 }
 

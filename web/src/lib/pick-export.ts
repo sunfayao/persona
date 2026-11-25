@@ -9,7 +9,7 @@ import type { Item } from "./types";
 import { t } from "../i18n";
 
 /** One of your messages as a question a reply brings: what its bubble's checkbox would pick. */
-export function questionPick(u: UserMessage): ForwardPick {
+function questionPick(u: UserMessage): ForwardPick {
   return { itemId: u.id, text: u.text, isUser: true, ts: u.ts, images: u.images, photos: u.photos };
 }
 
@@ -112,8 +112,8 @@ export function pagePlan(heights: readonly number[], gaps: readonly number[], ro
 }
 
 /** A page is at most this tall in pixels, and at most this much to hold (4 bytes a pixel): a browser's canvas is limited. */
-export const MAX_PIXELS = 16_000;
-export const MAX_BYTES = 64 * 1024 * 1024;
+const MAX_PIXELS = 16_000;
+const MAX_BYTES = 64 * 1024 * 1024;
 
 /** A page's height at most, in CSS px, for a picture `width` px wide drawn at `scale`. */
 export function pageHeight(width: number, scale: number): number {

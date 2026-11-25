@@ -11,7 +11,7 @@ import { openLink } from "../../lib/links";
 export type { HeldPushDestination } from "../../lib/push-intercepts";
 
 /** A destination is opened only when the hub supplies a typed, unambiguous one. */
-export function openHeldPushDestination(destination: HeldPushDestination, manager?: string) {
+function openHeldPushDestination(destination: HeldPushDestination, manager?: string) {
   if (destination.kind === "todo") openTask(destination.id);
   else if (destination.kind === "session") openAgent(destination.machineId, destination.sessionId);
   else openLink(destination.url, undefined, manager);
@@ -69,7 +69,7 @@ function HeldPushList({ groups, destinations }: { groups: HeldPushGroups; destin
   );
 }
 
-export function useHeldPushes() {
+function useHeldPushes() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [groups, setGroups] = useState<HeldPushGroups>({ p1: [], p2: [] });
   const [loading, setLoading] = useState(true);

@@ -17,7 +17,7 @@ export const OP_OFFLINE_MS = RESTARTING_MS;
 export { isTransient };
 
 /** The wait before attempt `n` (1-based): 0.5 s, 1 s, 2 s, then every 4 s. */
-export function opDelay(n: number): number {
+function opDelay(n: number): number {
   return Math.min(4_000, 500 * 2 ** Math.max(0, n - 1));
 }
 

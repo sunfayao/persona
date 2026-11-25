@@ -9,7 +9,7 @@
 
 export type AgentOpen = "panel" | "page";
 
-export const AGENT_OPEN_KEY = "agent.open";
+const AGENT_OPEN_KEY = "agent.open";
 
 /** How this browser opens an Agent or a task from a conversation. */
 export function agentOpenMode(): AgentOpen {

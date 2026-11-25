@@ -6,7 +6,7 @@
 import { t } from "../../i18n";
 import type { InboxItem, SectionKey } from "../../lib/inbox";
 
-export interface GroupClearChoice {
+interface GroupClearChoice {
   key: "group" | "section";
   label: string;
   items: InboxItem[];
@@ -22,7 +22,7 @@ export interface GroupClear {
 }
 
 /** A choice's words: the section's verb, how many and where ("Mark all 4 in “Assistant” seen"). */
-export function groupClearLabel(tier: SectionKey, count: number, name: string): string | undefined {
+function groupClearLabel(tier: SectionKey, count: number, name: string): string | undefined {
   if (tier === "fyi") return t("inbox-inboxlist.clear_in_fyi", { count, name });
   if (tier === "noise") return t("inbox-inboxlist.clear_in_noise", { count, name });
   return undefined;

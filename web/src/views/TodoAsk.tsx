@@ -15,7 +15,7 @@ import { Button, cx, toast } from "../ui/atoms";
 import { Icon, type IconName } from "../ui/icons";
 
 /** Where answering one round stands: not yet, sent, the hub took it, or that round was already answered (409). */
-export type AskTaking = "idle" | "busy" | "taken" | "recorded" | "handled";
+type AskTaking = "idle" | "busy" | "taken" | "recorded" | "handled";
 
 const TONE: Record<ReturnType<typeof askTone>, string> = { attention: "text-attention", red: "text-red", green: "text-green" };
 const ICON: Record<ReturnType<typeof askTone>, IconName> = { attention: "hand", red: "info", green: "check" };
@@ -49,7 +49,7 @@ function takenText(what: AskTake, taking: AskTaking): string {
  * "handled", and the to-dos are read again so its stale ask goes; a failure (the recommendation did not reach the agent,
  * the hub could not save) says why and leaves the button to try again. A newer round starts over.
  */
-export function useTakeAsk(todo: Pick<Todo, "id">, ask: TodoAsk): { taking: AskTaking; take: () => void } {
+function useTakeAsk(todo: Pick<Todo, "id">, ask: TodoAsk): { taking: AskTaking; take: () => void } {
   const [state, setState] = useState<{ round: string; taking: AskTaking }>({ round: "", taking: "idle" });
   const taking = state.round === ask.asked_at ? state.taking : "idle";
   const what = askTake(ask);

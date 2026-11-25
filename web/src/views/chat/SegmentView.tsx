@@ -53,7 +53,7 @@ import { useMessageFeedback } from "../../lib/message-send";
 const TurnSources = lazy(() => import("./TurnSources").then((m) => ({ default: m.TurnSources })));
 
 /** A message longer than this many lines folds to ten of them (FOLDED), with "Expand" under it (the reference client's UserMessage). */
-export const BUBBLE_MAX_LINES = 14;
+const BUBBLE_MAX_LINES = 14;
 /** Before it is measured: about this many characters to a line of the 488 px bubble. */
 const CHARS_PER_LINE = 30;
 /** A folded message: ten lines high, scrolling inside (the chat scrolls on at its top and end). */

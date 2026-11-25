@@ -9,7 +9,7 @@ export interface NameHit {
   dir: boolean;
 }
 
-export const MAX_NAME_HITS = 200;
+const MAX_NAME_HITS = 200;
 
 export function hitName(h: NameHit): string {
   return h.path.slice(h.path.lastIndexOf("/") + 1);

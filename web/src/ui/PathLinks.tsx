@@ -17,7 +17,7 @@ export function openPathRef(e: React.MouseEvent, mid: string, cwd: string | unde
 }
 
 /** Where a path link points for the browser itself (a new tab: the file inline). */
-export function pathHref(mid: string, cwd: string | undefined, path: string) {
+function pathHref(mid: string, cwd: string | undefined, path: string) {
   return fileDownloadURL(mid, resolveRef(cwd ?? "", path) || path, cwd, { inline: true });
 }
 

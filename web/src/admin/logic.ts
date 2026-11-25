@@ -141,7 +141,7 @@ export function groupDoctor(items: DoctorItem[]): Record<DoctorItem["level"], Do
 }
 
 // How a hub reaches a computer, in the words the admin page uses (kind of a hub.json entry, or a path's via).
-export const KIND_LABEL: Record<string, string> = {
+const KIND_LABEL: Record<string, string> = {
   local: t("admin-logic.kind_local"),
   service: t("admin-logic.kind_service"),
   link: t("admin-logic.kind_link"),

@@ -76,13 +76,13 @@ export interface PanelOptions {
 /** Whether `s` may move to another launcher of its engine: on a hub that does it, a Claude Code Agent whose model the
  *  app switches in a terminal (a runtime's session, Paseo's too, switches only its model; the node refuses the rest,
  *  `switch_unsupported`, #8142). */
-export const switchesLauncher = (s: Session, o: PanelOptions): boolean => Boolean(o.switching) && !s.source_kind && sessionEngine(s) === "claude" && canSwitchModel(s);
+const switchesLauncher = (s: Session, o: PanelOptions): boolean => Boolean(o.switching) && !s.source_kind && sessionEngine(s) === "claude" && canSwitchModel(s);
 
 /** The engine a conversation moves to from `engine` ("" for an engine that doesn't switch). */
-export const otherEngine = (engine: string): string => (engine === "claude" ? "codex" : engine === "codex" ? "claude" : "");
+const otherEngine = (engine: string): string => (engine === "claude" ? "codex" : engine === "codex" ? "claude" : "");
 
 /** Whether `s` may move to a launcher of `engine`, the other engine, with its next message (#5054). */
-export const switchesEngine = (s: Session, engine: string, o: PanelOptions): boolean =>
+const switchesEngine = (s: Session, engine: string, o: PanelOptions): boolean =>
   Boolean(o.engineSwitch) && engine !== "" && engine === otherEngine(sessionEngine(s)) && engineSwitchable(s);
 
 /** The panel's providers and state for `s`: `launchers` the computer's (undefined before they are read), `listOf` what

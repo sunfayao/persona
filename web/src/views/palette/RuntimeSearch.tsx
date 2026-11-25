@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import type { RuntimeSearchHit, RuntimeSearchSnapshot } from "../../lib/runtime-search";
+import type { RuntimeSearchSnapshot } from "../../lib/runtime-search";
 import type { Session } from "../../lib/types";
 
 const EMPTY: RuntimeSearchSnapshot = { query: "", hits: [], loaded: false, loading: false, loadingMore: false, error: "", moreError: "", hasMore: false, total: 0, expired: false, supported: true, retryable: true };
@@ -38,4 +38,3 @@ export function useRuntimeSearch({ open, jump, query, capable, bounded, module, 
 export const runtimeSearchKey = (session: Session) => JSON.stringify([session.machine_id, session.session_id]);
 
 
-export type { RuntimeSearchHit };

@@ -33,7 +33,7 @@ function settingsEffort(agent: string, choice: ModelChoice, followed: ModelBindi
 /** The id of a launcher's "Default" row, which sends no model: Claude Code's own name for its default entry, which that
  *  row stands in for. A list whose default entry is a model of its own (Codex's) keeps that model as a row of its own, so
  *  a favorite or a recent setup of it is that model, never "no model". */
-export const DEFAULT_ROW = "default";
+const DEFAULT_ROW = "default";
 
 /** A list's model by an id it may stand for (its own id, or what an alias resolves to; a named model before the default
  *  entry standing for the same one). */

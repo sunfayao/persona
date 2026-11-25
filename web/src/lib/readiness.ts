@@ -9,14 +9,14 @@ import { api, ApiError, errorText, isAbort, pastHub } from "./api";
 import { navigate } from "./router";
 import { getState, hubHas, useStore } from "./store";
 
-export const READINESS_FEATURE = "assistant_readiness";
-export const READINESS_PATH = "/assistant/readiness";
+const READINESS_FEATURE = "assistant_readiness";
+const READINESS_PATH = "/assistant/readiness";
 
-export type ReadinessMode = "full" | "setup" | "chat_only";
-export type StepState = "ok" | "todo" | "problem" | "checking" | "unknown" | "skipped";
-export type StepId = "computer" | "claude" | "model" | "first_message";
+type ReadinessMode = "full" | "setup" | "chat_only";
+type StepState = "ok" | "todo" | "problem" | "checking" | "unknown" | "skipped";
+type StepId = "computer" | "claude" | "model" | "first_message";
 
-export interface ReadinessAction {
+interface ReadinessAction {
   id: string;
 }
 
@@ -33,7 +33,7 @@ export interface ReadinessStep {
   alt_actions?: ReadinessAction[];
 }
 
-export interface ReadinessSuggestion {
+interface ReadinessSuggestion {
   id: string;
   title: string;
   prompt?: string;
@@ -390,7 +390,7 @@ export function readinessChanged(): Promise<void> {
 }
 
 /** The first answer is still on its way (a hub with readiness that has not answered or failed yet). */
-export function readinessPending(): boolean {
+function readinessPending(): boolean {
   return hubHas(getState().features, READINESS_FEATURE) && !rs.unsupported && !rs.readiness && !rs.tried;
 }
 

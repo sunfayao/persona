@@ -7,7 +7,7 @@ import type { BrandId } from "./connectors";
 import type { AssistantInfo, Item, Session } from "./types";
 
 /** The groups of automatic conversations; `other` is any origin this page doesn't know. */
-export const AUTO_ORIGINS = ["inbox", "task", "lark_agent", "spawned", "extension", "other"] as const;
+const AUTO_ORIGINS = ["inbox", "task", "lark_agent", "spawned", "extension", "other"] as const;
 export type AutoOrigin = (typeof AUTO_ORIGINS)[number];
 
 const USER_ORIGINS = new Set(["", "user", "channel"]);
@@ -24,7 +24,7 @@ export function autoOrigin(s: Pick<Session, "origin"> & { session_id?: string },
 
 export const isAutoConversation = (s: Pick<Session, "origin"> & { session_id?: string }, background?: string) => autoOrigin(s, background) !== undefined;
 
-export function originLabel(o: AutoOrigin): string {
+function originLabel(o: AutoOrigin): string {
   return t(`assistant-conversations.origin_${o}`);
 }
 
@@ -46,7 +46,7 @@ export const ORIGIN_ICON: Record<AutoOrigin, IconName> = { inbox: "inbox", task:
 export const ORIGIN_BRAND: Partial<Record<AutoOrigin, BrandId>> = { lark_agent: "lark" };
 
 /** The conversations an extension opened (#3758): Lark /agent's and any other extension's. */
-export const EXTERNAL_ORIGINS = ["lark_agent", "extension"] as const;
+const EXTERNAL_ORIGINS = ["lark_agent", "extension"] as const;
 export type ExternalOrigin = (typeof EXTERNAL_ORIGINS)[number];
 
 /** The extension that opened an external conversation, by id (#10358): its `opened_by`, else its `origin_ref`, which for

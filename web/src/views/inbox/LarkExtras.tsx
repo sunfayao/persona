@@ -231,7 +231,7 @@ export function CardButtons({ buttons, messageID, account, onDone }: { buttons: 
 
 // ── read mark ────────────────────────────────────────────
 
-export function readMarkLabel(m: ReadMark): string {
+function readMarkLabel(m: ReadMark): string {
   switch (m.kind) {
     case "read":
       return t("inbox-larkthread.read");
@@ -285,7 +285,7 @@ function useCatalog(): EmojiCatalog | null {
 }
 
 /** One emoji of Feishu's catalogue as its picture, else `[key]`. */
-export function EmojiImage({ name, size, catalog }: { name: string; size: number; catalog: EmojiCatalog | null }) {
+function EmojiImage({ name, size, catalog }: { name: string; size: number; catalog: EmojiCatalog | null }) {
   const manager = useItemManager();
   const e = catalog?.emojis[name.toLowerCase()];
   const src = e?.url?.startsWith("/api/") ? withToken(withManager(e.url, manager)) : e?.url && /^https:/i.test(e.url) ? e.url : undefined;

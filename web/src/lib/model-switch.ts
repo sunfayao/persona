@@ -30,10 +30,10 @@ export function modelBusy(s: Session): string {
 }
 
 /** The node's name for the Codex App's launcher (#5726, server/internal/node/codexapp_new.go). */
-export const CODEX_APP_LAUNCHER = "codex-app";
+const CODEX_APP_LAUNCHER = "codex-app";
 
 /** The node's name for the Claude Desktop launcher (server/internal/node/claudedesktop_new.go). */
-export const CLAUDE_DESKTOP_LAUNCHER = "claude-desktop";
+const CLAUDE_DESKTOP_LAUNCHER = "claude-desktop";
 
 /** The launcher whose list the panel shows first: the session's own; without one, its engine's: the Codex App's for one
  *  of the App's chats (`space_kind` codex_app), plain codex for another Codex session, agy for an Antigravity session,
@@ -51,7 +51,7 @@ export const sessionLauncher = (s: Partial<Pick<Session, "launcher" | "agent" | 
 };
 
 /** The id without its 1M marker, lower case: the model both spellings name. */
-export const bareModel = (v: string | undefined): string => (v ?? "").trim().toLowerCase().replace(/\[1m\]$/, "");
+const bareModel = (v: string | undefined): string => (v ?? "").trim().toLowerCase().replace(/\[1m\]$/, "");
 
 export const rowModelIds = (m: Pick<AgentModel, "id" | "resolved" | "aliases">) => [m.id, m.resolved, ...(m.aliases ?? [])];
 
@@ -64,7 +64,7 @@ export const namesWholeModel = (m: Pick<AgentModel, "id" | "resolved" | "aliases
 /** Whether two ids name one model: equal after trimming, ignoring case and the 1M marker, or one is the other's "/"
  *  suffix at a boundary (a gateway routing the model under a prefix, or a launcher's vendored id against the bare
  *  echo). Empty ids never match. Mirrors the hub's rule (proto.SameLauncherModel). */
-export function sameLauncherModel(a: string | undefined, b: string | undefined): boolean {
+function sameLauncherModel(a: string | undefined, b: string | undefined): boolean {
   const x = bareModel(a);
   const y = bareModel(b);
   if (!x || !y) return false;

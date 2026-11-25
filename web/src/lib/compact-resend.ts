@@ -18,7 +18,7 @@ import { getSession, subscribe } from "./store";
 import { isInterjectContext, tagAttrs, withoutViewErrors, type ChatLine, type UserMessage } from "./turns";
 import type { Compaction, Item, Session } from "./types";
 
-export type CompactResendMode = "assistant" | "claude-terminal";
+type CompactResendMode = "assistant" | "claude-terminal";
 
 export interface CompactResendSupport {
   supported: boolean;

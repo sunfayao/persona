@@ -23,7 +23,7 @@ export interface ChatSearchResults {
 }
 
 /** The items a step draws (a tool call: its call, result and pictures). */
-export function stepItemIds(step: Step): string[] {
+function stepItemIds(step: Step): string[] {
   return step.kind === "tool" ? [step.use.id, ...(step.result ? [step.result.id] : []), ...step.images.map((i) => i.id)] : [step.item.id];
 }
 

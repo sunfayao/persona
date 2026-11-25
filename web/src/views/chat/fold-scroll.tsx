@@ -9,7 +9,7 @@ import { cx } from "../../ui/atoms";
 export const FOLD_SCROLL = "data-fold-scroll";
 
 /** The fade at a fold's bottom while there is more below it. */
-export const FOLD_FADE = "linear-gradient(180deg,#000 calc(100% - 28px),transparent)";
+const FOLD_FADE = "linear-gradient(180deg,#000 calc(100% - 28px),transparent)";
 
 interface Box {
   scrollTop: number;

@@ -13,7 +13,7 @@ import type { Route } from "./router";
 import { canShowTerminal, terminalTarget } from "./session-view";
 import type { Session } from "./types";
 
-export type FocusSource = "client" | "persona" | "other";
+type FocusSource = "client" | "persona" | "other";
 
 /** herdr's focus moved (the hub's `herdr_focus`). */
 export interface HerdrFocus {

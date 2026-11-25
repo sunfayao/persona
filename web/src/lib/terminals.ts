@@ -8,14 +8,14 @@ import type { AgentState, Session } from "./types";
 
 // ── what the hub sends (proto/panes.go) ──────────────────
 
-export interface PaneSpaceDTO {
+interface PaneSpaceDTO {
   id: string;
   label: string;
   number?: number;
   cwd?: string;
   branch?: string;
 }
-export interface PaneTabDTO {
+interface PaneTabDTO {
   id: string;
   workspace_id: string;
   label: string;
@@ -244,7 +244,7 @@ export interface OpenTerminal {
 }
 
 /** Terminals kept alive per machine: the one on screen and the one before it, so going back is instant. */
-export const KEEP_PER_MACHINE = 2;
+const KEEP_PER_MACHINE = 2;
 
 export const sameTerminal = (a: OpenTerminal | undefined, b: OpenTerminal | undefined) => Boolean(a && b && a.mid === b.mid && a.id === b.id);
 

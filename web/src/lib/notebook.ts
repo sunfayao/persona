@@ -31,7 +31,7 @@ export interface Notebook {
 }
 
 /** Lines of output kept per text output; beyond that the viewer says it cut them. */
-export const MAX_OUTPUT_LINES = 2000;
+const MAX_OUTPUT_LINES = 2000;
 
 type Json = Record<string, unknown>;
 const str = (v: unknown): string => (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : "")).join("") : typeof v === "string" ? v : "");

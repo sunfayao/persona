@@ -285,7 +285,7 @@ export function hm(tSec: number, tz = localOffset(tSec * 1000)): string {
 }
 
 /** The local offset east of UTC, in seconds. */
-export function localOffset(at = Date.now()): number {
+function localOffset(at = Date.now()): number {
   return -new Date(at).getTimezoneOffset() * 60;
 }
 

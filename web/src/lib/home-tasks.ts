@@ -7,7 +7,7 @@ import { waitOf, type WaitReason } from "./todo-wait-reason";
 import type { Session } from "./types";
 
 /** How many tasks the overview lists; the rest are a "See all" away. */
-export const HOME_TASKS_MAX = 6;
+const HOME_TASKS_MAX = 6;
 
 export interface HomeTask {
   todo: Todo;
@@ -29,7 +29,7 @@ const ms = (at: string | undefined) => {
 const movedAt = (s: Session) => Math.max(ms(s.updated_at), ms(s.state_since));
 
 /** The working agent (the one that moved last when several are), else the one that moved last; undefined with no row. */
-export function leadAgent(rows: Session[]): Session | undefined {
+function leadAgent(rows: Session[]): Session | undefined {
   let lead: Session | undefined;
   for (const s of rows) {
     if (!lead) { lead = s; continue; }

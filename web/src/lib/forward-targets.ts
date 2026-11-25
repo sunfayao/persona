@@ -5,7 +5,7 @@ import { agentLabel, displayTitle, folderName } from "./mentions";
 import type { Session } from "./types";
 
 /** Recent targets shown at most (ForwardMemory keeps more). */
-export const RECENT_LIMIT = 5;
+const RECENT_LIMIT = 5;
 
 export interface TargetSection {
   id: string;

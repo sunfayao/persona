@@ -18,7 +18,7 @@ export type ScreenPicture = "video" | "vnc";
  *  tier selection toward resolution (**sharper**) or frame rate (**smoother**). */
 export type ScreenQuality = "auto" | "sharper" | "smoother";
 /** Which network path the stream is on (#6398). */
-export type ScreenPath = "direct-lan" | "direct-tailscale" | "relay";
+type ScreenPath = "direct-lan" | "direct-tailscale" | "relay";
 
 /** One reading for the connection-stats overlay, as the iOS `ScreenStats` carries it. VNC mode fills what the client can
  *  measure (round-trip, frame rate, bitrate); video mode adds the per-segment latency and the codec / resolution. A
@@ -101,7 +101,7 @@ export function videoOffered(screenVideo: unknown): boolean {
 /** Whether a computer / browser status advertises the hardware video channel (#3954): `screen_video` present with a
  *  protocol version > 0. The Picture / Quality switcher appears only then, so no Mac shows a control it can't use — the
  *  same test the iOS app makes (AppModel.advertisesVideo). An unreadable value is "not advertised", never a guess. */
-export function videoAdvertised(screenVideo: unknown): boolean {
+function videoAdvertised(screenVideo: unknown): boolean {
   if (!screenVideo || typeof screenVideo !== "object") return false;
   const v = (screenVideo as { version?: unknown }).version;
   return typeof v === "number" && v > 0;

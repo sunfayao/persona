@@ -94,7 +94,7 @@ export interface MeshHub {
 
 /** A plan or task list a folded call wrote (the hub keeps it with the fold, transcript.foldTaskSnapshots): `replace:
  *  "todo"` is a TodoWrite's whole list. */
-export interface FoldTaskSnapshot {
+interface FoldTaskSnapshot {
   replace?: string;
   entries: { id: string; subject?: string; description?: string; status?: string }[];
   source_item_id: string;
@@ -136,7 +136,7 @@ export interface ModelPick {
 
 /** Session.pending_switch (#5035). `agent` is set on a switch to the other engine (feature `engine_switch`, #5054):
  *  "claude" or "codex", the engine the next message moves the conversation to. */
-export interface PendingSwitch {
+interface PendingSwitch {
   launcher: string;
   model?: string;
   effort?: string;
@@ -226,24 +226,6 @@ export interface Closeout {
   checked?: { merged?: string; deployed?: string };
 }
 
-/** Settings › Session triage (GET / PUT /agents/triage): all off until the user turns them on. */
-export interface TriageSwitches {
-  enabled: boolean;
-  auto_continue: boolean;
-  wake: boolean;
-  decide: boolean;
-  /** Detect repeated tool calls during a turn (off when absent). */
-  tool_loop?: boolean;
-  /** Ask for a closeout (#3612): hold an agent's stop once when a turn that did work ends without one (off when absent). */
-  closeout?: boolean;
-  /** Ask afterwards (#3616): one status question to an unsupervised agent whose turn did work and ended without a closeout (off when absent). */
-  closeout_ask?: boolean;
-  /** Remind When Seen, Unanswered (#5096): remind once when an agent asked the user something and it stays unanswered after they saw
-   *  it. Rule-based, no tokens, so it is on when absent and does not depend on `enabled`. */
-  reply_reminder?: boolean;
-  /** How long after the user saw it the reminder goes out, in minutes (the hub's default when absent). */
-  reply_reminder_minutes?: number;
-}
 
 /** A port an agent's processes listen on that answers HTTP (docs/operations/ports.md): its dev server. */
 export interface Port {
@@ -525,7 +507,7 @@ export interface Compaction {
 
 /** Where the context was compacted (proto.Compact): "manual" (/compact) or "auto", the size before it. `notes`: the
  *  notices of the compaction folded into it here (lib/compaction.ts), never from the hub. */
-export interface CompactInfo {
+interface CompactInfo {
   trigger?: string;
   pre_tokens?: number;
   notes?: string[];
@@ -545,7 +527,7 @@ export interface GoalInfo {
 }
 
 /** An agent's own task list, counted (proto.PlanInfo): done of total items, and the one in progress. */
-export interface PlanInfo {
+interface PlanInfo {
   done: number;
   total: number;
   /** The item in progress (its activeForm), one line; absent when none is. */
@@ -675,7 +657,7 @@ export interface FoldImage {
 /** A file a folded run's successful edits changed (proto.FoldChange): its lines added and removed as the chat counts an
  *  edit's diff; `exact` false when an edit's text was clipped for good. A fold from a node that counts them always has
  *  the list (empty when nothing was edited); one without it leaves the run's edits unknown. */
-export interface FoldChange {
+interface FoldChange {
   path: string;
   add: number;
   del: number;
@@ -779,7 +761,7 @@ export interface ModelRefusal {
 
 /** A pending "back to the configured model" (server proto.ModelRestore): "next_start" — the idle headless process was
  *  closed (or none ran), so the next start asks for `to`. */
-export interface ModelRestore {
+interface ModelRestore {
   state: "next_start" | (string & {});
   to?: string;
   at: string;
@@ -864,7 +846,7 @@ export interface ScreenDialog {
 }
 
 /** What an MCP server asks for: a form (`requested_schema`, a JSON Schema subset) or a link to open (`url`). */
-export interface Elicitation {
+interface Elicitation {
   mode: "form" | "url" | (string & {});
   message?: string;
   requested_schema?: Record<string, unknown>;
@@ -873,7 +855,7 @@ export interface Elicitation {
 }
 
 /** Session.children: the sessions folded under one, counted by their own state (docs/protocol/protocol.md "Session hierarchy"). */
-export interface SessionChildren {
+interface SessionChildren {
   total: number;
   working?: number;
   needs_you?: number;
@@ -891,7 +873,7 @@ export const SESSION_REVIEW_FEATURE = "session_review";
 /** The hub feature that says it has git/review (lib/session-review.ts). Here, not there, so the chat's check for it
  *  keeps session-review.ts off the first screen. */
 export const REVIEW_FEATURE = "git_review";
-export const SESSION_REVIEW_TOOL = "persona_session_review";
+const SESSION_REVIEW_TOOL = "persona_session_review";
 
 export function isSessionReview(ix: Pick<Interaction, "kind" | "tool_name">): boolean {
   return ix.kind === "question" && ix.tool_name === SESSION_REVIEW_TOOL;
@@ -1027,7 +1009,7 @@ export interface Launcher {
 }
 
 /** A launcher's health record on one computer (#1643). */
-export interface LauncherHealth {
+interface LauncherHealth {
   /** ok | failing | repairing | blocked */
   state: string;
   /** The failure's class: not_in_terminal, auth, model_route, cli_outdated, timeout, other. */

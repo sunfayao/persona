@@ -41,7 +41,7 @@ export type NodeState = "queued" | "ready" | "working" | "needs_you" | "review" 
 /** Where a state sorts: what waits on the owner first, then the work going on, then what waits, the closed last. */
 const STATE_RANK: Record<NodeState, number> = { needs_you: 0, failed: 1, review: 2, working: 3, ready: 4, queued: 5, stopped: 6, done: 7, cancelled: 8 };
 
-export type AgentRole = "lead" | "worker" | "spawned" | "subagent" | "before";
+type AgentRole = "lead" | "worker" | "spawned" | "subagent" | "before";
 
 /** One Agent on a piece: the one it was given to, the workers a leader handed out, what they spawned, the earlier ones. */
 export interface NodeAgent {
@@ -105,9 +105,9 @@ export interface GraphNode {
   since?: number;
 }
 
-export type RequestKind = "parent" | "plan" | "single";
+type RequestKind = "parent" | "plan" | "single";
 
-export interface GraphEdge {
+interface GraphEdge {
   /** "root" or a node key. */
   from: string;
   to: string;
@@ -175,7 +175,7 @@ const ms = (iso: string | null | undefined) => {
 const ref = (mid: string, sid: string) => `${mid}/${sid}`;
 
 /** Closed by the hub as done: a piece waiting for it may go on. A piece that did not start is not done. */
-export const isDoneTodo = (t: Pick<Todo, "done_at" | "start_error">) => Boolean(t.done_at) && !t.start_error;
+const isDoneTodo = (t: Pick<Todo, "done_at" | "start_error">) => Boolean(t.done_at) && !t.start_error;
 
 /** How deep workers of workers go at most (a leader's workers are plain workers: one level is what the hub allows). */
 const MAX_DEPTH = 4;
@@ -192,7 +192,7 @@ const MAX_DEPTH = 4;
  * - `rootWorkerOf`: the root whose own Agent handed it out. A root's card has no Agent tree, so such a to-do is drawn
  *   as a piece of that request instead of being hidden.
  */
-export interface Placement {
+interface Placement {
   pieceOf: (t: Todo) => string | undefined;
   roots: ReadonlySet<string>;
   workerOf: (t: Todo) => string | undefined;
@@ -201,7 +201,7 @@ export interface Placement {
 
 const placementCache = new WeakMap<readonly Todo[], Placement>();
 
-export function placement(todos: readonly Todo[]): Placement {
+function placement(todos: readonly Todo[]): Placement {
   const cached = placementCache.get(todos);
   if (cached) return cached;
   const byId = new Map(todos.map((t) => [t.id, t]));
@@ -298,7 +298,7 @@ function ownerOfAgent(todos: readonly Todo[], key: string): Todo | undefined {
  * each, the earliest first); the ones it had before come last. A summary row has no subagents, so they are read from the
  * complete row when there is one, and the direction tree's running ones fill in what a stale row does not have yet.
  */
-export function nodeAgents(todo: Todo, data: GraphData): NodeAgent[] {
+function nodeAgents(todo: Todo, data: GraphData): NodeAgent[] {
   const out: NodeAgent[] = [];
   const seen = new Set<string>();
   // the to-dos drawn in this tree: this one, then each worker as it is reached; a to-do is a worker line here only when
@@ -494,7 +494,7 @@ export function requestHeading(filed: string | undefined, said: string): { title
 }
 
 /** When it was asked: the owner's message when the brief has it, else when the to-do was made. */
-export function requestedAt(todo: Pick<Todo, "created_at" | "brief">): string {
+function requestedAt(todo: Pick<Todo, "created_at" | "brief">): string {
   return todo.brief?.request?.at || todo.created_at;
 }
 
@@ -547,7 +547,7 @@ function planTaskNode(plan: TaskPlan, task: PlanTask, i: number): GraphNode {
  * deepest layer among its prerequisites, rows in a layer by the average row of their prerequisites (fewer crossings),
  * ties in the given order. Returns the edges: root → every layer-1 node, prerequisite → dependent.
  */
-export function layOut(nodes: GraphNode[], wants: Map<string, string[]>): { edges: GraphEdge[]; layers: number; rows: number } {
+function layOut(nodes: GraphNode[], wants: Map<string, string[]>): { edges: GraphEdge[]; layers: number; rows: number } {
   const byKey = new Map(nodes.map((n) => [n.key, n]));
   const kept = new Map<string, string[]>();
   const mark = new Map<string, 1 | 2>(); // 1: on the walk, 2: finished
@@ -616,7 +616,7 @@ function agentRefs(todos: readonly Todo[]): Map<string, string> {
 }
 
 /** The same words, spaces aside (trimmed, runs of white space as one). */
-export const sameWords = (a: string, b: string) => a.trim().replace(/\s+/g, " ") === b.trim().replace(/\s+/g, " ");
+const sameWords = (a: string, b: string) => a.trim().replace(/\s+/g, " ") === b.trim().replace(/\s+/g, " ");
 
 function finish(req: Omit<GraphRequest, "edges" | "layers" | "rows" | "done" | "touched" | "finished" | "merged">, wants: Map<string, string[]>, todosById: ReadonlyMap<string, Todo>): GraphRequest {
   const byKey = new Map(req.nodes.map((n) => [n.key, n]));
@@ -745,7 +745,7 @@ export function buildGraph({ todos: all, plans, data }: GraphInput): Graph {
 // ── what is still queued ────────────────────────────────────
 
 /** `ready`: nobody took it yet and nothing it waits for is pending; `after`: it waits for other pieces. */
-export type QueueKind = "ready" | "after";
+type QueueKind = "ready" | "after";
 
 export interface QueueRow {
   key: string;
@@ -786,13 +786,13 @@ export function queuedRows(graph: Graph): QueueRow[] {
 /** The card and the gaps, in px (the view draws its cards at these sizes). */
 export const CARD_W = 200;
 export const CARD_H = 92;
-export const GAP_X = 44;
-export const GAP_Y = 14;
-export const PAD = 10;
+const GAP_X = 44;
+const GAP_Y = 14;
+const PAD = 10;
 /** A merged request's card: a piece's card with one more line on top, the request's label and time. */
 export const MERGED_H = CARD_H + 20;
 /** The root card's line quoting the owner's words under its heading. */
-export const ROOT_QUOTE_H = 24;
+const ROOT_QUOTE_H = 24;
 /** A piece's Agent tree under its card: the line that names it and folds it (its top border included), an Agent's two
  *  lines, a "more ended" line, and the room under the last line. */
 export const TREE_HEAD_H = 26;
@@ -810,7 +810,7 @@ export function treeHeight(rows: readonly TreeRow[], open: boolean): number {
 /** The root card's height: one more line when it quotes the owner. */
 export const rootHeight = (req: Pick<GraphRequest, "quote">) => CARD_H + (req.quote ? ROOT_QUOTE_H : 0);
 
-export interface Placed {
+interface Placed {
   key: string;
   x: number;
   y: number;
@@ -818,7 +818,7 @@ export interface Placed {
   h: number;
 }
 
-export interface DrawnEdge extends GraphEdge {
+interface DrawnEdge extends GraphEdge {
   d: string;
   /** Where it leaves its source (the hollow dot). */
   dot: [number, number];

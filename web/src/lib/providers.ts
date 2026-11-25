@@ -37,7 +37,7 @@ export interface ProviderModel extends ReportedMeta {
  *  names none of these keeps what is stored, #8796); the hub keeps `all_efforts` and `no_effort` only while they agree
  *  with the levels saved (assistant/models_discover_meta.go settleSavedEfforts), so levels changed by hand need
  *  nothing here. */
-export interface ReportedMeta {
+interface ReportedMeta {
   max_output_tokens?: number;
   all_efforts?: string[];
   no_effort?: boolean;
@@ -208,7 +208,7 @@ export function formModel(m: ProviderModel, checked = true): FormModel {
 
 
 /** How a saved provider signs in: what it stores, else x-api-key (providers saved before the choice existed). */
-export const storedAuth = (v: ProviderView): AuthMethod => v.auth ?? "api_key";
+const storedAuth = (v: ProviderView): AuthMethod => v.auth ?? "api_key";
 
 /** A form for a hub without `launcher_auth_auto`: "Automatic" becomes Bearer, the default for a new gateway there
  *  (gateways mostly want ANTHROPIC_AUTH_TOKEN). */
@@ -311,7 +311,7 @@ export function fillFromCatalog(models: FormModel[], found: ProviderModel[], cha
 
 const nonNegInt = (s: string) => s.trim() === "" || /^\d+$/.test(s.trim());
 
-export function gatewayProblem(raw: string): string {
+function gatewayProblem(raw: string): string {
   const s = raw.trim();
   if (!s) return t("lib-providers.url_required");
   let u: URL;
@@ -365,7 +365,7 @@ function runtimeHeadersSupported(f: Pick<ProviderForm, "kind" | "agent" | "api" 
 }
 
 /** Structural or runtime support errors that keep checks, Next and Save from silently dropping a configured header. */
-export function requestHeaderProblem(f: ProviderForm, hadHeaders = false): string {
+function requestHeaderProblem(f: ProviderForm, hadHeaders = false): string {
   if (f.headers_touched) {
     const problem = headersProblem(f.headers);
     if (problem) return problem;
@@ -380,7 +380,7 @@ const ENV_LIMIT = 50;
 
 /** The hub's checkEnv (and the node's reading of it): NAME=value a line, "export " before it is fine, a line starting
  *  with # is a comment, at most ENV_LIMIT. */
-export function envProblem(raw: string): string {
+function envProblem(raw: string): string {
   const lines = raw.split("\n");
   let count = 0;
   for (let i = 0; i < lines.length; i++) {
@@ -395,7 +395,7 @@ export function envProblem(raw: string): string {
   return "";
 }
 
-export function proxyProblem(raw: string): string {
+function proxyProblem(raw: string): string {
   const s = raw.trim();
   if (!s) return "";
   try {
@@ -632,7 +632,7 @@ export const testModel = (f: ProviderForm) => f.model.trim() || f.models.find((m
 /** Why an alias's variable is not carried into the new provider's environment (the hub's rules, docs/integrations/launchers.md). */
 export type SkipReason = "credential" | "shell" | "computer" | "limit";
 /** What hiding an alias after the import would do: `ok` hides it, `in_use` / `elsewhere` keep it (with why), `none` has nothing to hide. */
-export type HideCheck = "ok" | "in_use" | "elsewhere" | "none";
+type HideCheck = "ok" | "in_use" | "elsewhere" | "none";
 
 /** One alias of an imported group: the file it came from and whether it can be hidden once imported. */
 export interface ImportSource {

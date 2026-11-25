@@ -15,7 +15,7 @@ import { byTime } from "./times";
 import { requestHome } from "./child-sessions";
 import type { Interaction, Session } from "./types";
 
-export type DonePref = "off" | "long" | "always";
+type DonePref = "off" | "long" | "always";
 
 /** The part of a device's prefs this page reads and writes; the rest (the phone's Live Activity, translation) stays as
  *  the hub has it: a PUT decodes over the device's stored prefs. */
@@ -33,7 +33,7 @@ export interface NotifyPrefs {
 }
 
 /** "HH:MM" local times; an empty `tz` is this browser's time zone. The window may cross midnight. */
-export interface QuietHours {
+interface QuietHours {
   enabled: boolean;
   start: string;
   end: string;
@@ -41,11 +41,11 @@ export interface QuietHours {
 }
 
 /** The times the switch shows before any are set. */
-export const DEFAULT_QUIET: QuietHours = { enabled: false, start: "23:00", end: "07:00" };
+const DEFAULT_QUIET: QuietHours = { enabled: false, start: "23:00", end: "07:00" };
 
 /** The hub's defaults (notify.go defaultPrefs, longTurn). */
 export const DEFAULT_PREFS: NotifyPrefs = { input: true, done: "long" };
-export const DEFAULT_LONG_TURN_SECONDS = 60;
+const DEFAULT_LONG_TURN_SECONDS = 60;
 
 // ── which events speak ───────────────────────────────────
 
@@ -203,7 +203,7 @@ export async function loadNotifyPrefs(): Promise<NotifyPrefs> {
 /** unsupported: this browser has no Notification API (an iPhone's Safari outside a home-screen app, an old browser). */
 export type Permission = "unsupported" | "default" | "granted" | "denied";
 
-export function permission(): Permission {
+function permission(): Permission {
   if (typeof window !== "undefined" && window.personaDesktop) return window.personaDesktop.notificationPermission() as Permission;
   if (typeof Notification === "undefined") return "unsupported";
   return Notification.permission;
@@ -213,7 +213,7 @@ const SYSTEM_KEY = "persona.systemNotify";
 const systemListeners = new Set<() => void>();
 
 /** The page's own switch, off until turned on here (turning it on asks the browser). */
-export function systemNotifyOn(): boolean {
+function systemNotifyOn(): boolean {
   try {
     return localStorage.getItem(SYSTEM_KEY) === "1";
   } catch {

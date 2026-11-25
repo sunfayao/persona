@@ -5,7 +5,7 @@ import { lazyPage } from "../../lib/lazy-page";
 
 const WorkspaceControls = lazyPage(() => import("./TaskWorkspaceControls").then((m) => m.TaskWorkspaceControls));
 
-export function workspaceMode(w?: TaskWorkspace): "new" | "existing" | "none" {
+function workspaceMode(w?: TaskWorkspace): "new" | "existing" | "none" {
   return typeof w === "object" ? ("existing" in w ? "existing" : "new") : w ?? "none";
 }
 

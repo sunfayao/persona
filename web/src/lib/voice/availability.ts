@@ -71,7 +71,7 @@ export function readInfo(body: unknown): VoiceInfo {
 }
 
 /** The origin of a meeting's room conversation (docs/assistant/meeting-minutes.md "The room conversation"). */
-export const MEETING_ROOM_ORIGIN = "meeting";
+const MEETING_ROOM_ORIGIN = "meeting";
 
 /**
  * Whether `session`'s page offers a call. `extensions`: the hub's list (undefined while not known); `info`: the picked
@@ -137,7 +137,7 @@ export function browserVoice(w: { isSecureContext?: boolean; navigator?: { media
 }
 
 /** One address the hub advertises (hello `endpoints`). */
-export interface HubEndpoint {
+interface HubEndpoint {
   url?: string;
   kind?: string;
   scheme?: string;

@@ -1,42 +1,30 @@
 // The Agents section's project (space) sections, the to-do tree rows the 常驻 directions reuse, and the rows they hold. Imports only
 // SidebarParts and SidebarRows among the sidebar's files.
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo } from "react";
 import { t } from "../i18n";
 import { isQuiet, sessionHost, type Space } from "../lib/agent-groups";
-import { machineWithHub } from "../lib/mesh";
 import { baseName } from "../lib/format";
-import { href, navigate } from "../lib/router";
+import { navigate } from "../lib/router";
 import { useStore } from "../lib/store";
-import { treeStateLabel, type TreeAgent, type TreeState, type TreeTodo } from "../lib/todo-tree";
+import { type TreeAgent } from "../lib/todo-tree";
 import { findTodoForSpace, openTodoFromTag } from "../lib/todos";
-import type { Machine, Session } from "../lib/types";
+import type { Session } from "../lib/types";
 import { Collapse, cx, sidebarFoldMotion } from "../ui/atoms";
 import { StateTally } from "../ui/StatusMark";
 import { foldedCounts, hasFoldedCounts } from "../lib/folded-counts";
-import { Icon, type IconName } from "../ui/icons";
+import { Icon } from "../ui/icons";
 import { type MenuNode } from "../lib/node-actions";
 import type { MenuAt } from "../ui/menu-model";
 import { useFolded } from "../lib/use-folded";
-import { sameValue } from "../lib/stable-lines";
-import { type WaitReason } from "../lib/state-labels";
-import { type GoFn, GroupCount, holdsRow, type RegFn, rowKey, type RowMenuFn, Section, SidebarGroup } from "./SidebarParts";
+import { type GoFn, GroupCount, holdsRow, type RegFn, rowKey, type RowMenuFn, Section } from "./SidebarParts";
 import { SessionRow } from "./SidebarRows";
 import { WindowedRows } from "./WindowedRows";
-import { DirectionStateText } from "./DirectionMarks";
 
-export type TreeRowProps = { machineLabel: MachineLabel; showHost?: boolean; /** No space · computer at a row's end (the sidebar's 常驻 rows, nested deep, #4352). */ noContext?: boolean; /** Before each agent row's glide key and its children's fold key: a second copy of a row (the sidebar's 常驻 tree) keeps its own, apart from the Agents list's. */ keyPrefix?: string; reg: RegFn; hover: (k: string | null) => void; activeKey: string; go: GoFn; onRowMenu?: RowMenuFn; onNavigate?: () => void };
+type TreeRowProps = { machineLabel: MachineLabel; showHost?: boolean; /** No space · computer at a row's end (the sidebar's 常驻 rows, nested deep, #4352). */ noContext?: boolean; /** Before each agent row's glide key and its children's fold key: a second copy of a row (the sidebar's 常驻 tree) keeps its own, apart from the Agents list's. */ keyPrefix?: string; reg: RegFn; hover: (k: string | null) => void; activeKey: string; go: GoFn; onRowMenu?: RowMenuFn; onNavigate?: () => void };
 /** A computer's name as an agent row shows it ("" with a single computer). */
-export type MachineLabel = (machineId: string) => string;
+type MachineLabel = (machineId: string) => string;
 
-const TREE_TONE: Record<TreeState, string> = { needs_you: "text-attention", working: "text-orange", bg_waiting: "text-status-waiting", waiting: "text-ink-2", done: "text-ink-3" };
 
-/** "Needs you" / "Working" / "Done" at the end of a tree node's line; `label`: a to-do's own word for it (the To-dos
- *  page's, #6458), in the color of the state it ranks as, but for a waiting to-do's (`wait`, #11090): Needs you's
- *  attention when it waits on the owner, the neutral one otherwise. */
-const TreeStateText = memo(function TreeStateText({ state, label, wait }: { state: TreeState; label?: string; wait?: WaitReason }) {
-  const tone = wait ? (wait === "owner" ? TREE_TONE.needs_you : TREE_TONE.waiting) : TREE_TONE[state];
-  return <span className={cx("shrink-0 text-[11px] font-semibold whitespace-nowrap", tone)} data-tree-state={wait}>{label ?? treeStateLabel(state)}</span>;
-});
 
 // The tree's rows are memoized, and a push hands them the nodes it did not change as the same objects (shareTree), so
 // only the branches a push changed render again. The open row's key goes only to the branch that holds it ("" to the
@@ -47,102 +35,10 @@ const TreeStateText = memo(function TreeStateText({ state, label, wait }: { stat
 /** `activeKey` for an agent's branch (it and the agents it spawned), else "". */
 const withinAgent = (a: TreeAgent, activeKey: string): string => (activeKey && (rowKey(a.session) === activeKey || a.children.some((c) => withinAgent(c, activeKey))) ? activeKey : "");
 
-/** Each computer's row label, one lookup while the labels are the same. */
-export function useMachineLabel(machines: Machine[]): MachineLabel {
-  const last = useRef<Map<string, string> | null>(null);
-  const names = useMemo(() => {
-    const next = machines.length > 1 ? new Map(machines.map((m) => [m.id, machineWithHub(m.id, machines)])) : null;
-    return sameValue(last.current, next) ? last.current : next;
-  }, [machines]);
-  last.current = names;
-  return useCallback((machineId: string) => (names ? names.get(machineId) ?? machineId : ""), [names]);
-}
 
-/** The chevron that folds a branch, turned as its group's (DESIGN_SYSTEM 3.4). */
-function BranchChevron({ folded, size = 9 }: { folded: boolean; size?: number }) {
-  return <Icon name="chevron" size={size} stroke={2.4} className="opacity-60 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />;
-}
 
-/**
- * One branch of "By to-do" (#6458): a to-do or a group of agents, as one kind of row whatever it is. The chevron that folds
- * it, its mark, its title, an ⓘ for a group, then its count and its state, each in the same place; `top`: one of the
- * list's sticky group headings (a grouping's top level, DESIGN_SYSTEM 3.4, which Collapse all reads), else a row inside a
- * section. Its body is `children`, or `empty` said in their place when there are none. The row selects no text: a
- * press-and-drag over the rows that fold groups painted the theme's grey selection behind each of their lines (#6458).
- * On a touch screen the row is 44 px tall and a tap anywhere on it folds it: the chevron's touch-hit square, its button
- * unpositioned there, takes the row as its box, under the positioned controls that keep their own taps (the to-do's link,
- * the ⓘ) and over the words, the count and the state.
- */
-export function TreeBranch({ branch, top, folded, onToggle, toggleLabel, icon, title, info, end, empty, children }: { branch: string; top?: boolean; folded: boolean; /** None: nothing to unfold, the title stays in the column. */ onToggle?: () => void; toggleLabel: string; icon?: IconName; title: React.ReactNode; info?: React.ReactNode; end: React.ReactNode; empty?: string; children?: React.ReactNode }) {
-  const row = (
-    <div data-tree-branch-row className="relative z-10 flex w-full min-w-0 select-none items-center gap-1.5 rounded-control py-1 pl-2 pr-2 text-label text-ink-2 hover:bg-hover [@media(pointer:coarse)]:min-h-11">
-      {onToggle ? (
-        <button type="button" aria-expanded={!folded} aria-label={toggleLabel} onClick={onToggle} className="touch-hit flex shrink-0 items-center [@media(pointer:coarse)]:static">
-          <BranchChevron folded={folded} />
-        </button>
-      ) : (
-        <span aria-hidden className="invisible flex shrink-0 items-center"><Icon name="chevron" size={9} stroke={2.4} /></span>
-      )}
-      {icon && <Icon name={icon} size={11} stroke={2} className="shrink-0 text-ink-3" />}
-      {title}
-      {info}
-      {end}
-    </div>
-  );
-  const body = (
-    <Collapse open={!folded} sidebarFold>
-      <div data-tree-branch-list className="flex flex-col gap-px sidebar-indent" inert={folded || undefined}>
-        {children ?? (empty ? <EmptyHint text={empty} /> : null)}
-      </div>
-    </Collapse>
-  );
-  return (
-    <div data-tree-branch={branch} className="mt-px">
-      {top ? <SidebarGroup heading={row}>{body}</SidebarGroup> : <>{row}{body}</>}
-    </div>
-  );
-}
 
-/** What an open group with nothing in it says: what it would hold (#6458). */
-function EmptyHint({ text }: { text: string }) {
-  return <p className="select-none px-2 py-1 text-label leading-[1.45] text-ink-3">{text}</p>;
-}
 
-/** One todo and its agents under its own folding line (`top`: at the list's top level, "By to-do"); a direction tree's
- *  task (#4352) says its task state. */
-export const TreeTodoRows = memo(function TreeTodoRows({ td, top, ...p }: { td: TreeTodo; top?: boolean } & TreeRowProps) {
-  const [folded, toggle] = useFolded(td.key, td.folded, { follow: true, holds: holdsRow(td.sessions, p.activeKey) });
-  // a direction's task no agent is on yet (#4352): nothing to unfold, and no bare 0 beside its state
-  const unfolds = td.agents.length > 0 || !td.taskState;
-  // the link takes the touch row's height (touch-hit; the words truncate inside it, which would clip its square), so a
-  // finger just off the words opens the to-do rather than folding it
-  const title = td.todoId ? (
-    <a href={href({ name: "todos", id: td.todoId })} onClick={(e) => { e.preventDefault(); openTodoFromTag(td.todoId!, navigate, p.onNavigate); }} className="touch-hit min-w-0 flex-1 font-medium text-ink hover:underline"><span className="block truncate">{td.name}</span></a>
-  ) : (
-    <button type="button" onClick={toggle} className="min-w-0 flex-1 truncate text-left">{td.name}</button>
-  );
-  const state = td.taskState ? (
-    <DirectionStateText state={td.taskState} />
-  ) : td.status === "usage_limit" ? (
-    <span className="shrink-0 text-[11px] font-semibold whitespace-nowrap text-orange">{t("lib-usage-limit.short")}</span>
-  ) : (
-    <TreeStateText state={td.state} label={td.statusLabel} wait={td.wait} />
-  );
-  return (
-    <TreeBranch
-      branch={td.todoId ? `todo:${td.todoId}` : td.key}
-      top={top}
-      folded={folded}
-      onToggle={unfolds ? toggle : undefined}
-      toggleLabel={t("sidebar.task_agents", { name: td.name })}
-      icon={td.todoId ? "todo" : undefined}
-      title={title}
-      end={<>{(td.sessions.length > 0 || !td.taskState) && <GroupCount n={td.sessions.length} label={t("sidebar.agent_count", { count: td.sessions.length })} className="shrink-0" />}{state}</>}
-    >
-      <WindowedRows items={td.agents} holds={(a) => withinAgent(a, p.activeKey) !== ""} render={(a) => <TreeAgentRows key={a.key} a={a} depth={0} {...p} activeKey={withinAgent(a, p.activeKey)} />} />
-    </TreeBranch>
-  );
-});
 
 /** An agent and, folded under it, the agents it spawned for the same todo. */
 const TreeAgentRows = memo(function TreeAgentRows({ a, depth, machineLabel, showHost, noContext, keyPrefix = "", reg, hover, activeKey, go, onRowMenu }: { a: TreeAgent; depth: number } & TreeRowProps) {

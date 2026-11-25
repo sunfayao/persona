@@ -10,7 +10,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } 
 import { createPortal } from "react-dom";
 import { t } from "../../i18n";
 import { errorText, imageURL } from "../../lib/api";
-import type { ForwardChat, ForwardPick } from "../../lib/forward";
+import type { ForwardChat } from "../../lib/forward";
 import { forwardDraftOf } from "../../lib/forward-draft";
 import { managerOf, useRoster } from "../../lib/managers";
 import type { MessagePick } from "../../lib/message-pick";
@@ -26,7 +26,7 @@ import { PersonaAvatar, usePersona } from "../assistant/Persona";
 import type { ExportRequest } from "./Picking";
 
 /** The picture's width, a phone's, in CSS px. */
-export const WIDTH = 390;
+const WIDTH = 390;
 /** Around the words: the sides, the top, the foot. */
 const PAD = 16;
 const TOP = 24;
@@ -317,4 +317,3 @@ function ExportFoot({ name, page }: { name: string; page?: string }) {
   );
 }
 
-export type { ForwardPick };

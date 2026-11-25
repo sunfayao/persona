@@ -1,14 +1,14 @@
 // Lightweight unified line diff and sensitive-path hints for FileBrowserPanel (Phase 6B).
 // Imported only inside the lazy-loaded FileBrowserPanel chunk (0 bytes on first screen).
 
-export interface DiffLine {
+interface DiffLine {
   type: "context" | "add" | "del";
   oldLine?: number;
   newLine?: number;
   text: string;
 }
 
-export interface DiffHunk {
+interface DiffHunk {
   oldStart: number;
   oldCount: number;
   newStart: number;

@@ -1622,7 +1622,7 @@ const DOT_STATE: Record<TodoStatus, AgentState> = {
 
 /** The view of one todo's row (TodoRowView). Every open row says its latest progress: what its agent asks or does,
  *  else what its agent last reported to its supervisor (#3156). */
-export function todoRowView(todo: Todo, lookup: SessionLookup, interactions: Interaction[]): TodoRowView {
+function todoRowView(todo: Todo, lookup: SessionLookup, interactions: Interaction[]): TodoRowView {
   const view = agentRowView(todo, lookup, interactions);
   // Nobody is working on it (#3618): the hub's finding goes ahead of what a stopped agent last said (Interrupted,
   // Follow up; docs/assistant/todos.md). A card that waits for the user still says its question.

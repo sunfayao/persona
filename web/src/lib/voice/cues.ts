@@ -5,7 +5,7 @@
 export type VoiceCue = "ready" | "attention" | "reconnecting";
 
 /** The notes, in hertz, one after the other. */
-export const CUE_NOTES: Record<VoiceCue, number[]> = {
+const CUE_NOTES: Record<VoiceCue, number[]> = {
   ready: [659.25, 880],
   attention: [880, 1174.66, 880],
   reconnecting: [440],
@@ -13,10 +13,10 @@ export const CUE_NOTES: Record<VoiceCue, number[]> = {
 
 /** How long each note sounds, the quiet between two, the ramp at each end (no click), and the loudness (a share of
  *  full scale: under the voice's own level). */
-export const CUE_NOTE_S = 0.085;
-export const CUE_GAP_S = 0.035;
-export const CUE_RAMP_S = 0.012;
-export const CUE_GAIN = 0.16;
+const CUE_NOTE_S = 0.085;
+const CUE_GAP_S = 0.035;
+const CUE_RAMP_S = 0.012;
+const CUE_GAIN = 0.16;
 
 /** The cue's samples (-1…1) at `rate`. */
 export function cueSamples(cue: VoiceCue, rate: number): Float32Array<ArrayBuffer> {

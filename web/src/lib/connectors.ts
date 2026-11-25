@@ -279,7 +279,7 @@ export function fieldInput(f: PromptField): { type: string; inputMode?: "numeric
 
 // ── GitHub ───────────────────────────────────────────────
 
-export function scopeNames(missing: GitHubMissing[]): string {
+function scopeNames(missing: GitHubMissing[]): string {
   return formatList(missing.map((m) => m.scope), { type: "conjunction", style: "narrow" });
 }
 
@@ -303,9 +303,6 @@ export function githubMachineLine(m: GitHubMachine): string {
   }
 }
 
-export function githubMachineWarns(m: GitHubMachine): boolean {
-  return m.state !== "signed_in" || !!m.missing?.length;
-}
 
 /** What to do about the scopes the token in use lacks. */
 export function githubScopeAdvice(auth: GitHubAuth, missing: GitHubMissing[]): string {
@@ -324,33 +321,8 @@ export function githubOptions(raw: unknown): GitHubInboxOptions | null {
   return { ci: o.ci, muted_repos: strings(o.muted_repos) ?? [], ignore_branches: strings(o.ignore_branches) };
 }
 
-/** lark-cli's Inbox options: group chats taken whole, watched documents and Wiki spaces, and whether every comment on
- * a watched document the user owns comes in (PUT …/larkcli/settings {options}, sent whole). */
-export interface LarkCLIInboxOptions {
-  inbox_all_chats: string[];
-  documents: string[];
-  wiki_spaces: string[];
-  owned_all_comments: boolean;
-  /** What counts as Needs you / FYI / Collapsed for these items, in the user's words (empty: the Inbox's own rules). */
-  triage_rules: string;
-}
 
-/** lark-cli's options as the hub gives them, or null when it gives none (or not that shape). */
-export function larkcliOptions(raw: unknown): LarkCLIInboxOptions | null {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  if (!Array.isArray(o.documents)) return null;
-  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-  return { inbox_all_chats: strings(o.inbox_all_chats), documents: strings(o.documents), wiki_spaces: strings(o.wiki_spaces), owned_all_comments: o.owned_all_comments === true, triage_rules: typeof o.triage_rules === "string" ? o.triage_rules : "" };
-}
 
-/** The CI choices, most quiet first. */
-export const CI_MODES: { value: string; label: string }[] = [
-  { value: "off", label: t("lib-connectors.ci_mode_off") },
-  { value: "default_branch", label: t("lib-connectors.ci_mode_default_branch") },
-  { value: "mine", label: t("lib-connectors.ci_mode_mine") },
-  { value: "all", label: t("lib-connectors.ci_mode_all") },
-];
 
 export function githubInboxFooter(o: GitHubInboxOptions): string {
   const ci =
@@ -376,23 +348,9 @@ export async function listConnectors(all = false): Promise<HubConnector[]> {
   return r.connectors ?? [];
 }
 
-export function connectorLogin(id: string, step: string, values: Record<string, string>): Promise<ConnectorPrompt> {
-  return api<ConnectorPrompt>(`/connectors/${enc(id)}/login`, { method: "POST", json: { step, values } });
-}
 
-export function connectorLogout(id: string): Promise<unknown> {
-  return api(`/connectors/${enc(id)}/logout`, { method: "POST" });
-}
 
-/** The switch (`enabled`), "Add to Inbox" (`inbox`) or its own settings (`options`).
- *  `manager`: whose connector (another manager's extension page names it); none: the default's, or the page's pin. */
-export function setConnector(id: string, body: { enabled?: boolean; inbox?: boolean; options?: unknown }, manager?: string): Promise<HubConnector> {
-  return api<HubConnector>(`/connectors/${enc(id)}/settings`, { method: "PUT", json: body, headers: itemHeaders(manager) });
-}
 
-export function deleteConnectorData(id: string): Promise<ConnectorDeleted> {
-  return api<ConnectorDeleted>(`/connectors/${enc(id)}/data`, { method: "DELETE" });
-}
 
 // ── Messages (iMessage): "Hand to Persona" and deleting what the hub kept (iOS MessagesConnectorView) ──
 
@@ -406,9 +364,6 @@ export interface IMessageStatus {
   ai?: boolean;
 }
 
-export function imessageStatus(): Promise<IMessageStatus> {
-  return api<IMessageStatus>("/imessage");
-}
 
 /** "Hand to Persona" on or off: off stops at once, what the hub kept stays until deleteIMessageData. */
 export function setIMessageAI(on: boolean): Promise<IMessageStatus> {
@@ -425,9 +380,6 @@ export function imessageAIFooter(on: boolean): string {
   return on ? t("lib-connectors.imessage_ai_on") : t("lib-connectors.imessage_ai_off");
 }
 
-export function githubAuth(): Promise<GitHubAuth> {
-  return api<GitHubAuth>("/connectors/github/auth");
-}
 
 /** Where GitHub's token comes from: a machine's gh login, or the device flow (machine null). */
 export function setGitHubAuth(machine: string | null): Promise<GitHubAuth> {
@@ -506,7 +458,7 @@ export function isGitHubThread(c?: ThreadChat): boolean {
   return c?.kind === "pr" || c?.kind === "issue";
 }
 
-export const THREAD_PAGE = 30;
+const THREAD_PAGE = 30;
 
 /** `manager`: whose connector it is (an inbox item's, docs/assistant/managers.md "Clients"; none: the default's). */
 export function loadThread(id: string, thread: string, before = "", manager?: string): Promise<ThreadPage> {
@@ -608,7 +560,7 @@ export function labelColor(color?: string): string | undefined {
 }
 
 /** Pages a jump to a quote's message reads back at most before giving up (iOS ConnectorThreadModel.jumpPages). */
-export const QUOTE_JUMP_PAGES = 3;
+const QUOTE_JUMP_PAGES = 3;
 
 /**
  * The line over a group's or channel's conversation, as iOS ThreadLayout.subtitle: the kind of chat and, when the hub

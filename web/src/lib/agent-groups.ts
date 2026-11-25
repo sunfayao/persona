@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import { byAttention, stateOf } from "./format";
 import { hubWaits } from "./work";
-import type { AgentState, Machine, Session } from "./types";
+import type { Machine, Session } from "./types";
 import { byTime } from "./times";
 
 import { unopened } from "./seen-outbox";
@@ -46,19 +46,6 @@ export interface AgentMutes {
   allowed?: string[];
 }
 
-export interface AgentGroup {
-  key: string;
-  name: string;
-  sessions: Session[];
-  state?: AgentState;
-  /** Its agents only wait on background commands (#6045): drawn with the waiting mark. */
-  waiting?: boolean;
-  folded?: boolean;
-  todoId?: string;
-  todoStatus?: string;
-  /** What the group is and why its agents are in it, for a name that does not say it alone (a tooltip). */
-  hint?: string;
-}
 
 export function splitAgentSessions(all: Session[], machines: Machine[], keepOffline?: (s: Session) => boolean) {
   const online = new Set(machines.filter((m) => m.online).map((m) => m.id));

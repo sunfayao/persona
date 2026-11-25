@@ -193,7 +193,7 @@ export function tabPagePane(tabPane: Session | undefined, r: { mid: string; sid?
   return !loaded && r.sid ? { mid: r.mid, sid: r.sid } : undefined;
 }
 
-export interface HerdrTab {
+interface HerdrTab {
   /** Unique while the tab lives (it has the host's ids): React keys and the sidebar's highlight. */
   key: string;
   spaceId: string;
@@ -231,7 +231,7 @@ export interface HerdrSpace {
   childStates: ChildStates;
 }
 
-export interface ChildStates {
+interface ChildStates {
   needs_you: number;
   working: number;
   done: number;

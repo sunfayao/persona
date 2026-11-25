@@ -87,7 +87,7 @@ const sameStyle = (a: CellStyle, b: CellStyle) =>
   !a.underline === !b.underline && !a.inverse === !b.inverse && !a.strike === !b.strike && !a.invisible === !b.invisible;
 
 /** Adds text in a style to a row, joining the last run when the style is the same. */
-export function pushText(row: CellRow, text: string, style: CellStyle, cells = textCells(text)) {
+function pushText(row: CellRow, text: string, style: CellStyle, cells = textCells(text)) {
   if (!text) return;
   const last = row.runs[row.runs.length - 1];
   if (last && sameStyle(last.style, style)) {

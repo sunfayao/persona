@@ -15,7 +15,7 @@ import { byTime } from "./times";
 import { stateName, waitName } from "./state-labels";
 import { usageLimitAgent } from "./usage-limit";
 
-export type TodoAgentSource = "manual" | "space" | "spawned" | "chat";
+type TodoAgentSource = "manual" | "space" | "spawned" | "chat";
 
 export interface TodoAgent {
   machine_id: string;
@@ -37,7 +37,7 @@ export interface TodoSpace {
   linked_at: string;
 }
 
-export type TodoResponsibleKind = "session" | "person";
+type TodoResponsibleKind = "session" | "person";
 
 /** A responsible party that is not a Persona-started agent (#12712). */
 export interface TodoResponsible {
@@ -298,7 +298,7 @@ export interface TodoDelivery {
 
 /** A completion check: `verdict` is `done`, `not_done`, `waiting`, `needs_user`, `undelivered` or `unsure` (others may
  *  come); `reason` is the judge's line in the user's language; `work_since` the start of the work it judged. */
-export interface TodoCheck {
+interface TodoCheck {
   verdict: string;
   reason?: string;
   at: string;
@@ -406,7 +406,7 @@ export function isAutoDone(todo: Todo): boolean {
 }
 
 /** Its supervisor closed it after reviewing the work (done_by review, #3124). */
-export function isReviewDone(todo: Todo): boolean {
+function isReviewDone(todo: Todo): boolean {
   return Boolean(todo.done_at) && todo.done_by === "review";
 }
 

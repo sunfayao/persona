@@ -10,11 +10,11 @@ import { Button, copyText, cx, Dialog, Loading, Spinner, toast } from "../../ui/
 import { Icon } from "../../ui/icons";
 import { Segmented } from "../assistant/parts";
 
-export type ServiceKind = "systemd" | "launchd" | "docker";
-export type ServiceState = "running" | "stopped" | "failed" | "activating" | "unknown";
+type ServiceKind = "systemd" | "launchd" | "docker";
+type ServiceState = "running" | "stopped" | "failed" | "activating" | "unknown";
 export type ServiceAction = "start" | "stop" | "restart";
 
-export interface ServiceManagerStatus {
+interface ServiceManagerStatus {
   kind: ServiceKind;
   available: boolean;
   unavailable?: string;

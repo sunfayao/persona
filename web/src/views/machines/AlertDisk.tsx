@@ -14,7 +14,7 @@ import { DiagnosisLoading, DiagnosisNote, Figure, SheetPart, ShareBar, useDiagno
 const SECTIONS = ["disk"] as const;
 
 /** A cache's name for people, by its catalog id; the id itself for one this page does not know. */
-export function cacheTitle(id: string): string {
+function cacheTitle(id: string): string {
   switch (id) {
     case "go-build":
       return t("machines-alerts.cache_go_build");

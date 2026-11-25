@@ -5,7 +5,7 @@ import { t } from "../i18n";
 import { machineDeployment } from "./machine-deploy";
 import type { Machine } from "./types";
 
-export type ConnectionFailureKind = "auth" | "unreachable" | "timeout" | "version";
+type ConnectionFailureKind = "auth" | "unreachable" | "timeout" | "version";
 
 export interface ConnectionFailure {
   kind: ConnectionFailureKind;

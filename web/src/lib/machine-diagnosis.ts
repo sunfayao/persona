@@ -7,7 +7,7 @@ import { t } from "../i18n";
 import { api, ApiError, enc, errorText, pastHub } from "./api";
 
 export type DiagnosisSection = "processes" | "disk" | "tools";
-export type ProcessKind = "agent" | "engine" | "persona" | "other";
+type ProcessKind = "agent" | "engine" | "persona" | "other";
 
 export interface ProcessGroup {
   name: string;
@@ -18,13 +18,13 @@ export interface ProcessGroup {
   cpu?: number;
 }
 
-export interface DiagnosisVolume {
+interface DiagnosisVolume {
   mount: string;
   used: number;
   total: number;
 }
 
-export interface DiagnosisFolder {
+interface DiagnosisFolder {
   /** "~"-relative. */
   path: string;
   bytes: number;
@@ -51,7 +51,7 @@ export interface Diagnosis {
   tools?: DiagnosisTool[];
 }
 
-export type CleanupStatus = "cleaned" | "in_use" | "missing" | "failed";
+type CleanupStatus = "cleaned" | "in_use" | "missing" | "failed";
 
 export interface CleanupResult {
   freed_bytes: number;
@@ -63,7 +63,7 @@ export interface CleanupResult {
 /** Why the diagnosis is not there. node_outdated: the computer's Persona predates it; hub_outdated: the hub does;
  *  forbidden: this device is not fully trusted; offline: the computer is not connected; deadline: it did not answer
  *  in time; error: anything else (`text` says what). */
-export type DiagnosisFailureKind = "node_outdated" | "hub_outdated" | "forbidden" | "offline" | "deadline" | "error";
+type DiagnosisFailureKind = "node_outdated" | "hub_outdated" | "forbidden" | "offline" | "deadline" | "error";
 
 export interface DiagnosisFailure {
   kind: DiagnosisFailureKind;

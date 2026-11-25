@@ -8,7 +8,7 @@ import type { ErrorReport } from "./extension-wire";
 import { uuid } from "./format";
 import { getState, subscribe } from "./store";
 
-export async function sendErrorReports(reports: ErrorReport[]): Promise<SendResult> {
+async function sendErrorReports(reports: ErrorReport[]): Promise<SendResult> {
   try {
     const r = await api<{ enabled?: boolean }>("/error-reports", { method: "POST", json: { reports } });
     return { ok: true, enabled: r.enabled !== false };

@@ -8,7 +8,7 @@
 // give the same numbers.
 
 /** Frames this big or bigger, spread over several reads, say how fast the link moved them. */
-export const BURST_BYTES = 32_000;
+const BURST_BYTES = 32_000;
 const BURST_MIN_SPAN_MICROS = 5_000;
 const BASELINE_MICROS = 10_000_000;
 const BUSY_MS = 50;
@@ -30,13 +30,13 @@ export type TierSignals = {
   replacedShare: number | null;
 };
 
-export function percentile(values: number[], p: number): number | null {
+function percentile(values: number[], p: number): number | null {
   if (!values.length) return null;
   const s = [...values].sort((a, b) => a - b);
   return s[Math.min(s.length - 1, Math.round((s.length - 1) * p))];
 }
 
-export function mean(values: number[]): number | null {
+function mean(values: number[]): number | null {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
 

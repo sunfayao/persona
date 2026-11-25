@@ -14,7 +14,7 @@ export const BUILTIN_PERSONA = "persona";
 export const RETIRED_PERSONAS = ["persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob"] as const;
 const RESERVED: readonly string[] = [BUILTIN_PERSONA, ...RETIRED_PERSONAS, ...legacyBuiltins];
 
-export function isRetiredPersona(id: string): boolean {
+function isRetiredPersona(id: string): boolean {
   return (RETIRED_PERSONAS as readonly string[]).includes(id) || legacyBuiltins.includes(id);
 }
 

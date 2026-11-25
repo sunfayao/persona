@@ -5,9 +5,9 @@ import { api } from "./api";
 import { ago } from "./format";
 
 /** What an older hub's rc-file launchers came from: it only read ~/.zshrc. */
-export const DEFAULT_RC_FILE = "~/.zshrc";
+const DEFAULT_RC_FILE = "~/.zshrc";
 /** GET /launchers waits on every machine; past this the page says so and offers 重试 instead of spinning. */
-export const LAUNCHERS_TIMEOUT_MS = 20_000;
+const LAUNCHERS_TIMEOUT_MS = 20_000;
 
 export interface LauncherSync {
   machine: string;

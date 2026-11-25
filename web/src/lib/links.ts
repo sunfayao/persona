@@ -213,7 +213,7 @@ export function previewTarget(url: string): { mid: string; sid: string; cwd: str
 }
 
 /** The names a computer goes by in links to its ports: its host name, when the hub knows it. */
-export function machineHostnames(mid: string): string[] {
+function machineHostnames(mid: string): string[] {
   const h = getState().machines.find((m) => m.id === mid)?.hostname;
   return h ? [h] : [];
 }

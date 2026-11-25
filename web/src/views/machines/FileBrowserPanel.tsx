@@ -138,7 +138,7 @@ export interface MachineFileDeleteResponse {
   deleted: boolean;
 }
 
-export interface MachineFileUploadEndResponse {
+interface MachineFileUploadEndResponse {
   entry: MachineFileEntry;
   canonical_path: string;
   size: number;
@@ -159,7 +159,7 @@ export function machineFileDownloadURL(mid: string, path: string): string {
 }
 
 /** Streaming upload URL on the authenticated Hub HTTP route. */
-export function machineFileUploadURL(
+function machineFileUploadURL(
   mid: string,
   opts: { dir: string; name: string; overwrite?: boolean; confirmSensitive?: boolean },
 ): string {

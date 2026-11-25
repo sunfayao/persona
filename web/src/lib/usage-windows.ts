@@ -45,13 +45,13 @@ export interface UsageAccount {
 }
 
 /** Samples older than this are dropped (a source that went quiet for days says nothing about now). */
-export const SAMPLE_MAX_AGE_MS = 3 * 24 * 3600_000;
+const SAMPLE_MAX_AGE_MS = 3 * 24 * 3600_000;
 /** From this used percentage a bar turns to the caution colour. */
-export const WARN_PERCENT = 80;
+const WARN_PERCENT = 80;
 /** The pace is not judged in the first part of a window: a few minutes in, any use is "ahead". */
-export const PACE_QUIET_FRACTION = 0.05;
+const PACE_QUIET_FRACTION = 0.05;
 /** How far (percentage points) the actual use may be from the expected before it is over / under. */
-export const PACE_TOLERANCE = 5;
+const PACE_TOLERANCE = 5;
 const POLL_MS = 60_000;
 
 /** The window's length in minutes from its label ("5h", "7d", "45m"); the given minutes when the label is not one. */
@@ -241,7 +241,7 @@ function notifyPinned(): void {
 }
 
 /** Persist the user's chosen sidebar usage account IDs in this browser (display-only). */
-export function setPinnedUsageAccounts(ids: readonly string[]): readonly string[] {
+function setPinnedUsageAccounts(ids: readonly string[]): readonly string[] {
   const next = normalizePinnedIds(ids);
   const raw = next.length ? JSON.stringify(next) : null;
   let persisted = false;
@@ -322,7 +322,7 @@ export function selectSidebarUsageAccounts(
 }
 
 /** The longest stretch the reset timeline shows: windows resetting later are drawn to its end. */
-export const TIMELINE_CAP_MS = 7 * 24 * 3600_000;
+const TIMELINE_CAP_MS = 7 * 24 * 3600_000;
 
 /** The windows of one account, in the order a card lists them: the plan's own 5h, then 7d, then the other plan windows
  *  by length, and last the per-model allowances (by length too). */
@@ -335,7 +335,7 @@ export function sortedWindows(a: Pick<UsageAccount, "windows">): UsageWindow[] {
 }
 
 /** When an account's plan 7d window resets, in ms; Infinity without one (or without a reset time): those sort last. */
-export function weeklyResetMs(a: Pick<UsageAccount, "windows">): number {
+function weeklyResetMs(a: Pick<UsageAccount, "windows">): number {
   const w = a.windows.find((x) => !x.model && windowMinutes(x) === 10080 && x.resets_at);
   const at = w?.resets_at ? Date.parse(w.resets_at) : NaN;
   return Number.isFinite(at) ? at : Infinity;
@@ -382,7 +382,7 @@ export function timelinePosition(ms: number): number {
   return h <= 24 ? (h / 24) * 0.45 : 0.45 + ((h - 24) / 144) * 0.55;
 }
 
-export interface TimelineLane {
+interface TimelineLane {
   key: string;
   label: string;
   /** A window longer than six hours (the weekly one): the blue capsule; a short one is the teal one. */

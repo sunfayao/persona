@@ -28,7 +28,7 @@ export const EFFORTS: ModeOption[] = [
 ];
 
 /** Codex's reasoning efforts (node/codex_effort.go); a thread offers those of its model, in `Session.efforts`. */
-export const CODEX_EFFORTS: ModeOption[] = [
+const CODEX_EFFORTS: ModeOption[] = [
   { id: "minimal", title: t("lib-session-actions.codex_effort_minimal"), detail: t("lib-session-actions.codex_effort_minimal_detail") },
   { id: "low", title: t("lib-session-actions.codex_effort_low"), detail: t("lib-session-actions.codex_effort_low_detail") },
   { id: "medium", title: t("lib-session-actions.codex_effort_medium"), detail: t("lib-session-actions.codex_effort_medium_detail") },

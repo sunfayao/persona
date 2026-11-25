@@ -407,7 +407,7 @@ function store(): DraftStore | undefined {
 /** One draft per chat and Feishu account. */
 export const draftKey = (feed: string, ol?: number) => `${DRAFT_PREFIX}${ol ?? 0}:${feed}`;
 
-export function isEmptyDraft(d: LarkDraft): boolean {
+function isEmptyDraft(d: LarkDraft): boolean {
   return !d.text.trim() && !d.replyTo;
 }
 

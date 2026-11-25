@@ -141,7 +141,7 @@ function step(selector: string, forward: boolean): Element | undefined {
 }
 
 /** The diff at the top of the screen (the last whose head has passed it), else the first. */
-export function currentDiff(): HTMLElement | undefined {
+function currentDiff(): HTMLElement | undefined {
   const els = [...document.querySelectorAll<HTMLElement>("[data-diff-path]")];
   let at = els[0];
   for (const e of els) if (e.getBoundingClientRect().top <= 80) at = e;
@@ -152,7 +152,7 @@ export function currentDiff(): HTMLElement | undefined {
 const tell = (el: Element | undefined, cmd: ReviewCommand) => el?.dispatchEvent(new CustomEvent("review", { detail: cmd }));
 
 /** The keys of a page of diffs; ? opens their sheet. */
-export function useReviewKeys(on: boolean, help: () => void) {
+function useReviewKeys(on: boolean, help: () => void) {
   const { whitespace, setWhitespace } = useReview();
   const [mode, setMode] = useDiffMode();
   useEffect(() => {

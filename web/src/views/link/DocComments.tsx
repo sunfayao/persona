@@ -129,7 +129,7 @@ export function useDocComments(url: string, on: boolean): DocComments {
 }
 
 /** What to answer in a thread: its last reply (FeishuDocsCommentsModel.reply(to:)). */
-export function replyTarget(th: DocThread): CommentTarget {
+function replyTarget(th: DocThread): CommentTarget {
   const last = th.replies[th.replies.length - 1];
   return { kind: "thread", id: th.id, name: last?.author.name ?? t("link-doccomments.comment"), text: last ? replyText(last) : th.quote };
 }

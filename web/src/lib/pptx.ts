@@ -7,9 +7,9 @@
 import type JSZip from "jszip";
 import { t } from "../i18n";
 
-export const EMU_PER_PX = 9525;
+const EMU_PER_PX = 9525;
 
-export interface Run {
+interface Run {
   text: string;
   size?: number; // pt
   bold?: boolean;
@@ -20,14 +20,14 @@ export interface Run {
   br?: boolean; // a line break, not text
 }
 
-export interface Para {
+interface Para {
   runs: Run[];
   align?: "l" | "ctr" | "r" | "just";
   level: number;
   bullet?: string;
 }
 
-export interface Cell {
+interface Cell {
   paras: Para[];
   fill?: string;
   span?: number;
@@ -35,7 +35,7 @@ export interface Cell {
   hidden?: boolean; // covered by a merge
 }
 
-export interface Shape {
+interface Shape {
   x: number;
   y: number;
   w: number;
@@ -56,7 +56,7 @@ export interface Shape {
   placeholder?: string; // what a chart / diagram / unknown picture is, shown as a labeled box
 }
 
-export interface ChartSeries {
+interface ChartSeries {
   name: string;
   values: (number | null)[];
   color: string;
@@ -72,7 +72,7 @@ export interface Chart {
   stacked?: boolean;
 }
 
-export interface Slide {
+interface Slide {
   bg?: string;
   bgImage?: string;
   shapes: Shape[];
@@ -650,7 +650,7 @@ export function readChart(doc: Document, scheme: Scheme): Chart | null {
 
 // ── HTML ──────────────────────────────────────────────────
 
-export const escapeHTML = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const escapeHTML = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const px = (n: number) => `${Math.round(n * 100) / 100}px`;
 const safeColor = (c: string | undefined) => (c && /^#[0-9a-f]{6}$/.test(c) ? c : undefined);
 const safeImage = (s: string | undefined) => (s && /^data:image\/(png|jpeg|gif|bmp|webp|tiff|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(s) ? s : undefined);
@@ -862,7 +862,7 @@ export function chartSVG(c: Chart, w: number, h: number): string {
 }
 
 /** One slide as HTML at the deck's size (px). */
-export function slideHTML(deck: Deck, slide: Slide): string {
+function slideHTML(deck: Deck, slide: Slide): string {
   const bg = [safeColor(slide.bg) ? `background-color:${slide.bg}` : "background-color:#ffffff", safeImage(slide.bgImage) ? `background-image:url('${slide.bgImage}');background-size:cover` : ""]
     .filter(Boolean)
     .join(";");

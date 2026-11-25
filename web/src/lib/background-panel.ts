@@ -3,7 +3,7 @@
 // subagents, and its workflow runs. Every way in goes through here: the header's button, the loop mark before the title, a
 // workflow card's "Open in the background tasks panel" and `/workflows` in the composer.
 import { useSyncExternalStore } from "react";
-import { getPanel, openPanel, type Panel } from "./panel";
+import { openPanel, type Panel } from "./panel";
 import type { Session } from "./types";
 import { otherBackground, recentWorkflows } from "./workflows";
 
@@ -20,11 +20,6 @@ export function openBackgroundPanel(mid: string, sid: string, run?: string) {
   openPanel({ kind: "background", mid, sid, ...(run ? { run } : {}) });
 }
 
-/** The header's button: closes the session's panel when it is open, else opens it at its list. */
-export function toggleBackgroundPanel(mid: string, sid: string) {
-  if (backgroundPanelOf(getPanel(), mid, sid)) openPanel(null);
-  else openBackgroundPanel(mid, sid);
-}
 
 /** Whether the session has anything the panel lists now: a /loop, a background task, or a workflow run that runs or ended
  *  within the day the node keeps it (lib/workflows.ts recentWorkflows). The header's button shows only then. */

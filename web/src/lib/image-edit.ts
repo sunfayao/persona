@@ -5,7 +5,7 @@
 
 import { fitIn, fitRect } from "./image-fit";
 
-export type MarkTool = "box" | "pen";
+type MarkTool = "box" | "pen";
 
 export const INKS = ["red", "yellow", "green", "blue", "white", "black"] as const;
 export type Ink = (typeof INKS)[number];
@@ -92,7 +92,7 @@ export const IMAGE_EDIT = {
   cropThirdsOpacity: 0.45,
 } as const;
 
-export const WHOLE: Rect = { x: 0, y: 0, width: 1, height: 1 };
+const WHOLE: Rect = { x: 0, y: 0, width: 1, height: 1 };
 
 export function noEdits(): ImageEdits {
   return { turns: 0, crop: WHOLE, shape: "free", marks: [] };
@@ -209,7 +209,7 @@ export function shapeRatio(shape: CropShape, size: Size): number | null {
 }
 
 /** The same shape once the picture has turned a quarter: 4:3 becomes 3:4. */
-export function turnedShape(shape: CropShape): CropShape {
+function turnedShape(shape: CropShape): CropShape {
   switch (shape) {
     case "4:3":
       return "3:4";
@@ -234,7 +234,7 @@ export function reshape(e: ImageEdits, shape: CropShape, size: Size): ImageEdits
 
 /** The largest crop of `ratio` (width / height, pixels) in a picture of `size` (as turned), round `crop`'s middle and
  *  moved inside the picture. */
-export function fitCrop(crop: Rect, ratio: number, size: Size): Rect {
+function fitCrop(crop: Rect, ratio: number, size: Size): Rect {
   if (size.width <= 0 || size.height <= 0 || ratio <= 0) return crop;
   const k = (ratio * size.height) / size.width; // the ratio in fractions
   let w = 1,
@@ -373,7 +373,7 @@ export function handleCursor(h: CropHandle | null): string {
 
 // fitIn and fitRect live in lib/image-fit.ts: the image viewer needs them too, and importing them from here would put
 // this whole module, which only the lazy editor uses, in the viewer's chunk with them.
-export { fitIn, fitRect } from "./image-fit";
+export {  fitRect } from "./image-fit";
 
 /** Where things are on screen. Marking, the crop fills the room; cropping, all of the turned picture shows, inset so the
  *  handles on its edges can be taken, the crop's frame over it. */

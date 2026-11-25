@@ -250,7 +250,7 @@ export function terminalHits(machines: readonly MachinePanes[], query: string): 
 // ── Inbox and "Go to" (the Mac's quick open, MacQuickOpen) ──────────
 
 /** Mac's match: the title starting with what is typed, then holding it, then every word somewhere; 1 with nothing typed. */
-export function textScore(title: string, hay: readonly (string | undefined)[], text: string): number {
+function textScore(title: string, hay: readonly (string | undefined)[], text: string): number {
   const q = text.trim().toLowerCase();
   if (!q) return 1;
   const ti = title.toLowerCase();
@@ -304,7 +304,7 @@ export interface InboxHit<T extends InboxLike = InboxLike> {
 }
 
 /** How many inbox items a jump lists (the Mac's otherLimit). */
-export const INBOX_LIMIT = 5;
+const INBOX_LIMIT = 5;
 
 /** The open inbox items whose title, sender, preview or account match: the best first, then the newest. */
 export function inboxHits<T extends InboxLike>(items: readonly T[], text: string, limit = INBOX_LIMIT): InboxHit<T>[] {

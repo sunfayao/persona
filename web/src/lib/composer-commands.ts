@@ -28,7 +28,7 @@ export function paneClaude(s: Session | undefined): boolean {
 
 /** Claude Code's own commands typed into its terminal (`/context`): not a runtime's session or the assistant, which take
  *  no typed commands, nor another agent's terminal. With no row yet, as before. */
-export function claudeTerminal(s: Session | undefined): boolean {
+function claudeTerminal(s: Session | undefined): boolean {
   if (!s) return true;
   if (s.assistant || s.source_kind) return false;
   return !s.agent || s.agent === "claude";

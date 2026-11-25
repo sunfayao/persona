@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { api, ApiError, credentialOwner, enc } from "./api";
 
 /** What a suggested rule would cover; empty for `delegate`, whose setting is not per directory. */
-export interface RuleScope {
+interface RuleScope {
   machine_id?: string;
   /** The computer's name, for display. */
   machine?: string;

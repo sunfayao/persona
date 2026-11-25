@@ -34,7 +34,7 @@ export interface ChatActions {
   rewind?: { block: LiveValue<string>; code?: boolean; run: RewindRun };
 }
 
-export type RewindRun = (messageId: string, text: string, restore: RewindRestore) => Promise<void>;
+type RewindRun = (messageId: string, text: string, restore: RewindRestore) => Promise<void>;
 
 /** A value that changes while the rest of the chat's actions stay the same: read where it shows (useSyncExternalStore). */
 export interface LiveValue<T> {

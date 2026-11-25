@@ -19,7 +19,7 @@ export function isShell(r: Response): boolean {
 
 /** What to hand the browser for a response mustFollow accepted. A followed redirect can't answer a navigation (its
  * redirect mode is "manual"), so the browser is sent to where it ended up instead. */
-export function toBrowser(r: Response): Response {
+function toBrowser(r: Response): Response {
   return r.redirected && r.url ? Response.redirect(r.url, 302) : r;
 }
 

@@ -12,14 +12,14 @@ import type { ContextBreakdown, Item, Session, TokenUsage } from "./types";
 export type ContextBreakdownKey = "system_and_rules" | "tools_and_mcp" | "conversation" | "tool_outputs";
 
 /** Canonical stacking order for the ContextBreakdown bar. */
-export const CONTEXT_BREAKDOWN_ORDER: readonly ContextBreakdownKey[] = [
+const CONTEXT_BREAKDOWN_ORDER: readonly ContextBreakdownKey[] = [
   "system_and_rules",
   "tools_and_mcp",
   "conversation",
   "tool_outputs",
 ];
 
-export interface ContextBreakdownCategory {
+interface ContextBreakdownCategory {
   key: ContextBreakdownKey;
   tokens: number;
   /** Share of total window/denominator in [0, 100]. */
@@ -40,7 +40,7 @@ export interface SessionContextBreakdown {
   topConsumer: { key: ContextBreakdownKey; tokens: number; usedShare: number } | null;
 }
 
-export interface SessionModelUsage {
+interface SessionModelUsage {
   /** Normalized bare model identifier, or "" when the transcript did not record a model. */
   model: string;
   /** True for fast-speed requests, kept distinct from normal-speed usage on the same model (matching turn-cost.modelTokens). */
@@ -109,7 +109,7 @@ export interface CompactSupport {
   running: boolean;
 }
 
-export interface StepTokenUsage {
+interface StepTokenUsage {
   input: number;
   output: number;
   cacheRead: number;

@@ -141,7 +141,7 @@ export function withUsesAfterCategories(catalog: ModelConfigurationBody): ModelC
 /** The In-meeting conversation runs only on Claude Code (#7980): its line in the editor says so. A fact about that
  *  purpose, so this page knows it by the id; the hub sends no field for it (its `provider_ids` hold only Claude Code
  *  launchers and Messages connections, without saying why). */
-export const MEETING_ROOM_PURPOSE = "meeting.room";
+const MEETING_ROOM_PURPOSE = "meeting.room";
 export const claudeCodeOnly = (p: Pick<ModelPurpose, "id">): boolean => p.id === MEETING_ROOM_PURPOSE;
 
 // What only Model settings does with a purpose (its editor's draft, what it sends, the catalog): here, so the first
@@ -170,7 +170,7 @@ export function configDirLabel(id: string | undefined): string {
 const NO_PERMISSION_MODE_AGENTS = new Set(["omp", "traex", "pi", "cursor"]);
 
 /** Permission mode options supported by a launcher (`chosen` / `agent`); empty for agents without permission modes. */
-export function permissionModesForLauncher(chosen: ModelProvider | undefined, agent: string): ModeOption[] {
+function permissionModesForLauncher(chosen: ModelProvider | undefined, agent: string): ModeOption[] {
   if (chosen?.permission_modes?.length) {
     return chosen.permission_modes.length >= 2 ? chosen.permission_modes.map(listedModeOption) : [];
   }

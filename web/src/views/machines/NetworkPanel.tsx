@@ -8,13 +8,13 @@ import type { Machine } from "../../lib/types";
 import { Button, cx, EASE, Spinner } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 
-export interface MachineNetInterface {
+interface MachineNetInterface {
   name: string;
   up: boolean;
   addresses: string[];
 }
 
-export interface MachineProxyConfig {
+interface MachineProxyConfig {
   http_proxy?: string;
   https_proxy?: string;
   all_proxy?: string;
@@ -22,7 +22,7 @@ export interface MachineProxyConfig {
   active: boolean;
 }
 
-export interface MachineEndpointProbe {
+interface MachineEndpointProbe {
   id: string;
   name: string;
   target: string;

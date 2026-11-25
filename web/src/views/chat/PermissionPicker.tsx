@@ -32,7 +32,7 @@ function modeTip(mode: string | undefined): string {
  *  disabled row keeps its reason under its name (a disabled row shows no tooltip), and so does a row asking again. */
 /** `all` (the menu `/permissions` opens, #6476): Plan mode stays in it. Full access keeps its words under its name where
  *  it does not take effect at once (`bypassNote`: a restart, the next message). */
-export function pickerItems(s: Session, pick: (mode: string) => void, assistant?: boolean, all?: boolean): MenuItem[] {
+function pickerItems(s: Session, pick: (mode: string) => void, assistant?: boolean, all?: boolean): MenuItem[] {
   const later = bypassNote(s, assistant);
   const listed = !assistant && listedModesOf(s);
   return modeMenuItems(s, pick, { assistant })

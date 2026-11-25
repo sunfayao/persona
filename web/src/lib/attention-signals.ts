@@ -92,7 +92,7 @@ export function setFaviconBase(icon: { light: string; dark: string } | null): vo
  *  badged copy of each, or back to the originals at 0. The files themselves come through the service worker like any
  *  other icon (lib/sw-routes.ts "static": the hub's, else the cached one), so this also works offline; the drawn
  *  copies are data: URLs and never touch the network or the cache. */
-export function setFaviconBadge(needs: number): void {
+function setFaviconBadge(needs: number): void {
   faviconNeeds = needs;
   const links = [...document.querySelectorAll<HTMLLinkElement>(ICONS)];
   const text = badgeText(needs);

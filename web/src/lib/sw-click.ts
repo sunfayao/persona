@@ -43,7 +43,7 @@ export async function openFromNotification(clients: ClickClients, url: string | 
 export const NOTE_MESSAGE = "persona.notification";
 /** How long the worker waits for the page to say whether it took the click: a browser lets a worker open or focus a
  *  window only for a moment after it (Firefox about a second), and the fallback needs that. */
-export const ANSWER_WAIT_MS = 800;
+const ANSWER_WAIT_MS = 800;
 export interface NoteMessage {
   type: typeof NOTE_MESSAGE;
   action: "allow" | "deny" | "open";
@@ -77,7 +77,7 @@ function handOver(win: ClickWindow, m: NoteMessage, ms: number): Promise<boolean
 }
 
 /** At most this many windows are asked in turn, so each still has a useful part of the wait. */
-export const ASK_AT_MOST = 3;
+const ASK_AT_MOST = 3;
 
 /** Windows of the app that can take a click, front first: not the admin page (in the worker's scope, it doesn't listen). */
 export function answeringWindows(wins: ClickWindow[]): ClickWindow[] {

@@ -75,7 +75,7 @@ export function parseChord(text: string): Chord | null {
   return mod ? c : null;
 }
 
-export const chordText = (c: Chord) => ["Mod", c.alt && "Alt", c.shift && "Shift", c.key].filter(Boolean).join("+");
+const chordText = (c: Chord) => ["Mod", c.alt && "Alt", c.shift && "Shift", c.key].filter(Boolean).join("+");
 
 /** The one spelling of a chord ("ctrl+shift+p" → "Mod+Shift+P"); null when it is not one. */
 export function canonChord(text: string): string | null {
@@ -141,7 +141,7 @@ const CODE_KEYS: Record<string, string> = {
 };
 
 /** The key an event is for, in the chord's spelling; null for a modifier on its own or a key chords do not use (Esc, Tab…). */
-export function eventKey(e: Pick<KeyEventLike, "key" | "code">): string | null {
+function eventKey(e: Pick<KeyEventLike, "key" | "code">): string | null {
   const code = e.code ?? "";
   // digits and punctuation by position: Shift (or a layout) changes what they type, not which key they are
   const digit = code.match(/^(?:Digit|Numpad)([0-9])$/);
@@ -269,7 +269,6 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: "expand-tree", label: t("lib-shortcuts.cmd_expand_tree"), chord: "Mod+Alt+Shift+Down", scope: "sidebar", icon: "chevron" },
 ];
 
-export const shortcutDef = (id: string) => SHORTCUTS.find((s) => s.id === id);
 
 /**
  * Keys a component handles itself, where it is the one that knows if they apply (the terminal's find bar defers to the

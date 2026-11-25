@@ -9,9 +9,9 @@ import { ago, baseName } from "./format";
 import type { Session } from "./types";
 
 /** At or past this share of the window used, the numbers turn to the warning colour (orange). */
-export const CONTEXT_WARN_USED = 80;
+const CONTEXT_WARN_USED = 80;
 /** At or past this share used (10% or less left), the context is nearly full. */
-export const CONTEXT_DANGER_USED = 90;
+const CONTEXT_DANGER_USED = 90;
 
 /** How full the window is: nothing to say, close to the limit, or about to run out. */
 export type ContextTier = "ok" | "warn" | "danger";

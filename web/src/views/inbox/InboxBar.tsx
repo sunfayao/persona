@@ -18,7 +18,7 @@ import { nextTab } from "../../ui/roving";
 const FADE = { left: 28, right: 44 } as const;
 
 /** A choice's name: the section's title, Done, or All. */
-export function barChoiceName(id: BarChoice): string {
+function barChoiceName(id: BarChoice): string {
   if (id === "done") return t("inbox-inboxlist.done");
   if (id === "all") return t("inbox-inboxlist.bar_all");
   return TIERS.find((tier) => tier.key === id)?.title ?? id;

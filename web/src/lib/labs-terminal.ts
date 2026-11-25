@@ -6,7 +6,7 @@ import { t } from "../i18n";
 import { checkUpdate, CONFIGURATION_VERSION, ConfigurationError, type ConfigurationDocument, type ConfigurationSource, type ConfigurationUpdate } from "./configuration/contract";
 import { readTerminalRenderer, subscribeTerminalRenderer, writeTerminalRenderer, type TerminalRenderer } from "./labs";
 
-export const TERMINAL_LABS_ID = "terminal";
+const TERMINAL_LABS_ID = "terminal";
 const FIELD = "renderer";
 
 /** The revision: what is stored (another tab writing changes it too). */

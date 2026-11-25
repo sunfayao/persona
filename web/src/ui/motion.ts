@@ -56,10 +56,10 @@ export function bezier(css: string): (p: number) => number {
   };
 }
 
-export const ease = bezier(EASE);
+const ease = bezier(EASE);
 
 /** Whether the system asks for reduced motion now. */
-export const reducedMotion = () => prefersReducedMotion();
+const reducedMotion = () => prefersReducedMotion();
 
 const same = (a: number[], b: number[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 

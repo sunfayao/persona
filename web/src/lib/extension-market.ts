@@ -34,7 +34,7 @@ export interface Market {
 }
 
 /** A catalog's verification status. key_changed is an official pin mismatch, never a request to trust a key. */
-export interface MarketSignature {
+interface MarketSignature {
   state: string;
   key_id?: string;
 }
@@ -108,7 +108,7 @@ export const marketView = (m: Market & { plugins?: number }): Market => {
 };
 
 /** The official market is Official extensions in the page's language (#5017), whatever its index (or an older hub) calls it. */
-export const officialMarketName = () => t("lib-extension-market.official_name");
+const officialMarketName = () => t("lib-extension-market.official_name");
 
 export const listMarkets = () => api<{ markets?: Market[] }>(`${M()}/markets`).then((r) => (r.markets ?? []).map(marketView));
 export const addMarket = (spec: string, token?: string) => api<Market>(`${M()}/markets`, { method: "POST", json: token ? { spec, token } : { spec } }).then(marketView);
@@ -251,7 +251,7 @@ const SIGNATURES: Record<string, string> = {
 };
 
 /** How the market's index is signed (#1848); "" from a hub that does not say. */
-export function signatureText(s?: MarketSignature): string {
+function signatureText(s?: MarketSignature): string {
   if (!s?.state) return "";
   return SIGNATURES[s.state] ?? t("lib-extension-market.sig_state", { state: s.state });
 }

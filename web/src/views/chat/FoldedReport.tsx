@@ -47,7 +47,7 @@ function writeOpen(id: string, open: boolean) {
 }
 
 /** The reader's choice for report `id`, kept across reloads. */
-export function useReportOpen(id: string): [boolean, () => void] {
+function useReportOpen(id: string): [boolean, () => void] {
   const [seen, setSeen] = useState(id);
   const [open, setOpen] = useState(() => readOpen(id));
   if (seen !== id) {

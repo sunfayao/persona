@@ -195,7 +195,7 @@ export function batchDue(firstAt: number, lastAt: number): number {
 }
 
 /** How many agents a batch's notification names; the rest are "and others". */
-export const BATCH_NAMES = 3;
+const BATCH_NAMES = 3;
 
 /** How a batch of finished turns is told: nothing, the one agent's own notification, or one for all of them. */
 export type FinishedBatch = { kind: "none" } | { kind: "one"; key: string } | { kind: "many"; keys: string[]; names: string[]; more: boolean };

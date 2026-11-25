@@ -11,7 +11,7 @@ import type { Session } from "./types";
 const openers = new Set<(s: Session) => void>();
 
 /** Opens "Close…" for session s (the app shell listens); the dialog reads the latest row of it as it goes. */
-export function openCloseAgent(s: Session) {
+function openCloseAgent(s: Session) {
   openers.forEach((l) => l(s));
 }
 
@@ -24,7 +24,7 @@ export function onOpenCloseAgent(l: (s: Session) => void) {
 
 /** What a menu row that closes session s does: open "Close…", or, busy where its node has no plain close, stay
  *  disabled saying why. Undefined: there is nothing to close it with (offline, the assistant's). */
-export function closeAgentAction(s: Session, features: readonly string[] = getState().features): Pick<MenuItem, "onSelect" | "disabled" | "detail"> | undefined {
+function closeAgentAction(s: Session, features: readonly string[] = getState().features): Pick<MenuItem, "onSelect" | "disabled" | "detail"> | undefined {
   const offer = closeOffer(s, features);
   if (offer === "no") return undefined;
   if (offer === "busy") return { onSelect: () => {}, disabled: true, detail: t("agentmenus.close_busy") };

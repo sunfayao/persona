@@ -145,7 +145,7 @@ export function statusMark(status?: FileStatus): { letter: string; tone: "positi
 
 // A hunk's rows live in hunk-rows.ts so the first screen can number a hunk without this module (session-review.ts).
 export { hunkRows };
-export type { DiffRow, RowKind } from "./hunk-rows";
+export type { DiffRow,  } from "./hunk-rows";
 
 /** A hunk's old and new side as text, for highlighting each with its own state (a comment open across lines). */
 export function hunkSides(h: Hunk): { old: string; new: string } {
@@ -321,7 +321,7 @@ export function useHighlighter(wanted: boolean): boolean {
 const MODE_KEY = "persona.diff.mode";
 
 /** How diffs are shown: one column, or old and new side by side (only where there is room). Kept in this browser. */
-export function diffMode(): "unified" | "split" {
+function diffMode(): "unified" | "split" {
   try {
     return localStorage.getItem(MODE_KEY) === "split" ? "split" : "unified";
   } catch {
@@ -329,7 +329,7 @@ export function diffMode(): "unified" | "split" {
   }
 }
 
-export function setDiffMode(mode: "unified" | "split") {
+function setDiffMode(mode: "unified" | "split") {
   try {
     localStorage.setItem(MODE_KEY, mode);
   } catch {

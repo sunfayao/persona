@@ -20,7 +20,7 @@ export function shownCloseout(s: Pick<Session, "work" | "state"> | undefined): (
 }
 
 /** How a claim stands against the hub's finding. `found`: the agent did not say, the hub's finding stands alone. */
-export type ClaimState = "confirmed" | "contradicted" | "unchecked" | "found";
+type ClaimState = "confirmed" | "contradicted" | "unchecked" | "found";
 
 export interface Claim {
   /** What the agent said; undefined when it did not say. */

@@ -19,7 +19,7 @@ export const SEARCH_SCOPES: { key: SearchScope; labelKey: string }[] = [
   { key: "errors", labelKey: "lib-agent-filter.scope_errors" },
 ];
 
-export type SinceWindow = "24h" | "7d" | "30d";
+type SinceWindow = "24h" | "7d" | "30d";
 
 export interface AgentDimensionFilters {
   query: string;
@@ -45,7 +45,7 @@ export const DEFAULT_DIMENSION_FILTERS: AgentDimensionFilters = {
   searchAsCode: false,
 };
 
-export interface FacetOption {
+interface FacetOption {
   id: string;
   label: string;
   count: number;
@@ -323,7 +323,7 @@ export function parseSearchQuery(raw: string): ParsedSearchQuery {
 }
 
 /** Strip noisy tool-output prefixes/dumps for `conversation` ("Without tools") and `assistant` scopes. */
-export function proseOnlyText(raw: string | undefined): string {
+function proseOnlyText(raw: string | undefined): string {
   if (!raw) return "";
   const filteredLines = raw
     .split(/\r?\n/)

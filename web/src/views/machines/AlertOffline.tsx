@@ -19,7 +19,7 @@ const CHECKS: Record<Exclude<OfflineReason, "node_outdated">, number> = {
   auth: 3, unreachable: 4, timeout: 3, version: 3, node_service_down: 3, link_offline: 3, never_connected: 2, unknown: 4,
 };
 
-export function checklist(reason: OfflineReason): string[] {
+function checklist(reason: OfflineReason): string[] {
   const r = reason === "node_outdated" ? "version" : reason;
   return Array.from({ length: CHECKS[r] }, (_, i) => t(`machines-alerts.check_${r}_${i + 1}`));
 }

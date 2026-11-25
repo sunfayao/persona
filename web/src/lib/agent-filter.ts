@@ -8,7 +8,6 @@ import { agentKey, isSpacePinned, type AgentPins } from "./pins";
 import { isMuted } from "./session-actions";
 import { unseen } from "./seen-outbox";
 import type { AgentState, Session } from "./types";
-import { timeMs } from "./times";
 import { stateName } from "./state-labels";
 
 export type AgentFilter = "all" | "needs" | "unread" | "working" | "bg_waiting" | "feishu" | "terminal";
@@ -38,7 +37,7 @@ export function withoutBotmux(sessions: Session[], hidden: boolean): Session[] {
   return hidden ? sessions.filter((s) => !isBotmux(s)) : sessions;
 }
 
-export function filterState(f: AgentFilter): AgentState | undefined {
+function filterState(f: AgentFilter): AgentState | undefined {
   return AGENT_FILTERS.find((x) => x.key === f)?.state;
 }
 
@@ -90,12 +89,7 @@ export interface SpaceLike {
   sessions: Session[];
 }
 
-const when = (s: Session) => (stateOf(s) === "working" ? s.state_since || s.updated_at : s.updated_at) ?? "";
 
-/** The latest of its agents' times: a working agent's every line does not move the space. */
-export function spaceDate(sp: SpaceLike): string {
-  return sp.sessions.reduce((m, s) => (timeMs(when(s)) > timeMs(m) ? when(s) : m), "");
-}
 
 export function isSpaceMuted(sp: SpaceLike, mutes: AgentMutes): boolean {
   return mutes.spaces.includes(`${sp.machineId}/${sp.name}`);

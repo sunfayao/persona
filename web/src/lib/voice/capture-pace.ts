@@ -15,7 +15,7 @@ export interface CaptureLag {
 }
 
 /** The shortest window judged: a check sooner after the last one waits for the next. */
-export const MIN_WINDOW_MS = 2000;
+const MIN_WINDOW_MS = 2000;
 
 export class CapturePace {
   private frames = 0;

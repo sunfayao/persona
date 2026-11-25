@@ -13,7 +13,7 @@ export type ScreenDisplay = { id: string; frame: Rect };
 
 /** How far the arrangement's aspect ratio may be from the framebuffer's (a fraction) before it is not trusted: a display
  *  changed since the node last looked, or the server draws the displays at different scales. */
-export const ASPECT_TOLERANCE = 0.02;
+const ASPECT_TOLERANCE = 0.02;
 
 /** The status's `displays`, or none when it is missing (an older node) or not a list of displays. */
 export function machineDisplays(raw: unknown): MachineDisplay[] {

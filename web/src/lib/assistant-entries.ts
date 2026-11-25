@@ -95,7 +95,7 @@ function withNeeds(all: TodoStatus, own: TodoStatus): TodoStatus {
 }
 
 /** A task's status, failed too when only its plan says the start failed (a hub from before #1077). */
-export function entryStatus(todo: Todo, lookup: SessionLookup, plans: Record<string, TaskPlan>): TodoStatus {
+function entryStatus(todo: Todo, lookup: SessionLookup, plans: Record<string, TaskPlan>): TodoStatus {
   const st = todoStatus(todo, lookup);
   return st === "not_started" && startFailure(todo, plans) ? "failed" : st;
 }
@@ -104,7 +104,7 @@ export function entryStatus(todo: Todo, lookup: SessionLookup, plans: Record<str
  *  finished task never does, whatever ask it still carries: the hub's To-dos triage files it with the finished ones
  *  and the tray has nothing to answer, so it would keep the badge up for good (#12974). A `pending_review` is its
  *  supervisor's to do, however long it has waited (#8678). */
-export function taskAwaitsDecision(todo: Todo): boolean {
+function taskAwaitsDecision(todo: Todo): boolean {
   if (todo.done_at) return false;
   if (openAsk(todo)) return true;
   return todo.supervision?.state === "needs_user" || todo.supervision?.state === "user_check";

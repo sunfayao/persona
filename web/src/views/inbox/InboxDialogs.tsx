@@ -27,7 +27,7 @@ import { handOffAgents, Target, TARGET_SUB } from "./HandOffTargets";
 // A dialog's error under its controls.
 const ERROR = "mt-2 text-[12px] text-red";
 
-export function draftTitle(it: InboxItem): string {
+function draftTitle(it: InboxItem): string {
   if (it.moment) return t("inbox-inboxdialogs.title_moment");
   if (it.doc) return t("inbox-inboxdialogs.title_comment", { title: it.title });
   if (it.connector) {

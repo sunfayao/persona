@@ -35,12 +35,12 @@ export function resetFreshWords(mid: string, sid: string) {
   notify(chat, had);
 }
 
-export function isFreshWords(mid: string, sid: string, id: string) {
+function isFreshWords(mid: string, sid: string, id: string) {
   return fresh.get(chatKey(mid, sid))?.has(id) ?? false;
 }
 
 /** useSyncExternalStore's subscribe for one message: called only when that message's answer changes. */
-export function onFreshWords(mid: string, sid: string, id: string, l: Listener) {
+function onFreshWords(mid: string, sid: string, id: string, l: Listener) {
   const k = idKey(chatKey(mid, sid), id);
   const ls = listeners.get(k) ?? new Set<Listener>();
   listeners.set(k, ls);

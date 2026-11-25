@@ -21,7 +21,7 @@ export function startFailureCause(raw: string): StartFailureCause | undefined {
 
 /** Written for people: in Chinese or Japanese (the hub writes its sentences in the owner's language), or an English
  *  sentence that starts with a capital and ends with a full stop. Errors from programs are neither. */
-export function readsAsSentence(text: string): boolean {
+function readsAsSentence(text: string): boolean {
   if (/[\u3040-\u30ff\u4e00-\u9fff]/.test(text)) return true;
   return /^[A-Z]/.test(text) && text.includes(" ") && /[.!?]$/.test(text);
 }

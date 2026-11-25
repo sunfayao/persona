@@ -13,7 +13,7 @@ const READER = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
 type ChainPlace = { item: string; open: boolean };
 /** The section bar's choice (#9053), the one a search put aside, and the one an item opened from inside the Inbox moved
  *  it from while the list was beside it (to go back to when that item closes; an outside opening's move stays). */
-export type BarMemory = { chosen: BarChoice; saved: BarChoice | null; landedFrom: BarChoice | null };
+type BarMemory = { chosen: BarChoice; saved: BarChoice | null; landedFrom: BarChoice | null };
 type ViewState = {
   query: string;
   bar: BarMemory;
