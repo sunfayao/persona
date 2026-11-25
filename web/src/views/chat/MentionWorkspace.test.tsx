@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // @ a workspace in the Persona assistant's composer (#5594): the menu lists the hub's workspaces (GET /workspaces),
-// filters them as you type, Enter picks one into a chip, and the message goes out with a
+// filters them as you type, Enter keeps the selected label inline, and the message goes out with a
 // <persona-context kind="workspace" machine cwd> in front. Agents' composers don't offer workspaces.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -89,21 +89,20 @@ describe("@ workspaces", () => {
     expect(options()[0]).toContain("notes");
   });
 
-  it("picks with the keyboard into a chip and sends the workspace in front of the message", async () => {
+  it("keeps the keyboard-picked workspace inline and sends its structured reference", async () => {
     const onSend = vi.fn(async (_m: Outgoing) => true);
     render({ self: "persona-new", files: () => [], workspaces: true }, onSend);
     await type("@wea");
     key("Enter");
     expect(options()).toHaveLength(0); // the menu closed
-    expect(box().value).toBe("");
-    expect(host.textContent).toContain("工作区");
-    await type("Add a dark mode");
+    expect(box().value).toBe("@weather ");
+    await type("@weather Add a dark mode");
     await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="发送"]')!.click());
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
-    expect(text).toMatch(/^<persona-context kind="workspace" title="weather" url="" machine="laptop" cwd="\/home\/me\/code\/weather" branch="main">\n/);
+    expect(text).toMatch(/^<persona-context kind="workspace" title="weather" url="" machine="laptop" cwd="\/home\/me\/code\/weather" branch="main" inline_label="@weather" inline_start="0">\n/);
     expect(text).toContain("工作区：weather");
-    expect(text.endsWith("</persona-context>\n\nAdd a dark mode")).toBe(true);
+    expect(text.endsWith("</persona-context>\n\n@weather Add a dark mode")).toBe(true);
   });
 
   it("is not offered where the source doesn't ask for it (an agent's composer)", async () => {

@@ -302,10 +302,11 @@ export const Composer = memo(function Composer({
   const detachedContexts = contexts.filter((r) => !isInlineMention(r));
   const changeText = (text: string, afterCaret?: number, inserted?: ContextRef) => {
     const edited = editInlineMentions(editor?.refs ?? getContexts(draftKey), draft, text, afterCaret);
-    const next = inserted ? [...edited, inserted] : edited;
+    const next = inserted ? [...edited.filter((ref) => ref.id !== inserted.id), inserted] : edited;
     if (editor) editor.onChange(text, next);
     else {
       replaceContexts(draftKey, isInlineMention, next.filter(isInlineMention));
+      if (inserted && !isInlineMention(inserted)) addContext(draftKey, inserted);
       setDraft(text);
     }
   };
@@ -700,7 +701,7 @@ export const Composer = memo(function Composer({
   };
 
   // A typed @ leaves the chosen label inline with its structured context. The + menu still attaches references.
-  const pickRow = (r: MentionRow, at: MentionToken | null) => {
+  const pickRow = (r: MentionRow, at: MentionToken | null, attach = false) => {
     let ref: ContextRef | undefined;
     if (r.kind === "session") {
       const q = sessionQuote(r.session);
@@ -720,10 +721,15 @@ export const Composer = memo(function Composer({
     if (ref) {
       let out: ReturnType<typeof replaceToken> | undefined;
       if (at) {
-        const name = r.kind === "skill" ? r.skill.name : r.name;
-        const label = "@" + name.replace(/[\r\n]+/g, " ").trim();
-        out = replaceToken(draft, at, label + " ");
-        changeText(out.text, out.caret, inlineMention({ ...ref, id: uuid() }, label, at.start));
+        if (attach) {
+          out = replaceToken(draft, at, "");
+          changeText(out.text, out.caret, ref);
+        } else {
+          const name = r.kind === "skill" ? r.skill.name : r.name;
+          const label = "@" + name.replace(/[\r\n]+/g, " ").trim();
+          out = replaceToken(draft, at, label + " ");
+          changeText(out.text, out.caret, inlineMention({ ...ref, id: uuid() }, label, at.start));
+        }
       } else if (editor) {
         const refs = contexts.filter((existing) => existing.id !== ref.id);
         editor.onChange(draft, [...refs, ref]);
@@ -972,8 +978,8 @@ export const Composer = memo(function Composer({
   const pick = (c: Command | MentionRow) => {
     if ("kind" in c) {
       setDismissed(true);
-      // The lone /word is the same kind of token as @word: replace it with no text and keep the exact opaque reference.
-      pickRow(c, { start: 0, end: draft.length, query: "" });
+      // A slash skill replaces the command with its attached reference.
+      pickRow(c, { start: 0, end: draft.length, query: "" }, true);
       return;
     }
     if (c.confirm && !confirm(c.confirm)) return;
