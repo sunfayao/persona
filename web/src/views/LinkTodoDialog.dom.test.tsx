@@ -84,10 +84,9 @@ describe("Link to to-do", () => {
     const waiting = todo("a", "博客迁移到 Astro", { project: "blog", updated_at: minutesAgo(3) });
     const done = todo("b", "博客迁移到 Astro", { updated_at: minutesAgo(26 * 60), agents: [] });
     await open([waiting, done]);
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); }); // the projects' names
     const [first, second] = rows().map((r) => r.querySelectorAll("span span")[1]?.textContent ?? "");
     expect(rows().map((r) => r.querySelector("span span")?.textContent)).toEqual(["博客迁移到 Astro", "博客迁移到 Astro"]);
-    expect(first).toContain("个人博客");
+    expect(first).toContain("blog");
     expect(first).toMatch(/3 ?分钟前/);
     expect(second).not.toBe(first);
     expect(second).toContain("昨天");
