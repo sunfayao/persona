@@ -251,6 +251,6 @@ type Setting struct {
 	Title   string   `json:"title"`
 	About   string   `json:"about"`
 	Current string   `json:"current,omitempty"` // the value in effect, one clipped line (secrets only as set / unset)
-	Value   string   `json:"value,omitempty"` // what set / add take, for the model
+	Value   string   `json:"value,omitempty"`   // what set / add take, for the model
 	Actions []string `json:"actions"`
 }

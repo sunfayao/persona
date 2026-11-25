@@ -13,7 +13,9 @@ func NewPrompts(h Host) *Prompts { return &Prompts{b: &promptBook{h: h}} }
 func (p *Prompts) List(ctx context.Context) ([]Prompt, error) { return p.b.prompts(ctx) }
 
 // Check says whether name and text make a prompt, and the prompt they make (name and text as they would be saved).
-func Check(name, text string) (Prompt, error) { return savedPromptInput{Name: name, Text: text}.prompt() }
+func Check(name, text string) (Prompt, error) {
+	return savedPromptInput{Name: name, Text: text}.prompt()
+}
 
 // Add saves a prompt at the end of the list.
 func (p *Prompts) Add(ctx context.Context, name, text string) (Prompt, error) {

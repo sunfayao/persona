@@ -474,7 +474,9 @@ func (s *Service) savedPromptsSetting() ownSetting {
 			About: "the user's own “/” prompts: the instructions they send again and again; every chat's “/” list offers them after the built-in commands " +
 				"and picking one fills the composer, it never sends. Names are one word (letters, digits, - _ .), at most 32 characters; text at most 8000; at most 100 prompts",
 			Value: `add: {"name", "text"}; set: {"id", "name", "text"} changes one; remove: the prompt's id (from get)`},
-		cardTitle: func(l i18n.Lang) string { return i18n.T(l, "assistant-settings_registry.title_assistant_saved_prompts") },
+		cardTitle: func(l i18n.Lang) string {
+			return i18n.T(l, "assistant-settings_registry.title_assistant_saved_prompts")
+		},
 		get: func(ctx context.Context) (string, error) {
 			prompts, err := list(ctx)
 			if err != nil {

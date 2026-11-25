@@ -48,7 +48,9 @@ func (h *Manager) downloadMirrorsSetting() selfSetting {
 			if h.store == nil {
 				return nil, errors.New("no database on this manager")
 			}
-			show := func(m extension.MarketMirrors) string { return fmt.Sprintf("registry %s, catalog %s", orNone(m.RegistryMirror), orNone(m.CatalogMirror)) }
+			show := func(m extension.MarketMirrors) string {
+				return fmt.Sprintf("registry %s, catalog %s", orNone(m.RegistryMirror), orNone(m.CatalogMirror))
+			}
 			return &selfChange{summary: changeSummary(l, title, show(before), show(in)),
 				apply: func(ctx context.Context, _ map[string]string) (string, error) {
 					if err := h.store.PutSetting(ctx, marketSettingsKey, in); err != nil {

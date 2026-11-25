@@ -161,7 +161,7 @@ func TestRegistrySavedPrompts(t *testing.T) {
 		t.Fatalf("empty list: %q", got)
 	}
 	for _, bad := range []string{`{"name":"two words","text":"x"}`, `{"name":"ok","text":""}`, `{"text":"x"}`, `"x"`} {
-		if out, isErr := r.call(`{"action":"add","key":"assistant.saved_prompts","value":`+bad+`}`); !isErr {
+		if out, isErr := r.call(`{"action":"add","key":"assistant.saved_prompts","value":` + bad + `}`); !isErr {
 			t.Fatalf("invalid prompt %s accepted: %q", bad, out)
 		}
 	}

@@ -133,7 +133,9 @@ func (h *Hub) updateSettingsSelf() []selfSetting {
 				v, err := h.updateNow(ctx)
 				return v.Source, err
 			},
-			put: func(ctx context.Context, val string) error { return h.putUpdateSettings(ctx, map[string]any{"source": val}) }}),
+			put: func(ctx context.Context, val string) error {
+				return h.putUpdateSettings(ctx, map[string]any{"source": val})
+			}}),
 		h.valueSetting(hubValue{key: "hub.auto_update", about: "on (the default): the hub installs a new release by itself once the assistant and the Agents are idle; off: it only tells the user one is there", get: autoGet, put: autoPut}),
 		h.valueSetting(hubValue{key: "hub.auto_update_nodes", about: "on: the personad on the user's computers is updated together with the hub", get: nodesGet, put: nodesPut}),
 	}
