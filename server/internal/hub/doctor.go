@@ -422,8 +422,7 @@ func doctorLoopback(cfg *Config, port string) func(ctx context.Context, path str
 	}
 }
 
-// pushRoutes reports which way the running hub pushes to each device (#5998): straight to APNs, through the relay the
-// phone registered with, or not at all and why.
+// pushRoutes reports the browsers with Web Push (#7459) the running hub pushes to.
 func (d *doctorReport) pushRoutes(ctx context.Context, get func(context.Context, string) (*http.Response, error)) {
 	l := d.l
 	resp, err := get(ctx, "/api/v1/devices/push")
@@ -431,51 +430,15 @@ func (d *doctorReport) pushRoutes(ctx context.Context, get func(context.Context,
 		return // the checks before said whether the hub answers at all
 	}
 	var body struct {
-		Direct  bool            `json:"direct"`
-		Devices []pushDevice    `json:"devices"`
-		Web     []webPushListed `json:"web"`
+		Web []webPushListed `json:"web"`
 	}
 	decodeErr := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body)
 	resp.Body.Close()
-	item := i18n.T(l, "hub-doctor.item_push")
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		d.problem(item, i18n.T(l, "hub-doctor.push_old_hub"))
-		return
-	case resp.StatusCode != http.StatusOK || decodeErr != nil:
-		d.problem(item, i18n.T(l, "hub-doctor.push_http", i18n.Args{"status": resp.StatusCode}))
+	if resp.StatusCode != http.StatusOK || decodeErr != nil {
+		d.problem(i18n.T(l, "hub-doctor.item_web_push"), i18n.T(l, "hub-doctor.push_http", i18n.Args{"status": resp.StatusCode}))
 		return
 	}
-	way := i18n.T(l, "hub-doctor.push_way_relay")
-	if body.Direct {
-		way = i18n.T(l, "hub-doctor.push_way_direct")
-	}
-	defer d.webPushRoutes(body.Web)
-	if len(body.Devices) == 0 {
-		d.ok(item, i18n.T(l, "hub-doctor.push_no_devices", i18n.Args{"way": way}))
-		return
-	}
-	bad := 0
-	for _, dev := range body.Devices {
-		if dev.Push.Route == pushNone || dev.Push.Reason == pushFailed {
-			bad++
-		}
-	}
-	if bad == 0 {
-		d.ok(item, way)
-	} else {
-		d.problem(item, i18n.T(l, "hub-doctor.push_bad", i18n.Args{"way": way, "count": bad}))
-	}
-	for _, dev := range body.Devices {
-		name := dev.Name
-		if name == "" {
-			name = dev.DeviceID
-		}
-		if dev.Kind != "" {
-			name = i18n.T(l, "hub-doctor.device_kind", i18n.Args{"name": name, "kind": dev.Kind})
-		}
-		d.note(i18n.T(l, "hub-doctor.item_detail", i18n.Args{"item": name, "detail": pushRouteLine(l, dev.Push)}))
-	}
+	d.webPushRoutes(body.Web)
 }
 
 // webPushRoutes reports the browsers with Web Push (#7459), when there are any: through which push service, and
@@ -657,32 +620,4 @@ func doctorRouteInterfaces(raw string, ipv6 bool) []string {
 		out = append(out, iface)
 	}
 	return out
-}
-
-// pushRouteLine is a device's way in `hub doctor`'s words, in l.
-func pushRouteLine(l i18n.Lang, r pushRoute) string {
-	var route string
-	switch r.Route {
-	case pushDirect:
-		route = i18n.T(l, "hub-doctor.push_route_direct")
-	case pushRelay:
-		route = i18n.T(l, "hub-doctor.push_route_relay")
-	default:
-		route = i18n.T(l, "hub-doctor.push_route_none")
-	}
-	switch r.Reason {
-	case pushNoToken:
-		return i18n.T(l, "hub-doctor.push_reason_no_token", i18n.Args{"route": route})
-	case pushRelayFailed:
-		return i18n.T(l, "hub-doctor.push_reason_relay_failed", i18n.Args{"route": route, "detail": r.Detail})
-	case pushNoRelay:
-		return i18n.T(l, "hub-doctor.push_reason_no_relay", i18n.Args{"route": route})
-	case pushFailed:
-		if r.FailedAt != nil {
-			return i18n.T(l, "hub-doctor.push_reason_failed_at", i18n.Args{"route": route, "detail": r.Detail,
-				"at": r.FailedAt.UTC().Format("01-02 15:04 UTC")})
-		}
-		return i18n.T(l, "hub-doctor.push_reason_failed", i18n.Args{"route": route, "detail": r.Detail})
-	}
-	return route
 }

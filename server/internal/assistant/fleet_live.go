@@ -3,10 +3,8 @@ package assistant
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
-	"math"
 	"path"
 	"slices"
 	"sort"
@@ -18,15 +16,11 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-// The "Fleet" Live Activity's content (docs/apple/live-activity.md): one activity per phone, on the lock screen and in the
-// Dynamic Island, summing up every agent that needs you, is working, or finished unseen. The manager works it out
-// (FleetState) from the session lists and the pending interactions, with the island's numbers (FleetStats), and
-// tells the hub when it changes (fleet.live); the hub pushes it to each device's activity token at the pace Apple
-// allows and gives each device its own part (its island's sides, its lock screen details, its persona).
+// The fleet: every agent that needs you, is working, or finished unseen (FleetState), worked out from the session lists
+// and the pending interactions.
 
 type (
 	FleetState    = assistantwire.FleetState
@@ -46,10 +40,9 @@ const (
 	fleetPlaceMax  = 32
 )
 
-// liveState is what was told the hub last.
+// liveState wakes liveLoop.
 type liveState struct {
 	mu     sync.Mutex
-	sent   string
 	signal chan struct{}
 }
 
@@ -62,16 +55,10 @@ func (l *liveState) ch() chan struct{} {
 	return l.signal
 }
 
-// liveChanged: what the fleet is made of may have changed; force: tell the hub even when it did not (it may have
-// restarted).
-func (s *Service) liveChanged(force bool) {
+// liveChanged: what the fleet is made of may have changed.
+func (s *Service) liveChanged() {
 	if !s.fleetOn() {
 		return
-	}
-	if force {
-		s.fleet.live.mu.Lock()
-		s.fleet.live.sent = ""
-		s.fleet.live.mu.Unlock()
 	}
 	select {
 	case s.fleet.live.ch() <- struct{}{}:
@@ -79,8 +66,8 @@ func (s *Service) liveChanged(force bool) {
 	}
 }
 
-// liveLoop tells the hub the fleet when it changed, at most every 100 ms, and looks at the numbers every 15 s; the
-// devices get Persona Link's summary of the same agents.
+// liveLoop works out Persona Link's summary of the fleet when it changed, at most every 100 ms, and looks again every
+// 15 s; the devices get it.
 func (s *Service) liveLoop(ctx context.Context) {
 	tick := time.NewTicker(15 * time.Second)
 	defer tick.Stop()
@@ -104,25 +91,7 @@ func (s *Service) liveLoop(ctx context.Context) {
 		}
 		l := s.lang(context.Background())
 		agents, ixs, told := s.fleetInputsInto(lists)
-		s.tellLive(buildFleetIn(l, agents, ixs))
 		s.devs.SetAttention(linkAttention(l, agents, ixs, told)) // sent on only when it changed
-	}
-}
-
-func (s *Service) tellLive(st FleetState) {
-	msg := assistantwire.FleetLive{State: st, Stats: s.fleetStats()}
-	b, _ := json.Marshal(msg)
-	l := &s.fleet.live
-	l.mu.Lock()
-	same := l.sent == string(b)
-	l.mu.Unlock()
-	if same {
-		return
-	}
-	if s.hub.Tell(assistantwire.EventFleetLive, rpc.Marshaled(b)) == nil { // json.Marshal's bytes: into the line as they are
-		l.mu.Lock()
-		l.sent = string(b)
-		l.mu.Unlock()
 	}
 }
 
@@ -204,19 +173,6 @@ func round2(n int64) int64 {
 		p *= 10
 	}
 	return (n + p/2) / p * p
-}
-
-// fleetStats turns the usage summary into the island's numbers.
-func (s *Service) fleetStats() FleetStats {
-	if s.devs == nil {
-		return FleetStats{}
-	}
-	u := s.devs.Usage()
-	st := FleetStats{TPM: round2(u.TPM), Tokens: round2(u.Tokens), Requests: int(round2(int64(u.Requests)))}
-	for _, m := range u.Machines {
-		st.Loads = append(st.Loads, FleetLoad{ID: m.ID, Name: s.machineName(m.ID), Percent: int(math.Round(m.Load*20)) * 5})
-	}
-	return st
 }
 
 // fleetInput is one agent as the fleet sees it. Session is read, never written: it points into a list the fleet's

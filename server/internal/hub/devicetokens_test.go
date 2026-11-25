@@ -315,7 +315,7 @@ func TestDeviceTokens(t *testing.T) {
 
 // An answer-only device can do what the watch does and nothing else: whatever is not named is refused, a GET included.
 func TestAnswerRoleOnlyWhatTheWatchDoes(t *testing.T) {
-	p := principal{ID: "dev_watch", Role: roleAnswer}
+	p := principal{ID: "dev_watch", Role: roleRetiredAnswer}
 	for _, c := range []struct {
 		method, path string
 		want         bool

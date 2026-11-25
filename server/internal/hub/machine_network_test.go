@@ -27,7 +27,7 @@ func TestMachineNetworkRouteNeedsFullDeviceAndIgnoresCallerParams(t *testing.T) 
 	tn.answers = map[string]any{proto.MethodMachineNetwork: json.RawMessage(sampleReport)}
 	h := tn.hub
 
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		w := callMachineNetworkRoute(h, role, "/api/v1/machines/m1/network", "")
 		if w.Code != http.StatusForbidden {
 			t.Errorf("role %s: status = %d, want 403", role, w.Code)
@@ -63,7 +63,7 @@ func TestMachineNetworkRouteIsFullCredentialsOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	const urlPath = "/api/v1/machines/m1/network"
-	for _, p := range []principal{{ID: "dev_watch", Role: roleAnswer}, {ID: "dev_link", Role: roleLink}} {
+	for _, p := range []principal{{ID: "dev_watch", Role: roleRetiredAnswer}, {ID: "dev_link", Role: roleLink}} {
 		if allowed(p, http.MethodGet, urlPath) {
 			t.Errorf("%s may GET %s", p.Role, urlPath)
 		}

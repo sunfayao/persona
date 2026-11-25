@@ -143,11 +143,10 @@ func (s *Service) contextSnapshot(ctx context.Context, scope string, background 
 }
 
 // backgroundSnapshot is snap for the background supervisor (#7315): without what only the main conversation acts on,
-// its plan cards waiting for Start (only it withdraws them, toolTaskPlanWithdraw), the owner's unread chats and the
-// iPhone line. Their tools are not among a round's (supervise_round.go roundToolNames), and its supervision needs none
+// its plan cards waiting for Start (only it withdraws them, toolTaskPlanWithdraw) and the owner's unread chats. Their tools are not among a round's (supervise_round.go roundToolNames), and its supervision needs none
 // of them.
 func backgroundSnapshot(snap prompts.Snapshot) prompts.Snapshot {
-	snap.Plans, snap.PlansTotal, snap.Chats, snap.NoPhone = nil, 0, nil, true
+	snap.Plans, snap.PlansTotal, snap.Chats = nil, 0, nil
 	return snap
 }
 
@@ -290,8 +289,8 @@ func (s *Service) takeSnapshot(done chan struct{}) {
 	start := time.Now()
 	loc := s.location(ctx)
 	now := time.Now().In(loc)
-	devices, phone, apps := s.devicesAndPhone(ctx)
-	snap := prompts.Snapshot{Now: now, Zone: loc.String(), PhoneOnline: phone, Apps: snapshotApps(apps)}
+	devices := s.devices(ctx)
+	snap := prompts.Snapshot{Now: now, Zone: loc.String()}
 	var wg sync.WaitGroup
 	var connectors time.Duration
 	wg.Add(1)

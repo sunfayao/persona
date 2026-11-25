@@ -2,11 +2,9 @@ package assistant
 
 import (
 	"bytes"
-	"encoding/json"
 	"runtime"
 	"runtime/debug"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/devices"
@@ -22,92 +20,6 @@ func lineOf(t *testing.T, event string, params any) []byte {
 		t.Fatalf("Notify(%s): %v", event, err)
 	}
 	return b.Bytes()
-}
-
-// fleet.sessions and fleet.live go to the hub as the bytes json.Marshal wrote, marked so (rpc.Marshaled), and the
-// line the bus writes for them is byte for byte the one it wrote when they went as json.RawMessage: with HTML
-// characters, U+2028 and U+2029, control characters, invalid UTF-8, quotes and backslashes in the rows, for an empty
-// list, and for a list that does not encode (told as null, as before).
-func TestFleetEventsGoOutAsTheSameLine(t *testing.T) {
-	var wire bytes.Buffer
-	h := newLineHub(&wire, true)
-	d := newFleetDevs()
-	d.add("mac", `Mac <1> & "two"`)
-	s := New(Options{Hub: h, Logf: func(string, ...any) {}, Devices: d})
-	nasty := []proto.Session{
-		{SessionID: "s1", Agent: "claude", PaneID: "p1", Status: proto.StatusWorking, Cwd: "/code/\xff\xfe bad/\xe2\x82",
-			Title: `<b>fix</b> & "ship" \ it`, LastText: "a\u2028b\u2029c \x00\x1f\x7f </script>"},
-		{SessionID: "s2", Agent: "codex", PaneID: "p2", Status: proto.StatusDone, Cwd: "/code/app", Title: "测试 🚀 é",
-			LastText: "All <tests> pass & nothing is left.", AwaitsReply: true},
-	}
-	changed := append([]proto.Session(nil), nasty...)
-	changed[1].LastText = "It is 1 < 2 > 0 now."
-	unencodable := append([]proto.Session(nil), changed...)
-	unencodable[0].UpdatedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) // json.Marshal refuses the year
-	for _, list := range [][]proto.Session{nasty, {}, changed, unencodable} {
-		d.setSessions("mac", list)
-		s.publishSessions("mac")
-		s.tellLive(s.fleetSnapshot())
-	}
-	if got := h.toldOf(assistantwire.EventFleetSessions); got != 4 {
-		t.Fatalf("told %d lists, want 4", got)
-	}
-	if got := h.toldOf(assistantwire.EventFleetLive); got < 2 {
-		t.Fatalf("told %d fleet states, want the ones that differ", got)
-	}
-	var want bytes.Buffer // every line, as json.RawMessage params wrote it
-	nulls := map[string]int{}
-	for i, v := range h.values {
-		event := h.events[i]
-		m, ok := v.(rpc.Marshaled)
-		if !ok {
-			t.Fatalf("%s was told as %T, want rpc.Marshaled", event, v)
-		}
-		line, was := lineOf(t, event, v), lineOf(t, event, json.RawMessage(m))
-		if !bytes.Equal(line, was) {
-			t.Errorf("%s:\n%q\nas json.RawMessage it was\n%q", event, line, was)
-		}
-		want.Write(was)
-		if len(m) == 0 { // it did not encode: null, as before
-			if string(line) != `{"event":"`+event+`","params":null}`+"\n" {
-				t.Errorf("%s that did not encode: %q", event, line)
-			}
-			nulls[event]++
-			continue
-		}
-		// They are what json.Marshal writes: decoded and marshaled again they are the same bytes (the invalid UTF-8
-		// was replaced the first time), compact, and inside the line untouched.
-		var again []byte
-		var err error
-		if event == assistantwire.EventFleetSessions {
-			var p assistantwire.FleetSessions
-			if err = json.Unmarshal(m, &p); err == nil {
-				again, err = json.Marshal(p)
-			}
-		} else {
-			var p assistantwire.FleetLive
-			if err = json.Unmarshal(m, &p); err == nil {
-				again, err = json.Marshal(p)
-			}
-		}
-		if err != nil || !bytes.Equal(again, m) {
-			t.Errorf("%s is not json.Marshal's bytes (%v):\n%s\nmarshaled again\n%s", event, err, m, again)
-		}
-		if by := `{"event":"` + event + `","params":` + string(m) + "}\n"; string(line) != by {
-			t.Errorf("%s: the line is not the params as they are:\n%q", event, line)
-		}
-	}
-	if nulls[assistantwire.EventFleetSessions] != 1 {
-		t.Errorf("%d lists told as null, want the one that does not encode", nulls[assistantwire.EventFleetSessions])
-	}
-	if !bytes.Equal(wire.Bytes(), want.Bytes()) {
-		t.Errorf("the wire carried\n%q\nwant\n%q", wire.Bytes(), want.Bytes())
-	}
-	for _, text := range []string{`\u003cb\u003efix\u003c/b\u003e \u0026 \"ship\" \\ it`, `a\u2028b\u2029c \u0000\u001f`, "/code/\ufffd\ufffd bad/\ufffd\ufffd", "测试 🚀 é"} {
-		if !bytes.Contains(wire.Bytes(), []byte(text)) {
-			t.Errorf("the wire has no %q", text)
-		}
-	}
 }
 
 // fleetSessionsToldLimit bounds what telling a changed list of 200 sessions allocates when a GC has just emptied

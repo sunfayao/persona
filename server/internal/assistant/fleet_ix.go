@@ -95,14 +95,13 @@ func (s *Service) hasHooks(machine string, sess proto.Session) bool {
 	return s.fleet.hooked[[2]string{machine, sess.SessionID}] || sess.StartedByPersona
 }
 
-// elicitationReachable: an MCP form or link ix can reach the user, as the hub says (fleet.clients): an app that takes
-// one is connected, or a phone that registered for them would be pushed one (#2433), and this card would be pushed (no
-// muted agent, no quiet task's). Otherwise nothing could show it and it goes back to the terminal at once.
-func (s *Service) elicitationReachable(ix proto.Interaction) bool {
+// elicitationReachable: an MCP form or link can reach the user, as the hub says (fleet.clients): an app that takes
+// one is connected. Otherwise nothing could show it and it goes back to the terminal at once.
+func (s *Service) elicitationReachable() bool {
 	s.fleet.mu.Lock()
 	c := s.fleet.clients
 	s.fleet.mu.Unlock()
-	return c.Elicitation || c.ElicitationPush && !s.quietSession(ix.MachineID, ix.SessionID) && !s.muted(ix.MachineID, ix.SessionID)
+	return c.Elicitation
 }
 
 // ---- telling ----
@@ -152,7 +151,7 @@ func (s *Service) tellApps(ix proto.Interaction) proto.Interaction {
 	s.markTold(ix)
 	s.tellCard(ix)
 	s.publishSessions(ix.MachineID)
-	s.liveChanged(false) // whether it is told counts for Persona Link's summary, not for the list
+	s.liveChanged() // whether it is told counts for Persona Link's summary, not for the list
 	return ix
 }
 
@@ -177,7 +176,7 @@ func (s *Service) show(ix proto.Interaction) {
 	s.taskPlanApproval()
 	s.tellCard(s.withTask(ix))
 	s.publishSessions(ix.MachineID)
-	s.liveChanged(false) // the card, and whether the assistant decides on it, count for Persona Link's summary
+	s.liveChanged() // the card, and whether the assistant decides on it, count for Persona Link's summary
 }
 
 // tellCard gives the hub card ix (fleet.interaction), as tellApps and show do. A card can end while it is on its way:
@@ -375,7 +374,7 @@ func (s *Service) waitInteractionReady(ctx context.Context, ix proto.Interaction
 			if restartPrepared {
 				s.startPreparedTimer(p)
 			}
-			if ix.Kind == proto.IxElicitation && !s.elicitationReachable(ix) {
+			if ix.Kind == proto.IxElicitation && !s.elicitationReachable() {
 				_ = s.resolve(ix.ID, proto.Resolution{Dismiss: true})
 			}
 			if ready != nil {
@@ -392,7 +391,7 @@ func (s *Service) waitInteractionReady(ctx context.Context, ix proto.Interaction
 		}
 		again = status == "pending"
 	}
-	if ix.Kind == proto.IxElicitation && !s.elicitationReachable(ix) {
+	if ix.Kind == proto.IxElicitation && !s.elicitationReachable() {
 		return proto.Resolution{Dismiss: true}, nil
 	}
 	p := &pending{ix: ix, done: make(chan proto.Resolution, 1), prepared: prepared}
@@ -1005,7 +1004,6 @@ func (s *Service) finishInteraction(id string) {
 // finished tells everyone an interaction, already out of the pending set, is over.
 func (s *Service) finished(p *pending) {
 	s.taskPlanApproval()
-	go s.urgentCardDone(p.ix.ID) // a call about it stops ringing (urgent_call_loop.go)
 	s.fleet.mu.Lock()
 	done := assistantwire.FleetResolved{ID: p.ix.ID, AnsweredBy: p.answeredBy}
 	if done.AnsweredBy != "" {

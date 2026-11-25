@@ -44,7 +44,7 @@ func BenchmarkPushRecordSent(b *testing.B) {
 	if err := database.PutSetting(ctx, pushSentSettingKey, seed); err != nil {
 		b.Fatal(err)
 	}
-	p := newPusher(b.TempDir(), database, b.Logf)
+	p := newPusher(database, b.Logf)
 	p.gradingMu.Lock()
 	loaded := len(p.sent)
 	p.gradingMu.Unlock()

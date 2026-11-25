@@ -28,7 +28,7 @@ func callToolchainRoute(h *Hub, role, rawQuery string) *httptest.ResponseRecorde
 func TestMachineToolchainRouteNeedsAFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		w := callToolchainRoute(h, role, "")
 		if w.Code != http.StatusForbidden {
 			t.Errorf("GET toolchain: %s was let through: %d", role, w.Code)
@@ -76,7 +76,7 @@ func TestMachineToolchainRouteIsFullCredentialsOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	url := "/api/v1/machines/m1/toolchain"
-	for _, p := range []principal{{ID: "dev_watch", Role: roleAnswer}, {ID: "dev_link", Role: roleLink}} {
+	for _, p := range []principal{{ID: "dev_watch", Role: roleRetiredAnswer}, {ID: "dev_link", Role: roleLink}} {
 		if allowed(p, http.MethodGet, url) {
 			t.Errorf("%s may GET %s", p.Role, url)
 		}

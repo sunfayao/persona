@@ -93,7 +93,7 @@ func dropDeviceRegistrations(ctx context.Context, tx pgx.Tx, id string) error {
 	}
 	for _, device := range rows {
 		if device.CredentialID == id || device.Credential == id || device.DeviceID == id {
-			if err := retirePushDevice(ctx, tx, device, "", "revoked"); err != nil {
+			if err := retireDevice(ctx, tx, device); err != nil {
 				return err
 			}
 		}

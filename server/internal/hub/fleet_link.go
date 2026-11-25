@@ -24,28 +24,25 @@ import (
 )
 
 // What comes from the nodes is the manager's (internal/assistant fleet_*.go; docs/server/machines.md "Who handles computer events"):
-// the interactions, each Agent's state, which pushes go and when, the Live Activity's content, the nodes' MCP tools,
+// the interactions, each Agent's state, which pushes go and when, the nodes' MCP tools,
 // the machines' monitoring. The hub shows and delivers what it reports:
 //
 //   - fleet.sessions: a machine's session list as the apps get it — kept on the machine (its sessions), sent to the
 //     apps (broadcastSessions), answered on GET /api/v1/sessions;
 //   - fleet.interaction / fleet.interaction_resolved / fleet.interactions: the pending interactions, kept here,
 //     sent to the apps, answered on GET /api/v1/interactions and to a connecting app;
-//   - fleet.live: the Live Activity's content and the island's numbers (liveactivity.go pushes it per device);
 //   - notify.request: a push to deliver (push_send.go, notifyws.go): which devices take it is each device's settings.
 //
 // What is kept stays while the manager is away (the apps see the last of it); answers to the cards need it (the
 // relayed routes answer 503 assistant_offline). The hub tells it what of the apps it needs (fleet.clients, fleet.seen,
-// fleet.mutes), and still runs the phone's tools, the connectors', Cua's and ego's for it (app.call phone, hub).
+// fleet.mutes).
 
 // fleetCache is what the manager last told of the interactions and the fleet.
 type fleetCache struct {
 	mu           sync.Mutex
 	interactions map[string]proto.Interaction
-	muted        map[string][]string                 // machine → its sessions whose pushes are off, as the manager said
-	live         *assistantwire.FleetLive            // the assistant's
-	lives        map[string]*assistantwire.FleetLive // the other managers' (manager_state.go)
-	clients      assistantwire.Clients               // what fleet.clients said last
+	muted        map[string][]string   // machine → its sessions whose pushes are off, as the manager said
+	clients      assistantwire.Clients // what fleet.clients said last
 	clientsSent  bool
 	// clientsSend holds one fleet.clients from working out what is true to telling it (fleetClientsChanged).
 	clientsSend sync.Mutex
@@ -133,7 +130,6 @@ func init() {
 		}
 		delete(f.interactions, p.ID)
 		f.mu.Unlock()
-		h.push.withdraw(p.ID) // a suspended app hears it by push (#4349)
 		event := map[string]any{"type": "interaction_resolved", "id": p.ID}
 		if p.AnsweredBy != "" {
 			event["answered_by"] = p.AnsweredBy // the app marks a question the assistant answered (docs/assistant/assistant.md)
@@ -152,24 +148,6 @@ func init() {
 			return
 		}
 		h.takeFleetInteractionsFrom(c.managerID(), p.Interactions)
-	})
-	handleBusEvent(assistantwire.EventFleetLive, func(h *Hub, c *busConn, params json.RawMessage) {
-		var p assistantwire.FleetLive
-		if json.Unmarshal(params, &p) != nil {
-			return
-		}
-		f := &h.reported
-		f.mu.Lock()
-		if id := c.managerID(); id == assistantwire.AssistantID {
-			f.live = &p
-		} else {
-			if f.lives == nil {
-				f.lives = map[string]*assistantwire.FleetLive{}
-			}
-			f.lives[id] = &p
-		}
-		f.mu.Unlock()
-		h.live.changed()
 	})
 }
 
@@ -263,7 +241,6 @@ func (h *Hub) takeFleetInteractionsFrom(owner string, list []proto.Interaction) 
 	}()
 	for id := range old {
 		if _, ok := now[id]; !ok {
-			h.push.withdraw(id)
 			h.broadcast(map[string]any{"type": "interaction_resolved", "id": id})
 		}
 	}
@@ -288,7 +265,6 @@ func (h *Hub) dropCard(owner, id string) {
 	}
 	f.mu.Unlock()
 	if !other {
-		h.push.withdraw(id)
 		h.broadcast(map[string]any{"type": "interaction_resolved", "id": id})
 	}
 }
@@ -391,29 +367,6 @@ func (h *Hub) pendingInteraction(id string) (proto.Interaction, bool) {
 	return ix, ok
 }
 
-// fleetLive is the Live Activity's content and numbers as the manager told them last.
-// The Live Activity is one per phone: it shows the default manager's, else the assistant's (manager_state.go).
-func (h *Hub) fleetLive() (FleetState, FleetStats) {
-	st, stats, _ := h.fleetLiveOf()
-	return st, stats
-}
-
-// fleetLiveOf is fleetLive with the manager whose it is: the activity counts that manager's computers' agents only.
-func (h *Hub) fleetLiveOf() (FleetState, FleetStats, string) {
-	def := h.defaultOwner(context.Background())
-	f := &h.reported
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	live, from := f.live, assistantwire.AssistantID
-	if l := f.lives[def]; l != nil && def != assistantwire.AssistantID {
-		live, from = l, def
-	}
-	if live == nil {
-		return FleetState{}, FleetStats{}, from
-	}
-	return live.State, live.Stats, from
-}
-
 // cardAnswerGrace is how much longer than a card's expiry the hub waits for the manager's answer about it. The manager
 // ends an expired card itself and records how it ended; its answer should not lose to the hub's deadline over a slow
 // write or two clocks a little apart.
@@ -454,7 +407,7 @@ func (h *Hub) fleetClientsChanged() {
 	f := &h.reported
 	f.clientsSend.Lock()
 	defer f.clientsSend.Unlock()
-	c := assistantwire.Clients{Elicitation: h.hasElicitationClient(), ElicitationPush: h.push.pushesElicitation(h.desktopOnline())}
+	c := assistantwire.Clients{Elicitation: h.hasElicitationClient()}
 	f.mu.Lock()
 	same := f.clientsSent && f.clients == c
 	f.clients, f.clientsSent = c, true
@@ -616,10 +569,6 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 		if !ok {
 			return
 		}
-		if answerOnly(r) && (!answerMayResolve(res) || h.picksFreeText(r.PathValue("id"), res)) {
-			writeErr(w, http.StatusForbidden, errors.New("this device can only answer with a card's own choices"))
-			return
-		}
 		pr := principalOf(r.Context())
 		if pr.Role == roleScoped {
 			ix, pending := h.pendingInteraction(r.PathValue("id"))
@@ -644,11 +593,10 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 		h.forwardOwned(w, h.captureOwnerAnswer(r), h.byInteraction)
 	})))
 	// A clarification is an owner's free-text message to the originating
-	// conversation, not a card answer. Restricted answer-only devices and
-	// extension principals cannot speak as the owner here. The operation receipt
+	// conversation, not a card answer. Extension principals cannot speak as the owner here. The operation receipt
 	// and the manager's client_msg_id together make an unchanged retry one message.
 	api.HandleFunc("POST /api/v1/interactions/{id}/clarify", h.withoutTerminalControls(h.withClientOp("clarify", func(w http.ResponseWriter, r *http.Request) {
-		if answerOnly(r) || principalOf(r.Context()).Role == roleExtension {
+		if principalOf(r.Context()).Role == roleExtension {
 			writeErr(w, http.StatusForbidden, errors.New("only the owner can ask an approval question"))
 			return
 		}
@@ -691,13 +639,8 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 	})))
 	// Body client_id uses the same durable operation receipts as resolve.
 	api.HandleFunc("POST /api/v1/interactions/{id}/choose", h.withReplyReceipt("choose", h.serveChoose))
-	// "Change answer": a question the assistant answered gets the user's answer (assistant/fleet_delegate.go); a device that may
-	// only answer cards does not send agents messages.
+	// "Change answer": a question the assistant answered gets the user's answer (assistant/fleet_delegate.go).
 	api.HandleFunc("POST /api/v1/interactions/{id}/reanswer", h.withoutTerminalControls(func(w http.ResponseWriter, r *http.Request) {
-		if answerOnly(r) {
-			writeErr(w, http.StatusForbidden, errors.New("this device can only answer with a card's own choices"))
-			return
-		}
 		h.forwardOwned(w, r, h.byRequest) // answered already: no longer pending, the request names its manager
 	}))
 	api.HandleFunc("GET /api/v1/interactions/history", func(w http.ResponseWriter, r *http.Request) {
@@ -714,46 +657,6 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 }
 
 // ---- what the manager asks of the hub for the nodes ----
-
-// fleetAppCall answers the manager's app.call for what is still the hub's to run for the nodes: the phone's tools;
-// false for the others. (The connectors', Cua's and ego's tools, the gated commands' text, lark-cli's settings and the
-// channels' owner actions are the manager's extensions': internal/extmgr, in its process.)
-func (h *Hub) fleetAppCall(ctx context.Context, from string, p assistantwire.AppCall) (json.RawMessage, bool, error) {
-	var a struct {
-		Assistant     bool            `json:"assistant"`
-		MachineID     string          `json:"machine_id"`
-		SessionID     string          `json:"session_id"`
-		Name          string          `json:"name"`
-		Args          json.RawMessage `json:"args"`
-		ToolName      string          `json:"tool_name"`
-		Summary       string          `json:"summary"`
-		InteractionID string          `json:"interaction_id"`
-		Action        string          `json:"action"`
-		CallID        json.RawMessage `json:"call_id"`
-	}
-	if len(p.Params) > 0 {
-		if err := json.Unmarshal(p.Params, &a); err != nil {
-			return nil, true, err
-		}
-	}
-	var callID string
-	_ = json.Unmarshal(a.CallID, &callID)
-	var out any
-	switch p.AppID + " " + p.Method {
-	case assistantwire.AppPhone + " " + assistantwire.PhoneTools:
-		out = map[string]any{"tools": h.phoneToolList()}
-	case assistantwire.AppPhone + " " + assistantwire.PhoneCall:
-		if a.Name == runtimeCLITool || !strings.HasPrefix(a.Name, "phone_") {
-			out = proto.TextResult("unknown tool "+a.Name, true)
-		} else {
-			out = h.callPhoneWithWait(ctx, a.Name, a.Args, h.mcpWaitReporter(from, a.MachineID, callID))
-		}
-	default:
-		return nil, false, nil
-	}
-	b, err := json.Marshal(out)
-	return b, true, err
-}
 
 // ---- the pushes the manager decided on ----
 
@@ -822,13 +725,13 @@ func (h *Hub) deliverPushFrom(from string, n assistantwire.Notification) (out *p
 	case assistantwire.NotifyPush: // one with an id shows once, sent again however late (a day recap's push)
 		policy := pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, !n.Asked)}
 		policy.level = h.pushGradingNotifyLevel(n, policy.level)
-		o := h.notifyDoneUnder(from, "assistant", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, pushWants{}, managerPushCollapseID(from, n.ID),
+		o := h.notifyDoneUnder(from, "assistant", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, pushWants{},
 			pushRecordingID(n.RecordingID), policy)
 		out = &o
 	case assistantwire.NotifyDone:
 		o := h.notifyDoneUnder(from, "done", n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body,
 			pushWants{Kind: "done", Took: time.Duration(n.TookMS) * time.Millisecond, Long: time.Duration(n.LongMS) * time.Millisecond},
-			"", "", pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, false)})
+			"", pushPolicy{level: levelFor(n.Kind, n.Level), relatedKey: n.RelatedKey, todoID: relatedTodoID(n.RelatedKey, false)})
 		out = &o
 	case assistantwire.NotifyReply:
 		h.notifyReplyKeyed(from, n.DeviceID, n.Subtitle, n.SessionID, n.Title, n.Body, n.RelatedKey)

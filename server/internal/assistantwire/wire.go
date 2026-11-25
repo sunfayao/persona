@@ -131,8 +131,7 @@ const (
 	DeviceWorktreeCreate  = "worktree.create"
 
 	// The hub's.
-	// DeviceDevicesList (on DeviceAll): {} → {devices: [Device], phone_online, apps: [ClientApp]}, the user's machines
-	// and the Persona apps that last said their version (apps: absent from a hub from before).
+	// DeviceDevicesList (on DeviceAll): {} → {devices: [Device]}, the user's machines.
 	DeviceDevicesList = "devices.list"
 	// DeviceInteractionsList (on DeviceAll or a machine id): {} → {interactions}, what the machines' agents wait on the user for.
 	DeviceInteractionsList = "interactions.list"
@@ -173,18 +172,6 @@ type Device struct {
 	// herdr, orca, paseo…); "" while it has not said. The manager holds a new Agent to what that host can run
 	// (launcher_fit.go, #8140).
 	Engine string `json:"engine,omitempty"`
-}
-
-// ClientApp is one Persona app as it last described itself in client_hello (docs/protocol/protocol.md "Client
-// capabilities and heartbeat"): one per signed-in device, newest first. Platform is ios (an iPad too: its OS says
-// iPadOS) | macos | watchos | visionos | android; never the web, which the hub serves (its version is the hub's).
-type ClientApp struct {
-	Platform  string    `json:"platform"`
-	Version   string    `json:"version"`         // the marketing version (CFBundleShortVersionString, versionName)
-	Build     string    `json:"build,omitempty"` // the build number
-	OS        string    `json:"os,omitempty"`    // "iOS 26.1"
-	Simulator bool      `json:"simulator,omitempty"`
-	SeenAt    time.Time `json:"seen_at"` // its last client_hello
 }
 
 // ErrNoDevice: the hub has no machine by the id a DeviceCall gave.

@@ -66,11 +66,11 @@ const rewindBody = `{"prompt":"fix the flaky test","occurrence":2,"prompts_after
 // Rewinding restores files and drops the conversation: a full device only, refused before the node hears of it.
 func TestRewindNeedsAFullDevice(t *testing.T) {
 	rn := newRewindNode(t)
-	for _, role := range []string{roleAnswer, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension} {
 		if w := rn.post(role, "s1", rewindBody); w.Code != http.StatusForbidden {
 			t.Errorf("%s was let through: %d", role, w.Code)
 		}
-		if allowed(principal{ID: "dev", Role: role}, http.MethodPost, "/api/v1/sessions/m1/s1/rewind") && role == roleAnswer {
+		if allowed(principal{ID: "dev", Role: role}, http.MethodPost, "/api/v1/sessions/m1/s1/rewind") && role == roleRetiredAnswer {
 			t.Errorf("an answer-only device may POST the route")
 		}
 	}

@@ -61,7 +61,7 @@ func TestNodeUpdateRelayThroughExistingManagerCall(t *testing.T) {
 		return w.Code
 	}
 	body := `{"manager_id":"assistant","machine_uid":"uid-a","executable":"/opt/persona/bin/personad","os":"darwin","arch":"arm64","params":{"id":"tx"}}`
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		if got := request(role, "commit", body); got != http.StatusForbidden {
 			t.Fatalf("role %s: %d", role, got)
 		}

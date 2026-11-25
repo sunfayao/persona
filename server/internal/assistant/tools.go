@@ -55,9 +55,6 @@ func (s *Service) Tools(ctx context.Context) []proto.Tool {
 	if s.store != nil && ownerReplyApprovalOn(s.settings(ctx)) {
 		tools = append(tools, toolsNamed([]string{ownerActionPrepareTool})...)
 	}
-	if s.urgentOn(ctx) {
-		tools = append(tools, toolsNamed([]string{"urgent_call"})...)
-	}
 	return localizedMCPTools(append(tools, s.knowledgeFolderTools(ctx)...), s.toolLanguage(ctx))
 }
 
@@ -294,8 +291,6 @@ func (s *Service) runTool(ctx context.Context, machine, self, name string, args 
 		s.recordNotify(ctx, machine, self, notifyMissed(res)) // an interruption when a device took it (north_star.go)
 		s.promoteSupervision(self)
 		return notifyAnswerText(s.lang(ctx), res, copies.wait(notifyCopyWait)), nil
-	case "urgent_call":
-		return s.toolUrgentCall(ctx, machine, self, args) // urgent_call_tool.go
 	case "conversations_list":
 		return s.toolConversationsList(ctx, self, args)
 	case "conversation_read":

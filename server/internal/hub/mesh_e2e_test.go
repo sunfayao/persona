@@ -337,9 +337,7 @@ func startTestHubOpts(t *testing.T, id, name string, st *meshStore, dir string, 
 		logger = log.New(os.Stderr, "["+name+"] ", log.Lmicroseconds)
 	}
 	h := &Hub{cfg: cfg, version: "test", logger: logger, byID: map[string]*Machine{}, clients: map[*client]struct{}{},
-		calls: map[string]chan proto.ToolResult{}, push: newPusher(cfg.dir, nil, func(string, ...any) {})}
-	h.live = newLiveActivities(h)
-	h.push.hubID = h.hubID
+		push: newPusher(nil, func(string, ...any) {})}
 	h.store = st
 	h.public.id = id
 	mh := &testHub{h: h, store: st, nodes: map[string]*meshNode{}}

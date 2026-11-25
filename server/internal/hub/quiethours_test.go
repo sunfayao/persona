@@ -3,12 +3,10 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -102,65 +100,10 @@ func TestQuietHoursStoredBadWindowIsOff(t *testing.T) {
 	}
 }
 
-// Inside the phone's window: no "Agent finished", "Needs you" without sound, an assistant's reminder as usual.
-// Outside it, everything as before.
-func TestQuietHoursPushes(t *testing.T) {
-	h, f := testLive(t)
-	night := time.Date(2026, 11, 6, 2, 0, 0, 0, time.UTC)
-	// The clock moves under the pusher, never swapped: a push still going out reads it (Pusher.pushed).
-	var clock atomic.Int64
-	clock.Store(night.UnixNano())
-	h.push.now = func() time.Time { return time.Unix(0, clock.Load()).UTC() }
-	if err := h.push.setPrefs("phone", NotifyPrefs{Input: true, Done: DoneAlways,
-		Quiet: QuietHours{Enabled: true, Start: "23:00", End: "07:00", TZ: "UTC"}}); err != nil {
-		t.Fatal(err)
-	}
-	done := pushWants{Kind: "done", Took: time.Hour, Long: time.Minute}
-	ix := proto.Interaction{ID: "ix1", MachineID: "m", SessionID: "s", Kind: proto.IxQuestion, Summary: "pick one"}
-	aps := func(c apnsCall) map[string]any {
-		t.Helper()
-		var body struct {
-			APS map[string]any `json:"aps"`
-		}
-		if err := json.Unmarshal(c.Body, &body); err != nil {
-			t.Fatal(err)
-		}
-		return body.APS
-	}
-
-	h.notifyDone(assistantwire.AssistantID, "done", "m", "box", "s", "finished", "", done)
-	h.notifyInteraction(assistantwire.AssistantID, ix, "box", false)
-	c := f.calls(t, 1)
-	time.Sleep(150 * time.Millisecond)
-	f.mu.Lock()
-	n := len(f.got)
-	f.mu.Unlock()
-	if n != 1 {
-		t.Fatalf("inside the window, %d pushes: the finished one was sent", n)
-	}
-	if a := aps(c[0]); a["sound"] != nil || a["interruption-level"] != "passive" || a["category"] != "INTERACTION_QUESTION" {
-		t.Fatalf("the card inside the window: %v", a)
-	}
-
-	h.notifyDone(assistantwire.AssistantID, "assistant", "", "Persona", "s", "reminder", "leave now", pushWants{})
-	if a := aps(f.calls(t, 2)[1]); a["sound"] != "default" {
-		t.Fatalf("an assistant reminder inside the window: %v", a)
-	}
-
-	clock.Store(night.Add(10 * time.Hour).UnixNano())
-	h.notifyDone(assistantwire.AssistantID, "done", "m", "box", "s", "finished", "", done)
-	h.notifyInteraction(assistantwire.AssistantID, ix, "box", false)
-	for _, c := range f.calls(t, 4)[2:] {
-		if a := aps(c); a["sound"] != "default" {
-			t.Fatalf("outside the window: %v", a)
-		}
-	}
-}
-
 // On the WebSocket: the finished one is not sent inside the window, the card is marked quiet.
 func TestQuietHoursWS(t *testing.T) {
 	c := &client{device: "test-device", out: make(chan []byte, 8)}
-	h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(t.TempDir(), nil, t.Logf)}
+	h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(nil, t.Logf)}
 	h.push.now = func() time.Time { return time.Date(2026, 11, 6, 23, 30, 0, 0, time.UTC) }
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out // client_hello_ack
@@ -190,30 +133,5 @@ func TestQuietHoursWS(t *testing.T) {
 	h.notifyDone(assistantwire.AssistantID, "assistant", "", "Persona", "s", "reminder", "now", pushWants{})
 	if m := next(); m["kind"] != "assistant" || m["quiet"] != nil {
 		t.Fatalf("reminder inside the window: %v", m)
-	}
-}
-
-// Inside the window a Live Activity still starts, but without the alert that lights the screen.
-func TestQuietHoursLiveActivityStartHasNoAlert(t *testing.T) {
-	h, f := testLive(t)
-	h.push.now = func() time.Time { return time.Date(2026, 11, 6, 2, 0, 0, 0, time.UTC) }
-	if err := h.push.setPrefs("phone", NotifyPrefs{Input: true, Done: DoneLong, LiveActivity: true,
-		Quiet: QuietHours{Enabled: true, Start: "23:00", End: "07:00", TZ: "UTC"}}); err != nil {
-		t.Fatal(err)
-	}
-	h.live.update("phone", func(v *db.LiveActivity) { v.PushToStartToken = "p2s" })
-	h.live.flush(FleetState{Phase: "needs", NeedsYou: 1, Items: []FleetItem{{ID: "m/a", Title: "api", Kind: "needs"}}}, true, false)
-	c := f.calls(t, 1)
-	var body struct {
-		APS map[string]any `json:"aps"`
-	}
-	if err := json.Unmarshal(c[0].Body, &body); err != nil {
-		t.Fatal(err)
-	}
-	if c[0].Event != "start" {
-		t.Fatalf("not a start: %+v", c[0])
-	}
-	if _, ok := body.APS["alert"]; ok {
-		t.Fatalf("a start inside the window kept its alert: %v", body.APS)
 	}
 }

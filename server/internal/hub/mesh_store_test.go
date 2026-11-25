@@ -115,15 +115,6 @@ func (s *meshStore) SetDevicePrefs(_ context.Context, id, credential string, pre
 	return nil
 }
 
-func (s *meshStore) LiveActivities(context.Context) ([]db.LiveActivity, error) { return nil, nil }
-func (s *meshStore) SaveLiveActivity(context.Context, db.LiveActivity) error   { return nil }
-func (s *meshStore) ClaimLiveActivityStart(context.Context, string, string, time.Time, time.Duration, time.Duration) (time.Time, bool, error) {
-	return time.Time{}, false, nil // no persisted activity in this non-push fixture
-}
-func (s *meshStore) HoldLiveActivityStart(context.Context, string, time.Time, time.Duration) (bool, error) {
-	return false, nil
-}
-
 func (s *meshStore) InsertInteraction(_ context.Context, ix proto.Interaction) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -423,7 +414,7 @@ func (s *meshStore) AppTokens(context.Context) ([]db.ExportedToken, error) {
 	defer s.mu.Unlock()
 	var out []db.ExportedToken
 	for hash, t := range s.tokens {
-		if !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer) {
+		if !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer) {
 			out = append(out, db.ExportedToken{DeviceToken: t, Hash: hash})
 		}
 	}
@@ -435,7 +426,7 @@ func (s *meshStore) RevokedAppTokens(context.Context) ([]db.ExportedToken, error
 	defer s.mu.Unlock()
 	var out []db.ExportedToken
 	for hash, t := range s.tokens {
-		if s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer) {
+		if s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer) {
 			out = append(out, db.ExportedToken{DeviceToken: t, Hash: hash})
 		}
 	}
@@ -456,7 +447,7 @@ func (s *meshStore) ApplyRevokedTokens(_ context.Context, list []db.ExportedToke
 		case !ok:
 			s.tokens[e.Hash] = e.DeviceToken
 			s.revoked[e.ID] = true
-		case !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer):
+		case !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer):
 			s.revoked[t.ID] = true
 			ids = append(ids, t.ID)
 		}

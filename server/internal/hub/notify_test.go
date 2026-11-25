@@ -22,10 +22,10 @@ func TestNotifyConfigDefaults(t *testing.T) {
 }
 
 func TestDevicePrefs(t *testing.T) {
-	if p := devicePrefs(nil); !reflect.DeepEqual(p, NotifyPrefs{Input: true, Done: DoneLong, LiveActivity: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if p := devicePrefs(nil); !reflect.DeepEqual(p, NotifyPrefs{Input: true, Done: DoneLong, MutedManagers: []string{}}) {
 		t.Fatalf("default %+v", p)
 	}
-	if p := devicePrefs(json.RawMessage(`{"input":false,"done":"always","live_activity":false,"lock_details":true}`)); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, LockDetails: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if p := devicePrefs(json.RawMessage(`{"input":false,"done":"always","live_activity":false,"lock_details":true}`)); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, MutedManagers: []string{}}) {
 		t.Fatalf("stored %+v", p)
 	}
 	// Only what was stored changes; nonsense falls back.
@@ -49,14 +49,13 @@ func TestDevicePrefs(t *testing.T) {
 	}
 }
 
-// Registration (every launch) must not wipe what the device chose; prefs can be set before it has a token.
-func TestPusherPrefsSurviveRegistration(t *testing.T) {
-	p := newPusher(t.TempDir(), nil, func(string, ...any) {})
+// Prefs can be set before anything else is known about the device.
+func TestPusherPrefsOfAnUnknownDevice(t *testing.T) {
+	p := newPusher(nil, func(string, ...any) {})
 	if err := p.setPrefs("d1", NotifyPrefs{Input: false, Done: DoneOff}); err != nil {
 		t.Fatal(err)
 	}
-	p.register(Device{DeviceID: "d1", APNSToken: "tok"})
-	if got := p.prefs("d1"); !reflect.DeepEqual(got, NotifyPrefs{Input: false, Done: DoneOff, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if got := p.prefs("d1"); !reflect.DeepEqual(got, NotifyPrefs{Input: false, Done: DoneOff, MutedManagers: []string{}}) {
 		t.Fatalf("%+v", got)
 	}
 	if got := p.prefs("unknown"); !reflect.DeepEqual(got, defaultPrefs()) {
@@ -100,20 +99,13 @@ func TestDevicePrefsAPI(t *testing.T) {
 		t.Fatalf("timings %+v", timings)
 	}
 	// A partial update keeps the other field.
-	if p := do("PUT", `{"done":"always"}`); !reflect.DeepEqual(p, NotifyPrefs{Input: true, Done: DoneAlways, LiveActivity: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if p := do("PUT", `{"done":"always"}`); !reflect.DeepEqual(p, NotifyPrefs{Input: true, Done: DoneAlways, MutedManagers: []string{}}) {
 		t.Fatalf("put %+v", p)
 	}
-	if p := do("PUT", `{"input":false}`); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, LiveActivity: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if p := do("PUT", `{"input":false}`); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, MutedManagers: []string{}}) {
 		t.Fatalf("put input %+v", p)
 	}
-	if p := do("GET", ""); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, LiveActivity: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}) {
+	if p := do("GET", ""); !reflect.DeepEqual(p, NotifyPrefs{Input: false, Done: DoneAlways, MutedManagers: []string{}}) {
 		t.Fatalf("get after put %+v", p)
-	}
-	// The island is merged field by field like the rest.
-	if p := do("PUT", `{"island":{"preset":"custom","left":"tpm"}}`); p.Island != (IslandPrefs{Preset: "custom", Left: "tpm"}) || p.Done != DoneAlways {
-		t.Fatalf("put island %+v", p)
-	}
-	if p := do("PUT", `{"island":{"right":"load"}}`); p.Island != (IslandPrefs{Preset: "custom", Left: "tpm", Right: "load"}) {
-		t.Fatalf("put island side %+v", p)
 	}
 }

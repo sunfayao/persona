@@ -12,7 +12,7 @@ import (
 // The clipboard's routes (#3064) are for full credentials: the watch's answer-only token never reaches the manager
 // with them, and no extension scope opens them.
 func TestClipboardRoutesNeedFullCredentials(t *testing.T) {
-	watch := principal{Role: roleAnswer}
+	watch := principal{Role: roleRetiredAnswer}
 	for _, rq := range [][2]string{
 		{http.MethodGet, "/api/v1/machines/mac/clipboard"},
 		{http.MethodPut, "/api/v1/machines/mac/clipboard"},

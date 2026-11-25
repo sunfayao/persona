@@ -45,7 +45,7 @@ func firstTerminalError(c *client) string {
 func TestPaneTerminalNeedsAFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
-	answer, full := termClient(h, roleAnswer), termClient(h, roleFull)
+	answer, full := termClient(h, roleRetiredAnswer), termClient(h, roleFull)
 
 	say(h, answer, map[string]any{"type": "terminal_subscribe", "machine_id": "m1", "session_id": "pane:w1:p2"})
 	if got := firstTerminalError(answer); !strings.Contains(got, "forbidden") {
@@ -85,7 +85,7 @@ func TestPaneScreenReadsNeedAFullDevice(t *testing.T) {
 		guard(w, r)
 		return w.Code
 	}
-	if code := call(roleAnswer, "pane:w1:p2"); code != http.StatusForbidden {
+	if code := call(roleRetiredAnswer, "pane:w1:p2"); code != http.StatusForbidden {
 		t.Errorf("answer-only device read a shell: %d", code)
 	}
 	if code := call(roleExtension, "pane:w1:p2"); code != http.StatusForbidden {
@@ -112,7 +112,7 @@ func TestNewShellIsAFullDevicesAndNamesNoDirectory(t *testing.T) {
 		h.newShell(w, r, m)
 		return w.Code
 	}
-	if code := post(roleAnswer, `{"workspace_id":"w1"}`); code != http.StatusForbidden {
+	if code := post(roleRetiredAnswer, `{"workspace_id":"w1"}`); code != http.StatusForbidden {
 		t.Errorf("answer-only device opened a shell: %d", code)
 	}
 	if code := post(roleFull, `{}`); code != http.StatusBadRequest {
@@ -144,7 +144,7 @@ func TestPaneRoutesAreNotForAnswerOnlyDevices(t *testing.T) {
 		{http.MethodGet, "/api/v1/machines/m1/panes"}, {http.MethodPost, "/api/v1/machines/m1/panes"},
 		{http.MethodGet, "/api/v1/sessions/m1/pane:w1:p2/screen"}, {http.MethodPost, "/api/v1/sessions/m1/pane:w1:p2/screen/before"},
 	} {
-		if allowed(principal{ID: "dev_watch", Role: roleAnswer}, tc[0], tc[1]) {
+		if allowed(principal{ID: "dev_watch", Role: roleRetiredAnswer}, tc[0], tc[1]) {
 			t.Errorf("an answer-only device may %s %s", tc[0], tc[1])
 		}
 	}
@@ -222,7 +222,7 @@ func TestNodeActionsNeedAFullDevice(t *testing.T) {
 	}
 	tn := newTermNode(t)
 	for path, body := range actionBodies {
-		for _, role := range []string{roleAnswer, roleExtension} {
+		for _, role := range []string{roleRetiredAnswer, roleExtension} {
 			if code := postAction(tn.hub, role, path, body); code != http.StatusForbidden {
 				t.Errorf("%s: %s was let through: %d", path, role, code)
 			}
@@ -305,7 +305,7 @@ func TestNodeActionRoutesAreFullCredentialsOnly(t *testing.T) {
 	}
 	for path := range nodeActions {
 		url := "/api/v1/machines/m1/" + path
-		if allowed(principal{ID: "dev_watch", Role: roleAnswer}, http.MethodPost, url) {
+		if allowed(principal{ID: "dev_watch", Role: roleRetiredAnswer}, http.MethodPost, url) {
 			t.Errorf("an answer-only device may POST %s", url)
 		}
 		if allowed(principal{ID: "dev_link", Role: roleLink}, http.MethodPost, url) {
@@ -334,7 +334,7 @@ func TestWorktreeCreatePassesOnlyItsFields(t *testing.T) {
 	if got != `{"branch":"feat/x","kind":"herdr","locale":"zh-Hans","path":"/tmp/wt/feat-x","workspace_id":"w1"}` {
 		t.Errorf("the node was sent %s", got)
 	}
-	for _, role := range []string{roleAnswer, roleLink, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleLink, roleExtension} {
 		if code := postAction(tn.hub, role, "worktree/create", body); code != http.StatusForbidden {
 			t.Errorf("%s: create = %d", role, code)
 		}
@@ -396,7 +396,7 @@ func TestAutomaticWorktreeCreateRequiresABooleanFlagAndFullCredentials(t *testin
 		}
 	}
 	body := `{"workspace_id":"w1","kind":"orca","parent_workspace_id":"folder","auto_name":true,"command":"ignored"}`
-	for _, role := range []string{roleAnswer, roleLink, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleLink, roleExtension} {
 		if code := postAction(tn.hub, role, "worktree/create", body); code != http.StatusForbidden {
 			t.Fatalf("%s: automatic create = %d", role, code)
 		}

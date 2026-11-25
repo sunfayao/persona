@@ -185,25 +185,6 @@ func (h *Hub) sendMessage(w http.ResponseWriter, r *http.Request, m *Machine) {
 		writeErr(w, http.StatusForbidden, errors.New("read-only role cannot modify todos"))
 		return
 	}
-	if answerOnly(r) {
-		// Validate this caller's target before joining another request's receipt.
-		s, ok := m.session(sid)
-		if !ok || len(h.shown(m.cfg.ID, []proto.Session{s})) == 0 {
-			writeErr(w, http.StatusNotFound, errors.New("no such session"))
-			return
-		}
-		text, _ := p["text"].(string)
-		text = withoutControls(text)
-		if strings.TrimSpace(text) == "" {
-			writeErr(w, http.StatusBadRequest, errors.New("text is required"))
-			return
-		}
-		said := map[string]any{"session_id": sid, "text": text}
-		if id, ok := p["client_msg_id"]; ok {
-			said["client_msg_id"] = id
-		}
-		p = said
-	}
 	id, _ := p["client_msg_id"].(string)
 	timing := &sendTiming{hub: h, id: proto.SendTraceID(id), start: started}
 	r = r.WithContext(context.WithValue(r.Context(), sendTimingKey{}, timing))
@@ -296,7 +277,7 @@ func (h *Hub) sendMessageOnce(w http.ResponseWriter, r *http.Request, m *Machine
 	}
 	var start freshStart
 	fresh := false
-	if isText && strings.TrimSpace(text) != "" && !answerOnly(r) {
+	if isText && strings.TrimSpace(text) != "" {
 		// The first message of an agent started for a todo with none: a new agent's first prompt, with its project's
 		// background and the todo's decisions first (#2820; iOS and Android send it without todo_id).
 		if f, ok := h.fresh.peek(m.cfg.ID, sid); ok && (todoID == "" || todoID == f.todoID) {
@@ -704,7 +685,7 @@ func (h *Hub) keepUndelivered(ctx context.Context, m *Machine, sid string, msg m
 	}
 	p := principalOf(ctx)
 	credential := ""
-	if p.Role == roleFull || p.Role == roleAnswer {
+	if p.Role == roleFull {
 		credential = p.ID
 	}
 	err := h.asstOf(h.sessionOwner(m.cfg.ID, sid)).call(kctx, assistantwire.MethodKeepUndelivered, assistantwire.KeepUndeliveredParams{

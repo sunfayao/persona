@@ -140,10 +140,6 @@ func wireDecodeGo(t *testing.T, c wireSample) {
 		target = &struct {
 			Interactions []proto.Interaction `json:"interactions"`
 		}{}
-	case "fleet":
-		target = &struct {
-			Fleet FleetState `json:"fleet"`
-		}{}
 	case "queue_edit":
 		target = &proto.QueueEdit{}
 	case "inbox":
@@ -157,7 +153,6 @@ func wireDecodeGo(t *testing.T, c wireSample) {
 			Sessions    []proto.Session    `json:"sessions"`
 			Machines    []proto.Machine    `json:"machines"`
 			Interaction *proto.Interaction `json:"interaction"`
-			Fleet       *FleetState        `json:"fleet"`
 			Revs        map[string]int64   `json:"revs"`
 			itemSpan
 		}{}
@@ -509,16 +504,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	unread.SessionID = "s_unread"
 	unread.State = proto.StateUnread
 	unread.Loop = nil
-	// The fleet as the manager works it out (assistant/fleet_live.go buildFleet) from these three agents and the first card.
-	fleet := FleetState{Phase: "needsYou", NeedsYou: 1, Working: 1, Unread: 1, WorkingSince: float64(now.Unix()), Details: true, Items: []FleetItem{
-		{ID: "m1/s1", Title: sessions[0].Title, Place: "示例电脑 · 示例空间 › 示例任务", Kind: ixs[0].Kind, Detail: ixs[0].Questions[0].Question,
-			Interaction: ixs[0].ID, Since: float64(ixs[0].CreatedAt.Unix())},
-		{ID: "m1/s_working", Title: working.Title, Place: "示例电脑 · 示例空间 › 示例任务", Kind: "working", Since: float64(now.Unix())},
-		{ID: "m1/s_unread", Title: unread.Title, Place: "示例电脑 · 示例空间 › 示例任务", Kind: "unread", Since: float64(unread.UpdatedAt.Unix())},
-	}}
 	_ = unread
-	add("fleet", "fleet_snapshot", "Fleet 使用驼峰字段和 Unix 秒时间。", "fleet", httpJSON(map[string]any{"fleet": fleet}), map[string]any{"/fleet/phase": "needsYou", "/fleet/needsYou": 1, "/fleet/working": 1, "/fleet/unread": 1, "/fleet/workingSince": now.Unix()}, "server/internal/hub/liveactivity.go: buildFleet, FleetState", "apple/Shared/FleetState.swift: FleetState")
-	add("fleet", "fleet_event", "Fleet 事件沿用快照结构。", "event", ws(map[string]any{"type": "fleet", "fleet": fleet}), map[string]any{"/type": "fleet", "/fleet/items/0/kind": "question", "/fleet/items/0/interaction": "ix_question"}, "server/internal/hub/liveactivity.go: liveActivities", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
 
 	inboxLark := assistant.InboxItem{ID: "lark:feed_example:10", Source: "lark", Kind: assistant.KindMention, Account: "feishu", AccountName: "飞书", Title: "示例讨论", Sender: "小王", Preview: "请确认示例。", Count: 1, StartedAt: now, UpdatedAt: now, Tier: assistant.TierAction, Lark: &assistant.InboxLark{FeedID: "feed_example", IsGroup: true, StartPosition: "10", MentionPosition: "10"}, Context: "仅详情展示的示例内容", Last: "10", TriagedAt: "10", Agent: &assistant.InboxAgent{State: "drafted", MachineID: "m1", SessionID: "s1", Draft: "已收到示例。"}}
 	inboxMail := assistant.InboxItem{ID: "mail:account_example:thread_example:11", Source: "mail", Kind: assistant.KindMail, Account: "account_example", AccountName: "user@example.com", Title: "示例邮件", Preview: "示例已确认。", Count: 1, StartedAt: now, UpdatedAt: now, DoneAt: &now, DoneBy: "user", Read: true, Mail: &assistant.InboxMail{AccountID: "account_example", Mailbox: "INBOX", UIDs: []uint32{11}, MessageID: "message_example", From: assistant.MailAddress{Name: "小王", Email: "sender@example.com"}, Thread: "thread_example", Direct: true}}
@@ -709,11 +695,6 @@ func wireCompatibility(t *testing.T, files map[string][]wireSample, add wireAdde
 	add("compatibility", "session_unknown_enums", "未知会话状态降级为 unknown。", "compat_session", httpJSON(proto.Session{SessionID: "s1", Status: "future_status", State: "future_state", UpdatedAt: now}), map[string]any{"/status": "unknown", "/state": "unknown"}, "apple/Shared/Models.swift: SessionStatus.init(from:), AgentState.init(from:)", "docs/archive/redesign/README.md: D5")
 	add("compatibility", "session_missing_fields", "旧会话缺字段时使用当前 iOS 的默认值。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "status": "blocked"}), map[string]any{"/machine_id": "", "/title": "", "/state": "needs_you", "/assistant": false, "/pending_interactions": 0}, "apple/Shared/Models.swift: Session.init(from:)")
 	add("compatibility", "item_unknown_kind", "未知内容块类型降级为 unknown。", "compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": []proto.Item{{ID: "entry_future#0", Seq: 1, TS: now, Role: "assistant", Kind: "future_kind"}}}), map[string]any{"/items/0/kind": "unknown"}, "apple/Shared/Models.swift: ItemKind.init(from:)")
-	add("compatibility", "fleet_bad_optional_stats", "Fleet 的可选统计字段类型错误时只丢弃统计字段。", "compat_event", ws(map[string]any{"type": "fleet", "fleet": map[string]any{"phase": "working", "working": 1, "stats": "invalid"}}), map[string]any{"/fleet/phase": "working", "/fleet/working": 1, "/fleet/stats": nil}, "apple/Shared/FleetState.swift: FleetState.init(from:)")
-	add("compatibility", "fleet_unknown_values", "未知 Fleet 阶段变为空阶段，未知条目类型变为 screen。", "compat_event", ws(map[string]any{"type": "fleet", "fleet": map[string]any{"phase": "later", "items": []any{map[string]any{"id": "a/b", "kind": "teleport"}}}}),
-		map[string]any{"/fleet/phase": "", "/fleet/items/0/kind": "screen"}, "apple/PersonaTests/FleetStateTests.swift: lenientDecoding")
-	files["compatibility"][len(files["compatibility"])-1].Derived = false
-	files["compatibility"][len(files["compatibility"])-1].FromTest = "FleetStateTests.lenientDecoding"
 	for _, bad := range []struct {
 		name, desc string
 		body       any

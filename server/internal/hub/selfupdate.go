@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/hubedge"
 	"github.com/nwverse/persona/server/internal/i18n"
@@ -176,9 +177,12 @@ func newUpdater(h *Hub) *updater {
 		startWatch: startWatchdog, target: ServerBinary, self: runningBinary, services: systemServices(), confirmIn: updateConfirmIn, idleEvery: updateIdleEvery,
 		manualIdle: updateManualIdle, state: "idle", confirmed: true,
 		notify: func(title, body string) {
-			h.push.send(map[string]any{"aps": map[string]any{
-				"alert": map[string]any{"title": title, "body": body}, "sound": "default", "thread-id": "hub_update",
-			}}, "hub_update", nil)
+			build := func(i18n.Lang) map[string]any {
+				return map[string]any{"aps": map[string]any{"alert": map[string]any{"title": title, "body": body}, "sound": "default"}}
+			}
+			if h.push.grade("", pushPolicy{level: assistantwire.LevelP0}, build) == "" {
+				h.notifyWSFrom("", kindAlert, build, nil, quietNone)
+			}
 		}}
 	// hub.json's update.proxy, for this client alone (selfupdate_source.go).
 	transport.Proxy = u.proxyFor

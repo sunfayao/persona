@@ -46,7 +46,7 @@ func TestAdminUsageSourcesNeedAnAdminSession(t *testing.T) {
 }
 
 func TestUsageWindowsAreForFullDevicesOnly(t *testing.T) {
-	for _, role := range []string{roleAnswer, roleLink, roleLinkPair, rolePeer, rolePeerPair} {
+	for _, role := range []string{roleRetiredAnswer, roleLink, roleLinkPair, rolePeer, rolePeerPair} {
 		if allowed(principal{Role: role}, http.MethodGet, "/api/v1/usage/windows") {
 			t.Errorf("%s may read the usage windows", role)
 		}

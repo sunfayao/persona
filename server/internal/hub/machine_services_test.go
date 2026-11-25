@@ -41,7 +41,7 @@ func TestMachineServicesRoutesNeedFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
 
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		for _, tc := range []struct {
 			method, path, body string
 		}{
@@ -147,7 +147,7 @@ func TestMachineServicesRoutesAreFullCredentialsOnly(t *testing.T) {
 			t.Errorf("%s %s must not be open to extensions (got scope %q)", rt[0], rt[1], scope)
 		}
 		concrete := strings.ReplaceAll(rt[1], "{mid}", "m1")
-		for _, p := range []principal{{ID: "watch", Role: roleAnswer}, {ID: "link", Role: roleLink}} {
+		for _, p := range []principal{{ID: "watch", Role: roleRetiredAnswer}, {ID: "link", Role: roleLink}} {
 			if allowed(p, rt[0], concrete) {
 				t.Errorf("%s may %s %s", p.Role, rt[0], concrete)
 			}

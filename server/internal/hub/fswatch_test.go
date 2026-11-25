@@ -107,7 +107,7 @@ func nextFsChanged(c *client) map[string]any {
 func TestFsWatchNeedsAFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
-	answer := fsClient(h, roleAnswer)
+	answer := fsClient(h, roleRetiredAnswer)
 	say(h, answer, map[string]any{"type": "fs_watch", "machine_id": "m1", "cwd": "/w", "paths": []string{"/w"}, "git": true})
 	if n := fsWatchCalls(tn); n != 0 {
 		t.Fatalf("the node was asked to watch for an answer-only device (%d calls)", n)

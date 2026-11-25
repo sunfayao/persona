@@ -113,7 +113,7 @@ func TestNotifyBackpressureWithOverlappingSockets(t *testing.T) {
 }
 
 func TestNotifyBackpressurePreservesReplayEligibility(t *testing.T) {
-	for _, mode := range []string{"muted", "push-route", "missing-capability", "unremembered"} {
+	for _, mode := range []string{"muted", "missing-capability", "unremembered"} {
 		t.Run(mode, func(t *testing.T) {
 			h := ringHub(t)
 			c := ringConnect(t, h, "phone", "ws_notify")
@@ -126,10 +126,6 @@ func TestNotifyBackpressurePreservesReplayEligibility(t *testing.T) {
 				if err := h.push.setPrefs("phone", NotifyPrefs{MutedManagers: []string{"manager"}}); err != nil {
 					t.Fatal(err)
 				}
-			case "push-route":
-				h.push.mu.Lock()
-				h.push.devices["registration"] = Device{DeviceID: "registration", CredentialID: "phone", APNSToken: "token", RelayURL: "https://relay.example", RelayGrant: "grant", PushKey: "key"}
-				h.push.mu.Unlock()
 			case "missing-capability":
 				required = []string{"elicitation"}
 			case "unremembered":

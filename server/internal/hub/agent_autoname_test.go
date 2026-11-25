@@ -62,7 +62,7 @@ func TestAgentAutonameRelaysToACapableOwner(t *testing.T) {
 			t.Fatalf("extension %s: %d %s", path, code, body)
 		}
 	}
-	for _, role := range []string{roleAnswer, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleLink} {
 		if allowed(principal{Role: role}, http.MethodPost, "/api/v1/sessions/mb/same/autoname") {
 			t.Fatalf("%s may rename agents", role)
 		}

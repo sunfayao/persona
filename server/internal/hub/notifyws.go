@@ -1,9 +1,7 @@
 package hub
 
 import (
-	"cmp"
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"maps"
@@ -36,10 +34,10 @@ func (w pushWants) fn() func(NotifyPrefs) bool {
 // devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
 // turned its pushes off get none (NotifyPrefs.MutedManagers).
 func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
-	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, "", "", pushPolicy{level: levelFor(kind, "")})
+	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, "", pushPolicy{level: levelFor(kind, "")})
 }
 
-// pushOutcome is where one push went: the devices it was handed to now (a push route, a ws_notify connection or a
+// pushOutcome is where one push went: the devices it was handed to now (a ws_notify connection or a
 // browser's Web Push), the devices that could take this kind before their settings decided, the offline devices that
 // keep it for their next connection (notifyring.go), and the ln-mode reason the push was held ("" when it was not).
 // None of these is a delivery receipt.
@@ -60,11 +58,11 @@ func (o pushOutcome) reason() string {
 	return "no_device"
 }
 
-// notifyDoneUnder is notifyDone with the push's apns-collapse-id ("": one of its own) and the recording it is about
-// ("": none; assistantwire.Notification.RecordingID), which the push and the notify carry as `recording_id`. It returns
+// notifyDoneUnder is notifyDone with the recording the push is about
+// ("": none; assistantwire.Notification.RecordingID), which the notify carries as `recording_id`. It returns
 // where the push went, with the ln-mode reason it was held, so the assistant can tell the model whether a notify_user
 // notice reached a device, the briefing or nothing.
-func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants, collapseID, recordingID string, policy pushPolicy) pushOutcome {
+func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants, recordingID string, policy pushPolicy) pushOutcome {
 	build := func(l i18n.Lang) map[string]any {
 		p := donePayloadIn(l, machineID, machine, sessionID, title, text)
 		if recordingID != "" {
@@ -76,30 +74,12 @@ func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title,
 		h.emitToExtensions(owner, "agent.finished", map[string]any{"machine_id": machineID, "machine": machine, "session_id": sessionID, "title": title})
 	}
 	policy.manager, policy.title, policy.body = owner, title, text
-	pushSelected, pushReachable, heldReason := h.push.sendFromPolicy(owner, policy, build, collapseID, wants.fn(), wants.quiet(), nil, nil)
+	heldReason := h.push.grade(owner, policy, build)
 	var ws wsReach
 	if heldReason == "" {
 		ws = h.notifyWSFrom(owner, kind, build, wants.fn(), wants.quiet())
 	}
-	return pushOutcome{devices: pushSelected + ws.selected, reachable: pushReachable + ws.reachable, kept: ws.kept, held: heldReason}
-}
-
-// managerPushCollapseID is the apns-collapse-id of manager's push with notification id (assistantwire.Notification.ID;
-// "" without one): the same push asked for again once the hub no longer remembers handing it over (handedOverFor)
-// takes the place of the one the phone shows instead of adding a second. A hash of the manager and the id, so it
-// replaces only that manager's push of that id: never a card's, a decision's (td_), a notify API alert, an extension's
-// push or the hub's own.
-func managerPushCollapseID(manager, id string) string {
-	if id == "" {
-		return ""
-	}
-	manager = cmp.Or(manager, assistantwire.AssistantID)
-	sum := sha256.New()
-	sum.Write([]byte("push\x00"))
-	sum.Write(binary.AppendUvarint(nil, uint64(len(manager))))
-	sum.Write([]byte(manager))
-	sum.Write([]byte(id))
-	return "push:" + hex.EncodeToString(sum.Sum(nil)[:16])
+	return pushOutcome{devices: ws.selected, reachable: ws.reachable, kept: ws.kept, held: heldReason}
 }
 
 // notifyReply reminds the devices that take "needs you" pushes of an agent still waiting on the user's answer (#5096).
@@ -118,7 +98,7 @@ func (h *Hub) notifyReplyKeyed(owner, machineID, machine, sessionID, title, text
 	build := func(l i18n.Lang) map[string]any { return donePayloadIn(l, machineID, machine, sessionID, title, text) }
 	wants := pushWants{Kind: "input"}
 	policy := pushPolicy{level: assistantwire.LevelP0, relatedKey: replyKey(sessionID, text, key), title: title, body: text}
-	if _, _, heldReason := h.push.sendFromPolicy(owner, policy, build, "", wants.fn(), wants.quiet(), nil, nil); heldReason == "" {
+	if heldReason := h.push.grade(owner, policy, build); heldReason == "" {
 		h.notifyWSFrom(owner, "reply", build, wants.fn(), wants.quiet())
 	}
 }
@@ -144,11 +124,10 @@ func (h *Hub) notifyDecide(owner, machineID, machine, sessionID, title, text str
 		return decidePayloadIn(owner, machineID, machine, sessionID, title, text, todo)
 	}
 	wants := pushWants{Kind: "input"}
-	sum := sha256.Sum256([]byte("todo_decide\x00" + todo.ID))
 	// One key a round: the same decision does not ring twice in 12 hours, but a new round of it (asked again) does.
 	policy := pushPolicy{level: assistantwire.LevelP0, relatedKey: "todo:" + todo.ID + "@" + todo.AskedAt.UTC().Format(time.RFC3339Nano),
 		title: title, body: text}
-	if _, _, heldReason := h.push.sendFromPolicy(owner, policy, build, "td_"+hex.EncodeToString(sum[:12]), wants.fn(), wants.quiet(), nil, nil); heldReason == "" {
+	if heldReason := h.push.grade(owner, policy, build); heldReason == "" {
 		h.notifyWSFrom(owner, "assistant", build, wants.fn(), wants.quiet())
 	}
 }
@@ -182,19 +161,18 @@ func (h *Hub) notifyInteractionAt(owner string, ix proto.Interaction, machine st
 	}
 	wants := pushWants{Kind: "input"}
 	if ix.Kind == proto.IxElicitation {
-		// Only what can show an MCP form or link: the phones that registered for one (#2433; a tap opens the card,
-		// the push has no buttons) and the connections that declared it.
+		// Only what can show an MCP form or link: the connections that declared it.
 		policy := pushPolicy{level: level, relatedKey: key, title: summary}
-		if heldReason := h.push.sendCard(owner, policy, build, ix.ID, wants.fn(), wants.quiet(), takesElicitation); heldReason == "" {
+		if heldReason := h.push.grade(owner, policy, build); heldReason == "" {
 			h.notifyWSFrom(owner, "interaction", build, wants.fn(), wants.quiet(), "elicitation")
 		}
 	} else {
 		// A card owner's Persona Link summary rings for: "Phone Muted" holds it back while one of owner's Persona Link
 		// desktops is there too (desktops.go); which cards those are is owner's to say. The desktop app's online check
-		// follows in sendCard and notifyWSFrom.
+		// follows in notifyWSFrom.
 		fn := alertWanted(wants.fn(), linkCovered && h.linkDesktopOnline(owner))
 		policy := pushPolicy{level: level, relatedKey: key, title: summary}
-		if heldReason := h.push.sendCard(owner, policy, build, ix.ID, fn, wants.quiet(), nil); heldReason == "" {
+		if heldReason := h.push.grade(owner, policy, build); heldReason == "" {
 			h.notifyWSFrom(owner, "interaction", build, fn, wants.quiet())
 		}
 	}

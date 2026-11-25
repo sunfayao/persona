@@ -23,7 +23,7 @@ import (
 // the delivered pushes back (loadSent) on that clock.
 func sentPusher(t *testing.T, store *gradingStore, now time.Time) *Pusher {
 	t.Helper()
-	p := newPusher(t.TempDir(), nil, t.Logf)
+	p := newPusher(nil, t.Logf)
 	p.now = func() time.Time { return now }
 	if store != nil {
 		p.store = store
@@ -300,7 +300,7 @@ func TestPushSentRetryAfterLandedWriteOnPostgres(t *testing.T) {
 		}
 		return out
 	}
-	p := newPusher(t.TempDir(), nil, t.Logf)
+	p := newPusher(nil, t.Logf)
 	p.now = func() time.Time { return now }
 	p.store = store
 	p.loadSent()

@@ -189,7 +189,7 @@ func TestSendReceiptValidatesAnswerOnlyBeforeCachedRetry(t *testing.T) {
 	c := sendSubscriber(h, "box", "missing")
 	r := httptest.NewRequest(http.MethodPost, sendPath, strings.NewReader(body))
 	r.SetPathValue("sid", "missing")
-	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleAnswer}))
+	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
 	w := httptest.NewRecorder()
 	h.sendMessage(w, r, h.byID["box"])
 	if w.Code != http.StatusNotFound || broadcasts(c, "message_send_state") != 0 {

@@ -178,9 +178,7 @@ type Service struct {
 	// (backgroundSignedOut).
 	born  time.Time
 	pubMu sync.Mutex
-	// urgentWake wakes urgentLoop (urgent_call_loop.go): a call rang.
-	urgentWake chan struct{}
-	seq        uint64
+	seq   uint64
 
 	startingAssistants assistantStarts // machine_privacy.go
 
@@ -191,7 +189,6 @@ type Service struct {
 	interrupts interruptBook
 
 	titles           titleBook             // titles.go
-	phoneKept        keptPhoneTools        // fleet_tools.go: the phone's tools as the hub last listed them
 	agentNames       agentNamingBook       // agent_naming.go
 	runFloors        runFloorBook          // models_run.go: how fast a launcher's runs can be
 	prefs            settingsBook          // profile.go
@@ -363,7 +360,7 @@ var _ Handler = (*Service)(nil)
 // New makes the assistant; nothing runs until the hub calls it.
 func New(o Options) *Service {
 	s := &Service{hub: o.Hub, store: o.Store, logf: o.Logf, mux: http.NewServeMux(), epoch: randomHex(8), tasks: newTasksState(), born: time.Now(),
-		devs: o.Devices, trustSrc: o.Trust, agentDirs: o.AgentDirs, id: o.ID, build: o.Build, repositoryConfig: o.RepositoryConfig, urgentWake: make(chan struct{}, 1),
+		devs: o.Devices, trustSrc: o.Trust, agentDirs: o.AgentDirs, id: o.ID, build: o.Build, repositoryConfig: o.RepositoryConfig,
 		a2aWake: make(chan struct{}, 1), a2aLogicalWrites: make(chan struct{}, 4)}
 	s.inbox.lang = func() i18n.Lang { return s.lang(context.Background()) }
 	s.remoteImages = remoteimage.New(remoteimage.Options{CacheDir: o.RemoteImageCache, Logf: o.Logf, DoH: s.remoteImageDoH})
@@ -393,7 +390,6 @@ func New(o Options) *Service {
 	s.standingAuthorizationRoutes()
 	s.ruleSuggestionRoutes()
 	s.northStarRoutes()
-	s.urgentCallRoutes() // urgent_call.go
 	s.reporterRoutes()
 	s.directionRoutes()
 	s.directionOutsideRoutes()
@@ -788,22 +784,13 @@ func (s *Service) session(ctx context.Context, machine, id string) (proto.Sessio
 
 // devices are the user's machines.
 func (s *Service) devices(ctx context.Context) []Device {
-	devices, _, _ := s.devicesAndPhone(ctx)
-	return devices
-}
-
-// devicesAndPhone are the user's machines, whether the phone's app is connected (phone_* tools work now) and the
-// Persona apps' versions as they last said (client_apps.go).
-func (s *Service) devicesAndPhone(ctx context.Context) ([]Device, bool, []ClientApp) {
 	var res struct {
-		Devices     []Device    `json:"devices"`
-		PhoneOnline bool        `json:"phone_online"`
-		Apps        []ClientApp `json:"apps"`
+		Devices []Device `json:"devices"`
 	}
 	if err := s.call(ctx, DeviceAll, DeviceDevicesList, map[string]any{}, &res); err != nil {
 		s.logf("assistant: devices: %v", err)
 	}
-	return res.Devices, res.PhoneOnline, res.Apps
+	return res.Devices
 }
 
 // device is the machine by id; false when the hub has none.

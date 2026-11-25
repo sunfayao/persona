@@ -13,7 +13,7 @@ import (
 )
 
 func TestClientHelloMetadata(t *testing.T) {
-	c := &client{out: make(chan []byte, 16), device: "credential", role: roleAnswer}
+	c := &client{out: make(chan []byte, 16), device: "credential", role: roleRetiredAnswer}
 	h := &Hub{}
 	if c.has("app_ping") || c.meta.Platform != "" {
 		t.Fatal("legacy clients must not declare new capabilities")
@@ -23,7 +23,7 @@ func TestClientHelloMetadata(t *testing.T) {
 		string(c.meta.Build) != "42" || c.meta.OS.Name != "Android" || c.meta.OS.Version != "16" || c.meta.OS.SDK != 36 {
 		t.Fatalf("metadata: %+v", c.meta)
 	}
-	if !c.has("app_ping") || !c.has("example_feature") || c.has("missing") || c.device != "credential" || c.role != roleAnswer {
+	if !c.has("app_ping") || !c.has("example_feature") || c.has("missing") || c.device != "credential" || c.role != roleRetiredAnswer {
 		t.Fatal("capabilities or credential changed unexpectedly")
 	}
 	checkHelloAck(t, <-c.out, c.meta.heartbeat)

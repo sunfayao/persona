@@ -202,7 +202,7 @@ func TestAgentSessionArchivesExtensionAndRoleBoundary(t *testing.T) {
 	if len(archiveHTTPCalls(t, a)) != 0 || len(archiveHTTPCalls(t, b)) != before {
 		t.Fatal("forbidden extension request reached a manager")
 	}
-	for _, role := range []string{roleAnswer, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleLink} {
 		p := principal{Role: role}
 		for _, action := range []string{"archive", "unarchive"} {
 			if allowed(p, http.MethodPost, "/api/v1/sessions/mb/same/"+action) {
@@ -210,7 +210,7 @@ func TestAgentSessionArchivesExtensionAndRoleBoundary(t *testing.T) {
 			}
 		}
 	}
-	if !allowed(principal{Role: roleAnswer}, http.MethodGet, "/api/v1/sessions/archived") {
+	if !allowed(principal{Role: roleRetiredAnswer}, http.MethodGet, "/api/v1/sessions/archived") {
 		t.Fatal("answer-only role cannot read archives")
 	}
 }

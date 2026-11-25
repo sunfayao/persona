@@ -90,11 +90,10 @@ func (m *handoffRecorded) forget(key string) {
 
 // Why a request may not approve a hand-off card (the record's reason).
 const (
-	handoffAnswerOnly = "answer_only" // the watch
-	handoffExtension  = "extension"   // an extension's token
-	handoffHubToken   = "hub_token"   // the hub's own token: no device
-	handoffRole       = "role"        // any other credential that is not a full device's
-	handoffClient     = "client"      // a full device whose client did not declare featureSecretHandoff
+	handoffExtension = "extension" // an extension's token
+	handoffHubToken  = "hub_token" // the hub's own token: no device
+	handoffRole      = "role"      // any other credential that is not a full device's
+	handoffClient    = "client"    // a full device whose client did not declare featureSecretHandoff
 )
 
 type handoffApproverKey struct{}
@@ -135,8 +134,6 @@ func humanStartOf(ctx context.Context) bool {
 func (h *Hub) handoffApprover(r *http.Request) (assistantwire.HandoffApprover, string) {
 	p := principalOf(r.Context())
 	switch {
-	case p.Role == roleAnswer:
-		return assistantwire.HandoffApprover{}, handoffAnswerOnly
 	case p.Role == roleExtension:
 		return assistantwire.HandoffApprover{}, handoffExtension
 	case p.Role != roleFull:

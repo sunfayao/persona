@@ -367,7 +367,6 @@ func (h *Hub) broadcastSessions(m *Machine, list []proto.Session) {
 			h.sessionsSent = map[string][]sentSession{}
 		}
 		h.sessionsSent[m.cfg.ID] = enc
-		h.live.changed() // what the Fleet activity is made of
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()

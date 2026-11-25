@@ -1,12 +1,7 @@
 package hub
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
 	"net/http"
-
-	"github.com/nwverse/persona/server/internal/i18n"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
@@ -41,9 +36,6 @@ func (h *Hub) inboxRoutesRelayed(api *http.ServeMux) {
 				h.forwardSend(w, r, managerOfContext(r))
 			})
 			api.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-				if answerOnly(r) && !answerMayReply(w, r) {
-					return
-				}
 				id, ok := h.owner(w, r, h.byRequest)
 				if !ok {
 					return
@@ -96,27 +88,4 @@ func (h *Hub) inboxRoutesRelayed(api *http.ServeMux) {
 		}
 		api.HandleFunc(pattern, relay)
 	}
-}
-
-// answerMayReply holds an answer-only device (the watch) to replying with text, here at the hub as before the inbox
-// moved (the manager checks it too): no documents' status moves, no "/agent …" (posted as the user it would start an
-// agent). False when it answered 403.
-func answerMayReply(w http.ResponseWriter, r *http.Request) bool {
-	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
-	_ = r.Body.Close()
-	if err != nil {
-		writeBodyErr(w, err, err)
-		return false
-	}
-	r.Body = io.NopCloser(bytes.NewReader(raw))
-	var in struct {
-		Text    string            `json:"text"`
-		Changes []json.RawMessage `json:"changes"`
-	}
-	_ = json.Unmarshal(raw, &in)
-	if len(in.Changes) > 0 || assistantwire.AsksAgent(in.Text) {
-		writeErr(w, http.StatusForbidden, i18n.ErrEnglish("inbox-errors.reply_text_only"))
-		return false
-	}
-	return true
 }

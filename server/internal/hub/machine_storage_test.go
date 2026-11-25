@@ -37,7 +37,7 @@ func callStorageRoute(h *Hub, role, method, path, body string) *httptest.Respons
 func TestMachineStorageRoutesNeedFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		for _, tc := range [][3]string{
 			{http.MethodGet, "storage", ""},
 			{http.MethodGet, "storage/hotspots", ""},
@@ -167,7 +167,7 @@ func TestMachineStorageRoutesAreFullCredentialsOnly(t *testing.T) {
 		{http.MethodPost, "storage/cleanup"},
 	} {
 		url := "/api/v1/machines/m1/" + tc[1]
-		for _, p := range []principal{{ID: "dev_watch", Role: roleAnswer}, {ID: "dev_link", Role: roleLink}} {
+		for _, p := range []principal{{ID: "dev_watch", Role: roleRetiredAnswer}, {ID: "dev_link", Role: roleLink}} {
 			if allowed(p, tc[0], url) {
 				t.Errorf("%s may %s %s", p.Role, tc[0], url)
 			}

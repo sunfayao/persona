@@ -23,7 +23,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/extwire"
 	"github.com/nwverse/persona/server/internal/i18n"
@@ -88,12 +87,9 @@ func (h *Hub) routes() http.Handler {
 	})
 	api.HandleFunc("GET /api/v1/ops/{id}", h.getClientOp)
 	h.fleetRoutesRelayed(api) // resolve, history, seen: the manager's (fleet_link.go)
-	h.phoneWriteRoutes(api)
-	h.phonePrimaryRoutes(api)
 	h.deviceRoutes(api)
 	h.pushRoutes(api)
 	h.webPushRoutes(api)
-	h.live.routes(api)
 	h.metricsRoutesRelayed(api) // the monitoring is the manager's (devices_routes.go)
 	h.lockTestRoutes(api)
 	h.assistantRoutes(api)
@@ -119,7 +115,6 @@ func (h *Hub) routes() http.Handler {
 	h.publicRoutes(api)
 	h.androidAppRoutes(api)
 	h.peerRoutes(api)
-	h.runtimeCLIRoutes(api)
 	// What the center serves: its own apps' requests and those the members pass on (peer_http.go), whose source the
 	// member judged (no gate here for them). A member passes everything but its own few routes on (memberForward).
 	centerAPI := h.centerSharing(h.auth(h.quiesceGate(h.extensionAPIs(jsonRouteErrors(api), api))))
@@ -1289,25 +1284,19 @@ func startBudgetForLauncher(async bool, launcher string) time.Duration {
 type client struct {
 	canonicalContracts atomic.Bool
 	cancel             context.CancelFunc
-	done               <-chan struct{} // the phone connection ended; pending writes become uncertain
+	done               <-chan struct{} // the connection ended
 	stopping           atomic.Bool
 	dropped            atomic.Bool // closed for falling behind (dropSlow): the close runs once, not once per send that finds it full
 
-	hub            *Hub
-	conn           *websocket.Conn
-	out            chan []byte
-	mu             sync.Mutex
-	traffic        trafficAttribution // inferred once from the upgrade; hello may refine platform
-	subs           map[[2]string]bool
-	fsw            map[[3]string]fsWatchReq // {machine id, cwd, asked id} -> the folders this browser has open there (fswatch.go)
-	phone          bool
-	phoneID        string
-	phoneToolNames map[string]bool
-	activeAt       time.Time
-	sim            bool // a simulator registered as phone: only used when no real iPhone is connected
-	// runtimeCLI: the phone's DEBUG app offers its runtime CLI (runtime_cli.go); never one of the phone's tools.
-	runtimeCLI bool
-	// desktop: a desktop app (the Mac app, register_desktop); never the phone (desktops.go).
+	hub      *Hub
+	conn     *websocket.Conn
+	out      chan []byte
+	mu       sync.Mutex
+	traffic  trafficAttribution // inferred once from the upgrade; hello may refine platform
+	subs     map[[2]string]bool
+	fsw      map[[3]string]fsWatchReq // {machine id, cwd, asked id} -> the folders this browser has open there (fswatch.go)
+	activeAt time.Time
+	// desktop: a desktop app (register_desktop, desktops.go).
 	desktop bool
 	// device and role: whose credential opened the connection (devicetokens.go); device is empty for the pairing token.
 	device, role string
@@ -1366,10 +1355,6 @@ func (h *Hub) broadcastRaw(typ string, b []byte) { h.broadcastTo(typ, b, false) 
 // broadcastTo sends every app the message b (of type typ); an MCP form or URL request (elicitation) only goes to the
 // apps that said they can answer one.
 func (h *Hub) broadcastTo(typ string, b []byte, elicitation bool) {
-	switch typ {
-	case "sessions", "interaction", "interaction_resolved": // what the Fleet activity is made of
-		h.live.changed()
-	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.deletedConversationEventLocked(typ, b) {
@@ -1518,24 +1503,6 @@ func (h *Hub) itemsToSubscribers(machineID, sessionID string, items []proto.Item
 	}
 }
 
-// phoneClient is the connected phone that takes tool (none given: any): only connected providers of it are eligible.
-// The primary device the owner chose goes first while it is connected and offers the tool (phone_primary.go); then
-// real devices before simulators, then the one active last.
-func (h *Hub) phoneClient(tool ...string) *client {
-	name := ""
-	if len(tool) > 0 {
-		name = tool[0]
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if primary, offers := h.primaryPhoneLocked(name); offers {
-		if c := h.phoneClientLocked(name, primary); c != nil {
-			return c
-		}
-	}
-	return h.phoneClientLocked(name, "")
-}
-
 func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	if h.wsStopping {
@@ -1673,22 +1640,16 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 
 func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 	var msg struct {
-		Type       string          `json:"type"`
-		MachineID  string          `json:"machine_id"`
-		SessionID  string          `json:"session_id"`
-		SinceSeq   int             `json:"since_seq"`
-		LazyImages bool            `json:"lazy_images"`
-		FoldWork   bool            `json:"fold_work"`
-		DeviceName string          `json:"device_name"`
-		DeviceID   string          `json:"device_id"` // register_phone / register_desktop: the app's id for pushes
-		Platform   string          `json:"platform"`
-		Simulator  bool            `json:"simulator"`
-		Tools      []proto.Tool    `json:"tools"`
-		CallID     string          `json:"call_id"`
-		Content    []proto.Content `json:"content"`
-		IsError    bool            `json:"is_error"`
-		Epoch      string          `json:"epoch"`
-		AfterSeq   int             `json:"after_seq"`
+		Type       string `json:"type"`
+		MachineID  string `json:"machine_id"`
+		SessionID  string `json:"session_id"`
+		SinceSeq   int    `json:"since_seq"`
+		LazyImages bool   `json:"lazy_images"`
+		FoldWork   bool   `json:"fold_work"`
+		DeviceName string `json:"device_name"`
+		DeviceID   string `json:"device_id"` // register_phone / register_desktop: the app's id for pushes
+		Epoch      string `json:"epoch"`
+		AfterSeq   int    `json:"after_seq"`
 		// terminal_subscribe, terminal_input: the grid the app drives the terminal at (docs/integrations/terminal.md)
 		Control  *termCtl `json:"control"`
 		Takeover bool     `json:"takeover"`
@@ -1816,46 +1777,6 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 			m.watcherLeft(msg.SessionID)
 			go m.syncUnwatch(msg.SessionID)
 		}
-	case "register_phone":
-		if c.role != roleFull { // runs tools on behalf of claude: not for an answer-only device
-			return
-		}
-		tools, cli := splitRuntimeCLI(msg.Tools)
-		if cli && len(tools) == 0 {
-			// Only the runtime CLI: a simulator driven by a script (docs/operations/runtime-cli.md "Reaching a real device through the hub"). Not the
-			// phone: it takes no phone_* call and changes nothing about pushes.
-			h.mu.Lock()
-			c.runtimeCLI, c.sim, c.name, c.since = true, msg.Simulator, msg.DeviceName, time.Now()
-			h.mu.Unlock()
-			h.noteClientAppSimulator(c, msg.Simulator)
-			return
-		}
-		deviceID := msg.DeviceID
-		if deviceID == "" {
-			deviceID = c.device
-		}
-		if deviceID == "" {
-			deviceID = "legacy"
-		}
-		h.mu.Lock()
-		c.phone, c.sim, c.name, c.since, c.pushDevice = true, msg.Simulator, msg.DeviceName, time.Now(), msg.DeviceID
-		c.runtimeCLI = cli
-		c.phoneID = deviceID
-		c.phoneToolNames = map[string]bool{}
-		for _, tool := range tools {
-			c.phoneToolNames[tool.Name] = true
-		}
-		h.mu.Unlock()
-		h.noteClientAppSimulator(c, msg.Simulator)
-		if strings.HasPrefix(c.device, "pair_") {
-			// A pairing token is traded for a device token within seconds and the phone registers again under it:
-			// calls still reach this connection, but nothing is saved under a credential about to disappear.
-			return
-		}
-		// Its app reaches the hub: what the hub push-starts there is answered again (#7641). Off the read loop, as the
-		// tools' write. By its push id, which starts are claimed under; not deviceID above, which falls back to the credential.
-		h.live.phoneConnectedLater(msg.DeviceID, c.device)
-		h.setPhoneTools(db.PhoneToolRegistration{DeviceID: deviceID, Platform: msg.Platform, CredentialID: c.device, Tools: tools})
 	case "register_desktop":
 		h.registerDesktop(c, msg.DeviceName, msg.DeviceID)
 	case "unregister_desktop":
@@ -1864,11 +1785,6 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 		if m := h.localMachine(msg.MachineID); m != nil && msg.SessionID != "" {
 			h.markSeen(m.cfg.ID, msg.SessionID)
 		}
-	case "tool_result":
-		if c.role != roleFull {
-			return
-		}
-		h.toolResult(msg.CallID, proto.ToolResult{Content: msg.Content, IsError: msg.IsError})
 	}
 }
 

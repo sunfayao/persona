@@ -94,7 +94,7 @@ func (h *Hub) meshLocalCall(ctx context.Context, from, method string, params jso
 		}
 		var keep []db.ExportedToken
 		for _, t := range p.Tokens {
-			if len(t.Hash) == 64 && (t.Role == roleFull || t.Role == roleAnswer) && t.ID != "" {
+			if len(t.Hash) == 64 && t.Role == roleFull && t.ID != "" {
 				t.MachineID = ""
 				keep = append(keep, t)
 			}
@@ -121,7 +121,7 @@ func (h *Hub) meshLocalCall(ctx context.Context, from, method string, params jso
 		}
 		var keep []db.ExportedToken
 		for _, t := range p.Tokens {
-			if len(t.Hash) == 64 && (t.Role == roleFull || t.Role == roleAnswer) && t.ID != "" {
+			if len(t.Hash) == 64 && t.Role == roleFull && t.ID != "" {
 				keep = append(keep, t)
 			}
 		}

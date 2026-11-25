@@ -165,7 +165,7 @@ func (w *trafficWriter) FlushError() error {
 // are counted; queries, literal paths, headers, request/response bodies and names
 // never enter the key. body_bytes is before outer gzip, not bytes on the wire.
 func (h *Hub) observeClientRequest(next http.Handler, w http.ResponseWriter, r *http.Request, p principal) {
-	if p.ID == "" || (p.Role != roleFull && p.Role != roleAnswer) {
+	if p.ID == "" || p.Role != roleFull {
 		next.ServeHTTP(w, r)
 		return
 	}

@@ -138,7 +138,7 @@ func (h *Hub) replayNotifyRing(c *client) {
 }
 
 // ringNotify keeps a notify event for remembered devices with no accepting ws_notify socket (live), the required
-// capability and no push route, whose settings take it (wantsOn, the same decision a socket gets). msgIn
+// capability, whose settings take it (wantsOn, the same decision a socket gets). msgIn
 // is the event in a language, encoded the event quiet or not. Called under h.mu by notifyWSFrom. It returns how many
 // devices kept it.
 func (h *Hub) ringNotify(live map[string]bool, required []string, wantsOn func(device string) (ok, quiet bool),
@@ -149,7 +149,7 @@ func (h *Hub) ringNotify(live map[string]bool, required []string, wantsOn func(d
 	}
 	now := r.clock()
 	for device, d := range r.devices {
-		if live[device] || len(required) > 0 && !d.features[required[0]] || h.push.routed(device) {
+		if live[device] || len(required) > 0 && !d.features[required[0]] {
 			continue
 		}
 		ok, quiet := wantsOn(device)

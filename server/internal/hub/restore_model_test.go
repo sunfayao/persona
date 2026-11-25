@@ -73,12 +73,12 @@ func (rn *restoreNode) calls() ([]string, []string) {
 // node hears of it, and the route is full-credentials-only in the extension scopes.
 func TestRestoreModelNeedsAFullDevice(t *testing.T) {
 	rn := newRestoreNode(t)
-	for _, role := range []string{roleAnswer, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension} {
 		if w := rn.post(role, "s1", ``); w.Code != http.StatusForbidden {
 			t.Errorf("%s was let through: %d", role, w.Code)
 		}
 	}
-	if allowed(principal{ID: "dev", Role: roleAnswer}, http.MethodPost, "/api/v1/sessions/m1/s1/restore-model") {
+	if allowed(principal{ID: "dev", Role: roleRetiredAnswer}, http.MethodPost, "/api/v1/sessions/m1/s1/restore-model") {
 		t.Error("an answer-only device may POST the route")
 	}
 	if allowed(principal{ID: "dev_link", Role: roleLink}, http.MethodPost, "/api/v1/sessions/m1/s1/restore-model") {

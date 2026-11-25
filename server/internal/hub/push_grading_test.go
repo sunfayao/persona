@@ -2,9 +2,6 @@ package hub
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,10 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apns"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
 )
 
 // gradingStore is the in-memory settings store plus the device-table methods newPusher and setPrefs touch, and the
@@ -129,9 +124,6 @@ func (s *gradingStore) sentTable() []db.PushSent {
 	return slices.Clone(s.sentRows)
 }
 
-func (s *gradingStore) ReconcilePushDevices(context.Context, time.Time, time.Duration) (ret []db.PushDeviceRetirement, err error) {
-	return nil, nil
-}
 func (s *gradingStore) Devices(context.Context) ([]db.Device, error)  { return nil, nil }
 func (s *gradingStore) UpsertDevice(context.Context, db.Device) error { return nil }
 func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawMessage) error {
@@ -149,28 +141,20 @@ func (s *stuckPrefsStore) Setting(context.Context, string, any) (bool, error) {
 }
 func (s *stuckPrefsStore) PutSetting(context.Context, string, any) error { return nil }
 
-// gradingHub is a pusher with one directly-pushed device and an in-memory settings store, so the ln mode switch and the
-// held-push list persist like hub_settings. The pusher is built with no store (device registration needs no
-// database in tests); the settings store is attached before the ln-mode state loads.
-func gradingHub(t *testing.T) (*Hub, *fakeAPNs) {
+// gradingHub is a pusher with one device and an in-memory settings store, so the ln mode switch and the held-push list
+// persist like hub_settings. The pusher is built with no store; the settings store is attached before the ln-mode state
+// loads.
+func gradingHub(t *testing.T) *Hub {
 	t.Helper()
-	f := &fakeAPNs{gone: map[string]bool{}}
-	srv := httptest.NewServer(f)
-	t.Cleanup(srv.Close)
 	store := newGradingStore()
-	p := newPusher(t.TempDir(), nil, t.Logf)
-	t.Cleanup(p.sends.Wait) // before srv.Close (cleanups run last first): a post still on its way logs to this test
+	p := newPusher(nil, t.Logf)
 	p.store = store
-	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	p.direct = apns.NewWithKey(apnsConfig{KeyID: "K", TeamID: "T", Topic: "app.example"}, key)
-	p.direct.Base = srv.URL
-	p.register(Device{DeviceID: "phone", Name: "phone", APNSToken: "tok-phone", Topic: "app.example"})
 	if err := p.setPrefs("phone", NotifyPrefs{Input: true, Done: DoneAlways}); err != nil {
 		t.Fatal(err)
 	}
 	h := &Hub{push: p}
 	setGradingClock(h, time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC))
-	return h, f
+	return h
 }
 
 // setGradingClock points the pusher's clock at a fixed time behind an atomic: the background refresh reads it while the
@@ -190,15 +174,16 @@ func moveGradingClock(h *Hub, at time.Time) {
 	c.(*atomic.Int64).Store(at.UnixNano())
 }
 
-// gradingAttempts counts APNs alert attempts (Live Activity pushes use a different type).
-func gradingAttempts(h *Hub) *int {
-	n := 0
-	h.push.traffic = func(key trafficKey, _ int64, _ time.Duration) {
-		if key.route == "apns" && key.action == "attempt" {
-			n++
-		}
+// gradingAttempts counts the pushes the grading let through since it was called: the delivered-push record's growth.
+func gradingAttempts(h *Hub) func() int {
+	h.push.gradingMu.Lock()
+	base := len(h.push.sent)
+	h.push.gradingMu.Unlock()
+	return func() int {
+		h.push.gradingMu.Lock()
+		defer h.push.gradingMu.Unlock()
+		return len(h.push.sent) - base
 	}
-	return &n
 }
 
 func gradingNotification(level, key, title string) assistantwire.Notification {
@@ -210,18 +195,15 @@ func gradingNotification(level, key, title string) assistantwire.Notification {
 
 // With the switch off every push goes out, whatever level it carries: existing behavior is unchanged.
 func TestPushGradingOffPushesEverything(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	attempts := gradingAttempts(h)
 	for _, level := range []string{assistantwire.LevelP0, assistantwire.LevelP1, assistantwire.LevelP2} {
 		if err := h.deliverPush(gradingNotification(level, "key-"+level, "card "+level)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if *attempts != 3 {
-		t.Fatalf("got %d pushes with ln mode off, want 3", *attempts)
-	}
-	if calls := len(f.calls(t, 3)); calls != 3 {
-		t.Fatalf("APNs got %d calls, want 3", calls)
+	if attempts() != 3 {
+		t.Fatalf("got %d pushes with ln mode off, want 3", attempts())
 	}
 	if got := h.push.heldPushesView("", 0); len(got) != 0 {
 		t.Fatalf("nothing may be intercepted with the switch off, got %d", len(got))
@@ -231,7 +213,7 @@ func TestPushGradingOffPushesEverything(t *testing.T) {
 // P0 always interrupts: the 12-hour check runs after the level, so no earlier push with the same key swallows what the
 // owner must do or decide themself. Its key then keeps a lower-level push about the same thing quiet.
 func TestQuietP0IsNeverSwallowedByTheSameKey(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -242,11 +224,8 @@ func TestQuietP0IsNeverSwallowedByTheSameKey(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if *attempts != 3 {
-		t.Fatalf("got %d pushes for three P0 pushes with one key, want 3", *attempts)
-	}
-	if calls := len(f.calls(t, 3)); calls != 3 {
-		t.Fatalf("APNs got %d calls, want 3", calls)
+	if attempts() != 3 {
+		t.Fatalf("got %d pushes for three P0 pushes with one key, want 3", attempts())
 	}
 	if view := h.push.heldPushesView("", 0); len(view) != 0 {
 		t.Fatalf("P0 pushes were held: %+v", view)
@@ -255,14 +234,14 @@ func TestQuietP0IsNeverSwallowedByTheSameKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	view := h.push.heldPushesView("", 0)
-	if *attempts != 3 || len(view) != 1 || view[0].Reason != interceptReasonDedup || view[0].RelatedKey != pr {
-		t.Fatalf("after the P0: %d pushes, intercepts %+v; want the P2 held as a repeat", *attempts, view)
+	if attempts() != 3 || len(view) != 1 || view[0].Reason != interceptReasonDedup || view[0].RelatedKey != pr {
+		t.Fatalf("after the P0: %d pushes, intercepts %+v; want the P2 held as a repeat", attempts(), view)
 	}
 }
 
 // After the 12-hour window the same key may push again.
 func TestPushGradingDedupWindowExpires(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -276,15 +255,14 @@ func TestPushGradingDedupWindowExpires(t *testing.T) {
 	if err := h.deliverPush(gradingNotification(assistantwire.LevelP0, key, "second")); err != nil {
 		t.Fatal(err)
 	}
-	if *attempts != 2 {
-		t.Fatalf("got %d pushes across the 12-hour window, want 2", *attempts)
+	if attempts() != 2 {
+		t.Fatalf("got %d pushes across the 12-hour window, want 2", attempts())
 	}
-	f.calls(t, 2) // let both APNs goroutines finish before the fake server closes
 }
 
 // P2 never alerts in ln mode; it is recorded as a silent intercept instead.
 func TestPushGradingP2IsSilentAndRecorded(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -292,11 +270,8 @@ func TestPushGradingP2IsSilentAndRecorded(t *testing.T) {
 	if err := h.deliverPush(gradingNotification(assistantwire.LevelP2, "subject-1", "background news")); err != nil {
 		t.Fatal(err)
 	}
-	if *attempts != 0 {
-		t.Fatalf("a P2 push alerted %d times in ln mode, want 0", *attempts)
-	}
-	if calls := len(f.calls(t, 0)); calls != 0 {
-		t.Fatalf("APNs got %d calls for a P2 push, want 0", calls)
+	if attempts() != 0 {
+		t.Fatalf("a P2 push alerted %d times in ln mode, want 0", attempts())
 	}
 	view := h.push.heldPushesView("", 0)
 	if len(view) != 1 || view[0].Reason != interceptReasonP2 || view[0].Level != assistantwire.LevelP2 {
@@ -306,7 +281,7 @@ func TestPushGradingP2IsSilentAndRecorded(t *testing.T) {
 
 // P1 is held for the briefing, and several P1 conclusion pushes arriving in the same minute merge into one entry.
 func TestPushGradingP1HeldAndMergedWithinMinute(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -316,8 +291,8 @@ func TestPushGradingP1HeldAndMergedWithinMinute(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if *attempts != 0 {
-		t.Fatalf("P1 alerted %d times in ln mode, want 0", *attempts)
+	if attempts() != 0 {
+		t.Fatalf("P1 alerted %d times in ln mode, want 0", attempts())
 	}
 	view := h.push.heldPushesView("", 0)
 	if len(view) != 1 {
@@ -350,7 +325,7 @@ func TestPushGradingLevelDerivedFromKind(t *testing.T) {
 
 // The switch and the held-push list live in the settings store, so a restart keeps both.
 func TestPushGradingSwitchAndInterceptsPersist(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	store := h.push.store
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
@@ -361,7 +336,7 @@ func TestPushGradingSwitchAndInterceptsPersist(t *testing.T) {
 	if !h.push.waitInterceptsSaved(2 * time.Second) {
 		t.Fatal("the held pushes were not saved")
 	}
-	restarted := newPusher(t.TempDir(), store, t.Logf)
+	restarted := newPusher(store, t.Logf)
 	if !restarted.pushGradingOn() {
 		t.Fatal("the ln mode switch did not survive a restart")
 	}
@@ -373,7 +348,7 @@ func TestPushGradingSwitchAndInterceptsPersist(t *testing.T) {
 
 // The read-only intercepts view is newest first and its JSON shape is what extensions and the nightly review read.
 func TestPushGradingInterceptsViewShape(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +376,7 @@ func TestPushGradingInterceptsViewShape(t *testing.T) {
 // GET /api/v1/push/intercepts: a full credential reads every manager's held pushes, an extension token only its own
 // manager's; PUT /api/v1/push/ln-mode is refused to an extension token.
 func TestPushGradingInterceptsHeldToManager(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	h.cfg = &Config{InterceptReaders: []string{"ext-held-reads"}}
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
@@ -444,29 +419,9 @@ func TestPushGradingInterceptsHeldToManager(t *testing.T) {
 	}
 }
 
-// Review fix: with the switch off a payload without aps (an extension's push_localized may send one) goes out as
-// before instead of panicking while the held-push text is read.
-func TestPushGradingOffPayloadWithoutAPS(t *testing.T) {
-	h, f := gradingHub(t)
-	attempts := gradingAttempts(h)
-	build := func(i18n.Lang) map[string]any { return map[string]any{"custom": "x"} }
-	h.push.sendFrom("manager-a", build, "", nil, quietNone, nil)
-	if *attempts != 1 {
-		t.Fatalf("got %d pushes, want 1", *attempts)
-	}
-	if err := h.push.setPushGrading(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	h.push.sendFrom("manager-a", build, "", nil, quietNone, nil) // P1: held, no panic
-	if *attempts != 1 || len(h.push.heldPushesView("", 0)) != 1 {
-		t.Fatalf("pushes %d, intercepts %d; want 1 and 1", *attempts, len(h.push.heldPushesView("", 0)))
-	}
-	f.calls(t, 1) // the off-mode push's APNs goroutine must finish before the fake server closes
-}
-
 // Review fix: same-minute P1 entries merge only within one manager, so one extension never reads another's titles.
 func TestPushGradingMergeStaysWithinManager(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +438,7 @@ func TestPushGradingMergeStaysWithinManager(t *testing.T) {
 
 // Three P1 conclusion notices about one PR at different times are one held entry, not three.
 func TestPushGradingSamePRP1IsOneEntry(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -503,7 +458,7 @@ func TestPushGradingSamePRP1IsOneEntry(t *testing.T) {
 
 // A decision is P0: it rings every time it is pushed, the same round's reminder too, and a new round (asked again).
 func TestPushGradingDecisionRoundsRingAgain(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -513,15 +468,14 @@ func TestPushGradingDecisionRoundsRingAgain(t *testing.T) {
 	h.notifyDecide("", "", "", "", "decide", "body", todo)
 	todo.AskedAt = todo.AskedAt.Add(time.Hour)
 	h.notifyDecide("", "", "", "", "decide again", "body", todo)
-	if *attempts != 3 {
-		t.Fatalf("got %d decision pushes, want 3 (P0 is never held as a repeat)", *attempts)
+	if attempts() != 3 {
+		t.Fatalf("got %d decision pushes, want 3 (P0 is never held as a repeat)", attempts())
 	}
-	f.calls(t, 2) // both decisions' APNs goroutines must finish before the fake server closes
 }
 
 // Concurrent pushes with one key: every P0 passes, and every lower-level one racing them is held, never alerted.
 func TestPushGradingDedupIsAtomic(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -550,7 +504,7 @@ func TestPushGradingDedupIsAtomic(t *testing.T) {
 
 // Review fix: a background refresh that read the old value before a PUT does not undo the PUT.
 func TestPushGradingStaleRefreshDoesNotUndoSet(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	p := h.push
 	p.gradingMu.Lock()
 	started := p.gradingVersion // a refresh starts and reads "off"

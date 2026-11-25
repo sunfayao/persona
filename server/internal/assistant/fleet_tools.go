@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
@@ -18,14 +16,11 @@ import (
 )
 
 // The nodes' MCP tools (mcp.tools / mcp.call): an assistant conversation's or an agent's Persona tools. The manager
-// lists and routes them: the phone's (the hub runs them on the connected phone), the connectors', Cua's and ego's
+// lists and routes them: the connectors', Cua's and ego's
 // (the extensions', in this process: ExtensionTools, internal/extmgr), and the assistant's own (here). The skills' gated commands' settings go to
 // the assistant's machine only (assistant.lark).
 
-// runtimeCLITool is the DEBUG app's own channel, for the user's scripts only: never a node's.
-const runtimeCLITool = "phone_runtime_cli"
-
-// mcpTools are the tools of an assistant conversation or an agent: the phone's, then those of the connectors that
+// mcpTools are the tools of an assistant conversation or an agent: those of the connectors that
 // are ok and give their tools to agents too (mail); for the assistant also its own, then Cua's, ego's and those of
 // the connectors only it gets (Feishu, GitHub…).
 func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
@@ -34,7 +29,7 @@ func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 	if s.ext != nil {
 		agents, assistantOnly = s.ext.AgentTools(ctx, assistant)
 	}
-	tools := append(s.phoneTools(ctx), agents...)
+	tools := agents
 	if !assistant {
 		tools = append(tools, toolsNamed(resourceToolNames)...)
 	}
@@ -48,63 +43,6 @@ func (s *Service) mcpTools(ctx context.Context, assistant bool) []proto.Tool {
 		tools = append(tools, assistantOnly...)
 	}
 	return localizedMCPTools(tools, s.toolLanguage(ctx))
-}
-
-// phoneToolTries is how many times a tool list asks the hub for the phone's tools, phoneToolRetry apart, before it
-// takes the ones the hub last listed (#6422); tests shorten the wait.
-var (
-	phoneToolTries = 3
-	phoneToolRetry = 500 * time.Millisecond
-)
-
-// keptPhoneTools is the phone's tools as the hub last listed them (ok: it has answered since the manager started).
-type keptPhoneTools struct {
-	mu    sync.Mutex
-	tools []proto.Tool
-	ok    bool
-}
-
-// phoneTools are the phone's tools for a tool list, as the hub lists them now. Tool refresh is driven by task links,
-// not phone connectivity, and older MCP clients list only once. A list made while the hub can't answer (restarting,
-// its link coming back) must not leave the model thinking the phone has no tools (#6422):
-// the hub is asked again briefly, then the list it last gave is used. A call is still the phone's to refuse (a source
-// turned off since). Only a manager the hub never answered lists none, as before.
-func (s *Service) phoneTools(ctx context.Context) []proto.Tool {
-	var err error
-	for try := 1; ; try++ {
-		var phone struct {
-			Tools []proto.Tool `json:"tools"`
-		}
-		if err = s.appCall(ctx, assistantwire.AppPhone, assistantwire.PhoneTools, map[string]any{}, &phone); err == nil {
-			k := &s.phoneKept
-			k.mu.Lock()
-			k.tools, k.ok = slices.Clone(phone.Tools), true
-			k.mu.Unlock()
-			return phone.Tools
-		}
-		if try >= phoneToolTries || ctx.Err() != nil {
-			break
-		}
-		t := time.NewTimer(phoneToolRetry)
-		select {
-		case <-ctx.Done():
-			t.Stop()
-		case <-t.C:
-		}
-		if ctx.Err() != nil {
-			break
-		}
-	}
-	k := &s.phoneKept
-	k.mu.Lock()
-	tools, ok := slices.Clone(k.tools), k.ok
-	k.mu.Unlock()
-	if !ok {
-		s.logf("mcp tools: the phone's: %v; none listed yet, so none", err)
-		return nil
-	}
-	s.logf("mcp tools: the phone's: %v; the %d the hub last listed", err, len(tools))
-	return tools
 }
 
 // sessionMCPTools are machine's conversation session's tools: a guest conversation's only its own (guest.go; the
@@ -196,7 +134,7 @@ func (s *Service) guestRefuses(ctx context.Context, machine, session, name strin
 }
 
 // mcpCall runs one: a connector's, Cua's or ego's at the hub (it says whether it is one of them), else the
-// assistant's own (for its conversations), else the phone's.
+// assistant's own (for its conversations).
 func (s *Service) mcpCall(ctx context.Context, machine, session, name string, args json.RawMessage, assistant bool) proto.ToolResult {
 	return s.mcpCallWithOrigin(ctx, machine, session, name, args, assistant, "")
 }
@@ -265,84 +203,7 @@ func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name 
 	if assistant && s.isOwnTool(ctx, name) {
 		return s.Tool(ctx, ToolCall{Name: name, Arguments: args, MachineID: machine, SessionID: session})
 	}
-	switch {
-	case name == runtimeCLITool:
-		return proto.TextResult("unknown tool "+name, true)
-	case strings.HasPrefix(name, "phone_"):
-		if name == "phone_notify" && s.justMeNow(machine, session) {
-			// A Just me turn (meeting_justme.go): a phone on the table shows its notifications to the room. As
-			// notify_user's: nothing goes out, the text stays in the conversation, which the meeting page shows.
-			return proto.TextResult(justMeNotice(s.lang(ctx)), false)
-		}
-		if name == "phone_notify" {
-			// Local phone notifications follow the same privacy rule as notify_user: what they say decides.
-			var a map[string]any
-			decodeErr := json.Unmarshal(args, &a)
-			title, _ := a["title"].(string)
-			body, _ := a["body"].(string)
-			if space, _ := s.selfSpace(ctx, session); s.exitPolicy(ctx, title+"\n"+body, session, space).Redact {
-				if decodeErr != nil {
-					return proto.TextResult(decodeErr.Error(), true)
-				}
-				if a != nil {
-					a["title"], a["body"] = s.redactedNotice(ctx, s.lang(ctx), space)
-					args, _ = json.Marshal(a)
-				}
-			}
-		}
-		var res proto.ToolResult
-		params := map[string]any{"name": name, "args": args}
-		mcpWaitParams(ctx, params)
-		if err := s.appCall(ctx, assistantwire.AppPhone, assistantwire.PhoneCall, params, &res); err != nil {
-			return proto.TextResult(err.Error(), true)
-		}
-		return phoneCreateResultWithSource(name, res)
-	}
 	return proto.TextResult("unknown tool "+name, true)
-}
-
-// phoneCreateResultWithSource carries the hub's executing-device attribution into the JSON that quick-result cards
-// parse. Payload source claims are removed before attested values are added. Failures, malformed responses and
-// unrelated tools keep their original content; legacy and queued payloads without source claims stay byte-identical.
-func phoneCreateResultWithSource(tool string, res proto.ToolResult) proto.ToolResult {
-	if tool != "phone_calendar_create_event" && tool != "phone_reminders_create" || res.IsError {
-		return res
-	}
-	sourceName := strings.TrimSpace(res.SourceDeviceName)
-	sourcePlatform := strings.TrimSpace(res.SourceDevicePlatform)
-	res.SourceDeviceName, res.SourceDevicePlatform = sourceName, sourcePlatform
-	res.Content = slices.Clone(res.Content)
-	for i, content := range res.Content {
-		var payload map[string]json.RawMessage
-		if err := json.Unmarshal([]byte(content.Text), &payload); err != nil || payload == nil {
-			continue
-		}
-		var state string
-		queued := payload["state"] != nil && json.Unmarshal(payload["state"], &state) == nil && state == "queued"
-		_, hasName := payload["source_device_name"]
-		_, hasPlatform := payload["source_device_platform"]
-		if (queued || sourceName == "" && sourcePlatform == "") && !hasName && !hasPlatform {
-			continue
-		}
-		delete(payload, "source_device_name")
-		delete(payload, "source_device_platform")
-		if !queued {
-			if sourceName != "" {
-				raw, _ := json.Marshal(sourceName)
-				payload["source_device_name"] = raw
-			}
-			if sourcePlatform != "" {
-				raw, _ := json.Marshal(sourcePlatform)
-				payload["source_device_platform"] = raw
-			}
-		}
-		text, err := json.Marshal(payload)
-		if err != nil {
-			continue
-		}
-		res.Content[i].Text = string(text)
-	}
-	return res
 }
 
 // mailAttachment answers a node's mail.attachment: the bytes of the attachment mail_save_attachment saves on that

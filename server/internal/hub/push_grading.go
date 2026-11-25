@@ -657,11 +657,7 @@ func (p *Pusher) mirrorSent(ctx context.Context) error {
 		return nil
 	}
 	if !quiesceHeld(ctx) {
-		if !p.quiesce.beginOrDefer(func() {
-			p.mu.Lock()
-			p.maintenanceDeferred = true
-			p.mu.Unlock()
-		}) {
+		if !p.quiesce.begin() {
 			return nil
 		}
 		defer p.quiesce.end()

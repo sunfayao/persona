@@ -64,40 +64,6 @@ type AssistantClaudeMD struct {
 	// BackgroundSupervisor: the background supervisor follows up the tasks no leader supervises (#4927), so the main
 	// conversation is told it no longer reviews them itself. False keeps the text as it was.
 	BackgroundSupervisor bool
-	// UrgentCall: the owner turned urgent calls on (docs/assistant/urgent-call.md): when to call and the "what counts
-	// as urgent" rules. nil adds nothing.
-	UrgentCall *UrgentCall
-}
-
-// UrgentCall is the urgent-call section of the assistant's instructions.
-type UrgentCall struct {
-	Rules []UrgentCallRule
-}
-
-// UrgentCallRule is one "what counts as urgent" rule: its id (urgent_call's rule) and its words.
-type UrgentCallRule struct {
-	ID   string
-	Text string
-}
-
-// urgentRuleTemplates are the built-in rules' definitions, used while the owner has not reworded them.
-var urgentRuleTemplates = map[string]string{
-	"money_loss":     "assistant/urgent_rule_money_loss",
-	"harm":           "assistant/urgent_rule_harm",
-	"agent_disaster": "assistant/urgent_rule_agent_disaster",
-}
-
-// UrgentRuleBuiltin is built-in rule id's definition in Chinese ("" for an id that is not one).
-func UrgentRuleBuiltin(id string) string { return UrgentRuleBuiltinIn(id, "") }
-
-// UrgentRuleBuiltinIn is built-in rule id's definition in language, the owner's by its own name ("English", or
-// Japanese written in Japanese); "" is Chinese.
-func UrgentRuleBuiltinIn(id, language string) string {
-	name, ok := urgentRuleTemplates[id]
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(render(name, struct{ Language string }{language}))
 }
 
 func RenderAssistantClaudeMD(d AssistantClaudeMD) string { return render("assistant/claude_md", d) }
@@ -127,14 +93,6 @@ func RenderAssistantViewRepair(d AssistantViewRepair) string {
 type SnapshotMachine struct {
 	Name, ID string
 	Online   bool
-}
-
-// SnapshotApp is the Persona app on one kind of device as it last said its version (assistant/snapshot_app). No
-// time: the node sends only the snapshot's changed lines, and a reconnect must not make this one change.
-// Platform: ios | ipados | watchos | macos | visionos | android | harmony.
-type SnapshotApp struct {
-	Platform, Version, Build, OS string // Build, OS: "" when not said
-	Simulator                    bool
 }
 
 type SnapshotAgent struct {
@@ -334,9 +292,6 @@ type Snapshot struct {
 	// Working: running agents; the snapshot renders only their count in the Agents heading, leaving details to
 	// agents_list (#11261).
 	Working         []SnapshotAgent
-	PhoneOnline     bool
-	NoPhone         bool               // leaves the iPhone line out: the background supervisor's (assistant/context.go backgroundSnapshot)
-	Apps            []SnapshotApp      // one per kind of device, the user's own before a simulator
 	KB              string             // RenderKBDigest, "" leaves it out
 	Chats           *SnapshotChats     // nil: Feishu did not answer in time
 	Calendar        *SnapshotCalendar  // nil: the calendar did not answer in time

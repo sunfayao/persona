@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-	"time"
 )
 
 // nextOfType reads c's queued events until one of type typ (or fails when none is queued).
@@ -50,9 +49,6 @@ func TestRegisterDesktopIsAnnouncedAndGone(t *testing.T) {
 	}
 	if !h.desktopOnline() {
 		t.Fatal("a registered desktop is online")
-	}
-	if h.phoneClient() != nil {
-		t.Fatal("a desktop must not take the phone's tool calls")
 	}
 
 	h.dropClient(mac)
@@ -168,14 +164,6 @@ func TestMuteWhileDesktop(t *testing.T) {
 		if got := alertWanted(c.wants, c.desktop)(c.prefs); got != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
 		}
-	}
-	// The Live Activity a push starts says nothing while muted; it still starts.
-	st := FleetState{NeedsYou: 2}
-	if aps := startPayload(st, time.Now(), true)["aps"].(map[string]any); aps["alert"] != nil || aps["event"] != "start" {
-		t.Fatalf("muted start %+v", aps)
-	}
-	if aps := startPayload(st, time.Now(), false)["aps"].(map[string]any); aps["alert"] == nil {
-		t.Fatal("an unmuted start keeps its alert")
 	}
 	if p := devicePrefs(json.RawMessage(`{"mute_while_desktop":true}`)); !p.MuteWhileDesktop {
 		t.Fatal("mute_while_desktop is stored")

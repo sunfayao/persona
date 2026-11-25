@@ -2,7 +2,6 @@ package hub
 
 import (
 	"encoding/json"
-	"maps"
 	"net/http"
 
 	"github.com/nwverse/persona/server/internal/compat"
@@ -28,23 +27,6 @@ func compatibilityRequests(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// Push capabilities are persisted at device registration; a socket hello alone
-// cannot identify an offline device or its push-to-start token.
-func compatibleStartPayload(d Device, payload map[string]any) map[string]any {
-	if hasFeature(d, compat.Feature) {
-		return payload
-	}
-	out := maps.Clone(payload)
-	if aps, ok := payload["aps"].(map[string]any); ok {
-		copy := maps.Clone(aps)
-		if copy["event"] == "start" {
-			copy["attributes-type"] = compat.ActivityAttributes
-		}
-		out["aps"] = copy
-	}
-	return out
 }
 
 // These typed adapters preserve old look IDs in persisted choices and HTTP

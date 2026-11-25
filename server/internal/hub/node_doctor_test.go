@@ -27,7 +27,7 @@ func callDoctorRoute(h *Hub, role, method, path string) int {
 func TestNodeDoctorRoutesNeedAFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
-	for _, role := range []string{roleAnswer, roleExtension, roleLink} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink} {
 		for _, tc := range [][2]string{{"GET", "doctor"}, {"POST", "doctor/fix"}} {
 			if code := callDoctorRoute(h, role, tc[0], tc[1]); code != http.StatusForbidden {
 				t.Errorf("%s %s: %s was let through: %d", tc[0], tc[1], role, code)
@@ -138,7 +138,7 @@ func TestNodeDoctorRoutesAreFullCredentialsOnly(t *testing.T) {
 	}
 	for _, tc := range [][2]string{{http.MethodGet, "doctor"}, {http.MethodPost, "doctor/fix"}} {
 		url := "/api/v1/machines/m1/" + tc[1]
-		for _, p := range []principal{{ID: "dev_watch", Role: roleAnswer}, {ID: "dev_link", Role: roleLink}} {
+		for _, p := range []principal{{ID: "dev_watch", Role: roleRetiredAnswer}, {ID: "dev_link", Role: roleLink}} {
 			if allowed(p, tc[0], url) {
 				t.Errorf("%s may %s %s", p.Role, tc[0], url)
 			}

@@ -14,12 +14,12 @@ func TestSavedAgentSearchReadScopeAndOwnerRelay(t *testing.T) {
 	if extwire.RouteScopes["GET "+path] != extwire.ScopeAgentsRead || extwire.RouteScopes["POST "+path] != "" {
 		t.Fatal("saved searches must expose read scope only")
 	}
-	for _, role := range []string{roleFull, roleAnswer} {
+	for _, role := range []string{roleFull, roleRetiredAnswer} {
 		if !allowed(principal{Role: role}, "GET", path) {
 			t.Fatalf("%s cannot read", role)
 		}
 	}
-	if allowed(principal{Role: roleAnswer}, "POST", path) || allowed(principal{Role: roleLink}, "GET", path) {
+	if allowed(principal{Role: roleRetiredAnswer}, "POST", path) || allowed(principal{Role: roleLink}, "GET", path) {
 		t.Fatal("saved searches widened unrelated permissions")
 	}
 	_, base, _, _ := reachHub(t)

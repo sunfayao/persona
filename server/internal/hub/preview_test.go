@@ -206,7 +206,7 @@ func TestPreviewRefusals(t *testing.T) {
 		ro := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/api/v1/machines/m1/preview/connect?port="+strconv.Itoa(port), strings.NewReader(`{"cwd":"/p","name":"web","workspace":"w1"}`))
 		req.SetPathValue("mid", "m1")
-		req = req.WithContext(context.WithValue(req.Context(), principalKey{}, principal{Role: roleAnswer}))
+		req = req.WithContext(context.WithValue(req.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
 		h.withMachine(fn)(ro, req)
 		if ro.Code != http.StatusForbidden {
 			t.Errorf("read-only device, %s: %d", name, ro.Code)

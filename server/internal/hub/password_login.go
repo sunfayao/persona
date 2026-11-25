@@ -307,7 +307,6 @@ func (h *Hub) issuePasswordDevice(w http.ResponseWriter, r *http.Request, f pass
 		passwordInvalid(w)
 		return
 	}
-	h.notifyPairing(d.Name, d.ID)
 	writeJSON(w, map[string]any{"token": token, "id": d.ID, "hub_id": h.hubID(), "name": d.Name})
 }
 
