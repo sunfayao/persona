@@ -52,6 +52,5 @@
   "until_hours_minutes": "in {hours} h {minutes} min",
   "until_hours_one": "in {count} h",
   "until_hours_other": "in {count} h",
-  "next_wake": "Next wake-up {time} ({until})",
-  "elapsed_seconds_one": "{count}s"
+  "next_wake": "Next wake-up {time} ({until})"
 }
