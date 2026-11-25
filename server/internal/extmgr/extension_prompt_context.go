@@ -1,10 +1,7 @@
 package extmgr
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"slices"
 	"strings"
 	"unicode/utf8"

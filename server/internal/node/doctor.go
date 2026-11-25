@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"io"
 	"maps"
 	"net"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/assistantskills"
 	"github.com/nwverse/persona/server/internal/extension/sandbox"

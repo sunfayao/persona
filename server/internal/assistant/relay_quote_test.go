@@ -1,12 +1,7 @@
 package assistant
 
 import (
-	"context"
-	"encoding/json"
-	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 const quotedWords = "please ship the export fix before Friday, and keep the old format working"

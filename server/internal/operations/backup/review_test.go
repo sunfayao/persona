@@ -1,10 +1,8 @@
 package backup
 
 import (
-	"archive/tar"
 	"bytes"
 	"context"
-	"encoding/json"
 	"net"
 	"os"
 	"path/filepath"

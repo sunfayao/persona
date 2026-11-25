@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )

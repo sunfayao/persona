@@ -9,7 +9,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // supAgent is the Agent the tests drive: its id is long enough for agent_supervise to name it.

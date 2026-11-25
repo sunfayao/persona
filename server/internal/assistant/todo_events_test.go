@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 // What the extensions are told of the todos (todo_events.go, #5279): todo.changed for a created, deleted or changed

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 func TestFailedStartSettingsWordingKeepsWordBoundaries(t *testing.T) {

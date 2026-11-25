@@ -2,12 +2,8 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // startsSoFar counts the agents started so far.

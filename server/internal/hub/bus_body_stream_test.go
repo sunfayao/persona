@@ -3,7 +3,6 @@ package hub
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"io"
 	"log"

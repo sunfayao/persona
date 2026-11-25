@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"bytes"
 	"runtime"
 	"runtime/debug"
 	"testing"
@@ -9,7 +8,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/devices"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 )
 
 // fleetSessionsToldLimit bounds what telling a changed list of 200 sessions allocates when a GC has just emptied

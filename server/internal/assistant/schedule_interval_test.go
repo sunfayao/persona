@@ -1,11 +1,5 @@
 package assistant
 
-import (
-	"strconv"
-
-	"github.com/nwverse/persona/server/internal/proto"
-)
-
 // Regression for #7619: an open supervised todo in a leader conversation must not shorten an interval
 // follow-up. The task runs on its configured `every`, the views show that schedule, and the run prompt
 // states the configured interval. The former leader cadence (#3811, #3870, #4014) fired such tasks every

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistantwire"

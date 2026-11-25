@@ -1,13 +1,10 @@
 package assistant
 
 import (
-	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // The To-dos view stays fresh (todo_view_push.go, #10226): the apps are told to read the list again
