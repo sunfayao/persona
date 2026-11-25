@@ -15,8 +15,6 @@
 <script type="module">
   import "/src/styles.css";
   import { initI18n } from "/src/i18n/index.ts";
-  import { applyLook } from "/src/ui/look.ts";
-  applyLook();
   document.documentElement.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches);
   await initI18n();
   const [{ createElement }, { createRoot }, { ConfigurationForm }, { ConfigurationError }, { allTypes }] = await Promise.all([

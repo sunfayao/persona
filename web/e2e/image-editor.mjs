@@ -9,7 +9,7 @@
 //   (cd web && PERSONA_HUB_URL=http://127.0.0.1:18977 npx vite --host 127.0.0.1 --port 5977 --strictPort &)
 //   node web/e2e/image-editor.mjs http://127.0.0.1:5977 --shots <dir> [--before] [--video <dir> --ffmpeg <ffmpeg>] [--channel msedge | --executable <chromium>]
 //
-// Runs en and zh-Hans, light and dark, 1440 × 900 and 390 × 844 (touch), then ja at 320 × 700 with the largest text size. --before takes only what the editor had before
+// Runs en and zh-Hans, light and dark, 1440 × 900 and 390 × 844 (touch), then ja at 320 × 700. --before takes only what the editor had before
 // #4991 (opened, a box drawn), for the comparison. --video records the whole walk-through once wide in English (dark)
 // and once on a phone in Chinese (light), slowed down, from Chrome's screencast: VP8 WebM through --ffmpeg (any build
 // with libvpx; Playwright's own recorder needs VP9), else the frames as JPEGs. Prints one line per check and a verdict;
@@ -112,13 +112,11 @@ async function open(browser, { lang, theme, phone, small }) {
   });
   await ctx.route("**/*", (route) => (new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort()));
   await ctx.addInitScript(
-    ([lang, theme, large]) => {
+    ([lang, theme]) => {
       localStorage.setItem("persona.language", lang);
       localStorage.setItem("persona.theme", theme);
-      // the largest text size (Settings › Appearance; ui/look.ts TEXT_SIZE_KEY)
-      if (large) localStorage.setItem("persona.text-size", "large");
     },
-    [lang, theme, Boolean(small)],
+    [lang, theme],
   );
   const page = await ctx.newPage();
   page.setDefaultTimeout(15000);
@@ -213,7 +211,7 @@ const pause = (page, ms) => page.waitForTimeout(ms);
 
 async function runBefore(browser, combo) {
   const { lang, theme, phone } = combo;
-  const tag = `${lang}-${theme}-${combo.small ? "320-large" : phone ? "390" : "1440"}`;
+  const tag = `${lang}-${theme}-${combo.small ? "320" : phone ? "390" : "1440"}`;
   const w = words(lang);
   const { ctx, page, errors } = await open(browser, combo);
   const dialog = await openEditor(page, w, () => still(page, `before-${tag}-attached`));
@@ -227,7 +225,7 @@ async function runBefore(browser, combo) {
 
 async function runAfter(browser, combo) {
   const { lang, theme, phone, recording } = combo;
-  const tag = `${lang}-${theme}-${combo.small ? "320-large" : phone ? "390" : "1440"}`;
+  const tag = `${lang}-${theme}-${combo.small ? "320" : phone ? "390" : "1440"}`;
   const w = words(lang);
   const slow = recording ? 700 : 0;
   const { ctx, page, errors } = await open(browser, combo);
