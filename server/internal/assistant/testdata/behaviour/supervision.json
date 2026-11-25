@@ -111,23 +111,6 @@
     ]
   },
   {
-    "name": "stuck_leader_gets_one_line",
-    "why": "A stuck leader is looked at first, then reported in one visible line without a push.",
-    "system": "assistant_claude_md.full",
-    "event": "supervise.leader_stuck",
-    "results": {
-      "conversation_read": "leader: Blocked: the tablet layout needs the design tokens from the design system task, not merged yet.",
-      "agents_list": "[]",
-      "supervision_finish": "{\"ok\":true}"
-    },
-    "expect": [
-      {"tool": "supervision_finish", "args": {"visibility": "user"}, "after": ["conversation_read", "agent_read", "agents_list", "todo_get", "conversation_send"]}
-    ],
-    "forbid": [
-      {"tool": "notify_user"}
-    ]
-  },
-  {
     "name": "escalated_decision_is_not_asked_again",
     "why": "A decision the background supervisor already sent to the owner is not asked or pushed a second time.",
     "system": "assistant_claude_md.full",

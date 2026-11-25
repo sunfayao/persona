@@ -3,8 +3,6 @@ package assistant
 import (
 	"context"
 	"sync"
-
-	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
 // The hub's low-distraction mode, as the assistant honours it (docs/server/server.md "Low-distraction
@@ -49,17 +47,4 @@ func askKind(a *acceptAsk) string {
 		return "conclusion"
 	}
 	return "acceptance"
-}
-
-// leaderReportLevel is the push level a leader report carries to the extensions in low-distraction mode: progress and a goal
-// reached are P1 (the briefing's and the work log's, no alert); a decision P0; stuck P1. "" with low-distraction mode off: the
-// extensions do as before.
-func (s *Service) leaderReportLevel(ctx context.Context, kind string) string {
-	if !s.quietModeOn(ctx) {
-		return ""
-	}
-	if kind == assistantwire.LeaderDecision {
-		return assistantwire.LevelP0
-	}
-	return assistantwire.LevelP1
 }

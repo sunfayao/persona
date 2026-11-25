@@ -3,9 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -178,135 +176,6 @@ func (s *Service) deletionRows(ctx context.Context, machine string, list []proto
 	return list
 }
 
-func (s *Service) deleteConversation(ctx context.Context, machine, id string) error {
-	// Main replacement and sending cannot race the eligibility check and commit.
-	s.main.mu.Lock()
-	defer s.main.mu.Unlock()
-	s.conversationWrites.Lock()
-	defer s.conversationWrites.Unlock()
-	if !validSessionID(id) || machine == "" {
-		return &rpc.Error{Code: "bad_request", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.invalid")}
-	}
-	if s.devs != nil && !s.devs.Has(machine) {
-		return &rpc.Error{Code: "not_found", Message: i18n.T(s.lang(ctx), "devices-api.unknown_machine")}
-	}
-	if s.devs != nil {
-		machine = s.devs.Canonical(machine)
-	}
-	if _, ok, err := s.deletedConversation(ctx, machine, id); err != nil {
-		return err
-	} else if ok {
-		return s.finishDeletedConversation(ctx, machine, id)
-	}
-	cfg := s.settings(ctx)
-	if cfg.Main == id || s.isBackground(ctx, id) {
-		return &rpc.Error{Code: "conversation_protected", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.protected")}
-	}
-	if slices.Contains(cfg.Leaders, id) {
-		// A current direction's lead conversation (#11392): unpinning it (…/end) ends the direction, after which it
-		// deletes as any other conversation.
-		return &rpc.Error{Code: "conversation_protected", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.lead_protected")}
-	}
-	c, found := s.session(ctx, machine, id)
-	if !found || !c.Assistant {
-		return &rpc.Error{Code: "not_found", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.unknown")}
-	}
-	if s.fleetOn() {
-		if row, ok := s.decoratedSession(machine, id); ok {
-			c = row
-		}
-	}
-	queued, readable := s.queuedRelays()
-	if !readable {
-		return i18n.Err("assistant-conversation_delete.queue_unavailable")
-	}
-	if c.Starting || c.Status == proto.StatusWorking || c.Status == proto.StatusBlocked || c.PendingInteractions > 0 || backgroundRunning(c) ||
-		(c.Compaction != nil && c.Compaction.State == proto.CompactionRunning) || len(c.Queued) > 0 || len(queued[id]) > 0 {
-		return &rpc.Error{Code: "conversation_busy", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.busy")}
-	}
-	if err := s.ensureTodosLoaded(ctx); err != nil {
-		return err
-	}
-	s.todos.mu.RLock()
-	responsible := false
-	for _, task := range s.todos.todos {
-		if task.DoneAt == nil && !task.Cancelled() && (task.Origin == id || task.Supervision != nil && task.Supervision.Supervisor == id) {
-			responsible = true
-			break
-		}
-	}
-	s.todos.mu.RUnlock()
-	if responsible {
-		return &rpc.Error{Code: "conversation_busy", Message: i18n.T(s.lang(ctx), "assistant-conversation_delete.tasks_active")}
-	}
-	st := s.store()
-	if st == nil {
-		return errors.New("no database")
-	}
-	row := deletedConversation{Machine: machine, ID: id, Space: spaceOf(c), At: time.Now().UTC()}
-	if durable, ok := st.(durableConversationDeletions); ok {
-		raw, err := json.Marshal(row)
-		if err != nil {
-			return err
-		}
-		if err := durable.PutConversationDeletion(ctx, machine, id, raw); err != nil {
-			return err
-		}
-		return s.finishDeletedConversation(ctx, machine, id)
-	}
-	b := &s.deletedConversations
-	b.mu.Lock()
-	if err := s.loadDeletedConversations(ctx); err != nil {
-		b.mu.Unlock()
-		return err
-	}
-	next := make(map[string]deletedConversation, len(b.rows)+1)
-	for key, row := range b.rows {
-		next[key] = row
-	}
-	next[runtimeListID(machine, id)] = row
-	if err := st.PutSetting(ctx, deletedConversationsKey, next); err != nil {
-		b.mu.Unlock()
-		return err
-	}
-	b.rows = next
-	b.mu.Unlock()
-	return s.finishDeletedConversation(ctx, machine, id)
-}
-
-func (s *Service) conversationDeleteRoutes() {
-	s.handle("DELETE /api/v1/assistant/conversations/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, i18n.Err("assistant-model_pick.err_role"))
-			return
-		}
-		var in struct {
-			Machine string `json:"machine_id"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
-			apierr.Write(w, 400, err)
-			return
-		}
-		if err := s.deleteConversation(r.Context(), in.Machine, r.PathValue("id")); err != nil {
-			var re *rpc.Error
-			if errors.As(err, &re) && (re.Code == "bad_request" || re.Code == "not_found") {
-				status := http.StatusBadRequest
-				if re.Code == "not_found" {
-					status = http.StatusNotFound
-				}
-				apierr.WriteCode(w, status, re.Code, err)
-			} else {
-				apierr.Call(w, err)
-			}
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true, "deleted": true})
-	})
-}
-
-// Guard every conversation route, including feeds and view actions. A delete
-// itself remains idempotent. The public route identifies the owning manager;
-// within it conversation ids are the same ids used by archive and task origins.
 func (s *Service) deletedConversationRequest(r *http.Request) error {
 	path, ok := strings.CutPrefix(r.URL.Path, "/api/v1/assistant/conversations/")
 	if !ok {

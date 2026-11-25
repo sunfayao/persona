@@ -201,7 +201,7 @@ func (s *Service) logicalRoleRequired(ctx context.Context, machine, id string) (
 		return false, err
 	}
 	cfg := s.settings(ctx)
-	return policy != "" || slices.Contains(cfg.Leaders, id) || id == cfg.BackgroundSupervisor || id == cfg.Main && cfg.MainSupervisesOwnTasks != nil && *cfg.MainSupervisesOwnTasks, nil
+	return policy != "" || id == cfg.BackgroundSupervisor || id == cfg.Main && cfg.MainSupervisesOwnTasks != nil && *cfg.MainSupervisesOwnTasks, nil
 }
 
 func (s *Service) beginLogicalSwitch(ctx context.Context, machine, id string, p logicalSwitchRequest) (any, error) {

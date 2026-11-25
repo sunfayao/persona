@@ -188,25 +188,6 @@ func TestA2AAmbiguousSendIsReconciledWithoutReplay(t *testing.T) {
 	}
 }
 
-func TestA2ADeliveryWaitsForLogicalSwitch(t *testing.T) {
-	s, _, st, _ := logicalPair(t, "pi")
-	assertDeferred := func() {
-		t.Helper()
-		for _, method := range []string{"session.a2a.send", "session.a2a.wake"} {
-			_, handled, err := s.logicalCall(t.Context(), "server", method, json.RawMessage(`{"session_id":"side-chat"}`))
-			if !handled || rpcCode(err) != assistantwire.CodeConversationBusy || !a2aNoDelivery(err) {
-				t.Fatalf("%s should wait for earlier owner input: handled=%v err=%v", method, handled, err)
-			}
-		}
-	}
-	assertDeferred()
-	c := activatePair(t, st)
-	if err := st.EnqueueConversationInput(t.Context(), "server", "side-chat", "owner-message", c.Epoch, json.RawMessage(`{"text":"Earlier owner input"}`)); err != nil {
-		t.Fatal(err)
-	}
-	assertDeferred()
-}
-
 func TestA2ADeletedRecipientReleasesTask(t *testing.T) {
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()

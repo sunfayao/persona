@@ -701,11 +701,10 @@ func (it *reportItem) stuck() bool {
 // link (#3218). items are sorted; past goalCardMaxItems a line counts the rest.
 func (s *Service) goalCard(ctx context.Context, items []*reportItem) (*feishubot.Card, string) {
 	l, web := s.botLang(ctx), s.webBase(ctx)
-	names := s.feishuDirections(ctx)
 	var titles, lines []string
 	for _, it := range items[:min(len(items), goalCardMaxItems)] {
 		t, _ := s.todoNow(it.todo)
-		direction := s.feishuDirection(ctx, t, names)
+		direction := feishuTaskPrefix
 		titles = append(titles, direction+clip(oneLine(t.Title), 40))
 		if len(items) == 1 {
 			direction = "" // the header already identifies this row
@@ -824,14 +823,13 @@ type reportEntry struct {
 
 func (s *Service) reportCards(ctx context.Context, items []*reportItem) ([]*feishubot.Card, []string) {
 	l, web, stages := s.botLang(ctx), s.webBase(ctx), s.todoStages(ctx)
-	names := s.feishuDirections(ctx)
 	es, needs := make([]reportEntry, len(items)), 0
 	for i, it := range items {
 		if it.state == reportNeeds {
 			needs++
 		}
 		t, _ := s.todoNow(it.todo)
-		direction := s.feishuDirection(ctx, t, names)
+		direction := feishuTaskPrefix
 		title := direction + clip(oneLine(t.Title), 40)
 		if len(items) == 1 {
 			direction = ""

@@ -3,7 +3,7 @@
 MOCK_DIRECTION_SESSIONS=1 (with MOCK_LEADERS=1) lists the feature, answers
 `PUT /api/v1/assistant/sessions/{mid}/{sid}/direction` and `GET /api/v1/assistant/directions/{id}`, and adds the live
 filed sessions to the tree (`sessions`), as docs/protocol/protocol.md describes them. The first leader ("Persona 产品")
-starts with a session of every standing (docs/assistant/unified-entry.md "Where a session stands"): two chats and an
+starts with a session of every standing (docs/assistant/unified-entry.md): two chats and an
 Agent filed by the owner, an Agent its leader opened, one stopped on a connected computer (`offline`), and one each
 `computer_offline`, `list_unknown`, `not_listed` and `computer_removed`. Two Agents join SESSIONS for it.
 MOCK_DIRECTION_SESSIONS=missing lists the feature but answers the routes 404 without their codes, as a manager that

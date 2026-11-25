@@ -8,7 +8,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func dbTodoDoneEdit(done bool) db.TodoEdit {
@@ -200,70 +199,6 @@ func TestParentCloseoutSkipsActiveAgentAndCancelledOrFailedChildren(t *testing.T
 		}
 		if _, ok := pendingParentCloseout(s, parent.ID); !ok {
 			t.Fatal("synthetic ask/outside-decision rows blocked parent closeout wake")
-		}
-	})
-}
-
-func TestParentCloseoutRoutingAndPersonalTodoBoundary(t *testing.T) {
-	t.Run("leader-owned parent wakes leader and never background supervisor", func(t *testing.T) {
-		s, f := newTodoReadyService(t, &memStore{})
-		s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-		ctx := context.Background()
-		f.setSessions("server",
-			proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-			proto.Session{SessionID: "lead1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-			proto.Session{SessionID: "bg1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		)
-		setSettings(t, s, func(v *Settings) {
-			v.Leaders = []string{"lead1"}
-			v.BackgroundSupervisor = "bg1"
-			v.BackgroundSupervisorMachineID = "server"
-		})
-
-		parent := createRequestAndPiece(t, s, "lead1", "Leader milestone", "", "", nil)
-		child := createRequestAndPiece(t, s, "lead1", "Leader child", "", parent.ID, nil)
-		if _, err := s.editTodo(ctx, child.ID, dbTodoDoneEdit(true)); err != nil {
-			t.Fatal(err)
-		}
-		sendPendingPRConflicts(s)
-		if got := sendsToConversation(f, "lead1"); len(got) != 1 || !strings.Contains(got[0], "signal="+sigParentCloseout) {
-			t.Fatalf("leader did not receive parent_closeout wake: %q", got)
-		}
-		if got := sendsToConversation(f, "bg1"); len(got) != 0 {
-			t.Fatalf("background supervisor unexpectedly received parent_closeout wake: %q", got)
-		}
-	})
-
-	t.Run("plain personal parent stays open and warns against silent auto-complete", func(t *testing.T) {
-		s, f := newTodoReadyService(t, &memStore{})
-		s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-		ctx := context.Background()
-
-		// Plain personal to-do has empty Origin, empty PlanID, nil Supervision.
-		parent := createRequestAndPiece(t, s, "", "Prepare release checklist for my review", "", "", nil)
-		if !isPlainPersonalTodo(parent) {
-			t.Fatalf("expected plain personal todo, got %+v", parent)
-		}
-		child := createRequestAndPiece(t, s, "conv1", "Draft release checklist", "", parent.ID, nil)
-		if _, err := s.editTodo(ctx, child.ID, dbTodoDoneEdit(true)); err != nil {
-			t.Fatal(err)
-		}
-
-		// Must NOT auto-close the plain personal parent.
-		if got := todoNow(s, parent.ID); got.DoneAt != nil {
-			t.Fatal("plain personal parent to-do was silently auto-completed")
-		}
-
-		sendPendingPRConflicts(s)
-		notices := sendsToConversation(f, "conv1")
-		if len(notices) != 1 {
-			t.Fatalf("main did not receive personal parent closeout wake: %q", notices)
-		}
-		if !strings.Contains(notices[0], "用户个人普通待办") || !strings.Contains(notices[0], "切勿静默自动关闭") {
-			t.Fatalf("personal parent closeout wake lost delegate.md boundary guidance:\n%s", notices[0])
-		}
-		if got := todoNow(s, parent.ID); got.DoneAt != nil {
-			t.Fatal("plain personal parent was closed during wake delivery")
 		}
 	})
 }

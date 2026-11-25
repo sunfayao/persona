@@ -43,19 +43,10 @@ func (s *Service) Context(ctx context.Context, p ContextParams) ContextResult {
 		snapshot = s.contextSnapshot(ctx, s.snapshotScope(ctx, p.SessionID), background)
 	}
 	c := prompts.AssistantContext{ScheduledWorkPlan: cleanRound && s.settings(ctx).workGuideOn(), Snapshot: snapshot, Owner: s.owner(ctx),
-		Main: s.isMain(ctx, p.SessionID), Leader: s.isLeader(ctx, p.SessionID), Background: background}
+		Main: s.isMain(ctx, p.SessionID), Background: background}
 	switch {
 	case c.Main:
-		cfg := s.settings(ctx)
 		c.BackgroundStarted = s.announceBackground(ctx) // until a message carrying it is delivered: its tasks are followed up in the background now (supervise_background.go)
-		names := s.leaderNames(ctx, cfg.Leaders)
-		for _, id := range cfg.Leaders {
-			if id != "" && id != cfg.Main {
-				c.Directions = append(c.Directions, prompts.ContextDirection{ID: id, Name: names[id]})
-			}
-		}
-	case c.Leader:
-		c.LeaderName = s.leaderNames(ctx, []string{p.SessionID})[p.SessionID]
 	}
 	return s.contextResult(ctx, p, prompts.RenderAssistantContext(c), c.BackgroundStarted, cleanRound)
 }
@@ -152,7 +143,7 @@ func backgroundSnapshot(snap prompts.Snapshot) prompts.Snapshot {
 // snapshotScope is whose tasks conversation id's snapshot lists (#8666): "" for every task in the main conversation,
 // the background supervisor that follows its tasks up (supervise_background.go), a scheduled task's own conversation
 // (a briefing goes over all of them) and while there is no main conversation; else id, for only the tasks it handed
-// out or supervises, as agent_control.go othersTask counts them. A leader is such a conversation. The design gives the
+// out or supervises, as agent_control.go othersTask counts them. The design gives the
 // whole list to the main conversation (docs/assistant/todos.md); another conversation that got it took the user's
 // question for one of the others' tasks, which crowded its own out of the first rows.
 func (s *Service) snapshotScope(ctx context.Context, id string) string {

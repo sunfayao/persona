@@ -197,29 +197,6 @@ describe("the deferred search dialog", () => {
 });
 
 describe("the header's title", () => {
-  it("calls a leader conversation by its direction, as its sidebar row does, not by the hub's raw title", async () => {
-    const { applyLeadersEvent, resetDirectionNames } = await import("../../lib/direction-names");
-    captured.session = { machine_id: "hub", session_id: "lead1", title: "1109 | 探索 | 你是「增长」方向的主管", cwd: "/code", state: "idle", status: "idle", assistant: true } as Session;
-    try {
-      act(() => root.render(<ChatView mid="hub" sid="lead1" assistant />)); await flush();
-      expect(host.querySelector("[data-chat-title]")?.textContent).toBe("1109 | 探索 | 你是「增长」方向的主管"); // no names yet
-      act(() => host.querySelector("[data-chat-title]")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-      expect(host.querySelector("[data-chat-title-input]")).not.toBeNull(); // renamable in place while not a direction
-      act(() => host.querySelector("[data-chat-title-input]")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
-      expect(host.querySelector("[data-chat-title-input]")).toBeNull();
-      act(() => void applyLeadersEvent([{ id: "lead1", name: "增长" }])); await flush();
-      expect(host.querySelector("[data-chat-title]")?.textContent).toBe("增长");
-      // the direction's name is not the conversation's title: no in-place rename of it (⋯ Rename, as on the sidebar row)
-      act(() => host.querySelector("[data-chat-title]")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
-      expect(host.querySelector("[data-chat-title-input]")).toBeNull();
-      // an Agent's page of the same conversation says it the same way
-      act(() => root.render(<ChatView mid="hub" sid="lead1" />)); await flush();
-      expect(host.querySelector("[data-chat-title]")?.textContent).toBe("增长");
-    } finally {
-      resetDirectionNames();
-    }
-  });
-
   it("reads a conversation titled by its <persona-context> tag", async () => {
     captured.session = { machine_id: "hub", session_id: "c1", title: '<persona-context kind="context" title="飞书 · 发布群 &quot;周五&quot;" url="">', cwd: "/code", state: "idle", status: "idle" } as Session;
     act(() => root.render(<ChatView mid="hub" sid="c1" assistant />)); await flush();

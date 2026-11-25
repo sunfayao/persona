@@ -4,7 +4,7 @@ For accepted (outcome=done), include each done_when criterion once in checks (me
 
 Give accepted outcome/reason/link. The hub sends conclusion cards and passes verification unless user_check. needs_user can default to recommend at 24h/deadline. Irreversible or visible_to_others only remind. Recheck at 24h. can_wait needs low cost, nobody blocked today and no deadline within 12h. “You decide”, “This isn't what I asked for” and “Tell me the background first” return to supervision. Clarify without repeating or acting irreversibly/externally.
 
-A non-main reviewer of another supervisor's task may only accept/cancel; send gaps via agent_send. A leader's needs_user reaches main too. Cancel only duplicates/unwanted tasks; their Agents close/archive and cards end.{{template "shared/mcp_language" .}}
+A non-main reviewer of another supervisor's task may only accept/cancel; send gaps via agent_send. Cancel only duplicates/unwanted tasks; their Agents close/archive and cards end.{{template "shared/mcp_language" .}}
 
 ```json
 {

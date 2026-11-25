@@ -135,7 +135,7 @@ func (s *Service) backgroundRoundDelivered(ctx context.Context, to string, msg r
 // unrecognized sessions on the same machine are ignored so an ordinary agent cannot disable background supervision.
 func (s *Service) noteAssistantDenied(ctx context.Context, machine, session, tool string) {
 	cfg := s.settings(ctx)
-	if cfg.BackgroundSupervisor == "" || session == "" || session == cfg.Main || s.isLeader(ctx, session) {
+	if cfg.BackgroundSupervisor == "" || session == "" || session == cfg.Main {
 		return
 	}
 	bgMachine := cmp.Or(cfg.BackgroundSupervisorMachineID, cfg.MachineID)

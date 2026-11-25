@@ -39,9 +39,7 @@ import type { OutboxEntry } from "./outbox";
 import { NO_LINK, RESTARTING_MS, type ConnLink } from "./connection";
 import { unreachable } from "./shell";
 import { setOfflineProbe } from "./feedback";
-import { isExternalDirection, readDirectionTree } from "./direction-names";
 import { unlistedConversations } from "./conversation-origins";
-import { directionTreeAwaitsHello } from "./direction-tree";
 import { configureMessageFeedback, resetMessageFeedback } from "./message-send";
 import { afterEvent, afterHello, graceUntil, isResumed, NO_CURSOR, RESTART_FAST_MS, retryDelay, shownConn, wsQuery, type Drop, type EventCursor } from "./reconnect";
 
@@ -837,14 +835,12 @@ export function connect() {
       void refreshTodos();
     }, 250);
   }
-  directionTreeAwaitsHello(true); // its hello reads the direction tree: the screens wait for that read
   const sock = new WebSocket(`${proto}//${location.host}${BASE}/api/v1/ws?${wsQuery(socketToken, cursor, [SESSIONS_LIST_FEATURE, SESSIONS_LIST_CHANGES_FEATURE, SESSIONS_DELTA_FEATURE, SESSION_LIVE_FEATURE, "extension_ui_stream_v1", "persona_contracts_v1"])}`);
   ws = sock;
   restartNotice = false;
   // an attempt does not move offline back to connecting: the pill stays on one phase while the hub is down instead of
   // flipping at every backoff tick (the app's ConnectionTitle); shownConn decides it when the attempt fails
   sock.onopen = () => {
-    socketOpenedAt = Date.now(); // a direction tree read since then serves this hello (lib/direction-tree.ts)
     sendHello(sock);
     retry = 0;
     fastTries = 0;
@@ -874,7 +870,6 @@ export function connect() {
     }
   };
   sock.onclose = (ev) => {
-    if (ws === sock) directionTreeAwaitsHello(false); // no hello: whoever waited for the tree reads it now
     if (ws !== sock) return;
     const wasLive = authenticatedSocket === sock;
     ws = null;
@@ -984,20 +979,6 @@ if (typeof window !== "undefined") {
   window.addEventListener("offline", () => set({ link: { ...state.link, networkUp: false } }));
 }
 
-/** The tree read again: its leaders become the assistant's (a new one not listed yet: the assistant is read again). */
-/** When the socket last opened. */
-let socketOpenedAt = 0;
-
-async function followDirections(changed = false) {
-  if (pageOf() !== "") return; // the tree is the default assistant's (docs/protocol/protocol.md)
-  const ids = await readDirectionTree(changed, changed ? undefined : socketOpenedAt);
-  const a = state.assistant;
-  if (!ids || !a) return;
-  const known = new Set(a.conversations.map((c) => c.session_id));
-  if (ids.some((id) => !known.has(id) && !isExternalDirection(id))) void refreshAssistant().catch(() => {});
-  else if (JSON.stringify(ids) !== JSON.stringify((a.leaders ?? []).filter((id) => id !== a.main))) set({ assistant: { ...a, leaders: ids } });
-}
-
 const helloHooks = new Set<() => void>();
 /** Runs `f` on every hello (lib/new-version.ts asks for the shell then); loaded after the first screen, so it is not in it. */
 export function onHello(f: () => void): () => void {
@@ -1062,7 +1043,6 @@ function onMessage(msg: Record<string, unknown>) {
       resendSeen();
       // resumed: the hub replays every broadcast missed since the cursor, nothing needs refetching
       if (!isResumed(msg)) {
-        void followDirections(); // the direction tree again: a `directions` may have been missed while away
         void refresh();
         void refreshAgentSessions();
         void refreshAgentPrefs();
@@ -1072,14 +1052,8 @@ function onMessage(msg: Record<string, unknown>) {
       if (agentsMode && (!isResumed(msg) || !runtimeAgents.getSnapshot().loaded)) {
         void runtimeAgents.load().catch(() => {});
       }
-      directionTreeAwaitsHello(false); // after followDirections started its read: those waiting share it
       break;
     }
-    case "directions":
-      // the direction tree changed (#4352): a leader made or ended anywhere, a name, a task's state. The sidebar's 常驻
-      // follow at once (#4331: a sixth leader stayed hidden until a reload); a read already out may predate the change
-      void followDirections(true);
-      break;
     case "hub_restarting":
       restartNotice = true; // the close that follows is a restart: retry at once, stay quiet longer
       break;

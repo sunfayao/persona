@@ -214,29 +214,6 @@ func TestAgentSendTaskFromSideIsSupervisedByMain(t *testing.T) {
 	}
 }
 
-// A direction lead owns its own hand-off even before a main conversation has been configured.
-func TestAgentSendTaskFromLeaderWithoutMainKeepsItsSupervisor(t *testing.T) {
-	s, f := newQuietService(t)
-	secretary(f)
-	f.known["lead1"] = true
-	setSettings(t, s, func(v *Settings) { v.Main, v.Leaders = "", []string{"lead1"} })
-	_, err := runJSON(t, s, "lead1", "agent_send", map[string]any{"machine": "box", "session_id": "sec00001", "text": "把周报数据拉一下",
-		"task": map[string]any{"title": "拉周报数据", "done_when": []string{"表格链接贴回来"}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	todo := onlyTodo(s)
-	if todo.Origin != "lead1" {
-		t.Fatalf("the hand-off lost its origin: %+v", todo)
-	}
-	if todo.Supervision == nil || todo.Supervision.Supervisor != "lead1" {
-		t.Errorf("the lead lost supervision without main: %+v", todo.Supervision)
-	}
-	if _, err := runJSON(t, s, "lead1", "task_review", map[string]any{"todo_id": todo.ID, "verdict": "cancelled", "note": "Cancel this task"}); err != nil {
-		t.Errorf("the planning lead could not cancel its task: %v", err)
-	}
-}
-
 // An agent working for the user's own todo or another conversation's task stays theirs: refused with why, nothing
 // sent, no todo made.
 func TestAgentSendTaskRefusesWhatIsNotItsOwn(t *testing.T) {

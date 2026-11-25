@@ -16,6 +16,8 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
+type historyKey struct{ machine, session string }
+
 const conversationHistoryKey = "assistant.history"
 
 var errHistoryGenerationUnavailable = errors.New("runtime did not provide a history generation")
@@ -32,9 +34,9 @@ type conversationHistoryStore interface {
 type conversationHistoryBook struct {
 	mu               sync.Mutex
 	wake             chan struct{}
-	changes, checked map[searchKey]uint64
-	probed           map[searchKey]time.Time
-	retry            map[searchKey]historyRetry
+	changes, checked map[historyKey]uint64
+	probed           map[historyKey]time.Time
+	retry            map[historyKey]historyRetry
 }
 
 type historyRetry struct {
@@ -160,7 +162,7 @@ func (s *Service) historyCall(ctx context.Context, machine, method string, raw j
 		if h == nil {
 			return nil, false, nil
 		}
-		if c, known := s.historySession(ctx, machine, p.SessionID); known && (c.Rev == 0 || c.Rev != h.Revision || s.historyDirty(searchKey{machine, p.SessionID})) {
+		if c, known := s.historySession(ctx, machine, p.SessionID); known && (c.Rev == 0 || c.Rev != h.Revision || s.historyDirty(historyKey{machine, p.SessionID})) {
 			return nil, false, nil
 		}
 		row, err := st.ConversationItem(ctx, machine, p.SessionID, h.History, p.ItemID)
@@ -181,7 +183,7 @@ func (s *Service) historyCall(ctx context.Context, machine, method string, raw j
 		if h != nil {
 			fresh := true
 			if c, known := s.historySession(ctx, machine, p.SessionID); known {
-				fresh = c.Rev > 0 && c.Rev == h.Revision && !s.historyDirty(searchKey{machine, p.SessionID})
+				fresh = c.Rev > 0 && c.Rev == h.Revision && !s.historyDirty(historyKey{machine, p.SessionID})
 			}
 			if fresh {
 				if out, ok := s.historyHandoff(ctx, st, h, false); ok {
@@ -214,7 +216,7 @@ func (s *Service) historyCall(ctx context.Context, machine, method string, raw j
 	if h != nil {
 		offline := s.historyMachineOffline(ctx, machine)
 		if c, ok := s.historySession(ctx, machine, p.SessionID); ok {
-			fresh = c.Rev > 0 && h.Revision == c.Rev && !s.historyDirty(searchKey{machine, p.SessionID})
+			fresh = c.Rev > 0 && h.Revision == c.Rev && !s.historyDirty(historyKey{machine, p.SessionID})
 		}
 		if h.TailSeq != nil {
 			if out, ok := s.historyPage(ctx, st, h, p, fresh || offline, offline); ok {
@@ -581,7 +583,7 @@ func (s *Service) historyWake() {
 	}
 }
 
-func (s *Service) historyDirty(k searchKey) bool {
+func (s *Service) historyDirty(k historyKey) bool {
 	s.history.mu.Lock()
 	defer s.history.mu.Unlock()
 	return s.history.changes[k] != s.history.checked[k]
@@ -590,14 +592,14 @@ func (s *Service) historyDirty(k searchKey) bool {
 // Notifications are hints, never source records: an old event may cause a pull
 // but cannot put an old generation back into the database.
 func (s *Service) historySignal(machine, event string, raw json.RawMessage) {
-	keys := []searchKey{}
+	keys := []historyKey{}
 	switch event {
 	case "session.items":
 		var p struct {
 			SessionID string `json:"session_id"`
 		}
 		if json.Unmarshal(raw, &p) == nil && p.SessionID != "" {
-			keys = append(keys, searchKey{machine, p.SessionID})
+			keys = append(keys, historyKey{machine, p.SessionID})
 		}
 	case "sessions.revs":
 		var p struct {
@@ -605,23 +607,23 @@ func (s *Service) historySignal(machine, event string, raw json.RawMessage) {
 		}
 		if json.Unmarshal(raw, &p) == nil {
 			for sid := range p.Revs {
-				keys = append(keys, searchKey{machine, sid})
+				keys = append(keys, historyKey{machine, sid})
 			}
 		}
 	default:
 		return
 	}
-	expanded := make([]searchKey, 0, len(keys))
+	expanded := make([]historyKey, 0, len(keys))
 	for _, k := range keys {
 		for _, alias := range s.physicalAliases(k.machine) {
-			expanded = append(expanded, searchKey{alias, k.session})
+			expanded = append(expanded, historyKey{alias, k.session})
 		}
 	}
 	keys = expanded
 
 	s.history.mu.Lock()
 	if s.history.changes == nil {
-		s.history.changes = map[searchKey]uint64{}
+		s.history.changes = map[historyKey]uint64{}
 	}
 	for _, k := range keys {
 		s.history.changes[k]++
@@ -726,10 +728,10 @@ func (s *Service) historySweep(ctx context.Context, st conversationHistoryStore)
 				}
 			}
 			if err := s.historySync(ctx, st, source, c); err != nil && !errors.Is(err, db.ErrConversationHistoryChanged) && ctx.Err() == nil {
-				k := searchKey{source, c.SessionID}
+				k := historyKey{source, c.SessionID}
 				s.history.mu.Lock()
 				if s.history.retry == nil {
-					s.history.retry = map[searchKey]historyRetry{}
+					s.history.retry = map[historyKey]historyRetry{}
 				}
 				s.history.retry[k] = historyRetry{time.Now().Add(time.Minute), c.Rev, s.history.changes[k]}
 				s.history.mu.Unlock()
@@ -742,7 +744,7 @@ func (s *Service) historySweep(ctx context.Context, st conversationHistoryStore)
 }
 
 func (s *Service) historySync(ctx context.Context, st conversationHistoryStore, machine string, c proto.Session) error {
-	k := searchKey{machine, c.SessionID}
+	k := historyKey{machine, c.SessionID}
 	s.history.mu.Lock()
 	change := s.history.changes[k]
 	force := change != s.history.checked[k] || time.Since(s.history.probed[k]) >= 30*time.Second
@@ -846,10 +848,10 @@ func (s *Service) historySync(ctx context.Context, st conversationHistoryStore, 
 			}
 			s.history.mu.Lock()
 			if s.history.checked == nil {
-				s.history.checked = map[searchKey]uint64{}
+				s.history.checked = map[historyKey]uint64{}
 			}
 			if s.history.probed == nil {
-				s.history.probed = map[searchKey]time.Time{}
+				s.history.probed = map[historyKey]time.Time{}
 			}
 			s.history.checked[k], s.history.probed[k] = change, time.Now()
 			delete(s.history.retry, k)

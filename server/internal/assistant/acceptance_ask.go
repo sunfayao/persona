@@ -233,7 +233,7 @@ func (s *Service) acceptCard(ctx context.Context, t Todo, a acceptAsk, again boo
 	if again {
 		head = "assistant-reports.accept_again"
 	}
-	title := s.feishuDirection(ctx, t, s.feishuDirections(ctx)) + i18n.T(l, head, i18n.Args{"task": clip(oneLine(t.Title), 30)})
+	title := feishuTaskPrefix + i18n.T(l, head, i18n.Args{"task": clip(oneLine(t.Title), 30)})
 	color := feishubot.Orange // the owner is to check it
 	if !a.AcceptedAt.IsZero() {
 		color = feishubot.Grey

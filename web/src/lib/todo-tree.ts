@@ -6,7 +6,6 @@ import { type WaitReason } from "./todo-wait-reason";
 import { usageLimitAgent } from "./usage-limit";
 import type { Session } from "./types";
 import { stateName } from "./state-labels";
-import type { DirectionTaskState } from "./direction-tree";
 
 
 /** The one-word state every node of the tree shows (#2526): "Needs you" before "Working" before "Waiting in the
@@ -43,8 +42,6 @@ export interface TreeTodo {
   /** What it waits on while its status is Waiting (#11090, lib/todo-wait-reason.ts waitOf). */
   wait?: WaitReason;
   state: TreeState;
-  /** A task of the direction tree (#4352): its state as the hub decided it, shown in place of `state`'s word. */
-  taskState?: DirectionTaskState;
   agents: TreeAgent[];
   sessions: Session[];
   folded: boolean;

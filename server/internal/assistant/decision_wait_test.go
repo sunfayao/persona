@@ -309,34 +309,6 @@ func TestHeldDecisionsCardIsRetriedFromThePush(t *testing.T) {
 	}
 }
 
-// A lead's decision that can wait stays quiet until its deferred push, then escalates to main once.
-func TestLeaderConversationHeldDecisionEscalatesWhenPushed(t *testing.T) {
-	s, f, todo := newLeaderService(t)
-	briefingOn(s, true)
-	waitsForReview(t, s, f, todo.ID, "两种走法。")
-	args := waitingDecision()
-	args["todo_id"] = todo.ID
-	res, err := runJSON(t, s, "lead1", "task_review", args)
-	if err != nil || !strings.Contains(res, "can wait (can_wait)") {
-		t.Fatalf("main's needs_user: %s %v", res, err)
-	}
-	escalated := func() bool {
-		id := superviseSignal{Todo: todo.ID, Kind: sigEscalated}.id()
-		s.supervise.mu.Lock()
-		defer s.supervise.mu.Unlock()
-		_, waits := s.supervise.pending[id]
-		return waits || s.supervise.sent[id] != ""
-	}
-	if escalated() || len(f.noticesTo("conv1")) != 0 {
-		t.Fatalf("a held decision added a supervision stream: %q", f.noticesTo("conv1"))
-	}
-	s.sweepWaitingDecisions(time.Now().Add(decisionWaitFor))
-	if n := deadlinePushes(f, todo.ID); n != 1 {
-		t.Fatalf("%d pushes, want 1", n)
-	}
-	waitFor(t, "the deferred escalation", func() bool { return escalated() && len(f.noticesTo("conv1")) == 1 })
-}
-
 // A held decision that no briefing brought to the owner is pushed while they still have 11 hours to answer, and its
 // default is taken at the deadline as any decision's.
 func TestHeldDecisionIsPushedBeforeItsDefaultIsTaken(t *testing.T) {

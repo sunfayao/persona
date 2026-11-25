@@ -70,89 +70,6 @@ func TestSideConversationTaskIsSupervisedByMain(t *testing.T) {
 	waitFor(t, "the origin's end notice", func() bool { return len(endNotices(f, "side1")) == 1 })
 }
 
-// A direction lead owns its plans. Ordinary side conversations use main; task-leader workers keep their Agent.
-func TestPlanSupervisorDefaults(t *testing.T) {
-	s, f := newQuietService(t)
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "side1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	for _, c := range []struct {
-		conv, parent, want string
-		ok                 bool
-	}{
-		{"side1", "", "conv1", true},
-		{"gone", "", "conv1", true},
-		{"conv1", "", "conv1", true},
-		{"side1", "box/s1", "", false},
-		{"", "", "", false},
-		{"lead1", "", "lead1", true},
-	} {
-		if got, ok := s.defaultPlanSupervisor(ctx, c.conv, c.parent); got != c.want && ok || ok != c.ok {
-			t.Errorf("defaultPlanSupervisor(%q, %q) = %q %v, want %q %v", c.conv, c.parent, got, ok, c.want, c.ok)
-		}
-	}
-	setSettings(t, s, func(v *Settings) { v.Main = "" })
-	if got, ok := s.defaultPlanSupervisor(ctx, "lead1", ""); !ok || got != "lead1" {
-		t.Fatalf("lead without main: %q %v", got, ok)
-	}
-	if got, ok := s.defaultPlanSupervisor(ctx, "side1", ""); ok || got != "" {
-		t.Fatalf("no main conversation: %q %v, want no supervisor", got, ok)
-	}
-}
-
-// Open tasks written before universal main supervision are rehomed without losing their criteria. Explicit leader
-// assignments and task-leader workers keep their specialized supervisor (#5732).
-func TestOpenLegacySideTaskRehomesToMain(t *testing.T) {
-	s, _, todo := newSupervisedService(t)
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	if _, _, err := s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool {
-		v.Supervisor = "side1"
-		return true
-	}); err != nil {
-		t.Fatal(err)
-	}
-	putTodo(s, Todo{ID: "explicit-leader", Origin: "lead1", Supervision: &Supervision{Supervisor: "lead1"}})
-	putTodo(s, Todo{ID: "leader-worker", Origin: "conv1", Supervision: &Supervision{Supervisor: "box/leader-agent"}})
-	// A pre-#5732 task_plan(supervisor=leader) is not the manual-Agent exception: its saved plan says so.
-	if err := s.savePlan(ctx, &TaskPlan{ID: "old-leader-plan", Tasks: []PlanTask{{TodoID: "legacy-leader-plan", Supervisor: "lead1"}}}); err != nil {
-		t.Fatal(err)
-	}
-	putTodo(s, Todo{ID: "legacy-leader-plan", Origin: "conv1", PlanID: "old-leader-plan", Supervision: &Supervision{Supervisor: "lead1"}})
-	// A leader's old default plan has no explicit supervisor field; its saved conversation identifies the same topology.
-	if err := s.savePlan(ctx, &TaskPlan{ID: "old-default-leader-plan", Conversation: "lead1", Tasks: []PlanTask{{TodoID: "legacy-default-leader-plan"}}}); err != nil {
-		t.Fatal(err)
-	}
-	putTodo(s, Todo{ID: "legacy-default-leader-plan", Origin: "lead1", PlanID: "old-default-leader-plan", Supervision: &Supervision{Supervisor: "lead1"}})
-	cfg := s.settings(ctx)
-	if got := s.digestTo(ctx, cfg, superviseSignal{Todo: "legacy-leader-plan", Kind: sigReview}); got != "conv1" {
-		t.Fatalf("legacy leader-plan still routes to %q", got)
-	}
-	if got := s.digestTo(ctx, cfg, superviseSignal{Todo: "explicit-leader", Kind: sigReview}); got != "lead1" {
-		t.Fatalf("the explicit manual leader route changed to %q", got)
-	}
-	if got := s.digestTo(ctx, cfg, superviseSignal{Todo: "legacy-default-leader-plan", Kind: sigReview}); got != "conv1" {
-		t.Fatalf("legacy default leader-plan still routes to %q", got)
-	}
-	s.rehomeSupervisedTodos(ctx)
-	if got := todoNow(s, todo.ID).Supervision; got.Supervisor != "conv1" || len(got.DoneWhen) != 2 || got.ExpectMinutes != 30 {
-		t.Fatalf("rehomed ledger = %+v", got)
-	}
-	if got := todoNow(s, "explicit-leader").Supervision.Supervisor; got != "lead1" {
-		t.Fatalf("explicit leader changed to %q", got)
-	}
-	if got := todoNow(s, "leader-worker").Supervision.Supervisor; got != "box/leader-agent" {
-		t.Fatalf("task-leader worker changed to %q", got)
-	}
-	if got := todoNow(s, "legacy-leader-plan").Supervision.Supervisor; got != "conv1" {
-		t.Fatalf("legacy leader-plan did not rehome to main: %q", got)
-	}
-	if got := todoNow(s, "legacy-default-leader-plan").Supervision.Supervisor; got != "conv1" {
-		t.Fatalf("legacy default leader-plan did not rehome to main: %q", got)
-	}
-}
-
 // A legacy side's queued review was already acknowledged from the durable outbox. Rehoming its task must replay that
 // exact signal for main, not leave an unusable review prompt behind in the old conversation (#5732).
 func TestLegacySideQueuedReviewRehomesToMain(t *testing.T) {
@@ -677,25 +594,6 @@ func TestSideOriginCannotAcceptUnsupervisedLegacyTask(t *testing.T) {
 	}
 	if _, err := runJSON(t, s, "conv1", "task_review", map[string]any{"todo_id": todo.ID, "verdict": "accepted"}); err != nil {
 		t.Fatalf("main could not accept the legacy task: %v", err)
-	}
-}
-
-// The explicit manual-Agent exception is usable end to end: its leader can accept the task it supervises.
-func TestManualLeaderCanAcceptAssignedAgentTask(t *testing.T) {
-	s, _ := newQuietService(t)
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) { v.Leaders = []string{"lead1"} })
-	todo, err := s.createTodo(ctx, "手动 Agent 任务", "做完", "lead1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.superviseTodo(ctx, todo.ID, "lead1", []string{"完成"}, 0)
-	if _, err := runJSON(t, s, "lead1", "task_review", map[string]any{"todo_id": todo.ID, "verdict": "accepted",
-		"checks": completeReviewChecks(todoNow(s, todo.ID))}); err != nil {
-		t.Fatalf("the explicit manual leader could not review its task: %v", err)
-	}
-	if todoNow(s, todo.ID).DoneAt == nil {
-		t.Fatal("the manual leader's acceptance did not close its task")
 	}
 }
 

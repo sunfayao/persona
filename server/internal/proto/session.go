@@ -711,16 +711,6 @@ type NativeArchive struct {
 	Error string `json:"error,omitempty"`
 }
 
-// Direction is a leader conversation's record (assistantwire.SessionView.Direction, GET /api/v1/assistant/leaders): Project the knowledge-base project's slug ("" while
-// none), By "assistant" or "user" (the owner's choice, never redone by the hub), At when it became a direction, EndedAt
-// when it stopped being a leader (nothing is deleted).
-type Direction struct {
-	Project string     `json:"project,omitempty"`
-	By      string     `json:"by"`
-	At      time.Time  `json:"at"`
-	EndedAt *time.Time `json:"ended_at,omitempty"`
-}
-
 // ModelPick is what an assistant conversation was set to run on in the apps (PUT
 // /api/v1/assistant/conversations/{id}/model): a launcher and, when one was picked, its model and reasoning effort.
 type ModelPick struct {

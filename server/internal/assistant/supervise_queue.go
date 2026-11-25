@@ -32,7 +32,6 @@ func decodeDigestSignals(raw string) ([]superviseSignal, bool) {
 func (s *Service) renderQueuedDigest(ctx context.Context, to string, list []prompts.SuperviseEntry, originalFresh ...bool) string {
 	here := s.settings(ctx)
 	background := to != here.Main && to == here.BackgroundSupervisor
-	leader := background || to != here.Main && s.isLeader(ctx, to)
 	fresh := background && !backgroundKeepsContext(here)
 	if len(originalFresh) > 0 {
 		fresh = originalFresh[0]
@@ -41,10 +40,9 @@ func (s *Service) renderQueuedDigest(ctx context.Context, to string, list []prom
 	if len(list) > 0 && !slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind != sigParkedSummary }) {
 		level = supervisionInfo
 	}
-	return prompts.RenderSupervise(prompts.Supervise{Level: level, Entries: sortEntries(list), Leader: leader, Background: background,
-		Fresh: fresh, Side: to != here.Main && !leader, Escalated: escalatedIn(list),
+	return prompts.RenderSupervise(prompts.Supervise{Level: level, Entries: sortEntries(list), Background: background,
+		Fresh: fresh, Side: to != here.Main, Escalated: escalatedIn(list),
 		BackgroundEscalated: slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigEscalated && e.Background }),
-		LeaderStuck:         slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigLeaderStuck }),
 		Overdue:             slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigOverdue }),
 		ParkedDue:           slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkedDue }),
 		ParkDecided:         slices.ContainsFunc(list, func(e prompts.SuperviseEntry) bool { return e.Kind == sigParkDecided }),
@@ -65,7 +63,7 @@ func (s *Service) recheckDigestTo(ctx context.Context, cfg Settings, g supervise
 		return s.digestTo(ctx, cfg, g)
 	}
 	switch g.Kind {
-	case sigEscalated, sigFailed, sigStarted, sigLeaderStuck:
+	case sigEscalated, sigFailed, sigStarted:
 		return cfg.Main
 	}
 	t, ok := s.todoNow(g.Todo)

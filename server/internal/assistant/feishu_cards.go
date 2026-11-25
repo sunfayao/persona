@@ -967,7 +967,7 @@ func (s *Service) ixTask(ctx context.Context, ix proto.Interaction) (label strin
 	if !ok || task == "" {
 		return "", false
 	}
-	direction := s.feishuDirection(ctx, t, s.feishuDirections(ctx))
+	direction := feishuTaskPrefix
 	if transcript.Title(ix.SessionTitle) == t.Title {
 		return direction, true
 	}

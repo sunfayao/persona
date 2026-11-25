@@ -31,7 +31,6 @@ import (
 const (
 	briefByOwner     = "owner"     // the owner asked for it: Request is their message
 	briefByAssistant = "assistant" // the assistant on its own (after a supervision message, a notice, a follow-up)
-	briefByLeader    = "leader"    // a leader conversation, not on the owner's message
 	briefByRoutine   = "routine"   // a scheduled routine's run
 	briefByHub       = "hub"       // the hub itself (an agent that became a task, an inbox hand-off)
 	briefByUnknown   = "unknown"   // the conversation could not be read, or nothing says (a reconstructed brief)
@@ -1094,9 +1093,6 @@ func (s *Service) briefOrigin(ctx context.Context, machine, conversation string)
 			return rec
 		}
 		rec.StartedBy = briefByAssistant
-		if s.isLeader(ctx, conversation) {
-			rec.StartedBy = briefByLeader
-		}
 		switch {
 		case it.Wake:
 			rec.Trigger = "wake"

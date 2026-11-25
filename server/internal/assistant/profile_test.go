@@ -84,20 +84,6 @@ func TestPutSettings(t *testing.T) {
 	if code, out := put(`{"main_background_folded":false}`); code != http.StatusOK || out["main_background_folded"] != false {
 		t.Fatalf("main_background_folded off: %d %v", code, out["main_background_folded"])
 	}
-	// The sidebar's Recent leaves the scheduled tasks' chats out until the user says otherwise (#8324); the answer says
-	// what is in effect, a write the field is missing from keeps it.
-	if code, out := put(`{}`); code != http.StatusOK || out["recent_task_chats"] != false {
-		t.Fatalf("recent_task_chats default: %d %v", code, out["recent_task_chats"])
-	}
-	if code, out := put(`{"recent_task_chats":true}`); code != http.StatusOK || out["recent_task_chats"] != true {
-		t.Fatalf("recent_task_chats on: %d %v", code, out["recent_task_chats"])
-	}
-	if code, out := put(`{"main_background_folded":true}`); code != http.StatusOK || out["recent_task_chats"] != true {
-		t.Fatalf("recent_task_chats kept by another write: %d %v", code, out["recent_task_chats"])
-	}
-	if code, out := put(`{"recent_task_chats":false}`); code != http.StatusOK || out["recent_task_chats"] != false {
-		t.Fatalf("recent_task_chats off: %d %v", code, out["recent_task_chats"])
-	}
 	if code, out := put(`{"main":"-"}`); code != http.StatusOK || out["main"] != nil {
 		t.Fatalf("clear main: %d %v", code, out)
 	}
@@ -356,7 +342,7 @@ func TestBoolSettingsSet(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		def  bool
-	}{{"main_tasks_quiet", true}, {"start_requested_tasks", true}, {"interject_background", false}, {"agent_tasks", false}, {"close_ended_terminals", false}, {"main_background_folded", true}, {"recent_task_chats", false}, {"inbox_signals", false}, {"main_supervises_own_tasks", false}} {
+	}{{"main_tasks_quiet", true}, {"start_requested_tasks", true}, {"interject_background", false}, {"agent_tasks", false}, {"close_ended_terminals", false}, {"main_background_folded", true}, {"inbox_signals", false}, {"main_supervises_own_tasks", false}} {
 		key := "assistant." + c.name
 		get := func() string { out, _ := tool(`{"action":"get","key":"` + key + `"}`); return out }
 		set := func(value string) (string, bool) {

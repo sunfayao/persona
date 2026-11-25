@@ -17,7 +17,7 @@ import (
 // "Archive and close" (archiveAndCloseAgentSession, agent_archive_close.go). Nothing is ever deleted.
 //
 // Archiving and restoring change nothing on the computer and are undone with one call, so they are not confirmed
-// (as conversation_archive is not). Closing the agent on its computer is confirmed on the phone every time (a
+// (as a Persona conversation is not). Closing the agent on its computer is confirmed on the phone every time (a
 // permission card, as persona_settings asks), and a busy agent is refused before the card is shown; the manager checks
 // again when it closes. The answer says what happened in the words the assistant repeats to the user: archived or
 // not, what the agent's own tool did (native archive), and whether the agent was closed, or why it is still open.
@@ -37,7 +37,7 @@ func (s *Service) toolAgentArchive(ctx context.Context, machine, self string, ar
 		return "", err
 	}
 	if c.Assistant {
-		return "", fmt.Errorf("that is a Persona conversation, not a coding agent: use conversation_archive / conversation_unarchive")
+		return "", fmt.Errorf("that is a Persona conversation, not a coding agent: there is no tool to archive it")
 	}
 	if a.Force && !archived {
 		return "", fmt.Errorf("force is only for archiving a confirmation-blocked Agent")

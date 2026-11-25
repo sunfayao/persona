@@ -163,7 +163,7 @@ func routable(ix proto.Interaction) bool {
 func (s *Service) askLadder(ctx context.Context, ix proto.Interaction) (ladder []string, todo, home string, ok bool) {
 	machine, sid := ix.MachineID, ix.SessionID
 	cfg := s.settings(ctx)
-	if (len(cfg.Leaders) == 0 && ix.Kind != proto.IxScreen) || cfg.Main == "" || sid == cfg.Main || sid == cfg.BackgroundSupervisor || slices.Contains(cfg.Leaders, sid) {
+	if ix.Kind != proto.IxScreen || cfg.Main == "" || sid == cfg.Main || sid == cfg.BackgroundSupervisor {
 		return nil, "", "", false
 	}
 	home = cfg.MachineID
@@ -200,12 +200,6 @@ func (s *Service) askLadder(ctx context.Context, ix proto.Interaction) (ladder [
 		// destination as a supervision message when a runtime cannot receive it.
 		to := s.digestTarget(ctx, cfg, superviseSignal{Todo: t.ID, Kind: sigAsk, To: lead})
 		return []string{to}, t.ID, home, to != ""
-	}
-	if lead != cfg.Main && slices.Contains(cfg.Leaders, lead) {
-		if t.Supervision.assigned() {
-			return []string{lead}, t.ID, home, true // only owner-decision escalations go to main
-		}
-		return []string{lead, cfg.Main}, t.ID, home, true
 	}
 	return []string{s.ownSupervisor(cfg)}, t.ID, home, true
 }
@@ -582,7 +576,7 @@ func (s *Service) toolAskEscalate(ctx context.Context, self string, args json.Ra
 	if !ok || t.DoneAt != nil || t.Supervision == nil {
 		return "", fmt.Errorf("no open supervised task %s", a.TodoID)
 	}
-	terminalOnly := len(s.settings(ctx).Leaders) == 0
+	terminalOnly := true
 	main := s.isMain(ctx, self)
 	if !main && t.Supervision.Supervisor != self && !s.backgroundSupervises(ctx, self, t) {
 		above, _ := s.supervisorAboveTask(ctx, t)

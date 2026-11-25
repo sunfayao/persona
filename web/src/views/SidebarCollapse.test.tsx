@@ -315,7 +315,7 @@ describe("the Agents fold-all button (#3027, #6447)", () => {
 
 describe("the main conversation: the column's first row, Main chat with its home symbol (#10544)", () => {
   const conv = (id: string, title: string): Session => ({ machine_id: "hub", session_id: id, title, cwd: "/", status: "idle", state: "idle", assistant: true, pending_interactions: id === "main" ? 2 : 0 });
-  const assistant: AssistantInfo = { machine_id: "hub", main: "main", leaders: ["c1"], conversations: [conv("main", "Persona"), conv("c1", "整理周报")] };
+  const assistant: AssistantInfo = { machine_id: "hub", main: "main", conversations: [conv("main", "Persona"), conv("c1", "整理周报")] };
   const mainRow = () => host.querySelector<HTMLAnchorElement>('a[title="Persona 的主对话"]')!;
   const load = async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {

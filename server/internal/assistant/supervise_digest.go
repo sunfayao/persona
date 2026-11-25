@@ -1061,7 +1061,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 	if g.Kind == sigEscalated {
 		e.Recommend = g.Ask // the leader's recommendation (escalate)
 		e.Asks = g.Cards
-		e.Background = !s.isLeader(ctx, v.Supervisor) // only the background supervisor escalates a task no leader supervises
+		e.Background = true // only the background supervisor escalates
 	}
 	if g.Kind == sigDecide {
 		e.Recommend = g.Ask // the task leader's recommendation
@@ -1181,7 +1181,7 @@ func (s *Service) digestEntry(ctx context.Context, g superviseSignal, web string
 
 // sortEntries puts what waits on a decision first.
 func sortEntries(list []prompts.SuperviseEntry) []prompts.SuperviseEntry {
-	rank := map[string]int{sigNeedsYou: 0, sigAsk: 0, sigEscalated: 0, sigDecide: 0, sigOwnerCannot: 0, sigUndecidable: 1, sigDeliveryHold: 1, sigRecheck: 1, sigCardlessWait: 1, sigNeedsUserExternalInfo: 1, sigEstimateDue: 2, sigParkedDue: 2, sigParkDecided: 2, sigIdle: 2, sigUnjudged: 2, sigAllStopped: 2, sigFailed: 3, sigStarted: 3, sigTodoReady: 3, sigPRMerged: 3, sigParentCloseout: 3, sigInterrupted: 4, sigOrphaned: 4, sigTimedOut: 4, sigReview: 5, sigStalled: 6, sigNoProgress: 6, sigLeaderStuck: 6, sigOverdue: 6, sigInbox: 6, sigReport: 7}
+	rank := map[string]int{sigNeedsYou: 0, sigAsk: 0, sigEscalated: 0, sigDecide: 0, sigOwnerCannot: 0, sigUndecidable: 1, sigDeliveryHold: 1, sigRecheck: 1, sigCardlessWait: 1, sigNeedsUserExternalInfo: 1, sigEstimateDue: 2, sigParkedDue: 2, sigParkDecided: 2, sigIdle: 2, sigUnjudged: 2, sigAllStopped: 2, sigFailed: 3, sigStarted: 3, sigTodoReady: 3, sigPRMerged: 3, sigParentCloseout: 3, sigInterrupted: 4, sigOrphaned: 4, sigTimedOut: 4, sigReview: 5, sigStalled: 6, sigNoProgress: 6, sigOverdue: 6, sigInbox: 6, sigReport: 7}
 	at := func(e prompts.SuperviseEntry) int {
 		switch {
 		case e.Kind == sigCheck && e.Report == checkDecidedReport: // the owner's answer

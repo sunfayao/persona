@@ -30,7 +30,7 @@ func (s *Service) agentTaskSupervisor(ctx context.Context, conversation string) 
 	if !s.agentTasks(ctx) {
 		return "", false
 	}
-	if s.supervises(ctx, conversation) {
+	if s.isMain(ctx, conversation) {
 		return conversation, true
 	}
 	main := s.settings(ctx).Main

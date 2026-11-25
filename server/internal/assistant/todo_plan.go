@@ -201,35 +201,9 @@ func (s *Service) createTodoFromWithImages(ctx context.Context, title, notes, in
 	return s.insertTodo(ctx, row, bindings...)
 }
 
-// createDirectionTodo makes a piece of leader's direction (#5846): a todo with plan's due date, reminder, priority and
-// project, opened by the leader and supervised by it, with no agent and no done_when, as a Lark topic opens one
-// (feishu_thread_open.go). So the direction tree lists it under that direction (as not started until an agent works on
-// it, direction_tree.go), and task_plan's todo_id can run an agent on it later instead of opening a second todo.
-func (s *Service) createDirectionTodo(ctx context.Context, leader, title, notes string, plan db.TodoEdit, bindings ...*repository.CreateBindings) (Todo, error) {
-	now := time.Now().UTC()
-	row := db.TodoRow{ID: "todo_" + randomHex(8), Title: title, Notes: notes, CreatedAt: now, UpdatedAt: now,
-		Origin: leader, Quiet: s.quietTask(ctx, leader)}
-	plan.Title, plan.Notes, plan.Done = nil, nil, nil
-	plan.Apply(&row, now)
-	t, err := s.insertTodo(ctx, row, bindings...)
-	if err != nil {
-		return Todo{}, err
-	}
-	if err := s.superviseTodo(ctx, t.ID, leader, nil, 0); err != nil {
-		if rerr := s.removeTodo(context.WithoutCancel(ctx), t.ID); rerr != nil {
-			s.logf("todo %s: take back after supervision failure: %v", t.ID, rerr)
-		}
-		return Todo{}, err
-	}
-	if cur, ok := s.todoNow(t.ID); ok {
-		t = cur
-	}
-	return t, nil
-}
-
 // createPieceTodo makes a piece of a request that conversation will hand out itself (todo_pieces.go): a to-do with
 // plan's links, opened by that conversation, with no agent, so that its task_plan's todo_id can run an Agent on it when
-// its turn comes (reusableTodo) instead of opening a second to-do. Unlike a leader's piece (createDirectionTodo) it is
+// its turn comes (reusableTodo) instead of opening a second to-do. It is
 // not supervised until an Agent works on it: the plan that starts it sets that up.
 func (s *Service) createPieceTodo(ctx context.Context, conversation, title, notes string, plan db.TodoEdit, bindings ...*repository.CreateBindings) (Todo, error) {
 	now := time.Now().UTC()

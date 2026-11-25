@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/modelhttp"
@@ -41,9 +40,6 @@ func (s *Service) conversationModelSource(ctx context.Context, machine, id strin
 	}
 	switch {
 	case id == cfg.Main && machine == cfg.mainRouteMachine():
-		return source
-	case machine == cfg.MachineID && slices.Contains(cfg.Leaders, id):
-		source.Role = "leader"
 		return source
 	case s.isBackgroundCallerOn(ctx, machine, id):
 		source.Role = "background"

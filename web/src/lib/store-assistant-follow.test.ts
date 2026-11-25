@@ -59,11 +59,11 @@ beforeEach(() => {
 afterEach(() => { reset(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 const settle = () => vi.advanceTimersByTimeAsync(0);
 const conversation = (id: string) => getState().assistant?.conversations.find((c) => c.session_id === id);
-/** The conversations other than the main one, a leader, an archived one and the background supervisor, newest first, by id. */
+/** The conversations other than the main one, an archived one and the background supervisor, newest first, by id. */
 const recent = () => {
   const a = getState().assistant;
   return (a?.conversations ?? [])
-    .filter((c) => c.session_id !== a?.main && !(a?.leaders ?? []).includes(c.session_id) && !c.archived && c.session_id !== a?.background_supervisor)
+    .filter((c) => c.session_id !== a?.main && !c.archived && c.session_id !== a?.background_supervisor)
     .sort((x, y) => (y.updated_at ?? "").localeCompare(x.updated_at ?? "") || x.session_id.localeCompare(y.session_id))
     .map((c) => c.session_id);
 };

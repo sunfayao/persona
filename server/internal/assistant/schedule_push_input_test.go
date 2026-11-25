@@ -166,30 +166,3 @@ func TestQuietFollowupExplicitNotifyStillDelivers(t *testing.T) {
 		t.Fatal("explicit notify_user did not reach the fake hub intact")
 	}
 }
-
-func TestQuietFollowupEscalatedAskStillDelivers(t *testing.T) {
-	e := newRouteEnv(t, nil, true)
-	e.f.mu.Lock()
-	e.f.items = []proto.Item{
-		{Role: "user", Kind: proto.KindText, Text: "Patrol", Source: taskMessageSource(Task{SessionID: "lead1", Push: pushAsked})},
-		{Role: "assistant", Kind: proto.KindText, Text: "Nothing new"},
-	}
-	e.f.mu.Unlock()
-	got := e.raise(askPermission("ix-patrol", "worker-1"))
-	e.noticeWith("lead1", "interaction_id=ix-patrol")
-	if _, err := runJSON(t, e.s, "lead1", "ask_escalate", map[string]any{"todo_id": e.todo.ID, "reason": "User approval required", "recommend": "Approve"}); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the escalated push", func() bool { return e.pushesOf("ix-patrol") == 1 })
-	shown := e.lastShown("ix-patrol")
-	if shown.Delegating || shown.Delegate == nil || shown.Delegate.Reason != "User approval required" {
-		t.Fatal("the escalation was not delivered to the user")
-	}
-	no := false
-	if err := e.s.resolve("ix-patrol", proto.Resolution{Allow: &no}); err != nil {
-		t.Fatal(err)
-	}
-	if r := answerOf(t, got); r.Allow == nil || *r.Allow {
-		t.Fatal("the fake user's answer did not reach the agent")
-	}
-}

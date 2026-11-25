@@ -99,9 +99,6 @@ func TestSpaceBackfillReadHoldsUpNoOwnerWrite(t *testing.T) {
 	})
 	answers("a close", func() { status["close"] = e.do("PATCH", "/api/v1/todos/"+closed.ID, `{"done":true}`).Code })
 	answers("a delete", func() { status["delete"] = e.do("DELETE", "/api/v1/todos/"+deleted.ID, "").Code })
-	answers("an archive", func() {
-		status["archive"] = e.do("POST", "/api/v1/assistant/conversations/conv_side/archive", "").Code
-	})
 	answers("a new chat", func() {
 		status["new chat"] = appRequest(t, s, "POST", "/api/v1/assistant/conversations", `{"prompt":"plan the trip"}`, "en").Code
 	})

@@ -114,7 +114,7 @@ func acceptedNote(l i18n.Lang, a *acceptAsk) string {
 // ("Got it", or for a decision "Take the recommendation"); once passed, what came of it instead of the button.
 func (s *Service) conclusionCard(ctx context.Context, t Todo, a acceptAsk) *feishubot.Card {
 	l := s.botLang(ctx)
-	title := s.feishuDirection(ctx, t, s.feishuDirections(ctx)) + i18n.T(l, "assistant-reports.verdict_title", i18n.Args{"task": clip(oneLine(t.Title), 30)})
+	title := feishuTaskPrefix + i18n.T(l, "assistant-reports.verdict_title", i18n.Args{"task": clip(oneLine(t.Title), 30)})
 	color := feishubot.Green
 	switch {
 	case !a.AcceptedAt.IsZero(): // passed: over

@@ -278,7 +278,7 @@ func TestAssistantRoundLive(t *testing.T) {
 	t.Logf("claude %s, anchor %s", tr.version, anchor)
 
 	round := func(n int) string {
-		return prompts.RenderSupervise(prompts.Supervise{Leader: true, Background: true, Fresh: true,
+		return prompts.RenderSupervise(prompts.Supervise{Background: true, Fresh: true,
 			Entries: []prompts.SuperviseEntry{{ID: fmt.Sprintf("t%d", n), Title: fmt.Sprintf("round %d task", n), Kind: "idle"}}})
 	}
 	for n := 1; n <= 2; n++ {

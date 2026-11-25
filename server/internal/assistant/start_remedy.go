@@ -150,16 +150,12 @@ func (s *Service) remedyOf(ctx context.Context, id string) (Todo, *TaskPlan, int
 	return todo, p, i, nil
 }
 
-// startRemedyAllowed limits start remedies to the main conversation or the task's current configured leader. Other
-// leaders, ordinary side conversations, former leaders and the background supervisor cannot operate this task.
+// startRemedyAllowed limits start remedies to the main conversation. Side conversations and the background supervisor cannot operate this task.
 func (s *Service) startRemedyAllowed(ctx context.Context, self string, todo Todo) bool {
-	if s.isMain(ctx, self) {
-		return true
-	}
-	return todo.Supervision != nil && todo.Supervision.Supervisor == self && s.isLeader(ctx, self)
+	return s.isMain(ctx, self)
 }
 
-// remedyTool is the task a remedy tool names, checked: the main conversation or its current leader, and its start being remedied.
+// remedyTool is the task a remedy tool names, checked: the main conversation, and its start being remedied.
 func (s *Service) remedyTool(ctx context.Context, self, id string) (Todo, *TaskPlan, int, *StartRemedy, error) {
 	todo, p, i, err := s.remedyOf(ctx, strings.TrimSpace(id))
 	if err != nil {

@@ -200,8 +200,7 @@ func (s *Service) interruptLanded(ctx context.Context, machine, id string) bool 
 
 // ---- agent_supervise ----
 
-// toolAgentSupervise takes agent machine/session under the supervision of conversation self, the main conversation or a
-// direction's lead (within leadTakeAllowed, #12953): a task of it already
+// toolAgentSupervise takes agent machine/session under the supervision of conversation self, the main conversation: a task of it already
 // gets the new done_when / expect_minutes; an agent of no task becomes one (a todo of this conversation with the
 // agent on it, as an answered agent_start makes); another conversation's task, or the user's own todo, stays theirs.
 func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json.RawMessage) (string, error) {
@@ -216,8 +215,8 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 	if err := json.Unmarshal(args, &a); err != nil {
 		return "", fmt.Errorf("arguments: %v", err)
 	}
-	if !s.supervises(ctx, self) {
-		return "", fmt.Errorf("only the main conversation and a direction's lead supervise agents: from here, send it without a task")
+	if !s.isMain(ctx, self) {
+		return "", fmt.Errorf("only the main conversation supervises agents: from here, send it without a task")
 	}
 	if a.Role != "" && a.Role != roleLeader {
 		return "", errors.New(`role must be "leader" or omitted for a worker`)
@@ -228,9 +227,6 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 	}
 	if c.Assistant {
 		return "", fmt.Errorf("that is an assistant conversation, not a coding agent")
-	}
-	if err := s.leadTakeAllowed(ctx, self, am, c); err != nil {
-		return "", fmt.Errorf("%w. Nothing changed", err)
 	}
 	if err := s.leaderOnWorkMachine(&PlanTask{Role: a.Role}, am); err != nil {
 		return "", err
@@ -250,7 +246,7 @@ func (s *Service) toolAgentSupervise(ctx context.Context, self string, args json
 		if err := s.call(ctx, am.ID, DeviceSessionSendOnce, params, nil); err != nil {
 			return "", fmt.Errorf("task %s has its leader, but delivery of the leader instructions was not confirmed: %w. Retry agent_supervise with the same role", todo.ID, err)
 		}
-		return fmt.Sprintf("%s leads task %s (%q), supervised by %s. Its leader instructions were sent. done_when %s.", agentLabel(c), todo.ID, todo.Title, s.conversationWords(ctx, todo.Supervision.Supervisor), criteriaWords(nil, todo.Supervision)), nil
+		return fmt.Sprintf("%s leads task %s (%q), supervised by %s. Its leader instructions were sent. done_when %s.", agentLabel(c), todo.ID, todo.Title, todo.Supervision.Supervisor, criteriaWords(nil, todo.Supervision)), nil
 	}
 	if !made {
 		return fmt.Sprintf("%s already works for your task %s (%q): you supervise it, done_when %s.", agentLabel(c), todo.ID, todo.Title,
@@ -355,9 +351,6 @@ func (s *Service) adoptAgentFor(ctx context.Context, self, supervisor string, am
 	} else {
 		v, _, err = s.updateSupervision(ctx, todo.ID, func(v *Supervision) bool {
 			v.Supervisor, v.DoneWhen, v.ExpectMinutes = supervisor, doneWhen, expect
-			if s.isLeader(ctx, supervisor) {
-				v.SupervisorSource = "plan"
-			}
 			return true
 		})
 		if err != nil {
@@ -391,55 +384,6 @@ func othersTask(c proto.Session, t Todo, self string) error {
 		return fmt.Errorf("%s works for task %q (%s) of another conversation: it stays that conversation's", agentLabel(c), t.Title, t.ID)
 	}
 	return nil
-}
-
-// leadTakeAllowed is the boundary within which conversation self, a direction's lead, takes agent c of machine am
-// under its own supervision (agent_send with a task, also when resuming it, and agent_supervise; #12953), so a lead
-// does its own work without the main conversation sending for it. The main conversation is not limited here.
-//
-//   - An agent on an open task stays that task's: another conversation's or the user's own (named, with whose it is);
-//     one on self's own task goes on under it, as from the main conversation.
-//   - An agent on no open task (its earlier task, of any direction, is closed) becomes a new task of self; the closed
-//     to-do and its supervisor are left as they are. Moving an open task between supervisors stays agent_transfer's.
-//   - An agent waiting for the user (a question, plan, permission or dialog) is the user's to answer first.
-//   - An agent busy on work no task tracks that Persona did not start (a terminal the user opened) may be the user's
-//     own run: not taken until it is idle. One Persona started (the lead's own agent_start) is taken as it runs.
-func (s *Service) leadTakeAllowed(ctx context.Context, self string, am Device, c proto.Session) error {
-	if s.isMain(ctx, self) || !s.isLeader(ctx, self) {
-		return nil
-	}
-	if c.State == proto.StateNeedsYou || c.PendingInteractions > 0 {
-		return fmt.Errorf("%s is waiting for the user (a question, plan, permission or dialog): it is theirs to answer first", agentLabel(c))
-	}
-	if err := s.ensureTodosLoaded(ctx); err != nil {
-		return err
-	}
-	if t, ok := s.openTodoOfAgent(am.ID, c.SessionID); ok {
-		if t.Origin == "" {
-			return othersTask(c, t, self)
-		}
-		if sup := cmp.Or(supervisorOf(t), t.Origin); sup != self && t.Origin != self {
-			return fmt.Errorf("%s works for task %q (%s), supervised by %s: it stays theirs until that task is closed or "+
-				"its supervisor hands it over", agentLabel(c), t.Title, t.ID, s.conversationWords(ctx, sup))
-		}
-		return nil
-	}
-	if !stoppedAgent(c) && c.Status == proto.StatusWorking && !c.StartedByPersona {
-		return fmt.Errorf("%s is busy on work no task tracks that Persona did not start (it may be the user's own run): send "+
-			"it without task, or wait until it is idle", agentLabel(c))
-	}
-	return nil
-}
-
-// conversationWords names conversation id in a refusal: the main conversation, a direction's lead, or the conversation.
-func (s *Service) conversationWords(ctx context.Context, id string) string {
-	switch {
-	case s.isMain(ctx, id):
-		return "the main conversation (" + id + ")"
-	case s.isLeader(ctx, id):
-		return "the direction lead " + id
-	}
-	return "conversation " + id
 }
 
 // ---- agent_send with a task ----
@@ -494,9 +438,6 @@ type handedTask struct {
 func (s *Service) sendTaskAllowed(ctx context.Context, self string, am Device, c proto.Session, task sendTask, text string) error {
 	if exitText(text) {
 		return fmt.Errorf("%s closes the agent, it hands it no work: send it without task", strings.TrimSpace(text))
-	}
-	if err := s.leadTakeAllowed(ctx, self, am, c); err != nil {
-		return fmt.Errorf("%w; nothing was sent", err)
 	}
 	if err := s.ensureTodosLoaded(ctx); err != nil {
 		return err
@@ -584,11 +525,8 @@ func (s *Service) adoptedTitle(ctx context.Context, c proto.Session, given, prom
 // todo's notes, and its title when task has none. An agent on a task of self's stays on it, unchanged until the send.
 func (s *Service) handTask(ctx context.Context, self string, am Device, c proto.Session, task sendTask, text string) (*handedTask, error) {
 	// Decided under adoptMu (adoptAgent): another hand-off may have put the agent on a task since sendTaskAllowed.
-	// The calling direction lead owns its hand-off; ordinary side conversations use main.
+
 	supervisor := s.settings(ctx).Main
-	if s.isLeader(ctx, self) {
-		supervisor = self
-	}
 	todo, made, err := s.adoptAgentFor(ctx, self, supervisor, am, c, task.Title, text, text, task.DoneWhen, task.ExpectMinutes, adoptionOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("%w; nothing was sent", err)

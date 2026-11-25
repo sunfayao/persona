@@ -7,14 +7,13 @@ import {
 import { caseKey, caseName, caseTodos, MERGE_CASES, PIECES, ROOTS, type PieceKind, type RootKind } from "./request-graph-merge-cases";
 import type { PlanTask, TaskPlan } from "./feed";
 import { makeSessionLookup, todoStatus, type Todo } from "./todos";
-import type { DirectionAgent, DirectionTree } from "./direction-tree";
 import type { Session, Subagent } from "./types";
 
 const at = (minutes: number) => new Date(Date.UTC(2026, 10, 14, 10, 0) + minutes * 60_000).toISOString();
 const todo = (id: string, patch: Partial<Todo> = {}): Todo => ({ id, title: id, created_at: at(0), updated_at: at(0), agents: [], ...patch });
 const session = (sid: string, patch: Partial<Session> = {}): Session => ({ machine_id: "mac", session_id: sid, title: `agent ${sid}`, cwd: "/code/app", status: "working", state: "working", ...patch }) as Session;
 const link = (sid: string, patch: Partial<NonNullable<Todo["agents"]>[number]> = {}) => ({ machine_id: "mac", session_id: sid, linked_at: at(1), ...patch });
-const data = (todos: Todo[], sessions: Session[] = []): GraphData => ({ todos, tree: null, lookup: makeSessionLookup(sessions) });
+const data = (todos: Todo[], sessions: Session[] = []): GraphData => ({ todos, lookup: makeSessionLookup(sessions) });
 const task = (title: string, patch: Partial<PlanTask> = {}): PlanTask => ({ title, prompt: title, machine: "mac", cwd: "/code/app", ...patch });
 const plan = (id: string, state: TaskPlan["state"], tasks: PlanTask[], minutes = 0): TaskPlan => ({ id, conversation: "main", state, tasks, created_at: at(minutes) });
 const graph = (todos: Todo[], sessions: Session[] = [], plans: Record<string, TaskPlan> = {}) => buildGraph({ todos, plans, data: data(todos, sessions) });
@@ -173,9 +172,7 @@ describe("requests", () => {
       const { from, ...rest } = patch;
       return todo(id, { agents: [link(id.toUpperCase())], ...(from ? { origin: `mac/${from}` as Todo["origin"] } : {}), ...rest });
     };
-    const dir = (todoId: string, agents: DirectionAgent[]): DirectionTree =>
-      ({ directions: [{ id: "main", name: "", tasks: [{ id: todoId, title: todoId, state: "working", agents }] }] }) as unknown as DirectionTree;
-    const cases: { name: string; todos: Todo[]; tree?: DirectionTree; want: Record<string, string> }[] = [
+    const cases: { name: string; todos: Todo[]; want: Record<string, string> }[] = [
       { name: "a leader's worker, on a request of its own", todos: [t("lead"), t("w", { from: "LEAD" })],
         want: { lead: "card todo:lead", w: "tree lead" } },
       { name: "a worker of a piece's leader", todos: [todo("r"), t("p", { part_of: "r" }), t("w", { from: "P" })],
@@ -191,16 +188,13 @@ describe("requests", () => {
         want: { a: "card todo:a", b: "card todo:b", w: "tree b" } },
       { name: "a worker of a worker", todos: [t("lead"), t("w1", { from: "LEAD" }), t("w2", { from: "W1" })],
         want: { lead: "card todo:lead", w1: "tree lead", w2: "tree lead" } },
-      { name: "another piece's Agent the direction tree hangs under a leader", todos: [todo("r"), t("p", { part_of: "r" }), t("q", { part_of: "r" })],
-        tree: dir("p", [{ machine_id: "mac", session_id: "P", title: "p", state: "working", children: [{ machine_id: "mac", session_id: "Q", title: "q", state: "working" }] }]),
-        want: { r: "root todo:r", p: "card todo:r", q: "card todo:r" } },
       { name: "two to-dos naming each other's Agents", todos: [t("a", { from: "B" }), t("b", { from: "A" })],
         want: { a: "card todo:a", b: "card todo:b" } },
       { name: "a worker whose dispatcher is not listed", todos: [t("w", { from: "NOBODY" })],
         want: { w: "card todo:w" } },
     ];
-    it.each(cases)("$name", ({ todos, tree, want }) => {
-      const g = buildGraph({ todos, plans: {}, data: { todos, tree: tree ?? null, lookup: makeSessionLookup([]) } });
+    it.each(cases)("$name", ({ todos, want }) => {
+      const g = buildGraph({ todos, plans: {}, data: { todos, lookup: makeSessionLookup([]) } });
       const byAgent = new Map<string, string>(todos.flatMap((td) => (td.agents ?? []).map((a) => [`${a.machine_id}/${a.session_id}`, td.id] as [string, string])));
       const places = new Map<string, string[]>();
       const put = (id: string, where: string) => places.set(id, [...(places.get(id) ?? []), where]);
@@ -489,51 +483,7 @@ describe("where a to-do stands", () => {
 });
 
 describe("a piece's Agent tree", () => {
-  const dir = (todoId: string, agents: DirectionAgent[]): DirectionTree =>
-    ({ directions: [{ id: "main", name: "", tasks: [{ id: todoId, title: todoId, state: "working", agents }] }] }) as unknown as DirectionTree;
   const sub = (id: string, patch: Partial<Subagent> = {}): Subagent => ({ id, session_id: `L@${id}`, description: `sub ${id}`, ...patch });
-
-  it("reads the leader, then its workers (open and closed), what it spawned and its subagents, each under what it hangs from", () => {
-    const todos = [
-      todo("lead", { agents: [link("L")] }),
-      todo("w1", { title: "Worker one", origin: "mac/L", agents: [link("W1")] }),
-      todo("w2", { title: "Worker two", supervision: { supervisor: "mac/L" } as Todo["supervision"], agents: [link("W2", { released_at: at(8) })], done_at: at(9) }),
-    ];
-    const tree = dir("lead", [{ machine_id: "mac", session_id: "L", title: "lead", state: "working", children: [
-      { machine_id: "mac", session_id: "S", title: "spawned", state: "working" },
-      { machine_id: "mac", session_id: "W1", title: "Worker one", state: "working" },
-      { machine_id: "mac", session_id: "L@r1", title: "sub r1", state: "working", children: [{ machine_id: "mac", session_id: "L@fresh", title: "just launched", state: "working" }] },
-    ] }]);
-    // the list's summary row has no subagents; the complete row has them, the ended one too
-    const summary = [session("L"), session("W1", { activity: "Reading the index" }), session("W2", { state: "idle", status: "idle", last_text: "Done: wrote the API\nmore" }), session("S")];
-    const full = [session("L", { subagents: [
-      sub("e1", { running: false, started_at: at(1), last_text: "Found 3 call sites" }),
-      sub("r1", { running: true, started_at: at(2), last_tool: { name: "Grep", summary: "grep foo" } }),
-      sub("n1", { running: true, started_at: at(3), parent_id: "r1" }),
-    ] })];
-    const d: GraphData = { todos, tree, lookup: makeSessionLookup(summary), complete: makeSessionLookup(full) };
-    const agents = buildGraph({ todos, plans: {}, data: d }).active[0].nodes[0].agents;
-    expect(agents.map((a) => [a.key, a.role, a.depth, a.parent ?? "", a.ended])).toEqual([
-      ["mac/L", "lead", 0, "", false],
-      ["mac/W1", "worker", 1, "mac/L", false],
-      ["mac/W2", "worker", 1, "mac/L", true],
-      ["mac/S", "spawned", 1, "mac/L", false],
-      ["sub:mac/L/e1", "subagent", 1, "mac/L", true],
-      ["sub:mac/L/r1", "subagent", 1, "mac/L", false],
-      ["sub:mac/L/n1", "subagent", 2, "sub:mac/L/r1", false],
-      // the direction tree's running one the complete row does not have yet
-      ["sub:mac/L/fresh", "subagent", 2, "sub:mac/L/r1", false],
-    ]);
-    const by = (k: string) => agents.find((a) => a.key === k)!;
-    expect([by("mac/W1").doing, by("mac/W2").doing, by("sub:mac/L/e1").doing, by("sub:mac/L/r1").doing]).toEqual(["Reading the index", "Done: wrote the API", "Found 3 call sites", "grep foo"]);
-    // a subagent opens its own link (the launching chat at its card), never the Agent that launched it; one only the
-    // direction tree knows too
-    expect([by("sub:mac/L/n1").open, by("sub:mac/L/fresh").open, by("mac/W2").open]).toEqual([
-      { mid: "mac", sid: "L@n1" }, { mid: "mac", sid: "L@fresh" }, { mid: "mac", sid: "W2" },
-    ]);
-    expect(agents.filter((a) => a.role === "subagent").every((a) => a.open.sid !== "L")).toBe(true);
-    expect([by("sub:mac/L/e1").state, by("sub:mac/L/r1").state]).toEqual(["", "working"]);
-  });
 
   it("opens a subagent at its own link: the hub's, else <launching session>@<id>, never the launching session", () => {
     expect(subagentLink({ session_id: "L@a1" }, "L", "a1")).toBe("L@a1");
@@ -541,13 +491,6 @@ describe("a piece's Agent tree", () => {
     expect(subagentLink({ session_id: "child-9" }, "L", "a1")).toBe("child-9");
     // a row that names the launching session (or nothing) as the subagent's: its link is made, not the parent opened
     expect([subagentLink({ session_id: "L" }, "L", "a1"), subagentLink({ session_id: "" }, "L", "a1"), subagentLink(undefined, "L", "a1")]).toEqual(["L@a1", "L@a1", "L@a1"]);
-  });
-
-  it("keeps a summary row's running subagents from the direction tree when no complete row is there", () => {
-    const todos = [todo("lead", { agents: [link("L")] })];
-    const tree = dir("lead", [{ machine_id: "mac", session_id: "L", title: "lead", state: "working", children: [{ machine_id: "mac", session_id: "L@a", title: "Explore the API", state: "working" }] }]);
-    const agents = buildGraph({ todos, plans: {}, data: { todos, tree, lookup: makeSessionLookup([session("L")]) } }).active[0].nodes[0].agents;
-    expect(agents.map((a) => [a.key, a.role, a.title, a.ended])).toEqual([["mac/L", "lead", "agent L", false], ["sub:mac/L/a", "subagent", "Explore the API", false]]);
   });
 
   it("is drawn only when more than one Agent is on the piece, the earlier ones aside", () => {
@@ -561,7 +504,7 @@ describe("a piece's Agent tree", () => {
     const ended = Array.from({ length: ENDED_KEPT + 2 }, (_, i) => sub(`e${i}`, { running: false, started_at: at(i) }));
     const todos = [todo("lead", { agents: [link("L")] })];
     const full = [session("L", { subagents: [...ended, sub("run", { running: true, started_at: at(0.5) })] })];
-    const n = buildGraph({ todos, plans: {}, data: { todos, tree: null, lookup: makeSessionLookup(full) } }).active[0].nodes[0];
+    const n = buildGraph({ todos, plans: {}, data: { todos, lookup: makeSessionLookup(full) } }).active[0].nodes[0];
     expect(n.agents).toHaveLength(ENDED_KEPT + 4);
     expect(n.tree.map((r) => (r.kind === "more" ? `more ${r.count}` : r.key))).toEqual([
       "mac/L", "more 2", "sub:mac/L/run", ...ended.slice(2).map((e) => `sub:mac/L/${e.id}`),

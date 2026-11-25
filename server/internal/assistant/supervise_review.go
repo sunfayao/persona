@@ -128,14 +128,13 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 	s.reviewDismissals.actions.acquire(t.ID)
 	defer s.reviewDismissals.actions.release(t.ID)
 	t, _ = s.todoNow(t.ID)
-	// A planning lead owns its assigned task. Origin alone never lets an ordinary side conversation accept one.
+	// Origin alone never lets an ordinary side conversation accept a task.
 	// Other authorized reviewers are main, a task leader for its worker, the legacy
 	// background with durable evidence, or the explicit capable-runtime side topology introduced with policy support.
 	isMain := s.isMain(ctx, self)
 	background := s.backgroundSupervises(ctx, self, t)
-	manualLeader := t.Supervision != nil && t.Supervision.Supervisor == self && s.isLeader(ctx, self)
 	capableRuntime := t.Supervision != nil && t.Supervision.Supervisor == self && t.Origin == self && s.runtimeWithSupervisionPolicy(ctx, s.settings(ctx).MachineID, self)
-	allowed := isMain || background || manualLeader || capableRuntime || s.mayReviewForLeader(ctx, self, t)
+	allowed := isMain || background || capableRuntime || s.mayReviewForLeader(ctx, self, t)
 	if t.Origin == "" || !allowed {
 		return "", fmt.Errorf("task %s was not handed out from this conversation", t.ID)
 	}
@@ -261,8 +260,8 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 			}
 			judgedDone = v.State == reviewPending
 			wasNeedsUser = v.state(t) == reviewNeedsUser
-			if isMain && !s.isLeader(ctx, v.Supervisor) && !s.isLeaderRef(v.Supervisor) {
-				v.Supervisor = self // the main conversation takes over an old main conversation's task, not a leader's
+			if isMain && !s.isLeaderRef(v.Supervisor) {
+				v.Supervisor = self // the main conversation takes over an old main conversation's task, not a task leader's
 			} else if v.Supervisor == "" {
 				v.Supervisor = t.Origin
 			}
@@ -514,7 +513,7 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 		}
 		// One that can wait is held for the next briefing: no card and no push now (#4930, decision_wait.go).
 		held, notHeld := false, ""
-		escalates := !isMain && (background || s.isLeader(ctx, v.Supervisor)) // the main conversation hears of it too
+		escalates := !isMain && background // the main conversation hears of it too
 		if a.CanWait {
 			held, notHeld = s.decisionWaits(ctx, decision.WhyOwner, deadline, reversible, time.Now())
 			conclusion.ForBriefing = held

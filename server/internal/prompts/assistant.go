@@ -399,21 +399,13 @@ func RenderSnapshotWorkflow(w SnapshotWorkflow) string {
 type AssistantContext struct {
 	ScheduledWorkPlan bool // Inline instructions for a granted scheduled round when the manager uses persona-work.
 	Main              bool
-	Leader            bool // a direction lead supervises its planned tasks and explicitly assigned Agents
 	Owner             string
 	Snapshot          string
-	// Directions: for the main conversation, the current leaders used as direction labels;
-	// LeaderName: for a leader, its direction's name.
-	Directions []ContextDirection
-	LeaderName string
 	// Background: the legacy background supervisor, which finishes only tasks assigned before universal main supervision.
 	// BackgroundStarted: for the main conversation, once: that legacy supervisor's id, when it began following old tasks.
 	Background        bool
 	BackgroundStarted string
 }
-
-// ContextDirection is one current leader as the main conversation is told of it: its conversation id and name.
-type ContextDirection struct{ ID, Name string }
 
 func RenderAssistantContext(c AssistantContext) string { return render("assistant/context", c) }
 
@@ -467,7 +459,6 @@ type BriefFacts struct {
 	Progress                                                         []BriefProgress
 	// InboxWaiting and InboxDue are read-only follow-up facts for the model only; neither is on the card or in the push.
 	InboxWaiting, InboxDue []BriefFollow
-	Leaders                []BriefLeader // one per direction (#3609)
 	// Directions are the deterministic per-direction wait lists, main included. Every direction keeps all owner-wait
 	// rows and folds only its non-owner tail; More says how many rows the direction link holds beyond it.
 	Directions       []BriefDirection
@@ -502,14 +493,6 @@ type BriefTask struct {
 
 // BriefCriterion is one criterion's result in the briefing: met, not_met, unchecked, or dropped by scope change Change.
 type BriefCriterion struct{ Criterion, State, Change string }
-
-// BriefLeader is one direction in the briefing's facts: its name, its open tasks, those waiting for the owner, those
-// past their inactivity thresholds, and its leader's latest summary of the day (empty parts: none).
-type BriefLeader struct {
-	Name                     string
-	Open, Waiting, Stuck     int
-	Reached, Doing, NeedsYou string
-}
 
 // BriefDirection is one direction's open-work count and deterministic wait rows. Main and leader directions alike keep
 // every owner-wait row; only the non-owner tail is folded into More. Line is ready to read in the owner's language.
@@ -628,17 +611,6 @@ type TaskFile struct {
 	Name, Path, Error string
 }
 
-// SpawnNotice tells the conversation that opened another with conversation_new that the other failed, or ended a turn
-// without reporting back with conversation_send (#4669): once per opened conversation.
-type SpawnNotice struct {
-	ID, Title, Link string
-	Failed          bool
-	Error           string // Failed: the turn's error
-	Last            string // what it said last, when it did not fail
-}
-
-func RenderSpawnNotice(n SpawnNotice) string { return render("assistant/spawn_notice", n) }
-
 // TaskEnded tells a conversation that is not the main one that a task it handed out with task_plan, supervised by the
 // main conversation, ended (#4669): accepted or cancelled, with the task's link (or its id without one).
 type TaskEnded struct {
@@ -748,19 +720,16 @@ func RenderAskLater(a AskLater) string { return render("assistant/ask_later", a)
 type Supervise struct {
 	Level   string
 	Entries []SuperviseEntry
-	// Leader: it goes to a leader conversation, for a manual Agent explicitly assigned to it (#5732); Escalated: an
-	// entry is a leader's needs_user, told the main conversation.
-	Leader, Escalated bool
-	// Background: with Leader, it goes to the background supervisor (#4927): the leader's message, for tasks other
-	// conversations handed out, whose cards go from it to the user.
+	// Escalated: an entry is a needs_user the background supervisor passed up, told the main conversation.
+	Escalated bool
+	// Background: it goes to the background supervisor (#4927), for tasks other conversations handed out, whose cards
+	// go from it to the user.
 	Background bool
 	// BackgroundEscalated: with Escalated, one of those entries is the background supervisor's needs_user (#4927): no
 	// leader is named for it.
 	BackgroundEscalated bool
 	// Side: a legacy route to an ordinary side conversation for tasks it supervised before universal main supervision.
 	Side bool
-	// LeaderStuck: an entry is a leader's task past its inactivity threshold (sigLeaderStuck), told the main conversation (#3609).
-	LeaderStuck bool
 	// Overdue: an entry is a task past its brief's clock (#3822).
 	Overdue bool
 	// ParkedDue: an entry is a parked task whose time came (#3804).
@@ -1244,48 +1213,6 @@ type SuperviseCloseout struct {
 	// CheckedMerged, CheckedDeployed: what the hub found itself, "yes", "no" or "" when it could not tell.
 	CheckedMerged, CheckedDeployed string
 	LocalDeployment                bool
-}
-
-// RouteLeader is a current leader as the route model is shown it.
-type RouteLeader struct{ ID, Title, Project string }
-
-// RouteInput is what the route model reads: the sentence, the leaders.
-type RouteInput struct {
-	Sentence string
-	Leaders  []RouteLeader
-}
-
-func RenderRouteInput(in RouteInput) string { return render("assistant/route_input", in) }
-
-// RenderRouteAgent is the system prompt of assistant.route for a new agent (assistant/route_agent): which leader's
-// direction its work belongs to; it reads RouteInput (the agent's first message as the sentence, no projects).
-func RenderRouteAgent() string { return render("assistant/route_agent", nil) }
-
-// DirectionNotes is what a leader conversation is told of its own direction (#10086): the notes the owner wrote for it. Lang is the owner's language (i18n code; "" or
-// zh-Hans: Chinese).
-type DirectionNotes struct {
-	Lang, Name, Notes string
-}
-
-// Empty: nothing the owner wrote, so nothing is added to the leader's policy.
-func (d DirectionNotes) Empty() bool { return d.Notes == "" }
-
-// RenderDirectionNotes is the block appended to a leader's role policy (supervision_instructions); empty when there
-// is nothing to say, so a direction without notes keeps its policy byte for byte.
-func RenderDirectionNotes(d DirectionNotes) string {
-	if d.Empty() {
-		return ""
-	}
-	return render("assistant/direction_notes", d)
-}
-
-// RenderTodoDirection is the block a new Agent working for a direction gets before its first prompt (todo/direction);
-// empty without notes.
-func RenderTodoDirection(d DirectionNotes) string {
-	if d.Notes == "" {
-		return ""
-	}
-	return render("todo/direction", d)
 }
 
 // SegmentHandoff continues the same logical conversation on a new engine.

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -84,121 +83,6 @@ func (h *spawnHarness) noticesToParent() []string {
 	return out
 }
 
-// #4669: a conversation conversation_new opened that fails leaves one notice in the conversation that opened it,
-// with its id and what failed; the hub's log has the failure with the conversation and launcher, never the words.
-func TestSpawnedConversationFailureTellsParent(t *testing.T) {
-	h := newSpawnHarness(t)
-	id := h.spawn(t)
-	child := proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusDone, Launcher: "relay-claude",
-		Title: "竞品定价", TurnError: "Invalid API key · Fix external API key", TurnErrorKind: proto.TurnErrorUser, UpdatedAt: time.Now()}
-	h.ended(child)
-	got := h.noticesToParent()
-	if len(got) != 1 {
-		t.Fatalf("notices to the parent: %q", got)
-	}
-	for _, want := range []string{id, "出错了", "Invalid API key"} {
-		if !strings.Contains(got[0], want) {
-			t.Errorf("the notice lacks %q:\n%s", want, got[0])
-		}
-	}
-	log := h.log()
-	if !strings.Contains(log, "assistant "+id+": turn failed (launcher relay-claude, kind user") {
-		t.Fatalf("no failure line in the log:\n%s", log)
-	}
-	if strings.Contains(log, "Invalid API key") {
-		t.Fatalf("the log carries the error's words:\n%s", log)
-	}
-	// Once: the next failed turn tells nobody again.
-	h.ended(child)
-	if got := h.noticesToParent(); len(got) != 1 {
-		t.Fatalf("told twice: %q", got)
-	}
-}
-
-// One that ends a turn without ever reporting back leaves one notice too; one that reported back with
-// conversation_send leaves none.
-func TestSpawnedConversationSilentEndTellsParent(t *testing.T) {
-	h := newSpawnHarness(t)
-	id := h.spawn(t)
-	h.ended(proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusDone, Title: "竞品定价",
-		LastText: "查完了：三家都按席位收费。", UpdatedAt: time.Now()})
-	got := h.noticesToParent()
-	if len(got) != 1 || !strings.Contains(got[0], "一直没用 conversation_send 回报") || !strings.Contains(got[0], "三家都按席位收费") {
-		t.Fatalf("notices to the parent: %q", got)
-	}
-	if strings.Contains(h.log(), "turn failed") {
-		t.Fatalf("a reply logged as a failure:\n%s", h.log())
-	}
-
-	h2 := newSpawnHarness(t)
-	id2 := h2.spawn(t)
-	child := proto.Session{SessionID: id2, MachineID: "server", Assistant: true, Status: proto.StatusWorking, Title: "竞品定价"}
-	h2.f.setSessions("server", h2.parent, child)
-	if res := h2.s.Tool(context.Background(), ToolCall{MachineID: "server", SessionID: id2, Name: "conversation_send",
-		Arguments: json.RawMessage(`{"id":"parent-1","text":"三家都按席位收费"}`)}); res.IsError {
-		t.Fatalf("conversation_send: %+v", res)
-	}
-	child.Status, child.LastText = proto.StatusDone, "发回去了。"
-	h2.ended(child)
-	if got := h2.noticesToParent(); len(got) != 0 {
-		t.Fatalf("one that reported back was noticed: %q", got)
-	}
-}
-
-// The notice is a message from the opened conversation, held to the relay's hop limit like its own
-// conversation_send: its first message back is the answer to the opening request and keeps its hop (#7391), so one
-// opened at the last hop still reports; a second message back is past the limit, the parent is not told, and the log
-// says so.
-func TestSpawnedConversationNoticeKeepsHopLimit(t *testing.T) {
-	atLastHop := func(t *testing.T) (*spawnHarness, string) {
-		h := newSpawnHarness(t)
-		b := &h.s.relays
-		b.mu.Lock()
-		if !h.s.relayLocked(context.Background()) {
-			b.mu.Unlock()
-			t.Fatal("relay state")
-		}
-		b.st.Hops["parent-1"] = relayHop{Hop: relayMaxHops - 1, At: time.Now().UTC()} // the parent works on a relayed message
-		b.mu.Unlock()
-		return h, h.spawn(t) // the child is at the last hop
-	}
-	failed := func(id string) proto.Session {
-		return proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusDone,
-			TurnError: "API Error: 503 no eligible upstream", UpdatedAt: time.Now()}
-	}
-
-	h, id := atLastHop(t)
-	h.ended(failed(id))
-	if got := h.noticesToParent(); len(got) != 1 {
-		t.Fatalf("the answer at the last hop: %q\n%s", got, h.log())
-	}
-
-	h, id = atLastHop(t)
-	h.f.setSessions("server", h.parent, proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusWorking})
-	if res := h.s.Tool(context.Background(), ToolCall{MachineID: "server", SessionID: id, Name: "conversation_send",
-		Arguments: json.RawMessage(`{"id":"parent-1","text":"先回一句"}`)}); res.IsError {
-		t.Fatalf("its answer: %+v", res)
-	}
-	h.ended(failed(id))
-	if got := h.noticesToParent(); len(got) != 0 {
-		t.Fatalf("told past the hop limit: %q", got)
-	}
-	if !strings.Contains(h.log(), "not told") {
-		t.Fatalf("the log does not say the parent was not told:\n%s", h.log())
-	}
-}
-
-// A conversation nobody opened with conversation_new is never followed; one still working is not at its end.
-func TestSpawnedFollowOnlyOpenedOnes(t *testing.T) {
-	h := newSpawnHarness(t)
-	h.ended(proto.Session{SessionID: "own-1", MachineID: "server", Assistant: true, Status: proto.StatusDone, LastText: "好的"})
-	id := h.spawn(t)
-	h.ended(proto.Session{SessionID: id, MachineID: "server", Assistant: true, Status: proto.StatusWorking})
-	if got := h.noticesToParent(); len(got) != 0 {
-		t.Fatalf("told: %q", got)
-	}
-}
-
 // #4669: an assistant turn that failed (the node's turn error, or an answer that is only Claude Code's auth error line)
 // is pushed as a failure (⚠️), however quick it was, as other failures are.
 func TestFailedAssistantTurnPushedAsFailure(t *testing.T) {
@@ -221,15 +105,4 @@ func TestFailedAssistantTurnPushedAsFailure(t *testing.T) {
 			}
 		})
 	}
-}
-
-// The notices' prompts (prompts/assistant/spawn_notice.md, task_ended.md), pinned.
-func TestGoldenSpawnAndTaskEndNotices(t *testing.T) {
-	golden(t, "spawn_notice.failed", prompts.RenderSpawnNotice(prompts.SpawnNotice{ID: "conv-2", Title: "1110 | 研究 | 竞品定价",
-		Link: "https://hub.example.com/persona/conv-2", Failed: true, Error: "Invalid API key · Fix external API key"}))
-	golden(t, "spawn_notice.silent", prompts.RenderSpawnNotice(prompts.SpawnNotice{ID: "conv-2", Title: "1110 | 研究 | 竞品定价",
-		Last: "查完了：三家都按席位收费。"}))
-	golden(t, "task_ended.accepted", prompts.RenderTaskEnded(prompts.TaskEnded{ID: "todo_1", Title: "修登录崩溃",
-		Link: "https://hub.example.com/todos?id=todo_1", Verdict: reviewAccepted, Note: "PR 已合并"}))
-	golden(t, "task_ended.cancelled", prompts.RenderTaskEnded(prompts.TaskEnded{ID: "todo_1", Title: "修登录崩溃", Verdict: reviewCancelled}))
 }

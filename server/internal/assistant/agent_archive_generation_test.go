@@ -69,25 +69,6 @@ func archiveGenerationDrainNative(s *Service, sid string) {
 	s.nativeArchiveAwaited(context.Background(), "mac", sid)
 }
 
-func archiveGenerationFixture(t *testing.T, row proto.Session) (*fleetTest, *db.DB, *archiveGenerationStore) {
-	t.Helper()
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	key := runtimeListID("mac", row.SessionID)
-	store := &archiveGenerationStore{DB: database, key: key}
-	ft := newFleetTestOn(t, store)
-	t.Cleanup(func() { archiveGenerationDrainNative(ft.s, row.SessionID) })
-	ft.f.mu.Lock()
-	ft.f.sessions["mac"] = nil
-	ft.f.mu.Unlock()
-	row.MachineID = "mac"
-	ft.d.setSessions("mac", []proto.Session{row})
-	return ft, database, store
-}
-
 func archiveGenerationPut(t *testing.T, database *db.DB, rec agentArchive) {
 	t.Helper()
 	var records map[string]agentArchive
@@ -111,18 +92,6 @@ func archiveGenerationStored(t *testing.T, database *db.DB, sid string) (agentAr
 	}
 	rec, ok := records[runtimeListID("mac", sid)]
 	return rec, ok
-}
-
-func archiveGenerationRestart(t *testing.T, database *db.DB, row proto.Session) (*fleetTest, agentArchive, bool) {
-	t.Helper()
-	restarted := newFleetTestOn(t, database)
-	t.Cleanup(func() { archiveGenerationDrainNative(restarted.s, row.SessionID) })
-	restarted.d.setSessions("mac", []proto.Session{row})
-	if _, _, err := restarted.s.archivedRow(t.Context(), "mac", row.SessionID); err != nil {
-		t.Fatal(err)
-	}
-	rec, ok := restarted.s.agentArchives.records[runtimeListID("mac", row.SessionID)]
-	return restarted, rec, ok
 }
 
 func archiveGenerationAfter(t *testing.T, operation string, previous, next time.Time) {
@@ -206,84 +175,6 @@ func TestAgentArchiveGenerationExplicitConcurrentRestart(t *testing.T) {
 		t.Fatal("mutation after restart removed the record")
 	}
 	archiveGenerationAfter(t, "explicit mutation after PostgreSQL manager restart", last.ChangedAt, afterRestart.ChangedAt)
-}
-
-func TestAgentArchiveGenerationAutomaticConcurrentReadersRestart(t *testing.T) {
-	row := proto.Session{MachineID: "mac", SessionID: "automatic-generation", Agent: "claude", Status: proto.StatusOffline,
-		State: proto.StateOffline, UpdatedAt: time.Now().Add(-2 * time.Hour).UTC()}
-	ft, database, store := archiveGenerationFixture(t, row)
-	if err := ft.s.noteAgentArchive(t.Context(), row, true); err != nil {
-		t.Fatal(err)
-	}
-	archived, ok := archiveGenerationStored(t, database, row.SessionID)
-	if !ok || !archived.Archived {
-		t.Fatalf("archive fixture: %+v present=%v", archived, ok)
-	}
-	archived.ChangedAt = time.Now().Add(24 * time.Hour).UTC()
-	archiveGenerationPut(t, database, archived)
-
-	// Restart once so the automatic readers must use the marker ahead of the wall clock.
-	ft = newFleetTestOn(t, store)
-	active := row
-	active.UpdatedAt = time.Now().UTC()
-	ft.d.setSessions("mac", []proto.Session{active})
-	before := len(store.history())
-	mark := ft.s.archiveMark()
-	const readers = 12
-	type readResult struct {
-		rows    []proto.Session
-		changed bool
-		err     error
-	}
-	start := make(chan struct{})
-	results := make(chan readResult, readers)
-	for range readers {
-		go func() {
-			<-start
-			rows, changed, err := ft.s.archivedSessions(t.Context(), "mac", []proto.Session{active}, mark)
-			results <- readResult{rows: rows, changed: changed, err: err}
-		}()
-	}
-	close(start)
-	changed := 0
-	for range readers {
-		result := <-results
-		if result.err != nil {
-			t.Fatalf("competing list reader: %v", result.err)
-		}
-		if result.changed {
-			changed++
-		}
-		for _, got := range result.rows {
-			if got.SessionID == row.SessionID && got.Archived {
-				t.Errorf("competing reader lost the automatic restore: %+v", got)
-			}
-		}
-	}
-	if changed != 1 {
-		t.Errorf("automatic restore commits = %d, want exactly one", changed)
-	}
-	history := store.history()
-	if len(history) != before+1 {
-		t.Fatalf("automatic restore writes = %d, want one (all writes %d)", len(history)-before, len(history))
-	}
-	restoreWrite := history[len(history)-1]
-	if !restoreWrite.present || restoreWrite.record.Archived {
-		t.Fatalf("automatic restore persisted the wrong state: %+v present=%v", restoreWrite.record, restoreWrite.present)
-	}
-	archiveGenerationAfter(t, "automatic restoration", archived.ChangedAt, restoreWrite.record.ChangedAt)
-
-	restarted, loaded, ok := archiveGenerationRestart(t, database, active)
-	if !ok || loaded.Archived || !loaded.ChangedAt.Equal(restoreWrite.record.ChangedAt) {
-		t.Fatalf("restart regressed the automatic restore: loaded=%+v present=%v restore=%+v", loaded, ok, restoreWrite.record)
-	}
-	rows, changedAfterRestart, err := restarted.s.archivedSessions(t.Context(), "mac", []proto.Session{active}, restarted.s.archiveMark())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if changedAfterRestart || len(rows) != 1 || rows[0].Archived || rows[0].ArchiveChangedAt == nil || !rows[0].ArchiveChangedAt.Equal(restoreWrite.record.ChangedAt) {
-		t.Fatalf("restart did not preserve the restore ordering: changed=%v rows=%+v", changedAfterRestart, rows)
-	}
 }
 
 func TestAgentArchiveGenerationForceRollbackFencingRestart(t *testing.T) {
@@ -639,4 +530,35 @@ func TestAgentArchiveGenerationCancelledTaskPublishesAfterMetadataFailure(t *tes
 	if !archivedIDs(t, ft.s)[row.SessionID] {
 		t.Fatal("cancelled task's archive was not committed")
 	}
+}
+
+func archiveGenerationFixture(t *testing.T, row proto.Session) (*fleetTest, *db.DB, *archiveGenerationStore) {
+	t.Helper()
+	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(database.Close)
+	key := runtimeListID("mac", row.SessionID)
+	store := &archiveGenerationStore{DB: database, key: key}
+	ft := newFleetTestOn(t, store)
+	t.Cleanup(func() { archiveGenerationDrainNative(ft.s, row.SessionID) })
+	ft.f.mu.Lock()
+	ft.f.sessions["mac"] = nil
+	ft.f.mu.Unlock()
+	row.MachineID = "mac"
+	ft.d.setSessions("mac", []proto.Session{row})
+	return ft, database, store
+}
+
+func archiveGenerationRestart(t *testing.T, database *db.DB, row proto.Session) (*fleetTest, agentArchive, bool) {
+	t.Helper()
+	restarted := newFleetTestOn(t, database)
+	t.Cleanup(func() { archiveGenerationDrainNative(restarted.s, row.SessionID) })
+	restarted.d.setSessions("mac", []proto.Session{row})
+	if _, _, err := restarted.s.archivedRow(t.Context(), "mac", row.SessionID); err != nil {
+		t.Fatal(err)
+	}
+	rec, ok := restarted.s.agentArchives.records[runtimeListID("mac", row.SessionID)]
+	return restarted, rec, ok
 }

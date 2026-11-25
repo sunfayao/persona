@@ -449,7 +449,7 @@ export interface Session {
   archived?: boolean;
   /** Manager-owned visibility policy; recording and direct session access remain available. */
   hidden_by_directory?: boolean;
-  /** The user-defined labels of an assistant conversation (docs/assistant/assistant.md "Conversation tags"), newest
+  /** The user-defined labels of an assistant conversation (docs/assistant/assistant.md), newest
    *  write first's provenance aside; omitted when it carries none. An older hub never sends it. */
   tags?: string[];
   /** The HTTP ports its processes listen on (docs/operations/ports.md): closing it would stop those servers, and they are
@@ -1030,19 +1030,12 @@ export interface AssistantInfo {
   timezone?: string;
   notes?: string;
   notes_effective?: string;
-  /** The current directions' opaque ids, in hub order: a conversation-backed id indexes `conversations`; an external
-   *  one has no Persona conversation and gets its target from the direction tree or `/assistant/leaders` (#8236). */
-  leaders?: string[];
   /** "Fold background rounds" in effect (#4314, docs/assistant/assistant.md "Background rounds"); absent from an older hub, which means on. */
   main_background_folded?: boolean;
   /** Exact, one-shot owner replies and persistent proposal cards; off by default and absent from an older hub. */
   owner_reply_approval?: boolean;
   persistent_owner_action_cards?: boolean;
   owner_reply_approval_phrases?: string[];
-  /** User-chosen ordinary conversation order (#12017), shared by every client; absent or empty means activity time. */
-  conversation_order?: string[];
-  /** Exact user-chosen tag filter entries (#12018); null or absent means the automatic all-in-use-tag row. */
-  conversation_tag_filters?: string[] | null;
   /** The background supervisor's conversation (#4927, lib/background-supervisor.ts): its session id once the hub made
    *  it; absent before that and from an older hub. Read-only. */
   background_supervisor?: string;

@@ -21,8 +21,7 @@ func TestSuperviseDecisionInstructionsAppearOnce(t *testing.T) {
 	}{
 		{"main", Supervise{}},
 		{"side", Supervise{Side: true}},
-		{"leader", Supervise{Leader: true}},
-		{"background", Supervise{Leader: true, Background: true}},
+		{"background", Supervise{Background: true}},
 	} {
 		t.Run(role.name, func(t *testing.T) {
 			for _, decisions := range []bool{false, true} {
@@ -64,8 +63,7 @@ func TestSuperviseReviewDoesNotAssertCompletion(t *testing.T) {
 	}{
 		{"main", Supervise{}},
 		{"side", Supervise{Side: true}},
-		{"leader", Supervise{Leader: true}},
-		{"background", Supervise{Leader: true, Background: true}},
+		{"background", Supervise{Background: true}},
 	} {
 		t.Run(role.name, func(t *testing.T) {
 			for _, event := range []struct {

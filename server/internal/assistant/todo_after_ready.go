@@ -328,16 +328,13 @@ func todoReadyKey(candidate Todo) string {
 	return key
 }
 
-// todoReadySupervisor resolves the owning supervisor conversation (Leader or Main chat) for an unstarted dependent
+// todoReadySupervisor resolves the owning supervisor conversation (a side conversation or the main chat) for an unstarted dependent
 // to-do. A to-do owned by a task leader agent returns "" so leaderRoute delivers to that agent; otherwise Main-owned
 // to-dos go directly to cfg.Main (never to the background supervisor).
 func (s *Service) todoReadySupervisor(ctx context.Context, cfg Settings, candidate Todo) string {
 	isLiveConversation := func(id string) bool {
 		if id == "" || id == cfg.Main || id == cfg.BackgroundSupervisor || s.isLeaderRef(id) {
 			return false
-		}
-		if s.isLeader(ctx, id) {
-			return true
 		}
 		if cfg.MachineID != "" {
 			if c, ok := s.session(ctx, cfg.MachineID, id); ok && c.Assistant {
@@ -365,43 +362,6 @@ func (s *Service) todoReadySupervisor(ctx context.Context, cfg Settings, candida
 		if orig == cfg.Main {
 			return cfg.Main
 		}
-	}
-	if candidate.PartOf != "" {
-		if root, ok := s.todoNow(candidate.PartOf); ok {
-			if sup := supervisorOf(root); s.isLeader(ctx, sup) {
-				return sup
-			}
-			if s.isLeader(ctx, root.Origin) {
-				return root.Origin
-			}
-		}
-	}
-	// If all prerequisites belong to one leader conversation, wake that leader.
-	var sharedLeader string
-	ambiguous := false
-	for _, depID := range cleanIDs(candidate.After) {
-		dep, ok := s.todoNow(depID)
-		if !ok {
-			continue
-		}
-		lead := ""
-		if sup := supervisorOf(dep); s.isLeader(ctx, sup) {
-			lead = sup
-		} else if s.isLeader(ctx, dep.Origin) {
-			lead = dep.Origin
-		}
-		if lead == "" {
-			continue
-		}
-		if sharedLeader == "" {
-			sharedLeader = lead
-		} else if sharedLeader != lead {
-			ambiguous = true
-			break
-		}
-	}
-	if sharedLeader != "" && !ambiguous {
-		return sharedLeader
 	}
 	return cfg.Main
 }

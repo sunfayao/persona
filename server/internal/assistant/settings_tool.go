@@ -27,7 +27,7 @@ type ownSetting struct {
 	Setting
 	get func(ctx context.Context) (string, error)
 	set func(ctx context.Context, v json.RawMessage) (*ownChange, error)
-	// cardTitle localizes a dynamic setting's title (direction.<id>.prompt); static keys use settingTitles instead.
+	// cardTitle localizes a dynamic setting's title (a model group's); static keys use settingTitles instead.
 	cardTitle func(l i18n.Lang) string
 	// change is a setting's other actions (a list's add and remove: tasks.trust), in place of set.
 	change func(ctx context.Context, action string, v json.RawMessage) (*ownChange, error)
@@ -136,14 +136,6 @@ func (s *Service) ownSettings() []ownSetting {
 				return fmt.Sprint(mainCompactWindowOf(s.settings(ctx))), nil
 			},
 			set: s.setMainCompactWindow},
-		{Setting: Setting{Key: "assistant.recent_task_chats", Title: "Show scheduled task chats in Recent", Actions: getSet,
-			About: "off (the default): the sidebar's Recent in the apps leaves out the chats a scheduled task or the background " +
-				"supervisor started (they stay in All chats and under Scheduled Tasks); on: Recent lists them by last activity with " +
-				"the user's other chats, within its usual count. One value for all of the user's devices. Display only: what runs " +
-				"is unchanged",
-			Value: "true or false"},
-			get: func(ctx context.Context) (string, error) { return fmt.Sprint(s.recentTaskChats(ctx)), nil },
-			set: s.setRecentTaskChats},
 		{Setting: Setting{Key: "assistant.meeting_transcription_default", Title: i18n.T(i18n.Default, "assistant-settings_tool.title_meeting_transcription_default"), Actions: getSet,
 			About: prompts.RenderMeetingTranscriptionSetting(), Value: "device or hub"},
 			get: s.getMeetingTranscriptionDefault, set: s.setMeetingTranscriptionDefault},
@@ -170,14 +162,6 @@ func (s *Service) ownSettings() []ownSetting {
 			Value: "a whole number, 0–100"},
 			get: func(ctx context.Context) (string, error) { return fmt.Sprint(s.reviewSamplePercent(ctx)), nil },
 			set: s.setReviewSamplePercent},
-		{Setting: Setting{Key: "assistant.leaders", Title: "Leader conversations", Actions: getSet,
-			About: "empty (the default): ordinary conversations use main for supervision. A direction lead supervises the tasks it " +
-				"plans or starts, and Agents explicitly assigned to it: ordinary signals, question cards, failed starts, retries, " +
-				"task_review and cancellation stay with that lead. Only needs_user escalations go to the main conversation. " +
-				"Main supervises its own tasks; explicit agent_transfer assignments persist across manager restarts",
-			Value: "the whole list of leader conversation ids (conversations_list), [] for none"},
-			get: s.getLeaders,
-			set: s.setLeaders},
 		{Setting: Setting{Key: "assistant.briefing_waits", Title: "Briefing wait rows", Actions: getSet,
 			About: "thresholds for the deterministic per-direction wait rows in morning/evening facts. Defaults come from the existing " +
 				"supervision floors: stalled_minutes=20 (superviseStallMin), silent_minutes=120 (superviseSilentMin), " +
@@ -309,8 +293,7 @@ func (s *Service) ownSettings() []ownSetting {
 		{Setting: Setting{Key: admissionSettingsKey, Title: "Execution Agent admission gate", Actions: getSet,
 			About: "the lines an execution Agent's start is checked against on every computer: enabled, load_per_core, min_memory_bytes, " +
 				"max_claude_procs (and the hub machine's own hub_* lines, per-machine overrides), and the per-direction cap. " +
-				"direction_cap_by_direction keys are a supervisor conversation id or a direction's displayed name and win over " +
-				"direction_cap_by_project, which wins over direction_cap and the code default. launcher_groups (none by default) caps " +
+				"direction_cap_by_project wins over direction_cap and the code default. launcher_groups (none by default) caps " +
 				"running tasks across launchers that share one budget, on every computer: each {name, launchers (exact launcher names), " +
 				"cap}, a launcher in one group at most; a task held by a full group stays queued until it has room. " +
 				"Get first and send the whole object",
@@ -338,11 +321,7 @@ func (s *Service) toolPersonaSettings(ctx context.Context, call ToolCall, args j
 	if a.Key == standingAuthorizationsKey && a.Action == "set" && (call.SessionID == "" || call.SessionID != s.settings(ctx).Main || call.MachineID != s.settings(ctx).MachineID) {
 		return proto.TextResult("only the main conversation may change standing authorizations", true)
 	}
-	if _, ok := directionPromptSettingID(a.Key); ok && a.Action == "set" && (call.SessionID == "" || call.SessionID != s.settings(ctx).Main) {
-		return proto.TextResult("only the main conversation may change direction prompts", true)
-	}
 	own := append(s.ownSettings(), s.modelGroupOwnSettings()...)
-	own = append(own, s.directionOwnSettings(ctx)...)
 	if a.Action == "" || a.Action == "list" {
 		text, err := s.listSettings(ctx, own)
 		if err != nil {
@@ -358,9 +337,6 @@ func (s *Service) toolPersonaSettings(ctx context.Context, call ToolCall, args j
 			}
 			return proto.TextResult(text, false)
 		}
-	}
-	if _, ok := directionPromptSettingID(a.Key); ok {
-		return proto.TextResult(errNoDirection.Error(), true)
 	}
 	return s.appTool(ctx, AppSettings, call, args) // the hub's
 }
@@ -490,13 +466,13 @@ var settingTitles = map[string]string{standingAuthorizationsKey: "title_standing
 	"assistant.task_workspace_preference": "title_task_workspace_preference",
 	"assistant.start_requested_tasks":     "title_start_requested_tasks", "assistant.launcher": "title_launcher",
 	"assistant.delivery_gate": "title_delivery_gate", "assistant.done_needs_delivery": "title_done_needs_delivery",
-	"assistant.review_sample_percent": "title_review_sample_percent", "assistant.leaders": "title_leaders", "assistant.briefing_waits": "title_briefing_waits", "assistant.background_supervisor_keeps_context": "title_background_supervisor_keeps_context",
+	"assistant.review_sample_percent": "title_review_sample_percent", "assistant.briefing_waits": "title_briefing_waits", "assistant.background_supervisor_keeps_context": "title_background_supervisor_keeps_context",
 	"assistant.interject_background": "title_interject_background", "assistant.claude_interactive": "title_claude_interactive", "assistant.agent_tasks": "title_agent_tasks", "assistant.close_ended_terminals": "title_close_ended_terminals", "assistant.inbox_signals": "title_inbox_signals", "inbox.todo_forward.enabled": "title_inbox_todo_forward", "assistant.pr_events_route_to_agent": "title_pr_events_route_to_agent", "assistant.main_supervises_own_tasks": "title_main_supervises_own_tasks", "assistant.supervision_batch_minutes": "title_supervision_batch_minutes", "model_profiles.tiers": "title_model_tiers",
 	"assistant.load_all_tools":                "title_load_all_tools",
 	"assistant.meeting_transcription_default": "title_meeting_transcription_default",
 	"assistant.main_background_folded":        "title_main_background_folded",
 	"assistant.main_compact_window":           "title_main_compact_window",
-	"assistant.recent_task_chats":             "title_recent_task_chats", admissionSettingsKey: "title_admission", trustSetting: "title_task_trust"}
+	admissionSettingsKey:                      "title_admission", trustSetting: "title_task_trust"}
 
 // clipped is a value as the card shows it, in l.
 func clipped(l i18n.Lang, s string) string {
@@ -684,13 +660,6 @@ func (s *Service) setMainBackgroundFolded(ctx context.Context, v json.RawMessage
 		return i18n.T(l, "assistant-settings_tool.change_main_background_folded", i18n.Args{"before": before, "after": after})
 	}, func(v *Settings) **bool { return &v.MainBackgroundFolded },
 		"assistant.main_background_folded is %v; the apps redraw the main conversation with it.")
-}
-
-func (s *Service) setRecentTaskChats(ctx context.Context, v json.RawMessage) (*ownChange, error) {
-	return s.setBoolSetting(ctx, v, s.recentTaskChats, "assistant.recent_task_chats is unchanged", func(l i18n.Lang, before, after string) string {
-		return i18n.T(l, "assistant-settings_tool.change_recent_task_chats", i18n.Args{"before": before, "after": after})
-	}, func(v *Settings) **bool { return &v.RecentTaskChats },
-		"assistant.recent_task_chats is %v; the apps' sidebar Recent follows it on every device.")
 }
 
 func (s *Service) setDeliveryGate(ctx context.Context, v json.RawMessage) (*ownChange, error) {

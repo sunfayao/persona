@@ -47,45 +47,6 @@ func newSessionReviewFixture(t *testing.T) *sessionReviewFixture {
 	return newSessionReviewFixtureOn(t, newFleetMem())
 }
 
-func newSessionReviewFixtureOn(t *testing.T, st Store) *sessionReviewFixture {
-	t.Helper()
-	ft := newFleetTestOn(t, st)
-	switch mem := st.(type) {
-	case *fleetMem:
-		ft.st = mem
-	case *restoreMem:
-		ft.st = mem.fleetMem
-	}
-	ft.f.mu.Lock()
-	ft.f.hello.Locale = "en"
-	ft.f.mu.Unlock()
-	n := &reviewNode{change: reviewChangeOf()}
-	withReviewNode(ft.f, n)
-	ft.f.nodes[DeviceSessionSendOnce] = func(_ string, raw json.RawMessage) (any, error) {
-		if ft.f.failSend != nil {
-			return nil, ft.f.failSend
-		}
-		var params map[string]any
-		_ = json.Unmarshal(raw, &params)
-		ft.f.agentSent = append(ft.f.agentSent, params)
-		return map[string]any{}, nil
-	}
-	fx := &sessionReviewFixture{ft: ft, node: n, handler: ft.s.fleetHandler(ft.s)}
-	fx.setSource(sessionReviewSourceSession("claude"))
-	ft.f.setItems(
-		proto.Item{Seq: 1, Role: "user", Kind: proto.KindText, ClientMsgID: "ask-1",
-			Text: "Fix the login crash without changing the session API."},
-		proto.Item{Seq: 2, Role: "assistant", Kind: proto.KindText, Text: "SOURCE_AGENT_REASONING: I anchored on the layout cache."},
-		proto.Item{Seq: 3, Role: "user", Kind: proto.KindText, ClientMsgID: "ask-2",
-			Text: "Also add a regression test for landscape."},
-		proto.Item{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "SOURCE_AGENT_FINAL: everything is fixed and all tests pass."},
-		proto.Item{Seq: 5, Role: "user", Kind: proto.KindText, Text: "INJECTED_NOT_A_USER_ASK",
-			Injected: &proto.Injected{Kind: proto.InjectedFollowup}},
-		proto.Item{Seq: 6, Role: "user", Kind: proto.KindText, From: "other-agent", Text: "OTHER_AGENT_MESSAGE"},
-	)
-	return fx
-}
-
 func (fx *sessionReviewFixture) setSource(sess proto.Session) {
 	fx.ft.d.setSessions(sessionReviewMachine, []proto.Session{sess})
 	fx.ft.f.setSessions(sessionReviewMachine, sess)
@@ -633,4 +594,43 @@ func TestSessionReviewReadFailureKeepsPendingCard(t *testing.T) {
 	if still.ID != finished.ID || still.ReviewReport != sessionReviewDisplayReport {
 		t.Fatalf("a store read failure withdrew the pending card: %+v", still)
 	}
+}
+
+func newSessionReviewFixtureOn(t *testing.T, st Store) *sessionReviewFixture {
+	t.Helper()
+	ft := newFleetTestOn(t, st)
+	switch mem := st.(type) {
+	case *fleetMem:
+		ft.st = mem
+	case *restoreMem:
+		ft.st = mem.fleetMem
+	}
+	ft.f.mu.Lock()
+	ft.f.hello.Locale = "en"
+	ft.f.mu.Unlock()
+	n := &reviewNode{change: reviewChangeOf()}
+	withReviewNode(ft.f, n)
+	ft.f.nodes[DeviceSessionSendOnce] = func(_ string, raw json.RawMessage) (any, error) {
+		if ft.f.failSend != nil {
+			return nil, ft.f.failSend
+		}
+		var params map[string]any
+		_ = json.Unmarshal(raw, &params)
+		ft.f.agentSent = append(ft.f.agentSent, params)
+		return map[string]any{}, nil
+	}
+	fx := &sessionReviewFixture{ft: ft, node: n, handler: ft.s.fleetHandler(ft.s)}
+	fx.setSource(sessionReviewSourceSession("claude"))
+	ft.f.setItems(
+		proto.Item{Seq: 1, Role: "user", Kind: proto.KindText, ClientMsgID: "ask-1",
+			Text: "Fix the login crash without changing the session API."},
+		proto.Item{Seq: 2, Role: "assistant", Kind: proto.KindText, Text: "SOURCE_AGENT_REASONING: I anchored on the layout cache."},
+		proto.Item{Seq: 3, Role: "user", Kind: proto.KindText, ClientMsgID: "ask-2",
+			Text: "Also add a regression test for landscape."},
+		proto.Item{Seq: 4, Role: "assistant", Kind: proto.KindText, Text: "SOURCE_AGENT_FINAL: everything is fixed and all tests pass."},
+		proto.Item{Seq: 5, Role: "user", Kind: proto.KindText, Text: "INJECTED_NOT_A_USER_ASK",
+			Injected: &proto.Injected{Kind: proto.InjectedFollowup}},
+		proto.Item{Seq: 6, Role: "user", Kind: proto.KindText, From: "other-agent", Text: "OTHER_AGENT_MESSAGE"},
+	)
+	return fx
 }

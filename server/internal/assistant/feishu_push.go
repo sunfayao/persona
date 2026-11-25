@@ -435,7 +435,7 @@ func (s *Service) agentDoneHead(ctx context.Context, machine, session, head stri
 			break
 		}
 	}
-	label := s.feishuDirection(ctx, t, s.feishuDirections(ctx)) + clip(oneLine(t.Title), 70)
+	label := feishuTaskPrefix + clip(oneLine(t.Title), 70)
 	if head != t.Title {
 		label += " · " + head
 	}

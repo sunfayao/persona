@@ -15,13 +15,13 @@ import (
 // reviews, round, parking, waits on the owner); a task waiting for review is signalled again to the new main
 // conversation. Only a previously assigned legacy background notice may still finish in the old background conversation;
 // no new background route is created (#5732). The card of a task the new main supervises is put there (the old
-// conversation keeps its history). A task a leader supervises keeps its leader; closed tasks and the owner's own
+// conversation keeps its history). Closed tasks and the owner's own
 // to-dos are not touched.
 
 // handOverMainTasks moves the open tasks of conversation from, a main conversation that was replaced, to conversation
-// to, the main one now; it answers how many moved. Nothing moves when from is a leader now (it supervises its tasks).
+// to, the main one now; it answers how many moved.
 func (s *Service) handOverMainTasks(ctx context.Context, from, to string) int {
-	if from == "" || to == "" || from == to || s.isLeaderRef(from) || s.isLeader(ctx, from) {
+	if from == "" || to == "" || from == to || s.isLeaderRef(from) {
 		return 0
 	}
 	moved := 0

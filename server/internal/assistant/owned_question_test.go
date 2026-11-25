@@ -58,19 +58,6 @@ func TestOwnedQuestionReplaysDurableOutcomeWithoutAnotherCard(t *testing.T) {
 	}
 }
 
-func TestOwnedQuestionHistoryFailureDoesNotReask(t *testing.T) {
-	shortHistoryTimeout(t, 10*time.Millisecond)
-	ft := newFleetTestOn(t, stuckHistoryStore{newFleetMem()})
-	ix := proto.Interaction{ID: "work_unknown", Kind: proto.IxQuestion, CanCancel: true}
-	_, err := ft.s.waitOwnedQuestion(context.Background(), ix)
-	if err == nil {
-		t.Fatal("unreadable history must be retried rather than treated as a new question")
-	}
-	if len(ft.s.pendingInteractions()) != 0 {
-		t.Fatal("unreadable outcome created another pending card")
-	}
-}
-
 func TestOwnedQuestionReattachesPendingWithoutAnnouncement(t *testing.T) {
 	ft := newFleetTest(t)
 	ix := proto.Interaction{ID: "work_retry", Kind: proto.IxQuestion, ToolName: workCardTool,

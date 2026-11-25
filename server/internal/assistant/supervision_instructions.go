@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"slices"
 
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -56,7 +55,7 @@ func (s *Service) supervisionInstructions(ctx context.Context, machine, id strin
 	if known && runtimeSessionLacksSupervisionPolicy(c) {
 		return "", nil
 	}
-	if !main && !(id == cfg.BackgroundSupervisor && cfg.BackgroundSupervisorMachineID == machine) && !s.isBackgroundCallerOn(ctx, machine, id) && !slices.Contains(cfg.Leaders, id) {
+	if !main && !(id == cfg.BackgroundSupervisor && cfg.BackgroundSupervisorMachineID == machine) && !s.isBackgroundCallerOn(ctx, machine, id) {
 		// Side chats genuinely supervise their own open tasks (#4669). Sharing the
 		// directory, a scheduled purpose, or the ability to plan is not a role.
 		if known && (!c.Assistant || c.Space != "") {
@@ -85,9 +84,7 @@ func (s *Service) supervisionInstructions(ctx context.Context, machine, id strin
 	} else if guest {
 		return "", nil
 	}
-	// A leader's own direction notes follow its policy (direction_notes.go): changing them restarts only this one, on
-	// a send that finds it idle.
-	return s.leaderPolicy(ctx, id, prompts.RenderSupervisionInstructions(), leadIdle(c, known)), nil
+	return prompts.RenderSupervisionInstructions(), nil
 }
 
 func (s *Service) putSupervisionInstructions(ctx context.Context, machine, id string, p map[string]any) error {

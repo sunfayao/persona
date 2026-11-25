@@ -54,7 +54,7 @@ Section 6 and the lines it changes were re-checked on `origin/main` at 81361c1dd
   the needs-you cases pinned a split (`muted_and_quiet_agents_are_rows_but_not_on_the_badge`).
 - **Why it happened.** Each surface got its rule when it shipped. The fixtures pin single surfaces (needs-you: the
   Agents tab; attention: Link; todo-counts: the list), some pin splits on purpose (`TestLiveActivityKeepsItsOwnCount`),
-  and no test compares surfaces, which `docs/design/proposals/owner-at-a-glance.md` G3 asks for. The one hub-sent count
+  and no test compares surfaces, which owner-at-a-glance.md (removed) G3 asks for. The one hub-sent count
   clients could use, TodoCounts, is summed across managers while the pages show one assistant: iOS recounts with several
   managers, and the web and Android never adopted it. Lesson: ship per-manager values; leave the scope to the client.
 
@@ -69,7 +69,7 @@ Paths in the server rows are under `server/internal`. Every row was checked at e
 | Roster `inbox_needs_you` | manager: `assistant/inbox_store.go` tellInboxNeedsYou; hub: `hub/managers.go` | inbox items' status() | every client's switcher | Open action items, read or not. Told on every change; the hub drops repeats and coalesces the push over 1 s |
 | Paged session counts and catalog | hub: `sessionlist/query.go` addCount; `hub/sessions_catalog.go` | the sessionlist index | web badge on bounded hubs; Android paged chips; the Rust core's aggregates | A state map over the whole filtered list. No mutes or quiet applied. `background_waiting` is a subset of working, `just_finished` of idle |
 | TodoCounts and places | manager: `assistant/todo/projection/list.go` Counts; hub sum: `hub/todo_view.go` | to-dos, linked sessions, cards | iOS only, behind the V1 gate (TodoCountsSource) | N is the Needs you section, each to-do once; quiet and Can wait are out; a step counts with its parent |
-| Direction tree counts | manager: `assistant/direction_tree.go` | todo_triage.go (triageCountsAsOpen) | web and Android leader rows | Tasks by tree state; quiet tasks included, unlike TodoCounts |
+| Direction tree counts | manager: direction_tree.go | todo_triage.go (triageCountsAsOpen) | web and Android leader rows | Tasks by tree state; quiet tasks included, unlike TodoCounts |
 | Row `pending_interactions`, state, children | manager: `assistant/fleet_sessions.go` decorateInventory, `assistant/fleet_fold.go` | pending cards, host status | every row | Per row; the basis of every state count. Possible gap, read from code only: the row count takes `s.fleet.interactions`, while pendingCards (`assistant/fleet_ix.go`) also merges session-review cards from the review store |
 | Web Agents badge | `web/src/lib/sessions.ts` stateCounts / useCounts; `web/src/lib/current-assistant.ts` useScopedCounts | rows, or the hub's `state.needs_you` | tab title, favicon, Electron Dock (unscoped); sidebar Home, ShellSwitch (scoped) | Without bounded lists: quiet out, muted in, no sessionless cards. With them (the default): the hub's number, quiet and muted in (`quietCounted: true`) |
 | Web Inbox, To-dos, switcher | `web/src/lib/inbox.ts` badgeCount; `web/src/lib/todo-triage.ts` ownerBadge; `web/src/lib/manager-attention.ts` | items, to-dos, rows | sidebar rows, switcher | Unread action items; what waits on the owner; with several assistants, sessions once from the complete list (useFullAgentSessions), children folded, Persona conversations by their cards, a card on no session 1, quiet, muted and directory-hidden out, plus `inbox_needs_you` |
@@ -440,7 +440,7 @@ Section 6.2 says what the decisions change in the steps, and 6.3 which docs chan
   took 1.5 s against 118 s for package assistant. *Revised 2026-11-22 in #10613:* the layer declarations replace a
   line in a list of domain packages; the name and home stay.
 - **D16** The direction tree's `needs_you`. *Decided 2026-11-22:* never a view id: the tree already computes
-  its counts once in the manager and every client draws them as sent (`server/internal/assistant/direction_tree.go`). It
+  its counts once in the manager and every client draws them as sent (direction_tree.go). It
   converges in place in the To-dos rework PR that moves the tree onto the projection's phase; that PR adds a test that
   the directions' `needs_you` add up to TodoCounts' and states the tree's one exception: a worker task nested under its
   leader's Agent is not counted on its own. Open PRs there: #11821 and #12557, both drafts.

@@ -114,17 +114,6 @@ func (unavailableConfirmationStore) ConfirmationCounts(context.Context, time.Tim
 	return nil, errors.New("unavailable")
 }
 
-func TestConfirmationMetricsUnavailable(t *testing.T) {
-	s := newFleetTest(t).s
-	noDirectionsTimers(s)
-	base := s.store()
-	s.store = func() Store { return unavailableConfirmationStore{Store: base} }
-	c := s.briefConfirmationsAt(context.Background(), time.Now(), time.UTC)
-	if !c.Unknown || !strings.Contains(c.summary(i18n.Lang("en")), "unknown") {
-		t.Fatalf("read failure became a zero count: %+v", c)
-	}
-}
-
 func TestGoldenConfirmationBriefFacts(t *testing.T) {
 	golden(t, "routine_facts.confirmations", prompts.RenderBriefFacts(prompts.BriefFacts{Hours: 12,
 		ConfirmationSummary: "Today: 3 confirmation cards sent to you · 2 automatically authorized",

@@ -644,9 +644,6 @@ func managerUsageGolden(language string) string {
                        停掉并去掉常驻服务；它的数据库容器停掉、数据卷留着（--purge：连容器和数据卷一起删掉）
   personad manager capabilities [--json]   只读列出这个程序支持的管理者能力
   personad manager status [--dir 目录]      这台电脑上的管理者和它们的服务
-  personad manager search-reindex [--dir <directory>]
-                       empty this manager's chat search index in its database: it reads its chats again from the
-                       start
   personad manager install --builtin [--join <hub address>] | --check
                        install the built-in manager's own service (Linux: systemd user unit persona-manager-assistant;
                        Mac: launchd); --join: bind it first with the code in PERSONA_MANAGER_CODE, unless its binding
@@ -677,8 +674,6 @@ func managerUsageGolden(language string) string {
                        常駐サービスを停止して削除します。データベースコンテナーは停止し、データボリュームは保持します（--purge：コンテナーとボリュームも削除）
   personad manager capabilities [--json]   このプログラムが対応するマネージャー機能を読み取り専用で一覧表示します
   personad manager status [--dir ディレクトリー]      このコンピューター上のマネージャーとサービスを表示します
-  personad manager search-reindex [--dir <directory>]
-                       このマネージャーのデータベースにあるチャット検索インデックスを空にし、最初からチャットを読み込み直します
   personad manager install --builtin [--join <hub address>] | --check
                        内蔵マネージャーのサービスをインストールします（Linux：systemdユーザーユニットpersona-manager-assistant、
                        Mac：launchd）。--join：既存のバインドが使えない場合、PERSONA_MANAGER_CODEのコードで先にバインドします
@@ -709,9 +704,6 @@ func managerUsageGolden(language string) string {
                        stop and remove the persistent service; stop its database container but keep the volume (--purge: remove both)
   personad manager capabilities [--json]   list this program's manager capabilities without changing anything
   personad manager status [--dir directory]      managers on this computer and their services
-  personad manager search-reindex [--dir <directory>]
-                       empty this manager's chat search index in its database: it reads its chats again from the
-                       start
   personad manager install --builtin [--join <hub address>] | --check
                        install the built-in manager's own service (Linux: systemd user unit persona-manager-assistant;
                        Mac: launchd); --join: bind it first with the code in PERSONA_MANAGER_CODE, unless its binding

@@ -117,9 +117,9 @@ func wakePending(c proto.Session) bool {
 // autoArchivable says whether c may be archived by itself now: closed, idle for `idle` since its last step, since its
 // latest to-do was done (lastDone) and since its archive state last changed (a session the user restored is not taken
 // straight back), and none of the cases above (filed: the owner filed it under a current direction).
-func autoArchivable(c proto.Session, now time.Time, idle time.Duration, onOpenTodo, filed, onTodo, reviewer bool, lastDone time.Time) bool {
+func autoArchivable(c proto.Session, now time.Time, idle time.Duration, onOpenTodo, onTodo, reviewer bool, lastDone time.Time) bool {
 	switch {
-	case idle <= 0 || c.Archived || onOpenTodo || filed || reviewer:
+	case idle <= 0 || c.Archived || onOpenTodo || reviewer:
 		return false
 	case c.Assistant || c.IsSubagent || c.SourceKind != "":
 		return false
@@ -154,11 +154,6 @@ func (s *Service) autoArchiveCandidates(ctx context.Context, now time.Time) [][2
 		return nil
 	}
 	links := s.sessionLinks()
-	filed, err := s.directionFiledSessions(ctx, s.settings(ctx))
-	if err != nil { // nor without the filing book which ones a direction holds
-		s.logf("auto archive: %v", err)
-		return nil
-	}
 	var out [][2]string
 	for _, d := range s.devices(ctx) {
 		if !d.Reachable {
@@ -170,7 +165,7 @@ func (s *Service) autoArchiveCandidates(ctx context.Context, now time.Time) [][2
 		}
 		for _, c := range list {
 			open, onTodo, reviewer, lastDone := links.link(d.ID, c.SessionID)
-			if autoArchivable(c, now, idle, open, filed[[2]string{s.canonical(d.ID), c.SessionID}], onTodo, reviewer, lastDone) {
+			if autoArchivable(c, now, idle, open, onTodo, reviewer, lastDone) {
 				out = append(out, [2]string{d.ID, c.SessionID})
 			}
 		}
@@ -194,11 +189,7 @@ func (s *Service) archiveClosedSessions(ctx context.Context, now time.Time) int 
 			continue // gone, or an assistant conversation after all
 		}
 		open, onTodo, reviewer, lastDone := s.sessionLinks().link(key[0], key[1])
-		filed, err := s.directionFiledSessions(ctx, s.settings(ctx))
-		if err != nil {
-			break // the book could not be read: the next pass tries again
-		}
-		if !autoArchivable(row, now, idle, open, filed[[2]string{s.canonical(key[0]), key[1]}], onTodo, reviewer, lastDone) {
+		if !autoArchivable(row, now, idle, open, onTodo, reviewer, lastDone) {
 			continue
 		}
 		if err := s.noteAgentArchive(ctx, row, true); err != nil {

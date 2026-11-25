@@ -19,9 +19,6 @@ import (
 // in internal/archguard; docs/server/architecture.md "Registering a domain's entries"). TestRouteScopes keeps the list
 // of every route and what was decided for it, server/internal/hub/testdata/route_scopes.txt.
 var RouteScopes = map[string]string{
-	"GET /api/v1/assistant/leaders":                              ScopeLeadersRead,
-	"POST /api/v1/assistant/directions":                          ScopeLeadersWrite,
-	"POST /api/v1/assistant/directions/{id}/progress":            ScopeLeadersWrite,
 	"GET /api/v1/assistant/dispatch-policy":                      ScopeAssistantDispatchPolicy,
 	"PUT /api/v1/assistant/dispatch-policy":                      ScopeAssistantDispatchPolicy,
 	"GET /api/v1/assistant/dispatch-guard":                       ScopeDispatchGuard,

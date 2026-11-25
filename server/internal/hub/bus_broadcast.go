@@ -39,7 +39,7 @@ import (
 var managerMessageTypes = map[string]bool{
 	// the assistant
 	"saved_agent_searches": true, "assistant_feed": true, "assistant_saved_prompts": true, "assistant_starred": true, "assistant_schedule": true, "assistant_view": true, "assistant_view_action": true,
-	"assistant_view_block": true, "agents.triage": true, "direction_offer": true, "directions": true, "interaction_reanswered": true, "launcher_health": true,
+	"assistant_view_block": true, "agents.triage": true, "interaction_reanswered": true, "launcher_health": true,
 	"model_profile": true, "navigation": true, "task_plan": true, "todos": true,
 	"resources": true,
 	// its extensions' manager

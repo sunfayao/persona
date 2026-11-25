@@ -135,61 +135,6 @@ func TestAgentsLeftWithoutATask(t *testing.T) {
 	})
 }
 
-// agent_start always leaves a tracked task: the calling direction lead owns its own starts, otherwise main does.
-func TestAgentStartIsATaskFromAnyConversation(t *testing.T) {
-	args := json.RawMessage(`{"machine":"box","cwd":"/code/app","prompt":"看看 CI 为什么挂了"}`)
-	ctx := context.Background()
-	for _, c := range []struct {
-		conv, told, supervisor string
-	}{{"conv2", startToldMain, "conv1"}, {"lead1", startToldHere, "lead1"}, {"conv1", startToldHere, "conv1"}} {
-		s, _ := newQuietService(t)
-		setSettings(t, s, func(v *Settings) {
-			v.AgentTasks, v.MainTasksQuiet, v.Leaders = new(true), new(false), []string{"lead1"}
-		})
-		res, err := s.runTool(ctx, "server", c.conv, "agent_start", args)
-		if err != nil {
-			t.Fatal(err)
-		}
-		todo := onlyTodo(s)
-		if todo.Quiet || todo.Origin != c.conv || len(todo.Agents) != 1 || todo.Agents[0].SessionID != "s1" || todo.Title != "看看 CI 为什么挂了" {
-			t.Fatalf("%s: todo = %+v", c.conv, todo)
-		}
-		if v := todo.Supervision; v == nil || v.Supervisor != c.supervisor || len(v.DoneWhen) != 0 {
-			t.Fatalf("%s: supervision = %+v", c.conv, todo.Supervision)
-		}
-		if !strings.Contains(res, "a task of this conversation (its card is in the conversation; "+c.told+").") || feedKinds(s, c.conv) != "task" {
-			t.Fatalf("%s: result %q, feed %q", c.conv, res, feedKinds(s, c.conv))
-		}
-		if c.supervisor != c.conv && feedKinds(s, "conv1") != "task" {
-			t.Fatalf("%s: main feed %q", c.conv, feedKinds(s, "conv1"))
-		}
-	}
-
-	// The old opt-in switches are irrelevant: both a main and a side start are tracked and main-supervised.
-	s, _ := newQuietService(t)
-	res, err := s.runTool(ctx, "server", "conv1", "agent_start", args)
-	if err != nil {
-		t.Fatal(err)
-	}
-	const mainTold = ": session s1, a task of this conversation (its card is in the conversation; " +
-		"you are told here when it is done or waits for the user, nothing else notifies the user)."
-	if !strings.HasPrefix(res, "Started on ") || !strings.HasSuffix(res, mainTold) {
-		t.Fatalf("main: %q", res)
-	}
-	res, err = s.runTool(ctx, "server", "conv2", "agent_start", args)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(res, startToldMain) || todoCount(s) != 2 || feedKinds(s, "conv2") != "task" {
-		t.Fatalf("side: %q, %d todos, feed %q", res, todoCount(s), feedKinds(s, "conv2"))
-	}
-	for _, todo := range s.todosOf(ctx, "*") {
-		if todo.Supervision == nil || todo.Supervision.Supervisor != "conv1" {
-			t.Fatalf("untracked start: %+v", todo)
-		}
-	}
-}
-
 // report_to_supervisor from an agent on an open todo nobody supervises reaches the main conversation while agent tasks
 // are on: the user's own todo gets the main conversation as its supervisor, with no done_when. Off, and for an agent
 // on no todo, nobody receives it, as before.

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/conversationlog"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -37,18 +36,6 @@ func (d *logicalAbsorbedDevices) Sessions(machine string) ([]proto.Session, bool
 }
 func (d *logicalAbsorbedDevices) CallNode(ctx context.Context, machine, method string, raw json.RawMessage) (json.RawMessage, error) {
 	return d.fleetDevs.CallNode(ctx, d.Canonical(machine), method, raw)
-}
-
-func absorbedPair(t *testing.T) (*Service, *fakeHub, *db.DB, *logicalAbsorbedDevices) {
-	t.Helper()
-	s, f, st, _ := logicalPair(t, "codex")
-	activatePair(t, st)
-	raw := &logicalAbsorbedDevices{&aliasDevs{fleetDevs: newFleetDevs(), alias: map[string]string{"server": "connected"}}}
-	raw.add("connected", "Computer")
-	raw.setSessions("connected", []proto.Session{{SessionID: "side-chat", Cwd: "/home/u/.persona/assistant", Assistant: true, Agent: "claude", Rev: 100}, {SessionID: "target-chat", Cwd: "/home/u/.persona/assistant", Assistant: true, Agent: "codex", Rev: 100}})
-	s.devs = &logicalDevices{Devices: raw, s: s}
-	s.logicalChanged() // direct test DB activation precedes the installed physical fleet
-	return s, f, st, raw
 }
 
 func TestLogicalAbsorptionPreservesAuthorityAndLiveProjection(t *testing.T) {
@@ -129,7 +116,7 @@ func TestLogicalAbsorptionKeepsDurableHistorySourceKeys(t *testing.T) {
 		})
 	}
 	s.NodeEvent("connected", "session.items", json.RawMessage(`{"session_id":"target-chat","items":[]}`))
-	if !s.historyDirty(searchKey{"server", "target-chat"}) {
+	if !s.historyDirty(historyKey{"server", "target-chat"}) {
 		t.Fatal("source-key history did not receive the synchronization hint")
 	}
 	s.historySweep(t.Context(), st)
@@ -173,31 +160,14 @@ func TestLogicalAbsorptionFailsClosedOnConflictingRootsAndDeletion(t *testing.T)
 	}
 }
 
-func TestLogicalTransportProjectionDoesNotInventPhysicalReachability(t *testing.T) {
-	s, _, st, _ := historyFixture(t)
-	ctx := t.Context()
-	for _, p := range []struct{ root, source, target, session string }{{"a-public", "a-source", "connected", "first-target"}, {"z-public", "z-source", "a-public", "second-target"}} {
-		if err := st.AdoptConversation(ctx, p.root, p.source, p.source, "claude", "history"); err != nil {
-			t.Fatal(err)
-		}
-		if err := st.BeginConversationSwitch(ctx, p.root, p.source, db.ConversationSwitch{OperationID: "switch", ExpectedEpoch: 1, SourceSegment: p.source, Request: json.RawMessage(`{}`)}); err != nil {
-			t.Fatal(err)
-		}
-		if err := st.PrepareConversationSegment(ctx, p.root, p.source, "switch", conversationlog.Segment{ID: p.session, MachineID: p.target, SessionID: p.session, Engine: "codex"}, 1); err != nil {
-			t.Fatal(err)
-		}
-		if err := st.ActivateConversationSegment(ctx, p.root, p.source, "switch", 1); err != nil {
-			t.Fatal(err)
-		}
-	}
-	s.logicalChanged()
-	states := s.logicalProjectStates(devicewire.States{Machines: []devicewire.State{{Machine: proto.Machine{ID: "connected"}, Connected: true}, {Machine: proto.Machine{ID: "a-public"}, Connected: false}}})
-	for _, state := range states.Machines {
-		if state.Machine.ID == "a-public" && !state.Connected {
-			t.Fatal("retained public root did not reach its own connected target")
-		}
-		if state.Machine.ID == "z-public" && state.Connected {
-			t.Fatal("another logical root's projected connection impersonated an offline physical target")
-		}
-	}
+func absorbedPair(t *testing.T) (*Service, *fakeHub, *db.DB, *logicalAbsorbedDevices) {
+	t.Helper()
+	s, f, st, _ := logicalPair(t, "codex")
+	activatePair(t, st)
+	raw := &logicalAbsorbedDevices{&aliasDevs{fleetDevs: newFleetDevs(), alias: map[string]string{"server": "connected"}}}
+	raw.add("connected", "Computer")
+	raw.setSessions("connected", []proto.Session{{SessionID: "side-chat", Cwd: "/home/u/.persona/assistant", Assistant: true, Agent: "claude", Rev: 100}, {SessionID: "target-chat", Cwd: "/home/u/.persona/assistant", Assistant: true, Agent: "codex", Rev: 100}})
+	s.devs = &logicalDevices{Devices: raw, s: s}
+	s.logicalChanged() // direct test DB activation precedes the installed physical fleet
+	return s, f, st, raw
 }

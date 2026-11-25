@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -119,50 +118,6 @@ func TestHiddenDirectoryArchiveRowsRemainHidden(t *testing.T) {
 	}
 }
 
-func TestHiddenDirectorySupervisedTaskStillObserved(t *testing.T) {
-	e := newSupervisedEnv(t, false)
-	todo := e.task("conv1", "conv1")
-	hideExposureDirectory(e.s, "mac", "/code/app")
-	c, ok := e.s.decoratedSession("mac", supAgent)
-	if !ok || c.HiddenByDirectory() {
-		t.Fatalf("supervised task hidden: %+v", c)
-	}
-	if got := e.s.describeAgents(context.Background(), "all", "", ""); !strings.Contains(got, supAgent) {
-		t.Fatalf("supervised task disappeared from observation: %s", got)
-	}
-	if ok, err := e.s.reviewDoneTodo(context.Background(), todo.ID, "Accepted", true); err != nil || !ok {
-		t.Fatalf("close: %v %v", ok, err)
-	}
-	c, ok = e.s.decoratedSession("mac", supAgent)
-	if !ok || !c.HiddenByDirectory() {
-		t.Fatalf("closed supervised task bypasses directory rule: %+v", c)
-	}
-}
-
-func TestHiddenDirectorySupervisionNoticeDelivered(t *testing.T) {
-	e := newSupervisedEnv(t, false)
-	todo := e.task("conv1", "conv1")
-	hideExposureDirectory(e.s, "mac", "/code/app")
-	e.f.mu.Lock()
-	e.f.judge = `{"verdict":"done","reason":"Checks passed"}`
-	e.f.mu.Unlock()
-	e.holdDone()
-	sess := supAgentSession()
-	sess.LastText = "Change completed and checks passed"
-	driveAgentDone(e.fleetTest, sess)
-	e.s.taskTurnEnded(context.Background(), "mac", supAgent)
-	waitFor(t, "supervision notice despite matching directory rule", func() bool { return len(e.f.notices()) > 0 })
-	found := false
-	for _, notice := range e.f.notices() {
-		if strings.Contains(notice, todo.ID) {
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("task supervision missing from delivered notices: %v", e.f.notices())
-	}
-}
-
 func TestHiddenDirectoryColdSupervision(t *testing.T) {
 	ctx := context.Background()
 	database, err := db.Open(ctx, newDatabase(t), db.ManagerSet)
@@ -209,94 +164,5 @@ func TestHiddenDirectoryKeepsUnknownSupervisionVisible(t *testing.T) {
 	ft.s.store = func() Store { return &visibilityTodoReadFailure{} }
 	if !ft.s.directorySessionSupervised("mac", "agent") {
 		t.Fatal("unreadable inventory must not hide potentially supervised work")
-	}
-}
-
-// get counts only what each rule hides now: an assistant conversation and an active supervised task under the folder
-// are not hidden (hiddenByDirectory), and each rule keeps its own count.
-func TestHiddenDirectorySettingCountsOnlyHiddenSessions(t *testing.T) {
-	e := newSupervisedEnv(t, false)
-	e.task("conv1", "conv1")
-	sup := supAgentSession()
-	sup.MachineID, sup.Status = "mac", proto.StatusIdle
-	e.sessions("mac", sup,
-		proto.Session{SessionID: "plain", MachineID: "mac", Cwd: "/code/app/x", Status: proto.StatusIdle},
-		proto.Session{SessionID: "plain2", MachineID: "mac", Cwd: "/code/other", Status: proto.StatusIdle},
-		proto.Session{SessionID: "talk", MachineID: "mac", Cwd: "/code/app", Assistant: true, Status: proto.StatusIdle})
-	f := useAgentDirs(e.s)
-	f.set(t, "mac", proto.HiddenAgentDir{Pattern: "/code/app", Enabled: true}, proto.HiddenAgentDir{Pattern: "/code", Enabled: true})
-	got := settingsTool(e.s, `{"action":"get","key":"agents.hidden_dirs"}`)
-	if got.IsError {
-		t.Fatalf("get: %+v", got)
-	}
-	text := got.Content[0].Text
-	for _, want := range []string{"/code/app (hide, on; matches 1 sessions)", "/code (hide, on; matches 2 sessions)"} {
-		if !strings.Contains(text, want) {
-			t.Errorf("want %q in:\n%s", want, text)
-		}
-	}
-}
-
-// A standing authorization still answers a card from a directory-hidden session (an open task no one supervises, so
-// the folder rule hides it): hiding changes what is shown, never what is approved. A card no grant covers stays
-// pending and is kept for the hidden session's own page, out of the user-visible routing.
-func TestHiddenDirectoryKeepsStandingApproval(t *testing.T) {
-	for _, covered := range []bool{true, false} {
-		t.Run(map[bool]string{true: "covered", false: "not_covered"}[covered], func(t *testing.T) {
-			database := taskRecoveryDatabase(t)
-			e := newRouteEnv(t, database, true)
-			t.Cleanup(func() { settleService(t, e.s) })
-			grant := routeStandingGrant()
-			grant.Actions, grant.Reversible = []string{"merge"}, true
-			if covered {
-				saveDispatchAuthorizations(t, database, grant)
-			}
-			agents := append([]proto.Session(nil), e.agents...)
-			agents[0].Cwd = "/code/app"
-			e.sessions("mac", agents...)
-			e.f.setSessions("mac", agents...)
-			e.s.todos.mu.Lock()
-			e.s.todos.todos[e.todo.ID].Supervision = nil // the task is open, but no one supervises it
-			e.s.todos.mu.Unlock()
-			hideExposureDirectory(e.s, "mac", "/code/app")
-			if !e.s.directoryHiddenSession("mac", agents[0].SessionID) {
-				t.Fatal("setup: the session is not directory-hidden")
-			}
-			ix := askQuestion("standing-hidden", agents[0].SessionID)
-			ix.Questions[0].Question = "Merge?"
-			ix.Questions[0].Options = []proto.QuestionOption{{Label: "Continue"}, {Label: "Not now"}}
-			ix.ToolInput, _ = json.Marshal(map[string]any{"questions": ix.Questions})
-			p := &pending{ix: ix, done: make(chan proto.Resolution, 1)}
-			putPending(e.s, p)
-			e.s.record(ix)
-			e.s.announce(ix)
-			record, err := database.InteractionRecord(t.Context(), ix.ID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if covered {
-				select {
-				case answer := <-p.done:
-					if answer.AnsweredBy != proto.AnsweredByAssistant || !strings.Contains(answer.Reason, grant.ID) {
-						t.Fatalf("answer lacks authority: %+v", answer)
-					}
-				default:
-					t.Fatal("a standing authorization did not answer a hidden session's card")
-				}
-				if record.Status != "resolved" {
-					t.Fatalf("outcome: %+v", record)
-				}
-				return
-			}
-			if record.Status != "pending" {
-				t.Fatalf("uncovered card changed: %+v", record)
-			}
-			if _, ok := e.s.pendingIx(ix.ID); !ok {
-				t.Fatal("hidden card left the inventory")
-			}
-			if e.pushesOf(ix.ID) != 0 || len(e.s.heldAsks(e.todo.ID, "lead1")) != 0 {
-				t.Fatal("a hidden session's card was routed to the user or a supervisor")
-			}
-		})
 	}
 }

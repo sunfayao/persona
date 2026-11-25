@@ -37,7 +37,6 @@ const supervisionReopenWithin = wrongDoneWithin
 const (
 	supervisorMain       = "main"
 	supervisorBackground = "background"
-	supervisorLeader     = "leader"
 	supervisorOther      = "conversation" // a side conversation reviewing what it handed out
 	supervisorTaskLeader = "task_leader"  // a task leader's agent reviewing its workers (task_leader.go)
 )
@@ -49,8 +48,6 @@ func (s *Service) supervisorRole(ctx context.Context, id string) string {
 		return supervisorMain
 	case s.isBackground(ctx, id):
 		return supervisorBackground
-	case s.isLeader(ctx, id):
-		return supervisorLeader
 	}
 	return supervisorOther
 }

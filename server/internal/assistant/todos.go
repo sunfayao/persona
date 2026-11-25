@@ -469,10 +469,9 @@ func (s *Service) todosLoaded() bool {
 func (s *Service) todosChanged(ctx context.Context) {
 	s.todosPushSoon()
 	s.todoChangedSoon()
-	s.remindSoon()        // a reminder set, moved or done (todo_plan.go)
-	s.boardChanged()      // a to-do closed, reopened or gone leaves "Please verify"
-	s.interruptsSoon()    // an interrupted receipt of it may read cancelled, rerouted or done now (interruptions.go)
-	s.directionTreeSoon() // its direction's tasks and counts (direction_tree.go)
+	s.remindSoon()     // a reminder set, moved or done (todo_plan.go)
+	s.boardChanged()   // a to-do closed, reopened or gone leaves "Please verify"
+	s.interruptsSoon() // an interrupted receipt of it may read cancelled, rerouted or done now (interruptions.go)
 }
 
 // todosSettle is how long a {"type":"todos"} waits for the rest of its write. One step of a task writes its to-do from
@@ -2153,13 +2152,6 @@ func (s *Service) TodoHandoff(ctx context.Context, h TodoHandoff) (TodoHandoffRe
 	text := h.Text
 	if strings.TrimSpace(text) != "" {
 		text = s.withTodoDecisions(ctx, h.TodoID, text)
-		if h.New {
-			lead := ""
-			if t.Supervision != nil {
-				lead = t.Supervision.Supervisor
-			}
-			text = s.withProjectContextForTodo(ctx, h.MachineID, h.Cwd, lead, t, text) // a new agent: its project's background first
-		}
 	}
 	res := TodoHandoffResult{Found: true, Title: t.Title, DoneAt: t.DoneAt, Text: text}
 	if t.DoneAt == nil && len(t.Images) > 0 {

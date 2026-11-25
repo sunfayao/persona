@@ -220,11 +220,9 @@ func (h *Hub) features() []string {
 	out = append(out, h.agentSessionArchiveFeatures()...)
 	out = append(out, h.agentAutonameFeatures()...)
 	out = append(out, h.sessionsSideFoldFeatures()...)
-	out = append(out, h.assistantSearchFeatures()...)
 	if h.defaultManagerNames(assistantwire.CapabilityAssistantSegments) {
 		out = append(out, assistantwire.CapabilityAssistantSegments)
 	}
-	out = append(out, h.directionSessionsFeatures()...)
 	if h.defaultManagerNames(assistantwire.CapabilityTaskInput) {
 		out = append(out, assistantwire.CapabilityTaskInput)
 	}
@@ -241,8 +239,8 @@ func (h *Hub) features() []string {
 	for _, f := range h.extReport().Features {
 		switch f {
 		case assistantwire.CapabilityAssistantSegments, featureAgentSessionArchives, featureAgentSessionArchiveClose, featureAgentAutoname,
-			assistantwire.CapabilityTaskInput, featureAssistantSearch, featureDirectionSessions, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, featureTodoPlaces, featureTodoAsks, featureTodoTimeline:
-			continue // only manager hello can promise fleet archives, requested names, chat search, direction sessions, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
+			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, featureTodoPlaces, featureTodoAsks, featureTodoTimeline:
+			continue // only manager hello can promise fleet archives, requested names, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
 		}
 		if !slices.Contains(out, f) {
 			out = append(out, f)

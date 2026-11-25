@@ -62,8 +62,6 @@ func Main(ctx context.Context, build update.Build, args []string, stdout io.Writ
 		return cmdUninstall(ctx, e, args[1:])
 	case "status":
 		return cmdStatus(ctx, e, args[1:])
-	case "search-reindex":
-		return cmdSearchReindex(ctx, e, args[1:])
 	case "-h", "--help", "help":
 		fmt.Fprint(stdout, clitext.Named(Usage(e.l()))) // as the program was run (persona-manager, personad)
 		return nil

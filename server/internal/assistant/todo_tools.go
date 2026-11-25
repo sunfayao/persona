@@ -350,14 +350,6 @@ func (s *Service) toolTodoCreate(ctx context.Context, machine, self string, args
 	if ok, err := s.confirmOutbound(ctx, machine, self, "todo_create", "", title, args); err != nil || !ok {
 		return todoNotAllowed(err)
 	}
-	if s.isLeader(ctx, self) {
-		t, err := s.createDirectionTodo(ctx, self, title, strings.TrimSpace(a.Notes), plan, bindings)
-		if err != nil {
-			return "", fmt.Errorf("the to-do could not be saved, nothing changed: %w", err)
-		}
-		return "Created under your direction (you supervise it; to have an Agent do it, use task_plan with todo_id " + t.ID +
-			"): " + todoLine(t, now, loc), nil
-	}
 	if plan.PartOf != nil && *plan.PartOf != "" && self != "" && s.workerRefusal(ctx, machine, self) == nil {
 		// a piece the conversation will hand out itself: its own, so that task_plan's todo_id can run an Agent on it
 		t, err := s.createPieceTodo(ctx, self, title, strings.TrimSpace(a.Notes), plan, bindings)

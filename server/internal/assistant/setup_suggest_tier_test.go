@@ -76,37 +76,6 @@ func tierEvents(lists ...[]db.WorkEvent) []db.WorkEvent {
 	return out
 }
 
-// The share is reopened over the settled acceptances, never over all that were accepted, and only the background
-// supervisor's own reviews on the model in question are read.
-func TestSetupTierCountIsReopenedOverSettled(t *testing.T) {
-	since := setupNow.Add(-setupLookback)
-	settled := 2 * supervisionReopenWithin
-	events := tierEvents(
-		tierReviews(setupNow, "s", supervisorBackground, "big-model", 20, 2, settled),
-		tierReviews(setupNow, "f", supervisorBackground, "big-model", 23, 0, time.Hour), // accepted within the last day: not settled
-		tierReviews(setupNow, "m", supervisorMain, "big-model", 40, 0, settled),         // the main conversation's own reviews
-		tierReviews(setupNow, "l", supervisorLeader, "big-model", 40, 0, settled),
-		tierReviews(setupNow, "o", supervisorBackground, "mid-model", 40, 0, settled), // on another model
-		tierReviews(setupNow, "x", supervisorBackground, "big-model", 5, 0, 40*24*time.Hour),
-		[]db.WorkEvent{{At: setupNow.Add(-settled), Kind: taskReviewedEvent, Detail: map[string]any{"todo": "r", "verdict": reviewRework,
-			"role": supervisorBackground, "model": "big-model"}}},
-	)
-	c := setupTierCount(events, "big-model", since, setupNow)
-	if c.n != 20 || c.reopened != 2 || c.model != "big-model" {
-		t.Fatalf("count: %+v", c)
-	}
-	c.lower = "mid-model"
-	// 2 of 20 settled is 10 percent; over the 43 accepted it would be under 5 and pass.
-	if (setupState{}).suggests(setupSupervisorTier, c) {
-		t.Fatal("judged over the accepted, not the settled")
-	}
-	// A model written with its 1M marker is the same model.
-	marked := tierReviews(setupNow, "s", supervisorBackground, "big-model[1m]", 3, 1, settled)
-	if c := setupTierCount(marked, "big-model", since, setupNow); c.n != 3 || c.reopened != 1 {
-		t.Fatalf("1M marker: %+v", c)
-	}
-}
-
 func TestSetupTierThresholds(t *testing.T) {
 	for name, c := range map[string]struct {
 		n, reopened int

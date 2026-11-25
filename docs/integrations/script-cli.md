@@ -1,11 +1,9 @@
-# Script commands: `personad ask` / `personad notify` / `personad decision` and direction writes
+# Script commands: `personad ask` / `personad notify` / `personad decision`
 
-Let scripts, CI, long-running jobs, and programs that don't run in herdr reach the phone directly, or write a direction from outside an Agent session:
+Let scripts, CI, long-running jobs, and programs that don't run in herdr reach the phone directly:
 
 - `personad ask "question"`: blocks until someone answers on the phone; the answer becomes the exit code and stdout.
 - `personad notify "title" [body]`: sends a notification, best effort by default.
-- `personad create-direction <name> --project <slug>`: creates a direction and prints its leader as JSON.
-- `personad write-progress <direction-id>`: replaces a direction's progress and prints its leader as JSON.
 - `personad decision raise --file decision.json`: raises a rich Needs-you decision and returns its durable id immediately; `get` polls the answer and `withdraw` cancels it.
 
 Inspired by the commands of the same name in moshi-hook. Like `personad hook`, all five commands only talk to the local node (`~/.persona/node.sock`, 0600, same system user).
@@ -21,8 +19,6 @@ past either, the phone counts as unreachable (exit code 4). Details: `../protoco
 ```
 personad ask "question" [--options a,b,c] [--timeout 10m] [--require-remote]
 personad notify "title" [body] [--silent] [--error] [--strict]
-personad create-direction <name> --project <slug> [--machine <machine-id> --session <session-id>]
-personad write-progress <direction-id> [--reached <text>] [--doing <text>] [--needs-you <text>] [--link <url> ...]
 ```
 
 `ask`'s flags can go before or after the question; if the question starts with `-`, put it after `--`. `--timeout` takes seconds (`90`) or a duration (`10m`); the default is 30 minutes (same as hook), the maximum 24 hours.
@@ -44,26 +40,6 @@ Human-readable diagnostics after the `personad ask: ` / `personad notify: ` pref
 - Without `--strict`, a failure only writes one line to stderr, `Not sent: <reason>` (localized), and the exit code stays 0, so a `set -e` script is never broken by a notification.
   A queued notification (`{"queued":true}`, a resident node in standby) writes nothing and exits 0; with `--strict` it writes `Not sent: <reason>` and exits 1, because nothing was sent yet.
 - The "confirmation" of `--strict` means it was handed to push or a capable WebSocket connection (`{"sent":true}`), not that the phone displayed it: notification delivery has no receipt anyway (see `../protocol/protocol.md` ("Notifications over the persistent connection (ws_notify)")).
-
-## Direction writes from outside an Agent session
-
-`create-direction` and `write-progress` are for programs that are not running inside a Persona Agent session. They serve the same direction and progress model as the leader tools, but take their identity explicitly instead of discovering an Agent:
-
-- `--project` is required when creating a direction. `--machine` and `--session` are optional only together and must both be non-empty when supplied. The command never infers a session from its working directory, terminal pane, environment or transcripts.
-- Flags can go before or after the positional argument; a bare `--` ends flag parsing, so a name or direction id beginning with `-` can follow it.
-- Every progress write replaces all three text fields. An omitted `--reached`, `--doing` or `--needs-you` is sent as an empty string, clearing that field; this is not a patch of only the supplied flags. At least one of the three must be non-empty. No text, including a write with links alone, is a local usage error and does not contact the node.
-- Repeat `--link` for evidence links. Values stay in command-line order and are never split on commas, so a URL containing a comma remains one link.
-- On success, stdout is exactly one compact JSON object, `{"leader":{...}}`, followed by a newline. The leader object is passed through from the manager. Diagnostics go to stderr with the `personad create-direction: ` or `personad write-progress: ` prefix.
-
-| Exit code | Both direction commands |
-| --- | --- |
-| 0 | The manager replied `ok`; the leader JSON is on stdout |
-| 1 | The manager replied `failed`; its error is on stderr |
-| 2 | Local usage error, or the manager replied `invalid`; no usage error dials the node |
-| 4 | The manager replied `unavailable`, the socket transport failed, the reply was malformed, or an old node does not know the kind |
-| 130 | Ctrl-C / SIGTERM interrupted the call |
-
-Each command makes one bounded (30-second), one-shot node.sock request. It never retries a write and never sends an automatic second request, even after a timeout, a broken connection or a reply asking for a retry: the first write may already have reached the manager, so only the caller can decide to try again. A manager error string is passed through unchanged; usage and flag help stay English, and the missing-node diagnostic reuses the existing localized script CLI text.
 
 ## Non-blocking owner decisions
 
@@ -122,15 +98,6 @@ personad ask / notify / decision
             ├─ ask      → manager request interaction.create (assistant/fleet_events.go, same path as hook) → blocks until answered / expired
             ├─ notify   → passed on by the manager to the hub's notify (deliverNotify in hub/notify_api.go, shared with POST /api/v1/notify)
             └─ decision → short decision.raise / decision.get / decision.withdraw request to the assistant manager; polling history is durable
-```
-
-Direction writes use the same one-JSON-line request / reply framing, with no `pane`, `attempt`, hub token or resume marker:
-
-```
-personad create-direction
-  └─ node.sock  {"kind":"direction.create","input":{"name":"…","project":"…","machine_id":"…","session_id":"…"}}
-personad write-progress
-  └─ node.sock  {"kind":"direction.progress","input":{"id":"…","reached":"…","doing":"","needs_you":"","links":["…","…"]}}
 ```
 
 `machine_id` and `session_id` are omitted together when no explicit session was supplied. The CLI always includes the three progress text fields, including empty strings, and omits `links` when none were supplied. The node forwards one request to its manager and returns one reply:
@@ -201,7 +168,6 @@ Delivery goes through APNs (direct or via the push relay) and the persistent con
 - Unit tests: `server/internal/scriptcli` (exit codes, flags, terminal fallback, Ctrl-C, `--strict`, decision JSON input/output and polling/withdrawal); `server/internal/node/scriptcli_test.go` (fake hub + fake socket: card shape, Markdown format propagation and plain defaults, attribution, timeout, withdrawal, restart reconnect, `notify` parameters and truncation, decision forwarding); `server/internal/node/decision_script_test.go` (real local socket and node-derived source);
   `server/internal/assistant/outside_decisions_test.go` (manager lifecycle, idempotency, caller isolation, fixed answers, defaults, withdrawal and restart); `server/internal/hub/outside_decisions_scope_test.go` (explicit `decisions.raise` scope and missing-scope 403);
   `server/internal/hub/notify_api_test.go` (`silent`, `notify` from node: muting, preferences, no extension fields, the body cut to fit the push).
-- Direction unit tests: `server/internal/scriptcli/direction_test.go` and `server/internal/nodeclient/script_direction_test.go` (exact wire payloads, interspersed flags and `--`, machine/session pairs, links-only rejection, ordered links containing commas, no dial on usage errors, compact stdout, stderr and exit codes, malformed and old-node replies, deadlines, interruption and no automatic second request); `server/internal/nodecmd/direction_test.go` checks device-command dispatch.
 - The real `personad` binary was run against a fake node socket to check the exit codes and wire JSON of `ask` / `notify` (without touching a real node or phone).
 - Not done: end-to-end against a real hub + phone (by convention, tests don't send real notifications).
 

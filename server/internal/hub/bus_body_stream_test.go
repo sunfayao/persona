@@ -123,7 +123,7 @@ func bodyHub(t *testing.T) (*Hub, *httptest.Server) {
 // putPlace is an app's upload of body on one of the assistant's routes, with the hub's own token.
 func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte) (int, string) {
 	t.Helper()
-	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/places/"+id+"?x=1", bytes.NewReader(body))
+	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/memory/"+id+"?x=1", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}

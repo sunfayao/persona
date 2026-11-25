@@ -441,8 +441,7 @@ var presetIntN = func(n int) int {
 }
 
 // taskSupervisorClass is the class (dispatch policy's) of the conversation that follows a task up: the one its
-// supervision ledger names (written when the plan started, before the agent), else the leader conversation the plan
-// was handed to. A task leader's worker takes the class of the conversation that follows up its leader's task. ""
+// supervision ledger names (written when the plan started, before the agent). A task leader's worker takes the class of the conversation that follows up its leader's task. ""
 // when no conversation follows the task up.
 func (s *Service) taskSupervisorClass(ctx context.Context, t *PlanTask) string {
 	sup := s.taskSupervisorOf(t)
@@ -453,8 +452,7 @@ func (s *Service) taskSupervisorClass(ctx context.Context, t *PlanTask) string {
 }
 
 // taskSupervisorOf is the conversation that follows task t up: the one its supervision ledger names (written when the
-// plan started, before the agent), else the leader conversation the plan was handed to (PlanTask.Supervisor, set only
-// when the main conversation hands a task over: a leader's own plan leaves it empty). A task leader's worker is
+// plan started, before the agent), else PlanTask.Supervisor (a task leader's worker's). A task leader's worker is
 // followed up through its leader's task, so it takes that task's. "" when no conversation follows the task up.
 func (s *Service) taskSupervisorOf(t *PlanTask) string {
 	sup := t.Supervisor
@@ -468,36 +466,6 @@ func (s *Service) taskSupervisorOf(t *PlanTask) string {
 		}
 	}
 	return sup
-}
-
-// taskDirectionOf is the conversation whose direction notes accompany the task's first prompt. Direction notes are
-// prompt context; acceptance follows the current supervisor. A leader's own plan takes its
-// origin; a worker takes the legacy direction label from its parent task's saved plan (#10623).
-func (s *Service) taskDirectionOf(ctx context.Context, t *PlanTask) string {
-	if t.Supervisor != "" {
-		return t.Supervisor
-	}
-	todoID := t.TodoID
-	if t.Parent != "" {
-		todoID = t.Parent
-	}
-	if todoID != "" {
-		if todo, ok := s.todoNow(todoID); ok {
-			if s.isLeader(ctx, todo.Origin) {
-				return todo.Origin
-			}
-			if t.Parent != "" && todo.PlanID != "" {
-				if p, err := s.loadPlan(ctx, todo.PlanID); err == nil {
-					for _, planned := range p.Tasks {
-						if planned.TodoID == todoID && planned.Supervisor != "" {
-							return planned.Supervisor
-						}
-					}
-				}
-			}
-		}
-	}
-	return s.taskSupervisorOf(t)
 }
 
 // roleOf is the task's role as a fact: roleLeader for a task leader, else worker.

@@ -99,8 +99,6 @@ func TestEveryEventTopicHasItsScopeSettled(t *testing.T) {
 		"assistant.entries.changed": ScopeAssistantEntriesRead,
 		"todo.changed":              ScopeTodosRead,
 		"todo.decision":             ScopeTodosRead,
-		"leader.changed":            ScopeLeadersRead,
-		"leader.report":             ScopeLeadersRead,
 		"inbox.changed":             "",
 		"agent.needs_you":           "",
 		"agent.finished":            "",

@@ -3,8 +3,6 @@ package assistant
 import (
 	"cmp"
 	"context"
-	"encoding/json"
-	"slices"
 	"strings"
 	"time"
 
@@ -12,91 +10,19 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Failed assistant turns and the conversations conversation_new opens (#4669, docs/assistant/assistant.md "Managing
-// its own conversations"). An assistant turn that failed (the node's turn error: is_error, or an answer that is only an
+// Failed assistant turns. An assistant turn that failed (the node's turn error: is_error, or an answer that is only an
 // auth or upstream error) is logged with its conversation and launcher, never its words, which may carry a credential.
-// A conversation conversation_new opened is followed until it reports back with conversation_send: a turn of it that
-// fails, or one that ends without it ever having reported, leaves one notice in the conversation that opened it
-// (OriginRef), under the relay's hop and rate limits as a conversation_send from it would be.
 
 const (
-	// spawnNoticeTool is the relay kind of a spawned conversation's notice to the one that opened it.
-	spawnNoticeTool = "spawn_notice"
 	// taskEndTool is the relay kind of a task's end told to the conversation that planned it (taskEndedNotice).
 	taskEndTool = "task_end"
 	// prFollowupTool is the relay kind of a post-closure delivery-PR event told to the closed to-do's original
 	// supervisor conversation (pr_followup.go). Like task_end it is a record, not a push of its own and no hop.
 	prFollowupTool = "pr_followup"
-	// spawnedKeep is how long a spawned conversation is followed: one that has not ended a turn by then is the
-	// user's own conversation by now.
-	spawnedKeep = 7 * 24 * time.Hour
 )
 
-// spawnedConv is a conversation conversation_new opened: by which conversation and when; whether it reported back
-// with conversation_send, and whether its parent was told it did not (or that it failed).
-type spawnedConv struct {
-	Parent     string    `json:"parent"`
-	PinMachine string    `json:"pin_machine,omitempty"` // request owner approval once the first turn ends
-	At         time.Time `json:"at"`
-	Reported   bool      `json:"reported,omitempty"`
-	Noticed    bool      `json:"noticed,omitempty"`
-}
-
-// spawnPinAfterTurn consumes the request once. Waiting for the owner must not block turn-end processing.
-func (s *Service) spawnPinAfterTurn(ctx context.Context, machine, sid string) {
-	b := &s.relays
-	b.mu.Lock()
-	if !s.relayLocked(ctx) {
-		b.mu.Unlock()
-		return
-	}
-	c := b.st.Spawned[sid]
-	if c.PinMachine == "" || c.PinMachine != machine {
-		b.mu.Unlock()
-		return
-	}
-	c.PinMachine = ""
-	b.st.Spawned[sid] = c
-	if err := s.saveRelayLocked(); err != nil {
-		c.PinMachine = machine
-		b.st.Spawned[sid] = c
-		b.mu.Unlock()
-		return
-	}
-	b.mu.Unlock()
-
-	go func() {
-		ctx := context.WithoutCancel(ctx)
-		// Build both sides of the approval from the same settings revision. An intervening pin makes the card stale.
-		setting := ownSetting{Setting: Setting{Key: "assistant.leaders"}, set: func(ctx context.Context, _ json.RawMessage) (*ownChange, error) {
-			cfg := s.settings(ctx)
-			return s.leadersChange(ctx, cfg, append(slices.Clone(cfg.Leaders), sid))
-		}}
-		if _, err := s.ownSettingAction(ctx, ToolCall{MachineID: machine, SessionID: c.Parent}, setting, "set", nil); err != nil {
-			s.logf("request pin for conversation %s: %v", short(sid), err)
-		}
-	}()
-}
-
-// spawnReported: conversation from sent a message to to; when from is a conversation to opened, it reported back.
-func (s *Service) spawnReported(from, to string) {
-	b := &s.relays
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !s.relayLocked(context.Background()) {
-		return
-	}
-	c, ok := b.st.Spawned[from]
-	if !ok || c.Parent != to || c.Reported {
-		return
-	}
-	c.Reported = true
-	b.st.Spawned[from] = c
-	s.saveRelayLocked()
-}
-
 // assistantTurnSettled: a turn of machine's session sid ended and stayed still. For an assistant conversation, a
-// failed turn is logged, and a spawned conversation's parent is told when it should be (spawnedTurnSettled).
+// failed turn is logged.
 func (s *Service) assistantTurnSettled(ctx context.Context, machine, sid string) {
 	sess, ok := s.decoratedSession(machine, sid)
 	if !ok { // not in the node's held list (yet): as its machine lists it
@@ -114,59 +40,10 @@ func (s *Service) assistantTurnSettled(ctx context.Context, machine, sid string)
 		s.logf("assistant %s: turn failed (launcher %s, kind %s, code %s)", sid, cmp.Or(sess.Launcher, "claude"),
 			cmp.Or(sess.TurnErrorKind, "-"), cmp.Or(sess.TurnErrorCode, turnErrorCode(sess.TurnError), "-"))
 	}
-	s.spawnedTurnSettled(ctx, sess, failed)
 	s.recoverMissingReply(ctx, machine, sess)
 	if !failed {
 		s.inboxPostEvery(ctx, machine, sid) // a task set to put every run in the Inbox (inbox_post.go)
 	}
-}
-
-// spawnedTurnSettled tells the conversation that opened sess (conversation_new) once that sess failed, or that it
-// ended a turn without ever reporting back. A turn with more to come (a message queued for it, background work that
-// wakes it) is not the end unless it failed. The notice is a message from sess, so it is held to the relay's hop and
-// rate limits as sess's own conversation_send would be: past them the parent is not told, and the log says so.
-func (s *Service) spawnedTurnSettled(ctx context.Context, sess proto.Session, failed bool) {
-	sid := sess.SessionID
-	if !failed && (s.queuedFor(sid) > 0 || backgroundRunning(sess)) {
-		return
-	}
-	b := &s.relays
-	b.mu.Lock()
-	if !s.relayLocked(ctx) {
-		b.mu.Unlock()
-		return
-	}
-	c, ok := b.st.Spawned[sid]
-	if !ok || c.Noticed || !failed && c.Reported {
-		b.mu.Unlock()
-		return
-	}
-	c.Noticed = true // one notice, whatever comes of it
-	b.st.Spawned[sid] = c
-	s.saveRelayLocked()
-	b.mu.Unlock()
-	hop, answer := 0, false
-	name, err := s.relayFrom(ctx, sid)
-	if err == nil {
-		hop, answer, err = s.relayAllowed(sid, c.Parent, time.Now())
-	}
-	if err != nil {
-		s.logf("spawned conversation %s: %s not told: %v", short(sid), short(c.Parent), err)
-		return
-	}
-	n := prompts.SpawnNotice{ID: sid, Title: name, Link: sessionLink(s.webBase(ctx), sess.MachineID, sid, true), Failed: failed}
-	if failed {
-		n.Error = clip(oneLine(sess.TurnError), 300)
-	} else {
-		n.Last = clip(oneLine(sess.LastText), 300)
-	}
-	msg := relayMsg{From: sid, FromTitle: name, Tool: spawnNoticeTool, Text: prompts.RenderSpawnNotice(n), Hop: hop, Answer: answer, At: time.Now().UTC()}
-	what := "ended without reporting back"
-	if failed {
-		what = "failed"
-	}
-	s.logf("spawned conversation %s %s: telling %s", short(sid), what, short(c.Parent))
-	s.relayOrQueue(ctx, c.Parent, msg)
 }
 
 // relayOrQueue puts msg into assistant conversation to: now, or queued behind its turn (drainRelays sends it then).

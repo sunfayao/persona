@@ -16,7 +16,6 @@ export interface AssistantSnapshot {
 
 const key = (page: string) => scopedKey(feedCacheScope(), `${PREFIX}${fingerprint(page)}`);
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
-const strings = (value: unknown) => value === undefined || (Array.isArray(value) && value.every((item) => typeof item === "string"));
 
 /** page is the explicit manager, or "" for the default whose roster identity may not be known yet. */
 export function readAssistantSnapshot(page: string): AssistantSnapshot | null {
@@ -26,7 +25,7 @@ export function readAssistantSnapshot(page: string): AssistantSnapshot | null {
     if (page && value.manager !== page) return null;
     const assistant = value.assistant;
     if (typeof assistant.machine_id !== "string" || (assistant.main !== undefined && typeof assistant.main !== "string")
-      || !Array.isArray(assistant.conversations) || !strings(assistant.leaders) || !strings(assistant.conversation_order)) return null;
+      || !Array.isArray(assistant.conversations)) return null;
     if (!assistant.conversations.every((row) => object(row) && typeof row.machine_id === "string" && typeof row.session_id === "string")) return null;
     return {
       manager: value.manager,

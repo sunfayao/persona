@@ -76,10 +76,8 @@ type briefFacts struct {
 	// Asks are the asks of the tasks to verify (by task id): their verdict line and a decision's recommended option, the
 	// same as their cards say (conclusion.go).
 	Asks map[string]acceptAsk
-	// Leaders: one line per current leader (direction_progress.go briefLeaders), for the model only.
-	Leaders []prompts.BriefLeader
-	// Directions: main and every leader, with deterministic stopped-work rows; DisabledRoutines are the daily reports
-	// and patrols currently off. Unlike Leaders, these are also fixed card/feed facts and survive a model failure.
+	// Directions: the main conversation, with deterministic stopped-work rows; DisabledRoutines are the daily reports
+	// and patrols currently off. These are fixed card/feed facts and survive a model failure.
 	Directions       []prompts.BriefDirection
 	DisabledRoutines []prompts.BriefDisabledRoutine
 	// InboxWaiting are matters waiting on the other side for over a day; InboxDue are matters to look at again today,
@@ -143,7 +141,6 @@ func (s *Service) briefFactsAt(ctx context.Context, now time.Time, self string) 
 	f.NorthStarLines = f.NorthStar.lines(l)
 	f.Confirmations = s.briefConfirmationsAt(ctx, now, loc)
 	f.ConfirmationLines = s.confirmationLines(l, f.Confirmations)
-	f.Leaders = s.briefLeaders(ctx, now)
 	f.Directions, f.DisabledRoutines = s.briefDirections(ctx, now, l, web)
 	f.InboxWaiting, f.InboxDue = briefFollowing(s.followingInboxItems(ctx), now, loc)
 	f.Captures = s.captureBriefLines(ctx, l, since)
@@ -487,7 +484,7 @@ func (f *briefFacts) modelText() string {
 	b.NorthStar = f.NorthStarLines
 	b.ConfirmationSummary = f.Confirmations.summary(f.l)
 	b.Confirmations = f.ConfirmationLines
-	b.ProgressTotal, b.Leaders = f.ProgressTotal, f.Leaders
+	b.ProgressTotal = f.ProgressTotal
 	b.Directions, b.DisabledRoutines = f.Directions, f.DisabledRoutines
 	b.InboxWaiting, b.InboxDue = f.InboxWaiting, f.InboxDue
 	b.Briefs, b.BriefsDone = f.Briefs, f.BriefsDone

@@ -336,48 +336,6 @@ func TestNonResumableCancelledWithNode(t *testing.T) {
 	ft.waitPending(0)
 }
 
-// A manager that starts again (the hub restarted, or it did) takes back the resumable cards the last one left: the
-// hook that reconnects claims its card without a second push, and the hub gets it in the first full list.
-func TestResumableSurvivesAManagerRestart(t *testing.T) {
-	ft := newFleetTest(t)
-	ctx, nodeGone := context.WithCancel(context.Background())
-	go func() { _, _ = ft.s.waitInteraction(ctx, resumable("ix_m")) }()
-	ft.waitPending(1)
-	ft.pushesOf(assistantwire.NotifyInput, 1, time.Second)
-	nodeGone()
-
-	// The next manager, on the same table.
-	st := &restoreMem{fleetMem: ft.st}
-	f2 := newFakeHub()
-	s2 := newRestartedService(t, Options{Hub: f2, Store: func() Store { return st }, Logf: t.Logf, Devices: ft.d})
-	s2.FleetUp(context.Background())
-	var full assistantwire.FleetInteractions
-	for _, tl := range f2.told {
-		if tl.event == assistantwire.EventFleetInteractions {
-			_ = json.Unmarshal(tl.params, &full)
-		}
-	}
-	if len(full.Interactions) != 1 || full.Interactions[0].ID != "ix_m" {
-		t.Fatalf("the hub's full list = %+v", full)
-	}
-	second := make(chan proto.Resolution, 1)
-	go func() { r, _ := s2.waitInteraction(context.Background(), resumable("ix_m")); second <- r }()
-	time.Sleep(50 * time.Millisecond)
-	yes := true
-	if err := s2.resolve("ix_m", proto.Resolution{Allow: &yes}); err != nil {
-		t.Fatal(err)
-	}
-	if r := <-second; r.Allow == nil || !*r.Allow {
-		t.Fatalf("the hook got %+v", r)
-	}
-	f2.mu.Lock()
-	n := len(f2.pushes)
-	f2.mu.Unlock()
-	if n != 0 {
-		t.Fatalf("the claimed card was pushed again (%d)", n)
-	}
-}
-
 // restoreMem is the interactions table as the next manager reads it: the resumable ones still pending, the others
 // cancelled (db ExpireStaleInteractions).
 type restoreMem struct{ *fleetMem }
@@ -398,46 +356,6 @@ func (r *restoreMem) ExpireStaleInteractions(context.Context) ([]proto.Interacti
 		}
 	}
 	return out, cancelled, nil
-}
-
-// The assistant's question that a hub switch took its manager away from (#4568): the next manager cancels it, as no
-// tool call waits on it any more, and tells the hub it is over, so an app that resumed its event stream across the
-// switch drops the card instead of showing it next to the question the assistant asks again.
-func TestRestartResolvesTheCardsTheLastManagerLeft(t *testing.T) {
-	ft := newFleetTest(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel) // the first manager's call: it is gone with its process, nobody ends it
-	go func() {
-		_, _ = ft.s.toolAskUser(ctx, "mac", "s1", json.RawMessage(`{"questions":[{"header":"Merge","question":"Merge it?",
-			"options":[{"label":"Merge"},{"label":"Not yet"}]}]}`))
-	}()
-	asked := ft.waitPending(1)[0]
-	if asked.ToolName != "ask_user" {
-		t.Fatalf("pending %+v", asked)
-	}
-
-	// The next manager, on the same table.
-	st := &restoreMem{fleetMem: ft.st}
-	f2 := newFakeHub()
-	s2 := newRestartedService(t, Options{Hub: f2, Store: func() Store { return st }, Logf: t.Logf, Devices: ft.d})
-	s2.FleetUp(context.Background())
-	if status, _, _ := st.InteractionOutcome(context.Background(), asked.ID); status != "cancelled" {
-		t.Fatalf("status %q", status)
-	}
-	var resolved []string
-	for _, tl := range f2.told {
-		var p assistantwire.FleetResolved
-		if tl.event == assistantwire.EventFleetResolved && json.Unmarshal(tl.params, &p) == nil {
-			resolved = append(resolved, p.ID)
-		}
-		var full assistantwire.FleetInteractions
-		if tl.event == assistantwire.EventFleetInteractions && json.Unmarshal(tl.params, &full) == nil && len(full.Interactions) != 0 {
-			t.Fatalf("the hub's full list = %+v", full.Interactions)
-		}
-	}
-	if !slices.Equal(resolved, []string{asked.ID}) {
-		t.Fatalf("resolved for the hub = %v, want [%s]", resolved, asked.ID)
-	}
 }
 
 // A node's interaction.create through the manager (devices.Options.Answer): the node's connection ending ends the

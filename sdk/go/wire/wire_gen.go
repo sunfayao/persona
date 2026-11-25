@@ -4535,50 +4535,6 @@ type TodoDecisionEvent struct {
 	Decision TodoEventDecision `json:"decision"`
 }
 
-// LeaderChangedEvent: event.leader.changed: a direction was made (an id added to assistant.leaders), its title
-// changed, it was filed under another knowledge-base project, it ended (it left assistant.leaders; nothing is
-// deleted) or it was made current again. id is the stable direction id, the key a work-log record keeps; it is a
-// conversation session id only for a conversation-backed direction. title is its conversation title, or its explicit
-// name when no Persona conversation exists; name is what the direction is called (an explicit name, else its
-// knowledge-base project's name, else the title without its "MMDD | kind | " prefix); project is the knowledge-base
-// project's slug, left out while it has none; ended is true once it is no longer current, left out while it is.
-type LeaderChangedEvent struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Name    string `json:"name,omitempty"`
-	Project string `json:"project,omitempty"`
-	Ended   bool   `json:"ended,omitempty"`
-}
-
-// LeaderReportEvent: event.leader.report: one of a direction's tasks reached its goal (reached: its review accepted
-// it), needs the owner's decision (decision: its review says needs_user, or a plan of the direction's waits for the
-// owner's Start), or is stuck (stuck: in Waiting on you or stopped unfinished for 24 hours, told at most once per 24
-// hours); those are written by the hub from the task's ledger, never by a model. progress (#3679, #8236) is the
-// direction's own summary at the goal level, sent with leader_progress or an authorized leaders.write HTTP / node CLI
-// report: reached, doing (and where it is stuck), needs_you (what the owner has to do) and links (evidence; link is
-// the first), text the three put together, todo "". id names the report (never sent twice; key on it to be safe),
-// leader the stable direction id, todo the task's to-do id (GET /api/v1/todos with todos.read reads it; "" for a
-// plan, which has no to-do until it starts), plan the waiting plan's id (only on a decision about a plan), text at
-// most 300 characters in the owner's language, link the task's PR or delivery link when it has one, at when what it
-// reports happened.
-type LeaderReportEvent struct {
-	ID       string    `json:"id"`
-	Leader   string    `json:"leader"`
-	Kind     string    `json:"kind"`
-	Todo     string    `json:"todo"`
-	Plan     string    `json:"plan,omitempty"`
-	Text     string    `json:"text"`
-	Link     string    `json:"link,omitempty"`
-	At       time.Time `json:"at"`
-	Reached  string    `json:"reached,omitempty"`
-	Doing    string    `json:"doing,omitempty"`
-	NeedsYou string    `json:"needs_you,omitempty"`
-	Links    []string  `json:"links,omitempty"`
-	// set only while the hub's push tiering (low-distraction switch) is on: P1 for progress, reached and stuck (keep it
-	// in the log and the briefing, alert nobody), P0 for a decision
-	Level string `json:"level,omitempty"`
-}
-
 // ModelErrorCode: error.code of model.complete besides permission_denied (data {scope: "models"}): invalid_params;
 // assistant_offline (the manager is away: try again); model_unavailable (nothing to call for this extension: the user
 // picks a model for it in Settings › Model configuration); model_paused (the connection is held for quota or load,
@@ -6714,8 +6670,6 @@ var newDef = map[string]func() any{
 	"TodoChangedEvent":             func() any { return new(TodoChangedEvent) },
 	"TodoEventDecision":            func() any { return new(TodoEventDecision) },
 	"TodoDecisionEvent":            func() any { return new(TodoDecisionEvent) },
-	"LeaderChangedEvent":           func() any { return new(LeaderChangedEvent) },
-	"LeaderReportEvent":            func() any { return new(LeaderReportEvent) },
 	"ModelMessage":                 func() any { return new(ModelMessage) },
 	"ModelCompleteParams":          func() any { return new(ModelCompleteParams) },
 	"ModelUsage":                   func() any { return new(ModelUsage) },
@@ -6864,8 +6818,6 @@ var Calls = map[string]Call{
 	"channel.edit":                    {Name: "channel.edit", From: "hub", Params: "ChannelEditParams", Result: "Empty"},
 	"event.todo.changed":              {Name: "event.todo.changed", From: "hub", Params: "TodoChangedEvent", Result: "", Event: true},
 	"event.todo.decision":             {Name: "event.todo.decision", From: "hub", Params: "TodoDecisionEvent", Result: "", Event: true},
-	"event.leader.changed":            {Name: "event.leader.changed", From: "hub", Params: "LeaderChangedEvent", Result: "", Event: true},
-	"event.leader.report":             {Name: "event.leader.report", From: "hub", Params: "LeaderReportEvent", Result: "", Event: true},
 	"model.complete":                  {Name: "model.complete", From: "program", Params: "ModelCompleteParams", Result: "ModelCompleteResult"},
 	"assistant.conversations":         {Name: "assistant.conversations", From: "program", Params: "AssistantConversationsParams", Result: "AssistantConversationsResult"},
 	"assistant.messages":              {Name: "assistant.messages", From: "program", Params: "AssistantMessagesParams", Result: "AssistantMessagesResult"},
