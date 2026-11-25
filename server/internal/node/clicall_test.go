@@ -482,7 +482,7 @@ func TestCLICallAgentToolsRefuseUnknownCallers(t *testing.T) {
 	}
 	refused("task_spawn from an unknown pane", sockRequest{Name: "task_spawn", Pane: "w9:p9"},
 		"task_spawn is not available: no Agent session is known for this pane or Codex thread")
-	for _, name := range []string{"task_status", "agent_send", "agent_start", "kb_search", "example_list", "todo_decisions_cli"} {
+	for _, name := range []string{"task_status", "agent_send", "agent_start", "machines_list", "example_list", "todo_decisions_cli"} {
 		refused(name+" from an Agent's pane", sockRequest{Name: name, Pane: "w1:p1"}, notAssistant)
 		refused(name+" from a known Codex thread", sockRequest{Name: name, CodexThreadID: thread}, notAssistant)
 	}
@@ -693,7 +693,7 @@ func mcpTools(assistant bool, session string) map[string]any {
 }
 
 func mcpCall(assistant bool, session string) map[string]any {
-	return map[string]any{"kind": "mcp.call", "name": "kb_search", "args": map[string]any{}, "assistant": assistant, "session_id": session}
+	return map[string]any{"kind": "mcp.call", "name": "machines_list", "args": map[string]any{}, "assistant": assistant, "session_id": session}
 }
 
 // An MCP server's word that it is the assistant's (PERSONA_ASSISTANT, which every process started with the

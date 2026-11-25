@@ -86,10 +86,6 @@ func (h *Hub) withClientOp(kind string, next http.HandlerFunc) http.HandlerFunc 
 			return
 		}
 		if !claimed {
-			if h.rerunClientOp(op) { // a meeting follow-up's call a restart cut off (meeting_receipts.go)
-				h.executeClientOp(w, r, kind, id, next)
-				return
-			}
 			h.waitClientOp(w, r, op)
 			return
 		}
@@ -157,7 +153,7 @@ type clientOpForgetter interface {
 // coming back for good. A notification choice, a conversation's start and a to-do create release only a definitely offline receipt;
 // uncertain delivery stays recorded.
 func clientOpRetry(kind string, body []byte) bool {
-	if kind == meetingJustMeOp || kind == meetingFollowupOp || kind == todoAnswerOp || kind == todoRouteOp || kind == todoCreateOp { // never reached the manager: the same call runs again
+	if kind == todoAnswerOp || kind == todoRouteOp || kind == todoCreateOp { // never reached the manager: the same call runs again
 		var res struct {
 			Code string `json:"code"`
 		}
@@ -276,11 +272,10 @@ func (h *Hub) waitClientOp(w http.ResponseWriter, r *http.Request, op *db.Client
 			return
 		case "unknown":
 			// Start, checkout and reply retries must not repeat side effects or replace a recorded HTTP outcome.
-			// A recovered pending operation has no result and remains explicitly unknown. A meeting's Just me or
-			// follow-up call, and an answer or a message to a to-do, replay what they answered, a definite failure
-			// too (meeting_receipts.go, todo_receipts.go).
+			// A recovered pending operation has no result and remains explicitly unknown. An answer or a message to a to-do, replay what they answered, a definite failure
+			// too (todo_receipts.go).
 			if op.Kind == "start" || op.Kind == "assistant_start" || op.Kind == "worktree_create" || op.Kind == "lark_send" || op.Kind == "inbox_reply" || op.Kind == "inbox_handoff" || op.Kind == "lark_thread_reply" ||
-				op.Kind == meetingJustMeOp || op.Kind == meetingFollowupOp || op.Kind == todoAnswerOp || op.Kind == todoRouteOp || op.Kind == todoCreateOp {
+				op.Kind == todoAnswerOp || op.Kind == todoRouteOp || op.Kind == todoCreateOp {
 				var result clientOpResult
 				if json.Unmarshal(op.Result, &result) == nil && result.Status >= 200 && result.Status <= 599 {
 					writeClientOpResult(w, result)

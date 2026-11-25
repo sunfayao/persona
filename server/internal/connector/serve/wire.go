@@ -6,9 +6,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connectorwire"
 	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/kbwire"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -19,7 +17,6 @@ const (
 	MStatus      = "status"
 	MLoginStep   = "login.step"
 	MLogout      = "logout"
-	MChanges     = "archive.changes"
 	MCollect     = "inbox.collect"
 	MReply       = "inbox.reply"
 	MCatalog     = "catalog.list"
@@ -34,17 +31,8 @@ const (
 	MRecallDo    = "recall.do" // only once the user agreed on their own full device
 	MThread      = "thread.page"
 	MMedia       = "thread.media"
-	// The knowledge base's items (connector.Items) and an archived message's attachment (connector.ArchiveMedia).
-	MItems        = "items.list"
-	MDocTitle     = "items.doc_title"
-	MArchiveMedia = "archive.media"
 	// The live state for the assistant's snapshot (connector.Snapshot): SnapshotParams → connector.SnapshotData.
 	MSnapshot = "snapshot.get"
-	// History import (connector.History, connector.HistoryAnchors; docs/protocol/connector-protocol.md "History"),
-	// read-only: the conversations to import, one page of one of them, and the owner's messages to read around.
-	MHistoryChats   = "history.chats"   // {} → HistoryChatsResult
-	MHistory        = "archive.history" // HistoryParams → connectorwire.HistoryPage
-	MHistoryAnchors = "history.anchors" // HistoryAnchorsParams → connectorwire.HistoryAnchors
 	// Relating new messages to events (connector.Grouper): connector.GroupToolCall → any JSON,
 	// connector.GroupFallback → connector.GroupFallbackResult; with meta (connector.EventWriter)
 	// connector.GroupAppend → connector.InboxThing.
@@ -69,47 +57,16 @@ const (
 	MSecretsLoad   = "secrets.load"
 	MSecretsSave   = "secrets.save"
 	MSecretsDelete = "secrets.delete"
-	// The knowledge base (connector.KnowledgeBase): PostsPutParams → PostsPutResult, PostsPendingParams →
-	// PostsPendingResult, ArchiveChatsParams → ArchiveChatsResult.
-	MPostsPut      = "posts.put"
-	MPostsComments = "posts.comments"
-	MPostsPending  = "posts.pending"
-	MArchiveChats  = "archive.chats"
 	EChanged       = "changed" // ChangedEvent
 	// A computer's gh login (GitHub's token there), for a program the hub granted gh_login: GhTokenParams →
 	// GhTokenResult. Errors carry the Code* below.
 	MGhToken = "credentials.gh_token"
 )
 
-// The knowledge base's calls on the wire.
-type (
-	PostsPutParams struct {
-		Posts []connector.PostPut `json:"posts"`
-	}
-	PostsPutResult struct {
-		Statuses []string `json:"statuses"` // per post: connector.PostNew, PostChanged, PostSame, PostRefused
-	}
-	PostsCommentsParams struct {
-		ID           string                  `json:"id"`
-		CommentCount int                     `json:"comment_count"`
-		Comments     []connector.PostComment `json:"comments"`
-	}
-	SnapshotParams struct {
-		TZ string `json:"tz,omitempty"` // the user's time zone ("" the program's own)
-	}
-	PostsPendingParams struct {
-		Limit int `json:"limit,omitempty"`
-	}
-	PostsPendingResult struct {
-		Posts []connector.PendingPost `json:"posts"`
-	}
-	ArchiveChatsParams struct {
-		Source string `json:"source,omitempty"` // "" is the connector's id
-	}
-	ArchiveChatsResult struct {
-		Chats []connector.ArchivedChat `json:"chats"`
-	}
-)
+// Calls on the wire.
+type SnapshotParams struct {
+	TZ string `json:"tz,omitempty"` // the user's time zone ("" the program's own)
+}
 
 // Namespace is the connector extension point's (docs/extensions/extensions.md): under the plugin protocol every method above is
 // Namespace + "." + method, with the connector's id as the contribution.
@@ -145,8 +102,6 @@ type Manifest struct {
 	ConfirmAlways []string `json:"confirm_always,omitempty"`
 	PollSeconds   int      `json:"poll_seconds,omitempty"`
 	Kinds         []string `json:"kinds,omitempty"`
-	// ArchiveSources: connector.Manifest.ArchiveSources.
-	ArchiveSources []string `json:"archive_sources,omitempty"`
 	// MetaDescription: connector.Manifest.MetaDescription.
 	MetaDescription string `json:"meta_description,omitempty"`
 	// CLI: connector.Manifest.CLI.
@@ -161,19 +116,6 @@ type (
 	LoginParams struct {
 		Step   string            `json:"step,omitempty"`
 		Values map[string]string `json:"values,omitempty"`
-	}
-	ChangesParams struct {
-		Cursor string `json:"cursor,omitempty"`
-		Limit  int    `json:"limit,omitempty"`
-	}
-	ChangesResult struct {
-		Batches []connector.ChatBatch `json:"batches,omitempty"`
-		Next    string                `json:"next,omitempty"`
-		More    bool                  `json:"more,omitempty"`
-	}
-	// HistoryChatsResult is history.chats' answer.
-	HistoryChatsResult struct {
-		Chats []connectorwire.HistoryChat `json:"chats"`
 	}
 	CollectResult struct {
 		Things []connector.InboxThing `json:"things,omitempty"`
@@ -209,16 +151,6 @@ type (
 	}
 	MediaParams struct {
 		Ref string `json:"ref"`
-	}
-	// ItemsResult is the knowledge base's items (connector.Items: documents, meetings, events).
-	ItemsResult struct {
-		Items []kbwire.Item `json:"items"`
-	}
-	DocTitleParams struct {
-		URL string `json:"url"`
-	}
-	DocTitleResult struct {
-		Title string `json:"title"`
 	}
 	// DoParams is a write the gate let through: the very args the card was made from, and the hub's id for this one
 	// run, the same if the hub ever sends it again (the program runs it at most once).
@@ -270,12 +202,6 @@ type (
 	}
 )
 
-// The history queries go on the wire as they are (with the contribution under the plugin protocol).
-type (
-	HistoryParams        = connectorwire.HistoryQuery        // archive.history's
-	HistoryAnchorsParams = connectorwire.HistoryAnchorsQuery // history.anchors'
-)
-
 // Error codes a program answers with (rpc.Error.Code), for callers that act on the kind of failure.
 const (
 	// Why credentials.gh_token has no token (the GitHub connector's errors of the same names).
@@ -300,7 +226,7 @@ const (
 // ItemOf is a connector's manifest as a contribution to the connectors extension point.
 func ItemOf(m Manifest) extension.ConnectorItem {
 	return extension.ConnectorItem{ID: m.ID, Name: m.Name, Capabilities: m.Capabilities, Hosts: m.Hosts, AgentTools: m.AgentTools,
-		Unlisted: m.Unlisted, ConfirmAlways: m.ConfirmAlways, PollSeconds: m.PollSeconds, Kinds: m.Kinds, ArchiveSources: m.ArchiveSources,
+		Unlisted: m.Unlisted, ConfirmAlways: m.ConfirmAlways, PollSeconds: m.PollSeconds, Kinds: m.Kinds,
 		MetaDescription: m.MetaDescription, CLI: m.CLI}
 }
 
@@ -309,7 +235,7 @@ func ManifestOf(c connector.Connector) Manifest {
 	cm := c.Manifest()
 	m := Manifest{Protocol: Protocol, ID: c.ID(), Name: c.Name(), Capabilities: []string{}, Hosts: cm.Hosts, AgentTools: cm.AgentTools,
 		Unlisted: cm.Unlisted, ConfirmAlways: cm.ConfirmAlways, PollSeconds: int(cm.Poll / time.Second), Kinds: cm.Kinds,
-		ArchiveSources: cm.ArchiveSources, MetaDescription: cm.MetaDescription, CLI: cm.CLI}
+		MetaDescription: cm.MetaDescription, CLI: cm.CLI}
 	for _, cp := range cm.Capabilities {
 		m.Capabilities = append(m.Capabilities, string(cp))
 	}
@@ -319,7 +245,7 @@ func ManifestOf(c connector.Connector) Manifest {
 // Of is the connector.Manifest a program sent (a proxy's: it answers for the program).
 func (m Manifest) Of() connector.Manifest {
 	out := connector.Manifest{Hosts: m.Hosts, AgentTools: m.AgentTools, Unlisted: m.Unlisted, ConfirmAlways: m.ConfirmAlways,
-		Poll: time.Duration(m.PollSeconds) * time.Second, Kinds: m.Kinds, ArchiveSources: m.ArchiveSources,
+		Poll: time.Duration(m.PollSeconds) * time.Second, Kinds: m.Kinds,
 		MetaDescription: m.MetaDescription, CLI: m.CLI, Proxy: true}
 	for _, cp := range m.Capabilities {
 		out.Capabilities = append(out.Capabilities, connector.Capability(cp))

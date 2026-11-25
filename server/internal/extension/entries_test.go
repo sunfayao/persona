@@ -28,7 +28,7 @@ func TestEntriesUpgradeRequiresExplicitPersonalReadConsent(t *testing.T) {
 	if MorePermissions(installed, upgrade) {
 		t.Fatal("keeping an explicitly approved read scope asks again")
 	}
-	if !legacy.Permissions.Covers(Permissions{Hub: []string{ScopeKBRead}}) {
+	if !legacy.Permissions.Covers(Permissions{Hub: []string{ScopeAgentsRead}}) {
 		t.Fatal("unrelated legacy read consent changed")
 	}
 }

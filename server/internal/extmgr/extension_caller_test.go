@@ -177,7 +177,7 @@ func TestExtensionCallerHeaders(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/extensions/callee/echo", nil)
 	for k, v := range map[string]string{extwire.HeaderDevice: "dev_mac", extwire.HeaderDeviceName: "Mac", extwire.HeaderRole: roleFull,
 		extwire.HeaderLang: "ja", extwire.HeaderRemote: "192.0.2.1", extwire.HeaderOwner: "1", extwire.HeaderPaired: "1",
-		extwire.HeaderScopes: "kb.read", "X-Persona-Forged": "1"} {
+		extwire.HeaderScopes: "agents.read", "X-Persona-Forged": "1"} {
 		req.Header.Set(k, v)
 	}
 	w := httptest.NewRecorder()

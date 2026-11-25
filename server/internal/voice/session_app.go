@@ -22,10 +22,6 @@ func (c *conversation) readApp() {
 		if typ == websocket.MessageBinary {
 			ms, now := meanSquare(b), time.Now()
 			c.mu.Lock()
-			if !c.talkGate(len(b)) { // a meeting call outside a Talk span: the model hears none of it (meeting.go)
-				c.mu.Unlock()
-				continue
-			}
 			if c.sus.onHold { // the user is on another call: none of it is for the model, nor kept for the wake (suspend.go)
 				c.mu.Unlock()
 				continue
@@ -84,8 +80,6 @@ func (c *conversation) readApp() {
 			if !held && !c.sendUp(-1, w.text(text)) {
 				c.fail("语音会话还没连上，这句没发出去", false)
 			}
-		case "talk":
-			c.talkFrame(msg.On) // a Talk span opens or closes (meeting.go)
 		case "hold":
 			c.holdFrame(msg.On) // the call goes on hold or comes back (suspend.go, #9290)
 		case "resend":

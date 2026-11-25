@@ -116,9 +116,6 @@ func (s *Service) modelProviderCompatible(p ModelPurpose, v ModelProvider, store
 		compatible = slices.Contains([]string{"", "claude", "codex", "agy", "omp"}, v.Agent)
 
 	}
-	if compatible && p.ID == purposeMeetingRoom { // Claude Code only (models_room.go)
-		compatible = claudeCodeProvider(v, stored)
-	}
 	if compatible && p.Kind == "launcher" && len(v.Machines) > 0 && p.MachineID != "" {
 		compatible = slices.Contains(v.Machines, p.MachineID)
 	}
@@ -150,9 +147,6 @@ func (s *Service) modelLauncherCompatible(p ModelPurpose, l ConfiguredLauncher, 
 		}
 	}
 	runtime := runtimeSource(l.Source)
-	if p.ID == purposeMeetingRoom && runtime {
-		return false // a room runs on Claude Code's CLI only
-	}
 	if p.CategoryID == "assistant" && (runtime || v.Kind == "launcher" && (v.Agent == "agy" || v.Agent == "omp")) {
 		if !l.Assistant {
 			return false
@@ -330,9 +324,6 @@ func (s *Service) validateModel(ctx context.Context, p ModelPurpose, b ModelBind
 			break
 		}
 	}
-	if p.ID == purposeMeetingRoom && !s.roomClaudeCode(ctx, p.MachineID, b.Provider, providers) {
-		return errMeetingRoomClaudeOnly // before anything else: Codex, a runtime, a Responses or Chat connection
-	}
 	if p.Kind == "launcher" && p.CategoryID == "assistant" && p.MachineID != "" {
 		// Model settings and the picker share the current machine's merged launchers, not the global discovery cache.
 		name := strings.TrimPrefix(b.Provider, "launcher.")
@@ -437,9 +428,6 @@ func (s *Service) validateModel(ctx context.Context, p ModelPurpose, b ModelBind
 				if p.CategoryID == "agent.new" && result.Agent != "claude" && result.Agent != "codex" && result.Agent != "agy" && result.Agent != "omp" {
 					return i18n.Err("assistant-models.err_agent_launcher")
 				}
-				if p.ID == purposeMeetingRoom && result.Agent != "" && result.Agent != "claude" {
-					return errMeetingRoomClaudeOnly // the machine runs another agent under this launcher's name
-				}
 				if b.PermissionMode != "" && result.Agent != "" && !permissionModeSupported(result.Agent, 0, b.PermissionMode) {
 					return i18n.Err("assistant-models.err_permission_mode_unsupported")
 				}
@@ -472,10 +460,10 @@ func (s *Service) providerModelUses(ctx context.Context, provider string) ([]str
 		if b.Provider != provider {
 			continue
 		}
-		if p.Kind == "api" && (slices.Contains(modelCategoryIDs, id) || id == purposeMeetingMinutes) {
+		if p.Kind == "api" && (slices.Contains(modelCategoryIDs, id)) {
 			// Automatic selection follows the remaining providers; only an assignment that still names this provider
-			// without its automatic fallback blocks deletion (Meeting minutes' own pick, or Information processing's it
-			// follows, still names it). Current extension purposes keep their inherited-use guard.
+			// without its automatic fallback blocks deletion (Information processing's it
+			// follows still names it). Current extension purposes keep their inherited-use guard.
 			without := slices.DeleteFunc(slices.Clone(s.storedLaunchers(ctx)), func(l storedLauncher) bool {
 				return launcherProvider(l.Name) == provider
 			})

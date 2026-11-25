@@ -15,14 +15,14 @@ import (
 )
 
 // assistant.conversations / assistant.messages (extension_assistant_read.go, #1288): only with assistant.read as
-// granted (or the legacy full grant, as for kb.read), forwarded to the manager in assistant.extension_read, which names
+// granted (or the legacy full grant, as for agents.read), forwarded to the manager in assistant.extension_read, which names
 // the extension.
 func TestExtensionAssistantReadNeedsItsGrant(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead}})
-	kbOnly := kbExtensionSpec(t, h, "example-kb", extension.Permissions{Hub: []string{extension.ScopeKBRead}})
-	askOnly := kbExtensionSpec(t, h, "example-ask", extension.Permissions{Hub: []string{extension.ScopeAssistantAsk}})
-	full := kbExtensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
+	granted := extensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead}})
+	kbOnly := extensionSpec(t, h, "example-kb", extension.Permissions{Hub: []string{extension.ScopeAgentsRead}})
+	askOnly := extensionSpec(t, h, "example-ask", extension.Permissions{Hub: []string{extension.ScopeAssistantAsk}})
+	full := extensionSpec(t, h, "example-full", extension.Permissions{HubAPI: true})
 	var mu sync.Mutex
 	var asked []string
 	var got []string
@@ -34,7 +34,7 @@ func TestExtensionAssistantReadNeedsItsGrant(t *testing.T) {
 		return json.RawMessage(`{"messages":[]}`), nil
 	}
 	params := json.RawMessage(`{"id":"c1","limit":5}`)
-	for name, spec := range map[string]func(context.Context, string, json.RawMessage) (any, error){"kb.read": kbOnly.Handle, "assistant.ask": askOnly.Handle} {
+	for name, spec := range map[string]func(context.Context, string, json.RawMessage) (any, error){"agents.read": kbOnly.Handle, "assistant.ask": askOnly.Handle} {
 		for _, method := range []string{assistantwire.MethodAssistantConversations, assistantwire.MethodAssistantMessages} {
 			_, err := spec(context.Background(), method, params)
 			var re *rpc.Error
@@ -66,8 +66,8 @@ func TestExtensionAssistantReadNeedsItsGrant(t *testing.T) {
 // extension.
 func TestExtensionAssistantMemoryNeedsItsGrant(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-memory", extension.Permissions{Hub: []string{extension.ScopeAssistantMemoryRead}})
-	reader := kbExtensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead, extension.ScopeKBRead}})
+	granted := extensionSpec(t, h, "example-memory", extension.Permissions{Hub: []string{extension.ScopeAssistantMemoryRead}})
+	reader := extensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead, extension.ScopeAgentsRead}})
 	var asked []string
 	h.opts.Assistant = func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		asked = append(asked, method+" "+string(params))
@@ -98,7 +98,7 @@ func TestExtensionAssistantMemoryNeedsItsGrant(t *testing.T) {
 // party's read with no grant.
 func TestExtensionAssistantReadFallsBackForAnOlderAssistant(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead}})
+	granted := extensionSpec(t, h, "example-reader", extension.Permissions{Hub: []string{extension.ScopeAssistantRead}})
 	var asked []string
 	h.opts.Assistant = func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		asked = append(asked, method+" "+string(params))
@@ -118,8 +118,8 @@ func TestExtensionAssistantReadFallsBackForAnOlderAssistant(t *testing.T) {
 
 func TestExtensionEntriesNeedTheirOwnGrant(t *testing.T) {
 	h := newTestManager(t)
-	granted := kbExtensionSpec(t, h, "example-entries", extension.Permissions{Hub: []string{extension.ScopeAssistantEntriesRead}})
-	memory := kbExtensionSpec(t, h, "example-memory", extension.Permissions{Hub: []string{extension.ScopeAssistantMemoryRead, extension.ScopeAssistantRead}})
+	granted := extensionSpec(t, h, "example-entries", extension.Permissions{Hub: []string{extension.ScopeAssistantEntriesRead}})
+	memory := extensionSpec(t, h, "example-memory", extension.Permissions{Hub: []string{extension.ScopeAssistantMemoryRead, extension.ScopeAssistantRead}})
 	calls := 0
 	h.opts.Assistant = func(_ context.Context, method string, p json.RawMessage) (json.RawMessage, error) {
 		calls++
@@ -141,7 +141,7 @@ func TestExtensionEntriesNeedTheirOwnGrant(t *testing.T) {
 
 func TestEntriesHTTPTokenDoesNotCacheARevokedGrant(t *testing.T) {
 	h := newTestManager(t)
-	kbExtensionSpec(t, h, "example-entries", extension.Permissions{Hub: []string{extension.ScopeAssistantEntriesRead}})
+	extensionSpec(t, h, "example-entries", extension.Permissions{Hub: []string{extension.ScopeAssistantEntriesRead}})
 	tok := h.extTokens.issue("example-entries", "Example", []string{extension.ScopeAssistantEntriesRead})
 	request := extwire.Authorize{Hash: hashToken(tok), Pattern: "GET /api/v1/assistant/entries", Method: "GET", Path: "/api/v1/assistant/entries"}
 	if out := h.authorize(request); !out.OK || out.Extension != "example-entries" {

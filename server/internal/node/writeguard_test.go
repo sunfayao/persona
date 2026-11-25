@@ -273,7 +273,7 @@ func TestDirUploadRefused(t *testing.T) {
 	}
 }
 
-// The data folder PERSONA_HOME names is Persona's own folder too, whatever it is called: its extensions, knowledge base
+// The data folder PERSONA_HOME names is Persona's own folder too, whatever it is called: its extensions,
 // and managers are as read-only as ~/.persona's, by its own path or a link to it. With PERSONA_HOME=~ the data folder
 // is the home itself, and the home stays writable.
 func TestWritableDirCustomDataDir(t *testing.T) {

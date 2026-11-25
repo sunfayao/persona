@@ -97,7 +97,6 @@ func (s *Service) nodeEvent(machine, event string, params json.RawMessage) bool 
 					s.fleet.mu.Unlock()
 				}
 				s.noteStop(machine, sid, p)
-				s.meetingTurnPrompt(machine, sid, p) // the user's own prompt to an Agent ends its meeting turn (meeting_turns.go)
 			}
 		}
 		// the hub shows it to the apps (hook_event)
@@ -259,12 +258,6 @@ func (s *Service) nodeRequest(ctx context.Context, machine, method string, param
 		defer s.endMCPWait(ctx)
 		if res, refused := s.guestRefuses(ctx, machine, p.SessionID, p.Name, p.Guest); refused {
 			return res, true, nil
-		}
-		if rec, room, err := s.roomOf(ctx, machine, p.SessionID); err == nil && room {
-			if s.isWorkMachine(machine) {
-				return proto.TextResult("unknown tool "+p.Name, true), true, nil
-			}
-			return s.roomToolCall(ctx, rec, p.Name, p.Args), true, nil // bound to its own recording
 		}
 		return s.mcpCallWithOrigin(ctx, machine, p.SessionID, p.Name, p.Args, p.Assistant, p.Origin), true, nil
 	}

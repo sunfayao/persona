@@ -110,7 +110,7 @@ func TestChatRuleRoutesAreForTheUsersOwnDevices(t *testing.T) {
 	phone := deviceToken("dev_phone", roleFull)
 	pairing := "pair_" + randomHex(4)
 	testDevices.Store(pairing, principal{ID: "pair", Role: roleFull, Paired: true})
-	ext := e.h.extTokens.issue("example-x", "X", []string{extension.ScopeKBRead, extension.ScopeInboxRead, extension.ScopeAgentsRead})
+	ext := e.h.extTokens.issue("example-x", "X", []string{extension.ScopeInboxRead, extension.ScopeAgentsRead})
 	extAll := e.h.extTokens.issueAll("example-y", "Y")
 	// reset leaves one rule, for #12, made by the phone: what there is to drop.
 	reset := func() string {

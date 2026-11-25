@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"slices"
 	"strings"
@@ -26,25 +25,20 @@ func TestAgentRouteRuleTable(t *testing.T) {
 	for _, c := range []struct {
 		name    string
 		leaders []routeLeader
-		dirs    []string
 		answer  agentRouteAnswer
 		err     error
 		want    agentRoute
 	}{
 		{name: "no leaders: Persona", want: agentRoute{Supervisor: "conv1", Main: true, By: agentRouteDefault}},
-		{name: "the directory's project has a leader", leaders: leaders, dirs: []string{"other", "android"},
-			answer: agentRouteAnswer{Leader: "lead_c"}, want: agentRoute{Supervisor: "lead_b", Title: "Android parity", By: agentRouteProject}},
-		{name: "no project match: the model's leader", leaders: leaders, dirs: []string{"other"},
+		{name: "the model's leader", leaders: leaders,
 			answer: agentRouteAnswer{Leader: " lead_c "}, want: agentRoute{Supervisor: "lead_c", Title: "Docs", By: agentRouteModel}},
 		{name: "the model named none", leaders: leaders, want: agentRoute{Supervisor: "conv1", Main: true, By: agentRouteDefault}},
 		{name: "a made-up leader", leaders: leaders, answer: agentRouteAnswer{Leader: "lead_zz"},
 			want: agentRoute{Supervisor: "conv1", Main: true, By: agentRouteDefault}},
 		{name: "timeout: Persona", leaders: leaders, answer: agentRouteAnswer{Leader: "lead_c"}, err: context.DeadlineExceeded,
 			want: agentRoute{Supervisor: "conv1", Main: true, By: agentRouteDefault}},
-		{name: "timeout still takes the project's leader", leaders: leaders, dirs: []string{"infra"}, err: errors.New("503"),
-			want: agentRoute{Supervisor: "lead_a", Title: "Infra", By: agentRouteProject}},
 	} {
-		if got := decideAgentRoute("conv1", c.leaders, c.dirs, c.answer, c.err); got != c.want {
+		if got := decideAgentRoute("conv1", c.leaders, c.answer, c.err); got != c.want {
 			t.Errorf("%s: got %+v, want %+v", c.name, got, c.want)
 		}
 	}

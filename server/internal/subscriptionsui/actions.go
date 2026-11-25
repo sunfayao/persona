@@ -102,12 +102,12 @@ func (p *pages) patch(patch subscriptions.Patch, pop bool, toast string) (wire.A
 	return wire.ActionResult{View: &v, Toast: toast}, nil
 }
 
-// setDestination turns the Inbox or the knowledge base on or off; on a source nobody subscribed to yet it first makes
+// setDestination turns the Inbox on or off; on a source nobody subscribed to yet it first makes
 // the subscription with the extension's own recipe, and the page becomes the subscription's.
 func (p *pages) setDestination(values map[string]string) (wire.ActionResult, error) {
 	to := values["to"]
 	on := values[to] == "true"
-	if to != "to_inbox" && to != "to_kb" {
+	if to != "to_inbox" {
 		return wire.ActionResult{}, errBadValues
 	}
 	if p.st.ID == "" {
@@ -117,12 +117,7 @@ func (p *pages) setDestination(values map[string]string) (wire.ActionResult, err
 		}
 		p.st = state{P: pageSource, ID: s.ID}
 	}
-	patch := subscriptions.Patch{}
-	if to == "to_inbox" {
-		patch.ToInbox = &on
-	} else {
-		patch.ToKB = &on
-	}
+	patch := subscriptions.Patch{ToInbox: &on}
 	return p.patch(patch, false, "")
 }
 

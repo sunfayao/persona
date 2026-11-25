@@ -138,12 +138,6 @@ func TestParseRefuses(t *testing.T) {
 		"confirm_always empty": func(m map[string]any) {
 			m["contributes"] = map[string]any{"connectors": []any{map[string]any{"id": "ex", "name": "x", "capabilities": []any{"status"}, "confirm_always": []any{""}}}}
 		},
-		"connector archive source": func(m map[string]any) {
-			m["contributes"] = map[string]any{"connectors": []any{map[string]any{"id": "ex", "name": "x", "capabilities": []any{"archive"}, "archive_sources": []any{"Posts"}}}}
-		},
-		"connector archive source its own id": func(m map[string]any) {
-			m["contributes"] = map[string]any{"connectors": []any{map[string]any{"id": "ex", "name": "x", "capabilities": []any{"archive"}, "archive_sources": []any{"ex"}}}}
-		},
 		"connector twice": func(m map[string]any) {
 			c := map[string]any{"id": "ex", "name": "x", "capabilities": []any{"status"}}
 			m["contributes"] = map[string]any{"connectors": []any{c, c}}
@@ -276,7 +270,7 @@ func TestDigestAndCovers(t *testing.T) {
 func TestHubScopes(t *testing.T) {
 	a, _ := Parse([]byte(exampleManifest))
 	s, err := Parse(with(t, func(m map[string]any) {
-		m["permissions"] = map[string]any{"network": []any{"notes.example.com"}, "hub": []any{"inbox.read", "kb.read", "kb.read", "extensions.call:other"}}
+		m["permissions"] = map[string]any{"network": []any{"notes.example.com"}, "hub": []any{"inbox.read", "machines.read", "machines.read", "extensions.call:other"}}
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -293,14 +287,14 @@ func TestHubScopes(t *testing.T) {
 			hub = l
 		}
 	}
-	if hub.Detail != "读知识库；读收件箱；调用扩展「other」的接口" {
+	if hub.Detail != "读收件箱；看你的各台电脑（在不在线、负载）；调用扩展「other」的接口" {
 		t.Fatalf("%+v", hub)
 	}
 	if len(s.Lint()) != 0 {
 		t.Fatal(s.Lint())
 	}
 	more, _ := Parse(with(t, func(m map[string]any) {
-		m["permissions"] = map[string]any{"network": []any{"notes.example.com"}, "hub": []any{"inbox.read", "kb.read", "agents.control"}}
+		m["permissions"] = map[string]any{"network": []any{"notes.example.com"}, "hub": []any{"inbox.read", "machines.read", "agents.control"}}
 	}))
 	added := Added(s, more)
 	if len(added) != 1 || added[0].Key != "hub" || added[0].Detail != "驱动 Agent（新建、发消息、打断、回答提问和批准）" {

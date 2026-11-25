@@ -39,7 +39,7 @@ import (
 // lately anyone spoke, and nothing wakes it while it lasts: what comes to say (a result, a card, a refusal) and the
 // lines the user types wait, and the app's audio is dropped (the user is talking to someone else: none of it is for
 // the model, nor kept for the wake). The hold's off wakes it as something to say does, and what waited goes then.
-// A meeting call and protocol 1 ignore it (the app sends it only on a system call, after a ready that lists hold).
+// Protocol 1 ignores it (the app sends it only on a system call, after a ready that lists hold).
 
 var (
 	// pauseAfter is how long the call is quiet while its conversation works before the upstream is closed
@@ -130,8 +130,6 @@ func (c *conversation) pauseDue(now time.Time) bool {
 	switch {
 	case !c.ready || c.up == nil || c.version < 2 || c.closed || c.sus.state != "":
 		return false // ready first: the version is set before it, outside mu
-	case c.meeting != nil:
-		return false // a meeting call never pauses: it is there for the next Talk (meeting.go); it takes no hold either
 	case c.sus.onHold:
 		return true // the user is on another call: at once, whatever the conversation does, whatever waits to be said
 	case !c.sus.works:
@@ -264,16 +262,16 @@ func (c *conversation) rouse(why string) {
 
 // holdFrame takes the app's hold frame (#9290): the call goes on hold (on) or comes back. On hold the upstream is
 // paused at once (pauseDue) and nothing wakes it; back, it wakes as for something to say, and what waited goes then.
-// A repeated on or off changes nothing. Protocol 1 and a meeting call ignore it (logged once): the app sends it only
-// on a system call, after a ready that lists hold, and a meeting call never pauses.
+// A repeated on or off changes nothing. Protocol 1 ignores it (logged once): the app sends it only
+// on a system call, after a ready that lists hold.
 func (c *conversation) holdFrame(on bool) {
 	c.mu.Lock()
 	s := &c.sus
 	switch {
-	case c.version < 2 || c.meeting != nil:
+	case c.version < 2:
 		if !c.holdIgnored {
 			c.holdIgnored = true
-			c.logf("hold frames on a %s: ignored", map[bool]string{true: "meeting call", false: "protocol 1 call"}[c.meeting != nil])
+			c.logf("hold frames on a protocol 1 call: ignored")
 		}
 		c.mu.Unlock()
 		return

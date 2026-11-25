@@ -911,12 +911,6 @@ func (s *Service) deliverRelay(ctx context.Context, machine, to string, msg rela
 	if round {
 		params[superviseRoundParam] = true
 	}
-	if msg.Private {
-		// Just me covers the original turn, not a later terminal-result turn.
-		// Renew it at this actual-dispatch boundary so queued and restarted
-		// deliveries retain the same protection as immediate ones.
-		s.justMeSent(machine, to)
-	}
 	// A hand-over of the owner's words into a lead holds its writable plans from before the send (relay_lead_hold.go).
 	handed := s.holdForHandover(to, msg)
 	var res superviseRoundReply

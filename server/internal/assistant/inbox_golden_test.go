@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
@@ -70,28 +69,6 @@ func goldenItems(t *testing.T) map[string]*InboxItem {
 			Context:   "示例群（Telegram 群）\n2026-10-30 08:01 另一个示例用户：@example 示例方案你怎么看？",
 			Connector: &InboxConnector{Thread: "c2", Label: "@你", OpenURL: "https://t.me/c/2/12", RuleTier: TierAction}},
 	}
-}
-
-// goldenKB is the knowledge base the golden prompts read (the assistant's own): a Feishu group with its summary and
-// one project, a mail correspondent's chat without a summary.
-func goldenKB(t *testing.T, e *kb.Engine) {
-	t.Helper()
-	now := time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)
-	for _, p := range []*kb.Project{
-		{Slug: "demo-release", Name: "示例发布", Kind: "short", Status: "active", Tagging: kb.Tagging{Importance: "P0", Relevance: 95}, OneLine: "周五灰度", Updated: now},
-		{Slug: "demo-infra", Name: "示例基建", Kind: "long", Status: "active", Tagging: kb.Tagging{Importance: "P2", Relevance: 40}, Updated: now},
-	} {
-		if err := e.Store.PutProject(p); err != nil {
-			t.Fatal(err)
-		}
-	}
-	_ = e.Store.PutSummary(kb.KindProject, "demo-release", "# 示例发布\n\n## 目标\n周五灰度")
-	c := &kb.Chat{ID: kb.ChatID("lark", "f1"), Source: "lark", SourceID: "f1", Kind: "group", Name: "发布群", Created: now,
-		LastAt: now, OneLine: "在推示例发布", Tagging: kb.Tagging{Importance: "P1", Relevance: 70}, Projects: []string{"demo-release", "missing"}}
-	_ = e.Store.PutChat(c)
-	_ = e.Store.PutSummary(kb.KindChat, c.ID, "# 发布群\n\n## 这是什么\n发布协调")
-	_ = e.Store.PutChat(&kb.Chat{ID: kb.ChatID("mail", "acc1-sender@example.com"), Source: "mail", SourceID: "acc1-sender@example.com", Kind: "mail",
-		Name: "示例来信", Created: now, LastAt: now, Tagging: kb.Tagging{Importance: "P3", Relevance: 10}})
 }
 
 func TestGoldenInboxTriage(t *testing.T) {
@@ -173,57 +150,6 @@ func TestGoldenInboxJudge(t *testing.T) {
 	}
 }
 
-func TestGoldenInboxAgentPrompt(t *testing.T) {
-	items := goldenItems(t)
-	ctx := context.Background()
-	for _, name := range []string{"dm", "doc_rows", "doc_plain", "moment", "mail_direct", "github_review", "imessage_dm"} {
-		h := goldenInbox(t)
-		h.f.hello.Owner = "示例用户"
-		golden(t, "inbox_agent."+name, h.inbox.inboxAgentPrompt(items[name], h.owner(ctx), h.kbChatContext(ctx, h.inbox.kbChatOf(items[name]))))
-	}
-	// With the knowledge base (the assistant's own): the chat's summary and projects follow.
-	h, e := newInboxHubKB(t)
-	h.inboxReady(ctx)
-	goldenKB(t, e)
-	it := *items["mention"]
-	golden(t, "inbox_agent.mention_kb", h.inbox.inboxAgentPrompt(&it, h.owner(ctx), h.kbChatContext(ctx, h.inbox.kbChatOf(&it))))
-	// A chat in another Feishu account than lark.account: the prompt names it for lark_messages.
-	it = *items["dm"]
-	it.Lark = &InboxLark{AccountID: 2, FeedID: "f2"}
-	golden(t, "inbox_agent.dm_second_account", h.inbox.inboxAgentPromptFor(&it, "示例用户", nil, nil, 1, time.UTC))
-	it = *items["mail_direct"]
-	it.Mail = &InboxMail{AccountID: "acc1", Mailbox: "INBOX", UIDs: []uint32{3}, From: MailAddress{Email: "Sender@Example.com"}}
-	golden(t, "inbox_agent.mail_kb", h.inbox.inboxAgentPrompt(&it, "", h.kbChatContext(ctx, h.inbox.kbChatOf(&it))))
-
-	// A subscription's row (#6222): the subscription and the connector it reads, its link, and no reply line when it
-	// can't be replied to; its knowledge-base chat while its knowledge base is on.
-	h = goldenInbox(t)
-	h.f.hello.Owner = "示例用户"
-	h.inbox.srcMu.Lock()
-	h.inbox.names["sub_x"], h.inbox.names["sub_gh"] = "学校通知", "我的 PR"
-	h.inbox.vias["sub_x"] = inboxVia{connector: "example", source: "通知", chats: map[string]string{"sub:sub_x:t1": "tabc"}}
-	h.inbox.vias["sub_gh"] = inboxVia{connector: "github", source: "通知"}
-	h.inbox.srcMu.Unlock()
-	it = *items["github_review"]
-	it.ID, it.Source, it.Kind, it.Title, it.Context = "sub_x:1", "sub_x", "sub_notice", "下周的答疑改到周三", "【下周的答疑改到周三】\n示例：地点不变"
-	it.Connector = &InboxConnector{Thread: "sub:sub_x:t1", Label: "学校通知", URL: "https://notices.example.com/n1", RuleTier: TierFYI}
-	golden(t, "inbox_agent.subscription", h.inbox.inboxAgentPrompt(&it, h.owner(ctx), nil))
-	if got := h.inbox.kbChatOf(&it); got != kb.ChatID("sub_x", "tabc") {
-		t.Errorf("a subscription's chat: %q", got)
-	}
-	gh := *items["github_review"]
-	gh.ID, gh.Source = "sub_gh:1", "sub_gh"
-	gh.Connector = &InboxConnector{Thread: "sub:sub_gh:example-org/example-repo#12", URL: gh.Connector.URL, ReplyTo: gh.Connector.ReplyTo, CanReply: true}
-	golden(t, "inbox_agent.subscription_github", h.inbox.inboxAgentPrompt(&gh, h.owner(ctx), nil))
-	if got := h.inbox.kbChatOf(&gh); got != "" {
-		t.Errorf("a subscription whose knowledge base is off has a chat: %q", got)
-	}
-	// A connector's row that says nothing of replies: no empty reply line.
-	quiet := *items["imessage_dm"]
-	quiet.Connector = &InboxConnector{Thread: quiet.Connector.Thread, OpenURL: quiet.Connector.OpenURL}
-	golden(t, "inbox_agent.connector_no_reply", h.inbox.inboxAgentPrompt(&quiet, h.owner(ctx), nil))
-}
-
 // An item about one of the user's tasks: the judge's input lists the tasks, the AI twin is told the linked one.
 func TestGoldenInboxTask(t *testing.T) {
 	items := goldenItems(t)
@@ -231,7 +157,7 @@ func TestGoldenInboxTask(t *testing.T) {
 	task := prompts.InboxTask{ID: "todo_1", Title: "修登录崩溃", State: "在做", Last: "测试通过 42/42"}
 	golden(t, "inbox_judge_input.with_task", prompts.RenderInboxJudgeInput(prompts.InboxJudgeInput{Summary: "张三问修复进度",
 		Item: b.promptItem(items["dm"]), Tasks: []prompts.InboxTask{task}}))
-	golden(t, "inbox_agent.with_task", b.inboxAgentPromptFor(items["dm"], "示例用户", nil, &task, 1, time.UTC))
+	golden(t, "inbox_agent.with_task", b.inboxAgentPromptFor(items["dm"], "示例用户", &task, 1, time.UTC))
 }
 
 // Relating a batch to events: the first call (rules, the connector's meta description, the events) and the call after

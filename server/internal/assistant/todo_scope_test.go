@@ -428,7 +428,7 @@ func TestTodoEventsLeaveOutHiddenTodos(t *testing.T) {
 			t.Fatal(err)
 		}
 		words := []string{"Log the week", "Book the sleep clinic", "Renamed in the space", scopeAsk, scopeAnswer, scopeReply, hidden}
-		told := func(what string, want int) []recordedKBEvent {
+		told := func(what string, want int) []recordedEvent {
 			t.Helper()
 			got := e.settle()
 			for _, ev := range got {
@@ -483,30 +483,4 @@ func TestTodoEventsLeaveOutHiddenTodos(t *testing.T) {
 			}
 		}
 	})
-}
-
-// A task whose run works in the health space writes nothing of its outcome, read off that run's last reply, into a
-// knowledge-base project's timeline, outside the space, where kb.read reads it; one outside the space still does.
-func TestHiddenTaskOutcomeStaysOutOfProjects(t *testing.T) {
-	e := projectEnv(t, todoTestDB(t))
-	e.sessions("server", append(scopeListed(), func() proto.Session {
-		c := scopeSession("s2", "Letters", "/home/owner/letters")
-		c.LastText = "Sent the three letters to the council"
-		return c
-	}())...)
-	for _, c := range []struct{ title, sid string }{{"Chart the readings", "h1"}, {"Send the letters", "s2"}} {
-		task, err := e.s.createTaskTodo(context.Background(), c.title, "", "conv1", "", "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		e.must("PUT", "/api/v1/todos/"+task.ID+"/agents/server/"+c.sid, "")
-		e.must("PATCH", "/api/v1/todos/"+task.ID, `{"project":"诊断能力"}`)
-		e.must("PATCH", "/api/v1/todos/"+task.ID, `{"done":true}`)
-	}
-	e.s.tasks.outcomeRuns.Wait()
-	log := strings.Join(kbEng(t, e.s).Store.Log("诊断能力", 10), "\n")
-	noneOf(t, "the project's timeline", []byte(log), scopeReply, "Chart the readings")
-	if !strings.Contains(log, "Send the letters") {
-		t.Errorf("the project's timeline has no outcome of the task outside the space: %q", log)
-	}
 }

@@ -26,7 +26,7 @@ func TestHubStartedConversationsStartSignedIn(t *testing.T) {
 			t.Fatalf("outdated=%v: %d starts", outdated, len(f.sends))
 		}
 		got, set := f.sends[0]["config_dir"]
-		if !outdated && got != meetingProfile || outdated && set {
+		if !outdated && got != signedInProfile || outdated && set {
 			t.Fatalf("outdated=%v: config_dir = %v (set=%v)", outdated, got, set)
 		}
 	}
@@ -154,10 +154,10 @@ func TestATaskConversationSignedOutElsewhereIsReplaced(t *testing.T) {
 				t.Fatal(err)
 			}
 			sends := sendsOf(f, asked)
-			if len(sends) != 2 || sends[0]["session_id"] != first.SessionID || sends[0]["config_dir"] != meetingProfile {
-				t.Fatalf("the run asks to resume in %q first: %v", meetingProfile, sends)
+			if len(sends) != 2 || sends[0]["session_id"] != first.SessionID || sends[0]["config_dir"] != signedInProfile {
+				t.Fatalf("the run asks to resume in %q first: %v", signedInProfile, sends)
 			}
-			if id, _ := sends[1]["session_id"].(string); id != "" || sends[1]["config_dir"] != meetingProfile {
+			if id, _ := sends[1]["session_id"].(string); id != "" || sends[1]["config_dir"] != signedInProfile {
 				t.Fatalf("refused, it starts a new conversation signed in: %v", sends[1])
 			}
 			if next.SessionID == "" || next.SessionID == first.SessionID {
@@ -177,8 +177,8 @@ func TestATaskConversationSignedOutElsewhereIsReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 		sends := sendsOf(f, asked)
-		if len(sends) != 1 || sends[0]["session_id"] != first.SessionID || sends[0]["config_dir"] != meetingProfile || next.SessionID != first.SessionID {
-			t.Fatalf("a conversation already in %q is resumed there: %q %v", meetingProfile, next.SessionID, sends)
+		if len(sends) != 1 || sends[0]["session_id"] != first.SessionID || sends[0]["config_dir"] != signedInProfile || next.SessionID != first.SessionID {
+			t.Fatalf("a conversation already in %q is resumed there: %q %v", signedInProfile, next.SessionID, sends)
 		}
 	})
 
@@ -247,7 +247,7 @@ func TestHubStartedCodexConversationOmitsConfigDir(t *testing.T) {
 			t.Fatalf("launcher %q: %d starts", tc.launcher, len(f.sends))
 		}
 		got, set := f.sends[0]["config_dir"]
-		if tc.profile && got != meetingProfile || !tc.profile && set {
+		if tc.profile && got != signedInProfile || !tc.profile && set {
 			t.Fatalf("launcher %q: config_dir = %v (set=%v)", tc.launcher, got, set)
 		}
 	}
@@ -289,7 +289,7 @@ func TestATaskOnACodexLauncherTheHubCannotTellStarts(t *testing.T) {
 			f.mu.Lock()
 			tried := slices.Clone(asked)
 			f.mu.Unlock()
-			if len(tried) != tc.attempts || tried[0]["config_dir"] != map[bool]any{true: meetingProfile}[tc.attempts == 2] {
+			if len(tried) != tc.attempts || tried[0]["config_dir"] != map[bool]any{true: signedInProfile}[tc.attempts == 2] {
 				t.Fatalf("asked the node %v", tried)
 			}
 			if len(f.sends) != 1 || f.sends[0]["launcher"] != "codex-work" || f.sends[0]["config_dir"] != nil {

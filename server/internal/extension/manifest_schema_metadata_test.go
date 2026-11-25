@@ -63,7 +63,7 @@ func TestManifestSchemaAgreesOnMetadata(t *testing.T) {
 			m["runtime"] = map[string]any{"command": "bin/example-agree"}
 			m["permissions"] = map[string]any{"hub": []any{v}}
 		}, append(slices.Clone(HubScopes), ScopeCallPrefix+"example-other"),
-			[]string{"agents", "agents.everything", " kb.read", "KB.read", ScopeCallPrefix, ScopeCallPrefix + "Example"}},
+			[]string{"agents", "agents.everything", " agents.read", "AGENTS.read", ScopeCallPrefix, ScopeCallPrefix + "Example"}},
 	}
 	for _, c := range cases {
 		check := func(v string, want bool) {

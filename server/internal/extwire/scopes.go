@@ -19,13 +19,6 @@ import (
 // in internal/archguard; docs/server/architecture.md "Registering a domain's entries"). TestRouteScopes keeps the list
 // of every route and what was decided for it, server/internal/hub/testdata/route_scopes.txt.
 var RouteScopes = map[string]string{
-	"GET /api/v1/kb/{kind}":                                      ScopeKBRead,
-	"GET /api/v1/kb/{kind}/{id}":                                 ScopeKBRead,
-	"GET /api/v1/kb/chats/{id}/context":                          ScopeKBRead,
-	"GET /api/v1/kb/chats/{id}/days/{day}":                       ScopeKBRead,
-	"GET /api/v1/kb/moments/{id}":                                ScopeKBRead,
-	"GET /api/v1/kb-search":                                      ScopeKBRead,
-	"PUT /api/v1/kb/{kind}/{id}":                                 ScopeKBWrite,
 	"GET /api/v1/assistant/leaders":                              ScopeLeadersRead,
 	"POST /api/v1/assistant/directions":                          ScopeLeadersWrite,
 	"POST /api/v1/assistant/directions/{id}/progress":            ScopeLeadersWrite,

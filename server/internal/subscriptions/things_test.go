@@ -74,7 +74,7 @@ func TestAThingsRecipeIsChecked(t *testing.T) {
 }
 
 // The connector's rows go to the Inbox exactly as it made them (#6296); a row is kept again only when it changes, and
-// the Inbox gets each thread's newest; the knowledge base takes none of them.
+// the Inbox gets each thread's newest.
 func TestThingsRowsGoToTheInboxAsTheyCame(t *testing.T) {
 	e := newEnv(t)
 	e.answer(rowsAnswer(connectorRows(false)))
@@ -98,12 +98,6 @@ func TestThingsRowsGoToTheInboxAsTheyCame(t *testing.T) {
 		t.Fatalf("a changed row: %d kept, want %d", len(e.store.Items()), kept+1)
 	}
 	sameRows(t, e.connectorsRows(sub.ID), connectorRows(true))
-	if _, err := e.svc.Update(e.ctx, sub.ID, Patch{Revision: e.get(sub.ID).Revision, ToKB: ptr(true)}, Actor{ID: "device:phone"}); err == nil {
-		t.Fatal("a things subscription's rows went to the knowledge base")
-	}
-	if ids, _ := e.svc.Archives(e.ctx); len(ids) != 0 {
-		t.Fatalf("archives: %v", ids)
-	}
 }
 
 // A built-in's default subscription of things hands the Inbox the built-in's rows under its id, unchanged (#6265, #6296).

@@ -19,7 +19,7 @@ func TestDeleteAtRejectsStaleRevisionWithoutForgettingOrDeleting(t *testing.T) {
 	if err := e.svc.DeleteAt(e.ctx, sub.ID, sub.Revision, true, Actor{ID: "device:phone"}); err != nil {
 		t.Fatalf("fresh DeleteAt: %v", err)
 	}
-	if len(e.forgot) != 1 || e.forgot[0].ToInbox || e.forgot[0].ToKB {
+	if len(e.forgot) != 1 || e.forgot[0].ToInbox {
 		t.Fatalf("DeleteAt did not switch off before forgetting: %+v", e.forgot)
 	}
 	if _, _, err := e.svc.Get(e.ctx, sub.ID); codeOf(err) != CodeNotFound {

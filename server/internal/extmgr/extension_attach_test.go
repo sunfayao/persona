@@ -418,7 +418,7 @@ func TestOnlyAnAttachedPackageGetsATokenOfEveryScope(t *testing.T) {
 	h := newTestManager(t)
 	initOf := func(id string, pkg bool) extension.InitializeParams {
 		t.Helper()
-		kbExtensionSpec(t, h, id, extension.Permissions{HubAPI: true})
+		extensionSpec(t, h, id, extension.Permissions{HubAPI: true})
 		p := h.extensions.reg.Get(id)
 		p.Record.Source = extension.SourceInstalled
 		dir := t.TempDir()
@@ -518,7 +518,7 @@ func TestAttachedExtensionReadsConversationsByItsOwnGrant(t *testing.T) {
 		return json.RawMessage(`{"messages":[]}`), nil
 	}
 	attached := func(id string, granted extension.Permissions) func(context.Context, string, json.RawMessage) (any, error) {
-		kbExtensionSpec(t, h, id, granted)
+		extensionSpec(t, h, id, granted)
 		p := h.extensions.reg.Get(id)
 		dir := t.TempDir()
 		p.Record.Remote = &extension.Remote{RPCSocket: filepath.Join(dir, "rpc.sock"), HTTPSocket: filepath.Join(dir, "http.sock")}

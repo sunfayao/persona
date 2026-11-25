@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -12,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -193,7 +195,7 @@ func TestTodoTaskPlanCarriesImages(t *testing.T) {
 
 func TestTodoImageValidationCreatesNothing(t *testing.T) {
 	png := pngData(t, 1, 1)
-	tooMany := make([]map[string]any, kb.MaxPhotos+1)
+	tooMany := make([]map[string]any, maxTodoImages+1)
 	for i := range tooMany {
 		tooMany[i] = todoImageInput(fmt.Sprintf("d0000000-0000-4000-8000-%012d", i+1), "image/png", png)
 	}
@@ -284,4 +286,24 @@ func TestTodoRepositoryImagesCreateAtomically(t *testing.T) {
 	if rows, err := database.ListTodos(t.Context()); err != nil || len(rows) != 1 {
 		t.Fatalf("stored to-dos = %+v, %v", rows, err)
 	}
+}
+
+// pngData is a w × h PNG in base64.
+func pngData(t *testing.T, w, h int) string {
+	t.Helper()
+	var b bytes.Buffer
+	if err := png.Encode(&b, image.NewGray(image.Rect(0, 0, w, h))); err != nil {
+		t.Fatal(err)
+	}
+	return base64.StdEncoding.EncodeToString(b.Bytes())
+}
+
+// jpegData is a w × h JPEG in base64.
+func jpegData(t *testing.T, w, h int) string {
+	t.Helper()
+	var b bytes.Buffer
+	if err := jpeg.Encode(&b, image.NewGray(image.Rect(0, 0, w, h)), nil); err != nil {
+		t.Fatal(err)
+	}
+	return base64.StdEncoding.EncodeToString(b.Bytes())
 }

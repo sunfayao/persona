@@ -43,7 +43,7 @@ func TestMCPCaller(t *testing.T) {
 		{"todo_repository_links_add", "", false, "sess-pane"},
 		{"task_plan", "", true, ""},
 		{"todo_repository_links_add", "", true, ""},
-		{"kb_search", "", false, ""},
+		{"machines_list", "", false, ""},
 		{"todo_decisions", "", true, ""},
 		{"todo_bind_thread", "", true, ""},
 		{"todo_decisions", "sess-named", false, "sess-named"},

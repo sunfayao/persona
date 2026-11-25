@@ -181,10 +181,6 @@ func (f *fakeExt) emptyManager(app, method string) (any, bool) {
 		return map[string]any{"connectors": []string{}, "clis": map[string]string{}, "lark_cli": false}, true
 	case assistantwire.AppConnectors + " " + assistantwire.ConnectorsSnapshots:
 		return map[string]any{"snapshots": []any{}}, true
-	case assistantwire.AppConnectors + " " + assistantwire.ConnectorsArchives:
-		return assistantwire.Archives{Archives: []assistantwire.ArchiveSource{}, Items: []string{}}, true
-	case assistantwire.AppConnectors + " " + assistantwire.ConnectorsOwner:
-		return map[string]any{"sources": []any{}}, true
 	case assistantwire.AppPlugins + " " + assistantwire.PluginsAssistant:
 		return map[string]any{"instructions": "", "skills": nil}, true
 	case assistantwire.AppPlugins + " " + assistantwire.PluginsSkillsNeed:

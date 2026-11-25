@@ -125,45 +125,6 @@ func TestQuoteExactWordsAndItemIDs(t *testing.T) {
 	}
 }
 
-func TestQuoteMeetingBoundary(t *testing.T) {
-	d := newDispatchPolicyHarness(t)
-	now := time.Now()
-	d.s.justMe.now = func() time.Time { return now }
-	public := ownerItem("trail-map", "prepare the trail map")
-	question := ownerItem("meeting-question", "choose a sample color")
-	question.ClientMsgID = "just-me-example"
-	answer := ownerItem("card-answer", "use the sample shade")
-	d.f.setItems(public, question, answer)
-	d.s.justMeSent("server", d.mainID)
-	for _, selector := range []string{"latest", question.ID, question.Text, answer.ID, public.ID} {
-		checkQuoteRefusal(t, d, selector, "privately", "meeting", "text")
-	}
-	// A real Just me mark expires on the service clock. The durable question marker remains.
-	now = now.Add(justMeMax + justMeAfter + time.Minute)
-	for _, selector := range []string{question.ID, "sample color"} {
-		checkQuoteRefusal(t, d, selector, "privately", "meeting", "text")
-	}
-	question.Queued = true
-	answer.Queued = true
-	d.f.setItems(public, question, answer)
-	msg := checkQuoteRefusal(t, d, "latest", public.ID, answer.ID)
-	if strings.Contains(msg, question.ID) || strings.Contains(msg, question.Text) {
-		t.Errorf("the choices included a private item: %s", msg)
-	}
-	question.Queued = false
-	d.f.setItems(question)
-	checkQuoteRefusal(t, d, "latest", "privately")
-	d.f.setItems(public)
-	res := quoteSend(t, d, d.mainID, d.leaderID, "latest")
-	if res.IsError {
-		t.Fatal(res.Content[0].Text)
-	}
-	d.s.justMeSent("server", d.mainID)
-	if res := quoteSend(t, d, d.mainID, d.sideID, ""); res.IsError {
-		t.Fatal(res.Content[0].Text)
-	}
-}
-
 func TestQuotePartsReachIndependentBriefs(t *testing.T) {
 	d := newDispatchPolicyHarness(t)
 	const first, second = "paint the bridge", "mark the west trail"
@@ -277,15 +238,4 @@ func TestQuotePartsShareOneRelayAllowance(t *testing.T) {
 	if len(d.s.relays.quoted) != 1 || len(d.s.relays.sent[[2]string{d.mainID, d.sideID}]) != 1 {
 		t.Fatal("only the first passage from a message to this target should go free")
 	}
-}
-
-func TestQuoteChecksMeetingMarkAfterTranscriptRead(t *testing.T) {
-	d := newDispatchPolicyHarness(t)
-	d.f.setItems(ownerItem("trail-map", "prepare the trail map"))
-	d.f.hookReads(receiptHooks{after: func(read int) {
-		if read == 1 {
-			d.s.justMeSent("server", d.mainID)
-		}
-	}})
-	checkQuoteRefusal(t, d, "latest", "privately", "meeting", "text")
 }

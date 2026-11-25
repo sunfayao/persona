@@ -89,7 +89,7 @@ func agyReadImageFile(brain *os.Root, ref string) ([]byte, error) {
 	lstat, open := os.Lstat, openNoBlock
 	if !filepath.IsAbs(name) {
 		lstat = brain.Lstat
-		open = func(name string) (*os.File, error) { return openKnowledgeFile(brain, name) }
+		open = func(name string) (*os.File, error) { return openRootFile(brain, name) }
 	}
 	info, err := lstat(name)
 	if err != nil || !info.Mode().IsRegular() || info.Size() > agyMaxImageBytes {

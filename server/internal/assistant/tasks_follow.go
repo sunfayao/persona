@@ -408,9 +408,6 @@ func (s *Service) settleTurn(ctx context.Context, machine, sid, unheard string) 
 // settleTurnReporting additionally reports an unreachable agent read, the one settleLater reason that has no other
 // wake guaranteed. Existing callers keep the turnSettle-only wrapper above.
 func (s *Service) settleTurnReporting(ctx context.Context, machine, sid, unheard string, unreachable *bool) turnSettle {
-	if s.meetingTurnNow(machine, sid) {
-		return settleRefused // a meeting's batch: never the task's progress, report or completion (meeting_turns.go)
-	}
 	if s.endHeld(ctx, machine, sid) {
 		s.logf("agent %s/%s ended a turn held for a send still out: taken up once that send is answered", machine, short(sid))
 		return settleLater

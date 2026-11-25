@@ -129,7 +129,6 @@ type subscriptionEntry struct {
 	IntervalSeconds int                    `json:"interval_seconds,omitempty"`
 	DailyAt         string                 `json:"daily_at,omitempty"`
 	ToInbox         bool                   `json:"to_inbox"`
-	ToKB            bool                   `json:"to_kb"`
 	State           string                 `json:"state"`
 	Error           *subscriptions.Problem `json:"error,omitempty"`
 	LastRunAt       *time.Time             `json:"last_run_at,omitempty"`
@@ -141,7 +140,7 @@ type subscriptionEntry struct {
 
 func subscriptionLine(s subscriptions.Subscription) subscriptionEntry {
 	e := subscriptionEntry{ID: s.ID, Label: s.Label, Connector: s.Connector, Source: s.Source, SourceName: s.SourceName,
-		ToInbox: s.ToInbox, ToKB: s.ToKB, State: s.State, Error: s.Error, LastRunAt: s.LastRunAt, LastOKAt: s.LastOKAt,
+		ToInbox: s.ToInbox, State: s.State, Error: s.Error, LastRunAt: s.LastRunAt, LastOKAt: s.LastOKAt,
 		NextRunAt: s.NextRunAt, LastNewCount: s.LastNewCount, Revision: s.Revision}
 	if subscriptions.IsPush(s) {
 		e.Push = true
@@ -235,7 +234,7 @@ func recipeFormat() map[string]any {
 		"fields": subscriptions.FieldKeys,
 		"field_meaning": map[string]string{
 			"id":        "the item's stable id: dedup key (without one, items are told apart by title, time and sender)",
-			"thread":    "the conversation an item belongs to: with group_by thread, items with the same thread share one Inbox row and one knowledge-base chat",
+			"thread":    "the conversation an item belongs to: with group_by thread, items with the same thread share one Inbox row",
 			"title":     "required: what the Inbox row says",
 			"sender":    "who it is from",
 			"time":      "when it happened: RFC 3339, a date and time (user's zone), a date, or Unix seconds / milliseconds",
@@ -263,8 +262,8 @@ func recipeFormat() map[string]any {
 		},
 		"kinds": wire.ConnectorSubscriptionKinds,
 		"group_by": map[string]string{
-			wire.ConnectorSubscriptionGroupSource: "the whole subscription is one Inbox row (its newest item on top) and one knowledge-base chat: for one conversation, such as a group chat or a channel",
-			wire.ConnectorSubscriptionGroupThread: "a row and a chat per thread, an item without one its own: for items that stand on their own (articles, notifications, mail) or belong to one of several conversations",
+			wire.ConnectorSubscriptionGroupSource: "the whole subscription is one Inbox row (its newest item on top): for one conversation, such as a group chat or a channel",
+			wire.ConnectorSubscriptionGroupThread: "a row per thread, an item without one its own: for items that stand on their own (articles, notifications, mail) or belong to one of several conversations",
 		},
 		"intervals": "interval_seconds is at least 300 and the source's min_interval_seconds; a snapshot at least 3600, by default daily at daily_at (HH:MM). " +
 			"items default to every 900 seconds",
@@ -476,7 +475,6 @@ type saveArgs struct {
 	TriageRules  *string         `json:"triage_rules"`
 	FallbackTier *string         `json:"fallback_tier"`
 	ToInbox      *bool           `json:"to_inbox"`
-	ToKB         *bool           `json:"to_kb"`
 	Pause        bool            `json:"pause"`
 	DeleteData   bool            `json:"delete_data"`
 }
@@ -484,13 +482,13 @@ type saveArgs struct {
 // patch is what an update or a new subscription's settings change, from a: pause turns both destinations off.
 func (a saveArgs) patch(revision int64, recipe *subscriptions.Recipe) (subscriptions.Patch, error) {
 	p := subscriptions.Patch{Revision: revision, Label: a.Label, Recipe: recipe, Existing: a.Existing, IntervalSeconds: a.Interval,
-		DailyAt: a.DailyAt, TriageRules: a.TriageRules, FallbackTier: a.FallbackTier, ToInbox: a.ToInbox, ToKB: a.ToKB}
+		DailyAt: a.DailyAt, TriageRules: a.TriageRules, FallbackTier: a.FallbackTier, ToInbox: a.ToInbox}
 	if a.Pause {
-		if a.ToInbox != nil && *a.ToInbox || a.ToKB != nil && *a.ToKB {
-			return p, badArgs("pause turns both destinations off: leave out to_inbox and to_kb")
+		if a.ToInbox != nil && *a.ToInbox {
+			return p, badArgs("pause turns the destination off: leave out to_inbox")
 		}
 		off := false
-		p.ToInbox, p.ToKB = &off, &off
+		p.ToInbox = &off
 	}
 	if a.Existing != "" && !slices.Contains([]string{subscriptions.ExistingDigest, subscriptions.ExistingBaseline, subscriptions.ExistingDeliver}, a.Existing) {
 		return p, badArgs("existing is digest, baseline or deliver")
@@ -506,7 +504,7 @@ func (a saveArgs) patch(revision int64, recipe *subscriptions.Recipe) (subscript
 func emptyPatch(cur subscriptions.Subscription, p subscriptions.Patch) bool {
 	next := subscriptions.Patched(cur, p)
 	return p.Recipe == nil && next.Label == cur.Label && next.TriageRules == cur.TriageRules && next.FallbackTier == cur.FallbackTier &&
-		next.DailyAt == cur.DailyAt && next.IntervalSeconds == cur.IntervalSeconds && next.ToInbox == cur.ToInbox && next.ToKB == cur.ToKB
+		next.DailyAt == cur.DailyAt && next.IntervalSeconds == cur.IntervalSeconds && next.ToInbox == cur.ToInbox
 }
 
 // checkSchedule refuses before asking what Update would refuse after: an interval below the floor, a daily time
@@ -757,7 +755,7 @@ func (h *Manager) saveUpdate(ctx context.Context, by asker, a saveArgs, cur subs
 		}
 		currentAfter := subscriptions.Patched(current, p)
 		if currentAfter.Label != after.Label || currentAfter.IntervalSeconds != after.IntervalSeconds ||
-			currentAfter.DailyAt != after.DailyAt || currentAfter.ToInbox != after.ToInbox || currentAfter.ToKB != after.ToKB ||
+			currentAfter.DailyAt != after.DailyAt || currentAfter.ToInbox != after.ToInbox ||
 			currentAfter.TriageRules != after.TriageRules || currentAfter.FallbackTier != after.FallbackTier ||
 			!subscriptions.SameRecipe(currentAfter.Recipe, after.Recipe) {
 			return "", approval.ErrStale
@@ -802,9 +800,6 @@ func previousOf(cur subscriptions.Subscription, p subscriptions.Patch) map[strin
 	}
 	if p.ToInbox != nil {
 		out["to_inbox"] = cur.ToInbox
-	}
-	if p.ToKB != nil {
-		out["to_kb"] = cur.ToKB
 	}
 	return out
 }

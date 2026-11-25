@@ -246,7 +246,7 @@ func TestNudgeForAResult(t *testing.T) {
 			u.send(c, map[string]any{"type": "session.started", "session": map[string]any{}})
 			u.send(c, map[string]any{"type": "session.delegation.created", "delegation": map[string]any{"id": "dlg9", "target": "client"}})
 			u.send(c, map[string]any{"type": "response.event", "delegation_id": "dlg9", "event": map[string]any{
-				"type": "function_call", "call_id": "c1", "name": "search_knowledge", "arguments": `{"query":"咖啡"}`,
+				"type": "function_call", "call_id": "c1", "name": "list_agents", "arguments": `{}`,
 			}})
 		})
 		pl := testPlugin(t, Config{Providers: []Provider{{ID: "rt", URL: up.url(), Models: []string{"m1"}, Tools: new(true)}}},

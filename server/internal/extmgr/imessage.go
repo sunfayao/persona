@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/connector/imessage"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -18,8 +18,36 @@ import (
 
 // Messages (connector/imessage, docs/plans/plan-connectors.md "5"): the app reads one Mac's Messages through that Mac's node;
 // the hub passes the pages along and keeps none of them. With "Hand to Persona" on (the user's switch, on by default,
-// imessageAIKey) the real conversations also go to the knowledge base, the inbox and the assistant's tools
+// imessageAIKey) the real conversations also go to the inbox and the assistant's tools
 // (connector/imessage/persona.go). No number or message is logged (only the connector, the Mac and the kind of failure).
+
+// imessageContextLock is a lock a settings request can stop waiting for when its context ends.
+type imessageContextLock struct {
+	once  sync.Once
+	token chan struct{}
+}
+
+func (l *imessageContextLock) lock(ctx context.Context) error {
+	l.once.Do(func() {
+		l.token = make(chan struct{}, 1)
+		l.token <- struct{}{}
+	})
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-l.token:
+		if err := ctx.Err(); err != nil {
+			l.unlock()
+			return err
+		}
+		return nil
+	}
+}
+
+func (l *imessageContextLock) unlock() { l.token <- struct{}{} }
 
 // imessageAIKey is the settings key of "Hand to Persona": absent means on.
 const imessageAIKey = "imessage.ai"
@@ -36,7 +64,6 @@ func (h *Manager) addIMessage(cfg imessage.Config) error {
 		on = false
 		h.imessageAIPending.Store(true)
 	}
-	h.imessageArchive.init(on, h.store)
 	c.SetAI(on)
 	return h.addConnector(c)
 }
@@ -77,20 +104,9 @@ func (h *Manager) reconcileIMessageAI(ctx context.Context) {
 	if err != nil {
 		return
 	}
-	if on {
-		if err := h.imessageArchive.enable(ctx); err != nil {
-			return
-		}
-		c.SetAI(true)
-	} else {
-		c.SetAI(false)
-		if err := h.imessageArchive.disable(ctx); err != nil {
-			return
-		}
-	}
+	c.SetAI(on)
 	h.imessageAIPending.Store(false)
 	if on {
-		h.kbKick(c.ID(), connector.ScopeChats)
 		h.kickInbox()
 	}
 }
@@ -140,7 +156,7 @@ func (h *Manager) imessageRoutes(api *http.ServeMux) {
 		c.Check(r.Context())
 		writeJSON(w, c.Detail(r.Context()))
 	})
-	// PUT /api/v1/imessage/settings {"ai": bool}: a successful off waits for admitted archive commits; retained data
+	// PUT /api/v1/imessage/settings {"ai": bool}: retained data
 	// stays until DELETE /api/v1/imessage/data.
 	api.HandleFunc("PUT /api/v1/imessage/settings", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -167,46 +183,20 @@ func (h *Manager) imessageRoutes(api *http.ServeMux) {
 			return
 		}
 		h.imessageAIPending.Store(true)
-		if *in.AI {
-			if err := h.store.PutSetting(ctx, imessageAIKey, true); err != nil {
-				c.SetAI(false)
-				retireCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-				_, _ = h.imessageArchive.retire(retireCtx)
-				cancel()
-				writeErr(w, http.StatusInternalServerError, err)
-				return
-			}
-			if err := h.imessageArchive.enable(ctx); err != nil {
-				writeErr(w, http.StatusServiceUnavailable, errors.New(http.StatusText(http.StatusServiceUnavailable)))
-				return
-			}
-			c.SetAI(true)
-		} else {
+		if err := h.store.PutSetting(ctx, imessageAIKey, *in.AI); err != nil {
 			c.SetAI(false)
-			// Retire even an off write whose database acknowledgement is lost.
-			drained, err := h.imessageArchive.retire(ctx)
-			if putErr := h.store.PutSetting(ctx, imessageAIKey, false); putErr != nil {
-				writeErr(w, http.StatusInternalServerError, putErr)
-				return
-			}
-			if err == nil {
-				err = waitIMessageArchive(ctx, drained)
-			}
-			if err != nil {
-				h.logf("imessage: archive disable did not finish: %v", err)
-				writeErrCode(w, http.StatusServiceUnavailable, "imessage_archive_pending", i18n.Err("hub-imessage.archive_pending"))
-				return
-			}
+			writeErr(w, http.StatusInternalServerError, err)
+			return
 		}
+		c.SetAI(*in.AI)
 		h.imessageAIPending.Store(false)
 		h.logf("imessage: 交给 Persona %v", *in.AI)
 		if *in.AI {
-			h.kbKick(c.ID(), connector.ScopeChats)
 			h.kickInbox()
 		}
 		writeJSON(w, c.Detail(r.Context()))
 	})
-	// DELETE /api/v1/imessage/data: what the hub kept of iMessage (the knowledge base's chats and people, inbox items),
+	// DELETE /api/v1/imessage/data: what the hub kept of iMessage (its inbox items),
 	// once "Hand to Persona" is off — on, the next sync would bring it back.
 	api.HandleFunc("DELETE /api/v1/imessage/data", func(w http.ResponseWriter, r *http.Request) {
 		c := h.imessage()
@@ -224,7 +214,7 @@ func (h *Manager) imessageRoutes(api *http.ServeMux) {
 			writeForgetErr(w, err)
 			return
 		}
-		h.logf("imessage: deleted %d chat(s), %d person(s), %d inbox item(s)", res.Chats, res.People, res.Inbox)
+		h.logf("imessage: deleted %d inbox item(s)", res.Inbox)
 		writeJSON(w, res)
 	})
 	api.HandleFunc("GET /api/v1/imessage/chats", func(w http.ResponseWriter, r *http.Request) {

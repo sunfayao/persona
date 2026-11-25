@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -134,15 +133,11 @@ type Events interface {
 // Scope is what changed (Events).
 type Scope string
 
-// Scopes of a change: the knowledge base's chats or items, or the inbox.
-const (
-	ScopeChats Scope = "chats"
-	ScopeItems Scope = "items"
-	ScopeInbox Scope = "inbox"
-)
+// Scopes of a change: the inbox.
+const ScopeInbox Scope = "inbox"
 
 // Known says whether s is one of the scopes: one from a program or a machine is checked before the hub acts on it.
-func (s Scope) Known() bool { return s == ScopeChats || s == ScopeItems || s == ScopeInbox }
+func (s Scope) Known() bool { return s == ScopeInbox }
 
 // Runner is a connector with work of its own (checking its sign-in, polling): the hub runs it until ctx ends.
 type Runner interface {
@@ -153,17 +148,4 @@ type Runner interface {
 // hub tells it when one connects.
 type Machines interface {
 	MachineOnline(id string)
-}
-
-// Chats is a connector whose conversations the knowledge base reads chat by chat, each with its own cursor
-// (Feishu's chats, Moments posts): one kb.Source per stream, its Name the prefix of its chats' ids (which never
-// changes). Reading a conversation further back is History's (CapHistory), for the connectors whose conversations
-// come through Archive.
-type Chats interface {
-	ChatSources() []kb.Source
-}
-
-// Items is a connector with documents, meetings, events… for the knowledge base's items.
-type Items interface {
-	ItemSource() kb.ItemSource
 }

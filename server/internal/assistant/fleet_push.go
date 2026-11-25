@@ -243,17 +243,6 @@ func (s *Service) afterTurnCompletion(delay time.Duration, run func()) {
 
 // notifyFinishedNow is notifyFinished once its delay is over, with the timings it was read with.
 func (s *Service) notifyFinishedNow(machine, id string, gen int, t fleetTimings) {
-	if s.justMeNow(machine, id) {
-		// A Just me turn: never on a screen but the meeting page (meeting_justme.go). Over all the same unless its
-		// background work goes on (the turn that work's report wakes keeps the mark): its start and its hold are not
-		// the next turn's (#4133).
-		if sess, ok := s.decoratedSession(machine, id); !ok || sess.Status != proto.StatusWorking && !backgroundRunning(sess) {
-			if start, dropped := s.turnsBook().drop(machine+"/"+id, gen); dropped {
-				s.reportTurn(id, start)
-			}
-		}
-		return
-	}
 	sess, ok := s.decoratedSession(machine, id)
 	if ok && s.completionChildrenRunning(machine, sess) {
 		// Only the completion decision uses this copy; session state and reports stay intact.
@@ -264,9 +253,6 @@ func (s *Service) notifyFinishedNow(machine, id string, gen int, t fleetTimings)
 		// work did not finish, and nothing is the user's to do. The turn stays followed, so the end after the reset is
 		// the one pushed, timed from this start. One nothing takes up is pushed below, as a usage limit (doneAlert).
 		return
-	}
-	if ok && !sess.Assistant && sess.Status != proto.StatusWorking {
-		s.kbAgentDone(machine, sess)
 	}
 	if ok && sess.Work != nil && sess.Work.Phase == proto.WorkBlocked && (sess.Work.WakeAt != nil || sess.Work.InteractionID != "") {
 		return // the Agents business goes on with it ("Continue", a wake), or its card already rang
@@ -503,15 +489,6 @@ func doneAlertIn(l i18n.Lang, sess proto.Session, redact bool) (head, text strin
 		head, text = "⚠️ "+title, interruptedSummary+"："+strings.TrimSpace(text)
 	}
 	return head, text
-}
-
-// kbAgentDone tells the knowledge base an agent finished a turn (its projects' timelines get what it came to).
-func (s *Service) kbAgentDone(machine string, sess proto.Session) {
-	if strings.TrimSpace(sess.LastText) == "" {
-		return
-	}
-	s.kbAgentTurn(context.Background(), assistantwire.KBAgentTurn{MachineID: machine, SessionID: sess.SessionID, Cwd: sess.Cwd,
-		Title: sess.Title, Line: workLogLine(sess)})
 }
 
 // linkRangWait is how long a card's push waits, all told, for Persona Link to confirm it (liveLoop looks within 100 ms,

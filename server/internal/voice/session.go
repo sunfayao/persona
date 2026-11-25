@@ -59,17 +59,14 @@ type conversation struct {
 	resume  []resumeRun
 	resumed bool // the app picked the call up again: its first session is told what was said
 	wake    chan struct{}
-	// meeting: a meeting call (meeting.go), set by negotiate before anything else runs; nil for any other. Its fields
-	// are under mu. dictation is an unbound, text-only session (dictation.go): it keeps protocol 1's internal shape so
+	// dictation is an unbound, text-only session (dictation.go): it keeps protocol 1's internal shape so
 	// no target, run, observation, suspension or hold path can run, while ready still negotiates protocol 2's features.
-	meeting   *meetingCall
 	dictation bool
 	// dictationPartial: session.started granted interim captions, so standard deltas are ignored in favor of them.
 	dictationPartial bool
 	// sendsAnyway: the app's start said speech_gate, true or false (#5904): it has Send Anyway for what the
 	// user-speech gate held back, so such a handover with a task is kept for its resend and the model is told the
-	// screen offers that. An app from before it says nothing and has no such button; a meeting call never has it
-	// (meeting.go). Set before ready, under mu.
+	// screen offers that. An app from before it says nothing and has no such button. Set before ready, under mu.
 	sendsAnyway bool
 
 	mu         sync.Mutex
@@ -225,9 +222,6 @@ func (pl *Plugin) converse(ctx context.Context, app *websocket.Conn, role string
 		}
 		return
 	}
-	if c.meeting != nil {
-		go c.feedSilence(silenceTick) // between Talk spans the upstream hears silence (meeting.go)
-	}
 	c.readApp()
 }
 
@@ -327,10 +321,8 @@ func (c *conversation) begin() error {
 	c.p, c.w, c.model, c.modelID = p, w, model, p.ID+"/"+model
 	c.gate.echoes = start.EchoCancellation != nil && !*start.EchoCancellation
 	// Only a full device's call turns the user-speech gate off: another extension's call is held to it (docs/assistant/voice.md "Permissions").
-	// A meeting call keeps it on and has no Send Anyway (meeting.go): what it hands the room goes as the owner's words,
-	// so only what the owner just said in Talk (or typed) does, never anything kept for a later tap.
-	c.gate.off = start.SpeechGate != nil && !*start.SpeechGate && (c.role == "" || c.role == roleFull) && c.meeting == nil
-	c.sendsAnyway = start.SpeechGate != nil && c.meeting == nil
+	c.gate.off = start.SpeechGate != nil && !*start.SpeechGate && (c.role == "" || c.role == roleFull)
+	c.sendsAnyway = start.SpeechGate != nil
 	if voicePattern.MatchString(start.Voice) && !gone { // a voice of the other upstream's may not exist here
 		c.voice = start.Voice
 	}
@@ -362,13 +354,7 @@ func (c *conversation) negotiate(s *startFrame) error {
 		c.mu.Lock()
 		c.dictation = true
 		c.mu.Unlock()
-		return nil // one unbound session: no target preparation, history, resume, meeting or call features
-	}
-	meeting := s.Mode == modeMeeting
-	if meeting && (!full || s.Protocol < 2 || s.Target == nil || s.Target.MachineID == "" || s.Target.SessionID == "" ||
-		s.RecordingID == "") {
-		// A meeting call is protocol 2, bound to a recording's room: without them it cannot be checked to be one.
-		return &codedError{code: codeNotMeetingRoom, msg: i18n.T(c.language(), "voice-meeting.not_meeting_room")}
+		return nil // one unbound session: no target preparation, history, resume or call features
 	}
 	if s.Protocol < 2 || !full {
 		return nil // protocol 1: its frames, the main conversation
@@ -378,14 +364,8 @@ func (c *conversation) negotiate(s *startFrame) error {
 	}
 	c.version = 2
 	machine, session, recent := s.Target.MachineID, s.Target.SessionID, appRecent(c.language(), s.Recent)
-	recording := ""
-	if meeting {
-		// The snapshot is the room's own turns, read from it: the app's recent may hold lines the room must not know
-		// (the meeting page shows Just me beside the room).
-		c.meeting, recording, recent = &meetingCall{recording: s.RecordingID}, s.RecordingID, nil
-	}
 	c.prep = make(chan prepared, 1)
-	go func() { c.prep <- c.prepare(c.ctx, machine, session, recent, recording) }()
+	go func() { c.prep <- c.prepare(c.ctx, machine, session, recent) }()
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, l := range historyOf(s.History) {
@@ -505,7 +485,7 @@ func (c *conversation) shutdown() {
 	}
 	c.closed = true
 	up, w := c.up, c.w
-	lines := callLines{user: c.userSeq, model: c.asstSeq, pauses: c.sus.pauses, holds: c.sus.holds, meeting: c.meeting.meetingLog()}
+	lines := callLines{user: c.userSeq, model: c.asstSeq, pauses: c.sus.pauses, holds: c.sus.holds}
 	for id, t := range c.pending {
 		t.Stop()
 		delete(c.pending, id)

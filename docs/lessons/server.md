@@ -308,7 +308,7 @@ it and leaves that file alone. A test of one failed switch passed for this reaso
 
 ## An index over files answers only for the files it read, and is measured on text that varies (2026-11-13, #1273)
 
-The knowledge base's search index (`server/internal/kb/search_index.go`) is kept beside files that people, Agents and
+The knowledge base's search index (server/internal/kb/search_index.go) is kept beside files that people, Agents and
 the import all write, so "is the index current?" has no single answer. What made it safe was asking it a smaller
 question: it may rule a file out only when the file's path, mtime and size are exactly the ones it read, and
 everything else is read by the scan that existed before. Then a missing, half-built, stale or damaged index can only
@@ -365,7 +365,7 @@ valid" where it is decoded, and match that).
 Search reads every `.md` and `.json` file of the data dir it is not told to skip, profile files before any message
 day, and every file under a `messages/` directory as a day. Live ingestion's receipts (`chats/<id>/.receipts.json`,
 the source and every message id and time on one line) were documented as "not searched" but never added to
-`searchable` (`server/internal/kb/find.go`), nor were the ingestion intent (`.ingest.json`) and a chat's zone marker
+`searchable` (server/internal/kb/find.go), nor were the ingestion intent (`.ingest.json`) and a chat's zone marker
 (`messages/.zone`). A query of digits, a date or the source's name matched the receipts of every chat and filled the
 limit before any message was read; Chinese queries looked fine, so nobody noticed. Whoever writes a new bookkeeping
 file into the data dir adds it to `searchable` in the same change and checks it with a search over real ingested
@@ -1500,7 +1500,7 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
 - Tests mustn't depend on the test machine's zone: construct UTC times and explicitly pass the display zone (e.g. schedule and prompt golden tests in `internal/assistant` use `Asia/Shanghai`; knowledge goldens use `goldenZone`);
   after time-related changes, run `go test ./...` on the hub with `TZ=UTC`, `TZ=Asia/Shanghai`, and `TZ=America/Los_Angeles`.
 - Files storing only clock times (knowledge day files, timelines) need whole-file migration when changing zones and must record their zone; don't simply change the write zone:
-  otherwise one file mixes old and new clock times, and `Since` parsing old rows in the new zone shifts them 8 hours and misses messages in compaction windows (`docs/assistant/knowledge.md` ("Time zones")).
+  otherwise one file mixes old and new clock times, and `Since` parsing old rows in the new zone shifts them 8 hours and misses messages in compaction windows ( ("Time zones")).
 - Send IANA zone names to other programs (the manager's `Manager.userTZName()`, `extmgr/usertz.go`): `time.Local.String()` is "Local", not a zone name.
 - pgx reads `timestamptz` into `time.Local` by default (#3755): a non-UTC hub serializes database times with `+08:00`, violating protocol UTC. `AfterConnect` in `db.Open` registers a `ScanLocation: time.UTC` codec (`utcTimes`) per connection, so all reads are UTC; don't scatter `.UTC()` fixes.
 - Hub Docker images (`docs/operations/docker.md`, 2026-11-01): lockfile `resolved` entries pointing at other npm registries make `npm ci` on other networks (GitHub Actions, NAS)
@@ -1511,7 +1511,7 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
   home `/dev/null`, making mounted `~/.ssh` useless). The entry script changes the `persona` user itself to PUID / PGID and removes colliding entries rather than using
   `docker run --user <uid>`. `docker compose exec` defaults to root; image `personad` wraps privilege dropping to `persona`, or newly generated tailcat keys belong to root and the hub can't read them.
 
-## Knowledge base (docs/assistant/knowledge.md)
+## Knowledge base
 
 - An ascending GitHub search cursor cannot use `updated_at` alone when a page ends inside one second (#4461). Keep the
   completed thread identities at that boundary, resume an unfinished thread across restarts, and rescan a tied boundary
@@ -1551,7 +1551,7 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
   `Engine.textCutoff()` (midnight of the earliest retained day); cleanup uses `Engine.Prune`, with the same retention days. New write paths use it too. `TestArchiveKeepsToTheTextRetention` checks "cleanup immediately after writing should delete 0 days".
 - For slow search, measure traversal first (#2632): with 37,000 archived files, caching contents improved only 1.6×; most remaining cost was serial `filepath.WalkDir` (~70 ms,
   more than 8-way parallel `stat` on all files at ~30 ms). Directory mtime changes for entry additions/deletions/renames, not content appends; cache directory listings by directory mtime,
-  file contents by mtime + size. Together, warm search improves ~360 ms → 85 ms (~4.2×, docs/assistant/knowledge.md). Skip "just changed" entries for mtime caches (another same-tick write with unchanged size is invisible).
+  file contents by mtime + size. Together, warm search improves ~360 ms → 85 ms (~4.2×). Skip "just changed" entries for mtime caches (another same-tick write with unchanged size is invisible).
   Tests age files/directories with `os.Chtimes`, or never exercise the cache path.
 - Rewriting a day file (`Store.MergeMessages`, imported history) must keep what readers cannot parse: split on `\n` only, keep `\r`, hand edits, odd lines and a missing final
   newline as they are, and test it as a property (original lines an exact subsequence of the result, count included) plus a fuzz target. The fuzzer found within seconds that a

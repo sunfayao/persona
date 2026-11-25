@@ -423,8 +423,7 @@ func (h *Hub) managerHello(ctx context.Context, c *busConn, params json.RawMessa
 		h.bus.mu.Unlock()
 		if !said {
 			h.logf("bus: [%s] is from before manager.json (no %s): the hello no longer carries the manager's defaults "+
-				"(owner, notes, Agents, knowledge base, models), so it runs on its built-in ones and its knowledge base "+
-				"does not open; update it", c.ident.ID, assistantwire.CapabilityConfigOwn)
+				"(owner, notes, Agents, models), so it runs on its built-in ones; update it", c.ident.ID, assistantwire.CapabilityConfigOwn)
 		}
 	}
 	reply := busHelloReply{Name: c.ident.Name, Role: c.ident.Role, Managers: h.busManagers(ctx), Hello: h.assistantHelloFor(ctx, c.ident.ID),

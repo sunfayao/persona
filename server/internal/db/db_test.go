@@ -1137,39 +1137,6 @@ func TestDeviceTokens(t *testing.T) {
 	}
 }
 
-func TestKBEntities(t *testing.T) {
-	d := open(t)
-	ctx := context.Background()
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	_ = d.PutKBEntity(ctx, "projects", "a", "A", "P2", 50, []string{"发布"}, "", now)
-	_ = d.PutKBEntity(ctx, "projects", "b", "B", "P0", 10, nil, "", now)
-	_ = d.PutKBEntity(ctx, "chats", "c", "C", "", 90, []string{"发布"}, "x", time.Time{})
-	if err := d.PutKBEntity(ctx, "projects", "a", "A2", "P1", 60, []string{"发布", "后端"}, "y", now); err != nil {
-		t.Fatal(err)
-	}
-	list, err := d.KBEntities(ctx, "projects", "", 10)
-	if err != nil || len(list) != 2 || list[0].ID != "b" || list[1].Name != "A2" || list[1].Importance != "P1" {
-		t.Fatalf("%+v %v", list, err)
-	}
-	if list, _ := d.KBEntities(ctx, "", "发布", 10); len(list) != 2 {
-		t.Fatalf("tag filter: %+v", list)
-	}
-	// A source taken back: only its rows of that kind go.
-	_ = d.PutKBEntity(ctx, "chats", "imessage-0123456789ab", "张三", "", 10, nil, "", now)
-	_ = d.PutKBEntity(ctx, "people", "imessage-0123456789ab", "张三", "", 10, nil, "", now)
-	if err := d.DeleteKBEntities(ctx, "chats", []string{"imessage-0123456789ab", "nope"}); err != nil {
-		t.Fatal(err)
-	}
-	chats, _ := d.KBEntities(ctx, "chats", "", 10)
-	people, _ := d.KBEntities(ctx, "people", "", 10)
-	if len(chats) != 1 || chats[0].ID != "c" || len(people) == 0 {
-		t.Fatalf("after delete: chats %+v people %+v", chats, people)
-	}
-	if err := d.DeleteKBEntities(ctx, "chats", nil); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestMachineMetrics(t *testing.T) {
 	d, ctx := open(t), context.Background()
 	if err := d.PutMachineSystem(ctx, "m1", proto.System{OS: "darwin", Distro: "macos", Cores: 8}); err != nil {

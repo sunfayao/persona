@@ -201,8 +201,7 @@ func (s *Service) directionNotesRoutes() {
 // codeNotesChanged is the 409 of a notes save that started from notes the direction no longer has.
 const codeNotesChanged = "notes_changed"
 
-// directionPrompt is what direction id is told of itself: its name, notes and filed project's name and goal (the
-// knowledge base unread: no project line; the notes still go).
+// directionPrompt is what direction id is told of itself: its name and notes.
 func (s *Service) directionPrompt(ctx context.Context, id string) prompts.DirectionNotes {
 	out := prompts.DirectionNotes{Lang: directionLang(s.lang(ctx))}
 	d := s.directionOf(id)
@@ -211,21 +210,6 @@ func (s *Service) directionPrompt(ctx context.Context, id string) prompts.Direct
 	}
 	out.Notes = d.Notes
 	out.Name = s.leaderNames(ctx, []string{id})[id]
-	if d.Project != "" {
-		if e, err := s.kbGet(ctx); err == nil && e != nil {
-			for _, p := range e.Store.Projects() {
-				if p.Slug == d.Project {
-					out.ProjectName, out.ProjectGoal = oneLine(p.Name), clip(oneLine(p.Goal), 300)
-					break
-				}
-			}
-		}
-	}
-	if out.Notes == "" {
-		// Without the owner's notes a project's goal alone is not added: a leader without notes keeps its policy as
-		// it was before notes existed, and a project being rewritten never restarts it.
-		out.ProjectGoal = ""
-	}
 	return out
 }
 
@@ -618,29 +602,13 @@ func leadIdle(c proto.Session, known bool) bool {
 		(c.Compaction == nil || c.Compaction.State != proto.CompactionRunning) && !backgroundRunning(c)
 }
 
-// directionContext is the block a new Agent gets for the directions its work belongs to: the direction of lead (the
-// leader conversation supervising or starting it; "" none) and those filed under one of the projects slugs. Only
-// directions with notes, current ones, each once, the lead's first; at most projectContextMost of them.
-func (s *Service) directionContext(ctx context.Context, lead string, slugs []string) string {
+// directionContext is the block a new Agent gets for the direction its work belongs to: the direction of lead (the
+// leader conversation supervising or starting it; "" none), when it has notes and is current.
+func (s *Service) directionContext(ctx context.Context, lead string) string {
 	cfg := s.settings(ctx)
 	var ids []string
 	if lead != "" && slices.Contains(cfg.Leaders, lead) {
 		ids = append(ids, lead)
-	}
-	if len(slugs) > 0 {
-		b := &s.directions
-		b.mu.Lock()
-		if s.directionsLocked(ctx) {
-			var more []string
-			for id, d := range b.m {
-				if d.EndedAt == nil && d.Notes != "" && d.Project != "" && slices.Contains(slugs, d.Project) && !slices.Contains(ids, id) {
-					more = append(more, id)
-				}
-			}
-			slices.Sort(more)
-			ids = append(ids, more...)
-		}
-		b.mu.Unlock()
 	}
 	var blocks []string
 	for _, id := range ids {
@@ -650,29 +618,6 @@ func (s *Service) directionContext(ctx context.Context, lead string, slugs []str
 		if block := prompts.RenderTodoDirection(s.directionPrompt(ctx, id)); block != "" {
 			blocks = append(blocks, block)
 		}
-		if len(blocks) == projectContextMost {
-			break
-		}
 	}
 	return strings.Join(blocks, "\n\n")
-}
-
-// directionStatus is the one-line status of the project leader id's direction is filed under, for its per-message
-// context; "" when the direction has no notes (a leader without them sees its context as before), no project, or the
-// knowledge base cannot be read.
-func (s *Service) directionStatus(ctx context.Context, id string) string {
-	d := s.directionOf(id)
-	if d == nil || d.Notes == "" || d.Project == "" {
-		return ""
-	}
-	e, err := s.kbGet(ctx)
-	if err != nil || e == nil {
-		return ""
-	}
-	for _, p := range e.Store.Projects() {
-		if p.Slug == d.Project {
-			return clip(oneLine(p.OneLine), 300)
-		}
-	}
-	return ""
 }

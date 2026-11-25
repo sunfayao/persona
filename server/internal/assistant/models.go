@@ -121,10 +121,9 @@ func (p ModelPurpose) launch() string {
 var modelCategoryIDs = []string{"assistant", "agent.new", "kb", "inbox.triage", "agent.delegate", "translate"}
 
 // The catalog also includes the uses set apart from their category: the opt-in overrides of Agents (agentsOverride),
-// in the order of Agents' uses, then the background supervisor's (#5806), then the In-meeting conversation's and
-// Meeting minutes' (#7980), last so the rows the apps drew before each was listed keep their order; category-default
+// in the order of Agents' uses, then the background supervisor's (#5806), last so the rows the apps drew before each was listed keep their order; category-default
 // assignment and model profiles must not write them.
-var modelConfigIDs = append(slices.Clone(modelCategoryIDs), purposeAgent, purposeLarkAgent, purposeSupervise, purposeMeetingRoom, purposeMeetingMinutes, purposeMain)
+var modelConfigIDs = append(slices.Clone(modelCategoryIDs), purposeAgent, purposeLarkAgent, purposeSupervise, purposeMain)
 
 // agentsOverride: a use of Agents the user may set apart, the AI twin (#4232) or Lark /agent. With nothing saved it
 // follows Agents; every other use follows its category only.
@@ -135,10 +134,9 @@ const purposeMain = "assistant.main"
 // modelPurposes are the uses; Name, Group and Uses hold catalog names (assistant-models), read in a language by
 // localized.
 var modelPurposes = []ModelPurpose{
-	{ID: "assistant", Group: "group_default", Kind: "launcher", ConfigDirs: assistantConfigDirs, Uses: []ModelUse{{Name: "use_chat"}, {Name: "use_schedule"}, {Name: "use_meeting_room"}}},
+	{ID: "assistant", Group: "group_default", Kind: "launcher", ConfigDirs: assistantConfigDirs, Uses: []ModelUse{{Name: "use_chat"}, {Name: "use_schedule"}}},
 	{ID: "agent.new", Group: "group_default", Kind: "launcher", Uses: []ModelUse{{Name: "use_new_agent"}, {Name: "use_inbox_agent"}, {Name: "use_lark_agent"}}},
-	{ID: "kb", Group: "group_default", Kind: "api", Uses: []ModelUse{{Name: "use_draft"}, {Name: "use_knowledge"}, {Name: "use_projects"}, {Name: "use_titles"},
-		{Name: "use_meeting_minutes"}, {Name: "use_meeting_answer"}}},
+	{ID: "kb", Group: "group_default", Kind: "api", Uses: []ModelUse{{Name: "use_draft"}, {Name: "use_titles"}}},
 	{ID: "inbox.triage", Group: "group_default", Kind: "api", Uses: []ModelUse{{Name: "use_triage"}, {Name: "use_importance"}, {Name: "use_reply_or_agent"}}},
 	// "Answering agents' questions" (delegate.go) is a category of its own, so it can run on a stronger model than the triage's (#3029).
 	{ID: "agent.delegate", Group: "group_default", Kind: "api", Uses: []ModelUse{{Name: "use_delegate"}}},
@@ -154,26 +152,12 @@ var modelPurposes = []ModelPurpose{
 	// until it is given its own.
 	{ID: purposeCaptureSort, Group: "group_triage", Kind: "api", Parent: "inbox.triage"},
 	{ID: "inbox.draft", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.compress", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.project", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.dedupe", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.items", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.moments", Group: "group_processing", Kind: "api", Parent: "kb"},
-	{ID: "kb.topics", Group: "group_processing", Kind: "api", Parent: "kb"}, // knowledge points by topic (kb/topics.go)
 	{ID: "assistant.title", Group: "group_processing", Kind: "api", Parent: "kb"},
 	{ID: "assistant.route", Group: "group_processing", Kind: "api", Parent: "kb"}, // Suggest a supervisor for a new agent (agent_route.go).
 	{ID: "agent.title", Group: "group_processing", Kind: "api", Parent: "kb"},
 	{ID: "todo.title", Group: "group_processing", Kind: "api", Parent: "kb"}, // a task's todo (assistant/todo_titles.go)
-	// A meeting or note named while it records (kb/recording_title.go, #8873): a few short calls a recording.
-	{ID: purposeMeetingTitle, Group: "group_processing", Kind: "api", Parent: "kb"},
 	// Drafting a source subscription's recipe, called by the manager (models.purpose_complete, #2040).
 	{ID: assistantwire.PurposeSubscriptionRecipe, Group: "group_processing", Kind: "api", Parent: "kb"},
-	// Answers to the questions asked in an attended meeting (meeting_ask.go): one call with no tools, from meeting material only.
-	// A use of Information processing even with the In-meeting conversation set apart: it answers when the room cannot.
-	{ID: purposeMeetingAnswer, Group: "group_processing", Kind: "api", Parent: "kb"},
-	// A meeting's minutes (kb/minutes.go, #7980): Information processing's until they are given their own provider,
-	// model or effort.
-	{ID: purposeMeetingMinutes, Group: "group_processing", Kind: "api", Parent: "kb"},
 	// The next-message suggestion over an empty composer (suggest_next.go, #4644): one short call with no tools after a turn.
 	{ID: purposeSuggestNext, Group: "group_processing", Kind: "api", Parent: "kb"},
 	// Scheduled tasks (the morning briefing…) run in the assistant's directory with its instructions, memory and tools: they are the
@@ -186,16 +170,12 @@ var modelPurposes = []ModelPurpose{
 	{ID: purposeSupervise, Group: "group_assistant", Kind: "launcher", Parent: "assistant"},
 	// Main execution is independent of the defaults for new side conversations.
 	{ID: purposeMain, Group: "group_assistant", Kind: "launcher", Parent: "assistant"},
-	// The room conversation of a recorded meeting (meeting_room.go, #7980): the main chat's launcher, model and effort
-	// until it is given its own, Claude Code only and never a runtime (models_room.go).
-	{ID: purposeMeetingRoom, Group: "group_assistant", Kind: "launcher", Parent: "assistant"},
 }
 
 // ownModelRecord: a use under a category that keeps a record of its own, so it can be set apart from the category:
-// the opt-in overrides of Agents, a scheduled task's own use, the background supervisor's, the In-meeting
-// conversation's and Meeting minutes' (#7980). With nothing saved it follows its category.
+// the opt-in overrides of Agents, a scheduled task's own use, the background supervisor's. With nothing saved it follows its category.
 func ownModelRecord(id string) bool {
-	return agentsOverride(id) || isTaskPurpose(id) || id == purposeMain || id == purposeSupervise || id == purposeMeetingRoom || id == purposeMeetingMinutes
+	return agentsOverride(id) || isTaskPurpose(id) || id == purposeMain || id == purposeSupervise
 }
 
 // mc is a assistant-models text in l.
@@ -269,8 +249,7 @@ func modelRecordKey(id string) string {
 }
 
 func modelRecordID(p ModelPurpose) string {
-	// The AI twin, Lark /agent, an extension's purpose, a task's own use, the background supervisor's and the two
-	// meeting purposes (#7980, under model_config.<id>: none was ever written before) have records of their own.
+	// The AI twin, Lark /agent, an extension's purpose, a task's own use, the background supervisor's have records of their own.
 	if p.CategoryID != "" && !ownModelRecord(p.ID) && !isExtensionPurpose(p.ID) {
 		return p.CategoryID
 	}

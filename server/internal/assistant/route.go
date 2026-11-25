@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/kb"
 )
 
 // Older managers offered to turn new chats into directions. Their stored offers can still be
@@ -39,10 +38,8 @@ type routeOffer struct {
 	MachineID string `json:"machine_id"`
 	// Title: the direction's suggested name.
 	Title string `json:"title"`
-	// Project: the slug of the existing knowledge-base project the sentence names; NewProject: else the name of the
-	// project Start direction makes ("" both: none).
-	Project    string `json:"project,omitempty"`
-	NewProject string `json:"new_project,omitempty"`
+	// Project: the project label the sentence names ("": none).
+	Project string `json:"project,omitempty"`
 	// Closest is the existing leader suggested by the manager that made the offer.
 	Closest string    `json:"closest,omitempty"`
 	At      time.Time `json:"at"`
@@ -150,10 +147,9 @@ func (s *Service) takeRouteOffer(ctx context.Context, id string) (*routeOffer, e
 // errNoOffer: Start direction on a conversation with no offer.
 var errNoOffer = errors.New("no direction is offered for this conversation: make it one with …/make")
 
-// makeDirection makes assistant conversation id a leader as the owner chose: filed under project (a slug of an existing
-// knowledge-base project), or a new project named newProject, or none; title, when given, names it unless the owner
+// makeDirection makes assistant conversation id a leader as the owner chose: filed under project (a label) or none; title, when given, names it unless the owner
 // named it already. The record says by "user"; leader.changed follows (directionsSync).
-func (s *Service) makeDirection(ctx context.Context, id, project, newProject, title string) (*leaderView, error) {
+func (s *Service) makeDirection(ctx context.Context, id, project, title string) (*leaderView, error) {
 	cfg := s.settings(ctx)
 	if id == cfg.Main {
 		return nil, errors.New("the main conversation supervises already: a direction is a side conversation")
@@ -195,16 +191,6 @@ func (s *Service) makeDirection(ctx context.Context, id, project, newProject, ti
 		}
 		s.settingsChanged(ctx)
 	}
-	if project == "" && newProject != "" {
-		if e, err := s.kbGet(ctx); err == nil && e != nil {
-			slug, err := e.Apply(kb.KindProject, newProject, kb.Update{Name: newProject, Kind: "long"})
-			if err != nil {
-				s.logf("direction %s: project %q: %v (filed under none)", short(id), newProject, err)
-			} else {
-				project = slug
-			}
-		}
-	}
 	now := time.Now().UTC()
 	b := &s.directions
 	b.mu.Lock()
@@ -239,8 +225,7 @@ func (s *Service) makeDirection(ctx context.Context, id, project, newProject, ti
 		view.Title = titles[id].title
 	}
 	if d := s.directionOf(id); d != nil {
-		pn, pok := s.projectNames(ctx)
-		view.Name = nameOf(d, view.Title, pn, pok)
+		view.Name = nameOf(d, view.Title)
 	}
 	_, _ = s.takeRouteOffer(ctx, id)
 	s.directionsSoon()
@@ -331,7 +316,7 @@ func (s *Service) routeRoutes() {
 			}
 			id := r.PathValue("id")
 			ctx := r.Context()
-			project, newProject, title := strings.TrimSpace(in.Project), "", strings.TrimSpace(in.Title)
+			project, title := strings.TrimSpace(in.Project), strings.TrimSpace(in.Title)
 			if start {
 				b := &s.offers
 				b.mu.Lock()
@@ -351,13 +336,13 @@ func (s *Service) routeRoutes() {
 					return
 				}
 				if project == "" {
-					project, newProject = o.Project, o.NewProject
+					project = o.Project
 				}
 				if title == "" {
 					title = o.Title
 				}
 			}
-			v, err := s.makeDirection(ctx, id, project, newProject, title)
+			v, err := s.makeDirection(ctx, id, project, title)
 			if err != nil {
 				apierr.Write(w, http.StatusConflict, err)
 				return

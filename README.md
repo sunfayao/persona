@@ -25,7 +25,7 @@ English · [简体中文](README.zh-CN.md)
 - **A SuperAgent, one entry for everything.** Ask in one chat. Persona pulls in your context, breaks the work down and hands it to Agents. [Assistant](docs/assistant/assistant.md)
 - **Browser and computer, one session.** Claude Code, Codex, opencode, pi, DSH and Antigravity CLI keep running on your computers. Watch them live, answer and approve from the web app, wherever you are. Capabilities vary by runtime and engine. [Runtimes](docs/integrations/runtimes.md) · [Engines](docs/integrations/engines.md)
 - **Extensions for everything.** Tools, Agent runtimes, data sources, channels and voice plug in, with an SDK and a market. [Extensions](docs/extensions/extensions.md) · [Extension market](https://github.com/nwverse/persona-extensions)
-- **Knowledge base and Inbox.** Your chats, people and projects become shared memory; Lark, mail and GitHub land in one AI-sorted Inbox. [Knowledge](docs/assistant/knowledge.md) · [Inbox](docs/assistant/inbox.md)
+- **Inbox.** Lark, mail and GitHub land in one AI-sorted Inbox. [Inbox](docs/assistant/inbox.md)
 - **Connectors and channels.** Bring in Lark, mail, GitHub, iMessage, Telegram and WeChat; talk to Persona from the web app, Lark, WeChat or by voice. [Connectors](docs/extensions/connectors.md) · [Channels](docs/extensions/channels.md)
 - **A web app in three languages.** The web app is served by your hub and speaks English, Chinese and Japanese. [Web app](docs/web/web.md)
 

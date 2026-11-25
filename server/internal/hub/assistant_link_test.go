@@ -237,7 +237,6 @@ func TestAssistantLinkScheduleCalls(t *testing.T) {
 		t.Fatalf("devices.list: %s %v", raw, err)
 	}
 	// (What the model configuration asks of the extensions, plugins.*, is the manager's: extmgr answers it in its process.)
-	// (The knowledge base's sources, connectors.archives…, are the manager's: extmgr's kb_sources_test.go.)
 	// One of the hub's features starts a conversation: the assistant prepares its directory and starts it on the
 	// purpose's model.
 	s, err := h.asst().Start(ctx, assistant.StartParams{Text: "hi", PermissionMode: "plan", Purpose: "assistant"})

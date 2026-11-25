@@ -47,14 +47,12 @@ func (h *Manager) builtinTools() []string {
 	return names
 }
 
-// connectorChanged is a connector's realtime event: collect the inbox or archive soon, and run the subscriptions that
+// connectorChanged is a connector's realtime event: collect the inbox soon, and run the subscriptions that
 // read it (#6247), in the background: the event's caller never waits on their store.
 func (h *Manager) connectorChanged(id string, scope connector.Scope) {
 	switch scope {
 	case connector.ScopeInbox:
 		h.kickInbox()
-	case connector.ScopeChats, connector.ScopeItems:
-		h.kbKick(id, scope)
 	}
 	if subs := h.subsLive.Load(); subs != nil {
 		go func() {
@@ -144,7 +142,6 @@ func (h *Manager) connectorRoutes(api *http.ServeMux) {
 		var body struct {
 			Enabled *bool           `json:"enabled"`
 			Options json.RawMessage `json:"options"` // the connector's own settings (connector.Options)
-			Archive *bool           `json:"archive"` // "Add to knowledge base"
 			Inbox   *bool           `json:"inbox"`   // "Add to Inbox"
 		}
 		if err := decodeJSONBody(w, r, &body, 64<<10); err != nil {
@@ -161,11 +158,8 @@ func (h *Manager) connectorRoutes(api *http.ServeMux) {
 				h.auditConnector(r.Context(), id, auditConnectorOptions, nil)
 			}
 		}
-		for f, on := range map[connector.Feed]*bool{connector.FeedArchive: body.Archive, connector.FeedInbox: body.Inbox} {
-			if on == nil {
-				continue
-			}
-			if err := h.setConnectorFeed(r.Context(), id, f, *on); err != nil {
+		if body.Inbox != nil {
+			if err := h.setConnectorFeed(r.Context(), id, connector.FeedInbox, *body.Inbox); err != nil {
 				writeErr(w, http.StatusBadRequest, err)
 				return
 			}
@@ -201,32 +195,7 @@ func (h *Manager) connectorRoutes(api *http.ServeMux) {
 			writeForgetErr(w, err)
 			return
 		}
-		h.logf("connector %s: deleted %d chat(s), %d person(s), %d post(s), %d knowledge item(s), %d inbox item(s)", id, res.Chats, res.People, res.Posts, res.Items, res.Inbox)
-		writeJSON(w, res)
-	})
-	// "Delete saved knowledge base content": "Add to knowledge base" turned off first (and kept off: on, the next round
-	// would bring it back), then its knowledge-base content goes. The connector keeps running: the inbox
-	// and the tools are untouched.
-	api.HandleFunc("DELETE /api/v1/connectors/{id}/archive", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if h.connectors.Get(id) == nil {
-			writeErr(w, http.StatusNotFound, fmt.Errorf("no connector %q", id))
-			return
-		}
-		if err := h.setConnectorFeed(r.Context(), id, connector.FeedArchive, false); err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		var res sourceForgotten
-		var err error
-		res.KBForgotten, err = h.forgetArchive(r.Context(), id)
-		h.auditConnector(r.Context(), id, auditConnectorArchiveDeleted, forgotten(map[string]any{"chats": res.Chats, "people": res.People, "posts": res.Posts, "items": res.Items}, err))
-		if err != nil {
-			h.logf("connector %s: delete the archive: %v", id, err)
-			writeForgetErr(w, err)
-			return
-		}
-		h.logf("connector %s: deleted %d chat(s), %d person(s), %d post(s), %d item(s) from the knowledge base", id, res.Chats, res.People, res.Posts, res.Items)
+		h.logf("connector %s: deleted %d inbox item(s)", id, res.Inbox)
 		writeJSON(w, res)
 	})
 	h.imessageRoutes(api)
@@ -235,56 +204,25 @@ func (h *Manager) connectorRoutes(api *http.ServeMux) {
 // sourceForgotten is what deleting a source's data removed (DELETE /api/v1/connectors/{id}/data,
 // DELETE /api/v1/imessage/data).
 type sourceForgotten struct {
-	assistantwire.KBForgotten
 	Inbox int `json:"inbox"`
 }
 
-// forgetSource removes what the hub kept of a source (a connector's id): its knowledge-base content (and
-// its index rows, project associations and cursors), and has the manager remove the inbox's items. The caller
-// stops the source first. The inbox's items go whatever the knowledge base answers, and either part fails while the
-// assistant (the manager) is away: asked again, the deletion finishes what is left.
+// forgetSource has the manager remove the inbox's items of a source (a connector's id). The caller stops the source
+// first. It fails while the assistant (the manager) is away: asked again, the deletion finishes what is left.
 func (h *Manager) forgetSource(ctx context.Context, source string) (sourceForgotten, error) {
 	var out sourceForgotten
-	var kerr, ierr error
-	out.KBForgotten, kerr = h.forgetArchive(ctx, source)
-	out.Inbox, ierr = h.forgetInbox(ctx, source)
+	var err error
+	out.Inbox, err = h.forgetInbox(ctx, source)
 	h.avatars.Drop(source) // the pictures its rows and pages showed
-	err := errors.Join(kerr, ierr)
-	h.auditConnector(ctx, source, auditConnectorDataDeleted, forgotten(map[string]any{"chats": out.Chats, "people": out.People, "posts": out.Posts, "items": out.Items, "inbox": out.Inbox}, err))
+	h.auditConnector(ctx, source, auditConnectorDataDeleted, forgotten(map[string]any{"inbox": out.Inbox}, err))
 	return out, err
 }
 
-// forgetArchive removes a connector's knowledge-base content, including its declared archive sources.
-func (h *Manager) forgetArchive(ctx context.Context, source string) (assistantwire.KBForgotten, error) {
-	if h.kbOff() {
-		return assistantwire.KBForgotten{}, nil
-	}
-	// A big source takes a while (every chat's directory, the projects' timelines): longer than a call's default, and
-	// not cut short when the app gives up waiting.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), kbForgetWait)
-	defer cancel()
-	p := assistantwire.KBForget{Source: source}
-	if c := h.connectorByID(source); c != nil {
-		p.ArchiveSources = h.forgetArchiveSources(c)
-	}
-	var f assistantwire.KBForgotten
-	if err := h.kbAsk(ctx, assistantwire.MethodKBForget, p, &f); err != nil {
-		return assistantwire.KBForgotten{}, err
-	}
-	return f, nil
-}
-
-// kbForgetWait is how long deleting a source's data waits for the knowledge base.
-const kbForgetWait = 10 * time.Minute
-
-// writeForgetErr answers a deletion that failed: 503 assistant_offline while the knowledge base (the assistant's)
-// is not there (its part was not deleted: the user tries again), else 500.
+// writeForgetErr answers a deletion that failed: 503 assistant_offline while the assistant is not there (nothing was
+// deleted: the user tries again), else 500.
 func writeForgetErr(w http.ResponseWriter, err error) {
-	var re *rpc.Error
 	switch {
-	case errors.As(err, &re) && re.Code == assistantwire.CodeKBUnavailable: // connected, its knowledge base not open yet
-		writeErrCode(w, http.StatusServiceUnavailable, re.Code, errors.New(re.Message))
-	case kbOffline(err):
+	case assistantOffline(err):
 		writeErrCode(w, http.StatusServiceUnavailable, assistantwire.CodeAssistantOffline, errAssistantOffline)
 	default:
 		writeErr(w, http.StatusInternalServerError, err)
@@ -339,23 +277,19 @@ func (h *Manager) connectorLogin(w http.ResponseWriter, id string) (connector.Lo
 }
 
 // connectorSettingsKey holds the user's switch per connector, their own settings and the feeds turned off:
-// {"switch": {"telegram": true}, "options": {"github": {"ci": "mine"}}, "archive": {"telegram": false}}.
+// {"switch": {"telegram": true}, "options": {"github": {"ci": "mine"}}, "inbox": {"telegram": false}}.
 const connectorSettingsKey = "connectors"
 
 type connectorSettings struct {
 	Switch  map[string]bool            `json:"switch,omitempty"`
 	Options map[string]json.RawMessage `json:"options,omitempty"`
-	// Archive and Inbox are its feeds the user turned on or off (connector.SetFeed); one not here is on.
-	Archive map[string]bool `json:"archive,omitempty"`
-	Inbox   map[string]bool `json:"inbox,omitempty"`
+	// Inbox is its feed the user turned on or off (connector.SetFeed); one not here is on.
+	Inbox map[string]bool `json:"inbox,omitempty"`
 }
 
 // feeds is the settings' map for feed f.
 func (cs *connectorSettings) feeds(f connector.Feed) *map[string]bool {
-	if f == connector.FeedInbox {
-		return &cs.Inbox
-	}
-	return &cs.Archive
+	return &cs.Inbox
 }
 
 // setConnectorOptions gives a connector the user's settings and keeps them for the next start; the inbox is
@@ -426,10 +360,8 @@ func (h *Manager) setConnectorEnabled(ctx context.Context, id string, on bool) e
 		}
 	}
 
-	h.kbPostsMu.Lock()
 	was := h.connectors.Enabled(id)
 	err := h.connectors.SetEnabled(id, on)
-	h.kbPostsMu.Unlock()
 	if err != nil {
 		return err
 	}
@@ -461,7 +393,7 @@ func (h *Manager) setConnectorEnabled(ctx context.Context, id string, on bool) e
 }
 
 // setConnectorFeed turns one of a connector's feeds on or off and keeps the choice for the next start; turned on, the
-// inbox or the archive goes again soon.
+// inbox goes again soon.
 func (h *Manager) setConnectorFeed(ctx context.Context, id string, f connector.Feed, on bool) error {
 	if id == "larkcli" && h.larkCLIRecovery.preferencesUnread.Load() {
 		h.requestLarkCLIRecovery(ctx)
@@ -476,10 +408,8 @@ func (h *Manager) setConnectorFeed(ctx context.Context, id string, f connector.F
 		}
 	}
 
-	h.kbPostsMu.Lock()
 	was := h.connectors.Feeds(id, f)
 	err := h.connectors.SetFeed(id, f, on)
-	h.kbPostsMu.Unlock()
 	if err != nil {
 		return err
 	}
@@ -505,8 +435,6 @@ func (h *Manager) setConnectorFeed(ctx context.Context, id string, f connector.F
 			h.inbox.owed.Store(true) // mail is read on a full round: the next one is that (inboxLoop)
 		}
 		h.kickInbox()
-	} else if on {
-		h.kbKick(id, connector.ScopeChats)
 	}
 	return nil
 }
@@ -571,11 +499,9 @@ func (h *Manager) restoreSwitchesOf(c connector.Connector, cs connectorSettings)
 			}
 		}
 	}
-	for _, f := range []connector.Feed{connector.FeedArchive, connector.FeedInbox} {
-		if on, ok := (*cs.feeds(f))[c.ID()]; ok && !on {
-			if err := h.connectors.SetFeed(c.ID(), f, false); err != nil {
-				h.logf("connectors: %s %s: %v", c.ID(), f, err)
-			}
+	if on, ok := cs.Inbox[c.ID()]; ok && !on {
+		if err := h.connectors.SetFeed(c.ID(), connector.FeedInbox, false); err != nil {
+			h.logf("connectors: %s %s: %v", c.ID(), connector.FeedInbox, err)
 		}
 	}
 	if !h.connectorOn(cs, c.ID()) {

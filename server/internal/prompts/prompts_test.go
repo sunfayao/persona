@@ -171,8 +171,6 @@ func TestFirstRendersRunConcurrently(t *testing.T) {
 		{"voice/instructions", VoiceInstructions{}},
 		{"voice/report", VoiceReport{}},
 		{"assistant/snapshot", Snapshot{Now: now, Zone: "UTC", Calendar: &SnapshotCalendar{}}},
-		{"kb/compress_input", KBCompressInput{}},
-		{"kb/items_input", KBItemsInput{}},
 	}
 	Names() // the package's set, every template parsed
 	fresh := newTemplateSet()

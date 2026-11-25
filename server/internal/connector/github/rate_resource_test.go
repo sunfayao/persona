@@ -8,8 +8,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/connector"
 )
 
 // quotaAnswer is the quota headers of one answer; an empty resource leaves X-RateLimit-Resource out.
@@ -55,48 +53,6 @@ func fakeQuotaAPI(t *testing.T, searchLeft int) (*Connector, func() []string) {
 		mu.Lock()
 		defer mu.Unlock()
 		return append([]string(nil), seen...)
-	}
-}
-
-// A search API minute running low leaves the hour's core quota alone: the status stays OK and the other reads go on.
-func TestLowSearchQuotaIsNotTheCoreQuota(t *testing.T) {
-	c, _ := fakeQuotaAPI(t, 2)
-	if _, _, _, err := c.Changes(context.Background(), "", 20); err != nil {
-		t.Fatal(err)
-	}
-	if c.ratesLow() {
-		t.Error("a low search quota marked the core quota low")
-	}
-	if st := c.Status(context.Background()); st.State != connector.StateOK {
-		t.Errorf("status %+v", st)
-	}
-}
-
-// The archive waits while the search API's minute runs low, even after a core answer, and searches again once it resets.
-func TestChangesWaitsForTheSearchQuota(t *testing.T) {
-	c, seen := fakeQuotaAPI(t, 2)
-	_, cursor, _, err := c.Changes(context.Background(), "", 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.check(context.Background()) // a core answer must not lift the search pause
-	before := len(seen())
-	batches, next, more, err := c.Changes(context.Background(), cursor, 20)
-	if err != nil || batches != nil || next != cursor || more {
-		t.Fatalf("low search quota: %v, %q, %v, %v", batches, next, more, err)
-	}
-	if got := seen()[before:]; len(got) != 0 {
-		t.Fatalf("asked GitHub with the search quota low: %v", got)
-	}
-
-	c.mu.Lock()
-	c.searchReset = time.Now().Add(-time.Second)
-	c.mu.Unlock()
-	if _, _, _, err := c.Changes(context.Background(), cursor, 20); err != nil {
-		t.Fatal(err)
-	}
-	if got := seen()[before:]; len(got) != 1 || got[0] != "/search/issues" {
-		t.Fatalf("after the reset: %v", got)
 	}
 }
 

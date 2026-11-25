@@ -80,7 +80,7 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 	h.cfg.Machines = []MachineConfig{{ID: "ma", Name: "ma", Kind: "local"}, {ID: "mb", Name: "mb", Kind: "local"}}
 	scoped := extTokenPrefix + "bx-token"
 	scopes := []string{extension.ScopeAgentsControl, extension.ScopeAgentsPermissionMode, extension.ScopeTodosRead,
-		extension.ScopeTodosWrite, extension.ScopeKBRead, extension.ScopeKBWrite}
+		extension.ScopeTodosWrite}
 	var mu sync.Mutex
 	kept := map[string][]string{} // B's todos, decisions and entries: the path that reads them → the bodies written
 	answer := func(method string, params json.RawMessage) (any, error) {
@@ -185,7 +185,7 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 		return string(b)
 	}
 	const refused = "go\x1b[0m"
-	post, patch, put := http.MethodPost, http.MethodPatch, http.MethodPut
+	post, patch := http.MethodPost, http.MethodPatch
 	routes := []struct{ name, method, path, body string }{ // body: the text goes in place of %s
 		{"starting a chat", post, "/api/v1/sessions", `{"machine_id":"mb","prompt":%s}`},
 		{"a message", post, "/api/v1/sessions/mb/b1/messages", `{"text":%s}`},
@@ -199,9 +199,8 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 		{"adding a todo", post, "/api/v1/todos", `{"title":%s}`},
 		{"editing a todo", patch, "/api/v1/todos/t1", `{"notes":%s}`},
 		{"a todo's decision", post, "/api/v1/todos/t1/decisions", `{"question":"go on?","choice":%s}`},
-		{"a knowledge-base entry", put, "/api/v1/kb/projects/p1", `{"summary":%s}`},
 	}
-	// What B keeps of the todo and knowledge-base routes, read back through the hub.
+	// What B keeps of the todo routes, read back through the hub.
 	keptOf := func(path string) []string {
 		t.Helper()
 		req, _ := http.NewRequest(http.MethodGet, srv.URL+path, nil)
@@ -223,7 +222,7 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 		}
 		return bodies
 	}
-	records := []string{"/api/v1/todos", "/api/v1/todos/t1/decisions", "/api/v1/kb/projects/p1"}
+	records := []string{"/api/v1/todos", "/api/v1/todos/t1/decisions"}
 	for i, c := range routes {
 		before := reached()
 		code, out := do(scoped, c.method, c.path, fmt.Sprintf(c.body, str(refused)))
@@ -246,7 +245,6 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 	}
 	// In the path or the query: a route keeps text from those too.
 	inURL := []struct{ name, method, path, body string }{
-		{"a knowledge-base entry's id", put, "/api/v1/kb/projects/%1Bp1", `{}`},
 		{"a todo's id", patch, "/api/v1/todos/t%C2%9B1", `{"notes":"go"}`},
 		{"a query's value", post, "/api/v1/sessions/mb/b1/messages?a=%1B", `{"text":"go"}`},
 		{"a query's key", post, "/api/v1/todos?a%7F=1", `{"title":"go"}`},
@@ -277,9 +275,6 @@ func TestExtensionTokensMayNotSendTerminalControls(t *testing.T) {
 	}
 	if reached() != 0 || len(audits()) != len(routes)+len(inURL) {
 		t.Fatalf("refused, B heard of:\n%s", b.log())
-	}
-	if got := keptOf("/api/v1/kb/projects/%1Bp1"); len(got) != 0 {
-		t.Fatalf("refused, the entry has %q", got)
 	}
 	for _, path := range records {
 		if got := keptOf(path); len(got) != 0 {

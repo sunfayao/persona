@@ -9,12 +9,12 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// The Inbox's rows follow the recipe's group_by (#5671), as the knowledge base's chats do: a subscription grouped by
+// The Inbox's rows follow the recipe's group_by (#5671): a subscription grouped by
 // source is one row, sub:<subscription>:all; one grouped by thread a row a thread (an item without one its own). Rows
 // made before the grouping changed stay as they came in.
 
-// sourceRecipe is threadRecipe grouped by source: its thread field is mapped, and the Inbox and the knowledge base
-// leave it be.
+// sourceRecipe is threadRecipe grouped by source: its thread field is mapped, and the Inbox
+// leaves it be.
 func sourceRecipe() Recipe {
 	r := threadRecipe()
 	r.GroupBy = "source"

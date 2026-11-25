@@ -44,7 +44,6 @@ func bigSnapshot(now time.Time) prompts.Snapshot {
 		Working:  agents(12, "hub-1"),
 		Chats:    &prompts.SnapshotChats{AtMe: []prompts.SnapshotChat{{Name: "发布群", Unread: 3, Preview: line[:40*3]}}, Other: []prompts.SnapshotChat{{Name: "运维群", Unread: 9}}},
 		Calendar: &prompts.SnapshotCalendar{Events: []prompts.SnapshotEvent{{Start: now, End: now.Add(time.Hour), Title: "周会"}}},
-		KB:       strings.Repeat("知识库条目很长很长。\n", 30),
 		Tasks:    tasks, Unaccepted: unaccepted, UnacceptedTotal: 12,
 		Approvals: []prompts.SnapshotApproval{{ID: "todo_2", Title: "合并", Stage: "CI 绿", Gate: "等你点头"}},
 		Plans:     []prompts.SnapshotPlan{{At: now, Titles: []string{"a", "b"}, Tasks: 2}},

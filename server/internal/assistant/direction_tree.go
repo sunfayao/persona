@@ -278,7 +278,6 @@ func (s *Service) directionTreeSync(ctx context.Context) {
 // their names as it gives them.
 func (s *Service) currentLeaders(ctx context.Context, cfg Settings) ([]string, map[string]string) {
 	titles, _ := s.conversationTitles()
-	pnames, pok := s.projectNames(ctx)
 	type lead struct {
 		id   string
 		rec  bool
@@ -293,9 +292,9 @@ func (s *Service) currentLeaders(ctx context.Context, cfg Settings) ([]string, m
 		if id == "" || id == cfg.Main || slices.ContainsFunc(list, func(l lead) bool { return l.id == id }) {
 			continue
 		}
-		l := lead{id: id, name: directionName(nil, titles[id].title, "")}
+		l := lead{id: id, name: directionName(nil, titles[id].title)}
 		if d := b.m[id]; loaded && d != nil {
-			l.rec, l.at, l.name = true, d.At, nameOf(d, titles[id].title, pnames, pok)
+			l.rec, l.at, l.name = true, d.At, nameOf(d, titles[id].title)
 		}
 		list = append(list, l)
 	}

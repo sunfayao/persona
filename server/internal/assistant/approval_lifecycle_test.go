@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -205,59 +204,4 @@ func TestClarifyArchivedConversationExplicitlyReopensSameConversation(t *testing
 		t.Fatal(err)
 	}
 	waitApprovalResult(t, ft, "ix_archived_origin")
-}
-
-func TestClarifyEndedRoomReturnsVisibleError(t *testing.T) {
-	r := newRoomFixture(t)
-	sid := r.roomUp(meetingRec, "participant")
-	r.do("POST", livePath(meetingRec), "", `{"from":0,"segments":[{"start":1,"end":3,"text":"Ada: done."}]}`, 200)
-	end := time.Now().UTC().Format(time.RFC3339)
-	r.upload(meetingRec, 2, map[string]any{"room": map[string]any{"attendance": "participant"}, "ended_at": end, "complete": true})
-	r.look(meetingRec)
-	r.f.mu.Lock()
-	for i := range r.f.sessions["server"] {
-		if r.f.sessions["server"][i].SessionID == sid {
-			r.f.sessions["server"][i].UpdatedAt = time.Now().Add(time.Second)
-		}
-	}
-	r.f.mu.Unlock()
-	r.look(meetingRec)
-	done := make(chan preparedTestResult, 1)
-	go func() {
-		out, err := r.s.waitPreparedCard(context.Background(), proto.Interaction{ID: "ix_ended_room", MachineID: "server", SessionID: sid,
-			Kind: proto.IxPermission, ExpiresAt: time.Now().Add(time.Hour)}, approvalops.Operation{Apply: func(context.Context, proto.Resolution) (string, error) {
-			return "unexpected", nil
-		}})
-		done <- preparedTestResult{out: out, err: err}
-	}()
-	waitFor(t, "ended-room approval registration", func() bool {
-		_, ok := r.s.pendingIx("ix_ended_room")
-		return ok
-	})
-	if err := r.s.clarify(context.Background(), "ix_ended_room", "Can you answer here?", "owner-ended-room", nil); !isCode(err, CodeMeetingEnded) {
-		t.Fatalf("ended-room clarification error = %v", err)
-	}
-	r.f.mu.Lock()
-	var sentQuestion bool
-	for _, p := range r.f.sentOnce {
-		if p["text"] == "Can you answer here?" {
-			sentQuestion = true
-		}
-	}
-	r.f.mu.Unlock()
-	if sentQuestion {
-		t.Fatal("the ended-room question was sent anyway")
-	}
-	deny := false
-	if err := r.s.resolve("ix_ended_room", proto.Resolution{Allow: &deny}); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case got := <-done:
-		if got.err != nil || got.out.Clarifying {
-			t.Fatalf("ended-room Deny = %+v, %v", got.out, got.err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("ended-room original tool did not finish on Deny")
-	}
 }

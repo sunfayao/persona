@@ -73,9 +73,9 @@ A single binary `personad`, four modes:
 
 The hub only handles communication: app and other clients ↔ managers, hub ↔ hub (linked hubs), connections (WebSocket, node / connector links), pairing and auth, the admin UI, Web Push and WebSocket notifications, and various relays.
 Business logic lives in the managers (`server/internal/assistant`, `devices`, `extmgr`; see `docs/server/machines.md`, `docs/extensions/extensions.md` ("Who owns what"), `docs/assistant/assistant.md`):
-the data for the assistant, Inbox, to-dos, usage limits, extensions and devices, plus model calls (triage, titles, summaries, judgments). The hub forwards these endpoints to the managers as-is (`assistantwire.Routes`, `devicewire.Routes`, `extwire.Routes`), except the merged lists, which it joins, adding up the to-dos' `counts` and joining their places over the JSON as the managers send it (`server/internal/hub/ownership_lists.go`, `server/internal/hub/todo_view.go`); it never works out a to-do's phase. A few relayed writes keep an operation receipt at the hub (`client_ops`): a meeting's Just me and follow-up (`server/internal/hub/meeting_receipts.go`), and the answer to a to-do's ask and a message to a to-do on its conversation's route (`server/internal/hub/todo_receipts.go`); the hub keeps the manager's reply for the same op id, while the manager decides the answer. For the two to-do writes the hub also says on the socket that it has the write (`todo_send_state`) before the manager answers, as it does for a session's message (`message_send_state`): transport only, never the to-do's state.
+the data for the assistant, Inbox, to-dos, usage limits, extensions and devices, plus model calls (triage, titles, summaries, judgments). The hub forwards these endpoints to the managers as-is (`assistantwire.Routes`, `devicewire.Routes`, `extwire.Routes`), except the merged lists, which it joins, adding up the to-dos' `counts` and joining their places over the JSON as the managers send it (`server/internal/hub/ownership_lists.go`, `server/internal/hub/todo_view.go`); it never works out a to-do's phase. A few relayed writes keep an operation receipt at the hub (`client_ops`): a meeting's Just me and follow-up (server/internal/hub/meeting_receipts.go), and the answer to a to-do's ask and a message to a to-do on its conversation's route (`server/internal/hub/todo_receipts.go`); the hub keeps the manager's reply for the same op id, while the manager decides the answer. For the two to-do writes the hub also says on the socket that it has the write (`todo_send_state`) before the manager answers, as it does for a session's message (`message_send_state`): transport only, never the to-do's state.
 An ordinary route goes as one `http.request` on the bus, its body read whole (a body of 1 MiB or more goes on a relay stream of its own beside the bus, `http.request_streamed`, so the bus is not held up behind it: `docs/protocol/protocol.md` "Forwarding App requests"); a route that upgrades to a WebSocket cannot, so the extensions' routes and the assistant's
-WebSocket routes (`assistantwire.SocketRoutes`: a meeting's audio socket, `docs/assistant/meeting-minutes.md` "Audio from the phone") go over a relay stream instead
+WebSocket routes (`assistantwire.SocketRoutes`: a meeting's audio socket) go over a relay stream instead
 (`extwire.MethodAccept`): the manager dials the relay and serves the request there, and later ones while the hub keeps the stream open (`docs/extensions/extensions.md` ("Who owns what")), and the manager's extensions layer hands the assistant's to it
 (`extmgr.Options.AssistantSocket`). Who asked goes in the hub's headers, the caller's credential stays at the hub, and revoking the device ends the socket.
 
@@ -85,7 +85,7 @@ WebSocket routes (`assistantwire.SocketRoutes`: a meeting's audio socket, `docs/
   and the route is added to the matching forwarding table; only routes that truly belong to the hub (connections, pairing / auth, admin, push delivery, relays) get a line added to the list by hand. Removing a route means removing its line too (extra lines fail as well).
   While a piece of business logic is being moved into a manager, its line can be marked `# moving to the manager` at the end, and the line is removed once the move is done (usage windows `docs/server/usage-windows.md` ("Who owns this") have been moved).
 - **Dependencies**: the hub's dependencies must not include manager packages (`assistant`, `assistantskills`, `devices`, `extmgr`, `extension/host`, `agents`, `mail`, `office`, `feishubot`, `wechat`, `node`, `mcpserver`),
-  the knowledge base (`kb`), the connectors (`connector` and everything under it) or the model client (`ai`): the types it carries for them come from the contract packages below.
+  the connectors (`connector` and everything under it) or the model client (`ai`): the types it carries for them come from the contract packages below.
 - **No model calls**: the hub imports nothing of `internal/ai` (a model setting it hands on is an `aiwire.Config`), and no model API addresses appear in its code.
 - **Store** methods = `testdata/hub_store_methods.txt`: new business tables go in the manager's own storage, not in `hub.Store`.
 
@@ -98,7 +98,6 @@ The parts (the hub, the managers, the node on each computer, extensions) talk on
 | Package | What it carries |
 | --- | --- |
 | `assistantwire`, `devicewire`, `extwire` | The bus between the hub and a manager: methods, events, routes the hub relays, extension scopes and manifest types the bus carries; in `assistantwire` also the To-dos view, counts and places, generated from `schema/wire/todo-view.schema.json` (`server/internal/assistantwire/todo_view_gen.go`, never edited by hand) |
-| `kbwire` | Knowledge-base entities, identity hints, updates and chat context as they cross the bus and the connector protocol |
 | `connectorwire` | Inbox things and replies, conversation batches, posts and snapshots from connectors (`docs/protocol/connector-protocol.md`) |
 | `aiwire` | A model setting (`aiwire.Config`) |
 | `dialogwire` | A terminal dialog read off a screen, as the node and the apps see it |
@@ -107,9 +106,9 @@ The parts (the hub, the managers, the node on each computer, extensions) talk on
 | `proto`, `rpc` | The client API and node protocol types, the JSON-RPC framing |
 | `sdk/go/wire` (the SDK's module) | The extension protocol's types generated from its schema (an error report the bus carries, say), shared with extensions written against the SDK |
 
-The business packages alias the contract types so their callers keep the old names (`type InboxThing = connectorwire.InboxThing` in `connector`, `type Update = kbwire.Update` in `kb`).
-A contract type cannot carry business methods: logic moves into the business package as a function (`kb`'s `tagUpdate`, `screen`'s `hash`).
-Where the business type needs fields of its own, it stays a separate type with the same JSON and a converter (`kb.Item` keeps store bookkeeping; connectors hand over a `kbwire.Item`, and `kb.ItemFromWire` turns it into one; `kb`'s `TestItemMatchesTheContract` keeps the two in step).
+The business packages alias the contract types so their callers keep the old names (`type InboxThing = connectorwire.InboxThing` in `connector`).
+A contract type cannot carry business methods: logic moves into the business package as a function (`screen`'s `hash`).
+Where the business type needs fields of its own, it stays a separate type with the same JSON and a converter (a store type may keep bookkeeping its contract type does not carry, with a converter between them).
 
 `server/internal/archguard` (tests only) keeps it that way:
 
@@ -227,7 +226,7 @@ A central list with a seam takes no new name. `server/internal/archguard/central
   - the `assistantwire.Routes` literal, by each entry's source text (`"GET /api/v1/todos"`, `"GET " + StarredImportPath`);
   - the top-level declarations of `prompts/assistant.go`, a method as `Type.Method`;
   - the `proto.Features` literal, by each entry's source text (`"locale"`, `FeatureTodoSendState`);
-  - the keys of the `extwire.RouteScopes` literal in `extwire/scopes.go`, by their source text (`"GET /api/v1/kb/{kind}"`).
+  - the keys of the `extwire.RouteScopes` literal in `extwire/scopes.go`, by their source text (`"GET /api/v1/todos"`).
 
   Each later seam's PR adds its own list's row. That PR shows a planted entry failing and a registered one passing.
 - **Pending names**: `python3 scripts/test/name_freezes.py pending` lists the names that open PRs add, read from their

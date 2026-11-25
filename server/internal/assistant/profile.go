@@ -16,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/workspacenaming"
 )
@@ -60,8 +59,6 @@ type Settings struct {
 	TimezonePicked *bool `json:"timezone_picked,omitempty"`
 	// Notes, once edited in the app, replace manager.json's assistant.notes.
 	Notes *string `json:"notes,omitempty"`
-	// OwnerAliases are the names the user explicitly adds for kb.owner; an empty list clears them.
-	OwnerAliases []string `json:"owner_aliases,omitempty"`
 	// Main is the main conversation (the Persona tab opens it): one long-running conversation, the others are side ones.
 	Main          string `json:"main,omitempty"`
 	MainMachineID string `json:"main_machine_id,omitempty"` // confirmed routing device of Main
@@ -84,13 +81,6 @@ type Settings struct {
 	TaskWorkspacePreference string `json:"task_workspace_preference,omitempty"`
 	// ReadonlyMode leaves runtime protection unchanged unless the owner opts into prompt-only task constraints.
 	ReadonlyMode string `json:"readonly_mode,omitempty"`
-	// RecordingDays: how many days the phone's recordings stay in the knowledge base (#3235); nil is 14.
-	RecordingDays *int `json:"recording_days,omitempty"`
-	// MinutesDays: how many days a meeting's minutes stay once its transcript went with RecordingDays (#3780,
-	// kb/recording_trim.go); nil or 0 means forever. Finite windows are never fewer than RecordingDays (kb.MinutesDaysFor).
-	MinutesDays *int `json:"minutes_days,omitempty"`
-	// KBTopics: the knowledge base organizes knowledge points by topic (#3783, kb/topics.go). nil is on (the default).
-	KBTopics *bool `json:"kb_topics,omitempty"`
 	// MainBackgroundFolded: the apps fold the main conversation's background rounds (another conversation's message,
 	// a scheduled task or follow-up) into one line that opens on request (#4314). nil is on (the default).
 	MainBackgroundFolded *bool `json:"main_background_folded,omitempty"`
@@ -108,9 +98,6 @@ type Settings struct {
 	// the automatic all-in-use-tag row; a non-nil empty list is a deliberately customized empty row.
 	ConversationTagFilters []string `json:"conversation_tag_filters"`
 	WorkGuide              *bool    `json:"work_guide,omitempty"`
-	// MeetingAttendanceDefault: the role a meeting recording pre-selects on the phone (off, listener, participant;
-	// docs/assistant/meeting-minutes.md "Attending a meeting"); nil is off.
-	MeetingAttendanceDefault *string `json:"meeting_attendance_default,omitempty"`
 	// Meeting transcription stays on the device until the user chooses the hub. A nil glossary is empty;
 	// a nil or empty extension reference selects the built-in transcription contribution.
 	MeetingTranscriptionDefault   *string   `json:"meeting_transcription_default,omitempty"`
@@ -129,9 +116,6 @@ type Settings struct {
 	// AgentTasks: every agent Persona starts is on a quiet, supervised todo (#3617, agent_tasks.go). nil is off (the
 	// default).
 	AgentTasks *bool `json:"agent_tasks,omitempty"`
-	// TaskLessons: a supervised task accepted after friction teaches its project's next Agents what it learned
-	// (#12295, task_lessons.go). nil is off (the default): no model call, no lesson written, no prompt changed.
-	TaskLessons *bool `json:"task_lessons,omitempty"`
 	// CloseEndedTerminals: when an Agent's session ends (its task is done or cancelled, it quit by itself or was told
 	// to), its terminal tab is closed too, through the "Archive and close" path (#10355, agent_terminal_close.go).
 	// nil is off (the default): the terminal stays, as since #4754.
@@ -461,64 +445,8 @@ func (s *Service) startRequestedTasks(ctx context.Context) bool {
 	return quietOn(s.settings(ctx).StartRequestedTasks)
 }
 
-// Bounds of recording_days.
-const (
-	minRecordingDays = 1
-	maxRecordingDays = 365
-)
-
-// recordingDays is how many days recordings stay in the knowledge base (recording_days, 14 by default).
-func (s *Service) recordingDays(ctx context.Context) int {
-	return recordingDaysOf(s.settings(ctx))
-}
-
-func recordingDaysOf(v Settings) int {
-	if d := v.RecordingDays; d != nil && *d >= minRecordingDays && *d <= maxRecordingDays {
-		return *d
-	}
-	return kb.DefaultRecordingDays
-}
-
-// Bounds of minutes_days.
-const (
-	minMinutesDays = 0
-	maxMinutesDays = 3650
-)
-
-// minutesDaysSetting is minutes_days as saved, 0 when unset or out of bounds (kb.MinutesDaysFor: the default).
-func minutesDaysSetting(v Settings) int {
-	if d := v.MinutesDays; d != nil && *d >= minMinutesDays && *d <= maxMinutesDays {
-		return *d
-	}
-	return 0
-}
-
-// minutesDays is the effective minutes_days: 0 means forever (the default); otherwise never fewer than recording_days.
-func (s *Service) minutesDays(ctx context.Context) int {
-	v := s.settings(ctx)
-	return kb.MinutesDaysFor(minutesDaysSetting(v), recordingDaysOf(v))
-}
-
-// meetingRoles are the values of meeting_attendance_default, off (the default) first.
-var meetingRoles = []string{kb.AttendanceOff, kb.AttendanceListener, kb.AttendanceParticipant}
-
-// meetingAttendanceDefault is the role a meeting recording pre-selects (meeting_attendance_default, off by default).
-func (s *Service) meetingAttendanceDefault(ctx context.Context) string {
-	return meetingAttendanceOf(s.settings(ctx))
-}
-
-// meetingAttendanceOf is meetingAttendanceDefault of settings already read (the view reads them once).
-func meetingAttendanceOf(v Settings) string {
-	if r := v.MeetingAttendanceDefault; r != nil && slices.Contains(meetingRoles, *r) {
-		return *r
-	}
-	return kb.AttendanceOff
-}
-
 // settingsLastGood is savedSettings, except that a transient read failure serves the settings read last when there
-// are any. Callers whose default would be destructive use it: the recording retention falling back to 14 days for one
-// locked-database round would make the next KB prune delete recordings the user kept for longer (#4008). Callers for
-// which a stale value is risky (kbZone: moving the archive into a possibly old time zone) keep using savedSettings.
+// are any.
 func (s *Service) settingsLastGood(ctx context.Context) (Settings, bool) {
 	if v, ok := s.savedSettings(ctx); ok {
 		return v, true
@@ -533,35 +461,6 @@ func (s *Service) settingsLastGood(ctx context.Context) (Settings, bool) {
 	return v, cached != nil
 }
 
-// recordingDaysNow is recordingDays for the knowledge base's engine, which has no context of its own. A transient
-// settings read failure keeps the value read last (settingsLastGood); only settings never successfully read fall back
-// to the default, so one locked-database round can never shorten the retention and prune recordings early.
-func (s *Service) recordingDaysNow() int {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	v, ok := s.settingsLastGood(ctx)
-	if !ok || v.RecordingDays == nil || *v.RecordingDays < minRecordingDays || *v.RecordingDays > maxRecordingDays {
-		return kb.DefaultRecordingDays
-	}
-	return *v.RecordingDays
-}
-
-// minutesDaysNow is minutes_days as saved for the knowledge base's engine (0: forever by default), read like
-// recordingDaysNow: a transient failure keeps the value read last, so it never deletes minutes the user kept for
-// longer. The engine raises only positive values to recording_days (kb.Engine.MinutesDays).
-func (s *Service) minutesDaysNow() int {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	v, ok := s.settingsLastGood(ctx)
-	if !ok {
-		return 0
-	}
-	return minutesDaysSetting(v)
-}
-
-// kbTopics: the knowledge base organizes knowledge points by topic (kb_topics, on by default).
-func (s *Service) kbTopics(ctx context.Context) bool { return quietOn(s.settings(ctx).KBTopics) }
-
 // mainBackgroundFolded: the apps fold the main conversation's background rounds (main_background_folded, on by default).
 func (s *Service) mainBackgroundFolded(ctx context.Context) bool {
 	return quietOn(s.settings(ctx).MainBackgroundFolded)
@@ -571,15 +470,6 @@ func (s *Service) mainBackgroundFolded(ctx context.Context) bool {
 func (s *Service) recentTaskChats(ctx context.Context) bool {
 	v := s.settings(ctx).RecentTaskChats
 	return v != nil && *v
-}
-
-// kbTopicsNow is kbTopics for the knowledge base loop, from the last settings read well: a database that does not
-// answer neither starts nor stops the curation.
-func (s *Service) kbTopicsNow() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	v, ok := s.settingsLastGood(ctx)
-	return !ok || quietOn(v.KBTopics)
 }
 
 // launcherNow is the launcher new conversations start with: Model configuration › Main chat's, else the assistant's own.
@@ -745,21 +635,14 @@ type assistantView struct {
 	StartRequestedTasks     bool   `json:"start_requested_tasks"`
 	TaskWorkspacePreference string `json:"task_workspace_preference"`
 	ReadonlyMode            string `json:"readonly_mode"`
-	// RecordingDays, DeliveryGate and DoneNeedsDelivery are in effect, like MainTasksQuiet.
-	RecordingDays     int    `json:"recording_days"`
+	// DeliveryGate and DoneNeedsDelivery are in effect, like MainTasksQuiet.
 	DeliveryGate      string `json:"delivery_gate"`
 	DoneNeedsDelivery bool   `json:"done_needs_delivery"`
-	// MinutesDays is in effect: 0 means forever (the default); otherwise never fewer than RecordingDays.
-	MinutesDays int `json:"minutes_days"`
-	// KBTopics is in effect, like MainTasksQuiet.
-	KBTopics bool `json:"kb_topics"`
 	// MainBackgroundFolded is in effect, like MainTasksQuiet.
 	MainBackgroundFolded bool `json:"main_background_folded"`
 	// RecentTaskChats is in effect, like DoneNeedsDelivery.
-	RecentTaskChats bool `json:"recent_task_chats"`
-	WorkGuide       bool `json:"work_guide"`
-	// MeetingAttendanceDefault is in effect (off until changed).
-	MeetingAttendanceDefault      string   `json:"meeting_attendance_default"`
+	RecentTaskChats               bool     `json:"recent_task_chats"`
+	WorkGuide                     bool     `json:"work_guide"`
 	MeetingTranscriptionDefault   string   `json:"meeting_transcription_default"`
 	MeetingGlossary               []string `json:"meeting_glossary"`
 	MeetingTranscriptionExtension string   `json:"meeting_transcription_extension"`
@@ -780,8 +663,6 @@ type assistantView struct {
 	OwnerApprovalPhrases       []string `json:"owner_reply_approval_phrases"`
 	// AgentTasks is in effect, like DoneNeedsDelivery.
 	AgentTasks bool `json:"agent_tasks"`
-	// TaskLessons is in effect, like DoneNeedsDelivery.
-	TaskLessons bool `json:"task_lessons"`
 	// CloseEndedTerminals is in effect, like DoneNeedsDelivery.
 	CloseEndedTerminals          bool `json:"close_ended_terminals"`
 	AgentAutoNaming              bool `json:"agent_auto_naming"`
@@ -817,10 +698,10 @@ func (s *Service) view(ctx context.Context, withArchived bool, space ...string) 
 	v.Launcher = s.launcherNow(ctx)
 	effectiveRules, _ := workspacenaming.Effective(v.WorkspaceRules, workspacenaming.Rules{})
 	out := assistantView{WorkspaceNamingVersion: workspacenaming.Version, EffectiveWorkspaceRules: effectiveRules, Settings: v, Manager: s.managerIdentity(), PermissionDefaults: s.permissionDefaults(), Conversations: []proto.Session{}, NotesEffective: s.notes(ctx), MainTasksQuiet: quietOn(v.MainTasksQuiet),
-		StartRequestedTasks: quietOn(v.StartRequestedTasks), RecordingDays: recordingDaysOf(v), MinutesDays: kb.MinutesDaysFor(minutesDaysSetting(v), recordingDaysOf(v)),
-		IdleAutoCompact: s.idleAutoCompact(ctx), IdleAutoCompactMinutes: s.idleAutoCompactMinutes(ctx), IdleAutoCompactTokens: s.idleAutoCompactTokens(ctx),
+		StartRequestedTasks: quietOn(v.StartRequestedTasks),
+		IdleAutoCompact:     s.idleAutoCompact(ctx), IdleAutoCompactMinutes: s.idleAutoCompactMinutes(ctx), IdleAutoCompactTokens: s.idleAutoCompactTokens(ctx),
 		CacheKeepalive: cacheKeepaliveOf(v).Enabled, CacheKeepaliveMinutes: cacheKeepaliveOf(v).IntervalMinutes, CacheKeepaliveMax: cacheKeepaliveOf(v).MaxRequests,
-		IdleReleaseMinutes: s.idleReleaseMinutes(ctx), MeetingAttendanceDefault: meetingAttendanceOf(v), KBTopics: quietOn(v.KBTopics),
+		IdleReleaseMinutes:          s.idleReleaseMinutes(ctx),
 		MeetingTranscriptionDefault: meetingTranscriptionDefaultOf(v), MeetingGlossary: meetingGlossaryOf(v),
 		MeetingTranscriptionExtension: meetingTranscriptionExtensionOf(v), MeetingTranscriptionReady: s.transcriptionReadyNow(),
 		TaskWorkspacePreference: s.taskWorkspacePreference(ctx),
@@ -838,7 +719,6 @@ func (s *Service) view(ctx context.Context, withArchived bool, space ...string) 
 		PersistentOwnerActionCards:   persistentOwnerActionCardsOn(v),
 		OwnerApprovalPhrases:         ownerApprovalPhrasesForView(v),
 		AgentTasks:                   v.AgentTasks != nil && *v.AgentTasks,
-		TaskLessons:                  v.TaskLessons != nil && *v.TaskLessons,
 		CloseEndedTerminals:          v.CloseEndedTerminals != nil && *v.CloseEndedTerminals,
 		AgentAutoNaming:              quietOn(v.AgentAutoNaming),
 		AgentAutoNamingMax:           agentNamingLimit(v),

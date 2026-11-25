@@ -28,7 +28,6 @@ func claudeMDHub(devices ...Device) *fakeHub {
 func TestAssistantInstructionsKeepTaskReviewWithItsPlanningLead(t *testing.T) {
 	f := claudeMDHub(Device{ID: "server", Name: "Server", Kind: "local"})
 	s := newTestService(t, f)
-	s.kb.dir = "<hub>/data"
 	text := s.claudeMD(context.Background(), "server", false)
 	if strings.Contains(text, "新任务统一由主对话督办") || !strings.Contains(text, "主管派的任务归该主管") || !strings.Contains(text, "主对话不直接指挥主管的 Agent") {
 		t.Fatal("the platform instructions disagree with direction ownership")
@@ -42,14 +41,11 @@ func TestGoldenAssistantClaudeMD(t *testing.T) {
 		Device{ID: "desk", Name: "台式机", Kind: "ssh"})
 	f.hello.Owner = "示例用户"
 	f.hello.OwnerNotes = "  我在示例公司做后端。\n常用 skills：demo-skill。  "
-	f.hello.KB = &KBSettings{ExtraDirs: []string{"/home/me/notes", "/home/me/facts"}} // manager.json's kb section
 	s := newTestService(t, f)
-	s.kb.dir = "<hub>/data"
 	golden(t, "assistant_claude_md.full", s.claudeMD(ctx, "server", false))
 
 	bare := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s = newTestService(t, bare)
-	s.kb.dir = "<hub>/data"
 	golden(t, "assistant_claude_md.bare", s.claudeMD(ctx, "server", false))
 	// lark-cli (docs/plans/plan-lark-cli.md).
 	golden(t, "assistant_claude_md.lark_cli", s.claudeMD(ctx, "server", true))
@@ -86,32 +82,6 @@ func TestAssistantRichViewPromptExamplesAreValid(t *testing.T) {
 	}
 	if strings.Contains(text, "助手的卡片点不了") {
 		t.Fatal("interactive guidance still teaches read-only cards")
-	}
-}
-
-// The machines' storage roots are where they say (the node's data directory, the hub's knowledge directory), not the
-// default ones; only an assistant on the hub's own machine reads the knowledge directory directly.
-func TestAssistantPromptUsesReportedStorageRoots(t *testing.T) {
-	ctx := context.Background()
-	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local", Home: "/home/example", DataDir: "/var/lib/assistant-state"})
-	s := newTestService(t, f)
-	s.kb.dir = "/var/lib/hub state/data"
-	text := s.claudeMD(ctx, "server", false)
-	for _, want := range []string{"/var/lib/assistant-state/assistant", "/var/lib/hub state/data"} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("reported storage root missing: %s", want)
-		}
-	}
-	if strings.Contains(text, "~/.persona/") || strings.Contains(text, "~/.persona/") {
-		t.Fatal("hardcoded default root overrides reported storage roots")
-	}
-	if !strings.Contains(text, "也可以用文件工具直接读取此目录") {
-		t.Fatal("a local assistant was not allowed to read its local knowledge directory")
-	}
-	f.devices[0].Kind = "link"
-	text = s.claudeMD(ctx, "server", false)
-	if strings.Contains(text, "也可以用文件工具直接读取此目录") || !strings.Contains(text, "通过 `kb_*` 工具读取") {
-		t.Fatal("a remote assistant was told to read the hub's local files directly")
 	}
 }
 
@@ -203,7 +173,6 @@ func TestGoldenAssistantClaudeMDLanguage(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
-	s.kb.dir = "<hub>/data"
 	before := s.claudeMD(ctx, "server", false)
 	if !strings.Contains(before, "；用中文。") {
 		t.Fatal("the Chinese CLAUDE.md lost 用中文")
@@ -230,7 +199,6 @@ func TestAssistantClaudeMDFinalResponseCompleteness(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
-	s.kb.dir = "<hub>/data"
 	const rule = "需要用户完整读到的决定确认、清单、数字、代码或长段内容，放在本轮最后的正式回复里，不要只写在工具调用之间的进度说明里。"
 	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
 		f.hello.Locale = locale
@@ -246,7 +214,6 @@ func TestAssistantClaudeMDProcessTextLanguage(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, f)
-	s.kb.dir = "<hub>/data"
 	const rule = "工作中写给用户看的每一句（工具调用之间的说明、进度、在等什么）也用这种语言，不因为读的代码、日志或资料是英文就改用英文。"
 	for _, locale := range []string{"", "zh-Hans", "en", "ja"} {
 		f.hello.Locale = locale

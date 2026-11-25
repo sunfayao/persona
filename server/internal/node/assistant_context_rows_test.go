@@ -248,12 +248,10 @@ func TestContextDeltaWorkingCountChangesWithoutRows(t *testing.T) {
 // own, and a section told no shorter by its rows are sent whole, as before: unmarked, replacing what the conversation had.
 func TestContextDeltaSendsWholeSections(t *testing.T) {
 	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
-	kb := "- 知识库（kb_get 看详情）：\n  重点项目（知识库 projects/）：\n  - 登录改版 [P1 相关高] 在灰度（projects/login）\n  - 文档站 [P2 相关中] 在写（projects/docs）"
 	following := "- 在跟的事（2 件）：\n  - 「合同」；在哪：邮件；等谁：法务；下一步：催；再看：11-02 10:00\n  - 「报销」；在哪：没写；等谁：没写；下一步：没写；再看：没定时间"
 	for name, c := range map[string]struct{ before, after string }{
 		"two rows with one id":              {tasksOf(rowLogin, rowDocs, rowDeploy, rowLogin+"（重复）"), tasksOf(rowLogin+"！", rowDocs, rowDeploy, rowLogin+"（重复）")},
 		"a row without an id":               {tasksOf(rowLogin, rowDocs, "  - 没有编号的一行：在做"), tasksOf(rowLogin+"！", rowDocs, "  - 没有编号的一行：在做")},
-		"the knowledge digest":              {kb, strings.Replace(kb, "在灰度", "全量了", 1)},
 		"inbox follow-ups":                  {following, strings.Replace(following, "下一步：催", "下一步：等回信", 1)},
 		"every row and the heading changed": {"- Agents：需要你 1 个，完成未看 1 个，工作中 1 个\n  - 需要你：修登录\n  - 完成未看：写文档", "- Agents：需要你 2 个，完成未看 2 个，工作中 2 个\n  - 需要你：修登录；查日志\n  - 完成未看：写文档；跑回归"},
 		"rows left out for size": {tasksOf(rowLogin, rowDocs, rowDeploy),
@@ -302,7 +300,6 @@ func TestSnapshotRowIDs(t *testing.T) {
 		},
 		OpenTodosLoaded: true, OpenTodosTotal: 2,
 		Chats:            &prompts.SnapshotChats{AtMe: []prompts.SnapshotChat{{Name: "示例群", Unread: 2, Preview: "看下：这个"}}, Other: []prompts.SnapshotChat{{Name: "闲聊群", Unread: 1}}},
-		KB:               "重点项目（知识库 projects/）：\n- 登录改版 [P1 相关高] 在灰度（projects/login）\n",
 		FollowingEnabled: true, FollowingTotal: 1, Following: []prompts.SnapshotFollowing{{Title: "合同"}},
 	}
 	want := map[string][]string{
@@ -339,7 +336,7 @@ func TestSnapshotRowIDs(t *testing.T) {
 		}
 	}
 	// The sections with rows and no ids of their own stay whole.
-	for _, key := range []string{"- 知识库", "- 在跟的事"} {
+	for _, key := range []string{"- 在跟的事"} {
 		found := false
 		for _, sec := range snapshotSections(prompts.RenderSnapshot(s)) {
 			if _, rows := sectionRows(sec.text); sec.key == key && len(rows) > 0 {
@@ -424,7 +421,7 @@ type snapshotGen struct {
 	rev      map[string]int
 	labels   map[string]int // Agents row label → revision, 0 for none
 	chats    map[string]int
-	kb, misc int
+	misc     int
 	gone     map[string]bool // sections the snapshot leaves out now
 	omit     bool
 	noID     bool
@@ -472,9 +469,9 @@ func (g *snapshotGen) next() string {
 				g.chats[l] = g.n
 			}
 		case 9:
-			g.kb, g.misc = g.kb+r.IntN(2), g.misc+r.IntN(2)
+			g.misc += r.IntN(2)
 		case 10: // a section goes or comes back
-			k := []string{"tasks", "agents", "chats", "kb", "followups", "plans"}[r.IntN(6)]
+			k := []string{"tasks", "agents", "chats", "followups", "plans"}[r.IntN(5)]
 			g.gone[k] = !g.gone[k]
 		case 11:
 			g.omit, g.noID = r.IntN(4) == 0, r.IntN(4) == 0
@@ -518,9 +515,6 @@ func (g *snapshotGen) next() string {
 			}
 			out = append(out, sec)
 		}
-	}
-	if !g.gone["kb"] {
-		out = append(out, fmt.Sprintf("- 知识库（kb_get 看详情）：\n  重点项目（知识库 projects/）：\n  - 示例项目 [P1 相关高] 第 %d 版（projects/a）\n  - 另一个项目 [P2 相关中] 没变（projects/b）", g.kb))
 	}
 	if !g.gone["plans"] {
 		out = append(out, fmt.Sprintf("- 等用户点「开始」的计划（主对话里的卡片，用户点了才开工）：11-01 15:00 示例计划 %d", g.misc))

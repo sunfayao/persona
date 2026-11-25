@@ -28,9 +28,6 @@ const (
 	CapEvents   Capability = "events"   // Events
 	CapInbox    Capability = "inbox"    // Inbox
 	CapSettle   Capability = "settle"   // InboxSettler
-	CapArchive  Capability = "archive"  // Archive
-	CapChats    Capability = "chats"    // Chats
-	CapItems    Capability = "items"    // Items
 	CapLogin    Capability = "login"    // Login
 	CapOptions  Capability = "options"  // Options
 	CapThreads  Capability = "threads"  // Threads
@@ -40,10 +37,6 @@ const (
 	CapFallback Capability = "fallback" // (none: every inbox thing carries extra.rule_tier)
 	CapMachines Capability = "machines" // Machines
 	CapRecall   Capability = "recall"   // (none: a program's connector declares it; Recaller is found by RecallerOf)
-	// History import (docs/protocol/connector-protocol.md "History"): CapHistory needs CapArchive, CapHistoryAnchors
-	// needs CapHistory.
-	CapHistory        Capability = "history"         // History
-	CapHistoryAnchors Capability = "history_anchors" // HistoryAnchors
 )
 
 type capability struct {
@@ -62,9 +55,6 @@ var capabilities = []capability{
 	{CapEvents, reflect.TypeFor[Events](), true},
 	{CapInbox, reflect.TypeFor[Inbox](), true},
 	{CapSettle, reflect.TypeFor[InboxSettler](), false},
-	{CapArchive, reflect.TypeFor[Archive](), true},
-	{CapChats, reflect.TypeFor[Chats](), true},
-	{CapItems, reflect.TypeFor[Items](), true},
 	{CapLogin, reflect.TypeFor[Login](), true},
 	{CapOptions, reflect.TypeFor[Options](), true},
 	{CapThreads, reflect.TypeFor[Threads](), true},
@@ -74,8 +64,6 @@ var capabilities = []capability{
 	{CapFallback, nil, false},
 	{CapMachines, reflect.TypeFor[Machines](), false},
 	{CapRecall, nil, false},
-	{CapHistory, reflect.TypeFor[History](), true},
-	{CapHistoryAnchors, reflect.TypeFor[HistoryAnchors](), true},
 }
 
 // Manifest is what a connector says it is and does, in one place (docs/extensions/connectors.md "Capability declarations: one explicit manifest"): read whenever the
@@ -95,7 +83,7 @@ type Manifest struct {
 	// connector_gate says, the user confirms them on the phone (Decide). A deny rule still denies. It is a floor the
 	// connector sets for its writes, not a permission: the user's own sends (Registry.Run) are not gated at all.
 	ConfirmAlways []string
-	// Poll is how often the hub asks Archive for changes; 0 is the hub's default.
+	// Poll is how often the hub asks its inbox for changes; 0 is the hub's default.
 	Poll time.Duration
 	// InboxSwitch: it brings things into the Inbox through a path of the manager's own, not Collect (mail, #5307), and
 	// has the Add to Inbox switch (FeedInbox) all the same; without CapInbox it answers no inbox round itself.
@@ -103,10 +91,6 @@ type Manifest struct {
 	// Kinds are the kinds its inbox things have (InboxThing.Kind): prompts/inbox/kinds/<id>.md tells the models what
 	// each means. A thing of a kind not here is still taken, and logged.
 	Kinds []string
-	// ArchiveSources are other names its archive may file conversations under (ChatBatch.Source), besides its id:
-	// one kind of conversation kept apart from the rest (a feed's posts the user is in, besides the chats), or ids
-	// the knowledge base had before a connector moved (docs/protocol/connector-protocol.md "Knowledge base"). Same pattern as an id.
-	ArchiveSources []string
 	// MetaDescription says what its events' meta is, for the model that relates new messages to them: required with
 	// CapMeta, refused without it.
 	MetaDescription string
@@ -205,12 +189,6 @@ func Check(c Connector) error {
 	}
 	if m.Has(CapFallback) && !m.Has(CapInbox) {
 		errs = append(errs, errors.New("declares fallback without an inbox"))
-	}
-	if m.Has(CapHistory) && !m.Has(CapArchive) {
-		errs = append(errs, errors.New("declares history without an archive"))
-	}
-	if m.Has(CapHistoryAnchors) && !m.Has(CapHistory) {
-		errs = append(errs, errors.New("declares history_anchors without history"))
 	}
 	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("connector %s: %w", c.ID(), err)

@@ -20,7 +20,7 @@ import (
 type todoEventHub struct {
 	*fakeHub
 	mu    sync.Mutex
-	sent  []recordedKBEvent
+	sent  []recordedEvent
 	block chan struct{} // when set, the hub takes no event until it is closed
 }
 
@@ -30,7 +30,7 @@ func (f *todoEventHub) TodoEvent(event string, params any) error {
 	}
 	raw, _ := json.Marshal(params)
 	f.mu.Lock()
-	f.sent = append(f.sent, recordedKBEvent{event, raw})
+	f.sent = append(f.sent, recordedEvent{event, raw})
 	f.mu.Unlock()
 	return nil
 }
@@ -62,7 +62,7 @@ func newTodoEventEnv(t *testing.T, st Store) *todoEventEnv {
 }
 
 // told waits for the queue to reach the hub and returns what it has been told since the last call.
-func (e *todoEventEnv) told() []recordedKBEvent {
+func (e *todoEventEnv) told() []recordedEvent {
 	e.t.Helper()
 	for until := time.Now().Add(5 * time.Second); time.Now().Before(until); time.Sleep(time.Millisecond) {
 		q := &e.s.tevents
@@ -82,13 +82,13 @@ func (e *todoEventEnv) told() []recordedKBEvent {
 }
 
 // settle lets the second after a change pass and returns what the extensions were told by it.
-func (e *todoEventEnv) settle() []recordedKBEvent {
+func (e *todoEventEnv) settle() []recordedEvent {
 	e.t.Helper()
 	e.clock.advance(todoChangedSettle)
 	return e.told()
 }
 
-func changedOf(t *testing.T, ev recordedKBEvent) assistantwire.TodoChangedEvent {
+func changedOf(t *testing.T, ev recordedEvent) assistantwire.TodoChangedEvent {
 	t.Helper()
 	var c assistantwire.TodoChangedEvent
 	if ev.name != assistantwire.EventTodoChanged || json.Unmarshal(ev.raw, &c) != nil {
@@ -241,7 +241,7 @@ func TestTodoChangedEventsStartFromTheLoadedTodos(t *testing.T) {
 	}
 }
 
-func decisionOf(t *testing.T, ev recordedKBEvent) assistantwire.TodoDecisionEvent {
+func decisionOf(t *testing.T, ev recordedEvent) assistantwire.TodoDecisionEvent {
 	t.Helper()
 	var d assistantwire.TodoDecisionEvent
 	if ev.name != assistantwire.EventTodoDecision || json.Unmarshal(ev.raw, &d) != nil {
@@ -409,4 +409,10 @@ func TestTodoEventBacklogIsMergedAndBounded(t *testing.T) {
 	if q.dropped {
 		t.Fatal("the dropped mark stays after the queue is empty")
 	}
+}
+
+// recordedEvent is one event an event-capable hub took.
+type recordedEvent struct {
+	name string
+	raw  json.RawMessage
 }

@@ -64,8 +64,7 @@ func (s *Service) claudeMD(ctx context.Context, here string, larkCLI bool) strin
 
 func (s *Service) assistantPrompt(ctx context.Context, here string, larkCLI bool, settings Settings) prompts.AssistantClaudeMD {
 	hello := s.hello(ctx)
-	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), ExtraDirs: s.kbExtraDirs(ctx),
-		KnowledgeDir: s.kb.dir, LarkCLI: larkCLI, Language: answerLanguage(hello.Locale),
+	d := prompts.AssistantClaudeMD{Owner: strings.TrimSpace(hello.Owner), Notes: s.notes(ctx), LarkCLI: larkCLI, Language: answerLanguage(hello.Locale),
 		BackgroundSupervisor: s.backgroundOn(settings)}
 	devices := s.devices(ctx)
 	if i := slices.IndexFunc(devices, func(d Device) bool { return d.ID == here }); i >= 0 {
@@ -264,7 +263,6 @@ func (s *Service) instructionsLoop(ctx context.Context) {
 	defer t.Stop()
 	for {
 		s.refreshInstructions(ctx)
-		s.spaceRecordingsSweep(ctx) // recording_days for the recordings saved into tracks (space_recordings.go)
 		select {
 		case <-ctx.Done():
 			return
@@ -624,7 +622,7 @@ func (s *Service) startConversationOn(ctx context.Context, p StartParams, main b
 }
 
 // startConversation starts a new conversation of the assistant's own (the background supervisor's, a scheduled task's,
-// conversation_new's). Nobody is in front of it to sign in, so it starts signed in as a meeting's do (startSignedIn):
+// conversation_new's). Nobody is in front of it to sign in, so it starts signed in (startSignedIn):
 // in the profile the assistant's conversations had, not a new private one with no login in it (#6015).
 func (s *Service) startConversation(ctx context.Context, p startParams) (proto.Session, error) {
 	if p.modelSource.Role != "" {
@@ -1350,9 +1348,6 @@ func (s *Service) sendParamsOwn(ctx context.Context, p SendParams) (map[string]a
 	params["is_main"] = false
 	if err := s.putSupervisionInstructions(ctx, p.MachineID, p.SessionID, params); err != nil {
 		return nil, false, err
-	}
-	if err := s.roomRefusesSend(ctx, p.MachineID, p.SessionID, p.Lang); err != nil {
-		return nil, false, err // an ended room: 409 meeting_ended (meeting_room.go)
 	}
 	if s.isGuest(ctx, p.MachineID, p.SessionID) {
 		// A guest conversation keeps what it started on: no launcher, model or mode picked for a message (the node

@@ -128,7 +128,7 @@ func TestCallLogOneHandover(t *testing.T) {
 		{`call 1: conversation opened (role "")`},
 		{"call 1: start: protocol 2, model rt/m1 (live dialect)", "target m/a1"},
 		{"call 1: bound: agent m/a1, its machine online"},
-		{"call 1: upstream: session 1 started in", "(first)", "tools search_knowledge,list_agents,delegate_task (bound)"},
+		{"call 1: upstream: session 1 started in", "(first)", "tools list_agents,delegate_task (bound)"},
 		{"call 1: delegation dlg1: made in session 1"},
 		{"call 1: function call delegate_task (call c1, delegation dlg1, session 1)"},
 		{"call 1: delegation dlg1: a task for agent m/a1", "characters"},

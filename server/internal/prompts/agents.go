@@ -72,7 +72,6 @@ type AgentTriageInput struct {
 	Agent    string // its tab / title
 	Machine  string
 	Cwd      string
-	Project  string // the knowledge base's project for its directory, "" when none
 	Ask      string // what the user asked in this turn, "" when it is not known
 	Reply    string // its last reply, clipped
 	Others   []AgentTriageOther
@@ -200,7 +199,6 @@ type AgentDelegateInput struct {
 	Agent     string
 	Machine   string
 	Cwd       string
-	Project   string   // the knowledge base's projects for its directory, "" when none
 	Task      string   // the task (todo) it works for: its title and notes, "" when none
 	Decisions string   // the calls the user made on that task (todo decisions), "" when none
 	Asks      []string // the user's recent messages to the agent, clipped, oldest first

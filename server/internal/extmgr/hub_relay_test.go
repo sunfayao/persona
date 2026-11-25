@@ -180,7 +180,7 @@ func TestAnotherManagersExtensionReachesTheHubThroughIt(t *testing.T) {
 	h := otherManager(t, f, logs)
 	mux := h.routes()
 	master := h.cfg.Token // the harness's full credential: what a hub.json in the manager's directory would hold too
-	installDir(t, mux, master, scopedPackage(t, `["kb.read"]`))
+	installDir(t, mux, master, scopedPackage(t, `["agents.read"]`))
 	got := scopedWhoami(t, h, mux, master)
 	tok, _ := got["env"].(string)
 	relay, _ := got["env_url"].(string)

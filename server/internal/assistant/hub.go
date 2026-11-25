@@ -81,7 +81,6 @@ type (
 	SendParams          = assistantwire.SendParams
 	RenameParams        = assistantwire.RenameParams
 	Setting             = assistantwire.Setting
-	KBSettings          = assistantwire.KBSettings
 )
 
 // The channels' (channels.go, feishu.go).
@@ -224,7 +223,6 @@ const (
 	CodeNoDevice             = assistantwire.CodeNoDevice
 	CodeMachineOffline       = assistantwire.CodeMachineOffline
 	CodeNodeClosed           = assistantwire.CodeNodeClosed
-	CodeMeetingEnded         = assistantwire.CodeMeetingEnded
 	CodeStaleSnapshot        = assistantwire.CodeStaleSnapshot
 	CodeAssistantOffline     = assistantwire.CodeAssistantOffline
 	DeviceAll                = assistantwire.DeviceAll

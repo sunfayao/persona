@@ -250,7 +250,7 @@ func TestTaskInputPreviewMatchesSavedCronDestination(t *testing.T) {
 
 func TestTaskPromptKeepsSelectionsBeforeScheduleHeader(t *testing.T) {
 	block := `<persona-context kind="skill" ref="selected">Review</persona-context>`
-	got := taskPrompt(Task{Title: "Review", PromptSelections: true, Prompt: block + "\n\nCheck files", Repeat: repeatInterval, EveryMinutes: 30}, time.Now(), time.Now(), time.UTC, false, false, false)
+	got := taskPrompt(Task{Title: "Review", PromptSelections: true, Prompt: block + "\n\nCheck files", Repeat: repeatInterval, EveryMinutes: 30}, time.Now(), time.Now(), time.UTC, false, false)
 	refs, err := assistantskills.References(got)
 	if err != nil || len(refs) != 1 || refs[0] != "selected" || !strings.Contains(got, "Check files") {
 		t.Fatalf("lost selection: %s %v", got, err)
@@ -272,7 +272,7 @@ func TestTaskInputSaveReopenAndBothRunPaths(t *testing.T) {
 			return map[string]bool{"valid": true}, nil
 		}
 		content++
-		if machine != "remote" || p["cwd"] != "/work/project" || p["launcher"] != "claude" || p["skill_owner"] != s.skillOwner() || p["config_dir"] != meetingProfile || strings.Contains(p["text"].(string), "Literal reference") {
+		if machine != "remote" || p["cwd"] != "/work/project" || p["launcher"] != "claude" || p["skill_owner"] != s.skillOwner() || p["config_dir"] != signedInProfile || strings.Contains(p["text"].(string), "Literal reference") {
 			t.Fatalf("save context: %s %v", machine, p)
 		}
 		return map[string]any{"valid": true}, nil
@@ -284,7 +284,7 @@ func TestTaskInputSaveReopenAndBothRunPaths(t *testing.T) {
 			t.Fatalf("run catalog: %s %v", machine, p)
 		}
 		catalog := assistantskills.Catalog{Version: 1, Complete: true}
-		if (p["session_id"] == "" && p["config_dir"] == meetingProfile) || (resumedSession != "" && p["session_id"] == resumedSession) {
+		if (p["session_id"] == "" && p["config_dir"] == signedInProfile) || (resumedSession != "" && p["session_id"] == resumedSession) {
 			catalog.Skills = []assistantskills.Entry{{ID: "review", Name: "Review"}}
 		}
 		return catalog, nil
@@ -324,7 +324,7 @@ func TestTaskInputSaveReopenAndBothRunPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := f.lastSend(t); got["task_input"] != true || got["skill_owner"] != s.skillOwner() || !strings.Contains(got["text"].(string), `path="notes.txt"`) || got["cwd"] != "/work/project" || got["model"] != "test-model" || got["config_dir"] != meetingProfile {
+	if got := f.lastSend(t); got["task_input"] != true || got["skill_owner"] != s.skillOwner() || !strings.Contains(got["text"].(string), `path="notes.txt"`) || got["cwd"] != "/work/project" || got["model"] != "test-model" || got["config_dir"] != signedInProfile {
 		t.Fatalf("manual start lost selection or execution parameters: %v", got)
 	}
 	f.setSessions("remote", proto.Session{SessionID: first.SessionID, Assistant: true, Cwd: "/work/project", Launcher: "claude", Agent: "claude"})
@@ -412,7 +412,7 @@ func TestTaskInputLiteralPromptsStayLiteral(t *testing.T) {
 		t.Fatalf("expected three independent tasks, got %d", len(tasks))
 	}
 	for _, task := range tasks {
-		msg := taskPrompt(task, time.Now(), time.Now(), time.UTC, true, false, false)
+		msg := taskPrompt(task, time.Now(), time.Now(), time.UTC, true, false)
 		refs, err := assistantskills.References(msg)
 		if task.Prompt != prompt || task.PromptSelections || !strings.Contains(msg, prompt) || err != nil || len(refs) != 0 {
 			t.Fatalf("literal task promoted to a selection: %+v %s", task, msg)
@@ -491,7 +491,7 @@ func TestTaskInputToolPromptEditsAreLiteral(t *testing.T) {
 			setTasks(s, task)
 			run := ScheduleRun{Kind: "routine", RefID: task.ID, Title: task.Title, Status: runOK, MachineID: "server", SessionID: "run"}
 			s.recordRun(run)
-			rendered := taskPrompt(task, time.Now(), time.Now(), time.UTC, false, false, false)
+			rendered := taskPrompt(task, time.Now(), time.Now(), time.UTC, false, false)
 			if !sameText(rendered, task.Prompt) || !copiesRun(run, "", rendered) {
 				t.Fatalf("run header no longer identifies its task: %q", rendered)
 			}
@@ -831,7 +831,7 @@ func TestScheduledPromptLabelsKeepReferenceOnlyTasksVisible(t *testing.T) {
 				t.Errorf("task snapshot does not carry run label %q: %+v", label, views)
 			}
 			now := time.Now()
-			header := taskPrompt(task, now, now, time.UTC, false, false, false)
+			header := taskPrompt(task, now, now, time.UTC, false, false)
 			if label == "" || !strings.Contains(header, label) {
 				t.Errorf("schedule header %q does not carry run label %q", header, label)
 			}

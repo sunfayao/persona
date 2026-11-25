@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -21,12 +20,10 @@ const (
 	SecretKey = "secret.key"
 	// TailcatKey is the identity the computers reached over tailcat trust (internal/tunnel): the manager dials them.
 	TailcatKey = "tailcat-hub.json"
-	// HandlesKey keys the knowledge base's identity hints of senders (internal/kb handles).
-	HandlesKey = "handles.key"
 )
 
 // OwnFiles are the files MoveFiles copies.
-var OwnFiles = []string{SecretKey, TailcatKey, HandlesKey}
+var OwnFiles = []string{SecretKey, TailcatKey}
 
 // FilesMarkerKey is manager.json's record of MoveFiles: which files it copied from the data directory, and when.
 const FilesMarkerKey = "moved_from_data_dir"
@@ -36,10 +33,6 @@ type FilesMarker struct {
 	Files []string  `json:"files"`
 	At    time.Time `json:"at"`
 }
-
-// KBDirKey is manager.json's knowledge base directory for the built-in manager; absent, it is the data directory's
-// data/ (~/.persona/data), where it has always been: the docs, the prompts and the agents that search it go by that.
-const KBDirKey = "kb_dir"
 
 // MoveFiles copies each of OwnFiles that the data directory home has and the built-in manager's directory does not
 // into that directory (0600, the directory 0700, made here so the manager can make the keys there that it does not
@@ -177,35 +170,4 @@ func OwnFile(home, name string) string {
 func fileExists(path string) bool {
 	_, err := os.Lstat(path)
 	return err == nil
-}
-
-// KBDir is the built-in manager's knowledge base directory: manager.json's kb_dir (a leading ~/ is the user's home),
-// else home's data/.
-func KBDir(home string) string {
-	def := filepath.Join(home, "data")
-	b, err := os.ReadFile(DefaultFile(home))
-	if err != nil {
-		return def
-	}
-	o, err := ParseObject(b)
-	if err != nil {
-		return def
-	}
-	raw, ok := o.Get(KBDirKey)
-	if !ok {
-		return def
-	}
-	var dir string
-	if json.Unmarshal(raw, &dir) != nil || strings.TrimSpace(dir) == "" {
-		return def
-	}
-	if rest, ok := strings.CutPrefix(dir, "~/"); ok {
-		if h, err := os.UserHomeDir(); err == nil {
-			dir = filepath.Join(h, rest)
-		}
-	}
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(DefaultDir(home), dir)
-	}
-	return filepath.Clean(dir)
 }

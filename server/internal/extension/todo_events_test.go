@@ -26,7 +26,7 @@ func TestTodoEventSubscribersNeedTheGrantedScope(t *testing.T) {
 		// defensive: the manifest declares todos.read, the record holds none
 		{"declared-not-granted", Permissions{}, `"todo.changed","todo.decision"`},
 		// another scope
-		{"kb-only", Permissions{Hub: []string{ScopeKBRead}}, `"todo.changed"`},
+		{"agents-only", Permissions{Hub: []string{ScopeAgentsRead}}, `"todo.changed"`},
 		{"legacy", Permissions{HubAPI: true}, `"todo.changed","todo.decision"`},
 		{"not-subscribed", Permissions{Hub: []string{ScopeTodosRead}}, `"agent.finished"`},
 	} {
@@ -97,8 +97,6 @@ func TestTodoEventTopicsAreDeclaredAndRequireConsent(t *testing.T) {
 func TestEveryEventTopicHasItsScopeSettled(t *testing.T) {
 	want := map[string]string{
 		"assistant.entries.changed": ScopeAssistantEntriesRead,
-		"kb.changed":                ScopeKBRead,
-		"kb.forgotten":              ScopeKBRead,
 		"todo.changed":              ScopeTodosRead,
 		"todo.decision":             ScopeTodosRead,
 		"leader.changed":            ScopeLeadersRead,

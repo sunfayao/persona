@@ -4,12 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/mail"
 )
 
@@ -45,7 +42,7 @@ func (m *folderMail) GetMessage(_ context.Context, account string, uid uint32, b
 }
 
 // A rule puts the second message straight into GitHub. Its UID and sender happen to match the INBOX mail.
-func TestInboxAndArchiveReadMailFolders(t *testing.T) {
+func TestInboxReadsMailFolders(t *testing.T) {
 	inbox, github := &pagedMail{validity: 3}, &pagedMail{validity: 8}
 	inbox.add(1, 1)
 	github.add(1, 1)
@@ -71,59 +68,6 @@ func TestInboxAndArchiveReadMailFolders(t *testing.T) {
 		page.Folders[0].Messages[0].Mailbox != "GitHub" {
 		t.Errorf("incorrect original and additional pages: %s", raw)
 	}
-	c := mailConnector{h: h}
-	batches, cursor, more, err := c.Changes(ctx, "", 20)
-	if err != nil || more || len(batches) != 2 {
-		t.Fatalf("archive got %d messages, more %v, error %v", len(batches), more, err)
-	}
-	if batches[0].Chat.ID != batches[1].Chat.ID || batches[0].Messages[0].ID != "1" || batches[1].Messages[0].ID == "1" {
-		t.Fatalf("the same UID in two folders must give distinct receipts in the correspondent's chat: %v", batches)
-	}
-	rerun, _, more, err := c.Changes(ctx, cursor, 20)
-	if err != nil || more || len(rerun) != 0 {
-		t.Errorf("replayed %d messages, more %v, error %v", len(rerun), more, err)
-	}
-	legacy, _, _, err := c.Changes(ctx, `{"acc":1,"acc#v":3}`, 20)
-	if err != nil || len(legacy) != 1 || legacy[0].Messages[0].ID != batches[1].Messages[0].ID {
-		t.Errorf("legacy cursor: got %v, %v", legacy, err)
-	}
-}
-
-func TestMailFolderArchiveRecovery(t *testing.T) {
-	now := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
-	inbox, github := &pagedMail{validity: 3}, &pagedMail{validity: 8}
-	inbox.msgs = []mail.MailSummary{receiptMail("acc", 1, now, "inbox")}
-	github.msgs = []mail.MailSummary{receiptMail("acc", 1, now, "first build")}
-	m := &folderMail{pagedMail: inbox, boxes: map[string]*pagedMail{"INBOX": inbox, "GitHub": github}}
-	c := mailConnector{h: &Manager{mail: m}}
-	e := &kb.Engine{Store: openMailStore(t, t.TempDir())}
-	first, cursor := receiptChanges(t, c, "", 2)
-	retry, _ := receiptChanges(t, c, "", 2)
-	for i, box := range []string{"INBOX", "GitHub"} {
-		if !strings.Contains(first[i].Messages[0].Text, "acc/"+box+"/1") {
-			t.Fatalf("body read from wrong folder: %v", first[i])
-		}
-		ingestMail(t, e, first[i], 1)
-		ingestMail(t, e, retry[i], 0)
-	}
-
-	// A temporarily unreadable INBOX does not prevent the rule folder from advancing.
-	delete(m.boxes, "INBOX")
-	github.validity = 9
-	github.msgs = []mail.MailSummary{receiptMail("acc", 1, now.Add(time.Minute), "next build")}
-	gen, next := receiptChanges(t, c, cursor, 1)
-	if gen[0].Messages[0].ID == first[1].Messages[0].ID {
-		t.Fatal("renumbered folder reused a receipt")
-	}
-	ingestMail(t, e, gen[0], 1)
-	inbox.msgs = append(inbox.msgs, receiptMail("acc", 2, now.Add(time.Minute), "inbox next"))
-	m.boxes["INBOX"] = inbox
-	recovered, next := receiptChanges(t, c, next, 1)
-	if recovered[0].Messages[0].ID != "2" {
-		t.Fatalf("recovered INBOX got %q", recovered[0].Messages[0].ID)
-	}
-	ingestMail(t, e, recovered[0], 1)
-	receiptChanges(t, c, next, 0)
 }
 
 func TestMailFolderPartialReads(t *testing.T) {

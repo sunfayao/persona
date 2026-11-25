@@ -26,7 +26,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
@@ -43,7 +42,7 @@ const (
 var extTranscribeIdle = time.Minute
 
 // extTranscribeSamplesMost is the most audio a job takes: 15 minutes (tests shorten it).
-var extTranscribeSamplesMost int64 = 15 * 60 * kb.AudioRate
+var extTranscribeSamplesMost int64 = 15 * 60 * audioRate
 
 // extTranscriptions are the extensions' jobs running now.
 type extTranscriptions struct {
@@ -227,7 +226,7 @@ func (s *Service) extTranscribeRead(job *extJob) {
 			}
 		case extwire.TFAck:
 			if f.At != nil {
-				job.acked = max(job.acked, int64(*f.At*kb.AudioRate))
+				job.acked = max(job.acked, int64(*f.At*audioRate))
 				job.signalLocked()
 			}
 		case extwire.TFUsage:
@@ -343,9 +342,9 @@ func (s *Service) extTranscribeAudio(ctx context.Context, call assistantwire.Ext
 	if sent+int64(len(pcm)/2) > extTranscribeSamplesMost {
 		s.endExtJob(job, "too long")
 		return nil, transcriptionError(assistantwire.CodeTranscriptionTooLong, "%s: more than %d minutes of audio: the job is ended", method,
-			extTranscribeSamplesMost/kb.AudioRate/60)
+			extTranscribeSamplesMost/audioRate/60)
 	}
-	ahead := int64(replayAhead.Seconds() * kb.AudioRate)
+	ahead := int64(replayAhead.Seconds() * audioRate)
 	for len(pcm) > 0 {
 		n := min(len(pcm), replayFrame)
 		if err := job.waitRoom(ctx, ahead); err != nil {
@@ -466,7 +465,7 @@ func (s *Service) extTranscribeFinish(ctx context.Context, call assistantwire.Ex
 			job.mu.Lock()
 			err := job.err
 			out := assistantwire.TranscriptionFinishResult{Segments: slices.Clone(job.segments), Gaps: slices.Clone(job.gaps),
-				Seconds: float64(job.sent) / kb.AudioRate}
+				Seconds: float64(job.sent) / audioRate}
 			job.mu.Unlock()
 			if err != nil {
 				return nil, s.extTranscribeFailed(job, method, err)
@@ -519,7 +518,7 @@ func (s *Service) endExtJob(job *extJob, how string) {
 		job.idle.Stop()
 	}
 	jc := job.jc
-	seconds, sentences, gaps, usage := float64(job.sent)/kb.AudioRate, len(job.segments), len(job.gaps), job.usage
+	seconds, sentences, gaps, usage := float64(job.sent)/audioRate, len(job.segments), len(job.gaps), job.usage
 	job.mu.Unlock()
 	job.stop()
 	if jc != nil {

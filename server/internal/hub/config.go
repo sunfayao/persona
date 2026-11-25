@@ -181,7 +181,7 @@ type Config struct {
 	// DatabaseURL points at the Postgres container (scripts/deploy/deploy.sh creates it and fills this in).
 	DatabaseURL string `json:"database_url"`
 	// The manager's own sections (managerconf.Moved: the connectors, extensions, bots, mail sign-ins, Lark, usage
-	// sources, ai, inbox, kb, agents, hook_timeout_minutes and assistant.owner / notes / machine / launcher) are in
+	// sources, ai, inbox, agents, hook_timeout_minutes and assistant.owner / notes / machine / launcher) are in
 	// its manager.json now (docs/operations/config.md "manager.json"): the hub reads none of them, and an older hub.json's copies
 	// stay as they were.
 	Machines []MachineConfig `json:"machines"`

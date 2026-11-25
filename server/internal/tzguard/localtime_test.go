@@ -1,5 +1,5 @@
 // Package tzguard holds a test only: the hub runs in UTC and its user does not, so server code reads times in the
-// user's zone (hub.userLocation, the knowledge base's Store.Zone), never in the machine's own.
+// user's zone (hub.userLocation), never in the machine's own.
 package tzguard
 
 import (
@@ -20,7 +20,6 @@ var allowed = map[string]string{
 	"internal/hub/usertz.go":                "userLocation / userTZName: the hub's zone only while the user's is unknown",
 	"internal/extmgr/usertz.go":             "userLocation: the hub's zone only while the user's is unknown (as hub/usertz.go)",
 	"internal/assistant/zone.go":            "location: the hub's zone only while the user's is unknown (as userLocation)",
-	"internal/kb/zone.go":                   "the archive's zone before it is set, and files written before zones were recorded",
 	"internal/devices/metrics.go":           "Usage: the machine's zone only without Options.Location (the manager passes the user's, assistant/main.go)",
 	"internal/connector/larkcli/clizone.go": "cliLocation: lark-cli prints wall-clock times in the zone of the machine running it, the hub's",
 	"internal/fleetsoak/":                   "a developer's soak command: its log clock and output directory name are for the person at that terminal",
@@ -52,7 +51,7 @@ func TestNoMachineTimeZone(t *testing.T) {
 		hits, err := machineZoneLines(p)
 		for _, h := range hits {
 			t.Errorf("%s:%d: the machine's time zone (the hub runs in UTC): read times in the user's, "+
-				"hub.userLocation() / kb Store.Zone(), or add the file to `allowed` with the reason:\n\t%s",
+				"hub.userLocation(), or add the file to `allowed` with the reason:\n\t%s",
 				rel, h.line, h.text)
 		}
 		return err

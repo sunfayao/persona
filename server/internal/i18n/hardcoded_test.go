@@ -26,7 +26,7 @@ const hardcodedBaseline = "hardcoded-baseline.json"
 
 // hardcodedDirs are the packages (with their subpackages) whose text can reach a client, relative to server/.
 // Left out on purpose: cmd/ and link/ (command-line output: terminalSources' ratchet), node/ and transcript/ (node-side text the hub rewrites
-// by its original, hub/transcript_text.go), kb/ (stored knowledge keeps its language), prompts/ (text for models),
+// by its original, hub/transcript_text.go), prompts/ (text for models),
 // lcuconfirm/ (card labels matched back by their original), office/ (document content).
 var hardcodedDirs = []string{
 	"internal/ai",

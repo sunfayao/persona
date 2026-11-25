@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -27,14 +26,7 @@ func mentionEnv(t *testing.T) (*Service, *fakeHub) {
 		proto.Session{SessionID: "ios", Title: "Fix login", Cwd: "/code/weather/ios", Agent: "codex", Status: proto.StatusWorking, UpdatedAt: now},
 		proto.Session{SessionID: "other", Title: "Elsewhere", Cwd: "/code/weatherman", Status: proto.StatusIdle, UpdatedAt: now},
 		proto.Session{SessionID: "me", Title: "Assistant", Cwd: "/code/weather", Assistant: true, UpdatedAt: now})
-	s := newKBService(t, f)
-	e := kbEng(t, s)
-	if err := e.Store.PutProject(&kb.Project{
-		Slug: "weather-app", Name: "Weather App", Kind: "short", Status: "active",
-		Dirs: []string{"box:/code/weather"}, OneLine: "The weather app for iOS and Android",
-	}); err != nil {
-		t.Fatal(err)
-	}
+	s := newServiceWithStore(t, f)
 	return s, f
 }
 
@@ -47,7 +39,6 @@ func TestWithWorkspacesFillsTheBlock(t *testing.T) {
 		`<persona-context kind="workspace" title="weather" url="" machine="box" cwd="/code/weather">`,
 		"machine 填 box、cwd 填 /code/weather",
 		"分支：main",
-		"Weather App（weather-app）：The weather app for iOS and Android",
 		"「Fix login」codex，working",
 		"session ios，在 /code/weather/ios",
 		"session old",
@@ -105,7 +96,6 @@ func TestSendParamsFillsWorkspaces(t *testing.T) {
 func TestGoldenWorkspaceMention(t *testing.T) {
 	golden(t, "workspace_mention", prompts.RenderWorkspaceMention(prompts.WorkspaceMention{
 		Title: "weather", Machine: "box", MachineName: "Work laptop", Cwd: "/code/weather", Branch: "main", Online: false,
-		Projects: []prompts.WorkspaceProject{{Name: "Weather App", Slug: "weather-app", OneLine: "The weather app for iOS and Android"}},
 		Sessions: []prompts.WorkspaceSession{
 			{Title: "Fix login", Agent: "codex", Status: "working", When: "11-06 09:30", ID: "ios", Cwd: "/code/weather/ios"},
 			{Title: "Old work", Agent: "claude", Status: "idle", When: "11-05 18:02", ID: "old"},

@@ -23,7 +23,7 @@ func hubRunPrompt(key, state string) string {
 	}
 	task.stateRunKey = key
 	at := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
-	return prompts.MessageSourceText(taskPrompt(task, at, at, time.UTC, false, false, true), taskMessageSource(task))
+	return prompts.MessageSourceText(taskPrompt(task, at, at, time.UTC, false, true), taskMessageSource(task))
 }
 
 // runLineOf is the line of a run's prompt that hands out its key, as someone copying it would take it.

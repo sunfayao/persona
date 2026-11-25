@@ -19,9 +19,7 @@
 {{end}}{{with .Plans}}- 等用户点「开始」的计划（主对话里的卡片，用户点了才开工；汇报时要说；已在别处做完或用户说不做的，用 task_plan_withdraw 撤下并写理由）：{{range $i, $p := .}}{{if $i}}；{{end}}{{$p.At.Format "01-02 15:04"}} {{join $p.Titles "、"}}{{if gt $p.Tasks (len $p.Titles)}} 等 {{$p.Tasks}} 件{{end}}{{if $p.ID}}（{{$p.ID}}）{{end}}{{end}}{{if gt $.PlansTotal (len .)}} 等 {{$.PlansTotal}} 张{{end}}
 {{end}}{{with .Asked}}- 你用 ask_user 问过、到点没人回、转成待办在等用户拍板的（用户在待办里记了决定会作为新消息发给发问的对话；别再问，也别先按某个选项去做，除非用户已经在对话里直接答了）：{{if $.Omit.Asked}}{{len .}} 个，{{template "assistant/snapshot_omitted" "todo_list"}}{{else}}{{range $i, $a := .}}{{if $i}}；{{end}}「{{$a.Question}}」（{{$a.TodoID}}，{{$a.At.Format "01-02 15:04"}} 问的）{{end}}{{end}}
 {{end}}{{with .Unaccepted}}- {{if $.Scoped}}这个对话的任务里{{end}}等用户验收的（已部署的请验收，或任务的结论卡，用户还没回「通过」「OK」）：{{if $.Omit.Unaccepted}}{{if gt $.UnacceptedTotal (len .)}}{{$.UnacceptedTotal}}{{else}}{{len .}}{{end}} 个，{{template "assistant/snapshot_omitted" "todo_list"}}{{else}}{{range $i, $a := .}}{{if $i}}；{{end}}「{{$a.Title}}」：{{$a.Verdict}}{{with $a.Changed}}；{{.}}{{end}}{{with $a.Link}}（{{.}}）{{end}}，{{$a.Since.Format "01-02"}} 起{{end}}{{if gt $.UnacceptedTotal (len .)}} 等 {{$.UnacceptedTotal}} 个{{end}}{{end}}
-{{end}}{{with .KB}}- 知识库（kb_get 看详情）：{{if $.Omit.KB}}{{template "assistant/snapshot_omitted" "kb_get"}}
-{{else}}
-{{indent "  " .}}{{end}}{{end}}{{with .Chats}}{{if .Total}}- 飞书未读会话 {{.Total}} 个（免打扰的不算；用 lark_chats / lark_messages 看）
+{{end}}{{with .Chats}}{{if .Total}}- 飞书未读会话 {{.Total}} 个（免打扰的不算；用 lark_chats / lark_messages 看）
 {{with .AtMe}}  - @我：{{range $i, $c := first 6 .}}{{if $i}}；{{end}}{{$c.Name}}（{{$c.Unread}} 条）：{{$c.Preview}}{{end}}
 {{end}}{{with .Other}}  - 其他：{{if $.Omit.OtherChats}}{{len .}} 个会话，{{template "assistant/snapshot_omitted" "lark_chats"}}{{else}}{{range $i, $c := first 8 .}}{{if $i}}、{{end}}{{$c.Name}}（{{$c.Unread}} 条）{{end}}{{end}}
 {{end}}{{else}}- 飞书：没有未读（免打扰的不算）

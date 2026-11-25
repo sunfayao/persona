@@ -94,7 +94,7 @@ func TestMCPLanguageChangeInvalidatesDiscoveryCursor(t *testing.T) {
 
 func TestGoldenMCPRestrictedLanguages(t *testing.T) {
 	for _, lang := range []string{"zh-Hans", "en", "ja"} {
-		for _, mode := range []string{"work", "meeting", "leader"} {
+		for _, mode := range []string{"work", "leader"} {
 			t.Run(lang+"/"+mode, func(t *testing.T) {
 				ft := newFleetTest(t)
 				ft.f.hello.Locale = lang
@@ -102,11 +102,6 @@ func TestGoldenMCPRestrictedLanguages(t *testing.T) {
 				switch mode {
 				case "work":
 					ft.d.machines["mac"].trust = "work"
-				case "meeting":
-					if err := ft.s.guestSetRoom(context.Background(), "mac", "ordinary", "sample-recording"); err != nil {
-						t.Fatal(err)
-					}
-					params["guest"] = true
 				case "leader":
 					params = map[string]any{"leader_only": true}
 				}

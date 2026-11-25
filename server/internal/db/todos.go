@@ -59,7 +59,7 @@ type TodoRow struct {
 	RemindAt   *time.Time `json:"remind_at"`
 	RemindedAt *time.Time `json:"reminded_at"`
 	Priority   string     `json:"priority"`
-	// Project is the slug of the knowledge-base project the todo belongs to (#2581), "" for none.
+	// Project is the label of the project the todo belongs to (#2581), "" for none.
 	Project string `json:"project"`
 	// Kind is "" for a to-do or a task, or KindConcern (#3561). Set when it is made, never changed.
 	Kind string `json:"kind"`

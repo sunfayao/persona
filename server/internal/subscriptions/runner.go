@@ -453,20 +453,12 @@ func (s *Service) execute(ctx context.Context, sub Subscription, asked bool, sta
 	s.prune(ctx, next, start)
 }
 
-// Held items are kept past their destinations: the Inbox's window and a day more, and while the knowledge base takes
-// them, until kbKeep (a knowledge base that stopped reading for longer misses them).
-const (
-	inboxKeep = 8 * 24 * time.Hour
-	kbKeep    = 30 * 24 * time.Hour
-)
+// Held items are kept past their destination: the Inbox's window and a day more.
+const inboxKeep = 8 * 24 * time.Hour
 
 // prune drops sub's held items its destinations are past.
 func (s *Service) prune(ctx context.Context, sub Subscription, now time.Time) {
-	keep := inboxKeep
-	if sub.ToKB {
-		keep = kbKeep
-	}
-	if err := s.o.Store.PruneItems(ctx, sub.ID, now.Add(-keep)); err != nil {
+	if err := s.o.Store.PruneItems(ctx, sub.ID, now.Add(-inboxKeep)); err != nil {
 		s.o.Logf("subscription %s: prune its items: %v", sub.ID, err)
 	}
 }

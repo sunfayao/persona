@@ -122,19 +122,7 @@ func (s *Service) readTodoRepositories(ctx context.Context, id string) (reposito
 	return s.savedTodoRepositories(ctx, id)
 }
 
-// Meeting reads must not migrate metadata or acknowledge historical reports.
-// Sessionless Agent calls conservatively use the same machine-wide meeting check.
 func (s *Service) readTodoRepositoriesForTool(ctx context.Context, machine, session, id string) (repository.TaskSet, error) {
-	running, err := s.meetingTurnRunning(ctx, machine, session)
-	if session == "" {
-		running, err = s.meetingTurnAgentRunning(ctx, machine)
-	}
-	if err != nil {
-		return repository.TaskSet{}, err
-	}
-	if running || s.isRoom(session) {
-		return s.savedTodoRepositories(ctx, id)
-	}
 	return s.readTodoRepositories(ctx, id)
 }
 

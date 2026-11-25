@@ -180,29 +180,9 @@ func (p todoProjection) byID() map[string]assistantwire.TodoSummary {
 // counts are the list's numbers.
 func (p todoProjection) counts() assistantwire.TodoCounts { return projection.Counts(p.facts, p.views) }
 
-// todoPlaces are the list's places, each project's titled by the knowledge base (todoProjectTitles).
+// todoPlaces are the list's places, each project titled by its slug.
 func (s *Service) todoPlaces(ctx context.Context, p todoProjection) assistantwire.TodoPlaces {
-	return projection.Places(p.facts, p.views, s.todoProjectTitles(ctx, p.facts))
-}
-
-// todoProjectTitles are the titles of the live projects the to-dos are in, by slug, as ownProject finds them; a
-// project it does not find, or a knowledge base that cannot be read, leaves the place titled by its slug.
-func (s *Service) todoProjectTitles(ctx context.Context, facts []projection.Facts) map[string]string {
-	e, err := s.kbGet(ctx)
-	if err != nil {
-		return nil
-	}
-	out, looked := map[string]string{}, map[string]bool{}
-	for _, f := range facts {
-		if f.Project == "" || looked[f.Project] {
-			continue
-		}
-		looked[f.Project] = true
-		if p := ownProject(e, Todo{Project: f.Project}); p != nil && p.Name != "" {
-			out[f.Project] = p.Name
-		}
-	}
-	return out
+	return projection.Places(p.facts, p.views, nil)
 }
 
 // projectionFacts is listed row t as the projection reads it: the fields a decoder of the row's JSON would fill (the

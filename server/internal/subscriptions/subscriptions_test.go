@@ -230,7 +230,7 @@ func codeOf(err error) string {
 func TestAHandWrittenRecipeRunsOnSchedule(t *testing.T) {
 	e := newEnv(t)
 	sub := e.create(itemsRecipe())
-	if sub.State != StateOff || sub.ToInbox || sub.ToKB || sub.IntervalSeconds != 900 || sub.RecipeOrigin != OriginUser {
+	if sub.State != StateOff || sub.ToInbox || sub.IntervalSeconds != 900 || sub.RecipeOrigin != OriginUser {
 		t.Fatalf("a new subscription: %+v", sub)
 	}
 	e.svc.RunDue(e.ctx)
@@ -602,7 +602,7 @@ func TestIntervalFloorsAndRevisions(t *testing.T) {
 	if err != nil || up.Revision != sub.Revision+1 || up.Label != "Office notices" {
 		t.Fatalf("update: %+v %v", up, err)
 	}
-	_, err = e.svc.Update(e.ctx, sub.ID, Patch{Revision: sub.Revision, ToKB: ptr(true)}, Actor{})
+	_, err = e.svc.Update(e.ctx, sub.ID, Patch{Revision: sub.Revision, ToInbox: ptr(true)}, Actor{})
 	var se *Error
 	if !errors.As(err, &se) || se.Code != CodeConflict || se.Current == nil || se.Current.Revision != up.Revision {
 		t.Fatalf("a stale revision: %v", err)

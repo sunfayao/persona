@@ -61,10 +61,7 @@ type Config struct {
 	SettingsNow func() json.RawMessage
 	// Secrets is the hub's store for this connector: the program's secrets.* calls reach only this one.
 	Secrets connector.Secrets
-	// KB is the knowledge base's side of the program's posts.* and archive.chats (nil: none here); only a connector
-	// declaring an archive may use it.
-	KB   connector.KnowledgeBase
-	Logf func(string, ...any)
+	Logf    func(string, ...any)
 	// Link, when set, is the plugin process the connector runs in: Path, Args, Env, Version and Settings are then the
 	// plugin host's business, and the hub passes the program's calls and events on (Handle, Event).
 	Link *Link
@@ -160,7 +157,7 @@ func sameManifest(declared, said connector.Manifest) bool {
 	a, b := norm(declared), norm(said)
 	return slices.Equal(a.Capabilities, b.Capabilities) && slices.Equal(a.Hosts, b.Hosts) && slices.Equal(a.AgentTools, b.AgentTools) &&
 		slices.Equal(a.Unlisted, b.Unlisted) && slices.Equal(a.ConfirmAlways, b.ConfirmAlways) && a.Poll == b.Poll && slices.Equal(a.Kinds, b.Kinds) &&
-		slices.Equal(a.ArchiveSources, b.ArchiveSources) && a.MetaDescription == b.MetaDescription && a.CLI == b.CLI
+		a.MetaDescription == b.MetaDescription && a.CLI == b.CLI
 }
 
 // Status answers from memory: the program's last status, or why it is not running.

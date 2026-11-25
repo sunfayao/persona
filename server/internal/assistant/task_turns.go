@@ -989,7 +989,7 @@ func (s *Service) recoverTurn(ctx context.Context, t Todo, last proto.Session) (
 		return true
 	}
 	if s.taskInboxRecipient(ctx, t.ID, last.MachineID, last.SessionID) {
-		if current.AgentAborted(last.MachineID, last.SessionID) || s.meetingTurnNow(last.MachineID, last.SessionID) {
+		if current.AgentAborted(last.MachineID, last.SessionID) {
 			return true
 		}
 		if s.endHeld(ctx, last.MachineID, last.SessionID) {

@@ -4,7 +4,7 @@ import "time"
 
 // SpaceContext is the <persona-context> text of a conversation in a track other than the main space
 // (assistant/space_context, #13499, docs/assistant/tracks.md "Tracks and kinds"): the time, the track and the owner's
-// language, and nothing of the main chat's snapshot (no Agents, computers, unread chats, tasks or knowledge base).
+// language, and nothing of the main chat's snapshot (no Agents, computers, unread chats, or tasks).
 // Its lines are sections the node tells apart by the text before a full-width colon (node/assistant_context.go
 // sectionKey), so every language writes "：" after a line's name: with an ASCII colon each new minute would be a new
 // section and the last one listed as gone.

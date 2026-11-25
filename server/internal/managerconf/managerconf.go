@@ -39,7 +39,7 @@ func DefaultFile(home string) string { return filepath.Join(DefaultDir(home), Fi
 var Moved = []string{
 	"lark", "lark_gate", "connector_gate", "github", "imessage", "google", "microsoft", "bots",
 	"extensions", "plugins", "trusted_extension_markets", "extension_market", "extension_runtime", "ui_page_sessions", "usage", "sent_ledger_days", "sent_recall_hours",
-	"agents", "kb", "ai", "inbox", "hook_timeout_minutes",
+	"agents", "ai", "inbox", "hook_timeout_minutes",
 	"assistant.owner", "assistant.notes", "assistant.machine", "assistant.launcher", "assistant.memory_dreaming",
 	"assistant.complete_agentless_todos", "assistant.supervision_batch_minutes",
 	"assistant.task_execution_wait_seconds", "assistant.task_execution_legacy_fallback", "assistant.node_update_handoff_grace_seconds",
@@ -135,14 +135,14 @@ func MoveExcept(hubDir, file string, drop []string) (Report, error) {
 // effect. The hub hands them over raw at the handshake instead (Legacy, assistantwire.Hello.LegacyConfig), and the
 // manager takes them over once (MoveFrom). Of inbox only the models and the AI twin's machine came that way; the rest
 // of it was read on the manager's own machine, and moves with MoveExcept.
-var HelloSections = []string{"agents", "kb", "ai", "hook_timeout_minutes",
+var HelloSections = []string{"agents", "ai", "hook_timeout_minutes",
 	"assistant.owner", "assistant.notes", "assistant.machine", "assistant.launcher",
 	"inbox.triage_ai", "inbox.judge_ai", "inbox.agent.machine"}
 
 // HubOnly are the HelloSections a built-in manager the hub did not start leaves out of its own move: all but
 // inbox.agent.machine, which the AI twin always ran on as its own machine's hub.json said (the hello's only named the
 // model purpose's machine). The hub's copy of it is still offered (MoveFrom), and taken only when that one has none.
-var HubOnly = []string{"agents", "kb", "ai", "hook_timeout_minutes",
+var HubOnly = []string{"agents", "ai", "hook_timeout_minutes",
 	"assistant.owner", "assistant.notes", "assistant.machine", "assistant.launcher",
 	"inbox.triage_ai", "inbox.judge_ai"}
 

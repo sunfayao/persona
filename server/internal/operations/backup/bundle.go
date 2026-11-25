@@ -38,7 +38,7 @@ func validSHA256(value string) bool {
 }
 
 func validPayloadPath(name string) bool {
-	if name == hubDumpPath || name == managerDumpPath || strings.HasPrefix(name, "kb/") {
+	if name == hubDumpPath || name == managerDumpPath {
 		return true
 	}
 	if !strings.HasPrefix(name, "runtime/") || strings.HasPrefix(name, "runtime/managers/m-") {
@@ -82,20 +82,8 @@ func (m *Manifest) validate() error {
 	if m.Manager.SealingKey != "" && m.Manager.SealingKey != m.ManagerKeyFingerprint {
 		return errors.New("the built-in manager database and current secret.key do not match")
 	}
-	if m.KnowledgeBase.Relative != "" && m.KnowledgeBase.External != "" {
-		return errors.New("the knowledge-base location is ambiguous")
-	}
-	if m.KnowledgeBase.Relative != "" && !validMemberName(m.KnowledgeBase.Relative) {
-		return errors.New("the knowledge-base relative path is invalid")
-	}
-	if m.KnowledgeBase.External != "" && (!filepath.IsAbs(m.KnowledgeBase.External) || filepath.Clean(m.KnowledgeBase.External) == string(filepath.Separator)) {
-		return errors.New("the knowledge-base external path is invalid")
-	}
 	seen := make(map[string]bool, len(m.Files))
 	for _, entry := range m.Files {
-		if !m.KnowledgeBase.Present && strings.HasPrefix(entry.Path, "kb/") {
-			return fmt.Errorf("the manifest records no knowledge base but lists the knowledge-base file %q", entry.Path)
-		}
 		if !validMemberName(entry.Path) || entry.Path == manifestPath || seen[entry.Path] || !validPayloadPath(entry.Path) {
 			return fmt.Errorf("invalid or duplicate payload path %q", entry.Path)
 		}

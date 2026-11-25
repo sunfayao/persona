@@ -155,8 +155,7 @@ func (s *Service) writeDirectionProgress(ctx context.Context, id string, in dire
 		return &view, nil
 	}
 	titles, _ := s.conversationTitles()
-	pnames, pok := s.projectNames(ctx)
-	view := directionLeaderView(id, d, titles[id].title, pnames, pok)
+	view := directionLeaderView(id, d, titles[id].title)
 	s.directionsSoon()
 	return &view, nil
 }

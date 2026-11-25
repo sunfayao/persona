@@ -90,7 +90,7 @@ func TestADefaultSubscriptionIsItsBuiltin(t *testing.T) {
 		}
 	}
 	v = draw(t, f, env, state{P: pageSource, ID: subscriptions.MigrationID("imessage")})
-	if in := item(v, "d.to_inbox"); in == nil || in.Control != nil || in.Value != "As its source's rows" || item(v, "d.to_kb") != nil {
+	if in := item(v, "d.to_inbox"); in == nil || in.Control != nil || in.Value != "As its source's rows" {
 		t.Fatalf("its page's Inbox: %+v", in)
 	}
 	if r := item(v, "h.recipe"); r == nil || r.Subtitle != "Provided by the connector · Comes with Persona" {

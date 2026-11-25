@@ -11,14 +11,14 @@ import (
 // pattern, with a scope; a refused merge leaves the table as it was, even for the entries beside the refused one.
 func TestMergeRouteScopes(t *testing.T) {
 	t.Parallel()
-	table := map[string]string{"GET /api/v1/a": ScopeKBRead}
+	table := map[string]string{"GET /api/v1/a": ScopeInboxRead}
 	if err := mergeRouteScopes(table, map[string]string{
-		"PUT /api/v1/a":            ScopeKBWrite,
+		"PUT /api/v1/a":            ScopeInboxWrite,
 		"/api/v1/extensions/{id}/": ScopeCallPrefix,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]string{"GET /api/v1/a": ScopeKBRead, "PUT /api/v1/a": ScopeKBWrite, "/api/v1/extensions/{id}/": ScopeCallPrefix}
+	want := map[string]string{"GET /api/v1/a": ScopeInboxRead, "PUT /api/v1/a": ScopeInboxWrite, "/api/v1/extensions/{id}/": ScopeCallPrefix}
 	if !maps.Equal(table, want) {
 		t.Fatalf("merged into %v, want %v", table, want)
 	}
@@ -26,19 +26,19 @@ func TestMergeRouteScopes(t *testing.T) {
 		route, scope string
 		want         error
 	}{
-		{"GET /api/v1/a", ScopeKBWrite, errRouteScopeTaken},
-		{"GET /api/v1/a", ScopeKBRead, errRouteScopeTaken}, // the same decision twice is still two places deciding it
+		{"GET /api/v1/a", ScopeInboxWrite, errRouteScopeTaken},
+		{"GET /api/v1/a", ScopeInboxRead, errRouteScopeTaken}, // the same decision twice is still two places deciding it
 		{"/api/v1/extensions/{id}/", ScopeCallPrefix, errRouteScopeTaken},
-		{"", ScopeKBRead, errRouteScopeNoRoute},
-		{"GET", ScopeKBRead, errRouteScopeNoRoute},
-		{"GET api/v1/b", ScopeKBRead, errRouteScopeNoRoute},
-		{" /api/v1/b", ScopeKBRead, errRouteScopeNoRoute},
-		{"GET  /api/v1/b", ScopeKBRead, errRouteScopeNoRoute},
-		{"GET /api/v1/b c", ScopeKBRead, errRouteScopeNoRoute},
+		{"", ScopeInboxRead, errRouteScopeNoRoute},
+		{"GET", ScopeInboxRead, errRouteScopeNoRoute},
+		{"GET api/v1/b", ScopeInboxRead, errRouteScopeNoRoute},
+		{" /api/v1/b", ScopeInboxRead, errRouteScopeNoRoute},
+		{"GET  /api/v1/b", ScopeInboxRead, errRouteScopeNoRoute},
+		{"GET /api/v1/b c", ScopeInboxRead, errRouteScopeNoRoute},
 		{"GET /api/v1/b", "", errRouteScopeNoScope},
 	} {
 		before := maps.Clone(table)
-		err := mergeRouteScopes(table, map[string]string{c.route: c.scope, "GET /api/v1/fine": ScopeKBRead})
+		err := mergeRouteScopes(table, map[string]string{c.route: c.scope, "GET /api/v1/fine": ScopeInboxRead})
 		if !errors.Is(err, c.want) || !strings.Contains(err.Error(), "\""+c.route+"\"") {
 			t.Errorf("%q: %q: got %v, want %v naming the route", c.route, c.scope, err, c.want)
 		}
@@ -65,5 +65,5 @@ func TestAddRouteScopesPanicsOnADuplicate(t *testing.T) {
 			t.Error("a refused addRouteScopes changed RouteScopes")
 		}
 	}()
-	addRouteScopes(map[string]string{route: ScopeInboxWrite, "GET /api/v1/never-added": ScopeKBRead})
+	addRouteScopes(map[string]string{route: ScopeInboxWrite, "GET /api/v1/never-added": ScopeInboxRead})
 }

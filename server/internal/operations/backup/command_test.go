@@ -192,21 +192,18 @@ func (o resultOperator) Restore(context.Context, Options) (Result, error) { retu
 func TestRestoreOutputNamesWhatWasKept(t *testing.T) {
 	for _, kept := range []bool{true, false} {
 		var stdout, stderr bytes.Buffer
-		operator := resultOperator{result: Result{Bundle: "b", Restored: true, KeptDockerPassword: kept, PreviousExternalKB: "/kb/.data.persona-backup-previous-1"}}
+		operator := resultOperator{result: Result{Bundle: "b", Restored: true, KeptDockerPassword: kept}}
 		if err := runWithOperator(context.Background(), operator, []string{"restore", "--bundle", "b", "--writes-quiesced"}, &stdout, &stderr); err != nil {
 			fatal(t, err)
 		}
 		if got := strings.Contains(stdout.String(), "kept this install's docker/db-password"); got != kept {
 			errorf(t, "kept=%v: output %q", kept, stdout.String())
 		}
-		if !strings.Contains(stdout.String(), "/kb/.data.persona-backup-previous-1") {
-			errorf(t, "the previous external knowledge base is not named: %q", stdout.String())
-		}
 	}
 }
 
 func TestUsageStatesTheOutputRestriction(t *testing.T) {
-	if !strings.Contains(Usage, "outside the knowledge base") {
+	if !strings.Contains(Usage, "outside the runtime") {
 		errorf(t, "usage does not say where --output may not be: %s", Usage)
 	}
 }

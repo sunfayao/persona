@@ -33,8 +33,8 @@ type assistantProfileSaveState struct {
 
 // assistantProfileKey is the hub's own copy of the profile the assistant last reported (the hub writes and reads it,
 // the assistant never does): what the hub's features go by after a restart, before the assistant reports again. The
-// knowledge base and the plugins start before it connects, and they need the user's time zone. Without it they went by
-// the hub's own zone for those seconds (the knowledge base filed itself into the hub's zone and back).
+// plugins start before it connects, and they need the user's time zone. Without it they went by the hub's own zone
+// for those seconds.
 const assistantProfileKey = "hub.assistant_profile"
 
 // loadAssistantProfile takes up the profile the hub kept (assistantProfileKey, its own settings) before the assistant
@@ -266,9 +266,6 @@ func writeAssistantErr(w http.ResponseWriter, err error) {
 			return
 		case assistantwire.CodeBadRequest:
 			writeErr(w, http.StatusBadRequest, errors.New(re.Message))
-			return
-		case assistantwire.CodeMeetingEnded: // a message into a meeting's room that ended: write in its follow-up
-			writeErrCode(w, http.StatusConflict, assistantwire.CodeMeetingEnded, errors.New(re.Message))
 			return
 		case assistantwire.CodeMachineOffline: // as the hub's own call to that machine would answer
 			callErr(w, fmt.Errorf("%s: %w", re.Message, errOffline))

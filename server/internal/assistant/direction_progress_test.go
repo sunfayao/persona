@@ -16,22 +16,21 @@ import (
 
 func TestDirectionNameOrder(t *testing.T) {
 	for _, c := range []struct {
-		name         string
-		d            *direction
-		title, pname string
-		want         string
+		name  string
+		d     *direction
+		title string
+		want  string
 	}{
-		{"given name wins", &direction{Name: "Infra", Project: "infra"}, "1110 | 探索 | x", "Infrastructure", "Infra"},
-		{"then the project's name", &direction{Project: "infra"}, "1110 | 探索 | x", "Infrastructure", "Infrastructure"},
-		{"then the title without its prefix", &direction{}, "1110 | 探索 | Android parity", "", "Android parity"},
-		{"a title without a prefix", &direction{}, "Android parity", "", "Android parity"},
-		{"the role's wrapping, cut off", &direction{}, "1110 | 探索 | 你是「基建」这条线的主管（l", "", "基建"},
-		{"the role's wrapping, no prefix", &direction{}, "你是「Skill 群」的主管", "", "Skill 群"},
-		{"brackets elsewhere stay", &direction{}, "1110 | 功能 | 修「设置」页", "", "修「设置」页"},
-		{"an empty role stays as it is", &direction{}, "1110 | 探索 | 你是「」的主管", "", "你是「」的主管"},
-		{"only a prefix: the title", &direction{}, "1110 | 探索 | ", "", "1110 | 探索 | "},
+		{"given name wins", &direction{Name: "Infra", Project: "infra"}, "1110 | 探索 | x", "Infra"},
+		{"then the title without its prefix", &direction{}, "1110 | 探索 | Android parity", "Android parity"},
+		{"a title without a prefix", &direction{}, "Android parity", "Android parity"},
+		{"the role's wrapping, cut off", &direction{}, "1110 | 探索 | 你是「基建」这条线的主管（l", "基建"},
+		{"the role's wrapping, no prefix", &direction{}, "你是「Skill 群」的主管", "Skill 群"},
+		{"brackets elsewhere stay", &direction{}, "1110 | 功能 | 修「设置」页", "修「设置」页"},
+		{"an empty role stays as it is", &direction{}, "1110 | 探索 | 你是「」的主管", "你是「」的主管"},
+		{"only a prefix: the title", &direction{}, "1110 | 探索 | ", "1110 | 探索 | "},
 	} {
-		if got := directionName(c.d, c.title, c.pname); got != c.want {
+		if got := directionName(c.d, c.title); got != c.want {
 			t.Errorf("%s: %q, want %q", c.name, got, c.want)
 		}
 	}

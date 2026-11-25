@@ -60,7 +60,6 @@ func Card(ctx context.Context, svc Service, env Env, c Change) string {
 		}
 		line(p.plain(after, c.Source)) // says how often
 		line(p.set("dest.to_inbox", p.onOff(after.ToInbox)))
-		line(p.set("dest.to_kb", p.onOff(after.ToKB)))
 		if after.TriageRules != "" {
 			line(p.set("source.rules", clipCard(after.TriageRules)))
 		}
@@ -92,9 +91,6 @@ func Card(ctx context.Context, svc Service, env Env, c Change) string {
 		if before.ToInbox != after.ToInbox {
 			line(p.row("dest.to_inbox", p.onOff(before.ToInbox), p.onOff(after.ToInbox)))
 		}
-		if before.ToKB != after.ToKB {
-			line(p.row("dest.to_kb", p.onOff(before.ToKB), p.onOff(after.ToKB)))
-		}
 		if before.TriageRules != after.TriageRules {
 			line(p.row("source.rules", p.rulesText(before.TriageRules), p.rulesText(after.TriageRules)))
 		}
@@ -110,7 +106,7 @@ func Card(ctx context.Context, svc Service, env Env, c Change) string {
 			// What the new recipe finds at once: a digest only touches the Inbox, the others what is on.
 			switch existing := cmp.Or(c.Existing, subscriptions.ExistingDigest); {
 			case existing == subscriptions.ExistingDigest && before.ToInbox && after.ToInbox,
-				existing != subscriptions.ExistingDigest && (after.ToInbox || after.ToKB):
+				existing != subscriptions.ExistingDigest && after.ToInbox:
 				line(p.t("card.existing." + existing))
 			}
 		}
@@ -122,7 +118,6 @@ func Card(ctx context.Context, svc Service, env Env, c Change) string {
 		on, had bool
 	}{
 		{"to_inbox", after.ToInbox, had(func(s subscriptions.Subscription) bool { return s.ToInbox })},
-		{"to_kb", after.ToKB, had(func(s subscriptions.Subscription) bool { return s.ToKB })},
 	} {
 		if !d.on || d.had {
 			continue

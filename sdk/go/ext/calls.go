@@ -10,8 +10,7 @@ import (
 )
 
 // Typed calls, both ways, for the extension points whose calls the schemas describe (wire.Calls: the connector, the
-// channel, the knowledge base and the sent-as-user ledger; schema/extension/connector.schema.json, channel.schema.json
-// and kb.schema.json).
+// channel and the sent-as-user ledger; schema/extension/connector.schema.json and channel.schema.json).
 
 // MethodFunc answers one method of a namespace.
 type MethodFunc func(ctx context.Context, params json.RawMessage) (any, error)
@@ -98,26 +97,6 @@ func (h *Hub) DeleteSecret(ctx context.Context, contribution string) error {
 	return h.Call(ctx, ConnectorNamespace+".secrets.delete", wire.ConnectorParams{Contribution: contribution}, nil)
 }
 
-// PutPosts keeps a feed's public posts in the knowledge base's post archive (a connector that declares archive).
-func (h *Hub) PutPosts(ctx context.Context, p wire.ConnectorPostsPutParams) (wire.ConnectorPostsPut, error) {
-	return callHub[wire.ConnectorPostsPut](ctx, h, ConnectorNamespace+".posts.put", p)
-}
-
-// PutComments replaces the comments of one of the connector's archived posts.
-func (h *Hub) PutComments(ctx context.Context, p wire.ConnectorPostsCommentsParams) error {
-	return h.Call(ctx, ConnectorNamespace+".posts.comments", p, nil)
-}
-
-// PendingPosts are the archived posts whose comments to read again.
-func (h *Hub) PendingPosts(ctx context.Context, p wire.ConnectorPostsPendingParams) (wire.ConnectorPostsPending, error) {
-	return callHub[wire.ConnectorPostsPending](ctx, h, ConnectorNamespace+".posts.pending", p)
-}
-
-// ArchivedChats are the chats the knowledge base has under one of the connector's sources, with how far each is.
-func (h *Hub) ArchivedChats(ctx context.Context, p wire.ConnectorArchiveChatsParams) (wire.ConnectorArchivedChats, error) {
-	return callHub[wire.ConnectorArchivedChats](ctx, h, ConnectorNamespace+".archive.chats", p)
-}
-
 // RecordSent tells the hub about a message the connector sent in the user's name outside the hub's write gate (a read
 // tool that also replies, say), for the hub's sent-as-user ledger. The connector must declare sends_as_user in the
 // manifest (connectors[].sends_as_user), else the hub answers permission_denied; the hub itself says it was this
@@ -152,44 +131,6 @@ func (h *Hub) ChannelStatus(ctx context.Context, p wire.ChannelStatusParams) err
 // CannotSend is channel.send's error while there is nowhere to send to yet (before the owner's first message): the
 // hub does not try again.
 func CannotSend(why string) error { return &Error{Code: wire.ChannelErrorCodeCannotSend, Message: why} }
-
-// The knowledge base (docs/extensions/extensions.md "Knowledge base RPC"): the permission kb.read (kb.write for KBUpdate) in
-// the manifest's permissions.hub, granted by the user. Errors carry wire.KBErrorCode* or permission_denied.
-
-// KBList is one kind's entities, a page at a time (next_offset).
-func (h *Hub) KBList(ctx context.Context, p wire.KBListParams) (wire.KBListResult, error) {
-	return callHub[wire.KBListResult](ctx, h, "kb.list", p)
-}
-
-// KBRecent is what came in from every source since a time, newest first, a page at a time (next_offset).
-func (h *Hub) KBRecent(ctx context.Context, p wire.KBRecentParams) (wire.KBRecentResult, error) {
-	return callHub[wire.KBRecentResult](ctx, h, "kb.recent", p)
-}
-
-// KBGet is one entity, with its most recent messages.
-func (h *Hub) KBGet(ctx context.Context, p wire.KBGetParams) (wire.KBGetResult, error) {
-	return callHub[wire.KBGetResult](ctx, h, "kb.get", p)
-}
-
-// KBDay is a chat's messages of one day.
-func (h *Hub) KBDay(ctx context.Context, p wire.KBDayParams) (wire.KBDayResult, error) {
-	return callHub[wire.KBDayResult](ctx, h, "kb.day", p)
-}
-
-// KBSearch is the lines that match a query.
-func (h *Hub) KBSearch(ctx context.Context, p wire.KBSearchParams) (wire.KBSearchResult, error) {
-	return callHub[wire.KBSearchResult](ctx, h, "kb.search", p)
-}
-
-// KBUpdate changes an entity's fields (kb.write).
-func (h *Hub) KBUpdate(ctx context.Context, p wire.KBUpdateParams) (wire.KBUpdateResult, error) {
-	return callHub[wire.KBUpdateResult](ctx, h, "kb.update", p)
-}
-
-// KBOwner is the user's name, aliases and identities.
-func (h *Hub) KBOwner(ctx context.Context) (wire.KBOwner, error) {
-	return callHub[wire.KBOwner](ctx, h, "kb.owner", wire.KBOwnerParams{})
-}
 
 // ModelComplete asks a model for one answer (permission models): it runs on the extension's own purpose in Settings ›
 // Model configuration, which the user chooses; no key and no budget. With JSONSchema the result's JSON has the answer

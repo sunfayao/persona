@@ -93,8 +93,6 @@ type Task struct {
 	RunIf  *routineCheck `json:"run_if,omitempty"`
 	// factsText is the run's facts as the model is given them (briefing.go); set on the copy a run is made from, never stored.
 	factsText string
-	// kbDir is the knowledge directory the run's hint names (a daily run with the knowledge base on); set on the copy, never stored.
-	kbDir string
 	// The conversation it came from (on MachineID), runs go into it; empty = the task's own conversation.
 	MachineID string `json:"machine_id,omitempty"`
 	SessionID string `json:"session_id,omitempty"`
@@ -1583,8 +1581,6 @@ func (s *Service) Run(ctx context.Context) {
 	go s.sourceReportLoop(ctx)             // the reports back to where a todo was asked (todo_source.go)
 	go s.remindLoop(ctx)                   // the todos' reminders (todo_plan.go)
 	go s.channelLoop(ctx)                  // the channels' runs that lost their watcher (channels.go)
-	go s.kbLoop(ctx)                       // the knowledge base (kb.go)
-	go s.kbHistoryLoop(ctx)                // importing chats' older history into it, off by default (kbhistory/history.go)
 	go s.memoryDreamLoop(ctx)              // consolidating assistant memory, off by default
 	go s.memoryMergeLoop(ctx)              // telling the user what the node merged into the one memory (memory_merge.go)
 	go s.viewActionLoop(ctx)               // durable card reply outbox
@@ -1987,7 +1983,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 	ctx := devicewire.WithTaskExecutionWait(devicewire.WithTaskExecutionEvidence(context.Background()))
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute+policy.wait)
 	defer cancel()
-	loc, kb := s.location(ctx), s.kbReady(ctx)
+	loc := s.location(ctx)
 	run := ScheduleRun{Kind: t.kind(), RefID: t.ID, Title: t.label(), Due: due.UTC(), At: time.Now().UTC(), Manual: manual, Status: runOK,
 		Retried: retried, of: now.UTC()}
 	if !s.sched.begin(t.ID) { // the same task is being sent right now ("Run now" as it came due)
@@ -2063,9 +2059,6 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 			}
 		}()
 	}
-	if kb {
-		t.kbDir = s.kb.dir // the hint names where the knowledge base is, not the default
-	}
 	t.factsText = s.runFacts(ctx, t, time.Now()) // the run's facts, worked out once (north_star.go)
 	if prefix, body := t.promptParts(); prefix != "" && strings.TrimSpace(body) == "" {
 		// Identical titles and references can occur in consecutive runs in the same chat.
@@ -2083,7 +2076,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 			// A follow-up the assistant scheduled for itself is a turn of that conversation: it keeps the
 			// conversation's launcher like a message from the phone does. On the task's category launcher (Agents
 			// then) it moved the main conversation onto another one (plain claude, not logged in there) for good (#1518).
-			params, err := s.taskSourceParams(ctx, t, taskPrompt(t, due, now, loc, manual, kb, false), sourceCwd, s.lang(ctx))
+			params, err := s.taskSourceParams(ctx, t, taskPrompt(t, due, now, loc, manual, false), sourceCwd, s.lang(ctx))
 			if err == nil {
 				if err := s.validateTaskSelections(ctx, t.MachineID, t.SessionID, params, t.PromptSelections); err != nil {
 					return s.failTaskRun(ctx, t, run, err, false)
@@ -2164,7 +2157,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 			// Older snapshots without provenance may have started with explicit choices.
 			resumed.LegacyCompatible = ex.LegacyCompatible && (t.RunExecution == nil || t.RunExecution.LegacyCompatible) &&
 				s.taskOwnOrigin(ctx, t) && !s.mayBeMain(ctx, t.RunSessionID)
-			params := taskResumeParams(t, taskPrompt(t, due, now, loc, manual, kb, true), resumed)
+			params := taskResumeParams(t, taskPrompt(t, due, now, loc, manual, true), resumed)
 			err := s.finishModel(ctx, "task."+t.ID, params, ModelBinding{Provider: launcherProvider(ex.Launcher), Model: ex.Model, Effort: ex.Effort})
 			preparationFailed := err != nil // no task text has been sent while building the model parameters
 			if err == nil {
@@ -2189,7 +2182,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 			s.logf("task %s into its conversation %s: %v; starting a new one", t.ID, short(t.RunSessionID), err)
 		}
 	}
-	sp := taskStartParams(t, taskPrompt(t, due, now, loc, manual, kb, false), ex)
+	sp := taskStartParams(t, taskPrompt(t, due, now, loc, manual, false), ex)
 	if clean {
 		sp.NewSessionID = newGuestSessionID()
 		// Before it starts: its first message's context asks, and its turn may plan at once.
@@ -2220,7 +2213,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 // resumeOwn sends a run into the task's own conversation sid on machine (params: its assistant.send). A conversation
 // whose last turn ended "Not logged in" may have been made in a profile with no login, as every conversation the hub
 // started was until #6015; a conversation cannot move to another profile, so every later run there failed the same way.
-// It is resumed only in the profile the hub's conversations start in (meetingProfile): the node refuses it before
+// It is resumed only in the profile the hub's conversations start in (signedInProfile): the node refuses it before
 // starting anything when it is in another one, and the run starts a new conversation, signed in (startConversation),
 // which the task keeps (#6186). One already in that profile is resumed as before, and so is any on a node too old to
 // be told a profile, whose conversations are all in that one. Only Claude Code has profiles: the node refuses a
@@ -2228,7 +2221,7 @@ func (s *Service) runTask(t Task, due, now time.Time, manual, retried bool) (pro
 // with no agent: it says so before starting anything, and the run goes on in it without the profile (#6884).
 func (s *Service) resumeOwn(ctx context.Context, machine, sid string, params map[string]any, promptSelections bool) error {
 	if c, ok := s.session(ctx, machine, sid); ok && signedOut(c) && (c.Agent == "" || c.Agent == "claude") {
-		params["config_dir"] = meetingProfile
+		params["config_dir"] = signedInProfile
 	}
 	if err := s.validateTaskSelections(ctx, machine, sid, params, promptSelections); err != nil {
 		return err
@@ -2865,10 +2858,10 @@ func (s *Service) forgetConversation(ctx context.Context, id string) (Task, bool
 // repeating one that it repeats by itself (so the run doesn't schedule the next one too). continued: it goes into the
 // task's own conversation, which has had all that (and the knowledge-base hint) already; it is told the earlier
 // runs are above instead. The task's prompt is always there: it may have been edited, or compacted away.
-func taskPrompt(t Task, due, now time.Time, loc *time.Location, manual, kb, continued bool) string {
+func taskPrompt(t Task, due, now time.Time, loc *time.Location, manual, continued bool) string {
 	prefix, body := t.promptParts()
 	r := prompts.TaskRun{Label: t.label(), TodoID: t.TodoID, Once: t.Repeat == repeatOnce, Interval: t.Repeat == repeatInterval, Due: due.In(loc),
-		Prompt: body, KBHint: kb && t.calendar(), KnowledgeDir: t.kbDir, Continued: continued, PushAsked: t.pushesOnlyAsked(), InboxWorthy: t.inboxWorthy(), InboxEvery: t.inboxEvery(), Facts: t.factsText, State: taskStatePrompt(t)}
+		Prompt: body, Continued: continued, PushAsked: t.pushesOnlyAsked(), InboxWorthy: t.inboxWorthy(), InboxEvery: t.inboxEvery(), Facts: t.factsText, State: taskStatePrompt(t)}
 	if r.Interval {
 		r.Every = everyText(t.EveryMinutes)
 	}

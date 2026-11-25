@@ -373,7 +373,7 @@ func TestHTTPParamsAreJSONMarshals(t *testing.T) {
 		"X-Bad": {"\xff\xfe\xc3"}, "Content-Type": {"application/json"}}
 	for _, req := range []assistantwire.HTTPRequest{
 		{Method: "POST", Path: "/api/v1/assistant/conversations", Header: header, Body: []byte(`{"prompt":"<&>\u2028"}`)},
-		{Method: "POST", Path: "/api/v1/kb/recordings", Query: "q=<&>&x=\u2029\xff", Body: []byte{0}},
+		{Method: "POST", Path: "/api/v1/assistant/places/x", Query: "q=<&>&x=\u2029\xff", Body: []byte{0}},
 		{Method: "PUT", Path: "/p", Body: []byte{1, 2}},
 		{Method: "PUT", Path: "/p", Body: []byte{1, 2, 3}},
 		{Method: "PUT", Path: "/é", Header: header, Body: long},

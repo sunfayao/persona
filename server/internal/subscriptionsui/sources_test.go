@@ -28,12 +28,12 @@ type fakeBuiltins struct {
 }
 
 func newBuiltins() *fakeBuiltins {
-	yes, no := true, false
+	yes := true
 	return &fakeBuiltins{rules: map[string]string{}, list: []Builtin{
-		{ID: "mail", Name: "Mail", Icon: "mail", Status: "ok", InboxAlways: true, Archive: &yes, InboxEvery: 180, ArchiveEvery: 360, Mutable: true,
+		{ID: "mail", Name: "Mail", Icon: "mail", Status: "ok", InboxAlways: true, InboxEvery: 180, Mutable: true,
 			Accounts: []Account{{ID: "a1", Name: "me@example.com", Read: &Read{At: now.Add(-time.Minute), OK: at(-time.Minute)}},
 				{ID: "a2", Name: "work@example.org", Read: &Read{At: now.Add(-2 * time.Minute), Error: "timeout", OK: at(-31 * time.Minute)}}}},
-		{ID: "github", Name: "GitHub", Icon: "code", Status: "ok", Inbox: &yes, Archive: &no, InboxEvery: 120, ArchiveEvery: 600,
+		{ID: "github", Name: "GitHub", Icon: "code", Status: "ok", Inbox: &yes, InboxEvery: 120,
 			Read: &Read{At: now.Add(-2 * time.Minute), OK: at(-2 * time.Minute)}, Mutable: true},
 		{ID: "lark", Name: "Lark", Icon: "chat", Extension: "lark", Status: "ok", Inbox: &yes, InboxEvery: 120,
 			Read: &Read{At: now.Add(-time.Minute), OK: at(-time.Minute)}, RulesOwn: true, Rules: "Mentions in project chats need me", Mutable: true},
@@ -62,19 +62,11 @@ func (b *fakeBuiltins) SetFeed(_ context.Context, id string, inbox, on bool, _ s
 	if b.setErr != nil {
 		return b.setErr
 	}
-	feed := "kb"
-	if inbox {
-		feed = "inbox"
-	}
-	b.feeds = append(b.feeds, id+"/"+feed+"="+map[bool]string{true: "on", false: "off"}[on])
+	b.feeds = append(b.feeds, id+"/inbox="+map[bool]string{true: "on", false: "off"}[on])
 	for i := range b.list {
 		if b.list[i].ID == id {
 			v := on
-			if inbox {
-				b.list[i].Inbox = &v
-			} else {
-				b.list[i].Archive = &v
-			}
+			b.list[i].Inbox = &v
 		}
 	}
 	return nil
@@ -177,9 +169,6 @@ func TestBuiltinPage(t *testing.T) {
 	if r := item(v, "d.to_inbox"); r == nil || r.Control != nil || r.Value != "Always" {
 		t.Errorf("mail's Inbox has no switch: %+v", r)
 	}
-	if r := item(v, "d.to_kb"); r == nil || r.Control == nil || !r.Control.On || r.Control.Action.Confirm != "" {
-		t.Errorf("an on switch turns off without asking: %+v", r)
-	}
 	if r := item(v, "f.inbox"); r == nil || r.Value != "every 3 minutes" || r.Action != nil {
 		t.Errorf("how often is said, not chosen: %+v", r)
 	}
@@ -195,24 +184,11 @@ func TestBuiltinPage(t *testing.T) {
 	if r := item(v, "h.mutes"); r == nil || r.Value != "1" {
 		t.Errorf("mutes: %+v", r)
 	}
-	v = draw(t, f, sourcesEnv(i18n.ZhHans, true, b), state{P: pageBuiltin, C: "github"})
-	kb := item(v, "d.to_kb")
-	if kb.Control == nil || kb.Control.On || !strings.Contains(kb.Control.Action.Confirm, "信息处理") ||
-		!strings.Contains(kb.Control.Action.Confirm, "每 10 分钟") {
-		t.Errorf("an off switch says what turning it on does, how often and which model: %+v", kb.Control)
-	}
-	res := handle(t, f, sourcesEnv(i18n.En, true, b), state{P: pageBuiltin, C: "github"}, "builtin_dest", map[string]string{"to": "to_kb", "to_kb": "true"})
-	if strings.Join(b.feeds, ",") != "github/kb=on" {
-		t.Fatalf("the connector's own switch: %v", b.feeds)
-	}
-	if c := item(*res.View, "d.to_kb").Control; c == nil || !c.On {
-		t.Error("the page drawn after does not show the switch on")
-	}
 	v = draw(t, f, sourcesEnv(i18n.En, true, b), state{P: pageBuiltin, C: "lark"})
 	if r := item(v, "h.rules"); r.Subtitle != "Mentions in project chats need me" || r.Action == nil {
 		t.Errorf("a plugin's own rules open their page: %+v", r)
 	}
-	res = handle(t, f, sourcesEnv(i18n.En, true, b), state{P: pageRules, C: "lark"}, "rules", map[string]string{"triage_rules": "Collapse chatter"})
+	res := handle(t, f, sourcesEnv(i18n.En, true, b), state{P: pageRules, C: "lark"}, "rules", map[string]string{"triage_rules": "Collapse chatter"})
 	if b.rules["lark"] != "Collapse chatter" || !res.Pop {
 		t.Errorf("rules saved: %v %+v", b.rules, res)
 	}
@@ -263,7 +239,7 @@ func TestRecommendedTurnsOn(t *testing.T) {
 		t.Fatal("turning the switch off made a subscription")
 	}
 	res := handle(t, f, sourcesEnv(i18n.En, true, b), state{}, "recommend", map[string]string{"c": "apps", "s": "calendar", "r.apps/calendar": "true"})
-	if len(f.created) != 1 || f.created[0].Recipe != nil || !f.subs["sub_new"].ToInbox || f.subs["sub_new"].ToKB {
+	if len(f.created) != 1 || f.created[0].Recipe != nil || !f.subs["sub_new"].ToInbox {
 		t.Fatalf("created with the extension's recipe and the Inbox on: %+v %+v", f.created, f.subs["sub_new"])
 	}
 	if item(*res.View, "r.apps/calendar") != nil || res.Toast == "" {
@@ -291,7 +267,7 @@ func TestAskTheAssistant(t *testing.T) {
 	// The main conversation shows the block's title and body: plain words only. The ids the tools need are attributes,
 	// which the model reads and the apps never draw.
 	want := `<persona-context kind="context" title="Subscription · Outlook" url="" connector="apps" source="outlook" subscription="sub_outlook">` +
-		"\nuses “Search messages” · Inbox, knowledge base · every 15 minutes\n</persona-context>\n\nHelp me check the subscription “Outlook”"
+		"\nuses “Search messages” · Inbox · every 15 minutes\n</persona-context>\n\nHelp me check the subscription “Outlook”"
 	if text := u.Query().Get("text"); !strings.HasPrefix(text, want) {
 		t.Errorf("the message:\n%s\nwant it to start:\n%s", text, want)
 	}

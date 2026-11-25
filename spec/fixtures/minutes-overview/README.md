@@ -4,7 +4,7 @@ After a meeting the minutes read as one summary card (#6563): a headline, the co
 decisions grouped by topic with their key figure or status in bold, then the action items, the open questions and
 an AI note. The hub writes it as `detail.minutes.overview` and renders it as the minutes' Markdown; the clients decode
 it on their own, apart from the legacy fields, and show the card only when a bullet is left after cleaning. The rules
-are in [docs/assistant/meeting-minutes.md "Summary card (#6563)"](../../../docs/assistant/meeting-minutes.md). These
+are in the removed meeting contract. These
 cases hold the hub, the mock hub and the web to the same bold rule, the same cleaning and the same
 fallback. All data is made up.
 
@@ -48,7 +48,7 @@ this README says so.
 ## Checks
 
 - Hub: `cd server && go test ./internal/kb -run 'MinutesOverviewFixture|MinutesOverview$'`
-  (`server/internal/kb/minutes_overview_test.go`; the rules in `server/internal/kb/minutes_overview.go`).
+  (server/internal/kb/minutes_overview_test.go; the rules in server/internal/kb/minutes_overview.go).
   `TestMinutesOverviewFixture` cleans each overview as the clients do and compares the segments and the layout, and
   renders the Markdown of the cases that have one; `TestMinutesOverview` has a model's answer in the summary card's
   shape written as minutes and compares them with `rich`, overview, legacy lists and Markdown.

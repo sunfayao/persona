@@ -12,7 +12,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -115,34 +114,4 @@ func TestTodosListCarriesTheView(t *testing.T) {
 			t.Fatalf("an unknown to-do: %d %s", w.Code, w.Body)
 		}
 	})
-}
-
-// The places: All To-dos with N, Today, Upcoming, and the project of an open to-do titled by the knowledge base, with
-// the list's counts; and "places" is not taken for a to-do's id.
-func TestTodoPlacesRoute(t *testing.T) {
-	f := newFakeHub().withMachine()
-	s := newKBService(t, f)
-	if _, err := kbEng(t, s).Apply(kb.KindProject, "Garden", kb.Update{Name: "Garden", Kind: "long"}); err != nil {
-		t.Fatal(err)
-	}
-	e := &todoEnv{t: t, s: s, f: f}
-	todoViewRows(t, e)
-	var created struct{ Todo Todo }
-	_ = json.Unmarshal(e.must("POST", "/api/v1/todos", `{"title":"Mulch the beds","project":"Garden"}`).Body.Bytes(), &created)
-
-	var places assistantwire.TodoPlaces
-	if err := json.Unmarshal(e.must("GET", "/api/v1/todos/places", "").Body.Bytes(), &places); err != nil {
-		t.Fatal(err)
-	}
-	var list struct{ Counts assistantwire.TodoCounts }
-	_ = json.Unmarshal(e.must("GET", "/api/v1/todos", "").Body.Bytes(), &list)
-	ids := []string{}
-	for _, p := range places.Places {
-		ids = append(ids, p.ID)
-	}
-	want := []string{"all", "today", "upcoming", "project:" + created.Todo.Project}
-	if !slices.Equal(ids, want) || places.Places[0].NeedsYou != 1 || places.Places[3].Title != "Garden" || places.Places[3].Manager != "" ||
-		!reflect.DeepEqual(places.Counts, list.Counts) || places.Counts.Open != 4 {
-		t.Fatalf("places %+v, the list's counts %+v", places, list.Counts)
-	}
 }

@@ -88,9 +88,6 @@ type briefFacts struct {
 	// Briefs, BriefsDone: the pieces of work handed out that need the owner or changed since the last briefing, and
 	// those that ended since, from their briefs (task_brief_digest.go), for the model only.
 	Briefs, BriefsDone []prompts.BriefTask
-	// Day: the evening routine's today's all-day recording (briefing_day.go), for the model only; nil for any other
-	// run, or without one today.
-	Day *prompts.BriefDay
 	// Setup: the recommended-setup block (setup_suggest.go), on the first briefing of a week only; nil on any other
 	// run. It may name nothing.
 	Setup *setupBlock
@@ -149,9 +146,6 @@ func (s *Service) briefFactsAt(ctx context.Context, now time.Time, self string) 
 	f.Leaders = s.briefLeaders(ctx, now)
 	f.Directions, f.DisabledRoutines = s.briefDirections(ctx, now, l, web)
 	f.InboxWaiting, f.InboxDue = briefFollowing(s.followingInboxItems(ctx), now, loc)
-	if self == "evening" { // the day's recap was written for it, 30 minutes before (kb_day.go)
-		f.Day = s.briefDay(ctx, now, loc)
-	}
 	f.Captures = s.captureBriefLines(ctx, l, since)
 	return f
 }
@@ -496,7 +490,7 @@ func (f *briefFacts) modelText() string {
 	b.ProgressTotal, b.Leaders = f.ProgressTotal, f.Leaders
 	b.Directions, b.DisabledRoutines = f.Directions, f.DisabledRoutines
 	b.InboxWaiting, b.InboxDue = f.InboxWaiting, f.InboxDue
-	b.Briefs, b.BriefsDone, b.Day = f.Briefs, f.BriefsDone, f.Day
+	b.Briefs, b.BriefsDone = f.Briefs, f.BriefsDone
 	b.Setup = f.Setup.lines()
 	b.Captures = f.Captures
 	for _, p := range f.Progress {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,25 +14,22 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/kbwire"
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-// Delivery to the Inbox and the knowledge base (#2039, docs/extensions/subscriptions.md "Destinations"). Every
+// Delivery to the Inbox (#2039, docs/extensions/subscriptions.md "Destinations"). Every
 // subscription is an internal source of the manager. The Inbox reads its things every collection round
-// (InboxSources), made from the held items the way a connector answers Collect from its memory; the knowledge base
-// pages through the held items from a cursor it keeps itself (Changes). Nothing here records what a destination
-// took: the Inbox knows that by thread and last, the knowledge base by its cursor and message-id receipts, so a
-// replay or a restarted manager hands them the same things again and they add nothing.
+// (InboxSources), made from the held items the way a connector answers Collect from its memory. Nothing here records
+// what the Inbox took: it knows that by thread and last, so a replay or a restarted manager hands it the same things
+// again and they add nothing.
 
 const (
-	catchupBack     = 24 * time.Hour     // the Inbox catches up on a day before it was turned on; the knowledge base starts there too
+	catchupBack     = 24 * time.Hour     // the Inbox catches up on a day before it was turned on
 	digestOver      = 3                  // more catch-up items than this come in as one digest
 	digestLinesMost = 50                 // lines of a digest; the rest are counted
 	catchupReadMost = 500                // catch-up items read for a digest
 	inboxReadMost   = 300                // the newest items a round reads of one subscription
 	inboxWindow     = 7 * 24 * time.Hour // the Inbox's: an older item starts nothing
-	kbPageMost      = 100                // items a knowledge-base call takes
 	previewMost     = 200
 	contextBodyMost = 3000
 	threadLinesMost = 10 // a row's earlier items listed above its newest
@@ -54,11 +50,9 @@ type InboxSource struct {
 	Things []connector.InboxThing
 	// ReadError says it is behind while its Inbox is on (readErrorOf): the short code a built-in's failed read has.
 	ReadError string
-	// Connector and SourceName are what it reads, for the AI twin; Chats the knowledge-base chat of each row's thread
-	// (deliverer.chatOf) while its knowledge base is on (#6222).
+	// Connector and SourceName are what it reads, for the AI twin.
 	Connector  string
 	SourceName string
-	Chats      map[string]string
 	// Switched: it is a built-in's Inbox feed now (MigratedFrom), under the built-in's id (#6265), which the manager
 	// gives the built-in's abilities in the round (#6381). ConnectorRows: its rows are the connector's own (a things
 	// recipe), whose counts are the connector's; otherwise the subscription makes them, with its counts (#5671).
@@ -89,12 +83,9 @@ func (s *Service) InboxSources(ctx context.Context) ([]InboxSource, error) {
 		d := s.deliverer(sub, now)
 		d.replies = replying[sub.Connector] && sub.RunState != StateNotConnected
 		d.migrated = migrated
-		if kbFrom(sub) != nil {
-			d.chats = map[string]string{}
-		}
 		src.Things = append(src.Things, d.inboxThings(catchup, live)...)
 		if !migrated { // a built-in's feed reads as the built-in's to the AI twin
-			src.Connector, src.SourceName, src.Chats = sub.Connector, cmpOr(sub.SourceName, sub.Source), d.chats
+			src.Connector, src.SourceName = sub.Connector, cmpOr(sub.SourceName, sub.Source)
 		}
 		src.Things = append(src.Things, d.failing())
 		if inboxFrom(sub) != nil {
@@ -200,17 +191,6 @@ func inboxFrom(sub Subscription) *time.Time {
 	return &sub.CreatedAt
 }
 
-// kbFrom is when sub's knowledge base was turned on; nil while it is off.
-func kbFrom(sub Subscription) *time.Time {
-	switch {
-	case !sub.ToKB, sub.Recipe.Mode == wire.ConnectorSubscriptionModeThings: // a things one's rows are the Inbox's only
-		return nil
-	case sub.KBFrom != nil:
-		return sub.KBFrom
-	}
-	return &sub.CreatedAt
-}
-
 // inboxHeld are the held items the Inbox gets of sub, once the first run since it was turned on has read the
 // source: the catch-up (stored from a day before it was turned on up to that run) and the ones stored later, the
 // newest of the Inbox's window.
@@ -262,8 +242,6 @@ type deliverer struct {
 	// replies: the subscription's connector is on and answers an inbox reply (Service.replying), so a row whose newest
 	// item has reply_to can be replied to (#6198).
 	replies bool
-	// chats, while the subscription's knowledge base is on, gets each row's thread → its knowledge-base chat (#6222).
-	chats map[string]string
 	// migrated: the subscription is a built-in's Inbox feed (MigratedFrom, #6265): its rows have the items' own threads,
 	// and its catch-up comes as rows, the ones the built-in already brought known by their ids.
 	migrated bool
@@ -371,11 +349,11 @@ func thingRows(held []Held) []connector.InboxThing {
 	return rows
 }
 
-// rowAll is the key of a subscription's one row when its recipe groups by source, as its knowledge-base chat is "all".
+// rowAll is the key of a subscription's one row when its recipe groups by source.
 const rowAll = "all"
 
-// groupsByThread says whether a recipe's items are grouped a thread each, in the Inbox and the knowledge base alike;
-// otherwise (source) the whole subscription is one row and one chat.
+// groupsByThread says whether a recipe's items are grouped a thread each, in the Inbox; otherwise
+// (source) the whole subscription is one row.
 func groupsByThread(r Recipe) bool { return r.GroupBy == wire.ConnectorSubscriptionGroupThread }
 
 // groupOf is the grouping r's items get: thread or source.
@@ -516,9 +494,6 @@ func (d deliverer) threadThing(key string, items []Held) connector.InboxThing {
 	if last.ReplyTo != "" && d.replies && !strings.HasPrefix(last.UID, weakPrefix) {
 		t.ReplyTo, t.CanReply = last.ReplyTo, true // the reply goes to its connector with this item (Service.ReplyTarget)
 	}
-	if d.chats != nil {
-		d.chats[t.Thread] = d.chatOf(last).ID
-	}
 	if n := d.newestPull(items); n > 1 {
 		if t.Extra == nil {
 			t.Extra = &connector.ThingExtra{}
@@ -625,9 +600,6 @@ func (d deliverer) snapshotThing(h Held) connector.InboxThing {
 	t := connector.InboxThing{Thread: d.thread("snapshot"), Kind: cmpOr(h.Kind, wire.ConnectorSubscriptionKindSubUpdate),
 		Label: d.sub.Label, Title: cmpOr(h.Title, d.sub.Label), Preview: clip(oneLine(h.Body), previewMost),
 		Context: clip(h.Body, contextBodyMost), At: h.Stored, Last: h.UID, Rules: d.rules, Extra: d.fallback(false), Tags: d.tags(nil)}
-	if d.chats != nil {
-		d.chats[t.Thread] = d.chatOf(h).ID
-	}
 	return t
 }
 
@@ -655,91 +627,8 @@ func (d deliverer) failing() connector.InboxThing {
 		Tier: connector.TierFYI, Why: i18n.T(d.lang, "subscriptions-deliver.failing_why"), Tags: d.tags(nil)}
 }
 
-// ---- the knowledge base ----
-
-// Archives are the subscriptions the knowledge base reads now: those with it on.
-func (s *Service) Archives(ctx context.Context) ([]string, error) {
-	all, err := s.o.Store.ListSubscriptions(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := []string{}
-	for _, sub := range all {
-		if kbFrom(sub) != nil {
-			out = append(out, sub.ID)
-		}
-	}
-	return out, nil
-}
-
 // IsSubscription says whether id names a subscription (an internal source, not a connector).
 func (s *Service) IsSubscription(ctx context.Context, id string) bool {
 	sub, err := s.o.Store.GetSubscription(ctx, id)
 	return err == nil && sub != nil
-}
-
-// ErrArchiveOff answers Changes for a subscription whose knowledge base is off (or that is gone).
-var ErrArchiveOff = errorf(http.StatusConflict, "archive_off", "the subscription does not go to the knowledge base")
-
-// Changes are subscription id's held items after cursor (a stored position; "" the first time) as archive batches:
-// a chat a thread or one for the whole subscription (the recipe's group_by), a message an item under its uid. It
-// starts a day before the knowledge base was turned on, also with a cursor from before it was last off. The
-// knowledge base moves its cursor once it has written them.
-func (s *Service) Changes(ctx context.Context, id, cursor string, _ int) ([]connector.ChatBatch, string, bool, error) {
-	sub, err := s.o.Store.GetSubscription(ctx, id)
-	if err != nil {
-		return nil, cursor, false, err
-	}
-	if sub == nil || kbFrom(*sub) == nil {
-		return nil, cursor, false, ErrArchiveOff
-	}
-	from := kbFrom(*sub)
-	after, _ := strconv.ParseInt(cursor, 10, 64)
-	held, err := s.o.Store.HeldItems(ctx, id, ItemQuery{After: after, Since: from.Add(-catchupBack), Limit: kbPageMost})
-	if err != nil {
-		return nil, cursor, false, err
-	}
-	if len(held) == 0 {
-		return nil, cursor, false, nil
-	}
-	d := s.deliverer(*sub, s.now())
-	var out []connector.ChatBatch
-	index := map[string]int{}
-	for _, h := range held {
-		chat := d.chatOf(h)
-		i, ok := index[chat.ID]
-		if !ok {
-			i = len(out)
-			index[chat.ID] = i
-			out = append(out, connector.ChatBatch{Chat: chat})
-		}
-		out[i].Messages = append(out[i].Messages, d.message(h))
-	}
-	return out, strconv.FormatInt(held[len(held)-1].Seq, 10), len(held) == kbPageMost, nil
-}
-
-// chatOf is the knowledge-base chat an item goes to: its thread's (named by the thread's first item the knowledge base
-// sees), or the subscription's own; a snapshot always the subscription's.
-func (d deliverer) chatOf(h Held) kbwire.SourceChat {
-	if h.Snapshot || !groupsByThread(d.sub.Recipe) {
-		return kbwire.SourceChat{ID: rowAll, Name: d.sub.Label, Kind: "subscription"}
-	}
-	key := cmpOr(h.Thread, h.UID)
-	return kbwire.SourceChat{ID: "t" + hashOf(key)[:16], Name: cmpOr(h.Title, d.sub.Label), Kind: "subscription"}
-}
-
-// message is an item as a knowledge-base message: 【title】 and the body, its due date and link on lines of their own.
-func (d deliverer) message(h Held) kbwire.SourceMessage {
-	var b strings.Builder
-	if h.Title != "" && (!h.Snapshot || h.Title != d.sub.Label) { // a snapshot's default title is the chat's name
-		b.WriteString("【" + h.Title + "】")
-	}
-	b.WriteString(strings.TrimSpace(h.Body))
-	if h.DueDate != nil {
-		b.WriteString("\n" + i18n.T(d.lang, "subscriptions-deliver.due", i18n.Args{"when": d.when(*h.DueDate)}))
-	}
-	if h.Link != "" {
-		b.WriteString("\n" + h.Link)
-	}
-	return kbwire.SourceMessage{ID: h.UID, SenderName: h.Sender, Type: "TEXT", Text: strings.TrimSpace(b.String()), At: heldAt(h)}
 }

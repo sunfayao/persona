@@ -46,11 +46,11 @@ func assertFile(t *testing.T, name string, want []byte) {
 // A file or directory the bundle has no copy of is not the bundle's to
 // replace: restore leaves it where it is instead of moving it out of the live
 // install with nothing in its place. That holds for an ordinary optional file,
-// a runtime directory, the knowledge base, and above all a pending key
+// a runtime directory, and above all a pending key
 // rotation's secret.key.next-* (the only copy of a key).
 func TestRestoreLeavesWhatTheBundleLacksInPlace(t *testing.T) {
 	fixture := newBackupFixture(t, "persona_manager")
-	if err := os.RemoveAll(filepath.Join(fixture.home, "data")); err != nil {
+	if err := os.RemoveAll(filepath.Join(fixture.home, "skills")); err != nil {
 		fatal(t, err)
 	}
 	operator := fixture.operator()
@@ -59,17 +59,16 @@ func TestRestoreLeavesWhatTheBundleLacksInPlace(t *testing.T) {
 	}
 	pending := bytes.Repeat([]byte{7}, secretkey.Size)
 	kept := map[string][]byte{
-		"apns.json":                                []byte(`{"team":"later"}`),
-		"tailcat-hub.json":                         []byte("hub tailcat identity made after the backup"),
-		pendingKeyName(t, pending):                 pending,
-		filepath.Join("skills", "s", "SKILL.md"):   []byte("a skill installed after the backup"),
-		filepath.Join("tls", "hub.key"):            []byte("TLS identity made after the backup"),
-		filepath.Join("data", "facts", "later.md"): []byte("knowledge written after the backup"),
+		"apns.json":                              []byte(`{"team":"later"}`),
+		"tailcat-hub.json":                       []byte("hub tailcat identity made after the backup"),
+		pendingKeyName(t, pending):               pending,
+		filepath.Join("skills", "s", "SKILL.md"): []byte("a skill installed after the backup"),
+		filepath.Join("tls", "hub.key"):          []byte("TLS identity made after the backup"),
 	}
 	for name, content := range kept {
 		writeFixtureFile(t, filepath.Join(fixture.home, name), content)
 	}
-	fixture.mutate(t) // also rewrites data/facts/note.md
+	fixture.mutate(t) // also rewrites skills/facts/note.md
 	result, err := operator.Restore(context.Background(), Options{Home: fixture.home, Bundle: fixture.output, WritesQuiesced: true})
 	if err != nil {
 		fatal(t, err)

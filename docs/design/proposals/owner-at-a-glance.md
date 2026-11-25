@@ -95,7 +95,7 @@ reads it right after it is sent, off the conversation's path, with a small model
 **New agent** (and a task the secretary hands out): the secretary decides which leader supervises it. Today
 `task_plan` makes the caller the supervisor, so H3 adds a `supervisor` argument (main chat only, a current leader). The New agent
 sheet gets one field, **Under: Persona product ▾**, pre-filled by the same purpose: the kb project that owns the agent's
-directory (already read by triage, `docs/assistant/knowledge.md`) → that project's leader; else the prompt matched
+directory (already read by triage) → that project's leader; else the prompt matched
 against leaders' titles and projects; else **Persona** (the secretary). Start is the one tap that confirms it; the field
 changes it. The hub then creates the task with that leader as supervisor, as `agent_supervise` does for the main chat.
 Moving a task later: the task's ⋯ **Move to…**; signals follow from the next one.

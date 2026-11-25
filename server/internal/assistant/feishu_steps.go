@@ -135,9 +135,6 @@ func stepOf(l i18n.Lang, it proto.Item) step {
 		}
 		s.verb = tool // an unknown tool goes by its name
 		key := stepMCP[tool]
-		if key == "" && strings.HasPrefix(tool, "kb_") {
-			key = "step_kb"
-		}
 		if key != "" {
 			s.verb = t(key)
 		}
@@ -154,11 +151,9 @@ func stepOf(l i18n.Lang, it proto.Item) step {
 
 // stepMCP is the verb for Persona's own MCP tools (internal/prompts/mcp), by the tool's name.
 var stepMCP = map[string]string{
-	"mail_search":      "step_mail_search",
-	"mail_read":        "step_mail_read",
-	"mail_send":        "step_mail_send",
-	"kb_update":        "step_kb_update",
-	"search_knowledge": "step_kb",
+	"mail_search": "step_mail_search",
+	"mail_read":   "step_mail_read",
+	"mail_send":   "step_mail_send",
 }
 
 // stepNow is what a to-do list (TodoWrite's todos) is doing now: its in-progress item.

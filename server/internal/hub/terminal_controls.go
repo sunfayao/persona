@@ -17,8 +17,7 @@ import (
 )
 
 // An extension's token may not send terminal control characters (docs/extensions/extensions.md "Hub API: scopes"):
-// what it sends an agent can be typed into the agent's terminal, now or later in a prompt (a to-do, a knowledge-base
-// entry), where they are keys rather than text, and keys can do what the extension was not granted (switch the
+// what it sends an agent can be typed into the agent's terminal, now or later in a prompt (a to-do), where they are keys rather than text, and keys can do what the extension was not granted (switch the
 // permission mode). Newline, carriage return and tab are text there; every other control character (C0, DEL, C1) is
 // refused, in any chat, its extension's own included. Scoped device tokens use the same input check.
 
@@ -100,7 +99,7 @@ func terminalControls(body []byte) (bool, error) {
 }
 
 // terminalControlsInURL reports whether u's decoded path or a key or value of its query has a terminal control
-// character: a route keeps text from those too (a knowledge-base entry is named from its path). A query pair that does
+// character: a route keeps text from those too. A query pair that does
 // not decode is left out here as it is by the route.
 func terminalControlsInURL(u *url.URL) bool {
 	if strings.ContainsFunc(u.Path, isTerminalControl) {

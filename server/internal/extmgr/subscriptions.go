@@ -19,7 +19,7 @@ import (
 // manager's connectors, database, audit and broadcasts, and answers /api/v1/subscriptions. Reading is for every
 // device; changing anything needs full access (read_only_device otherwise).
 
-// subscriptionsFeature is in the manager's report once subscriptions deliver to the Inbox and the knowledge base
+// subscriptionsFeature is in the manager's report once subscriptions deliver to the Inbox
 // (#2039, so now): the apps show their entry rows only then, so a subscription the user turns on does what its switch
 // says.
 const subscriptionsFeature = "source_subscriptions"
@@ -73,8 +73,7 @@ func (h *Manager) subscriptionOptions(store subscriptions.Store) subscriptions.O
 		Model:    subscriptionModel{h},
 		Models:   h.purposeModelInfo,
 		Language: func(ctx context.Context) string { return h.contextLang(ctx).Name() },
-		// The destinations (#2039): each subscription is an internal source of the Inbox's rounds (readSubscriptions)
-		// and of the knowledge base's archives (kbArchives, subscriptionArchive).
+		// The destination (#2039): each subscription is an internal source of the Inbox's rounds (readSubscriptions).
 		Lang: h.userLang,
 		ExtensionRules: func(ext string) string {
 			if h.extensions == nil {
@@ -85,9 +84,6 @@ func (h *Manager) subscriptionOptions(store subscriptions.Store) subscriptions.O
 		Delivered: func(s subscriptions.Subscription) {
 			if s.ToInbox {
 				h.kickInbox()
-			}
-			if s.ToKB {
-				h.kbKick(s.ID, connector.ScopeChats)
 			}
 		},
 		Forget: h.forgetSubscription,
@@ -129,33 +125,22 @@ func (h *Manager) readSubscriptions(ctx context.Context, r *assistantwire.InboxR
 			continue
 		}
 		r.Sources = append(r.Sources, assistantwire.InboxSource{ID: src.ID, Name: src.Name, Extension: true, Counts: true, Kinds: src.Kinds,
-			Things: src.Things, ReadError: src.ReadError, Via: src.Connector, ViaSource: src.SourceName, Chats: src.Chats})
+			Things: src.Things, ReadError: src.ReadError, Via: src.Connector, ViaSource: src.SourceName})
 	}
 }
 
-// subscriptionArchive is a subscription as the knowledge base reads a connector's archive.
-type subscriptionArchive struct {
-	subs *subscriptions.Service
-	id   string
-}
-
-func (a subscriptionArchive) Changes(ctx context.Context, cursor string, limit int) ([]connector.ChatBatch, string, bool, error) {
-	return a.subs.Changes(ctx, a.id, cursor, limit)
-}
-
-// forgetSubscription removes what the Inbox and the knowledge base took from a subscription (a delete with its data,
-// which switched it off first). Both parts are asked; either failing leaves the subscription for another delete.
+// forgetSubscription removes what the Inbox took from a subscription (a delete with its data, which switched it off
+// first). Failing leaves the subscription for another delete.
 func (h *Manager) forgetSubscription(ctx context.Context, s subscriptions.Subscription) error {
-	f, kerr := h.forgetArchive(ctx, s.ID)
-	n, ierr := h.forgetInbox(ctx, s.ID)
-	if err := errors.Join(kerr, ierr); err != nil {
-		if kbOffline(kerr) || kbOffline(ierr) || errors.Is(ierr, errAssistantOffline) {
+	n, err := h.forgetInbox(ctx, s.ID)
+	if err != nil {
+		if assistantOffline(err) || errors.Is(err, errAssistantOffline) {
 			return &subscriptions.Error{Status: http.StatusServiceUnavailable, Code: assistantwire.CodeAssistantOffline,
-				Message: "the assistant is away: its Inbox items and knowledge-base chats could not be deleted yet"}
+				Message: "the assistant is away: its Inbox items could not be deleted yet"}
 		}
 		return err
 	}
-	h.logf("subscription %s: deleted %d chat(s) from the knowledge base and %d Inbox item(s)", s.ID, f.Chats, n)
+	h.logf("subscription %s: deleted %d Inbox item(s)", s.ID, n)
 	return nil
 }
 
@@ -222,10 +207,7 @@ type subscriptionConnectors struct{ h *Manager }
 func (sc subscriptionConnectors) info(ctx context.Context, c connector.Connector) subscriptions.ConnectorInfo {
 	r := sc.h.connectors
 	out := subscriptions.ConnectorInfo{ID: c.ID(), Conn: c, Status: connector.StatusOf(ctx, c).State, Enabled: r.Enabled(c.ID()),
-		Direct: subscriptions.Direct{
-			Inbox:   c.Manifest().Has(connector.CapInbox) && r.Feeds(c.ID(), connector.FeedInbox),
-			Archive: c.Manifest().Has(connector.CapArchive) && r.Feeds(c.ID(), connector.FeedArchive),
-		}}
+		Direct: subscriptions.Direct{Inbox: c.Manifest().Has(connector.CapInbox) && r.Feeds(c.ID(), connector.FeedInbox)}}
 	if hp := sc.h.extensions.ownerOf(c); hp != nil {
 		out.Extension = hp.id
 	}

@@ -86,7 +86,6 @@ type Subscription struct {
 	RecipeAt     time.Time `json:"recipe_at"`
 
 	ToInbox         bool   `json:"to_inbox"`
-	ToKB            bool   `json:"to_kb"`
 	IntervalSeconds int    `json:"interval_seconds"`
 	DailyAt         string `json:"daily_at"`
 	TriageRules     string `json:"triage_rules"`
@@ -123,11 +122,9 @@ type Subscription struct {
 	RunState        string        `json:"-"` // the state as runs left it; State is StateOff over it while both switches are off
 	Runs            []Run         `json:"-"`
 	// The destinations' marks (#2039, deliver.go): when the Inbox was turned on (its catch-up reaches a day before),
-	// the first terminal page since (the items stored up to it are the catch-up), and when the knowledge base was turned on
-	// (it starts a day before).
+	// and the first terminal page since (the items stored up to it are the catch-up).
 	InboxFrom    *time.Time `json:"-"`
 	InboxCatchup *time.Time `json:"-"`
-	KBFrom       *time.Time `json:"-"`
 	// What a changed recipe finds at once (Patch.Existing): CatchupFrom starts the Inbox's catch-up at the change
 	// instead of a day before (digest); Baseline asks the next run that succeeds to record what it finds as seen
 	// without keeping it (baseline). Each is when the change asked for it.
@@ -183,7 +180,7 @@ type ModelInfo struct {
 
 // Features says which later stages are in: the pages show their parts only then.
 type Features struct {
-	Deliver  bool `json:"deliver"`  // #2039: items reach the Inbox and the knowledge base
+	Deliver  bool `json:"deliver"`  // #2039: items reach the Inbox
 	Generate bool `json:"generate"` // #2040: a model can draft a recipe
 }
 
@@ -206,10 +203,9 @@ type Catalog struct {
 	Error     *Problem        `json:"error"`
 }
 
-// Direct says whether the connector's own Inbox / archive feeds are on.
+// Direct says whether the connector's own Inbox feed is on.
 type Direct struct {
-	Inbox   bool `json:"inbox"`
-	Archive bool `json:"archive"`
+	Inbox bool `json:"inbox"`
 }
 
 type CatalogSource struct {
@@ -346,7 +342,7 @@ type CreateRequest struct {
 // dedup keys, but much of it happened before the change.
 const (
 	// ExistingDigest (the default): the Inbox catches up from the change, as when it is turned on: more than 3 come
-	// in as one digest row, fewer as rows. The knowledge base keeps each.
+	// in as one digest row, fewer as rows.
 	ExistingDigest = "digest"
 	// ExistingBaseline: the first run that succeeds records what it finds as seen and keeps none of it; only what
 	// arrives later comes in.
@@ -363,7 +359,6 @@ type Patch struct {
 	Recipe          *Recipe `json:"recipe,omitempty"`
 	Existing        string  `json:"existing,omitempty"`
 	ToInbox         *bool   `json:"to_inbox,omitempty"`
-	ToKB            *bool   `json:"to_kb,omitempty"`
 	IntervalSeconds *int    `json:"interval_seconds,omitempty"`
 	DailyAt         *string `json:"daily_at,omitempty"`
 	TriageRules     *string `json:"triage_rules,omitempty"`

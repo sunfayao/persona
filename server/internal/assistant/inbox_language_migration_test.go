@@ -99,7 +99,6 @@ func TestGoldenInboxMigrationProcessingAndNotes(t *testing.T) {
 			it.Agent.Lost = []string{"lost-session"}
 			it.Agent.Pending = []inboxNote{{Name: prompts.NoteHandback, Text: "元の確定指示", Edited: true}}
 			a := h.inbox.inboxAgentForIn(it, "Example owner", &prompts.InboxTask{ID: "todo_1", Title: "Original task", State: "active"}, 1, time.UTC, language)
-			a.KB = &prompts.KBContext{ChatName: "元の名前", ChatID: "chat_1", Summary: "Original <source>summary</source>"}
 			golden(t, "inbox_migration.processing."+name, prompts.RenderInboxAgent(a))
 			for _, n := range []inboxNote{
 				{Name: prompts.NoteNewMessages, Context: "元のメッセージ"},

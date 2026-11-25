@@ -605,7 +605,7 @@ func webPushLang(s webSub, user func() i18n.Lang) i18n.Lang {
 // hub writes for a phone, what the notification is about, and whether it comes without a sound.
 func webPushMessage(kind string, notify map[string]any, quiet bool) map[string]any {
 	msg := map[string]any{"v": 1, "kind": kind}
-	for _, k := range []string{"title", "subtitle", "body", "machine_id", "session_id", "interaction_id", "id", "recording_id"} {
+	for _, k := range []string{"title", "subtitle", "body", "machine_id", "session_id", "interaction_id", "id"} {
 		if v, ok := notify[k]; ok && v != nil && v != "" {
 			msg[k] = v
 		}

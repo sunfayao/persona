@@ -81,7 +81,7 @@ type Options struct {
 	// Delivered tells the destinations a subscription has something new for them: a run kept items, or the Inbox's
 	// catch-up is ready.
 	Delivered func(s Subscription)
-	// Forget removes what the destinations took from a subscription (its Inbox items, its knowledge-base chats), for a
+	// Forget removes what the destinations took from a subscription (its Inbox items), for a
 	// delete with its data. nil: nothing to remove.
 	Forget func(ctx context.Context, s Subscription) error
 }
@@ -181,7 +181,7 @@ func shown(sub Subscription) Subscription {
 }
 
 // on says whether sub is pulled: a destination is on, or it is a built-in's Inbox feed now (Migrated, #6265).
-func on(sub Subscription) bool { return sub.ToInbox || sub.ToKB || sub.Migrated != nil }
+func on(sub Subscription) bool { return sub.ToInbox || sub.Migrated != nil }
 
 // pullScheduled distinguishes ordinary polling from a finite continuation explicitly started by Run Now while off.
 func pullScheduled(sub Subscription) bool {
@@ -869,22 +869,8 @@ func (s *Service) Update(ctx context.Context, id string, p Patch, by Actor) (Sub
 			next.InboxFrom, next.InboxCatchup, next.CatchupFrom = nil, nil, nil
 		}
 	}
-	if p.ToKB != nil {
-		next.ToKB = *p.ToKB
-		changed = append(changed, "to_kb")
-		switch {
-		case next.ToKB && !cur.ToKB:
-			next.KBFrom, turnedOn = &now, true
-		case !next.ToKB:
-			next.KBFrom = nil
-		}
-	}
 	if p.Recipe != nil {
 		next = rebased(next, *cur, p.Existing, now)
-	}
-	if next.ToKB && next.Recipe.Mode == wire.ConnectorSubscriptionModeThings {
-		// Its rows are the Inbox's; the knowledge base reads the source itself (#6296).
-		return Subscription{}, errorf(http.StatusBadRequest, CodeBadRequest, "a things subscription's rows go to the Inbox only")
 	}
 	switch {
 	case !on(next):
@@ -1079,7 +1065,7 @@ func (s *Service) switchOff(ctx context.Context, sub Subscription) (*Subscriptio
 			return &sub, nil
 		}
 		next, prev := sub, sub.Revision
-		next.ToInbox, next.ToKB, next.InboxFrom, next.InboxCatchup, next.KBFrom, next.NextRunAt = false, false, nil, nil, nil, nil
+		next.ToInbox, next.InboxFrom, next.InboxCatchup, next.NextRunAt = false, nil, nil, nil
 		next.CatchupFrom, next.Migrated = nil, nil // a built-in's feed switched to it goes back to the built-in (#6265)
 		next.Revision, next.UpdatedAt = prev+1, s.now()
 		ok, err := s.o.Store.UpdateSubscription(ctx, next, prev)
@@ -1163,9 +1149,6 @@ func Patched(cur Subscription, p Patch) Subscription {
 	}
 	if p.ToInbox != nil {
 		next.ToInbox = *p.ToInbox
-	}
-	if p.ToKB != nil {
-		next.ToKB = *p.ToKB
 	}
 	return shown(next)
 }

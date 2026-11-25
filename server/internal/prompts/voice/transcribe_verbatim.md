@@ -1,5 +1,5 @@
-{{- /* The instructions of a meeting transcription's verbatim session (docs/assistant/meeting-minutes.md "The built-in
-adapter"), on the wording measured to make the service reply once per sentence, just after it ends: a meeting's
+{{- /* The instructions of a meeting transcription's verbatim session (docs/extensions/extensions.md "Transcription for
+extensions"), on the wording measured to make the service reply once per sentence, just after it ends: a meeting's
 verbatim transcriber, not talked to, that after each sentence (at the pause) outputs only its words, each in the
 language it was said in, and nothing else. Wording that invites silence ("if nothing could be made out, write nothing")
 and long lists of prohibitions made it hold sentences back and write them in bursts. .TextLang is the recording's

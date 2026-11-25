@@ -2,16 +2,12 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"html"
-	"os"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -67,76 +63,6 @@ func TestGoldenCompactRecoveryConfiguredSummaryLanguage(t *testing.T) {
 			t.Fatal("automatic Claude compaction lost the configured instructions")
 		}
 		golden(t, "compact_instructions."+tc.locale, got.CompactInstructions)
-	}
-}
-
-func TestCompactRecoverySourceScopeAndVerbatimDecisions(t *testing.T) {
-	database := todoTestDB(t)
-	s, f, todo := outcomeEnv(t, database, "")
-	ctx := context.Background()
-	setSettings(t, s, func(v *Settings) { v.Main = "conv1" })
-	now := time.Now().UTC()
-	for _, r := range []db.TodoDecisionRow{
-		{ID: "user-decision", TodoID: todo.ID, Choice: "Keep the original words: 先做好平台功能。", Source: db.DecisionThread, SourceMessage: "message-original", CreatedAt: now},
-		{ID: "agent-decision", TodoID: todo.ID, Choice: "AGENT_ONLY", Source: db.DecisionAgent, CreatedAt: now},
-		{ID: "old-decision", TodoID: todo.ID, Choice: "OLD_ONLY", Source: db.DecisionManual, CreatedAt: now.AddDate(0, 0, -8)},
-	} {
-		if _, err := database.InsertTodoDecision(ctx, r); err != nil {
-			t.Fatal(err)
-		}
-	}
-	e := kbEng(t, s)
-	project := ownProject(e, todo)
-	if project == nil { // The fixture infers its project from the linked worker directory.
-		project = e.FindProject("天气-app")
-	}
-	if project == nil {
-		t.Fatal("missing project")
-	}
-	s.todos.mu.Lock()
-	s.todos.todos[todo.ID].Project = project.Slug
-	s.todos.mu.Unlock()
-	if err := os.WriteFile(e.Store.Path(kb.KindProject, project.Slug, "STATE.md"), []byte("STATE_FROM_PROJECT"+strings.Repeat("状态", 2000)), 0600); err != nil {
-		t.Fatal(err)
-	}
-	f.setItems(
-		proto.Item{ID: "u-recent", Seq: 4, Role: "user", Kind: proto.KindText, Text: "RECENT_ORIGINAL"},
-		proto.Item{ID: "partial", Role: "user", Kind: proto.KindText, Text: "PARTIAL_QUOTE_ONLY", FullSize: 10000},
-		proto.Item{ID: "stored", Role: "user", Kind: proto.KindText, Text: "STORED_QUOTE_ONLY", Stored: &proto.StoredItem{}},
-		proto.Item{ID: "relay", Role: "user", Kind: proto.KindText, Text: "RELAY_ONLY", Source: &proto.MessageSource{Kind: proto.SourceConversation}},
-		proto.Item{ID: "native-relay", Role: "user", Kind: proto.KindText, Text: "NATIVE_RELAY_ONLY", From: "other-session"},
-	)
-	p := ContextParams{SessionID: "conv1", MachineID: "server", RecoveryID: "break-1"}
-	out, handled, err := s.nodeAnswer(ctx, "server", "assistant.context", json.RawMessage(`{"session_id":"conv1","recovery_id":"break-1","machine_id":"untrusted"}`))
-	if err != nil || !handled {
-		t.Fatalf("context routing: %v", err)
-	}
-	got := out.(ContextResult)
-	for _, want := range []string{"break-1", "STATE_FROM_PROJECT", "先做好平台功能。", "message-original", "RECENT_ORIGINAL"} {
-		if !strings.Contains(got.Recovery, want) {
-			t.Errorf("recovery lacks %q: %s", want, got.Recovery)
-		}
-	}
-	for _, bad := range []string{"AGENT_ONLY", "OLD_ONLY", "RELAY_ONLY", "NATIVE_RELAY_ONLY", "PARTIAL_QUOTE_ONLY", "STORED_QUOTE_ONLY"} {
-		if strings.Contains(got.Recovery, bad) {
-			t.Errorf("leaked %q", bad)
-		}
-	}
-	if budget := s.compactRecoveryBudget(ctx, p); budget != 6144 {
-		t.Fatalf("main budget=%d", budget)
-	}
-	p.SessionID = "s1"
-	p.MachineID = "box"
-	if budget := s.compactRecoveryBudget(ctx, p); budget != 3072 {
-		t.Fatalf("worker budget=%d", budget)
-	}
-	worker := s.compactRecoverySource(ctx, p)
-	if !strings.Contains(assembleCompactRecovery("en", p.RecoveryID, worker, 3072), "OLD_ONLY") {
-		t.Fatal("worker lost its older standing user decision")
-	}
-	p.MachineID = "wrong"
-	if budget := s.compactRecoveryBudget(ctx, p); budget != 0 {
-		t.Fatal("wrong machine received recovery")
 	}
 }
 

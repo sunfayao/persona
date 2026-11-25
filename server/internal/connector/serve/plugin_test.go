@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"slices"
 	"testing"
 	"time"
 
@@ -98,21 +97,21 @@ func TestEventsReachAListener(t *testing.T) {
 	_ = hubW.Close()
 }
 
-// archiving is a connector that files conversations under another name too and has a command line.
+// archiving is a connector that has a command line.
 type archiving struct{ notes }
 
 func (archiving) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapStatus}, ArchiveSources: []string{"moments"}, CLI: "ex"}
+	return connector.Manifest{Capabilities: []connector.Capability{connector.CapStatus}, CLI: "ex"}
 }
 
-// The init answer and the initialize contribution carry the connector's archive_sources and cli: a program built on
+// The init answer and the initialize contribution carry the connector's cli: a program built on
 // serve says what its Go manifest says.
-func TestManifestKeepsArchiveSourcesAndCLI(t *testing.T) {
+func TestManifestKeepsCLI(t *testing.T) {
 	m := ManifestOf(archiving{})
-	if !slices.Equal(m.ArchiveSources, []string{"moments"}) || m.CLI != "ex" {
+	if m.CLI != "ex" {
 		t.Fatalf("init answer %+v", m)
 	}
-	if back := m.Of(); !slices.Equal(back.ArchiveSources, []string{"moments"}) || back.CLI != "ex" {
+	if back := m.Of(); back.CLI != "ex" {
 		t.Fatalf("round trip %+v", back)
 	}
 	progR, hubW := io.Pipe()
@@ -142,7 +141,7 @@ func TestManifestKeepsArchiveSourcesAndCLI(t *testing.T) {
 	if err := json.Unmarshal(answer.Result.Contributes["connectors"], &items); err != nil || len(items) != 1 {
 		t.Fatalf("initialize answer %s", line)
 	}
-	if !slices.Equal(items[0].ArchiveSources, []string{"moments"}) || items[0].CLI != "ex" {
+	if items[0].CLI != "ex" {
 		t.Fatalf("contribution %+v", items[0])
 	}
 }

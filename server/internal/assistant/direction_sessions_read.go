@@ -108,10 +108,9 @@ func (s *Service) serveDirectionRead(w http.ResponseWriter, r *http.Request) {
 		directionFilingRefusal(w, r, http.StatusServiceUnavailable, "direction_unavailable", errDirectionUnavailable)
 		return
 	}
-	projects, projectsOK := s.projectNames(ctx)
-	name := directionName(nil, titles[id].title, "")
+	name := directionName(nil, titles[id].title)
 	if known {
-		name = nameOf(&record, titles[id].title, projects, projectsOK)
+		name = nameOf(&record, titles[id].title)
 	}
 	out := directionReadResult{ID: id, Name: name, EndedAt: record.EndedAt, Notes: record.Notes, NotesAt: record.NotesAt,
 		Progress: record.Progress, Sessions: []directionSession{}, EndedTasks: []directionEndedTask{}}

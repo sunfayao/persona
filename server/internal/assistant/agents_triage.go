@@ -76,7 +76,6 @@ func (s *Service) triageTurnModel(ctx context.Context, v *workView, machine stri
 	in := prompts.AgentTriageInput{
 		Now: time.Now().In(s.location(ctx)).Format("2006-01-02 15:04 Mon"), Agent: agentLabel(c), Machine: name,
 		Cwd: c.Cwd, Ask: clipMiddleRunes(ask, 500), Reply: clipMiddleRunes(reply, 1500), Others: others,
-		Project: strings.Join(first(s.projectsFor(ctx, machine, c.Cwd), 3), "、"),
 	}
 	s.work.mu.Lock()
 	if a, ok := s.work.approved[[2]string{machine, c.SessionID}]; ok {
@@ -185,20 +184,6 @@ func explicitUserRequest(text string) bool {
 		}
 		text = trimmed
 	}
-}
-
-// projectsFor are the names of the knowledge base's projects whose directories hold cwd on machine (none when it
-// cannot say): the assistant's own knowledge base (kb.go).
-func (s *Service) projectsFor(ctx context.Context, machine, cwd string) []string {
-	e, err := s.kbGet(ctx)
-	if err != nil || e == nil {
-		return nil
-	}
-	var names []string
-	for _, p := range e.ProjectsForDir(machine, cwd) {
-		names = append(names, p.Name)
-	}
-	return names
 }
 
 // triageWork turns the model's answer into a work state, keeping only what it may say.

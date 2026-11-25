@@ -1001,33 +1001,6 @@ func TestCompletionAfterAnUnnamedTurnWithTheNodeClockBehind(t *testing.T) {
 	stillTurns(t, "later ticks", turnCounts{2, 2, 2}, s, todo.ID, f)
 }
 
-// A meeting's turn in the task's agent is never the task's completion: found by the sweep with no start heard, it is
-// left alone (no receipt, no start taken), kept as seen and not read again.
-func TestCompletionUnheardMeetingTurn(t *testing.T) {
-	s, f, todo := newSupervisedService(t)
-	nodeListed(s, f, turnRow(proto.StatusIdle, 1, ""))
-	sweeps(t, s, todo.ID, 1)
-	if _, err := s.meetingTurnSent("box", "s1", "rec-1", false); err != nil {
-		t.Fatal(err)
-	}
-	s.meetingTurnStarted("box", "s1", true)
-	if !s.meetingTurnNow("box", "s1") {
-		t.Fatal("no meeting turn marked")
-	}
-	before, mark := todoNow(s, todo.ID), workMark(s, todo.ID)
-	f.setItems(turnPage("turn-1", "会议纪要整理好了", true)...)
-	reads := itemReadsCounted(f)
-	nodeListed(s, f, turnRow(proto.StatusDone, 3, "会议纪要整理好了"))
-	sweeps(t, s, todo.ID, 5)
-	stillTurns(t, "a meeting's turn", turnCounts{}, s, todo.ID, f)
-	if got := reads.Load(); got != 1 {
-		t.Fatalf("%d transcript reads over 5 ticks, want 1", got)
-	}
-	if now := todoNow(s, todo.ID); !workMark(s, todo.ID).Equal(mark) || now.Stage != before.Stage || now.Supervision.State != before.Supervision.State {
-		t.Fatalf("the task was changed for a meeting's turn: start %v → %v, stage %q → %q, %+v", mark, workMark(s, todo.ID), before.Stage, now.Stage, now.Supervision)
-	}
-}
-
 // A turn the user stopped between a tool and the answer gets no receipt until something is written (the end's own
 // rule, taskTurnAwaitingAnswer). Found by the sweep with no start heard, no start is taken for it either, and its
 // transcript is read for the look that found it, not tick after tick.

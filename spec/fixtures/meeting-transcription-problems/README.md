@@ -1,6 +1,6 @@
 # Why the hub isn't transcribing a meeting
 
-In a hub-mode meeting the hub tells the phone, with the audio socket's `problem` frame and `transcription.problem`, why transcription is degraded (#13446, [docs/assistant/meeting-minutes.md "Problems"](../../../docs/assistant/meeting-minutes.md)). The transcription contribution ends a job with an error code (an open set); the manager passes its kind on as the `problem` code (an open set too); the phone's fallback notice says why, in the owner's words, and what to do. It never shows the error's message, a log id or account details.
+In a hub-mode meeting the hub tells the phone, with the audio socket's `problem` frame and `transcription.problem`, why transcription is degraded (#13446). The transcription contribution ends a job with an error code (an open set); the manager passes its kind on as the `problem` code (an open set too); the phone's fallback notice says why, in the owner's words, and what to do. It never shows the error's message, a log id or account details.
 
 | File | Covers |
 | --- | --- |

@@ -64,11 +64,6 @@ type fakeHub struct {
 	// interrupted conversation is still listed as working (the hub answers once the agent got its Esc).
 	triage  *triageSwitches
 	stopLag time.Duration
-	// rooms are the recordings' rooms GET /api/v1/recordings/{id}/live tells (a recording not in it: 404; nil: a
-	// recording without one); liveStatus answers it instead when set; liveReads are the paths and queries it was asked.
-	rooms      map[string]*liveRoom
-	liveStatus int
-	liveReads  []string
 }
 
 type resolvedCard struct {
@@ -105,9 +100,6 @@ func newFakeHub(t *testing.T) *fakeHub {
 
 func (h *fakeHub) server(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/kb-search", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{"hits": []map[string]string{{"path": "people/x.md", "line": "x likes " + r.URL.Query().Get("q")}}})
-	})
 	mux.HandleFunc("GET /api/v1/assistant", func(w http.ResponseWriter, r *http.Request) {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -321,26 +313,6 @@ func (h *fakeHub) server(t *testing.T) *httptest.Server {
 			}
 		}
 		http.NotFound(w, r)
-	})
-	mux.HandleFunc("GET /api/v1/recordings/{id}/live", func(w http.ResponseWriter, r *http.Request) {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		h.liveReads = append(h.liveReads, r.URL.RequestURI())
-		if h.liveStatus != 0 {
-			w.WriteHeader(h.liveStatus)
-			_, _ = io.WriteString(w, `{"error":"not now"}`)
-			return
-		}
-		room, ok := h.rooms[r.PathValue("id")]
-		if !ok {
-			http.Error(w, `{"error":"no such recording"}`, http.StatusNotFound)
-			return
-		}
-		out := map[string]any{"revs": map[string]int{}}
-		if room != nil {
-			out["room"] = room
-		}
-		_ = json.NewEncoder(w).Encode(out)
 	})
 	mux.HandleFunc("GET /api/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		h.mu.Lock()
@@ -632,4 +604,17 @@ func (h *fakeHub) subscribed(sid string) {
 func isVoiceID(id string) bool {
 	rest, ok := strings.CutPrefix(id, "voice-")
 	return ok && len(rest) == 16 && strings.Trim(rest, "0123456789abcdef") == ""
+}
+
+// pcm is n bytes of PCM16 whose every sample is v.
+func pcm(n int, v int16) []byte {
+	b := make([]byte, n)
+	for i := 0; i+1 < n; i += 2 {
+		b[i], b[i+1] = byte(uint16(v)), byte(uint16(v)>>8)
+	}
+	return b
+}
+
+func silent(b []byte) bool {
+	return len(b) > 0 && !slices.ContainsFunc(b, func(x byte) bool { return x != 0 })
 }

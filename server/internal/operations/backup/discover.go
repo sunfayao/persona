@@ -268,22 +268,3 @@ func databaseServers(cfg *pgx.ConnConfig) []string {
 	}
 	return servers
 }
-
-// knowledgeBaseLocator resolves kb_dir without ever consulting another
-// manager's configuration. A relative kb_dir is relative to managers/assistant.
-func knowledgeBaseLocator(home string) (KnowledgeBaseLocator, string, error) {
-	kb := managerconf.KBDir(home)
-	homeAbs, err := filepath.Abs(home)
-	if err != nil {
-		return KnowledgeBaseLocator{}, "", err
-	}
-	kbAbs, err := filepath.Abs(kb)
-	if err != nil {
-		return KnowledgeBaseLocator{}, "", err
-	}
-	rel, err := filepath.Rel(homeAbs, kbAbs)
-	if err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return KnowledgeBaseLocator{Relative: filepath.ToSlash(rel)}, kbAbs, nil
-	}
-	return KnowledgeBaseLocator{External: kbAbs}, kbAbs, nil
-}

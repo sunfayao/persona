@@ -10,11 +10,12 @@ import (
 	_ "image/png"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/kb"
+	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -28,6 +29,21 @@ type TodoImage struct {
 	URL    string `json:"url"`
 	Name   string `json:"name,omitempty"`
 	Size   int    `json:"size,omitempty"`
+}
+
+// The limits of an image a to-do is created with.
+const (
+	maxTodoImages = 50      // images one to-do is created with
+	maxPhotoBytes = 1 << 20 // one image, decoded
+	maxPhotoSide  = 4096    // pixels on its long side
+)
+
+var todoImageUUIDRe = lazyre.New(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// todoImageUUID is id lowercased and trimmed, and whether it is a UUID.
+func todoImageUUID(id string) (string, bool) {
+	id = strings.ToLower(strings.TrimSpace(id))
+	return id, todoImageUUIDRe.MatchString(id)
 }
 
 type todoImageStore interface {
@@ -47,8 +63,8 @@ type todoImageInputJSON struct {
 // parseTodoImages applies the meeting-photo input rules before a to-do is created. The status distinguishes malformed
 // images (400) from decoded-size and count limits (413); DecodeConfig bounds pixels before the complete Decode.
 func parseTodoImages(in []todoImageInputJSON) ([]db.TodoImage, int, error) {
-	if len(in) > kb.MaxPhotos {
-		return nil, http.StatusRequestEntityTooLarge, i18n.Err("assistant-meeting.too_many_images", i18n.Args{"max": kb.MaxPhotos})
+	if len(in) > maxTodoImages {
+		return nil, http.StatusRequestEntityTooLarge, i18n.Err("assistant-meeting.too_many_images", i18n.Args{"max": maxTodoImages})
 	}
 	out := make([]db.TodoImage, 0, len(in))
 	seen := map[string]bool{}
@@ -58,7 +74,7 @@ func parseTodoImages(in []todoImageInputJSON) ([]db.TodoImage, int, error) {
 			id = newTodoImageID()
 		} else {
 			var ok bool
-			if id, ok = kb.RecordingID(id); !ok {
+			if id, ok = todoImageUUID(id); !ok {
 				return nil, http.StatusBadRequest, i18n.Err("assistant-meeting.bad_ask_id")
 			}
 		}
@@ -66,7 +82,7 @@ func parseTodoImages(in []todoImageInputJSON) ([]db.TodoImage, int, error) {
 			return nil, http.StatusBadRequest, i18n.Err("assistant-meeting.photo_id_reused")
 		}
 		seen[id] = true
-		if row.Mime != kb.PhotoJPEG && row.Mime != kb.PhotoPNG {
+		if row.Mime != "image/jpeg" && row.Mime != "image/png" {
 			return nil, http.StatusBadRequest, i18n.Err("assistant-meeting.bad_photo_mime")
 		}
 		data, err := base64.StdEncoding.DecodeString(row.Data)

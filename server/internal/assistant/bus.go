@@ -150,9 +150,7 @@ func NewBusHub(o BusOptions) *BusHub {
 			return map[string]any{"id": id, "host": host, "os": runtime.GOOS, "arch": runtime.GOARCH,
 				"deploy": o.Deploy, "version": o.Version, "capabilities": []string{assistantwire.CapabilityConfigOwn, assistantwire.CapabilityAgentSessionArchives,
 					assistantwire.CapabilityAgentSessionArchiveClose, assistantwire.CapabilityAgentNaming, assistantwire.CapabilityAgentAutoname, assistantwire.CapabilityMachinesOwn,
-					assistantwire.CapabilityMeetingAttendance, assistantwire.CapabilityMeetingConversation, assistantwire.CapabilityMeetingPhotos, assistantwire.CapabilityMeetingLiveView,
-					assistantwire.CapabilityMeetingHighlights, assistantwire.CapabilityMeetingNotes, assistantwire.CapabilityMeetingEcho, assistantwire.CapabilityMeetingTranscription,
-					assistantwire.CapabilityTaskInput, assistantwire.CapabilityRecordingDay, assistantwire.CapabilityAssistantSearch, assistantwire.CapabilityAssistantSegments, assistantwire.CapabilityDirectionSessions, assistantwire.CapabilityHTTPBodyStream, assistantwire.CapabilityAssistantStartServiceTier,
+					assistantwire.CapabilityTaskInput, assistantwire.CapabilityAssistantSearch, assistantwire.CapabilityAssistantSegments, assistantwire.CapabilityDirectionSessions, assistantwire.CapabilityHTTPBodyStream, assistantwire.CapabilityAssistantStartServiceTier,
 					assistantwire.CapabilityMCPWait, assistantwire.CapabilitySessionsSideFold, assistantwire.CapabilityRemoteImages, assistantwire.CapabilityTodoView,
 					assistantwire.CapabilityTodoPlaces, assistantwire.CapabilityTodoAsks, assistantwire.CapabilityTodoTimeline, assistantwire.CapabilityTodoImages, devicewire.SharingCapability}}
 		},
@@ -209,13 +207,12 @@ func (b *BusHub) Serve(ctx context.Context, svc *Service) error {
 	b.mu.Lock()
 	b.svc, b.ctx = svc, ctx
 	b.mu.Unlock()
-	defer svc.kbEnd()
 	go b.takeEvents(ctx)
 	go b.runOutbox(ctx) // what was made while the hub was away, once it is back (outbox.go)
 	return b.client.Run(ctx)
 }
 
-// Connected: the connection to the hub is up now (the knowledge base closes while it is not, kb.go).
+// Connected: the connection to the hub is up now .
 func (b *BusHub) Connected() bool { return b.client.Peer() != nil }
 
 // CredentialRevoked checks the hub's credential status for a kept message's sender.
@@ -298,9 +295,6 @@ func (b *BusHub) onHello(res json.RawMessage) error {
 		}()
 		// The conversations the channels follow (channels_handler.go).
 		go svc.channelsReconnected(context.WithoutCancel(ctx))
-		// Turns the hub sent as it connected can be taken before this answer is kept (events come on their own
-		// goroutine): without the hub's kb settings they could not be filed and wait — now they can.
-		go svc.kbFileWaiting(context.WithoutCancel(ctx))
 	}
 	return nil
 }
@@ -687,9 +681,6 @@ func (b *BusHub) request(ctx context.Context, method string, params json.RawMess
 		}
 		return b.askPreparedHub(ctx, p.Interaction, p.Replacement)
 	}
-	if out, ok, err := s.kbRequest(ctx, method, params); ok { // the knowledge base's (kb_bus.go)
-		return out, err
-	}
 	if out, ok, err := s.conversationsRequest(ctx, method, params); ok { // extensions' assistant.read (conversations_rpc.go)
 		return out, err
 	}
@@ -1027,9 +1018,6 @@ func (b *BusHub) event(ctx context.Context, ev busEvent) error {
 	default:
 		if s.FleetEvent(ctx, ev.name, ev.params) { // the hub's fleet.* (fleet_events.go)
 			return nil
-		}
-		if ok, err := s.kbEvent(ctx, ev.name, ev.params); ok { // the knowledge base's (kb_bus.go)
-			return err
 		}
 		return fmt.Errorf("unknown event")
 	}

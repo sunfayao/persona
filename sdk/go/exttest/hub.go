@@ -122,7 +122,7 @@ func (h *hub) result(method string, params json.RawMessage) (any, error) {
 	call, described := wire.Calls[method]
 	ns, _, _ := strings.Cut(method, ".")
 	if !described || call.From != "program" {
-		if ns == ext.ConnectorNamespace || ns == ext.ChannelNamespace || ns == "kb" {
+		if ns == ext.ConnectorNamespace || ns == ext.ChannelNamespace {
 			return nil, ext.UnknownMethod(method)
 		}
 		if f != nil {
@@ -145,7 +145,7 @@ func (h *hub) result(method string, params json.RawMessage) (any, error) {
 }
 
 // answerOf is the test's answer (Answer, which replaces the host's own), else the host's own: a connector's secrets in memory, a channel's
-// messages kept, and for what needs a hub's data (the knowledge base, a computer's token) the error a hub without
+// messages kept, and for what needs a hub's data (a computer's token) the error a hub without
 // it answers.
 func (h *hub) answerOf(f func(json.RawMessage) (any, error), method string, params json.RawMessage) (any, error) {
 	if f != nil {
@@ -206,21 +206,16 @@ func (h *hub) answerOf(f func(json.RawMessage) (any, error), method string, para
 		h.mu.Unlock()
 	}
 	switch {
-	case strings.HasPrefix(method, "kb."):
-		return nil, &ext.Error{Code: wire.KBErrorCodeKbUnavailable, Message: "exttest: no knowledge base here (answer " + method + " with Host.Answer)"}
 	case method == ext.ConnectorNamespace+".credentials.gh_token":
 		return nil, &ext.Error{Code: wire.ConnectorErrorCodeNoMachine, Message: "exttest: no computer here (answer it with Host.Answer)"}
-	case strings.HasPrefix(method, ext.ConnectorNamespace+".posts.") || method == ext.ConnectorNamespace+".archive.chats":
-		return nil, &ext.Error{Message: "exttest: no knowledge base here (answer " + method + " with Host.Answer)"}
 	}
 	return struct{}{}, nil
 }
 
 // refuses is the real hub's refusal of a program's call, or nil: a connector or channel the extension does not
-// contribute (no_contribution), a knowledge-base call or a gh token without the permission granted
+// contribute (no_contribution), a gh token without the permission granted
 // (permission_denied, data {scope}), a sent.record for a connector that does not declare sends_as_user
-// (permission_denied) or with a target that is not an object or no text (invalid_params), the knowledge base's connector calls of a connector without archive
-// (no_capability).
+// (permission_denied) or with a target that is not an object or no text (invalid_params).
 func refuses(m *wire.Manifest, method string, params json.RawMessage) error {
 	if m == nil {
 		return nil
@@ -240,15 +235,6 @@ func refuses(m *wire.Manifest, method string, params json.RawMessage) error {
 	}
 	c := ext.Contribution(params)
 	switch ns, rest, _ := strings.Cut(method, "."); ns {
-	case "kb":
-		scope := "kb.read"
-		if rest == "update" {
-			scope = "kb.write"
-		}
-		// hub_api is the legacy full grant only without scopes (the hub's FullHub).
-		if !(perms.HubAPI && len(perms.Hub) == 0) && !slices.Contains(perms.Hub, scope) {
-			return denied(scope)
-		}
 	case ext.SentNamespace:
 		// Only a connector of its own that declares sends_as_user (the hub's registry check), with a target that is an
 		// object and a text (which may be empty).
@@ -280,9 +266,6 @@ func refuses(m *wire.Manifest, method string, params json.RawMessage) error {
 		switch {
 		case rest == "credentials.gh_token" && !perms.GhLogin:
 			return denied("gh_login")
-		case (strings.HasPrefix(rest, "posts.") || rest == "archive.chats") &&
-			!slices.Contains(connectors[i].Capabilities, wire.ConnectorCapabilityArchive):
-			return &ext.Error{Code: wire.ErrorCodeNoCapability, Message: c + " does not declare an archive"}
 		}
 	}
 	return nil
@@ -317,7 +300,7 @@ func (h *hub) write(f frame) error {
 	return err
 }
 
-// notify sends the program an event (event.kb.changed…).
+// notify sends the program an event (event.todo.changed…).
 func (h *hub) notify(event string, params any) error {
 	raw, err := json.Marshal(params)
 	if err != nil {

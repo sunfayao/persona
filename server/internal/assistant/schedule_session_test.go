@@ -719,7 +719,7 @@ func TestSilentRunWithSelectedPrompt(t *testing.T) {
 	const reference = `<persona-context kind="skill" ref="review">Review</persona-context>`
 	task := Task{Prompt: reference + "\n\nReview notes", PromptSelections: true}
 	at := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
-	prompt := taskPrompt(task, at, at, time.UTC, false, false, false)
+	prompt := taskPrompt(task, at, at, time.UTC, false, false)
 	user := proto.Item{ID: "u1", Role: "user", Kind: proto.KindText, Text: prompt}
 	empty := proto.Item{ID: "a1", Role: "assistant", Kind: proto.KindText}
 	if !silentRun([]proto.Item{user, empty}, task, true) {
@@ -736,7 +736,7 @@ func TestReferenceOnlySilentRunMatchesItsOwnTurn(t *testing.T) {
 	task := Task{Title: "Review", Prompt: file, PromptSelections: true, Repeat: repeatOnce, promptRunID: "run_current"}
 	at := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
 	render := func(t Task) string {
-		return prompts.MessageSourceText(taskPrompt(t, at, at, time.UTC, true, false, false), taskMessageSource(t))
+		return prompts.MessageSourceText(taskPrompt(t, at, at, time.UTC, true, false), taskMessageSource(t))
 	}
 	sent := render(task) + "\n\n" + prompts.RenderAssistantSelectedFiles([]prompts.AssistantSelectedFile{{Name: "notes.txt", Path: "/work/notes.txt"}}, "")
 	line := fmt.Sprintf(`{"uuid":"u1","parentUuid":null,"type":"user","message":{"role":"user","content":%q}}`, sent)
@@ -787,7 +787,7 @@ func TestReferenceOnlySilentRunMatchesItsOwnTurn(t *testing.T) {
 func TestSilentRunInAReusedChat(t *testing.T) {
 	task := Task{Title: "早报", Prompt: "给我今天的早报"}
 	at := time.Date(2026, 11, 16, 8, 0, 0, 0, time.UTC)
-	run := taskPrompt(task, at, at, time.UTC, false, false, true)
+	run := taskPrompt(task, at, at, time.UTC, false, true)
 	if prompts.ParseInjected(run) == nil {
 		t.Fatal("the run's prompt is not an injected one: the page would stop at it")
 	}
@@ -1021,29 +1021,6 @@ func TestTaskFailingBeforeTheWatcherSeesItWorking(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Fatal("the failure before the first working poll was not recorded")
-}
-
-// A daily run's knowledge-base hint names the hub's knowledge directory, wherever it is (PERSONA_HOME, kb_dir), not the
-// default ~/.persona/data: the model reads that directory with kb_list and the hint is where it is told.
-func TestDailyRunHintNamesTheKnowledgeDir(t *testing.T) {
-	n := newFakeHub().withMachine()
-	n.hello.KB = &KBSettings{}
-	h := newKBService(t, n)
-	dir := h.kb.dir
-	if dir == "" || strings.Contains(dir, ".persona") {
-		t.Fatalf("the test needs a custom knowledge directory: %q", dir)
-	}
-	setTasks(h, Task{ID: "r", Title: "早报", Prompt: "给我今天的早报", Repeat: repeatDaily, Time: "09:00", Enabled: true})
-	if _, err := runNow(t, h, "r"); err != nil {
-		t.Fatal(err)
-	}
-	text := n.lastSend(t)["text"].(string)
-	if !strings.Contains(text, "（知识库") {
-		t.Fatalf("the first run has the hint: %q", text)
-	}
-	if strings.Contains(text, "~/.persona/data") || !strings.Contains(text, "（知识库 "+dir+"：") {
-		t.Fatalf("the hint should name %s: %q", dir, text)
-	}
 }
 
 // goroutineGone reports whether goroutine id ("goroutine N") has ended.

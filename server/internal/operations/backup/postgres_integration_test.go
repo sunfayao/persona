@@ -105,7 +105,7 @@ func (it *postgresIntegration) home(t *testing.T, managerKey []byte) (string, st
 	writeFixtureFile(t, filepath.Join(home, "managers", "assistant", "manager.json"), []byte(`{"database_name":"`+it.manager.Database+`"}`))
 	writeFixtureFile(t, filepath.Join(home, "secret.key"), []byte(strings.Repeat("h", secretkey.Size)))
 	writeFixtureFile(t, filepath.Join(home, "managers", "assistant", "secret.key"), managerKey)
-	writeFixtureFile(t, filepath.Join(home, "data", "fact.md"), []byte("disposable knowledge"))
+	writeFixtureFile(t, filepath.Join(home, "skills", "fact.md"), []byte("disposable knowledge"))
 	return home, filepath.Join(root, "out", "install.backup")
 }
 
@@ -161,7 +161,7 @@ func TestPostgresWholeInstallRoundTrip(t *testing.T) {
 		fatal(t, err)
 	}
 	closeConn(ctx, conn)
-	writeFixtureFile(t, filepath.Join(home, "data", "fact.md"), []byte("changed knowledge"))
+	writeFixtureFile(t, filepath.Join(home, "skills", "fact.md"), []byte("changed knowledge"))
 	result, err := operator.Restore(ctx, Options{Home: home, Bundle: output, WritesQuiesced: true})
 	if err != nil {
 		fatal(t, err)
@@ -186,7 +186,7 @@ func TestPostgresWholeInstallRoundTrip(t *testing.T) {
 			errorf(t, "database %s value = %q, want %q", item.target.Database, got, item.want)
 		}
 	}
-	raw, err := os.ReadFile(filepath.Join(home, "data", "fact.md"))
+	raw, err := os.ReadFile(filepath.Join(home, "skills", "fact.md"))
 	if err != nil || string(raw) != "disposable knowledge" {
 		errorf(t, "restored knowledge = %q, %v", raw, err)
 	}

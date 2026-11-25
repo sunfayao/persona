@@ -71,11 +71,11 @@ func TestExtensionScopedToken(t *testing.T) {
 	mux := h.routes()
 	master := h.cfg.Token
 
-	code, pv := call(t, mux, "POST", "/api/v1/extensions/-/preview", master, `{"source": "dir:`+scopedPackage(t, `["kb.read", "extensions.call:other"]`)+`"}`)
+	code, pv := call(t, mux, "POST", "/api/v1/extensions/-/preview", master, `{"source": "dir:`+scopedPackage(t, `["agents.read", "extensions.call:other"]`)+`"}`)
 	if code != 200 {
 		t.Fatalf("preview: %d %v", code, pv)
 	}
-	if b, _ := json.Marshal(pv["permissions"]); !strings.Contains(string(b), "读知识库") || strings.Contains(string(b), "完整权限") {
+	if b, _ := json.Marshal(pv["permissions"]); !strings.Contains(string(b), "看各台电脑上的 Agent 和对话") || strings.Contains(string(b), "完整权限") {
 		t.Fatalf("the install screen lists the scopes: %s", b)
 	}
 	if code, out := call(t, mux, "POST", "/api/v1/extensions/-/install", master,
@@ -99,7 +99,7 @@ func TestExtensionScopedToken(t *testing.T) {
 	if !strings.HasPrefix(tok, extTokenPrefix) || got["init"] != tok || got["url"] != got["env_url"] || got["url"] == "" {
 		t.Fatalf("one token, in the environment and in initialize: %v", got)
 	}
-	if b, _ := json.Marshal(got["scopes"]); string(b) != `["kb.read","extensions.call:other"]` {
+	if b, _ := json.Marshal(got["scopes"]); string(b) != `["agents.read","extensions.call:other"]` {
 		t.Fatalf("scopes: %s", b)
 	}
 	if got["url"] != hubLocalURL(h.cfg.Listen) || got["manager"] != "" || got["init_manager"] != "" {
@@ -115,12 +115,11 @@ func TestExtensionScopedToken(t *testing.T) {
 		method, _, _ := strings.Cut(pattern, " ")
 		return h.authorize(extwire.Authorize{Hash: hashToken(tok), Pattern: pattern, Method: method, Path: path})
 	}
-	if a := hubRoute("GET /api/v1/kb-search", "/api/v1/kb-search"); !a.OK || a.Extension != "scoped" {
-		t.Fatalf("kb.read opens the knowledge base's search: %+v", a)
+	if a := hubRoute("GET /api/v1/sessions", "/api/v1/sessions"); !a.OK || a.Extension != "scoped" {
+		t.Fatalf("agents.read opens the sessions: %+v", a)
 	}
 	for _, c := range []struct{ pattern, path, scope string }{
 		{"GET /api/v1/sessions", "/api/v1/sessions", "agents.read"},
-		{"PUT /api/v1/kb/{kind}/{id}", "/api/v1/kb/people/x", "kb.write"},
 		{"POST /api/v1/sessions/{mid}/{sid}/messages", "/api/v1/sessions/m/s/messages", "agents.control"},
 		{"GET /api/v1/assistant/dispatch-guard", "/api/v1/assistant/dispatch-guard", "dispatch.guard"},
 		{"PUT /api/v1/assistant/dispatch-guard", "/api/v1/assistant/dispatch-guard", "dispatch.guard"},
@@ -187,9 +186,9 @@ func TestExtensionScopedToken(t *testing.T) {
 
 // What the install screen says of the hub's token, and what an upgrade asking for more must be agreed to.
 func TestHubScopesConsent(t *testing.T) {
-	scoped := extension.Permissions{Hub: []string{"kb.read"}}
+	scoped := extension.Permissions{Hub: []string{"agents.read"}}
 	full := extension.Permissions{HubAPI: true}
-	both := extension.Permissions{HubAPI: true, Hub: []string{"kb.read"}}
+	both := extension.Permissions{HubAPI: true, Hub: []string{"agents.read"}}
 	mode := extension.Permissions{Hub: []string{extension.ScopeAgentsPermissionMode}}
 	refresh := extension.Permissions{Hub: []string{extension.ScopeMarketRefreshOwn}}
 	for _, c := range []struct {
@@ -198,8 +197,8 @@ func TestHubScopesConsent(t *testing.T) {
 		covers    bool
 	}{
 		{"same scope", scoped, scoped, true},
-		{"one more scope", scoped, extension.Permissions{Hub: []string{"kb.read", "inbox.read"}}, false},
-		{"fewer scopes", extension.Permissions{Hub: []string{"kb.read", "inbox.read"}}, scoped, true},
+		{"one more scope", scoped, extension.Permissions{Hub: []string{"agents.read", "inbox.read"}}, false},
+		{"fewer scopes", extension.Permissions{Hub: []string{"agents.read", "inbox.read"}}, scoped, true},
 		{"the full token covers scopes", full, scoped, true},
 		{"scopes do not cover the full token", scoped, full, false},
 		{"hub_api with scopes is the scopes", scoped, both, true},
@@ -209,7 +208,7 @@ func TestHubScopesConsent(t *testing.T) {
 		{"the full token does not cover own-market refresh", full, refresh, false},
 		{"every scope does not cover own-market refresh", extension.Permissions{Hub: extension.EveryScope()}, refresh, false},
 		{"the full token does not cover the permission mode among others", full,
-			extension.Permissions{Hub: []string{"kb.read", extension.ScopeAgentsPermissionMode}}, false},
+			extension.Permissions{Hub: []string{"agents.read", extension.ScopeAgentsPermissionMode}}, false},
 		{"the permission mode covers itself", mode, mode, true},
 		{"other scopes do not cover the permission mode", extension.Permissions{Hub: extension.EveryScope()}, mode, false},
 	} {
@@ -231,9 +230,9 @@ func TestScopeOpens(t *testing.T) {
 		ok            bool
 		scope         string
 	}{
-		{[]string{extension.ScopeKBRead}, "GET /api/v1/kb/{kind}", "/api/v1/kb/chats", true, extension.ScopeKBRead},
-		{nil, "GET /api/v1/kb/{kind}", "/api/v1/kb/chats", false, extension.ScopeKBRead},
-		{[]string{extension.ScopeKBRead}, "PUT /api/v1/kb/{kind}/{id}", "/api/v1/kb/chats/x", false, extension.ScopeKBWrite},
+		{[]string{extension.ScopeAgentsRead}, "GET /api/v1/sessions", "/api/v1/sessions", true, extension.ScopeAgentsRead},
+		{nil, "GET /api/v1/sessions", "/api/v1/sessions", false, extension.ScopeAgentsRead},
+		{[]string{extension.ScopeAgentsRead}, "POST /api/v1/sessions/{mid}/{sid}/messages", "/api/v1/sessions/m/s/messages", false, extension.ScopeAgentsControl},
 		{[]string{extension.ScopeLeadersWrite}, "POST /api/v1/assistant/directions", "/api/v1/assistant/directions", true, extension.ScopeLeadersWrite},
 		{[]string{extension.ScopeLeadersRead}, "POST /api/v1/assistant/directions", "/api/v1/assistant/directions", false, extension.ScopeLeadersWrite},
 		{[]string{extension.ScopeLeadersWrite}, "GET /api/v1/assistant/leaders", "/api/v1/assistant/leaders", false, extension.ScopeLeadersRead},
@@ -241,7 +240,7 @@ func TestScopeOpens(t *testing.T) {
 		{[]string{extension.ScopeCallPrefix + "other"}, "/api/v1/extensions/{id}/", "/api/v1/extensions/other/x", true, extension.ScopeCallPrefix + "other"},
 		{[]string{extension.ScopeCallPrefix + "other"}, "/api/v1/extensions/{id}/", "/api/v1/extensions/third/x", false, extension.ScopeCallPrefix + "third"},
 		{[]string{extension.ScopeCallPrefix + "other"}, "/api/v1/extensions/{id}/", "/api/v1/extensions/other/-/config", false, ""},
-		{[]string{extension.ScopeKBRead}, "POST /api/v1/extensions/-/install", "/api/v1/extensions/-/install", false, ""},
+		{[]string{extension.ScopeAgentsRead}, "POST /api/v1/extensions/-/install", "/api/v1/extensions/-/install", false, ""},
 		{[]string{extension.ScopeMarketRefreshOwn}, "POST /api/v1/extensions/-/self/market/refresh", selfMarketRefreshPath, true, extension.ScopeMarketRefreshOwn},
 		{nil, "POST /api/v1/extensions/-/self/market/refresh", selfMarketRefreshPath, false, extension.ScopeMarketRefreshOwn},
 		{[]string{extension.ScopeMarketRefreshOwn}, "POST /api/v1/extensions/-/markets/{mid}/refresh", "/api/v1/extensions/-/markets/another/refresh", false, ""},

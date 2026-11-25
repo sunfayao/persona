@@ -55,31 +55,12 @@ func TestMailInboxSwitch(t *testing.T) {
 	}
 }
 
-// A connector without an inbox still can't take the switch; one with InboxSwitch can, and lists it.
-func TestInboxSwitchNeedsAnInbox(t *testing.T) {
-	r := connector.NewRegistry(nil)
-	if err := r.Add(archiveOnly{}); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.SetFeed("archiveonly", connector.FeedInbox, false); err == nil {
-		t.Error("an archive-only connector took the Inbox switch")
-	}
+// A connector with InboxSwitch takes the switch, and lists it.
+func TestMailListsItsInboxSwitch(t *testing.T) {
 	h := newSlowMailHub(t, &slowMail{})
 	for _, info := range h.connectors.Infos(context.Background()) {
 		if info.ID == "mail" && (info.Inbox == nil || !*info.Inbox) {
 			t.Errorf("mail's Inbox switch isn't listed: %+v", info)
 		}
 	}
-}
-
-// archiveOnly has an archive and nothing for the Inbox.
-type archiveOnly struct{}
-
-func (archiveOnly) ID() string   { return "archiveonly" }
-func (archiveOnly) Name() string { return "Archive only" }
-func (archiveOnly) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapArchive}}
-}
-func (archiveOnly) Changes(_ context.Context, cursor string, _ int) ([]connector.ChatBatch, string, bool, error) {
-	return nil, cursor, false, nil
 }

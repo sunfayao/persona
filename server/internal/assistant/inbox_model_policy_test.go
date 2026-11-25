@@ -124,12 +124,6 @@ func TestInboxModelReadOnlyInvestigationAndSuggestion(t *testing.T) {
 			t.Fatalf("read-only %s: %+v", name, res)
 		}
 	}
-	h.kb.dir = t.TempDir()
-	t.Cleanup(h.kbEnd)
-	h.f.hello.KB = &KBSettings{ReadOnly: true}
-	if res := inboxTool(t, h, "s1", "kb_search", `{"query":"project context"}`); res.IsError {
-		t.Fatalf("KB read through the model entry point: %+v", res)
-	}
 	if _, refused := h.inboxModelRefusal(t.Context(), "server", "s1", OriginInbox, "agents_list"); refused {
 		t.Fatal("read-only Agent investigation was refused")
 	}

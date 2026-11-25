@@ -76,18 +76,10 @@ func TestMoveFilesCopiesTheKeysOnce(t *testing.T) {
 		}
 	}
 
-	// The manager's copies are its own from now on; a key that appears in the data directory later is copied then.
+	// The manager's copies are its own from now on.
 	writeFile(t, filepath.Join(DefaultDir(home), SecretKey), "rotated")
-	writeFile(t, filepath.Join(home, HandlesKey), "h1")
-	copied, err = MoveFiles(home)
-	if err != nil || !slices.Equal(copied, []string{HandlesKey}) {
-		t.Fatalf("again: %v %v", copied, err)
-	}
 	if got := readFile(t, filepath.Join(DefaultDir(home), SecretKey)); got != "rotated" {
 		t.Fatalf("the manager's own key replaced: %q", got)
-	}
-	if m := filesMarker(t, home); !slices.Equal(m.Files, []string{SecretKey, TailcatKey, HandlesKey}) {
-		t.Fatalf("marker %+v", m)
 	}
 	if copied, err := MoveFiles(home); err != nil || copied != nil {
 		t.Fatalf("nothing left: %v %v", copied, err)
@@ -125,30 +117,6 @@ func TestOwnFileFallsBackToTheDataDirectory(t *testing.T) {
 	}
 }
 
-// The knowledge base stays in the data directory's data/ unless manager.json says where.
-func TestKBDir(t *testing.T) {
-	home := t.TempDir()
-	if got := KBDir(home); got != filepath.Join(home, "data") {
-		t.Fatalf("default %s", got)
-	}
-	writeFile(t, DefaultFile(home), `{"kb_dir": "/srv/kb"}`)
-	if got := KBDir(home); got != "/srv/kb" {
-		t.Fatalf("absolute %s", got)
-	}
-	writeFile(t, DefaultFile(home), `{"kb_dir": "kb"}`)
-	if got := KBDir(home); got != filepath.Join(DefaultDir(home), "kb") {
-		t.Fatalf("relative %s", got)
-	}
-	writeFile(t, DefaultFile(home), `{"kb_dir": ""}`)
-	if got := KBDir(home); got != filepath.Join(home, "data") {
-		t.Fatalf("empty %s", got)
-	}
-	writeFile(t, DefaultFile(home), `not json`)
-	if got := KBDir(home); got != filepath.Join(home, "data") {
-		t.Fatalf("unreadable %s", got)
-	}
-}
-
 // One key that cannot be copied does not stop the others, and what was copied is recorded; the manager's directory is
 // there for the keys it makes itself even when nothing is copied.
 func TestMoveFilesGoesOnPastAFailure(t *testing.T) {
@@ -157,12 +125,11 @@ func TestMoveFilesGoesOnPastAFailure(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(home, TailcatKey), 0o700); err != nil { // not a file: it does not read
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(home, HandlesKey), "h1")
 	copied, err := MoveFiles(home)
-	if err == nil || !slices.Equal(copied, []string{SecretKey, HandlesKey}) {
+	if err == nil || !slices.Equal(copied, []string{SecretKey}) {
 		t.Fatalf("copied %v, err %v", copied, err)
 	}
-	if m := filesMarker(t, home); !slices.Equal(m.Files, []string{SecretKey, HandlesKey}) {
+	if m := filesMarker(t, home); !slices.Equal(m.Files, []string{SecretKey}) {
 		t.Fatalf("marker %+v", m)
 	}
 

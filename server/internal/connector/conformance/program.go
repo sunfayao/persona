@@ -14,23 +14,17 @@ import (
 	wireschema "github.com/nwverse/persona/sdk/go/wire"
 	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/connectorwire"
 	"github.com/nwverse/persona/server/internal/extension"
 	progconf "github.com/nwverse/persona/server/internal/extension/conformance"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// What CheckProgram asks for, the way the hub does: a thread's page, an archive call's conversations.
+// What CheckProgram asks for, the way the hub does: a thread's page.
 const (
-	programThreadLimit  = 20
-	programArchiveMost  = 20 // assistant/kb_sources.go: kbConnectorLimit
-	programArchiveCall  = 6  // calls to follow the archive's cursor to its end
-	programHistoryChats = 3  // conversations whose history is read back
-	programHistoryPages = 4  // pages read back in each
-	programHistoryLimit = 20 // what each page asks for (a hint: a source may answer more)
-	programCallTimeout  = 30 * time.Second
-	programSignInWait   = 15 * time.Second
+	programThreadLimit = 20
+	programCallTimeout = 30 * time.Second
+	programSignInWait  = 15 * time.Second
 )
 
 // programCaps are the capabilities the hub can reach in a program: connector/proc.Conn implements their interfaces, and a
@@ -38,8 +32,8 @@ const (
 // inbox things (checkCollect holds them to it). CapRecall has none either: it is a program's word that recall is there.
 // CheckProgram never calls recall, recall.do (a recall deletes a message) or recall.can (execution-time preflight only).
 var programCaps = []connector.Capability{connector.CapStatus, connector.CapTools, connector.CapActions, connector.CapEvents,
-	connector.CapInbox, connector.CapArchive, connector.CapItems, connector.CapLogin, connector.CapThreads, connector.CapFallback,
-	connector.CapRecall, connector.CapHistory, connector.CapHistoryAnchors, connector.CapCatalog}
+	connector.CapInbox, connector.CapLogin, connector.CapThreads, connector.CapFallback,
+	connector.CapRecall, connector.CapCatalog}
 
 // ProgramOption tunes CheckProgram.
 type ProgramOption func(*programOptions)
@@ -56,7 +50,7 @@ func WithLogin(values map[string]string) ProgramOption {
 	return func(o *programOptions) { o.login = values }
 }
 
-// RequireData fails an empty answer of inbox.collect, thread.page, archive.changes, history.chats and history.anchors: for a backend known to have
+// RequireData fails an empty answer of inbox.collect, thread.page: for a backend known to have
 // something to show, so a program that passes by saying nothing does not pass.
 func RequireData() ProgramOption { return func(o *programOptions) { o.data = true } }
 
@@ -68,9 +62,8 @@ func RequireData() ProgramOption { return func(o *programOptions) { o.data = tru
 // m is the plugin's manifest, run the running program (plugin/conformance.Program) and init what to send with
 // initialize (the plugin's id and version come from m). For every connector m contributes it calls, once and in the
 // order of the hub's use: status, login.step, tools.list and tools.call, actions.list and actions.describe,
-// inbox.collect (twice: a thread's key must stay), thread.page (and one page back, and one media), archive.changes
-// (to the end of its cursor, and once more), history.chats and archive.history (a few pages back in a few
-// conversations), history.anchors (and the page around one), items.list, and listens to the changed events it sends.
+// inbox.collect (twice: a thread's key must stay), thread.page (and one page back, and one media),
+// and listens to the changed events it sends.
 //
 // It never calls actions.do, inbox.reply, recall or recall.do (writes only ever run after the user's explicit action),
 // sends actions.describe empty arguments (a program refuses them or answers well), and calls logout only after
@@ -365,18 +358,6 @@ func (p *probe) checkConnector(it extension.ConnectorItem) {
 		// An open thing's conversation, if there is one: a finished thing may have nothing left to show.
 		p.thread(things[max(slices.IndexFunc(things, func(x connector.InboxThing) bool { return x.Done == "" }), 0)].Thread)
 	}
-	if p.has(connector.CapArchive) {
-		p.archive()
-	}
-	if p.has(connector.CapHistory) {
-		p.history()
-	}
-	if p.has(connector.CapHistoryAnchors) {
-		p.anchors()
-	}
-	if p.has(connector.CapItems) {
-		ask(p, serve.MItems, struct{}{}, checkItems)
-	}
 	if p.opts.login != nil && p.has(connector.CapLogin) {
 		p.logout()
 	}
@@ -394,12 +375,6 @@ func (p *probe) checkManifest(it extension.ConnectorItem) {
 	}
 	if len(it.Kinds) > 0 && !p.has(connector.CapInbox) {
 		p.failf("declares inbox kinds without an inbox")
-	}
-	if p.has(connector.CapHistory) && !p.has(connector.CapArchive) {
-		p.failf("declares history without an archive")
-	}
-	if p.has(connector.CapHistoryAnchors) && !p.has(connector.CapHistory) {
-		p.failf("declares history_anchors without history")
 	}
 }
 
@@ -578,102 +553,6 @@ func (p *probe) thread(thread string) {
 	if i := slices.IndexFunc(refs, func(r string) bool { return r != "" }); i >= 0 {
 		ask(p, serve.MMedia, serve.MediaParams{Ref: refs[i]}, checkMedia)
 	}
-}
-
-// archive follows the cursor from the start to the end, then asks once more from there: the knowledge base only
-// appends, so a message delivered twice is in the log twice.
-func (p *probe) archive() {
-	p.t.Helper()
-	cursor := ""
-	delivered := map[string]bool{}
-	call := func(i int) (serve.ChangesResult, bool) {
-		check := func(raw json.RawMessage) (serve.ChangesResult, error) {
-			return checkChanges(cursor, programArchiveMost, raw)
-		}
-		res, ok := ask(p, serve.MChanges, serve.ChangesParams{Cursor: cursor, Limit: programArchiveMost}, check)
-		if !ok {
-			return res, false
-		}
-		if i == 0 {
-			p.need(serve.MChanges, len(res.Batches))
-		}
-		for _, b := range res.Batches {
-			for _, m := range b.Messages {
-				if key := b.Chat.ID + "\x00" + m.ID; delivered[key] {
-					p.failf("archive.changes: message %q of chat %q delivered twice", m.ID, b.Chat.ID)
-				} else {
-					delivered[key] = true
-				}
-			}
-		}
-		if res.Next == cursor && (len(res.Batches) > 0 || res.More) {
-			p.failf("archive.changes: next is still %q after %d chat(s), more=%v (the same would be read again)", cursor, len(res.Batches), res.More)
-			return res, false
-		}
-		return res, true
-	}
-	for i := range programArchiveCall {
-		res, ok := call(i)
-		if !ok {
-			return
-		}
-		cursor = res.Next
-		if !res.More {
-			break
-		}
-	}
-	call(programArchiveCall)
-}
-
-// history lists the conversations to import and reads a few of them back from their newest page, the way the knowledge
-// base imports one: it goes on from the cursor the page answers (never from how many it asked for), stops at the start,
-// skips an unreadable one, and stops where the program asks it to.
-func (p *probe) history() {
-	p.t.Helper()
-	chats, ok := ask(p, serve.MHistoryChats, struct{}{}, checkHistoryChats)
-	if !ok {
-		return
-	}
-	p.need(serve.MHistoryChats, len(chats))
-	for _, chat := range chats[:min(len(chats), programHistoryChats)] {
-		q := serve.HistoryParams{Chat: chat.ID, Limit: programHistoryLimit}
-		var newer *connectorwire.HistoryPage
-		for range programHistoryPages {
-			page, ok := ask(p, serve.MHistory, q, func(raw json.RawMessage) (connectorwire.HistoryPage, error) { return checkHistoryPage(q, raw) })
-			if !ok {
-				break
-			}
-			if newer != nil {
-				if err := checkHistoryOlder(*newer, page); err != nil {
-					p.failf("archive.history of %q before %q: %v", chat.ID, q.Before, err)
-					break
-				}
-			}
-			if page.Unreadable || page.Pace != nil || !page.More || len(page.Messages) == 0 {
-				break
-			}
-			newer, q.Before = &page, page.Older
-		}
-	}
-}
-
-// anchors asks for the owner's messages with no window (a fixture's are dated once and stay put, so a window that
-// moves with the clock would find none a month later and quietly stop reading the page around one), then the page
-// around the first one.
-func (p *probe) anchors() {
-	p.t.Helper()
-	q := serve.HistoryAnchorsParams{Limit: programHistoryLimit}
-	res, ok := ask(p, serve.MHistoryAnchors, q, checkHistoryAnchors)
-	if !ok || res.Pace != nil {
-		return
-	}
-	p.need(serve.MHistoryAnchors, len(res.Anchors))
-	if len(res.Anchors) == 0 {
-		return
-	}
-	a := res.Anchors[0]
-	around := serve.HistoryParams{Chat: a.Chat, Around: a.Position, Limit: programHistoryLimit}
-	ask(p, serve.MHistory, around, func(raw json.RawMessage) (connectorwire.HistoryPage, error) { return checkHistoryPage(around, raw) })
 }
 
 // report fails the test with what the run found; the events the program sent are held to the protocol.

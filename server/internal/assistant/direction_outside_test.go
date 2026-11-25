@@ -12,16 +12,14 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// outsideDirectionEnv is the event-capable assistant with a real file-backed knowledge base in a temporary directory.
+// outsideDirectionEnv is the event-capable assistant .
 func outsideDirectionEnv(t *testing.T, st *memStore) *todoEventEnv {
 	t.Helper()
 	f := &todoEventHub{fakeHub: newFakeHub().withMachine()}
-	f.hello.KB = &KBSettings{}
-	opts := Options{Hub: f, Logf: testLogf(t), KB: &KBOptions{Dir: t.TempDir()}}
+	opts := Options{Hub: f, Logf: testLogf(t)}
 	if st != nil {
 		opts.Store = func() Store { return st }
 	}
@@ -32,7 +30,6 @@ func outsideDirectionEnv(t *testing.T, st *memStore) *todoEventEnv {
 	s.directions.after, s.dtree.after = clock.After, clock.After
 	s = withSettings(t, f.fakeHub, s)
 	shortSupervise(t, s)
-	t.Cleanup(s.kbEnd)
 	e := &todoEventEnv{todoEnv: &todoEnv{t: t, s: s, f: f.fakeHub}, hub: f, clock: clock}
 	if err := s.ensureTodosLoaded(context.Background()); err != nil {
 		t.Fatal(err)
@@ -40,9 +37,6 @@ func outsideDirectionEnv(t *testing.T, st *memStore) *todoEventEnv {
 	setSettings(t, s, func(v *Settings) { v.Main = "conv1" })
 	f.known["conv1"] = true
 	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	if _, err := kbEng(t, s).Apply(kb.KindProject, "release", kb.Update{Name: "Release", Kind: "long"}); err != nil {
-		t.Fatal(err)
-	}
 	return e
 }
 

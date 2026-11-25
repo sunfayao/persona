@@ -55,9 +55,9 @@ func TestAPushSourceHasNoRecipeIntervalOrPull(t *testing.T) {
 		}
 	}
 	en := draw(t, f, env(i18n.En, true), state{P: pageSource, ID: s.ID})
-	kb := item(en, "d.to_kb")
-	if kb == nil || kb.Control == nil || strings.Contains(kb.Control.Action.Confirm, "Pulled") || !strings.Contains(kb.Control.Action.Confirm, "shortcut") {
-		t.Fatalf("the knowledge base's consent: %+v", kb)
+	in := item(en, "d.to_inbox")
+	if in == nil || in.Control == nil || strings.Contains(in.Control.Action.Confirm, "Pulled") || !strings.Contains(in.Control.Action.Confirm, "shortcut") {
+		t.Fatalf("the Inbox's consent: %+v", in)
 	}
 	if last := item(en, "st.last"); last == nil || last.Value != "5 minutes ago, 2 new" {
 		t.Fatalf("last item: %+v", last)

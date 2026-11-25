@@ -25,7 +25,7 @@
 - **SuperAgent，一个入口解决所有问题**。在一个对话里说一句，Persona 带上你的上下文，拆好活，交给 Agent 去做。[助手](docs/assistant/assistant.md)
 - **浏览器和电脑无缝衔接**。Claude Code、Codex、opencode、pi、DSH 和 Antigravity CLI 一直跑在你自己的电脑上。在网页应用里随时随地实时看、回答、审批；具体能力因运行时和引擎而异。[运行时](docs/integrations/runtimes.md) · [引擎](docs/integrations/engines.md)
 - **完整的扩展系统**。工具、Agent 运行时、数据源、渠道、语音都能以扩展接入，有 SDK，也有扩展市场。[扩展](docs/extensions/extensions.md) · [扩展市场](https://github.com/nwverse/persona-extensions)
-- **知识库和收件箱**。聊天、人、项目沉淀成共享记忆；飞书、邮件、GitHub 汇进一个由 AI 分拣的收件箱。[知识库](docs/assistant/knowledge.md) · [收件箱](docs/assistant/inbox.md)
+- **收件箱**。飞书、邮件、GitHub 汇进一个由 AI 分拣的收件箱。[收件箱](docs/assistant/inbox.md)
 - **连接器和渠道**。接入飞书、邮件、GitHub、iMessage、Telegram、微信；在网页应用、飞书、微信里或用语音都能找 Persona。[连接器](docs/extensions/connectors.md) · [渠道](docs/extensions/channels.md)
 - **三种语言的网页应用**。网页应用由你的 hub 提供，支持中文、英文、日文。[网页应用](docs/web/web.md)
 

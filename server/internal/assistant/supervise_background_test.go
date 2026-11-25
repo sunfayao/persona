@@ -740,7 +740,7 @@ func TestExistingBackgroundStaysBuiltIn(t *testing.T) {
 	if _, err := s.setLeaders(ctx, raw); err == nil || !strings.Contains(err.Error(), "background supervisor") {
 		t.Fatalf("the background supervisor as a leader: %v", err)
 	}
-	if _, err := s.makeDirection(ctx, "bg1", "", "", ""); err == nil || !strings.Contains(err.Error(), "background supervisor") {
+	if _, err := s.makeDirection(ctx, "bg1", "", ""); err == nil || !strings.Contains(err.Error(), "background supervisor") {
 		t.Fatalf("the background supervisor as a direction: %v", err)
 	}
 }
@@ -1119,7 +1119,7 @@ func TestBackgroundSupervisorModelPurpose(t *testing.T) {
 		t.Fatalf("catalog: %d %s", r.Code, r.Body.String())
 	}
 	listed := slices.DeleteFunc(slices.Clone(catalog.Purposes), func(p ModelPurpose) bool { return p.ID != purposeSupervise })
-	if len(listed) != 1 || catalog.Purposes[len(catalog.Purposes)-4].ID != purposeSupervise || catalog.Purposes[len(catalog.Purposes)-3].ID != purposeMeetingRoom {
+	if len(listed) != 1 || catalog.Purposes[len(catalog.Purposes)-2].ID != purposeSupervise {
 		t.Fatalf("the catalog's rows for it: %+v", listed)
 	}
 	if own := purposeOf(t, s, purposeSupervise); !reflect.DeepEqual(listed[0], own) || own.Description == "" || own.Launch != "headless" {
@@ -1186,7 +1186,7 @@ func TestProviderUsesNameTheBackgroundSupervisor(t *testing.T) {
 	s, _, _ := modelService(t)
 	putLaunchers(t, s, storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "shared"}}, storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "supervise-only"}})
 	l := s.requestCtxLang(context.Background())
-	main, own, room, mainOnly := purposeName(l, "assistant"), purposeName(l, purposeSupervise), purposeName(l, purposeMeetingRoom), purposeName(l, purposeMain)
+	main, own, mainOnly := purposeName(l, "assistant"), purposeName(l, purposeSupervise), purposeName(l, purposeMain)
 	uses := func(name string) []string {
 		t.Helper()
 		r := request(s, "GET", "/api/v1/launchers/"+name+"/uses", "")
@@ -1206,12 +1206,12 @@ func TestProviderUsesNameTheBackgroundSupervisor(t *testing.T) {
 		t.Fatalf("it does not follow the main chat: %+v", p)
 	}
 	// The In-meeting conversation follows the main chat as well (#7980).
-	if got := uses("shared"); !reflect.DeepEqual(got, []string{main, own, room, mainOnly}) || main == own {
-		t.Fatalf("uses while it follows the main chat: %v; want %q, %q, %q and %q", got, main, own, room, mainOnly)
+	if got := uses("shared"); !reflect.DeepEqual(got, []string{main, own, mainOnly}) || main == own {
+		t.Fatalf("uses while it follows the main chat: %v; want %q, %q and %q", got, main, own, mainOnly)
 	}
 	r := request(s, "DELETE", "/api/v1/launchers/shared", "")
 	sep := i18n.T(l, "assistant-models_launchers.list_sep")
-	want := i18n.T(l, "assistant-models_launchers.err_in_use", i18n.Args{"uses": main + sep + own + sep + room + sep + mainOnly})
+	want := i18n.T(l, "assistant-models_launchers.err_in_use", i18n.Args{"uses": main + sep + own + sep + mainOnly})
 	var refused struct {
 		Error string `json:"error"`
 	}
@@ -1228,8 +1228,8 @@ func TestProviderUsesNameTheBackgroundSupervisor(t *testing.T) {
 	if got := uses("supervise-only"); !reflect.DeepEqual(got, []string{own}) {
 		t.Fatalf("uses of its own provider: %v; want %q", got, own)
 	}
-	if got := uses("shared"); !reflect.DeepEqual(got, []string{main, room, mainOnly}) {
-		t.Fatalf("uses of the main chat's provider once it has its own: %v; want %q, %q and %q", got, main, room, mainOnly)
+	if got := uses("shared"); !reflect.DeepEqual(got, []string{main, mainOnly}) {
+		t.Fatalf("uses of the main chat's provider once it has its own: %v; want %q and %q", got, main, mainOnly)
 	}
 }
 
@@ -1249,7 +1249,6 @@ func TestGoldenBackgroundSupervisor(t *testing.T) {
 
 	bare := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
 	s := newTestService(t, bare)
-	s.kb.dir = "<hub>/data"
 	off := s.claudeMD(context.Background(), "server", false)
 	s.noBackground = false
 	on := s.claudeMD(context.Background(), "server", false)

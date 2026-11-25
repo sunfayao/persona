@@ -4,10 +4,10 @@
 // sandbox and egress proxy, metrics, logs, dev taps), their settings and secrets (only this package opens them), the
 // extensions' tokens and their scopes, every contribution's consumer (UI, themes, widgets, shortcuts, the personal
 // agents' sources, agent filters, model providers and quota, cua / ego / imessage, programs on computers, the
-// assistant's skills, the knowledge base's and the channels' parts); the connector framework with every source
+// assistant's skills and the channels' parts); the connector framework with every source
 // (connector_secrets, the inbox's rounds, mail, GitHub, iMessage, the lark-cli path, the sign-ins); the Feishu bot's
 // long connection and the WeChat bot, their pairing and credentials. It runs in `personad assistant` beside the
-// assistant (its inbox, knowledge base and channels take their sources in-process) and the devices (the computers);
+// assistant (its inbox and channels take their sources in-process) and the devices (the computers);
 // the hub relays the apps' requests on extwire.Routes to it and keeps the last of what it reports. It does not import
 // the hub, nor the hub it.
 package extmgr
@@ -76,7 +76,7 @@ type Options struct {
 	HubClient   *http.Client
 	HubProofKey string
 	// Assistant asks the assistant in this process what the hub used to ask it over the bus (same methods and
-	// params: channels.receive, feishu.message, inbox.collected, kb.*…); nil: none here (tests).
+	// params: channels.receive, feishu.message, inbox.collected); nil: none here (tests).
 	Assistant func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
 	// AssistantEvent tells the assistant an event the hub used to send it (feishu.owner).
 	AssistantEvent func(event string, params json.RawMessage)
@@ -140,7 +140,6 @@ type Manager struct {
 	larkCLIRefreshMu   sync.Mutex
 	larkCLIRecovery    larkCLIRecovery
 	imessageSettingsMu imessageContextLock
-	imessageArchive    imessageArchiveFence
 	imessageAIPending  atomic.Bool
 	subs               *subscriptions.Service // source subscriptions (subscriptions.go); nil until Run
 	// subsLive is subs once it runs, for the connectors' events, which start before it (connectorChanged).
@@ -170,9 +169,6 @@ type Manager struct {
 		extensions extensionGate
 		now        func() time.Time // the admin UI's clock (tests move it)
 	}
-
-	// kbPostsMu drains admitted connector posts before disabling ingestion and deleting saved content.
-	kbPostsMu sync.RWMutex
 
 	// apiMux are the manager's routes (Handler).
 	apiMux *http.ServeMux
@@ -416,7 +412,7 @@ func (h *Manager) notifyAssistant(event string, params any) error {
 // assistantUp: the assistant is here to take calls.
 func (h *Manager) assistantUp() bool { return h.opts.Assistant != nil }
 
-// assistantEvents are what this code takes of the assistant's events to the hub (inbox.changed, kb.changed…): they
+// assistantEvents are what this code takes of the assistant's events to the hub (inbox.changed…): they
 // come here in-process instead (AssistantSaid).
 var assistantEvents = map[string]func(*Manager, json.RawMessage){}
 

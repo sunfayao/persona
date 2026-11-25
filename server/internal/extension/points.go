@@ -58,8 +58,6 @@ type ConnectorItem struct {
 	// KindDescriptions tell the models what each kind of its inbox things is (the "kind: ..." line in the inbox's prompts), by
 	// kind: a plugin's connector says it itself (a built-in one has prompts/inbox/kinds/<id>.md).
 	KindDescriptions map[string]string `json:"kind_descriptions,omitempty"`
-	// ArchiveSources are other names its archive files conversations under (connector.Manifest.ArchiveSources).
-	ArchiveSources []string `json:"archive_sources,omitempty"`
 	// MetaDescription says what its inbox events' meta is, for the model that relates new messages to them: required
 	// with capability "meta" (the connector keeps its events' meta), refused without it (connector.Manifest.MetaDescription).
 	MetaDescription string `json:"meta_description,omitempty"`
@@ -441,9 +439,6 @@ var Points = map[string]Point{
 				return c.ID, fmt.Errorf("connector %s: confirm_always pattern %q is not a valid action pattern (path.Match)", c.ID, p)
 			}
 		}
-		if len(c.ArchiveSources) > 4 {
-			return c.ID, errors.New("connector " + c.ID + ": more than 4 archive_sources")
-		}
 		if utf8.RuneCountInString(c.MetaDescription) > metaDescriptionMost {
 			return c.ID, fmt.Errorf("connector %s: meta_description longer than %d characters", c.ID, metaDescriptionMost)
 		}
@@ -455,11 +450,6 @@ var Points = map[string]Point{
 			return c.ID, errors.New("connector " + c.ID + ": meta needs a meta_description (what its events' meta is)")
 		case !meta && c.MetaDescription != "":
 			return c.ID, errors.New("connector " + c.ID + ": meta_description without meta")
-		}
-		for _, s := range c.ArchiveSources {
-			if !connectorID.MatchString(s) || s == c.ID {
-				return c.ID, fmt.Errorf("connector %s: archive source %q: lowercase letters and digits, a letter first, not its own id", c.ID, s)
-			}
 		}
 		if c.CLI != "" && (!cliName.MatchString(c.CLI) || slices.Contains(reservedCommands, c.CLI)) {
 			return c.ID, fmt.Errorf("connector %s: cli %q: a lowercase command name (letters, digits, -), not one the assistant has already", c.ID, c.CLI)

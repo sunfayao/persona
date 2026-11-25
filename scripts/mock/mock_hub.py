@@ -3879,7 +3879,7 @@ IMPORTED_MEETING_ITEM = {"kind": "meetings", "id": "m_weekly", "name": "产品�
 if IMPORTED_MEETING: KB["meetings"].append(IMPORTED_MEETING_ITEM)
 KB_UPDATES = []  # what "Tagging" saved (read back at /mock/kb_updates)
 KB_TRASH = {}  # deleted projects by trash id (DELETE /api/v1/kb/projects/{id}, POST /api/v1/kb-trash/{id}/restore)
-# Recordings synced from the phone (docs/protocol/protocol.md "Recording sync", #3235): uuid → the last body PUT; deleted ids are
+# Recordings synced from the phone (#3235): uuid → the last body PUT; deleted ids are
 # tombstones (a later PUT gets 410). GET /mock/recordings reads both back. MOCK_RECORDINGS_DOWN=1: 503 (the hub away).
 RECORDINGS = {}
 RECORDING_UPLOADED = {}  # uuid → when its last upload was stored (the hub's Recording.Updated): a meeting without ended_at ends 12 h after

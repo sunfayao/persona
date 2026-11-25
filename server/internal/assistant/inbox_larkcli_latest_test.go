@@ -168,7 +168,7 @@ func TestLarkDMLatestPreviewDoesNotChangeNonTriageInputs(t *testing.T) {
 			agent := h.inbox.inboxAgentFor(it, "Example owner", nil, 1, time.UTC)
 			agent.Item = plain
 			want = prompts.RenderInboxAgent(agent)
-			if got := h.inbox.inboxAgentPrompt(it, "Example owner", nil); got != want {
+			if got := h.inbox.inboxAgentPrompt(it, "Example owner"); got != want {
 				t.Errorf("the handling-agent input gained triage-only content:\n%s", got)
 			}
 		})

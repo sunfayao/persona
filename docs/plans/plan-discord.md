@@ -28,7 +28,7 @@ So Persona's Discord = **server channels your own bot can see** + **messages you
   Nothing is kept up from events, so nothing drifts: a missed event, a changed role or a restart cannot leave stale state behind. The cost is a few requests per server per pass and the hub's poll interval as latency (`poll_seconds: 300`), which the knowledge base does not mind.
   Everything that decides what is read is in the cursor the hub keeps; the only thing in memory is which conversations to leave alone for a while, and losing it repeats some requests, never skips a message.
   (A first version kept archived-thread scans in memory across calls; the code review found four ways that could skip threads: a server joined later, a cursor the hub could not keep, a held channel, a failing server.)
-  A Gateway connection in D1 would not even make the archive faster: `connector.changed` kicks the hub's knowledge-base loop, but the loop still only reads connectors whose poll interval has passed (`server/internal/assistant/kb_sources.go`).
+  A Gateway connection in D1 would not even make the archive faster: `connector.changed` kicks the hub's knowledge-base loop, but the loop still only reads connectors whose poll interval has passed (server/internal/assistant/kb_sources.go).
 - The Gateway comes with D3, which needs it: interactions of a user-installed app arrive over the Gateway (or a public interactions URL, which most hubs don't have). From then on it is a doorbell and the interactions channel only:
   its failure delays things back to polling and adds a note to the status, it never takes the connector down. D2 may use it the same way to see mentions sooner.
 - A small REST client of its own, no Discord library: per-route buckets from `X-RateLimit-*`, one retry of a short 429, and a longer wait answered as `rate_limited` instead of waited out, so no call outlives the hub's two-minute call timeout.
@@ -89,7 +89,7 @@ The Gateway (from D3) asks for `GUILDS`, `GUILD_MESSAGES` and `MESSAGE_CONTENT` 
   Archived private threads are not read: Discord lists them only to moderators.
 - **After that**: each pass reads the channels whose `last_message_id` moved past the cursor, `after=` the cursor (pages come newest first: the next anchor is a page's largest id; `after=0` must be sent as 1).
   The cursor (`archive.changes`' `cursor`, stored by the hub) is "conversation → last message id; channel → when its archived threads were last listed completely, and how far a listing going on got". One that can't be read starts over, and a position older than the window reads on from the window's start rather than everything since (the archive was off for months):
-  the knowledge base keeps a receipt per message id and drops replays (`Ingest` in `server/internal/kb/update.go`), so starting over costs requests, never duplicates. Channel ids are global, so another bot's positions stay valid. Entries of conversations gone for longer than the window are dropped.
+  the knowledge base keeps a receipt per message id and drops replays (`Ingest` in server/internal/kb/update.go), so starting over costs requests, never duplicates. Channel ids are global, so another bot's positions stay valid. Entries of conversations gone for longer than the window are dropped.
 - **Message Content off**: Discord then sends messages with empty content over REST too. Each pass first reads the application's flags; while the intent is off, no cursor moves, so nothing is skipped: once it is back on, the next pass reads from where it stopped.
   Turning it off in the seconds between that check and a read is not caught: a per-page "content withheld" check would misread legitimately empty messages and make the status flap, which costs more than it saves.
 - **Budget**: a call reads at least one conversation, then stops after about 25 seconds, `limit` conversations or about 2 MB (source extensions carry 8 MB per frame) and answers `more`; the hub calls again (three calls per run).
@@ -98,8 +98,8 @@ The Gateway (from D3) asks for `GUILDS`, `GUILD_MESSAGES` and `MESSAGE_CONTENT` 
 - **Messages**: sender display name, body (mentions written as `@name`, `#channel`, custom emoji as `:name:`), the quoted reply, embed titles and links; messages "I" sent are marked `mine`.
   Edits and deletions are not synced in the first version (item 3 of "Decided by the user").
 - **No people records** (item 2 of "Decided by the user"; Discord's developer policy forbids profiling users): messages carry only the sender's name, **no `sender_id` and no `sender_handles`**.
-  The knowledge base only creates people and records identity hints when a message has `sender_id` (`notePerson` in `server/internal/kb/archive.go`), and person notes during compaction only cover people already in the conversation
-  (`notePersonNote` in `server/internal/kb/people.go`), so the hub needs no change; the extension's tests guard that no message carries either field.
+  The knowledge base only creates people and records identity hints when a message has `sender_id` (`notePerson` in server/internal/kb/archive.go), and person notes during compaction only cover people already in the conversation
+  (`notePersonNote` in server/internal/kb/people.go), so the hub needs no change; the extension's tests guard that no message carries either field.
 - **Attachments** (D4): `archive.media` refs are message and attachment ids, and the file is fetched fresh when the hub asks (Discord's attachment links are signed and expire). They apply to messages archived from D4 on: the knowledge base keeps the first archived version of a message.
 - **"Send to Persona" messages** go into the knowledge base too: into the conversation of their channel, `discord-<channel id>` (also for DMs and channels the bot can't see; such conversations contain only the messages the user clicked),
   named from the channel info in the interaction. Until the hub fetches them, they're kept in the extension's own data directory (`PERSONA_EXTENSION_DATA`), so an extension restart loses nothing.
@@ -160,7 +160,7 @@ The parts of Discord's Developer Policy and Developer Terms that concern us:
 
 ## Status and self-healing
 
-- The hub hides a connector's tools and stops archiving while its status is not `ok` (`server/internal/connector/registry.go`, `server/internal/extmgr/kb_sources.go`), so a non-ok status is only for what needs the user or will not pass by itself:
+- The hub hides a connector's tools and stops archiving while its status is not `ok` (`server/internal/connector/registry.go`, server/internal/extmgr/kb_sources.go), so a non-ok status is only for what needs the user or will not pass by itself:
   - `not_signed_in`: no token, or Discord refused it (401). Nothing asks Discord until a new sign-in.
   - `no_permission`: Message Content off, or the bot is in no server (the guide has the invite link).
   - `rate_limited`: a long global rate limit, until it ends.

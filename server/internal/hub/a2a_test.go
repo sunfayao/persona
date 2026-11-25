@@ -102,7 +102,7 @@ func TestA2AScopedCredentialStreamsOnlyA2A(t *testing.T) {
 		t.Fatalf("issue scoped credential: %d %v", code, out)
 	}
 	token := out["token"].(string)
-	for _, path := range []string{"/api/v1/sessions", "/api/v1/recordings/recording/audio"} {
+	for _, path := range []string{"/api/v1/sessions", "/api/v1/assistant/leaders"} {
 		if status, _ := call(t, srv.Config.Handler, "GET", path, token, ""); status != http.StatusForbidden {
 			t.Fatalf("an A2A token opened %s: %d", path, status)
 		}

@@ -23,7 +23,6 @@ const oldHubJSON = `{
     "supervision_batch_minutes": 45, "task_execution_wait_seconds": 45,
     "task_execution_legacy_fallback": false, "node_update_handoff_grace_seconds": 30},
   "agents": {"triage": {"max_retries": 2}},
-  "kb": {"enabled": false, "text_days": 30},
   "ai": {"base_url": "https://gateway.example.com", "model": "m"},
   "inbox": {"rules": "mine", "triage_ai": {"model": "t"}},
   "hook_timeout_minutes": 45,
@@ -286,12 +285,12 @@ func TestSectionsLeaveIdentityOut(t *testing.T) {
 
 // Only and Without split a section by its dotted keys: the manager reads its part, the hub keeps the rest.
 func TestOnlyAndWithoutSplitSections(t *testing.T) {
-	o, err := ParseObject([]byte(`{"token":"t","assistant":{"owner":"o","external":true},"kb":{"enabled":false},"other":1}`))
+	o, err := ParseObject([]byte(`{"token":"t","assistant":{"owner":"o","external":true},"agents":{"enabled":false},"other":1}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys := []string{"kb", "assistant.owner", "assistant.notes"}
-	if got := string(Only(o, keys)); got != `{"assistant":{"owner":"o"},"kb":{"enabled":false}}` {
+	keys := []string{"agents", "assistant.owner", "assistant.notes"}
+	if got := string(Only(o, keys)); got != `{"agents":{"enabled":false},"assistant":{"owner":"o"}}` {
 		t.Errorf("Only %s", got)
 	}
 	if got := string(Without(o, keys)); got != `{"token":"t","assistant":{"external":true},"other":1}` {
@@ -599,7 +598,7 @@ func TestMoveFromTheHubsSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(rep.Moved, "kb") || !slices.Contains(rep.Moved, "assistant.owner") || slices.Contains(rep.Moved, "ai") ||
+	if !slices.Contains(rep.Moved, "agents") || !slices.Contains(rep.Moved, "assistant.owner") || slices.Contains(rep.Moved, "ai") ||
 		!slices.Contains(rep.Moved, "inbox.triage_ai") || !slices.Equal(rep.Ignored, []string{"ai"}) || rep.Backup == "" {
 		t.Fatalf("%+v", rep)
 	}
@@ -637,7 +636,7 @@ func TestSectionsRefusesASplitSectionThatIsNoObject(t *testing.T) {
 // taken, and the next start says nothing about them.
 func TestMoveElsewhereTakesTheHellosSectionsFromTheHub(t *testing.T) {
 	home := t.TempDir()
-	if err := os.WriteFile(filepath.Join(home, "hub.json"), []byte(`{"token":"t","ai":{"api":""},"kb":{},
+	if err := os.WriteFile(filepath.Join(home, "hub.json"), []byte(`{"token":"t","ai":{"api":""},"agents":{},
 		"hook_timeout_minutes":30,"inbox":{"rules":"mine","agent":{"enabled":true,"machine":"desk"},"triage_ai":{"model":"stale-local"}},
 		"lark":{"account":2}}`), 0o600); err != nil {
 		t.Fatal(err)
@@ -647,16 +646,16 @@ func TestMoveElsewhereTakesTheHellosSectionsFromTheHub(t *testing.T) {
 	if err != nil || !slices.Equal(rep.Moved, []string{"lark", "inbox"}) {
 		t.Fatalf("local: %+v %v", rep, err)
 	}
-	hub := `{"ai":{"base_url":"https://gateway.example.com"},"kb":{"enabled":false},"hook_timeout_minutes":30,
+	hub := `{"ai":{"base_url":"https://gateway.example.com"},"agents":{"enabled":false},"hook_timeout_minutes":30,
 		"inbox":{"triage_ai":{"model":"t"},"agent":{"machine":"server"}}}`
 	rep, err = MoveFrom([]byte(hub), file)
 	// The twin's machine was always this machine's to say: kept, the hub's differing one said.
-	if err != nil || !slices.Equal(rep.Moved, []string{"kb", "ai", "hook_timeout_minutes", "inbox.triage_ai"}) ||
+	if err != nil || !slices.Equal(rep.Moved, []string{"agents", "ai", "hook_timeout_minutes", "inbox.triage_ai"}) ||
 		!slices.Equal(rep.Ignored, []string{"inbox.agent.machine"}) || rep.Backup == "" {
 		t.Fatalf("from the hub: %+v %v", rep, err)
 	}
 	mine := readObject(t, file)
-	if compact(t, mine["kb"]) != `{"enabled":false}` || compact(t, mine["ai"]) != `{"base_url":"https://gateway.example.com"}` ||
+	if compact(t, mine["agents"]) != `{"enabled":false}` || compact(t, mine["ai"]) != `{"base_url":"https://gateway.example.com"}` ||
 		compact(t, mine["inbox"]) != `{"agent":{"enabled":true,"machine":"desk"},"rules":"mine","triage_ai":{"model":"t"}}` {
 		t.Fatalf("manager.json %v", mine)
 	}

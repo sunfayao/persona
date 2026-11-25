@@ -166,7 +166,6 @@ func (s *Service) delegateInput(ctx context.Context, ix proto.Interaction, c pro
 	}
 	in := prompts.AgentDelegateInput{
 		Now: time.Now().In(s.location(ctx)).Format("2006-01-02 15:04 Mon"), Agent: agentLabel(c), Machine: name, Cwd: c.Cwd,
-		Project: strings.Join(first(s.projectsFor(ctx, ix.MachineID, c.Cwd), 3), "、"),
 	}
 	if t, ok := s.todoOfSession(ctx, ix.MachineID, ix.SessionID); ok {
 		in.Task = clip(strings.TrimSpace(t.Title+"\n"+t.Notes), 600)
