@@ -162,15 +162,6 @@ export function homeOverview(sessions: readonly Session[], interactions: readonl
   return { groups, unread, markAllAt, quiet };
 }
 
-/** The sidebar keys a multi-agent tab's rows register under (the gliding highlight and keeping the open row in view):
- *  opened up, the tab's row is its own (`tabKey`) and each pane's row its agent's (`paneKeys`); folded (`shut`), the
- *  tab's row stands for its open pane (`activeKey`, when one of them is) and the pane rows, still mounted in the
- *  closed collapse, register under none (undefined) so no hidden row takes the visible one's place. */
-export function tabRowKeys(tabKey: string, paneKeys: readonly string[], activeKey: string, shut: boolean): { row: string; panes: (string | undefined)[] } {
-  const holds = paneKeys.includes(activeKey);
-  return { row: shut && holds ? activeKey : tabKey, panes: paneKeys.map((k) => (shut ? undefined : k)) };
-}
-
 /** Where a pane opens: its tab (`/t/…`) when it has one, else the session itself (`/s/…`). */
 export function paneRoute(s: Session): Route {
   return s.space_id && s.slot_id

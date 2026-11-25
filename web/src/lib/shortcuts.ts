@@ -238,7 +238,7 @@ export interface ShortcutDef {
 
 /**
  * Moshi's keymap, each mapped to the closest Persona action (docs/web/web.md "Keyboard shortcuts"):
- *   Mod+K go to · Mod+Shift+P command palette · Mod+J terminal ⇄ chat · Mod+B right panel · Mod+Alt+B sidebar · Mod+E sidebar groups ·
+ *   Mod+K go to · Mod+Shift+P command palette · Mod+J terminal ⇄ chat · Mod+B right panel · Mod+Alt+B sidebar ·
  *   Mod+Shift+Enter maximize the center area · Mod+I input · Mod+Alt+Shift+↑/↓ collapse / expand · Mod+Alt+↑/↓ previous / next row · Mod+, settings ·
  *   Mod+1–9 computers · Mod+Alt+←/→ previous / next tab on this machine. Persona's own: Mod+Alt+P opens Persona.
  * Not taken over: Moshi's Mod+Alt+1–3 (choose the right panel's tab), which Persona has no single place for.
@@ -264,7 +264,6 @@ export const SHORTCUTS: readonly ShortcutDef[] = [
   { id: "focus-card", label: t("lib-shortcuts.cmd_focus_card"), chord: "Mod+Alt+Enter", scope: "session", icon: "enter" },
   { id: "prev-tab", label: t("lib-shortcuts.cmd_prev_tab"), chord: "Mod+Alt+Left", scope: "session", icon: "arrowLeft" },
   { id: "next-tab", label: t("lib-shortcuts.cmd_next_tab"), chord: "Mod+Alt+Right", scope: "session", icon: "arrowRight" },
-  { id: "sidebar-grouping", label: t("lib-shortcuts.cmd_sidebar_grouping"), chord: "Mod+E", scope: "sidebar", icon: "filter" },
   { id: "prev-row", label: t("lib-shortcuts.cmd_prev_row"), chord: "Mod+Alt+Up", scope: "sidebar", repeat: true, icon: "up" },
   { id: "next-row", label: t("lib-shortcuts.cmd_next_row"), chord: "Mod+Alt+Down", scope: "sidebar", repeat: true, icon: "arrowDown" },
   { id: "collapse-tree", label: t("lib-shortcuts.cmd_collapse_tree"), chord: "Mod+Alt+Shift+Up", scope: "sidebar", icon: "chevron" },

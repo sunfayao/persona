@@ -182,7 +182,6 @@ describe("the registry", () => {
       "terminal-mode": "Mod+Alt+F",
       "right-panel": "Mod+B",
       "left-sidebar": "Mod+Alt+B",
-      "sidebar-grouping": "Mod+E",
       maximize: "Mod+Shift+Enter",
       "focus-input": "Mod+I",
       "collapse-tree": "Mod+Alt+Shift+Up",

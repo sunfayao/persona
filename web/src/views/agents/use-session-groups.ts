@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { api, errorText } from "../../lib/api";
 import { filterQuery, type ListCounts, type ListFilters } from "../../lib/session-list";
-import { catalogGroups, countGroups, validCatalog, type GroupDimension, type SessionCatalog, type SessionGroup, type TodoNames } from "../../lib/session-groups";
+import { catalogGroups, countGroups, validCatalog, type GroupDimension, type SessionCatalog, type SessionGroup } from "../../lib/session-groups";
 import { onShownHint } from "../../lib/shown-hints";
 import { SESSION_LIST_METRICS } from "../../ui/list-metrics";
 
@@ -76,12 +76,8 @@ export interface SessionGroupsQuery {
   /** How many of the scope's sessions need the user, by the state chips' count; undefined while unknown. */
   waiting: number | undefined;
   event: "sessions_list" | "agents";
-  /** By to-do: the to-dos' order and titles (the hub counts them by id). */
-  todos?: TodoNames;
   /** The hub's computer order, shared with the complete list. */
   machineOrder?: readonly string[];
-  /** The hub lists the Just finished rows apart (`sessions_just_finished`): By state draws them a section (#9751). */
-  justFinished?: boolean;
 }
 
 export interface SessionGroups {
@@ -93,7 +89,7 @@ export interface SessionGroups {
   retry: () => void;
 }
 
-export function useSessionGroups({ dimension, catalog, countsPath, scope, facets, facetQuery, facetsError = "", retryFacets, waiting, event, todos, justFinished = false, machineOrder }: SessionGroupsQuery): SessionGroups {
+export function useSessionGroups({ dimension, catalog, countsPath, scope, facets, facetQuery, facetsError = "", retryFacets, waiting, event, machineOrder }: SessionGroupsQuery): SessionGroups {
   const fromCatalog = catalog && (dimension === "project" || dimension === "group");
   const query = useMemo(() => filterQuery(scope), [scope]);
   // the groups' own counts are the parent's facets when no state narrows them: one read serves both
@@ -101,7 +97,7 @@ export function useSessionGroups({ dimension, catalog, countsPath, scope, facets
   const groupsPath = !dimension ? null : fromCatalog ? `${countsPath}${filterQuery(scope, { catalog: "1" })}` : shared ? null : `${countsPath}${query}`;
   // Which of them need the user. Narrowed to a state, a group's count already is of that state: no second number
   // beside it. The catalog says it with the groups; the count maps take a second read, made only while some do.
-  const badge = Boolean(dimension) && dimension !== "state" && !scope.state;
+  const badge = Boolean(dimension) && !scope.state;
   const needsScope = useMemo(() => ({ ...scope, state: "needs_you" }), [scope]);
   const needsPath = badge && !fromCatalog && (waiting ?? 0) > 0 ? `${countsPath}${filterQuery(needsScope)}` : null;
 
@@ -117,11 +113,11 @@ export function useSessionGroups({ dimension, catalog, countsPath, scope, facets
       return { groups, total: c ? c.total : null, error: catalogRead.error ?? "", retry: catalogRead.retry };
     }
     const counts = shared ? facets : countsRead.value ?? null;
-    const groups = counts ? countGroups(counts, dimension, { machine: scope.machine_id, machineOrder, needs: badge ? countsNeeds.value : null, todos, justFinished }) : null;
+    const groups = counts ? countGroups(counts, dimension, { machine: scope.machine_id, machineOrder, needs: badge ? countsNeeds.value : null }) : null;
     // from the facets: their failure while there are none (a later failed refresh keeps the last ones, as a read does)
     if (shared) return { groups, total: counts ? counts.total : null, error: counts ? "" : facetsError, retry: retryFacets ?? (() => {}) };
     return { groups, total: counts ? counts.total : null, error: countsRead.error ?? "", retry: countsRead.retry };
     // the retry functions are new on each render and do the same thing
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimension, fromCatalog, shared, badge, facets, facetsError, scope, catalogRead.value, catalogRead.error, countsRead.value, countsRead.error, countsNeeds.value, todos, justFinished, machineOrder]);
+  }, [dimension, fromCatalog, shared, badge, facets, facetsError, scope, catalogRead.value, catalogRead.error, countsRead.value, countsRead.error, countsNeeds.value, machineOrder]);
 }

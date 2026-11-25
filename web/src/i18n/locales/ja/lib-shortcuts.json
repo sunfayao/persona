@@ -22,7 +22,6 @@
   "cmd_focus_card": "待機中のカードにフォーカス",
   "cmd_prev_tab": "このコンピューターの前のタブ",
   "cmd_next_tab": "このコンピューターの次のタブ",
-  "cmd_sidebar_grouping": "サイドバーのグループ方法を切り替え",
   "cmd_prev_row": "サイドバーの前の行",
   "cmd_next_row": "サイドバーの次の行",
   "cmd_collapse_tree": "サイドバーのグループをすべて折りたたむ",

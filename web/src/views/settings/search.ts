@@ -53,7 +53,7 @@ export const SEARCH_INDEX: SearchGroup[] = [
   { tab: "general", group: t("settings-translationsettings.model"), anchor: "translate-model" },
   { tab: "general", group: t("settings-translationsettings.target"), hint: words(t("settings-translationsettings.mail"), t("settings-translationsettings.mail_switch"), t("settings-translationsettings.lark_chats")), anchor: "settings-translation" },
   // General › Agents
-  { tab: "general", group: t("settings.agent_preferences"), hint: words(t("terminal-full.mode_group"), t("settings.sidebar_terminals")), anchor: "agent-preferences" },
+  { tab: "general", group: t("settings.agent_preferences"), hint: words(t("terminal-full.mode_group")), anchor: "agent-preferences" },
   { tab: "general", group: t("settings-agentopen.label"), hint: words(t("settings-agentopen.panel"), t("settings-agentopen.page")), anchor: "agent-open" },
   { tab: "general", group: t("settings-agentopen.busy_send"), hint: words(t("settings-agentopen.busy_queue"), t("settings-agentopen.busy_follow_up")), anchor: "busy-send" },
   { tab: "general", group: t("context.details"), anchor: "agent-details" },

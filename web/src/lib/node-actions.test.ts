@@ -6,9 +6,6 @@ import type { Session } from "./types";
 import zhNode from "../i18n/locales/zh-Hans/lib-node-actions.json";
 import enNode from "../i18n/locales/en/lib-node-actions.json";
 import jaNode from "../i18n/locales/ja/lib-node-actions.json";
-import zhWorktree from "../i18n/locales/zh-Hans/worktree-actions.json";
-import enWorktree from "../i18n/locales/en/worktree-actions.json";
-import jaWorktree from "../i18n/locales/ja/worktree-actions.json";
 import zhAgent from "../i18n/locales/zh-Hans/agentmenus.json";
 import enAgent from "../i18n/locales/en/agentmenus.json";
 import jaAgent from "../i18n/locales/ja/agentmenus.json";
@@ -266,15 +263,13 @@ describe("read-only items", () => {
   });
   it("copies a folder's path in the same words in every menu of the Agents list and a chat, in every language", () => {
     const languages = [
-      { node: zhNode, worktree: zhWorktree, agent: zhAgent, chat: zhChat },
-      { node: enNode, worktree: enWorktree, agent: enAgent, chat: enChat },
-      { node: jaNode, worktree: jaWorktree, agent: jaAgent, chat: jaChat },
+      { node: zhNode, agent: zhAgent, chat: zhChat },
+      { node: enNode, agent: enAgent, chat: enChat },
+      { node: jaNode, agent: jaAgent, chat: jaChat },
     ];
-    for (const { node, worktree, agent, chat } of languages) {
-      expect(new Set([node.copy_path, worktree.copy_path, agent.copy_folder, chat.copy_folder]).size).toBe(1);
+    for (const { node, agent, chat } of languages) {
+      expect(new Set([node.copy_path, agent.copy_folder, chat.copy_folder]).size).toBe(1);
     }
-    // the By repository grouping's worktree menu, beside the node menus, says their verb
-    expect([zhWorktree.copy_name, zhWorktree.copy_path, zhNode.copy_path]).toEqual(["复制工作树名称", "复制目录路径", "复制目录路径"]);
   });
   it("leaves out what is not known", () => {
     const k = keys(nodeActions({ kind: "pane", mid: "m1", paneId: "w1:p3", agent: "" }, deps()));

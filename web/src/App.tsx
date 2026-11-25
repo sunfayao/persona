@@ -41,11 +41,6 @@ import { Home } from "./views/Home";
 import { PersonaAssistant } from "./views/PersonaAssistant";
 import { NewWorktreeHost } from "./views/NewWorktreeHost";
 import { CloseAgentHost } from "./views/CloseAgentHost";
-import { WorktreeActionsHost } from "./views/WorktreeActions";
-import { openWorktreeActions } from "./lib/worktree-actions";
-import { selectWorkspace } from "./lib/workspace-selection";
-import { setAgentGrouping } from "./lib/sidebar-api";
-import type { WorkspaceTarget } from "./lib/workspace-target";
 import { ForwardHost } from "./views/chat/ForwardHost";
 import { onOpenNewAgent, type NewAgentPreset } from "./lib/new-agent";
 import { closeHelp, useHelpOpen } from "./lib/shortcut-help";
@@ -139,13 +134,6 @@ function takeImportLinkHere() {
   holdImportLink(importing.text);
 }
 if (typeof window !== "undefined") window.addEventListener("hashchange", takeImportLinkHere);
-
-const workspaceActions = { onWorkspaceMenu: openWorktreeActions };
-function openWorkspaceInTree(target: WorkspaceTarget) {
-  selectWorkspace(target);
-  setAgentGrouping("repo");
-  navigate({ name: "agent-list" });
-}
 
 // Developing Persona's To-dos view shadow (features/todos/model/view-shadow.ts) reads today's triage through this
 // module: its recorder can load before App, so importing lib/todo-triage.ts there would split it out of the first
@@ -561,7 +549,7 @@ function Shell() {
       main = <AgentsView key={route.id ?? ""} id={route.id} onToggleSidebar={toggle} />;
       break;
     case "agent-list":
-      main = <AgentsPage route={route} onToggleSidebar={toggle} onNewAgent={openNewAgent} workspaceActions={workspaceActions} />;
+      main = <AgentsPage route={route} onToggleSidebar={toggle} onNewAgent={openNewAgent} />;
       break;
     case "agent-archives":
       main = <AgentArchives onToggleSidebar={toggle} />;
@@ -618,7 +606,7 @@ function Shell() {
         )}
         style={{ transitionTimingFunction: EASE }}
       >
-        {rail ? <SidebarRail route={route} onSearch={() => openPalette("jump")} onNewAgent={openNewAgent} /> : <Sidebar route={route} onSearch={searchFromSidebar} onNewAgent={openNewAgent} onNavigate={close} workspaceActions={workspaceActions} />}
+        {rail ? <SidebarRail route={route} onSearch={() => openPalette("jump")} onNewAgent={openNewAgent} /> : <Sidebar route={route} onSearch={searchFromSidebar} onNewAgent={openNewAgent} onNavigate={close} />}
         {!narrow && !rail && <SidebarResize column={sidebarId} />}
       </div>
       {/* the scrim fades out as well as in; a drag sets its opacity as it goes (lib/drawer.ts) */}
@@ -660,7 +648,6 @@ function Shell() {
       <NewWorktreeHost />
       <CloseAgentHost />
       <ForwardHost />
-      <WorktreeActionsHost onOpenWorkspace={openWorkspaceInTree} />
       {/* tab title with the "Needs you" count, favicon badge, optional sounds (#2332): a leaf, so a sessions push re-renders
           only it, not the whole shell */}
       <AttentionSignals label={title} pane={pane} />

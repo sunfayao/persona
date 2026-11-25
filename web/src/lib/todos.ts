@@ -9,8 +9,7 @@ import { parseAPIError, retryable, unrecoverableError } from "./api-errors";
 import { stateOf } from "./format";
 import { foldedState } from "./child-sessions";
 import { foldRows } from "./folded-rows";
-import { splitAgentSessions, type AgentGroup, type AgentMutes } from "./agent-groups";
-import type { AgentState, Interaction, Machine, Question, Session } from "./types";
+import type { AgentState, Interaction, Question, Session } from "./types";
 import type { Route } from "./router";
 import { byTime } from "./times";
 import { stateName, waitName } from "./state-labels";
@@ -700,113 +699,6 @@ export function mostUrgentAgent(
   }
 
   return best;
-}
-
-function byDate(a: Session, b: Session): number {
-  const parseTime = (s: Session) => {
-    const raw = (stateOf(s) === "working" ? s.state_since || s.updated_at : s.updated_at) ?? "";
-    return raw ? Date.parse(raw) || 0 : 0;
-  };
-  const diff = parseTime(b) - parseTime(a);
-  if (diff !== 0) return diff;
-  return a.session_id.localeCompare(b.session_id) || a.machine_id.localeCompare(b.machine_id);
-}
-
-function sessionRank(s: Session, mutes: AgentMutes): number {
-  const state = stateOf(s);
-  const waiting = ["idle", "unknown"].includes(state) && Boolean(s.loop || s.background?.length || s.subagents?.some((a) => a.running));
-  const isMuted = mutes.sessions.includes(`${s.machine_id}/${s.session_id}`) || Boolean(s.space_name && mutes.spaces.includes(`${s.machine_id}/${s.space_name}`));
-  if (state === "needs_you") return 0;
-  if (isMuted && (state === "working" || state === "unread" || waiting)) return 4;
-  if (state === "unread") return 1;
-  if (state === "working") return 2;
-  if (waiting) return 3;
-  return 5;
-}
-
-/**
- * Pure function for the Agents sidebar's "By to-do" grouping:
- * - one segment per unfinished todo with attached agents; the header is the todo's title and status, clicking it opens the todo
- * - the agents on no todo go last in one "Unassigned" segment, folded by default (#1836); the ones opened by hand in a
- *   terminal too, their row's source mark saying so (#6591; a group of their own before, #2608)
- * - pin, mute and "Recent (not running)" follow the same rules as "By status"
- */
-export function buildTodoAgentGroups(
-  all: Session[],
-  machines: Machine[],
-  todos: Todo[],
-  mutes: AgentMutes = { spaces: [], sessions: [] },
-  compareSessions?: (a: Session, b: Session) => number,
-): AgentGroup[] {
-  const { live } = splitAgentSessions(all, machines);
-  const lookup = makeSessionLookup(live);
-
-  // The To-dos page's order without live Agent rank: activity updates a group's status, not its place (#11801).
-  const openTodos = sortTodos(todos.filter((t) => !t.done_at));
-
-  // map each todo to its live sessions
-  const liveByKey = new Map<string, Session>();
-  for (const s of live) {
-    liveByKey.set(`${s.machine_id}/${s.session_id}`, s);
-  }
-
-  // Each agent sits under one todo: the session's own open todo first (pushed with the session, so newer than a
-  // todo's agents list that still has it after a move, #4802; as Android's AgentList), else the first open todo
-  // listing it (not released).
-  const openIds = new Set(openTodos.map((t) => t.id));
-  const homeOf = new Map<string, string>();
-  for (const [key, s] of liveByKey) {
-    const own = s.todo?.id;
-    const home = own && openIds.has(own) ? own
-      : openTodos.find((t) => (t.agents ?? []).some((a) => !a.released_at && `${a.machine_id}/${a.session_id}` === key))?.id;
-    if (home) homeOf.set(key, home);
-  }
-  const assignedSessionKeys = new Set(homeOf.keys());
-  const groups: AgentGroup[] = [];
-  const byRank = compareSessions ?? ((a: Session, b: Session) => {
-    const rA = sessionRank(a, mutes);
-    const rB = sessionRank(b, mutes);
-    if (rA !== rB) return rA - rB;
-    return byDate(a, b);
-  });
-
-  for (const todo of openTodos) {
-    // in the todo's agents order, then the sessions on it by their own todo only
-    const listed = (todo.agents ?? []).filter((a) => !a.released_at).map((a) => `${a.machine_id}/${a.session_id}`);
-    const keys = [...new Set([...listed, ...liveByKey.keys()])].filter((key) => homeOf.get(key) === todo.id);
-    const todoSessions = keys.map((key) => liveByKey.get(key)!);
-
-    if (todoSessions.length > 0) {
-      // The caller's presentation order; without one, status priority then newest activity.
-      todoSessions.sort(byRank);
-
-      const st = todoStatus(todo, lookup);
-      groups.push({
-        key: `todo:${todo.id}`,
-        name: todo.title,
-        sessions: todoSessions,
-        todoId: todo.id,
-        todoStatus: st,
-      });
-    }
-  }
-
-  // agents on no todo go last in one "Unassigned" segment, folded by default; opened by hand in a terminal or not (#6591)
-  const unassigned = live.filter((s) => !assignedSessionKeys.has(`${s.machine_id}/${s.session_id}`));
-  if (unassigned.length > 0) {
-    unassigned.sort(byRank);
-    groups.push({
-      key: "todo:none",
-      name: t("lib-todos.unassigned"),
-      hint: t("lib-todos.unassigned_hint"),
-      sessions: unassigned,
-      // folded below todos, unless something in it needs you (unread alone stays folded: many lists always have some);
-      // with no todo above it is the whole list, so open
-      folded: groups.some((g) => g.todoId) && !unassigned.some((s) => stateOf(s) === "needs_you"),
-    });
-  }
-
-  return groups;
 }
 
 // ── Decision log (#1618, docs/assistant/todos.md "Decision records") ───────────────

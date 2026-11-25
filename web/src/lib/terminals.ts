@@ -271,13 +271,3 @@ export function keepOnlyShown(list: readonly OpenTerminal[], shown: OpenTerminal
 export function isPaneAddress(id: string): boolean {
   return id.startsWith("pane:");
 }
-
-/** Only the plain shells of a tree (the sidebar lists the agents already): tabs and workspaces left with none are dropped. */
-export function shellsOnly(spaces: readonly TermSpace[]): TermSpace[] {
-  const out: TermSpace[] = [];
-  for (const sp of spaces) {
-    const tabs = sp.tabs.map((t) => ({ ...t, panes: t.panes.filter((p) => p.state === "shell") })).filter((t) => t.panes.length > 0);
-    if (tabs.length) out.push({ ...sp, tabs });
-  }
-  return out;
-}
