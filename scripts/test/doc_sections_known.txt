@@ -38,4 +38,3 @@ web/src/lib/extensions.ts	docs/extensions/extensions.md	Automatic upgrades
 web/src/lib/terminal-mode.ts	docs/integrations/terminal.md	The full herdr view
 web/src/lib/turns.ts	docs/protocol/protocol.md	Sending video
 web/src/views/inbox/LarkEditHistory.tsx	docs/extensions/lark-migration.md	Message display
-web/src/views/settings/AssistantSettings.tsx	docs/assistant/assistant.md	Profile and avatar
