@@ -257,7 +257,7 @@ export const assistantPickerKey = (mid: string, sid: string) => `assistant:${mid
 /** AssistantChat.followsDefault of chat `session` (the pill's rule below). */
 function followsDefaultOf(assistant: AssistantInfo | null, session: Session): boolean {
   return assistant?.main === session.session_id || isBackgroundSupervisor(assistant, session.session_id) ||
-    Boolean(assistant?.leaders?.includes(session.session_id)) || session.origin === "task";
+    session.origin === "task";
 }
 
 /** A Persona chat's card for its last turn's model error (turnErrorFix of the session's turn_error_code): a model the chat

@@ -16,7 +16,6 @@ vi.hoisted(() => {
   })) as typeof window.matchMedia;
 });
 
-vi.mock("../lib/direction-tree", async (orig) => ({ ...(await orig<typeof import("../lib/direction-tree")>()), useDirectionTree: () => null }));
 vi.mock("../lib/api", async (orig) => ({ ...(await orig<typeof import("../lib/api")>()), api: async () => ({}) }));
 
 const { getState } = await import("../lib/store");

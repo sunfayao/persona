@@ -9,7 +9,6 @@
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import { t } from "../i18n";
 import { agentName, sessionAgent } from "../lib/agent-kind";
-import { useDirectionTree } from "../lib/direction-tree";
 import { useFeed } from "../lib/feed";
 import { clock, sessionTitle, shortDuration } from "../lib/format";
 import { machineWithHub } from "../lib/mesh";
@@ -137,12 +136,11 @@ export default function TodoRequestGraph({ todos, lookup, machines, selectedId, 
   onOpenAgent?: (mid: string, sid: string) => void;
 }) {
   const plans = useFeed((s) => s.plans);
-  const tree = useDirectionTree();
   const now = useNow(TICK_MS);
   // a list's summary rows leave out a session's subagents (running and ended): the complete rows have them
   const full = useFullAgentSessions();
   const complete = useMemo(() => makeSessionLookup(full.sessions), [full.sessions]);
-  const graph = useMemo(() => buildGraph({ todos, plans, data: { tree, todos, lookup, complete } }), [todos, plans, tree, lookup, complete]);
+  const graph = useMemo(() => buildGraph({ todos, plans, data: { todos, lookup, complete } }), [todos, plans, lookup, complete]);
   const queue = useMemo(() => queuedRows(graph), [graph]);
   const [hot, setHot] = useState<Hot>(null);
   // the Agent trees folded to their first line (every tree starts open)

@@ -212,12 +212,12 @@ describe("a Persona chat's pill on a hub that keeps picks", () => {
     expect(sent("DELETE")).toEqual([null]);
   });
 
-  it("shows a leader and a scheduled task's conversation what the next message runs on: Main chat until they pick (#9248)", async () => {
-    for (const as of [{ leaders: ["c1"] }, {}]) {
-      Object.assign(getState().assistant!, { main: "other", leaders: undefined }, as);
+  it("shows a scheduled task's conversation what the next message runs on: Main chat until it picks (#9248)", async () => {
+    for (const as of [{}]) {
+      Object.assign(getState().assistant!, { main: "other" }, as);
       // it last ran on Haiku, but its next message follows Model configuration › Main chat (Opus)
-      await show(chat({ launcher: "relay", model: "claude-haiku-5-5", ...(as.leaders ? {} : { origin: "task" }) }));
-      expect(getState().assistant).toMatchObject({ launcher: "claude", main: "other", leaders: as.leaders });
+      await show(chat({ launcher: "relay", model: "claude-haiku-5-5", origin: "task" }));
+      expect(getState().assistant).toMatchObject({ launcher: "claude", main: "other" });
       expect(pill().textContent).toContain("Opus 5.5");
       expect(pill().textContent).not.toContain("Haiku");
       await open();
@@ -226,7 +226,6 @@ describe("a Persona chat's pill on a hub that keeps picks", () => {
       await flush();
     }
     // with a pick it shows the pick, as it runs on it
-    getState().assistant!.leaders = ["c1"];
     await show(chat({ launcher: "relay", model: "claude-haiku-5-5", model_pick: { launcher: "claude", model: "haiku" } }));
     expect(pill().textContent).toContain("Haiku 5.5");
   });

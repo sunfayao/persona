@@ -17,7 +17,6 @@
 // the owner's own words quoted under it when they say something else ("Go ahead" is the owner's words, not a heading):
 // the brief keeps them, else a request to-do's notes do, on a line like `用户原话（…）：…` / `Your words: …`.
 import { foldedState } from "./child-sessions";
-import type { DirectionAgent, DirectionTask, DirectionTree } from "./direction-tree";
 import type { PlanTask, TaskPlan } from "./feed";
 import { reviewState } from "./supervision";
 import { acceptedAtRest, interruption, isAutoDone, isCancelled, openAsk, taskNow, todoStatus, type SessionLookup, type Todo, type TodoStatus } from "./todos";
@@ -158,9 +157,8 @@ export interface GraphInput {
   data: GraphData;
 }
 
-/** What the pieces' Agents are read from: the direction tree, every to-do (a leader's workers are among them) and the rows. */
+/** What the pieces' Agents are read from: every to-do (a leader's workers are among them) and the rows. */
 export interface GraphData {
-  tree: DirectionTree | null | undefined;
   todos: readonly Todo[];
   lookup: SessionLookup;
   /** Complete session rows, when the view has them: a list's summary row leaves out a session's subagents (running and
@@ -246,15 +244,6 @@ function placement(todos: readonly Todo[]): Placement {
   return p;
 }
 
-/** The direction tree's task for a to-do, wherever it is filed. */
-function directionTask(tree: DirectionTree | null | undefined, todoId: string): DirectionTask | undefined {
-  for (const d of tree?.directions ?? []) {
-    const hit = d.tasks?.find((td) => td.id === todoId);
-    if (hit) return hit;
-  }
-  return undefined;
-}
-
 /** The to-dos a leader's Agent handed out (its workers), open and closed: their ledger names it as supervisor, or their
  *  origin is it. A closed one stays on the leader's piece, ended, while the piece goes on. */
 function workersOf(todos: readonly Todo[], mid: string, sid: string): Todo[] {
@@ -262,14 +251,10 @@ function workersOf(todos: readonly Todo[], mid: string, sid: string): Todo[] {
   return todos.filter((td) => td.supervision?.supervisor === r || td.origin === r);
 }
 
-type AgentLink = { machine_id: string; session_id: string; title?: string; agent?: string; state?: string; children?: DirectionAgent[] };
+type AgentLink = { machine_id: string; session_id: string; title?: string; agent?: string; state?: string };
 
 /** The first line of what was said, trimmed. */
 const firstLine = (s: string | undefined | null) => (s ?? "").trim().split(/\r?\n/, 1)[0].trim();
-
-/** The subagent id in a direction tree child's session id ("<session>@<agent id>", the hub's sessionKids), when it is
- *  one of session `sid`'s in-session subagents. */
-const subagentId = (childSid: string, sid: string) => (childSid.startsWith(`${sid}@`) ? childSid.slice(sid.length + 1) : undefined);
 
 /** The session a subagent of session `sid` opens: its own link as the hub sends it ("<sid>@<id>", or a session of its
  *  own), else "<sid>@<id>"; never the launching session itself, which would open the Agent that launched it. */
@@ -278,25 +263,11 @@ export function subagentLink(sub: Pick<Subagent, "session_id"> | undefined, sid:
   return own && own !== sid ? own : `${sid}@${id}`;
 }
 
-/** Which to-do had each Agent (refs "machine/session"), per to-do list: a direction tree child that is another to-do's
- *  Agent is a worker. */
-const ownersCache = new WeakMap<readonly Todo[], Map<string, Todo>>();
-function ownerOfAgent(todos: readonly Todo[], key: string): Todo | undefined {
-  let owners = ownersCache.get(todos);
-  if (!owners) {
-    owners = new Map();
-    for (const t of todos) for (const a of t.agents ?? []) if (!owners.has(ref(a.machine_id, a.session_id))) owners.set(ref(a.machine_id, a.session_id), t);
-    ownersCache.set(todos, owners);
-  }
-  return owners.get(key);
-}
-
 /**
- * Every Agent on a to-do, as a tree in reading order (each row before what hangs under it): its own (the direction tree's,
- * else the to-do's own links), and under each, first the workers it handed out (open and closed) with their own trees,
- * then the Agents it spawned, then its in-session subagents (running and ended, nested by the subagent that launched
+ * Every Agent on a to-do, as a tree in reading order (each row before what hangs under it): its own links, and under
+ * each, first the workers it handed out (open and closed) with their own trees, then its in-session subagents (running and ended, nested by the subagent that launched
  * each, the earliest first); the ones it had before come last. A summary row has no subagents, so they are read from the
- * complete row when there is one, and the direction tree's running ones fill in what a stale row does not have yet.
+ * complete row when there is one.
  */
 function nodeAgents(todo: Todo, data: GraphData): NodeAgent[] {
   const out: NodeAgent[] = [];
@@ -317,15 +288,6 @@ function nodeAgents(todo: Todo, data: GraphData): NodeAgent[] {
       id: x.id, parent: x.parent_id, title: x.description?.trim() || x.type || "", running: Boolean(x.running), at: ms(x.started_at),
       doing: firstLine(x.running ? x.last_tool?.summary || x.last_text : x.last_text), sub: x, i,
     }));
-    const fromTree = (kids: DirectionAgent[] | undefined, under?: string) => {
-      for (const c of kids ?? []) {
-        const id = subagentId(c.session_id, sid);
-        if (id === undefined) continue;
-        if (!subs.some((x) => x.id === id)) subs.push({ id, parent: under, title: c.title, running: true, doing: "", i: subs.length });
-        fromTree(c.children, id);
-      }
-    };
-    fromTree(a.children);
     if (!subs.length) return;
     const ids = new Set(subs.map((x) => x.id));
     const order = (x: Sub, y: Sub) => (x.at ?? Infinity) - (y.at ?? Infinity) || x.i - y.i;
@@ -353,32 +315,19 @@ function nodeAgents(todo: Todo, data: GraphData): NodeAgent[] {
       key, mid: a.machine_id, agent: s?.agent || a.agent, session: s, title: s?.title || a.title || "", state, role, depth, parent, ended,
       doing: firstLine(taskNow(s, !ended && state === "working")?.text), open: { mid: a.machine_id, sid: a.session_id },
     });
-    const kids = (a.children ?? []).filter((c) => subagentId(c.session_id, a.session_id) === undefined);
-    // the workers it handed out: those the direction tree hangs under it, then those the to-dos name it for
+    // the workers it handed out: those the to-dos name it for
     if (depth < MAX_DEPTH) {
       const workers: Todo[] = [];
-      for (const c of kids) {
-        const owner = ownerOfAgent(data.todos, ref(c.machine_id, c.session_id));
-        if (owner && owner.id !== todo.id && ours(owner) && !workers.includes(owner)) workers.push(owner);
-      }
       for (const w of workersOf(data.todos, a.machine_id, a.session_id)) if (w.id !== todo.id && ours(w) && !workers.includes(w)) workers.push(w);
       for (const w of workers) {
         inTree.add(w.id);
         on(w, "worker", depth + 1, key, Boolean(w.done_at));
       }
     }
-    // what it spawned; an Agent of another to-do drawn elsewhere (a piece, another tree's worker) is not repeated here
-    for (const c of kids) {
-      if (seen.has(ref(c.machine_id, c.session_id))) continue;
-      const owner = ownerOfAgent(data.todos, ref(c.machine_id, c.session_id));
-      if (owner && !inTree.has(owner.id)) continue;
-      visit(c, "spawned", depth + 1, key, false);
-    }
     subagents(a, s, depth + 1, key);
   };
   const on = (td: Todo, role: AgentRole, depth: number, parent: string | undefined, ended: boolean) => {
-    const tree = directionTask(data.tree, td.id)?.agents;
-    let list: AgentLink[] = tree?.length ? tree : (td.agents ?? []).filter((a) => !a.released_at);
+    let list: AgentLink[] = (td.agents ?? []).filter((a) => !a.released_at);
     // a closed worker's Agents may all be released: the one it had last stands for it
     if (!list.length && ended && td.agents?.length) list = [td.agents[td.agents.length - 1]];
     for (const a of list) if (!seen.has(ref(a.machine_id, a.session_id))) visit(a, role, depth, parent, ended);

@@ -128,7 +128,6 @@ import { AssistantFace, CompactionStrip, useAssistantMenu } from "../assistant/A
 import { PageBoundary } from "../PageBoundary";
 import { ViewLayer } from "../session/ViewLayer";
 import { conversationTitle } from "../assistant/conversations";
-import { useDirectionName } from "../../lib/direction-names";
 import { chatPlaceIn, dropChatPlace, firstLineInView, handoffFrom, leaveChat, type ChatPlace, type HandoffFrom } from "../../lib/handoff";
 import { externalOpening, openerOf } from "../../lib/conversation-origins";
 import { usePersona } from "../assistant/Persona";
@@ -580,9 +579,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // the hub has no such chat and nothing of it is here (no row, no cached lines, no message kept in this browser):
   // "Conversation not found" with the way back, never its id, nor cached content said to be readable
   const notFound = gone && !known && !archivedHere && !tr.loading && tr.items.length === 0 && outbox.length === 0;
-  // a leader conversation is its direction, as its sidebar row says, not the hub's "MMDD | kind | prompt" title
-  const directionName = useDirectionName(sid);
-  const title = isMain ? mainTitle : notFound ? t("chat-chatview.not_found_title") : named ? (directionName ?? (assistant ? conversationTitle(named) : sessionTitle(named))) : assistant ? t("chat-chatview.new_chat") : t("chat-chatview.session");
+  const title = isMain ? mainTitle : notFound ? t("chat-chatview.not_found_title") : named ? (assistant ? conversationTitle(named) : sessionTitle(named)) : assistant ? t("chat-chatview.new_chat") : t("chat-chatview.session");
   const canFork = Boolean(session?.can_fork);
   // "Rewind to here" (#2436): offered on your messages of a session in a terminal; off with a reason while it cannot. Live
   // (chat-actions.ts): it changes with every turn, and in `actions` it would render every message's actions again.
@@ -2313,7 +2310,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         interactions={interactions}
         overview={overview}
         title={title}
-        direction={directionName !== undefined && !isMain && !notFound}
         machineName={machineName}
         assistant={assistant}
         main={isMain}
@@ -2855,7 +2851,6 @@ export const Header = memo(function Header({
   team,
   sides,
   panel: chrome,
-  direction = false,
 }: {
   session?: Session;
   starting?: boolean;
@@ -2868,7 +2863,6 @@ export const Header = memo(function Header({
   main?: boolean;
   /** A leader conversation, its title its direction's name: no in-place rename of that title (it would rename the
    *  conversation's own title, which the header does not show); ⋯ Rename does that, as the sidebar row's does. */
-  direction?: boolean;
   siblings: Session[];
   onToggleSidebar?: () => void;
   onInterrupt: () => void;
@@ -2897,7 +2891,7 @@ export const Header = memo(function Header({
   panel?: PanelChrome;
 }) {
   const preferTab = useHerdrTabName();
-  const primaryTab = session && !assistant && !direction ? sessionDisplayTab(session, preferTab) : "";
+  const primaryTab = session && !assistant ? sessionDisplayTab(session, preferTab) : "";
   const title = primaryTab || baseTitle;
   const titleDetail = primaryTab && session ? sessionTitleDetail(session, preferTab) : "";
   const identity = useAssistantIdentity();
@@ -3129,7 +3123,7 @@ export const Header = memo(function Header({
           </h1>
         ) : (
           <h1
-            onDoubleClick={canRename && !chrome?.title && !direction ? () => preferTab && primaryTab ? setDialog("rename") : setEditing(true) : undefined}
+            onDoubleClick={canRename && !chrome?.title ? () => preferTab && primaryTab ? setDialog("rename") : setEditing(true) : undefined}
             title={chrome?.title ? [chrome.title, chrome.sub].filter(Boolean).join(" · ") : [title, titleDetail].filter(Boolean).join("\n")}
             data-chat-title
             className={cx(titleClass, "cursor-default truncate select-none")}

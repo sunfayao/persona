@@ -21,9 +21,6 @@ import TodoRequestGraph from "./TodoRequestGraph";
 const feed = vi.hoisted(() => ({ plans: {} as Record<string, unknown> }));
 vi.mock("../lib/feed", async (orig) => ({ ...(await orig<typeof import("../lib/feed")>()), useFeed: (select: (s: { plans: Record<string, unknown> }) => unknown) => select(feed) }));
 
-// a hub without a direction tree: nothing to read
-vi.mock("../lib/direction-tree", async (orig) => ({ ...(await orig<typeof import("../lib/direction-tree")>()), useDirectionTree: () => null }));
-
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
