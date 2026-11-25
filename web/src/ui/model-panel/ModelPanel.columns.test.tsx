@@ -188,4 +188,18 @@ describe("the model panel's columns", () => {
     act(() => root.unmount());
     expect(stored("recent")).toEqual([{ provider: "codex", model: "gpt-5.5", effort: "medium", fast: true }]);
   });
+
+  it("shows Recent and favorites in the left column only when saved setups exist, listing only saved models", async () => {
+    await open();
+    expect(sides().map((b) => b.dataset.panelSide)).toEqual(["agy", "claude", "codex"]);
+
+    localStorage.setItem(panelStoreKey("assistant", "recent"), JSON.stringify([{ provider: "codex", model: "gpt-5.5", effort: "high" }]));
+    act(() => root.unmount());
+    root = createRoot(host);
+    await open();
+    expect(sides().map((b) => b.dataset.panelSide)).toEqual(["\nsaved", "agy", "claude", "codex"]);
+    act(() => sides().find((b) => b.dataset.panelSide === "\nsaved")!.click());
+    expect(rows().map((r) => r.dataset.panelRow)).toEqual(["recent:0"]);
+    expect(document.body.querySelector('[data-panel-section="presets"]')).toBeNull();
+  });
 });

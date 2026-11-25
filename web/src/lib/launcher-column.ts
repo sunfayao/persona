@@ -46,6 +46,5 @@ export function launcherSearch(input: Omit<SectionsInput, "view">): PanelRow[] {
     promote: false,
     view: { kind: "all" },
     favorites: [],
-    presets: [],
   }).flatMap((s) => s.rows);
 }

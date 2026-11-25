@@ -1,9 +1,9 @@
 // New Agent's model choice in the unified model panel (#5104; the tests run in zh-Hans): the panel's data for a computer's launchers (Default rows,
-// blocked and locked launchers, typed IDs, presets, the row lit), what a pick puts in the form, what the pill says, and
-// when a choice goes along to another computer; plus the shared panel's parts New Agent added (presets, no Recommended
+// blocked and locked launchers, typed IDs, the row lit), what a pick puts in the form, what the pill says, and
+// when a choice goes along to another computer; plus the shared panel's parts New Agent added (no Recommended
 // group, the row lit shows the form's setup, engine choices).
 import { describe, expect, it } from "vitest";
-import type { LauncherModels, PickerTier } from "./launcher-models";
+import type { LauncherModels } from "./launcher-models";
 import { engineChoices, engineSetup, panelSections, shownEffort, type PanelProvider, type SectionsInput } from "./model-panel";
 import { choiceCarries, formChoice, newAgentPanel, newAgentPill, type ModelChoice } from "./new-agent-panel";
 import type { ModelList } from "./session-models";
@@ -44,12 +44,8 @@ const lists: Record<string, ModelList> = {
 const listOf = (name: string): ModelList => lists[name] ?? {};
 const none: ModelChoice = { launcher: "", model: "", effort: "" };
 const configured = { provider: "launcher.claude", model: "sonnet", effort: "high" };
-const tiers: PickerTier[] = [
-  { name: "quick", launcher: "sonnetcc", description: "Small, quick fixes" },
-  { name: "review", launcher: "claude", model: "opus", effort: "high" },
-];
 const panel = (o: Partial<Parameters<typeof newAgentPanel>[0]> = {}) =>
-  newAgentPanel({ launchers, listOf, choice: none, configured, runs: "claude", tiers, ...o });
+  newAgentPanel({ launchers, listOf, choice: none, configured, runs: "claude", ...o });
 const provider = (p: ReturnType<typeof panel>, id: string) => p.providers.find((x) => x.id === id)!;
 
 describe("the panel's providers", () => {
@@ -116,7 +112,7 @@ describe("the panel's providers", () => {
     const list = source === "codex_app" ? codexList : claudeList;
     const model = source === "codex_app" ? "gpt-5.5" : "sonnet";
     const p = panel({ launchers: [desktop], listOf: () => ({ list }),
-      choice: { launcher: desktop.name, model, effort: "high" }, configured: null, runs: desktop.name, tiers: [] });
+      choice: { launcher: desktop.name, model, effort: "high" }, configured: null, runs: desktop.name });
     const item = provider(p, desktop.name);
     expect(item.models?.some((row) => row.id === model)).toBe(true);
     expect(item.typable).toBe(true);
@@ -126,7 +122,7 @@ describe("the panel's providers", () => {
   it.each(["claude_desktop", "codex_app"])("%s respects a model catalog's explicit lock", (source) => {
     const desktop: Launcher = { name: "desktop", agent: source === "codex_app" ? "codex" : "claude", source };
     const p = panel({ launchers: [desktop], listOf: () => ({ list: { agent: desktop.agent!, models: [], locked: "Settings follow the desktop app." } }),
-      choice: none, configured: null, runs: desktop.name, tiers: [] });
+      choice: none, configured: null, runs: desktop.name });
     const item = provider(p, desktop.name);
     expect(item.models?.map((row) => row.id)).toEqual(["default"]);
     expect(item.models?.[0].description).toBe("Settings follow the desktop app.");
@@ -134,7 +130,7 @@ describe("the panel's providers", () => {
   });
 
   it("a list that couldn't be read: why and Retry, the launcher's Default row, and a typed ID for Claude Code and Codex", () => {
-    const p = newAgentPanel({ launchers, listOf: (name) => (name === "claude" || name === "work_gw" ? { error: "no answer" } : listOf(name)), choice: none, configured: null, runs: "claude", tiers: [] });
+    const p = newAgentPanel({ launchers, listOf: (name) => (name === "claude" || name === "work_gw" ? { error: "no answer" } : listOf(name)), choice: none, configured: null, runs: "claude" });
     expect(provider(p, "claude")).toMatchObject({ error: "no answer", typable: true });
     expect(provider(p, "claude").models?.map((m) => [m.id, m.providerDefault])).toEqual([["default", true]]);
     expect(provider(p, "claude").models?.[0].efforts).toEqual(EFFORTS);
@@ -165,7 +161,7 @@ describe("the panel's providers", () => {
     const grok: Launcher = { name: "grok", agent: "paseo", source: "paseo", display_name: "Grok", permission_modes: ["default", "bypassPermissions"] };
     const paseoCodex: Launcher = { name: "my-codex", agent: "codex", source: "paseo", permission_modes: ["default", "bypassPermissions"] };
     const grokList: LauncherModels = { agent: "paseo", models: [{ id: "grok-4", name: "Grok 4", default: true, efforts: ["low", "high"] }, { id: "grok-mini", name: "Grok mini" }] };
-    const p = newAgentPanel({ launchers: [grok, paseoCodex], listOf: (n) => (n === "grok" ? { list: grokList } : { list: codexList }), choice: none, configured: null, runs: "grok", tiers: [] });
+    const p = newAgentPanel({ launchers: [grok, paseoCodex], listOf: (n) => (n === "grok" ? { list: grokList } : { list: codexList }), choice: none, configured: null, runs: "grok" });
     expect(provider(p, "grok").name).toBe("Grok");
     expect(provider(p, "grok").models?.map((m) => [m.id, m.efforts])).toEqual([["default", ["low", "high"]], ["grok-4", ["low", "high"]], ["grok-mini", []]]);
     expect(provider(p, "my-codex").models?.map((m) => m.efforts)).toEqual([["low", "medium", "high"], ["low", "medium", "high"], ["low", "medium", "high"]]);
@@ -184,7 +180,7 @@ describe("the row lit and the state", () => {
   it("following the model settings: their launcher's Default row, with their effort; no Recommended group", () => {
     const p = panel();
     expect(p.state).toEqual({ current: { provider: "claude", model: "default", effort: "high" }, currentEffortDisplayOnly: "agy", recommended: [], starting: true });
-    const sections = panelSections({ providers: p.providers, state: p.state, view: { kind: "all" }, query: "", favorites: [], recent: [], overrides: {}, presets: p.presets });
+    const sections = panelSections({ providers: p.providers, state: p.state, view: { kind: "all" }, query: "", favorites: [], recent: [], overrides: {} });
     expect(sections.map((s) => s.kind)).not.toContain("recommended");
     expect(sections.find((s) => s.provider?.id === "claude")?.rows.find((r) => r.current)?.model.id).toBe("default");
   });
@@ -254,38 +250,6 @@ describe("the row lit and the state", () => {
   });
 });
 
-describe("presets", () => {
-  it("one row each, after the favorites, named by the preset and described; never lit", () => {
-    const p = panel();
-    expect(p.presets).toEqual([
-      { key: "quick", name: "quick", description: "Small, quick fixes", setup: { provider: "sonnetcc", model: "default" } },
-      { key: "review", name: "review", description: "claude · Opus 5.5 · 高", setup: { provider: "claude", model: "opus", effort: "high" } },
-    ]);
-    const sections = panelSections({ providers: p.providers, state: p.state, view: { kind: "all" }, query: "", favorites: [{ uid: "f", provider: "claude", model: "sonnet" }], recent: [], overrides: {}, presets: p.presets });
-    expect(sections.slice(0, 2).map((s) => s.kind)).toEqual(["favorites", "presets"]);
-    expect(sections[1].rows.map((r) => [r.kind, r.preset?.name, r.current])).toEqual([["preset", "quick", false], ["preset", "review", false]]);
-  });
-
-  it("stand on a row their launcher's group has: a model a fixed or untyped launcher lacks gives way to its Default row", () => {
-    const p = panel({ tiers: [{ name: "fast", launcher: "sonnetcc", model: "opus", effort: "high" }, { name: "x", launcher: "claude", model: "vendor/other" }, { name: "y", launcher: "p-relay", model: "m-1" }] });
-    expect(p.presets.map((x) => x.setup)).toEqual([
-      { provider: "sonnetcc", model: "default", effort: "high" },
-      // Claude Code takes a typed ID, and a list not read yet is not judged
-      { provider: "claude", model: "vendor/other" },
-      { provider: "p-relay", model: "m-1" },
-    ]);
-    const rows = panelSections({ providers: p.providers, state: p.state, view: { kind: "all" }, query: "", favorites: [], recent: [], overrides: {}, presets: p.presets }).find((s) => s.kind === "presets")?.rows;
-    expect(rows?.map((r) => r.preset?.key)).toEqual(["fast", "x", "y"]);
-  });
-
-  it("searched by their name and description, and listed in their launcher's view", () => {
-    const p = panel();
-    const base = { providers: p.providers, state: p.state, favorites: [], recent: [], overrides: {}, presets: p.presets };
-    expect(panelSections({ ...base, view: { kind: "all" }, query: "quick fixes" }).find((s) => s.kind === "presets")?.rows.map((r) => r.preset?.key)).toEqual(["quick"]);
-    expect(panelSections({ ...base, view: { kind: "provider", provider: "claude" }, query: "" }).find((s) => s.kind === "presets")?.rows.map((r) => r.preset?.key)).toEqual(["review"]);
-  });
-});
-
 describe("what a pick puts in the form", () => {
   it("a model: its launcher, model and effort; a Default row: no model", () => {
     expect(formChoice({ provider: "claude", model: "opus", effort: "high" })).toEqual({ launcher: "claude", model: "opus", effort: "high" });
@@ -319,7 +283,7 @@ describe("engines", () => {
       pi: { list: { agent: "paseo", models: [{ ...shared, default: true }] } },
       grok: { list: { agent: "paseo", models: [{ id: "grok-4", name: "Grok 4", default: true }] } },
     };
-    const p = newAgentPanel({ launchers: paseo, listOf: (n) => paseoLists[n] ?? {}, choice: none, configured: null, runs: "opencode", tiers: [] });
+    const p = newAgentPanel({ launchers: paseo, listOf: (n) => paseoLists[n] ?? {}, choice: none, configured: null, runs: "opencode" });
     expect(p.providers.map((x) => x.engine)).toEqual(["opencode", "pi", "grok"]);
     // the same model through OpenCode and Pi: two engines, as the flyout's engine pills offer them
     const row = { kind: "model" as const, provider: p.providers[0], model: p.providers[0].models!.find((m) => m.id === shared.id)! };

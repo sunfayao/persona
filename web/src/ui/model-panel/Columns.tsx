@@ -12,7 +12,7 @@ import { cx } from "../atoms";
 import { Icon } from "../icons";
 import { ProviderMark } from "./ProviderMark";
 
-/** The left column's entry for the saved setups (favorites, then recent) and the presets. */
+/** The left column's entry for the saved setups (favorites, then recent). */
 export const SAVED_SIDE = "\nsaved";
 
 const ENTRY =
@@ -24,7 +24,7 @@ export function LauncherColumn({ providers, state, quotas, side, saved, frozen, 
   quotas?: Readonly<Record<string, LauncherQuotaAnswer>>;
   /** The entry chosen: a provider's id or SAVED_SIDE. */
   side: string;
-  /** There are saved setups or presets to list. */
+  /** There are saved setups to list. */
   saved: boolean;
   frozen: boolean;
   onSide: (side: string) => void;

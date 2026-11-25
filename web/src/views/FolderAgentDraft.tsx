@@ -96,7 +96,6 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   const followed = followedBinding(picked, configured);
   const models = useModelList(mid, runs, startCatalogHost(launcher, host, startHost));
   const agent = launcherAgent(runs, launchers, models.list);
-  const tiers = (options?.list.tiers ?? []).filter((tier) => launchers.some((l) => l.name === tier.launcher));
   const providerModes = listedModes(launcher);
   const modes = providerModes ?? (launcher && (agent === "claude" || agent === "agy") ? PERMISSION_MODES.map((m) => m.id) : []);
   const permissionMode = modes.includes(mode) ? mode : undefined;
@@ -157,15 +156,9 @@ export function FolderAgentDraft({ draft, onToggleSidebar }: { draft: Draft; onT
   const modelControl = (
     <NewAgentModel mid={mid} host={host} startHost={startHost} launchers={launchers} ready={Boolean(options)}
       onRetry={failed ? retryCatalog : undefined}
-      choice={choice} runs={runs} configured={configured} tiers={tiers} unavailable={options?.list.unavailable}
+      choice={choice} runs={runs} configured={configured} unavailable={options?.list.unavailable}
       follow={configured ? { active: !choice.launcher, label: t("newagent.follow_row"), detail: formatFollowDetail(configured, configuredProvider, models.list, launchers) } : undefined}
       fallback={t("chat-modelpill.default_model")} onChoice={changeChoice}
-      onPreset={(name) => {
-        const tier = tiers.find((p) => p.name === name);
-        if (!tier) return;
-        changeChoice({ launcher: tier.launcher, model: tier.model ?? "", effort: tier.effort ?? "" });
-        if (tier.permission_mode) changeMode(tier.permission_mode);
-      }}
       onFollow={() => changeChoice({ launcher: "", model: "", effort: "" })}
       onHelp={() => navigate(settingsHref("models", null, false, null, "providers"))}
       onConfigure={() => navigate(settingsHref("models", null, false, null, "providers"))} />

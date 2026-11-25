@@ -10,7 +10,7 @@ import { resetManagerChoice, setRosterDefault } from "../lib/manager-choice";
 import { refreshWorkspaceCatalog } from "../lib/workspace-catalog";
 import { NewAgent } from "./NewAgent";
 import { resetModelListsForTests } from "../lib/session-models";
-import type { LauncherModels, PickerTier } from "../lib/launcher-models";
+import type { LauncherModels } from "../lib/launcher-models";
 import { Toasts } from "../ui/atoms";
 import { t } from "../i18n";
 
@@ -31,7 +31,6 @@ let closes: number;
 let configured: boolean;
 let configuredProvider: string;
 let launcherRows: import("../lib/types").Launcher[];
-let launcherTiers: PickerTier[];
 let launcherModels: Record<string, Omit<LauncherModels, "agent">>;
 let modelsStatus: number;
 let unauthorized: ReturnType<typeof vi.fn<() => void>>;
@@ -98,7 +97,6 @@ beforeEach(async () => {
   vi.useFakeTimers();
   vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   calls = []; pending = []; closes = 0; configured = false; configuredProvider = "claude"; launcherRows = [{ name: "claude", agent: "claude" }]; catalogRows = [];
-  launcherTiers = [];
   launcherModels = {};
   modelsStatus = 200;
   let preview = 0;
@@ -132,7 +130,7 @@ beforeEach(async () => {
       return json({ agent: launcher?.agent_type || launcher?.agent || "claude", ...catalog,
         supports_start_model: host === "herdr" ? catalog.supports_start_model : undefined });
     }
-    if (url.endsWith("/launchers")) return json({ launchers: launcherRows, tiers: launcherTiers });
+    if (url.endsWith("/launchers")) return json({ launchers: launcherRows });
     if (url.includes("/dirs?")) return json({ path: "/projects", entries: [] });
     if (url.endsWith("/worktree/status")) return json({ path: call.body!.cwd, dirty: 0, unmerged: 0 });
     if (url.endsWith("/worktree/add")) return new Promise<Response>((resolve, reject) => {
@@ -563,11 +561,10 @@ describe("New Agent with an omp launcher (#11964)", () => {
     if (header) await act(async () => header.click());
   }
 
-  it.each(["typed", "listed", "preset", "launcher default"] as const)("sends the %s choice to the ordinary sessions endpoint", async (choice) => {
+  it.each(["typed", "listed", "launcher default"] as const)("sends the %s choice to the ordinary sessions endpoint", async (choice) => {
     await click("Close externally");
     launcherRows = [{ name: launcher, agent: "omp", source: "zshrc" }];
     launcherModels[launcher] = { supports_start_model: true, models: choice === "listed" ? [{ id: model, name: "Catalog model", efforts: ["high"] }] : [] };
-    launcherTiers = [{ name: "Research", launcher, model, effort: "high" }];
     localStorage.setItem("new.mode.computer", "plan");
     resetModelListsForTests();
     await click("Reopen start"); await flush();
@@ -581,7 +578,7 @@ describe("New Agent with an omp launcher (#11964)", () => {
       expect(row(`model:${launcher}\n${model}`)?.getAttribute("aria-pressed")).toBe("true");
       await act(async () => pill().click());
     } else {
-      const rows = { preset: "preset:Research", listed: `model:${launcher}\n${model}`, "launcher default": `model:${launcher}\ndefault` };
+      const rows = { listed: `model:${launcher}\n${model}`, "launcher default": `model:${launcher}\ndefault` };
       const pick = row(rows[choice]);
       expect(pick).toBeDefined();
       await act(async () => pick!.click());
@@ -646,10 +643,9 @@ describe("New Agent with an omp launcher (#11964)", () => {
     ["locked launcher", 200, { models: [{ id: model, name: "Listed" }], supports_start_model: true, locked: "Fixed by launcher" }],
     ["missing endpoint", 404, { models: [] }],
     ["failed catalog read", 503, { models: [] }],
-  ] as const)("on %s offers its default and omits a preset's unsupported model", async (_node, status, catalog) => {
+  ] as const)("on %s offers its default and omits unsupported models", async (_node, status, catalog) => {
     await click("Close externally");
     launcherRows = [{ name: launcher, agent: "omp" }];
-    launcherTiers = [{ name: "Research", launcher, model }];
     launcherModels[launcher] = { ...catalog, models: [...catalog.models] };
     modelsStatus = status;
     resetModelListsForTests();
@@ -661,7 +657,7 @@ describe("New Agent with an omp launcher (#11964)", () => {
     await input(search, model);
     expect(row(`typed:${launcher}\n${model}`)).toBeUndefined();
     await input(search, "");
-    await act(async () => row("preset:Research")!.click());
+    await act(async () => row(`model:${launcher}\ndefault`)!.click());
     expect(pill().title).not.toContain(model);
     await click(t("newagent.start")); await tick();
     expect(starts()[0].body).toMatchObject({ launcher });
@@ -714,8 +710,7 @@ describe("New Agent with an omp launcher (#11964)", () => {
     await click("Close externally");
     const runtime = "omp-provider";
     launcherRows = [{ name: runtime, agent: "omp", source: runtime, permission_modes: ["default"] }];
-    launcherModels[runtime] = { models: [{ id: "runtime-model", name: "Runtime model", efforts: ["high"] }] };
-    launcherTiers = [{ name: "Runtime", launcher: runtime, model: "runtime-model", effort: "high" }];
+    launcherModels[runtime] = { models: [{ id: "runtime-model", name: "Runtime model", efforts: ["low", "high"] }] };
     resetModelListsForTests();
     await click("Reopen start"); await flush();
     await openPanel(runtime);
@@ -724,7 +719,13 @@ describe("New Agent with an omp launcher (#11964)", () => {
     await input(search, model);
     expect(row(`typed:${runtime}\n${model}`)).toBeUndefined();
     await input(search, "");
-    await act(async () => row("preset:Runtime")!.click());
+    await act(async () => row(`model:${runtime}\nruntime-model`)!.click());
+    await openPanel(runtime);
+    await act(async () => row(`model:${runtime}\nruntime-model`)!.querySelector<HTMLButtonElement>("[data-row-customize]")!.click());
+    await act(async () => {
+      document.querySelector('[data-model-flyout] [role="slider"]')!.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    });
+    await flush();
     expect(pill().title).toContain("Runtime model");
     await click(t("newagent.start")); await tick();
     expect(starts()[0].body).toMatchObject({ launcher: runtime, model: "runtime-model", effort: "high" });

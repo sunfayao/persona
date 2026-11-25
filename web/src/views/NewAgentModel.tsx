@@ -2,10 +2,10 @@
 // docs/web/web.md "New Agent"): the chat's model pill at the right of the first message box's bottom row, opening the
 // unified model panel (ui/model-panel) with the chosen computer's launchers as its providers. The user picks a model; the
 // launcher and its engine come with it, and the engine's mark stays on the pill and on every row. A "Follow Model
-// settings" row on top goes back to the default, the profile's presets are a group of their own, the thinking effort and
-// Claude Code's ultracode switch are in the chosen model's flyout. The panel's data is lib/new-agent-panel.ts.
+// settings" row on top goes back to the default, and the thinking effort and Claude Code's ultracode switch are in the
+// chosen model's flyout. The panel's data is lib/new-agent-panel.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { startCatalogHost, type PickerTier, type UnavailableLauncher } from "../lib/launcher-models";
+import { startCatalogHost, type UnavailableLauncher } from "../lib/launcher-models";
 import type { ModelBinding } from "../lib/model-config";
 import type { PanelConfig } from "../lib/model-panel";
 import { formChoice, newAgentPanel, newAgentPill, type ModelChoice } from "../lib/new-agent-panel";
@@ -46,7 +46,6 @@ export interface NewAgentModelProps {
   runs: string;
   /** Model settings › New agent as it applies now; null: not followed. */
   configured: ModelBinding | null;
-  tiers: PickerTier[];
   /** Persona-managed providers left out on this computer, with why (#8109): listed off in the panel. */
   unavailable?: UnavailableLauncher[];
   /** The "Follow Model settings" row; absent without model settings to follow (an older hub). */
@@ -58,7 +57,6 @@ export interface NewAgentModelProps {
   /** The workflow mark on the pill: ultracode is on. */
   ultracodeOn?: boolean;
   onChoice: (choice: ModelChoice) => void;
-  onPreset: (name: string) => void;
   onFollow: () => void;
   /** "How to fix" of a launcher that failed its check here (#1643), or of a provider in `unavailable`. */
   onHelp: (launcher: string) => void;
@@ -99,7 +97,7 @@ export function NewAgentModel(props: NewAgentModelProps) {
 /** The panel while it is open: the computer's launchers with their lists, read again behind the ones shown once per
  *  opening (the one that runs first; not the ones that can't start here, whose rows are off anyway; at most three at a
  *  time, as each may start its agent's CLI on the computer). */
-function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configured, tiers, unavailable, follow, ultracode, onChoice, onPreset, onFollow, onHelp, onConfigure, anchor, onClose }: NewAgentModelProps & { anchor: HTMLElement; onClose: () => void }) {
+function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configured, unavailable, follow, ultracode, onChoice, onFollow, onHelp, onConfigure, anchor, onClose }: NewAgentModelProps & { anchor: HTMLElement; onClose: () => void }) {
   const version = useModelLists();
   const omp = launchers.find((l) => l.name === "omp");
   const catalogHost = (name: string) => name === "omp" ? startCatalogHost(omp, host, startHost) : host;
@@ -107,10 +105,10 @@ function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configur
     for (const l of launchers) if (l.name === runs || !launcherBlock(l)) void readModels(mid, l.name, { again: true, first: l.name === runs, host: catalogHost(l.name) });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh on opening or when the selected host changes
   }, [host, startHost]);
-  const { providers, state, presets } = useMemo(
-    () => newAgentPanel({ launchers, listOf: (name) => modelList(mid, name, undefined, catalogHost(name)), choice, configured, runs, tiers, unavailable, startHost }),
+  const { providers, state } = useMemo(
+    () => newAgentPanel({ launchers, listOf: (name) => modelList(mid, name, undefined, catalogHost(name)), choice, configured, runs, unavailable, startHost }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` stands for what was read
-    [launchers, mid, host, choice.launcher, choice.model, choice.effort, configured, runs, tiers, unavailable, version, startHost],
+    [launchers, mid, host, choice.launcher, choice.model, choice.effort, configured, runs, unavailable, version, startHost],
   );
 
   const onPick = async (config: PanelConfig) => {
@@ -139,8 +137,6 @@ function NewAgentPanel({ mid, host, startHost, launchers, choice, runs, configur
       onForget={onForget}
       currentExtra={ultracode}
       follow={follow && { ...follow, onFollow: () => (onFollow(), true) }}
-      presets={presets}
-      onPreset={(key) => (onPreset(key), true)}
       engines
       onHelp={(launcher) => {
         onClose();

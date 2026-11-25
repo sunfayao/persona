@@ -231,10 +231,7 @@ async function run(browser, pass) {
   if (!(await panel.locator(`${rowSel("claude", "default")}[data-current]`).count())) fail(`${tag}: claude's Default row isn't the one that runs`);
   ok(`${tag}: "${w.follow}" is checked, says ${FOLLOWED}, and claude's Default row is lit`);
 
-  const presets = panel.locator('[data-panel-section="presets"]');
-  if ((await presets.getAttribute("aria-label")) !== w.presets) fail(`${tag}: no Presets group`);
-  const presetRows = await presets.locator("[data-panel-row]").evaluateAll((els) => els.map((e) => e.dataset.panelRow));
-  if (JSON.stringify(presetRows) !== JSON.stringify(["preset:quick", "preset:review"])) fail(`${tag}: presets ${JSON.stringify(presetRows)}`);
+  if (await panel.locator('[data-panel-section="presets"]').count()) fail(`${tag}: unexpected Presets group`);
   const groups = await panel.locator('[data-panel-section="provider"]').evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
   for (const name of ["claude", "work_gw", "team_gw", "sonnetcc", "codex"]) {
     if (!groups.includes(name)) fail(`${tag}: no ${name} group in ${JSON.stringify(groups)}`);
@@ -244,7 +241,7 @@ async function run(browser, pass) {
     if (!cells.includes(cell)) fail(`${tag}: no ${cell} launcher summary ${JSON.stringify(cells)}`);
   }
   await expectVisible(panel.getByRole("button", { name: w.configure }), `${tag}: Configure models`);
-  ok(`${tag}: the panel lists the presets, a group and summary per launcher, and Configure models`);
+  ok(`${tag}: the panel lists no presets, a group and summary per launcher, and Configure models`);
 
   // the launchers that failed their check here: listed with why, rows off, How to fix (#1643)
   for (const [name, reason] of [["work_gw", w.terminal], ["team_gw", w.auth]]) {
@@ -276,12 +273,12 @@ async function run(browser, pass) {
   if (!found.some(([k]) => k === "model:claude\ngateway/glm-5.3")) fail(`${tag}: "glm" doesn't find claude's glm-5.3`);
   const stray = found.filter(([, text]) => !/glm/i.test(text));
   if (stray.length) fail(`${tag}: "glm" shows rows without it: ${JSON.stringify(stray)}`);
-  if (await panel.locator('[data-panel-section="presets"]').count()) fail(`${tag}: "glm" keeps the presets`);
+  if (await panel.locator('[data-panel-section="presets"]').count()) fail(`${tag}: "glm" shows presets`);
   await shot("search");
   await search.fill("no such model");
   await expectVisible(panel.getByText(w.noMatch), `${tag}: "no such model" matches nothing`);
   await search.fill("");
-  await expectVisible(panel.locator('[data-panel-section="presets"]'), `${tag}: the list back after the search`);
+  await expectVisible(panel.locator('[data-panel-section="provider"][aria-label="claude"]'), `${tag}: the list back after the search`);
   ok(`${tag}: the search finds glm-5.3 under claude and codex only, and says when nothing matches`);
 
   // ── the flyout of the row that runs: effort and ultracode ──

@@ -9,11 +9,9 @@ import {
   engineChoices,
   engineSetup,
   levelSetup,
-  panelSections,
   rowBlock,
   rowCustomizable,
   type PanelConfig,
-  type PanelPreset,
   type PanelOverride,
   type PanelProvider,
   type PanelRow,
@@ -66,9 +64,6 @@ export interface ModelPanelProps {
     warning?: string;
     onFollow: () => boolean | Promise<boolean>;
   };
-  /** Ready-made setups listed as a group after the favorites (New Agent's presets); a pick of one goes to `onPreset`. */
-  presets?: PanelPreset[];
-  onPreset?: (key: string) => boolean | Promise<boolean>;
   /** The flyout lists the other engines its model runs with here (other providers listing it) and picks one on a click. */
   engines?: boolean;
   /** "How to fix" after the reason under a provider that can't take a pick (New Agent's launcher that failed its check);
@@ -105,7 +100,7 @@ interface Geometry {
 
 const rowsOf = (list: HTMLElement | null) => (list ? [...list.querySelectorAll<HTMLElement>("[data-panel-row], [data-panel-launcher]")] : []);
 
-export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, onApplyCurrent, onReload, onForget, quotas, currentExtra, header, follow, presets, onPreset, engines, onHelp, onConfigure, held }: ModelPanelProps): ReactNode {
+export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, onApplyCurrent, onReload, onForget, quotas, currentExtra, header, follow, engines, onHelp, onConfigure, held }: ModelPanelProps): ReactNode {
   const store = usePanelStore(scope);
   const listId = useId();
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(state.current ? [state.current.provider] : []));
@@ -126,15 +121,13 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
       favorites: store.favorites,
       recent: store.recent,
       overrides: store.overrides,
-      presets,
       openFamilies,
     }),
-    [providers, state, query, store.favorites, store.recent, store.overrides, presets, openFamilies],
+    [providers, state, query, store.favorites, store.recent, store.overrides, openFamilies],
   );
   const sections = useMemo(() => launcherSections(input), [input]);
   const quick = useMemo(() => quickPicks(input), [input]);
   const found = useMemo(() => (searching ? launcherSearch(input) : []), [input, searching]);
-  const presetSections = useMemo(() => panelSections({ ...input, view: { kind: "all" } }).filter((s) => s.kind === "presets"), [input]);
   const matches = providers.filter((p) =>
     query
       .trim()
@@ -163,10 +156,10 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
         ? found
         : columns
           ? side === SAVED_SIDE
-            ? [...quick, ...presetSections.flatMap((s) => s.rows)]
+            ? quick
             : (sideSection?.rows ?? [])
-          : [...quick, ...presetSections.flatMap((s) => s.rows), ...sections.filter((s) => expanded.has(s.provider!.id)).flatMap((s) => s.rows)],
-    [searching, found, quick, presetSections, sections, expanded, columns, side, sideSection],
+          : [...quick, ...sections.filter((s) => expanded.has(s.provider!.id)).flatMap((s) => s.rows)],
+    [searching, found, quick, sections, expanded, columns, side, sideSection],
   );
   const levelRow = columns ? (rows.find((r) => r.key === selectedKey) ?? rows.find((r) => r.current)) : undefined;
 
@@ -376,7 +369,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
   }, [sections, fly]);
 
   // ── what a row does ──
-  // a pick of a row, a preset, an engine in a flyout or the follow row: everything waits for it; once applied, the setup
+  // a pick of a row, an engine in a flyout or the follow row: everything waits for it; once applied, the setup
   // (not the follow row's: it is no model of its own) goes into Recent and the panel closes. The columns stay open for
   // the effort and the speed after a model (#12315): they close from outside, and Recent takes the last setup applied.
   const lastApplied = useRef<PanelConfig | null>(null);
@@ -408,7 +401,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
   };
   const pick = (row: PanelRow) => {
     if (columns) setSelectedKey(row.key);
-    return apply(() => (row.kind === "preset" && row.preset && onPreset ? onPreset(row.preset.key) : onPick(row.setup)), row.setup);
+    return apply(() => onPick(row.setup), row.setup);
   };
 
   const star = (row: PanelRow) => {
@@ -499,7 +492,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
     }
   };
   const levelOff = (row: PanelRow | undefined) =>
-    picking || Boolean(applying) || !row || row.kind === "preset" || row.kind === "typed" || (Boolean(rowBlock(row.provider, state, row.current)) && !(row.current && rowCustomizable(row, state, live)));
+    picking || Boolean(applying) || !row || row.kind === "typed" || (Boolean(rowBlock(row.provider, state, row.current)) && !(row.current && rowCustomizable(row, state, live)));
   const chooseSide = (id: string) => {
     setFly(null);
     setSelectedKey(null);
@@ -546,7 +539,6 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
   const second = (row: PanelRow): { text: string; describes?: boolean } => {
     const name = row.provider.name;
     if (row.kind === "typed") return { text: `${name} · ${t("ui-modelpanel.use_typed_note")}` };
-    if (row.kind === "preset") return { text: `${name} · ${row.preset?.description || row.model.name}` };
     if (row.model.custom) return { text: `${name} · ${t("ui-modelpanel.typed_before")}` };
     if (!searching && row.kind === "model" && providers.some((p) => p.id !== row.provider.id && p.models?.some((m) => m.name === row.model.name))) return { text: name };
     if (!searching && row.kind === "model") return { text: row.model.description ?? "", describes: true };
@@ -565,7 +557,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
         dense={columns}
         second={two.text}
         keepSecond={searching || row.kind === "recent" || row.kind === "favorite"}
-        describes={two.describes || row.kind === "preset"}
+        describes={two.describes}
         blocked={rowBlock(row.provider, state, row.current)}
         customizable={customizable}
         flyoutOpen={fly?.key === row.key}
@@ -732,7 +724,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
             />
           </div>
           <div ref={body} className="flex min-h-0 min-w-0 shrink" style={{ height: geo?.body ?? BODY }}>
-            {columns && <LauncherColumn providers={providers} state={state} quotas={quotas} side={side} saved={quick.length > 0 || presetSections.length > 0} frozen={picking} onSide={chooseSide} />}
+            {columns && <LauncherColumn providers={providers} state={state} quotas={quotas} side={side} saved={quick.length > 0} frozen={picking} onSide={chooseSide} />}
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <div
                 ref={list}
@@ -770,18 +762,11 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
                       {!found.length && !loading && <div className="w-0 min-w-full px-3 py-6 text-center text-meta text-ink-3">{t("ui-modelpanel.no_match")}</div>}
                     </>
                   ) : side === SAVED_SIDE ? (
-                    <>
-                      {quick.length > 0 && (
-                        <div role="group" aria-label={t("ui-modelpanel.quick_picks")} data-panel-quick className="relative">
-                          {quick.map(renderRow)}
-                        </div>
-                      )}
-                      {presetSections.map((s) => (
-                        <div key={s.key} role="group" aria-label={t("ui-modelpanel.presets")} data-panel-section="presets">
-                          {s.rows.map(renderRow)}
-                        </div>
-                      ))}
-                    </>
+                    quick.length > 0 && (
+                      <div role="group" aria-label={t("ui-modelpanel.quick_picks")} data-panel-quick className="relative">
+                        {quick.map(renderRow)}
+                      </div>
+                    )
                   ) : sideSection ? (
                     <div role="group" aria-label={sideSection.provider!.name} data-panel-section="provider">
                       {sideNote(sideSection.provider!)}
@@ -803,12 +788,6 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
                         {quick.map(renderRow)}
                       </div>
                     )}
-                    {!searching &&
-                      presetSections.map((s) => (
-                        <div key={s.key} role="group" aria-label={t("ui-modelpanel.presets")} data-panel-section="presets">
-                          {s.rows.map(renderRow)}
-                        </div>
-                      ))}
                     {searching ? (
                       <>
                         {matches.map((p) => (
@@ -864,7 +843,7 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
             {columns && <LevelColumn row={levelRow} disabled={levelOff(levelRow)} onLevel={(effort) => levelRow && void chooseLevel(levelRow, effort)} />}
           </div>
           <div className="flex shrink-0 items-center gap-2 border-t border-line px-3.5 py-[9px]">
-            {columns && levelRow?.model.fast && levelRow.kind !== "preset" && (
+            {columns && levelRow?.model.fast && (
               <SpeedSwitch fast={Boolean(levelRow.setup.fast)} disabled={picking || Boolean(applying) || !rowCustomizable(levelRow, state, live)} onFast={(on) => void edit(levelRow, { fast: on })} />
             )}
             {columns && levelRow?.kind === "model" && levelRow.current && currentExtra && <div data-panel-extra className="min-w-0">{currentExtra}</div>}

@@ -264,7 +264,7 @@ export function rowBlock(provider: PanelProvider, state: Pick<PanelState, "busy"
  *  chat applies flyout edits at once (`live`), even while picks are off (busy, or a Codex session that changes only its
  *  effort and Fast); any other row only while it can be picked. */
 export function rowCustomizable(row: Pick<PanelRow, "kind" | "current" | "provider">, state: Pick<PanelState, "busy" | "pending">, live: boolean): boolean {
-  if (row.kind === "recent" || row.kind === "typed" || row.kind === "preset") return false;
+  if (row.kind === "recent" || row.kind === "typed") return false;
   if (row.kind === "model" && row.current && live) return true;
   return !rowBlock(row.provider, state);
 }
@@ -369,21 +369,11 @@ export function levelSetup(row: Pick<PanelRow, "provider" | "model" | "setup">, 
 type PanelView = { kind: "recent" } | { kind: "favorites" } | { kind: "all" } | { kind: "provider"; provider: string };
 
 
-/** A ready-made setup offered as one row of its own (New Agent's Agent presets, #2225): a name and what it is for. */
-export interface PanelPreset {
-  /** Unique among the presets; what the panel's `onPreset` gets. */
-  key: string;
-  name: string;
-  description?: string;
-  setup: PanelConfig;
-}
-
 export interface PanelRow {
   /** Unique in the list. */
   key: string;
-  /** A model of a provider's list (also in Recommended), a favorite's copy, a recent setup, "Use “…”" for a typed ID, or
-   *  a preset. */
-  kind: "model" | "favorite" | "recent" | "typed" | "preset";
+  /** A model of a provider's list (also in Recommended), a favorite's copy, a recent setup, or "Use “…”" for a typed ID. */
+  kind: "model" | "favorite" | "recent" | "typed";
   provider: PanelProvider;
   model: PanelModel;
   /** What picking it sends. */
@@ -396,15 +386,13 @@ export interface PanelRow {
   current: boolean;
   /** A model row with an override of its own. */
   customized: boolean;
-  /** A preset row's preset (its name is the row's name). */
-  preset?: PanelPreset;
   /** The newest version of a family that has older ones listed (lib/model-families.ts): the row says "Latest". */
   latest?: boolean;
 }
 
 export interface PanelSection {
   key: string;
-  kind: "favorites" | "recent" | "recommended" | "presets" | "provider";
+  kind: "favorites" | "recent" | "recommended" | "provider";
   provider?: PanelProvider;
   rows: PanelRow[];
   /** The provider's list is still being read: its header and a spinner. */
@@ -430,8 +418,6 @@ export interface SectionsInput {
   favorites: PanelFavorite[];
   recent: PanelConfig[];
   overrides: PanelOverrides;
-  /** Ready-made setups listed after the favorites (New Agent's presets). */
-  presets?: PanelPreset[];
   /** Families the user unfolded (PanelBlock keys); the others keep their older versions folded. */
   openFamilies?: ReadonlySet<string>;
   /** Flat launcher search keeps the real session setup without a Recommended projection. */
@@ -451,18 +437,18 @@ function resolveCopy(providers: PanelProvider[], copy: PanelConfig): { provider:
 }
 
 /**
- * The list for a view (Cindy's buildUnifiedListSections). All: Favorites, the presets, Recommended (the model that runs
+ * The list for a view (Cindy's buildUnifiedListSections). All: Favorites, Recommended (the model that runs
  * now, then the other models of the providers in `state.recommended`; those leave their own group; none for an Agent not
  * started yet), then one group per provider (an emptied group is left out; one whose list is being read shows a spinner).
  * Not searching, each provider group of an All view that lists several shows its first ALL_GROUP_MAX rows (and the one
- * that runs now) with its `total`. A provider's view: its favorites and presets, then its models. Favorites: the
+ * that runs now) with its `total`. A provider's view: its favorites, then its models. Favorites: the
  * favorites only. Recent: the last setups applied. A search searches every provider, and a typed model ID none of whose
  * models answers is offered as "Use “…”" in the group of each provider that takes a pick here and takes typed IDs.
  * A provider group (and Recommended, after the model that runs) keeps each model family together, newest first, with
  * the older versions folded unless unfolded (`openFamilies`), searched for or in use (lib/model-families.ts); the
  * ALL_GROUP_MAX cut counts the rows shown.
  */
-export function panelSections({ providers, state, view: chosen, query, favorites, recent, overrides, presets, openFamilies, promote = true }: SectionsInput): PanelSection[] {
+export function panelSections({ providers, state, view: chosen, query, favorites, recent, overrides, openFamilies, promote = true }: SectionsInput): PanelSection[] {
   const q = query.trim();
   const open = openFamilies ?? NONE_OPEN;
   // an older version the user is using never folds away: the one that runs or waits, a favorite's, a recent setup's,
@@ -498,15 +484,6 @@ export function panelSections({ providers, state, view: chosen, query, favorites
   }
   if (favRows.length) out.push({ key: "favorites", kind: "favorites", rows: favRows });
   if (view.kind === "favorites") return out;
-
-  // the presets (a copy of a setup each, like a favorite: never lit, the model they run is lit in its own group)
-  const presetRows: PanelRow[] = [];
-  for (const x of presets ?? []) {
-    const r = resolveCopy(providers, x.setup);
-    if (!r || !inView(r.provider) || !matches([x.name, x.description, r.model.name, r.model.id, r.model.resolved, r.provider.name], q)) continue;
-    presetRows.push({ key: `preset:${x.key}`, kind: "preset", provider: r.provider, model: r.model, setup: cleanSetup(x.setup), preset: x, current: false, customized: false });
-  }
-  if (presetRows.length) out.push({ key: "presets", kind: "presets", rows: presetRows });
 
   const shown = providers.filter(inView);
   const groups = new Map<string, PanelRow[]>();

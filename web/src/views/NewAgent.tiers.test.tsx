@@ -1,76 +1,81 @@
 // @vitest-environment jsdom
-// "New agent"'s presets (#2225), a group of their own in the model panel (#5104): the tiers of the model profile in use
-// this computer can start. Picking one fills the launcher, model and effort as picking them by hand would (the model
-// survives the new launcher's list loading) and says so under the first message box; a pick by hand drops it; what the
-// launcher can't take is said, not silently dropped; "Follow Model settings" goes back to the defaults; a preset whose
-// launcher failed its check here can't be picked.
+// Model-profile Agent presets (tiers) stay on the hub for Assistant and A2A dispatch; the web model selector's
+// Recent and favorites view lists only saved favorites and recent picks, never tier rows such as backend or frontend.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Machine } from "../lib/types";
 
 const state = vi.hoisted(() => ({ loaded: true, features: [] as string[], machines: [] as Machine[] }));
-// one assistant: its computers are the store's (lib/current-assistant.ts reads the roster, which this store stand-in has none of)
 vi.mock("../lib/current-assistant", async () => {
   const store = (await import("../lib/store")) as unknown as { useStore: <T>(select: (s: { machines: unknown[] }) => T) => T };
   return { useScopedMachines: () => store.useStore((s) => s.machines) };
 });
-vi.mock("../lib/store", () => ({
-  getState: () => state,
-  useStore: (selector: (value: typeof state) => unknown) => selector(state),
-  hubHas: (features: string[], feature: string, unknown = false) => (features.length ? features.includes(feature) : unknown),
-}));
+vi.mock("../lib/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/store")>();
+  return {
+    ...actual,
+    getState: () => state,
+    useStore: (selector: (value: typeof state) => unknown) => selector(state),
+    hubHas: (features: string[], feature: string, unknown = false) => (features.length ? features.includes(feature) : unknown),
+  };
+});
 vi.mock("react-dom", async (original) => ({ ...(await original<typeof import("react-dom")>()), createPortal: (children: React.ReactNode) => children }));
-const launched = vi.hoisted(() => [] as Record<string, unknown>[]);
-vi.mock("../lib/new-agent", async (original) => ({ ...(await original<typeof import("../lib/new-agent")>()), launchAgent: (input: Record<string, unknown>) => { launched.push(input); return "local-1"; } }));
 
+import { FolderAgentDraft } from "./FolderAgentDraft";
 import { NewAgent } from "./NewAgent";
-import { Toasts } from "../ui/atoms";
+import { credentialOwner } from "../lib/api";
+import { defaultManager } from "../lib/manager-choice";
 import { resetModelListsForTests } from "../lib/session-models";
+import { panelStoreKey } from "../ui/model-panel/store";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const TIERS = [
-  { name: "quick", launcher: "claude" },
-  { name: "review", launcher: "fast", model: "m-review", effort: "high", description: "代码审查和设计" },
+  { name: "backend", launcher: "claude", model: "opus", effort: "max", description: "Backend tasks" },
+  { name: "frontend", launcher: "claude", model: "opus", effort: "max", description: "Frontend tasks" },
+  { name: "simple", launcher: "agy", model: "gemini-4-neon-xhigh", description: "Simple tasks" },
 ];
-let tiers: unknown = TIERS;
-let purpose: unknown = null;
-let claudeList: unknown = { agent: "claude", models: [{ id: "default", name: "Default", default: true }] };
-let launchers: unknown[] = [{ name: "claude", agent: "claude" }, { name: "fast", agent: "claude" }];
-let fastList: unknown = { agent: "claude", models: [{ id: "default", name: "Default", default: true }, { id: "m-review", name: "Review", efforts: ["low", "high"] }] };
+
 let host: HTMLDivElement;
 let root: Root;
 const flush = () => act(async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); });
-const button = (text: string) => [...document.body.querySelectorAll("button")].find((b) => b.textContent?.trim() === text)!;
-const hint = () => document.body.querySelector("[data-testid=new-agent-preset-hint]");
-const pill = () => document.body.querySelector<HTMLButtonElement>("[data-testid=new-agent-model] [data-model-pill]")!;
+const pill = () => document.body.querySelector<HTMLButtonElement>("[data-model-pill]")!;
 const panel = () => document.body.querySelector<HTMLElement>("[data-model-panel]");
-const rows = () => [...document.body.querySelectorAll<HTMLElement>("[data-panel-row]")];
-const row = (key: string) => rows().find((r) => r.dataset.panelRow === key);
-const preset = (name: string) => row(`preset:${name}`);
+
+let wideMode = true;
+const mediaListeners = new Set<() => void>();
+
+function installMatchMedia() {
+  vi.stubGlobal("matchMedia", (q: string) => ({
+    get matches() {
+      return wideMode ? q === "(min-width: 768px)" || q === "(any-pointer: fine)" : false;
+    },
+    media: q,
+    addEventListener(_type: string, fn: () => void) { mediaListeners.add(fn); },
+    removeEventListener(_type: string, fn: () => void) { mediaListeners.delete(fn); },
+  }));
+}
+
+function setWideMode(wide: boolean) {
+  wideMode = wide;
+  for (const fn of mediaListeners) fn();
+}
 
 beforeEach(() => {
   resetModelListsForTests();
   state.machines = [{ id: "mac", name: "Mac", online: true }];
-  launched.length = 0;
-  tiers = TIERS;
-  purpose = null;
-  claudeList = { agent: "claude", models: [{ id: "default", name: "Default", default: true }] };
-  launchers = [{ name: "claude", agent: "claude" }, { name: "fast", agent: "claude" }];
-  fastList = { agent: "claude", models: [{ id: "default", name: "Default", default: true }, { id: "m-review", name: "Review", efforts: ["low", "high"] }] };
   localStorage.clear();
   localStorage.setItem("new.cwd.mac", "/code/app");
-  vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+  setWideMode(true);
+  installMatchMedia();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
-    if (url.includes("/model-config/purposes/")) return purpose ? json(purpose) : json({ error: "not found" }, 404);
-    if (url.includes("/launchers/fast/models")) return json(fastList);
-    if (url.includes("/launchers/codex/models")) return json({ agent: "codex", models: [{ id: "gpt-5.5", name: "GPT-5.5", default: true }] });
-    if (url.includes("/launchers/grok/models")) return json({ agent: "grok", models: [{ id: "grok-4", name: "Grok 4", default: true }] });
-    if (url.includes("/launchers/") && url.includes("/models")) return json(claudeList);
-    if (url.includes("/launchers")) return json({ launchers, tiers, tiers_profile: tiers ? { id: "performance", name: "性能" } : undefined });
+    if (url.includes("/model-config/purposes/")) return json({ error: "not found" }, 404);
+    if (url.includes("/launchers/claude/models")) return json({ agent: "claude", models: [{ id: "default", name: "Default", default: true }, { id: "opus", name: "Opus 5.5", efforts: ["high", "max"] }] });
+    if (url.includes("/launchers/agy/models")) return json({ agent: "agy", models: [{ id: "gemini-4-neon-xhigh", name: "Gemini 4 Neon (xhigh)", default_effort: "xhigh" }] });
+    if (url.includes("/machines/mac/launchers")) return json({ launchers: [{ name: "claude", agent: "claude" }, { name: "agy", agent: "agy" }], tiers: TIERS });
     return json({ path: "/code", entries: [] });
   }));
   host = document.createElement("div");
@@ -84,251 +89,66 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function open() {
-  act(() => root.render(<><NewAgent open onClose={() => {}} /><Toasts /></>));
-  await flush();
-}
-
-async function openPanel() {
+async function openModelPanel() {
   act(() => pill().click());
-  await act(async () => vi.dynamicImportSettled());
+  await act(async () => { await vi.dynamicImportSettled(); });
   await flush();
-  // These caller tests inspect model actions; disclose the catalog first.
-  for (const header of document.body.querySelectorAll<HTMLButtonElement>('[data-panel-launcher][aria-expanded="false"]')) act(() => header.click());
-  await flush();
+  expect(panel()).not.toBeNull();
 }
 
-/** Opens the panel and picks a row by its key; the panel closes once the form took it. */
-async function pick(key: string) {
-  await openPanel();
-  act(() => row(key)!.click());
-  await flush();
-}
-
-describe("New agent: presets (#2225)", () => {
-  it("lists the presets as a group, fills launcher, model and effort from one and starts with them", async () => {
-    await open();
-    expect(hint()).toBeNull();
-    await openPanel();
-    const group = document.body.querySelector<HTMLElement>('[data-panel-section="presets"]')!;
-    expect(group.getAttribute("aria-label")).toBe("预设");
-    expect([...group.querySelectorAll<HTMLElement>("[data-panel-row]")].map((r) => r.dataset.panelRow)).toEqual(["preset:quick", "preset:review"]);
-    expect(preset("review")!.textContent).toContain("代码审查和设计");
-    act(() => preset("review")!.click());
+describe("web model selector omits hub Agent presets (tiers)", () => {
+  it.each([true, false])("FolderAgentDraft hides profile tiers in wide=%s mode and keeps Recent and favorites to saved setups only", async (wide) => {
+    setWideMode(wide);
+    localStorage.setItem(panelStoreKey("agent", "recent"), JSON.stringify([{ provider: "claude", model: "opus", effort: "high" }]));
+    await act(async () =>
+      root.render(
+        <FolderAgentDraft
+          draft={{
+            id: "d1",
+            key: "d1",
+            owner: credentialOwner(),
+            manager: defaultManager(),
+            machine: "mac",
+            cwd: "/code/app",
+            host: "",
+            label: "app",
+            choice: { launcher: "", model: "", effort: "" },
+            permissionMode: "",
+            attachments: { images: [] },
+            submitting: false,
+          }}
+          onToggleSidebar={() => {}}
+        />,
+      ),
+    );
     await flush();
-    expect(panel()).toBeNull();
-    expect(hint()?.textContent).toBe("预设 review · 代码审查和设计");
-    // the model it runs is lit in its launcher's group (a preset row itself never is)
-    await openPanel();
-    expect(row("model:fast\nm-review")!.getAttribute("aria-pressed")).toBe("true");
-    expect(preset("review")!.getAttribute("aria-pressed")).toBe("false");
-    act(() => pill().click());
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ machineId: "mac", launcher: "fast", model: "m-review", effort: "high" });
-  });
+    await openModelPanel();
 
-  it("drops the preset when something is picked by hand", async () => {
-    await open();
-    await pick("preset:review");
-    expect(hint()).not.toBeNull();
-    await pick("model:claude\ndefault");
-    expect(hint()).toBeNull();
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "claude" });
-    expect(launched[0]?.model).toBeUndefined();
-    expect(launched[0]?.effort).toBeUndefined();
-  });
+    if (wide) {
+      const savedSide = [...document.body.querySelectorAll<HTMLButtonElement>("[data-panel-side]")].find((b) => b.dataset.panelSide === "\nsaved")!;
+      expect(savedSide).not.toBeNull();
+      act(() => savedSide.click());
+      await flush();
+    }
 
-  it("says what a launcher fixing its own model can't take, and sends none of it", async () => {
-    fastList = { agent: "claude", models: [], locked: "启动器固定了模型参数" };
-    await open();
-    await pick("preset:review");
-    expect(hint()?.textContent).toContain("m-review");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "fast" });
-    expect(launched[0]?.model).toBeUndefined();
-  });
-
-  it("says an effort the preset's model doesn't take, and starts without it", async () => {
-    tiers = [{ name: "deepest", launcher: "fast", model: "m-review", effort: "max" }];
-    await open();
-    await pick("preset:deepest");
-    expect(hint()?.textContent).toBe("这里用不上：最高，会按启动器或模型自己的设置运行。");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "fast", model: "m-review" });
-    expect(launched[0]?.effort).toBeUndefined();
-  });
-
-  it("has no preset group when the hub offers none", async () => {
-    tiers = undefined;
-    await open();
-    await openPanel();
     expect(document.body.querySelector('[data-panel-section="presets"]')).toBeNull();
-    expect(hint()).toBeNull();
-    expect(document.body.textContent).not.toContain("预设");
+    const quick = document.body.querySelector<HTMLElement>("[data-panel-quick]")!;
+    expect(quick).not.toBeNull();
+    expect(quick.textContent).toContain("Opus 5.5");
+    for (const tierName of ["backend", "frontend", "simple"]) {
+      expect(panel()!.textContent).not.toContain(tierName);
+    }
   });
 
-  it("keeps a preset's effort when the one before it ran on another launcher", async () => {
-    claudeList = { agent: "claude", models: [{ id: "default", name: "Default", default: true, efforts: ["low", "medium", "high"] },
-      { id: "opus", name: "Opus", efforts: ["low", "high", "max"] }] };
-    fastList = { agent: "claude", models: [{ id: "default", name: "Default", default: true, efforts: ["low", "high", "max"] }] };
-    tiers = [{ name: "big", launcher: "claude", model: "opus", effort: "max" }, { name: "deep", launcher: "fast", effort: "max" }];
-    await open();
-    await pick("preset:big");
-    await pick("preset:deep");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "fast", effort: "max" });
-  });
-
-  // A preset picked again no longer goes back to the defaults (a preset row picks, it doesn't toggle, as every row of the
-  // panel): "Follow Model settings" on top of the list is the way back.
-  it("stays picked when picked again; Follow Model settings goes back to the defaults", async () => {
-    purpose = { purpose: { id: "agent.new", effective: { provider: "launcher.claude" } }, providers: [] };
-    await open();
-    await pick("preset:review");
-    await pick("preset:review");
-    expect(hint()?.textContent).toBe("预设 review · 代码审查和设计");
-    await openPanel();
-    expect(document.body.querySelector("[data-follow-row]")!.getAttribute("aria-pressed")).toBe("false");
-    act(() => document.body.querySelector<HTMLElement>("[data-follow-row]")!.click());
+  it("NewAgent hides Recent and favorites when there are no saved setups even if the hub returns tiers", async () => {
+    await act(async () => root.render(<NewAgent open onClose={() => {}} />));
     await flush();
-    expect(hint()).toBeNull();
-    act(() => button("启动").click());
-    expect(launched[0]?.launcher).toBe("");
-    expect(launched[0]?.model).toBeUndefined();
-    expect(launched[0]?.effort).toBeUndefined();
-  });
+    await openModelPanel();
 
-  it("can't pick a preset whose launcher failed its check here, and keeps nothing after the sheet reopens", async () => {
-    launchers = [{ name: "claude", agent: "claude" }, { name: "fast", agent: "claude", health: { state: "blocked", kind: "auth", error: "没登录", checked_at: "2026-11-09T00:00:00Z" } }];
-    await open();
-    await openPanel();
-    const review = preset("review")!;
-    expect(review.getAttribute("aria-disabled")).toBe("true");
-    expect(review.title).toBe("Key 或登录被拒绝了");
-    act(() => review.click());
-    await flush();
-    expect(panel()).not.toBeNull();
-    expect(hint()).toBeNull();
-    act(() => preset("quick")!.click());
-    await flush();
-    expect(hint()).not.toBeNull();
-    act(() => root.render(<><NewAgent open={false} onClose={() => {}} /><Toasts /></>));
-    await flush();
-    await open();
-    expect(hint()).toBeNull();
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "claude" });
-    expect(launched[0]?.model).toBeUndefined();
-    expect(launched[0]?.effort).toBeUndefined();
-  });
-
-  it("applies a preset's permission_mode when picked and launches with it", async () => {
-    tiers = [{ name: "guarded", launcher: "fast", model: "m-review", effort: "high", permission_mode: "plan" }];
-    await open();
-    await pick("preset:guarded");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "fast", model: "m-review", effort: "high", permissionMode: "plan" });
-  });
-
-  it("respects explicit Follow launcher and filters unlisted preset modes on listed-mode launchers", async () => {
-    launchers = [
-      { name: "claude", agent: "claude" },
-      { name: "grok", agent: "grok", permission_modes: ["default", "bypassPermissions"] },
-    ];
-    tiers = [
-      { name: "grok-bypass", launcher: "grok", permission_mode: "bypassPermissions" },
-      { name: "grok-unlisted", launcher: "grok", permission_mode: "plan" },
-    ];
-    await open();
-
-    // Pick a listed-mode preset, then explicitly reset to Follow launcher: must NOT fall back to tier.permission_mode.
-    await pick("preset:grok-bypass");
-    const followBtn = [...document.body.querySelectorAll<HTMLButtonElement>('[data-testid="new-agent-provider-modes"] button')]
-      .find((b) => b.textContent?.trim() === "跟随启动器")!;
-    act(() => followBtn.click());
-    await flush();
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "grok" });
-    expect(launched[0]?.permissionMode).toBeUndefined();
-
-    // Reopen and pick a preset carrying an unlisted mode: must NOT send the unlisted mode.
-    act(() => root.render(<><NewAgent open={false} onClose={() => {}} /><Toasts /></>));
-    await flush();
-    await open();
-    await pick("preset:grok-unlisted");
-    act(() => button("启动").click());
-    expect(launched[1]).toMatchObject({ launcher: "grok" });
-    expect(launched[1]?.permissionMode).toBeUndefined();
-  });
-
-  it("preserves explicit default mode from a listed-mode preset over agent.new bypassPermissions", async () => {
-    purpose = {
-      purpose: { id: "agent.new", effective: { provider: "launcher.grok", permission_mode: "bypassPermissions" } },
-      providers: [{ id: "launcher.grok", name: "Grok", kind: "launcher", agent: "grok", permission_modes: ["default", "bypassPermissions"] }],
-    };
-    launchers = [
-      { name: "claude", agent: "claude" },
-      { name: "grok", agent: "grok", permission_modes: ["default", "bypassPermissions"] },
-    ];
-    tiers = [
-      { name: "grok-default", launcher: "grok", permission_mode: "default" },
-    ];
-    await open();
-
-    // Picking a listed-mode preset with explicit "default" sends permissionMode: "default" so it overrides agent.new.
-    await pick("preset:grok-default");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "grok", permissionMode: "default" });
-
-    // Reopen, pick preset, then explicitly click Follow launcher: clears permissionMode to undefined.
-    act(() => root.render(<><NewAgent open={false} onClose={() => {}} /><Toasts /></>));
-    await flush();
-    await open();
-    await pick("preset:grok-default");
-    const followBtn = [...document.body.querySelectorAll<HTMLButtonElement>('[data-testid="new-agent-provider-modes"] button')]
-      .find((b) => b.textContent?.trim() === "跟随启动器")!;
-    act(() => followBtn.click());
-    await flush();
-    act(() => button("启动").click());
-    expect(launched[1]).toMatchObject({ launcher: "grok" });
-    expect(launched[1]?.permissionMode).toBeUndefined();
-  });
-
-  it("passes permissionMode on Codex presets without leaking into Claude mode on manual switch", async () => {
-    localStorage.setItem("new.mode.mac", "default");
-    launchers = [
-      { name: "claude", agent: "claude" },
-      { name: "fast", agent: "claude" },
-      { name: "codex", agent: "codex", prompt_optional: true },
-    ];
-    tiers = [
-      { name: "codex-bypass", launcher: "codex", permission_mode: "bypassPermissions" },
-      { name: "fast-plan", launcher: "fast", permission_mode: "plan" },
-    ];
-    await open();
-
-    // Codex preset sends inlinePrompt + permissionMode, and does not overwrite Claude's remembered mode.
-    await pick("preset:codex-bypass");
-    act(() => button("启动").click());
-    expect(launched[0]).toMatchObject({ launcher: "codex", agentType: "codex", inlinePrompt: true, permissionMode: "bypassPermissions" });
-
-    // Reopen: pick Codex preset, then switch manually to Claude -> Claude keeps its remembered "default", NOT "bypassPermissions".
-    act(() => root.render(<><NewAgent open={false} onClose={() => {}} /><Toasts /></>));
-    await flush();
-    await open();
-    await pick("preset:codex-bypass");
-    await pick("model:claude\ndefault");
-    act(() => button("启动").click());
-    expect(launched[1]).toMatchObject({ launcher: "claude", permissionMode: "default" });
-
-    // Reopen: pick Claude preset with "plan", then drop preset by picking another Claude launcher -> restores prior "default".
-    act(() => root.render(<><NewAgent open={false} onClose={() => {}} /><Toasts /></>));
-    await flush();
-    await open();
-    await pick("preset:fast-plan");
-    await pick("model:claude\ndefault");
-    act(() => button("启动").click());
-    expect(launched[2]).toMatchObject({ launcher: "claude", permissionMode: "default" });
+    expect([...document.body.querySelectorAll<HTMLButtonElement>("[data-panel-side]")].find((b) => b.dataset.panelSide === "\nsaved")).toBeUndefined();
+    expect(document.body.querySelector('[data-panel-section="presets"]')).toBeNull();
+    for (const tierName of ["backend", "frontend", "simple"]) {
+      expect(panel()!.textContent).not.toContain(tierName);
+    }
   });
 });

@@ -2470,16 +2470,11 @@ and Android follow in #5117.
   that fixes its own `--model` has its Default row alone, with why under it; Claude Code and Codex take a typed ID ("Use
   “…”", #1644), and an ID typed for this start that the list lacks has its own row. A list that couldn't be read says why
   with **Retry**, and its launcher still offers its Default row (and, for Claude Code and Codex, a typed ID). An older hub
-  without lists: each launcher's Default row. A preset whose model its launcher's group doesn't have (a launcher that fixes
-  its own `--model`, one that takes no typed ID) stands on that launcher's Default row; the line under the box says what of
-  it can't be applied.
-- **Defaults and presets**: **Follow Model settings** is on top of the list, in no group (Cindy's follow row), with what
+  without lists: each launcher's Default row.
+- **Defaults**: **Follow Model settings** is on top of the list, in no group (Cindy's follow row), with what
   Model settings › New agent runs under it, a warning when that can't start here, and a check while it is followed; a
-  click goes back to it. The profile's Agent presets (#2225) are a **Presets** group after Favorites, in the place Cindy
-  keeps for Recommended (Cindy's new task has no Recommended group, so New Agent has none): a row per preset, named by
-  it, its description (or launcher · model · effort) under it, no star or flyout; one whose launcher can't start here is
-  off, like that launcher's rows. A preset fills launcher, model and
-  effort, and a line under the box names it, or says what of it this launcher can't take.
+  click goes back to it. Model-profile Agent presets stay on the hub for Assistant and A2A dispatch
+  (`docs/assistant/model-profiles.md`) and are not listed in the web model picker's Recent and favorites section.
 - **The row lit**: the model picked, else the Default row of the launcher that runs. Following Model settings lights that
   Default row as well as the follow row: the follow row says where the choice comes from, the lit row what runs, and its
   flyout is where this start's effort and ultracode are set.
@@ -2488,11 +2483,11 @@ and Android follow in #5117.
   and the engines this model runs with here: the row's own, and each other engine whose launcher on this computer lists
   the same model ID (or the model an alias stands for); choosing one picks that launcher's row, with the effort where its
   model takes it. A Default row and a typed ID have their own engine alone. No Fast: a start has no speed setting.
-- **Picks**: a row, a favorite, a recent setup, a preset or another engine applies at once and closes the panel; Recent
+- **Picks**: a row, a favorite, a recent setup or another engine applies at once and closes the panel; Recent
   records it (shared with the chat's panel, `persona.modelPanel.<base>.agent.*`). Permission mode, folder and worktree stay
   as they were. An effort set in a flyout is also kept as that model's setup, as in the chat, but the row lit always shows
   what the form holds.
-- **Another computer**: a launcher picked by hand in this opening (a model, a preset, the follow row) goes along to the next computer chosen when that computer has it and
+- **Another computer**: a launcher picked by hand in this opening (a model or the follow row) goes along to the next computer chosen when that computer has it and
   can start it, with its model and effort; otherwise the form goes back to that computer's default and a line under the
   box says "{launcher} can't run on {computer}, so its default is used" (Cindy: a choice the target can't run falls back
   to its default). Following Model settings stays following; a choice the sheet merely restored gives way to the next
@@ -2502,7 +2497,7 @@ and Android follow in #5117.
 - **Deviations from Cindy**: a Persona launcher is a provider and an engine at once, so another engine is another
   launcher's row of the same model, picked from the flyout, rather than an engine override kept on the model; the follow
   row and the row that runs are both drawn (Cindy's follow row lights no model, but there the effort and ultracode of
-  the default would have nowhere to be set); presets are Persona's own; Agent marks, no prices and no quota bars, as in
+  the default would have nowhere to be set); Agent marks, no prices and no quota bars, as in
   the chat.
 - **Tests**: `lib/new-agent-panel.test.ts`, `ui/model-panel/ModelPanel.new-agent.test.tsx`,
   `ui/model-panel/EffortSlider.test.tsx` (no level set), `views/NewAgent.*.test.tsx`; end to end, `web/e2e/new-agent-model.mjs`
