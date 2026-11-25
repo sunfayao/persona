@@ -12,7 +12,7 @@ import (
 	"github.com/nwverse/persona/server/internal/compat"
 )
 
-// The hub names the assistant's directories relative to HOME (".persona/assistant", ".persona/health", ".persona/guest",
+// The hub names the assistant's directories relative to HOME (".persona/assistant", ".persona/tracks/qa-private", ".persona/guest",
 // or with the former name's spelling, which a hub sends for older nodes). The node prepares them in the state directory it
 // runs on, whichever spelling it is sent: a custom PERSONA_HOME's root (#5505, nothing written into the default
 // ~/.persona), the real one of ~/.persona and the former state directory (compat.StateDir) on the default layouts, and

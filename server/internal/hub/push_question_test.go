@@ -21,7 +21,7 @@ func TestQuestionPushKeepsItShort(t *testing.T) {
 	if body := alertOf(t, interactionPayloadIn(i18n.ZhHans, ix, "m1"))["body"]; body != "随便说点什么？" {
 		t.Fatalf("free-text question body %q", body)
 	}
-	ix.Cwd = "/home/user/.persona/health" // a health conversation's card says nothing of what it is about
+	ix.Cwd = "/home/user/.persona/tracks/qa-private" // a health conversation's card says nothing of what it is about
 	if body := alertOf(t, interactionPayloadIn(i18n.ZhHans, ix, "m1"))["body"]; strings.Contains(body.(string), "随便") {
 		t.Fatalf("health card body %q", body)
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 func TestDeletePersonaConversation(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 	id := "work-0000-0000"
@@ -53,7 +53,7 @@ func TestDeletePersonaConversation(t *testing.T) {
 }
 
 func TestDeletePersonaFormerMainAndStoredReferences(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	f.sessions["server"] = append(f.sessions["server"], proto.Session{MachineID: "server", SessionID: "delegated-agent", Status: proto.StatusWorking, Cwd: "/code/example", Agent: "claude"})
 	s := newTestService(t, f)
 	ctx := context.Background()
@@ -109,7 +109,7 @@ func TestDeletePersonaFormerMainAndStoredReferences(t *testing.T) {
 }
 
 func TestDeletePersonaStorageFailure(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	st := &memStore{vals: map[string][]byte{}}
 	s := newServiceOn(t, f, st)
 	setSettings(t, s, func(v *Settings) { v.MachineID = "server" })
@@ -198,7 +198,7 @@ func TestDeletePersonaGuards(t *testing.T) {
 		{"unknown", "unknown", "", false, 404},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := healthHub()
+			f := spaceHub()
 			f.sessions["server"][1].Status, f.sessions["server"][1].Starting = tc.status, tc.starting
 			s := newTestService(t, f)
 			setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
@@ -217,7 +217,7 @@ func TestDeletePersonaWaitingAndAuthorization(t *testing.T) {
 		"background": func(c *proto.Session) { c.Background = []proto.BackgroundTask{{ID: "job"}} },
 	} {
 		t.Run(name, func(t *testing.T) {
-			f := healthHub()
+			f := spaceHub()
 			edit(&f.sessions["server"][1])
 			s := newTestService(t, f)
 			if err := s.deleteConversation(context.Background(), "server", "work-0000-0000"); convCode(err) != "conversation_busy" {
@@ -225,7 +225,7 @@ func TestDeletePersonaWaitingAndAuthorization(t *testing.T) {
 			}
 		})
 	}
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	for _, role := range []string{roleAnswer, roleExtension} {
 		r := httptest.NewRequest("DELETE", "/api/v1/assistant/conversations/work-0000-0000", strings.NewReader(`{"machine_id":"server"}`))
@@ -239,7 +239,7 @@ func TestDeletePersonaWaitingAndAuthorization(t *testing.T) {
 }
 
 func TestDeletePersonaDiscardsReadAlreadyInFlight(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	f.items = []proto.Item{{Text: "synthetic old transcript"}}
 	f.hookReads(receiptHooks{after: func(read int) {
@@ -259,7 +259,7 @@ func TestDeletePersonaDiscardsReadAlreadyInFlight(t *testing.T) {
 }
 
 func TestDeletePersonaDoesNotReplayPendingMainHandoff(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	ctx := context.Background()
 	h := mainHandoff{MachineID: "server", From: "work-0000-0000", Summary: "synthetic saved context"}
@@ -278,7 +278,7 @@ func TestDeletePersonaDoesNotReplayPendingMainHandoff(t *testing.T) {
 // keys containing a NUL escape that Postgres rejects.
 func TestDeletePersonaPostgresRoundTrip(t *testing.T) {
 	database := todoTestDB(t)
-	f := healthHub()
+	f := spaceHub()
 	s := newServiceOn(t, f, database)
 	ctx := context.Background()
 	if err := s.deleteConversation(ctx, "server", "work-0000-0000"); err != nil {
@@ -294,7 +294,7 @@ func TestDeletePersonaPostgresRoundTrip(t *testing.T) {
 }
 
 func TestDeletePersonaRefusesAnotherChatsUnfinishedSupervisor(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	ctx := context.Background()
 	task, err := s.newTodo(ctx, "Synthetic supervised task", "", "another-chat", "", true)

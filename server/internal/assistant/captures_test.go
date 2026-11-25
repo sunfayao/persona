@@ -119,7 +119,7 @@ func (d inboxDevs) NodeAnnounced(_, capability string) bool {
 // qa-finance with finance by default) and one that does not, the node answering inbox writes into files.
 func captureService(t *testing.T) (*Service, *fakeHub, *captureMemStore, *[]map[string]any) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	f.devices[0].Online = true
 	st := &captureMemStore{infoCategoryMemStore: &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{
 		{Slug: "qa-plain", Kind: trackKindSpace, Title: "QA plain", Template: trackTemplateSpace, Revision: 1},

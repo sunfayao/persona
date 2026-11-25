@@ -24,7 +24,7 @@ func TestServedChatRuleIsReadByTheNodesGate(t *testing.T) {
 	}
 	served := connector.LarkRules([]connector.Rule{user.Rule}, nil) // what assistantLark hands over after the hand-written ones
 
-	health := filepath.Join(t.TempDir(), ".persona", "health")
+	health := filepath.Join(t.TempDir(), ".persona", "tracks", "qa-private")
 	if err := os.MkdirAll(health, 0o755); err != nil {
 		t.Fatal(err)
 	}

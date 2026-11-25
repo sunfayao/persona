@@ -63,7 +63,7 @@ func TestA2AReadKeepsToTheA2AScope(t *testing.T) {
 	h.mu.Lock()
 	h.sessions[child.Machine] = append(h.sessions[child.Machine],
 		proto.Session{SessionID: "assistant-0001", Status: proto.StatusIdle, Assistant: true},
-		proto.Session{SessionID: "health-0001", Status: proto.StatusIdle, Agent: "claude", Space: "health"},
+		proto.Session{SessionID: "health-0001", Status: proto.StatusIdle, Agent: "claude", Space: testSpace},
 		proto.Session{SessionID: "archived-0001", Status: proto.StatusIdle, Agent: "claude", Archived: true},
 		proto.Session{SessionID: "subagent-0001", Status: proto.StatusIdle, Agent: "claude", IsSubagent: true},
 		proto.Session{SessionID: "history-0001", Status: proto.StatusIdle, Agent: "codex", SourceKind: "codex_history",

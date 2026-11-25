@@ -104,7 +104,7 @@ func directionFilingSetSessions(e *todoEventEnv, extra ...proto.Session) {
 		{MachineID: "server", SessionID: "chat-a", Cwd: "/home/u/.persona/assistant", Assistant: true, Status: proto.StatusIdle, State: proto.StateIdle, Title: "Original chat title"},
 		{MachineID: "server", SessionID: "chat-b", Cwd: "/home/u/.persona/assistant", Assistant: true, Status: proto.StatusIdle, State: proto.StateIdle, Title: "Second chat"},
 		{MachineID: "server", SessionID: "chat-opened", Cwd: "/home/u/.persona/assistant", Assistant: true, Status: proto.StatusIdle, State: proto.StateIdle, Title: "Opened by a leader"},
-		{MachineID: "server", SessionID: "chat-health", Cwd: "/home/u/.persona/health", Assistant: true, Space: SpaceHealth, Status: proto.StatusIdle, Title: "Health chat"},
+		{MachineID: "server", SessionID: "chat-health", Cwd: "/home/u/.persona/tracks/qa-private", Assistant: true, Space: testSpace, Status: proto.StatusIdle, Title: "Health chat"},
 		{MachineID: "server", SessionID: "chat-other-manager", Cwd: "/home/u/.persona/assistant-m-0d0d0d", Assistant: true, Status: proto.StatusIdle, Title: "Another manager's chat"},
 	}
 	list = append(list, extra...)

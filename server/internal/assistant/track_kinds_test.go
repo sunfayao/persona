@@ -234,14 +234,12 @@ func decodeTrackJSON[T any](t *testing.T, b []byte) T {
 	return v
 }
 
-// The tracks and kinds API (#13472): only the user writes; a built-in track or kind is never changed; a change is made
+// The tracks and kinds API (#13472): only the user writes; a built-in kind is never changed; a change is made
 // against its revision; a kind defined in config gives a track the same as a built-in kind would; a kind newer than
-// this manager is listed as disabled and its tracks are left out; the health space is unchanged.
+// this manager is listed as disabled and its tracks are left out.
 func TestTracksAPI(t *testing.T) {
 	ctx := context.Background()
 	s, st := trackKindService(t)
-	healthBefore, _ := s.trackEntryOf(ctx, SpaceHealth)
-	policyBefore := s.trackPolicy(ctx, SpaceHealth)
 
 	w := serve(s, http.MethodGet, "/api/v1/assistant/track-kinds", "")
 	kinds := decodeTrackJSON[assistantwire.TrackKinds](t, w.Body.Bytes())
@@ -251,8 +249,7 @@ func TestTracksAPI(t *testing.T) {
 	}
 	w = serve(s, http.MethodGet, "/api/v1/assistant/tracks", "")
 	tracks := decodeTrackJSON[assistantwire.Tracks](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || len(tracks.Tracks) != 1 || tracks.Tracks[0].Slug != SpaceHealth || !tracks.Tracks[0].Builtin ||
-		tracks.Tracks[0].Config.Template != trackTemplateHealth || !slices.Equal(tracks.Tracks[0].Config.DefaultCategories, []string{categoryHealth}) {
+	if w.Code != http.StatusOK || len(tracks.Tracks) != 0 {
 		t.Fatalf("tracks: %d %s", w.Code, w.Body)
 	}
 
@@ -288,7 +285,7 @@ func TestTracksAPI(t *testing.T) {
 		}
 	}
 	for _, body := range []string{
-		`{"slug":"health","kind":"space","title":"Health again"}`,
+		`{"slug":"tracks","kind":"space","title":"Reserved"}`,
 		`{"slug":"Bad Slug","kind":"space","title":"x"}`,
 		`{"slug":"qa-x","kind":"nowhere","title":"x"}`,
 		`{"slug":"qa-x","kind":"space","title":""}`,
@@ -303,10 +300,7 @@ func TestTracksAPI(t *testing.T) {
 		}
 	}
 
-	// Changes go against the revision; the built-in track is never changed.
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/health", `{"revision":1,"title":"Mine"}`); w.Code != http.StatusForbidden {
-		t.Errorf("change health: %d, want 403", w.Code)
-	}
+	// Changes go against the revision.
 	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-none", `{"revision":1,"title":"x"}`); w.Code != http.StatusNotFound {
 		t.Errorf("change an unknown track: %d, want 404", w.Code)
 	}
@@ -385,11 +379,5 @@ func TestTracksAPI(t *testing.T) {
 	}
 	if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-y","kind":"qa-later","title":"y"}`); w.Code != http.StatusBadRequest {
 		t.Errorf("a track of a disabled kind: %d, want 400", w.Code)
-	}
-
-	// The health space is unchanged.
-	healthAfter, _ := s.trackEntryOf(ctx, SpaceHealth)
-	if !reflect.DeepEqual(healthBefore, healthAfter) || s.trackPolicy(ctx, SpaceHealth) != policyBefore || policyBefore != strictPolicy {
-		t.Errorf("health changed: %+v -> %+v", healthBefore, healthAfter)
 	}
 }

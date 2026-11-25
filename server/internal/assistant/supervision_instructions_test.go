@@ -57,7 +57,7 @@ func TestSupervisionInstructionsDispatchIsolation(t *testing.T) {
 		proto.Session{SessionID: "side", Assistant: true},
 		proto.Session{SessionID: "ordinary", Assistant: true},
 		proto.Session{SessionID: "worker"},
-		proto.Session{SessionID: "health", Assistant: true, Space: SpaceHealth})
+		proto.Session{SessionID: "health", Assistant: true, Space: testSpace})
 	s.todos.mu.Lock()
 	s.todos.todos[todo.ID].Supervision.Supervisor = "side"
 	s.todos.mu.Unlock()

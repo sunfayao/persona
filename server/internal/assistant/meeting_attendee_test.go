@@ -30,7 +30,7 @@ func TestAttendeeVerdict(t *testing.T) {
 
 		{"a work computer", agent, facts(func(f *attendeeFacts) { f.work = true }), attendeeNotAllowed},
 		{"another manager's computer", agent, facts(func(f *attendeeFacts) { f.ours = false }), attendeeNotAllowed},
-		{"the health space", with(chat, func(s *proto.Session) { s.Space = SpaceHealth }), ok, attendeeNotAllowed},
+		{"the health space", with(chat, func(s *proto.Session) { s.Space = testSpace }), ok, attendeeNotAllowed},
 		{"a Lark agent conversation", with(chat, func(s *proto.Session) { s.Origin = OriginLarkAgent }), ok, attendeeNotAllowed},
 		{"a channel's conversation", with(chat, func(s *proto.Session) { s.Origin = OriginChannel }), ok, attendeeNotAllowed},
 		{"an extension's conversation", with(chat, func(s *proto.Session) { s.Origin = OriginExtension }), ok, attendeeNotAllowed},

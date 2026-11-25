@@ -25,7 +25,7 @@ func infoUseService(t *testing.T) (*Service, *fakeHub, *infoCategoryMemStore) {
 	s.noteConversationSpaces(ctx, []db.ConversationSpace{{MachineID: "qa-machine", SessionID: "qa-main", Space: ""},
 		{MachineID: "qa-machine", SessionID: "qa-plain-1", Space: "qa-plain"},
 		{MachineID: "qa-machine", SessionID: "qa-finance-1", Space: "qa-finance"},
-		{MachineID: "qa-machine", SessionID: "qa-health-1", Space: SpaceHealth}})
+		{MachineID: "qa-machine", SessionID: "qa-health-1", Space: testSpace}})
 	return s, f, st
 }
 
@@ -39,7 +39,7 @@ func TestExitUse(t *testing.T) {
 	if !s.infoTagConfigured(ctx) {
 		t.Fatal("info.tag has no model")
 	}
-	if got := s.exitPolicy(ctx, "qa: a step count", "qa-health-1", SpaceHealth); got != strictPolicy || len(f.infoTagAsked) != 0 {
+	if got := s.exitPolicy(ctx, "qa: a step count", "qa-health-1", testSpace); got != strictPolicy || len(f.infoTagAsked) != 0 {
 		t.Errorf("health = %+v after %d calls, want strict without a call", got, len(f.infoTagAsked))
 	}
 	if got := s.exitPolicy(ctx, "qa: anything", "qa-x", "qa-unknown"); got != strictPolicy || len(f.infoTagAsked) != 0 {
@@ -130,7 +130,7 @@ func TestConversationUse(t *testing.T) {
 // agent_send whose words are tagged sensitive is confirmed on the phone with a card that names no space; general words
 // go out as before.
 func TestSensitiveTextOutsideHealth(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	f.infoTagModel = true
 	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/src/app", Agent: "claude",
 		Status: proto.StatusIdle, Title: "app"})

@@ -118,7 +118,7 @@ func TestAssistantBypassCommandGate(t *testing.T) {
 			fh.mu.Unlock()
 			cwd := t.TempDir()
 			if tc.name == "health execution directory" {
-				cwd = "/home/me/.persona/health"
+				cwd = "/home/me/.persona/tracks/qa-private"
 			}
 			decision, reason, err := n.larkCheck(context.Background(), sid, cwd, tc.command,
 				proto.Interaction{SessionID: sid, Cwd: "/home/me/.persona/assistant", ExpiresAt: time.Now().Add(time.Minute)})
@@ -776,7 +776,7 @@ func TestAssistantBypassRespectsConfiguredAllowRules(t *testing.T) {
 			fh.mu.Unlock()
 			cwd := t.TempDir()
 			if tc.healthCwd {
-				cwd = "/home/me/.persona/health"
+				cwd = "/home/me/.persona/tracks/qa-private"
 			}
 			decision, reason, err := n.larkCheck(context.Background(), sid, cwd, tc.command,
 				proto.Interaction{SessionID: sid, Cwd: "/home/me/.persona/assistant", ExpiresAt: time.Now().Add(time.Minute)})

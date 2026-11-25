@@ -54,7 +54,7 @@ func TestSessionListPassMatchesPerRowLookups(t *testing.T) {
 			}
 			work := filepath.Join(home, "work", "app")
 			assistant, named := identity.AssistantDir(home), filepath.Join(current, "assistant")
-			for _, d := range []string{work, assistant, named, identity.HealthDir(home)} {
+			for _, d := range []string{work, assistant, named, testSpaceDir(home)} {
 				if err := os.MkdirAll(d, 0o700); err != nil {
 					t.Fatal(err)
 				}
@@ -62,7 +62,7 @@ func TestSessionListPassMatchesPerRowLookups(t *testing.T) {
 			writeDrift(t, home, resting, work, work)
 			writeDrift(t, home, mine, assistant, assistant)
 			writeDrift(t, home, other, named, named)
-			writeDrift(t, home, health, identity.HealthDir(home), identity.HealthDir(home))
+			writeDrift(t, home, health, testSpaceDir(home), testSpaceDir(home))
 			writeDrift(t, home, live, work, work)
 			writeRollout(t, home, thread, work, time.Now(), time.Now(), event("task_started"), event("task_complete"))
 			n.mu.Lock()

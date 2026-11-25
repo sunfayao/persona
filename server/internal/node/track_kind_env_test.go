@@ -47,9 +47,9 @@ func TestAssistantProcessKnowsItsTrackKind(t *testing.T) {
 	if env := envOfDir(own); !slices.Contains(env, "PERSONA_TRACK_KIND=orchestration") || !slices.Contains(env, "PERSONA_SPACE=main") {
 		t.Fatalf("the assistant's own: %v", env)
 	}
-	health := prepare(".persona/health", "space")
-	if env := envOfDir(health); !slices.Contains(env, "PERSONA_TRACK_KIND=space") || !slices.Contains(env, "PERSONA_SPACE=health") {
-		t.Fatalf("the health space: %v", env)
+	health := prepare(".persona/tracks/qa-private", "space")
+	if env := envOfDir(health); !slices.Contains(env, "PERSONA_TRACK_KIND=space") || !slices.Contains(env, "PERSONA_SPACE=qa-private") {
+		t.Fatalf("the track: %v", env)
 	}
 	// A manager from before says no kind; a value that is no slug is not put into the environment.
 	for _, kind := range []any{nil, "Bad Kind", "qa\nX=1", ""} {

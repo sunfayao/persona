@@ -23,7 +23,7 @@ import (
 // either space, archived or not, nor one whose directory is inside the space.
 func TestAssistantViewToAnExtension(t *testing.T) {
 	const said, title = "My blood pressure was 150 over 95 this morning", "Blood pressure after the new dose"
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	e := newTodoEnv(t, nil)
 	main, h0 := scopeSession("conv1", "Persona", ""), scopeSession("h0", title, health)
 	h0.LastText = said
@@ -65,7 +65,7 @@ func TestConversationFeedToAnExtension(t *testing.T) {
 	const told, summary, renew, notice = "Resting heart rate was 48 all week", "Logged the new prescription",
 		"Bring the old passport", "The morning run was skipped"
 	const formAnswer, clinicDraft, officeDraft = "The renewal form", "About your sleep clinic", "Thanks, see you on Monday"
-	health := identity.HealthDir("/home/owner")
+	health := testSpaceDir("/home/owner")
 	todoStores(t, func(t *testing.T, e *todoEnv, _ *db.DB) {
 		ctx := context.Background()
 		e.sessions("server", scopeListed()...)
@@ -175,7 +175,7 @@ func TestFeedOfAHealthChatUnderASessionStartedUnderItsID(t *testing.T) {
 	todoStores(t, func(t *testing.T, e *todoEnv, database *db.DB) {
 		ctx := context.Background()
 		setSettings(t, e.s, func(v *Settings) { v.Main = "conv1" })
-		main, h0 := scopeSession("conv1", "Persona", ""), scopeSession("h0", "Sleep", identity.HealthDir("/home/owner"))
+		main, h0 := scopeSession("conv1", "Persona", ""), scopeSession("h0", "Sleep", testSpaceDir("/home/owner"))
 		main.Assistant, h0.Assistant = true, true
 		e.sessions("server", main, h0) // h0 noted in the space; h1 never noted
 		waitFor(t, "the notes written", e.s.listedSpacesWritten)

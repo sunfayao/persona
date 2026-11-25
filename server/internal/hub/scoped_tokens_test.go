@@ -23,7 +23,7 @@ func TestScopedDeviceToken(t *testing.T) {
 	machine.sessions = []proto.Session{
 		{SessionID: "s1", Title: "Visible chat", Status: proto.StatusIdle, Cwd: "/private-dir"},
 		{SessionID: "offline", Status: proto.StatusOffline},
-		{SessionID: "health", Space: "health"},
+		{SessionID: "health", Space: "qa-private"},
 	}
 	machine.hub = h
 	h.machines = append(h.machines, machine)
@@ -170,7 +170,7 @@ func TestScopedDeviceToken(t *testing.T) {
 	}
 	h.broadcast(map[string]any{"type": "sessions", "machine_id": "m1", "sessions": []proto.Session{
 		{SessionID: "s1", Title: "Changed title", Cwd: "/private-dir", Status: proto.StatusWorking},
-		{SessionID: "health", Space: "health"},
+		{SessionID: "health", Space: "qa-private"},
 	}})
 	h.toSubscribers("m1", "s1", map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1",
 		"items": []proto.Item{

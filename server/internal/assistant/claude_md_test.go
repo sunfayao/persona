@@ -224,7 +224,7 @@ func TestGoldenAssistantClaudeMDLanguage(t *testing.T) {
 	}
 }
 
-// Content the user must read completely belongs in the final response in every locale and in the health space:
+// Content the user must read completely belongs in the final response in every locale:
 // progress notes between tool calls may reach the client only as summaries.
 func TestAssistantClaudeMDFinalResponseCompleteness(t *testing.T) {
 	ctx := context.Background()
@@ -237,14 +237,11 @@ func TestAssistantClaudeMDFinalResponseCompleteness(t *testing.T) {
 		if got := s.claudeMD(ctx, "server", false); !strings.Contains(got, rule) {
 			t.Errorf("locale %q: no final-response completeness rule", locale)
 		}
-		if got := s.healthClaudeMD(ctx, "server"); !strings.Contains(got, rule) {
-			t.Errorf("health locale %q: no final-response completeness rule", locale)
-		}
 	}
 }
 
 // Process text, the lines between tool calls, is in the user's language too (#4883: the only line a Chinese owner saw
-// in six minutes of work was English), in every language the CLAUDE.md is written for, and in the health space's.
+// in six minutes of work was English), in every language the CLAUDE.md is written for.
 func TestAssistantClaudeMDProcessTextLanguage(t *testing.T) {
 	ctx := context.Background()
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local"})
@@ -256,8 +253,5 @@ func TestAssistantClaudeMDProcessTextLanguage(t *testing.T) {
 		if got := s.claudeMD(ctx, "server", false); !strings.Contains(got, rule) {
 			t.Errorf("locale %q: no process-text language rule", locale)
 		}
-	}
-	if !strings.Contains(s.healthClaudeMD(ctx, "server"), rule) {
-		t.Error("health CLAUDE.md: no process-text language rule")
 	}
 }

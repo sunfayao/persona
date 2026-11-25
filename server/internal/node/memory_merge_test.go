@@ -25,7 +25,7 @@ func newOneMemoryNode(t *testing.T) oneMemoryNode {
 	t.Helper()
 	home := t.TempDir()
 	n := userSetupNode(t, home)
-	f := oneMemoryNode{Node: n, cwd: filepath.Join(n.dir, "assistant"), health: filepath.Join(n.dir, "health")}
+	f := oneMemoryNode{Node: n, cwd: filepath.Join(n.dir, "assistant"), health: filepath.Join(n.dir, "tracks", "qa-private")}
 	for _, d := range []string{f.cwd, f.health} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			t.Fatal(err)

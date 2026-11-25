@@ -100,7 +100,7 @@ func TestAssistantMachineAuthorization(t *testing.T) {
 	ctx := context.Background()
 	d.setSessions("server", []proto.Session{
 		{SessionID: "main", Cwd: "/home/u/.persona/assistant"},
-		{SessionID: "health", Cwd: "/home/u/.persona/health"},
+		{SessionID: "health", Cwd: "/home/u/.persona/tracks/qa-private"},
 		{SessionID: "pane", Cwd: "/home/u/.persona/assistant", PaneID: "pane-1"},
 		{SessionID: "ordinary", Cwd: "/code/example"},
 	})
@@ -177,7 +177,7 @@ func TestAnotherManagerAssistantToolsFollowItsDirectory(t *testing.T) {
 	s.SetExtensions(&privacyExt{})
 	d.setSessions("server", []proto.Session{
 		{SessionID: "own", Cwd: "/home/u/.persona/assistant-m-0a1b2c3d"},
-		{SessionID: "own-health", Cwd: "/home/u/.persona/health-m-0a1b2c3d"},
+		{SessionID: "own-health", Cwd: "/home/u/.persona/tracks-m-0a1b2c3d/qa-private"},
 		{SessionID: "built-in", Cwd: "/home/u/.persona/assistant"},
 		{SessionID: "third", Cwd: "/home/u/.persona/assistant-m-99999999"},
 		{SessionID: "pane", Cwd: "/home/u/.persona/assistant-m-0a1b2c3d", PaneID: "pane-1"},

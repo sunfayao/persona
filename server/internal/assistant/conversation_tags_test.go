@@ -269,7 +269,7 @@ func TestConversationTagsRecordsStayStableAcrossWrites(t *testing.T) {
 
 // The health space and the assistant's own space cannot tag each other's conversations; within one space it works.
 func TestConversationTagsToolSpaceIsolation(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	// The fixture's rows omit MachineID; a real node always sends it, and a tag record stores it.
 	for i := range f.sessions["server"] {
 		f.sessions["server"][i].MachineID = "server"

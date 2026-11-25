@@ -3,27 +3,25 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// healthHub is a fake hub with one machine: the main conversation and another of the assistant's own, and two of the
+// spaceHub is a fake hub with one machine: the main conversation and another of the assistant's own, and two of the
 // health space's (docs/assistant/tracks.md).
-func healthHub() *fakeHub {
+func spaceHub() *fakeHub {
 	f := claudeMDHub(Device{ID: "server", Name: "服务器", Kind: "local", Home: "/home/me"})
 	f.sessions["server"] = []proto.Session{
 		{SessionID: "main-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "Persona", LastText: "今天的会"},
 		{SessionID: "work-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "1105 | 研究 | 工作的事", LastText: "工作"},
-		{SessionID: "sleep-000-0000", Cwd: "/home/me/.persona/health", Assistant: true, Space: SpaceHealth, Title: "睡眠", LastText: "睡了 6 小时"},
-		{SessionID: "steps-000-0000", Cwd: "/home/me/.persona/health", Assistant: true, Title: "步数", LastText: "8000 步"}, // Space from its directory
+		{SessionID: "sleep-000-0000", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace, Title: "睡眠", LastText: "睡了 6 小时"},
+		{SessionID: "steps-000-0000", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Title: "步数", LastText: "8000 步"}, // Space from its directory
 	}
 	return f
 }
@@ -36,9 +34,9 @@ func spaceTool(t *testing.T, s *Service, self, name, args string) (string, bool)
 }
 
 // Each space lists only its own conversations, in the app's list and to the conversation tools.
-func TestHealthSpaceIsolation(t *testing.T) {
+func TestSpaceIsolation(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 
@@ -52,11 +50,11 @@ func TestHealthSpaceIsolation(t *testing.T) {
 	if got := strings.Join(ids(s.view(ctx, false)), ","); got != "main-0000-0000,work-0000-0000" {
 		t.Fatalf("assistant's list: %s", got)
 	}
-	v := s.view(ctx, false, SpaceHealth)
+	v := s.view(ctx, false, testSpace)
 	if got := strings.Join(ids(v), ","); got != "sleep-000-0000,steps-000-0000" {
 		t.Fatalf("health list: %s", got)
 	}
-	if v.Cwd != "/home/me/.persona/health" {
+	if v.Cwd != "/home/me/.persona/tracks/qa-private" {
 		t.Fatalf("health cwd %q", v.Cwd)
 	}
 
@@ -81,27 +79,25 @@ func TestHealthSpaceIsolation(t *testing.T) {
 	}
 }
 
-// A health conversation starts in the health space's directory with its own CLAUDE.md; the main conversation can't
-// be one, and an unknown space is refused.
-func TestHealthSpaceStart(t *testing.T) {
+// A conversation of a track starts in the track's directory; the main conversation can't be one, and an unknown space
+// is refused.
+func TestSpaceStart(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
-	s := newTestService(t, f)
-	setSettings(t, s, func(v *Settings) { v.MachineID = "server" })
-	sess, err := s.Start(ctx, StartParams{Text: "这周睡得怎么样", Space: SpaceHealth})
+	s, f := spaceTrackService(t)
+	s.devs = spaceDevs{fleetDevs: newFleetDevs()}
+	sess, err := s.Start(ctx, StartParams{Text: "这周睡得怎么样", Space: "qa-plain"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sess.Space != SpaceHealth {
+	if sess.Space != "qa-plain" {
 		t.Fatalf("space %q", sess.Space)
 	}
 	p := f.prepared[len(f.prepared)-1]
-	md, _ := p["claude_md"].(string)
-	if p["dir"] != compat.StateDir+"/health" || !strings.Contains(md, "# Persona 健康") || strings.Contains(md, "kb_search") {
-		t.Fatalf("assistant.prepare: dir %v, CLAUDE.md %q", p["dir"], md)
+	if p["dir"] != compat.StateDir+"/tracks/qa-plain" {
+		t.Fatalf("assistant.prepare: dir %v", p["dir"])
 	}
-	if _, err := s.Start(ctx, StartParams{Text: "x", Space: SpaceHealth, Main: true}); err == nil {
-		t.Fatal("a main conversation in the health space")
+	if _, err := s.Start(ctx, StartParams{Text: "x", Space: "qa-plain", Main: true}); err == nil {
+		t.Fatal("a main conversation in a space")
 	}
 	if _, err := s.Start(ctx, StartParams{Text: "x", Space: "work"}); err == nil {
 		t.Fatal("an unknown space")
@@ -115,19 +111,11 @@ func TestHealthSpaceStart(t *testing.T) {
 	}
 }
 
-func TestGoldenHealthClaudeMD(t *testing.T) {
-	f := healthHub()
-	f.hello.Owner = "示例用户"
-	f.hello.OwnerNotes = "我每天跑步。"
-	s := newTestService(t, f)
-	golden(t, "health_claude_md", s.healthClaudeMD(context.Background(), "server"))
-}
-
 // A health conversation's follow-up and routine keep the health space, so a run that starts a conversation starts it
 // there; kb_update is refused; and a conversation the machine doesn't list can't be taken for the assistant's own.
-func TestHealthSpaceTasksAndRefusals(t *testing.T) {
+func TestSpaceTasksAndRefusals(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 
@@ -143,7 +131,7 @@ func TestHealthSpaceTasksAndRefusals(t *testing.T) {
 	health, own := 0, 0
 	for _, task := range s.loadSchedule(ctx).tasks {
 		switch {
-		case task.Space == SpaceHealth:
+		case task.Space == testSpace:
 			health++
 		case task.Space == "" && task.CreatedBy == "assistant":
 			own++
@@ -166,7 +154,7 @@ func TestHealthSpaceTasksAndRefusals(t *testing.T) {
 // and says what goes out.
 func answerOutbound(t *testing.T, s *Service, self, tool, says string, allow bool) {
 	t.Helper()
-	answerOutboundIn(t, s, self, tool, says, "/home/me/.persona/health", allow)
+	answerOutboundIn(t, s, self, tool, says, "/home/me/.persona/tracks/qa-private", allow)
 }
 
 // answerOutboundIn is answerOutbound for a conversation in directory cwd.
@@ -194,12 +182,12 @@ func answerOutboundIn(t *testing.T, s *Service, self, tool, says, cwd string, al
 // What leaves the health space leaves with the user knowing (docs/assistant/tracks.md "Outbound", #3194): notify_user says there is
 // news, not the news; a hand-off to a coding agent is confirmed on the phone each time; the schedule tools see only
 // the space's own tasks. The assistant's own conversations are as before.
-func TestHealthSpaceOutbound(t *testing.T) {
+func TestSpaceOutbound(t *testing.T) {
 	ctx := context.Background()
-	f := healthHub()
+	f := spaceHub()
 	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/src/app", Agent: "claude",
 		Status: proto.StatusIdle, Title: "app"})
-	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "health-agent", Cwd: "/home/me/.persona/health/work", Agent: "claude",
+	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "health-agent", Cwd: "/home/me/.persona/tracks/qa-private/work", Agent: "claude",
 		Status: proto.StatusIdle, Title: "health Agent"})
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
@@ -211,10 +199,10 @@ func TestHealthSpaceOutbound(t *testing.T) {
 		t.Fatal("notify_user from the assistant's own")
 	}
 	p := f.pushed()
-	if len(p) != 2 || p[0].Title != "健康" || strings.Contains(p[0].Body, "150") || p[1].Title != "CI 好了" || p[1].Body != "全绿" {
+	if len(p) != 2 || p[0].Title != "Persona" || strings.Contains(p[0].Body, "150") || p[1].Title != "CI 好了" || p[1].Body != "全绿" {
 		t.Fatalf("pushes: %+v", p)
 	}
-	t.Run("phone_notify", testHealthPhoneNotify)
+	t.Run("phone_notify", testSpacePhoneNotify)
 
 	answerOutbound(t, s, "sleep-000-0000", "agent_send", "睡眠数据", false)
 	out, isErr := spaceTool(t, s, "sleep-000-0000", "agent_send", `{"session_id":"health-agent","text":"把我的睡眠数据画成图"}`)
@@ -265,10 +253,10 @@ func TestHealthSpaceOutbound(t *testing.T) {
 	}
 }
 
-func testHealthPhoneNotify(t *testing.T) {
+func testSpacePhoneNotify(t *testing.T) {
 	for _, locale := range []string{"en", "zh-Hans", "ja"} {
 		t.Run(locale, func(t *testing.T) {
-			f := healthHub()
+			f := spaceHub()
 			f.hello.Locale = locale
 			// An explicit space takes precedence over the directory.
 			f.sessions["server"][2].Cwd = "/home/me/.persona/assistant"
@@ -309,7 +297,7 @@ func testHealthPhoneNotify(t *testing.T) {
 						t.Fatal(err)
 					}
 					if tc.redact {
-						want["title"], want["body"] = spaceNotice(i18n.Lang(locale))
+						want["title"], want["body"] = s.redactedNotice(context.Background(), i18n.Lang(locale), testSpace)
 					}
 					gotJSON, _ := json.Marshal(call["args"])
 					wantJSON, _ := json.Marshal(want)
@@ -326,37 +314,5 @@ func testHealthPhoneNotify(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// The health space's CLAUDE.md says which chart goes with which numbers (#3140): line for the last days' steps and
-// sleep, bar for each meal's calories, ring for how the day's calories are split (#3069, not stacked_bar), stat for one number, a table
-// for the details, the conclusion in the text. Each example it gives is a card every app draws.
-func TestHealthClaudeMDTeachesCharts(t *testing.T) {
-	md := newTestService(t, healthHub()).healthClaudeMD(context.Background(), "server")
-	examples := regexp.MustCompile("`(\\{\"type\":[^`]*\\})`").FindAllStringSubmatch(md, -1)
-	kinds := map[string]bool{}
-	for _, m := range examples {
-		var c wire.PersonaCard
-		if err := json.Unmarshal([]byte(m[1]), &c); err != nil {
-			t.Fatalf("example %s: %v", m[1], err)
-		}
-		if c.View() == nil {
-			t.Errorf("an example the apps cannot draw: %s", m[1])
-		}
-		kinds[c.Type] = true
-	}
-	for _, k := range []string{"line", "bar", "ring", "stat"} {
-		if !kinds[k] {
-			t.Errorf("no %s example", k)
-		}
-	}
-	if kinds["stacked_bar"] {
-		t.Error("a stacked_bar example: one day's split is a ring")
-	}
-	for _, want := range []string{"近 7 天", "每餐", "全天", "单个", "表格", "正文", "飞书"} {
-		if !strings.Contains(md, want) {
-			t.Errorf("CLAUDE.md does not say %q", want)
-		}
 	}
 }

@@ -634,7 +634,7 @@ func TestRuntimeNativeForkListsAgentAndAssistantBranches(t *testing.T) {
 	const agent, assistant = "agy-agent", "agy-assistant"
 	const reply = "4@identity#1"
 	work := t.TempDir()
-	assistantDir := filepath.Join(work, ".persona", "health")
+	assistantDir := filepath.Join(work, ".persona", "tracks", "qa-private")
 	n.state.put(assistant, sessionState{Cwd: assistantDir, Launcher: "agy", Model: "test-model", AppMode: "plan", IsMain: true, TaskID: "source-task"})
 	rt.mu.Lock()
 	rt.answer = func(method string, params json.RawMessage) (any, error) {

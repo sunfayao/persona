@@ -14,9 +14,9 @@ import (
 
 // A task's prepared cwd is consumed by the real node preparation and process-start environment. The fake Codex
 // executable speaks only the test protocol: no model is called. Even a saved allow rule cannot bypass health gates.
-func TestTaskHealthPreparationClassifiesOutboundGates(t *testing.T) {
+func TestTaskSpacePreparationClassifiesOutboundGates(t *testing.T) {
 	for _, manager := range []string{"", "m-ab12"} {
-		t.Run(identity.HealthDirName(manager), func(t *testing.T) {
+		t.Run(identity.TracksDirName(manager), func(t *testing.T) {
 			const thread = "019a1930-7e92-7073-9bb8-d2ad3126f329"
 			addrFile := fakeCodexHome(t, thread)
 			r := newSpaceRig(t, sendAllowed)
@@ -26,7 +26,7 @@ func TestTaskHealthPreparationClassifiesOutboundGates(t *testing.T) {
 				t.Fatal(err)
 			}
 			const policy = "# Synthetic Health instructions\nKeep this space separate.\n"
-			raw, _ := json.Marshal(map[string]any{"dir": compat.StateDir + "/" + identity.HealthDirName(manager), "claude_md": policy})
+			raw, _ := json.Marshal(map[string]any{"dir": compat.StateDir + "/" + identity.TracksDirName(manager) + "/qa-private", "claude_md": policy})
 			result, err := r.n.handle(context.Background(), "assistant.prepare", raw)
 			if err != nil {
 				t.Fatal(err)
@@ -50,7 +50,7 @@ func TestTaskHealthPreparationClassifiesOutboundGates(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(p.stop)
-			if space, _ := envOf(p.cmd.Env, "PERSONA_SPACE"); space != identity.SpaceHealth {
+			if space, _ := envOf(p.cmd.Env, "PERSONA_SPACE"); space != "qa-private" {
 				t.Fatalf("node started a main-space process: %q", space)
 			}
 			base, err := os.ReadFile(addrFile)

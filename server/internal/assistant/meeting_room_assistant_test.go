@@ -45,7 +45,7 @@ func TestMeetingRoomCountedAsAssistant(t *testing.T) {
 	}
 
 	// Path 2: Auto-naming must never run on meeting room sessions.
-	f := healthHub()
+	f := spaceHub()
 	f.devices = []Device{{ID: "server", Name: "服务器", Kind: "local", Home: "/home/me", Online: true, Reachable: true}}
 	f.sessions["server"] = []proto.Session{roomSess, normalAgent}
 	s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return &memStore{} }, Logf: testLogf(t)}))

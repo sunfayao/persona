@@ -148,7 +148,7 @@ func TestRuntimeSearchExtensionScopeBeforeRankAndCounts(t *testing.T) {
 	b.report(t, devicewire.State{Machine: proto.Machine{ID: "mb", Name: "mb"}}, devicewire.State{Machine: proto.Machine{ID: "mc", Name: "mc"}})
 	eventually(t, 5*time.Second, "owned second computer", func() bool { return h.localMachine("mc") != nil })
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "ma", Sessions: []proto.Session{{MachineID: "ma", SessionID: "secret", Title: "Needle foreign"}}})
-	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{{MachineID: "mb", SessionID: "same", Title: "Needle one"}, {MachineID: "mb", SessionID: "health", Title: "Needle private", Space: "health"}, {MachineID: "mb", SessionID: "main", Title: "Needle assistant", Assistant: true}}})
+	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mb", Sessions: []proto.Session{{MachineID: "mb", SessionID: "same", Title: "Needle one"}, {MachineID: "mb", SessionID: "health", Title: "Needle private", Space: "qa-private"}, {MachineID: "mb", SessionID: "main", Title: "Needle assistant", Assistant: true}}})
 	h.takeFleetSessions(assistantwire.FleetSessions{MachineID: "mc", Sessions: []proto.Session{{MachineID: "mc", SessionID: "same", Title: "Needle two"}}})
 	query := "/api/v1/sessions?search=needle&summary=1&limit=1"
 	code, raw := extDo(t, base, "GET", query, "", nil)

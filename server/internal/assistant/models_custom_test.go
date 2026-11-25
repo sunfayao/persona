@@ -344,7 +344,7 @@ func TestPlanEditModelChecked(t *testing.T) {
 // agent_start's confirmation on the phone (a health conversation's hand-off, health.go) names the model the agent
 // would run on, so a model the assistant picked is seen before the user says yes.
 func TestAgentStartConfirmationShowsTheModel(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 	says := i18n.T(s.lang(context.Background()), "assistant-tools.with_model", i18n.Args{"model": "gw/model-x"})

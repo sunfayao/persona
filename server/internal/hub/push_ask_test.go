@@ -42,7 +42,7 @@ func TestPushAskEligibility(t *testing.T) {
 		{"no options", func(ix *proto.Interaction) { ix.Questions[0].Options = nil }},
 		{"fields", func(ix *proto.Interaction) { ix.Fields = []proto.Field{{Key: "value", Label: "Value"}} }},
 		{"permission", func(ix *proto.Interaction) { ix.Kind = proto.IxPermission }},
-		{"health", func(ix *proto.Interaction) { ix.Cwd = "/home/example/.persona/health" }},
+		{"health", func(ix *proto.Interaction) { ix.Cwd = "/home/example/.persona/tracks/qa-private" }},
 		{"cannot be undone", func(ix *proto.Interaction) { ix.ToolName, ix.Reversible = "ask_user", new(false) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

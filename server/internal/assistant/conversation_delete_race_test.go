@@ -42,7 +42,7 @@ func TestDeletePersonaDiscardsStoredFeedAlreadyInFlight(t *testing.T) {
 		ID: "view-example", Conversation: id, MachineID: "server", Version: 1,
 		View: json.RawMessage(`{"fallback":"synthetic retained card","sections":[]}`),
 	}}
-	s := newServiceOn(t, healthHub(), st)
+	s := newServiceOn(t, spaceHub(), st)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 	path := "/api/v1/assistant/conversations/" + id + "/feed"
 	// A nonempty control keeps a failed fixture from passing as a safe empty reply.
@@ -86,7 +86,7 @@ func TestDeletePersonaDiscardsStoredFeedAlreadyInFlight(t *testing.T) {
 }
 
 func TestDeletePersonaSuppressesStoredConversationBroadcasts(t *testing.T) {
-	f := healthHub()
+	f := spaceHub()
 	s := newTestService(t, f)
 	ctx := context.Background()
 	const deleted, other = "work-0000-0000", "steps-000-0000"

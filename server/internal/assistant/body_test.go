@@ -120,7 +120,7 @@ func TestDecodeLargeBodyIsDecodeBody(t *testing.T) {
 
 // TestDecodeLargeBodyOtherwise: a value already set, a body read already, or one that is not relayed: decodeBody.
 func TestDecodeLargeBodyOtherwise(t *testing.T) {
-	set := startBody{Space: "health", Purpose: "set"}
+	set := startBody{Space: testSpace, Purpose: "set"}
 	for _, b := range []string{`{"prompt":"a"}`, `{"prompt":"a","purpose":1}`, `{"guest":{"tools":["a"]}}`} {
 		sameAsDecodeBody(t, []byte(b), set, 1<<20)
 

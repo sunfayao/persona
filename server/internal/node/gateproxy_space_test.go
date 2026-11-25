@@ -126,7 +126,7 @@ func (r *spaceRig) check(cwd, session, command string) string {
 // refused, the API is not asked, and no card is made.
 func TestGateProxyHealthWriteWithAnAllowRuleNeedsTheCard(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
-	base := r.processIn(filepath.Join(r.state, identity.SpaceHealth), "h1")
+	base := r.processIn(filepath.Join(r.state, "tracks", "qa-private"), "h1")
 	code, body := send(t, "POST", base+"/api/v1/conversations/7123/messages", `{"text":"hi"}`)
 	if code != http.StatusForbidden || !strings.Contains(body, "手机上确认") {
 		t.Fatalf("a write no card confirmed, in a health conversation: %d %s", code, body)
@@ -143,7 +143,7 @@ func TestGateProxyHealthWriteWithAnAllowRuleNeedsTheCard(t *testing.T) {
 // grant it left is used up by the one request it was for, and the same call sent again is refused.
 func TestGateProxyHealthWriteConfirmedOnThePhoneGoesOnce(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	base := r.processIn(cwd, "h1")
 	if d := r.check(cwd, "h1", `ex POST /conversations/7123/messages '{"text":"hi"}'`); d != "allow" || r.cards() != 1 {
 		t.Fatalf("the gated command: %q, %d cards", d, r.cards())
@@ -163,7 +163,7 @@ func TestGateProxyHealthWriteConfirmedOnThePhoneGoesOnce(t *testing.T) {
 // A health conversation's reads go as they do anywhere: no card, and the rules' allow is enough.
 func TestGateProxyHealthReadsGoWithoutACard(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
-	base := r.processIn(filepath.Join(r.state, identity.SpaceHealth), "h1")
+	base := r.processIn(filepath.Join(r.state, "tracks", "qa-private"), "h1")
 	for _, method := range []string{"GET", "HEAD"} {
 		if code, body := send(t, method, base+"/api/v1/conversations/7123/messages?page=2", ""); code != http.StatusOK {
 			t.Fatalf("%s in a health conversation: %d %s", method, code, body)
@@ -187,11 +187,11 @@ func TestGateProxyOutsideHealthAnAllowRuleStillLetsAWriteThrough(t *testing.T) {
 		code, _ := send(t, "POST", base+"/api/v1/conversations/7123/messages", `{"text":"hi"}`)
 		return code
 	}
-	health := r.processIn(filepath.Join(r.state, identity.SpaceHealth), "h1")
+	health := r.processIn(filepath.Join(r.state, "tracks", "qa-private"), "h1")
 	for name, cwd := range map[string]string{
 		"the assistant's own space":     filepath.Join(r.state, identity.AssistantDirName("")),
 		"another manager's space":       filepath.Join(r.state, identity.AssistantDirName("m-1a2b")),
-		"a directory only named health": filepath.Join(t.TempDir(), identity.SpaceHealth),
+		"a directory only named health": filepath.Join(t.TempDir(), "qa-private"),
 	} {
 		before := len(r.api.requests())
 		if code := write(r.processIn(cwd, "s1")); code != http.StatusOK {
@@ -212,7 +212,7 @@ func TestGateProxyOutsideHealthAnAllowRuleStillLetsAWriteThrough(t *testing.T) {
 // A rule's deny stays a deny in a health conversation, as outside it: refused for the rule, not for want of a card.
 func TestGateProxyHealthDenyStaysDeny(t *testing.T) {
 	r := newSpaceRig(t, proto.LarkRule{Method: "DELETE", Path: "/messages/*", Action: "deny"})
-	for _, space := range []string{identity.SpaceHealth, identity.AssistantDirName("")} {
+	for _, space := range []string{"tracks/qa-private", identity.AssistantDirName("")} {
 		base := r.processIn(filepath.Join(r.state, space), "s1")
 		if code, body := send(t, "DELETE", base+"/api/v1/messages/M1", ""); code != http.StatusForbidden || !strings.Contains(body, "不允许") {
 			t.Fatalf("%s: a call the rules deny: %d %s", space, code, body)
@@ -226,7 +226,7 @@ func TestGateProxyHealthDenyStaysDeny(t *testing.T) {
 // A write no rule allows is confirmed on the phone and goes once in a health conversation, as it did.
 func TestGateProxyHealthWriteTheRulesLeaveToThePhoneGoesOnce(t *testing.T) {
 	r := newSpaceRig(t)
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	base := r.processIn(cwd, "h1")
 	url := base + "/api/v1/notes/N1"
 	if code, _ := send(t, "POST", url, `{"text":"n"}`); code != http.StatusForbidden {
@@ -257,7 +257,7 @@ func TestGateProxyHealthTakesOnlyItsOwnConversationsCard(t *testing.T) {
 	} {
 		t.Run(route.name, func(t *testing.T) {
 			r := newSpaceRig(t, sendAllowed)
-			cwd := filepath.Join(r.state, identity.SpaceHealth)
+			cwd := filepath.Join(r.state, "tracks", "qa-private")
 			own, nameless := r.processIn(cwd, "h1"), r.processIn(cwd, "")
 			write := func(base string) int {
 				t.Helper()
@@ -297,7 +297,7 @@ func TestKeptHealthConversationStillNeedsTheCardThroughTheNextConnection(t *test
 	r := newSpaceRig(t, sendAllowed)
 	keeper := newAssistantKeeper()
 	r.n.keeper = keeper // before the first use of the proxy, which is the keeper's then
-	base := r.processIn(filepath.Join(r.state, identity.SpaceHealth), "h1")
+	base := r.processIn(filepath.Join(r.state, "tracks", "qa-private"), "h1")
 	next := &Node{dir: t.TempDir(), keeper: keeper, larkCfgAt: time.Now(), logger: log.New(io.Discard, "", 0),
 		larkCfg: proto.AssistantLark{Gates: []proto.CommandGate{proxiedGate(r.api.URL, sendAllowed)}}}
 	next.gates() // the proxy goes by the next connection's config from now on
@@ -325,7 +325,7 @@ func TestGateProxyHealthHoldsEveryKindOfWrite(t *testing.T) {
 		proto.LarkRule{Method: "PUT", Path: "/conversations/*/unread", Action: "allow"},
 		proto.LarkRule{Method: "PATCH", Path: "/notes/*", Action: "allow"},
 		proto.LarkRule{Method: "DELETE", Path: "/messages/*/reactions", Action: "allow"})
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	base := r.processIn(cwd, "h1")
 	for _, w := range []struct{ method, path, body string }{
 		{"PUT", "/conversations/7123/unread", `{}`},
@@ -366,7 +366,7 @@ func TestGateProxyHealthHoldsEveryKindOfWrite(t *testing.T) {
 // the phone confirmed goes once; until then they take nothing.
 func TestGateProxyHealthAddressesStandForTheThreadOnceItStarts(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	env, name := r.processNamed(cwd)
 	base, _ := envOf(env, "EXAMPLE_BASE")
 	url := base + "/api/v1/conversations/7123/messages"
@@ -417,7 +417,7 @@ func TestGateProxyHealthAddressesStandForTheThreadOnceItStarts(t *testing.T) {
 // the card offers no "Always allow in this session". A conversation outside the health space is asked as before.
 func TestLarkCheckHealthConversationIsHealthWhereverTheHookRuns(t *testing.T) {
 	r := newSpaceRig(t)
-	health := filepath.Join(r.state, identity.SpaceHealth)
+	health := filepath.Join(r.state, "tracks", "qa-private")
 	r.processIn(health, "h1")
 	r.processIn(filepath.Join(r.state, identity.AssistantDirName("")), "s1")
 	write := `ex POST /notes/N1 '{"text":"n"}'`
@@ -446,7 +446,7 @@ func TestLarkCheckHealthConversationIsHealthWhereverTheHookRuns(t *testing.T) {
 // proxy for want of a card nobody asked for.
 func TestLarkCheckHealthWriteAfterACdGoesOnceAfterTheCard(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
-	health := filepath.Join(r.state, identity.SpaceHealth)
+	health := filepath.Join(r.state, "tracks", "qa-private")
 	base := r.processIn(health, "h1")
 	hook := filepath.Join(health, "reports")
 	if d := r.check(hook, "h1", `ex POST /conversations/7123/messages '{"text":"hi"}'`); d != "allow" || r.cards() != 1 {
@@ -543,7 +543,7 @@ func TestGateProxyHealthNewCodexConversationGoesOnceAfterTheCard(t *testing.T) {
 			const thread = "019a1930-7e92-7073-9bb8-d2ad3126f329"
 			addrFile := fakeCodexHome(t, thread)
 			r := newSpaceRig(t, sendAllowed)
-			cwd := filepath.Join(r.state, identity.SpaceHealth)
+			cwd := filepath.Join(r.state, "tracks", "qa-private")
 			r.skillIn(cwd)
 			r.n.mu.Lock()
 			r.n.modes, r.n.akeys, r.n.metas, r.n.bgScans = map[string]sessionModes{}, map[string]*assistantProc{}, map[string]quickMeta{}, map[string]*bgScan{}
@@ -601,7 +601,7 @@ func TestGateProxyHealthNamingNamesEveryAddress(t *testing.T) {
 	second.BaseEnv, second.Secret, second.AllowedEnv = "EXAMPLE2_BASE", []string{"EXAMPLE2_TOKEN"}, nil
 	second.Auth = &proto.GateAuth{Header: "Authorization", Value: "Bearer ${EXAMPLE2_TOKEN}"}
 	r.addGate(second)
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	env, name := r.processNamed(cwd)
 	const thread = "019a1930-7e92-7073-9bb8-d2ad3126f330"
 	name(thread)

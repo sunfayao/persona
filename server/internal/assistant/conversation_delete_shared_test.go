@@ -25,7 +25,7 @@ func sharedDeletionServices(t *testing.T) (*Service, *Service, *db.DB) {
 		t.Fatal(err)
 	}
 	t.Cleanup(second.Close)
-	f := healthHub()
+	f := spaceHub()
 	f.settings = &Settings{MachineID: "server", Main: "main-0000-0000"}
 	f.sessions["server"][1].Title = "shared-private-title"
 	blue, green := newServiceOn(t, f, first), newServiceOn(t, f, second)

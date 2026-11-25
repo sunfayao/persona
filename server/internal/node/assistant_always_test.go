@@ -99,7 +99,7 @@ func TestLarkGateHealthAsksEachTime(t *testing.T) {
 		return proto.Resolution{Allow: &yes, Always: true}
 	}
 	fh.mu.Unlock()
-	health := filepath.Join(t.TempDir(), ".persona", "health")
+	health := filepath.Join(t.TempDir(), ".persona", "tracks", "qa-private")
 	if err := os.MkdirAll(health, 0o755); err != nil {
 		t.Fatal(err)
 	}

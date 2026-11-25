@@ -625,8 +625,8 @@ func onlyOpen(t *testing.T, s *Service, sid string) Todo {
 // A reply to an Agent in the same health space still asks on the phone before it goes (an empty task is no reason to refuse it):
 // declined, nothing is sent and the receipt says so; allowed, it goes, and neither makes a task or a feed line.
 func TestAgentSendEmptyTaskAsksBeforeItGoes(t *testing.T) {
-	f := healthHub()
-	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/health/work", Agent: "claude",
+	f := spaceHub()
+	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private/work", Agent: "claude",
 		Status: proto.StatusIdle, Title: "app"})
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
@@ -729,8 +729,8 @@ func exitRefusal(sid string, todo Todo, text string) string {
 
 // From the health space the refusal comes before the phone is asked: no card, nothing sent.
 func TestAgentSendExitToAnotherConversationsAgentAsksNothing(t *testing.T) {
-	f := healthHub()
-	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/health/work", Agent: "claude",
+	f := spaceHub()
+	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private/work", Agent: "claude",
 		Status: proto.StatusIdle, Title: "app"})
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
@@ -740,7 +740,7 @@ func TestAgentSendExitToAnotherConversationsAgentAsksNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.superviseTodo(ctx, todo.ID, "main-0000-0000", []string{"a chart"}, 30)
-	if err := s.linkTodoAgent(ctx, todo.ID, "server", "code-0000-0000", todo.Title, "/home/me/.persona/health/work", "claude"); err != nil {
+	if err := s.linkTodoAgent(ctx, todo.ID, "server", "code-0000-0000", todo.Title, "/home/me/.persona/tracks/qa-private/work", "claude"); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan struct{})
@@ -770,8 +770,8 @@ func TestAgentSendExitRecheckedAfterThePhone(t *testing.T) {
 		{"agent_interrupt", `{"machine":"server","session_id":"code-0000-0000","then":"/exit"}`},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {
-			f := healthHub()
-			f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/health/work",
+			f := spaceHub()
+			f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "code-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private/work",
 				Agent: "claude", Status: proto.StatusIdle, Title: "app"})
 			s := newTestService(t, f)
 			setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
@@ -794,7 +794,7 @@ func TestAgentSendExitRecheckedAfterThePhone(t *testing.T) {
 				t.Fatal(err)
 			}
 			s.superviseTodo(ctx, todo.ID, "main-0000-0000", []string{"a chart"}, 30)
-			if err := s.linkTodoAgent(ctx, todo.ID, "server", "code-0000-0000", todo.Title, "/home/me/.persona/health/work", "claude"); err != nil {
+			if err := s.linkTodoAgent(ctx, todo.ID, "server", "code-0000-0000", todo.Title, "/home/me/.persona/tracks/qa-private/work", "claude"); err != nil {
 				t.Fatal(err)
 			}
 			allow := true

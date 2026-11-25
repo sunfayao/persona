@@ -19,8 +19,8 @@ func TestHealthConversationsWritesFromItsFoldersAreConfirmed(t *testing.T) {
 	box := h.machineByID("box")
 	for cwd, asked := range map[string]bool{
 		"/home/u/.persona/assistant":      false, // the rule lets the chat through
-		"/home/u/.persona/health":         true,
-		"/home/u/.persona/health/reports": true,
+		"/home/u/.persona/tracks/qa-private":         true,
+		"/home/u/.persona/tracks/qa-private/reports": true,
 		"/home/u/.persona/health-bin":     false,
 	} {
 		listSessions(h, box.cfg.ID, []proto.Session{{SessionID: "conv1", Cwd: cwd}})

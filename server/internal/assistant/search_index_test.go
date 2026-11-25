@@ -190,7 +190,7 @@ func searchFixture(t *testing.T) (*Service, *chatFeed, *memSearch, *chatList) {
 		proto.Session{SessionID: "trip", Title: "周末出行 Trip plan", Assistant: true, Rev: 1, UpdatedAt: searchT0.Add(2 * time.Hour), Origin: "user"},
 		proto.Session{SessionID: "old", Title: "Old trip", Assistant: true, Archived: true, Rev: 1, UpdatedAt: searchT0},
 		proto.Session{SessionID: "fresh", Title: "Claude Code", Assistant: true, Rev: 1, UpdatedAt: searchT0},
-		proto.Session{SessionID: "body", Title: "Sleep", Assistant: true, Space: "health", Rev: 1, UpdatedAt: searchT0},
+		proto.Session{SessionID: "body", Title: "Sleep", Assistant: true, Space: testSpace, Rev: 1, UpdatedAt: searchT0},
 		proto.Session{SessionID: "agent", Title: "An agent's session", Rev: 1, UpdatedAt: searchT0},
 	}}
 	f.setSessions("server", list.sessions...)

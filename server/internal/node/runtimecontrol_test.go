@@ -341,7 +341,7 @@ func TestEngineRuntimeAnExtensionsResumeOfAnUnlistedAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	work := mkdir(t, filepath.Join(n.home, "errands"))
-	charts := mkdir(t, filepath.Join(identity.HealthDir(n.home), "charts"))
+	charts := mkdir(t, filepath.Join(testSpaceDir(n.home), "charts"))
 	host := dialRuntime(t, n, paseoEngineHello())
 	host.answer = func(method string, params json.RawMessage) (any, error) {
 		var p struct {

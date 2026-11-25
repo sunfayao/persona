@@ -17,7 +17,7 @@ func TestStoredCwd(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	n := codexTestNode(t)
 	data := identity.DataDir(n.home)
-	for _, d := range []string{"assistant", "health"} {
+	for _, d := range []string{"assistant", "guest"} {
 		if err := os.MkdirAll(filepath.Join(data, d), 0o700); err != nil {
 			t.Fatal(err)
 		}
@@ -27,7 +27,7 @@ func TestStoredCwd(t *testing.T) {
 	cases := []struct{ name, stored, want string }{
 		{"a stored folder that exists", kept, kept},
 		{"the assistant directory moved", filepath.Join(gone, "assistant"), filepath.Join(data, "assistant")},
-		{"the health space moved", filepath.Join(gone, "health"), filepath.Join(data, "health")},
+		{"the guest directory moved", filepath.Join(gone, "guest"), filepath.Join(data, "guest")},
 		{"gone with nothing of its name", filepath.Join(gone, "elsewhere"), identity.AssistantDir(n.home)},
 		{"none stored", "", identity.AssistantDir(n.home)},
 	}

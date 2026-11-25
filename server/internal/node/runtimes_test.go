@@ -1168,7 +1168,7 @@ func TestRuntimeAskAlwaysKeys(t *testing.T) {
 	host := dialRuntime(t, n, hello)
 	_ = host.peer.Notify("runtime.sessions", map[string]any{"sessions": []map[string]any{
 		{"session_id": "session-7", "title": "deploy", "cwd": "/w/app"},
-		{"session_id": "session-h", "title": "health", "cwd": "/home/me/.persona/health"},
+		{"session_id": "session-h", "title": "health", "cwd": "/home/me/.persona/tracks/qa-private"},
 	}})
 	waitFor(t, "listed", func() bool { m := listed(t, n); _, a := m["session-7"]; _, b := m["session-h"]; return a && b })
 	allow := true

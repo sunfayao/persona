@@ -35,8 +35,6 @@ type testNode struct {
 	stall  chan struct{}
 	// info, when set, is what node.info answers (a node that announces the handshake's capabilities).
 	info *proto.NodeInfo
-	// echoHealth: it says which health space it answered about (health_dir), as a node with health_spaces does.
-	echoHealth bool
 	// refuseWatch: how many more session.watch calls of a session it refuses (a node just started, #6372).
 	refuseWatch map[string]int
 	// unknown: the methods it does not have (a node from before them).
@@ -93,12 +91,6 @@ func (n *testNode) dial(context.Context) (net.Conn, error) {
 		}
 		if n.refuse != nil {
 			return nil, n.refuse
-		}
-		var p struct {
-			HealthDir string `json:"health_dir"`
-		}
-		if _ = json.Unmarshal(params, &p); n.echoHealth && p.HealthDir != "" {
-			return map[string]any{"ok": true, "method": method, "health_dir": p.HealthDir}, nil
 		}
 		return map[string]any{"ok": true, "method": method}, nil
 	}

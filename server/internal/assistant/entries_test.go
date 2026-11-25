@@ -265,7 +265,7 @@ func TestEntriesCollectOwnerCardAnswersAcrossSourceSpaces(t *testing.T) {
 	database := todoTestDB(t)
 	e := newTodoEnv(t, database)
 	ctx := context.Background()
-	e.f.setSessions("server", proto.Session{SessionID: "health-example", Assistant: true, Space: "health"})
+	e.f.setSessions("server", proto.Session{SessionID: "health-example", Assistant: true, Space: testSpace})
 	ix := proto.Interaction{ID: "card-health-example", MachineID: "server", SessionID: "health-example", Kind: proto.IxQuestion, Questions: []proto.Question{{Question: "Keep the example reminder?", Options: []proto.QuestionOption{{Label: "Keep"}, {Label: "Skip"}}}}}
 	if err := e.s.ledgerCardDecisions(ctx, ix, proto.Resolution{Answers: map[string]string{"Keep the example reminder?": "Keep"}}, "resolved"); err != nil {
 		t.Fatal(err)

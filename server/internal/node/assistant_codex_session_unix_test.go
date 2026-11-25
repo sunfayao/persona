@@ -14,7 +14,7 @@ import (
 func TestCodexAssistantOwnSessionAndGroupCleanup(t *testing.T) {
 	fakeCodexHome(t, "019a1930-7e92-7073-9bb8-d2ad3126f329")
 	r := newSpaceRig(t)
-	cwd := filepath.Join(r.state, identity.SpaceHealth)
+	cwd := filepath.Join(r.state, "tracks", "qa-private")
 	r.n.mu.Lock()
 	r.n.modes, r.n.akeys, r.n.metas, r.n.bgScans = map[string]sessionModes{}, map[string]*assistantProc{}, map[string]quickMeta{}, map[string]*bgScan{}
 	r.n.mu.Unlock()

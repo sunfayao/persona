@@ -74,7 +74,7 @@ func speedField11141(t *testing.T, v any) string {
 
 func newSpeedAgentService11141(t *testing.T) (*Service, *fakeHub) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	f.launcherList = []proto.Launcher{{Name: "codex", Agent: "codex"}, {Name: "claude", Agent: "claude"}, {Name: "agy", Agent: "agy"}}
 	s := newTestService(t, f)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })

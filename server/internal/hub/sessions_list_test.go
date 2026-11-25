@@ -56,7 +56,7 @@ func TestRuntimeAgentsOnly(t *testing.T) {
 		{MachineID: "demo", SessionID: "agent-b", State: "idle"},
 		{MachineID: "demo", SessionID: "assistant", State: "working", Assistant: true},
 		{MachineID: "demo", SessionID: "former-main", State: "working", Assistant: true, Archived: true},
-		{MachineID: "demo", SessionID: "health", State: "working", Space: "health"},
+		{MachineID: "demo", SessionID: "health", State: "working", Space: "qa-private"},
 	}
 
 	indexRows := func() {

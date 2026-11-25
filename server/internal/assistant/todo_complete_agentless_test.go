@@ -79,7 +79,7 @@ func TestTodoCompleteAgentlessSupervisor(t *testing.T) {
 			e := newTodoEnv(t, nil)
 			e.f.hello.Assistant.CompleteAgentlessTodos = true
 			if tc.health {
-				e.f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Space: SpaceHealth})
+				e.f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Space: testSpace})
 			}
 			putTodo(e.s, tc.todo)
 			shown := make(chan proto.Interaction, 1)

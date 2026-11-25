@@ -82,7 +82,7 @@ func TestTrackSpaceMDRoutes(t *testing.T) {
 	if c := n.calls[0]; c.Op != assistantwire.SpaceMDGet || c.Dir != trackDir || c.Slug != "qa-plain" {
 		t.Errorf("node call: %+v", c)
 	}
-	for _, slug := range []string{"qa-unknown", "qa-elsewhere", "qa-gone", "qa-health-like", SpaceHealth} {
+	for _, slug := range []string{"qa-unknown", "qa-elsewhere", "qa-gone", "qa-health-like", testSpace} {
 		if w := serve(s, http.MethodGet, "/api/v1/assistant/tracks/"+slug+"/space-md", ""); w.Code != http.StatusNotFound {
 			t.Errorf("%s: %d, want 404", slug, w.Code)
 		}

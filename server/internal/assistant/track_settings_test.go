@@ -29,7 +29,7 @@ func qaKindConfig() assistantwire.TrackKindConfig {
 // (qa-k) made through the API, and a conversation of that track (qa-k-chat).
 func trackSettingsService(t *testing.T) (*Service, *fakeHub) {
 	t.Helper()
-	f := healthHub()
+	f := spaceHub()
 	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "qa-k-chat", Cwd: "/home/me/.persona/tracks/qa-k",
 		Assistant: true, Space: "qa-k", Title: "QA chat"})
 	st := &trackKindMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}}}
@@ -135,7 +135,7 @@ func TestPrepareNamesTrackKind(t *testing.T) {
 	ctx := context.Background()
 	s, f := spaceTrackService(t)
 	s.devs = spaceDevs{fleetDevs: newFleetDevs()}
-	for _, c := range []struct{ space, kind string }{{"", trackKindOrchestration}, {SpaceHealth, trackKindSpace}, {"qa-plain", trackKindSpace}} {
+	for _, c := range []struct{ space, kind string }{{"", trackKindOrchestration}, {testSpace, trackKindSpace}, {"qa-plain", trackKindSpace}} {
 		f.prepared = nil
 		if _, err := s.prepareSpace(ctx, "server", c.space); err != nil {
 			t.Fatalf("%q: %v", c.space, err)
@@ -216,8 +216,8 @@ func TestTrackUsageRulesTighten(t *testing.T) {
 func TestTrackUsageRulesReachPolicy(t *testing.T) {
 	ctx := context.Background()
 	s, _ := trackKindService(t)
-	healthBefore := s.trackPolicy(ctx, SpaceHealth)
-	focusBefore := s.infoTagFocus(ctx, SpaceHealth)
+	healthBefore := s.trackPolicy(ctx, testSpace)
+	focusBefore := s.infoTagFocus(ctx, testSpace)
 	cfg := validKind()
 	cfg.Usage = []assistantwire.TrackUsageRule{{Scene: "lock_screen", Category: "*", Rule: "redact"}}
 	body, _ := json.Marshal(assistantwire.TrackKindCreate{Slug: "qa-quiet", Title: "QA quiet", Config: cfg})
@@ -233,8 +233,8 @@ func TestTrackUsageRulesReachPolicy(t *testing.T) {
 	if p := s.exitPolicy(ctx, "qa words", "", "qa-q"); !p.Redact {
 		t.Errorf("qa-q's exit policy = %+v, want redact", p)
 	}
-	if s.trackPolicy(ctx, "") != (TrackPolicy{}) || s.trackPolicy(ctx, SpaceHealth) != healthBefore ||
-		!reflect.DeepEqual(s.infoTagFocus(ctx, SpaceHealth), focusBefore) || !slices.Equal(focusBefore, []string{categoryHealth}) {
+	if s.trackPolicy(ctx, "") != (TrackPolicy{}) || s.trackPolicy(ctx, testSpace) != healthBefore ||
+		!reflect.DeepEqual(s.infoTagFocus(ctx, testSpace), focusBefore) || !slices.Equal(focusBefore, []string{categoryHealth}) {
 		t.Error("the main or the health space changed")
 	}
 	if s.anyTrackCapped(ctx) {

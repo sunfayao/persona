@@ -22,7 +22,7 @@ func TestAssistantViewSelectsBeforeDecorating(t *testing.T) {
 	list := []proto.Session{
 		{SessionID: "main", Cwd: "/home/u/.persona/assistant", Status: proto.StatusWorking},
 		{SessionID: "archived", Cwd: "/home/u/.persona/assistant", Status: proto.StatusDone},
-		{SessionID: "health", Cwd: "/home/u/.persona/health", Status: proto.StatusDone},
+		{SessionID: "health", Cwd: "/home/u/.persona/tracks/qa-private", Status: proto.StatusDone},
 		{SessionID: "coding", Cwd: "/code/example", Status: proto.StatusWorking},
 		{SessionID: "pane", Cwd: "/home/u/.persona/assistant", PaneID: "pane-1", Status: proto.StatusDone},
 	}
@@ -43,7 +43,7 @@ func TestAssistantViewSelectsBeforeDecorating(t *testing.T) {
 		space    string
 		archived bool
 		count    int
-	}{{"", false, 1}, {"", true, 2}, {SpaceHealth, false, 1}} {
+	}{{"", false, 1}, {"", true, 2}, {testSpace, false, 1}} {
 		want := []proto.Session{}
 		for _, row := range full {
 			if row.Assistant && spaceOf(row) == tc.space && (tc.archived || !row.Archived) {

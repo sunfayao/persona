@@ -146,13 +146,9 @@ func TestIsAssistantProject(t *testing.T) {
 	for base, want := range map[string]bool{
 		"-home-me--persona-assistant": true,
 		"-home-me-" + nonAlnum.ReplaceAllString(compat.StateDir, "-") + "-assistant": true, // the former state directory (#1423)
-		"-home-me-" + nonAlnum.ReplaceAllString(compat.StateDir, "-") + "-health":    true,
 		"-data-home-me--persona-assistant":                                           true,
 		"-opt-persona-state-assistant":                                               true,
 		"-home-me--persona-assistant-worklog-data":                                   false,
-		"-home-me--persona-health":                                                   true, // the health space (docs/assistant/tracks.md)
-		"-opt-persona-state-health":                                                  true,
-		"-home-me--persona-health-notes":                                             false,
 		"-tmp":                                                                       false,
 		"-src-assistant":                                                             false,
 	} {

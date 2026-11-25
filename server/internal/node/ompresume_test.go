@@ -162,7 +162,7 @@ func stoppedOmpForStart(t *testing.T, id string) (*Node, *fakeHerdr, *fakeRuntim
 func TestOmpAnExtensionsResumeReadsTheSessionFile(t *testing.T) {
 	const id, inSpace = "01b10000-0000-7000-8000-000000000031", "01b10000-0000-7000-8000-000000000032"
 	n, f, _, cwd, _ := stoppedOmpForStart(t, id)
-	charts := mkdir(t, filepath.Join(identity.HealthDir(n.home), "charts"))
+	charts := mkdir(t, filepath.Join(testSpaceDir(n.home), "charts"))
 	writeOmpSession(t, ompSessionsDir(n.home), "-health-charts", inSpace, "charts", charts, time.Now())
 	d := n.omps()
 	d.mu.Lock()

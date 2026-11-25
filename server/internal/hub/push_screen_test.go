@@ -53,9 +53,9 @@ func TestScreenPushSaysWhatItAsks(t *testing.T) {
 	if got := body(proto.Interaction{Kind: proto.IxScreen, Dialog: &screen.Dialog{Question: "  "}}); got != generic {
 		t.Fatalf("empty dialog: %q", got)
 	}
-	// A health conversation's card tells nothing of what it asks.
-	if got := body(proto.Interaction{Kind: proto.IxScreen, Dialog: d, Cwd: "/home/me/.persona/health"}); got != i18n.T(i18n.ZhHans, "push.health_body") {
-		t.Fatalf("health: %q", got)
+	// A space conversation's card tells nothing of what it asks.
+	if got := body(proto.Interaction{Kind: proto.IxScreen, Dialog: d, Cwd: "/home/me/.persona/tracks/qa-private"}); got != i18n.T(i18n.ZhHans, "push.space_body") {
+		t.Fatalf("space: %q", got)
 	}
 	// A long dialog is cut to fit a notification.
 	long := &screen.Dialog{Question: strings.Repeat("问", 1000)}

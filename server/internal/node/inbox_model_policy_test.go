@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
+	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -102,11 +103,13 @@ func TestInboxClaudeUsesDefaultAndPersistsOrigin(t *testing.T) {
 
 // Inbox may read local files outside its working directory, including project instructions and installed Skills.
 // Directory-specific rules keep their linked-root coverage. Network, shell and mutation tools get no bare allow,
-// ordinary conversations keep the old boundary, and Claude's health denies stay in force.
+// ordinary conversations keep the old boundary, and the denies of the tracks a manager names stay in force.
 func TestInboxClaudeReadOnlyLocalResourceRules(t *testing.T) {
 	n, home := testNode(t)
 	n.dir = filepath.Join(home, ".persona")
 	cwd := filepath.Join(n.dir, "assistant")
+	n.setDenyDirs(".persona/assistant", []denyDir{{".persona/tracks/qa-finance", "qa-finance"}})
+	t.Cleanup(func() { identity.SetTrackDirs(".persona/assistant", nil) })
 	skillRoot := filepath.Join(home, ".claude", "skills")
 	linkedSkill := filepath.Join(home, "skill-checkout")
 	linkedData := filepath.Join(home, "knowledge")
@@ -172,11 +175,11 @@ func TestInboxClaudeReadOnlyLocalResourceRules(t *testing.T) {
 	}
 	denyAt := slices.Index(flags, "--disallowedTools")
 	if denyAt < 0 {
-		t.Fatalf("Inbox lost its health denies: %q", flags)
+		t.Fatalf("Inbox lost its track denies: %q", flags)
 	}
 	denied := flags[denyAt+1:]
 	for _, tool := range []string{"Read", "Edit"} {
-		rule := fileRule(tool, filepath.Join(n.dir, "health"))
+		rule := fileRule(tool, filepath.Join(n.dir, "tracks", "qa-finance"))
 		if !slices.Contains(denied, rule) {
 			t.Errorf("Inbox --disallowedTools lacks %q: %q", rule, denied)
 		}
