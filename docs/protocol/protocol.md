@@ -3104,6 +3104,8 @@ and the hub also had to wait for the small model to come up with a tab name firs
   in the same pane (`docs/integrations/codex.md` "Starting without a first message"). Rejection `code`s: `codex_needs_prompt` (`async` given, or no `prompt` on an older node),
   `codex_launcher` (a shell function that runs Codex), `codex_resume` (a Codex session that cannot be resumed from the phone: something has it open, or there is no record of it; see `docs/integrations/codex.md` "Resuming from the phone"). See `docs/integrations/codex.md` ("Creating from the phone").
 
+- Terminal TRAE launchers require the first text or attachments in the creation request. TRAE creates a discoverable native conversation only after the first input. Image payloads use native initial attachments, and other files are uploaded first and referenced by the initial prompt. A blank fresh terminal start returns `409 traex_needs_prompt` with `delivered: none` before opening a terminal. Resume still supports an empty prompt.
+
 ### Answering a start's question
 
 A New Agent start whose new tab stops on a question of the shell's startup files (oh-my-zsh's "Would you like to update? [Y/n]", compinit's insecure directories, a passphrase) used to fail for good: the node never answers for the user, the phone could not type into that tab, and a resend got the same error for 10 minutes (#10365). The start tab's environment now turns off the questions it can ([engines.md](../integrations/engines.md) "What a start tab's shell starts with"); one that still comes is answered from the App:

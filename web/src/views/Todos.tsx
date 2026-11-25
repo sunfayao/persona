@@ -14,7 +14,7 @@ import { TaskWaitInfo } from "./assistant/TaskWaitInfo";
 import { launchAgent } from "../lib/new-agent";
 import { currentHosts } from "../lib/engines";
 import { initialLauncher, launcherBlock, usableFirst } from "../lib/launcher-health";
-import { defaultLabel, inlineTextStart, machineLaunchers, type LauncherDefault } from "../lib/launcher-models";
+import { defaultLabel, terminalTraeStart, machineLaunchers, type LauncherDefault } from "../lib/launcher-models";
 import { providerLabel } from "../lib/provider-names";
 import { navigate } from "../lib/router";
 import { openFromPage } from "../lib/handoff";
@@ -3739,7 +3739,7 @@ export function HandoverDialog({
       // It only queues the start and opens the new agent's page, which says how it went: no success toast before the hub
       // has answered (#1856).
       const inline = launchersOf === JSON.stringify([mid, credentialOwner()])
-        ? inlineTextStart(launchers.find((l) => l.name === (launcher || hubDefault?.provider)), currentHosts(machine).default, fullText, 0)
+        ? terminalTraeStart(launchers.find((l) => l.name === (launcher || hubDefault?.provider)), currentHosts(machine).default)
         : undefined;
       launchAgent({
         machineId: mid,

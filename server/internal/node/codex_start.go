@@ -199,8 +199,6 @@ func codexExecutionArgs(argv []string, e modelExecution) []string {
 	return insertBeforeDashDash(argv, extra)
 }
 
-type codexInitialImagesKey struct{}
-
 // startCodex starts a Codex launcher in a new tab with the first message and returns its session once the thread is
 // known, its record naming the model and effort asked for (execution), which a resume runs again (retire.go). With no message it returns the waiting row once Codex's input box is up (codex_waiting.go). In a pane it was
 // given (adoptedPane: a switch from Claude Code, engine_switch.go) it starts there, and a start that fails leaves that
@@ -210,7 +208,7 @@ func (n *Node) startCodex(ctx context.Context, launch host.Launcher, cwd, launch
 		execution.Source.Role = "task_agent"
 	}
 	execution.Source.Session = "" // a fresh Codex thread has no Persona session ID yet
-	images, _ := ctx.Value(codexInitialImagesKey{}).([]string)
+	images, _ := ctx.Value(terminalInitialImagesKey{}).([]string)
 	waiting := strings.TrimSpace(prompt) == "" && len(images) == 0
 	if waiting {
 		prompt = ""

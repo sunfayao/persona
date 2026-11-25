@@ -1586,8 +1586,8 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		rawPrompt := p.Prompt
 		echoImages := 0
 		var runtimeImages []proto.Image
-		var codexImages []string
-		if (method == "session.start" || method == devicewire.MethodStartWorkSession && p.AgentType == "codex") && len(p.Images) > 0 &&
+		var initialImages []string
+		if (method == "session.start" || p.AgentType == "codex" || p.AgentType == traexAgent) && len(p.Images) > 0 &&
 			(p.ResumeSessionID == "" || p.AgentType != ompAgent && launcherAgentType(p.Launcher) != ompAgent) {
 			echoImages = len(p.Images)
 			startCtx := withStartHost(ctx, p.Host)
@@ -1601,9 +1601,10 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 				if err != nil {
 					return nil, err
 				}
-				if p.ResumeSessionID == "" && runtime == nil && !engineRuntime && !p.Async &&
-					n.startAgentType(p.Launcher, p.AgentType) == "codex" {
-					codexImages = paths
+				agent := n.startAgentType(p.Launcher, p.AgentType)
+				if p.ResumeSessionID == "" && runtime == nil && !engineRuntime &&
+					(agent == traexAgent || agent == "codex" && !p.Async) {
+					initialImages = paths
 				} else {
 					p.Prompt = withAttachedImages(p.Prompt, paths)
 				}
@@ -1677,7 +1678,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			if err != nil {
 				return nil, err
 			}
-			if err := opts.validate(p.AgentType, p.Model, p.Prompt, p.Async); err != nil {
+			if err := opts.validate(p.AgentType, p.Model, p.Prompt, p.Async, initialImages...); err != nil {
 				return nil, err
 			}
 			work, p.Host = opts, opts.host
@@ -1823,8 +1824,8 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if method == "session.start" && p.ResumeSessionID == "" && p.InPane == "" && validID(mark.token) {
 			ctx = context.WithValue(ctx, taskTerminalStartKey{}, &mark)
 		}
-		if len(codexImages) > 0 {
-			ctx = context.WithValue(ctx, codexInitialImagesKey{}, codexImages)
+		if len(initialImages) > 0 {
+			ctx = context.WithValue(ctx, terminalInitialImagesKey{}, initialImages)
 		}
 		s, err := n.start(ctx, r.cwd, r.launcher, p.Prompt, p.ResumeSessionID, r.workspaceID, r.mode, r.effort, r.tab, newID, p.AgentType, r.execution)
 		if err == nil && s != nil && p.ResumeSessionID == "" && p.Title != nil && strings.TrimSpace(*p.Title) != "" {

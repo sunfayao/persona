@@ -28,7 +28,7 @@ import { agentId, providerAgent } from "../lib/agent-kind";
 import { modelPurpose, modelSummary, type ModelBinding } from "../lib/model-config";
 import { formatFollowDetail, resolveFollowBinding, resolvedStartModel } from "../lib/new-agent-follow";
 import {
-  effortChoices, effortRule, fitEffort, followedBinding, inlineTextStart, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startCatalogHost, startPicks, takesEffort, tierLeftOut, type PickerTier,
+  effortChoices, effortRule, fitEffort, followedBinding, terminalTraeStart, launcherAgent, listedModes, machineLaunchers, nativeOmpStart, pickerLauncher, startCatalogHost, startPicks, takesEffort, tierLeftOut, type PickerTier,
   type UnavailableLauncher,
 } from "../lib/launcher-models";
 import { choiceCarries, type ModelChoice } from "../lib/new-agent-panel";
@@ -612,7 +612,11 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
   const providerModes = claudeModes || nativeOmp ? undefined : listedModes(listEntry);
   // Codex CLI can omit the first message when prompt_optional is advertised. The App needs one to expose its new chat.
   const codex = agent === "codex";
-  const needsFirst = codex && (desktopStart || listEntry?.prompt_optional !== true);
+  const traeStart = !desktopStart && launchersOf === mid && agent === "traex"
+    ? terminalTraeStart(listEntry, workspace?.host ?? opensIn ?? hostDefault)
+    : undefined;
+  const needsFirst = Boolean(traeStart) || (codex && (desktopStart || listEntry?.prompt_optional !== true));
+  const missingFirst = needsFirst && !prompt.trim() && !attachments.length && !projectDocument && !forwards.length;
   const documentHost = opensIn ?? hostDefault;
   // An explicit launcher family must agree with the catalog. Older Claude entries use launcherAgent's default.
   const documentAgent = listEntry?.agent_type || listEntry?.agent || agent;
@@ -765,7 +769,7 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
   };
 
   const start = () => {
-    if (!open || submitted.current || loadingModels || presetUnavailable || !workspaceCurrent || !online.some((m) => m.id === mid) || !(cwd.trim() || desktopScratch) || (needsFirst && !prompt.trim() && !attachments.length && !projectDocument)) return;
+    if (!open || submitted.current || loadingModels || presetUnavailable || !workspaceCurrent || !online.some((m) => m.id === mid) || !(cwd.trim() || desktopScratch) || missingFirst) return;
     if (documentBlocked || (projectDocument && (projectDocument.owner !== credentialOwner()
       || projectDocument.manager !== (getState().machines.find((m) => m.id === mid)?.manager || defaultManager())))) return;
     // Read ownership at admission too: credential/store changes can precede React's next render.
@@ -805,16 +809,13 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
     const setup = { machine: mid, cwd: dir, launcher, model: picks.model ?? "", agent_type: agent, mode: claude ? permissionMode : "", effort: claude ? (picks.effort ?? "") : "" };
     // only an explicit "on" is sent: off is what a new Claude is anyway
     const ultra = ultracodeShown && !ultracodeBlocked && ultracode ? true : undefined;
-    const inline = !workspace && !desktopStart && launchersOf === mid && agent === "traex"
-      ? inlineTextStart(launchers.find((l) => l.name === listLauncher), opensIn ?? hostDefault, snapshot.text, snapshot.attachments.length)
-      : undefined;
     // what every start of this sheet goes with (each run of a comparison too)
     const launcherDefaultEffort = agent === "agy" && !!launcher && !picks.effort;
     const target = { launcher: projectDocument || desktopStart ? listLauncher : launcher, ...picks,
       nameHint: projectDocument ? `${projectDocument.snapshot.project}/${projectDocument.snapshot.document} r${projectDocument.snapshot.revision}` : undefined,
       launcherDefaultEffort: launcherDefaultEffort || undefined, permissionMode: permissionMode || undefined,
       host: projectDocument ? documentHost : opensIn, ultracode: ultra,
-      ...(codex ? { agentType: "codex", inlinePrompt: true } : inline) };
+      ...(codex ? { agentType: "codex", inlinePrompt: true } : traeStart) };
     const launchDisplay = {
       displayLauncher: listLauncher || undefined,
       displayEngine: listLauncher ? agentId(providerAgent(agent, listLauncher)) : undefined,
@@ -941,7 +942,7 @@ function AgentForm({ open, onClose, preset }: NewAgentProps) {
             <Button tone="quiet" onClick={dismiss}>
               {t("common.cancel")}
             </Button>
-            <Button tone="primary" busy={wtBusy} disabled={loadingModels || presetUnavailable || !workspaceCurrent || !targetOnline || !(cwd.trim() || desktopScratch) || Boolean(documentBlocked) || (needsFirst && !prompt.trim() && !attachments.length && !projectDocument)} onClick={start}>
+            <Button tone="primary" busy={wtBusy} disabled={loadingModels || presetUnavailable || !workspaceCurrent || !targetOnline || !(cwd.trim() || desktopScratch) || Boolean(documentBlocked) || missingFirst} onClick={start}>
               {runCount > 1 ? t("newagent.start_runs", { count: runCount }) : t("newagent.start")}
             </Button>
           </>

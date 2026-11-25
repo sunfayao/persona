@@ -113,7 +113,7 @@ export function WorkSessionForm({ open, onClose }: { open: boolean; onClose: () 
   // should be picked again rather than silently replaced with the default.
   const staleModel = !!opts && !!model && !models.some((m) => m.id === model);
   const canStart = !!target && !!project?.data && validLauncher && compatible && !staleModel
-    && (!opts?.prompt_required || !!prompt.trim()) && (opts?.attachments || attachments.length === 0);
+    && (!opts?.prompt_required || !!prompt.trim() || attachments.length > 0) && (opts?.attachments || attachments.length === 0);
 
   const chooseLauncher = (name: string) => { setLauncher(name); setModel(""); };
   const chooseHarness = (agent: string) => {

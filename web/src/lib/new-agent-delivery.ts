@@ -102,11 +102,11 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       upsertSession(r.session);
     }
     if (!launch.session) {
-      // A Codex (and a compatible CLI) takes its first message with the start. With none, a computer that can opens
-      // Codex waiting for one (docs/integrations/codex.md "Starting without a first message"); an older one refuses.
-      const startWithPrompt = async () => {
-        const codex = agentId(launch.agentType ?? launch.launcher) === "codex" || launch.launcher === "codex-app";
-        if (!codex && launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
+      // Some launchers need the first input with creation. A capable Codex can also open a waiting conversation.
+      const startWithPrompt = async (tryTrae = false) => {
+        const agent = agentId(launch.agentType ?? launch.launcher);
+        const takesAttachments = agent === "codex" || agent === "traex" || launch.launcher === "codex-app" || tryTrae;
+        if (!takesAttachments && launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
         const out = launch.attachments.length ? await prepareOutgoing() : { text: launch.text, images: [] };
         if (!getState().launches[id]) controller.abort();
         controller.signal.throwIfAborted();
@@ -117,7 +117,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
             ...target, name_hint: launch.nameHint, prompt: out.text || undefined, images: out.images.length ? out.images : undefined,
           });
         } catch (e) {
-          if (!out.text && !out.images.length && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));
+          if (!out.text && !out.images.length && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "traex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));
           throw e;
         }
         update({ outgoing: { text: "", images: [] } });
@@ -134,8 +134,9 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
           });
           session = r.session;
         } catch (e) {
-          if (!(e instanceof ApiError) || e.code !== "codex_needs_prompt") throw e;
-          session = await startWithPrompt();
+          if (!(e instanceof ApiError) || (e.code !== "codex_needs_prompt" && e.code !== "traex_needs_prompt")) throw e;
+          if (e.code === "traex_needs_prompt" && !hasFirstTurn) throw new Error(t("lib-new-agent.launcher_needs_text"));
+          session = await startWithPrompt(e.code === "traex_needs_prompt");
         }
       }
       if (!getState().launches[id]) return;

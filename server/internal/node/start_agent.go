@@ -107,10 +107,17 @@ func typedArg(text string, shells ...string) string {
 	return text
 }
 
+type terminalInitialImagesKey struct{}
+
 // startOtherAgent opens a new tab in ws (a new space when ""), runs the launcher there (resuming a session when
 // resume is set, with the first message as its argument) and waits until the host reports an agent of that kind in
 // the tab with a session id that was not running before (or the one resumed).
 func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, launcher, kind, prompt, resume, ws, tabName string, options ...modelExecution) (*proto.Session, error) {
+	images, _ := ctx.Value(terminalInitialImagesKey{}).([]string)
+	freshTraex := kind == traexAgent && resume == ""
+	if freshTraex && strings.TrimSpace(prompt) == "" && len(images) == 0 {
+		return nil, refusal("traex_needs_prompt", i18n.T(i18n.From(ctx), "rpc-errors.traex_needs_prompt"), nil)
+	}
 	created, err := n.newTab(ctx, launch, cwd, ws, tabName, resume) // retire.go
 	if err != nil {
 		return nil, err
@@ -123,7 +130,7 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 		existing[id] = true
 	}
 	n.mu.Unlock()
-	if kind == traexAgent && resume == "" {
+	if freshTraex {
 		// The host may report an old conversation before the new process claims its own.
 		for id := range n.traexThreads() {
 			existing[id] = true
@@ -149,11 +156,22 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 	if selected := executionOption(options).Model; (kind == ompAgent || kind == traexAgent) && resume == "" && selected != "" {
 		model = selected
 		command += " --model " + shellQuote(model)
-		if prompt != "" {
-			command += " --" // The first message is positional text, even when it begins with a dash.
-		}
 	}
-	cmd := withHerdrAgent(typedHerdrAgent(launch, kind, shells...), otherAgentCommand(command, resume, prompt, argShells...))
+	var agentCommand string
+	if freshTraex && len(images) != 0 {
+		for _, path := range images {
+			command += " --image " + shellQuote(path)
+		}
+		// An explicit positional prompt also submits image-only input. "--" ends the image list and keeps
+		// the first message positional even when it begins with a dash.
+		agentCommand = command + " -- " + shellQuote(typedArg(prompt, argShells...))
+	} else {
+		if model != "" && prompt != "" {
+			command += " --"
+		}
+		agentCommand = otherAgentCommand(command, resume, prompt, argShells...)
+	}
+	cmd := withHerdrAgent(typedHerdrAgent(launch, kind, shells...), agentCommand)
 	// Not in the agent sandbox (agentsandbox.go).
 	n.notePaneStart(launcher)
 	done, err := n.runAgentCommand(ctx, launch, created, ws, "", n.agentStartCommand(cmd, shellQuote, shells...), shells...) // typedstart.go

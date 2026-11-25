@@ -5,6 +5,7 @@
   "readonly_unsupported": "Cannot apply read-only mode on this launch path. Choose a compatible terminal launcher without conflicting permission options.",
   "agy_integration_missing": "herdr’s Antigravity integration isn’t installed on that computer, so Persona couldn’t read an agy terminal there and didn’t start one. Nothing was sent. Run `herdr integration install antigravity-cli` on that computer, then start again.",
   "launcher_kind_missing": "The engine on that computer has no provider for this kind of agent, so nothing was started and nothing else runs in its place. Pick one of its providers, or turn one on in its settings.",
+  "traex_needs_prompt": "TRAE CLI needs a first message or attachment to create a conversation.",
   "timeout": "The request timed out. The computer may be busy or the network unstable. Check whether it went through, then try again later.",
   "unreachable": "The connection to this computer dropped. Reconnect it, check whether your last action went through, then try again.",
   "failed": "The request could not be completed. Open details for the diagnostic.",

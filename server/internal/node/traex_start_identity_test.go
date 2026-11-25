@@ -85,6 +85,46 @@ func TestTraexAsyncStartWaitsForActualThread(t *testing.T) {
 	}
 }
 
+func TestTraexFreshStartWithOnlyImages(t *testing.T) {
+	n, f, home := traexIdentityNode(t, threadNew)
+	res, err := request(t, n, "session.start", map[string]any{
+		"cwd": home, "workspace_id": "w1", "launcher": traexAgent,
+		"images": []proto.Image{{Mime: "image/png", Data: "aW1hZ2U="}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := decodeSessions(t, []any{res["session"]})[0]
+	if got.SessionID != threadNew {
+		t.Fatalf("expected native thread, got %q", got.SessionID)
+	}
+	paths, _ := filepath.Glob(filepath.Join(n.dir, "uploads", "*", "*.png"))
+	if len(paths) != 1 {
+		t.Fatalf("saved %d images", len(paths))
+	}
+	want := "traex --image " + shellQuote(paths[0]) + " -- ''"
+	for _, c := range f.calls() {
+		if c.Method == "pane.send_input" && strings.Contains(str(c.Params["text"]), want) {
+			return
+		}
+	}
+	t.Fatal("first message did not carry the native image argument")
+}
+
+func TestTraexBlankStartRefusedBeforeCreatingTerminal(t *testing.T) {
+	n, f, home := traexIdentityNode(t, threadNew)
+	_, err := request(t, n, "session.start", map[string]any{
+		"cwd": home, "workspace_id": "w1", "launcher": traexAgent, "prompt": " ",
+	})
+	code, data := refusalOf(t, err)
+	if code != "traex_needs_prompt" || data["delivered"] != "none" {
+		t.Fatalf("blank start: %q %v", code, data)
+	}
+	if len(f.trace("tab.create")) != 0 || len(f.trace("pane.send_input")) != 0 {
+		t.Fatal("blank start created or typed into a terminal")
+	}
+}
+
 func TestTraexFreshStartExcludesHistoricalThreads(t *testing.T) {
 	for _, paginated := range []bool{false, true} {
 		t.Run(map[bool]string{false: "rollout", true: "paginated"}[paginated], func(t *testing.T) {

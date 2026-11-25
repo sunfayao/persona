@@ -105,9 +105,9 @@ func (n *Node) workSessionOptions(ctx context.Context, name, configuredAgent, ho
 		return opts, workStartRefused("work_launcher_unavailable", "The launcher command is missing on this computer.")
 	}
 	// A Codex in a terminal starts with no first message too: it waits in its box for one (codex_waiting.go).
-	opts.PromptRequired = false
+	opts.PromptRequired = opts.AgentType == traexAgent
 	opts.InlinePrompt = opts.AgentType != "claude"
-	opts.Attachments = opts.AgentType == "claude" || codex && !codexOnRemote(argv)
+	opts.Attachments = opts.AgentType == "claude" || opts.AgentType == traexAgent || codex && !codexOnRemote(argv)
 	if !codex && opts.AgentType != "claude" {
 		return opts, nil
 	}
@@ -181,14 +181,14 @@ func fixedWorkModel(args []string) string {
 	return ""
 }
 
-func (o workStartOptions) validate(agent, model, prompt string, async bool) error {
+func (o workStartOptions) validate(agent, model, prompt string, async bool, images ...string) error {
 	if agent != o.AgentType {
 		return workStartRefused("work_harness_changed", "The selected launcher no longer starts that harness.")
 	}
 	if model != "" && (o.ModelMode != "selectable" || !slices.ContainsFunc(o.Models, func(m proto.AgentModel) bool { return m.ID == model })) {
 		return workStartRefused("work_model_unavailable", "The selected launcher cannot start that model.")
 	}
-	if o.PromptRequired && strings.TrimSpace(prompt) == "" {
+	if o.PromptRequired && strings.TrimSpace(prompt) == "" && (!o.Attachments || len(images) == 0) {
 		if async && o.AgentType == "codex" {
 			return workStartRefused("codex_needs_prompt", "Codex needs the first message to start a session.")
 		}

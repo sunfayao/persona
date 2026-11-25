@@ -224,11 +224,11 @@ export function launcherAgent(name: string, launchers: Launcher[], list?: Launch
   return l?.agent_type || l?.agent || "claude";
 }
 
-/** A known terminal-compatible CLI takes text with creation. Pin its alias and host together with its kind;
- * attachments, unknown launchers and runtime/desktop starts keep their existing negotiation. */
-export function inlineTextStart(launcher: Launcher | undefined, host: string, text: string, attachments: number) {
-  if (!launcher || launcher.source || (launcher.agent_type || launcher.agent) !== "traex"
-    || (host !== "herdr" && host !== "herdr-core") || !text.trim() || attachments !== 0) return undefined;
+/** Pin a known terminal TRAE launcher and its host. TRAE needs its first input before the node can bind a chat. */
+export function terminalTraeStart(launcher: Launcher | undefined, host: string) {
+  if (!launcher || (launcher.source && launcher.source !== "zshrc" && launcher.source !== "path" && launcher.source !== "persona")
+    || (launcher.agent_type || launcher.agent) !== "traex"
+    || !["herdr", "herdr-core", "orca", "tern", "rex"].includes(host)) return undefined;
   return { launcher: launcher.name, host, agentType: "traex", inlinePrompt: true } as const;
 }
 
