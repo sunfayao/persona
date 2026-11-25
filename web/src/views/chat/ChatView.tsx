@@ -253,12 +253,11 @@ const ULTRACODE_SEND_TRIES = 4;
 const STOP_SETTLE_MS = 15_000;
 
 /** "Start a new session" (#2137, #5314): the node copies the conversation up to this reply's turn into a new one, which opens here. */
-async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean, space?: string, manager?: string) {
+async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean, space?: string) {
   try {
     const r = await api<{ session_id: string }>(`${sessionPath(mid, sid)}/fork`, { method: "POST", json: { at_item_id: itemId } });
     await refresh();
     // a health conversation's branch runs in the health space too (docs/assistant/health.md)
-    // a Persona conversation's branch is on its computer and its manager's (lib/conversation-page.ts)
     navigate(!assistant ? { name: "session", mid, sid: r.session_id } : space === "health" ? { name: "health", sid: r.session_id } : { name: "persona" });
     toast(t("chat-chatview.forked"), "ok");
   } catch (e) {
@@ -685,7 +684,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       pick: picker,
       speaker: assistant ? persona.name : "Agent",
       images: () => items.current.filter((i) => i.kind === "image"),
-      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant), session?.space, session?.manager) : undefined,
+      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant), session?.space) : undefined,
       assistant: Boolean(assistant),
       rewind: canRewind ? { block: rewindLive, code: rewindCode, run: (messageId, text, restore) => rewindTo(mid, sid, draftKey, items.current, messageId, text, restore, rewindDeclared) } : undefined,
     }),
@@ -3216,8 +3215,6 @@ export const Header = memo(function Header({
           {termDot && <span aria-hidden data-terminal-waits className="pointer-events-none absolute top-0.5 right-0.5 size-1.5 rounded-full bg-attention" />}
         </span>
       )}
-      {/* wide screens have New chat at the top of the sidebar; a phone's sidebar is a drawer */}
-      {assistant && !chrome && session?.space !== "health" && <IconButton icon="compose" label={t("chat-chatview.new_chat")} onClick={() => navigate({ name: "persona-new" })} className="lg:hidden" />}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
       {!chrome && actions}
       {!assistant && session && (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&

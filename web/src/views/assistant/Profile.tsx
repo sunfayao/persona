@@ -3,7 +3,6 @@
 // groups: "On its own", "About you", "Runs on") and what it can reach.
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
-import { shownManager } from "../../lib/manager-choice";
 import { managerOf, useRoster, type Manager } from "../../lib/managers";
 import { navigate } from "../../lib/router";
 import { dayLabel, hm, untilLabel, upcoming, type Task } from "../../lib/routines";

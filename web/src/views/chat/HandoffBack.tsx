@@ -32,9 +32,8 @@ export function fromTitle(s: Pick<State, "assistant"> & Partial<Pick<State, "tod
   const r = parse(p, q ? `?${q}` : "");
   if (r.name === "persona") {
     const main = s.assistant?.main ?? "";
-    const sid = r.sid || main;
-    const row = s.assistant?.conversations.find((c) => c.session_id === sid);
-    return conversationTitle(row ?? { title: "" }, sid === main);
+    const row = s.assistant?.conversations.find((c) => c.session_id === main);
+    return conversationTitle(row ?? { title: "" }, true);
   }
   const todo = r.name === "todos" && r.id ? s.todos?.find((x) => x.id === r.id) : undefined;
   if (todo?.title.trim()) return todo.title.trim();

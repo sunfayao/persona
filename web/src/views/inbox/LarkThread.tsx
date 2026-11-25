@@ -591,7 +591,7 @@ function LarkThreadBody({ chat, pinsOpen = false, onPinsOpen }: LarkThreadProps)
       // the chat's manager's Persona (the item's; a direct chat opened from a profile in it is the same one's)
       const r = await startConversation({ prompt }, ownerHeaders(manager));
       // its requests (feed, stop…) go to that manager whatever the page shows later; the current assistant stays
-      adoptConversation(manager, r.session.session_id, r.session.machine_id);
+      adoptConversation(manager, r.session.session_id);
       navigate({ name: "persona" });
     } catch (e) {
       toast(t("inbox-larkthread.summary_failed", { error: errorText(e) }), "error");

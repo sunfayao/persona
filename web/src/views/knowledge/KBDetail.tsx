@@ -754,7 +754,7 @@ function AttendingSession({ session }: { session?: RecordingView["attendingSessi
     to = conversationRoute(mid, sid, sessions, assistant);
     label = row ? sessionTitle(row) : t("knowledge-kbdetail.recording_attending_on", { machine: machineWithHub(mid, machines) });
   } else if (assistant?.main) {
-    to = { name: "persona", sid: assistant.main };
+    to = { name: "persona" };
   }
   if (!to) return <span className="min-w-0 truncate text-ink">{label}</span>;
   const route = to;

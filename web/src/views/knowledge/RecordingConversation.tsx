@@ -540,8 +540,8 @@ export function RecordingConversation({ detail, rec, meeting, auth, current, man
   const showAsks = shownAsks.length > 0;
   const before = roomEntries.length > 0 || showAsks;
   const status = meeting.roomMeeting ? roomLine(room, rec.attendance, !!rec.notesOnly, !!rec.trimmedAt) : null;
-  const roomRoute = roomIds ? { name: "persona" } : null;
-  const followRoute = followup ? { name: "persona" } : null;
+  const roomRoute: Route | null = roomIds ? { name: "persona" } : null;
+  const followRoute: Route | null = followup ? { name: "persona" } : null;
   const loadingRoom = !!roomIds && !roomPart.items && !roomPart.error;
   const loadingFollow = !!followup && !followPart.items && !followPart.error;
 

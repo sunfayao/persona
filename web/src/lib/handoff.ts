@@ -57,7 +57,7 @@ let pushed: { chat: string; to: Route; place?: ChatPlace } | null = null;
 
 /** The main conversation `r` shows, named by its assistant's manager and sid; null for any other page. */
 function mainChat(r: Route | null, s: State = getState()): string | null {
-  if (r?.name !== "persona" || (r.sid !== undefined && r.sid !== s.assistant?.main)) return null;
+  if (r?.name !== "persona") return null;
   return `${s.assistant?.manager ?? ""}/${s.assistant?.main ?? ""}`;
 }
 

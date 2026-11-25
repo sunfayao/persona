@@ -313,7 +313,7 @@ export function HandOffDialog({ item, onClose }: { item: InboxItem; onClose: () 
           return;
         }
         // its requests (feed, stop…) go to the item's manager; its page opens it there, the current assistant unchanged
-        adoptConversation(item.manager, to.session_id, to.machine_id);
+        adoptConversation(item.manager, to.session_id);
         noteSent(to.machine_id, to.session_id, { text });
         void refreshAssistant().catch(() => {});
         remember();
@@ -340,7 +340,7 @@ export function HandOffDialog({ item, onClose }: { item: InboxItem; onClose: () 
       const r = await startConversation({ prompt: text }, ownerHeaders(item.manager));
       void recordHandOff(item, r.session, "conversation", r.session.title);
       // its requests (feed, stop…) go to that manager whatever the page shows later
-      adoptConversation(item.manager, r.session.session_id, r.session.machine_id);
+      adoptConversation(item.manager, r.session.session_id);
       noteSent(r.session.machine_id, r.session.session_id, { text });
       void refreshAssistant().catch(() => {});
       if (markDone) void setDone(item, true);

@@ -8,7 +8,6 @@ import { closeBusy } from "./agent-archives";
 import { api, errorText, sessionPath } from "./api";
 import { pickedLauncher, pickedModel } from "./assistant-chat";
 import { sessionMenuActions, sessionTitle, stateOf } from "./format";
-import { chosenManager } from "./manager-choice";
 import { askPersona, outboxKey, sendToSession } from "./outbox";
 import { navigate } from "./router";
 import { getState, refreshAssistant } from "./store";

@@ -603,7 +603,7 @@ export async function askPersona(text: string): Promise<void> {
   }
   const chosen = chosenManager() ?? undefined;
   if (a?.main) {
-    void sendToMain(a.machine_id, a.main, text, chosen);
+    void sendToMain(a.machine_id, a.main, text);
     return;
   }
   const r = await startConversation({ prompt: text, main: true });
@@ -625,11 +625,11 @@ export async function askPersonaOf(owner: string | undefined, text: string): Pro
   const headers = ownerHeaders(owner);
   const a = await api<AssistantInfo>("/assistant", { headers });
   if (a.machine_id && a.main) {
-    adoptConversation(owner, a.main, a.machine_id);
-    return { sent: sendToMain(a.machine_id, a.main, text, owner) };
+    adoptConversation(owner, a.main);
+    return { sent: sendToMain(a.machine_id, a.main, text) };
   }
   const r = await startConversation({ prompt: text, main: true }, headers);
-  adoptConversation(owner, r.session.session_id, r.session.machine_id);
+  adoptConversation(owner, r.session.session_id);
   noteSent(r.session.machine_id, r.session.session_id, { text });
   void refreshAssistant().catch(() => {});
   navigate({ name: "persona" });
@@ -638,28 +638,15 @@ export async function askPersonaOf(owner: string | undefined, text: string): Pro
 
 /** Opens owner's main conversation (owner none: the default's) and sends text there with the launcher and model picked
  *  for it. */
-function sendToMain(mid: string, sid: string, text: string, owner: string | undefined): Promise<boolean> {
+function sendToMain(mid: string, sid: string, text: string): Promise<boolean> {
   navigate({ name: "persona" });
   const key = outboxKey(mid, sid);
   return sendToSession(mid, sid, { text }, { launcher: pickedLauncher(key), model: pickedModel(key) });
 }
 
-// The conversations a page opened for an item's own assistant (a hand-off, an inbox item's Ask Persona, an inbox
-// chat's summary): the computer each runs on and whose it is. The page that shows one (PersonaAssistant) finds it there when it
-// is another assistant's than the current one, which stays current (docs/assistant/managers.md "Clients": an item's
-// things open as themselves and never change the pick).
-const homes = new Map<string, { machine: string; manager?: string }>();
-
-/** owner's conversation sid, on computer machine (owner none: the default's): its requests go to owner, and its page
- *  shows it on that computer, whichever assistant is current. */
-export function adoptConversation(owner: string | undefined, sid: string, machine: string) {
+/** owner's conversation sid (owner none: the default's): its requests go to owner, whichever assistant is current. */
+export function adoptConversation(owner: string | undefined, sid: string) {
   noteConversation(sid, otherManager(owner));
-  if (sid && machine) homes.set(sid, { machine, manager: owner });
-}
-
-/** Where a conversation adopted here runs and whose it is (undefined: none adopted). */
-export function adoptedConversation(sid: string): { machine: string; manager?: string } | undefined {
-  return homes.get(sid);
 }
 
 onConversationDeleted((mid, sid) => {

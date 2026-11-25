@@ -5,7 +5,6 @@
 // "Save" and deleted after an inline confirmation.
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { api, ApiError, enc, errorText } from "../../lib/api";
-import { shownManager } from "../../lib/manager-choice";
 import { navigate } from "../../lib/router";
 import {
   BYPASS, CRON_EXAMPLES, DAY_NAMES, everyLabel, fromLocalInput, grantKinds, INTERVALS, lastRunText, MAX_EVERY, MIN_EVERY, momentLabel, nextRun, normalizeDays,
@@ -138,7 +137,7 @@ export function TaskEditor({
     try {
       const task = await persist();
       if (!task) return;
-      const r = await api<{ session_id: string; machine_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { method: "POST", json: {} });
+      await api<{ session_id: string; machine_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { method: "POST", json: {} });
       toast(t("assistant-taskeditor.run_started", { title: taskTitle(task) }), "ok");
       onClose();
       navigate({ name: "persona" });
@@ -195,7 +194,7 @@ export function TaskEditor({
     }
   };
 
-  const open = (sid: string) => {
+  const open = () => {
     onClose();
     navigate({ name: "persona" });
   };
@@ -441,12 +440,12 @@ export function TaskEditor({
                 </div>
               )}
               {freshEachRun && own && (
-                <LinkRow icon="chat" label={t("assistant-taskeditor.view_last")} onClick={() => open(own)} />
+                <LinkRow icon="chat" label={t("assistant-taskeditor.view_last")} onClick={open} />
               )}
               {!freshEachRun && !draft.session_id &&
                 (own ? (
                   <>
-                    <LinkRow icon="chat" label={t("assistant-taskeditor.same_chat")} onClick={() => open(own)} />
+                    <LinkRow icon="chat" label={t("assistant-taskeditor.same_chat")} onClick={open} />
                     <LinkRow icon="plus" label={t("assistant-taskeditor.fresh_chat")} busy={busy === "fresh"} disabled={working} onClick={() => void startOver()} chevron={false} />
                   </>
                 ) : (
@@ -471,7 +470,7 @@ export function TaskEditor({
             <div className="flex flex-wrap items-center gap-2">
               <Button tone="secondary" icon="play" busy={busy === "run"} disabled={working || !!problem} onClick={() => void runNow()}>{t("assistant-taskeditor.run_now")}</Button>
               {saved?.last_session_id && saved.last_session_id !== own && (
-                <Button tone="quiet" icon="chat" disabled={working} onClick={() => open(saved.last_session_id!)}>{t("assistant-taskeditor.view_last")}</Button>
+                <Button tone="quiet" icon="chat" disabled={working} onClick={open}>{t("assistant-taskeditor.view_last")}</Button>
               )}
               {last && <span className={cx("text-[11.5px] tabular-nums", last.failed ? "text-red" : "text-ink-3")}>{last.text}</span>}
             </div>
@@ -487,7 +486,7 @@ export function TaskEditor({
               <SectionTitle right={runs.length > 5 ? <span className="text-[11px] text-ink-3">{t("assistant-taskeditor.run_total", { count: runs.length })}</span> : undefined}>{t("assistant-taskeditor.section_history")}</SectionTitle>
               <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">
                 {runs.slice(0, 5).map((r) => (
-                  <RunLine key={r.id} run={r} now={now} onOpen={r.session_id ? () => open(r.session_id!) : undefined} />
+                  <RunLine key={r.id} run={r} now={now} onOpen={r.session_id ? open : undefined} />
                 ))}
               </div>
             </section>

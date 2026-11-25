@@ -171,7 +171,7 @@ function RoutinesPage({ scope, onToggleSidebar }: { scope: number; onToggleSideb
     if (!current()) return;
     if (task.repeat === "once") setTasks((list) => list?.filter((x) => x.id !== task.id) ?? list); // a one-off runs once
     try {
-      const r = await api<{ session_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { ...readOptions, method: "POST", json: {} });
+      await api<{ session_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { ...readOptions, method: "POST", json: {} });
       if (!current()) return;
       toast(t("assistant-taskeditor.run_started", { title: taskTitle(task) }), "ok");
       navigate({ name: "persona" });

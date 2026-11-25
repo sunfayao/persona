@@ -48,7 +48,6 @@ const { setToken } = await import("../../../lib/api");
 const { t } = await import("../../../i18n");
 const { ChatView } = await import("../ChatView");
 const { PersonaAssistant } = await import("../../PersonaAssistant");
-const { navigate, useRoute } = await import("../../../lib/router");
 const { resetOutboxClaimsForTests } = await import("../../../lib/outbox");
 const { resetStalePullsForTests } = await import("../useTranscript");
 const { loadPages } = await import("../../../lib/lazy-page");
@@ -166,11 +165,9 @@ function differences(got: ReturnType<typeof project> & { status?: string }, want
   return out;
 }
 
-/** A `new` chat: the new-conversation page, then the conversation it starts, where the page goes once it knows it. */
+/** A `new` chat: the main conversation's start page, then the conversation it starts, which the page shows once the hub names it main. */
 function NewConversation() {
-  const r = useRoute();
-  if (r.name === "persona" && r.sid) return <PersonaAssistant sid={r.sid} onToggleSidebar={() => {}} />;
-  return <PersonaAssistant fresh onToggleSidebar={() => {}} />;
+  return <PersonaAssistant onToggleSidebar={() => {}} />;
 }
 
 async function run(c: SyncCase, device: string): Promise<string[]> {
@@ -181,7 +178,6 @@ async function run(c: SyncCase, device: string): Promise<string[]> {
   store.connect();
   await settle();
   root = createRoot(host);
-  if (c.chat.new) navigate({ name: "persona-new" }, true);
   await act(async () => root.render(c.chat.new ? <NewConversation /> : <ChatView mid={mid} sid={sid} assistant={assistant} />));
   await settle(100);
 

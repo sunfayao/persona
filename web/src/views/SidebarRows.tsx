@@ -1,6 +1,6 @@
 // The sidebar's rows: Persona's main conversation, the pinned heading, a page's row, an agent's row and the personal
 // agents. Imports only SidebarParts among the sidebar's files.
-import { memo, useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { t } from "../i18n";
 import { awaitsReply, finishedUnopened, justFinished, sessionSource, sourceName } from "../lib/agent-groups";
 import { addSection, arrangeSessions, assignSection, GROUP_LABEL, isDefaultView, providerLabel, refreshAgentSessions, removeSection, resetView, setView, SHOW_LABEL, SORT_LABEL, toggleProvider, togglePin, totalUnread, updateAgentPrefs, useAgentList, useAgentPrefs, viewOf, type AgentPrefs, type AgentSession, type GroupBy, type ShowMode, type SortBy } from "../lib/agents";
@@ -16,7 +16,7 @@ import { useLeftDraft } from "../lib/drafts";
 import { planInRow, planLabel, planLine } from "../lib/plan";
 import { answeredSession, answerPending, lastAnsweredAt } from "./assistant/answered-lookup";
 import type { AgentState, Session } from "../lib/types";
-import { cx, EASE, Kbd, Menu, sidebarFoldMotion, useMenu, useNow, type MenuItem } from "../ui/atoms";
+import { cx, EASE, Kbd, Menu, useMenu, useNow, type MenuItem } from "../ui/atoms";
 import { StatusMark } from "../ui/StatusMark";
 import { runningWorkflows, workflowLine, workflowShortLine } from "../lib/workflows";
 import { ultracodeMarkShown } from "../lib/ultracode";
@@ -24,7 +24,6 @@ import { Rolling } from "../ui/Rolling";
 import { BrandMark } from "../ui/BrandMark";
 import { OriginMark } from "../ui/ChannelMark";
 import { autoOrigin, openerFrom } from "../lib/conversation-origins";
-import { InfoTip } from "../ui/InfoTip";
 import { Icon, type IconName } from "../ui/icons";
 import { UltraMark } from "./chat/Ultracode";
 import { contextMenuProps } from "../ui/context-menu";

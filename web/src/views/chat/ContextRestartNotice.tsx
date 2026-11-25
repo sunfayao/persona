@@ -55,7 +55,7 @@ export function ContextRestartNotice({ session, assistant, isMain }: { session: 
       }
       const manager = next.manager ?? session.manager;
       upsertSession({ ...next, manager });
-      if (assistant) adoptConversation(manager, next.session_id, next.machine_id);
+      if (assistant) adoptConversation(manager, next.session_id);
       if (location.href === sourcePage) {
         navigate(assistant ? { name: "persona" }
           : { name: "session", mid: next.machine_id, sid: next.session_id });

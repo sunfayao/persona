@@ -346,7 +346,7 @@ export class SyncHub {
     if (method === "GET") {
       if (path === "/api/v1/sessions") return this.read("/sessions", () => ({ sessions: this.rows() }));
       // the assistant's page reads where its conversations run; a started chat is the one it opens
-      if (path === "/api/v1/assistant") return json({ machine_id: this.c.chat.machine_id, conversations: this.rows() });
+      if (path === "/api/v1/assistant") return json({ machine_id: this.c.chat.machine_id, ...(this.started && this.c.chat.new ? { main: this.c.chat.session_id } : {}), conversations: this.rows() });
       if (path === "/api/v1/interactions") return this.read("/interactions", () => ({ interactions: structuredClone(this.truth.pending) }));
       if (path === "/api/v1/machines") return json({ machines: [{ id: this.c.chat.machine_id, name: "Hub machine", online: true }] });
       if (path === `${this.base}/items`) {

@@ -124,7 +124,7 @@ function deliver(target: Target, refs: ContextRef[], images: DraftImage[], lost:
   const s = target.s;
   const machine = getState().machines.find((m) => m.id === s.machine_id)?.name;
   place(keyOf(s), routed(s.assistant ? forwardRoute(from) : forwardRoute(from, { agent: agentLabel(s), machine })), images, lost);
-  if (s.assistant) navigate({ name: "persona", sid: s.session_id });
+  if (s.assistant) navigate({ name: "persona" });
   else navigate({ name: "session", mid: s.machine_id, sid: s.session_id, view: "chat" });
 }
 
