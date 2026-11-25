@@ -25,8 +25,3 @@ export function directoryKey(p: string): string | null {
   const canonical = directory(p);
   return canonical !== null && /^(?:[a-z]:\/|\/\/)/i.test(canonical) ? canonical.toLowerCase() : canonical;
 }
-
-export function sameDirectory(a: string, b: string): boolean {
-  const canonical = directoryKey(a);
-  return canonical !== null && canonical === directoryKey(b);
-}

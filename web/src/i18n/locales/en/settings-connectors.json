@@ -41,8 +41,6 @@
   "add_failed": "Couldn't add: {error}",
   "use_inbox": "Inbox",
   "use_inbox_detail": "DMs, @mentions, group messages, and mentions in Docs. AI sorts them first and drafts replies",
-  "use_knowledge": "Knowledge",
-  "use_knowledge_detail": "Chats, people, groups, and projects are archived as context for the assistant and AI twin",
   "use_assistant": "Assistant",
   "use_assistant_detail": "Persona can search messages and read docs. It asks on your phone before sending messages or making other changes",
   "use_agent_detail": "Start a message with /agent anywhere in Lark to have an agent handle it and reply for you",

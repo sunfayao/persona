@@ -41,8 +41,6 @@
   "add_failed": "没有加上：{error}",
   "use_inbox": "收件箱",
   "use_inbox_detail": "私聊、@我、群消息和云文档里提到你的地方，AI 先分拣、起草回复",
-  "use_knowledge": "知识库",
-  "use_knowledge_detail": "会话、人、群、项目归档下来，给助手和 AI 分身做上下文",
   "use_assistant": "助手",
   "use_assistant_detail": "Persona 能搜消息、读文档；发消息等写操作先在手机上问你",
   "use_agent_detail": "在飞书任何地方以 /agent 开头说一句，就起一个 Agent 处理并替你回复",

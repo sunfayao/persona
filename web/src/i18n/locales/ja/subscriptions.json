@@ -32,7 +32,6 @@
   "graph_filter": "表示",
   "graph_filter_all": "すべて {count}",
   "graph_filter_inbox": "受信箱へ {count}",
-  "graph_filter_kb": "ナレッジへ {count}",
   "graph_filter_idle": "読めない {count}",
   "graph_empty": "受信箱やナレッジベースに入れているソースはまだありません。",
   "graph_failed": "関係図を読めませんでした：{error}"

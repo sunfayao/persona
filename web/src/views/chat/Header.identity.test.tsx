@@ -44,7 +44,6 @@ describe("the main conversation header identity", () => {
     expect(pill.getAttribute("aria-haspopup")).toBe("menu");
     await act(async () => pill.click());
     expect(document.querySelector('[role="menu"]')?.textContent).toContain(t("assistant-assistantchat.details"));
-    expect(document.querySelector('[role="menu"]')?.textContent).toContain(t("assistant-assistantchat.knowledge"));
     expect(pill.getAttribute("aria-expanded")).toBe("true");
   });
   it("restores the face in the rail and full-screen layouts and removes it on expanding", () => {

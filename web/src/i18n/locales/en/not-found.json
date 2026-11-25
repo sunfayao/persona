@@ -5,8 +5,5 @@
   "agent_title": "Conversation not found",
   "agent_detail": "It may have been deleted, or the link is incomplete.",
   "agent_back": "Back to personal agents",
-  "todo_gone": "That to-do isn't here anymore. It may have been deleted.",
-  "kb_title": "Entry not found",
-  "kb_detail": "It may have been deleted or renamed.",
-  "kb_gone": "This entry isn't here anymore. It may have been deleted or renamed."
+  "todo_gone": "That to-do isn't here anymore. It may have been deleted."
 }

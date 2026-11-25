@@ -23,8 +23,6 @@
   "persona_agent_start": "派任务",
   "persona_interaction_answer": "替你回答",
   "persona_ask_persona": "交给 Persona",
-  "persona_kb_search": "查知识库",
-  "persona_kb_update": "更新知识库",
   "persona_ask_user": "问你",
   "persona_notify_user": "通知你",
   "persona_schedule_followup": "提醒",

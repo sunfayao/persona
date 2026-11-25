@@ -28,8 +28,6 @@
   "tab_managers": "助手",
   "hint_managers": "各个助手跑在哪、在不在线",
   "group_assistant": "{name} 的设置",
-  "tab_knowledge": "知识库选择",
-  "hint_knowledge": "Persona 读取和保存哪些聊天与文档",
   "tab_profile": "助手资料",
   "hint_avatar": "Persona 的名字和头像，各台设备同步",
   "group_device": "这台设备",

@@ -32,7 +32,6 @@
   "graph_filter": "显示",
   "graph_filter_all": "全部 {count}",
   "graph_filter_inbox": "进收件箱 {count}",
-  "graph_filter_kb": "进知识库 {count}",
   "graph_filter_idle": "读不到 {count}",
   "graph_empty": "还没有来源往收件箱或知识库里放东西。",
   "graph_failed": "读不到关系图：{error}"

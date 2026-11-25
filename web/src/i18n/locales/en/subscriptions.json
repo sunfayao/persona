@@ -32,7 +32,6 @@
   "graph_filter": "Show",
   "graph_filter_all": "All {count}",
   "graph_filter_inbox": "To Inbox {count}",
-  "graph_filter_kb": "To Knowledge {count}",
   "graph_filter_idle": "Can't Read {count}",
   "graph_empty": "Nothing brings things into the Inbox or the knowledge base yet.",
   "graph_failed": "Couldn't read the relationships: {error}"

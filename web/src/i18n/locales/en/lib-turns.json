@@ -24,8 +24,6 @@
   "persona_agent_start": "Assign task",
   "persona_interaction_answer": "Answer for you",
   "persona_ask_persona": "Hand to Persona",
-  "persona_kb_search": "Search knowledge",
-  "persona_kb_update": "Update knowledge",
   "persona_ask_user": "Ask you",
   "persona_notify_user": "Notify you",
   "persona_schedule_followup": "Remind",

@@ -28,8 +28,6 @@
   "tab_managers": "Assistants",
   "hint_managers": "Where each assistant runs and whether it's online",
   "group_assistant": "{name}'s settings",
-  "tab_knowledge": "Knowledge selection",
-  "hint_knowledge": "What chats and documents Persona reads and keeps",
   "tab_profile": "Assistant profile",
   "hint_avatar": "Persona's name and avatar, synced across your devices",
   "group_device": "This device",

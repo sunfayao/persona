@@ -23,8 +23,6 @@
   "persona_agent_start": "タスクを任せる",
   "persona_interaction_answer": "代わりに回答",
   "persona_ask_persona": "Persona に任せる",
-  "persona_kb_search": "ナレッジを検索",
-  "persona_kb_update": "ナレッジを更新",
   "persona_ask_user": "あなたに質問",
   "persona_notify_user": "あなたに通知",
   "persona_schedule_followup": "リマインド",
