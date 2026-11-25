@@ -406,6 +406,7 @@ func (n *Node) unclaimCodexThread(id string) {
 // for: the folder is trusted (they chose it), an update is skipped. A launcher that fails ends the wait at once.
 func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, began time.Time, images ...string) (string, error) {
 	poll := n.readinessPoll()
+	uploads := filepath.Join(n.dir, "uploads")
 	maxWait := codexStartWait
 	deadline := time.Now().Add(maxWait)
 	resolved := cwd
@@ -431,8 +432,13 @@ func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, be
 				}
 				// A thread begun by this launch (not one resumed in the same directory) whose first message is ours.
 				at, first, attached := codexThreadFirstInput(r.path)
+				// A launcher's own preconfigured images are independent of this request. The saved uploads
+				// distinguish a web image start from a simultaneous text start with the same words.
+				attached = slices.DeleteFunc(attached, func(path string) bool {
+					return filepath.Dir(filepath.Dir(path)) != uploads
+				})
 				if !at.Before(began.Add(-2*time.Second)) && strings.TrimSpace(first) == strings.TrimSpace(prompt) &&
-					(len(images) == 0 || slices.Equal(images, attached)) {
+					slices.Equal(images, attached) {
 					id := n.codexPublicID(home, r.id)
 					if n.claimCodexThread(pane, id) {
 						return id, nil
