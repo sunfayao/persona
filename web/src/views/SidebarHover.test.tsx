@@ -8,12 +8,8 @@ vi.hoisted(() => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
   window.matchMedia ??= ((query: string) => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false })) as typeof window.matchMedia;
 });
-// Sidebar's body calls sidebarConversations and AgentsBlock's calls arrangeSpaces on every render: counted
-const calls = vi.hoisted(() => ({ sidebar: 0, agents: 0 }));
-vi.mock("../lib/conversation-pins", async (load) => {
-  const real = await load<typeof import("../lib/conversation-pins")>();
-  return { ...real, sidebarConversations: (...a: Parameters<typeof real.sidebarConversations>) => (calls.sidebar++, real.sidebarConversations(...a)) };
-});
+// AgentsBlock's body calls arrangeSpaces on every render: counted
+const calls = vi.hoisted(() => ({ agents: 0 }));
 vi.mock("../lib/agent-filter", async (load) => {
   const real = await load<typeof import("../lib/agent-filter")>();
   return { ...real, arrangeSpaces: (...a: Parameters<typeof real.arrangeSpaces>) => (calls.agents++, real.arrangeSpaces(...a)) };
@@ -36,7 +32,7 @@ const flush = async () => {
 
 beforeEach(() => {
   localStorage.clear();
-  calls.sidebar = calls.agents = 0;
+  calls.agents = 0;
   vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(new Response(JSON.stringify(answers[new URL(url, "http://x").pathname] ?? {}), { headers: { "Content-Type": "application/json" } }))));
   // jsdom lays nothing out: each link is a 28px row at its place among the links, everything else a tall box
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
@@ -76,7 +72,7 @@ describe("hovering sidebar rows", () => {
     const links = [...list.querySelectorAll<HTMLAnchorElement>("a")].filter((a) => a.textContent?.includes("task ")).slice(0, 10);
     expect(links).toHaveLength(10);
     expect(host.textContent).toContain("task 12");
-    calls.sidebar = calls.agents = 0;
+    calls.agents = 0;
     commits = 0;
 
     const places = new Set<string>();
@@ -87,13 +83,11 @@ describe("hovering sidebar rows", () => {
     }
     // each row put the box at its own place
     expect(places.size).toBe(10);
-    console.info(`10 hovers: Sidebar renders ${calls.sidebar}, AgentsBlock renders ${calls.agents}, commits ${commits}`);
-    expect(calls.sidebar).toBe(0);
+    console.info(`10 hovers: AgentsBlock renders ${calls.agents}, commits ${commits}`);
     expect(calls.agents).toBe(0);
 
     // the pointer leaves the list: the box goes back to the open row; this route has none in the list, so it fades out
     act(() => void links[9].dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })));
     expect(glide.style.opacity).toBe("0");
-    expect(calls.sidebar).toBe(0);
   });
 });

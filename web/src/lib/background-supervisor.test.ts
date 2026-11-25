@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { backgroundSupervisorTitle, isBackgroundSupervisor, reviewedInBackground, REVIEW_BY_BACKGROUND } from "./background-supervisor";
-import { autoConversations, autoOrigin, matchesOrigin, recentConversations, unlistedConversations } from "./conversation-origins";
+import { autoOrigin, unlistedConversations } from "./conversation-origins";
 import type { FeedItem } from "./feed";
 import type { Session } from "./types";
 
@@ -30,20 +30,6 @@ describe("the background supervisor (#5082)", () => {
     // without the hub naming it, a row goes by its origin as before
     expect(autoOrigin(conv("bg", { origin: "user" }))).toBeUndefined();
     expect(autoOrigin(conv("other", { origin: "user" }), "bg")).toBeUndefined();
-    expect(matchesOrigin(conv("bg"), "task", "bg")).toBe(true);
-    expect(matchesOrigin(conv("bg"), "mine", "bg")).toBe(false);
-    expect(matchesOrigin(conv("bg"), "all", "bg")).toBe(true);
-    const list = [conv("main"), conv("bg", { state: "working" }), conv("morning", { origin: "task" }), conv("mine")];
-    expect(autoConversations(list, "main", "bg").groups).toEqual([{ origin: "task", count: 2, working: 1, needsYou: 0 }]);
-    expect(autoConversations(list, "main").groups).toEqual([{ origin: "task", count: 1, working: 0, needsYou: 0 }]);
-  });
-
-  it("is never among the sidebar's recent chats", () => {
-    const at = (h: number) => new Date(Date.UTC(2026, 10, 12, 12) - h * 3_600_000).toISOString();
-    const list = [conv("main", { updated_at: at(0) }), conv("bg", { updated_at: at(0.1) }), conv("a", { updated_at: at(1) }), conv("lead", { updated_at: at(2) })];
-    expect(recentConversations(list, "main", ["lead"], "bg").map((c) => c.session_id)).toEqual(["a"]);
-    // without its id (a hub from before it) a task's chat is still a scheduled task's, so it stays out of Recent too (#6228)
-    expect(recentConversations([...list.slice(0, 1), conv("bg", { origin: "task" }), ...list.slice(2)], "main", ["lead"]).map((c) => c.session_id)).toEqual(["a"]);
   });
 
   it("tells its reviews from the main chat's own and from a reviewer this page doesn't know", () => {
