@@ -304,7 +304,7 @@ The rule fields of `GET`/`PUT /api/v1/assistant/start-defaults` and of the neste
 | 标识 | 旧名 | 新名 | 新实现读旧状态 | 写入／安全约束 |
 | --- | --- | --- | --- | --- |
 | 网页登录 | `jarvis.token`, `jarvis.tokenId` | `persona.token`, `persona.tokenId` | canonical 存在（包括空串）优先；旧 token 的 ID 只与同一旧 token 一起迁移 | 写两套，退出清两套；不把旧 ID 配到新的 token |
-| 网页外观与筛选 | `jarvis.theme`, `jarvis.agents.prefs`, `jarvis.agentGrouping`, `jarvis.agentFilter`, `jarvis.files.view` | 相应 `persona.…` 精确键 | 只读登记的键，不按 prefix 扫描任意 storage | 外观同步 bootstrap 在首帧前读旧 theme，不接触凭据；修改双写 |
+| 网页外观与筛选 | `jarvis.theme`, `jarvis.agents.prefs`, `jarvis.agentFilter`, `jarvis.files.view` | 相应 `persona.…` 精确键 | 只读登记的键，不按 prefix 扫描任意 storage | 外观同步 bootstrap 在首帧前读旧 theme，不接触凭据；修改双写 |
 | 网页新对话草稿 | `draft:jarvis-new` | `draft:persona-new` | Composer 实际读旧键，canonical presence 优先 | 双写，保留其他会话草稿键 |
 | Android 分栏偏好 | `jarvis-panes`, `split.jarvis` | `persona-panes`, `split.persona` | canonical preference／值存在时优先，否则读旧；普通 pane key 不改 | 保存当前键，不清空旧 AppData |
 | Android 已排队确认 | `jarvis.phone.confirm` | `persona.phone.confirm` | receiver 双读 action，既有 data scheme 不加限制 | 保持 live callback 和锁屏授权限制；不自动批准 |

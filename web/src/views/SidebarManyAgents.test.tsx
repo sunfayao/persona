@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The complete Agents list with hundreds of Agents (the sidebar and the phone's Agents page): a folded group mounts no
-// rows, an open long group draws a bounded number of them (its first rows, its last, the parts near the view and the
-// part holding the open row) under every grouping, By machine's workspaces too, a row keeps its element as the list
-// changes around it, and a group heading's height comes from a ResizeObserver, never from a layout read on mount.
+// The complete Agents list with hundreds of Agents (the sidebar and the phone's Agents page): a folded project mounts no
+// rows, an open long project draws a bounded number of them (its first rows, its last, the parts near the view and the
+// part holding the open row), a row keeps its element as the list changes around it, and a group heading's height comes
+// from a ResizeObserver, never from a layout read on mount.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,22 +23,23 @@ const { intersections, sizes } = vi.hoisted(() => {
   window.matchMedia ??= ((query: string) => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false })) as typeof window.matchMedia;
   return { intersections, sizes };
 });
-import { buildMachineTree } from "../lib/herdr-tree";
-import { buildTodoTree } from "../lib/todo-tree";
-import type { Machine, Session } from "../lib/types";
+import type { Space } from "../lib/agent-groups";
+import type { Session } from "../lib/types";
 import { SESSION_LIST_METRICS } from "../ui/list-metrics";
 import { Section, SidebarGroup } from "./SidebarSection";
-import { MachineSection, TodoTreeView } from "./SidebarTree";
+import { SpaceSection } from "./SidebarTree";
 import { partCount, WindowedRows } from "./WindowedRows";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const { windowHead: HEAD, windowPart: PART } = SESSION_LIST_METRICS;
 const at = new Date(Date.now() - 3 * 86_400_000).toISOString();
-const machines: Machine[] = [{ id: "m1", name: "Mac", online: true }];
-// 400 Agents on no to-do, all done and seen, as the audit's hub had them
+// 400 Agents in one project, all done and seen, as the audit's hub had them
 const many: Session[] = Array.from({ length: 400 }, (_, i) => ({ machine_id: "m1", session_id: `s${i}`, title: `Session ${i}`, cwd: "/code/app", status: "idle", state: "idle", updated_at: at }));
-const stable = { reg: () => () => {}, hover: () => {}, go: () => () => {}, onRowMenu: () => {} };
+const space: Space = { key: "m1/app", machineId: "m1", name: "app", sessions: many };
+const stable = { reg: () => () => {}, hover: () => {}, go: () => () => {}, onRowMenu: () => {}, onMenu: () => {}, pinned: false, muted: false };
+const FOLD = "fold:space:m1/app";
+const heading = () => host.querySelector<HTMLButtonElement>("[data-sidebar-group-heading] button[aria-expanded]")!;
 
 let host: HTMLDivElement;
 let root: Root;
@@ -84,23 +85,21 @@ afterEach(() => {
 
 describe("a long list of Agents", () => {
   it("mounts no rows under a folded group", async () => {
-    localStorage.setItem("fold:todo:none", "1");
-    const tree = buildTodoTree(many, machines, [], { spaces: [], sessions: [] }, Date.now());
-    act(() => root.render(<TodoTreeView tree={tree} machines={machines} activeKey="" {...stable} />));
+    localStorage.setItem(FOLD, "1");
+    act(() => root.render(<SpaceSection sp={space} activeKey="" {...stable} />));
     await settle();
-    expect(host.querySelector('[data-tree-branch="todo:none"] button[aria-expanded]')!.getAttribute("aria-expanded")).toBe("false");
+    expect(heading().getAttribute("aria-expanded")).toBe("false");
     // before, all 400 were there under the fold, inert
     expect(agentLinks()).toHaveLength(0);
     // opened, its rows come
-    act(() => host.querySelector<HTMLButtonElement>('[data-tree-branch="todo:none"] button[aria-expanded]')!.click());
+    act(() => heading().click());
     await settle();
     expect(agentLinks().length).toBeGreaterThan(0);
   });
 
   it("draws a bounded number of an open group's rows, and keeps the rest's place", async () => {
-    localStorage.setItem("fold:todo:none", "0");
-    const tree = buildTodoTree(many, machines, [], { spaces: [], sessions: [] }, Date.now());
-    act(() => root.render(<TodoTreeView tree={tree} machines={machines} activeKey="" {...stable} />));
+    localStorage.setItem(FOLD, "0");
+    act(() => root.render(<SpaceSection sp={space} activeKey="" {...stable} />));
     await settle();
     // the first rows and the last, a box for each part between: before, all 400 rows were drawn at once
     expect(agentLinks()).toHaveLength(HEAD + 1);
@@ -113,51 +112,28 @@ describe("a long list of Agents", () => {
   });
 
   it("draws the open Agent's row and the parts beside it wherever it is", async () => {
-    localStorage.setItem("fold:todo:none", "0");
-    const tree = buildTodoTree(many, machines, [], { spaces: [], sessions: [] }, Date.now());
-    act(() => root.render(<TodoTreeView tree={tree} machines={machines} activeKey="s:m1/s300" {...stable} />));
+    localStorage.setItem(FOLD, "0");
+    act(() => root.render(<SpaceSection sp={space} activeKey="s:m1/s300" {...stable} />));
     await settle();
     const shown = agentLinks().map((a) => a.getAttribute("href"));
     expect(shown).toContain("/s/m1/s300");
     expect(shown.length).toBeLessThanOrEqual(HEAD + 3 * PART + 1);
     // a herdr Agent's page moves on to its tab's address, which no row here holds: its row stays for the second
     // scroll to it
-    act(() => root.render(<TodoTreeView tree={tree} machines={machines} activeKey="t:m1/w1/t1" {...stable} />));
+    act(() => root.render(<SpaceSection sp={space} activeKey="t:m1/w1/t1" {...stable} />));
     await settle();
     expect(agentLinks().map((a) => a.getAttribute("href"))).toContain("/s/m1/s300");
   });
 
   it("keeps the part holding the keyboard's focus and the next one drawn", async () => {
-    localStorage.setItem("fold:todo:none", "0");
-    const tree = buildTodoTree(many, machines, [], { spaces: [], sessions: [] }, Date.now());
-    act(() => root.render(<TodoTreeView tree={tree} machines={machines} activeKey="" {...stable} />));
+    localStorage.setItem(FOLD, "0");
+    act(() => root.render(<SpaceSection sp={space} activeKey="" {...stable} />));
     await settle();
     // Tab reaches the last of the first rows: the next part is there for the next Tab
     const last = agentLinks()[HEAD - 1]!;
     act(() => last.focus());
     expect(agentLinks()).toHaveLength(HEAD + PART + 1);
     expect(document.activeElement).toBe(last);
-  });
-
-  it("draws a By machine workspace with hundreds of tabs a part at a time", async () => {
-    // the audit's hub: every Agent a tab of one herdr workspace
-    const tabs: Session[] = many.map((s, i) => ({ ...s, space_kind: "herdr", space_id: "w1", space_name: "fixture", space_index: 0, slot_id: `w1:t${i}`, slot_index: i, slot_name: String(i), tab_id: `w1:t${i}`, pane_id: `w1:p${i}` }));
-    const [m] = buildMachineTree(machines, tabs);
-    expect(m!.spaces[0]!.tabs).toHaveLength(400);
-    // a workspace of quiet Agents starts folded: this one is open
-    localStorage.setItem(`fold:${m!.spaces[0]!.foldKey}`, "0");
-    const tabLinks = () => [...host.querySelectorAll<HTMLAnchorElement>('a[href^="/t/"]')];
-    const draw = (activeKey: string) => act(() => root.render(<MachineSection m={m!} machines={machines} activeKey={activeKey} mutes={{ spaces: [], sessions: [], allowed: [] }} onSpaceMenu={() => {}} onNodeMenu={() => {}} {...stable} />));
-    draw("");
-    await settle();
-    // before, its 400 tabs were drawn at once whatever the grouping's windowing did elsewhere
-    expect(tabLinks()).toHaveLength(HEAD + 1);
-    expect(gaps()).toHaveLength(partCount(400) - 2);
-    // the open Agent deep in it is drawn, with the parts beside it
-    draw("s:m1/s300");
-    await settle();
-    expect(tabLinks().some((a) => a.textContent?.includes("Session 300"))).toBe(true);
-    expect(tabLinks().length).toBeLessThanOrEqual(HEAD + 3 * PART + 1);
   });
 });
 

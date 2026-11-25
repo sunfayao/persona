@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMachineTree, homeOverview, homeTaskGroups, launcherOf, mostUrgent, paneOrder, paneRoute, resolveTab, summaryState, tabGroups, tabOfSessionLink, tabPagePane, tabRowKeys } from "./herdr-tree";
+import { buildMachineTree, homeOverview, homeTaskGroups, launcherOf, mostUrgent, paneOrder, paneRoute, resolveTab, summaryState, tabGroups, tabOfSessionLink, tabPagePane } from "./herdr-tree";
 import { keyedRefs } from "./keyed-refs";
 import type { AgentState, Machine, Session } from "./types";
 
@@ -367,40 +367,9 @@ describe("panes of one tab", () => {
   });
 });
 
-// A folded tab's pane rows stay mounted in the closed collapse: only the visible row may hold the open pane's key, or
-// the highlight and the scroll to the open row land on a hidden row (#2320).
-describe("a multi-agent tab's rows in the sidebar's registry", () => {
+describe("keyedRefs", () => {
   type Row = { name: string };
-  const tabRow: Row = { name: "tab" },
-    paneRows: Row[] = [{ name: "pane 0" }, { name: "pane 1" }];
-  const paneKeys = ["s:mac/a", "s:mac/b"];
-  // one render of TabRow: each row's ref under its key (none for a hidden pane); the refs it had before let go first,
-  // as React does
-  const render = (reg: (k: string) => (el: Row | null) => void, shut: boolean, before: ((el: Row | null) => void)[]) => {
-    before.forEach((r) => r(null));
-    const keys = tabRowKeys("t:tab", paneKeys, "s:mac/b", shut);
-    const mounted: [string, Row][] = [[keys.row, tabRow], ...keys.panes.flatMap((k, i): [string, Row][] => (k ? [[k, paneRows[i]!]] : []))];
-    return mounted.map(([k, el]) => {
-      const ref = reg(k);
-      ref(el);
-      return ref;
-    });
-  };
-
-  it("folded, the tab's row holds the open pane's key; opened up, that pane's row does", () => {
-    const rows = new Map<string, Row>();
-    const reg = keyedRefs(rows);
-    let refs = render(reg, true, []);
-    expect(rows.get("s:mac/b")).toBe(tabRow);
-    expect([...rows.keys()]).toEqual(["s:mac/b"]);
-    refs = render(reg, false, refs);
-    expect(rows.get("s:mac/b")).toBe(paneRows[1]);
-    expect(rows.get("t:tab")).toBe(tabRow);
-    expect(rows.get("s:mac/a")).toBe(paneRows[0]);
-    render(reg, true, refs);
-    expect(rows.get("s:mac/b")).toBe(tabRow);
-    expect(rows.has("t:tab")).toBe(false);
-  });
+  const tabRow: Row = { name: "tab" }, paneRow: Row = { name: "pane 0" };
 
   it("a row letting go of a key takes out only its own entry", () => {
     const rows = new Map<string, Row>();
@@ -408,15 +377,10 @@ describe("a multi-agent tab's rows in the sidebar's registry", () => {
     const first = reg("k"),
       second = reg("k");
     first(tabRow);
-    second(paneRows[0]!);
+    second(paneRow);
     first(null);
-    expect(rows.get("k")).toBe(paneRows[0]);
+    expect(rows.get("k")).toBe(paneRow);
     second(null);
     expect(rows.has("k")).toBe(false);
-  });
-
-  it("a tab not holding the open pane keeps its own key either way", () => {
-    expect(tabRowKeys("t:tab", paneKeys, "s:mac/z", true)).toEqual({ row: "t:tab", panes: [undefined, undefined] });
-    expect(tabRowKeys("t:tab", paneKeys, "s:mac/z", false)).toEqual({ row: "t:tab", panes: paneKeys });
   });
 });

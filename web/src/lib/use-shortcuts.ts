@@ -2,8 +2,6 @@
 // and the one keydown listener that dispatches them. Mounted once, by the shell.
 import { t } from "../i18n";
 import { useEffect, useRef } from "react";
-import { toast } from "../ui/atoms";
-import { AGENT_GROUPINGS } from "./agent-groups";
 import { adjacentTab, machineAt, panelToggle, terminalChat, type PaneRef } from "./shortcut-nav";
 import { closeHelp, toggleHelp } from "./shortcut-help";
 import { focusInColumn, toggleMaximized, toggleSidebarColumn } from "./layout";
@@ -11,7 +9,7 @@ import { closePalette, getPalette, togglePalette, type PaletteMode } from "./pal
 import { closePanel, getPanel, openPanel, type Panel } from "./panel";
 import { inWorkView, navigate, withWorkView, type Route } from "./router";
 import { canShowTerminal, readView, rememberView, resolveView } from "./session-view";
-import { cycleGrouping, groupingLabel, setAllFolded, stepSidebarRow } from "./sidebar-api";
+import { setAllFolded, stepSidebarRow } from "./sidebar-api";
 import { focusWaitingCard } from "./card-keys";
 import { dispatchKey, registerShortcut } from "./shortcuts";
 import { getSession, getState } from "./store";
@@ -124,10 +122,6 @@ export function useShortcuts(ctx: ShortcutContext) {
       registerShortcut("focus-card", () => focusWaitingCard()),
       registerShortcut("prev-tab", () => step(-1)),
       registerShortcut("next-tab", () => step(1)),
-      registerShortcut("sidebar-grouping", () => {
-        const offered = AGENT_GROUPINGS.map((g) => g.key).filter((k) => getState().todosSupported !== false || k !== "todo");
-        toast(t("lib-use-shortcuts.grouping_toast", { grouping: groupingLabel(cycleGrouping(offered)) }));
-      }),
       registerShortcut("prev-row", () => stepSidebarRow(-1)),
       registerShortcut("next-row", () => stepSidebarRow(1)),
       registerShortcut("collapse-tree", () => setAllFolded(true)),

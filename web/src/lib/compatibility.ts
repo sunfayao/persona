@@ -4,7 +4,6 @@ const STORAGE_ALIASES: Record<string, string> = Object.assign(Object.create(null
   "persona.tokenId": "jarvis.tokenId",
   "persona.theme": "jarvis.theme",
   "persona.agents.prefs": "jarvis.agents.prefs",
-  "persona.agentGrouping": "jarvis.agentGrouping",
   "persona.agentFilter": "jarvis.agentFilter",
   "persona.files.view": "jarvis.files.view",
   "draft:persona-new": "draft:jarvis-new",

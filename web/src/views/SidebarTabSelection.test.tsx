@@ -97,7 +97,6 @@ function answerSessions(url: URL) {
 }
 
 async function bootPagedHub() {
-  localStorage.setItem("persona.agentGrouping", "space");
   vi.stubGlobal("fetch", vi.fn((input: string) => {
     const url = new URL(input, "http://hub.example.com");
     if (url.pathname.endsWith("/sessions")) return answerSessions(url);

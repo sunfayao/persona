@@ -33,10 +33,9 @@ beforeEach(async () => {
   resetFoldAll();
   setSidebarCollapsed(false);
   history.replaceState(null, "", "/");
-  localStorage.setItem("persona.agentGrouping", "state");
   const agents: Session[] = [
-    { machine_id: "mac", session_id: "s1", title: "Release script", cwd: "/code/a", status: "working", state: "working" },
-    { machine_id: "mac", session_id: "s2", title: "Read the logs", cwd: "/code/b", status: "idle", state: "idle" },
+    { machine_id: "mac", session_id: "s1", title: "Release script", cwd: "/code/a", status: "working", state: "working", space_id: "a", space_name: "a" },
+    { machine_id: "mac", session_id: "s2", title: "Read the logs", cwd: "/code/b", status: "idle", state: "idle", space_id: "b", space_name: "b" },
   ];
   vi.stubGlobal("fetch", vi.fn((url: string) => {
     const path = new URL(url, "http://x").pathname;

@@ -10,9 +10,8 @@ import { IconButton } from "../ui/atoms";
 import { ShellHeaderSlots } from "./ShellSwitch";
 import { AgentsList } from "./Sidebar";
 import { t } from "../i18n";
-import type { WorkspaceTreeActions } from "./SidebarTree";
 
-export function AgentsPage({ route, onToggleSidebar, onNewAgent, workspaceActions }: { route: Route; onToggleSidebar: () => void; onNewAgent: () => void; workspaceActions?: WorkspaceTreeActions }) {
+export function AgentsPage({ route, onToggleSidebar, onNewAgent }: { route: Route; onToggleSidebar: () => void; onNewAgent: () => void }) {
   return (
     <div className="flex h-full min-w-0 flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-page/85 px-3 backdrop-blur-md sm:px-4">
@@ -21,7 +20,7 @@ export function AgentsPage({ route, onToggleSidebar, onNewAgent, workspaceAction
       </header>
       <div className="flex min-h-0 flex-1 flex-col">
         <HiddenAgentSessions />
-        <div className="min-h-0 flex-1"><AgentsList route={route} onNewAgent={onNewAgent} workspaceActions={workspaceActions} /></div>
+        <div className="min-h-0 flex-1"><AgentsList route={route} onNewAgent={onNewAgent} /></div>
       </div>
     </div>
   );

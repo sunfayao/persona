@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Sidebar launch handoff (#12380): launching a new Agent with an initial prompt transitions cleanly from the
 // "Starting" placeholder directly into "Working" without briefly flashing/counting into "Done unread" ("完成未看")
-// in the "Not on a to-do" group.
+// in the quick filters' counts.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,6 +29,7 @@ vi.hoisted(() => {
 });
 
 import { deliverLaunch, launchAgent } from "../lib/new-agent";
+import { t } from "../i18n";
 import { connect, flushPushes, getState, reset } from "../lib/store";
 import type { Machine, Session } from "../lib/types";
 import { Sidebar } from "./Sidebar";
@@ -59,7 +60,15 @@ let root: Root;
 const flush = async () => {
   for (let i = 0; i < 6; i++) await act(async () => { flushPushes(); await new Promise((r) => setTimeout(r, 0)); });
 };
-const todoNoneRow = () => host.querySelector('[data-tree-branch="todo:none"] [data-tree-branch-row]')?.textContent ?? "";
+/** A quick filter chip's count (0 for a chip not offered). */
+const chip = (label: string) => {
+  const button = [...host.querySelectorAll<HTMLButtonElement>(`[role="radiogroup"][aria-label="${t("sidebar.quick_filters")}"] button`)].find((b) => b.getAttribute("aria-label")?.startsWith(`${label} `));
+  return button ? Number(button.getAttribute("aria-label")!.slice(label.length + 1)) : 0;
+};
+const unread = () => chip("完成未看");
+const working = () => chip("工作中");
+/** How many rows of the list link to the new session (the Starting row links to the launch). */
+const listed = () => host.querySelectorAll('[data-sidebar-agents] a[href="/s/mac/s-new"]').length;
 const startingSection = () => [...host.querySelectorAll("[data-sidebar-group-heading]")].find((el) => el.textContent?.includes("正在启动"));
 
 beforeEach(() => {
@@ -80,7 +89,7 @@ afterEach(() => {
 });
 
 describe("Sidebar launch handoff (#12380)", () => {
-  it("transitions 'Not on a to-do' directly from 10 Done unread to 11 Working without flashing 11 Done unread", async () => {
+  it("transitions directly from 1 Done unread to 1 Working without flashing 2 Done unread", async () => {
     const base = unassignedSessions();
     const created: Session = { machine_id: "mac", session_id: "s-new", title: "Fix issue", cwd: "/code/app", status: "idle", state: "idle", updated_at: at };
     let resolveCreate!: (res: Response) => void;
@@ -107,47 +116,48 @@ describe("Sidebar launch handoff (#12380)", () => {
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
 
-    // Baseline: 10 unassigned agents, with 1 Done unread.
-    expect(todoNoneRow()).toMatch(/10 个 Agent完成未看$/);
+    // Baseline: 10 agents, with 1 Done unread.
+    expect([unread(), working()]).toEqual([1, 0]);
     expect(startingSection()).toBeUndefined();
 
-    // Phase 1: creating -> shown in Starting, unassigned stays 10 Done unread.
+    // Phase 1: creating -> shown in Starting, the counts stay.
     let launchId = "";
     act(() => { launchId = launchAgent({ machineId: "mac", cwd: "/code/app", launcher: "claude", text: "Fix issue", attachments: [] }, { open: false }); });
     await flush();
     expect(startingSection()).toBeDefined();
-    expect(todoNoneRow()).toMatch(/10 个 Agent完成未看$/);
+    expect([unread(), working()]).toEqual([1, 0]);
 
-    // Phase 2: POST /sessions returns an idle session while POST /messages is still in flight -> no duplicate in todo:none, no 11 Done unread flash.
+    // Phase 2: POST /sessions returns an idle session while POST /messages is still in flight -> no duplicate in the list, no 2 Done unread flash.
     await act(async () => { resolveCreate(json({ session: created })); });
     await flush();
     expect(getState().launches[launchId].phase).toBe("sending");
     expect(startingSection()).toBeDefined();
-    expect(todoNoneRow()).toMatch(/10 个 Agent完成未看$/);
+    expect([unread(), working()]).toEqual([1, 0]);
+    expect(listed()).toBe(0);
 
     // Phase 3: POST /messages succeeds -> phase becomes ready while hub has not yet pushed working (and even if a transient unread arrives with no reply).
     await act(async () => { resolveSend(json({ ok: true })); });
     await flush();
     expect(getState().launches[launchId].phase).toBe("ready");
     expect(startingSection()).toBeUndefined();
-    expect(todoNoneRow()).toMatch(/11 个 Agent工作中$/);
-    expect(todoNoneRow()).not.toContain("完成未看");
+    expect([unread(), working()]).toEqual([1, 1]);
+    expect(listed()).toBe(1);
 
     // Even if a transient hub push reports idle/unread with no reply before working arrives, it stays Working.
     act(() => sock.push({ type: "sessions", machine_id: "mac", sessions: [...base, { ...created, state: "unread", status: "idle" }] }));
     await flush();
-    expect(todoNoneRow()).toMatch(/11 个 Agent工作中$/);
+    expect([unread(), working()]).toEqual([1, 1]);
 
     // Phase 4: Hub confirms working -> stays Working and settles handoffAt.
     act(() => sock.push({ type: "sessions", machine_id: "mac", sessions: [...base, { ...created, state: "working", status: "working" }] }));
     await flush();
-    expect(todoNoneRow()).toMatch(/11 个 Agent工作中$/);
+    expect([unread(), working()]).toEqual([1, 1]);
     expect(getState().launches[launchId].handoffAt).toBeUndefined();
 
     // Phase 5: Turn finishes -> transitions cleanly from Working to Done unread.
     act(() => sock.push({ type: "sessions", machine_id: "mac", sessions: [...base, { ...created, state: "unread", status: "idle", last_text: "Fixed." }] }));
     await flush();
-    expect(todoNoneRow()).toMatch(/11 个 Agent完成未看$/);
+    expect([unread(), working()]).toEqual([2, 0]);
   });
 
   it("does not hold an empty-prompt launch or failed send in Working state", async () => {
@@ -189,7 +199,7 @@ describe("Sidebar launch handoff (#12380)", () => {
     await flush();
     expect(getState().launches[emptyId].phase).toBe("ready");
     expect(getState().launches[emptyId].handoffAt).toBeUndefined();
-    expect(todoNoneRow()).toMatch(/11 个 Agent完成未看$/);
+    expect([unread(), working()]).toEqual([1, 0]);
 
     // Failed first-message send: handoffAt is cleared, never stuck in Working.
     let failId = "";
@@ -198,6 +208,6 @@ describe("Sidebar launch handoff (#12380)", () => {
     await flush();
     expect(getState().launches[failId].phase).toBe("failed");
     expect(getState().launches[failId].handoffAt).toBeUndefined();
-    expect(todoNoneRow()).not.toContain("工作中");
+    expect(working()).toBe(0);
   });
 });

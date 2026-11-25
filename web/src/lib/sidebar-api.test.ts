@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AGENTS_FOLD, agentsFoldAction, cycleGrouping, GROUPING_KEY, groupingLabel, nextGrouping, onFoldAll, onGrouping, setAgentsFolded, setAllFolded, stepIndex } from "./sidebar-api";
+import { AGENTS_FOLD, agentsFoldAction, onFoldAll, setAgentsFolded, setAllFolded, stepIndex } from "./sidebar-api";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -38,33 +38,6 @@ describe("folding every group", () => {
     off();
     expect(seen).toEqual([true, false]);
     expect(Object.fromEntries(kept)).toEqual({ "fold:space:mac/a": "0", "fold:tree:mac/ws/1": "0", "fold:tree:mac": "0", "fold:persona": "1", "fold:term:m:mac": "1", other: "1" });
-  });
-});
-
-describe("the sidebar's grouping", () => {
-  it("goes round the groupings", () => {
-    expect(nextGrouping("todo")).toBe("machine");
-    expect(nextGrouping("machine")).toBe("repo");
-    expect(nextGrouping("state")).toBe("todo");
-  });
-  it("skips the ones a hub does not offer", () => {
-    expect(nextGrouping("state", ["machine", "repo", "space", "state"])).toBe("machine");
-    expect(nextGrouping("todo", ["machine", "repo"])).toBe("repo");
-  });
-  it("keeps the choice in this browser, as the menu does, and tells the sidebar", () => {
-    const store = new Map<string, string>([[GROUPING_KEY, "repo"]]);
-    vi.stubGlobal("localStorage", { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) });
-    const seen: string[] = [];
-    const off = onGrouping((g) => seen.push(g));
-    expect(cycleGrouping()).toBe("space");
-    expect(store.get(GROUPING_KEY)).toBe("space");
-    expect(seen).toEqual(["space"]);
-    off();
-    expect(groupingLabel("space")).toBe("按项目");
-  });
-  it("starts from by todo when nothing was chosen", () => {
-    vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
-    expect(cycleGrouping()).toBe("machine");
   });
 });
 

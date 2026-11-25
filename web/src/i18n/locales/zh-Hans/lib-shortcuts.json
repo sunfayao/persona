@@ -22,7 +22,6 @@
   "cmd_focus_card": "聚焦等待中的卡片",
   "cmd_prev_tab": "本机上一个标签页",
   "cmd_next_tab": "本机下一个标签页",
-  "cmd_sidebar_grouping": "切换侧边栏的分组方式",
   "cmd_prev_row": "侧边栏上一行",
   "cmd_next_row": "侧边栏下一行",
   "cmd_collapse_tree": "折叠侧边栏的全部分组",

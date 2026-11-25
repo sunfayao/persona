@@ -70,7 +70,6 @@ function answer(url: URL) {
 }
 
 async function render() {
-  localStorage.setItem("persona.agentGrouping", "space");
   const fetch = vi.fn((input: string) => {
     const url = new URL(input, "http://hub.example.com");
     if (url.pathname.endsWith("/sessions")) return answer(url);

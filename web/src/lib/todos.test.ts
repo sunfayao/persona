@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasRequestPieces } from "./request-pieces";
-import type { Machine, Session } from "./types";
+import type { Session } from "./types";
 import {
   DECISIONS_FIRST,
   shownDecisions,
@@ -35,15 +35,7 @@ import {
   type TodoSpace,
 } from "./todos";
 import { cancellationReason, formatAgentSource, formatTodoContext, resolveLinkCurrentTodoId } from "./todo-details";
-import type { AgentMutes } from "./agent-groups";
-import { machineSessionOrder } from "./herdr-tree";
 import { BOARD_ORDER, boardSectionOf } from "./task-board";
-
-const machines: Machine[] = [
-  { id: "mac-1", name: "MacBook", online: true },
-  { id: "server-1", name: "服务器", online: true },
-  { id: "mac-off", name: "离线电脑", online: false },
-];
 
 const mockSession = (mid: string, sid: string, state: Session["state"], patch: Partial<Session> = {}): Session => ({
   machine_id: mid,
@@ -374,173 +366,6 @@ describe("最要紧的 Agent (mostUrgentAgent)", () => {
     expect(best?.agent.session_id).toBe("s2");
     expect(best?.status).toBe("needs_you");
     expect(best?.session?.last_text).toBe("请选择测试框架");
-  });
-});
-
-describe("Agents 侧边栏「按待办」分组 (buildTodoAgentGroups)", () => {
-  const mutes: AgentMutes = { spaces: [], sessions: ["mac-1/muted-work"] };
-
-  it("每个挂了 live agent 的未完成待办一段，没挂待办的放最后「未归属」，默认折叠", () => {
-    const sWeatherTests = mockSession("mac-1", "weather-tests", "needs_you", { todo: { id: "todo-weather", title: "天气 App" } });
-    const sWeatherWidget = mockSession("mac-1", "weather-widget", "working", { todo: { id: "todo-weather", title: "天气 App" } });
-    const sBlog = mockSession("mac-1", "blog-migrate", "unread", { todo: { id: "todo-blog", title: "博客迁移" } });
-    const sSolo = mockSession("server-1", "solo-task", "idle"); // not linked to a todo
-
-    const all = [sWeatherTests, sWeatherWidget, sBlog, sSolo];
-
-    const todos: Todo[] = [
-      {
-        id: "todo-weather",
-        title: "天气 App 发 1.3 版",
-        created_at: "2026-11-02T10:00:00Z",
-        updated_at: "",
-        agents: [
-          { machine_id: "mac-1", session_id: "weather-tests", linked_at: "" },
-          { machine_id: "mac-1", session_id: "weather-widget", linked_at: "" },
-        ],
-      },
-      {
-        id: "todo-blog",
-        title: "博客迁移到 Astro",
-        created_at: "2026-11-02T09:00:00Z",
-        updated_at: "",
-        agents: [{ machine_id: "mac-1", session_id: "blog-migrate", linked_at: "" }],
-      },
-    ];
-
-    const groups = buildTodoAgentGroups(all, machines, todos, mutes);
-    expect(groups.map((g) => g.name)).toEqual(["天气 App 发 1.3 版", "博客迁移到 Astro", "没挂待办的"]);
-    expect(groups[2].hint).toContain("没挂在任何待办上");
-    expect(groups[0].hint).toBeUndefined();
-    expect(groups[groups.length - 1].folded).toBe(true);
-    expect(groups[0].todoStatus).toBe("needs_you");
-    expect(groups[0].sessions.map((s) => s.session_id)).toEqual(["weather-tests", "weather-widget"]);
-    expect(groups[1].todoStatus).toBe("unread");
-    expect(groups[1].sessions.map((s) => s.session_id)).toEqual(["blog-migrate"]);
-    expect(groups[2].sessions.map((s) => s.session_id)).toEqual(["solo-task"]);
-  });
-
-  it("没挂待办的 Agent 一段「没挂待办的」，在终端里手动开的也在里面 (#6591; 原先单独一段, #2608)", () => {
-    const sOnTodo = mockSession("mac-1", "on-todo", "working", { space_kind: "herdr", started_by_persona: false, todo: { id: "todo-a", title: "A" } });
-    const sManual = mockSession("mac-1", "manual-herdr", "idle", { space_kind: "herdr", started_by_persona: false });
-    const sByPersona = mockSession("mac-1", "persona-herdr", "idle", { space_kind: "herdr", started_by_persona: true });
-    const sBotmux = mockSession("mac-1", "botmux-chat", "idle", { space_kind: "botmux" });
-    const todos: Todo[] = [
-      { id: "todo-a", title: "待办 A", created_at: "2026-11-02T10:00:00Z", updated_at: "", agents: [{ machine_id: "mac-1", session_id: "on-todo", linked_at: "" }] },
-    ];
-
-    const groups = buildTodoAgentGroups([sOnTodo, sManual, sByPersona, sBotmux], machines, todos, mutes);
-    expect(groups.map((g) => g.key)).toEqual(["todo:todo-a", "todo:none"]);
-    expect(groups[1].name).toBe("没挂待办的");
-    // the name alone does not say why these are here: the group says it (#3057), the terminal ones included
-    expect(groups[1].hint).toContain("没挂在任何待办上");
-    expect(groups[1].hint).toContain("终端");
-    expect(groups[1].sessions.map((s) => s.session_id).sort()).toEqual(["botmux-chat", "manual-herdr", "persona-herdr"]);
-    expect(groups[1].folded).toBe(true);
-
-    // no todo above: it is the whole list, so open
-    const noTodo = buildTodoAgentGroups([sManual, sBotmux], machines, [], mutes);
-    expect(noTodo.map((g) => g.key)).toEqual(["todo:none"]);
-    expect(noTodo[0].folded).toBe(false);
-  });
-
-  it("Agent 换到另一个待办后马上归新待办，即使旧待办的列表还没刷新 (#4802)", () => {
-    // the session (pushed first) is already on B; A's agents list, refreshed later, still has it
-    const sMoved = mockSession("mac-1", "moved", "working", { todo: { id: "todo-b", title: "B" } });
-    const sStays = mockSession("mac-1", "stays", "working", { todo: { id: "todo-a", title: "A" } });
-    const todos: Todo[] = [
-      {
-        id: "todo-a",
-        title: "待办 A",
-        created_at: "2026-11-02T10:00:00Z",
-        updated_at: "",
-        agents: [
-          { machine_id: "mac-1", session_id: "moved", linked_at: "" },
-          { machine_id: "mac-1", session_id: "stays", linked_at: "" },
-        ],
-      },
-      { id: "todo-b", title: "待办 B", created_at: "2026-11-02T09:00:00Z", updated_at: "", agents: [] },
-    ];
-
-    const groups = buildTodoAgentGroups([sMoved, sStays], machines, todos, mutes);
-    expect(groups.map((g) => g.key)).toEqual(["todo:todo-b", "todo:todo-a"]);
-    expect(groups.find((g) => g.todoId === "todo-a")?.sessions.map((s) => s.session_id)).toEqual(["stays"]);
-    expect(groups.find((g) => g.todoId === "todo-b")?.sessions.map((s) => s.session_id)).toEqual(["moved"]);
-  });
-
-  it("会话挂的待办已完成时，归第一个列着它的未完成待办 (#4802)", () => {
-    const s = mockSession("mac-1", "s1", "idle", { todo: { id: "todo-done", title: "旧" } });
-    const todos: Todo[] = [
-      { id: "todo-done", title: "已完成", created_at: "2026-11-02T08:00:00Z", updated_at: "", done_at: "2026-11-02T12:00:00Z", agents: [] },
-      { id: "todo-open", title: "进行中", created_at: "2026-11-02T09:00:00Z", updated_at: "", agents: [{ machine_id: "mac-1", session_id: "s1", linked_at: "" }] },
-    ];
-
-    const groups = buildTodoAgentGroups([s], machines, todos, mutes);
-    expect(groups.map((g) => g.key)).toEqual(["todo:todo-open"]);
-    expect(groups[0].sessions.map((x) => x.session_id)).toEqual(["s1"]);
-  });
-
-  it("已完成的待办不生成 live 待办组", () => {
-    const sDoneTask = mockSession("mac-1", "done-task", "idle", { todo: { id: "todo-done", title: "已完成" } });
-    const todos: Todo[] = [
-      {
-        id: "todo-done",
-        title: "已完成待办",
-        created_at: "2026-11-02T08:00:00Z",
-        updated_at: "",
-        done_at: "2026-11-02T12:00:00Z",
-        agents: [{ machine_id: "mac-1", session_id: "done-task", linked_at: "" }],
-      },
-    ];
-
-    const groups = buildTodoAgentGroups([sDoneTask], machines, todos, mutes);
-    // todo-done is done, so it makes no segment as an unfinished todo; that session goes under "Unassigned"
-    expect(groups.map((g) => g.name)).toEqual(["没挂待办的"]);
-    // nothing above it: the whole list, open
-    expect(groups[0].folded).toBe(false);
-    expect(groups[0].sessions.map((s) => s.session_id)).toEqual(["done-task"]);
-  });
-
-  it("keeps to-do groups in page order when only a later group's Agent needs you (#11801)", () => {
-    const first = mockSession("mac-1", "first-agent", "idle", { todo: { id: "first", title: "First" } });
-    const second = mockSession("mac-1", "second-agent", "idle", { todo: { id: "second", title: "Second" } });
-    const todos: Todo[] = [
-      { id: "first", title: "First", created_at: "2026-11-02T10:00:00Z", updated_at: "", agents: [{ machine_id: "mac-1", session_id: "first-agent", linked_at: "" }] },
-      { id: "second", title: "Second", created_at: "2026-11-02T09:00:00Z", updated_at: "", agents: [{ machine_id: "mac-1", session_id: "second-agent", linked_at: "" }] },
-    ];
-    const order = machineSessionOrder(machines);
-    const before = buildTodoAgentGroups([first, second], machines, todos, mutes, order);
-    const after = buildTodoAgentGroups([first, { ...second, state: "needs_you" }], machines, todos, mutes, order);
-    expect(before.map((g) => g.todoId)).toEqual(["first", "second"]);
-    expect(after.map((g) => g.todoId)).toEqual(["first", "second"]);
-    expect(after.map((g) => g.todoStatus)).toEqual(["follow_up", "needs_you"]);
-  });
-
-  it("屏蔽的 Agent 在待办组内降级，但同组的需要你仍然排在最前面", () => {
-    const sNeeds = mockSession("mac-1", "s-needs", "needs_you");
-    const sMuted = mockSession("mac-1", "muted-work", "working");
-    const sNormalWork = mockSession("mac-1", "s-work", "working");
-
-    const todos: Todo[] = [
-      {
-        id: "todo-1",
-        title: "待办 1",
-        created_at: "2026-11-02T10:00:00Z",
-        updated_at: "",
-        agents: [
-          { machine_id: "mac-1", session_id: "muted-work", linked_at: "" },
-          { machine_id: "mac-1", session_id: "s-needs", linked_at: "" },
-          { machine_id: "mac-1", session_id: "s-work", linked_at: "" },
-        ],
-      },
-    ];
-
-    const groups = buildTodoAgentGroups([sMuted, sNeeds, sNormalWork], machines, todos, mutes);
-    expect(groups[0].sessions.map((s) => s.session_id)).toEqual([
-      "s-needs",     // needs_you (rank 0)
-      "s-work",      // normal working (rank 2)
-      "muted-work",  // muted working (rank 4)
-    ]);
   });
 });
 

@@ -92,8 +92,6 @@ beforeEach(() => {
   FakeSocket.all = [];
   vi.stubGlobal("WebSocket", FakeSocket);
   history.replaceState(null, "", "/");
-  // By status: the Agents list's own groups (工作中, 空闲…) are drawn under its heading, with headings of their own
-  localStorage.setItem("persona.agentGrouping", "state");
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -108,7 +106,7 @@ afterEach(() => {
 describe("the sidebar's top-level headings (#10637)", () => {
   const cases = [
     { list: "the complete Agents list", features: [], titles: ["页面", "Persona 对话", "Agents"] },
-    { list: "the paged Agents list", features: ["sessions_list", "sessions_lookup", "sessions_todo", "sessions_agents_only"], titles: ["页面", "Persona 对话", "Agents"] },
+    { list: "the paged Agents list", features: ["sessions_list", "sessions_lookup", "sessions_agents_only"], titles: ["页面", "Persona 对话", "Agents"] },
     { list: "Pending in Agents' place", features: ["sessions_dimensions"], titles: ["页面", "Persona 对话", "待处理"] },
   ];
   for (const { list, features, titles } of cases) {
@@ -150,7 +148,7 @@ describe("the headings' icon buttons on a touch screen (#11511)", () => {
     expect(classes(host.querySelector('[aria-label="新对话"]')?.parentElement)).not.toContain(ROW_END);
     act(() => root.unmount());
     root = createRoot(host);
-    await render(["sessions_list", "sessions_lookup", "sessions_todo", "sessions_agents_only"]);
+    await render(["sessions_list", "sessions_lookup", "sessions_agents_only"]);
     expect(classes(add("[data-sidebar-agents]"))).toContain(TOUCH_BOX);
     expect(classes(add("[data-sidebar-agents]")?.parentElement)).toEqual(expect.arrayContaining(["px-2", ROW_END]));
   });

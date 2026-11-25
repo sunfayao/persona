@@ -256,28 +256,13 @@ describe("folding a block of the sidebar", () => {
     expect(button("新建 Agent")).toBeDefined();
   });
 
-  it("offers the groupings as segments above the quick filter, 按待办 first and the default (#2812)", async () => {
-    act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
-    await flush();
-    const bar = host.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Agent 分组"]')!;
-    const segs = [...bar.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
-    expect(segs.map((b) => b.textContent)).toEqual(["待办", "机器", "仓库", "项目", "状态"]);
-    expect(segs.map((b) => b.getAttribute("aria-label"))).toEqual(["按待办", "按机器", "按仓库", "按项目", "按状态"]);
-    expect(segs[0].getAttribute("aria-checked")).toBe("true");
-    expect(segs.every((b) => b.className.includes("whitespace-nowrap"))).toBe(true);
-    act(() => segs[1].click());
-    expect(localStorage.getItem("persona.agentGrouping")).toBe("machine");
-    expect(segs[1].getAttribute("aria-checked")).toBe("true");
-    expect(segs[0].getAttribute("aria-checked")).toBe("false");
-    // no dropdown on the title row any more
-    expect(host.querySelector('button[aria-haspopup="menu"][aria-label^="Agent 分组"]')).toBeNull();
-  });
-
-  it("keeps a grouping chosen before", async () => {
+  it("offers no grouping above the quick filter, and ignores a grouping stored before", async () => {
     localStorage.setItem("persona.agentGrouping", "state");
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
-    expect(host.querySelector('[role="radio"][aria-label="按状态"]')!.getAttribute("aria-checked")).toBe("true");
+    expect(host.querySelector('[role="radiogroup"][aria-label="Agent 分组"]')).toBeNull();
+    expect(host.querySelector('[role="radio"][aria-label="按状态"]')).toBeNull();
+    expect(host.querySelector('[role="radio"][aria-label="按待办"]')).toBeNull();
   });
 
   it("starts as it was left", async () => {
@@ -313,7 +298,6 @@ describe("ordering the Agents list (#11801)", () => {
 describe("the Agents fold-all button (#3027, #6447)", () => {
   it("opens with 全部展开 the spaces folded by hand, and leaves the other blocks", async () => {
     localStorage.setItem("fold:space:mac/a", "1");
-    localStorage.setItem("persona.agentGrouping", "machine");
     await withAgent();
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();

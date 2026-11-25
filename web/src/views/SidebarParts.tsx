@@ -29,7 +29,7 @@ import { agentsFoldAction, setAgentsFolded } from "../lib/sidebar-api";
 import { SESSION_LIST_STYLE } from "../ui/list-metrics";
 import { FoldAllButton } from "../ui/FoldAllButton";
 import type { IconName } from "../ui/icons";
-import type { MenuNode } from "../lib/node-actions";
+
 import type { MenuAt } from "../ui/menu-model";
 
 /** The open row's own fill (#2283): it stays while the pointer is elsewhere in the list, a step darker than hover. */
@@ -223,10 +223,6 @@ export type GoFn = (to: Route, open?: () => boolean) => (e: React.MouseEvent) =>
  *  closes on a pointerdown outside its anchor, and a press on the ⋯ has to stay inside it for the click that
  *  follows to toggle. */
 export type RowMenuFn = (s: Session, anchor: HTMLElement, at?: MenuAt) => void;
-/** A machine's, a workspace's or a tab's menu (src/lib/node-actions.ts); `toggle`: from its ⋯, which closes it again
- *  (a row's ⋯ anchors it on the box holding the row and the ⋯, as in RowMenuFn). */
-export type NodeMenuFn = (node: MenuNode, at: MenuAt, header?: string, toggle?: boolean) => void;
-
 export const BADGE_CLASS = { attention: "bg-field text-attention", red: "bg-red-tint text-red", orange: "bg-orange-tint text-orange", green: "bg-green-tint text-green", accent: "bg-accent-tint text-accent-ink" } as const;
 
 /** The badge of a folded page, as a dot on its icon. */

@@ -22,7 +22,6 @@
   "cmd_focus_card": "Focus the waiting card",
   "cmd_prev_tab": "Previous tab on this computer",
   "cmd_next_tab": "Next tab on this computer",
-  "cmd_sidebar_grouping": "Change sidebar grouping",
   "cmd_prev_row": "Previous sidebar row",
   "cmd_next_row": "Next sidebar row",
   "cmd_collapse_tree": "Collapse all sidebar groups",

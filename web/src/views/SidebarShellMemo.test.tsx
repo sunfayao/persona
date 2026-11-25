@@ -12,18 +12,14 @@ const renders = vi.hoisted(() => new Map<string, number>());
 vi.mock("../i18n", async (load) => {
   const real = await load<typeof import("../i18n")>();
   return { ...real, t: (...args: Parameters<typeof real.t>) => {
-    // These labels are read once in the bodies of the grouping bar, filter bar and account row.
+    // These labels are read once in the bodies of the filter bar and account row.
     renders.set(args[0], (renders.get(args[0]) ?? 0) + 1);
     return real.t(...args);
   } };
 });
-vi.mock("../lib/todo-tree", async (load) => {
-  const real = await load<typeof import("../lib/todo-tree")>();
-  return { ...real, buildTodoTree: vi.fn(real.buildTodoTree) };
-});
-vi.mock("../lib/todos", async (load) => {
-  const real = await load<typeof import("../lib/todos")>();
-  return { ...real, buildTodoAgentGroups: vi.fn(real.buildTodoAgentGroups) };
+vi.mock("../lib/agent-groups", async (load) => {
+  const real = await load<typeof import("../lib/agent-groups")>();
+  return { ...real, buildSpaces: vi.fn(real.buildSpaces) };
 });
 vi.mock("./LinkTodoDialog", async (load) => {
   const real = await load<typeof import("./LinkTodoDialog")>();
@@ -55,8 +51,8 @@ vi.mock("../lib/usage-windows", async (load) => {
 });
 import { t } from "../i18n";
 import { connect, flushPushes, getState, refresh, reset } from "../lib/store";
-import { buildTodoTree } from "../lib/todo-tree";
-import { buildTodoAgentGroups, type Todo } from "../lib/todos";
+import { buildSpaces } from "../lib/agent-groups";
+import type { Todo } from "../lib/todos";
 import type { Machine, Session } from "../lib/types";
 import type { UsageAccount } from "../lib/usage-windows";
 import { Sidebar } from "./Sidebar";
@@ -68,7 +64,7 @@ const machines: Machine[] = [
   { id: "laptop", name: "Laptop", online: true, last_seen: at, hub_id: "home", hub_name: "Home" },
   { id: "desktop", name: "Desktop", online: true, last_seen: at, hub_id: "office", hub_name: "Office" },
 ];
-const agent: Session = { machine_id: "laptop", session_id: "build", title: "Build app", cwd: "/code/weather", status: "working", state: "working", updated_at: at };
+const agent: Session = { machine_id: "laptop", session_id: "build", title: "Build app", cwd: "/code/weather", status: "working", state: "working", updated_at: at, space_id: "weather", space_name: "weather" };
 const todo: Todo = { id: "release", title: "Release app", created_at: at, updated_at: at, agents: [{ machine_id: "laptop", session_id: "build", linked_at: at }] };
 const account = (used: number): UsageAccount => ({ id: "plan", provider: "codex", name: "Plan", sampled_at: at, windows: [{ label: "5h", window_minutes: 300, used_percent: used }] });
 let usage: UsageAccount[];
@@ -96,10 +92,9 @@ const push = async (message: Record<string, unknown>) => {
 };
 const clearCounts = () => {
   renders.clear();
-  vi.mocked(buildTodoTree).mockClear();
-  vi.mocked(buildTodoAgentGroups).mockClear();
+  vi.mocked(buildSpaces).mockClear();
 };
-const shellReads = () => ["sidebar.grouping_header", "sidebar.quick_filters", "sidebar.theme_system", "link", "seen", "node", "usage"].map((key) => [key, renders.get(key) ?? 0]);
+const shellReads = () => ["sidebar.quick_filters", "sidebar.theme_system", "link", "seen", "node", "usage"].map((key) => [key, renders.get(key) ?? 0]);
 const row = () => host.querySelector<HTMLAnchorElement>('a[href="/s/laptop/build"]');
 const filterBar = () => host.querySelector('[role="radiogroup"][aria-label="' + t("sidebar.quick_filters") + '"]')!;
 
@@ -149,8 +144,7 @@ async function mount() {
   await flush();
   expect(host.textContent).toContain("Build app");
   expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("20");
-  expect(buildTodoTree).toHaveBeenCalled();
-  expect(buildTodoAgentGroups).toHaveBeenCalled();
+  expect(buildSpaces).toHaveBeenCalled();
   for (const [name, count] of shellReads()) {
     if (name === "link") expect(count).toBe(0); // closed dialog code now loads only on intent
     else expect(count).toBeGreaterThan(0);
@@ -165,8 +159,7 @@ describe("the sidebar shell across store pushes", () => {
     for (let i = 1; i <= 3; i++) {
       await push({ type: "machines", machines: machines.map((m) => ({ ...m, load: [i, i, i], memory: { used: i * 1024, total: 8192 }, last_seen: new Date(Date.parse(at) + i).toISOString() })) });
     }
-    expect(buildTodoTree).not.toHaveBeenCalled();
-    expect(buildTodoAgentGroups).not.toHaveBeenCalled();
+    expect(buildSpaces).not.toHaveBeenCalled();
     expect(shellReads()).toEqual(shellReads().map(([key]) => [key, 0]));
     expect(host.textContent).toBe(before);
     // Prove the socket notifications were delivered, not merely queued behind a frozen timer.
@@ -178,8 +171,7 @@ describe("the sidebar shell across store pushes", () => {
     for (let i = 1; i <= 3; i++) {
       await push({ type: "sessions", machine_id: "laptop", sessions: [{ ...agent, title: `Build app ${i}` }] });
     }
-    expect(buildTodoTree).toHaveBeenCalledTimes(3);
-    expect(buildTodoAgentGroups).toHaveBeenCalledTimes(3);
+    expect(buildSpaces).toHaveBeenCalledTimes(3);
     expect(host.textContent).toContain("Build app 3");
     expect(shellReads()).toEqual(shellReads().map(([key]) => [key, 0]));
     // A change to the counted state must still update the quick filter.
@@ -262,20 +254,19 @@ describe("the sidebar shell across store pushes", () => {
     await push({ type: "machines", machines: machines.map((m) => m.id === "laptop" ? { ...m, name: "Notebook", hub_name: "Studio" } : m) });
     expect(host.textContent).toContain("Studio · Notebook");
     expect(host.textContent).not.toContain("Home · Laptop");
-    expect(buildTodoTree).toHaveBeenCalled();
+    expect(buildSpaces).toHaveBeenCalled();
     clearCounts();
     await push({ type: "machines", machines: getState().machines.map((m) => m.id === "laptop" ? { ...m, online: false } : m) });
-    expect(buildTodoTree).toHaveBeenCalled();
-    expect(buildTodoAgentGroups).toHaveBeenCalled();
+    expect(buildSpaces).toHaveBeenCalled();
     expect(renders.get("sidebar.theme_system")).toBeGreaterThan(0);
     expect(host.textContent).toContain("1/2");
     // the agent moves into the folded Recent section, which mounts no rows: it is there once Recent opens
-    const recent = () => host.querySelector<HTMLButtonElement>('[data-tree-branch="recent"] button[aria-expanded]');
+    const recent = () => [...host.querySelectorAll<HTMLButtonElement>("[data-sidebar-agents] button[aria-expanded]")].find((b) => b.textContent?.includes(t("sidebar.recent")));
     expect(row()).toBeNull();
     expect(recent()?.getAttribute("aria-expanded")).toBe("false");
     act(() => recent()!.click());
     await flush();
-    expect(row()?.closest('[data-tree-branch="recent"]')).toBeTruthy();
+    expect(row()).not.toBeNull();
     await push({ type: "machines", machines });
     expect(host.textContent).toContain("Home · Laptop");
     expect(host.textContent).toContain("2/2");
@@ -288,6 +279,6 @@ describe("the sidebar shell across store pushes", () => {
     await flush();
     expect(renders.get("usage")).toBeGreaterThan(0);
     expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("65");
-    expect(buildTodoTree).not.toHaveBeenCalled();
+    expect(buildSpaces).not.toHaveBeenCalled();
   });
 });

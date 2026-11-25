@@ -21,7 +21,7 @@ vi.mock("./store", async (importOriginal) => {
 
 const { foldRows, homeKey } = await import("./folded-rows");
 const { stateCounts, useAgentSessions, useCounts, useFullAgentSessions } = await import("./sessions");
-const { buildAgentGroups, splitAgentSessions } = await import("./agent-groups");
+const { splitAgentSessions } = await import("./agent-groups");
 const { filterCounts } = await import("./agent-filter");
 const { tabTitle, detectNewCards, detectTransitions } = await import("./attention");
 const { homeOverview } = await import("./herdr-tree");
@@ -63,11 +63,7 @@ describe("child sessions counted once, under their parent (#5120)", () => {
     expect(foldRows(shown)).toBe(shown);
   });
 
-  it("the sidebar's state sections and quick filters", () => {
-    const groups = Object.fromEntries(buildAgentGroups(shown, machines, "state", mutes).map((g) => [g.key, keys(g.sessions)]));
-    expect(groups["state:needs"]).toEqual(["lead"]);
-    expect(groups["state:working"]).toEqual(["orphan"]);
-    expect(groups["state:unread"]).toEqual(["plain"]);
+  it("the sidebar's quick filters", () => {
     const filters = filterCounts(splitAgentSessions(shown, machines).live, mutes);
     expect([filters.needs, filters.working, filters.unread]).toEqual([NEEDS, WORKING, UNREAD]);
   });
