@@ -18,14 +18,14 @@ func traeQuestionRevision(id, pane string, q *screen.TraeQuestion) string {
 
 func (n *Node) traeQuestionDialog(id, text string) *screen.Dialog {
 	a, ok := n.agent(id)
-	if !ok || a.Agent != traexAgent || host.ParsePane(a.PaneID).Kind != host.Herdr {
+	if !ok || a.Agent != traexAgent {
 		return nil
 	}
 	if q := screen.ReadTraeQuestion(text); q != nil {
 		d := q.Dialog
 		d.Rev = traeQuestionRevision(id, a.PaneID, q)
-		if q.FreeText != "" {
-			d.Options = nil // leave text already typed at the terminal with its author
+		if q.FreeText != "" || host.ParsePane(a.PaneID).Kind != host.Herdr {
+			d.Options = nil // typed text and a host without guarded key readback stay in the terminal
 		}
 		return &d
 	}

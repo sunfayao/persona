@@ -45,8 +45,9 @@ func TestReadTraeQuestionOffersTerminalWhenSubmissionIsAmbiguous(t *testing.T) {
 		strings.Replace(traeLastPage, "enter submit all", "", 1),
 		strings.Replace(traeLastPage, "    2. Amber", "    5. Amber", 1),
 		strings.Replace(traeLastPage, "clear answer", "clear notes", 1),
+		strings.Replace(traeLastPage, "    1. Blue", "    [ ] 1. Blue", 1),
 	} {
-		if q := ReadTraeQuestion(text); q == nil || len(q.Dialog.Options) != 0 {
+		if q := ReadTraeQuestion(text); q == nil || len(q.Dialog.Options) != 0 || strings.Contains(q.Dialog.Question, "Blue") {
 			t.Fatalf("unsafe page offered choices: %+v", q)
 		}
 	}

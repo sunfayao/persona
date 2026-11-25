@@ -664,7 +664,8 @@ The node integration (`server/internal/node/traex.go`) shares rollout parsing wi
 - **Terminal questions**: A blocking TRAE CLI question appears in the chat as a terminal card with the current
   page, its choices, and its free-text option. Answering advances the native page or submits the last remaining
   answer. Persona checks the active page and terminal owner before sending keys, and waits for the next page or
-  the normal prompt. A page that cannot be checked safely offers **Open terminal**. A follow-up remains separate.
+  the normal prompt in herdr. Multi-select pages and pages that cannot be checked safely offer **Open terminal**.
+  A follow-up remains separate.
 - **herdr does not recognize it**: TRAE CLI panes are ordinary herdr panes (`agent_status: unknown`, absent from `agent list`); herdr has no custom-Agent configuration either.
   The node finds them itself: `~/.trae/cli/thread-writer-locks/<session id>.owner.json` records the pid writing the session. That pid's environment contains herdr's
   `HERDR_PANE_ID` (Linux reads `/proc/<pid>/environ`, macOS uses `ps -E`), giving an exact pane → pid → session mapping without directory guessing. Pane information comes from

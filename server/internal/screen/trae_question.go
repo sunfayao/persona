@@ -23,7 +23,7 @@ type TraeQuestion struct {
 
 var (
 	traeQuestionHead = lazyre.New(`^\s*Question (\d+)/(\d+) \((\d+) unanswered\)\s*$`)
-	traeQuestionRow  = lazyre.New(`^(\s*)([›❯>]\s*)?(\d+)\.\s+(\S.*)$`)
+	traeQuestionRow  = lazyre.New(`^(\s*)([›❯>]\s*)?(\[[ x✓✔]\]\s*)?(\d+)\.\s+(\S.*)$`)
 )
 
 // ReadTraeQuestion recognizes the native blocking overlay. A whole page needs a verified footer, consecutively
@@ -66,7 +66,7 @@ func ReadTraeQuestion(text string) *TraeQuestion {
 			break
 		}
 	}
-	if !identifiedFooter {
+	if !identifiedFooter && !strings.Contains(hints, "clear answer") && !strings.Contains(hints, "add notes") {
 		// When the footer was cut, only a native pane boundary just above the header distinguishes the
 		// incomplete overlay from a line that merely quotes a previous question.
 		if head == 0 || !strings.HasPrefix(strings.TrimSpace(raw[head-1]), "────") {
@@ -109,8 +109,11 @@ func ReadTraeQuestion(text string) *TraeQuestion {
 			}
 			continue
 		}
-		option := Option{Key: m[3], Label: m[4]}
-		lastRaw = m[4]
+		option := Option{Key: m[4], Label: m[5]}
+		lastRaw = m[5]
+		if m[3] != "" {
+			valid = false // a native checkbox needs space to toggle before submitting
+		}
 		if cols := codexColumnsRE.FindStringSubmatch(option.Label); cols != nil {
 			option.Label, option.Detail = cols[1], cols[2]
 		}
