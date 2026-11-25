@@ -1,4 +1,4 @@
-import { inboxSourceItem, extensionSettingsHref } from "./extension-ui";
+import { inboxSourceItem } from "./extension-ui";
 import { parseConnectorLink } from "../admin/logic";
 import { isAppLink } from "./compatibility";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -55,15 +55,13 @@ describe("baseline naming compatibility", () => {
     expect(builtinForHub("persona-circuit", [])).toBe("jarvis-circuit");
   });
 
-  it("accepts baseline connector, peer, and extension links at their real input gates", () => {
+  it("accepts baseline connector, peer, and inbox links at their real input gates", () => {
     for (const scheme of ["jarvis", "persona"]) {
       expect(isAppLink(`${scheme}://peer?code=test`)).toBe(true);
       expect(parseConnectorLink(`${scheme}://connector?addr=localhost%3A18660&fp=test-fingerprint&code=test-code`)).toEqual({ addrs: ["localhost:18660"], fp: "test-fingerprint", code: "test-code" });
       expect(inboxSourceItem(`${scheme}://inbox/test%3Aitem/source`)).toBe("test:item");
-      expect(extensionSettingsHref(`${scheme}://settings/extensions/test-extension`)).toBe("/settings?tab=extensions&extension=test-extension");
     }
     expect(isAppLink("other://peer?code=test")).toBe(false);
-    expect(extensionSettingsHref("jarvis://settings/extensions/%2Finvalid")).toBeUndefined();
   });
 
   it("uses both identity/op headers and baseline message spelling on real API paths", async () => {

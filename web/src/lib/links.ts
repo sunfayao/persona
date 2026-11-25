@@ -42,7 +42,7 @@ export type LinkRoute =
   | { kind: "task"; id: string } // this hub's /todos?id=<todo>: that task's Agent's page, or its to-do's while it has none
   | { kind: "conversation"; sid: string; mid?: string; manager?: string } // this hub's /persona/<id>: that assistant conversation, in place (with the computer and manager its address names)
   | { kind: "page"; path: string } // any other page of this hub's app (the Inbox, settings…, or one message: ?at=): in place (docs/protocol/deep-links.md)
-  | { kind: "app"; url: string } // an app link to a page (persona://open<path>, persona://task|kb|settings|extension/…): read when opened (lib/deep-links.ts)
+  | { kind: "app"; url: string } // an app link to a page (persona://open<path>, persona://task|settings|extension/…): read when opened (lib/deep-links.ts)
   | { kind: "web" } // any other http(s) page: a new tab
   | { kind: "system" } // mailto: / tel:: the browser hands it to the system
   | { kind: "none" }; // anything else (javascript:, other apps' schemes, not a URL): not followed
@@ -166,7 +166,7 @@ export function linkRoute(url: string, lark = larkOn(), origin: string | string[
       return { kind: "none" };
     }
     // the route table's other forms (docs/protocol/deep-links.md): read when opened, off the first screen
-    return /^(open|session|task|kb|settings|extension)$/.test(u.host) ? { kind: "app", url: url.trim() } : { kind: "none" };
+    return /^(open|session|task|settings|extension)$/.test(u.host) ? { kind: "app", url: url.trim() } : { kind: "none" };
   }
   if (scheme === "mailto:" || scheme === "tel:") return { kind: "system" };
   if (scheme !== "http:" && scheme !== "https:") return { kind: "none" };

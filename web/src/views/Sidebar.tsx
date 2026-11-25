@@ -1,6 +1,5 @@
 import { useBotmuxHidden } from "../lib/agents-display";
 import { AgentsAdd } from "./agents/AgentsAdd";
-import { isSidebarAgent } from "../lib/sidebar-agent";
 import { launchDisplayEngine } from "../lib/new-agent";
 import { storedValue, storeValue } from "../lib/compatibility";
 // Beautiful UI's Sidebar Nav: workspace row, quick search, sections, one gliding highlight. Persona's main conversation
@@ -668,7 +667,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
     return keys;
   }, [launches]);
   const [agents, previewAgents] = useMemo(() => {
-    const visible = (rows: Session[]) => rows.filter((s) => isSidebarAgent(s) && (!inFlightLaunchKeys.size || !inFlightLaunchKeys.has(`${s.machine_id}\u0000${s.session_id}`)));
+    const visible = (rows: Session[]) => rows.filter((s) => !s.assistant && (!inFlightLaunchKeys.size || !inFlightLaunchKeys.has(`${s.machine_id}\u0000${s.session_id}`)));
     return [visible(every), pagedTransport ? visible(summaryAgents) : []];
   }, [every, summaryAgents, pagedTransport, inFlightLaunchKeys]);
   const all = useScoped(agents);

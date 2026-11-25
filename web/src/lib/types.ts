@@ -341,7 +341,7 @@ export interface Session {
   /** It was on before the agent resumed, and the resumed process has it off: the chat offers to turn it back on. */
   ultracode_lost_at?: string;
   assistant?: boolean;
-  /** The assistant's space it runs in: "health" for the health space's (docs/assistant/health.md). */
+  /** The assistant's space it runs in. */
   space?: string;
   started_by_persona?: boolean;
   space_id?: string;
