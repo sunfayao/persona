@@ -35,7 +35,7 @@ func TestAssistantViewToAnExtension(t *testing.T) {
 		c.Assistant = true
 	}
 	e.sessions("server", main, h0, notes, archived)
-	for _, q := range []string{"", "?archived=1", "?space="+testSpace, "?space="+testSpace+"&archived=1"} {
+	for _, q := range []string{"", "?archived=1", "?space=" + testSpace, "?space=" + testSpace + "&archived=1"} {
 		device := e.must("GET", "/api/v1/assistant"+q, "").Body.Bytes()
 		w := e.doAs(roleExtension, "GET", "/api/v1/assistant"+q, "")
 		if w.Code != http.StatusOK {
