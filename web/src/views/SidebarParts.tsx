@@ -137,7 +137,7 @@ export function useNavPages() {
     ...(page[k] ? [page[k]] : []),
   ]);
 
-  // the list, and the pages that wait under More (docs/web/web.md "The sidebar's pages") and in their groups (#9071):
+  // the list, and the pages that wait under More (docs/web/web.md "Sidebar") and in their groups (#9071):
   // `pages` is every group's in order, for the rail, the drawer and ⌘K
   const { sections, more } = arrangeSections(all);
   const pages = sections.flatMap((s) => s.pages);

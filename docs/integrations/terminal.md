@@ -1110,7 +1110,7 @@ The herdr server is the one the computer's own herdr window uses too. iOS keeps 
 
 - Match page reads `<html>`'s tokens, as before.
 - Light / Dark: `[data-terminal-scheme="light"]` / `[data-terminal-scheme="dark"]` is in the selector lists of `web/src/styles.css`'s light and dark token blocks (the main pair and the pair with `--term-magenta` / `--term-cyan`), so an element with it has that scheme's values whatever the page's.
-  A theme color adds its tokens on the same scope (`accentCSS` in `web/src/ui/look.ts`, `[data-accent] [data-terminal-scheme=…]`) and an extension theme adds its own above that (`scopedThemeCSS` in `web/src/ui/extension-theme.ts`, `:root[data-extension-theme] [data-terminal-scheme=…]`), the order they have on `<html>`. No palette of its own.
+  The web has no theme color or extension theme any more, so the page's own tokens are the whole palette. No palette of its own.
 - The feeds read the palette and the find marks off a hidden element with the attribute (`terminal/colors.ts`): a custom property is read where it is declared, and the result does not wait for React to have rendered the attribute.
   The screen box (Single pane's viewport, Full view's) carries the attribute and `bg-page`, so its padding, the find marks of the rows the page draws and xterm's IME box are in the terminal's scheme; the header, the overlays and the key bar keep the page's.
 - The attribute goes before `:root` / `.dark` in those selector lists. the contrast tests find the blocks with a regular expression that ends at the brace, and it matches inside comments too: a comment quoting a selector and its brace is found first.
