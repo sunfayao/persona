@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -223,5 +224,55 @@ func TestReleasedCodexDesktopRechecksWriterAndArchive(t *testing.T) {
 				t.Fatalf("commit after %s returned %+v, %v", change, remote, err)
 			}
 		})
+	}
+}
+
+func TestReleasedCodexDesktopIndexedRolloutWithoutSidebarMembership(t *testing.T) {
+	n, src, id, cwd := releasedDesktopFixture(t)
+	stamp := time.Now().Add(-2 * time.Hour)
+	path := writeAppRollout(t, src.home, src.thread, cwd, stamp)
+	query := `ALTER TABLE threads ADD COLUMN project_id TEXT;
+		UPDATE threads SET rollout_path = '` + strings.ReplaceAll(path, "'", "''") + `' WHERE id = '` + src.thread + `';`
+	if err := exec.Command(sqlite3WithJSON(t), codexAppDBPath(src.home), query).Run(); err != nil {
+		t.Fatal(err)
+	}
+	n.registerCodex(src.home, src.thread, path)
+	src, _ = n.codexSource(id)
+	if codexDesktopChat(src) {
+		t.Fatal("fixture unexpectedly has legacy Desktop control identity")
+	}
+	// Bundled Codex can also produce a Desktop-looking rollout with no
+	// corresponding App index row, which must stay view-only.
+	other := writeAppRollout(t, src.home, remoteOther, cwd, stamp)
+	n.registerCodex(src.home, remoteOther, other)
+
+	writer := desktopResumeWriter(t, src)
+	row := rowsByThread(n.codexSessions(map[string]bool{}))[src.thread]
+	if row.Capabilities == nil || row.Capabilities.Send || row.Capabilities.Takeover != nil {
+		t.Fatalf("held indexed Desktop rollout was advertised for continuation: %+v", row)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rows := rowsByThread(n.codexSessions(map[string]bool{}))
+	row = rows[src.thread]
+	if row.Capabilities == nil || row.Capabilities.Send || row.Capabilities.Takeover == nil || !row.Capabilities.Takeover.ReleasedDesktop {
+		t.Fatalf("unheld indexed Desktop rollout did not offer continuation: %+v", row)
+	}
+	if r := rows[remoteOther]; r.Capabilities != nil && r.Capabilities.Takeover != nil {
+		t.Fatalf("rollout alone established Desktop ownership: %+v", r)
+	}
+	n.takeovers.writers = func(codexSource) ([]codexWriter, error) { return nil, nil }
+	plan, err := n.prepareCodexTakeover(t.Context(), id)
+	if err != nil || !plan.ReleasedDesktop || plan.Running {
+		t.Fatalf("prepare returned %+v, %v", plan, err)
+	}
+	remote := releasedDesktopRemote(t, n, src, cwd)
+	got, err := n.commitCodexTakeover(t.Context(), id, plan.Token, false)
+	if err != nil || got.SessionID != id || got.SourceThreadID != src.thread || !got.Capabilities.Send {
+		t.Fatalf("commit returned %+v, %v", got, err)
+	}
+	if remote.count("thread/resume") != 1 || remote.count("thread/start") != 0 || remote.count("turn/start") != 0 {
+		t.Fatal("continue must resume exactly the original thread without creating a new thread or turn")
 	}
 }

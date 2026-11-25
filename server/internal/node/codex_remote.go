@@ -531,7 +531,7 @@ dispatch:
 		// A node restart loses the observed writer, but reattaching to the same
 		// private local server's already-loaded Desktop thread needs no new claim.
 		if !t.releasedDesktop && remembered[public] == c.spec.ID {
-			t.releasedDesktop = codexDesktopChat(codexSource{home: c.spec.Home, thread: raw, path: path})
+			t.releasedDesktop = codexDesktopContinuationChat(codexSource{home: c.spec.Home, thread: raw, path: path}, nil)
 		}
 		if d.Model != "" { // an app-server that reports a thread's settings (older ones do not: keep what join said)
 			t.model, t.effort = d.Model, d.Effort

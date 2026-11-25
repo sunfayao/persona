@@ -13,6 +13,21 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
+// A migrated Desktop conversation can retain both a rollout and its native index
+// row without the legacy sidebar keys. Require both origins for release-only
+// continuation. A Desktop-looking rollout alone does not establish ownership.
+func codexDesktopContinuationChat(src codexSource, pass *codexListPass) bool {
+	if codexDesktopChatIn(src, pass) {
+		return true
+	}
+	origin := readCodexOrigin(src.path)
+	if !origin.desktop || origin.exec || origin.sub || origin.parent != "" {
+		return false
+	}
+	row, indexed := codexAppThreads(src.home)[src.thread]
+	return indexed && strings.TrimSpace(row.Source) == "vscode"
+}
+
 // A released Desktop conversation can explicitly resume on the same-home local app-server.
 // It never goes through the stop/confirmation path for a terminal that still owns a thread.
 func (n *Node) releasedCodexDesktopRow(src codexSource, s *proto.Session, pass *codexListPass) *proto.CodexTakeover {
@@ -31,7 +46,7 @@ func (n *Node) releasedCodexDesktopRow(src codexSource, s *proto.Session, pass *
 func (n *Node) checkReleasedCodexDesktop(ctx context.Context, id string, src codexSource) (string, error) {
 	if n.sessionScope != nil || !uuidRe.MatchString(src.thread) || n.codexBlocked(id) ||
 		n.isAssistantSession(id) || n.ownedAssistantSource(src.thread) || codexDesktopAvailable(src.home) ||
-		codexArchived(src.home, src.path) || !codexDesktopChat(src) {
+		codexArchived(src.home, src.path) || !codexDesktopContinuationChat(src, nil) {
 		return "", takeoverRefusal("desktop_resume_unavailable")
 	}
 	if state, known := n.state.get(id); known && (state.DesktopPendingModel != "" || state.DesktopPendingEffort != "") {

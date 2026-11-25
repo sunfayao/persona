@@ -754,7 +754,8 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			s.Capabilities.StopCause = n.stopCause(id)
 		}
 		if s.SourceKind == "codex_history" && !s.Capabilities.Send && !s.IsSubagent && !n.codexBlocked(id) {
-			if desktopViewOnly {
+			if desktopViewOnly || (s.SpaceKind == "codex_app" && codexDesktopContinuationChat(src, pass) &&
+				!pass.desktopAvailable(src.home)) {
 				s.Capabilities.Takeover = n.releasedCodexDesktopRow(src, &s, pass)
 			} else {
 				s.Capabilities.Takeover = n.codexTakeoverRow(id, src, m, liveRollouts[id] != "" || s.Status == proto.StatusWorking)

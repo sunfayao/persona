@@ -279,7 +279,7 @@ Without a bus listener, App chats retain their history, App identity, project gr
 
 ### Continue a released Desktop conversation
 
-On macOS and Linux, the web transcript offers **Continue in Persona** when the native thread writer is released. Persona checks Codex's same-home writer locks. Incomplete checks, active writers, archived threads and non-owner sessions leave the conversation read-only. If Desktop unloads the thread while its transcript is open, refresh to pick up the new capability.
+On macOS and Linux, the web transcript offers **Continue in Persona** when the native thread writer is released. Persona checks Codex's same-home writer locks. A migrated Desktop chat with an indexed rollout can continue without legacy sidebar keys when its native index and rollout both identify it as a Desktop conversation. Incomplete checks, active writers, archived threads and non-owner sessions leave the conversation read-only. If Desktop unloads the thread while its transcript is open, refresh to pick up the new capability.
 
 The full-device takeover endpoint sends a separate `released_desktop: true` plan with a one-use token and no continuation prompt. Commit rechecks the original home, thread, project directory, archive state and writer. It asks the same-home local Codex app-server to resume the original thread by ID with `excludeTurns: true` and no model or provider override. Rolloutless paginated threads keep their native database history. The action sends no turn and never stops another process or creates a replacement thread. A subsequent message verifies that the same app-server still has the original thread loaded. Codex itself arbitrates a race for the writer lock.
 

@@ -128,7 +128,7 @@ func encryptedCodexFailure(text string) bool {
 func (n *Node) prepareCodexTakeover(ctx context.Context, id string) (*codexTakeoverPlan, error) {
 	if src, ok := n.codexSource(id); ok {
 		src = withoutGoneRollout(src, nil)
-		if codexDesktopChat(src) {
+		if codexDesktopContinuationChat(src, nil) {
 			cwd, err := n.checkReleasedCodexDesktop(ctx, id, src)
 			if err != nil {
 				return nil, err
