@@ -202,6 +202,36 @@ describe("reserved chords", () => {
   });
 });
 
+
+// ── the dispatcher ───────────────────────────────────────
+
+function event(e: KeyEventLike, target?: unknown): Dispatchable & { prevented: boolean; stopped: boolean } {
+  const out = {
+    ...e,
+    target,
+    prevented: false,
+    stopped: false,
+    defaultPrevented: false,
+    preventDefault() {
+      out.prevented = true;
+    },
+    stopPropagation() {
+      out.stopped = true;
+    },
+  };
+  return out;
+}
+
+/** An element as `closest` sees it: it matches the selectors that mention one of `kinds`. */
+const el = (...kinds: string[]) => ({ closest: (sel: string) => (kinds.some((k) => sel.includes(k)) ? {} : null) });
+const terminal = el(".xterm", "textarea");
+const input = el("input, textarea");
+const page = el();
+
+const cleanups: (() => void)[] = [];
+const on = (id: string, run: Parameters<typeof registerShortcut>[1]) => cleanups.push(registerShortcut(id, run));
+afterEach(() => {
+
 describe("focus", () => {
   it("tells the terminal from a text field from the page", () => {
     expect(focusKind(terminal)).toBe("terminal");
