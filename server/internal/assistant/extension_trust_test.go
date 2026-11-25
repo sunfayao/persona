@@ -59,7 +59,7 @@ func trustService(t *testing.T) (*Service, *trustMemStore) {
 		{MachineID: "server", SessionID: "main-0000-0000", Cwd: "/home/me/.persona/assistant", Assistant: true, Title: "Persona", UpdatedAt: convDay.Add(5 * time.Hour)},
 		{MachineID: "server", SessionID: "slee-0000-0000", Cwd: "/home/me/.persona/tracks/qa-private", Assistant: true, Space: testSpace, UpdatedAt: convDay.Add(4 * time.Hour)},
 	}
-	st := &trustMemStore{infoCategoryMemStore: &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}}}}
+	st := &trustMemStore{infoCategoryMemStore: &infoCategoryMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}, rows: []db.Track{testSpaceRow}}}}
 	s := newServiceOn(t, f, st)
 	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
 	return s, st

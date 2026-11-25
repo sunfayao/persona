@@ -22,12 +22,12 @@ func TestAManagersOwnDirectories(t *testing.T) {
 	} {
 		f := spaceHub()
 		s := withSettings(t, f, New(Options{Hub: f, Store: func() Store { return &memStore{} }, Logf: testLogf(t), ID: c.id}))
-		for _, space := range []string{"", testSpace} {
+		for _, space := range []string{""} {
 			if _, err := s.prepareSpace(ctx, "server", space); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if len(f.prepared) != 2 || f.prepared[0]["dir"] != compat.StateDir+"/"+c.assistant[len(".persona/"):] || f.prepared[1]["dir"] != compat.StateDir+"/"+c.health[len(".persona/"):] {
+		if len(f.prepared) != 1 || f.prepared[0]["dir"] != compat.StateDir+"/"+c.assistant[len(".persona/"):] {
 			t.Fatalf("%q prepared %v", c.id, f.prepared)
 		}
 		// Its health CLAUDE.md names its own space, where its reports are.

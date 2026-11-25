@@ -337,13 +337,11 @@ func TestTaskExecutionCompatibilityWaitTimeout(t *testing.T) {
 }
 
 func TestTaskExecutionRequiredOptionsNeverUseLegacyFallback(t *testing.T) {
-	for _, name := range []string{"computer", "directory", "launcher", "model", "effort", "health", "strict snapshot"} {
+	for _, name := range []string{"computer", "directory", "launcher", "model", "effort", "strict snapshot"} {
 		t.Run(name, func(t *testing.T) {
 			path := "new"
 			if name == "directory" {
 				path = "directory"
-			} else if name == "health" {
-				path = "source"
 			} else if name == "strict snapshot" {
 				path = "resume"
 			}

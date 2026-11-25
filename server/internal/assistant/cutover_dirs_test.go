@@ -27,7 +27,6 @@ func TestConversationsFromBeforeTheCutoverAreTheAssistants(t *testing.T) {
 		space         string
 	}{
 		{filepath.Join(old, "assistant"), true, false, ""},
-		{filepath.Join(old, "health"), true, false, testSpace},
 		{filepath.Join(old, "assistant-m-0b0b0b"), false, true, ""},
 		{filepath.Join(old, "assistant", "patrol"), false, false, ""},
 		{filepath.Join(home, ".persona", "assistant"), true, false, ""},

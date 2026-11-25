@@ -419,7 +419,7 @@ func TestQuietTaskFinish(t *testing.T) {
 // A health conversation's finished turn is pushed without its words or title; another's says them as before.
 func TestHealthDonePushHidesContent(t *testing.T) {
 	head, text := doneAlert(i18n.ZhHans, proto.Session{Title: "血压", Cwd: "/home/me/.persona/tracks/qa-private", LastText: "这周平均 150/95"})
-	if strings.Contains(head, "血压") || strings.Contains(text, "150") || !strings.Contains(head, "健康") {
+	if strings.Contains(head, "血压") || strings.Contains(text, "150") || head != "Persona" {
 		t.Fatalf("health done: %q %q", head, text)
 	}
 	if head, text := doneAlert(i18n.ZhHans, proto.Session{Title: "周报", Cwd: "/home/me/.persona/assistant", LastText: "写好了"}); head != "周报" || text != "写好了" {

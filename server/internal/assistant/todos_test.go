@@ -36,6 +36,9 @@ func todoTestDB(t testing.TB) *db.DB {
 	if err := database.TruncateForTest(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	if err := database.InsertTrack(context.Background(), testSpaceRow); err != nil {
+		t.Fatal(err)
+	}
 	return database
 }
 
