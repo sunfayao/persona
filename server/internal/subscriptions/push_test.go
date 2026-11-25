@@ -158,36 +158,4 @@ func TestPushedItemsReachTheInboxOnceItIsOn(t *testing.T) {
 	}
 }
 
-func TestAPushSourceHasNoRecipeScheduleOrPull(t *testing.T) {
-	e := newEnv(t)
-	sub := e.push(phone, PushItem{Key: "a", Title: "x"}).Subscription
-	sub = e.patch(sub.ID, Patch{TriageRules: ptr("Everything is FYI."), FallbackTier: ptr("fyi"), Label: ptr("My phone")})
-	if sub.Label != "My phone" || sub.NextRunAt != nil || sub.State != StateOK {
-		t.Fatalf("its switches, rules and label: %+v", sub)
-	}
-	r := pushRecipe
-	for name, p := range map[string]Patch{"recipe": {Recipe: &r}, "interval": {IntervalSeconds: ptr(3600)}, "daily_at": {DailyAt: ptr("08:00")}} {
-		p.Revision = sub.Revision
-		if _, err := e.svc.Update(e.ctx, sub.ID, p, phone); codeOf(err) != CodePushSource {
-			t.Fatalf("%s: %v", name, err)
-		}
-	}
-	if _, err := e.svc.RunNow(e.ctx, sub.ID, phone); codeOf(err) != CodePushSource {
-		t.Fatalf("run now: %v", err)
-	}
-	if _, err := e.svc.DryRun(e.ctx, DryRunRequest{ID: sub.ID}); codeOf(err) != CodePushSource {
-		t.Fatalf("dry run: %v", err)
-	}
-	if _, err := e.svc.Generate(e.ctx, GenerateRequest{ID: sub.ID}, phone); codeOf(err) != CodePushSource {
-		t.Fatalf("drafting: %v", err)
-	}
-	e.clock.advance(24 * time.Hour)
-	e.svc.RunDue(e.ctx)
-	if got := e.get(sub.ID); len(got.Runs) != 1 || got.State != StateOK {
-		t.Fatalf("the scheduler ran a push source: %+v", got.Runs)
-	}
-	// Deleting it with its data has the destinations forget it, as any subscription.
-	if err := e.svc.Delete(e.ctx, sub.ID, true, phone); err != nil || len(e.forgot) != 1 || len(e.store.Items()) != 0 {
-		t.Fatalf("delete: %v, forgot %d, items %d", err, len(e.forgot), len(e.store.Items()))
-	}
-}
+

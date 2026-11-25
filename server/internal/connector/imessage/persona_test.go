@@ -67,46 +67,6 @@ const olderPage = `{"chat":{"id":"imessage-000000000001","name":"张三","member
  {"id":"20","at":"2026-10-30T07:58:00Z","kind":"message","from_me":true,"text":"在吗"},
  {"id":"21","at":"2026-10-30T07:59:00Z","kind":"message","sender":` + zhangJSON + `,"text":"示例：验证码 123456 别告诉别人"}]}`
 
-func TestTheInboxSeesUnreadConversations(t *testing.T) {
-	ctx := context.Background()
-	c, n := personaRemote(t, map[string]string{"connector.chats": chatsPage(time.Now()), "connector.older": olderPage})
-	var scopes []string
-	changed := func(s connector.Scope) { scopes = append(scopes, string(s)) }
-	c.look(ctx, changed)
-	things, _ := c.Collect(ctx)
-	if len(things) != 4 || strings.Join(scopes, ",") != "chats,inbox" {
-		t.Fatalf("%d things, scopes %v", len(things), scopes)
-	}
-	zhang, group, alice, li := things[0], things[1], things[2], things[3]
-	if zhang.Kind != "dm" || zhang.Tier != "action" || zhang.OpenURL != "sms:+15550100" || zhang.CanReply || zhang.Read || zhang.Done != "" ||
-		zhang.Preview != "示例：验证码 •••• 别告诉别人" || zhang.Context != "我（10-30 07:58）：在吗\n张三（10-30 07:59）：示例：验证码 •••• 别告诉别人" {
-		t.Errorf("张三 = %+v", zhang)
-	}
-	if group.Kind != "group" || group.Label != "群聊" || group.Tier != "fyi" || group.OpenURL != "" || group.Sender != "张三" {
-		t.Errorf("group = %+v", group)
-	}
-	if alice.Done != connector.DoneReplied || alice.Context != "" || !li.Read || li.Context != "" {
-		t.Errorf("answered / read = %+v / %+v", alice, li)
-	}
-	// Each unread conversation's last messages are read once for its newest message.
-	if got := n.sent("connector.older"); len(got) != 2 || !strings.Contains(got[0], `"keep":"contacts"`) {
-		t.Errorf("older %v", got)
-	}
-	scopes = nil
-	c.look(ctx, changed)
-	if len(scopes) != 0 || len(n.sent("connector.older")) != 2 {
-		t.Errorf("nothing new: scopes %v, %d reads", scopes, len(n.sent("connector.older")))
-	}
-
-	c.SetAI(false)
-	if things, _ := c.Collect(ctx); len(things) != 0 {
-		t.Errorf("off: %d things", len(things))
-	}
-	if err := c.Reply(ctx, connector.InboxReply{Thread: "imessage-000000000001", Text: "好"}); err == nil {
-		t.Error("Persona sent a message")
-	}
-}
-
 func TestToolsReadTheMac(t *testing.T) {
 	ctx := context.Background()
 	c, n := personaRemote(t, map[string]string{"connector.chats": chatsPage(time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)),

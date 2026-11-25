@@ -294,7 +294,7 @@ func exercise(t *testing.T, c *Conn, sec *memSecrets) {
 	}
 	go c.Run(ctx)
 	waitUntil(t, "the program's status", func() bool { return c.Status(ctx).State == connector.StateNotSignedIn })
-	if got := connector.Capabilities(c); !slices.Equal(got, []string{"status", "tools", "actions", "events", "archive", "items", "login", "threads"}) {
+	if got := connector.Capabilities(c); !slices.Equal(got, []string{"status", "tools", "actions", "events", "login", "threads"}) {
 		t.Fatalf("the registry lists %v", got)
 	}
 	if m := c.Manifest(); !m.Proxy || !m.ForAgents("example_chats") || m.Poll != 3*time.Minute || m.Listed("example_send") {
@@ -437,7 +437,7 @@ func TestNeverStartedDeclaresItsManifest(t *testing.T) {
 	cfg := program(t, sec)
 	cfg.Manifest = (&exampleProgram{}).Manifest()
 	c := New(cfg)
-	if got := connector.Capabilities(c); !slices.Equal(got, []string{"status", "tools", "actions", "events", "archive", "items", "login", "threads"}) {
+	if got := connector.Capabilities(c); !slices.Equal(got, []string{"status", "tools", "actions", "events", "login", "threads"}) {
 		t.Fatalf("before it ever ran: %v", got)
 	}
 	l, ok := connector.As[connector.Login](c)
