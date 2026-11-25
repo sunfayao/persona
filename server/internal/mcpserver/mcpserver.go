@@ -300,9 +300,8 @@ func handle(ctx context.Context, version string, req request) (any, *rpcError) {
 			"protocolVersion": p.ProtocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{"listChanged": true}},
 			"serverInfo":      map[string]any{"name": "persona", "version": version},
-			"instructions": "Persona tools reach the user's iPhone (phone_* tools: contacts, calendar, reminders, location, health, photos, " +
-				"clipboard, notifications) and email accounts (mail_* tools). phone_* tools need the Persona app to be open on the iPhone. " +
-				"mail_send asks the user to approve on the phone before sending." + assistantInstructions(),
+			"instructions": "Persona tools reach the user's email accounts (mail_* tools). " +
+				"mail_send asks the user to approve before sending." + assistantInstructions(),
 		}, nil
 	case "ping":
 		return map[string]any{}, nil
@@ -337,15 +336,7 @@ func handle(ctx context.Context, version string, req request) (any, *rpcError) {
 				return catalog.search(ctx, p.Arguments), nil
 			}
 		}
-		var copied *clipboardCopy // phone_clipboard_set with file: read here, on the agent's machine (clipboard_file.go)
-		if p.Name == clipboardSetTool {
-			args, c, err := clipboardFileArgs(p.Arguments)
-			if err != nil {
-				return toolResult(proto.TextResult(err.Error(), true)), nil
-			}
-			p.Arguments, copied = args, c
-		}
-		// Phone round trips, approvals and ask_user can take a while (the user may need to unlock the phone).
+		// Approvals and ask_user can take a while (the user may need to come to the device).
 		ctx, cancel := context.WithTimeout(ctx, CallTimeout)
 		defer cancel()
 		// pane: an agent's MCP server has no session id of its own; the node knows the session in its pane
@@ -368,9 +359,6 @@ func handle(ctx context.Context, version string, req request) (any, *rpcError) {
 		var res proto.ToolResult
 		if err := json.Unmarshal(line, &res); err != nil {
 			return toolResult(proto.TextResult(fmt.Sprintf("bad response from Persona node (%v)", err), true)), nil
-		}
-		if copied != nil {
-			res = copied.answer(res)
 		}
 		return toolResult(res), nil
 	}
@@ -496,9 +484,6 @@ func listToolsOnce(ctx context.Context, previous toolSnapshot) (toolSnapshot, er
 		schema, description := t.InputSchema, t.Description
 		if len(schema) == 0 {
 			schema = json.RawMessage(`{"type":"object","properties":{}}`)
-		}
-		if t.Name == clipboardSetTool && !isGuest() { // its file argument is read here (clipboard_file.go)
-			schema, description = withClipboardFile(schema, description)
 		}
 		tool := map[string]any{"name": t.Name, "description": description, "inputSchema": schema}
 		if isAssistant() && !t.DeferLoading {

@@ -39,7 +39,7 @@ func TestWSNotifyDone(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &client{device: "test-device", out: make(chan []byte, 4)}
-			h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(t.TempDir(), nil, t.Logf)}
+			h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(nil, t.Logf)}
 			if err := h.push.setPrefs(c.device, NotifyPrefs{Done: tc.done}); err != nil {
 				t.Fatal(err)
 			}
@@ -76,7 +76,7 @@ func TestWSNotifyDone(t *testing.T) {
 func TestWSNotifyInteractionAndAssistant(t *testing.T) {
 	c := &client{device: "test-device", out: make(chan []byte, 4)}
 	h := newTestHub(t)
-	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 	connectAssistant(t, h) // notify_user is its tool; the push is the hub's (notify.request)
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out
@@ -146,7 +146,7 @@ func TestWSNotifyDropsASlowClientWithoutHoldingTheHub(t *testing.T) {
 	conn := <-accepted
 
 	c := &client{device: "test-device", conn: conn, out: make(chan []byte, 1)}
-	h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(t.TempDir(), nil, t.Logf)}
+	h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(nil, t.Logf)}
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`)) // its ack fills the queue
 	notified := make(chan struct{})
 	go func() {
@@ -209,7 +209,7 @@ func TestASlowClientIsClosedOnce(t *testing.T) {
 func TestWSNotifyMuteWhileDesktop(t *testing.T) {
 	phone := &client{device: "test-device", out: make(chan []byte, 8)}
 	mac := &client{device: "mac-device", desktop: true, out: make(chan []byte, 8)}
-	h := &Hub{clients: map[*client]struct{}{phone: {}}, push: newPusher(t.TempDir(), nil, t.Logf)}
+	h := &Hub{clients: map[*client]struct{}{phone: {}}, push: newPusher(nil, t.Logf)}
 	h.onClientMessage(context.Background(), phone, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-phone.out // client_hello_ack
 	if err := h.push.setPrefs(phone.device, NotifyPrefs{Input: true, Done: DoneAlways, MuteWhileDesktop: true}); err != nil {
@@ -285,7 +285,7 @@ func TestWSNotifyMuteWhileDesktop(t *testing.T) {
 func TestWSNotifyReplyTakesTheInputSwitch(t *testing.T) {
 	for _, input := range []bool{true, false} {
 		c := &client{device: "test-device", out: make(chan []byte, 4)}
-		h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(t.TempDir(), nil, t.Logf)}
+		h := &Hub{clients: map[*client]struct{}{c: {}}, push: newPusher(nil, t.Logf)}
 		if err := h.push.setPrefs(c.device, NotifyPrefs{Done: DoneOff, Input: input}); err != nil {
 			t.Fatal(err)
 		}

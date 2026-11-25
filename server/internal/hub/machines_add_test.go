@@ -3,9 +3,6 @@ package hub
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -18,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apns"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 )
@@ -191,7 +187,7 @@ func TestDeviceAddRefusals(t *testing.T) {
 // without TLS says so with the action that fixes it; a member hub sends the device to the center.
 func TestComputerCodeCallers(t *testing.T) {
 	h, _, tok := addHub(t)
-	_, watch := call(t, h.routes(), "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	_, linkTok := call(t, h.routes(), "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"kind":"link","machine":"onb-own"}`)
 	pair := newPairCode(t, h).Token
 	body := `{"add":{"name":"onb a"}}`
@@ -336,51 +332,6 @@ func TestComputerCodeAgainRevokesTheEarlier(t *testing.T) {
 	askCode(t, h, tok, `{"add":{"name":"a\tb"}}`, 400, "invalid_name")
 	if h.pendingCount() != before {
 		t.Fatal("a bad name took a pending slot")
-	}
-}
-
-// The other paired devices hear of a code a device made for a computer (not the device itself), and of a pending
-// computer's Persona Link trading it: the one to confirm.
-func TestComputerCodePushes(t *testing.T) {
-	h, _, tok := addHub(t)
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sent := make(chan map[string]any, 4)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload map[string]any
-		if json.NewDecoder(r.Body).Decode(&payload) == nil {
-			payload["to"] = strings.TrimPrefix(r.URL.Path, "/3/device/")
-			sent <- payload
-		}
-	}))
-	t.Cleanup(srv.Close)
-	h.push.direct = apns.NewWithKey(apnsConfig{KeyID: "K", TeamID: "T", Topic: "app.example"}, key)
-	h.push.direct.Base = srv.URL
-	phoneID := principalFor(t, h, tok).ID
-	h.push.devices["mine"] = Device{DeviceID: "mine", Name: "小林的手机", APNSToken: "self-token", Credential: phoneID}
-	h.push.devices["other"] = Device{DeviceID: "other", Name: "小林的 iPad", APNSToken: "other-token"}
-
-	c := askCode(t, h, tok, `{"add":{"name":"小林的 Onb Laptop"}}`, 200, "")
-	body := alertTo(t, sent, "other-token")
-	if body != "小林的手机 给电脑「小林的 Onb Laptop」出了一个配对码" {
-		t.Fatalf("code push %q", body)
-	}
-	// The computer's Persona Link trades the code: every device hears it wants to join.
-	code, _ := call(t, h.routes(), "POST", "/api/v1/auth/tokens", c.Token, `{"kind":"link"}`)
-	if code != 200 {
-		t.Fatalf("redeem %d", code)
-	}
-	for range 2 {
-		select {
-		case p := <-sent:
-			if b := p["aps"].(map[string]any)["alert"].(map[string]any)["body"]; b != "新电脑「小林的 Onb Laptop」想加入：打开 App 确认是不是你的" {
-				t.Fatalf("joining push %v", b)
-			}
-		case <-time.After(5 * time.Second):
-			t.Fatal("joining push not sent to both")
-		}
 	}
 }
 

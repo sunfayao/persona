@@ -28,16 +28,10 @@ type NotifyConfig struct {
 	LongTurnSeconds int `json:"long_turn_seconds,omitempty"`
 	// BackgroundHoldMinutes: give up on a turn whose background work has not finished after this long. Default 120.
 	BackgroundHoldMinutes int `json:"background_hold_minutes,omitempty"`
-	// LiveMetricsSeconds: the least time between two Live Activity pushes to a device when only the numbers it shows
-	// (TPM, today's tokens, load…) changed. Default 60; state changes are not held back (docs/apple/live-activity.md).
-	LiveMetricsSeconds int `json:"live_metrics_seconds,omitempty"`
 }
 
 func (c NotifyConfig) doneDelay() time.Duration { return secondsOr(c.DoneDelaySeconds, 60) }
 func (c NotifyConfig) longTurn() time.Duration  { return secondsOr(c.LongTurnSeconds, 60) }
-func (c NotifyConfig) liveMetrics() time.Duration {
-	return secondsOr(c.LiveMetricsSeconds, 60)
-}
 func (c NotifyConfig) backgroundHold() time.Duration {
 	if c.BackgroundHoldMinutes > 0 {
 		return time.Duration(c.BackgroundHoldMinutes) * time.Minute
@@ -58,30 +52,17 @@ type NotifyPrefs struct {
 	Input bool `json:"input"`
 	// Done: finished turns. "off", "long" (turns of at least LongTurnSeconds) or "always".
 	Done string `json:"done"`
-	// LiveActivity: keep the Fleet activity on the lock screen / Dynamic Island (liveactivity.go).
-	LiveActivity bool `json:"live_activity"`
-	// LockDetails: the activity may show agent names on the lock screen; off, it shows only counts.
-	LockDetails bool `json:"lock_details"`
-	// Island: what the compact Dynamic Island shows on each side.
-	Island IslandPrefs `json:"island"`
 	// Translate: the app's Settings › Translation, so the hub can translate new mail before it is opened (assistant/inbox_translate.go).
 	Translate TranslatePrefs `json:"translate"`
 	// MuteWhileDesktop: "Phone Muted" (WeChat's) — no alert pushes to this device while a desktop app (the Mac app) is
 	// connected; it shows them there (desktops.go).
 	MuteWhileDesktop bool `json:"mute_while_desktop"`
-	// Look: the persona this device's Live Activity draws (Settings › Look), echoed in its pushes (FleetState.Look): the
-	// widget extension cannot read the app's settings.
-	Look *FleetLook `json:"look,omitempty"`
 	// Quiet: this device's quiet hours (quiethours.go): no "Agent finished", and "Needs you" without sound, inside the window.
 	Quiet QuietHours `json:"quiet"`
 	// MutedManagers: the managers (their ids, docs/assistant/managers.md) whose pushes this device does not want (Settings ›
 	// Managers › one › Notifications). A push a manager asks for (notify.request, its extensions' pushes, a computer's
-	// `personad notify`) skips this device; the hub's own (pairing, a computer joining, updates) and the Live Activity
-	// are no manager's and still come.
+	// `personad notify`) skips this device; the hub's own (updates) is no manager's and still comes.
 	MutedManagers []string `json:"muted_managers"`
-	// Widgets: the app has Persona's Home Screen widgets (#5664): while it is not open, the hub
-	// wakes it to write them again when the agents' counts change (widget_wake.go). Set by the app; false from an older one.
-	Widgets bool `json:"widgets,omitempty"`
 }
 
 // maxMutedManagers bounds what a device may store: far more managers than anyone runs. A write keeps only the
@@ -131,50 +112,6 @@ type TranslatePrefs struct {
 	Mail    bool   `json:"mail"`
 }
 
-// IslandPrefs picks the two sides of the compact Dynamic Island (docs/apple/live-activity.md). "Needs you" always takes the
-// left side when there is any, whatever is chosen.
-type IslandPrefs struct {
-	Preset  string `json:"preset"`            // a: status counts on both sides | b: status + TPM | c: status + today's tokens | custom
-	Left    string `json:"left,omitempty"`    // custom: an island slot
-	Right   string `json:"right,omitempty"`   // custom: an island slot
-	Machine string `json:"machine,omitempty"` // whose load "load" shows; empty: the busiest
-}
-
-// Island slots: what one side can show.
-const (
-	SlotStatus    = "status"    // left: the most urgent count (needs you > working > finished); right: the next one
-	SlotTPM       = "tpm"       // output tokens per minute, every machine
-	SlotTokens    = "tokens"    // today's tokens
-	SlotRequests  = "requests"  // today's model requests
-	SlotAssistant = "assistant" // whether the assistant (chat tab) is answering
-	SlotLoad      = "load"      // a machine's load
-	SlotTimer     = "timer"     // how long the longest running turn has been going
-	SlotNone      = "none"
-)
-
-var islandSlots = map[string]bool{SlotStatus: true, SlotTPM: true, SlotTokens: true, SlotRequests: true,
-	SlotAssistant: true, SlotLoad: true, SlotTimer: true, SlotNone: true}
-
-// sides resolves the preset.
-func (p IslandPrefs) sides() (left, right string) {
-	switch p.Preset {
-	case "b":
-		return SlotStatus, SlotTPM
-	case "c":
-		return SlotStatus, SlotTokens
-	case "custom":
-		left, right = p.Left, p.Right
-		if !islandSlots[left] {
-			left = SlotStatus
-		}
-		if !islandSlots[right] {
-			right = SlotStatus
-		}
-		return left, right
-	}
-	return SlotStatus, SlotStatus
-}
-
 const (
 	DoneOff    = "off"
 	DoneLong   = "long"
@@ -182,7 +119,7 @@ const (
 )
 
 func defaultPrefs() NotifyPrefs {
-	return NotifyPrefs{Input: true, Done: DoneLong, LiveActivity: true, Island: IslandPrefs{Preset: "a"}, MutedManagers: []string{}}
+	return NotifyPrefs{Input: true, Done: DoneLong, MutedManagers: []string{}}
 }
 
 // devicePrefs decodes what is stored for a device; anything missing or unknown is the default.
@@ -196,11 +133,6 @@ func devicePrefs(raw json.RawMessage) NotifyPrefs {
 	default:
 		p.Done = DoneLong
 	}
-	switch p.Island.Preset {
-	case "a", "b", "c", "custom":
-	default:
-		p.Island.Preset = "a"
-	}
 	if p.Quiet.validate() != nil { // stored before a check, or by hand: off
 		p.Quiet = QuietHours{}
 	}
@@ -211,9 +143,6 @@ func devicePrefs(raw json.RawMessage) NotifyPrefs {
 		}
 	}
 	p.MutedManagers = muted // never null: the apps read a list, and its presence says the hub has the switch
-	if l := p.Look; l != nil && (l.Design == "" || len(l.Design) > 32 || len(l.Package) > 160) {
-		p.Look = nil // every push carries it, inside the activity's 4 KB
-	}
 	return p
 }
 

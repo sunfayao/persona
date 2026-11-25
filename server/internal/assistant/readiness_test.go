@@ -148,7 +148,7 @@ func TestReadinessFullButUnverified(t *testing.T) {
 	if asked == 0 {
 		t.Error("node.doctor not asked")
 	}
-	if len(r.Suggestions) < 3 || r.Suggestions[2].ID != "today" || len(r.Suggestions[2].Needs) != 1 || r.Suggestions[2].Prompt == "" {
+	if len(r.Suggestions) < 3 || r.Suggestions[2].ID != "connect_mail" || r.Suggestions[2].Prompt == "" {
 		t.Fatalf("suggestions = %+v", r.Suggestions)
 	}
 }

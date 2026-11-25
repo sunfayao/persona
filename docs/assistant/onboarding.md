@@ -87,7 +87,7 @@ About 8 taps, without the command line.
 | --- | --- | --- |
 | Always-on Linux desktop / mini PC | Online 24 hours; it is the first computer, so users do not need to "Add computer" | When it shuts down, the phone cannot connect |
 | NAS (Docker) | Already at home and always on | The Docker image does not include claude. AI does not do work on the NAS; another computer must be added |
-| User's own Mac | People with only one computer do not need another machine; it is also the work computer | Closing the lid puts Persona to sleep too. On wake, catch up on messages and scheduled tasks; push notifications still use the relay (`docs/operations/push-relay.md`) |
+| User's own Mac | People with only one computer do not need another machine; it is also the work computer | Closing the lid puts Persona to sleep too. On wake, catch up on messages and scheduled tasks |
 | Cloud server | Connect from anywhere, any time | Requires buying a server; data lives in the cloud. Without a computer, wait for "Chat only" |
 | Windows | — | Cannot be hub (#1179); a Windows computer can only be one of "your computers" |
 

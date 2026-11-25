@@ -14,7 +14,7 @@ func TestClarifyRouteRejectsNonOwnerPrincipalsBeforeRelay(t *testing.T) {
 	h := newTestHub(t)
 	mux := http.NewServeMux()
 	h.fleetRoutesRelayed(mux)
-	for _, role := range []string{roleAnswer, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension} {
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/interactions/ix_owner_only/clarify",
 			strings.NewReader(`{"text":"Why?","client_msg_id":"owner-only-question"}`))
 		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{ID: "restricted", Role: role, Manager: assistantwire.AssistantID}))

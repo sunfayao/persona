@@ -119,7 +119,7 @@ type fleetBook struct {
 
 	undelivered heldActs // answers the manager's own Action did not take yet
 
-	live liveState // the Live Activity's content as last told (fleet_live.go)
+	live liveState // wakes liveLoop (fleet_live.go)
 
 	started sync.Once
 

@@ -4,8 +4,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/nwverse/persona/server/internal/compat"
 )
 
 func TestTrafficAttribution(t *testing.T) {
@@ -42,30 +40,5 @@ func TestTrafficAttribution(t *testing.T) {
 				t.Fatalf("got %+v, want %+v", a, want)
 			}
 		})
-	}
-}
-
-func TestTrafficAttributionAliasesAndFallback(t *testing.T) {
-	r := httptest.NewRequest("GET", "/api/v1/todos", nil)
-	r.Header.Set(compat.HeaderName("X-Persona-Client"), "android-widget/1")
-	a := (&Hub{}).requestTrafficAttribution(r, principal{})
-	if a.platform != "android" || a.source != "widget" {
-		t.Fatal(a)
-	}
-	r.Header.Set("X-Persona-Client", "ios/1")
-	a = (&Hub{}).requestTrafficAttribution(r, principal{})
-	if a.platform != "unknown" {
-		t.Fatal("ambiguous alias was trusted", a)
-	}
-	r.Header = nil
-	h := &Hub{push: &Pusher{devices: map[string]Device{"test": {Kind: "iphone", CredentialID: "test", APNSToken: "fixture-only"}}}}
-	a = h.requestTrafficAttribution(r, principal{ID: "test"})
-	if a.platform != "ios" || a.platformBasis != "push-registration" || a.sourceBasis != "platform-default" {
-		t.Fatal(a)
-	}
-	r.Header = map[string][]string{"User-Agent": {"Go-http-client/1.1"}}
-	a = h.requestTrafficAttribution(r, principal{ID: "test"})
-	if a.platform != "unknown" || a.source != "diagnostic" {
-		t.Fatal("diagnostic inherited phone platform", a)
 	}
 }

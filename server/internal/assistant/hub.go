@@ -49,7 +49,6 @@ type (
 	Placement           = assistantwire.Placement
 	DeviceCall          = assistantwire.DeviceCall
 	Device              = assistantwire.Device
-	ClientApp           = assistantwire.ClientApp
 	ConfiguredLauncher  = assistantwire.ConfiguredLauncher
 	LauncherRecovery    = assistantwire.LauncherRecovery
 	HubModels           = assistantwire.HubModels

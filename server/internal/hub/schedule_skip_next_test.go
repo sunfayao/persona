@@ -16,7 +16,7 @@ func TestScheduleSkipNextRelayOwnerScope(t *testing.T) {
 	tokens := extTokensOf(t, h)
 	token := tokens.issue("schedule-check", "Schedule check", []string{extwire.ScopeAgentsRead, extwire.ScopeAgentsControl})
 	for _, method := range []string{http.MethodPost, http.MethodDelete} {
-		if allowed(principal{Role: roleAnswer}, method, skipNextTestPath) || allowed(principal{Role: roleLink}, method, skipNextTestPath) {
+		if allowed(principal{Role: roleRetiredAnswer}, method, skipNextTestPath) || allowed(principal{Role: roleLink}, method, skipNextTestPath) {
 			t.Fatalf("%s widened a restricted device's task permissions", method)
 		}
 		if status, _ := call(t, api, method, skipNextTestPath, token, "{}"); status != http.StatusForbidden {

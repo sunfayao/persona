@@ -117,7 +117,7 @@ curl -fsSL <publish.site_url>/install.sh | sh   # install to ~/.persona/bin/pers
   The push relay is in the same Worker (`/relay/*`) and is redeployed on each publish too: when `/relay/v1/health` answered `ok` and `apns` before the deploy,
   the publish fails unless it still does within about two minutes after it (#1263; a site without a working relay only gets a note).
 - Push relay deployed (2026-11-02): resident `personad relay` + Cloudflare Tunnel + website Worker forwarding; public health, origin protection, registration and authentication verified.
-  See `docs/operations/push-relay.md`.
+  
 - Not yet available (others can install, but it's still awkward; see `docs/operations/config.md`):
   Developer ID notarization of the macOS binary (browser downloads get blocked by Gatekeeper; `curl` doesn't).
 

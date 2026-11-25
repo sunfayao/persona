@@ -246,7 +246,7 @@ test("every static asset has a Worker exclusion, and no exclusion covers a page 
   const wrangler = await readFile(new URL("./wrangler.jsonc", import.meta.url), "utf8");
   const first = /"run_worker_first":\s*\[([^\]]*)\]/.exec(wrangler)[1];
   const patterns = JSON.parse(`[${first}]`);
-  const dynamic = [/^\/dl\//, /^\/relay\//, /^\/extensions\/catalog\.json$/, /^\/extensions\/icons\//, /^\/releases\/data\.json$/];
+  const dynamic = [/^\/dl\//, /^\/extensions\/catalog\.json$/, /^\/extensions\/icons\//, /^\/releases\/data\.json$/];
   const files = await publicFiles(new URL("./public/", import.meta.url));
   assert.ok(files.length > 10);
   for (const path of files) {
@@ -256,7 +256,7 @@ test("every static asset has a Worker exclusion, and no exclusion covers a page 
   assert.ok(excludedBy(patterns, "/install.sh"), "publish-time install.sh bypasses the Worker");
   for (const path of [
     "/", "/en/", "/missing", "/releases/", "/en/releases/",
-    "/dl/VERSION", "/dl/personad-linux-amd64.gz", "/dl/v1/manifest.json", "/relay/v1/health",
+    "/dl/VERSION", "/dl/personad-linux-amd64.gz", "/dl/v1/manifest.json",
     "/extensions/catalog.json", "/extensions/icons/github", "/releases/data.json",
   ]) {
     assert.equal(excludedBy(patterns, path), false, `${path} must still reach the Worker`);

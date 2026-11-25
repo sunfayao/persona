@@ -33,7 +33,7 @@ func TestBusForwardsTrustedDeviceActor(t *testing.T) {
 	const limited = "test-answer-token"
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{
 		hashToken(token):   {ID: "device-1", Name: "Trusted device", Role: roleFull},
-		hashToken(limited): {ID: "device-2", Role: roleAnswer},
+		hashToken(limited): {ID: "device-2", Role: roleRetiredAnswer},
 	}, rev: map[string]bool{}}
 	hubIn, assistantOut := io.Pipe()
 	assistantIn, hubOut := io.Pipe()
@@ -70,7 +70,7 @@ func TestBusForwardsTrustedDeviceActor(t *testing.T) {
 			r.RemoteAddr = "127.0.0.1:12345"
 			r.Header.Set("Authorization", "Bearer "+token)
 			r.Header.Set("Cookie", "test-cookie=private")
-			r.Header.Set(assistantwire.RoleHeader, roleAnswer)
+			r.Header.Set(assistantwire.RoleHeader, roleRetiredAnswer)
 			r.Header.Set(assistantwire.ExtensionHeader, "forged-extension")
 			r.Header.Set(assistantwire.AdminHeader, "1")
 			if tt.forged != "" {

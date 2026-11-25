@@ -17,7 +17,7 @@ import (
 // A card's push carries the manager's level: with the switch on a P1 escalation is held (recorded, no alert) while a
 // P0 one and a card that names no level (P0) alert.
 func TestQuietCardPushHonoursTheManagersLevel(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -26,8 +26,8 @@ func TestQuietCardPushHonoursTheManagersLevel(t *testing.T) {
 		return proto.Interaction{ID: id, MachineID: "m1", SessionID: "s1", Kind: proto.IxPermission, Summary: "git push"}
 	}
 	h.notifyInteractionAt("", card("ix_p1"), "box", false, assistantwire.LevelP1, "")
-	if *attempts != 0 {
-		t.Fatalf("a P1 escalation alerted %d times", *attempts)
+	if attempts() != 0 {
+		t.Fatalf("a P1 escalation alerted %d times", attempts())
 	}
 	view := h.push.heldPushesView("", 0)
 	if len(view) != 1 || view[0].Reason != interceptReasonP1 || view[0].RelatedKey != "ix:ix_p1" {
@@ -36,19 +36,19 @@ func TestQuietCardPushHonoursTheManagersLevel(t *testing.T) {
 	h.notifyInteractionAt("", card("ix_p0"), "box", false, assistantwire.LevelP0, "")
 	h.notifyInteraction("", card("ix_plain"), "box", false)
 	h.notifyInteractionAt("", card("ix_bad"), "box", false, "P9", "") // a level this hub does not know: a card interrupts
-	if *attempts != 3 {
-		t.Fatalf("got %d alerts for P0, plain and unknown-level cards, want 3", *attempts)
+	if attempts() != 3 {
+		t.Fatalf("got %d alerts for P0, plain and unknown-level cards, want 3", attempts())
 	}
 }
 
 // With the switch off every card alerts, whatever level the manager named.
 func TestQuietOffCardPushIgnoresLevel(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	attempts := gradingAttempts(h)
 	h.notifyInteractionAt("", proto.Interaction{ID: "ix1", MachineID: "m1", SessionID: "s1", Kind: proto.IxPermission, Summary: "ls"},
 		"box", false, assistantwire.LevelP1, "")
-	if *attempts != 1 {
-		t.Fatalf("got %d alerts, want 1", *attempts)
+	if attempts() != 1 {
+		t.Fatalf("got %d alerts, want 1", attempts())
 	}
 	if view := h.push.heldPushesView("", 0); len(view) != 0 {
 		t.Fatalf("held with the switch off: %+v", view)
@@ -58,20 +58,20 @@ func TestQuietOffCardPushIgnoresLevel(t *testing.T) {
 // Reply reminders merge per question, not per agent: with the switch on, one agent's second question within 12 hours
 // still rings, while a repeat of the same question does not (an older manager without a key is keyed by the text).
 func TestQuietReplyReminderKeyedByQuestion(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
 	attempts := gradingAttempts(h)
 	h.notifyReplyKeyed("", "m1", "box", "s1", "Agent", "Which branch?", "reply:s1@1")
 	h.notifyReplyKeyed("", "m1", "box", "s1", "Agent", "Deploy now?", "reply:s1@2")
-	if *attempts != 2 {
-		t.Fatalf("got %d alerts for two questions of one agent, want 2", *attempts)
+	if attempts() != 2 {
+		t.Fatalf("got %d alerts for two questions of one agent, want 2", attempts())
 	}
 	h.notifyReply("", "m1", "box", "s2", "Agent", "Which branch?")
 	h.notifyReply("", "m1", "box", "s2", "Agent", "Deploy now?")
-	if *attempts != 4 {
-		t.Fatalf("got %d alerts, want 4: an older manager's two questions are two keys", *attempts)
+	if attempts() != 4 {
+		t.Fatalf("got %d alerts, want 4: an older manager's two questions are two keys", attempts())
 	}
 	if replyKey("s2", "Which branch?", "") == replyKey("s2", "Deploy now?", "") || replyKey("s", "x", "k") != "k" {
 		t.Fatal("replyKey")
@@ -129,8 +129,6 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 	if err := h.push.setPrefs("web-open", NotifyPrefs{Input: true, Done: DoneAlways}); err != nil {
 		t.Fatal(err)
 	}
-	offlineDevice := &Device{DeviceID: "web-offline", Name: "Offline Web"}
-	h.push.register(*offlineDevice)
 	if err := h.push.setPrefs("web-offline", NotifyPrefs{Input: true, Done: DoneAlways}); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +167,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 	f.none(t)
 
 	// P2 done turn: silent -> no WS notify, no Web Push.
-	doneOut := h.notifyDoneUnder("manager-a", "done", "m1", "box", "s1", "Task", "Finished", pushWants{Kind: "done", Took: time.Hour, Long: time.Minute}, "", "", pushPolicy{level: levelFor("done", "")})
+	doneOut := h.notifyDoneUnder("manager-a", "done", "m1", "box", "s1", "Task", "Finished", pushWants{Kind: "done", Took: time.Hour, Long: time.Minute}, "", pushPolicy{level: levelFor("done", "")})
 	if doneOut.held != interceptReasonP2 || doneOut.devices != 0 {
 		t.Fatalf("done outcome = %+v, want held P2 with 0 devices", doneOut)
 	}
@@ -224,7 +222,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 	if got := webOpened(t, b, f.next(t)); got["kind"] != "reply" {
 		t.Fatalf("reply Web Push = %+v", got)
 	}
-	repDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Follow-up", "still waiting", pushWants{Kind: "input"}, "", "", pushPolicy{level: assistantwire.LevelP1, relatedKey: "reply:s1@1"})
+	repDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Follow-up", "still waiting", pushWants{Kind: "input"}, "", pushPolicy{level: assistantwire.LevelP1, relatedKey: "reply:s1@1"})
 	if repDedup.held != interceptReasonDedup || repDedup.devices != 0 {
 		t.Fatalf("reply follow-up = %+v, want ln_dedup_12h", repDedup)
 	}
@@ -243,7 +241,7 @@ func TestPushGradingGatesWebSocketAndWebPush(t *testing.T) {
 		t.Fatalf("decide Web Push = %+v", got)
 	}
 	decideKey := "todo:" + todo.ID + "@" + askedAt.UTC().Format(time.RFC3339Nano)
-	decDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Approve", "note", pushWants{Kind: "input"}, "", "", pushPolicy{level: assistantwire.LevelP1, relatedKey: decideKey})
+	decDedup := h.notifyDoneUnder("manager-a", "assistant", "m1", "box", "s1", "Approve", "note", pushWants{Kind: "input"}, "", pushPolicy{level: assistantwire.LevelP1, relatedKey: decideKey})
 	if decDedup.held != interceptReasonDedup || decDedup.devices != 0 {
 		t.Fatalf("decide follow-up = %+v, want ln_dedup_12h", decDedup)
 	}

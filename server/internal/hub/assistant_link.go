@@ -234,8 +234,8 @@ func (l assistantLink) deviceCallFrom(ctx context.Context, from string, p assist
 			d.mu.Unlock()
 			// complete: the list is every machine there is (from reported its own and the pending computers were
 			// read), so an id in neither it nor others was removed.
-			return json.Marshal(map[string]any{"devices": list, "phone_online": h.phoneClient() != nil,
-				"complete": h.devicesUpFor(from) && !h.trustUnknown(), "others": others, "apps": h.clientAppList(ctx)})
+			return json.Marshal(map[string]any{"devices": list,
+				"complete": h.devicesUpFor(from) && !h.trustUnknown(), "others": others})
 		case assistantwire.DeviceInteractionsList:
 			list := []proto.Interaction{}
 			for _, ix := range h.pendingInteractions() {
@@ -339,9 +339,6 @@ func (l assistantLink) appCallFrom(ctx context.Context, from string, p assistant
 		return out, err
 	}
 	if out, ok, err := h.extAppCall(ctx, from, p); ok { // what the manager's extensions ask of the hub (extensions_link.go)
-		return out, err
-	}
-	if out, ok, err := h.fleetAppCall(ctx, from, p); ok { // what the hub still runs for the nodes (fleet_link.go)
 		return out, err
 	}
 	if p.Method == assistantwire.AppTool {

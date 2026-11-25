@@ -9,13 +9,11 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/nwverse/persona/server/internal/agentsend"
 	"github.com/nwverse/persona/server/internal/chatexport"
 	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/modelhttp"
 	"github.com/nwverse/persona/server/internal/nodecmd"
 	"github.com/nwverse/persona/server/internal/nodeproto"
@@ -26,7 +24,6 @@ import (
 	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
 	"github.com/nwverse/persona/server/internal/hubcli"
 	"github.com/nwverse/persona/server/internal/managercli"
-	"github.com/nwverse/persona/server/internal/relay"
 	"github.com/nwverse/persona/server/internal/shareproxy"
 	"github.com/nwverse/persona/server/internal/supervise"
 	"github.com/nwverse/persona/server/internal/update"
@@ -72,8 +69,6 @@ const usage = `usage:
 ` + nodecmd.Usage + `
   personad share-http --listen <address> --upstream <loopback HTTP origin> --public-origin <HTTP sharing origin> --hub-config <private configuration>
                            isolated anonymous sharing ingress on a separate unprivileged port (docs/server/agent-sharing.md)
-  personad relay [config]   run the push relay (config ~/.persona/relay.json): pushes for hubs without the app's APNs
-                           key, payloads sealed to the phone (docs/operations/push-relay.md)
   personad supervise [--manager-only [--hub <hub address>]]
                            the hub and the built-in manager side by side in one container, each started again when it
                            stops (the hub image runs it; docs/operations/docker.md)
@@ -152,16 +147,6 @@ func main() {
 		err = managercli.Manager(ctx, buildInfo(), os.Args[2:])
 	case "share-http":
 		err = shareproxy.Run(ctx, os.Args[2:], os.Stderr)
-	case "relay":
-		if len(os.Args) > 3 { // only the config path: anything after it would be ignored
-			err = usageError("usage: " + commandName() + " relay [config]")
-			break
-		}
-		path := filepath.Join(identity.HomeDir(), "relay.json")
-		if len(os.Args) > 2 {
-			path = os.Args[2]
-		}
-		err = relay.Run(ctx, path)
 	case "supervise": // the hub image's: the hub and the built-in manager side by side (docs/operations/docker.md)
 		if err = supervise.Run(ctx, os.Args[2:], os.Stderr); errors.Is(err, supervise.ErrStopped) {
 			os.Exit(1) // it said why in its log

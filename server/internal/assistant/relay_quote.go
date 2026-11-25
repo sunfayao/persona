@@ -39,6 +39,9 @@ type relayRequest struct {
 	PartRef string `json:"part_ref,omitempty"`
 }
 
+// quoteSelectorMin is the fewest characters of words that select a quoted passage by its text.
+const quoteSelectorMin = 4
+
 func (q *relayRequest) reference() string {
 	if q.Part {
 		return q.PartRef
@@ -302,7 +305,7 @@ func (s *Service) quoteByIDOrWords(ctx context.Context, self string, items []pro
 		return nil, errors.New("not sent: this conversation received a passage. Select its own quote reference or the exact words of the passage, or send without quote")
 	}
 	words := oneLine(selector)
-	if utf8.RuneCountInString(words) >= urgentQuoteMin {
+	if utf8.RuneCountInString(words) >= quoteSelectorMin {
 		for _, q := range candidates {
 			if excerpt := quoteExcerpt(q.Text, words); excerpt != "" {
 				if excerpt != q.Text || q.Truncated {

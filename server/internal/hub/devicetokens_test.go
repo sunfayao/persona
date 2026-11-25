@@ -251,145 +251,47 @@ func call(t *testing.T, h http.Handler, method, path, token, body string) (int, 
 func TestDeviceTokens(t *testing.T) {
 	h := newTestHub(t)
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
-	h.builtinLooks = builtinPersonaFS() // the Milk Frog the watch fetches below
 	mux := h.routes()
 	master := h.cfg.Token
 
-	code, phone := call(t, mux, "POST", "/api/v1/auth/tokens", master, `{"name":"iPhone","kind":"phone"}`)
-	if code != 200 || phone["role"] != "full" || !strings.HasPrefix(phone["token"].(string), "jd_") {
-		t.Fatalf("%d %v", code, phone)
+	code, web := call(t, mux, "POST", "/api/v1/auth/tokens", master, `{"name":"Browser","kind":"web"}`)
+	if code != 200 || web["role"] != "full" || !strings.HasPrefix(web["token"].(string), "jd_") {
+		t.Fatalf("%d %v", code, web)
 	}
-	phoneTok := phone["token"].(string)
-	code, watch := call(t, mux, "POST", "/api/v1/auth/tokens", phoneTok, `{"name":"Watch","kind":"watch"}`)
-	if code != 200 || watch["role"] != "answer" {
-		t.Fatalf("the phone adds its watch: %d %v", code, watch)
-	}
-	watchTok := watch["token"].(string)
-
-	// The watch reads and answers, nothing else; an answer goes to the manager, which has no such card.
-	connectAssistant(t, h)
-	if code, _ := call(t, mux, "GET", "/api/v1/interactions", watchTok, ""); code != 200 {
-		t.Fatalf("watch read %d", code)
-	}
-	if code, _ := call(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok, `{"allow":true}`); code != http.StatusGone {
-		t.Fatalf("watch answer reaches the handler (410: no such card), got %d", code)
-	}
-	for _, p := range []string{"/api/v1/auth/tokens", "/api/v1/machines/m/reconnect", "/api/v1/sessions"} {
-		if code, _ := call(t, mux, "POST", p, watchTok, `{}`); code != http.StatusForbidden {
-			t.Fatalf("watch POST %s: %d", p, code)
-		}
+	webTok := web["token"].(string)
+	// A watch's answer-only credential is not issued any more, and not as a full one in its place.
+	if code, out := call(t, mux, "POST", "/api/v1/auth/tokens", webTok, `{"name":"Watch","kind":"watch"}`); code != http.StatusBadRequest || out["code"] != "invalid_kind" {
+		t.Fatalf("a watch credential: %d %v", code, out)
 	}
 
-	code, mine := call(t, mux, "GET", "/api/v1/auth/tokens", phoneTok, "")
-	if code != 200 || mine["current"] != phone["id"] {
+	code, mine := call(t, mux, "GET", "/api/v1/auth/tokens", webTok, "")
+	if code != 200 || mine["current"] != web["id"] {
 		t.Fatalf("%d %v", code, mine)
 	}
 
-	// Revoking the phone shuts it out at once; the pairing token and the watch keep working.
-	if code, _ := call(t, mux, "DELETE", "/api/v1/auth/tokens/"+phone["id"].(string), master, ""); code != 200 {
+	// Revoking the browser shuts it out at once; the pairing token keeps working.
+	if code, _ := call(t, mux, "DELETE", "/api/v1/auth/tokens/"+web["id"].(string), master, ""); code != 200 {
 		t.Fatal(code)
 	}
-	if code, _ := call(t, mux, "GET", "/api/v1/interactions", phoneTok, ""); code != http.StatusUnauthorized {
-		t.Fatalf("revoked phone: %d", code)
-	}
-	if code, _ := call(t, mux, "GET", "/api/v1/interactions", watchTok, ""); code != 200 {
-		t.Fatalf("watch after the phone's revocation: %d", code)
+	if code, _ := call(t, mux, "GET", "/api/v1/interactions", webTok, ""); code != http.StatusUnauthorized {
+		t.Fatalf("revoked browser: %d", code)
 	}
 	if code, _ := call(t, mux, "GET", "/api/v1/interactions", "jd_made_up", ""); code != http.StatusUnauthorized {
 		t.Fatalf("unknown token: %d", code)
 	}
 	code, list := call(t, mux, "GET", "/api/v1/auth/tokens", master, "")
-	if code != 200 || len(list["tokens"].([]any)) != 2 {
+	if code != 200 || len(list["tokens"].([]any)) != 1 {
 		t.Fatalf("%d %v", code, list)
-	}
-	for _, p := range []string{"/api/v1/ws", "/api/v1/auth/tokens", "/api/v1/machines/m/file", "/api/v1/personas/nwverse/persona.json"} {
-		if code, _ := call(t, mux, "GET", p, watchTok, ""); code != http.StatusForbidden {
-			t.Fatalf("watch GET %s: %d", p, code)
-		}
-	}
-	// The Milk Frog's art reaches the watch through the whole chain, auth and the package's own file check (#4869).
-	if code, pet := call(t, mux, "GET", "/api/v1/personas/nwverse/pet/pet.json", watchTok, ""); code != 200 || pet["clips"] == nil {
-		t.Fatalf("watch GET the frog's manifest: %d %v", code, pet)
 	}
 }
 
-// An answer-only device can do what the watch does and nothing else: whatever is not named is refused, a GET included.
-func TestAnswerRoleOnlyWhatTheWatchDoes(t *testing.T) {
-	p := principal{ID: "dev_watch", Role: roleAnswer}
-	for _, c := range []struct {
-		method, path string
-		want         bool
-	}{
-		{"GET", "/api/v1/machines", true},
-		{"GET", "/api/v1/sessions", true},
-		{"HEAD", "/api/v1/sessions", true},
-		{"GET", "/api/v1/interactions", true},
-		{"GET", "/api/v1/inbox", true},
-		{"GET", "/api/v1/sessions/m/s/items", true},
-		{"POST", "/api/v1/interactions/x/resolve", true},
-		{"POST", "/api/v1/sessions/m/s/messages", true},
-		{"POST", "/api/v1/sessions/m/s/seen", true},
-		{"POST", "/api/v1/sessions/m/s/interrupt", true},
-		{"POST", "/api/v1/inbox/x/done", true},
-		{"POST", "/api/v1/inbox/x/draft", true},
-		{"POST", "/api/v1/inbox/x/reply", true},
-		{"POST", "/api/v1/inbox/x/suggestion", true}, // what it may do with it the manager checks
-		// The Milk Frog's art for the watch's row and face (WatchPetPack.fetch), and nothing else of any package.
-		{"GET", "/api/v1/personas/nwverse/pet/pet.json", true},
-		{"GET", "/api/v1/personas/nwverse/pet/face-needs_you.png", true},
-		{"GET", "/api/v1/personas/nwverse/pet/working.png", true},
-
-		{"GET", "/api/v1/personas", false},
-		{"GET", "/api/v1/personas/nwverse/persona.json", false},
-		{"GET", "/api/v1/personas/nwverse/pet/", false},
-		{"GET", "/api/v1/personas/nwverse/pet/..", false},
-		{"GET", "/api/v1/personas/nwverse/pet/.hidden.png", false},
-		{"GET", "/api/v1/personas/nwverse/pet/sub/x.png", false},
-		{"GET", "/api/v1/personas/nwverse/pet/notes.txt", false},
-		{"GET", "/api/v1/personas/u-0123abcd/pet/pet.json", false}, // an uploaded look
-		{"GET", "/api/v1/personas/other/pet/pet.json", false},
-		{"POST", "/api/v1/personas/nwverse/pet/pet.json", false},
-		{"GET", "/api/v1/ws", false},
-		{"GET", "/api/v1/machines/m/file", false},
-		{"GET", "/api/v1/machines/m/file/download", false},
-		{"GET", "/api/v1/machines/m/fs", false},
-		{"GET", "/api/v1/machines/m/fs/find", false},
-		{"GET", "/api/v1/machines/m/stat", false},
-		{"GET", "/api/v1/machines/m/dirs", false},
-		{"GET", "/api/v1/machines/m/git/status", false},
-		{"GET", "/api/v1/machines/m/launchers", false},
-		{"GET", "/api/v1/machines/m/launchers/x/models", false},
-		{"GET", "/api/v1/machines/m/ports/8000/connect", false},
-		{"GET", "/api/v1/sessions/m/s/screen", false},
-		{"GET", "/api/v1/sessions/m/s/info", false},
-		{"GET", "/api/v1/auth/tokens", false},
-		{"GET", "/api/v1/devices/x/prefs", false},
-		{"GET", "/api/v1/devices/x/sessions", false},
-		{"GET", "/api/v1/inbox/x", false},
-		{"GET", "/api/v1/inbox/done", false}, // the done items' history: the watch lists only the inbox
-		{"GET", "/api/v1/inbox/done/days?tz=UTC", false},
-		{"POST", "/api/v1/inbox/x/handoff", false}, // it writes in the main conversation
-		{"GET", "/api/v1/inbox/mutes", false},
-		{"GET", "/api/v1/plugins/x/y", false},
-		{"GET", "/api/v1/sessions/m/s/items/x", false},
-		{"GET", "/api/v1/machines/", false},
-
-		{"POST", "/api/v1/devices", false},
-		{"PUT", "/api/v1/devices/x/prefs", false},
-		{"POST", "/api/v1/sessions", false},
-		{"POST", "/api/v1/sessions/m/s/keys", false},
-		{"POST", "/api/v1/sessions/m/s/attach", false},
-		{"POST", "/api/v1/inbox/refresh", false},
-		{"POST", "/api/v1/inbox/x/doc/status", false},
-		{"POST", "/api/v1/inbox/done", false},
-		{"POST", "/api/v1/inbox/bulk", false},
-		{"POST", "/api/v1/auth/tokens", false},
-		{"POST", "/api/v1/machines", false},
-		{"PUT", "/api/v1/interactions/x/resolve", false},
-		{"DELETE", "/api/v1/sessions/m/s/messages", false},
-	} {
-		if got := allowed(p, c.method, c.path); got != c.want {
-			t.Errorf("%s %s: allowed=%v, want %v", c.method, c.path, got, c.want)
+// A token that still has the retired answer-only role (a watch's) opens nothing.
+func TestRetiredAnswerRoleOpensNothing(t *testing.T) {
+	p := principal{ID: "dev_watch", Role: roleRetiredAnswer}
+	for _, c := range [][2]string{{"GET", "/api/v1/machines"}, {"GET", "/api/v1/interactions"}, {"POST", "/api/v1/interactions/x/resolve"},
+		{"POST", "/api/v1/sessions/m/s/messages"}, {"PUT", "/api/v1/devices/x/widgets"}} {
+		if allowed(p, c[0], c[1]) {
+			t.Errorf("%s %s is allowed", c[0], c[1])
 		}
 	}
 }
@@ -401,7 +303,7 @@ func TestAnswerRoleAnswersCardsWithoutTyping(t *testing.T) {
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
 	mux := h.routes()
 	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	_, watch := call(t, mux, "POST", "/api/v1/auth/tokens", phone["token"].(string), `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	watchTok := watch["token"].(string)
 	const gone = http.StatusGone // reached the handler: there is no such card
 	connectAssistant(t, h)       // the answers that pass the device's role go to the manager, which has no such card
@@ -473,7 +375,7 @@ func TestAnswerRoleCannotPickTheFreeTextField(t *testing.T) {
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
 	mux := h.routes()
 	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	_, watch := call(t, mux, "POST", "/api/v1/auth/tokens", phone["token"].(string), `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	watchTok := watch["token"].(string)
 	// The cards are the manager's (fleet.interaction); the hub holds an answer-only device to a card's own choices
 	// before it relays the answer to the manager (here none is connected: 503 assistant_offline, nothing claimed).
@@ -563,4 +465,16 @@ func TestWebSignInReplacesItsEarlierDevice(t *testing.T) {
 	if code != 200 || kinds["web"] != 3 || kinds["phone"] != 1 {
 		t.Fatalf("kinds %v", kinds)
 	}
+}
+
+// retiredWatch is the credential of a watch paired before the answer-only role was dropped: a token of the retired
+// role, which the hub refuses everywhere. It returns what POST /api/v1/auth/tokens used to: id, token and role.
+func retiredWatch(t *testing.T, h *Hub) map[string]any {
+	t.Helper()
+	tok := "jd_" + randomHex(24)
+	row := db.DeviceToken{ID: "dev_" + randomHex(6), Name: "Watch", Kind: "watch", Role: roleRetiredAnswer}
+	if err := h.store.CreateDeviceToken(context.Background(), row, hashToken(tok)); err != nil {
+		t.Fatal(err)
+	}
+	return map[string]any{"id": row.ID, "token": tok, "role": roleRetiredAnswer, "name": "Watch"}
 }

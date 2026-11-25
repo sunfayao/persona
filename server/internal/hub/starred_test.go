@@ -25,7 +25,7 @@ func TestStarredRouteIsolation(t *testing.T) {
 		{http.MethodPost, assistantwire.StarredImportPath},
 		{http.MethodPost, assistantwire.StarredImportPreviewPath},
 	} {
-		if allowed(principal{Role: roleAnswer}, route.method, route.path) || allowed(principal{Role: roleLink}, route.method, route.path) {
+		if allowed(principal{Role: roleRetiredAnswer}, route.method, route.path) || allowed(principal{Role: roleLink}, route.method, route.path) {
 			t.Fatalf("%s %s widened a restricted device's access", route.method, route.path)
 		}
 		if status, _ := call(t, api, route.method, route.path, token, "{}"); status != http.StatusForbidden {

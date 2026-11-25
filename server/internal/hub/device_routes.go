@@ -9,40 +9,11 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// pushRegistrationRequired: a device's prefs or Live Activity write names a push registration the hub retired; the
-// app registers again (POST /api/v1/devices) before it retries.
+// pushRegistrationRequired: a device's prefs write names a device the hub retired (its credential was revoked).
 const pushRegistrationRequired = "push_registration_required"
 
-// deviceRoutes are a device's own: its registration for pushes, its sessions, and which pushes it wants.
+// deviceRoutes are a device's own: its sessions, and which notifications it wants.
 func (h *Hub) deviceRoutes(api *http.ServeMux) {
-	api.HandleFunc("POST /api/v1/devices", func(w http.ResponseWriter, r *http.Request) {
-		var d Device
-		if err := decodeJSONBody(w, r, &d, 16<<10); err != nil || d.DeviceID == "" {
-			writeBodyErr(w, err, errors.New("device_id is required"))
-			return
-		}
-		// Both name the device token that registered it: credential_id picks the phone a tool call or wake goes to,
-		// credential stops the pushes when it is revoked (Pusher.signedOut).
-		d.Locale = string(i18n.Resolve(d.Locale)) // its pushes' language; "" (an older app) is the user's
-		d.CredentialID = principalOf(r.Context()).ID
-		d.Credential = d.CredentialID
-		if err := h.push.registerContext(r.Context(), d); err != nil {
-			if errors.Is(err, db.ErrPushRegistrationConflict) {
-				writeErr(w, http.StatusConflict, i18n.Err("http-status.conflict"))
-				return
-			}
-			writeErr(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		resp := map[string]any{"ok": true}
-		if route, ok := h.push.routeOfID(d.DeviceID); ok {
-			resp["push"] = route // the app's Settings › Notifications says which way, or why none (#5998)
-		}
-		if route, ok := h.push.callRouteOfID(d.DeviceID); ok {
-			resp["call"] = route // whether urgent calls can ring it (urgent_call.go), for Settings › Urgent calls
-		}
-		writeJSON(w, resp)
-	})
 	api.HandleFunc("GET /api/v1/devices/{id}/sessions", h.serveDeviceSessions)
 	// Which pushes this device wants (notify.go NotifyPrefs); the app's Settings › Notifications.
 	api.HandleFunc("GET /api/v1/devices/{id}/prefs", func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +27,7 @@ func (h *Hub) deviceRoutes(api *http.ServeMux) {
 			return
 		}
 		var bad error // the body's: 400; any other error is the store's
-		before, prefs, err := h.push.editPrefs(r.PathValue("id"), principalOf(r.Context()).ID, func(prefs *NotifyPrefs) error {
+		prefs, err := h.push.editPrefs(r.PathValue("id"), principalOf(r.Context()).ID, func(prefs *NotifyPrefs) error {
 			if bad = json.Unmarshal(body, prefs); bad == nil {
 				bad = prefs.Quiet.validate()
 			}
@@ -72,7 +43,7 @@ func (h *Hub) deviceRoutes(api *http.ServeMux) {
 			return
 		}
 		if errors.Is(err, db.ErrPushRegistrationConflict) {
-			// The registration this id names was retired (its credential revoked, inactive): the app registers again.
+			// The device this id names was retired (its credential revoked).
 			writeErrCode(w, http.StatusConflict, pushRegistrationRequired, i18n.Err("push.registration_required"))
 			return
 		}
@@ -80,7 +51,6 @@ func (h *Hub) deviceRoutes(api *http.ServeMux) {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
-		h.live.settingsChanged(r.PathValue("id"), before, prefs)
 		writeJSON(w, h.prefsView(prefs))
 	})
 }

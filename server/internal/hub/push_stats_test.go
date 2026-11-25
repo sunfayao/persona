@@ -38,7 +38,7 @@ func extPrincipal(manager string) *principal {
 // An extension token with the notify scope may read the switch state; only a full credential may change it. The PUT
 // guard itself is covered in TestPushGradingInterceptsHeldToManager.
 func TestPushGradingSwitchReadableByNotifyExtension(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestPushGradingSwitchReadableByNotifyExtension(t *testing.T) {
 // The neutral switch alias and the legacy route share one handler: GET/PUT parity, extension authorization and the
 // original single storage key are pinned together so the alias cannot drift or introduce a persistence migration.
 func TestPushGradingRouteAliasMatchesLegacy(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	if err := h.push.setPushGrading(context.Background(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestPushGradingRouteAliasMatchesLegacy(t *testing.T) {
 // out of its view. manager-b's three entries are the oldest, so a truncate-then-filter implementation would hide all
 // of them behind manager-a's 220 newer ones.
 func TestPushInterceptsManagerFilterBeforeLimit(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	h.cfg = &Config{InterceptReaders: []string{"ext-intercept-panels"}}
 	now := h.push.now()
 	for i := range 3 {
@@ -157,7 +157,7 @@ func TestPushInterceptsManagerFilterBeforeLimit(t *testing.T) {
 // Delivered pushes are counted with the switch off as well as on, held pushes carry their reason, and the counts read
 // the full records so they stay exact past the 200-entry view limit.
 func TestPushDailyStatsCounts(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	// Switch off: two pushes go out and still count as delivered.
 	if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "off-1", "one")); err != nil {
 		t.Fatal(err)
@@ -179,7 +179,6 @@ func TestPushDailyStatsCounts(t *testing.T) {
 	}
 	// Wait for the three pushes that actually went out (two with the switch off, one P0): their APNs goroutines must
 	// finish before the test's fake server closes, or they log after the test and panic under -race.
-	f.calls(t, 3)
 	// A busy day: 220 more held pushes, beyond the 200-entry view.
 	now := h.push.now()
 	for i := range 220 {
@@ -228,14 +227,13 @@ func TestPushDailyStatsWindowUsesUTCCalendarDay(t *testing.T) {
 	}
 
 	t.Run("UTC+8 does not start in the future", func(t *testing.T) {
-		h, f := gradingHub(t)
+		h := gradingHub(t)
 		clock, offset := gradingZonedClock(h)
 		clock.Store(time.Date(2026, 11, 14, 23, 30, 0, 0, time.UTC).UnixNano())
 		offset.Store(8 * 60 * 60) // local 2026-11-15 07:30 +08:00
 		if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "utc-east-day", "one")); err != nil {
 			t.Fatal(err)
 		}
-		f.calls(t, 1)
 		for _, target := range []string{"/api/v1/push/stats/daily", "/api/v1/push/stats/daily?days=1"} {
 			since, days := read(t, h, target)
 			if since != "2026-11-14T00:00:00Z" || len(days) != 1 || days[0].Date != "2026-11-14" ||
@@ -246,7 +244,7 @@ func TestPushDailyStatsWindowUsesUTCCalendarDay(t *testing.T) {
 	})
 
 	t.Run("UTC-8 does not include the previous UTC day", func(t *testing.T) {
-		h, f := gradingHub(t)
+		h := gradingHub(t)
 		clock, offset := gradingZonedClock(h)
 		clock.Store(time.Date(2026, 11, 14, 23, 30, 0, 0, time.UTC).UnixNano())
 		offset.Store(8 * 60 * 60) // the previous notification is at local 2026-11-15 07:30 +08:00
@@ -258,7 +256,6 @@ func TestPushDailyStatsWindowUsesUTCCalendarDay(t *testing.T) {
 		if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "utc-current-day", "new")); err != nil {
 			t.Fatal(err)
 		}
-		f.calls(t, 2)
 		since, days := read(t, h, "/api/v1/push/stats/daily?days=1")
 		if since != "2026-11-15T00:00:00Z" || len(days) != 1 || days[0].Date != "2026-11-15" ||
 			days[0].Manager != "manager-a" || days[0].Sent != 1 {
@@ -270,7 +267,7 @@ func TestPushDailyStatsWindowUsesUTCCalendarDay(t *testing.T) {
 // The stats endpoint answers only the extension's own manager, understands since/days and rejects bad windows. Days
 // bucket by UTC calendar day.
 func TestPushDailyStatsHeldToManager(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	base := time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC)
 	setGradingClock(h, base)
 	if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "a-today", "a")); err != nil {
@@ -285,7 +282,6 @@ func TestPushDailyStatsHeldToManager(t *testing.T) {
 	}
 	moveGradingClock(h, base)
 	// The switch is off, so all three went to the fake APNs; wait out their goroutines before the server closes.
-	f.calls(t, 3)
 
 	read := func(target string) (int, struct {
 		Since string         `json:"since"`
@@ -348,33 +344,17 @@ func TestPushDailyStatsHeldToManager(t *testing.T) {
 // The delivered-push record lives in the store (hub_push_sent), so a restart keeps the counts like the switch and the
 // held list.
 func TestPushSentPersists(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "persisted-sent", "x")); err != nil {
 		t.Fatal(err)
 	}
-	f.calls(t, 1) // let the APNs goroutine finish before the fake server closes
 	if !h.push.waitInterceptsSaved(2 * time.Second) {
 		t.Fatal("the delivered pushes were not saved")
 	}
-	restarted := newPusher(t.TempDir(), h.push.store, t.Logf)
+	restarted := newPusher(h.push.store, t.Logf)
 	stats := restarted.pushDailyStats(h.push.now().Add(-24*time.Hour), "")
 	if len(stats) != 1 || stats[0].Sent != 1 || stats[0].Manager != "manager-a" {
 		t.Fatalf("restored stats = %+v, want one delivered push", stats)
-	}
-}
-
-// A pairing receipt bypasses the push grading filter on purpose (sendBuilt), so notifyComputerCode records it explicitly:
-// the phone visibly received a hub alert and the daily sent count must include it, under the hub's empty manager.
-func TestPushPairingReceiptCountsAsSent(t *testing.T) {
-	h, f := gradingHub(t)
-	if !h.push.ready() {
-		t.Fatal("the fixture phone is not reachable")
-	}
-	h.notifyComputerCode(principal{Name: "fixture-phone", ID: "cred-issuer"}, "computer-pair-1")
-	f.calls(t, 1) // the receipt really went out; let its APNs goroutine finish before the fake server closes
-	stats := h.push.pushDailyStats(h.push.now().Add(-time.Hour), "")
-	if len(stats) != 1 || stats[0].Sent != 1 || stats[0].Manager != "" {
-		t.Fatalf("stats = %+v, want one sent hub pairing receipt with an empty manager", stats)
 	}
 }
 
@@ -412,13 +392,12 @@ func (s *flakyPutStore) AddPushSent(ctx context.Context, entries []db.PushSent) 
 // A failed write is retried instead of dropped: waitInterceptsSaved must not report idle while the change is unsaved,
 // and the row eventually lands, once.
 func TestPushWriterRetriesFailedSave(t *testing.T) {
-	h, f := gradingHub(t)
+	h := gradingHub(t)
 	store := &flakyPutStore{gradingStore: h.push.store.(*gradingStore), failsLeft: 2}
 	h.push.store = store
 	if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP1, "retry-me", "x")); err != nil {
 		t.Fatal(err)
 	}
-	f.calls(t, 1) // wait for the push goroutine; the store retries are what this test measures
 	if !h.push.waitInterceptsSaved(10 * time.Second) {
 		t.Fatal("the writer did not finish after retries")
 	}
@@ -443,7 +422,7 @@ func TestPushWriterRetriesFailedSave(t *testing.T) {
 // intercept_readers allow-list may read them (its own manager's entries); every other extension token gets 403, and a
 // full credential keeps reading every manager.
 func TestPushInterceptsAllowlist(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	h.cfg = &Config{InterceptReaders: []string{"ext-push-panels"}}
 	now := h.push.now()
 	h.push.recordIntercept(heldPushRecord{At: now.UTC(), Level: assistantwire.LevelP0, Reason: interceptReasonDedup,
@@ -501,7 +480,7 @@ func TestPushInterceptsAllowlist(t *testing.T) {
 // A held push's full body is never stored, even before any read: the record keeps the title plus a summary capped at
 // pushInterceptBodyMaxRunes runes. Merged titles and short bodies are unaffected.
 func TestPushInterceptsBodyStoredAsSummary(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	longBody := strings.Repeat("秘", pushInterceptBodyMaxRunes+50)
 	h.push.recordIntercept(heldPushRecord{At: h.push.now().UTC(), Level: assistantwire.LevelP2, Reason: interceptReasonP2,
 		Title: "long card", Body: longBody, Manager: "manager-a"})
@@ -540,7 +519,7 @@ func TestPushInterceptsBodyStoredAsSummary(t *testing.T) {
 // Rows written before the summary limit may still hold a full body: a restart must sanitize them in memory and write
 // the sanitized list back, so the old full text does not stay in the database until some unrelated write.
 func TestPushInterceptsSanitizeOldRowsOnLoad(t *testing.T) {
-	h, _ := gradingHub(t)
+	h := gradingHub(t)
 	store := h.push.store.(*gradingStore)
 	longBody := strings.Repeat("密", pushInterceptBodyMaxRunes+80)
 	legacy := []map[string]any{{
@@ -555,7 +534,7 @@ func TestPushInterceptsSanitizeOldRowsOnLoad(t *testing.T) {
 	store.vals[heldPushesSettingKey] = append([]byte(nil), raw...)
 	store.mu.Unlock()
 
-	restarted := newPusher(t.TempDir(), store, t.Logf)
+	restarted := newPusher(store, t.Logf)
 	view := restarted.heldPushesView("", 0)
 	if len(view) != 1 {
 		t.Fatalf("reloaded view = %d entries, want 1", len(view))

@@ -41,7 +41,7 @@ func TestMachineProcRoutesRequireFullDevice(t *testing.T) {
 	tn := newTermNode(t)
 	h := tn.hub
 
-	for _, role := range []string{roleAnswer, roleExtension, roleLink, roleScoped} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension, roleLink, roleScoped} {
 		for _, tc := range []struct {
 			method string
 			path   string

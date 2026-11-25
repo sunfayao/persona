@@ -215,7 +215,7 @@ func relayTestHubVia(t *testing.T, serve http.Handler, via func(hubURL string) s
 	return h, x, srv
 }
 
-// relayDevice makes a device token of kind ("phone": full, "watch": answer-only) with by's credential.
+// relayDevice makes a device token of kind (any but "link" and "watch": a full one) with by's credential.
 func relayDevice(t *testing.T, srv *httptest.Server, by, name, kind string) (id, token string) {
 	t.Helper()
 	code, out := call(t, srv.Config.Handler, "POST", "/api/v1/auth/tokens", by, `{"name":"`+name+`","kind":"`+kind+`"}`)

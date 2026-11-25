@@ -210,7 +210,7 @@ func TestTerminalAgentSendRejectsOtherActorsOrTargetsBeforeClaim(t *testing.T) {
 		want    int
 	}{
 		{"hub token", principal{Role: roleFull}, "agent", 403},
-		{"answer credential", principal{Role: roleAnswer, ID: "watch"}, "agent", 403},
+		{"answer credential", principal{Role: roleRetiredAnswer, ID: "watch"}, "agent", 403},
 		{"extension", principal{Role: roleExtension, ID: "extension"}, "agent", 403},
 		{"unknown target", principal{Role: roleFull, ID: "paired"}, "unknown", 404},
 		{"Persona target", principal{Role: roleFull, ID: "paired"}, "persona", 404},

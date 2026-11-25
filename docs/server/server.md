@@ -193,10 +193,7 @@ Publishing and approving are separate actions. A reader may retrieve a published
 | `internal/mcpserver` | personad mcp: stdio MCP server for Claude |
 | `internal/nodecmd` | The device's command line (`personad` and `persona-node` both dispatch it) |
 | `internal/nodeclient` | The client side of `node.sock` for hook / mcp / ask / notify / tool |
-| `internal/apns` | APNs client (.p 8 key, provider token, single push), shared by direct hub and relay |
-| `internal/pushcrypto` | Push-body encryption with phone public key (HPKE), `docs/operations/push-relay.md` |
 | `internal/webpush` | The hub's Web Push to browsers: VAPID signing and RFC 8291 message encryption, `docs/web/web.md` "Web Push" |
-| `internal/relay` | Publisher-run personad relay, `docs/operations/push-relay.md` |
 | `internal/tunnel` | Tailcat node key / endpoint, hub dialing, new-binary transfer over tailcat (“Tailcat hole punching” below) |
 
 ## Client traffic diagnostics
@@ -750,7 +747,7 @@ Adding a migration:
 | `managers/assistant/manager.json` | The built-in manager's own sections (`docs/operations/config.md` ("manager.json")): `assistant.owner` / `notes` / `machine` / `launcher`, `ai`, `agents`, `inbox`, `kb`, `hook_timeout_minutes`, lark, `lark_gate`, `connector_gate`, github, imessage, google, microsoft, bots, extensions / plugins, `trusted_extension_markets`, usage, `sent_ledger_days`, `sent_recall_hours`; e.g. `google.client_id` (Gmail iOS OAuth client), `google.proxy` (Gmail HTTP proxy, e.g. http://127.0.0.1:<port>, `docs/extensions/mail.md`), `github.proxy` (all GitHub connector requests, same format) |
 | `tls/hub.key`, `tls/hub.crt` | Automatically managed ECDSA P-256 identity key / self-signed cert, directory 0700, files 0600, private key outside DB. Rotation requires device re-pairing |
 | `secret.key` | The hub's own 32-byte key (peer tokens, connector credentials). The built-in manager's key, which seals its secrets (mail, model providers, extensions), is in `managers/assistant/` with its `tailcat-hub.json` and `handles.key`: a copy of the hub's on an upgraded install until it rotates to its own after the move ([managers.md](../assistant/managers.md) ("The built-in manager's own files", "Its own secret.key")) |
-| `apns.json`, `apns_key.p8` | Push config / key. Present → direct APNs; absent → per-phone registered relay (`docs/operations/push-relay.md`); no relay → no push |
+| `apns.json`, `apns_key.p8` | Retired push config / key: no longer read |
 
 Each computer ~/.persona also contains node-generated hooks (`claude-hooks/` / `assistant-hooks/` plugins, the Agents' `claude-live-replies/` plugin, `claude-settings.json` / `assistant-settings.json` for older Claude), `mcp.json`, `node.sock`, uploads/.
 

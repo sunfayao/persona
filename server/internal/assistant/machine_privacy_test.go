@@ -10,23 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
 type privacyHub struct {
 	*fakeHub
-	phoneCalls int
 }
 
 func (f *privacyHub) AppCall(ctx context.Context, p AppCall) (json.RawMessage, error) {
-	if p.AppID == assistantwire.AppPhone {
-		f.phoneCalls++
-		if p.Method == assistantwire.PhoneTools {
-			return json.Marshal(map[string]any{"tools": []proto.Tool{{Name: "phone_contacts"}}})
-		}
-		return json.Marshal(proto.TextResult("phone result", false))
-	}
 	return f.fakeHub.AppCall(ctx, p)
 }
 
@@ -206,7 +197,7 @@ func TestAnotherManagerAssistantToolsFollowItsDirectory(t *testing.T) {
 }
 
 func TestWorkMachineToolsDeniedAtExecution(t *testing.T) {
-	s, _, f, e := privacyService(t)
+	s, _, _, e := privacyService(t)
 	for _, hint := range []bool{false, true} {
 		names := privacyTools(t, s, "work", "ordinary", hint)
 		if !slices.Contains(names, "report_to_supervisor") {
@@ -221,8 +212,8 @@ func TestWorkMachineToolsDeniedAtExecution(t *testing.T) {
 			}
 		}
 	}
-	if f.phoneCalls != 0 || len(e.called) != 0 {
-		t.Fatalf("denied request reached phone/extension: %d %v", f.phoneCalls, e.called)
+	if len(e.called) != 0 {
+		t.Fatalf("denied request reached the extension: %v", e.called)
 	}
 	for _, trust := range []string{"", "personal"} {
 		t.Run("personal="+trust, func(t *testing.T) {

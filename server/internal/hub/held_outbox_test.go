@@ -23,7 +23,7 @@ func TestHeldOutboxRouteUsesOfflineComputerOwner(t *testing.T) {
 		want int
 	}{
 		{"master token", principal{Role: roleFull}, http.StatusForbidden},
-		{"answer device", principal{Role: roleAnswer, ID: "test-watch"}, http.StatusForbidden},
+		{"answer device", principal{Role: roleRetiredAnswer, ID: "test-watch"}, http.StatusForbidden},
 		{"extension", principal{Role: roleExtension, ID: "test-extension"}, http.StatusForbidden},
 		{"full device", ownerPhone, http.StatusOK},
 	} {

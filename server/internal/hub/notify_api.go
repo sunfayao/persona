@@ -39,7 +39,7 @@ type notifyRequest struct {
 	// Silent: no sound (`personad notify --silent`, docs/integrations/script-cli.md).
 	Silent bool `json:"silent,omitempty"`
 	// PushLevel is the ln-mode urgency: "P0" (must interrupt), "P1" (default; held for briefings in ln mode) or
-	// "P2" (silent in ln mode). It is separate from Level, the APNs interruption level.
+	// "P2" (silent in ln mode). It is separate from Level, the interruption level.
 	PushLevel string `json:"push_level,omitempty"`
 
 	// Extension notification: only accepted when the caller is an extension token (roleExtension, with the notify scope).
@@ -51,7 +51,7 @@ type notifyRequest struct {
 const (
 	notifyTitleMost = 120
 	notifyBodyMost  = 1000
-	// notifyIDMost leaves room for notifyCollapse's prefix inside APNs' 64-byte apns-collapse-id.
+	// notifyIDMost bounds a caller's own id.
 	notifyIDMost  = 56
 	notifyRefMost = 128 // machine_id, session_id
 	notifyUIMost  = 128 // extension ui contribution id
@@ -61,13 +61,8 @@ const (
 	notifyActionIDMost               = 128
 	notifyActionTitleMost            = 40
 	notifyActionInputPlaceholderMost = 80
-	// notifyPayloadMost keeps the whole push under APNs' 4 KB with room for hub_id; the relay shortens alerts
-	// itself (sealFor), a direct push would be refused.
+	// notifyPayloadMost bounds the whole notification payload.
 	notifyPayloadMost = 3500
-	// notifyCollapse keeps a caller's ids apart from the hub's own (interaction ids).
-	notifyCollapse = "notify:"
-	// extensionCollapse keeps an extension's (extensionNotifyIDs) apart from every other caller's.
-	extensionCollapse = "notify-ext:"
 	// kindAlert is the WebSocket notify event's kind for these (docs/protocol/protocol.md "Notifications over the persistent connection (ws_notify)").
 	kindAlert = "alert"
 )
@@ -210,11 +205,10 @@ func (h *Hub) machineNameFor(in notifyRequest) string {
 	return h.machineName(in.MachineID)
 }
 
-// extensionNotifyIDs are what an extension's notification with id goes out under: ws on the WebSocket, collapse on the
-// push. The same id from the same extension of the same manager still replaces its earlier alert, but another
-// extension's, another manager's or any other caller's does not: ws is longer than a caller's own id may be
-// (notifyIDMost), and collapse is not under notifyCollapse.
-func extensionNotifyIDs(manager, extension, id string) (ws, collapse string) {
+// extensionNotifyIDs is what an extension's notification with id goes out under on the WebSocket. The same id from the
+// same extension of the same manager still replaces its earlier alert, but another extension's, another manager's or
+// any other caller's does not: it is longer than a caller's own id may be (notifyIDMost).
+func extensionNotifyIDs(manager, extension, id string) string {
 	sum := sha256.New()
 	sum.Write([]byte("notify\x00"))
 	for _, s := range []string{manager, extension} {
@@ -223,13 +217,13 @@ func extensionNotifyIDs(manager, extension, id string) (ws, collapse string) {
 	}
 	sum.Write([]byte(id))
 	h := hex.EncodeToString(sum.Sum(nil))
-	return "ext:" + h, extensionCollapse + h[:32]
+	return "ext:" + h
 }
 
 // deliverNotify sends a validated notification to the devices that take them: the reply is {"sent":true} when a
 // recipient is selected, {"sent":false,"held":true,"reason":...} when push grading holds it, or
 // {"sent":false,"reason":"muted"|"no_device"|"filtered"}. An error is the caller's
-// (a payload too large for APNs). machine is the subtitle:
+// (a payload that is too large). machine is the subtitle:
 // the machine's name, "" for none. manager is whose it is (an extension's manager, a computer's for its
 // `personad notify` or for a request naming that computer): devices that turned that manager's pushes off skip it;
 // "" (no extension and no computer of this hub named) is the hub's own, which no device mutes.
@@ -241,12 +235,9 @@ func (h *Hub) deliverNotify(in notifyRequest, machine, extID, manager string) (m
 	if raw, _ := json.Marshal(payload); len(raw) > notifyPayloadMost {
 		return nil, errors.New("notification is too large")
 	}
-	id, collapse := in.ID, ""
-	switch {
-	case id != "" && extID != "":
-		id, collapse = extensionNotifyIDs(manager, extID, id)
-	case id != "":
-		collapse = notifyCollapse + id
+	id := in.ID
+	if id != "" && extID != "" {
+		id = extensionNotifyIDs(manager, extID, id)
 	}
 	// Something that needs you: devices that turned off "Needs you" (prefs.input) get none of these either.
 	wants := pushWants{Kind: "input"}.fn()
@@ -255,19 +246,19 @@ func (h *Hub) deliverNotify(in notifyRequest, machine, extID, manager string) (m
 	if in.ID != "" { // the caller's own id, apart from every other manager's and extension's same id
 		policy.relatedKey = "notify:" + manager + "/" + extID + "/" + in.ID
 	}
-	pushSelected, pushReachable, heldReason := h.push.sendFromPolicy(manager, policy, build, collapse, wants, quietNone, nil, nil)
+	heldReason := h.push.grade(manager, policy, build)
 	if heldReason != "" {
 		return map[string]any{"sent": false, "held": true, "reason": heldReason}, nil
 	}
 	ws := build
 	if id != "" {
-		// The WebSocket event carries the id itself (not the push), so an Android phone replaces the earlier alert too.
+		// The WebSocket event carries the id itself, so a client replaces the earlier alert.
 		withID := maps.Clone(payload)
 		withID["id"] = id
 		ws = func(i18n.Lang) map[string]any { return withID }
 	}
 	wsr := h.notifyWSFrom(manager, kindAlert, ws, wants, quietNone)
-	if reason := (pushOutcome{devices: pushSelected + wsr.selected, reachable: pushReachable + wsr.reachable}).reason(); reason != "" {
+	if reason := (pushOutcome{devices: wsr.selected, reachable: wsr.reachable}).reason(); reason != "" {
 		return map[string]any{"sent": false, "reason": reason}, nil
 	}
 	return map[string]any{"sent": true}, nil

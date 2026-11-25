@@ -150,7 +150,7 @@ func dataMsg(id string, data string) json.RawMessage {
 func TestHerdrViewNeedsAFullDevice(t *testing.T) {
 	fn := newFullNode(t, nil)
 	h := fn.hub
-	answer, full := termClient(h, roleAnswer), termClient(h, roleFull)
+	answer, full := termClient(h, roleRetiredAnswer), termClient(h, roleFull)
 
 	say(h, answer, map[string]any{"type": "herdr_open", "machine_id": "m1", "id": "v1", "cols": 100, "rows": 30})
 	got := awaitTold(t, answer, 1)
@@ -483,7 +483,7 @@ func TestHerdrFocusIsForTheViewsOwnerOnAFullDevice(t *testing.T) {
 	}
 
 	// A device that is no longer a full one (its view stays until it ends) cannot move the focus either.
-	a.role = roleAnswer
+	a.role = roleRetiredAnswer
 	say(h, a, map[string]any{"type": "herdr_focus", "id": "v1", "session_id": "pane:w1:p3"})
 	fn.nothingMore(t, 2)
 }

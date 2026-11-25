@@ -43,7 +43,7 @@ func TestGitWriteRoutes(t *testing.T) {
 	m.peer = hubPeer
 	h.byID["mac"] = m
 	handler := h.routes()
-	_, watch := call(t, handler, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	base := "/api/v1/machines/mac/git/"
 	for _, c := range []struct{ verb, path, body, method, key string }{
 		{"GET", "branches?cwd=/work/web", "", "git.branches", "cwd"},

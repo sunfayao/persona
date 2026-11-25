@@ -144,7 +144,7 @@ func TestWorktreeCreateReceiptKeepsUnknownOutcome(t *testing.T) {
 }
 
 func TestWorktreeCreateReceiptRequiresFullCredentials(t *testing.T) {
-	for _, role := range []string{roleAnswer, roleExtension} {
+	for _, role := range []string{roleRetiredAnswer, roleExtension} {
 		t.Run(role, func(t *testing.T) {
 			h := newTestHub(t)
 			h.store = &clientOpsStore{ops: map[string]db.ClientOp{}}

@@ -60,8 +60,7 @@ func TestResolveBodyLimitForAnswerRole(t *testing.T) {
 	h := newTestHub(t)
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
 	mux := h.routes()
-	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	_, watch := call(t, mux, "POST", "/api/v1/auth/tokens", phone["token"].(string), `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	watchTok := watch["token"].(string)
 
 	code, errCode, read := postEndless(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok)

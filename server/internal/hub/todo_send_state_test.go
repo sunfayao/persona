@@ -47,7 +47,7 @@ func newTodoSendApps(t *testing.T, h *Hub) todoSendApps {
 	a := todoSendApps{
 		knows: &client{out: make(chan []byte, 64), role: roleFull, urlFeatures: map[string]bool{proto.FeatureTodoSendState: true}},
 		hello: &client{out: make(chan []byte, 64), role: roleFull},
-		watch: &client{out: make(chan []byte, 64), role: roleAnswer, urlFeatures: map[string]bool{proto.FeatureTodoSendState: true}},
+		watch: &client{out: make(chan []byte, 64), role: roleRetiredAnswer, urlFeatures: map[string]bool{proto.FeatureTodoSendState: true}},
 		other: &client{out: make(chan []byte, 64), role: roleFull},
 	}
 	addTestClient(h, a.knows, a.hello, a.watch, a.other)

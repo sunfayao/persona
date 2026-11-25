@@ -140,7 +140,7 @@ func TestInboxReplyFromTheWatchIsTextOnly(t *testing.T) {
 	h.inboxRoutesRelayed(api)
 	reply := func(body string) int {
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/inbox/x/reply", strings.NewReader(body))
-		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleAnswer}))
+		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
 		w := httptest.NewRecorder()
 		api.ServeHTTP(w, r)
 		return w.Code

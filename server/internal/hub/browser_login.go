@@ -185,7 +185,6 @@ func (h *Hub) browserIssue(w http.ResponseWriter, r *http.Request, f *browserLog
 				h.logf("device token %s replaces %s", f.DeviceID, old)
 			}
 		}
-		h.notifyPairing(f.Name, f.DeviceID)
 	}
 	resp := map[string]any{"state": browserApproved, "token": f.Token, "id": f.DeviceID}
 	if f.Replaced != "" {

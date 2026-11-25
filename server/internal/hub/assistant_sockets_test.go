@@ -60,7 +60,7 @@ func TestAssistantSocketRelayed(t *testing.T) {
 	h, fx, srv := relayTestHubServing(t, m)
 	master := h.cfg.Token
 	phoneID, phone := relayDevice(t, srv, master, "iPhone", "phone")
-	_, watch := relayDevice(t, srv, master, "Watch", "watch")
+	watch := retiredWatch(t, h)["token"].(string)
 	ext := fx.issue("caller", "Caller", []string{extension.ScopeCallPrefix + "voice", extwire.ScopeKBRead, extwire.ScopeKBWrite})
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()

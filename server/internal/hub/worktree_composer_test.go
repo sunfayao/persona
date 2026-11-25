@@ -58,7 +58,7 @@ func TestWorktreeComposerMountedRoutesAndReceipt(t *testing.T) {
 		"delete":  `{"workspace_id":"w1","kind":"orca","preview_token":"opaque","force":true,"allowFailedArchiveHook":true,"allowUnverifiedPtyStop":true}`,
 	} {
 		path := "/api/v1/machines/machine/worktree/" + action
-		for _, role := range []string{roleAnswer, roleLink, roleExtension} {
+		for _, role := range []string{roleRetiredAnswer, roleLink, roleExtension} {
 			w := httptest.NewRecorder()
 			mux.ServeHTTP(w, worktreeReceiptRequest(path, body, "", "device", role))
 			if w.Code != http.StatusForbidden {

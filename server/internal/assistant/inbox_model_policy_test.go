@@ -130,15 +130,6 @@ func TestInboxModelReadOnlyInvestigationAndSuggestion(t *testing.T) {
 	if res := inboxTool(t, h, "s1", "kb_search", `{"query":"project context"}`); res.IsError {
 		t.Fatalf("KB read through the model entry point: %+v", res)
 	}
-	h.f.answerApp(assistantwire.AppPhone, assistantwire.PhoneCall, func(json.RawMessage) (any, error) {
-		return proto.TextResult(`{"events":[]}`, false), nil
-	})
-	if res := h.mcpCallWithOrigin(t.Context(), "server", "s1", "phone_calendar_events", json.RawMessage(`{}`), true, OriginInbox); res.IsError {
-		t.Fatalf("phone read through the model entry point: %+v", res)
-	}
-	if calls := h.f.appParams(assistantwire.AppPhone, assistantwire.PhoneCall); len(calls) != 1 {
-		t.Fatalf("phone read executed %d times, want 1", len(calls))
-	}
 	if _, refused := h.inboxModelRefusal(t.Context(), "server", "s1", OriginInbox, "agents_list"); refused {
 		t.Fatal("read-only Agent investigation was refused")
 	}

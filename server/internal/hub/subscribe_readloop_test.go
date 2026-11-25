@@ -78,45 +78,6 @@ func boxWatches(box *meshNode, session string) bool {
 	return len(box.conns) == 1 && box.conns[0].watching[session]
 }
 
-// Through the manager: while the node keeps its answer to session.watch back, what the app sends behind the
-// subscribe is still taken, and once the node answers the subscriber gets its backlog and its live items.
-func TestSubscribeWaitingForTheNodeLeavesTheConnectionRead(t *testing.T) {
-	mh, box, tok := subscribeBox(t)
-	release := holdAnswers(t, box, "session.watch")
-	a := dialApp(t, mh, tok)
-	a.send(t, map[string]any{"type": "subscribe", "machine_id": "box", "session_id": "s1"})
-	eventually(t, 10*time.Second, "the watch at the node", func() bool { return box.heldCalls("session.watch") == 1 })
-
-	// A phone tool's result that a turn of the assistant waits for comes in on this socket.
-	result := make(chan proto.ToolResult, 1)
-	mh.h.mu.Lock()
-	mh.h.calls["call1"] = result
-	mh.h.mu.Unlock()
-	a.send(t, map[string]any{"type": "tool_result", "call_id": "call1", "content": []map[string]any{{"type": "text", "text": "ok"}}})
-	select {
-	case <-result:
-	case <-time.After(readLoopLimit):
-		t.Fatalf("a tool result sent behind a subscribe was not taken within %s: the read loop waits for the node", readLoopLimit)
-	}
-	a.pongWithin(t, "p1", "while the node keeps session.watch")
-	// A protocol ping is answered only while the hub reads the socket, and the pong of the hub's own ping is taken
-	// only then too: a hub that does not read drops a healthy app with pong_timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), readLoopLimit)
-	defer cancel()
-	if err := a.conn.Ping(ctx); err != nil {
-		t.Fatalf("the hub did not answer a protocol ping while the node keeps session.watch: %v", err)
-	}
-	if got := box.heldCalls("session.watch"); got != 1 {
-		t.Fatalf("session.watch reached the node %d times, want the one still waiting", got)
-	}
-
-	release()
-	a.wait(t, "the backlog once the node answered", 0, hasItem("hi from s1"))
-	eventually(t, 10*time.Second, "the node watching s1", func() bool { return boxWatches(box, "s1") })
-	box.addItem("s1", "live after the wait")
-	a.wait(t, "a live item", 0, hasItem("live after the wait"))
-}
-
 // The same for leaving a session: the unwatch waits for the node, the connection does not.
 func TestUnsubscribeWaitingForTheNodeLeavesTheConnectionRead(t *testing.T) {
 	mh, box, tok := subscribeBox(t)

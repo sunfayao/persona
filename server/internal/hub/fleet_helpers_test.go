@@ -43,13 +43,6 @@ func reportResolved(t *testing.T, h *Hub, id, by string) {
 	busEvents[assistantwire.EventFleetResolved](h, nil, b)
 }
 
-// reportLive is the manager's fleet.live.
-func reportLive(t *testing.T, h *Hub, st FleetState, stats FleetStats) {
-	t.Helper()
-	b, _ := json.Marshal(assistantwire.FleetLive{State: st, Stats: stats})
-	busEvents[assistantwire.EventFleetLive](h, nil, b)
-}
-
 // applyDeviceStates is applyDeviceStatesFrom the manager that carries hub.json's machines.
 func (h *Hub) applyDeviceStates(st devicewire.States) { h.applyDeviceStatesFrom(devicesOwner, st) }
 
@@ -129,13 +122,13 @@ func (h *Hub) resolve(id string, r proto.Resolution) error {
 	}
 }
 
-// mcpTools are the tools the manager lists for a node (assistant/fleet_tools.go) from what the hub has: the phone's,
-// the connectors', and for an assistant conversation Cua's, ego's and the connectors only it gets (its own tools
+// mcpTools are the tools the manager lists for a node (assistant/fleet_tools.go) from what the hub has: the
+// connectors', and for an assistant conversation Cua's, ego's and the connectors only it gets (its own tools
 // left out: they are the manager's).
 func (h *Hub) mcpTools(assistant bool) []proto.Tool {
 	ctx := context.Background()
 	agents, assistantOnly := fakeExtOf(h).AgentTools(ctx, assistant) // the extensions' (the manager's, faked)
-	tools := append(h.phoneToolList(), agents...)
+	tools := agents
 	if !assistant {
 		for _, n := range []string{
 			"resource_status", "resource_acquire", "resource_get", "resource_renew", "resource_release", "resource_cancel",
@@ -152,19 +145,12 @@ func (h *Hub) mcpTools(assistant bool) []proto.Tool {
 	return tools
 }
 
-// callTool is a node's MCP call as the manager routes it to the hub (app.call hub, then phone).
+// callTool is a node's MCP call as the manager routes it to the hub (app.call hub).
 func (h *Hub) callTool(ctx context.Context, machineID, name string, args json.RawMessage) proto.ToolResult {
 	if r, ok := fakeExtOf(h).CallTool(ctx, machineID, "", name, args, false); ok {
 		return r
 	}
-	b, _ := json.Marshal(map[string]any{"name": name, "args": args})
-	out, ok, err := h.fleetAppCall(ctx, assistantwire.AssistantID, assistantwire.AppCall{AppID: assistantwire.AppPhone, Method: assistantwire.PhoneCall, Params: b})
-	if !ok || err != nil {
-		return proto.TextResult("unknown tool "+name, true)
-	}
-	var r proto.ToolResult
-	_ = json.Unmarshal(out, &r)
-	return r
+	return proto.TextResult("unknown tool "+name, true)
 }
 
 // callAssistantTool runs one of the assistant's tools for the conversation sessionID on m, as a node's mcp.call

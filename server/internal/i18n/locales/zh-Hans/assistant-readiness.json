@@ -45,8 +45,6 @@
   "suggest_how_to_connect_model": "怎么接模型？",
   "suggest_largest_folders": "看看这台电脑上最大的几个文件夹",
   "suggest_largest_folders_prompt": "看看这台电脑上最大的几个文件夹。",
-  "suggest_today": "今天有什么安排",
-  "suggest_today_prompt": "今天有什么安排？",
   "suggest_connect_mail": "教我接邮箱",
   "suggest_connect_mail_prompt": "教我把邮箱接进 Persona。"
 }

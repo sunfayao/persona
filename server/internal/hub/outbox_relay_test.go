@@ -18,7 +18,7 @@ import (
 func TestTheOutboxIsDeliveredOnce(t *testing.T) {
 	c := &client{device: "test-device", out: make(chan []byte, 16)}
 	h := newTestHub(t)
-	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out
 	if err := h.push.setPrefs(c.device, NotifyPrefs{Input: false, Done: DoneOff}); err != nil {
@@ -109,7 +109,7 @@ func TestHandedOverIsBounded(t *testing.T) {
 func TestARefusedOutboxPushIsNotRecorded(t *testing.T) {
 	c := &client{device: "test-device", out: make(chan []byte, 16)}
 	h := newTestHub(t)
-	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out
 	if err := h.push.setPrefs(c.device, NotifyPrefs{Input: true, Done: DoneOff}); err != nil {
@@ -157,7 +157,7 @@ func TestHandedOverOutlivesTheHubProcess(t *testing.T) {
 		c := &client{device: "test-device", out: make(chan []byte, 16)}
 		h := newTestHub(t)
 		h.store = store
-		h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+		h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 		h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 		<-c.out
 		_ = h.push.setPrefs(c.device, NotifyPrefs{Input: false, Done: DoneOff})
@@ -321,7 +321,7 @@ func TestPausedOutboxSkipsDeliveryAndPreservesDurableDeduplication(t *testing.T)
 	h := newTestHub(t)
 	st := &hookHandOver{seen: map[string]bool{"assistant/ntf_dup": true}}
 	h.store = st
-	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out
 	if err := h.push.setPrefs(c.device, NotifyPrefs{Input: false, Done: DoneOff}); err != nil {
@@ -397,7 +397,7 @@ func TestPausedOutboxSkipsDeliveryAndPreservesDurableDeduplication(t *testing.T)
 func TestPauseBetweenHandOverClaimAndFailedDeliveryDoesNotStrandItem(t *testing.T) {
 	c := &client{device: "test-device", out: make(chan []byte, 16)}
 	h := newTestHub(t)
-	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(t.TempDir(), nil, t.Logf)
+	h.clients, h.push = map[*client]struct{}{c: {}}, newPusher(nil, t.Logf)
 	h.onClientMessage(context.Background(), c, []byte(`{"type":"client_hello","features":["ws_notify"]}`))
 	<-c.out
 	if err := h.push.setPrefs(c.device, NotifyPrefs{Input: true, Done: DoneOff}); err != nil {

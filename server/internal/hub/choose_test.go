@@ -221,7 +221,7 @@ func TestChooseAuthentication(t *testing.T) {
 	if code, out := chooseRequest(t, mux, "jd_invalid", card.ID, body, "en", ""); code != 401 || calls.Load() != 0 {
 		t.Fatalf("unauthorized: %d %v", code, out)
 	}
-	code, watch := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"Watch","kind":"watch"}`)
+	code, watch := 200, retiredWatch(t, h)
 	if code != 200 {
 		t.Fatalf("create watch: %d %v", code, watch)
 	}

@@ -124,11 +124,10 @@ type ReadinessAction struct {
 // ReadinessSuggestion is an example question for the main conversation's first screen: a local one opens the
 // client's own help and is not sent to the model; needs are the system permissions sending it will ask for.
 type ReadinessSuggestion struct {
-	ID     string   `json:"id"`
-	Title  string   `json:"title"`
-	Prompt string   `json:"prompt,omitempty"`
-	Local  bool     `json:"local,omitempty"`
-	Needs  []string `json:"needs,omitempty"`
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	Prompt string `json:"prompt,omitempty"`
+	Local  bool   `json:"local,omitempty"`
 }
 
 // readinessRecord is what readinessKey holds.
@@ -799,7 +798,6 @@ func readinessSuggestions(lang i18n.Lang, mode string) []ReadinessSuggestion {
 	}
 	return append(out,
 		ReadinessSuggestion{ID: "largest_folders", Title: t("largest_folders"), Prompt: t("largest_folders_prompt")},
-		ReadinessSuggestion{ID: "today", Title: t("today"), Prompt: t("today_prompt"), Needs: []string{"phone_calendar"}},
 		ReadinessSuggestion{ID: "connect_mail", Title: t("connect_mail"), Prompt: t("connect_mail_prompt")})
 }
 

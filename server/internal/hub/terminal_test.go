@@ -413,7 +413,7 @@ func TestAnswerRoleCannotDriveTerminal(t *testing.T) {
 		}
 		return nil
 	}
-	answer := &client{hub: mh.h, out: make(chan []byte, 64), subs: map[[2]string]bool{}, role: roleAnswer}
+	answer := &client{hub: mh.h, out: make(chan []byte, 64), subs: map[[2]string]bool{}, role: roleRetiredAnswer}
 	t.Cleanup(func() { mh.h.terminalUnsubscribe(answer, "box", "s1") })
 	say := func(v map[string]any) {
 		b, _ := json.Marshal(v)

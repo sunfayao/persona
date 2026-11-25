@@ -121,7 +121,6 @@ SnapshotAccept
 SnapshotAgent
 SnapshotAgentCloseout
 SnapshotAgentPlan
-SnapshotApp
 SnapshotApproval
 SnapshotAsked
 SnapshotCalendar
@@ -169,14 +168,9 @@ TaskNotice
 TaskRun
 TurnContext
 TurnSection
-UrgentCall
-UrgentCallRule
-UrgentRuleBuiltin
-UrgentRuleBuiltinIn
 WorkspaceMention
 WorkspaceProject
 WorkspaceSession
-urgentRuleTemplates
 
 # Pending: the names the PRs open when this freeze landed were adding, each with its PRs
 # (python3 scripts/test/name_freezes.py pending --write, 2026-11-22; drafts idle more than 14 days left out).

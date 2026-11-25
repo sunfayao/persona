@@ -10,7 +10,7 @@ import (
 // A computer's diagnosis and cleanup (#8037) are for full credentials: one lists what runs on the computer, the other
 // removes files. The watch's answer-only token never reaches the manager with them, and no extension scope opens them.
 func TestDiagnosisRoutesNeedFullCredentials(t *testing.T) {
-	watch := principal{Role: roleAnswer}
+	watch := principal{Role: roleRetiredAnswer}
 	for _, rq := range [][2]string{
 		{http.MethodGet, "/api/v1/machines/mac/diagnosis"},
 		{http.MethodPost, "/api/v1/machines/mac/cleanup"},

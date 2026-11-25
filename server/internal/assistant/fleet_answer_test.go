@@ -354,12 +354,12 @@ func TestElicitationWaitsForAPushedPhone(t *testing.T) {
 	ft.waitPending(0)
 
 	// Not pushed, not waited for: a muted agent's card, a quiet task's.
-	if !s.elicitationReachable(ix) {
+	if !s.elicitationReachable() {
 		t.Fatal("a phone to push")
 	}
 	b, _ := json.Marshal(assistantwire.FleetMutes{Mutes: &assistantwire.Mutes{Spaces: []string{}, Sessions: []string{"mac/test-session"}}})
 	s.FleetEvent(ctx, assistantwire.EventMutes, b)
-	if s.elicitationReachable(ix) {
+	if s.elicitationReachable() {
 		t.Fatal("a muted agent's card is not pushed")
 	}
 	b, _ = json.Marshal(assistantwire.FleetMutes{Mutes: &assistantwire.Mutes{Spaces: []string{}, Sessions: []string{}}})
@@ -367,15 +367,15 @@ func TestElicitationWaitsForAPushedPhone(t *testing.T) {
 	s.fleet.rep.mu.Lock()
 	s.fleet.rep.quiet = map[[2]string]bool{{"mac", "test-session"}: true}
 	s.fleet.rep.mu.Unlock()
-	if s.elicitationReachable(ix) {
+	if s.elicitationReachable() {
 		t.Fatal("a quiet task's card is not pushed")
 	}
 	clients(`{"elicitation":true,"elicitation_push":false}`)
-	if !s.elicitationReachable(ix) {
+	if !s.elicitationReachable() {
 		t.Fatal("an app is connected: it shows there")
 	}
 	clients(`{"elicitation":false,"elicitation_push":false}`)
-	if s.elicitationReachable(ix) {
+	if s.elicitationReachable() {
 		t.Fatal("nothing can show it")
 	}
 }

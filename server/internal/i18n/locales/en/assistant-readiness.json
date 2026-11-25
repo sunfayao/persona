@@ -45,8 +45,6 @@
   "suggest_how_to_connect_model": "How do I connect a model?",
   "suggest_largest_folders": "Show the largest folders on this computer",
   "suggest_largest_folders_prompt": "Show me the largest folders on this computer.",
-  "suggest_today": "What's on today",
-  "suggest_today_prompt": "What's on my schedule today?",
   "suggest_connect_mail": "Teach me to connect email",
   "suggest_connect_mail_prompt": "Teach me how to connect my email to Persona."
 }

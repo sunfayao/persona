@@ -41,14 +41,11 @@ func TestBetaSettingsPersistAndInvalidateTheOtherChannel(t *testing.T) {
 	if _, err := h.store.Setting(context.Background(), updateSettingsKey, &saved); err != nil || saved.Source != update.ChannelBeta {
 		t.Fatalf("persisted selection: %+v, %v", saved, err)
 	}
-	if got := h.androidUpdateDir(); !strings.HasSuffix(got, "apps/android/beta") {
-		t.Fatalf("Android beta cache: %q", got)
-	}
 	h.upd.release = &update.Published{Manifest: &update.Manifest{Version: "0.7.0-beta.1", Build: 2}}
 	if code, view = call(`{"source":"release"}`); code != http.StatusOK || view.Source != "release" || !strings.HasSuffix(view.UpdateURL, "/releases/latest/download") {
 		t.Fatalf("stable rollback: %d %+v", code, view)
 	}
-	if h.upd.release != nil || h.androidUpdateDir() == "" || strings.HasSuffix(h.androidUpdateDir(), "/beta") {
+	if h.upd.release != nil {
 		t.Fatal("kept beta state after returning to stable")
 	}
 }

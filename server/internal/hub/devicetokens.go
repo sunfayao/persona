@@ -17,11 +17,8 @@ import (
 
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
 )
 
 func init() {
@@ -57,13 +54,11 @@ func (h *Hub) busCredentialRevoked(ctx context.Context, c *busConn, raw json.Raw
 
 // One credential per device (docs/protocol/protocol.md "Authentication"). The pairing token in hub.json still opens everything (the CLI,
 // apps from before this); an app trades it for a token of its own right after pairing and stops keeping it, so a lost
-// phone is revoked alone instead of re-pairing every device. A watch gets an answer-only token: it can do what the
-// watch app does (answerReads, answerWrites) and nothing else.
+// phone is revoked alone instead of re-pairing every device.
 
 const (
 	roleFull   = "full"
 	roleScoped = "scoped"
-	roleAnswer = "answer"
 	// roleLink is a persona-link credential (link.go): it opens its machine's link and nothing else.
 	roleLink = "link"
 	// roleLinkPair is a pairing code made for one machine's persona-link (`personad hub pair --machine`): all it can
@@ -289,22 +284,6 @@ func (h *Hub) lookupToken(ctx context.Context, tok string) (principal, bool, err
 	return *c.p, true, nil
 }
 
-// answerReads and answerWrites are all an answer-only device may do: what the watch app does and has done, no more. A
-// GET is not harmless for being a GET (one reads any file of a computer, one runs a launcher), so none gets through for
-// its method. Something new the watch needs goes here.
-var (
-	answerReads = lazyre.New(`^/api/v1/(machines|sessions|sessions/archived|interactions|inbox|saved-agent-searches|workspaces|sessions/[^/]+/[^/]+/items|` +
-		`extensions/-/(widgets|shortcuts)|personas/nwverse/pet/[A-Za-z0-9_-][A-Za-z0-9._-]*\.(json|png))$`)
-	// The watch draws extensions' widgets on its faces and runs their shortcuts (docs/extensions/extensions.md "System-level placements").
-	// It also fetches the built-in Milk Frog's art for its row and face, and only that: pet/ of the nwverse package
-	// (docs/apple/persona.md "The Milk Frog on the watch"), not another package or an uploaded look.
-	answerWrites = lazyre.New(`^/api/v1/(interactions/[^/]+/(resolve|choose)|sessions/[^/]+/[^/]+/(messages|seen|interrupt)|` +
-		`inbox/[^/]+/(done|reply|draft|suggestion)|extensions/[^/]+/-/(widget|shortcut)/[^/]+)$`)
-	answerPuts = lazyre.New(`^/api/v1/devices/[^/]+/widgets$`)
-	// answerKey is a key the watch can press on a screen card it could not read: a menu's number, Esc, Return.
-	answerKey = lazyre.New(`^([1-9]|esc|enter)$`)
-)
-
 func allowed(p principal, method, path string) bool {
 	switch p.Role {
 	case roleFull:
@@ -317,45 +296,12 @@ func allowed(p principal, method, path string) bool {
 		return method == http.MethodGet && path == peerPath
 	case rolePeerPair:
 		return method == http.MethodPost && path == peerPairPath
-	case roleAnswer:
-		if method == http.MethodGet || method == http.MethodHead {
-			return answerReads.MatchString(path)
-		}
-		return method == http.MethodPost && answerWrites.MatchString(path) || method == http.MethodPut && answerPuts.MatchString(path)
-	}
-	return false
-}
-
-// answerMayResolve is what an answer-only device may say to a card: pick an answer, say yes or no and why. Typing into a
-// terminal, pressing more than a menu's key, filling in a card's fields and making a tool's approval stand (always) are
-// for a full device. A screen card's own "don't ask again" is one of its options, and the watch shows it.
-func answerMayResolve(r proto.Resolution) bool {
-	if r.Text != "" || r.EditedText != "" || len(r.PreKeys) > 0 || r.Always || r.Message != "" || len(r.Values) > 0 || r.Action != "" || len(r.Content) > 0 {
-		return false
-	}
-	return len(r.Keys) == 0 || len(r.Keys) == 1 && answerKey.MatchString(r.Keys[0])
-}
-
-// picksFreeText: the answer picks a screen card's free-text field ("Type something", screen.KindTypeSomething), alone
-// or among a multi-select's options. That field takes the text the answer brings, and an answer-only device brings
-// none: the node would open the field and press enter on nothing (#1185). Checked before the card is claimed, so a
-// refused answer leaves it pending.
-func (h *Hub) picksFreeText(id string, r proto.Resolution) bool {
-	ix, ok := h.pendingInteraction(id) // as the manager told it (fleet_link.go)
-	if !ok || ix.Dialog == nil {
-		return false
-	}
-	d := ix.Dialog
-	for _, k := range append([]string{r.Option}, r.Options...) {
-		if o := d.Option(k); k != "" && o != nil && o.Kind == screen.KindTypeSomething {
-			return true
-		}
 	}
 	return false
 }
 
 func (h *Hub) tokenRoutes(api *http.ServeMux) {
-	// Trade the caller's credential for a device token. kind "watch" gets an answer-only one; kind "link" a
+	// Trade the caller's credential for a device token. kind "link" gets a
 	// persona-link credential for the link machine named in "machine" (link.go). A browser signing in again names its
 	// earlier credential in "replaces", and that one is revoked once the new one is made, when it is a web one: a
 	// browser keeps one device instead of a row of them with the same name (docs/protocol/protocol.md "Authentication").
@@ -417,9 +363,10 @@ func (h *Hub) tokenRoutes(api *http.ServeMux) {
 				writeErr(w, http.StatusBadRequest, fmt.Errorf("no machine %q of kind link", machine))
 				return
 			}
-		case "watch":
-			role = roleAnswer
-		case "phone", "web":
+		case "web":
+		case "watch": // an answer-only credential: no client uses it any more, and it must not become a full one
+			writeErrCode(w, http.StatusBadRequest, "invalid_kind", errors.New("device kind watch is not supported"))
+			return
 		default:
 			kind = "other"
 		}
@@ -428,7 +375,7 @@ func (h *Hub) tokenRoutes(api *http.ServeMux) {
 		}
 		name := strings.TrimSpace(req.Name)
 		if name == "" || len([]rune(name)) > 80 {
-			name = map[string]string{"phone": "iPhone", "watch": "Apple Watch"}[kind]
+			name = ""
 			if kind == "link" {
 				name = h.knownEntry(machine).Name + " 的 Persona Link"
 			}
@@ -474,11 +421,6 @@ func (h *Hub) tokenRoutes(api *http.ServeMux) {
 			h.machineAudit(r.Context(), machine, "redeem", dt.ID, nil)
 			h.nameAfterSystem(r.Context(), machine, req.SystemName)
 		}
-		if kind == "link" && h.machinePending(machine) {
-			h.notifyComputerJoining(machine) // the one to confirm (machines_add.go)
-		} else {
-			h.notifyPairing(name, dt.ID) // also when it replaced one: a credential was still made
-		}
 		resp := map[string]any{"id": dt.ID, "token": tok, "role": role, "name": name, "machine": machine}
 		if len(scopes) > 0 {
 			resp["scopes"] = scopes
@@ -497,10 +439,7 @@ func (h *Hub) tokenRoutes(api *http.ServeMux) {
 				return
 			}
 		}
-		// push: per token, the way pushes reach the device it registered (Settings › Devices, #5998); phone: the primary
-		// device for phone calls and the devices that can be it (phone_primary.go)
-		writeJSON(w, map[string]any{"tokens": list, "current": principalOf(r.Context()).ID, "push": h.push.routesByCredential(),
-			"phone": h.phonePrimaryView(list)})
+		writeJSON(w, map[string]any{"tokens": list, "current": principalOf(r.Context()).ID})
 	})
 	api.HandleFunc("DELETE /api/v1/auth/tokens/{id}", func(w http.ResponseWriter, r *http.Request) {
 		if h.store == nil {
@@ -563,22 +502,14 @@ func (h *Hub) revoked(id string) {
 		_ = h.notifyManagers(bus.EventCredentialRevoked, bus.DeviceCredential{ID: id})
 	}()
 	h.mu.Lock()
-	for deviceID, r := range h.phoneTools {
-		if deviceID == id || r.CredentialID == id {
-			delete(h.phoneTools, deviceID)
-			delete(h.wokeAt, deviceID)
-		}
-	}
 	delete(h.rings.devices, id) // its kept notify events (notifyring.go)
 	var gone []*client
 	for c := range h.clients {
 		if c.device == id {
-			c.phone = false
 			gone = append(gone, c)
 		}
 	}
 	h.mu.Unlock()
-	h.wakePhoneWrites() // writes queued for a primary device that was this one may go to another now (phone_primary.go)
 	for _, c := range gone {
 		c.conn.CloseNow()
 	}
@@ -592,7 +523,6 @@ func (h *Hub) revoked(id string) {
 			}
 		}()
 	}
-	h.live.endCredential(id) // finish the end pushes while their devices are still registered
-	h.push.signedOut(id)     // nil-safe; forgets the devices this credential registered (push.go)
+	h.push.signedOut(id) // nil-safe; forgets the devices this credential wrote settings for (push.go)
 	h.logf("device token %s revoked (%d connections closed)", id, len(gone)+links)
 }

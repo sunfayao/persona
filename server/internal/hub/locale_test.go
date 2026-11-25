@@ -36,7 +36,7 @@ func TestClientHelloLocale(t *testing.T) {
 	if h.userLang() != i18n.En {
 		t.Fatal("an unsupported code must not change the user's language")
 	}
-	watch := &client{out: make(chan []byte, 16), role: roleAnswer, hub: h}
+	watch := &client{out: make(chan []byte, 16), role: roleRetiredAnswer, hub: h}
 	h.onClientHello(watch, []byte(`{"locale":"ja"}`))
 	if watch.lang() != i18n.Ja || h.userLang() != i18n.En {
 		t.Fatalf("watch: conn %s, user %s", watch.lang(), h.userLang())
@@ -102,7 +102,7 @@ func TestUserLangFollowsOnlyADevicesOwnChange(t *testing.T) {
 	if h.userLang() != i18n.Ja {
 		t.Fatalf("a device named by its hello changed its language: %s", h.userLang())
 	}
-	watch := &client{out: make(chan []byte, 16), role: roleAnswer, hub: h, device: "dev_watch"}
+	watch := &client{out: make(chan []byte, 16), role: roleRetiredAnswer, hub: h, device: "dev_watch"}
 	h.onClientHello(watch, []byte(`{"locale":"en"}`))
 	h.onClientHello(watch, []byte(`{"locale":"zh-Hans"}`))
 	if h.userLang() != i18n.Ja {
@@ -203,31 +203,6 @@ func TestPruneDeviceLocales(t *testing.T) {
 	}
 	if _, ok := m[fmt.Sprintf("dev_%02d", deviceLocalesMax+5)]; !ok {
 		t.Fatal("the newest must stay")
-	}
-}
-
-// Each device's push reads in its language; one without falls back to the user's.
-func TestPushLanguagePerDevice(t *testing.T) {
-	p := &Pusher{userLang: func() i18n.Lang { return i18n.Ja }}
-	if p.langOf(Device{Locale: "en"}) != i18n.En || p.langOf(Device{}) != i18n.Ja {
-		t.Fatal("langOf")
-	}
-	ix := proto.Interaction{Kind: proto.IxPermission, Agent: "codex"}
-	title := func(l i18n.Lang) any {
-		return interactionPayloadIn(l, ix, "box")["aps"].(map[string]any)["alert"].(map[string]any)["title"]
-	}
-	if title(i18n.ZhHans) != "Codex 需要你授权" || title(i18n.En) != "Codex needs your permission" {
-		t.Fatalf("titles %v / %v", title(i18n.ZhHans), title(i18n.En))
-	}
-	if interactionPayload(ix, "box")["aps"].(map[string]any)["alert"].(map[string]any)["title"] != "Codex 需要你授权" {
-		t.Fatal("the default payload must stay Chinese")
-	}
-	done := donePayloadIn(i18n.En, "m", "box", "s", "title", "")
-	if done["aps"].(map[string]any)["alert"].(map[string]any)["body"] != "Done" {
-		t.Fatal("done body")
-	}
-	if done["aps"].(map[string]any)["category"] != "SESSION_DONE" {
-		t.Fatal("a done push carries the category iOS replies from")
 	}
 }
 

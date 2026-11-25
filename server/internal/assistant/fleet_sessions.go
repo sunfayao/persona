@@ -357,7 +357,7 @@ func (s *Service) publishListAtArchiveMark(machine string, fixed ...uint64) []pr
 	// encoder checked and copied the whole list twice more to write the same line. Nil (the list does not encode) is
 	// told as null either way.
 	s.hub.Tell(assistantwire.EventFleetSessions, rpc.Marshaled(b))
-	s.liveChanged(false)
+	s.liveChanged()
 	s.todoRunsChanged(machine) // a card, a seen turn: a to-do's view may file it elsewhere (todo_view_push.go)
 	return list
 }

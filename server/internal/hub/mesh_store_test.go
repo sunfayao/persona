@@ -39,18 +39,6 @@ func newMeshStore() *meshStore {
 var _ Store = (*meshStore)(nil)
 var _ peerStore = (*meshStore)(nil)
 
-func (s *meshStore) CreateLockTest(context.Context, db.LockTest) error              { return nil }
-func (s *meshStore) LockTest(context.Context, string, string) (*db.LockTest, error) { return nil, nil }
-func (s *meshStore) DueLockTests(context.Context, time.Time) ([]db.LockTest, error) { return nil, nil }
-func (s *meshStore) NextLockTestDue(context.Context) (*time.Time, error)            { return nil, nil }
-func (s *meshStore) AttemptLockTest(context.Context, string, int64, time.Time) (bool, error) {
-	return false, nil
-}
-func (s *meshStore) ReceiveLockTest(context.Context, string, string, *bool, time.Time) (*db.LockTest, error) {
-	return nil, nil
-}
-func (s *meshStore) RecoverLockTests(context.Context, time.Time) error { return nil }
-func (s *meshStore) PruneLockTests(context.Context, time.Time) error   { return nil }
 func (s *meshStore) InsertDeviceSession(context.Context, db.DeviceSession) (int64, error) {
 	return 0, nil
 }
@@ -113,15 +101,6 @@ func (s *meshStore) SetDevicePrefs(_ context.Context, id, credential string, pre
 	}
 	s.devices[id] = d
 	return nil
-}
-
-func (s *meshStore) LiveActivities(context.Context) ([]db.LiveActivity, error) { return nil, nil }
-func (s *meshStore) SaveLiveActivity(context.Context, db.LiveActivity) error   { return nil }
-func (s *meshStore) ClaimLiveActivityStart(context.Context, string, string, time.Time, time.Duration, time.Duration) (time.Time, bool, error) {
-	return time.Time{}, false, nil // no persisted activity in this non-push fixture
-}
-func (s *meshStore) HoldLiveActivityStart(context.Context, string, time.Time, time.Duration) (bool, error) {
-	return false, nil
 }
 
 func (s *meshStore) InsertInteraction(_ context.Context, ix proto.Interaction) error {
@@ -423,7 +402,7 @@ func (s *meshStore) AppTokens(context.Context) ([]db.ExportedToken, error) {
 	defer s.mu.Unlock()
 	var out []db.ExportedToken
 	for hash, t := range s.tokens {
-		if !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer) {
+		if !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer) {
 			out = append(out, db.ExportedToken{DeviceToken: t, Hash: hash})
 		}
 	}
@@ -435,7 +414,7 @@ func (s *meshStore) RevokedAppTokens(context.Context) ([]db.ExportedToken, error
 	defer s.mu.Unlock()
 	var out []db.ExportedToken
 	for hash, t := range s.tokens {
-		if s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer) {
+		if s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer) {
 			out = append(out, db.ExportedToken{DeviceToken: t, Hash: hash})
 		}
 	}
@@ -456,7 +435,7 @@ func (s *meshStore) ApplyRevokedTokens(_ context.Context, list []db.ExportedToke
 		case !ok:
 			s.tokens[e.Hash] = e.DeviceToken
 			s.revoked[e.ID] = true
-		case !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleAnswer):
+		case !s.revoked[t.ID] && (t.Role == roleFull || t.Role == roleRetiredAnswer):
 			s.revoked[t.ID] = true
 			ids = append(ids, t.ID)
 		}

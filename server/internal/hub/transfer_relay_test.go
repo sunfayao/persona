@@ -83,7 +83,7 @@ func TestTransferRoutesAreForFullDevicesOnly(t *testing.T) {
 	for _, p := range devicewire.TransferRoutes {
 		method, path, _ := strings.Cut(p, " ")
 		path = strings.ReplaceAll(path, "{id}", "x")
-		for _, role := range []string{roleAnswer, roleLink, roleLinkPair, rolePeer, rolePeerPair} {
+		for _, role := range []string{roleRetiredAnswer, roleLink, roleLinkPair, rolePeer, rolePeerPair} {
 			if allowed(principal{Role: role}, method, path) {
 				t.Errorf("%s may %s", role, p)
 			}
@@ -96,7 +96,7 @@ func TestTransferRoutesAreForFullDevicesOnly(t *testing.T) {
 func TestTransferEventsRelay(t *testing.T) {
 	h := newTestHub(t)
 	knows := &client{out: make(chan []byte, 4), role: roleFull, urlFeatures: map[string]bool{proto.FileTransferEvent: true}}
-	watch := &client{out: make(chan []byte, 4), role: roleAnswer, urlFeatures: map[string]bool{proto.FileTransferEvent: true}}
+	watch := &client{out: make(chan []byte, 4), role: roleRetiredAnswer, urlFeatures: map[string]bool{proto.FileTransferEvent: true}}
 	other := &client{out: make(chan []byte, 4), role: roleFull}
 	addTestClient(h, knows, watch, other)
 	if err := h.relayBroadcastFrom(assistantwire.AssistantID, json.RawMessage(`{"type":"file_transfer","transfer":{"id":"t1","state":"running"}}`)); err != nil {

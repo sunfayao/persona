@@ -61,7 +61,7 @@ func (h *Hub) managerStateIDs() []string {
 	return append([]string{assistantwire.AssistantID}, out...)
 }
 
-// forgetManagerState drops what the hub keeps of removed manager id (its conversations, tools, report, live and
+// forgetManagerState drops what the hub keeps of removed manager id (its conversations, tools, report and
 // pending cards: the apps are told those are over, as nothing will ever answer them).
 func (h *Hub) forgetManagerState(id string) {
 	if id == "" || id == assistantwire.AssistantID {
@@ -77,7 +77,6 @@ func (h *Hub) forgetManagerState(id string) {
 	h.ext.reportsMu.Unlock()
 	f := &h.reported
 	f.mu.Lock()
-	delete(f.lives, id)
 	var gone []string
 	for ixID, ix := range f.interactions {
 		if ix.Manager == id {

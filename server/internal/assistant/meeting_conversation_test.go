@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/kb"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -61,15 +60,6 @@ func TestMeetingJustMe(t *testing.T) {
 	r.f.mu.Unlock()
 	if pushes != 0 || !strings.Contains(toolText(res), "Not sent") {
 		t.Fatalf("notify_user in a Just me turn: %v, %d pushes", res, pushes)
-	}
-	// phone_notify neither: a local notification would show the private text on the Lock Screen.
-	r.f.answerApp(assistantwire.AppPhone, assistantwire.PhoneCall, func(json.RawMessage) (any, error) {
-		return proto.TextResult(`{"scheduled":true}`, false), nil
-	})
-	pres := r.s.mcpCall(context.Background(), "server", "c-main", "phone_notify",
-		json.RawMessage(`{"title":"Reminder","body":"push back on the price","delay_seconds":300}`), true)
-	if calls := r.f.appParams(assistantwire.AppPhone, assistantwire.PhoneCall); len(calls) != 0 || pres.IsError || !strings.Contains(toolText(pres), "Not sent") {
-		t.Fatalf("phone_notify in a Just me turn: %v, phone calls %v", pres, calls)
 	}
 	card := proto.Interaction{MachineID: "server", SessionID: "c-main", Kind: proto.IxQuestion}
 	if card = nodeCardFor(r.s, card); !card.Private {

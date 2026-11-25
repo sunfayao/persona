@@ -358,7 +358,7 @@ func (af *attentionFlow) raise(t *testing.T, ix proto.Interaction) {
 func (af *attentionFlow) now(t *testing.T, id string) link.AttentionItem {
 	t.Helper()
 	before := len(af.d.handedAttention())
-	af.s.liveChanged(true)
+	af.s.liveChanged()
 	var it link.AttentionItem
 	waitUntil(t, func() bool {
 		all := af.d.handedAttention()
@@ -435,7 +435,7 @@ func lookAt(t *testing.T, s *Service, d *fleetDevs, sid string) (link.AttentionI
 	var a link.Attention
 	for range 2 {
 		before := len(d.handedAttention())
-		s.liveChanged(true)
+		s.liveChanged()
 		waitUntil(t, func() bool {
 			all := d.handedAttention()
 			if len(all) <= before {

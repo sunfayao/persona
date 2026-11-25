@@ -471,9 +471,6 @@ func TestBackgroundOversizedTranscriptMovesLegacyWorkToMain(t *testing.T) {
 // mcp.tools with tool_set supervise lists only the round's tools, in the order of the whole list; without it, or with
 // a set this manager does not know, the whole list.
 func TestRoundToolSet(t *testing.T) {
-	retry := phoneToolRetry
-	phoneToolRetry = time.Millisecond // the fake has no phone: its tools are asked for briefly
-	t.Cleanup(func() { phoneToolRetry = retry })
 	s, _, _ := newBackgroundService(t)
 	devices := newFleetDevs()
 	devices.add("server", "server")

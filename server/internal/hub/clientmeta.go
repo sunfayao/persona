@@ -100,7 +100,6 @@ func (h *Hub) onClientHello(c *client, data []byte) {
 	// Last, after the cards it can now answer: the notify events kept while it had no ws_notify socket (notifyring.go).
 	defer h.replayNotifyRing(c)
 	go h.fleetClientsChanged() // its features (elicitation) count now (fleet_link.go)
-	h.noteClientApp(c)         // its version, for the assistant (client_apps.go)
 	if c.role == roleFull && c.hub != nil {
 		// Only this device changing its language changes the user's (locale.go); an invalid one changes nothing.
 		c.hub.noteUserLang(deviceLangKey(c, msg.clientMeta), i18n.Lang(msg.Locale))

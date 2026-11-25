@@ -31,7 +31,7 @@ func (s *stuckPrefsStore) SetDevicePrefs(ctx context.Context, _, _ string, _ jso
 // write gives up after storeTimeout without touching the settings in memory.
 func TestSetPrefsStuckStoreDoesNotBlockOthers(t *testing.T) {
 	store := &stuckPrefsStore{entered: make(chan struct{})}
-	p := newPusher(t.TempDir(), store, t.Logf)
+	p := newPusher(store, t.Logf)
 	p.storeTimeout = 300 * time.Millisecond
 	p.devices["dev-b"] = Device{DeviceID: "dev-b"}
 
@@ -119,7 +119,7 @@ func TestPrefsConcurrentPartialPutsBothApply(t *testing.T) {
 				code <- c
 			}
 			first, second := make(chan int, 1), make(chan int, 1)
-			go put(`{"lock_details":true}`, first)
+			go put(`{"input":false}`, first)
 			select {
 			case <-store.entered:
 			case <-time.After(5 * time.Second):
@@ -144,12 +144,12 @@ func TestPrefsConcurrentPartialPutsBothApply(t *testing.T) {
 				}
 			}
 			got := h.push.prefs("phone")
-			if !got.LockDetails || !got.MuteWhileDesktop || !slices.Equal(got.MutedManagers, tc.muted) {
-				t.Fatalf("settings after both PUTs = lock_details %v, mute_while_desktop %v, muted_managers %v; want both on, %v",
-					got.LockDetails, got.MuteWhileDesktop, got.MutedManagers, tc.muted)
+			if got.Input || !got.MuteWhileDesktop || !slices.Equal(got.MutedManagers, tc.muted) {
+				t.Fatalf("settings after both PUTs = input %v, mute_while_desktop %v, muted_managers %v; want input off, mute_while_desktop on, %v",
+					got.Input, got.MuteWhileDesktop, got.MutedManagers, tc.muted)
 			}
 			row, _, _ := store.row("phone")
-			if stored := devicePrefs(row.Prefs); !stored.LockDetails || !stored.MuteWhileDesktop {
+			if stored := devicePrefs(row.Prefs); stored.Input || !stored.MuteWhileDesktop {
 				t.Fatalf("stored row = %s; want both changes", row.Prefs)
 			}
 		})

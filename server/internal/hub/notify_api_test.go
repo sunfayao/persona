@@ -7,10 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/extension"
 )
 
@@ -311,115 +309,8 @@ func TestNotifyAPI(t *testing.T) {
 
 // An answer-only credential (the watch) cannot send notifications.
 func TestNotifyNotForAnswerOnly(t *testing.T) {
-	if allowed(principal{Role: roleAnswer}, http.MethodPost, "/api/v1/notify") {
+	if allowed(principal{Role: roleRetiredAnswer}, http.MethodPost, "/api/v1/notify") {
 		t.Fatal("answer-only credential may notify")
-	}
-}
-
-// Through APNs: the level and the prefixed collapse id reach the push; "Phone Muted" holds it while a desktop is online.
-func TestNotifyAPNs(t *testing.T) {
-	h, f := macHub(t)
-	// Ordinary alerts do not use the Live Activity-only store from testLive.
-	// Leave API authentication on this fixture's original in-memory path.
-	h.store = nil
-	srv := httptest.NewServer(h.routes())
-	defer srv.Close()
-	post := func(token, body string) {
-		t.Helper()
-		req, _ := http.NewRequest("POST", srv.URL+"/api/v1/notify", strings.NewReader(body))
-		req.Header.Set("Authorization", "Bearer "+token)
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil || resp.StatusCode != 200 {
-			t.Fatalf("notify: %v %v", err, resp)
-		}
-		resp.Body.Close()
-	}
-	post(h.cfg.Token, `{"title":"卡住了","body":"b","machine_id":"m1","session_id":"s1","level":"time-sensitive","id":"alert-1"}`)
-	calls := f.calls(t, 2) // the phone and the Mac
-	for _, c := range calls {
-		var body map[string]any
-		_ = json.Unmarshal(c.Body, &body)
-		aps := body["aps"].(map[string]any)
-		if c.Type != "alert" || aps["interruption-level"] != levelTimeSensitive || aps["thread-id"] != "s1" {
-			t.Fatalf("push %s: %s", c.Token, c.Body)
-		}
-		if _, ok := aps["mutable-content"]; ok {
-			t.Fatalf("ordinary alert invokes the service extension: %v", aps)
-		}
-	}
-	for _, c := range calls {
-		if c.Collapse != notifyCollapse+"alert-1" {
-			t.Fatalf("collapse id %q", c.Collapse)
-		}
-	}
-
-	// Extension notification carries aps.category, thread-id, and extension_notification:
-	extTok := extTokensOf(t, h).issue("example-gateway", "Example Gateway", []string{extension.ScopeNotify})
-	beforeExt := len(f.calls(t, 2))
-	post(extTok, `{"title":"预算超了","body":"90%","ui":"usage","state":"range=1d","actions":[{"id":"raise","title":"加预算"},{"id":"stop","title":"停用","role":"destructive"}]}`)
-	callsExt := f.calls(t, beforeExt+2)[beforeExt:]
-	for _, c := range callsExt {
-		var body map[string]any
-		_ = json.Unmarshal(c.Body, &body)
-		aps := body["aps"].(map[string]any)
-		if aps["thread-id"] != "extension.example-gateway" {
-			t.Fatalf("apns thread-id: %v", aps["thread-id"])
-		}
-		cat, ok := aps["category"].(string)
-		if !ok || !strings.HasPrefix(cat, "ext.example-gateway.") || len(cat) != len("ext.example-gateway.")+8 {
-			t.Fatalf("apns category: %v", cat)
-		}
-		if aps["mutable-content"] != 1.0 {
-			t.Fatalf("direct APNs cannot register first-notification buttons: %v", aps)
-		}
-		en, ok := body["extension_notification"].(map[string]any)
-		if !ok || en["extension"] != "example-gateway" || en["ui"] != "usage" {
-			t.Fatalf("apns extension_notification: %v", en)
-		}
-	}
-
-	// Extension metadata without buttons does not invoke the service extension.
-	beforePlain := len(f.calls(t, beforeExt+2))
-	post(extTok, `{"title":"预算状态","ui":"usage","state":"range=1d"}`)
-	for _, c := range f.calls(t, beforePlain+2)[beforePlain:] {
-		var body map[string]any
-		_ = json.Unmarshal(c.Body, &body)
-		aps := body["aps"].(map[string]any)
-		if _, ok := aps["mutable-content"]; ok {
-			t.Fatalf("extension without buttons invokes the service extension: %v", aps)
-		}
-		if _, ok := aps["category"]; ok {
-			t.Fatalf("extension without buttons has a dynamic category: %v", aps)
-		}
-	}
-
-	// An extension's id goes out as its own, its manager's and its id's: the same one again replaces it.
-	beforeID := len(f.calls(t, beforePlain+2))
-	post(extTok, `{"title":"预算 50%","id":"budget"}`)
-	post(extTok, `{"title":"预算 90%","id":"budget"}`)
-	var collapses []string
-	for _, c := range f.calls(t, beforeID+4)[beforeID:] {
-		collapses = append(collapses, c.Collapse)
-	}
-	_, want := extensionNotifyIDs(assistantwire.AssistantID, "example-gateway", "budget")
-	for _, c := range collapses {
-		if c != want {
-			t.Fatalf("an extension's collapse ids: %q", collapses)
-		}
-	}
-
-	// "Phone Muted" with the Mac app connected: the phone gets nothing.
-	if err := h.push.setPrefs("phone", NotifyPrefs{Input: true, Done: DoneLong, MuteWhileDesktop: true}); err != nil {
-		t.Fatal(err)
-	}
-	h.push.desktopOnline = func() bool { return true }
-	before := len(f.calls(t, beforeID+4))
-	post(h.cfg.Token, `{"title":"t"}`)
-	time.Sleep(200 * time.Millisecond)
-	for _, c := range f.calls(t, before)[before:] {
-		if c.Token == "devtok" {
-			t.Fatalf("muted phone got a push: %s", c.Body)
-		}
 	}
 }
 
@@ -512,7 +403,7 @@ func TestPrefsOnlyDeviceGoesWithItsCredential(t *testing.T) {
 	if err := h.push.setPrefsBy("web-1", "dev_web", NotifyPrefs{Input: true, Done: DoneAlways}); err != nil {
 		t.Fatal(err)
 	}
-	h.push.register(Device{DeviceID: "phone", APNSToken: "t", Credential: "dev_phone", CredentialID: "dev_phone"})
+	h.push.devices["phone"] = Device{DeviceID: "phone", Credential: "dev_phone", CredentialID: "dev_phone"}
 	if err := h.push.setPrefsBy("phone", "dev_web", NotifyPrefs{Input: false, Done: DoneLong}); err != nil {
 		t.Fatal(err)
 	}

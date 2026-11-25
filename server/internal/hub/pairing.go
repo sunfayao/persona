@@ -330,17 +330,6 @@ func (h *Hub) pairContext(parent context.Context, p principal) (context.Context,
 	return ctx, cancel
 }
 
-// notifyPairing tells the devices a new credential was made; credential is its id (what "Revoke" revokes).
-func (h *Hub) notifyPairing(name, credential string) {
-	if !h.push.ready() {
-		h.logf("new device paired: %q (push unavailable)", name)
-		return
-	}
-	h.push.sendLocalized(func(l i18n.Lang) map[string]any {
-		return devicePairedPayload(l, name, credential)
-	}, "", nil)
-}
-
 // serveComputerCode answers pair-codes for a computer: machine (one there is) or add (one to add, or to use again).
 func (h *Hub) serveComputerCode(w http.ResponseWriter, r *http.Request, who principal, fromDevice bool, machine string, add *machineAddRequest) {
 	if fromDevice && h.isMember() {
@@ -383,7 +372,6 @@ func (h *Hub) serveComputerCode(w http.ResponseWriter, r *http.Request, who prin
 	h.machineAudit(r.Context(), id, "code", actor, nil)
 	if fromDevice {
 		h.logf("[%s] pairing code for its Persona Link made by device %q (%s)", id, who.Name, who.ID)
-		h.notifyComputerCode(who, id)
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, reply)

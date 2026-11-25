@@ -233,7 +233,7 @@ func TestOnlyAPlainAgentMessageIsHoldable(t *testing.T) {
 		{name: "an extension's token", row: agentRow, sid: "s1", body: `{"text":"hi","client_msg_id":"x6"}`,
 			who: &principal{ID: "ext-token", Role: roleExtension, Extension: "example", Scopes: []string{"agents.control"}}},
 		{name: "an answer-only device", row: agentRow, sid: "s1", body: `{"text":"hi","client_msg_id":"x7"}`,
-			who: &principal{ID: "dev-watch", Name: "Watch", Role: roleAnswer}},
+			who: &principal{ID: "dev-watch", Name: "Watch", Role: roleRetiredAnswer}},
 		{name: "the hub's own token", row: agentRow, sid: "s1", body: `{"text":"hi","client_msg_id":"x8"}`,
 			who: &principal{Role: roleFull}},
 	} {
@@ -386,7 +386,7 @@ func TestRelayTellsWhetherAPersonAsks(t *testing.T) {
 		{name: "a person's phone", who: ownerPhone, person: true},
 		{name: "the hub's own token", who: principal{Role: roleFull}},
 		{name: "an extension's token", who: principal{ID: "ext-token", Role: roleExtension, Extension: "example"}},
-		{name: "an answer-only device", who: principal{ID: "dev-watch", Name: "Watch", Role: roleAnswer}},
+		{name: "an answer-only device", who: principal{ID: "dev-watch", Name: "Watch", Role: roleRetiredAnswer}},
 	} {
 		for _, forged := range []string{"", "1", "0"} {
 			r := httptest.NewRequest(http.MethodDelete, "/api/v1/assistant/conversations/s1/undelivered/m1", nil)

@@ -377,7 +377,7 @@ func TestPairCodesRequireLoopbackMasterOrAFullDevice(t *testing.T) {
 	h := newTestHub(t)
 	h.store = newPairStore()
 	h.cfg.Security.TrustedCIDRs = []string{"192.0.2.0/24"}
-	_, watch := call(t, h.routes(), "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	pair := newPairCode(t, h).Token
 	before := len(h.store.(*pairStore).pairs)
 	for _, tc := range []struct {

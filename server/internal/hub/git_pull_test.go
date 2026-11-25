@@ -53,7 +53,7 @@ func TestGitPullRouteAndPermissions(t *testing.T) {
 	if code != http.StatusBadRequest || calls.Load() != 1 {
 		t.Fatalf("无效 JSON 不应到达 node：%d, calls=%d", code, calls.Load())
 	}
-	_, watch := call(t, handler, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"Watch","kind":"watch"}`)
+	watch := retiredWatch(t, h)
 	code, _ = call(t, handler, "POST", path, watch["token"].(string), `{"cwd":"/work/sample"}`)
 	if code != http.StatusForbidden || calls.Load() != 1 {
 		t.Fatalf("answer 角色不应执行拉取：%d, calls=%d", code, calls.Load())

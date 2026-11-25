@@ -26,8 +26,6 @@ const (
 	// EventFleetInteractions is every pending interaction (FleetInteractions): after each handshake, the hub's list
 	// replaced by it.
 	EventFleetInteractions = "fleet.interactions"
-	// EventFleetLive is the Live Activity's content and the island's numbers (FleetLive), when they change.
-	EventFleetLive = "fleet.live"
 )
 
 // Hub → manager, one way.
@@ -39,14 +37,6 @@ const (
 	EventMutes = "fleet.mutes"
 	// EventSeen: an app looked at a session (its WebSocket's seen) (FleetSeen).
 	EventSeen = "fleet.seen"
-)
-
-// The hub's apps the manager calls for what is still the hub's to run (app.call).
-const (
-	// AppPhone is the phone's own MCP tools: listing them and running one on a connected phone (waking it first).
-	AppPhone   = "phone"
-	PhoneTools = "phone.tools" // {} → {tools}
-	PhoneCall  = "phone.call"  // {name, args, call_id?, machine_id?} → proto.ToolResult
 )
 
 // InteractionsOwnerAction has the manager's channels take the owner action they handed over with a channel's press or
@@ -122,21 +112,11 @@ type FleetInteractions struct {
 	Interactions []proto.Interaction `json:"interactions"`
 }
 
-// FleetLive is EventFleetLive's params.
-type FleetLive struct {
-	State FleetState `json:"state"`
-	Stats FleetStats `json:"stats"`
-}
-
 // Clients is EventClients' params.
 type Clients struct {
-	// Elicitation: an app that takes MCP elicitations is connected (without one, or ElicitationPush, an elicitation is
-	// handed back to the terminal at once).
+	// Elicitation: an app that takes MCP elicitations is connected (without one, an elicitation is handed back to the
+	// terminal at once).
 	Elicitation bool `json:"elicitation"`
-	// ElicitationPush: a phone that shows MCP elicitations registered for them (device feature `elicitation`) and would
-	// be pushed a card now (#2433): an elicitation waits for it as other cards do. Only Elicitation keeps meaning a
-	// connected app, so a manager from before this field hands such a request back as it did; an older hub sends none.
-	ElicitationPush bool `json:"elicitation_push"`
 }
 
 // FleetSeen is EventSeen's params.

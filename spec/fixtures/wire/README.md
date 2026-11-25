@@ -15,7 +15,6 @@
 | [items.json](items.json) | GET `/api/v1/sessions/{mid}/{sid}/items` | `proto.Item`、`WithoutImageData`、`FoldWork`；增量和展开页调用 `Hub.sessionItems` |
 | [item_events.json](item_events.json) | WS `items`，含订阅后的补发 | 调用 `Hub.itemsToSubscribers`、`Hub.sendBacklog`，读取客户端发送队列 |
 | [interactions.json](interactions.json) | GET `/api/v1/interactions`；WS `interaction`、`interaction_resolved` | `proto.Interaction` 使用实际列表或信封结构；屏幕经 `ParseDialog`、`SecretPrompt` 处理 |
-| [fleet.json](fleet.json) | GET `/api/v1/fleet`；WS `fleet` | 调用 `buildFleet`，再使用实际快照或信封结构 |
 | [inbox.json](inbox.json) | GET `/api/v1/inbox` | `InboxItem.listed` 清理列表中的内部字段，再经 `writeJSON` |
 | [feed.json](feed.json) | GET `/api/v1/assistant/conversations/{id}/feed` | `answeredBody` 由 `answeredItems` 等生成，再经 `writeJSON` |
 | [queue.json](queue.json) | POST `/api/v1/sessions/{mid}/{sid}/queue` 的应答（Persona 对话取回、删除、移动排队消息） | `proto.QueueEdit` 按 node 的编码生成，再经 `writeJSON` 写出；hub 对此应答原样转发 |
@@ -58,7 +57,6 @@ The export replaces two values after the production builders return: `hello.clie
 | interaction_resolved 按 id 撤回交互。 | `server/internal/hub/hub.go`：`resolve` | `interaction_resolved` |
 | 助手 ask_user 的提问卡另带 deadline、reversible（没说就没有）和每题的 recommend；客户端不建模这几个键，照常读卡片的其余字段。 | `server/internal/proto/interaction.go`：`Interaction.Deadline`、`Interaction.Reversible`、`Question.Recommend`；`server/internal/assistant/decision_deadline.go`：`keepAskDecision` | `interaction_question_decision` |
 | 助手代答的问题撤回时另带 answered_by、reason 和按问题文字的 answers；改答事件 interaction_reanswered 只带改了的问题，放在 resolution.answers。 | `server/internal/hub/fleet_link.go`：`EventFleetResolved`；`server/internal/assistant/fleet_delegate.go`：`reanswer`；`Hub.relayBroadcastFrom`；`docs/protocol/protocol.md`「WebSocket `/api/v1/ws`」 | `interaction_resolved_assistant`、`interaction_reanswered` |
-| Fleet 保留驼峰键名，时间使用 Unix 秒数字。 | `server/internal/hub/liveactivity.go`：`FleetState`、`buildFleet` | `fleet_snapshot`、`fleet_event` |
 | 收件箱列表统一承载飞书和邮件，移除 context 等内部字段并保留草拟回复。 | `server/internal/assistant/inbox.go`：`InboxItem.listed` | `inbox_list` |
 | One made-up item carries every block an Inbox item has, as the list shows it: the item's bookkeeping and each block's internal fields are left out, and `TestListedKeys` pins which keys those are. A move of the item type keeps this case byte for byte (`docs/plans/plan-inbox-vertical-slice.md`, S8). | `server/internal/assistant/inbox.go`：`InboxItem.listed`；`server/internal/assistant/inbox_listed_keys_test.go`：`TestListedKeys` | `inbox_every_block` |
 | 回答记录保留一行摘要，`items` 成对保存完整问答并保留换行；旧记录没有 `items`。 | `server/internal/assistant/answered.go`：`answeredBody`、`answeredItems` | `feed_answered_items` |

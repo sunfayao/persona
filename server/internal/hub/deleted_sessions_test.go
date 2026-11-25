@@ -206,7 +206,7 @@ func TestRemoveUntouchedStartWithoutNode(t *testing.T) {
 		mux.ServeHTTP(w, req)
 		return w.Code
 	}
-	if got := remove(roleAnswer); got != http.StatusForbidden {
+	if got := remove(roleRetiredAnswer); got != http.StatusForbidden {
 		t.Fatalf("restricted device removed session: %d", got)
 	}
 	if got := remove(roleFull); got != http.StatusOK {

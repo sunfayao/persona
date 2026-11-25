@@ -24,14 +24,12 @@ var Features = []string{
 	"assistant_readiness",      // GET /api/v1/assistant/readiness, …/readiness/dismiss, warm's readiness (docs/assistant/onboarding.md 5.1)
 	"browser_qr_login",         // browser sign-in requests approved by an existing full device
 	"browser_qr_match",         // browser sign-in: the approving device shows a number the browser types (POST …/browser-login/confirm)
-	"android_update",           // authenticated Android release metadata and APK downloads
 	"error_codes",              // stable HTTP error codes and optional delivery information
 	"client_hello",             // client platform, version and capabilities
 	"heartbeat",                // per-connection heartbeat negotiation
 	"app_ping",                 // application ping/pong with a string id
 	"ws_notify",                // notification alerts for capable connected clients
 	"elicitation",              // MCP forms and URLs for opted-in clients
-	"lock_test",                // scheduled device notification tests with durable receipts
 	"ultracode",                // session-only Claude Code workflow switch, queued changes and resume-loss notices
 	"model_configuration",      // unified per-purpose models and provider selection
 	"typed_models",             // a model ID the launcher's list lacks: starts, POST …/modes, the Persona chat's pick; custom rows, DELETE …/models/custom (#1644)
@@ -88,7 +86,7 @@ var Features = []string{
 	"extension_auto_upgrade",   // /api/v1/extensions/-/upgrades, …/{id}/-/auto-upgrade, extension_upgrade events
 	"extension_market_spec",    // PUT /api/v1/extensions/-/markets/{id} {spec}: a market moves, keeping its id
 	"extension_ui_v3",          // UI version 3 (markdown, table, empty, loading, search, filter, more, push / pop) and extension_ui {invalidate} (docs/extensions/extensions.md "UI version 3")
-	"extension_widgets",        // widgets outside the app: GET /api/v1/extensions/-/widgets, POST …/{id}/-/widget/{ui}, PUT /api/v1/devices/{id}/widgets, extension_widget pushes (docs/extensions/extensions.md "System-level placements")
+	"extension_widgets",        // widgets outside the app: GET /api/v1/extensions/-/widgets, POST …/{id}/-/widget/{ui} (docs/extensions/extensions.md "System-level placements")
 	"extension_shortcuts",      // extensions' actions in Shortcuts and Siri: GET /api/v1/extensions/-/shortcuts, POST …/{id}/-/shortcut/{sid} (docs/extensions/extensions.md "System-level placements")
 	"extension_notify_actions", // notification buttons: POST /api/v1/notify actions / ui / state, aps.category and extension_notification (docs/extensions/extensions.md "System-level placements")
 	"desktops",                 // register_desktop, the desktops event, NotifyPrefs.mute_while_desktop ("Mute phone")
@@ -96,7 +94,6 @@ var Features = []string{
 	"sessions_delta",           // ?features=sessions_delta on the WebSocket: a snapshot, then sessions_delta (docs/protocol/protocol.md "Session deltas")
 	"connectors",               // GET /api/v1/connectors (docs/plans/plan-connectors.md)
 	"channels",                 // GET /api/v1/channels and each channel's settings, binding, test (docs/extensions/channels.md)
-	"runtime_cli",              // phone_runtime_cli kept out of the phone's tools, POST /api/v1/phone/runtime-cli (docs/operations/runtime-cli.md)
 	"conversation_origin",      // Session.origin on assistant conversations (docs/protocol/protocol.md "Origin of assistant conversations")
 	"builtin_presets",          // the hub's own provider presets in GET /api/v1/launchers/presets; POST /api/v1/launchers with a preset takes an empty name, display_name and assign (docs/integrations/launchers.md "Built-in presets")
 	"launcher_auto_name",       // POST /api/v1/launchers without a preset takes an empty name; GET /api/v1/machines/{mid}/launchers carries display_name (docs/integrations/launchers.md "Display names")

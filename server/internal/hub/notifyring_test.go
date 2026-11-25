@@ -16,7 +16,7 @@ import (
 // ringHub is a hub whose "phone" takes "needs you" and every "Finished", with no push route (an Android phone).
 func ringHub(t *testing.T) *Hub {
 	t.Helper()
-	h := &Hub{clients: map[*client]struct{}{}, push: newPusher(t.TempDir(), nil, t.Logf)}
+	h := &Hub{clients: map[*client]struct{}{}, push: newPusher(nil, t.Logf)}
 	if err := h.push.setPrefs("phone", NotifyPrefs{Input: true, Done: DoneAlways}); err != nil {
 		t.Fatal(err)
 	}
@@ -180,39 +180,6 @@ func TestNotifyRingKeepsWhatTheSettingsTookThen(t *testing.T) {
 	if len(got) != 2 || got[0]["kind"] != "interaction" || got[0]["interaction_id"] != "ix1" || got[0]["quiet"] != true ||
 		got[1]["kind"] != "assistant" || got[1]["title"] != "reminder" || got[1]["quiet"] != nil {
 		t.Fatalf("replayed %v", got)
-	}
-}
-
-// A device with a push route gets its alerts from APNs, which keeps them while it is away: nothing is kept for its
-// WebSocket. Once that route is gone (its token rejected), it is kept again.
-func TestNotifyRingLeavesADeviceWithPushToIt(t *testing.T) {
-	h := ringHub(t)
-	ringDisconnect(h, ringConnect(t, h, "phone", "ws_notify"))
-	pushed := Device{DeviceID: "push-registration", CredentialID: "phone", APNSToken: "token",
-		RelayURL: "https://relay.example", RelayGrant: "grant", PushKey: "key"}
-	h.push.mu.Lock()
-	h.push.devices[pushed.DeviceID] = pushed
-	h.push.mu.Unlock()
-	if !h.push.routed("phone") {
-		t.Fatal("the relayed registration is no push route")
-	}
-	ringAlert(h, "while pushed")
-	if got := ringSent(ringConnect(t, h, "phone", "ws_notify")); len(got) != 0 {
-		t.Fatalf("a device with push was replayed %q", got)
-	}
-
-	h.mu.Lock()
-	for c := range h.clients {
-		delete(h.clients, c)
-	}
-	h.mu.Unlock()
-	h.push.mu.Lock()
-	delete(h.push.devices, pushed.DeviceID)
-	h.push.mu.Unlock()
-	ringAlert(h, "no push")
-	got := ringDecoded(t, ringSent(ringConnect(t, h, "phone", "ws_notify")))
-	if len(got) != 1 || got[0]["title"] != "no push" {
-		t.Fatalf("without push, replayed %v", got)
 	}
 }
 

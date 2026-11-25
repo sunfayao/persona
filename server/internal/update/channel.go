@@ -10,7 +10,7 @@ import (
 )
 
 // A versioned prerelease owns immutable files. The beta-channel Release only
-// points clients at its latest.json/android.json; it is not a source tag.
+// points clients at its latest.json; it is not a source tag.
 const (
 	ChannelStable = "release"
 	ChannelBeta   = "beta"

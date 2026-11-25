@@ -54,19 +54,3 @@ func (u *updater) installSource(m *update.Manifest) (updateSource, error) {
 }
 
 var errInvalidBetaVersion = i18n.Err("hub-selfupdate.err_beta_channel")
-
-// androidSource is the beta pointer when opted in, otherwise the existing
-// stable/custom source. A beta without android.json leaves the previous APK
-// rather than silently falling back to a stable one.
-func (u *updater) androidSource() (string, error) {
-	s, err := u.releaseSource()
-	return s.url, err
-}
-
-// Only beta needs a new cache directory. Stable keeps the pre-channel layout.
-func (u *updater) androidCacheDir() string {
-	if u.selectedBeta() {
-		return "beta"
-	}
-	return ""
-}

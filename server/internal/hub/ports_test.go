@@ -290,7 +290,7 @@ func TestForwardedPortRefusals(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/machines/m1/ports/"+strconv.Itoa(agentPort)+"/connect", nil)
 	req.SetPathValue("mid", "m1")
 	req.SetPathValue("port", strconv.Itoa(agentPort))
-	req = req.WithContext(context.WithValue(req.Context(), principalKey{}, principal{Role: roleAnswer}))
+	req = req.WithContext(context.WithValue(req.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
 	h.withMachine(h.connectPort)(ro, req)
 	if ro.Code != http.StatusForbidden {
 		t.Errorf("read-only device: %d", ro.Code)
@@ -306,7 +306,7 @@ func TestTheLiveScreenTakesTheAppsDeviceToken(t *testing.T) {
 	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
 	phone, watch := "jd_"+randomHex(24), "jd_"+randomHex(24)
 	_ = h.store.CreateDeviceToken(ctx, db.DeviceToken{ID: "dev_phone", Name: "iPhone", Kind: "phone", Role: roleFull}, hashToken(phone))
-	_ = h.store.CreateDeviceToken(ctx, db.DeviceToken{ID: "dev_watch", Name: "Watch", Kind: "watch", Role: roleAnswer}, hashToken(watch))
+	_ = h.store.CreateDeviceToken(ctx, db.DeviceToken{ID: "dev_watch", Name: "Watch", Kind: "watch", Role: roleRetiredAnswer}, hashToken(watch))
 
 	// Screen Sharing speaks first: its protocol version.
 	vnc, err := net.Listen("tcp", "127.0.0.1:0")

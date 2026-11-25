@@ -288,7 +288,7 @@ func (s *Service) FleetUp(ctx context.Context) {
 	for _, m := range s.fleetMachines() {
 		s.publishSessions(m.ID)
 	}
-	s.liveChanged(true)
+	s.liveChanged()
 }
 
 // FleetEvent takes the hub's fleet.* events.
@@ -310,7 +310,7 @@ func (s *Service) FleetEvent(ctx context.Context, name string, params json.RawMe
 		for _, m := range s.fleetMachines() {
 			s.publishSessions(m.ID)
 		}
-		s.liveChanged(false)
+		s.liveChanged()
 	case assistantwire.EventSeen:
 		var p assistantwire.FleetSeen
 		if json.Unmarshal(params, &p) == nil && p.MachineID != "" && p.SessionID != "" {

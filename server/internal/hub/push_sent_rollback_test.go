@@ -32,7 +32,7 @@ type oldBuild struct {
 
 func startOldBuild(t *testing.T, store sentRecordStore, now time.Time) *oldBuild {
 	t.Helper()
-	p := newPusher(t.TempDir(), nil, t.Logf)
+	p := newPusher(nil, t.Logf)
 	p.now = func() time.Time { return now }
 	var delivered []pushSent
 	if _, err := store.Setting(t.Context(), pushSentSettingKey, &delivered); err != nil {
@@ -61,7 +61,7 @@ func (o *oldBuild) deliver(t *testing.T, manager, key string, at time.Time) {
 // startNewBuild is this build starting on store: newPusher's loadSent, on the clock now.
 func startNewBuild(t *testing.T, store sentRecordStore, now time.Time) *Pusher {
 	t.Helper()
-	p := newPusher(t.TempDir(), nil, t.Logf)
+	p := newPusher(nil, t.Logf)
 	p.now = func() time.Time { return now }
 	p.store = store
 	p.loadSent()

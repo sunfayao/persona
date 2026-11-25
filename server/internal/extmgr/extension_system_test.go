@@ -135,30 +135,6 @@ func TestExtensionWidgetsAndShortcuts(t *testing.T) {
 		t.Fatalf("a complication draws one thing: %v", inline)
 	}
 
-	if code, out := call(t, mux, "PUT", "/api/v1/devices/phone1/widgets", master, `{"widgets": [{"extension": "example-sys", "id": "today", "family": "small"}]}`); code != 200 {
-		t.Fatalf("%d %v", code, out)
-	}
-	if code, _ := call(t, mux, "PUT", "/api/v1/devices/phone1/widgets", master, `{"widgets": [{"extension": "example-sys", "id": "today", "family": "huge"}]}`); code != 400 {
-		t.Fatal("a family that is not one")
-	}
-	call(t, mux, "POST", "/api/v1/extensions/example-sys/-/ui/usage", master, `{"action": "changed"}`)
-	w := &h.extensions.widgets
-	woken := func() time.Time {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		return w.woken["phone1/example-sys/today"]
-	}
-	waitLong(t, "the device woken for the widget", func() bool { return !woken().IsZero() })
-	first := woken()
-	if _, again := call(t, mux, "POST", "/api/v1/extensions/example-sys/-/widget/today", master, `{"context": {"size": "small", "ui_version": 3}}`); !strings.Contains(fmt.Sprint(again["view"]), "value:3") {
-		t.Fatalf("drawn again once it changed: %v", again)
-	}
-	call(t, mux, "POST", "/api/v1/extensions/example-sys/-/ui/usage", master, `{"action": "changed"}`)
-	time.Sleep(2 * invalidateWait)
-	if !woken().Equal(first) {
-		t.Fatal("a device is woken for a widget once in a while, not each time it changes")
-	}
-
 	_, sc := call(t, mux, "GET", "/api/v1/extensions/-/shortcuts", master, "")
 	if got := fmt.Sprint(sc["shortcuts"]); !strings.Contains(got, "id:add") || !strings.Contains(got, "name:note") || !strings.Contains(got, "ui:usage") {
 		t.Fatalf("shortcuts: %v", sc)
