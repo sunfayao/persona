@@ -1001,7 +1001,6 @@ private struct AgentsList: View {
     @State private var foldedFound = Set<SessionKey>()
     @State private var renamingSpace: SpaceGroup?
     @State private var renamingSession: Session?
-    @State private var closingSession: Session?
     @State private var deletingSession: Session?
     @State private var linkingSession: Session?
     @State private var linkingSpace: SpaceGroup?
@@ -1251,7 +1250,7 @@ private struct AgentsList: View {
                                    onTerminals: { openFromList(TerminalsRoute()) },
                                    showingHidden: showHiddenDirectories,
                                    toggleHidden: { showHiddenDirectories.toggle() })
-        let _ = rowActions.update(rename: { renamingSession = $0 }, close: { closingSession = $0 }, linkTodo: { linkingSession = $0 },
+        let _ = rowActions.update(rename: { renamingSession = $0 }, linkTodo: { linkingSession = $0 },
                                   delete: { deletingSession = $0 }, takeover: { session in
                                       Task {
                                           if let adopted = await takeoverCoordinator.takeOver(session, model: model) {
@@ -1582,7 +1581,6 @@ private struct AgentsList: View {
                 await model.refresh()
             }
         }
-        .confirmClose($closingSession)
         .confirmDeleteSession($deletingSession)
         .nodeActionPrompts()
         let sheets = AnyView(decorated)
@@ -2600,7 +2598,7 @@ private struct AgentsList: View {
     #if !os(iOS)
     private func workspaceAgentMenu(_ s: Session) -> AgentRowMenu {
         AgentRowMenu(key: s.key, pinned: model.isPinned(s.key), muted: model.isMuted(s), looping: s.loop != nil,
-                     live: s.state.isLive, terminal: s.canTerminal, renamable: s.canRename, closable: s.canClose,
+                     live: s.state.isLive, terminal: s.canTerminal, renamable: s.canRename,
                      attachable: s.canAttach, deletable: s.canDelete,
                      paneActions: NodeMenu.offersPaneActions(s), actions: rowActions)
     }

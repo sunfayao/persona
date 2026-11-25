@@ -34,7 +34,6 @@ import PersonaWire
             .pin, .mute, .todo, .moveTodo, .unlinkTodo, .stopLoop, .handToPersona, .screen,
             .copyDirectory, .terminal, .copyResume, .resume,
             .splitPane, .splitRight, .splitDown, .nodeGit, .gitPull, .gitPush, .gitFetch, .closeTab,
-            .close,
         ]
         #expect(row.items.map(\.id) == ids)
         #expect(row.items.contains { $0.id == .pin }, "detail has the row's Pin action")
@@ -53,7 +52,7 @@ import PersonaWire
             .files, .space, .interrupt, .markSeen, .takeover, .continueInNewSession,
             .pin, .mute, .handToPersona, .copyDirectory,
         ])
-        #expect(!facts.items.contains { $0.id == .close }, "cannot close without a terminal")
+        #expect(!facts.items.contains { $0.id == .delete }, "working Agents cannot be deleted")
         #expect(!facts.items.contains { $0.id == .delete }, "a live session is not deleted")
         #expect(!facts.items.contains { $0.id == .terminal }, "no terminal capability, no terminal")
     }

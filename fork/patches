@@ -71,3 +71,5 @@ fix/14817-agy-subagent-hierarchy 14912
 carry/14884-agy-queue 14884
 # TRAE native next-turn queue and the web's busy send preference for TRAE and Antigravity.
 fix/14946-agent-follow-up 14953
+# Unify Agent deletion and keep removed Antigravity conversations hidden across pane retirement.
+fix/15201-agent-delete 15203

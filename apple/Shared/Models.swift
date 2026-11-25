@@ -1480,7 +1480,12 @@ nonisolated struct Session: Codable, Identifiable, Hashable, Sendable {
     var canAttach: Bool { hasSource && capabilities?.attach == true && attached != true }
     /// Delete Chat (docs/protocol/protocol.md `DELETE /sessions`) only for one that is not running: offline, finished (seen or not) or unknown,
     /// not still starting, and not the assistant's (those archive). What the hub hides once deleted (`stillDeleted`).
-    var canDelete: Bool { !assistant && starting != true && (status == .offline || status == .done || status == .idle || status == .unknown) }
+    var canDelete: Bool {
+        !assistant && starting != true && pendingInteractions == 0 &&
+        !backgroundWorking && !backgroundWaiting && queued?.isEmpty != false &&
+        undelivered?.contains(where: { $0.computer?.isEmpty == false }) != true &&
+        (status == .offline || status == .done || status == .idle || status == .unknown)
+    }
     var sourceLabel: String? {
         switch sourceKind {
         case "codex_app_server": String(localized: "Codex live")
@@ -3504,7 +3509,7 @@ nonisolated struct ScreenDialog: Codable, Hashable, Sendable {
 nonisolated enum DeleteSessionText {
     /// `machine`: where its record stays (nil: unknown); `resume`: the command that continues it there (nil: none).
     static func message(title: String, machine: String?, resume: String?) -> String {
-        switch (machine, resume) {
+        let detail: String = switch (machine, resume) {
         case let (machine?, resume?):
             String(localized: "“\(title)” will be removed from the list on all your devices. Its chat history on \(machine) won't be deleted; continue it on the computer with \(resume) and it'll come back.")
         case let (machine?, nil):
@@ -3514,6 +3519,7 @@ nonisolated enum DeleteSessionText {
         case (nil, nil):
             String(localized: "“\(title)” will be removed from the list on all your devices. Its chat history on the computer won't be deleted; it'll come back the next time it's used.")
         }
+        return detail + "\n\n" + String(localized: "If the Agent is open and can be closed, it will close.")
     }
 }
 

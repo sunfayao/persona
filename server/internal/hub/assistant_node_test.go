@@ -30,6 +30,7 @@ type assistantNode struct {
 	handoff    map[string]any
 	compacts   []string
 	compactErr error
+	retireErr  error
 }
 
 func newAssistantNode(t *testing.T, h *Hub) *assistantNode {
@@ -89,6 +90,9 @@ func newAssistantNode(t *testing.T, h *Hub) *assistantNode {
 		case "session.close":
 			n.sends = append(n.sends, map[string]any{"close": p["session_id"]})
 			return map[string]any{"ok": true}, nil
+		case "session.retire":
+			n.sends = append(n.sends, map[string]any{"retire": p})
+			return map[string]any{"closed": true}, n.retireErr
 		case assistantwire.DeviceAssistantAnswerAgain:
 			n.sends = append(n.sends, map[string]any{"answer_again": p})
 			return map[string]any{"ok": true}, nil
