@@ -14,8 +14,6 @@ import { arrangeSections, useSidebarPrefs } from "../lib/sidebar-pages";
 import { useStartPageCheck } from "../lib/start-page";
 import { useExtensionSlot } from "../lib/extension-slots";
 import { toneOf } from "../lib/extension-ui";
-import { colorOf, hue, type UIColor } from "../lib/extension-ui-v6";
-import { BUILTIN_PAGE_COLORS, useSidebarIconMode } from "../lib/sidebar-icons";
 import { BADGE_TONE, navIcon, pageRoute } from "./extensions/ExtensionSlots";
 import { href, inWorkView, navigate, type Route } from "../lib/router";
 import { scoped, useScope, useScopedCounts } from "../lib/current-assistant";
@@ -86,13 +84,8 @@ export function useGo(onNavigate?: () => void): GoFn {
 }
 
 /** One entry of the pages under Persona ("Overview", "Inbox" … "Settings", and the extensions' pages). `badgeLabel`:
- *  what a screen reader hears for the badge in place of its digits, when the number alone does not say what it counts.
- *  `color`: its icon's, only with Settings › Appearance › Sidebar icons on Colored (#10822, lib/sidebar-icons.ts). */
-export type NavPage = { k: string; to: Route; icon: IconName; label: string; short?: string; badge?: number | string; badgeTone?: keyof typeof BADGE_CLASS; badgeLabel?: string; hint?: string; title?: string; group?: { id: string; title: string }; color?: UIColor };
-
-/** A page's icon in its color (#10822), unless it is the open page, whose icon keeps the open row's ink; none without a
- *  color, so Monochrome draws what it always drew. */
-export const pageIconStyle = (color: UIColor | undefined, active: boolean) => (color && !active ? { color: hue(color) } : undefined);
+ *  what a screen reader hears for the badge in place of its digits, when the number alone does not say what it counts. */
+export type NavPage = { k: string; to: Route; icon: IconName; label: string; short?: string; badge?: number | string; badgeTone?: keyof typeof BADGE_CLASS; badgeLabel?: string; hint?: string; title?: string; group?: { id: string; title: string } };
 
 /** A page's spoken name with its badge ("Inbox 3", "To-dos 2 to-dos need you"): the phone's grid, the rail and the folded
  *  titles say what the list's row says. */
@@ -123,9 +116,6 @@ export function useNavPages() {
   // "Messages" needs the hub to read Feishu (feature `lark`) as well as this browser's switch
   const larkHome = larkSwitch && lark;
   const extensionPages = useExtensionSlot("nav_page");
-  // Colored sidebar icons (#10822): a built-in page's color, an extension's page the one its manifest names; none otherwise
-  const colored = useSidebarIconMode() === "colored";
-  const tint = (p: NavPage, color: UIColor | undefined): NavPage => (colored && color ? { ...p, color } : p);
   const stars = useStarredCount(useStore((s) => s.features.includes("starred_messages")));
 
   const main = assistant?.main ? assistant.conversations.find((c) => c.session_id === assistant.main) : undefined;
@@ -145,10 +135,10 @@ export function useNavPages() {
     ...(k === "settings"
       ? extensionPages.map((u) => {
           const key = extensionNavKey(u.extension, u.id);
-          return tint({ k: key, to: pageRoute(u.extension, u.id), icon: navIcon(u.icon), label: u.title, badge: u.badge?.text || undefined, badgeTone: BADGE_TONE[toneOf(u.badge?.tone)], title: u.extension_name ? `${u.title} · ${u.extension_name}` : u.title, group: u.group }, colorOf(u.icon_color));
+          return ({ k: key, to: pageRoute(u.extension, u.id), icon: navIcon(u.icon), label: u.title, badge: u.badge?.text || undefined, badgeTone: BADGE_TONE[toneOf(u.badge?.tone)], title: u.extension_name ? `${u.title} · ${u.extension_name}` : u.title, group: u.group });
         })
       : []),
-    ...(page[k] ? [tint(page[k], k === "terminal" || k === "starred" ? undefined : BUILTIN_PAGE_COLORS[k])] : []),
+    ...(page[k] ? [page[k]] : []),
   ]);
 
   // as arranged in Settings › General › Sidebar pages: the list, and the pages that wait under More (docs/web/web.md "The sidebar's pages")

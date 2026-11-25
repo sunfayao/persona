@@ -5,7 +5,6 @@ vi.mock("../styles.css?raw", () => ({ default: "" }));
 import { contrast, extensionThemeTokens, MIN_ROLE_CONTRAST } from "./extension-theme";
 import { ACCENT_PRESETS, accentTokens, PRESET_COLORS } from "./look";
 import { COLORS } from "../lib/extension-ui-v6";
-import { BUILTIN_PAGE_COLORS } from "../lib/sidebar-icons";
 
 // The default palette's text tokens must stay readable as small text (WCAG AA 4.5:1) on every background token
 // (#2804); the same backgrounds extension themes are checked against (extension-theme.ts).
@@ -78,9 +77,8 @@ describe("default palette contrast", () => {
       expect(contrast(ink, t.surface)).toBeLessThan(contrast(t.ink, t.surface));
       expect(contrast(ink, t.surface)).toBeGreaterThan(contrast(t["ink-2"], t.surface));
     });
-    // #10822, Colored sidebar icons: a page's icon in a named color (--hue-*, lib/sidebar-icons.ts) lies on the sidebar's
-    // --canvas, and on --hover under the pointer and the gliding highlight; the open page's icon is --ink on --hover-2, as
-    // in Monochrome. An icon is a graphic, so 3:1. Every named color, since an extension's nav_page may name any of them.
+    // A named color (--hue-*) drawn as a sidebar page's icon (an extension's nav_page may name any of them) lies on the
+    // sidebar's --canvas, and on --hover under the pointer; the open page's icon is --ink on --hover-2. An icon is a graphic, so 3:1.
     const hueOf = (name: string) => [...css.matchAll(new RegExp(`--hue-${name}:\\s*(#[0-9a-f]{6})\\b`, "gi"))][scheme === "light" ? 0 : 1]?.[1] ?? "";
     it(`${scheme}: every named color reads at 3:1 as a sidebar page's icon on the canvas and the hover fill`, () => {
       const short = COLORS.flatMap((name) => ["canvas", "hover"].map((bg) => {
@@ -89,7 +87,6 @@ describe("default palette contrast", () => {
         return ratio < MIN_ROLE_CONTRAST ? `--hue-${name} on --${bg}: ${ratio.toFixed(2)}` : "";
       })).filter(Boolean);
       expect(short).toEqual([]);
-      for (const name of Object.values(BUILTIN_PAGE_COLORS)) expect(COLORS, name).toContain(name);
       expect(contrast(t.ink, t["hover-2"])).toBeGreaterThanOrEqual(4.5);
     });
     it(`${scheme}: no theme color or extension theme moves the named colors or the sidebar's backgrounds`, () => {
