@@ -100,28 +100,3 @@ func TestTodoOutcomeAfterReopening(t *testing.T) {
 		t.Fatalf("completed decisions: %v", rows)
 	}
 }
-
-// outcomeEnv is an assistant with a task (a todo from conversation conv1) whose agent box/s1 worked there and said reply last.
-func outcomeEnv(t *testing.T, st Store, reply string) (*Service, *fakeHub, Todo) {
-	t.Helper()
-	f := newFakeHub().withMachine()
-	f.setSessions("box", proto.Session{SessionID: "s1", Title: "修登录", Cwd: "/code/weather/ios"})
-	// The conversation that hands the task out, outside the health space: its outcome goes to a project (todo_scope.go).
-	f.setSessions("server", proto.Session{SessionID: "conv1", Title: "Persona", Assistant: true})
-	f.setItems(proto.Item{Kind: proto.KindText, Role: "assistant", Text: reply})
-	var s *Service
-	if st == nil {
-		s = newServiceWithStore(t, f)
-	} else {
-		s = newServiceOn(t, f, st)
-	}
-	ctx := context.Background()
-	todo, err := s.createTodo(ctx, "修 · 登录页横屏崩溃", "iPad 横屏时登录页崩溃，修好并补测试", "conv1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := s.linkTodoAgent(ctx, todo.ID, "box", "s1", "修登录", "/code/weather/ios", "claude"); err != nil {
-		t.Fatal(err)
-	}
-	return s, f, todoNow(s, todo.ID)
-}

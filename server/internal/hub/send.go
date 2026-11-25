@@ -81,16 +81,6 @@ func (l *sendLog) forget(id string, f *sendFlight) {
 	l.mu.Unlock()
 }
 
-// withoutControls drops what acts on a terminal rather than being read: line breaks and tabs stay.
-func withoutControls(s string) string {
-	return strings.Map(func(c rune) rune {
-		if unicode.IsControl(c) && c != '\n' && c != '\t' {
-			return -1
-		}
-		return c
-	}, s)
-}
-
 // switchSendWait is how long the hub waits for a message carrying out a launcher switch: the node's checks before the
 // quit take at most a minute and the rest at most five (node/launcher_switch.go switchProbeWait, switchBudget); a
 // switch to the other engine also builds its handoff before the quit and takes five and a half minutes after it

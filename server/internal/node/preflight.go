@@ -671,11 +671,6 @@ func blockedPath(r preflightResult) string {
 	return filepath.Join(filepath.Dir(r.path), r.target)
 }
 
-// unchecked says how many items were never read, and why.
-func unchecked(o preflightOutcome) string {
-	return uncheckedIn(o, i18n.Default)
-}
-
 func uncheckedIn(o preflightOutcome, lang i18n.Lang) string {
 	key := "node-doctor.preflight_unchecked_slow"
 	if slices.ContainsFunc(o.results, func(r preflightResult) bool { return r.state == "hung" }) {
@@ -705,12 +700,6 @@ func (n *Node) workDirs(most int) []string {
 		out = out[:most]
 	}
 	return out
-}
-
-// preflight is the path-access check run in this node's own process: macOS holds the reads to the program that runs
-// the node, as it does the claude the node starts.
-func (n *Node) preflight(ctx context.Context) DoctorCheck {
-	return n.preflightIn(ctx, i18n.Default)
 }
 
 func (n *Node) preflightIn(ctx context.Context, lang i18n.Lang) DoctorCheck {

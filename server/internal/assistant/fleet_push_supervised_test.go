@@ -15,13 +15,6 @@ import (
 // supAgent is the Agent the tests drive: its id is long enough for agent_supervise to name it.
 const supAgent = "s1agent0"
 
-// supAgentSession is agentSession (feishu_agent_done_test.go) as supAgent.
-func supAgentSession() proto.Session {
-	sess := agentSession()
-	sess.SessionID = supAgent
-	return sess
-}
-
 // supervisedEnv is a manager whose assistant runs on "server" with the main conversation conv1, the leader conversation
 // lead1, the side conversation side1 and the background supervisor bg1 (on unless background is false: then the main
 // conversation follows its own tasks up). Tasks are not quiet (main_tasks_quiet off), so nothing but supervision keeps

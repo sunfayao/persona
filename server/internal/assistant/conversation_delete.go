@@ -176,18 +176,6 @@ func (s *Service) deletionRows(ctx context.Context, machine string, list []proto
 	return list
 }
 
-func (s *Service) deletedConversationRequest(r *http.Request) error {
-	path, ok := strings.CutPrefix(r.URL.Path, "/api/v1/assistant/conversations/")
-	if !ok {
-		return nil
-	}
-	id, rest, _ := strings.Cut(path, "/")
-	if r.Method == "DELETE" && rest == "" {
-		return nil
-	}
-	return s.conversationIDAvailable(r.Context(), id)
-}
-
 func conversationContentEvent(kind string) bool {
 	switch kind {
 	case "assistant_feed", "assistant_view", "assistant_view_action", "assistant_view_block":

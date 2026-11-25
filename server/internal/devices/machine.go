@@ -1188,12 +1188,6 @@ func (m *Machine) machinePending() bool {
 	return m.pending > 0
 }
 
-func (m *Machine) isOnline() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.online
-}
-
 // secretEnvRefusal refuses a hand-off (secret.stage, a session.start with a ticket) to a node that has not announced
 // secret_env: an older one would answer "unknown method", or start the Agent without the values the card gave it.
 // Announced, never assumed: a node not yet known (no handshake) is refused too.

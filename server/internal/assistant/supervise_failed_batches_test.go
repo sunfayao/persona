@@ -9,23 +9,6 @@ import (
 	"time"
 )
 
-func failedBatchSignal(s *Service, todo Todo, at time.Time) superviseSignal {
-	g := superviseSignal{Todo: todo.ID, Kind: sigFailed, Key: "workspace was not created", Machine: "box", Launcher: "work",
-		Detail: "workspace was not created", At: at, Generation: at}
-	// Direct deliverDigest callers must establish the same durable outbox entry that signal creates in production (#5732).
-	s.updateSupervisePending(func(pending map[string]superviseSignal) { pending[g.id()] = g })
-	return g
-}
-
-func queuedFailedStart(s *Service, id string) bool {
-	for _, msg := range queuedRelays(s, id) {
-		if msg.Tool == superviseTool && strings.Contains(msg.Text, "signal=failed") {
-			return true
-		}
-	}
-	return false
-}
-
 func TestFailedStartSettingsWordingKeepsWordBoundaries(t *testing.T) {
 	s, _ := newQuietService(t)
 	want := map[string]string{
@@ -47,15 +30,6 @@ func TestFailedStartSettingsWordingKeepsWordBoundaries(t *testing.T) {
 	for key := range want {
 		t.Errorf("setting %s was not found", key)
 	}
-}
-
-func readFailedBatchDoc(t *testing.T, st Store) failedStartBatchDoc {
-	t.Helper()
-	var doc failedStartBatchDoc
-	if _, err := st.Setting(context.Background(), failedStartBatchesKey, &doc); err != nil {
-		t.Fatal(err)
-	}
-	return doc
 }
 
 type failedBatchCASStore struct {

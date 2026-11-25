@@ -98,13 +98,6 @@ type managerInfo struct {
 	InboxNeedsYou *int `json:"inbox_needs_you,omitempty"`
 }
 
-// defaultManager is the manager the entries that belong to none go to (Siri, the shortcuts, the assistant page as
-// the app opens): the user's pick when it is still in the roster, else the assistant.
-func (h *Hub) defaultManager(ctx context.Context) string {
-	id, _ := h.defaultManagerOrErr(ctx)
-	return id
-}
-
 // defaultManagerOrErr is defaultManager saying when it is the assistant only because the store did not answer.
 func (h *Hub) defaultManagerOrErr(ctx context.Context) (string, error) {
 	s := h.managerStore()

@@ -903,11 +903,3 @@ func (s *Service) runFacts(ctx context.Context, t Task, now time.Time) string {
 	}
 	return ""
 }
-
-// northStarRunFacts is the north star's lines as a daily report's run is given them; "" without a database.
-func (s *Service) northStarRunFacts(ctx context.Context, now time.Time) string {
-	if _, ok := s.store().(northStarStore); !ok {
-		return ""
-	}
-	return prompts.RenderNorthStarFacts(s.briefNorthStarAt(ctx, now, s.location(ctx)).lines(s.botLang(ctx)))
-}

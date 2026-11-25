@@ -7,6 +7,3 @@ type PairError struct {
 	Hosts    []string
 	Err      error
 }
-
-func (e *PairError) Error() string { return e.Err.Error() }
-func (e *PairError) Unwrap() error { return e.Err }

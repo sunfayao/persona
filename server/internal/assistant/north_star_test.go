@@ -11,20 +11,6 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-func mustDo(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func shanghai(t *testing.T) *time.Location {
-	t.Helper()
-	loc, err := time.LoadLocation("Asia/Shanghai")
-	mustDo(t, err)
-	return loc
-}
-
 type failingNorthStarStore struct{ Store }
 
 func (failingNorthStarStore) Setting(context.Context, string, any) (bool, error) {
@@ -87,18 +73,4 @@ func TestGoldenNorthStarRunFacts(t *testing.T) {
 		"Interruptions today: 1 (0 questions · 0 cards to act on · 1 notifications · 0 authorization cards); yesterday by this time 3, -2",
 		"Availability today (main and leader conversations): 75% (3 of 4 starts and resumes worked); yesterday by this time 50%, +25 pp",
 	}))
-}
-
-// northStarDB is an isolated database with the main conversation "main-chat".
-func northStarDB(t *testing.T) (*Service, *db.DB, string) {
-	t.Helper()
-	dsn := newDatabase(t)
-	database, err := db.Open(context.Background(), dsn, db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	s, _ := newQuietServiceOn(t, database)
-	setSettings(t, s, func(v *Settings) { v.Main = "main-chat" })
-	return s, database, dsn
 }

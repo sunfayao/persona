@@ -768,12 +768,6 @@ func (s *Service) launcherDefault(ctx context.Context, purpose string) map[strin
 	return launcherPickerBinding(p.Effective)
 }
 
-// assistantPickerDefault fills the effective default from the choices already read for the picker and the last
-// snapshot. Building the full Settings provider catalog here could wait for another shell scan on a cold manager.
-func (s *Service) assistantPickerDefault(ctx context.Context, picker []ConfiguredLauncher) map[string]any {
-	return s.assistantPickerDefaultFor(ctx, picker, "assistant")
-}
-
 func (s *Service) assistantPickerDefaultFor(ctx context.Context, picker []ConfiguredLauncher, purpose string) map[string]any {
 	b, err := s.resolveModel(ctx, purpose)
 	if err != nil {

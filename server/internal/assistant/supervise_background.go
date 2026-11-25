@@ -374,33 +374,6 @@ func (s *Service) backgroundFresh(cfg Settings, id string) bool {
 	return id != "" && id == cfg.BackgroundSupervisor && at != nil && time.Since(*at) < backgroundGrace
 }
 
-// startBackground starts an explicitly requested background supervisor on the assistant's machine with what it is for
-// (prompts/assistant/supervisor_start), under its own model purpose, and keeps its id in the settings. New task work
-// remains main-supervised: ensureBackground does not call this to replace a lost legacy supervisor (#5732).
-func (s *Service) startBackground(ctx context.Context) (string, error) {
-	sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 100*time.Second)
-	defer cancel()
-	sctx = context.WithValue(sctx, supervisionStartup{}, true)
-	c, err := s.startConversation(sctx, startParams{Text: prompts.RenderSupervisorStart(prompts.SupervisorStart{Owner: s.owner(ctx)}),
-		Purpose: purposeSupervise, Origin: OriginTask, Source: &proto.MessageSource{Kind: proto.SourceSupervision}})
-	if err != nil {
-		return "", err
-	}
-	s.holdPushes(sctx, c.SessionID)
-	now := time.Now().UTC()
-	s.availStartedBy(c.MachineID, c.SessionID, proto.SourceSupervision, now) // its first round, as every later one (availability.go)
-	if _, err := s.updateSettings(sctx, func(v *Settings) error {
-		v.BackgroundSupervisor, v.BackgroundSupervisorMachineID, v.BackgroundSupervisorAt = c.SessionID, c.MachineID, &now
-		return nil
-	}); err != nil {
-		return "", err
-	}
-	s.titleSet(c.MachineID, c.SessionID, i18n.T(s.lang(ctx), "assistant-conversations.background_supervisor"), titleByAssistant)
-	s.logf("supervise: started the background supervisor %s on %s", short(c.SessionID), c.MachineID)
-	s.settingsChanged(sctx)
-	return c.SessionID, nil
-}
-
 // backgroundNeeded: one of the signals list explicitly targets the configured legacy background, unread legacy work
 // needs its outgrown state reconciled even when this digest is main-only, or a signal would have used the pre-#5732
 // automatic background route (the probe). Only the first is possible for new work under #5732.

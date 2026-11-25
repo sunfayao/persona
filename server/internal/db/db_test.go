@@ -303,15 +303,6 @@ func TestClientOps(t *testing.T) {
 	}
 }
 
-func mustDevices(t *testing.T, d *DB) []Device {
-	t.Helper()
-	list, err := d.Devices(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return list
-}
-
 func TestPhoneToolsReplace(t *testing.T) {
 	d, ctx := open(t), context.Background()
 	_ = d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "legacy", Tools: []proto.Tool{{Name: "b"}, {Name: "a", InputSchema: json.RawMessage(`{"type":"object"}`)}}})

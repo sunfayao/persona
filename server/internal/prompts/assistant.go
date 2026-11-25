@@ -414,8 +414,6 @@ func RenderAssistantContext(c AssistantContext) string { return render("assistan
 // legacy background supervisor stays disabled under universal main supervision (#5732).
 type SupervisorStart struct{ Owner string }
 
-func RenderSupervisorStart(d SupervisorStart) string { return render("assistant/supervisor_start", d) }
-
 // TaskRun is the message a scheduled task's run starts with (assistant/task_run).
 type TaskRun struct {
 	Label          string

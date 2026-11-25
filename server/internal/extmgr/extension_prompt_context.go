@@ -146,19 +146,6 @@ func (ps *extensions) contextViews(p *extension.Extension) []AssistantDataView {
 	return out
 }
 
-// withDataRoot calls f with the data directory dir as an os.Root's file system; nothing when it does not exist yet.
-func withDataRoot(dir string, f func(fs.FS) error) error {
-	root, err := os.OpenRoot(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return &dataFileError{dataUnreadable, err}
-	}
-	defer root.Close()
-	return f(root.FS())
-}
-
 func joinDetail(a, b string) string {
 	if a == "" {
 		return b

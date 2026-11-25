@@ -138,15 +138,6 @@ func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte
 	return res.StatusCode, string(out)
 }
 
-func bodyOf(t *testing.T, n int) []byte {
-	t.Helper()
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		t.Fatal(err)
-	}
-	return b
-}
-
 // relaysLeft is how many relays the hub still holds for a manager or has handed to one.
 func relaysLeft(h *Hub) int {
 	h.relay.mu.Lock()
@@ -189,17 +180,6 @@ func (c *slowConn) Read(p []byte) (int, error) {
 		<-timer.C
 	}
 	return n, err
-}
-
-func slowClient(rate int) *http.Client {
-	var d net.Dialer
-	return &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		c, err := d.DialContext(ctx, network, addr)
-		if err != nil {
-			return nil, err
-		}
-		return &slowConn{Conn: c, rate: rate, start: time.Now()}, nil
-	}}}
 }
 
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as

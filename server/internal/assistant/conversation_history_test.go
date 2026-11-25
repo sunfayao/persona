@@ -78,16 +78,6 @@ func (rt *historyRuntime) page(_ string, raw json.RawMessage) (any, error) {
 		"has_more": hasMore, "more_after": more}, nil
 }
 
-func readHistory(t *testing.T, s *Service, sid string, params map[string]any) historyPage {
-	t.Helper()
-	params["session_id"] = sid
-	var page historyPage
-	if err := s.call(t.Context(), "server", DeviceSessionItems, params, &page); err != nil {
-		t.Fatal(err)
-	}
-	return page
-}
-
 type failedHistoryStore struct{ *db.DB }
 
 func (failedHistoryStore) ConversationHistory(context.Context, string, string) (*db.ConversationHistory, error) {

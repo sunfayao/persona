@@ -20,17 +20,6 @@ type routeEnv struct {
 	agents []proto.Session // mac's sessions
 }
 
-func askQuestion(id, session string) proto.Interaction {
-	return proto.Interaction{ID: id, MachineID: "mac", SessionID: session, Kind: proto.IxQuestion,
-		Questions: []proto.Question{{Question: "用哪个分支？", Options: []proto.QuestionOption{{Label: "main"}, {Label: "feat/x"}}}},
-		CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour).UTC()}
-}
-
-func askPermission(id, session string) proto.Interaction {
-	return proto.Interaction{ID: id, MachineID: "mac", SessionID: session, Kind: proto.IxPermission, ToolName: "Bash",
-		ToolInput: []byte(`{"command":"git push origin feat/x"}`), CreatedAt: time.Now().UTC(), ExpiresAt: time.Now().Add(time.Hour).UTC()}
-}
-
 // raise asks ix as a hook would; the channel has its answer once it has one.
 func (e *routeEnv) raise(ix proto.Interaction) <-chan proto.Resolution {
 	out := make(chan proto.Resolution, 1)

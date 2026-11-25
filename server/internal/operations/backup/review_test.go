@@ -89,49 +89,6 @@ func TestUserFilesWithRuntimeLookingNamesAreBackedUp(t *testing.T) {
 	}
 }
 
-// rewriteManifest republishes an existing bundle with a changed manifest, as a
-// tampered or hand-edited bundle would arrive.
-func rewriteManifest(t *testing.T, bundle string, change func(*Manifest)) string {
-	t.Helper()
-	manifest, _, err := readBundleManifest(bundle)
-	if err != nil {
-		fatal(t, err)
-	}
-	staging := t.TempDir()
-	if err := extractBundle(bundle, staging, manifest); err != nil {
-		fatal(t, err)
-	}
-	change(manifest)
-	raw, err := json.Marshal(manifest)
-	if err != nil {
-		fatal(t, err)
-	}
-	if err := os.WriteFile(filepath.Join(staging, manifestPath), raw, 0o600); err != nil {
-		fatal(t, err)
-	}
-	// Written by hand: publishBundle would refuse an invalid manifest.
-	output := filepath.Join(t.TempDir(), "tampered.backup")
-	file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		fatal(t, err)
-	}
-	defer file.Close()
-	writer := tar.NewWriter(file)
-	members := []string{manifestPath}
-	for _, entry := range manifest.Files {
-		members = append(members, entry.Path)
-	}
-	for _, member := range members {
-		if err := appendTarMember(context.Background(), writer, staging, member); err != nil {
-			fatal(t, err)
-		}
-	}
-	if err := writer.Close(); err != nil {
-		fatal(t, err)
-	}
-	return output
-}
-
 // Before its first key rotation the built-in manager's database has no
 // sealing_key record. Verification must then prove the bundled key opens the
 // sealed values instead of treating the missing record as a wildcard.

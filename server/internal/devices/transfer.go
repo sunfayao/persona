@@ -362,21 +362,6 @@ func (d *Devices) cancelTransfer(id string, wait time.Duration) (proto.FileTrans
 	return t.snapshot(), true
 }
 
-func (d *Devices) runningTransfers() int {
-	d.pruneTransfers(time.Now())
-	d.transfers.mu.Lock()
-	defer d.transfers.mu.Unlock()
-	n := 0
-	for _, t := range d.transfers.byID {
-		t.mu.Lock()
-		if t.st.State == proto.TransferRunning {
-			n++
-		}
-		t.mu.Unlock()
-	}
-	return n
-}
-
 // pruneTransfers forgets the transfers that ended more than transferKeep ago.
 func (d *Devices) pruneTransfers(now time.Time) {
 	d.transfers.mu.Lock()

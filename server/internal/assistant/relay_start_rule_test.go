@@ -10,19 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// relayedPlan is task_plan's arguments for one task on box the model marks user_requested: writable unless over says
-// otherwise.
-func relayedPlan(over map[string]any) string {
-	task := map[string]any{"title": "Fix the export", "prompt": "The export drops the old format: fix it and add a test",
-		"role": "worker", "machine": "box", "cwd": "/code/app", "readonly": false, "permission": "bypassPermissions", "user_requested": true,
-		"why": "the repository is on box", "done_when": []string{"the export keeps the old format"}, "expect_minutes": 30}
-	for k, v := range over {
-		task[k] = v
-	}
-	raw, _ := json.Marshal(map[string]any{"tasks": []any{task}})
-	return string(raw)
-}
-
 // startsSoFar counts the agents started so far.
 func (d *dispatchPolicyHarness) startsSoFar() int {
 	d.f.mu.Lock()
@@ -51,12 +38,6 @@ func (d *dispatchPolicyHarness) startedPlanOf(t *testing.T, conv, cwd string) {
 	}
 }
 
-// taskReport is the item a task's report leaves in a conversation: Persona's own input, not the owner's.
-func taskReport() proto.Item {
-	return proto.Item{ID: "n1", Seq: 3, Role: "user", Kind: proto.KindText, Text: "🔔 task done: the export audit",
-		Source: &proto.MessageSource{Kind: proto.SourceSupervision}}
-}
-
 // planIn plans relayedPlan(over) in conversation id and says whether it started at once (the agent started) or waits
 // for Start (none did).
 func (d *dispatchPolicyHarness) planIn(t *testing.T, id string, over map[string]any) bool {
@@ -76,16 +57,4 @@ func (d *dispatchPolicyHarness) planIn(t *testing.T, id string, over map[string]
 	}
 	waitFor(t, "the agent to start", func() bool { return d.startsSoFar() == before+1 })
 	return true
-}
-
-// newStartRuleHarness is the dispatch harness on st, a database that keeps and starts task plans (nil: a new one),
-// with the computer box for tasks.
-func newStartRuleHarness(t *testing.T, st Store) *dispatchPolicyHarness {
-	t.Helper()
-	if st == nil {
-		st = planUpdateStore{&planMemStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}}}
-	}
-	d := newDispatchPolicyHarnessOn(t, st)
-	d.f.setSessions("box")
-	return d
 }

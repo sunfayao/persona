@@ -40,11 +40,3 @@ func TestAdmissionSettingRejectsNonPositiveLines(t *testing.T) {
 		}
 	}
 }
-
-func mustMarshal(v any) []byte {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
-}

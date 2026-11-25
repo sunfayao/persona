@@ -11,10 +11,6 @@ import (
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
-func modelPrompt(call modelCall) string {
-	return call.System + "\n---\n" + call.User
-}
-
 func TestGoldenTodoLanguageDelivery(t *testing.T) {
 	for _, locale := range []string{"zh-Hans", "en", "ja"} {
 		t.Run(locale, func(t *testing.T) {

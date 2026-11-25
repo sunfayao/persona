@@ -134,10 +134,6 @@ func mustTodo(t *testing.T, s *Service, title string) Todo {
 	return td
 }
 
-func supervisedBy(sup string) func(*Todo) {
-	return func(t *Todo) { t.Supervision = &Supervision{Supervisor: sup} }
-}
-
 // setStatus shows conversation id with status in the harness's list, every other one idle.
 func (d *dispatchPolicyHarness) setStatus(id, status string) {
 	var list []proto.Session

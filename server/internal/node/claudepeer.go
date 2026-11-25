@@ -137,14 +137,6 @@ const (
 	peerCommandMsg     = "会话之间的消息通道只送普通消息，不执行斜杠命令：命令请在电脑上输入。这次没有发送。"
 )
 
-// peerSend writes text to the claude's inbox as one message to session sessionID (the inbox drops it when the
-// claude has moved on to another session). nil says the inbox read the line, not that the session took it
-// (peerTaken). Refusals come back as *errPeer (nothing sent); any other error came after the line was written (the
-// inbox may have it): the caller looks at the transcript before calling it unknown.
-func peerSend(ctx context.Context, p claudePeer, sessionID, text string) error {
-	return peerSendAt(ctx, p, sessionID, text, peerNext)
-}
-
 // The priorities a message to the inbox goes at. peerNext queues it behind a running turn, or runs it when the session
 // rests. peerNow cuts the running turn — and a question or permission prompt the session waits on (their tool call
 // ends "Tool permission request aborted") — and runs it at once: Claude Code's own "send now", its queue aborting the
@@ -216,17 +208,6 @@ func peerMessage(sessionID, text string) ([]byte, error) {
 // peerMessageAt is peerMessage at priority, stating fromMode in the envelope ("" for none).
 func peerMessageAt(sessionID, text, priority, fromMode string) ([]byte, error) {
 	return peerMessageFor(sessionID, text, priority, fromMode, "", false)
-}
-
-// peerMessageIn is peerMessageAt with the owner preface rendered in language ("" for the default).
-func peerMessageIn(sessionID, text, priority, fromMode, language string) ([]byte, error) {
-	return peerMessageFor(sessionID, text, priority, fromMode, language, false)
-}
-
-// peerMessageForSource is peerMessageAt for source-attested Agent text when source is set: the body goes as it is,
-// without the owner-only phone-message preface.
-func peerMessageForSource(sessionID, text, priority, fromMode string, source bool) ([]byte, error) {
-	return peerMessageFor(sessionID, text, priority, fromMode, "", source)
 }
 
 func peerMessageFor(sessionID, text, priority, fromMode, language string, source bool) ([]byte, error) {

@@ -642,18 +642,6 @@ func (b *relayBook) turnsLocked(from, to string, now time.Time) int {
 	return turns
 }
 
-// relayRefund gives back the place a message from → to counted at took when it did not go (a conversation_new that
-// did not start, #10099).
-func (s *Service) relayRefund(from, to string, at time.Time) {
-	b := &s.relays
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	k := [2]string{from, to}
-	if i := slices.Index(b.sent[k], at); i >= 0 {
-		b.sent[k] = slices.Delete(b.sent[k], i, i+1)
-	}
-}
-
 // scheduledWake: a scheduled run (a follow-up or routine) went into conversation id, which starts a new chain, as a
 // routine run in a fresh conversation does (#10099). Only once per conversation per relayWindow: a conversation
 // cut off by the hops can't schedule itself a minute ahead again and again to keep a loop going. The per-pair and

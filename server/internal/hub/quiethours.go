@@ -139,17 +139,3 @@ func (p *Pusher) quietNow() bool {
 	p.mu.Unlock()
 	return slices.ContainsFunc(prefs, p.inQuiet)
 }
-
-// hushed is an APNs alert payload delivered without a sound and without lighting the screen.
-func hushed(payload map[string]any) map[string]any {
-	aps, ok := payload["aps"].(map[string]any)
-	if !ok {
-		return payload
-	}
-	aps = maps.Clone(aps)
-	delete(aps, "sound")
-	aps["interruption-level"] = "passive"
-	payload = maps.Clone(payload)
-	payload["aps"] = aps
-	return payload
-}
