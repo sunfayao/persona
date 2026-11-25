@@ -2,10 +2,12 @@
 // While the main Persona conversation runs a foreground turn, its state is said in exactly one place for the whole turn:
 // the message stream (sending/preparing feedback, then the live work line). The dock's running status bar never repeats
 // it, including across transcript loads and state pushes; it returns only for work that outlives the turn (background
-// workflow / subagent / wait / working command). Agent chats keep the full dock bar (#6230, rework after live verification).
+// workflow / subagent / wait / working command). Agent chats share the transcript's live work line and have a dock
+// fallback until transcript progress appears.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beginMessageSend, resetMessageFeedback } from "../../lib/message-send";
 import type { Item, Session } from "../../lib/types";
 import { initI18n, t } from "../../i18n";
 
@@ -64,6 +66,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   act(() => root.unmount());
+  resetMessageFeedback();
   host.remove();
   vi.unstubAllGlobals();
 });
@@ -135,14 +138,16 @@ describe("the Persona conversation says its foreground turn exactly once (#6230)
     expect(dockBar()?.getAttribute("data-running-background")).toBe("command");
   });
 
-  it("still draws the dock bar throughout in an Agent chat", async () => {
+  it("keeps the live transcript line when an Agent's cached transcript reloads", async () => {
     captured.session = { machine_id: "hub", session_id: "c1", title: "Conversation", cwd: "/code", status: "working", state: "working", state_since: "2026-11-13T01:00:01Z" } as Session;
     act(() => root.render(<ChatView mid="hub" sid="c1" />));
     await flush();
-    expect(dockBar()).not.toBeNull();
+    expect(dockBar()).toBeNull();
+    expect(liveWorkLine()).not.toBeNull();
     act(() => { transcript.loading = true; root.render(<ChatView mid="hub" sid="c1" />); });
     await flush();
-    expect(dockBar()).not.toBeNull();
+    expect(dockBar()).toBeNull();
+    expect(liveWorkLine()).not.toBeNull();
   });
 
   it("leaves an idle agy composer ready to send while its background command runs", async () => {
@@ -231,30 +236,43 @@ describe("a Persona conversation on the generic session route says its foregroun
     expect(dockBar()).not.toBeNull();
   });
 
-  it("keeps the dock bar for a plain Agent session on the generic route even when a session object carries no prop", async () => {
+  it("renders the dock fallback before a plain Agent's native transcript arrives", async () => {
     captured.session = { machine_id: "hub", session_id: "c1", title: "Agent", cwd: "/code", status: "working", state: "working", state_since: "2026-11-13T01:00:01Z", assistant: false } as Session;
+    const history = transcript.items;
+    transcript.items = [];
+    transcript.loading = true;
     act(() => root.render(<ChatView mid="hub" sid="c1" />));
     await flush();
     expect(dockBar()).not.toBeNull();
+    expect(host.querySelectorAll("[data-running-elapsed]")).toHaveLength(1);
+    expect(liveWorkLine()).toBeNull();
+
+    act(() => { transcript.items = history; transcript.loading = false; root.render(<ChatView mid="hub" sid="c1" />); });
+    await flush();
+    expect(dockBar()).toBeNull();
+    expect(liveWorkLine()).not.toBeNull();
+    expect(host.querySelectorAll("[data-work-elapsed]")).toHaveLength(1);
   });
 });
 
-describe("Agent chats never render duplicate competing Working… timers (#12380)", () => {
+describe("an Agent chat keeps one foreground progress line", () => {
   const workClocks = () => host.querySelectorAll("[data-work-elapsed]");
   const dockClocks = () => host.querySelectorAll("[data-running-elapsed]");
 
-  it("renders only the dock status bar timer before any tool steps arrive after launch handoff", async () => {
+  it("uses send feedback by itself before the transcript catches up", async () => {
     captured.session = { machine_id: "hub", session_id: "c1", title: "Agent", cwd: "/code", status: "working", state: "working", state_since: "2026-11-13T01:00:01Z", assistant: false } as Session;
-    transcript.items = [{ id: "u1#0", seq: 1, role: "user", kind: "text", text: "Fix the bug", ts: "2026-11-13T01:00:00Z" }];
+    transcript.items = [];
+    beginMessageSend("hub", "c1", "send-no-transcript", "Fix the bug").finish("delivered");
     act(() => root.render(<ChatView mid="hub" sid="c1" />));
     await flush();
-    expect(dockBar()).not.toBeNull();
-    expect(dockClocks()).toHaveLength(1);
+    expect(dockBar()).toBeNull();
+    expect(dockClocks()).toHaveLength(0);
+    expect(sendFeedback()?.getAttribute("data-message-feedback")).toBe("processing");
     expect(liveWorkLine()).toBeNull();
     expect(workClocks()).toHaveLength(0);
   });
 
-  it("keeps the expandable live work summary when tool steps exist without rendering a second elapsed timer", async () => {
+  it("keeps the compact, expandable live work summary and its own elapsed timer", async () => {
     captured.session = { machine_id: "hub", session_id: "c1", title: "Agent", cwd: "/code", status: "working", state: "working", state_since: "2026-11-13T01:00:01Z", assistant: false } as Session;
     transcript.items = [
       { id: "u1#0", seq: 1, role: "user", kind: "text", text: "Fix the bug", ts: "2026-11-13T01:00:00Z" },
@@ -263,12 +281,14 @@ describe("Agent chats never render duplicate competing Working… timers (#12380
     ];
     act(() => root.render(<ChatView mid="hub" sid="c1" />));
     await flush();
-    expect(dockBar()).not.toBeNull();
-    expect(dockBar()?.querySelector("[data-running-verb]")?.textContent).toBe("正在工作…");
-    expect(dockClocks()).toHaveLength(1);
+    expect(dockBar()).toBeNull();
+    expect(dockClocks()).toHaveLength(0);
     expect(liveWorkLine()).not.toBeNull();
-    expect(liveWorkLine()?.querySelector<HTMLButtonElement>(":scope > button")?.getAttribute("aria-expanded")).toBe("false");
-    expect(workClocks()).toHaveLength(0);
+    const toggle = liveWorkLine()?.querySelector<HTMLButtonElement>(":scope > button");
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    expect(workClocks()).toHaveLength(1);
+    act(() => { toggle!.click(); });
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps the live work line above batched streamed text in an Agent chat with only one elapsed timer", async () => {
@@ -277,10 +297,10 @@ describe("Agent chats never render duplicate competing Working… timers (#12380
     transcript.streaming = "Investigating now.";
     act(() => root.render(<ChatView mid="hub" sid="c1" />));
     await flush();
-    expect(dockBar()).not.toBeNull();
-    expect(dockClocks()).toHaveLength(1);
+    expect(dockBar()).toBeNull();
+    expect(dockClocks()).toHaveLength(0);
     expect(liveWorkLine()).not.toBeNull();
-    expect(workClocks()).toHaveLength(0);
+    expect(workClocks()).toHaveLength(1);
   });
 
   it("still shows the in-stream elapsed timer in Persona chats where the dock bar is hidden", async () => {

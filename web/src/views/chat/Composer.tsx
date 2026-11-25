@@ -832,10 +832,8 @@ export const Composer = memo(function Composer({
     });
   };
   const typed = Boolean(draft.trim() || atts.length || files.length || contexts.length || quote);
-  // the round button is Stop while the agent works and nothing is typed; with something typed Send queues it and a
-  // second Stop sits left of voice (cindy's mainSlotIsStop / showSecondaryStop)
+  // Stop is the empty composer’s running action. A draft uses that same slot to send or queue.
   const showStop = working && !typed && onStop;
-  const secondStop = Boolean(working && typed && onStop && !blocked);
   const queues = Boolean(working || needsYou);
   const busySend = useBusySend();
   const choosesBusySend = Boolean(working && !needsYou && (queueNextTurn || (agent === "agy" && onSendNow)));
@@ -1249,8 +1247,6 @@ export const Composer = memo(function Composer({
           {/* not overflow-hidden: the chips' tap areas reach past this row (touch-hit); the footer truncates its own text */}
           <div className="min-w-0 flex-1 px-1 text-[11.5px] whitespace-nowrap text-ink-3">{footer}</div>
           {trailing}
-          {/* while the agent works and something is typed, Stop stays left of voice and Send queues (cindy's second slot) */}
-          {secondStop && <StopButton stopping={stopping} onStop={onStop!} />}
           {voice && !roundVoice && (
             <button
               type="button"

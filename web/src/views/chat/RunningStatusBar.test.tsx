@@ -329,6 +329,7 @@ describe("model request retries (#887)", () => {
     const html = render({
       live: { retry_error: rateLimited, retry_attempt: 5, retry_max: 10 },
       working: true,
+      transcriptProgress: true,
       background: { run: { task_id: "w", status: "running", running: true, agents_started: 3, agents_done: 1 }, more: 0, guessed: true },
     });
     expect(html).toContain(rateLimited);

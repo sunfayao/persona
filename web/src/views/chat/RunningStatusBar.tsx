@@ -108,6 +108,8 @@ function plainWord(step: RunStep): string {
 
 export interface RunningStatusProps {
   working: boolean;
+  /** The foreground turn already has a live or sending indicator in the transcript. */
+  transcriptProgress?: boolean;
   /** Once it is not working: the turn finished (ChatView turnDone), so the bar says ✓ Done; otherwise its last words. */
   done?: boolean;
   startedAt?: string;
@@ -198,7 +200,7 @@ type Phase = "on" | "linger" | "fading" | "off";
 
 /** The bar for a given status line (RunningStatusBar subscribes; tests render this). `speedKey`: the conversation its
  *  speed history is kept for while the page is open. */
-export function RunningStatusView({ live, working, done: finished, startedAt, clock = true, plain, step, background, subtasks, command, offline, speedKey = "" }: RunningStatusProps & { live: SessionLive | null; offline?: boolean; speedKey?: string }) {
+export function RunningStatusView({ live, working, done: finished, startedAt, clock = true, plain, step, background, subtasks, command, transcriptProgress, offline, speedKey = "" }: RunningStatusProps & { live: SessionLive | null; offline?: boolean; speedKey?: string }) {
   const phase = usePhase(working);
   const [pinned, setPinned] = useState(false);
   // after the turn: what it last said, while it lingers and fades. Its status line goes a moment before the turn ends,
@@ -242,6 +244,7 @@ export function RunningStatusView({ live, working, done: finished, startedAt, cl
   const breath = useBreath(useMoves(`${words}\n${shown?.tokens_down ?? ""}`), phase === "on");
   const onPinned = useCallback((p: boolean) => setPinned(p), []);
   const SpeedView = useSpeed(working && own);
+  if (working && transcriptProgress && !retry && !behind && !usage && !task) return null;
   // a card pinned open keeps its button through the end of the turn and after it (cindy)
   if (phase === "off" && !pinned) return null;
   const hidden = phase === "off";

@@ -2,7 +2,7 @@
 // The composer's toolbar as cindy's (#5324): the + opens the + / @ panel with a search box that has the keys; a typed @
 // opens the same panel above the box. "Add" first (files or images, Plan mode where the session has modes), then a few of
 // each resource; picking a file types `@path `, a session becomes a context chip. One round button on the right: Stop
-// while the agent works and nothing is typed, Send otherwise (Queue message while it works, with a second Stop).
+// while the agent works and the draft is empty, Send otherwise (Queue message while it works).
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -386,15 +386,31 @@ describe("the round button (#5324)", () => {
     expect(onStop).toHaveBeenCalledOnce();
   });
 
-  it("queues what is typed while the agent works, a second Stop left of voice", () => {
+  it("queues a draft while working and restores Stop when it is cleared", () => {
     localStorage.setItem(`draft:${KEY}`, "and also this");
     render({ working: true, onStop: () => {}, voice: { mode: "start", label: "voice", onClick: () => {} } });
     expect(send()!.getAttribute("aria-label")).toBe(t("chat-composer.queue"));
     expect(send()!.title).toBe(t("chat-composer.queue_hint"));
-    expect(stops()).toHaveLength(1);
+    expect(stops()).toHaveLength(0);
     const row = send()!.parentElement!;
     const order = [...row.children].map((c) => c.getAttribute("data-testid")).filter(Boolean);
-    expect(order).toEqual(["composer-stop", "composer-voice", "composer-send"]);
+    expect(order).toEqual(["composer-voice", "composer-send"]);
+    setValue(box(), "");
+    expect(send()).toBeNull();
+    expect(stops()).toHaveLength(1);
+  });
+
+  it("still queues a draft with the keyboard while the agent works", async () => {
+    localStorage.setItem("persona.busy-send", "queue");
+    localStorage.setItem(`draft:${KEY}`, "Follow-up");
+    const onSend = vi.fn(async () => true);
+    const onStop = vi.fn();
+    render({ working: true, onStop, onSend, agent: "traex", queueNextTurn: true });
+    await act(async () => {
+      box().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(onSend).toHaveBeenCalledWith({ text: "Follow-up", images: [], queueNextTurn: true });
+    expect(onStop).not.toHaveBeenCalled();
   });
 
   it.each([

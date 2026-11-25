@@ -278,13 +278,14 @@ on-demand model panel, not the everyday Assistant home (#6887).
   share); that safety cap is not the old 22% cap that stopped an ordinary keyboard-sized phone at three or four lines.
   The existing phone-only full-screen editors are unchanged; their control colors and text placement were inspected,
   not redesigned in this correction.
-- Web bottom row (#5324, cindy's toolbar at the owner's request; cindy wins over this section's earlier rules for it):
-  `[+][permission picker] … [model pill][Stop][voice][send / queue / stop]`. The + and the picker are bare 30 px round
+- Web bottom row (#5324, cindy's toolbar): `[+][permission picker] … [model pill][voice][send / queue / stop]`.
+  The + and the picker are bare 30 px round
   controls that show the model pill's frame (`line-strong` border, `hover` fill) on hover or while open; the action is one
   dark 28 px circle (`ink` fill, `surface` icon, 40% when it can't be pressed): a filled plane for Send (**Queue message**
   while the Agent works or needs you), a 10 px square for Stop (never red), round voice in an idle empty box, the main
-  conversation's not-ready button as a pill in the same fill. With something typed while the Agent works, a second Stop
-  sits left of voice. No @ or / button: typing them opens their menus. The model pill is the `trailing` slot and the
+  conversation's not-ready button as a pill in the same fill. A draft uses the round action for sending or queueing.
+  An empty composer uses it for Stop while a foreground turn can be interrupted. Typing @ or / opens their menus.
+  The model pill is the `trailing` slot and the
   picker the `leading` one, in an Agent chat and in a Persona chat (#5033; the new-chat page has no picker). The card is the
   `composer` container whose width sets the pill's and the picker's modes ("Model pill and unified model panel" in 3.8).
 - Web + / @ panel (#5324, `ComposerPanel.tsx`): one panel for both entries, 480 px and never wider than the composer
@@ -341,8 +342,10 @@ on-demand model panel, not the everyday Assistant home (#6887).
 
 **Run status bar** (web, #5312; the owner asked on 2026-11-12 that it follow cindy's `RunningStatusBar` and
 `RunningTokenRatePopover`, and cindy wins over what this document said before; `web/src/views/chat/RunningStatusBar.tsx`,
-`docs/web/web.md` "Live status and streaming"). One row above the composer while a turn runs, 13 px medium, 8 px side and
-6 px vertical padding, its two sides 12 px apart:
+`docs/web/web.md` "Live status and streaming"). The active turn's compact work summary and elapsed time appear in the
+transcript. Until the transcript has a live summary or send feedback, the run bar above the composer supplies progress.
+Background work and model retry messages have their own information in that bar. The row uses 13 px medium type,
+8 px side and 6 px vertical padding, with its two sides 12 px apart:
 - Left: a 14 px mark and a short state in `--status-accent`, truncating. The sparkle (layers while compacting, activity for
   background subtasks, a 2.5-stroke check for **Done**). An Agent session says what the turn does in cindy's words
   ("Thinking…", "Generating…", "Editing files…", "Searching the web…", "Spawning a subagent…", "Bash running…",
