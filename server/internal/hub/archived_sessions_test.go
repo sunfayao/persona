@@ -210,8 +210,8 @@ func TestAgentSessionArchivesExtensionAndRoleBoundary(t *testing.T) {
 			}
 		}
 	}
-	if !allowed(principal{Role: roleRetiredAnswer}, http.MethodGet, "/api/v1/sessions/archived") {
-		t.Fatal("answer-only role cannot read archives")
+	if allowed(principal{Role: roleRetiredAnswer}, http.MethodGet, "/api/v1/sessions/archived") {
+		t.Fatal("a retired answer-only role reads archives")
 	}
 }
 

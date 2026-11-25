@@ -112,51 +112,6 @@ func requireMCPWaitBoundaryEvent(t *testing.T, event devicewire.NodeEvent, machi
 	}
 }
 
-func TestMCPWaitPhoneFieldsCrossManagerHubBoundary(t *testing.T) {
-	h := newTestHub(t)
-	bus := newMCPWaitTestBus(t, h, nil)
-	phone := &client{hub: h, device: "credential-ios", role: roleFull, out: make(chan []byte, 2)}
-	addTestClient(h, phone)
-	h.onClientMessage(context.Background(), phone, []byte(`{"type":"register_phone","tools":[{"name":"phone_reminders_create"}]}`))
-	manager := assistant.New(assistant.Options{
-		Hub: permissionTestHub{assistantLink{h}}, Devices: mcpWaitTestDevices{},
-	})
-	const callID = "77777777-7777-4777-8777-777777777777"
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	done := callMCPWaitNode(manager, ctx, map[string]any{
-		"name": "phone_reminders_create", "args": json.RawMessage(`{}`), "wait_updates": true, "call_id": callID,
-	})
-
-	var phoneCall struct {
-		CallID string `json:"call_id"`
-	}
-	select {
-	case data := <-phone.out:
-		if err := json.Unmarshal(data, &phoneCall); err != nil {
-			t.Fatal(err)
-		}
-	case <-ctx.Done():
-		t.Fatal("the phone call was not sent")
-	case result := <-done:
-		t.Fatalf("the tool returned before reaching the phone: %+v", result)
-	}
-	requireMCPWaitBoundaryEvent(t, bus.next(t), "computer", callID, proto.MCPWaitApproval)
-	reply, _ := json.Marshal(map[string]any{"type": "tool_result", "call_id": phoneCall.CallID,
-		"content": []proto.Content{{Type: "text", Text: "saved"}}})
-	h.onClientMessage(ctx, phone, reply)
-	requireMCPWaitBoundaryEvent(t, bus.next(t), "computer", callID, proto.MCPWaitComputer)
-	select {
-	case answer := <-done:
-		result, ok := answer.value.(proto.ToolResult)
-		if answer.err != nil || !answer.handled || !ok || result.IsError {
-			t.Fatalf("phone answer = %+v", answer)
-		}
-	case <-ctx.Done():
-		t.Fatal("the phone call did not return")
-	}
-}
-
 func TestMCPWaitSettingsFieldsCrossManagerHubBoundary(t *testing.T) {
 	h := newTestHub(t)
 	h.store = &settingsStore{vals: map[string][]byte{}}

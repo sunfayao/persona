@@ -124,37 +124,6 @@ func (m *inboxFakeManager) handle(ctx context.Context, method string, params jso
 	return map[string]any{}, nil
 }
 
-// An answer-only device (the watch) replies with text only, the hub holding it to that before the manager sees the
-// request: no documents' status moves, no "/agent …".
-func TestInboxReplyFromTheWatchIsTextOnly(t *testing.T) {
-	h := newTestHub(t)
-	fm, _ := connectInboxManager(t, h)
-	var relayed atomic.Int32
-	fm.mu.Lock()
-	fm.http = func(context.Context, assistantwire.HTTPRequest) (any, error) {
-		relayed.Add(1)
-		return assistantwire.HTTPResponse{Status: http.StatusOK, Body: []byte(`{"id":"x"}`)}, nil
-	}
-	fm.mu.Unlock()
-	api := http.NewServeMux()
-	h.inboxRoutesRelayed(api)
-	reply := func(body string) int {
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/inbox/x/reply", strings.NewReader(body))
-		r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
-		w := httptest.NewRecorder()
-		api.ServeHTTP(w, r)
-		return w.Code
-	}
-	for _, body := range []string{`{"text":"/agent 看看构建"}`, `{"text":"好","changes":[{"ref":"r1","field":"状态","value":"完成"}]}`} {
-		if code := reply(body); code != http.StatusForbidden || relayed.Load() != 0 {
-			t.Fatalf("%s from the watch: %d, %d relayed", body, code, relayed.Load())
-		}
-	}
-	if code := reply(`{"text":"好的"}`); code != http.StatusOK || relayed.Load() != 1 {
-		t.Fatalf("a text reply from the watch: %d, %d relayed", code, relayed.Load())
-	}
-}
-
 // receiptStore keeps the apps' operation receipts (client_ops) and drops one when asked (ForgetClientOp).
 type receiptStore struct {
 	*memStore

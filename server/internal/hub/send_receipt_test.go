@@ -181,22 +181,6 @@ func TestSendReceiptTerminalOutcomesAndRetry(t *testing.T) {
 	}
 }
 
-func TestSendReceiptValidatesAnswerOnlyBeforeCachedRetry(t *testing.T) {
-	h := newTestHub(t)
-	pipeNode(t, h, "box", func(context.Context) error { return nil })
-	body := `{"text":"hello","client_msg_id":"receipt-admission"}`
-	call(t, h.routes(), http.MethodPost, sendPath, h.cfg.Token, body)
-	c := sendSubscriber(h, "box", "missing")
-	r := httptest.NewRequest(http.MethodPost, sendPath, strings.NewReader(body))
-	r.SetPathValue("sid", "missing")
-	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleRetiredAnswer}))
-	w := httptest.NewRecorder()
-	h.sendMessage(w, r, h.byID["box"])
-	if w.Code != http.StatusNotFound || broadcasts(c, "message_send_state") != 0 {
-		t.Fatalf("cached retry bypassed target admission: status=%d", w.Code)
-	}
-}
-
 func TestSendReceiptPreparationFailureCanRetry(t *testing.T) {
 	h := newTestHub(t)
 	pipeNode(t, h, "box", func(context.Context) error { return nil })

@@ -221,12 +221,8 @@ func TestChooseAuthentication(t *testing.T) {
 	if code, out := chooseRequest(t, mux, "jd_invalid", card.ID, body, "en", ""); code != 401 || calls.Load() != 0 {
 		t.Fatalf("unauthorized: %d %v", code, out)
 	}
-	code, watch := 200, retiredWatch(t, h)
-	if code != 200 {
-		t.Fatalf("create watch: %d %v", code, watch)
-	}
-	if code, out := chooseRequest(t, mux, watch["token"].(string), card.ID, body, "en", ""); code != 200 || out["ok"] != true || calls.Load() != 1 {
-		t.Fatalf("answer-only choice: %d %v", code, out)
+	if code, out := chooseRequest(t, mux, h.cfg.Token, card.ID, body, "en", ""); code != 200 || out["ok"] != true || calls.Load() != 1 {
+		t.Fatalf("owner choice: %d %v", code, out)
 	}
 }
 

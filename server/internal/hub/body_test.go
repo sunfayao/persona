@@ -54,31 +54,6 @@ func postEndless(t *testing.T, mux http.Handler, method, path, token string) (in
 	return w.Code, out.Code, body.read
 }
 
-// A watch (answer-only) token may answer cards; an oversized answer is refused with 413 after reading about its cap,
-// and a normal one still reaches the handler.
-func TestResolveBodyLimitForAnswerRole(t *testing.T) {
-	h := newTestHub(t)
-	h.store = &tokenStore{memStore: *newMemStore(), rows: map[string]db.DeviceToken{}, rev: map[string]bool{}}
-	mux := h.routes()
-	watch := retiredWatch(t, h)
-	watchTok := watch["token"].(string)
-
-	code, errCode, read := postEndless(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok)
-	if code != http.StatusRequestEntityTooLarge || errCode != proto.CodeTooLarge {
-		t.Fatalf("oversized answer: %d %q, want 413 %q", code, errCode, proto.CodeTooLarge)
-	}
-	if read > 2<<20 {
-		t.Fatalf("read %d bytes of an oversized answer (cap 1 MiB)", read)
-	}
-	connectAssistant(t, h) // a normal answer goes on to the manager, which has no such card
-	if code, _ := call(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok, `{"allow":true}`); code != http.StatusGone {
-		t.Fatalf("a normal answer reaches the handler (410: no such card), got %d", code)
-	}
-	if code, _ := call(t, mux, "POST", "/api/v1/interactions/ix_x/resolve", watchTok, `{"allow":`); code != http.StatusBadRequest {
-		t.Fatalf("a malformed answer: %d, want 400", code)
-	}
-}
-
 // A pairing code for one machine's persona-link can only trade itself for a token: an oversized body is refused before
 // its role is checked, without reading it all.
 func TestAuthTokensBodyLimitForLinkPair(t *testing.T) {
@@ -226,7 +201,6 @@ func TestAppHandlersBodyLimitTooLarge(t *testing.T) {
 		// (/api/v1/agents/… are the manager's: extmgr TestAgentRoutesBodyLimitTooLarge.)
 		{"POST", "/api/v1/machines/m1/panes", "", 4 << 10},
 		{"POST", "/api/v1/machines/m1/panes/close", "", 4 << 10},
-		{"POST", "/api/v1/phone/runtime-cli", "", 1 << 20},
 		{"PUT", "/api/v1/looks/current", "", 4 << 10},
 	} {
 		name := c.method + " " + c.path
