@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // planMemStore is memStore with the task plans and the feed, in memory.

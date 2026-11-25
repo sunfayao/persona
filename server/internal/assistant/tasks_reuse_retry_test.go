@@ -1,11 +1,7 @@
 package assistant
 
 import (
-	"context"
 	"sync/atomic"
-	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 // countingPlanHistoryStore counts the plan execution history reads through it.

@@ -2,9 +2,7 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 

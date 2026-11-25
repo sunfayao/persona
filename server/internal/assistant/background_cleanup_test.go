@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func waitFleetBackground(t *testing.T, name string, wg *sync.WaitGroup) {

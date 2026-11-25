@@ -1,8 +1,6 @@
 package assistant
 
 import (
-	"context"
-	"strings"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"

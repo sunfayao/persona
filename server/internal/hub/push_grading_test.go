@@ -130,8 +130,8 @@ func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawM
 	return nil
 }
 
-func (s *deviceRows) Setting(context.Context, string, any) (bool, error)  { return false, nil }
-func (s *deviceRows) PutSetting(context.Context, string, any) error       { return nil }
+func (s *deviceRows) Setting(context.Context, string, any) (bool, error) { return false, nil }
+func (s *deviceRows) PutSetting(context.Context, string, any) error      { return nil }
 func (s *stuckPrefsStore) Setting(context.Context, string, any) (bool, error) {
 	return false, nil
 }

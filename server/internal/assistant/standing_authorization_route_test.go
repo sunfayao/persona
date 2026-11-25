@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"slices"

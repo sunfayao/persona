@@ -1,13 +1,11 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/conversationlog"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )

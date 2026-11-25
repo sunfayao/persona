@@ -1,13 +1,9 @@
 package assistant
 
 import (
-	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // dispatchPolicyHarness is an assistant with five conversations: the main one, a leader, the background supervisor,

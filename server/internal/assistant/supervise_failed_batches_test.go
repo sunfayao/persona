@@ -1,8 +1,6 @@
 package assistant
 
 import (
-	"context"
-	"errors"
 	"strings"
 	"sync"
 	"testing"
