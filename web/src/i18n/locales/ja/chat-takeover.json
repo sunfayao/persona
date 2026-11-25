@@ -5,5 +5,7 @@
   "takeover_confirm": "引き継ぐ",
   "takeover_running_confirm": "ターミナルで実行中のターンを終了します。",
   "reason_encrypted_context": "暗号化された会話コンテキストはこのセッションで再開できません。新しいセッションで続けてください。",
-  "reason_unavailable": "この会話は現在のセッションで再開できません。新しいセッションで続けてください。"
+  "reason_unavailable": "この会話は現在のセッションで再開できません。新しいセッションで続けてください。",
+  "desktop_resume": "Persona で続ける",
+  "desktop_resume_unavailable": "この会話はまだ Persona で続けられません。更新してもう一度お試しください。"
 }

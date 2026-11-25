@@ -210,6 +210,9 @@ func (n *Node) sendCreatedCodexApp(ctx context.Context, id, text string, images 
 	if n.sessionScope != nil || n.codexBlocked(id) {
 		return true, refusal("codex_read_only", "The desktop session is outside this node's scope or has an identity conflict.", nil)
 	}
+	if _, writer, err := n.codexOwner(id); err == nil && writer.releasedDesktop {
+		return false, nil // an explicit continuation resumed this original thread on the shared app-server
+	}
 	refs, err := assistantskills.References(text)
 	if err != nil {
 		return true, skillSelectionError(err)

@@ -682,6 +682,10 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			if c.spec.Name != "" {
 				s.AgentName = c.spec.Name
 			}
+			if t.releasedDesktop {
+				s.AgentName, s.AgentSurface = "Codex App", transcript.SurfaceDesktop
+				n.placeCodexDesktopIn(&s, src, src.thread, false, pass)
+			}
 			s.ParentThreadID = firstNonEmpty(t.parent, readCodexOrigin(src.path).parent)
 			if t.title != "" {
 				s.Title = t.title
@@ -749,8 +753,12 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			s.ReadOnlyReason = stoppedReason
 			s.Capabilities.StopCause = n.stopCause(id)
 		}
-		if !desktopViewOnly && s.SourceKind == "codex_history" && !s.Capabilities.Send && !s.IsSubagent && !n.codexBlocked(id) {
-			s.Capabilities.Takeover = n.codexTakeoverRow(id, src, m, liveRollouts[id] != "" || s.Status == proto.StatusWorking)
+		if s.SourceKind == "codex_history" && !s.Capabilities.Send && !s.IsSubagent && !n.codexBlocked(id) {
+			if desktopViewOnly {
+				s.Capabilities.Takeover = n.releasedCodexDesktopRow(src, &s, pass)
+			} else {
+				s.Capabilities.Takeover = n.codexTakeoverRow(id, src, m, liveRollouts[id] != "" || s.Status == proto.StatusWorking)
+			}
 		}
 		if n.codexBlocked(id) {
 			markCodexConflict(&s)

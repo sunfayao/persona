@@ -271,7 +271,9 @@ on-demand model panel, not the everyday Assistant home (#6887).
 - Platforms: web composer (14 px radius, 28 px buttons, `web/src/views/chat/Composer.tsx:648`).
 - When an external terminal or Codex Desktop owns the conversation and the web can only show its history, a quiet
   inset notice occupies the composer slot. It names where the person can continue. Codex Desktop offers **Open in
-  Codex** when the native thread ID is available. Use the same spacing, colors and wrapping rules in both themes.
+  Codex** when the native thread ID is available. For a released native Desktop thread the same notice offers
+  **Continue in Persona**, opening its composer only after the native server confirms the original thread. Use the
+  same spacing, colors and wrapping rules in both themes.
 - Text growth (owner-requested correction, #5645 / #5648): grow with the draft to six visible lines,
   then scroll inside the same field. Keep the caret visible when typing or moving it; unrelated updates never take
   over a manual draft scroll. Web reserves room for its toolbar in exceptionally short visible viewports (35% input

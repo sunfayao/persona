@@ -9,5 +9,6 @@
   "shared_unavailable": "Codex の共有 app-server を起動できませんでした。元のプロセスは変更していません。",
   "user_only": "Codex の引き継ぎを確認できるのはログイン済みの端末のみです。",
   "token_required": "引き継ぎの確認トークンが必要です。",
-  "not_ready": "Codex は新しいターミナルで開きましたが、共有接続の準備ができていません。送信前にそのターミナルを確認してください。"
+  "not_ready": "Codex は新しいターミナルで開きましたが、共有接続の準備ができていません。送信前にそのターミナルを確認してください。",
+  "desktop_resume_unavailable": "Codex は元の会話を Persona で再開できませんでした。ここで閲覧するか、Codex デスクトップで開けます。"
 }

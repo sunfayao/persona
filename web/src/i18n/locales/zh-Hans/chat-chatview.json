@@ -135,5 +135,6 @@
   "export": "导出对话…",
   "side_sessions_count": "分支会话（{count}）",
   "side_sessions_needs_you": "有分支会话需要你",
-  "open_agent_page": "打开 Agent 会话"
+  "open_agent_page": "打开 Agent 会话",
+  "codex_desktop_released": "可以在 Persona 中继续此会话。"
 }

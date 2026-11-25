@@ -2,6 +2,7 @@ export interface CodexTakeoverPlan {
   running: boolean;
   can_resume: boolean;
   reason?: string;
+  released_desktop?: boolean;
   token: string;
   cwd: string;
   transcript_path: string;

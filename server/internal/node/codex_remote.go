@@ -55,6 +55,7 @@ type remoteThread struct {
 	// cleared when a turn starts. Session.TurnError / TurnErrorKind, before the rollout has it.
 	failure, failureKind string
 	joined               bool
+	releasedDesktop      bool
 	buffer               *strings.Builder
 	lastDelta            time.Time
 	revision             uint64
@@ -67,22 +68,24 @@ type remoteAsk struct {
 }
 
 type codexRemote struct {
-	n          *Node
-	spec       proto.CodexServer
-	generation string
-	wire       *codexConn
-	socket     *websocket.Conn
-	ctx        context.Context
-	cancel     context.CancelFunc
-	done       chan struct{}
-	once       sync.Once
-	delivery   sync.Mutex
-	mu         sync.Mutex
-	threads    map[string]remoteThread
-	asks       map[string]*remoteAsk
-	joins      typingLocks
-	finished   map[string]bool
-	ready      bool
+	n            *Node
+	spec         proto.CodexServer
+	generation   string
+	wire         *codexConn
+	socket       *websocket.Conn
+	ctx          context.Context
+	cancel       context.CancelFunc
+	done         chan struct{}
+	once         sync.Once
+	delivery     sync.Mutex
+	refreshMu    sync.Mutex
+	mu           sync.Mutex
+	threads      map[string]remoteThread
+	asks         map[string]*remoteAsk
+	joins        typingLocks
+	finished     map[string]bool
+	ready        bool
+	verifiedHome bool
 	// models: the efforts each model takes, from model/list (codex_effort.go); nil until read.
 	models map[string]codexModelEfforts
 	// slow: loaded threads whose last thread/read timed out; read again only after codexRetryWait (codex_backoff.go).
@@ -277,6 +280,9 @@ func (c *codexRemote) run() {
 	if err = wire.send(map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}}); err != nil {
 		return
 	}
+	c.mu.Lock()
+	c.verifiedHome = init.CodexHome != ""
+	c.mu.Unlock()
 	if err = c.refresh(); err != nil {
 		return
 	}
@@ -392,9 +398,16 @@ type remoteThreadData struct {
 }
 
 func (c *codexRemote) refresh() error {
+	c.refreshMu.Lock()
+	defer c.refreshMu.Unlock()
 	c.mu.Lock()
 	wait, budget := cmp.Or(c.readWait, codexReadWait), cmp.Or(c.refreshWait, codexRefreshWait)
+	localDesktop := c.verifiedHome && c.spec.Endpoint == codexDesktopResumeEndpoint(c.spec.Home)
 	c.mu.Unlock()
+	var remembered map[string]string
+	if localDesktop {
+		remembered = c.n.codexInventory().Joined
+	}
 	ctx, cancel := context.WithTimeout(c.ctx, budget)
 	defer cancel()
 	ids, err := c.loaded(ctx)
@@ -515,6 +528,11 @@ dispatch:
 		public := c.n.registerCodex(c.spec.Home, raw, path)
 		t.id, t.publicID, t.title, t.cwd = raw, public, firstNonEmpty(d.Name, d.Preview), d.Cwd
 		t.path = d.Path
+		// A node restart loses the observed writer, but reattaching to the same
+		// private local server's already-loaded Desktop thread needs no new claim.
+		if !t.releasedDesktop && remembered[public] == c.spec.ID {
+			t.releasedDesktop = codexDesktopChat(codexSource{home: c.spec.Home, thread: raw, path: path})
+		}
 		if d.Model != "" { // an app-server that reports a thread's settings (older ones do not: keep what join said)
 			t.model, t.effort = d.Model, d.Effort
 		}
@@ -582,6 +600,7 @@ dispatch:
 	for raw, t := range next {
 		if old, ok := c.threads[raw]; ok && old.revision != seenRevision[raw] {
 			t.joined, t.turn, t.partial, t.files, t.status, t.revision, t.buffer, t.lastDelta = old.joined, old.turn, old.partial, old.files, old.status, old.revision, old.buffer, old.lastDelta
+			t.releasedDesktop = t.releasedDesktop || old.releasedDesktop
 			t.failure, t.failureKind, t.ended = old.failure, old.failureKind, old.ended
 			t.serviceTier, t.serviceTierRevision = old.serviceTier, old.serviceTierRevision
 			t.model, t.effort = old.model, old.effort // an effort just set (codex_effort.go) over a read from before it
@@ -740,13 +759,17 @@ func (c *codexRemote) join(ctx context.Context, id string, remember bool) error 
 	}
 	c.mu.Unlock()
 	if remember && ok {
-		c.n.codices.mu.Lock()
-		c.n.codices.config.Joined[id] = c.spec.ID
-		c.n.codices.mu.Unlock()
-		c.n.rememberCodex()
+		c.rememberJoin(id)
 	}
 	c.n.notifyCodex()
 	return nil
+}
+
+func (c *codexRemote) rememberJoin(id string) {
+	c.n.codices.mu.Lock()
+	c.n.codices.config.Joined[id] = c.spec.ID
+	c.n.codices.mu.Unlock()
+	c.n.rememberCodex()
 }
 
 func (n *Node) attachCodex(ctx context.Context, id string) error {
@@ -801,13 +824,25 @@ func (n *Node) sendCodex(ctx context.Context, id, text string, images []proto.Im
 	for _, p := range paths {
 		input = append(input, map[string]any{"type": "localImage", "path": p})
 	}
-	previous := c
+	previous, releasedDesktop := c, t.releasedDesktop
 	c, t, err = n.codexOwner(id)
 	if err != nil {
 		return refusal("codex_read_only", err.Error(), nil)
 	}
 	if len(selected) > 0 && c != previous {
 		return skillSelectionError(assistantskills.ErrReference)
+	}
+	if releasedDesktop {
+		// An old writable row must not send to an app-server that unloaded this
+		// thread or route it to another owner. Only the native loaded writer
+		// receives this turn.
+		if c != previous || !t.joined {
+			return takeoverRefusal("writer_busy")
+		}
+		loaded, err := c.loaded(ctx)
+		if err != nil || !slices.Contains(loaded, t.id) {
+			return takeoverRefusal("writer_busy")
+		}
 	}
 	params := map[string]any{"threadId": t.id, "input": input}
 	method := "turn/start"

@@ -2595,8 +2595,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         <div ref={composerBox} className="shrink-0" hidden={voiceState === "live" || Boolean(picker)}>
         {transcriptHost && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-inset px-3 py-2 text-sm text-ink-2">
-            <p>{t(transcriptHost === "agy" ? "chat-chatview.agy_external_terminal" : "chat-chatview.codex_desktop_transcript")}</p>
-            {desktopLink && <a href={desktopLink} className="shrink-0 whitespace-nowrap text-accent hover:underline">{t("chat-chatview.open_in_codex")}</a>}
+            <p>{t(transcriptHost === "agy" ? "chat-chatview.agy_external_terminal"
+              : session?.capabilities?.takeover?.released_desktop ? "chat-chatview.codex_desktop_released" : "chat-chatview.codex_desktop_transcript")}</p>
+            {transcriptHost === "codex" && session?.capabilities?.takeover?.released_desktop
+              ? <Suspense fallback={null}><TakeoverAction key={draftKey} session={session} /></Suspense>
+              : desktopLink && <a href={desktopLink} className="shrink-0 whitespace-nowrap text-accent hover:underline">{t("chat-chatview.open_in_codex")}</a>}
           </div>
         )}
         {stoppedLine ? (
@@ -3218,7 +3221,8 @@ export const Header = memo(function Header({
       )}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
       {!chrome && actions}
-      {!assistant && session && (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
+      {!assistant && session && !session.capabilities?.takeover?.released_desktop &&
+        (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
         <Suspense fallback={null}><TakeoverAction key={`${session.machine_id}:${session.session_id}`} session={session} /></Suspense>}
       {Boolean(topCenter) && more("end")}
       {chrome?.page && <IconButton icon="chat" label={t("chat-chatview.open_agent_page")} onClick={openAgentPage} />}

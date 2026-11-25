@@ -5,5 +5,7 @@
   "takeover_confirm": "Take over",
   "takeover_running_confirm": "This will end the turn currently running in the terminal.",
   "reason_encrypted_context": "The encrypted conversation context cannot be resumed in this session. Continue in a new session instead.",
-  "reason_unavailable": "This conversation cannot be resumed in this session. Continue in a new session instead."
+  "reason_unavailable": "This conversation cannot be resumed in this session. Continue in a new session instead.",
+  "desktop_resume": "Continue in Persona",
+  "desktop_resume_unavailable": "This conversation isn’t ready to continue in Persona. Refresh and try again."
 }
