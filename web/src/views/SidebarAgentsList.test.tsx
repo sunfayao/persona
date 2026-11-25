@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The Agents block's grouping (#2812) against the store: By to-do waits for the first GET /todos instead of drawing every
-// agent under No to-do and moving it, and a hub without todos hides To-dos and shows By machine while keeping the choice.
+// The Agents block's project view against the store: its fold-all button, the controls it keeps, the relative-time filters
+// and the stable order of its projects.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -12,7 +12,7 @@ vi.hoisted(() => {
 });
 import { t } from "../i18n";
 import { filterAgentList, resetAgentListFilters } from "../lib/agent-list-filters";
-import { connect, refresh, reset, upsertSession } from "../lib/store";
+import { refresh, reset, upsertSession } from "../lib/store";
 import type { Todo } from "../lib/todos";
 import type { Machine, Session } from "../lib/types";
 import { Icon, type IconName } from "../ui/icons";
@@ -62,11 +62,8 @@ let root: Root;
 const flush = async () => {
   for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve(); });
 };
-const grouping = () => host.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Agent 分组"]')!;
-const segments = () => [...grouping().querySelectorAll<HTMLButtonElement>('[role="radio"]')];
-const checked = () => segments().find((b) => b.getAttribute("aria-checked") === "true")?.getAttribute("aria-label");
-// the Agents block's body: the segments, the quick filter and the groups (the personal agents' Loading... is elsewhere)
-const agentsBlock = () => grouping().closest<HTMLElement>("[data-sidebar-agents]")!;
+// the Agents block's body: the quick filter and the groups (the personal agents' Loading... is elsewhere)
+const agentsBlock = () => host.querySelector<HTMLElement>("[data-sidebar-agents]")!;
 const render = async () => {
   act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
   await flush();
@@ -94,74 +91,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("按待办 before the todos have loaded", () => {
-  it("says 加载中… until GET /todos answers, then draws the agent under its todo, never under 没挂待办的 first", async () => {
-    let answer!: (r: Response) => void;
-    const todos = new Promise<Response>((r) => (answer = r));
-    vi.stubGlobal("fetch", hub(() => todos));
-    // the socket pushes the machines and sessions while GET /todos (asked for on hello) is still on its way
-    connect();
-    const sock = FakeSocket.all[FakeSocket.all.length - 1];
-    sock.open();
-    sock.push({ type: "hello", server_version: "v1" });
-    sock.push({ type: "machines", machines: [mac] });
-    sock.push({ type: "sessions", machine_id: "mac", sessions: [agent] });
-    await render();
-    expect(checked()).toBe("按待办");
-    expect(agentsBlock().textContent).toContain("加载中…");
-    expect(agentsBlock().textContent).not.toContain("没挂待办的");
-    expect(agentsBlock().textContent).not.toContain("改发布脚本");
-
-    await act(async () => answer(new Response(JSON.stringify({ todos: [todo] }), { status: 200 })));
-    await flush();
-    expect(agentsBlock().textContent).not.toContain("加载中…");
-    expect(agentsBlock().textContent).toContain("天气 App 发 1.3 版");
-    expect(agentsBlock().textContent).toContain("改发布脚本");
-    // the agent sits under its to-do; 没挂待办的 is listed (#6458) and holds none
-    expect(agentsBlock().querySelector('[data-tree-branch="todo:td1"]')?.textContent).toContain("改发布脚本");
-    expect(agentsBlock().querySelector('[data-tree-branch="todo:none"] [data-tree-branch-row]')?.textContent).toMatch(/^没挂待办的.*0 个 Agent$/);
-    expect(agentsBlock().querySelector('[data-tree-branch="todo:none"]')?.textContent).not.toContain("改发布脚本");
-  });
-
-  it("draws the todos as soon as GET /todos answers, while GET /sessions is still on its way", async () => {
-    const slow = vi.fn((url: string) => {
-      if (url.endsWith("/api/v1/todos")) return json({ todos: [todo] });
-      if (url.endsWith("/api/v1/sessions")) return new Promise<Response>(() => {});
-      if (url.endsWith("/api/v1/machines")) return json({ machines: [mac] });
-      return json({});
-    });
-    vi.stubGlobal("fetch", slow);
-    connect();
-    const sock = FakeSocket.all[FakeSocket.all.length - 1];
-    sock.open();
-    sock.push({ type: "hello", server_version: "v1" });
-    sock.push({ type: "machines", machines: [mac] });
-    sock.push({ type: "sessions", machine_id: "mac", sessions: [agent] });
-    await render();
-    expect(agentsBlock().textContent).not.toContain("加载中…");
-    expect(agentsBlock().textContent).toContain("天气 App 发 1.3 版");
-    expect(agentsBlock().textContent).toContain("改发布脚本");
-  });
-
-  it("does not wait under another grouping", async () => {
-    localStorage.setItem("persona.agentGrouping", "machine");
-    vi.stubGlobal("fetch", hub(() => new Promise<Response>(() => {})));
-    connect();
-    const sock = FakeSocket.all[FakeSocket.all.length - 1];
-    sock.open();
-    sock.push({ type: "hello", server_version: "v1" });
-    sock.push({ type: "machines", machines: [mac] });
-    sock.push({ type: "sessions", machine_id: "mac", sessions: [agent] });
-    await render();
-    expect(checked()).toBe("按机器");
-    expect(agentsBlock().textContent).not.toContain("加载中…");
-    expect(agentsBlock().textContent).toContain("工作电脑");
-  });
-});
-
-describe("group controls in every Agents view", () => {
-  it.each(["todo", "machine", "repo", "space", "state"])("opens and folds all levels in %s without folding the block", async (mode) => {
-    localStorage.setItem("persona.agentGrouping", mode);
+describe("group controls in the Agents view", () => {
+  it("opens and folds all levels without folding the block", async () => {
     vi.stubGlobal("fetch", hub(() => json({ todos: [todo] })));
     await refresh();
     await render();
@@ -171,7 +102,7 @@ describe("group controls in every Agents view", () => {
     expect(host.querySelectorAll("[data-sidebar-agents-controls] [data-testid=agents-fold-all]")).toHaveLength(1);
     await act(async () => { action("全部折叠").click(); await Promise.resolve(); });
     expect(disclosures().every((b) => b.getAttribute("aria-expanded") === "false")).toBe(true);
-    expect(grouping().closest("[inert]")).toBeNull();
+    expect(agentsBlock().closest("[inert]")).toBeNull();
     await flush();
     await act(async () => { action("全部展开").click(); await Promise.resolve(); });
     expect(disclosures().every((b) => b.getAttribute("aria-expanded") === "true")).toBe(true);
@@ -188,7 +119,7 @@ describe("group controls in every Agents view", () => {
   });
 });
 
-// Collapse all / Expand all act on the list under the controls only (#6447): the grouping tabs, the quick filters and
+// Collapse all / Expand all act on the list under the controls only (#6447): the quick filters and
 // the title row's Filter (#6589: the list has no search field of its own) stay on screen while every group folds to its
 // heading; the chat-list view has no groups to fold to, so it has no button (a first fix folded the whole block there,
 // the controls with it).
@@ -201,12 +132,11 @@ describe("the fold-all button keeps the Agents controls", () => {
     return Boolean(el);
   };
   const controls = () => ({
-    tabs: onScreen(grouping()),
     filters: onScreen(agentsBlock().querySelector(`[role="radiogroup"][aria-label="${t("sidebar.quick_filters")}"]`)),
     filter: onScreen(agentsBlock().querySelector("[data-sidebar-agents-controls] [data-testid=agent-filter-button]")),
   });
-  const everyControl = { tabs: true, filters: true, filter: true };
-  /** The agent's title, wherever the grouping draws it. */
+  const everyControl = { filters: true, filter: true };
+  /** The agent's title, wherever the list draws it. */
   const agentShown = () => {
     const walk = document.createTreeWalker(agentsBlock(), NodeFilter.SHOW_TEXT);
     for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.textContent?.includes(agent.title!) && onScreen(n.parentElement)) return true;
@@ -223,8 +153,7 @@ describe("the fold-all button keeps the Agents controls", () => {
     await flush();
   };
 
-  it.each(["todo", "machine", "repo", "space", "state"])("folds %s to its group headings and opens it again, the controls staying", async (mode) => {
-    localStorage.setItem("persona.agentGrouping", mode);
+  it("folds the projects to their headings and opens them again, the controls staying", async () => {
     vi.stubGlobal("fetch", hub(() => json({ todos: [todo] })));
     await refresh();
     await render();
@@ -238,9 +167,6 @@ describe("the fold-all button keeps the Agents controls", () => {
     expect(headings().length).toBeGreaterThan(0);
     expect(headings().every((b) => b.getAttribute("aria-expanded") === "false")).toBe(true);
     expect(agentShown()).toBe(false);
-    // by to-do, each to-do is one row, its agents folded under it (no project or repository level above it, #6458)
-    if (mode === "todo") expect(agentsBlock().querySelector('[data-tree-branch="todo:td1"] [data-tree-branch-row]')?.textContent).toContain(todo.title);
-    if (mode === "todo") expect(onScreen(agentsBlock().querySelector('[data-tree-branch="todo:td1"] [data-tree-branch-row]'))).toBe(true);
     expect(foldAll()!.getAttribute("aria-label")).toBe("全部展开");
     expect(shows()).toBe(glyph("unfoldToggle"));
 
@@ -252,7 +178,6 @@ describe("the fold-all button keeps the Agents controls", () => {
   });
 
   it("has no button in the chat-list view, whose rows stay under the controls", async () => {
-    localStorage.setItem("persona.agentGrouping", "machine");
     localStorage.setItem("persona.agentChatList", "1");
     vi.stubGlobal("fetch", hub(() => json({ todos: [todo] })));
     await refresh();
@@ -261,67 +186,6 @@ describe("the fold-all button keeps the Agents controls", () => {
     expect(foldAll()).toBeNull();
     expect(controls()).toEqual(everyControl);
     expect(agentShown()).toBe(true);
-  });
-});
-
-describe("按待办's 最近（未运行）", () => {
-  it("has no ⓘ, its name saying what it holds, and is listed only with something in it (#6447)", async () => {
-    localStorage.setItem("persona.agentGrouping", "todo");
-    const gone: Session = { ...agent, session_id: "s2", title: "旧的发布检查", status: "offline", state: "offline" };
-    let sessions = [agent, gone];
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
-      if (url.endsWith("/api/v1/todos")) return json({ todos: [todo] });
-      if (url.endsWith("/api/v1/sessions")) return json({ sessions });
-      if (url.endsWith("/api/v1/machines")) return json({ machines: [mac] });
-      return json({});
-    }));
-    await refresh();
-    await render();
-    const about = (branch: string) => agentsBlock().querySelector(`[data-tree-branch="${branch}"] [data-tree-branch-row] [aria-label^="${t("ui-atoms.about", { name: "" }).slice(0, 2)}"]`);
-    const recent = () => agentsBlock().querySelector('[data-tree-branch="recent"] [data-tree-branch-row]');
-    expect(recent()?.textContent).toContain(t("sidebar.recent"));
-    expect(about("recent")).toBeNull();
-    // the groups whose names do not say it keep theirs
-    expect(about("todo:none")).not.toBeNull();
-
-    // the same hub with nothing stopped: no 最近（未运行） row at all
-    act(() => root.unmount());
-    reset();
-    root = createRoot(host);
-    sessions = [agent];
-    await refresh();
-    await render();
-    expect(recent()).toBeNull();
-    expect(agentsBlock().querySelector('[data-tree-branch="todo:none"]')).not.toBeNull();
-  });
-});
-
-describe("a hub without todos (GET /todos 404)", () => {
-  it("hides 待办 and shows 按机器 for a browser that never chose", async () => {
-    vi.stubGlobal("fetch", hub(() => json({ error: "not found" }, 404)));
-    await refresh();
-    await render();
-    expect(segments().map((b) => b.textContent)).toEqual(["机器", "仓库", "项目", "状态"]);
-    expect(checked()).toBe("按机器");
-    expect(agentsBlock().textContent).toContain("工作电脑");
-    expect(agentsBlock().textContent).not.toContain("加载中…");
-    expect(localStorage.getItem("persona.agentGrouping")).toBeNull();
-  });
-
-  it("keeps a 按待办 chosen before and shows it again once the hub has todos", async () => {
-    localStorage.setItem("persona.agentGrouping", "todo");
-    vi.stubGlobal("fetch", hub(() => json({ error: "not found" }, 404)));
-    await refresh();
-    await render();
-    expect(checked()).toBe("按机器");
-    expect(localStorage.getItem("persona.agentGrouping")).toBe("todo");
-
-    vi.stubGlobal("fetch", hub(() => json({ todos: [todo] })));
-    await act(async () => { await refresh(); });
-    await flush();
-    expect(segments()[0].getAttribute("aria-label")).toBe("按待办");
-    expect(checked()).toBe("按待办");
-    expect(agentsBlock().textContent).toContain("天气 App 发 1.3 版");
   });
 });
 
@@ -350,51 +214,8 @@ describe("relative-time Agents filters", () => {
   });
 });
 
-describe("stable machine, workspace and tab order (#11801)", () => {
-  it("ignores activity during hover, focus, background updates and reloads", async () => {
-    localStorage.setItem("persona.agentGrouping", "machine");
-    // A browser that used the removed activity sort gets the same stable placement.
-    localStorage.setItem("persona.agentSort", "updated");
-    const placed = (id: string, machine_id: string, space: string, slot_index: number, hour: number): Session => ({
-      machine_id, session_id: id, title: id, cwd: `/${space}`, status: "idle", state: "idle", updated_at: `2026-01-01T0${hour}:00:00Z`,
-      space_id: space, space_name: space, space_index: space === "alpha" ? 0 : 1, slot_id: id, slot_index,
-    });
-    const sessions = [
-      placed("a1", "mac", "alpha", 0, 1), placed("a2", "mac", "alpha", 1, 2),
-      placed("b1", "mac", "beta", 0, 3), placed("c1", "pc", "gamma", 0, 4),
-    ];
-    const computers: Machine[] = [{ id: "mac", name: "Mac", online: true }, { id: "pc", name: "PC", online: true }];
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
-      const path = new URL(url, "http://hub.example.com").pathname;
-      const body = path.endsWith("/sessions") ? { sessions } : path.endsWith("/machines") ? { machines: computers } : {};
-      return Promise.resolve(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));
-    }));
-    await refresh();
-    await render();
-    const order = () => [...agentsBlock().querySelectorAll<HTMLAnchorElement>('a[href^="/t/"]')].map((a) => a.getAttribute("href"));
-    const expected = ["/t/mac/alpha/a1", "/t/mac/alpha/a2", "/t/mac/beta/b1", "/t/pc/gamma/c1"];
-    expect(order()).toEqual(expected);
-
-    const hovered = agentsBlock().querySelector<HTMLAnchorElement>('a[href="/t/mac/alpha/a1"]')!;
-    act(() => {
-      hovered.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      hovered.focus();
-      upsertSession({ ...sessions[0]!, state: "needs_you", status: "idle", updated_at: "2026-01-01T10:00:00Z" });
-    });
-    await flush();
-    expect(order()).toEqual(expected);
-    expect(document.activeElement).toBe(hovered);
-
-    act(() => root.unmount());
-    reset();
-    root = createRoot(host);
-    await refresh();
-    await render();
-    expect(order()).toEqual(expected);
-  });
-
+describe("stable project order (#11801)", () => {
   it("keeps quieted workspaces active across focus and reload without hiding new activity in Idle", async () => {
-    localStorage.setItem("persona.agentGrouping", "space");
     const placed = (id: string, space: string, state: "working" | "idle" | "needs_you"): Session => ({
       machine_id: "mac", session_id: id, title: id, cwd: `/${space}`, status: state === "needs_you" ? "idle" : state, state,
       updated_at: "2026-01-01T01:00:00Z", space_id: space, space_name: space, space_index: space === "alpha" ? 0 : 1,
@@ -469,7 +290,6 @@ describe("stable machine, workspace and tab order (#11801)", () => {
   });
 
   it("distinguishes stored empty membership from a new tab and admits only attention from Idle", async () => {
-    localStorage.setItem("persona.agentGrouping", "space");
     sessionStorage.setItem("persona.agentActiveSpaces", "[]");
     const names = ["alpha", "beta", "gamma", "delta"];
     const placed = (id: string, space: string, patch: Partial<Session> = {}): Session => ({

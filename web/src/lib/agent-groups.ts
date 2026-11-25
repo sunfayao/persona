@@ -40,11 +40,6 @@ export function sourceName(source: SessionSource): string {
   return t(`lib-agent-groups.source_${source}`);
 }
 
-/** The hosts a list's sessions run in, so a row names its host only when there is more than one. */
-export function hostsOf(sessions: Session[]): Set<string> {
-  return new Set(sessions.map(sessionHost).filter(Boolean));
-}
-
 export interface AgentMutes {
   spaces: string[];
   sessions: string[];

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentGroups } from "./agent-groups";
 import { sessionPreview } from "./format";
 import type { Session, WorkState } from "./types";
 import { hubWaits, workLine } from "./work";
@@ -41,9 +40,5 @@ describe("hubWaits", () => {
     expect(hubWaits(w({ on: "user", wake_at: at(5) }))).toBe(false);
     expect(hubWaits({ phase: "done" })).toBe(false);
     expect(hubWaits(undefined)).toBe(false);
-  });
-  it("puts it under 待唤醒", () => {
-    const groups = buildAgentGroups([session({ work: { phase: "blocked", on: "external", wait: "部署", wake_at: at(5), line: "等部署" } })], [{ id: "m", name: "m", online: true } as never], "state");
-    expect(groups.map((g) => g.name)).toEqual(["待唤醒"]);
   });
 });

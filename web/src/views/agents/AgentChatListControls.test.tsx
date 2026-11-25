@@ -327,7 +327,6 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     const associated = { ...plain, session_id: "associated", title: "Associated", slot_id: "w1:t1", tab_id: "w1:t1", slot_name: "Release Review", pane_id: "w1:p1" };
     seed();
     getState().sessions = { mac: [plain, associated] };
-    localStorage.setItem("persona.agentGrouping", "space");
     await act(async () => {
       root.render(<AgentsList route={{ name: "agent-list" }} onNewAgent={() => {}} />);
     });

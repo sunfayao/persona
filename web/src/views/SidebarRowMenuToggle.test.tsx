@@ -15,7 +15,6 @@ vi.hoisted(() => {
 import { t } from "../i18n";
 import { loadPages } from "../lib/lazy-page";
 import { connect, refresh, reset } from "../lib/store";
-import type { PanesResponse } from "../lib/terminals";
 import type { Session } from "../lib/types";
 import { Sidebar } from "./Sidebar";
 
@@ -24,30 +23,13 @@ import { Sidebar } from "./Sidebar";
 const conversation = (session_id: string, title: string): Session => ({
   machine_id: "hub", session_id, title, cwd: "/persona", status: "idle", state: "idle", assistant: true, origin: "user", updated_at: "2026-05-01T10:00:00Z",
 });
-const pane = (session_id: string, pane_id: string, title: string): Session => ({
-  machine_id: "mac", session_id, title, cwd: "/code", status: "idle", state: "idle",
-  space_kind: "herdr", space_id: "w1", space_name: "app", slot_id: "t1", slot_index: 1, slot_name: "#1", pane_id,
-});
 const main = conversation("main", "Persona");
 const pinned = conversation("pinned", "Release notes");
 const agent: Session = { machine_id: "mac", session_id: "agent", title: "Build docs", cwd: "/code", status: "working", state: "working" };
-// a herdr tab with two panes: its lead row has the tab's menu
-const lead = pane("lead", "p1", "Lead pane");
-const split = pane("split", "p2", "Split pane");
-// a plain shell on the machine's terminal host: a terminal row (Settings › Appearance › Show terminals in sidebar)
-const panes: PanesResponse = {
-  hosts: [{
-    kind: "herdr", stream: true, control: true, new_tab: false,
-    workspaces: [{ id: "w9", label: "shells" }],
-    tabs: [{ id: "t9", workspace_id: "w9", label: "zsh" }],
-    panes: [{ pane: "w9:p1", terminal: "pane:w9:p1", tab_id: "t9", workspace_id: "w9", title: "Shell pane", cwd: "/tmp" }],
-  }],
-};
 const answers: Record<string, unknown> = {
   "/api/v1/assistant": { machine_id: "hub", online: true, main: "main", leaders: ["pinned"], conversations: [main, pinned] },
-  "/api/v1/sessions": { sessions: [main, pinned, agent, lead, split] },
+  "/api/v1/sessions": { sessions: [main, pinned, agent] },
   "/api/v1/machines": { machines: [{ id: "hub", name: "Hub", online: true }, { id: "mac", name: "MacBook", online: true }] },
-  "/api/v1/machines/mac/panes": panes,
 };
 const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));
 
@@ -71,8 +53,6 @@ const press = async (el: Element) => {
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem("assistant.pinned", '["pinned"]');
-  localStorage.setItem("persona.agentGrouping", "machine");
-  localStorage.setItem("sidebar.terminals", "1");
   vi.stubGlobal("fetch", vi.fn((url: string) => json(answers[new URL(url, "http://x").pathname] ?? {})));
   history.replaceState(null, "", "/overview");
   host = document.createElement("div");
@@ -99,8 +79,6 @@ const rows: [string, () => Element | undefined][] = [
   ["the Persona main row", personaRow],
   ["a pinned conversation", () => link("Release notes")],
   ["an agent", () => link("Build docs")],
-  ["a herdr tab with several panes", () => link("Lead pane")],
-  ["a terminal pane", () => link("Shell pane")],
 ];
 
 describe("a sidebar row's ⋯", () => {
@@ -149,7 +127,7 @@ describe("a sidebar row's ⋯", () => {
   });
 });
 
-// The paged Agents list (a hub with sessions_list and nothing pinned or grouped): its rows' ⋯ toggles the same way.
+// The paged Agents list (a hub with sessions_list and nothing pinned): its rows' ⋯ toggles the same way.
 describe("a paged Agents row's ⋯", () => {
   // its sections are a chunk of their own (PagedSessionList)
   beforeAll(() => loadPages(), 60_000);
@@ -164,9 +142,6 @@ describe("a paged Agents row's ⋯", () => {
   }
 
   it("opens the row's menu and closes it on a second press", async () => {
-    // by state: a grouping the paged list draws (#6662), its Working section open on the row
-    localStorage.setItem("persona.agentGrouping", "state");
-    localStorage.removeItem("sidebar.terminals");
     vi.stubGlobal("WebSocket", FakeSocket);
     // the list draws only the rows in view of its scroller: give it one with a size (jsdom has no layout)
     host.style.overflowY = "auto";
@@ -174,7 +149,7 @@ describe("a paged Agents row's ⋯", () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(280);
     vi.stubGlobal("fetch", vi.fn((input: string) => {
       const url = new URL(input, "http://x");
-      if (url.pathname === "/api/v1/sessions" && url.searchParams.has("counts")) return json({ total: 1, state: { working: 1 }, machine: { mac: 1 }, group: {}, project: {}, revision: "r1" });
+      if (url.pathname === "/api/v1/sessions" && url.searchParams.has("counts")) return json({ total: 1, state: { working: 1 }, machine: { mac: 1 }, group: { work: 1 }, project: {}, revision: "r1" });
       if (url.pathname === "/api/v1/sessions" && url.search) return json({ sessions: [agent], remove: [], has_more: false, revision: "r1", total: 1 });
       return json(answers[url.pathname] ?? {});
     }));
@@ -188,9 +163,8 @@ describe("a paged Agents row's ⋯", () => {
     await flush();
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
-    // the paged list, under the complete list's grouping bar
+    // the paged list, by project
     expect(host.querySelector("[data-paged-sessions]")).not.toBeNull();
-    expect(host.querySelector(`[role="radiogroup"][aria-label="${t("sidebar.grouping_header")}"]`)).not.toBeNull();
     const button = more(link("Build docs"));
     expect(button).not.toBeNull();
 
