@@ -1,14 +1,11 @@
-import { pendingPlanCounts } from "../lib/pending-plan-counts";
-import { loadFeed, useFeed } from "../lib/feed";
 import { useBotmuxHidden } from "../lib/agents-display";
-import { SectionAdd } from "./SectionAdd";
 import { AgentsAdd } from "./agents/AgentsAdd";
 import { isSidebarAgent } from "../lib/sidebar-agent";
 import { launchDisplayEngine } from "../lib/new-agent";
 import { storedValue, storeValue } from "../lib/compatibility";
 // Beautiful UI's Sidebar Nav: workspace row, quick search, sections, one gliding highlight. Persona's main conversation
-// is the first entry (the app opens on the assistant); a new conversation and a new agent are the "+" of their sections (#1239).
-import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+// is the first entry (the app opens on the assistant); a new agent is the "+" of the Agents section (#1239).
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../i18n";
 import { NARROW, useMedia } from "../lib/viewport";
 import { AGENT_FILTERS, agentFilter, applyFilter, arrangeSpaces, filterCounts, isSpaceMuted, matchesFilter, matchingKeys, shownFilters, unreadOf, withoutBotmux, type AgentFilter, type FilterCounts } from "../lib/agent-filter";
@@ -24,24 +21,15 @@ import { backgroundWaiting, baseName, sessionTitle, stateOf, tabLabel } from "..
 import { cardState } from "../lib/card-focus";
 import { agentKey, isSpacePinned, pinnedSessions } from "../lib/pins";
 import { firstAndCurrent } from "../lib/persona-nav";
-import { recentConversations } from "../lib/conversation-origins";
-import { isBackgroundSupervisor } from "../lib/background-supervisor";
-import { setRecentMore, useRecentCount, useRecentMore } from "../lib/sidebar-recent";
-import { countsLabel, directionExternal, directionLabel, totalCounts, useDirectionNames, useLeaderCounts } from "../lib/direction-names";
-import type { ExternalDirection } from "../lib/direction-tree";
-import { SidebarDirectionRow } from "./SidebarDirections";
-import { conversationPage } from "../lib/conversation-page";
 import { href, navigate, onLinkClick, showsSession, type Route } from "../lib/router";
 import { useScrollMemory } from "../lib/scroll-memory";
 import { retryFullAgentSessions, useAgentSessions, useFullAgentSessions } from "../lib/sessions";
 import { isInFlightLaunch } from "../lib/launch-handoff";
 import { useHubUnreachable, useStore } from "../lib/store";
 import { SESSIONS_SIDE_FOLD_FEATURE } from "../lib/side-fold";
-import { conversationTitle, mergeConversations } from "./assistant/conversations";
-import { useShownManager } from "../lib/manager-choice";
 import type { Session } from "../lib/types";
 import { Collapse, cx, EASE, Kbd, Menu, sidebarFoldMotion, useMenu, useNow, type MenuItem } from "../ui/atoms";
-import { StateTally, StatusMark } from "../ui/StatusMark";
+import { StatusMark } from "../ui/StatusMark";
 import { Icon } from "../ui/icons";
 import { HerdrNotices as HerdrNoticesContent } from "./agents/HerdrNotices";
 import { HubNoticeLine as HubNoticeLineContent } from "./agents/HubNoticeRow";
@@ -69,7 +57,7 @@ import { SESSIONS_LIST_FEATURE, type ListCounts, type ListFilters } from "../lib
 import { heldCounts } from "../lib/seen-outbox";
 import { NoComputers, useAddComputer } from "./machines/AddComputerEntry";
 import { BADGE_CLASS, DOT_CLASS, type GoFn, GroupCount, holdsRow, morePagesMenu, type NavPage, pageIconStyle, pageLabel, type RegFn, rowKey, type RowMenuFn, Section, SidebarGroup, GroupFoldButton, useActiveKey, useGo, useNavPages } from "./SidebarParts";
-import { NavRow, PersonalAgents, PersonaRow, SessionRow, SubHeading, unreadShown } from "./SidebarRows";
+import { NavRow, PersonalAgents, PersonaRow, SessionRow } from "./SidebarRows";
 import { LooseSection, SessionTally, type SpaceMenuFn, SpaceSection } from "./SidebarTree";
 import { CollapseButton, PagesTally } from "./SidebarRail";
 import type { PageSection } from "../lib/sidebar-pages";
@@ -90,8 +78,6 @@ const NodePrompt = memo(NodePromptContent);
 const SidebarUsage = memo(SidebarUsageContent);
 const LinkTodoDialog = memo(lazyDialog(() => import("./LinkTodoDialog").then((m) => m.LinkTodoDialog)));
 // Menus and edit controls load on intent; the ordinary sidebar keeps its first-screen budget (#12017).
-const ConversationRowMenu = lazy(() => import("./ConversationRowMenu"));
-const SidebarConversationArrange = lazy(() => import("./assistant/SidebarConversationArrange"));
 const MarkSeenDialog = memo(MarkSeenDialogContent);
 
 /** Brings `el` to the middle of its nearest scrolling ancestor when it is not fully in view (rows loading above it
@@ -274,113 +260,17 @@ function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
   return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[7px] bg-hover" style={glideStyle(at, on, EASE)} />;
 }
 
-/** Recent's Show more / Show less, as the Agents block's Recent (not running) draws its own. */
-const MORE_BUTTON = "whitespace-nowrap rounded-[7px] px-2 py-1 text-left text-[12px] text-ink-3 hover:text-ink-2 [@media(pointer:coarse)]:min-h-11";
-
-const NO_CONVERSATIONS: Session[] = [];
-type DirectionEntry = { id: string; conversation?: Session; external?: ExternalDirection };
-
-/** A folded Persona chats or Recent heading's count of the chats it hides that are Unread (#13425): the Agents list's
- *  folded tally (StateTally), so the mark and its number read as they do there, spoken as chats. Nothing at 0. */
-function UnreadTally({ n }: { n: number }) {
-  return n > 0 ? <StateTally chats counts={{ needs_you: 0, working: 0, bg_waiting: 0, unread: n }} /> : null;
-}
-
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
   const bindings = useBindings();
   const searchHint = jumpHint(bindings);
-  const assistant = useStore((s) => s.assistant);
-  const manager = useShownManager();
-  const assistantMachine = assistant?.machine_id;
-  const liveChats = useStore((s) => (assistantMachine ? s.sessions[assistantMachine] ?? NO_CONVERSATIONS : NO_CONVERSATIONS));
-  const unarchived = useMemo(
-    () => mergeConversations([], assistant?.conversations ?? NO_CONVERSATIONS, liveChats, manager)
-      .filter((c) => !c.archived).length,
-    [assistant?.conversations, liveChats, manager],
-  );
   const { phase, online, total, main: mainConversation, sections, more } = useNavPages();
   // a phone's drawer has the pages as two rows of icons, so its first screen reaches the Agents (#1996)
   const narrow = useMedia(NARROW);
   const activeKey = useActiveKey(route);
   const workBrowserReady = useStore((s) => s.features.includes("sessions_dimensions"));
-  // Persona chats are the main conversation (its row above) and the leaders, "常驻" (#4331): making a chat one and ending
-  // it is the menu's 设为常驻 / 取消常驻, on the hub for every device. Each says what it has open, Working and Waiting on
-  // you, and an open sidebar follows the hub's `directions` (lib/store.ts). Then "最近", the newest of the user's other
-  // chats (#4873): as many as the setting says, more after each Show more (#5146); every chat is under 全部对话.
-  // The background supervisor is neither: it is built in, listed with the scheduled tasks' chats under 全部对话 (#5082).
-  const leaders = (assistant?.leaders ?? []).filter((id) => id !== assistant?.main && !isBackgroundSupervisor(assistant, id));
-  const isLeader = (id: string) => leaders.includes(id);
-  const conversationOf = (id: string) => assistant?.conversations.find((c) => c.session_id === id);
-  const directions = leaders.map((id): DirectionEntry | null => {
-    const conversation = conversationOf(id);
-    if (conversation) return { id, conversation };
-    const external = directionExternal(id);
-    return external ? { id, external } : null;
-  }).filter((d): d is DirectionEntry => !!d);
-  const recentCount = useRecentCount();
-  const recentMore = useRecentMore();
-  const ownChats = recentConversations(assistant?.conversations ?? [], assistant?.main, leaders, assistant?.background_supervisor, assistant?.recent_task_chats === true, assistant?.conversation_order);
-  const [arranging, setArranging] = useState(false);
-  const recent = ownChats.slice(0, recentCount * (1 + recentMore));
-  const recentLeft = ownChats.length - recent.length;
-  const recentLess = recentMore > 0 && ownChats.length > recentCount;
-  // Every direction id belongs in the key: with only conversationless directions there is still a `/leaders` fallback ask.
-  const directionNames = useDirectionNames(leaders.map((id) => `${id}\u0000${conversationOf(id)?.title ?? ""}`).join("\u0001"));
-  const baseCounts = useLeaderCounts();
-  const plans = useFeed((s) => s.plans);
-  useEffect(() => { if (assistant?.main) void loadFeed(assistant.main); }, [assistant?.main, manager]);
-  const counts = useMemo(() => {
-    const owned = new Set((assistant?.conversations ?? []).map((c) => c.session_id));
-    if (assistant?.main) owned.add(assistant.main);
-    return pendingPlanCounts(baseCounts, plans, manager, owned);
-  }, [baseCounts, plans, assistant, manager]);
-  const leaderTotal = totalCounts(counts, [...counts.keys()]);
-  // the main row sits above the pages, so"Persona chats"waits for the assistant (a hub without it has none)
-  const chats = !!assistant;
-  // a conversation row's ⋯ / right click (iOS: its long press)
-  const [convMenu, setConvMenu] = useState<{ s: Session; anchor: HTMLElement; at?: MenuAt } | null>(null);
-  // one function for the sidebar's life: the conversation rows and the main row keep their memo across pushes
-  const onConvMenu = useCallback<RowMenuFn>((s, anchor, at) => setConvMenu((m) => (!at && m?.anchor === anchor ? null : { s, anchor, at })), []);
-  const [personaFolded, togglePersona] = useFolded("persona", false, { holds: activeKey === "history" || activeKey === "j:new" || directions.some((d) => activeKey === `j:${d.id}`) || recent.some((c) => activeKey === `j:${c.session_id}`) });
-  // 最近 folds on its own too (#6228): the choice is kept in this browser, and it opens by itself while it holds the
-  // open conversation, so folding never hides where a message lands. The Agents block's Recent uses another key.
-  const [recentFolded, toggleRecent] = useFolded("recent-chats", false, { holds: recent.some((c) => activeKey === `j:${c.session_id}`) });
-  // Folded, the Persona chats heading and Recent's still say how many of the chats they hide are Unread (#13425), with
-  // the folded tally the Agents list's groups use (StateTally); open, each row marks its own. The rows are the store's,
-  // which the seen outbox already holds seen (lib/store.ts holdSeen), so a chat just opened is not counted
-  // A pinned direction counts through its conversation; an external one (#12557) has no chat row, so no Unread mark.
-  const unreadPinned = directions.filter((d) => d.conversation !== undefined && unreadShown(d.conversation)).length;
-  const unreadRecent = recent.filter(unreadShown).length;
   const { nav, reg, hover, highlight } = useGlide(activeKey);
   useStickyTop(nav);
   const go = useGo(onNavigate);
-
-  // A conversation-backed lead's row is unchanged. An external one reuses that row, but opens only its actual outside
-  // Agent (never a fabricated `/persona/<direction-id>`), has no conversation menu, and is a plain row without a pair.
-  const directionName = (d: DirectionEntry) => directionLabel(directionNames, d.id, d.conversation ? conversationTitle(d.conversation) : t("lib-format.untitled_session"));
-  const directionRow = (d: DirectionEntry) => {
-    if (d.conversation) {
-      const c = d.conversation;
-      return <SessionRow key={c.session_id} s={c} k={`j:${c.session_id}`} reg={reg} hover={hover} active={activeKey === `j:${c.session_id}`} to={conversationPage(c.session_id, c.machine_id, c.manager)} go={go} label={directionName(d)} hint={countsLabel(counts.get(c.session_id), t) || undefined} hintFull showState={false} workingMark={counts.get(c.session_id)?.running ?? false} keepTrailing onMenu={onConvMenu} menuLabel={t("conversation-menu.actions")} />;
-    }
-    const { machine_id: mid, session_id: sid } = d.external ?? {};
-    const key = mid && sid ? `s:${mid}/${sid}` : `j:${d.id}`;
-    const label = directionName(d);
-    const s: Session = {
-      machine_id: mid ?? assistant?.machine_id ?? "",
-      session_id: sid ?? d.id,
-      title: label,
-      cwd: "",
-      status: "idle",
-      state: "idle",
-      assistant: !mid || !sid,
-    };
-    return <SessionRow key={d.id} s={s} k={key} reg={reg} hover={hover} active={activeKey === key} to={mid && sid ? { name: "session", mid, sid } : null} go={go} label={label} hint={countsLabel(counts.get(d.id), t) || undefined} hintFull showState={false} workingMark={counts.get(d.id)?.running ?? false} keepTrailing />;
-  };
-
-  const recentRow = (c: Session) => (
-    <SessionRow key={c.session_id} s={c} k={`j:${c.session_id}`} reg={reg} hover={hover} active={activeKey === `j:${c.session_id}`} to={conversationPage(c.session_id, c.machine_id, c.manager)} go={go} label={conversationTitle(c)} hint={countsLabel(counts.get(c.session_id), t) || undefined} hintFull keepTrailing showState={false} onMenu={onConvMenu} menuLabel={t("conversation-menu.actions")} />
-  );
 
   return (
     <aside className="flex h-full w-full flex-col bg-canvas">
@@ -406,7 +296,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
         {/* the main conversation is the column's first row, Main chat with the home symbol, and only there (#2004, #5109); it
             stays at the top while the rest scrolls (#5581), with a solid divider above the sticky groups */}
         <div data-sidebar-sticky className="sticky top-0 z-30 flex flex-col gap-px bg-canvas pt-1">
-          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={bindings.persona} onMenu={onConvMenu} />
+          <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={bindings.persona} />
           <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line" />
         </div>
         {/* a phone's drawer has Pages as its grid of icons; every other group (#9071) is a section, as on a wide screen */}
@@ -415,85 +305,12 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
           .filter((g) => (g.id ? g.pages.length > 0 : !narrow))
           .map((g, i) => <PageGroup key={g.id || "pages"} group={g} more={g.id ? [] : more} first={i === 0 && !narrow} reg={reg} hover={hover} activeKey={activeKey} go={go} />)}
 
-        {chats && (
-          <Section
-            top
-            title={t("sidebar.persona_chats")}
-            folded={personaFolded}
-            onToggle={togglePersona}
-            // New chat lives with the chats it makes (#3231, after #2303 moved it above the main chat): the compose icon at
-            // the end of the section's title, as on the phone's sidebar, folded or not
-            right={
-              <>
-                {/* folded, what the leaders have going stays: the working arc while anything under one runs, and their
-                    tasks waiting on you (#6626: the arc, never "在做 N" as well) */}
-                {(countsLabel(leaderTotal, t) || (personaFolded && leaderTotal.running)) && (
-                  <span data-direction-counts data-running={leaderTotal.running || undefined} className="flex min-w-0 items-center gap-1 text-[11px] tabular-nums text-ink-3">
-                    {leaderTotal.running && <StatusMark state="working" size="sm" />}
-                    <span className="truncate">{countsLabel(leaderTotal, t)}</span>
-                  </span>
-                )}
-                {personaFolded && <UnreadTally n={unreadPinned + unreadRecent} />}
-                <SectionAdd icon="compose" label={t("sidebar.new_chat")} to={{ name: "persona-new" }} go={go} active={activeKey === "j:new"} />
-              </>
-            }
-          >
-            <div className="sidebar-indent">
-              {directions.length > 0 && (
-                <>
-                  <SubHeading label={t("sidebar.directions")} />
-                  <div className="sidebar-indent">
-                    {directions.map((d) => <SidebarDirectionRow key={d.id} id={d.id} name={directionName(d)} row={directionRow(d)} reg={reg} hover={hover} go={go} onNavigate={onNavigate} />)}
-                  </div>
-                </>
-              )}
-              {arranging ? ownChats.length > 0 && (
-                <Suspense fallback={null}>
-                  <SidebarConversationArrange rows={ownChats} row={recentRow} onClose={() => setArranging(false)} />
-                </Suspense>
-              ) : recent.length > 0 && (
-                <>
-                  <SubHeading label={t("sidebar.recent_chats")} folded={recentFolded} onToggle={toggleRecent} help={t("sidebar.recent_chats_help")} tally={recentFolded && <UnreadTally n={unreadRecent} />} />
-                  <Collapse open={!recentFolded} sidebarFold>
-                    <div className="sidebar-indent" inert={recentFolded || undefined}>
-                      {recent.map(recentRow)}
-                      {(recentLeft > 0 || recentLess) && (
-                        <div className="relative z-10 flex flex-wrap">
-                          {recentLeft > 0 && (
-                            <button type="button" onClick={() => setRecentMore(recentMore + 1)} className={MORE_BUTTON}>
-                              {t("sidebar.show_more", { count: Math.min(recentCount, recentLeft) })}
-                            </button>
-                          )}
-                          {recentLess && (
-                            <button type="button" onClick={() => setRecentMore(0)} className={MORE_BUTTON}>
-                              {t("sidebar.show_less")}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </Collapse>
-                </>
-              )}
-              {assistant && (
-                <NavRow k="history" reg={reg} hover={hover} active={activeKey === "history"} to={{ name: "history" }} go={go} icon="list"
-                  label={t("sidebar.all_chats")}
-                  hintCount={unarchived > 0 ? {
-                    n: unarchived,
-                    label: t("sidebar.unarchived_chat_count", { count: unarchived }),
-                  } : undefined} />
-              )}
-            </div>
-          </Section>
-        )}
-
         <PersonalAgents reg={reg} hover={hover} activeKey={activeKey} go={go} />
 
         {workBrowserReady ? <PendingAgents route={route} reg={reg} hover={hover} go={go} onNewAgent={onNewAgent} onNavigate={onNavigate} />
           : !(narrow && route.name === "agent-list") && <AgentsBlock reg={reg} hover={hover} activeKey={activeKey} go={go} onNewAgent={onNewAgent} onNavigate={onNavigate} foldable />}
         {!workBrowserReady && <NavRow k="terminal" reg={reg} hover={hover} active={activeKey === "terminal"} to={{ name: "terminal" }} go={go} label={t("work-entry.title")} icon="clock" />}
       </div>
-      {convMenu && <Suspense fallback={null}><ConversationRowMenu s={convMenu.s} main={convMenu.s.session_id === assistant?.main} leader={isLeader(convMenu.s.session_id)} builtIn={isBackgroundSupervisor(assistant, convMenu.s.session_id)} anchor={convMenu.anchor} at={convMenu.at} onClose={() => setConvMenu(null)} onArrange={ownChats.includes(convMenu.s) ? () => setArranging(true) : undefined} /></Suspense>}
       {/* subscription rate-limit windows (#2432): nothing is drawn without data */}
       <SidebarUsage />
       <NodePrompt />

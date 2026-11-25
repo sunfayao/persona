@@ -5,7 +5,6 @@ import { t } from "../i18n";
 import { stateOf } from "../lib/format";
 import { href, type Route } from "../lib/router";
 import { pickMainChat } from "../lib/handoff";
-import { useStore } from "../lib/store";
 import { BREATHING, connStatus, phaseTone } from "../lib/connection";
 import { cx, Menu } from "../ui/atoms";
 import { StatusMark } from "../ui/StatusMark";
@@ -63,7 +62,6 @@ const RAIL_ITEM = "touch-hit relative flex size-9 shrink-0 items-center justify-
  */
 export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onSearch: () => void; onNewAgent: () => void }) {
   const { phase, online, total, main, pages, more } = useNavPages();
-  const hasAssistant = useStore((s) => Boolean(s.assistant));
   const [moreMenu, setMoreMenu] = useState<HTMLElement | null>(null);
   const bindings = useBindings();
   const activeKey = useActiveKey(route);
@@ -99,7 +97,6 @@ export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onS
       </button>
       <span aria-hidden className="my-2 h-px w-6 shrink-0 bg-line" />
       <nav aria-label={t("sidebar.pages")} className="flex min-h-0 w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain">
-        {hasAssistant && link("j:new", { name: "persona-new" }, t("sidebar.new_chat"), <Icon name="compose" size={15} stroke={1.8} />)}
         {link(
           "persona",
           { name: "persona" },

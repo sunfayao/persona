@@ -24,11 +24,10 @@ const conversation = (session_id: string, title: string): Session => ({
   machine_id: "hub", session_id, title, cwd: "/persona", status: "idle", state: "idle", assistant: true, origin: "user", updated_at: "2026-05-01T10:00:00Z",
 });
 const main = conversation("main", "Persona");
-const pinned = conversation("pinned", "Release notes");
 const agent: Session = { machine_id: "mac", session_id: "agent", title: "Build docs", cwd: "/code", status: "working", state: "working" };
 const answers: Record<string, unknown> = {
-  "/api/v1/assistant": { machine_id: "hub", online: true, main: "main", leaders: ["pinned"], conversations: [main, pinned] },
-  "/api/v1/sessions": { sessions: [main, pinned, agent] },
+  "/api/v1/assistant": { machine_id: "hub", online: true, main: "main", conversations: [main] },
+  "/api/v1/sessions": { sessions: [main, agent] },
   "/api/v1/machines": { machines: [{ id: "hub", name: "Hub", online: true }, { id: "mac", name: "MacBook", online: true }] },
 };
 const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { headers: { "Content-Type": "application/json" } }));
@@ -52,7 +51,6 @@ const press = async (el: Element) => {
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem("assistant.pinned", '["pinned"]');
   vi.stubGlobal("fetch", vi.fn((url: string) => json(answers[new URL(url, "http://x").pathname] ?? {})));
   history.replaceState(null, "", "/overview");
   host = document.createElement("div");
@@ -74,10 +72,7 @@ async function renderSidebar() {
   await flush();
 }
 
-const personaRow = () => host.querySelector(`a[title="${t("sidebar.persona_main")}"]`) ?? undefined;
 const rows: [string, () => Element | undefined][] = [
-  ["the Persona main row", personaRow],
-  ["a pinned conversation", () => link("Release notes")],
   ["an agent", () => link("Build docs")],
 ];
 
@@ -100,13 +95,13 @@ describe("a sidebar row's ⋯", () => {
 
   it("moves the menu to another row's ⋯, and a press elsewhere still closes it", async () => {
     await renderSidebar();
-    await press(more(personaRow())!);
+    await press(more(link("Build docs"))!);
     await vi.waitFor(() => expect(menus()).toHaveLength(1));
-    expect(menus()[0].textContent).toContain(t("conversation-menu.end"));
+    const first = menus()[0].textContent;
 
-    await press(more(link("Release notes"))!);
+    await press(more(link("Lead pane"))!);
     await vi.waitFor(() => expect(menus()).toHaveLength(1));
-    expect(menus()[0].textContent).toContain(t("conversation-menu.end_leader"));
+    expect(menus()[0].textContent).not.toBe(first);
 
     act(() => void document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0 })));
     await flush();
@@ -115,7 +110,7 @@ describe("a sidebar row's ⋯", () => {
 
   it("on a right-clicked row's ⋯ moves the menu there instead of closing it", async () => {
     await renderSidebar();
-    const row = link("Release notes")!;
+    const row = link("Build docs")!;
     act(() => void row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 })));
     await flush();
     await vi.waitFor(() => expect(menus()).toHaveLength(1));

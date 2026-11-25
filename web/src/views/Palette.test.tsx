@@ -1,4 +1,3 @@
-import { t } from "../i18n";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { closePalette, openPalette, registerContextCommands, setPaletteQuery } from "../lib/palette";
@@ -6,8 +5,6 @@ import { registerShortcut } from "../lib/shortcuts";
 import { Palette } from "./Palette";
 import { placeWords } from "./palette/PlaceWords";
 import { initI18n } from "../i18n";
-import { getState } from "../lib/store";
-import type { Session } from "../lib/types";
 import { placeHits } from "../lib/palette";
 import { ShortcutHelp } from "./ShortcutHelp";
 import { ShortcutSettings } from "./settings/ShortcutSettings";
@@ -133,44 +130,6 @@ describe("a page's words", () => {
       expect(placeHits(places, "内存").map((h) => h.key)).toEqual(["p:machines"]);
     } finally {
       await initI18n("zh-Hans");
-    }
-  });
-});
-
-// A Persona chat's line under its title said "Persona · ~/.persona/assistant", the same folder for every chat and an
-// engineering path besides: it says what was said last, as the chats list does.
-describe("a Persona chat in the search", () => {
-  it("calls the main conversation Main chat and uses its home symbol", () => {
-    const kept = getState().assistant;
-    Object.assign(getState(), { assistant: { machine_id: "m1", main: "main", conversations: [{ machine_id: "m1", session_id: "main", title: "Assistant name", assistant: true, cwd: "/", status: "idle" }] } });
-    try {
-      const html = render("");
-      expect(html).toContain(t("sidebar.main_chat"));
-      expect(html).not.toContain(">Assistant name</span>");
-      expect(html).toContain('M3 10.5 12 3l9 7.5');
-      expect(render(t("sidebar.main_chat"))).toContain(t("sidebar.main_chat"));
-    } finally { Object.assign(getState(), { assistant: kept }); }
-  });
-  it("says what was said last, without the assistant's folder", () => {
-    const kept = getState().assistant;
-    Object.assign(getState(), {
-      assistant: {
-        machine_id: "m1",
-        main: "p0",
-        conversations: [
-          { machine_id: "m1", session_id: "p1", title: "今天要处理的事", assistant: true, cwd: "/Users/me/.persona/assistant", last_text: "**发布说明**我来整理，先列出改动。", updated_at: "2026-11-10T09:00:00Z" },
-          { machine_id: "m1", session_id: "p2", title: "群里的发布计划", assistant: true, cwd: "/Users/me/.persona/assistant", updated_at: "2026-11-10T08:00:00Z" },
-        ] as unknown as Session[],
-      },
-    });
-    try {
-      const html = render("");
-      expect(html).not.toContain(".persona/assistant");
-      expect(html).toContain("发布说明我来整理，先列出改动。");
-      // nothing said yet: just whose chat it is
-      expect(html).toMatch(/群里的发布计划<\/span>(?:(?!<\/button>).)*>Persona<\/span>/s);
-    } finally {
-      Object.assign(getState(), { assistant: kept });
     }
   });
 });

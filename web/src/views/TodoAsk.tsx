@@ -7,7 +7,6 @@ import { useState } from "react";
 import { t } from "../i18n";
 import { errorText } from "../lib/api";
 import { acceptBrief, setRoute } from "../lib/feed";
-import { conversationPage } from "../lib/conversation-page";
 import { navigate } from "../lib/router";
 import { stateName } from "../lib/state-labels";
 import { refreshTodos } from "../lib/store";
@@ -174,7 +173,7 @@ function AskPanel({ todo, ask }: { todo: Todo; ask: TodoAsk }) {
             // the conversation the task came from: the to-do's manager's, whichever assistant is current
             <Button icon="chat" onClick={() => {
               setRoute(todo.origin!, todo.id, ask.asked_at);
-              navigate(conversationPage(todo.origin!, undefined, todo.manager));
+              navigate({ name: "persona" });
             }}>
               {t("todos.ask_answer")}
             </Button>

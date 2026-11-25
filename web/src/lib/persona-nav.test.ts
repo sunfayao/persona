@@ -1,21 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { firstAndCurrent, NAV_PAGES, extensionNavKey, sidebarActiveKey, sidebarRoute } from "./persona-nav";
-import { href, parse, routePath } from "./router";
+import { href, parse } from "./router";
 
 describe("Persona is the front door (#1239)", () => {
   it("opens the main conversation at / and at the old /persona and /persona links", () => {
     expect(parse("/")).toEqual({ name: "persona" });
-    expect(parse("/persona")).toEqual({ name: "persona", sid: undefined });
-    expect(parse("/persona")).toEqual({ name: "persona", sid: undefined });
+    expect(parse("/persona")).toEqual({ name: "persona" });
     expect(href({ name: "persona" })).toBe("/");
   });
 
-  it("keeps one conversation's link and moves the one-off new conversation to /persona/new", () => {
-    expect(parse("/persona/abc")).toEqual({ name: "persona", sid: "abc" });
-    expect(href({ name: "persona", sid: "abc" })).toBe("/persona/abc");
-    expect(parse("/persona/new")).toEqual({ name: "persona-new" });
-    expect(parse("/persona/new")).toEqual({ name: "persona-new" });
-    expect(href({ name: "persona-new" })).toBe("/persona/new");
+  it("opens the main conversation for the links of other conversations, the new-chat page and the history page", () => {
+    expect(parse("/persona/abc")).toEqual({ name: "persona" });
+    expect(parse("/persona/abc", "?machine=mac&manager=m")).toEqual({ name: "persona" });
+    expect(parse("/persona/new")).toEqual({ name: "persona" });
+    expect(parse("/history")).toEqual({ name: "persona" });
+    expect(parse("/history/inbox")).toEqual({ name: "persona" });
+  });
+
+  it("keeps the message a link lands on", () => {
+    expect(parse("/persona/abc", "?at=i1")).toEqual({ name: "persona", at: "i1" });
+    expect(href({ name: "persona", at: "i1" })).toBe("/?at=i1");
+    expect(parse("/", "?at=i1")).toEqual({ name: "persona", at: "i1" });
   });
 
   it("moves 总览 to /overview; an unknown path says it is no page (web usability audit item 42)", () => {
@@ -26,50 +31,40 @@ describe("Persona is the front door (#1239)", () => {
 
   it("keeps the other old links", () => {
     expect(parse("/s/mac/abc")).toEqual({ name: "session", mid: "mac", sid: "abc" });
-    expect(parse("/history")).toEqual({ name: "history" });
-    expect(parse("/history/inbox")).toEqual({ name: "history", origin: "inbox" });
-    expect(routePath({ name: "history", origin: "task" })).toBe("/history/task");
     expect(parse("/inbox/x")).toEqual({ name: "inbox", id: "x" });
     expect(parse("/machines/mac")).toEqual({ name: "machine", mid: "mac" });
   });
 
   it("lights the Persona row for the main conversation however it is reached", () => {
-    expect(sidebarActiveKey({ name: "persona" }, "main")).toBe("persona");
-    expect(sidebarActiveKey({ name: "persona", sid: "main" }, "main")).toBe("persona");
-    expect(sidebarActiveKey({ name: "persona", sid: "other" }, "main")).toBe("j:other");
-    expect(sidebarActiveKey({ name: "persona" }, undefined)).toBe("persona");
-    expect(sidebarActiveKey({ name: "persona-new" }, "main")).toBe("j:new");
-    expect(sidebarActiveKey({ name: "history" }, "main")).toBe("history");
-    expect(sidebarActiveKey({ name: "history", origin: "inbox" }, "main")).toBe("auto:inbox");
-    expect(sidebarActiveKey({ name: "home" }, "main")).toBe("home");
-    expect(sidebarActiveKey({ name: "machine", mid: "mac" }, "main")).toBe("machines");
-    expect(sidebarActiveKey({ name: "session", mid: "mac", sid: "s" }, "main")).toBe("s:mac/s");
+    expect(sidebarActiveKey({ name: "persona" })).toBe("persona");
+    expect(sidebarActiveKey({ name: "home" })).toBe("home");
+    expect(sidebarActiveKey({ name: "machine", mid: "mac" })).toBe("machines");
+    expect(sidebarActiveKey({ name: "session", mid: "mac", sid: "s" })).toBe("s:mac/s");
   });
 
   it("keeps the row of the page an Agent's page was opened from, a drill-down (#12055, #9971)", () => {
     const agent = { name: "session", mid: "mac", sid: "s" } as const;
     // a to-do's Agent rows and hand-off
-    expect(sidebarActiveKey(agent, "main", "/todos?id=t1")).toBe("todos");
-    expect(sidebarActiveKey(agent, "main", "/todos?view=calendar&mode=week&id=t1")).toBe("todos");
+    expect(sidebarActiveKey(agent, "/todos?id=t1")).toBe("todos");
+    expect(sidebarActiveKey(agent, "/todos?view=calendar&mode=week&id=t1")).toBe("todos");
     // a Persona conversation's card with How Agents open = Full page: the conversation's own row
-    expect(sidebarActiveKey(agent, "main", "/")).toBe("persona");
-    expect(sidebarActiveKey(agent, "main", "/persona/main")).toBe("persona");
-    expect(sidebarActiveKey(agent, "main", "/persona/c2?machine=mac")).toBe("j:c2");
+    expect(sidebarActiveKey(agent, "/")).toBe("persona");
+    expect(sidebarActiveKey(agent, "/persona/main")).toBe("persona");
     // an Agent opened from another Agent's page keeps that Agent's row
-    expect(sidebarActiveKey(agent, "main", "/s/mac/first")).toBe("s:mac/first");
+    expect(sidebarActiveKey(agent, "/s/mac/first")).toBe("s:mac/first");
     // a tab's page follows where it came from too
-    expect(sidebarActiveKey({ name: "tab", mid: "mac", space: "w", slot: "1", sid: "s" }, "main", "/todos?id=t1")).toBe("todos");
+    expect(sidebarActiveKey({ name: "tab", mid: "mac", space: "w", slot: "1", sid: "s" }, "/todos?id=t1")).toBe("todos");
     expect(sidebarRoute(agent, "/todos?id=t1")).toEqual({ name: "todos", id: "t1" });
   });
 
   it("lights an Agent's own row when nothing opened it, and every other page its own whatever it carries", () => {
     const agent = { name: "session", mid: "mac", sid: "s" } as const;
-    expect(sidebarActiveKey(agent, "main")).toBe("s:mac/s");
-    expect(sidebarActiveKey(agent, "main", undefined)).toBe("s:mac/s");
+    expect(sidebarActiveKey(agent)).toBe("s:mac/s");
+    expect(sidebarActiveKey(agent, undefined)).toBe("s:mac/s");
     expect(sidebarRoute(agent)).toBe(agent);
     // only an Agent's page is a drill-down here: a to-do opened from a conversation lights To-dos, not the conversation
-    expect(sidebarActiveKey({ name: "todos", id: "t1" }, "main", "/persona/c2")).toBe("todos");
-    expect(sidebarActiveKey({ name: "persona", sid: "c2" }, "main", "/todos")).toBe("j:c2");
+    expect(sidebarActiveKey({ name: "todos", id: "t1" }, "/persona/c2")).toBe("todos");
+    expect(sidebarActiveKey({ name: "persona" }, "/todos")).toBe("persona");
   });
 
   it("shortens a list to its first n and the open item after them (#2283)", () => {

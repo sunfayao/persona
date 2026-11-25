@@ -41,8 +41,8 @@ describe("baseline naming compatibility", () => {
       expect(openTarget(`${scheme}://task/test-task`)).toMatchObject({ kind: "task" });
       expect(openTarget(`${scheme}://user@example.com/task/test-task`)).toBeUndefined();
     }
-    expect(route("/j/test-chat")).toEqual({ name: "persona", sid: "test-chat" });
-    expect(route("/persona/test-chat")).toEqual({ name: "persona", sid: "test-chat" });
+    expect(route("/j/test-chat")).toEqual({ name: "persona" });
+    expect(route("/persona/test-chat")).toEqual({ name: "persona" });
   });
 
   it("recognizes old MCP/provider/builtin identities while preserving UI names and custom IDs", () => {

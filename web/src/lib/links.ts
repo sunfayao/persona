@@ -258,7 +258,7 @@ export function openLink(url: string, title?: string, manager?: string) {
       else openLinkPage(taskRoute(r.id));
       return;
     case "conversation":
-      navigate({ name: "persona", sid: r.sid, ...(r.mid ? { mid: r.mid } : {}), ...(r.manager ? { manager: r.manager } : {}) });
+      navigate({ name: "persona" });
       return;
     case "page":
       navigate(r.path);

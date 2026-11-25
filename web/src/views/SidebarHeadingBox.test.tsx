@@ -105,9 +105,9 @@ afterEach(() => {
 
 describe("the sidebar's top-level headings (#10637)", () => {
   const cases = [
-    { list: "the complete Agents list", features: [], titles: ["页面", "Persona 对话", "Agents"] },
-    { list: "the paged Agents list", features: ["sessions_list", "sessions_lookup", "sessions_agents_only"], titles: ["页面", "Persona 对话", "Agents"] },
-    { list: "Pending in Agents' place", features: ["sessions_dimensions"], titles: ["页面", "Persona 对话", "待处理"] },
+    { list: "the complete Agents list", features: [], titles: ["页面", "Agents"] },
+    { list: "the paged Agents list", features: ["sessions_list", "sessions_lookup", "sessions_agents_only"], titles: ["页面", "Agents"] },
+    { list: "Pending in Agents' place", features: ["sessions_dimensions"], titles: ["页面", "待处理"] },
   ];
   for (const { list, features, titles } of cases) {
     it(`share one heading box, folded and unfolded, with ${list}`, async () => {
@@ -143,9 +143,6 @@ describe("the headings' icon buttons on a touch screen (#11511)", () => {
     await render([]);
     expect(classes(add("[data-sidebar-agents-controls]"))).toContain(TOUCH_BOX);
     expect(classes(add("[data-sidebar-agents-controls]")?.parentElement)).toEqual(expect.arrayContaining(["px-2", ROW_END]));
-    expect(classes(host.querySelector('[aria-label="新对话"]'))).not.toContain(TOUCH_BOX);
-    expect(classes(host.querySelector('[aria-label="新对话"]'))).toContain("touch-hit");
-    expect(classes(host.querySelector('[aria-label="新对话"]')?.parentElement)).not.toContain(ROW_END);
     act(() => root.unmount());
     root = createRoot(host);
     await render(["sessions_list", "sessions_lookup", "sessions_agents_only"]);

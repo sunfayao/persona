@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// The first message while its conversation starts (#1697): the new-chat page takes the conversation's layout at once (its top
-// bar titled "New chat" as the conversation page calls an untitled one, the message as a bubble, "Preparing" under it),
-// says "Still starting <launcher>…" after 8 seconds, and a refused start goes back to the new-chat page with the words in the box.
+// The first message while the main conversation starts (#1697): the start page takes the conversation's layout at once (its
+// top bar, the message as a bubble, "Preparing" under it), says "Still starting <launcher>…" after 8 seconds, and a refused
+// start goes back to the start page with the words in the box.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -73,7 +73,7 @@ beforeEach(() => {
   navigate.mockClear();
   Object.assign(getState(), {
     loaded: true,
-    assistant: { machine_id: "hub", main: "c1", conversations: [{ machine_id: "hub", session_id: "c1", title: "" }] },
+    assistant: { machine_id: "hub", conversations: [] },
     assistantError: null,
   });
   host = document.createElement("div");
@@ -94,14 +94,13 @@ afterEach(() => {
 
 describe("新对话页：第一条消息发出、会话还没开起来 (#1697)", () => {
   it("立刻换成对话页的样子：页头「新对话」、气泡、「正在准备」，欢迎语收起，输入框不能发", async () => {
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     expect(host.textContent).toContain("有什么要我做的？");
 
     await send();
     expect(starts).toHaveLength(1);
     expect(waiting()).not.toBeNull();
-    expect(headerTitle()).toContain("新对话");
     expect(headerTitle()).not.toContain(WORDS);
     expect(waiting()!.querySelector("[data-user-bubble]")?.textContent).toContain(WORDS);
     expect(waiting()!.textContent).toContain("正在准备");
@@ -110,7 +109,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
   });
 
   it("超过 8 秒，「正在准备」换成「还在启动 …」", async () => {
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     vi.useFakeTimers();
     await send();
@@ -120,17 +119,18 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     expect(waiting()!.textContent).toContain("还在启动");
   });
 
-  it("开起来了：去那个会话", async () => {
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+  it("开起来了：按主对话开起来的样子继续，页面不再跳转", async () => {
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     await act(async () => starts[0].resolve({ session: { machine_id: "hub", session_id: "c2", title: "" } as Session }));
     await flush();
-    expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "c2" });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(sentBody()).toMatchObject({ main: true });
   });
 
   it("被拒绝：回到新对话页，文字回到输入框", async () => {
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     await act(async () => starts[0].reject(new Error("no launcher")));
@@ -148,7 +148,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     pickModel(NEW_CONVERSATION, "gpt-fast");
     pickEffort(NEW_CONVERSATION, "high");
     pickFast(true);
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     expect(sentBody()).toMatchObject({ launcher: "codex", model: "gpt-fast", effort: "high", service_tier: "priority" });
@@ -172,7 +172,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
       });
       return json({ ok: true });
     }));
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     const pill = host.querySelector<HTMLButtonElement>("[data-new-conversation] button[data-model-pill]")!;
     expect(pill.getAttribute("data-model-pill")).toBe("ready");
@@ -191,7 +191,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
   });
 
   it("an untouched first request has no service_tier", async () => {
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     expect(sentBody()).not.toHaveProperty("service_tier");
@@ -202,7 +202,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     pickLauncher(NEW_CONVERSATION, "codex");
     pickModel(NEW_CONVERSATION, "gpt-fast");
     pickFast(true);
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     expect(sentBody()).toMatchObject({ launcher: "codex", model: "gpt-fast" });
@@ -214,9 +214,11 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     pickLauncher(NEW_CONVERSATION, "codex");
     pickModel(NEW_CONVERSATION, "gpt-fast");
     pickFast(true);
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     act(() => chooseManager("other-manager"));
+    // the other assistant's own answer, as the store reads it after the switch
+    act(() => void Object.assign(getState(), { loaded: true, assistant: { machine_id: "hub", conversations: [] }, assistantError: null }));
     await flush();
     expect(pickedFast()).toBe(false);
     await send();
@@ -228,7 +230,7 @@ describe("新对话页：第一条消息发出、会话还没开起来 (#1697)",
     pickLauncher(NEW_CONVERSATION, "codex");
     pickModel(NEW_CONVERSATION, "gpt-fast");
     pickFast(true);
-    await act(async () => root.render(<PersonaAssistant fresh onToggleSidebar={() => {}} />));
+    await act(async () => root.render(<PersonaAssistant onToggleSidebar={() => {}} />));
     await flush();
     await send();
     await act(async () => starts[0].reject(new Error("no launcher")));

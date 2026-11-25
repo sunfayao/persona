@@ -7,7 +7,6 @@ import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, u
 import { api, ApiError, errorText, pastHub, sessionPath } from "../../lib/api";
 import { attentionReason, externalLink, failureReason, isStoppedAgent, resumeCommand, sessionCan, sessionCanRename, sessionDeletable, sessionDisplayTab, sessionMenuActions, sourceSubtitle, sessionTitle, sessionTitleDetail, shortPath, stateOf, tabLabel, uuid } from "../../lib/format";
 import { useHerdrTabName } from "../../lib/agents-display";
-import { conversationPage } from "../../lib/conversation-page";
 import { navigate, type Route, type SessionView } from "../../lib/router";
 import { canShowTerminal, composerSlot, otherView, terminalJump, terminalWaits, useSessionView, viewOnlyRow } from "../../lib/session-view";
 import { invalidateOverviewPanel } from "../../lib/use-shortcuts";
@@ -254,12 +253,11 @@ const ULTRACODE_SEND_TRIES = 4;
 const STOP_SETTLE_MS = 15_000;
 
 /** "Start a new session" (#2137, #5314): the node copies the conversation up to this reply's turn into a new one, which opens here. */
-async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean, manager?: string) {
+async function forkAt(mid: string, sid: string, itemId: string, assistant: boolean) {
   try {
     const r = await api<{ session_id: string }>(`${sessionPath(mid, sid)}/fork`, { method: "POST", json: { at_item_id: itemId } });
     await refresh();
-    // a Persona conversation's branch is on its computer and its manager's (lib/conversation-page.ts)
-    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : conversationPage(r.session_id, mid, manager));
+    navigate(!assistant ? { name: "session", mid, sid: r.session_id } : { name: "persona" });
     toast(t("chat-chatview.forked"), "ok");
   } catch (e) {
     toast(t("chat-chatview.fork_failed", { error: errorText(e) }), "error");
@@ -294,18 +292,7 @@ export interface PanelChrome {
   beside?: React.ReactNode;
 }
 
-const DeletedConversation = lazy(() => import("../DeletedConversation").then((m) => ({ default: m.DeletedConversation })));
-
-/** A deleted chat has no composer or retained transcript, wherever its old link is opened. */
-export function ChatView(props: Parameters<typeof ActiveChatView>[0]) {
-  const deleted = useStore(() => getSession(props.mid, props.sid)?.deleted === true);
-  if (deleted) return <Suspense fallback={<div className="flex h-full items-center justify-center"><Loading /></div>}>
-    <DeletedConversation onToggleSidebar={props.onToggleSidebar} />
-  </Suspense>;
-  return <ActiveChatView {...props} />;
-}
-
-function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
+export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
   mid: string;
   sid: string;
   assistant?: boolean;
@@ -693,7 +680,7 @@ function ActiveChatView({ mid, sid, assistant, starting: launching, onToggleSide
       pick: picker,
       speaker: assistant ? persona.name : "Agent",
       images: () => items.current.filter((i) => i.kind === "image"),
-      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant), session?.manager) : undefined,
+      fork: canFork ? (itemId: string) => void forkAt(mid, sid, itemId, Boolean(assistant)) : undefined,
       assistant: Boolean(assistant),
       rewind: canRewind ? { block: rewindLive, code: rewindCode, run: (messageId, text, restore) => rewindTo(mid, sid, draftKey, items.current, messageId, text, restore, rewindDeclared) } : undefined,
     }),
@@ -3223,8 +3210,6 @@ export const Header = memo(function Header({
           {termDot && <span aria-hidden data-terminal-waits className="pointer-events-none absolute top-0.5 right-0.5 size-1.5 rounded-full bg-attention" />}
         </span>
       )}
-      {/* wide screens have New chat at the top of the sidebar; a phone's sidebar is a drawer */}
-      {assistant && !chrome && <IconButton icon="compose" label={t("chat-chatview.new_chat")} onClick={() => navigate({ name: "persona-new" })} className="lg:hidden" />}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
       {!chrome && actions}
       {!assistant && session && (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&

@@ -318,7 +318,6 @@ describe("the Agents fold-all button (#3027, #6447)", () => {
 describe("the main conversation: the column's first row, Main chat with its home symbol (#10544)", () => {
   const conv = (id: string, title: string): Session => ({ machine_id: "hub", session_id: id, title, cwd: "/", status: "idle", state: "idle", assistant: true, pending_interactions: id === "main" ? 2 : 0 });
   const assistant: AssistantInfo = { machine_id: "hub", main: "main", leaders: ["c1"], conversations: [conv("main", "Persona"), conv("c1", "整理周报")] };
-  const block = (title: string) => button(title)!.closest(".mt-1, .mt-3") as HTMLElement;
   const mainRow = () => host.querySelector<HTMLAnchorElement>('a[title="Persona 的主对话"]')!;
   const load = async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
@@ -329,40 +328,6 @@ describe("the main conversation: the column's first row, Main chat with its home
     act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
   };
-
-  it("offers New chat in「Persona 对话」, not above the main chat, and an icon in the rail, only with an assistant (#3231)", async () => {
-    const newChats = () => [...host.querySelectorAll<HTMLAnchorElement>('a[href="/persona/new"]')];
-    act(() => root.render(<Sidebar route={{ name: "home" }} onSearch={() => {}} onNewAgent={() => {}} />));
-    await flush();
-    expect(newChats()).toEqual([]);
-    await load();
-    // one entry: the compose icon at the end of the Persona chats title, as on the phone's sidebar, folded or not; not a row
-    expect(newChats()).toHaveLength(1);
-    const icon = newChats()[0];
-    expect(icon.textContent).toBe("");
-    expect(icon.getAttribute("aria-label")).toBe("新对话");
-    expect(icon.getAttribute("title")).toBe("新对话");
-    expect(icon.closest(".group\\/sec")).not.toBeNull();
-    expect(block("Persona 对话").contains(icon)).toBe(true);
-    const chatRows = [...block("Persona 对话").querySelectorAll("a")];
-    expect(chatRows.some((a) => a.textContent?.includes("整理周报"))).toBe(true);
-    const all = [...host.querySelectorAll("a")];
-    expect(all.indexOf(icon)).toBeGreaterThan(all.indexOf(mainRow()));
-    expect(host.querySelector("[data-sidebar-sticky]")!.contains(icon)).toBe(false);
-    act(() => button("Persona 对话")!.click());
-    await flush();
-    expect(newChats().filter((a) => !a.closest("[inert]"))).toHaveLength(1);
-    act(() => button("Persona 对话")!.click());
-    await flush();
-    // the open new chat page lights the icon
-    act(() => root.render(<Sidebar route={{ name: "persona-new" }} onSearch={() => {}} onNewAgent={() => {}} />));
-    await flush();
-    expect(newChats()[0].getAttribute("aria-current")).toBe("page");
-    act(() => root.render(<SidebarRail route={{ name: "persona-new" }} onSearch={() => {}} onNewAgent={() => {}} />));
-    await flush();
-    expect(newChats()[0].getAttribute("aria-label")).toBe("新对话");
-    expect(newChats()[0].getAttribute("aria-current")).toBe("page");
-  });
 
   it("is the first row, above the pages, with the app's mark, a 主对话 mark, a line under it, and nowhere else", async () => {
     await load();
@@ -382,16 +347,13 @@ describe("the main conversation: the column's first row, Main chat with its home
     expect(host.querySelectorAll('a[title="Persona 的主对话"]')).toHaveLength(1);
     expect(host.querySelectorAll("[data-persona-divider]")).toHaveLength(1);
     expect(host.querySelector('a[href="/persona/main"]')).toBeNull();
-    // "Persona chats"starts with the other conversations, the main one not in it
-    expect(block("Persona 对话").querySelector('a[title="Persona 的主对话"]')).toBeNull();
-    expect(block("Persona 对话").textContent).toContain("整理周报");
-    // its ⋯ opens the conversation's menu
-    expect(mainRow().parentElement!.querySelector('button[aria-label="对话的操作"]')).not.toBeNull();
+    // no other conversations in the sidebar, and no menu on the main row
+    expect(host.textContent).not.toContain("整理周报");
+    expect(host.querySelector('button[aria-label="对话的操作"]')).toBeNull();
   });
 
-  it("stays on show however 页面 and「Persona 对话」are folded", async () => {
+  it("stays on show however 页面 is folded", async () => {
     await load();
-    act(() => button("Persona 对话")!.click());
     act(() => button("页面")!.click());
     expect(mainRow()).not.toBeNull();
     expect(mainRow().closest("[inert]")).toBeNull();

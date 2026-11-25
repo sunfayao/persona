@@ -1,7 +1,6 @@
 {
   "command_unavailable": "This command isn't available here",
   "new_agent": "New agent",
-  "new_conversation": "New chat",
   "command_palette": "Command palette",
   "search_sessions": "Search sessions",
   "command_placeholder": "Type a command…",

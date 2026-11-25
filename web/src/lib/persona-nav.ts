@@ -11,19 +11,15 @@ export function sidebarRoute(route: Route, from?: string): Route {
   return q < 0 ? parse(from) : parse(from.slice(0, q), from.slice(q));
 }
 
-/** The sidebar row a route selects. Persona's main conversation is one row, under `/`, `/persona` and `/persona/<main>` alike.
+/** The sidebar row a route selects. Persona's main conversation is one row, under `/` and `/persona` alike.
  *  An Agent's page opened from another page selects that page's row (`from`, sidebarRoute). */
-export function sidebarActiveKey(route: Route, main?: string, from?: string): string {
+export function sidebarActiveKey(route: Route, from?: string): string {
   const r = sidebarRoute(route, from);
   switch (r.name) {
     case "session":
       return `s:${r.mid}/${r.sid}`;
     case "persona":
-      return !r.sid || r.sid === main ? "persona" : `j:${r.sid}`;
-    case "persona-new":
-      return "j:new";
-    case "history":
-      return r.origin ? `auto:${r.origin}` : "history";
+      return "persona";
     case "machine":
       return "machines";
     case "agents":
@@ -51,14 +47,12 @@ export const NAV_PAGES = ["home", "inbox", "messages", "starred", "todos", "rout
 
 /**
  * Where the page goes when another assistant becomes the current one (the sidebar's switcher): a page about one thing
- * of the assistant left behind (a conversation, an agent, a computer, an inbox item, a to-do) goes
- * to that thing's list, which now shows the new assistant's; a conversation or an agent goes to the new assistant's
+ * of the assistant left behind (an agent, a computer, an inbox item, a to-do) goes
+ * to that thing's list, which now shows the new assistant's; an agent goes to the new assistant's
  * main conversation. null: the page stays (a list, Settings), and shows the new assistant's by itself.
  */
 export function routeAfterSwitch(route: Route): Route | null {
   switch (route.name) {
-    case "persona":
-      return route.sid ? { name: "persona" } : null;
     case "session":
     case "tab":
     case "space":
@@ -83,12 +77,12 @@ export function routeAfterSwitch(route: Route): Route | null {
 /**
  * Whether the page at route opens again when another assistant becomes current, or a kept pick that left the roster
  * goes back to the default: a page that stays (routeAfterSwitch null) and reads the assistant's things itself, once,
- * through the routes that name the pick (lib/manager-choice.ts managerHeaderFor): All chats, the assistant's profile,
+ * through the routes that name the pick (lib/manager-choice.ts managerHeaderFor): the assistant's profile
  * and Scheduled tasks. Opened again, it reads the new one's and nothing it shows or sends is the
  * last one's. The other pages that stay follow the pick by themselves: the assistant page and the lists filtered from
  * the store (the Overview, Agents, computers, the Inbox, To-dos and their projects), and Settings' editors, which pick
  * their own target; the rest are no assistant's (Messages, the terminals, an extension's page).
  */
 export function reopensOnSwitch(route: Route): boolean {
-  return route.name === "history" || route.name === "profile" || route.name === "routines";
+  return route.name === "profile" || route.name === "routines";
 }

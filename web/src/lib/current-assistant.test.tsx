@@ -280,7 +280,6 @@ describe("an assistant in the switcher", () => {
 describe("the page after a switch", () => {
   it("leaves one thing of the assistant left behind for its list; a list stays", () => {
     expect(routeAfterSwitch({ name: "persona" })).toBeNull();
-    expect(routeAfterSwitch({ name: "persona", sid: "c1" })).toEqual({ name: "persona" });
     expect(routeAfterSwitch({ name: "session", mid: "mac", sid: "s1" })).toEqual({ name: "persona" });
     expect(routeAfterSwitch({ name: "machine", mid: "mac" })).toEqual({ name: "machines" });
     expect(routeAfterSwitch({ name: "inbox", id: "i1", manager: "m-1" })).toEqual({ name: "inbox" });
@@ -290,7 +289,7 @@ describe("the page after a switch", () => {
   });
 
   it("opens again where a page that stays reads the assistant's things itself", () => {
-    for (const route of [{ name: "history" }, { name: "profile" }, { name: "routines" }] as const) expect(reopensOnSwitch(route)).toBe(true);
+    for (const route of [{ name: "profile" }, { name: "routines" }] as const) expect(reopensOnSwitch(route)).toBe(true);
     // these follow the pick by themselves, or are no assistant's
     for (const name of ["persona", "home", "inbox", "machines", "todos", "agent-list", "settings", "messages", "terminal"] as const) expect(reopensOnSwitch({ name } as never)).toBe(false);
   });

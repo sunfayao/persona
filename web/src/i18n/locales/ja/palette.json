@@ -1,7 +1,6 @@
 {
   "command_unavailable": "このコマンドはここでは使えません",
   "new_agent": "新規エージェント",
-  "new_conversation": "新しいチャット",
   "command_palette": "コマンドパレット",
   "search_sessions": "セッションを検索",
   "command_placeholder": "コマンドを入力…",

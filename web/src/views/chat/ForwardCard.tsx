@@ -55,7 +55,7 @@ export function openForwarded(c: Pick<Context, "url" | "attrs">): boolean {
   if (!main && !session) return false;
   if (o.item) jumpWhenOpen(o.machine, o.session, o.item);
   if (main) navigate({ name: "persona" });
-  else if (session?.assistant) navigate({ name: "persona", sid: o.session });
+  else if (session?.assistant) navigate({ name: "persona" });
   else navigate({ name: "session", mid: o.machine, sid: o.session, view: "chat" });
   return true;
 }

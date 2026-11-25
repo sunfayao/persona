@@ -284,9 +284,6 @@ describe("the main conversation's page, set to Full page (#13164)", () => {
     await assistant("c-main", "mgr-a");
     history.replaceState(null, "", "/persona/c-main");
     openAgent("m1", "s1");
-    // another conversation's hand-off is that conversation's, not the main one's page
-    navigate({ name: "persona", sid: "c-side" });
-    openAgent("m1", "s2");
     expect(pickMainChat(false)).toBe(true);
     expect(at()).toBe("/s/m1/s1");
     // another assistant's main conversation never opens it
@@ -306,11 +303,6 @@ describe("the main conversation's page, set to Full page (#13164)", () => {
     expect(handoffFrom()).toEqual({ path: "/" });
     navigate({ name: "inbox" });
     setAgentOpenMode("page");
-    expect(pickMainChat(false)).toBe(false);
-    // a page opened naming nowhere (a Brief row's other conversation) is not the conversation's page
-    history.replaceState(null, "", "/");
-    leaveChat({ name: "persona", sid: "c2" }, false);
-    navigate({ name: "inbox" });
     expect(pickMainChat(false)).toBe(false);
     history.replaceState(null, "", "/");
     openAgent("m1", "s1");

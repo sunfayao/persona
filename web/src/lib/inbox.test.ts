@@ -181,8 +181,8 @@ describe("等你的 Agent", () => {
 
   it("助手的会话跳到 Persona，其余跳到会话页", () => {
     const assistant: AssistantInfo = { machine_id: "m1", conversations: [{ machine_id: "m1", session_id: "s-conv", title: "", cwd: "", status: "idle" }] };
-    expect(conversationRoute("m1", "s-persona", sessions, null)).toEqual({ name: "persona", sid: "s-persona" });
-    expect(conversationRoute("m1", "s-conv", {}, assistant)).toEqual({ name: "persona", sid: "s-conv" });
+    expect(conversationRoute("m1", "s-persona", sessions, null)).toEqual({ name: "persona" });
+    expect(conversationRoute("m1", "s-conv", {}, assistant)).toEqual({ name: "persona" });
     expect(conversationRoute("m1", "s-space", sessions, assistant)).toEqual({ name: "session", mid: "m1", sid: "s-space" });
   });
 });

@@ -1,8 +1,6 @@
 import { storeValue } from "../lib/compatibility";
-import { api, errorText } from "../lib/api";
 // The Persona tab: the headless assistant on the hub's machine (docs/assistant/assistant.md). `/` (and the old `/persona`) is the main
-// conversation, `/persona/<id>` one of them, `/persona/new` a new one-off conversation. With no main conversation yet, the first
-// message on `/` starts it.
+// conversation, the only one this page shows. With no main conversation yet, the first message on `/` starts it.
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MentionSource } from "./chat/ComposerPanel";
 import { startConversation } from "../lib/assistant-start";
@@ -10,12 +8,11 @@ import { feedCacheScope, mainConversationMachine, readFeedCache } from "../lib/f
 import { startOfDay } from "../lib/feed";
 import { uuid } from "../lib/format";
 import { codedFailure, helpTopic, passesBySelf, refreshReadiness, type CodedFailure } from "../lib/readiness";
-import { conversationPage } from "../lib/conversation-page";
 import { navigate } from "../lib/router";
 import { hubHas, refreshAssistant, useStore } from "../lib/store";
 import { effectiveLauncher, NEW_CONVERSATION, pickedEffort, pickedFast, pickedLauncher, pickedModel, pickEffort, pickFast, pickLauncher, usePickedLauncher } from "../lib/assistant-chat";
 import { ASSISTANT_START_SERVICE_TIER_FEATURE } from "../lib/assistant-models";
-import { adoptedConversation, noteSent, outboxMessage } from "../lib/outbox";
+import { noteSent, outboxMessage } from "../lib/outbox";
 import { CLEAR_MAIN_FEATURE, isClearCommand, mainCommands, useMainCleared } from "../lib/main-clear";
 import { Button, cx, EASE, IconButton, Loading } from "../ui/atoms";
 import { Icon } from "../ui/icons";
@@ -29,11 +26,9 @@ import { ChatOnlyNote, FailureCard, ReadinessCard, useReadinessGate } from "./as
 import { DayLine } from "./assistant/Tasks";
 import { ShellHeaderSlots, ShellSwitch } from "./ShellSwitch";
 import { StartSessionButton } from "./StartSessionButton";
-import { conversationTitle } from "./assistant/conversations";
 import { t } from "../i18n";
 import { useAssistantTitle, useShownOffline } from "./ManagerParts";
-import { chosenManager, noteConversation, noteRoutedConversation, ownerHeaders, sameManager, shownManager, useShownManager } from "../lib/manager-choice";
-import type { AssistantInfo, Session } from "../lib/types";
+import { chosenManager, noteConversation, ownerHeaders, shownManager, useShownManager } from "../lib/manager-choice";
 
 /** Every computer's tokens a day under the things to ask (#9506): a lazy chunk, not on the first screen. */
 const TokenCalendar = lazy(() => import("./assistant/TokenCalendar"));
@@ -52,151 +47,56 @@ const noop = () => {};
 
 // @ in a new conversation: other sessions as context; no chat yet, so no files it touched (typed / and ~ paths still browse)
 
-/** What a conversation's address says of it (lib/conversation-page.ts): the computer it runs on, its manager when
- *  another than the default. */
-export interface RoutedConversation {
-  mid?: string;
-  manager?: string;
-}
-
-/** Where a conversation runs that is not (known to be) the current assistant's own: `machine` "" when only its manager
- *  is known (its assistant's computer is read then), `other` whether it is another assistant's than the current one. */
-export interface ConversationHome {
-  machine: string;
-  other: boolean;
-}
-
-/**
- * Where conversation sid runs (opened from an inbox item's hand-off, a link, the palette, a to-do's origin, or a reload of
- * any of these), or null for the current assistant's own, on its computer: its own list has it, or nothing says
- * otherwise. Else the row the hub gave for it (the exact lookup ChatView makes puts it in the store; a hub with the
- * paged list pushes no rows), a hand-off this tab made (lib/outbox.ts adoptConversation), and last what its address
- * names (`?machine=`, `?manager=`): what this tab noted is gone after a reload or in a new tab, the address is not.
- */
-export function conversationHome(sid: string, shown: string, assistant: AssistantInfo | null, sessions: Record<string, Session[]>, routed: RoutedConversation = {}): ConversationHome | null {
-  if (assistant && (assistant.main === sid || assistant.conversations.some((c) => c.session_id === sid))) return null;
-  for (const list of Object.values(sessions)) {
-    const s = list.find((x) => x.session_id === sid);
-    if (s) return { machine: s.machine_id, other: !sameManager(s.manager, shown) };
-  }
-  const adopted = adoptedConversation(sid);
-  if (adopted) return { machine: adopted.machine, other: !sameManager(adopted.manager, shown) };
-  if (routed.mid) return { machine: routed.mid, other: !sameManager(routed.manager, shown) };
-  if (routed.manager && !sameManager(routed.manager, shown)) return { machine: "", other: true };
-  return null;
-}
-
-// The computer each manager's assistant runs on, read for a conversation whose address names its manager only (a
-// to-do's origin): its conversations run there. A failed read is not kept.
-const assistantMachines = new Map<string, Promise<string>>();
-
-function assistantMachineOf(manager: string): Promise<string> {
-  let read = assistantMachines.get(manager);
-  if (!read) {
-    read = api<AssistantInfo>("/assistant", { headers: ownerHeaders(manager) }).then((a) => a.machine_id || Promise.reject(new Error(t("chat-chatview.session_gone"))));
-    read.catch(() => assistantMachines.delete(manager));
-    assistantMachines.set(manager, read);
-  }
-  return read;
-}
-
-/** manager's assistant computer once read ("" meanwhile, or with none to read), or why it could not be read. */
-function useAssistantMachine(manager: string | undefined): { machine: string; error: string } {
-  const [state, setState] = useState<{ manager: string; machine: string; error: string }>({ manager: "", machine: "", error: "" });
-  useEffect(() => {
-    if (!manager) return;
-    let live = true;
-    assistantMachineOf(manager).then(
-      (machine) => live && setState({ manager, machine, error: "" }),
-      (e) => live && setState({ manager, machine: "", error: errorText(e) }),
-    );
-    return () => void (live = false);
-  }, [manager]);
-  return manager && state.manager === manager ? state : { machine: "", error: "" };
-}
-
-export function PersonaAssistant({ sid, fresh, routed, at, onToggleSidebar }: { sid?: string; fresh?: boolean; routed?: RoutedConversation; at?: string; onToggleSidebar: () => void }) {
+export function PersonaAssistant({ at, onToggleSidebar }: { at?: string; onToggleSidebar: () => void }) {
   const assistant = useStore((s) => s.assistant);
   const assistantError = useStore((s) => s.assistantError);
   const loaded = useStore((s) => s.loaded);
-  // another assistant's conversation opens as itself, on its own computer, and the current assistant stays
-  // (docs/assistant/managers.md "Clients")
-  const shown = useShownManager();
-  const routedMid = routed?.mid;
-  const routedManager = routed?.manager;
-  // the address's manager, for the plan and briefing requests when no row says better (conversationHeaders)
-  useEffect(() => {
-    if (!sid || !routedManager) return;
-    noteRoutedConversation(sid, routedManager);
-    return () => noteRoutedConversation(sid, undefined);
-  }, [sid, routedManager]);
-  const home = useStore((s) => {
-    const h = sid && !fresh ? conversationHome(sid, shown, s.assistant, s.sessions, { mid: routedMid, manager: routedManager }) : null;
-    return h ? `${h.other ? 1 : 0}${h.machine}` : "";
-  });
-  const homeOther = home.startsWith("1");
-  const homeMachine = home.slice(1);
-  // named by its manager only: that manager's assistant computer
-  const read = useAssistantMachine(home && !homeMachine ? routedManager : undefined);
-  // the shown manager offline (with several, ManagerParts): its history stays, nothing goes; another's conversation
-  // says its own (ChatView, by the session's manager)
-  const shownOffline = useShownOffline();
-  const offline = homeOther ? null : shownOffline;
+  // the shown manager offline (with several, ManagerParts): its history stays, nothing goes
+  const offline = useShownOffline();
   const scope = feedCacheScope();
   const manager = chosenManager() ?? "";
-  // A reloaded conversation link needs its machine before the socket reconnects, so its saved outbox can appear.
-  useEffect(() => {
-    if (sid && !fresh && !assistant && !assistantError) void refreshAssistant().catch(() => {});
-  }, [sid, fresh, assistant, assistantError, manager]);
   const cached = useMemo(() => {
-    if (sid || fresh || assistant) return null;
+    if (assistant) return null;
     const page = readFeedCache(scope);
     return page && (page.manager ?? "") === manager ? page : null;
-  }, [scope, manager, sid, fresh, assistant]);
+  }, [scope, manager, assistant]);
   const main = assistant?.main ?? cached?.sessionID;
   // this tab cleared the main conversation's context (/clear, lib/main-clear.ts): until the next one starts, its page
   // keeps the conversation's layout
   const cleared = useMainCleared(manager);
-  const machine = home ? homeMachine || read.machine : ((sid && sid !== main ? assistant?.machine_id : mainConversationMachine(assistant)) ?? cached?.machineID);
-  if (fresh) return <Starter onToggleSidebar={onToggleSidebar} />;
-  const id = sid ?? main;
-  if (id) {
-    if (home && !machine) {
-      // another assistant's, its computer being read
-      return <Centered>{read.error ? <p className="px-6 text-center text-[13px] text-ink-2">{read.error}</p> : <Loading />}</Centered>;
-    }
+  const machine = mainConversationMachine(assistant) ?? cached?.machineID;
+  if (main) {
     if (!machine) {
       // an offline manager's read fails as expected: its page says so (Starter) rather than offering Retry
       if (assistantError && !offline) return <AssistantLoadFailed error={assistantError} onToggleSidebar={onToggleSidebar} />;
       return <Centered><Loading /></Centered>;
     }
     // the main conversation is the phone's assistant page: "Assistant | Agents" in its top bar (ChatView's `topCenter`, narrow only)
-    const topCenter = id === main ? <ShellSwitch page="assistant" /> : undefined;
     // keyed by the conversation, not its computer: the cached first view's computer giving way to the hub's answer is the
     // same chat, and a new key would take the typing person's words, pictures and focus with the old page (#11237)
     return (
       <ChatView
-        key={`${scope}/${manager}/${id}`}
+        key={`${scope}/${manager}/${main}`}
         mid={machine}
-        sid={id}
+        sid={main}
         assistant
-        starting={starting.has(id)}
+        starting={starting.has(main)}
         onToggleSidebar={onToggleSidebar}
-        topCenter={topCenter}
-        headerActions={id === main ? <StartSessionButton compact /> : undefined}
-        mainCache={id === main && scope ? { scope, manager } : undefined}
-        refreshError={id === main ? assistantError ?? undefined : undefined}
-        onRefresh={id === main ? () => void refreshAssistant().catch(() => {}) : undefined}
+        topCenter={<ShellSwitch page="assistant" />}
+        headerActions={<StartSessionButton compact />}
+        mainCache={scope ? { scope, manager } : undefined}
+        refreshError={assistantError ?? undefined}
+        onRefresh={() => void refreshAssistant().catch(() => {})}
         offline={offline?.composer}
         landAt={at}
       />
     );
   }
   if (!loaded && !assistant && !assistantError) return <Centered><Loading /></Centered>;
-  if (!sid && assistantError && !assistant && !offline) {
+  if (assistantError && !assistant && !offline) {
     return <AssistantLoadFailed error={assistantError} onToggleSidebar={onToggleSidebar} />;
   }
-  return <Starter main cleared={cleared} onToggleSidebar={onToggleSidebar} />;
+  return <Starter cleared={cleared} onToggleSidebar={onToggleSidebar} />;
 }
 
 function AssistantLoadFailed({ error, onToggleSidebar }: { error: string; onToggleSidebar: () => void }) {
@@ -230,9 +130,9 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex h-full items-center justify-center">{children}</div>;
 }
 
-/** A new conversation's page: the centered box with the example questions, or, for the main conversation this tab just
- *  cleared (`cleared`, as Cindy's /clear leaves an empty chat), the conversation's own layout with nothing in it yet. */
-function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?: boolean; onToggleSidebar: () => void }) {
+/** The main conversation's start page: the centered box with the example questions, or, for the main conversation this tab
+ *  just cleared (`cleared`, as Cindy's /clear leaves an empty chat), the conversation's own layout with nothing in it yet. */
+function Starter({ cleared, onToggleSidebar }: { cleared?: boolean; onToggleSidebar: () => void }) {
   const assistant = useStore((s) => s.assistant);
   const manager = useShownManager();
   const selectedLauncher = usePickedLauncher(NEW_CONVERSATION);
@@ -252,9 +152,9 @@ function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?:
   const slow = useSlowStart(Boolean(sending));
   // the conversation's layout (its header, the box docked at the bottom): while the first message's start is on its
   // way, and in place of the main conversation just cleared, so nothing moves when it empties or when it starts again
-  const docked = Boolean(sending) || Boolean(main && cleared);
+  const docked = Boolean(sending) || Boolean(cleared);
   // /clear on the main conversation's page while there is none: nothing to clear, and never its first message
-  const clearable = useStore((s) => Boolean(main) && hubHas(s.features, CLEAR_MAIN_FEATURE));
+  const clearable = useStore((s) => hubHas(s.features, CLEAR_MAIN_FEATURE));
   const startServiceTier = useStore((s) => hubHas(s.features, ASSISTANT_START_SERVICE_TIER_FEATURE));
   const commands = useMemo(() => (clearable && docked ? mainCommands() : []), [clearable, docked]);
   // the box is the same element in both layouts (a refused start gets its words and pictures back in it): it moves
@@ -288,7 +188,7 @@ function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?:
     const launcher = pickedLauncher(NEW_CONVERSATION);
     // written for the manager shown now: its retries go there even if the switcher moves meanwhile
     const chosen = chosenManager() ?? undefined;
-    const body = { prompt: out.text, images: out.images.length ? out.images : undefined, launcher, model: launcher ? pickedModel(NEW_CONVERSATION) : undefined, effort: pickedEffort(NEW_CONVERSATION), service_tier: startServiceTier && !chosen && pickedFast() ? "priority" : undefined, main: main || undefined };
+    const body = { prompt: out.text, images: out.images.length ? out.images : undefined, launcher, model: launcher ? pickedModel(NEW_CONVERSATION) : undefined, effort: pickedEffort(NEW_CONVERSATION), service_tier: startServiceTier && !chosen && pickedFast() ? "priority" : undefined, main: true };
     const headers = ownerHeaders(chosen);
     const from = shownManager();
     // one op id for this message, its quiet retries included (#1382); sent again after a refusal, it gets a new one
@@ -305,7 +205,6 @@ function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?:
         pickEffort(NEW_CONVERSATION, undefined);
         pickFast(false);
         void refreshAssistant().catch(() => {});
-        navigate(conversationPage(r.session.session_id, r.session.machine_id, from));
         return true;
       } catch (e) {
         // the assistant restarting: a few seconds, tried again without a word (docs/assistant/onboarding.md 4.6)
@@ -346,32 +245,28 @@ function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?:
       {docked ? (
         // the conversation page's own header, as it will read once the conversation is there
         <Header
-          title={main ? mainTitle : conversationTitle({ title: "" })}
+          title={mainTitle}
           machineName=""
           assistant
-          main={main}
+          main
           siblings={NO_SESSIONS}
           onToggleSidebar={onToggleSidebar}
           onInterrupt={noop}
-          topCenter={main ? <ShellSwitch page="assistant" /> : undefined}
-          actions={main ? <StartSessionButton compact /> : undefined}
+          topCenter={<ShellSwitch page="assistant" />}
+          actions={<StartSessionButton compact />}
         />
       ) : (
       <header className="flex h-14 shrink-0 items-center gap-2 px-3 sm:px-4">
         {/* a phone's assistant page: "Assistant | Agents" between the same side slots as ChatView's and the Agents page's */}
-        {main ? (
-          <ShellHeaderSlots page="assistant" onToggleSidebar={onToggleSidebar} end={<><StartSessionButton compact /><IconButton icon="info" label={t("personaassistant.profile")} onClick={() => navigate({ name: "profile" })} /></>} />
-        ) : (
-          <IconButton icon="sidebar" label={t("personaassistant.sidebar")} onClick={onToggleSidebar} className="lg:hidden" />
-        )}
-        <span className={cx("flex-1", main && "max-lg:hidden")} />
-        {main && <StartSessionButton className="max-lg:hidden" />}
-        <button type="button" onClick={() => navigate({ name: "profile" })} className={cx("flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-medium whitespace-nowrap text-ink-2 shadow-btn hover:bg-hover hover:text-ink", main && "max-lg:hidden")}>
+        <ShellHeaderSlots page="assistant" onToggleSidebar={onToggleSidebar} end={<><StartSessionButton compact /><IconButton icon="info" label={t("personaassistant.profile")} onClick={() => navigate({ name: "profile" })} /></>} />
+        <span className="flex-1 max-lg:hidden" />
+        <StartSessionButton className="max-lg:hidden" />
+        <button type="button" onClick={() => navigate({ name: "profile" })} className="flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-medium whitespace-nowrap text-ink-2 shadow-btn hover:bg-hover hover:text-ink max-lg:hidden">
           <PersonaAvatar size={16} fallback={<Icon name="info" size={13} />} /> {t("personaassistant.profile")}
         </button>
       </header>
       )}
-      <MainRuntimeSlot starting={Boolean(main && sending)} />
+      <MainRuntimeSlot starting={Boolean(sending)} />
       <div className={docked ? "flex min-h-0 flex-1 flex-col" : "flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-5 pb-[10vh]"}>
         <div className={docked ? "contents" : "w-full max-w-[640px]"} style={docked ? undefined : { animation: `fade-up 450ms ${EASE} both` }}>
           {sending ? (
@@ -420,7 +315,7 @@ function Starter({ main, cleared, onToggleSidebar }: { main?: boolean; cleared?:
           {gate.dialog}
           {/* the box: in the page's middle, or docked at the bottom as the conversation's (ChatView's dock) while the start is on its way */}
           <div ref={box} className={docked ? "mx-auto flex w-full max-w-[880px] flex-col justify-end gap-2 px-4 pb-4 sm:px-7 [@media(max-height:500px)]:pb-2" : undefined}>
-            <Composer key={seed} blocked={offline ? undefined : gate.blocked} disabled={Boolean(offline) || Boolean(sending)} draftKey="persona-new" placeholder={offline ? offline.composer : t("personaassistant.ask_placeholder", { name: persona.name })} machineId={assistant?.machine_id} mention={mention} onSend={start} autoFocus commands={commands} trailing={assistant && !sending ? <AssistantModelPill mainStart={main} /> : undefined} />
+            <Composer key={seed} blocked={offline ? undefined : gate.blocked} disabled={Boolean(offline) || Boolean(sending)} draftKey="persona-new" placeholder={offline ? offline.composer : t("personaassistant.ask_placeholder", { name: persona.name })} machineId={assistant?.machine_id} mention={mention} onSend={start} autoFocus commands={commands} trailing={assistant && !sending ? <AssistantModelPill mainStart /> : undefined} />
           </div>
           {!docked && (
           <div className="mt-4 grid grid-cols-1 gap-1.5 sm:grid-cols-2">

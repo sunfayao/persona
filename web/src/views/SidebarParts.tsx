@@ -55,7 +55,7 @@ export function useActiveKey(route: Route): string {
   const shown = work ? route : sidebarRoute(route, sidebarPageOf(handoffFrom()));
   return useStore((s) => {
     if (work) return "terminal";
-    if (shown.name !== "tab") return sidebarActiveKey(shown, s.assistant?.main);
+    if (shown.name !== "tab") return sidebarActiveKey(shown);
     const pane = resolveTab(tabRows(s, shown.mid), shown);
     if (pane) return rowKey(pane);
     return shown.sid ? rowKey({ machine_id: shown.mid, session_id: shown.sid }) : "";

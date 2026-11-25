@@ -8,7 +8,6 @@ import type { AgentSession } from "../lib/agents";
 import type { Session } from "../lib/types";
 import { setAgentDetails } from "../lib/context-usage";
 import { AgentRow, PersonaRow, SessionRow } from "./Sidebar";
-import { conversationMenuItems } from "./ConversationMenu";
 
 // the sidebar's modules read the colour scheme and this browser's settings when they load
 vi.hoisted(() => {
@@ -154,11 +153,10 @@ describe("an agent's row with 「Agent 行显示详情」 (#2430)", () => {
     expect(danger).toContain("text-orange");
     expect(danger).not.toContain("text-red");
   });
-  it("draws no second line for a session that says nothing, or for a conversation of the assistant", () => {
+  it("draws no second line for a session that says nothing", () => {
     setAgentDetails(true);
     const plain = { ...session, cwd: "" };
     expect(render(plain)).not.toContain("flex-col");
-    expect(render(detailed, { showState: false })).not.toContain("opus 5.5");
   });
 });
 
@@ -189,48 +187,6 @@ describe("Persona's main row", () => {
     expect(html).toContain(t("sidebar.main_chat"));
     expect(html).not.toContain("flex-col\"><span class=\"truncate text-[13.5px] font-semibold text-ink\">Persona");
     expect(html.replace(/<[^>]+>/g, "").match(new RegExp(t("sidebar.main_chat"), "g"))).toHaveLength(1);
-  });
-  it("has a ⋯ for the conversation's menu when the main conversation is there", () => {
-    const html = renderToStaticMarkup(<PersonaRow {...props} active={false} onMenu={() => {}} />);
-    expect(html).toMatch(/<button [^>]*aria-label="对话的操作"[^>]*aria-haspopup="menu"/);
-  });
-  it("draws no ⋯ without it", () => {
-    expect(renderToStaticMarkup(<PersonaRow {...props} main={undefined} active={false} />)).not.toContain("对话的操作");
-  });
-  it("whose menu has only 复制会话 ID and 结束…", () => {
-    expect(conversationMenuItems(main, { main: true }).map((i) => i.key)).toEqual(["copy", "end"]);
-  });
-});
-
-describe("a 常驻 lead row (#6214 keepTrailing)", () => {
-  const lead: Session = { machine_id: "hub", session_id: "lead-a", title: "增长", cwd: "/", status: "idle", state: "idle", assistant: true };
-  const props = { s: lead, k: "j:lead-a", reg: () => () => {}, hover: () => {}, to: { name: "session", mid: "hub", sid: "lead-a" } as const, go: () => () => {}, onMenu: () => {}, hint: "在做 1 · 等你 1", hintFull: true, showState: false, keepTrailing: true };
-  it("keeps its counts visible on hover and gives the ⋯ an in-flow slot instead of an overlay", () => {
-    const html = renderToStaticMarkup(<SessionRow {...props} active={false} />);
-    // the direction's name stays in the row even with no second line; the menu never replaces it
-    expect(html).toContain("增长");
-    // the counts never carry the hover-hiding class
-    const counts = html.match(/<span[^>]*>在做 1 · 等你 1<\/span>/)![0];
-    expect(counts).not.toContain("group-hover/row:invisible");
-    // the ⋯ is an in-flow fader, not an absolute overlay covering the words
-    const button = html.match(/<button [^>]*aria-label="Agent 的操作"[^>]*>/)![0];
-    expect(button).toContain("opacity-0 group-hover/row:opacity-100");
-    expect(button).not.toContain("absolute");
-    // and the anchor reserves no overlay room of its own
-    expect(link(html)).toMatch(/pr-1\b/);
-  });
-  it("draws its name once, with or without a second line (it read 「Per… Per…」 in a narrow sidebar)", () => {
-    const named = { ...props, label: "Persona 产品" };
-    expect(renderToStaticMarkup(<SessionRow {...named} active={false} />).match(/>Persona 产品</g)).toHaveLength(1);
-    expect(renderToStaticMarkup(<SessionRow {...named} active />).match(/>Persona 产品</g)).toHaveLength(1);
-    // a second line puts the name in the column, still once
-    const busy = { ...named, showState: true, s: { ...lead, last_text: "整理了三条进展" } };
-    expect(renderToStaticMarkup(<SessionRow {...busy} active={false} />).match(/>Persona 产品</g)).toHaveLength(1);
-  });
-  it("an ordinary row still overlays its ⋯ and hides its tail on hover", () => {
-    const html = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
-    expect(more(html)).toMatch(/class="[^"]*\bhidden\b/);
-    expect(more(html)).toContain("absolute");
   });
 });
 

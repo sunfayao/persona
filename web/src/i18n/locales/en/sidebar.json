@@ -12,18 +12,11 @@
   "nav_settings": "Settings",
   "search_sessions": "Search chats",
   "persona_chats": "Persona chats",
-  "new_chat": "New chat",
-  "unarchived_chat_count_other": "{count} unarchived Persona chats",
-  "unarchived_chat_count_one": "{count} unarchived Persona chat",
-  "all_chats": "All Persona chats",
-  "recent_chats_help": "Chats you used most recently, except the main chat, pinned and archived chats, and chats for scheduled tasks and background work.",
-  "recent_chats": "Recent",
   "pages": "Pages",
   "new_agent": "New agent",
   "filter_empty": "No agents in \"{filter}\"",
   "show_all": "Show all",
   "pinned_section": "Pinned",
-  "directions": "Pinned",
   "task_agents": "Agents of {name}",
   "launching": "Starting",
   "launch_untitled": "New agent",
@@ -123,7 +116,5 @@
   "switcher_count_one": "{count} thing waiting for you",
   "switcher_count_other": "{count} things waiting for you",
   "leader_needs_you": "{count} need you",
-  "codex_waiting": "Waiting for its first message",
-  "direction_tasks_expand": "Expand the open tasks of {name}",
-  "direction_tasks_collapse": "Collapse the open tasks of {name}"
+  "codex_waiting": "Waiting for its first message"
 }

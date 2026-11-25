@@ -12,7 +12,6 @@ import { docChangeLine, HANDOFF_PRESETS, handOffContext, handOffMessage, recordH
 import { isTransient } from "../../lib/ops";
 import { hasFinePointer } from "../../lib/viewport";
 import { machineWithHub } from "../../lib/mesh";
-import { conversationPage } from "../../lib/conversation-page";
 import { navigate } from "../../lib/router";
 import { openNewAgent } from "../../lib/new-agent";
 import { refreshAssistant, useStore } from "../../lib/store";
@@ -142,7 +141,7 @@ function DraftEditor({ item, onClose }: { item: InboxItem; onClose: () => void }
               onClick={() => {
                 onClose();
                 // The AI twin runs as the assistant (docs/assistant/inbox.md): its conversation is one of Persona's.
-                navigate(agent.machine_id === assistant?.machine_id ? conversationPage(agent.session_id!, agent.machine_id, item.manager) : conversationRoute(agent.machine_id!, agent.session_id!, sessions, assistant, item.manager));
+                navigate(agent.machine_id === assistant?.machine_id ? { name: "persona" } : conversationRoute(agent.machine_id!, agent.session_id!, sessions, assistant));
               }}
               className="mt-1.5 flex items-center gap-1 text-[12px] font-medium whitespace-nowrap text-accent-ink hover:underline"
             >
@@ -314,13 +313,13 @@ export function HandOffDialog({ item, onClose }: { item: InboxItem; onClose: () 
           return;
         }
         // its requests (feed, stop…) go to the item's manager; its page opens it there, the current assistant unchanged
-        adoptConversation(item.manager, to.session_id, to.machine_id);
+        adoptConversation(item.manager, to.session_id);
         noteSent(to.machine_id, to.session_id, { text });
         void refreshAssistant().catch(() => {});
         remember();
         toast(t("inbox-inboxdialogs.handed_to_persona"), "ok");
         onClose();
-        navigate(conversationPage(to.session_id, to.machine_id, item.manager));
+        navigate({ name: "persona" });
         if (markDone) void setDone(item, true);
         return;
       }
@@ -341,14 +340,14 @@ export function HandOffDialog({ item, onClose }: { item: InboxItem; onClose: () 
       const r = await startConversation({ prompt: text }, ownerHeaders(item.manager));
       void recordHandOff(item, r.session, "conversation", r.session.title);
       // its requests (feed, stop…) go to that manager whatever the page shows later
-      adoptConversation(item.manager, r.session.session_id, r.session.machine_id);
+      adoptConversation(item.manager, r.session.session_id);
       noteSent(r.session.machine_id, r.session.session_id, { text });
       void refreshAssistant().catch(() => {});
       if (markDone) void setDone(item, true);
       remember();
       toast(t("inbox-inboxdialogs.handed_to_persona"), "ok");
       onClose();
-      navigate(conversationPage(r.session.session_id, r.session.machine_id, item.manager));
+      navigate({ name: "persona" });
     } catch (e) {
       setError(errorText(e));
     } finally {

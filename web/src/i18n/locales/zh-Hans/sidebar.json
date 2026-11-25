@@ -12,17 +12,11 @@
   "nav_settings": "设置",
   "search_sessions": "搜索会话",
   "persona_chats": "Persona 对话",
-  "new_chat": "新对话",
-  "unarchived_chat_count_other": "{count} 个未归档的 Persona 对话",
-  "all_chats": "全部 Persona 对话",
-  "recent_chats_help": "按最近活动排列。主对话、常驻和已归档对话，以及定时任务和后台工作的对话不在此处显示。",
-  "recent_chats": "最近",
   "pages": "页面",
   "new_agent": "新建 Agent",
   "filter_empty": "没有{filter}的 Agent",
   "show_all": "看全部",
   "pinned_section": "置顶",
-  "directions": "常驻",
   "task_agents": "{name}的 Agent",
   "launching": "正在启动",
   "launch_untitled": "新 Agent",
@@ -117,7 +111,5 @@
   "switcher_label_waiting": "{name}，切换助手。别的助手有事等你处理",
   "switcher_count": "{count} 件等你处理",
   "leader_needs_you": "等你 {count}",
-  "codex_waiting": "等第一条消息",
-  "direction_tasks_expand": "展开「{name}」的在办任务",
-  "direction_tasks_collapse": "收起「{name}」的在办任务"
+  "codex_waiting": "等第一条消息"
 }

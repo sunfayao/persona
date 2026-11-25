@@ -45,10 +45,9 @@ describe("an agent's sidebar row (#3195)", () => {
     expect(line(render({ ...base, state: "unread", last_text: "发布说明整理好了，按功能分了三段。" }))).toBe("发布说明整理好了，按功能分了三段。");
   });
 
-  it("stays one line while it works, once seen, and for a Persona conversation", () => {
+  it("stays one line while it works and once seen", () => {
     expect(render({ ...base, state: "working", last_text: "在跑测试" })).not.toContain("data-row-line");
     expect(render({ ...base, state: "idle", last_text: "好了" })).not.toContain("data-row-line");
-    expect(renderToStaticMarkup(<SessionRow {...props} s={{ ...base, state: "unread", last_text: "好了" }} showState={false} />)).not.toContain("data-row-line");
   });
 
   it("shows its own plan while it works (#5302)", () => {

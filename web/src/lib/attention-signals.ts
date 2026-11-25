@@ -505,7 +505,7 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       // no sound for the conversation on screen while the window is in front, as for an Agent's (suppressed); the main
       // chat's address names no conversation
       const on = parse(stripBase(location.pathname), location.search);
-      const looking = inFront() && Boolean(n.key) && (n.key === viewing.current || (on.name === "persona" && (on.sid ?? state.assistant?.main) === sid));
+      const looking = inFront() && Boolean(n.key) && (n.key === viewing.current || (on.name === "persona" && state.assistant?.main === sid));
       if (attentionSoundEnabled() && !hushed && !looking && allow.current(Date.now())) play("needs");
       if (unannounced() || !claimNotification(n.card ? `${n.tag}@${n.card}` : n.tag)) return;
       const ix = n.card ? state.interactions.find((c) => c.id === n.card) : undefined;

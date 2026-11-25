@@ -30,11 +30,11 @@ afterEach(() => {
 const conv = (session_id: string, title: string) => ({ machine_id: "m1", session_id, title, cwd: "", status: "idle" }) as Session;
 
 describe("the way back", () => {
-  it("names the conversation: Persona for the main one, its title for another", () => {
+  it("names the conversation: Persona, whichever conversation the address names", () => {
     const s = { assistant: { ...getState().assistant!, main: "main-1", conversations: [conv("main-1", "whatever"), conv("c2", "Trip to Kyoto")] } };
     expect(fromTitle(s, "/persona")).toBe("Persona");
     expect(fromTitle(s, "/persona/main-1")).toBe("Persona");
-    expect(fromTitle(s, "/persona/c2?machine=m1")).toBe("Trip to Kyoto");
+    expect(fromTitle(s, "/persona/c2?machine=m1")).toBe("Persona");
   });
 
   it("names a page an Agent was opened from inside: a to-do or an Agent by its title, else the page's name (#12055)", () => {

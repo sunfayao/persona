@@ -154,13 +154,13 @@ describe("a brief item", () => {
       expect(handoffFrom()).toEqual({ path: "/persona/c1" });
     });
 
-    it("opens a card waiting in a Persona conversation as that conversation's page", () => {
+    it("opens a card waiting in a Persona conversation as the main conversation's page", () => {
       Object.assign(getState(), { assistant: { ...getState().assistant!, machine_id: "box", main: "main-1", conversations: [{ machine_id: "box", session_id: "c9", title: "Trip", cwd: "", status: "idle" }] } });
       history.replaceState(null, "", "/persona/c1");
       draw(item(body({ waiting: [{ ...waiting, session_id: "c9", link: "https://hub.example/persona/c9" }] })));
       act(() => open(waiting.title).click());
       expect(getPanel()).toBeNull();
-      expect(location.pathname).toBe("/persona/c9");
+      expect(location.pathname).toBe("/");
     });
   });
 

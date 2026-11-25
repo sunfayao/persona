@@ -4,7 +4,6 @@
 // of runs beside them. A row opens the editor; "New" starts from a template or blank.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api, ApiError, credentialOwner, enc, errorText, getToken, subscribeCredentialOwner } from "../../lib/api";
-import { conversationPage } from "../../lib/conversation-page";
 import { chosenManager, onManagerChoice, shownManager, stampedHeaders, useChosenManager } from "../../lib/manager-choice";
 import { namedLauncher, providerIdNote, useProviderNames } from "../../lib/provider-names";
 import { machineLaunchers, type MachineLaunchers } from "../../lib/launcher-models";
@@ -172,10 +171,10 @@ function RoutinesPage({ scope, onToggleSidebar }: { scope: number; onToggleSideb
     if (!current()) return;
     if (task.repeat === "once") setTasks((list) => list?.filter((x) => x.id !== task.id) ?? list); // a one-off runs once
     try {
-      const r = await api<{ session_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { ...readOptions, method: "POST", json: {} });
+      await api<{ session_id: string }>(`/assistant/tasks/${enc(task.id)}/run`, { ...readOptions, method: "POST", json: {} });
       if (!current()) return;
       toast(t("assistant-taskeditor.run_started", { title: taskTitle(task) }), "ok");
-      navigate(conversationPage(r.session_id, undefined, origin.manager));
+      navigate({ name: "persona" });
     } catch (e) {
       if (!current()) return;
       toast(e instanceof ApiError && e.status === 409 ? e.message || t("assistant-taskeditor.still_running") : errorText(e), "error");
@@ -376,7 +375,7 @@ function RoutinesPage({ scope, onToggleSidebar }: { scope: number; onToggleSideb
                       <div className="mb-1 px-1 text-[11px] font-medium text-ink-3">{d.day}</div>
                       <div className="divide-y divide-line overflow-hidden rounded-card bg-surface shadow-card">
                         {d.runs.map((r) => (
-                          <RunLine key={r.id} run={r} now={now} showTitle onOpen={r.session_id ? () => navigate(conversationPage(r.session_id!, r.machine_id, shownManager())) : undefined} />
+                          <RunLine key={r.id} run={r} now={now} showTitle onOpen={r.session_id ? () => navigate({ name: "persona" }) : undefined} />
                         ))}
                       </div>
                     </div>
@@ -485,8 +484,8 @@ function TaskRow({ task, launchers, now, chats, onOpen, onMenu, onToggle }: { ta
             return (
               <a
                 key={c.sid}
-                href={href(conversationPage(c.sid, undefined, shownManager()))}
-                onClick={(e) => onLinkClick(e, conversationPage(c.sid, undefined, shownManager()))}
+                href={href({ name: "persona" })}
+                onClick={(e) => onLinkClick(e, { name: "persona" })}
                 title={c.title || label}
                 className="inline-flex h-6 max-w-full items-center gap-1 whitespace-nowrap rounded-full bg-inset px-2 text-[11.5px] text-ink-2 shadow-hairline transition-colors hover:bg-hover hover:text-ink"
               >

@@ -292,7 +292,7 @@ describe("a decision in the Needs you tray", () => {
     await mount();
     const other = [...row().querySelectorAll("button")].find((b) => b.textContent === t("assistant-decisionrow.another"))!;
     act(() => other.click());
-    expect(opened()).toBe("/persona/decision-demo");
+    expect(opened()).toBe("/");
     expect(getFeedState().routes[conversation]).toEqual({ todoId: "decision-task", askedAt: at });
     expect(getPanel()).toBeNull();
     expect(posts).toEqual([]);
@@ -304,7 +304,7 @@ describe("a decision in the Needs you tray", () => {
     const other = [...row().querySelectorAll("button")].find((b) => b.textContent === t("assistant-decisionrow.another"))!;
     act(() => other.click());
     expect(getPanel()).toBeNull();
-    expect(opened()).toBe("/persona/decision-demo");
+    expect(opened()).toBe("/");
     expect(getFeedState().routes[conversation]).toEqual({ todoId: "decision-task", askedAt: at });
   });
 

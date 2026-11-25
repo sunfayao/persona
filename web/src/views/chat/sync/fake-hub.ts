@@ -226,6 +226,8 @@ export class SyncHub {
   private ops = new Map<string, Set<string>>(); // the case's id → the op ids its writes had
   /** A `new` chat: whether the hub has carried out its start (until then it has no session, README "The story"). */
   started: boolean;
+  /** A `new` chat: whether its start was answered to the page (a cut answer leaves the page on the start page until the retry). */
+  startAnswered = false;
   private startId = ""; // the case's id for the start
 
   constructor(c: SyncCase, device: string) {
@@ -345,8 +347,8 @@ export class SyncHub {
     const q = url.searchParams;
     if (method === "GET") {
       if (path === "/api/v1/sessions") return this.read("/sessions", () => ({ sessions: this.rows() }));
-      // the assistant's page reads where its conversations run; a started chat is the one it opens
-      if (path === "/api/v1/assistant") return json({ machine_id: this.c.chat.machine_id, conversations: this.rows() });
+      // the assistant's page reads where its conversations run; a chat whose start was answered is its main conversation
+      if (path === "/api/v1/assistant") return json({ machine_id: this.c.chat.machine_id, ...(this.startAnswered ? { main: this.c.chat.session_id } : {}), conversations: this.rows() });
       if (path === "/api/v1/interactions") return this.read("/interactions", () => ({ interactions: structuredClone(this.truth.pending) }));
       if (path === "/api/v1/machines") return json({ machines: [{ id: this.c.chat.machine_id, name: "Hub machine", online: true }] });
       if (path === `${this.base}/items`) {
@@ -409,7 +411,10 @@ export class SyncHub {
     ops.add(op);
     this.ops.set(key, ops);
     const receipt = op ? this.receipts.get(op) : undefined;
-    if (receipt) return Promise.resolve(json(receipt.body, receipt.status));
+    if (receipt) {
+      if (kind === "conversations") this.startAnswered = true;
+      return Promise.resolve(json(receipt.body, receipt.status));
+    }
     return new Promise<Response>((resolve, reject) => this.writes.push({ kind, key, op, resolve, reject }));
   }
 
@@ -434,6 +439,7 @@ export class SyncHub {
     // a start carried out: from now on the chat exists (one op id starts one conversation, README "Steps")
     if (done && answering.some((w) => w.kind === "conversations")) {
       this.started = true;
+      if (!r.cut) this.startAnswered = true;
       if (!this.truth.state) this.truth.state = "working";
     }
     for (const w of answering) {
