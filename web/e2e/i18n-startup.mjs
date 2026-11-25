@@ -24,7 +24,7 @@ if (!["127.0.0.1", "localhost", "[::1]"].includes(base.hostname) || base.pathnam
 }
 const LANGS = ["en", "zh-Hans", "ja"];
 // The first screen, then lazy pages opened cold (one path segment: the build's files are relative to the page).
-const PAGES = ["/", "/agents", "/settings", "/machines", "/inbox", "/todos", "/health"];
+const PAGES = ["/", "/agents", "/settings", "/machines", "/inbox", "/todos"];
 
 // Every client key, and each plural key's base: t() hands back the base when nothing answers it.
 const locales = new URL("../src/i18n/locales/en/", import.meta.url);

@@ -26,7 +26,6 @@ import { setAgentDetails, useAgentDetails } from "../lib/context-usage";
 import { setSidebarTerminals, useSidebarTerminals } from "../lib/sidebar-terminals";
 import { HubList } from "./Hubs";
 import { useDisconnect } from "./DisconnectBrowser";
-import { KnowledgeSelection } from "./settings/KnowledgeSelection";
 import { SavedPrompts } from "./settings/SavedPrompts";
 import { SourcesUI } from "./subscriptions/SourcesUI";
 import { useInboxSourcesShown } from "../lib/subscriptions";
@@ -351,7 +350,6 @@ export function Settings({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                 </Group>
               )}
               {tab === "notifications" && <NotificationSettings />}
-              {tab === "knowledge" && <KnowledgeSelection />}
               {tab === "prompts" && <SavedPrompts />}
               {tab === "sources" && <SourcesUI title={TAB_INFO.sources.label} onGraph={setSourcesGraph} />}
               {tab === "models" && <>

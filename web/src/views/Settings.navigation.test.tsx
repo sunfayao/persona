@@ -23,7 +23,6 @@ vi.mock("./settings/ModelConfiguration", () => ({
     </div>
   ),
 }));
-vi.mock("./settings/KnowledgeSelection", () => ({ KnowledgeSelection: () => <div data-page="knowledge-selection" /> }));
 vi.mock("./settings/TranslationSettings", () => ({ TranslationSettings: () => <div data-page="translation" /> }));
 vi.mock("./settings/AssistantSettings", () => ({ AssistantSettings: () => <div data-page="persona" /> }));
 vi.mock("./settings/SidebarPages", () => ({ SidebarPagesGroup: () => <div data-page="sidebar-pages" /> }));
@@ -135,13 +134,6 @@ describe("Settings category navigation", () => {
     }
   });
 
-  it("opens knowledge selection as the current assistant's, with no manager in the address", async () => {
-    await mount("/settings?tab=models&manager=remote");
-    await act(async () => category(t("settings-nav.tab_knowledge")).click());
-    expect(host.querySelector('[data-page="knowledge-selection"]')).not.toBeNull();
-    expect(location.search).toBe("?tab=knowledge");
-    expect(category(t("settings-nav.tab_knowledge")).getAttribute("aria-current")).toBe("page");
-  });
   it("places desktop navigation beside a separately focusable, named content region", async () => {
     await mount("/settings?tab=shortcuts");
     const region = host.querySelector('[role="region"]')!;

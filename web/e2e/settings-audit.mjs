@@ -121,7 +121,7 @@ for (const lang of ["en", "zh-Hans", "ja"]) {
   });
 }
 
-// audit item 66: the hub's category says "This hub" in each language, and Models and Knowledge have their own icons;
+// audit item 66: the hub's category says "This hub" in each language;
 // audit item 18: the search box finds a setting by its row's name, Enter opens the first result, Esc clears it.
 for (const lang of ["en", "zh-Hans", "ja"]) {
   await scenario(`66/18 ${lang}`, async () => {
@@ -131,8 +131,6 @@ for (const lang of ["en", "zh-Hans", "ja"]) {
     await box.waitFor({ timeout: 15_000 });
     const nav = await page.$$eval("button[aria-controls] span[title]", (spans) => spans.map((s) => s.getAttribute("title")));
     check(`66 ${lang}: the hub's category is "${s.nav.tab_hub}"`, nav.includes(s.nav.tab_hub) && !nav.includes("hub"), nav.join(", "));
-    const icon = (label) => page.locator(`button[aria-controls]:has(span[title="${label}"]) svg`).first().innerHTML();
-    check(`66 ${lang}: Models and Knowledge selection have different icons`, (await icon(s.nav.tab_models)) !== (await icon(s.nav.tab_knowledge)));
     await box.fill(s.language.label);
     await page.waitForTimeout(300);
     const first = page.locator("nav button").first();

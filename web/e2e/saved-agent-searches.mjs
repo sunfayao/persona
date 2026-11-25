@@ -99,7 +99,7 @@ async function open(browser, fixture, size = "wide", theme = "light", language =
         "/machines": { machines }, "/sessions": { sessions }, "/interactions": { interactions: [] }, "/assistant": { machine_id: "laptop", conversations: [], tasks: [], memory: [] },
         "/todos": { todos: [] }, "/agents/sessions": { sessions: [] }, "/agents/prefs": {}, "/mutes": { spaces: [], sessions: [], allowed: [] }, "/pins": { spaces: [], sessions: [], sections: [] },
         "/managers": { managers: [{ id: "assistant", name: "Example assistant", builtin: true, online: true }, { id: "second", name: "Other assistant", online: true }], default: fixture.defaultManager },
-        "/extensions": { extensions: [] }, "/extensions/ui": { slots: [] }, "/personas": { personas: [] }, "/workspace-board/settings": { enabled: false, can_write: true },
+        "/extensions": { extensions: [] }, "/extensions/ui": { slots: [] }, "/personas": { personas: [] },
       };
       return route.fulfill({ json: data[path] ?? {} });
     } catch (error) { run.errors.push(`Fixture: ${error.message}`); return route.fulfill({ status: 500, json: { error: "Unexpected synthetic request" } }); }
@@ -114,7 +114,7 @@ async function open(browser, fixture, size = "wide", theme = "light", language =
   page.on("pageerror", (error) => run.errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error" && !/Failed to load resource: the server responded with a status of (500|503|409)/.test(message.text())
       && !(mode === "import-once" && run.importFailures === 1 && /Failed to load resource: net::ERR_FAILED/.test(message.text()))) run.errors.push(message.text()); });
-  await page.goto(`${base.origin}/workspace-board`); await page.locator("main").waitFor(); await page.waitForTimeout(200);
+  await page.goto(`${base.origin}/machines`); await page.locator("main").waitFor(); await page.waitForTimeout(200);
   assert.equal(run.reads.length, 0, "No saved-query reads before opening search");
   const dialog = () => page.getByRole("dialog");
   const row = (id) => dialog().locator(`[data-saved-search="${id}"]`);
@@ -158,7 +158,7 @@ async function workflow(browser, size, theme, language = "en", textSize = "stand
     await x.shot("saved");
     await x.row(id).getByRole("button", { name: fill(x.words.apply_named, { name: "Desktop work" }), exact: true }).click();
     await x.dialog().getByRole("combobox").waitFor(); assert.equal(await x.dialog().getByRole("combobox").inputValue(), "machine:desktop");
-    assert.equal(new URL(x.page.url()).pathname, "/workspace-board", "Applying a saved query never opens or executes a result");
+    assert.equal(new URL(x.page.url()).pathname, "/machines", "Applying a saved query never opens or executes a result");
     await x.shot("applied");
     await x.manage(); await x.row(id).getByRole("button", { name: fill(x.words.edit_named, { name: "Desktop work" }), exact: true }).click();
     await x.nameInput().fill("Discard this draft");

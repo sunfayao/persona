@@ -47,7 +47,6 @@ try {
    else if(p==="/assistant")data={machine_id:"example",conversations:[],tasks:[],memory:[]};
    else if(p==="/interactions")data={interactions:[]};
    else if(p==="/managers")data={default:"assistant",managers:[{id:"assistant",name:"Persona",online:true,builtin:true}]};
-   else if(p==="/workspace-board/settings")data={enabled:false,can_write:true};
    await route.fulfill({status,contentType:"application/json",body:JSON.stringify(data)});
   });
   await ctx.routeWebSocket("**/api/v1/ws**",ws=>{sockets.push(ws);if(ctx===context)primarySocket=ws;ws.send(JSON.stringify({type:"hello",hub_name:"Example hub",server_version:"example",features:paged?["sessions_list","sessions_lookup","sessions_agents_only","sessions_quick_filters"]:[]}));ws.onMessage(m=>{if(String(m).includes("app_ping"))ws.send(JSON.stringify({type:"pong"}));});});

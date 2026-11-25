@@ -54,7 +54,7 @@ try {
   await shot('sidebar');
   if (!before && width === 1280) {
    await page.locator('[data-assistant-name-menu]').focus(); await page.keyboard.press('Enter'); await page.getByRole('menu').waitFor();
-   await page.getByRole('menuitem',{ name:'Details',exact:true }).waitFor(); await page.getByRole('menuitem',{ name:'Knowledge',exact:true }).waitFor();
+   await page.getByRole('menuitem',{ name:'Details',exact:true }).waitFor();
    await shot('menu'); await page.keyboard.press('Escape');
    await page.getByRole('button',{ name:/Collapse sidebar/ }).click(); await page.locator('[data-chat-face]').waitFor({ state:'visible' }); await shot('rail');
    await page.getByRole('button',{ name:/Expand sidebar/ }).click(); await page.waitForFunction(() => !document.querySelector('[data-chat-face]'));

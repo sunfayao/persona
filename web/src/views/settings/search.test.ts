@@ -28,11 +28,9 @@ const PAGES = [
   "./ShortcutSettings.tsx",
   "./HubSettings.tsx",
   "./ExtensionDownloadMirrors.tsx",
-  "./KnowledgeTopics.tsx",
-  "./KnowledgeSelection.tsx",
 ];
 // The helpers some pages read their words through: name → the catalog key it puts before its argument.
-const WRAPPERS: Record<string, string> = { text: "settings-knowledge.", word: "settings-assistantsettings.trust_" };
+const WRAPPERS: Record<string, string> = { word: "settings-assistantsettings.trust_" };
 // Row labels that are not settings, with why.
 const NOT_SETTINGS: Record<string, string> = {
   "settings-notifications.load_failed": "the row that says the page could not be read, with its retry",
@@ -93,7 +91,7 @@ describe("the settings search's index", () => {
   it("reads the pages' row labels (the scan finds what it should)", () => {
     expect(labels).toEqual(expect.arrayContaining([
       "settings-assistantsettings.timezone", "settings-triagesettings.auto_continue", "settings-notifications.quiet",
-      "settings-hubsettings.auto_update", "settings-knowledge.topics_switch", "settings-knowledge.include_all",
+      "settings-hubsettings.auto_update",
       "settings-assistantsettings.trust_title", "settings-translationsettings.auto", "settings-hubsettings.registry_mirror",
     ]));
     expect(labels.length).toBeGreaterThan(60);
@@ -119,7 +117,6 @@ describe("the settings search's index", () => {
     finds(t("settings-notifications.input"), "notifications", "notify-input");
     finds(t("settings-hubsettings.auto_update"), "hub", "hub-auto-update");
     finds(t("settings-hubsettings.channel"), "hub", "hub-channel");
-    finds(t("settings-knowledge.topics_switch"), "knowledge", "knowledge-topics-switch");
     finds(t("settings-extensions.secrets_title"), "extensions", "extensions");
     finds(t("settings.revoke"), "devices", "devices");
     finds(t("lib-shortcuts.cmd_jump"), "shortcuts", "shortcut-jump");
@@ -155,7 +152,6 @@ describe("the settings search's index", () => {
     // anchors a page writes from a value: each one's source, and the values it takes
     const made: [RegExp, string, (rest: string) => boolean][] = [
       [/^shortcut-(.+)$/, "anchor={`shortcut-${s.id}`}", (id) => [...SHORTCUTS, ...LOCAL_SHORTCUTS].some((s) => s.id === id)],
-      [/^knowledge-(.+)$/, "anchor={`knowledge-${kind}`}", (kind) => kind === "messages" || kind === "docs"],
       [/^settings-(.+)$/, "id={`settings-${id}`}", (id) => ["claude", "codex", "agy", "omp", "grok"].includes(id)],
       [/^configuration-(.+)$/, "data-settings-row={`configuration-${doc.id}-${field.id}`}", (id) => id === `${TERMINAL_LABS_ID}-renderer` || id === "assistant-work-work_guide"],
     ];

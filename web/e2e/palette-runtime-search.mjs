@@ -98,7 +98,6 @@ async function setup(browser, size = "wide", theme = "light", language = "en", t
         "/todos": { todos: [] }, "/agents/sessions": { sessions: [] }, "/agents/prefs": {}, "/mutes": { spaces: [], sessions: [], allowed: [] }, "/pins": { spaces: [], sessions: [], sections: [] },
         "/managers": { managers: [{ id: "assistant", name: "Example assistant", builtin: true, online: true }], default: "assistant" },
         "/extensions": { extensions: [] }, "/extensions/ui": { slots: [] }, "/personas": { personas: [] },
-        "/workspace-board/settings": { enabled: false, can_write: true },
       };
       if (path.endsWith("/items") || path.endsWith("/feed")) return route.fulfill({ json: { items: [], has_more: false } });
       return route.fulfill({ json: data[path] ?? {} });
@@ -117,7 +116,7 @@ async function setup(browser, size = "wide", theme = "light", language = "en", t
   page.on("pageerror", (error) => run.errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error" && !/Failed to load resource: the server responded with a status of (500|409)/.test(message.text())) run.errors.push(message.text()); });
   page.on("requestfailed", (request) => { const url = new URL(request.url()); if (url.searchParams.has("search")) run.aborts.push({ query: url.searchParams.get("search"), reason: request.failure()?.errorText }); });
-  await page.goto(`${base.origin}/workspace-board`); await page.locator("main").waitFor();
+  await page.goto(`${base.origin}/machines`); await page.locator("main").waitFor();
   await until(() => run.listReads.some((read) => read.limit === "50" && read.summary === "1"), "The browser loaded its first 50 summary rows");
   const dialog = () => page.getByRole("dialog");
   const input = () => dialog().getByRole("combobox");

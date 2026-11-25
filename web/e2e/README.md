@@ -323,16 +323,6 @@ node web/e2e/todos-keyboard-layout.mjs <loopback-web-origin> [--shots <artifact-
 
 Run against an exclusively owned mock-backed web server; the date checks save to the mock, so use a disposable one. In Chinese, light and dark, it types a due day and a reminder hour segment by segment in the to-do's page (1280 × 820) and checks the field keeps the focus and nothing is saved until the field is left or Enter is pressed, then the typed value is saved once, also when the field is left right after Enter; at 390 × 844 it opens a to-do from a focused row with Enter (the focus lands on Back), checks Esc in the title field stays there, and goes back by Esc, Back and the browser's Back, each time with the list scrolled where it was and the focus on that row, and Esc on a to-do opened by a link puts the focus on its row; at 1920 × 1080 it checks the detail is at most 760 px wide and centered; at 1440 × 700 it leaves the page for Machines and comes back with the browser's Back, the list scrolled where it was and the open row in view. A part that throws counts as a failed check and the run goes on; one line per check, a final verdict, exit 1 on a failure or after four minutes. `--shots` saves the typed date field, the narrow detail and list, the wide detail and the list after Back. Browser and mock checks only.
 
-## Knowledge kind chips stay put
-
-```sh
-PORT=<port> python3 scripts/mock/mock_hub.py &
-(cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
-node web/e2e/knowledge-kind-chips.mjs <loopback-web-origin> <artifact-directory> [--channel chrome]
-```
-
-Run against an exclusively owned mock-backed web server; the runner only reads. On `/kb/projects` it checks that every kind chip reads its kind's name alone, then picks each other kind by clicking its chip and holds that kind's list read (`page.route`), so the kind is still loading: **Loading** must show under the chips, and every chip's box is measured. It then lets the read through and measures again once the list is drawn: no chip may move, change or go. It runs at 1280 x 820 and on a 390 x 844 touch phone, light and dark in Chinese and light in English, and saves the chip row with the first and the last kind picked, and with the last kind while it loads. A three-minute watchdog ends the run with a timeout verdict; it exits 1 on a failed check. Browser and mock checks only.
-
 ## The complete Agents list with hundreds of Agents
 
 ```sh
@@ -457,8 +447,7 @@ reaches the mock. It checks, in light and dark:
   first, Enter scrolls to its row and lights it, and Esc clears the box; the settings of the other pages are found by
   their labels (thinking effort, time zone, default permissions, quiet hours, continue after errors, secrets, device
   tokens, revoke; in Chinese also the audit's own words, in English "timezone" and "effort"), Revoke is listed as
-  Revoke, and an agent's setting opens that agent's section (audit item 18); the hub's category reads "This hub" and
-  Models and Knowledge selection have different icons (audit item 66).
+  Revoke, and an agent's setting opens that agent's section (audit item 18); the hub's category reads "This hub" (audit item 66).
 - Next on an empty custom gateway focuses the first field with a problem, marks it invalid, and its note is inside
   the dialog's visible area at 1280 x 600; every field that needs something says so, the others with a red edge;
   nothing is saved (audit item 19).
@@ -489,8 +478,7 @@ Needs a fake hub of its own: the runner takes it down (`/mock/down`) and refuses
 (`/mock/reject`), and puts both back at the end. In Chrome, light and dark, it checks that folding the sidebar to its
 rail by the keyboard leaves the focus on the rail's expand button and opening it again on the collapse button; that an
 Agent's page names its browser tab after the session's title; that an unknown address says **Page not found** and
-keeps the address, a knowledge entry the hub doesn't have says **Entry not found** in the shared empty state (no
-title made of its id, no disabled buttons), and `/a/<missing>` says the conversation isn't there once, under the list's
+keeps the address, and `/a/<missing>` says the conversation isn't there once, under the list's
 name, with no message box left loading; that the
 first key press makes no `AudioContext` while the alert sound is off and one when it is on; that the reconnect pill
 covers none of the to-dos' fields, buttons or titles at 390 px and 1280 px, and its details open over the page; that

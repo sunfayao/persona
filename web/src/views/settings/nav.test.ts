@@ -87,7 +87,7 @@ describe("settings sidebar groups", () => {
   it("has the current assistant's, this device's, the hub's and Labs on its own, in that order, every category in one of them", () => {
     expect(NAV_GROUPS.map((g) => g.key)).toEqual(["assistant", "device", "hub", "labs"]);
     expect(NAV_GROUPS.map((g) => g.tabs)).toEqual([
-      ["models", "persona", "prompts", "channels", "connectors", "sources", "extensions", "knowledge", "agents"],
+      ["models", "persona", "prompts", "channels", "connectors", "sources", "extensions", "agents"],
       ["general", "notifications", "shortcuts"],
       ["hub", "managers", "avatar", "devices"],
       ["labs"],

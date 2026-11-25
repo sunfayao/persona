@@ -39,9 +39,9 @@ const check = (ok, what, detail) => {
 
 // Each built-in page's color (web/src/lib/sidebar-icons.ts BUILTIN_PAGE_COLORS), by its address; the mock's extension
 // pages by their titles.
-const BUILT_IN = { "/overview": "amber", "/inbox": "orange", "/health": "pink", "/todos": "blue", "/routines": "purple", "/kb": "indigo", "/machines": "teal", "/settings": "gray" };
+const BUILT_IN = { "/overview": "amber", "/inbox": "orange", "/todos": "blue", "/routines": "purple", "/machines": "teal", "/settings": "gray" };
 const EXTENSIONS = { 花园: "green", 用量: null };
-const OPEN = "/kb"; // the open page: its icon keeps the open row's ink
+const OPEN = "/routines"; // the open page: its icon keeps the open row's ink
 
 const luminance = ([r, g, b]) => [r, g, b].map((c) => c / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((n, c, i) => n + c * [0.2126, 0.7152, 0.0722][i], 0);
 const contrast = (a, b) => {
