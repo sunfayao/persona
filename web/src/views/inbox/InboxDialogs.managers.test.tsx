@@ -13,7 +13,6 @@ vi.mock("../../ui/atoms", async (orig) => ({ ...(await orig<typeof import("../..
 
 import { reloadInbox, resetInboxForTests, type InboxItem } from "../../lib/inbox";
 import { chooseManager, chosenManager, managerHeaderFor, resetManagerChoice, setRosterDefault } from "../../lib/manager-choice";
-import { adoptedConversation } from "../../lib/outbox";
 import { navigate } from "../../lib/router";
 import { HandOffDialog } from "./InboxDialogs";
 import { getState } from "../../lib/store";
@@ -141,7 +140,6 @@ describe("Hand to AI: Persona's main conversation", () => {
     expect(chosenManager()).toBeNull();
     expect(managerHeaderFor("/assistant/conversations/main-m1/feed")).toBe("m-1");
     // its page finds it on its own computer
-    expect(adoptedConversation("main-m1")).toEqual({ machine: "mac", manager: "m-1" });
   });
 
   it("hands the default's item to the default's manager while another assistant is current, which stays", async () => {
@@ -151,7 +149,6 @@ describe("Hand to AI: Persona's main conversation", () => {
     expect(handOffs()[0].header).toBeNull();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "main-a" }));
     expect(chosenManager()).toBe("m-1");
-    expect(adoptedConversation("main-a")).toEqual({ machine: "mac", manager: "assistant" });
   });
 
   it("marks the item done once handed off when the user asks", async () => {
@@ -313,7 +310,6 @@ describe("Hand to AI: a new conversation", () => {
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith({ name: "persona", sid: "s-new" }));
     expect(chosenManager()).toBeNull();
     expect(managerHeaderFor("/assistant/conversations/s-new/feed")).toBe("m-1");
-    expect(adoptedConversation("s-new")).toEqual({ machine: "mac", manager: "m-1" });
   });
 
   it("starts another manager's while a third is current, which stays", async () => {

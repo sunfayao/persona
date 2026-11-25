@@ -595,7 +595,7 @@ export function RecordingConversation({ detail, rec, meeting, auth, current, man
         ) : meeting.roomMeeting && running ? (
           <p className="px-4 py-2.5 text-[11.5px] leading-relaxed text-ink-3">{t("knowledge-kbdetail.conversation_read_only")}</p>
         ) : (meeting.roomMeeting || meeting.talk) && (
-          <FollowupComposer id={detail.id} auth={auth} current={current} manager={manager} onMade={meeting.madeFollowup} />
+          <FollowupComposer id={detail.id} auth={auth} current={current} onMade={meeting.madeFollowup} />
         )}
       </Card>
     </section>
@@ -791,7 +791,7 @@ function followupError(err: unknown): string {
 /** The follow-up's first message (`POST …/followup`): the owner's words, then that conversation opens. A retry after a
  *  lost answer sends the same `id`, which the hub's receipt answers without sending twice; a definite answer, or other
  *  words, make the next try a new call. */
-function FollowupComposer({ id, auth, current, manager, onMade }: { id: string; auth: Auth; current: () => boolean; manager: string; onMade: (f: MeetingConversation) => void }) {
+function FollowupComposer({ id, auth, current, onMade }: { id: string; auth: Auth; current: () => boolean; onMade: (f: MeetingConversation) => void }) {
   const field = useId();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);

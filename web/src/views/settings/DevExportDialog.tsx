@@ -39,7 +39,7 @@ function deliver(target: Target, file: File, note: string) {
   sendDraft(key, { type: "unsent", text: note });
   whenComposer(key, (c) => setTimeout(() => c.focus(), 0));
   if (target.kind === "persona") navigate({ name: "persona" });
-  else if (target.s.assistant) navigate({ name: "persona", sid: target.s.session_id });
+  else if (target.s.assistant) navigate({ name: "persona" });
   else navigate({ name: "session", mid: target.s.machine_id, sid: target.s.session_id, view: "chat" });
 }
 

@@ -187,29 +187,19 @@ function SecondLine({ line, draft }: { line: { lead?: string; text: string; tone
   );
 }
 
-/** Unread as the rows draw it: a turn a usage limit stopped is drawn seen (it goes on by itself once the limit resets).
- *  A folded Persona chats or Recent heading counts the chats it hides that are (#13425). Just finished is not counted
- *  there, as in the Agents list's folded tally (docs/protocol/agent-states.md "Just finished"). */
-export function unreadShown(s: Session): boolean {
-  return stateOf(s) === "unread" && !usageLimitLabel(s);
-}
-
 // `prefix`: a word before the title (a tab's name, a pane's agent), in `prefixClass`
-type SessionRowProps = { menuLabel?: string; /** The mark at the start of a row that does not show its state (a Persona conversation's chat icon), drawn while it neither works nor holds a reply nobody has opened (#5862, #13425). */ icon?: IconName; s: Session; k: string; reg: RegFn; hover: (k: string | null) => void; active: boolean; /** null: a targetless external direction, drawn as the same non-link row. */ to: Route | null; go: GoFn; tab?: boolean; label?: string; prefix?: string; prefixClass?: string; hint?: string; /** The hint is whole, never cut (a lead's counts). */ hintFull?: boolean; host?: string; showState?: boolean; showTodoTag?: boolean; onMenu?: RowMenuFn; endRoom?: boolean; /** A lead row whose own conversation is idle while something under it runs (the direction tree's `running`, #6626): draw the working arc anyway (#6230). An own needs-you / unread state still takes precedence. */ workingMark?: boolean;
-  /** 常驻 rows (#6214): the "在做 N · 等你 N" counts never fade on hover and the ⋯ sits in a reserved end slot instead
-   * of covering them, so hovering removes no information. */
-  keepTrailing?: boolean };
+type SessionRowProps = { menuLabel?: string; s: Session; k: string; reg: RegFn; hover: (k: string | null) => void; active: boolean; to: Route; go: GoFn; tab?: boolean; label?: string; prefix?: string; prefixClass?: string; hint?: string; host?: string; showTodoTag?: boolean; onMenu?: RowMenuFn; endRoom?: boolean };
 
 // Every sessions push re-renders the sidebar and the Agents list, while lib/sessions-delta.ts keeps the object of each
 // session that did not change: a row renders again only when one of its props did. The props compare by identity
 // (`go` and the menus are stable), except the route, which the call sites build anew and which is its path (routePath).
-function sameProps<P extends { to: Route | null }>(a: P, b: P): boolean {
+function sameProps<P extends { to: Route }>(a: P, b: P): boolean {
   const keys = Object.keys(a) as (keyof P)[];
   if (keys.length !== Object.keys(b).length) return false;
-  return keys.every((key) => (key === "to" ? (a.to && b.to ? routePath(a.to) === routePath(b.to) : a.to === b.to) : Object.is(a[key], b[key])));
+  return keys.every((key) => (key === "to" ? routePath(a.to) === routePath(b.to) : Object.is(a[key], b[key])));
 }
 
-export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, active, to, go, tab, label, prefix, prefixClass, hint, hintFull, host, showState = true, showTodoTag, onMenu, menuLabel = t("sidebar.agent_actions"), endRoom, icon = "chat", workingMark = false, keepTrailing = false }: SessionRowProps) {
+export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, active, to, go, tab, label, prefix, prefixClass, hint, host, showTodoTag, onMenu, menuLabel = t("sidebar.agent_actions"), endRoom }: SessionRowProps) {
   // a parent of child sessions in its folded state (#5120): one of them waiting makes it need you, one working makes it
   // work; the rows of the paged list come as the hub sends them, the other lists' folded already (lib/folded-rows.ts)
   // its side sessions' part from their rows when an open chat holds them (#7944): a side seen here shows at once
@@ -242,20 +232,9 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const unopened = useStore((x) => finishedUnopened(s, x.mutes));
   // Just finished (#9751): done before you looked, less than three hours ago
   const finished = useStore((x) => justFinished(s, x.mutes));
-  // A Persona conversation's row (showState off) keeps its chat icon at rest; the same slot draws its mark while it works
-  // (#5862) and while it holds a reply nobody has opened (#13425): Unread's glowing dot, with the Agent rows' unread
-  // weight on its title, or Just finished's plain one. Opening the chat takes it away at once: viewSession marks it
-  // seen, and the seen outbox (heldSeen above) keeps it so until the hub has it.
-  const unread = !showState && unreadShown(s);
-  const unseen = unread || (!showState && finished);
-  // A lead row whose own conversation is idle while something under it runs (the tree's `running`: an Agent at work,
-  // #6626) carries the working arc anyway (#6230). Its own needs-you, working or Unread state still wins, as iOS's
-  // RowStateMark has it; Just finished, ranked after Working, gives way to the arc. Agent rows (showState) keep their
-  // own state.
-  const leadActive = workingMark && !showState && st !== "working" && st !== "needs_you" && !unread;
   // where it was opened, marked at the row's end: not on a tab with several panes (endRoom), where a herdr tab is a
   // terminal by definition, each pane's row under it says so, and the mark's room is the title's
-  const source = showState && !s.assistant && !endRoom ? sessionSource(s) : undefined;
+  const source = !s.assistant && !endRoom ? sessionSource(s) : undefined;
   // a Persona conversation the hub opened by itself (#3758, #5195): what opened it, in the source mark's place
   const origin = source ? undefined : autoOrigin(s);
   // the extension whose own icon that mark draws, which the row's tooltip names too (#10358)
@@ -273,11 +252,11 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const preview = sessionPreview(s);
   // Settings › Appearance › show details on agent rows (#2430): a second line under an agent's title — folder · model · context · age
   const details = useAgentDetails();
-  const withDetail = details && showState && !s.assistant;
+  const withDetail = details && !s.assistant;
   // when it was last active, at the row's end after its hint (#4236; the work-item row, DESIGN_SYSTEM 3.4): not twice
   // when the details line shows it; a tab's row, whose end is the room for "N agents", keeps it to offline and
   // stateless rows without a hint, as before
-  const ageAtEnd = !withDetail && !!s.updated_at && (!endRoom || (!tail && (st === "offline" || !showState)));
+  const ageAtEnd = !withDetail && !!s.updated_at && (!endRoom || (!tail && st === "offline"));
   // beside the age, a row that already carries its marks (where it was opened, its to-do) drops an ordinary hint from
   // its end, where it would only squeeze the title; an associated tab name stays visible as the Agent's terminal identity.
   const tailShown = !!tail && (!(ageAtEnd && (source || (showTodoTag && s.todo))) || !!tabIdentity);
@@ -288,18 +267,16 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const showsAge = ageAtEnd || (withDetail && !!s.updated_at);
   const now = useNow(60_000, showsAge || runningWorkflows(s).length > 0 || s.turn_error_kind === "usage_limit");
   const detail = withDetail ? rowDetail(s, now) : [];
-  const workflow = showState && !s.assistant && st !== "offline" ? workflowShortLine(s) : "";
+  const workflow = !s.assistant && st !== "offline" ? workflowShortLine(s) : "";
   const workflowTitle = workflow ? workflowLine(s, now) : "";
   // its own task list (#5302): 3/5 · the step in progress
-  const plan = showState && !s.assistant && st !== "offline" && planInRow(s, st === "working") ? planLine(s) : "";
+  const plan = !s.assistant && st !== "offline" && planInRow(s, st === "working") ? planLine(s) : "";
   // its child sessions at work (#5120): how many subagents run, counted as the assistant's In progress counts them
   // (lib/background-work.ts, so the ones a parent also lists as its own background agents count once)
-  const children = showState && !s.assistant ? runningChildren(s) : 0;
+  const children = !s.assistant ? runningChildren(s) : 0;
   const childLine = children ? t("assistant-tasks.subagents_count_running", { count: backgroundWork(s)?.subagents ?? children }) : "";
   // what sits at the row's end steps aside for the hover ⋯; the open row leaves room for its ⋯ instead
   const aside = active ? undefined : "group-hover/row:invisible";
-  // A 常驻 row's counts stay on screen while the ⋯ fades in beside them (#6214): only its date can yield.
-  const hintAside = keepTrailing ? undefined : aside;
   // behind a prefix (a tab's name, a pane's agent) the title keeps room for a few characters: the prefix shrinks first
   const titleMin = prefix ? ROW_TITLE_MIN : "min-w-0";
   // with words at the end (where it came from, a hint) the title keeps its own width first: those words give way before it does
@@ -308,19 +285,15 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const regRow = useMemo(() => reg(k), [reg, k]);
   // words left unsent in its box, once you are not in it (#5568): in place of what it asks or did
   const draft = draftLine(useLeftDraft(`${given.machine_id}/${given.session_id}`));
-  const line = draft ?? (showState && !s.assistant ? rowLine(s, ix, awaiting, finished || unopened) : undefined);
+  const line = draft ?? (!s.assistant ? rowLine(s, ix, awaiting, finished || unopened) : undefined);
   // ultracode on (#3428): the workflow mark in the AI colour right after the title; a row without it is drawn as before.
   // Not on an offline row: the node keeps the last value it saw after the process is gone, and a resume starts it off.
-  const ultra = showState && ultracodeMarkShown(s);
-  const RowTag = to ? "a" : "div";
-  const destination = to ? {
-    href: href(to),
-    onClick: (event: React.MouseEvent) => { rememberSessionRow(row); go(to)(event); },
-  } : {};
+  const ultra = ultracodeMarkShown(s);
   const link = (
-    <RowTag
+    <a
       ref={regRow}
-      {...destination}
+      href={href(to)}
+      onClick={(event: React.MouseEvent) => { rememberSessionRow(row); go(to)(event); }}
       // right click (at the pointer), the menu key and Shift+F10 (beside the row): the row's menu, the same as its ⋯
       {...(onMenu ? contextMenuProps((at, el) => onMenu(s, el, at)) : {})}
       onMouseEnter={() => hover(k)}
@@ -332,14 +305,11 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
       // keeps its ⋯ too, so it has room for it
       className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
-        endRoom ? "pr-[108px] [@media(hover:none)]:pr-[120px]" : keepTrailing
-          // the ⋯ is an in-flow slot of its own, so the anchor itself leaves no room for an overlay
-          ? "pr-1 [@media(hover:none)]:pr-1"
-          : cx(onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11"))}
+        endRoom ? "pr-[108px] [@media(hover:none)]:pr-[120px]" : cx(onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11"))}
     >
       {/* the agent's mark before its state (#6390): what runs there, then how it is doing */}
-      {showState && !s.assistant && <SessionMark s={s} size={14} />}
-      <span className="flex size-3.5 shrink-0 items-center justify-center">{showState || st === "working" || unseen || leadActive ? <StatusMark state={leadActive ? "working" : usageLimitLabel(s) && st === "unread" ? "idle" : st} awaiting={awaiting} finished={finished} unopened={unopened} waiting={backgroundWaiting(s)} /> : <Icon name={icon} size={12} className="text-ink-3" />}</span>
+      {!s.assistant && <SessionMark s={s} size={14} />}
+      <span className="flex size-3.5 shrink-0 items-center justify-center"><StatusMark state={usageLimitLabel(s) && st === "unread" ? "idle" : st} awaiting={awaiting} finished={finished} unopened={unopened} waiting={backgroundWaiting(s)} /></span>
       {prefix && <span className={prefixClass}>{prefix}</span>}
       {/* with the mark, the title sits in the column whether a second line shows or not: the same element through a
           workflow's start and end, so the mark does not fade in again */}
@@ -387,13 +357,6 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
             ))}
           </span>}
         </span>
-      ) : keepTrailing ? (
-        // a lead's name reads as a row, even with nothing second to say: the ⋯'s reserved slot must not take the title's
-        // place. Drawn here, in place of the plain title, so the name shows once (it was drawn twice, "Per… Per…"). An
-        // unread reply takes the Agent rows' unread weight (#13425)
-        <span className={cx("flex-1 truncate text-meta", titleMin, titleFirst, active || unread ? "font-medium text-ink" : "text-ink-2")}>
-          {label ?? title}
-        </span>
       ) : (
         <span className={cx("flex-1 truncate text-meta", titleMin, titleFirst, active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && "font-medium text-ink")}>
           {label ?? title}
@@ -412,42 +375,26 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       {source && <SourceTag s={s} className={aside} />}
       {origin && <OriginMark origin={origin} size={16} className={aside} session={s} onName={setOpenerName} />}
       {/* the row's ⋯ takes the end on hover: what is there steps aside instead of showing half under it */}
-      {tailShown && <span className={cx(hintFull ? "shrink-0 whitespace-nowrap tabular-nums" : "max-w-[72px] min-w-6 shrink-[20] truncate", "text-[11px] text-ink-3", hintAside)}>{tail}</span>}
+      {tailShown && <span className={cx("max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3", aside)}>{tail}</span>}
       {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
       {pendingCount > 0 && <span className={cx("flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
-    </RowTag>
+    </a>
   );
   if (!onMenu) return link;
-  // 常驻 rows keep their counts on hover (#6214): the ⋯ lives in a reserved end slot that fades in instead of an
-  // absolute button covering the row's words. Other rows keep the overlay they always had.
-  const menuButton = (inFlow: boolean) => (
-    <button
-      type="button"
-      aria-label={menuLabel}
-      aria-haspopup="menu"
-      title={t("sidebar.more")}
-      tabIndex={-1}
-      onClick={(e) => onMenu(s, e.currentTarget.parentElement ?? e.currentTarget)}
-      className={inFlow
-        ? cx("relative z-20 my-1 flex size-6 shrink-0 items-center justify-center self-center rounded-[6px] text-ink-3 transition-opacity hover:bg-hover hover:text-ink [@media(hover:none)]:size-11",
-          active ? "opacity-100" : "opacity-0 group-hover/row:opacity-100 [@media(hover:none)]:opacity-100")
-        : cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-hover hover:bg-hover-2")}
-    >
-      <Icon name="more" size={14} />
-    </button>
-  );
-  if (keepTrailing) {
-    return (
-      <div className="group/row relative flex items-center">
-        <span className="min-w-0 flex-1">{link}</span>
-        {menuButton(true)}
-      </div>
-    );
-  }
   return (
     <div className="group/row relative">
       {link}
-      {menuButton(false)}
+      <button
+        type="button"
+        aria-label={menuLabel}
+        aria-haspopup="menu"
+        title={t("sidebar.more")}
+        tabIndex={-1}
+        onClick={(e) => onMenu(s, e.currentTarget.parentElement ?? e.currentTarget)}
+        className={cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-hover hover:bg-hover-2")}
+      >
+        <Icon name="more" size={14} />
+      </button>
     </div>
   );
 }, sameProps);

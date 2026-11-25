@@ -32,7 +32,7 @@ describe("stripBase", () => {
 describe("routes under a sub-path", () => {
   const routes: Route[] = [
     { name: "persona" },
-    { name: "persona", sid: "c 1" },
+    { name: "persona", at: "i 1" },
     { name: "session", mid: "laptop", sid: "abc", view: "term" },
     { name: "tab", mid: "laptop", space: "w1", slot: "2", sid: "abc" },
     { name: "inbox", id: "lark:feed:1" },

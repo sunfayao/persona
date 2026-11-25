@@ -3,7 +3,6 @@
 // (a read-only source), it goes to Persona's main conversation (a new one when there is none): the page moves there and
 // the panel stays open, as on the Mac.
 import { addContext, editMessage, usableComposer, whenComposer, type ContextRef } from "../../lib/links";
-import { shownManager } from "../../lib/manager-choice";
 import { navigate } from "../../lib/router";
 import { getState } from "../../lib/store";
 import { toast } from "../../ui/atoms";
