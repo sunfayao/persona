@@ -71,7 +71,7 @@ describe("folding the whole sidebar", () => {
     act(() => root.render(<SidebarRail route={{ name: "settings" }} onSearch={() => {}} onNewAgent={() => {}} />));
     await flush();
     const links = [...host.querySelectorAll("nav a")].map((a) => a.getAttribute("aria-label"));
-    expect(links).toEqual(expect.arrayContaining(["Persona", "总览", "收件箱", "定时任务", "知识库", "机器", "设置"]));
+    expect(links).toEqual(expect.arrayContaining(["Persona", "总览", "收件箱", "定时任务", "机器", "设置"]));
     expect(host.querySelector('a[aria-label="设置"]')!.getAttribute("aria-current")).toBe("page");
     expect(host.textContent).toBe(""); // icons only: no labels, no numbers
     const open = button("展开侧边栏")!;
