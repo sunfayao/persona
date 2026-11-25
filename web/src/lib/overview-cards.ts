@@ -1,7 +1,7 @@
 // Overview as the user arranged it (#9745, #10905; docs/web/web.md "Overview's extension cards"): the extensions' cards
 // (their order, the ones hidden, and each one's width, half a row, the default, as they always were, or the whole row)
 // and Overview's own sections among them (their order, and the ones hidden where that is safe). Kept on the hub for
-// every device of the user (`overview` of GET / PUT /api/v1/navigation; lib/start-page.ts reads it at the hello and
+// every device of the user (`overview` of GET / PUT /api/v1/navigation; lib/navigation-sync.ts reads it at the hello and
 // hears each push, and sends each change made here) and in this browser as its copy, alone where the hub (or its
 // default manager) can't keep it.
 //
@@ -164,11 +164,11 @@ export const overviewChosen = () => getOverviewPrefs().length > 0;
 let revision = 0;
 export const overviewRevision = () => revision;
 
-// Bumped by each change another tab made to this sign-in's copy: a hello's read begun before it is older (lib/start-page.ts).
+// Bumped by each change another tab made to this sign-in's copy: a hello's read begun before it is older (lib/navigation-sync.ts).
 let elsewhere = 0;
 export const overviewElsewhere = () => elsewhere;
 
-// The hub's copy is told each change made here (lib/start-page.ts), not the ones it sent (adoptOverview).
+// The hub's copy is told each change made here (lib/navigation-sync.ts), not the ones it sent (adoptOverview).
 let told: ((p: OverviewEntry[]) => void) | null = null;
 export const onOverviewSaved = (f: (p: OverviewEntry[]) => void) => void (told = f);
 
@@ -199,7 +199,7 @@ function keep(p: OverviewEntry[]) {
 
 // Whether the hub keeps the arrangement: null until it is known (again for another sign-in), false where its default
 // manager answered a change of it without taking it (a manager from before the field; a hub without the route at all is
-// lib/start-page.ts's).
+// lib/navigation-sync.ts's).
 let kept: boolean | null = null;
 export const overviewKept = () => kept;
 export function noteOverviewKept(on: boolean | null) {
@@ -209,7 +209,7 @@ export function noteOverviewKept(on: boolean | null) {
   }
 }
 
-// Whether the hub's default manager refused the sections (#9745's, lib/start-page.ts): they are then this browser's
+// Whether the hub's default manager refused the sections (#9745's, lib/navigation-sync.ts): they are then this browser's
 // alone, noted per hub and sign-in beside the copy (signing out removes both) and laid over the cards the hub sends
 // (keepSections), until a hello finds the manager takes them. `local` is the note as read under its sign-in, kept in
 // this page where storage is blocked.
