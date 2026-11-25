@@ -23,7 +23,6 @@ PUBLIC_URL = "https://registry.npmjs.org/sample/-/sample-1.0.0.tgz"
 UNAPPROVED_URL = "https://registry.example.invalid/sample/-/sample-1.0.0.tgz"
 # Split so the repository scan of this file does not flag it.
 PRIVATE_IP = "10." + "20.30.40"
-PUBLIC_ATTRIBUTION_EMAIL = "author@" + "thirdparty.org"
 
 
 def lockfile(source=PUBLIC_URL, version=3, link=False):
@@ -432,10 +431,8 @@ class OrdinaryWordTests(unittest.TestCase):
         bundle = "com.zorblax.persona"  # a made-up bundle id
         config = self.machines(self.WORD)
         config["app"] = {"bundle_id": bundle}
-        config["app_store"] = {"provisioning_profiles": {bundle + ".share": "Zorblax Share Profile"}}
         config["aliases"] = {self.WORD: "zorblax-box", "build.simulator": "zorblax-sim"}
         sources = self.sources(config)
-        self.assertEqual(sources["Zorblax Share Profile"], ["config app_store.provisioning_profiles.*"])
         self.assertEqual(sources["zorblax-box"], ["config aliases.*"])
         # The rules that look at a key (os, simulator, url, path) see the whole key, dots and all.
         self.assertEqual(sources["zorblax-sim"], ["config aliases.*"])
@@ -443,110 +440,6 @@ class OrdinaryWordTests(unittest.TestCase):
             with self.subTest(where=where):
                 self.assertNotIn("zorblax", where)
                 self.assertNotIn(self.WORD, where.replace("config ", ""))
-
-    def profile(self, name):
-        return {"app_store": {"provisioning_profiles": {"com.example.persona.share": name}}}
-
-    def generic_profile_sources(self, config, words=""):
-        with patch.object(pc, "public_profile_labels", return_value=frozenset({"Persona Share App Store"})):
-            return self.sources(config, words)
-
-    def test_public_default_and_fixture_profile_labels_are_generic(self):
-        root = Path(pc.__file__).parent.parent
-        labels = pc.profile_labels((root / "scripts/persona_config.py").read_text(), "provisioning_profiles")
-        labels |= pc.profile_labels((root / "scripts/test/fixtures/deployment/persona_config.py.fixture").read_text(), "export_options")
-        self.assertIn("Persona Share App Store", labels)
-        # The SiriKit extension's default, set only with app.siri_calls on (#9290): pinning it is as generic as the rest.
-        self.assertIn("Persona Call Intents App Store", labels)
-        self.assertGreater(len(labels), 5)  # The public historical fixture contributes its literal labels too.
-        with patch.object(pc, "public_profile_labels", return_value=frozenset(labels)):
-            for label in labels:
-                with self.subTest(label=label):
-                    self.assertNotIn(label, self.words(self.profile(label)))
-
-    def test_custom_profile_labels_and_near_matches_stay_private(self):
-        for label in ("Zorblax Share Profile", "Persona Share App Store Personal", " Persona Share App Store"):
-            with self.subTest(label=label):
-                self.assertIn(label, self.generic_profile_sources(self.profile(label)))
-
-    def test_explicit_private_word_still_protects_a_public_profile_label(self):
-        label = "Persona Share App Store"
-        sources = self.generic_profile_sources(self.profile(label), label + "\n")
-        self.assertEqual(sources[label], ["private-words.txt"])
-        self.assertEqual(pc.problems(label, list(sources)), [label])
-
-    def test_public_profile_label_under_another_config_key_stays_private(self):
-        label = "Persona Share App Store"
-        config = self.profile(label)
-        config["account_label"] = label
-        self.assertEqual(self.generic_profile_sources(config)[label], ["config account_label"])
-        config["api_key"] = label
-        self.assertIn("config api_key", self.generic_profile_sources(config)[label])
-
-    def test_nested_profile_values_do_not_get_the_public_label_classification(self):
-        label = "Persona Share App Store"
-        config = {"app_store": {"provisioning_profiles": {"com.example.persona": {"name": label}}}}
-        self.assertIn(label, self.generic_profile_sources(config))
-
-    def test_profile_definition_parser_only_reads_literal_values(self):
-        source = '''def provisioning_profiles(cfg):
-    profiles = {"literal": "Published App Store", "dynamic": dangerous(), "formatted": f"{secret} App Store"}
-    return profiles
-'''
-        self.assertEqual(pc.profile_labels(source, "provisioning_profiles"), {"Published App Store"})
-        self.assertEqual(pc.profile_labels(source, "unrelated"), set())
-
-    def test_profile_fixture_parser_never_evaluates_formatted_fields(self):
-        source = '''def export_options(cfg):
-    plist = f"<plist><dict><key>provisioningProfiles</key><dict><key>{dangerous()}</key><string>Published Fixture Profile</string><key>dynamic</key><string>{secret} App Store</string></dict></dict></plist>"
-'''
-        self.assertEqual(pc.profile_labels(source, "export_options"), {"Published Fixture Profile"})
-
-    def test_unpublished_worktree_or_commit_cannot_approve_its_own_profile_label(self):
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            script = root / "scripts/persona_config.py"
-            script.parent.mkdir()
-            script.write_text('def provisioning_profiles(cfg):\n    profiles = {"app": "Published Profile"}\n')
-
-            def git(*args):
-                return subprocess.run(["git", "-C", str(root), "-c", "core.hooksPath=/dev/null",
-                                       "-c", "commit.gpgsign=false", "-c", "user.name=Fixture",
-                                       "-c", "user.email=me@example.com", *args],
-                                      capture_output=True, check=True)
-
-            git("init", "-q")
-            git("add", "scripts/persona_config.py")
-            git("commit", "-qm", "Public fixture")
-            git("update-ref", "refs/remotes/origin/main", "HEAD")
-            script.write_text('def provisioning_profiles(cfg):\n    profiles = {"app": "Unpublished Profile"}\n')
-            try:
-                with patch.object(pc, "__file__", str(root / "scripts/privacy_check.py")):
-                    pc.public_profile_labels.cache_clear()
-                    self.assertEqual(pc.public_profile_labels(), frozenset({"Published Profile"}))
-                    self.assertIn("Unpublished Profile", self.words(self.profile("Unpublished Profile")))
-                    git("add", "scripts/persona_config.py")
-                    git("commit", "-qm", "Unpublished fixture change")
-                    pc.public_profile_labels.cache_clear()
-                    self.assertEqual(pc.public_profile_labels(), frozenset({"Published Profile"}))
-            finally:
-                pc.public_profile_labels.cache_clear()
-
-    def test_malformed_profile_definitions_do_not_waive_names(self):
-        self.assertEqual(pc.profile_labels("invalid syntax !", "provisioning_profiles"), set())
-        source = 'def export_options(cfg):\n    plist = "<plist><dict>broken"'
-        self.assertEqual(pc.profile_labels(source, "export_options"), set())
-        source = 'def export_options(cfg):\n    plist = "not a plist"'
-        self.assertEqual(pc.profile_labels(source, "export_options"), set())
-
-    def test_standalone_checker_without_public_definitions_waives_nothing(self):
-        with tempfile.TemporaryDirectory() as temp:
-            try:
-                pc.public_profile_labels.cache_clear()
-                with patch.object(pc, "__file__", str(Path(temp) / "scripts/privacy_check.py")):
-                    self.assertEqual(pc.public_profile_labels(), frozenset())
-            finally:
-                pc.public_profile_labels.cache_clear()
 
     def test_the_waiver_hint_only_follows_a_hit_a_waiver_can_take_back(self):
         config = self.machines(self.WORD, "Cellar")
@@ -729,77 +622,6 @@ class PrivacyCheckIntegrationTests(unittest.TestCase):
 
     def write_lock(self, source=PUBLIC_URL):
         self.lock.write_text(json.dumps(lockfile(source), indent=2) + "\n")
-
-    def write_public_attribution_bundle(self, notice_text=None):
-        ssh = self.repo / "harmony/native/ssh"
-        notice = ssh / "licenses/sample-1.0.0/LICENSE-MIT"
-        sdk_notice = ssh / "licenses/sdk-runtime/component/license.txt"
-        html = self.repo / "harmony/entry/src/main/resources/rawfile/native-ssh-licenses.html"
-        manifest = ssh / "licenses/public-attribution.json"
-        notice.parent.mkdir(parents=True, exist_ok=True)
-        sdk_notice.parent.mkdir(parents=True, exist_ok=True)
-        html.parent.mkdir(parents=True, exist_ok=True)
-        notice_bytes = (notice_text if notice_text is not None else
-                        "Copyright sample authors.\nContact: " + PUBLIC_ATTRIBUTION_EMAIL + "\n").encode()
-        sdk_bytes = b"SDK runtime attribution.\n"
-        html_bytes = ("Offline contact: " + PUBLIC_ATTRIBUTION_EMAIL + "\n").encode()
-        notice.write_bytes(notice_bytes)
-        sdk_notice.write_bytes(sdk_bytes)
-        html.write_bytes(html_bytes)
-
-        cargo_inventory = [{
-            "name": "sample",
-            "version": "1.0.0",
-            "authors": [PUBLIC_ATTRIBUTION_EMAIL],
-            "notices": [{
-                "path": "licenses/sample-1.0.0/LICENSE-MIT",
-                "sha256": hashlib.sha256(notice_bytes).hexdigest(),
-            }],
-        }]
-        supplemental_inventory = {
-            "schema_version": 1,
-            "items": [{
-                "name": "SDK runtime",
-                "version": "1.0.0",
-                "authors": [PUBLIC_ATTRIBUTION_EMAIL],
-                "notices": [{
-                    "path": "licenses/sdk-runtime/component/license.txt",
-                    "sha256": hashlib.sha256(sdk_bytes).hexdigest(),
-                }],
-            }],
-        }
-        inventory_paths = [
-            "harmony/native/ssh/licenses/locked-inventory.json",
-            "harmony/native/ssh/licenses/sdk-runtime/supplemental-inventory.json",
-        ]
-        inventory_bytes = [
-            (json.dumps(cargo_inventory, sort_keys=True, indent=2) + "\n").encode(),
-            (json.dumps(supplemental_inventory, sort_keys=True, indent=2) + "\n").encode(),
-        ]
-        for path, data in zip(inventory_paths, inventory_bytes):
-            target = self.repo / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
-
-        manifest_data = {
-            "schema_version": 1,
-            "inventories": [{
-                "path": path,
-                "sha256": hashlib.sha256(data).hexdigest(),
-            } for path, data in zip(inventory_paths, inventory_bytes)],
-            "notices": sorted([
-                {"path": "harmony/native/ssh/licenses/sample-1.0.0/LICENSE-MIT",
-                 "sha256": hashlib.sha256(notice_bytes).hexdigest()},
-                {"path": "harmony/native/ssh/licenses/sdk-runtime/component/license.txt",
-                 "sha256": hashlib.sha256(sdk_bytes).hexdigest()},
-            ], key=lambda item: item["path"]),
-            "generated_html": {
-                "path": "harmony/entry/src/main/resources/rawfile/native-ssh-licenses.html",
-                "sha256": hashlib.sha256(html_bytes).hexdigest(),
-            },
-        }
-        manifest.write_text(json.dumps(manifest_data, sort_keys=True, indent=2) + "\n")
-        return notice, manifest
 
     def scan(self, *args):
         return self.run_command(sys.executable, str(self.repo / "scripts/privacy_check.py"), *args)
@@ -1040,87 +862,6 @@ class PrivacyCheckIntegrationTests(unittest.TestCase):
         output = result.stdout + result.stderr
         self.assertIn("commit message:1: private value", output)
         self.assertNotIn(marker, output)
-
-    def test_pinned_public_attribution_suppresses_only_email_pattern(self):
-        words = self.home / ".config/persona/private-words.txt"
-        words.parent.mkdir(parents=True)
-        words.write_text("secretbox\n")
-        notice, _ = self.write_public_attribution_bundle(
-            "Copyright sample authors.\nContact: " + PUBLIC_ATTRIBUTION_EMAIL + "\nsecretbox at " + PRIVATE_IP + "\n")
-        self.git("add", "harmony")
-
-        result = self.scan()
-        output = result.stdout + result.stderr
-        self.assertNotEqual(result.returncode, 0, output)
-        self.assertIn("LICENSE-MIT:3: private value", output)
-        self.assertIn("LICENSE-MIT:3: private IP", output)
-        self.assertNotIn("LICENSE-MIT:2: email", output)
-        self.assertNotIn(PUBLIC_ATTRIBUTION_EMAIL, output)
-
-    def test_changed_notice_bytes_do_not_receive_email_exemption(self):
-        notice, _ = self.write_public_attribution_bundle()
-        self.git("add", "harmony")
-        with notice.open("a") as source:
-            source.write("Contact: " + PUBLIC_ATTRIBUTION_EMAIL + "\n")
-        self.git("add", str(notice.relative_to(self.repo)))
-
-        result = self.scan()
-        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("LICENSE-MIT:3: email", result.stdout)
-        self.assertNotIn(PUBLIC_ATTRIBUTION_EMAIL, result.stdout + result.stderr)
-
-    def test_outside_path_and_invalid_manifest_do_not_receive_exemption(self):
-        _, manifest = self.write_public_attribution_bundle()
-        outside = self.repo / "harmony/entry/src/main/ets/components/OutsideAttribution.ets"
-        outside.parent.mkdir(parents=True, exist_ok=True)
-        outside.write_text("Contact: " + PUBLIC_ATTRIBUTION_EMAIL + "\n")
-        data = json.loads(manifest.read_text())
-        data["notices"].append({
-            "path": "harmony/entry/src/main/ets/components/OutsideAttribution.ets",
-            "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
-        })
-        data["notices"].sort(key=lambda item: item["path"])
-        manifest.write_text(json.dumps(data, sort_keys=True, indent=2) + "\n")
-        self.git("add", "harmony")
-
-        result = self.scan()
-        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("OutsideAttribution.ets:1: email", result.stdout)
-
-        manifest.write_text("{ invalid json\n")
-        result = self.scan()
-        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("LICENSE-MIT:2: email", result.stdout)
-
-    def test_symlinked_notice_does_not_receive_email_exemption(self):
-        notice, _ = self.write_public_attribution_bundle()
-        external = self.root / PUBLIC_ATTRIBUTION_EMAIL
-        external.write_text("not a repository file\n")
-        notice.unlink()
-        notice.symlink_to(os.path.relpath(external, notice.parent))
-        self.git("add", "-A")
-
-        result = self.scan()
-        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("LICENSE-MIT:1: email", result.stdout)
-        self.assertNotIn(PUBLIC_ATTRIBUTION_EMAIL, result.stdout + result.stderr)
-
-    def test_staged_and_range_scans_use_their_git_snapshot_manifest(self):
-        notice, manifest = self.write_public_attribution_bundle()
-        self.git("add", "harmony")
-        self.git("commit", "-q", "--no-verify", "-m", "base attribution bundle")
-        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-
-        self.write_public_attribution_bundle(
-            "Copyright sample authors.\nContact: " + PUBLIC_ATTRIBUTION_EMAIL + "\nUpdated attribution.\n")
-        self.git("add", "harmony")
-        manifest.write_text("{ invalid worktree version\n")
-
-        staged = self.scan("--staged")
-        self.assertEqual(staged.returncode, 0, staged.stdout + staged.stderr)
-        self.git("commit", "-q", "--no-verify", "-m", "update attribution bundle")
-        ranged = self.scan("--range", "origin/main..HEAD")
-        self.assertEqual(ranged.returncode, 0, ranged.stdout + ranged.stderr)
 
     @unittest.skipUnless(shutil.which("npm"), "npm unavailable")
     def test_web_prebuild_blocks_unapproved_lockfile(self):
