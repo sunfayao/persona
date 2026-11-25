@@ -232,7 +232,7 @@ Web has seven shadow tokens (`web/src/styles.css:68-74`) plus `--shadow-knob` fo
 | `drawer(velocity:)` | interpolating spring 0.32 s, no bounce | drawer and pager |
 | Needs-you breath | 1 s, scale 1.2 | the only attention loop; the dot stays still in quick filters, a heading's counts, badges, a request's card and panel, and sidebar rows |
 
-Web: 150 ms state, 220 ms glide, 300 ms collapse, one easing curve, no springs; the reply bar (#5314, cindy's) stays 250 ms after the pointer leaves and fades over 250 ms (`REPLY_BAR_LINGER_MS`, `REPLY_BAR_FADE_MS` in `web/src/ui/motion.ts`). Web sidebar group folds use `--sidebar-fold-open` / `--sidebar-fold-close` (250 / 200 ms) and `--sidebar-fold-open-ease` / `--sidebar-fold-close-ease`, shared by the clipped, fully visible content and its chevron.
+Web: 150 ms state, 220 ms glide, 300 ms collapse, one easing curve, no springs; the reply bar (#5314, cindy's) stays 250 ms after the pointer leaves and fades over 250 ms (`REPLY_BAR_LINGER_MS`, `REPLY_BAR_FADE_MS` in `web/src/ui/motion.ts`). Web sidebar group folds use `--sidebar-fold-open` / `--sidebar-fold-close` (250 / 200 ms) and `--sidebar-fold-open-ease` / `--sidebar-fold-close-ease`, shared by the clipped, fully visible content and its chevron. When an Agent deletion succeeds, its visible row fades in place and the visible rows below glide into their new positions. The sidebar keeps its scroll position, including when the deleted Agent was open and the workspace returns to Home. Reduce Motion removes the row immediately.
 
 
 Reduce Motion: web strips all durations to 1 ms but keeps busy spinners turning (`web/src/styles.css:296-306`).
