@@ -114,9 +114,9 @@ func newTaskExecutionWaitFixture(t *testing.T, path, assistantConfig string) *ta
 	switch path {
 	case "source":
 		const cwd = "/home/me/.persona/assistant"
-		f.setSessions("server", proto.Session{SessionID: "origin", Launcher: "claude", Model: "source-model", Cwd: cwd, Assistant: true, Space: testSpace})
+		f.setSessions("server", proto.Session{SessionID: "origin", Launcher: "claude", Model: "source-model", Cwd: cwd, Assistant: true})
 		f.known["origin"] = true
-		task.MachineID, task.SessionID, task.Space = "server", "origin", testSpace
+		task.MachineID, task.SessionID = "server", "origin"
 		want["session_id"], want["resume_only"], want["cwd"], want["launcher"], want["model"] = "origin", true, cwd, "claude", "source-model"
 	case "new", "directory", "resume":
 		setModel(t, s, "task.job", ModelBinding{Provider: "launcher.claude", Model: "chosen-model", Effort: "high"})
