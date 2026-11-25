@@ -118,7 +118,7 @@ function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown
   );
 }
 
-function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdown }) {
+export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdown }) {
   const estimated = breakdown.source === "estimated";
   const formatCatTokens = (n: number) =>
     estimated ? t("chat-sessioninsights.breakdown_estimated_tokens", { tokens: compactTokens(n) }) : compactTokens(n);

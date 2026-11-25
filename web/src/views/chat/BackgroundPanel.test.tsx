@@ -171,6 +171,24 @@ describe("the list", () => {
   });
 });
 
+describe("Session overview", () => {
+  it("shows reported context detail and opens each known output once", () => {
+    put({
+      context_tokens: 5000, context_window: 16000,
+      context_breakdown: { source: "exact", conversation: 5000, free: 11000 },
+      background: [shell, { ...shell, id: "same-output" }, sub],
+    });
+    const session = getSession("m", "s")!;
+    act(() => root.render(<SessionOverview id="overview" session={session} machineName="Machine" items={[]} tasks={emptyTaskIndex()} children={[]} />));
+    expect(q('[data-breakdown-row="conversation"]')).not.toBeNull();
+    const buttons = host.querySelectorAll<HTMLButtonElement>('button[title="/tmp/out/b1.log"]');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].textContent).toContain("b1.log");
+    act(() => buttons[0].click());
+    expect(getPanel()).toMatchObject({ kind: "file", mid: "m", path: "/tmp/out/b1.log" });
+  });
+});
+
 describe("a background task", () => {
   it("returns to Session overview instead of the unvisited Background tasks list", async () => {
     put({ background: [shell] });

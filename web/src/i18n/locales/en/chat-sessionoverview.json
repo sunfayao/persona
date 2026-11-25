@@ -1,4 +1,5 @@
 {
+  "outputs": "Outputs",
   "environment": "Environment",
   "worktree": "Worktree",
   "subagents": "Subagents",
