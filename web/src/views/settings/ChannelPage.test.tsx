@@ -126,7 +126,7 @@ it("displays non-502 cannot_send error messages cleanly without gateway wording"
   const req = hub.asked.shift();
   expect(req?.kind).toBe("test");
   const explanation = "This channel only replies to incoming messages.";
-  await fail(req, new ApiError(409, explanation, { code: "cannot_send", error: explanation }, true, undefined, "/channels/demo/test"));
+  await fail(req, new ApiError(409, explanation, { code: "cannot_send", error: explanation }, true));
 
   expect(toast).toHaveBeenCalledWith(explanation, "error");
   expect(host.querySelector('[role="alert"]')?.textContent).toBe(explanation);
