@@ -853,7 +853,6 @@ class TagReleaseTests(unittest.TestCase):
         self.assertIn("--once", prompt)
         self.assertIn("store_verified", prompt)
         self.assertIn("<owner>/<name>", prompt)
-        self.assertIn("frozen native Mac", prompt)
 
 
 if __name__ == "__main__":

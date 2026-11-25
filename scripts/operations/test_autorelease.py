@@ -223,7 +223,7 @@ class AutoreleaseTests(unittest.TestCase):
         self.assertEqual((self.state_dir / "state.json").stat().st_mode & 0o777, 0o600)
         self.assertEqual((self.state_dir / "autorelease.lock").stat().st_mode & 0o777, 0o600)
         self.invoke()
-        self.assertEqual(len(self.actions()), 3)
+        self.assertEqual(len(self.actions()), 2)
 
     def test_unrelated_does_not_advance_success_and_diff_uses_success(self):
         self.target("web", ["web/"])

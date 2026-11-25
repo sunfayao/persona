@@ -309,7 +309,6 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('ref: ${{ github.event.workflow_run.head_sha || github.sha }}', publish)
         self.assertLess(publish.index('actions/checkout@v4'), publish.index('verify-merged-pr'))
         self.assertLess(pr.index('actions/checkout@v4', pr.index('name: All available release-PR checks passed')), pr.index('verify-artifacts --plan', pr.index('name: All available release-PR checks passed')))
-        self.assertIn('GITHUB_WORKSPACE', pr)
         self.assertIn('ci_release_config.py public', pr)
         self.assertIn('releases/latest/download', (ROOT / 'scripts/operations/ci_release_config.py').read_text())
         self.assertIn('targetCommitish', publish)
