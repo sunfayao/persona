@@ -14,17 +14,17 @@ func TestSpaceAt(t *testing.T) {
 	t.Setenv("PERSONA_HOME", "")
 	in := func(parts ...string) string { return filepath.Join(append([]string{home}, parts...)...) }
 	for p, want := range map[string]string{
-		in(".persona", "tracks", "qa-plain"):                                "qa-plain",
-		in(".persona", "tracks", "qa-plain", "inbox"):                       "qa-plain",
-		in(".persona", "tracks", "qa-plain", "inbox", "2026"):               "qa-plain",
-		in(".persona", "tracks-m-0b0b0b", "qa-plain", "x"):                  "qa-plain",
-		in(".persona", "assistant", ".claude", "skills", "qa-plain"):        "",
-		in(".persona", "tracks-bin", "qa-plain", "x"):                       "",
-		filepath.Join(string(filepath.Separator), "tmp", "qa-plain", "x"):   "",
-		in(".persona", "assistant", "x"):                                    "",
-		in(".persona"):                                                      "",
-		"":                                                                  "",
-		".":                                                                 "",
+		in(".persona", "tracks", "qa-plain"):                              "qa-plain",
+		in(".persona", "tracks", "qa-plain", "inbox"):                     "qa-plain",
+		in(".persona", "tracks", "qa-plain", "inbox", "2026"):             "qa-plain",
+		in(".persona", "tracks-m-0b0b0b", "qa-plain", "x"):                "qa-plain",
+		in(".persona", "assistant", ".claude", "skills", "qa-plain"):      "",
+		in(".persona", "tracks-bin", "qa-plain", "x"):                     "",
+		filepath.Join(string(filepath.Separator), "tmp", "qa-plain", "x"): "",
+		in(".persona", "assistant", "x"):                                  "",
+		in(".persona"):                                                    "",
+		"":                                                                "",
+		".":                                                               "",
 	} {
 		if got := SpaceAt(p); got != want {
 			t.Errorf("SpaceAt(%q) = %q, want %q", p, got, want)

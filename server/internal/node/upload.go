@@ -553,7 +553,7 @@ func (n *Node) uploadCall(method string, params json.RawMessage) (any, error) {
 	var p struct {
 		UploadID string `json:"upload_id"`
 		Name     string `json:"name"`
-		Dest     string `json:"dest"` // "terminal": a paste into a terminal (terminalUploadDir); "file": a task's file for its conversation (fileUploadDir); "dir": Dir; "inbox": the receive folder; "attachment": a chat attachment kept (attachmentDir); "" the temp directory
+		Dest     string `json:"dest"`     // "terminal": a paste into a terminal (terminalUploadDir); "file": a task's file for its conversation (fileUploadDir); "dir": Dir; "inbox": the receive folder; "attachment": a chat attachment kept (attachmentDir); "" the temp directory
 		Dir      string `json:"dir"`      // dest=dir: the folder, ~/ or relative to Cwd; dest=inbox: the receive folder ("": the default)
 		Cwd      string `json:"cwd"`      // dest=dir
 		Conflict string `json:"conflict"` // dest=dir: proto.UploadConflict*

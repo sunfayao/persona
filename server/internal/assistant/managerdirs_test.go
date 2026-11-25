@@ -46,11 +46,11 @@ func TestAManagersOwnDirectories(t *testing.T) {
 	builtin := fleetMachine{ID: "server", Home: "/home/me", manager: ""}
 	other := fleetMachine{ID: "server", Home: "/home/me", manager: "m-0b0b0b"}
 	for cwd, want := range map[string][2]bool{
-		"/home/me/.persona/assistant":          {true, false},
-		"/home/me/.persona/tracks/qa-private":             {true, false},
-		"/home/me/.persona/assistant-m-0b0b0b": {false, true},
-		"/home/me/.persona/tracks-m-0b0b0b/qa-private":    {false, true},
-		"/home/me/code/app":                    {false, false},
+		"/home/me/.persona/assistant":                  {true, false},
+		"/home/me/.persona/tracks/qa-private":          {true, false},
+		"/home/me/.persona/assistant-m-0b0b0b":         {false, true},
+		"/home/me/.persona/tracks-m-0b0b0b/qa-private": {false, true},
+		"/home/me/code/app":                            {false, false},
 	} {
 		sess := proto.Session{SessionID: "s", Cwd: cwd}
 		if got := [2]bool{builtin.isAssistant(sess), other.isAssistant(sess)}; got != want {

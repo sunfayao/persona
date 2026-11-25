@@ -34,8 +34,8 @@ func TestSpaceCardPushHidesContent(t *testing.T) {
 	}
 	for cwd, hidden := range map[string]bool{
 		"/home/me/.persona/tracks/qa-private/reports": true,
-		"/home/me/.persona/health-bin":     false,
-		"/tmp/qa-private":                  false,
+		"/home/me/.persona/health-bin":                false,
+		"/tmp/qa-private":                             false,
 	} {
 		payload := interactionPayload(ask(cwd), "server")
 		body := payload["aps"].(map[string]any)["alert"].(map[string]any)["body"].(string)

@@ -149,8 +149,8 @@ func TestIsAssistantProject(t *testing.T) {
 		"-data-home-me--persona-assistant":                                           true,
 		"-opt-persona-state-assistant":                                               true,
 		"-home-me--persona-assistant-worklog-data":                                   false,
-		"-tmp":                                                                       false,
-		"-src-assistant":                                                             false,
+		"-tmp":           false,
+		"-src-assistant": false,
 	} {
 		if got := isAssistantProject(base, own); got != want {
 			t.Errorf("isAssistantProject(%q) = %v, want %v", base, got, want)

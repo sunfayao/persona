@@ -80,8 +80,8 @@ func TestHealthCardsCountTheSpacesFolders(t *testing.T) {
 	for cwd, want := range map[string]bool{
 		"/home/u/.persona/tracks/qa-private":         true,
 		"/home/u/.persona/tracks/qa-private/reports": true,
-		"/home/u/.persona/health-bin":     false,
-		"/tmp/health":                     false,
+		"/home/u/.persona/health-bin":                false,
+		"/tmp/health":                                false,
 	} {
 		if got := ft.s.ixSpace(ctx, proto.Interaction{MachineID: "mac", Cwd: cwd}) == testSpace; got != want {
 			t.Errorf("ixSpace(%s) == health = %v, want %v", cwd, got, want)
