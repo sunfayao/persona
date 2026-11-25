@@ -15,36 +15,17 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devices"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/workspaceboard"
 )
 
+// memoryBoardStore keeps the workspace snapshots in memory.
 type memoryBoardStore struct {
 	Store
 	mu        sync.Mutex
-	state     workspaceboard.State
 	snapshots map[string]db.WorkspaceSnapshotRow
 }
 
 func newMemoryBoardStore() *memoryBoardStore {
-	return &memoryBoardStore{state: workspaceboard.Default(), snapshots: map[string]db.WorkspaceSnapshotRow{}}
-}
-func (s *memoryBoardStore) WorkspaceBoard(context.Context) (workspaceboard.State, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	raw, _ := json.Marshal(s.state)
-	var out workspaceboard.State
-	_ = json.Unmarshal(raw, &out)
-	return out, nil
-}
-func (s *memoryBoardStore) SaveWorkspaceBoard(_ context.Context, expected int64, next workspaceboard.State) (workspaceboard.State, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.state.Revision != expected {
-		return workspaceboard.State{}, db.ErrWorkspaceBoardConflict
-	}
-	next.Revision = expected + 1
-	s.state = next
-	return next, nil
+	return &memoryBoardStore{snapshots: map[string]db.WorkspaceSnapshotRow{}}
 }
 func (s *memoryBoardStore) ListWorkspaceSnapshots(context.Context) ([]db.WorkspaceSnapshotRow, error) {
 	s.mu.Lock()
@@ -63,7 +44,7 @@ func (s *memoryBoardStore) SaveWorkspaceSnapshot(_ context.Context, mid string, 
 	return nil
 }
 
-// boardDevs are the computers as the manager's devices have them, for the board: a node answering on each, whether it
+// boardDevs are the computers as the manager's devices have them, for discovery: a node answering on each, whether it
 // is connected, its sessions, and ids another one absorbed.
 type boardDevs struct {
 	Devices
@@ -135,7 +116,7 @@ func (d *boardDevs) Sessions(id string) ([]proto.Session, bool) {
 	return append([]proto.Session(nil), m.sessions...), true
 }
 
-// SessionsWhere reads the sessions in place, as the devices do: a measure of the board then counts no copy of the list.
+// SessionsWhere reads the sessions in place, as the devices do: a measure of discovery then counts no copy of the list.
 func (d *boardDevs) SessionsWhere(id string, keep func(*proto.Session) bool) ([]proto.Session, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -182,7 +163,7 @@ func (d *boardDevs) setSessions(id string, sessions []proto.Session) {
 	d.machines[id].sessions = sessions
 }
 
-// newBoardService is a manager with the board's store and computers (st nil: no database).
+// newBoardService is a manager with the snapshot store and computers (st nil: no database).
 func newBoardService(t *testing.T, st Store, d *boardDevs) (*Service, *fakeHub) {
 	t.Helper()
 	f := &fakeHub{}
@@ -203,120 +184,44 @@ func boardCall(s *Service, method, path, body string, role string) *httptest.Res
 	s.ServeHTTP(w, r)
 	return w
 }
-func boardState(t *testing.T, w *httptest.ResponseRecorder) workspaceboard.State {
-	t.Helper()
-	if w.Code != 200 {
-		t.Fatalf("HTTP %d: %s", w.Code, w.Body)
-	}
-	var s workspaceboard.State
-	if err := json.Unmarshal(w.Body.Bytes(), &s); err != nil {
-		t.Fatal(err)
-	}
-	return s
-}
-func directoryNode(_ context.Context, method string, raw json.RawMessage) (any, error) {
+func directoryNode(_ context.Context, method string, _ json.RawMessage) (any, error) {
 	switch method {
 	case "workspaces.list":
 		return proto.WorkspacesResponse{Workspaces: []proto.Workspace{{ID: "empty", Source: "herdr", SourceID: "empty", Title: "Weather", Cwd: "/work/weather", Available: true}}}, nil
-	case "workspace.resolve":
-		var p struct {
-			Path string `json:"path"`
-		}
-		_ = json.Unmarshal(raw, &p)
-		if p.Path == "/missing" {
-			return nil, errors.New("directory missing")
-		}
-		return proto.Workspace{ID: "/work/weather", Source: "directory", SourceID: "/work/weather", Title: "Weather", Cwd: "/work/weather", Available: true}, nil
-	case "fs.stat":
-		return map[string]any{"stats": []map[string]string{{"path": "/work/weather", "kind": "dir"}}}, nil
 	default:
 		return nil, errors.New("unexpected operation: " + method)
 	}
 }
 
-// roleAnswer is an answer-only device (a watch): it may read the board, not change it.
+// settingsBoardStore keeps the settings table in memory next to the snapshots.
+type settingsBoardStore struct {
+	*memoryBoardStore
+	smu      sync.Mutex
+	settings map[string][]byte
+}
+
+func newSettingsBoardStore() *settingsBoardStore {
+	return &settingsBoardStore{memoryBoardStore: newMemoryBoardStore(), settings: map[string][]byte{}}
+}
+func (s *settingsBoardStore) Setting(_ context.Context, key string, out any) (bool, error) {
+	s.smu.Lock()
+	defer s.smu.Unlock()
+	raw, ok := s.settings[key]
+	if !ok {
+		return false, nil
+	}
+	return true, json.Unmarshal(raw, out)
+}
+func (s *settingsBoardStore) PutSetting(_ context.Context, key string, v any) error {
+	raw, err := json.Marshal(v)
+	s.smu.Lock()
+	defer s.smu.Unlock()
+	s.settings[key] = raw
+	return err
+}
+
+// roleAnswer is an answer-only device (a watch): it may read, not change.
 const roleAnswer = "answer"
-
-func TestWorkspaceBoardMetadataNeverExecutesSession(t *testing.T) {
-	store := newMemoryBoardStore()
-	d := newBoardDevs()
-	s, f := newBoardService(t, store, d)
-	var mu sync.Mutex
-	methods := []string{}
-	d.add("laptop", func(ctx context.Context, method string, p json.RawMessage) (any, error) {
-		mu.Lock()
-		methods = append(methods, method)
-		mu.Unlock()
-		return directoryNode(ctx, method, p)
-	})
-	st := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_card","machine_id":"laptop","cwd":"/alias","title":"Fix weather","column_id":"todo"}`, roleFull))
-	if len(st.Cards) != 1 || st.Cards[0].Cwd != "/work/weather" {
-		t.Fatalf("noncanonical card: %+v", st)
-	}
-	f.mu.Lock()
-	events := append([]string(nil), f.events...)
-	f.mu.Unlock()
-	if len(events) != 1 || events[0] != "workspace_board" {
-		t.Fatalf("the apps were not told of the change as before: %v", events)
-	}
-	id := st.Cards[0].ID
-	mu.Lock()
-	methods = nil
-	mu.Unlock()
-	d.setOnline("laptop", false)
-	st = boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":1,"action":"move_card","id":"`+id+`","column_id":"done"}`, roleFull))
-	if st.Cards[0].ColumnID != "done" || st.Cards[0].Archived {
-		t.Fatal("Done must not archive the workspace")
-	}
-	boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":2,"action":"update_card","id":"`+id+`","archived":true}`, roleFull))
-	st = boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":3,"action":"update_card","id":"`+id+`","archived":false,"pinned":true}`, roleFull))
-	if st.Cards[0].Archived || !st.Cards[0].Pinned {
-		t.Fatal("restore/pin missing")
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(methods) != 0 {
-		t.Fatalf("metadata move invoked a node: %v", methods)
-	}
-	// A new manager on the same store preserves the card even without any online machine.
-	restarted, _ := newBoardService(t, store, newBoardDevs())
-	got := boardState(t, boardCall(restarted, "GET", "/api/v1/workspace-board", "", roleFull))
-	if got.Revision != 4 || len(got.Cards) != 1 {
-		t.Fatalf("restart lost board: %+v", got)
-	}
-}
-
-func TestWorkspaceBoardValidationAndRoles(t *testing.T) {
-	d := newBoardDevs()
-	s, _ := newBoardService(t, newMemoryBoardStore(), d)
-	d.add("laptop", directoryNode)
-	for _, body := range []string{`{"action":"add_column","title":"Other"}`, `{"revision":0,"action":"add_card","machine_id":"unknown","cwd":"/work/weather","column_id":"todo"}`, `{"revision":0,"action":"add_card","machine_id":"laptop","cwd":"/missing","column_id":"todo"}`, `{"revision":0,"action":"add_card","machine_id":"laptop","cwd":"/work/weather","column_id":"todo","source":"forged"}`} {
-		w := boardCall(s, "POST", "/api/v1/workspace-board", body, roleFull)
-		if w.Code != 400 {
-			t.Fatalf("HTTP %d for %s: %s", w.Code, body, w.Body)
-		}
-	}
-	for _, path := range []string{"/api/v1/workspace-board", "/api/v1/workspaces"} {
-		w := boardCall(s, "GET", path, "", roleAnswer)
-		if w.Code != 200 {
-			t.Fatalf("read-only GET %s: %d %s", path, w.Code, w.Body)
-		}
-		if path == "/api/v1/workspace-board" && !strings.Contains(w.Body.String(), `"can_write":false`) {
-			t.Fatal(w.Body.String())
-		}
-	}
-	if w := boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_column","title":"Other"}`, roleAnswer); w.Code != 403 {
-		t.Fatal(w.Code)
-	}
-	boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_column","title":"Other"}`, roleFull))
-	if w := boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_column","title":"Stale"}`, roleFull); w.Code != 409 {
-		t.Fatal(w.Code)
-	}
-	unsupported, _ := newBoardService(t, nil, nil)
-	if w := boardCall(unsupported, "GET", "/api/v1/workspace-board", "", roleFull); w.Code != 503 {
-		t.Fatal(w.Code)
-	}
-}
 
 func TestWorkspacesIncludeEmptyAndPersistOffline(t *testing.T) {
 	store := newMemoryBoardStore()
@@ -339,11 +244,6 @@ func TestWorkspacesIncludeEmptyAndPersistOffline(t *testing.T) {
 	if chosen.MachineID != "laptop" {
 		t.Fatal(chosen)
 	}
-	raw, _ := json.Marshal(map[string]any{"revision": 0, "action": "add_card", "machine_id": "laptop", "workspace_id": chosen.ID, "column_id": "todo"})
-	st := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", string(raw), roleFull))
-	if st.Cards[0].Source != "herdr" {
-		t.Fatal(st)
-	}
 	d.setOnline("laptop", false)
 	w = boardCall(s, "GET", "/api/v1/workspaces", "", roleFull)
 	_ = json.Unmarshal(w.Body.Bytes(), &result)
@@ -361,29 +261,7 @@ func TestWorkspacesIncludeEmptyAndPersistOffline(t *testing.T) {
 	}
 }
 
-func TestWorkspaceBoardConcurrentMutations(t *testing.T) {
-	s, _ := newBoardService(t, newMemoryBoardStore(), nil)
-	var wg sync.WaitGroup
-	results := make(chan int, 2)
-	for range 2 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			results <- boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_column","title":"Review"}`, roleFull).Code
-		}()
-	}
-	wg.Wait()
-	close(results)
-	counts := map[int]int{}
-	for c := range results {
-		counts[c]++
-	}
-	if counts[200] != 1 || counts[409] != 1 {
-		t.Fatal(counts)
-	}
-}
-
-func TestWorkspaceBoardSessionOnlySurvivesUnavailableHost(t *testing.T) {
+func TestWorkspacesSessionOnlySurvivesUnavailableHost(t *testing.T) {
 	store := newMemoryBoardStore()
 	d := newBoardDevs()
 	s, _ := newBoardService(t, store, d)
@@ -400,9 +278,7 @@ func TestWorkspaceBoardSessionOnlySurvivesUnavailableHost(t *testing.T) {
 	if len(list.Workspaces) != 1 || !list.Workspaces[0].Available {
 		t.Fatalf("session-only directory lost: %s", w.Body)
 	}
-	raw, _ := json.Marshal(map[string]any{"revision": 0, "action": "add_card", "machine_id": "laptop", "workspace_id": list.Workspaces[0].ID, "column_id": "todo"})
-	boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", string(raw), roleFull))
-	// Discovery, including an unbound external session directory, was already committed before restart.
+	// Discovery, including an external session directory, was already committed before restart.
 	rd := newBoardDevs()
 	rd.add("laptop", nil)
 	restarted, _ := newBoardService(t, store, rd)
@@ -414,68 +290,30 @@ func TestWorkspaceBoardSessionOnlySurvivesUnavailableHost(t *testing.T) {
 	}
 }
 
-func TestWorkspaceBoardCanonicalMachineAndMissingDirectory(t *testing.T) {
+func TestWorkspacesReadOnlyDevicesReadAndNoStoreIs503(t *testing.T) {
 	d := newBoardDevs()
 	s, _ := newBoardService(t, newMemoryBoardStore(), d)
-	var missing bool
-	d.add("canonical", func(ctx context.Context, method string, p json.RawMessage) (any, error) {
-		if method == "fs.stat" && missing {
-			return map[string]any{"stats": []map[string]string{{"path": "/work/weather", "kind": "missing"}}}, nil
-		}
-		return directoryNode(ctx, method, p)
-	})
-	d.absorbed["alias"] = "canonical" // the same computer: "alias" reaches it
-	st := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_card","machine_id":"alias","cwd":"/work/weather","column_id":"todo"}`, roleFull))
-	if st.Cards[0].MachineID != "canonical" {
-		t.Fatal("alias not normalized")
+	d.add("laptop", directoryNode)
+	if w := boardCall(s, "GET", "/api/v1/workspaces", "", roleAnswer); w.Code != 200 {
+		t.Fatalf("read-only GET: %d %s", w.Code, w.Body)
 	}
-	if w := boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":1,"action":"add_card","machine_id":"canonical","cwd":"/work/weather","column_id":"todo"}`, roleFull); w.Code != 400 {
-		t.Fatalf("duplicate alias binding accepted: %s", w.Body)
-	}
-	missing = true
-	w := boardCall(s, "GET", "/api/v1/workspaces", "", roleFull)
-	var list proto.WorkspacesResponse
-	_ = json.Unmarshal(w.Body.Bytes(), &list)
-	if len(list.Workspaces) != 1 || list.Workspaces[0].Available {
-		t.Fatalf("deleted directory reported available: %s", w.Body)
+	unsupported, _ := newBoardService(t, nil, nil)
+	if w := boardCall(unsupported, "GET", "/api/v1/workspaces", "", roleFull); w.Code != 503 {
+		t.Fatal(w.Code)
 	}
 }
 
-func TestWorkspaceBoardLateMachineAlias(t *testing.T) {
+// An id another computer absorbed after its snapshot was taken is read as the computer that absorbed it.
+func TestWorkspacesLateMachineAlias(t *testing.T) {
 	store := newMemoryBoardStore()
 	d := newBoardDevs()
 	s, _ := newBoardService(t, store, d)
-	d.add("alias", directoryNode)
-	bound := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":0,"action":"add_card","machine_id":"alias","cwd":"/work/weather","column_id":"review"}`, roleFull))
-	id := bound.Cards[0].ID
+	weather := qualifyWorkspace("alias", proto.Workspace{Source: "herdr", SourceID: "weather", Cwd: "/work/weather", Title: "Weather"})
 	extra := qualifyWorkspace("alias", proto.Workspace{Source: "herdr", SourceID: "empty", Cwd: "/work/empty", Title: "Empty"})
-	raw, _ := json.Marshal([]proto.Workspace{extra})
+	raw, _ := json.Marshal([]proto.Workspace{weather, extra})
 	_ = store.SaveWorkspaceSnapshot(context.Background(), "alias", raw)
 	d.add("canonical", directoryNode)
-	d.mu.Lock()
-	delete(d.machines, "alias")
-	d.order = []string{"canonical"}
 	d.absorbed["alias"] = "canonical"
-	d.mu.Unlock()
-	projected := boardState(t, boardCall(s, "GET", "/api/v1/workspace-board", "", roleFull))
-	card := projected.Cards[0]
-	if card.ID != id || card.ColumnID != "review" || card.MachineID != "canonical" || card.WorkspaceID == bound.Cards[0].WorkspaceID {
-		t.Fatalf("late alias lost identity/routing: %+v", card)
-	}
-	stored, _ := store.WorkspaceBoard(context.Background())
-	if stored.Cards[0].MachineID != "alias" {
-		t.Fatal("presentation changed durable binding")
-	}
-	if w := boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":1,"action":"add_card","machine_id":"canonical","cwd":"/work/weather","column_id":"todo"}`, roleFull); w.Code != 400 {
-		t.Fatalf("late alias allowed duplicate: %s", w.Body)
-	}
-	updated := boardState(t, boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":1,"action":"update_card","id":"`+id+`","archived":true}`, roleFull))
-	if updated.Cards[0].MachineID != "canonical" || !updated.Cards[0].Archived {
-		t.Fatal("mutation response lost projected identity")
-	}
-	if w := boardCall(s, "POST", "/api/v1/workspace-board", `{"revision":2,"action":"add_card","machine_id":"canonical","cwd":"/work/weather","column_id":"todo"}`, roleFull); w.Code != 400 {
-		t.Fatal("archived alias allowed duplicate")
-	}
 	d.setOnline("canonical", false)
 	var list proto.WorkspacesResponse
 	w := boardCall(s, "GET", "/api/v1/workspaces", "", roleFull)
@@ -492,8 +330,25 @@ func TestWorkspaceBoardLateMachineAlias(t *testing.T) {
 	_ = store.SaveWorkspaceSnapshot(context.Background(), "canonical", json.RawMessage(`[]`))
 	w = boardCall(s, "GET", "/api/v1/workspaces", "", roleFull)
 	_ = json.Unmarshal(w.Body.Bytes(), &list)
-	if len(list.Workspaces) != 1 || list.Workspaces[0].Cwd != "/work/weather" {
+	if len(list.Workspaces) != 0 {
 		t.Fatalf("stale alias catalog revived: %s", w.Body)
+	}
+}
+
+func TestCanonicalCwd(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{{`C:\repo\one\..\two\`, `c:/repo/two`}, {`c:/repo/two`, `c:/repo/two`}, {`\\Server\Share\repo\..\two`, `//server/share/two`}, {`/unix/back\slash`, `/unix/back\slash`}, {`C:\`, `c:/`}} {
+		got, err := canonicalCwd(tc.in)
+		if err != nil || got != tc.want {
+			t.Fatalf("%q = %q, %v want %q", tc.in, got, err, tc.want)
+		}
+	}
+	for _, p := range []string{`C:repo`, `C:`, `\repo`, `\\server`, `relative`} {
+		if _, err := canonicalCwd(p); !errors.Is(err, errWorkspacePath) {
+			t.Fatalf("accepted relative %q: %v", p, err)
+		}
+	}
+	if cwdKey(`C:\Repo`) != cwdKey(`c:/repo`) || cwdKey("/Repo") == cwdKey("/repo") {
+		t.Fatal("Windows paths compare without case, POSIX paths with it")
 	}
 }
 
@@ -629,16 +484,6 @@ func TestWorkspacesUseVerifiedSessionDirectory(t *testing.T) {
 	candidate := workspaceForSession("laptop", sessions[0])
 	if candidate.Cwd != "/work/weather" || candidate.SourceID != "/work/weather" {
 		t.Fatalf("session fallback ignored verified path: %+v", candidate)
-	}
-}
-
-// PUT /api/v1/workspace-board/settings: an over-the-cap body is 413 too_large, not "needs enabled".
-func TestWorkspaceBoardSettingsBodyLimit(t *testing.T) {
-	s, _ := newBoardService(t, newSettingsBoardStore(), nil)
-	body := `{"enabled":true,"note":"` + strings.Repeat("x", 16<<10) + `"}`
-	w := boardCall(s, "PUT", "/api/v1/workspace-board/settings", body, roleFull)
-	if w.Code != 413 || !strings.Contains(w.Body.String(), proto.CodeTooLarge) {
-		t.Fatalf("oversized settings body: %d %s", w.Code, w.Body)
 	}
 }
 

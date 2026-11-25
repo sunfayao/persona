@@ -216,7 +216,7 @@ func (s *Service) startPlan(ctx context.Context, id string, edits []PlanTask, re
 			t.After = cleanIDs(slices.Concat(t.After, todo.After))
 			t.Queue = s.prerequisiteQueue(ctx, *t, s.requestBlockers(ctx, *t))
 		} else if t.Workspace != nil && t.Workspace.Mode == workspaceExisting && (!t.WorkspaceInferred || t.Workspace.Queue) && t.WorkspaceResolved != nil {
-			effMachine := s.effectiveBoardMachine(t.Machine)
+			effMachine := s.effectiveMachine(t.Machine)
 			wsPath := t.WorkspaceResolved.Path
 			wsKey := effMachine + "\x00" + s.taskDirKey(ctx, t.Machine)(wsPath)
 			owner := s.taskWorkspaceOwner(ctx, t.Machine, wsPath, t.TodoID, false)
@@ -279,7 +279,7 @@ func (s *Service) startPlan(ctx context.Context, id string, edits []PlanTask, re
 			task.Workspace.Mode != workspaceExisting || (task.WorkspaceInferred && !task.Workspace.Queue) || task.WorkspaceResolved == nil {
 			continue
 		}
-		effMachine := s.effectiveBoardMachine(task.Machine)
+		effMachine := s.effectiveMachine(task.Machine)
 		wsKey := effMachine + "\x00" + s.taskDirKey(ctx, task.Machine)(task.WorkspaceResolved.Path)
 		if planQueuedKeys[wsKey] {
 			s.preclaimWorkspace(ctx, effMachine, task.WorkspaceResolved.Path, task.TodoID)

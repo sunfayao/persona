@@ -390,10 +390,6 @@ todos.read           GET /api/v1/todos/{id}/workspace-rules
 -                    GET /api/v1/usage/days
 -                    GET /api/v1/usage/hours
 -                    GET /api/v1/usage/windows
-agents.read          GET /api/v1/workspace-board
-agents.read          GET /api/v1/workspace-board/activity
-agents.read          GET /api/v1/workspace-board/activity/{revision}
--                    GET /api/v1/workspace-board/settings
 agents.read          GET /api/v1/workspaces
 -                    GET /api/v1/ws
 -                    GET /i/{code}
@@ -714,7 +710,6 @@ todos.write          POST /api/v1/todos/{id}/workspace-naming/preview
 -                    POST /api/v1/translate
 -                    POST /api/v1/translate/mail
 -                    POST /api/v1/translate/message
--                    POST /api/v1/workspace-board
 -                    POST {adminUploadPath}
 -                    POST {base}/catalog/preview
 -                    POST {base}/markets
@@ -826,7 +821,6 @@ todos.write          PUT /api/v1/todos/{id}/repositories/{repo_id}/links
 todos.write          PUT /api/v1/todos/{id}/spaces/{mid}/{space...}
 -                    PUT /api/v1/todos/{id}/thread
 todos.write          PUT /api/v1/todos/{id}/workspace-rules
--                    PUT /api/v1/workspace-board/settings
 -                    PUT {base}/market-settings
 -                    PUT {base}/markets/{mid}
 -                    PUT {base}/markets/{mid}/token

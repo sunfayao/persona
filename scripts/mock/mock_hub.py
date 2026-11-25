@@ -340,7 +340,7 @@ if RESUME_TERMINAL:
                      "hostname": "Mini", "os": "darwin", "arch": "arm64", "home": "/Users/me", "claude_version": "2.1.320",
                      "last_seen": ago()})
 
-# ---------- workspaces (GET /api/v1/workspaces, docs/web/workspace-board.md) ----------
+# ---------- workspaces (GET /api/v1/workspaces) ----------
 # A few host spaces and session folders on the mock machines: what the assistant's @ menu lists (#5594). Placeholders.
 def mock_workspaces():
     rows = [("server", "herdr", "persona", "/home/me/code/persona", "master"), ("macbook", "herdr", "weather-app", "/Users/me/code/weather-app", "main"),

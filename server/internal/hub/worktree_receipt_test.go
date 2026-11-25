@@ -38,7 +38,7 @@ func TestWorktreeCreateReceiptSurvivesLostResponse(t *testing.T) {
 	h := newTestHub(t)
 	h.store = store
 	var creates atomic.Int32
-	boardNode(t, h, "machine", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
+	pipeNode(t, h, "machine", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
 		if method != "worktree.create" {
 			t.Errorf("unexpected node method %s", method)
 		}
@@ -109,7 +109,7 @@ func TestWorktreeCreateReceiptKeepsUnknownOutcome(t *testing.T) {
 	h := newTestHub(t)
 	h.store = store
 	var creates atomic.Int32
-	boardNode(t, h, "machine", func(context.Context, string, json.RawMessage) (any, error) {
+	pipeNode(t, h, "machine", func(context.Context, string, json.RawMessage) (any, error) {
 		creates.Add(1)
 		return nil, context.DeadlineExceeded
 	})
@@ -149,7 +149,7 @@ func TestWorktreeCreateReceiptRequiresFullCredentials(t *testing.T) {
 			h := newTestHub(t)
 			h.store = &clientOpsStore{ops: map[string]db.ClientOp{}}
 			var creates atomic.Int32
-			boardNode(t, h, "machine", func(context.Context, string, json.RawMessage) (any, error) {
+			pipeNode(t, h, "machine", func(context.Context, string, json.RawMessage) (any, error) {
 				creates.Add(1)
 				return map[string]any{}, nil
 			})

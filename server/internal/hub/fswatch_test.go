@@ -204,7 +204,7 @@ func TestFsWatchByAbsorbedAliasReachesTheNodeAndRoutesChanges(t *testing.T) {
 	h := newTestHub(t)
 	var mu sync.Mutex
 	var watched []fsWatchParam
-	boardNode(t, h, "canonical", func(_ context.Context, method string, params json.RawMessage) (any, error) {
+	pipeNode(t, h, "canonical", func(_ context.Context, method string, params json.RawMessage) (any, error) {
 		if method == "fs.watch" {
 			var p fsWatchParam
 			_ = json.Unmarshal(params, &p)
@@ -265,7 +265,7 @@ func TestFsWatchByBothIDsOfOneComputerKeepsEach(t *testing.T) {
 	h := newTestHub(t)
 	var mu sync.Mutex
 	var watched []fsWatchParam
-	boardNode(t, h, "canonical", func(_ context.Context, method string, params json.RawMessage) (any, error) {
+	pipeNode(t, h, "canonical", func(_ context.Context, method string, params json.RawMessage) (any, error) {
 		if method == "fs.watch" {
 			var p fsWatchParam
 			_ = json.Unmarshal(params, &p)

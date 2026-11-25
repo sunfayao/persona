@@ -303,7 +303,7 @@ type Service struct {
 	companions companionState    // feishu_companions.go: the notices for a companion bot
 	kb         kbState           // kb.go
 	inbox      inboxBook         // inbox_book.go
-	board      boardBook         // workspace_board.go: the workspace board
+	workspaces workspaceBook     // workspaces.go: workspace discovery
 	viewEvents viewNotifications // views.go: only coalesced notifications; contents are stored first
 	viewMemo   viewMemo          // views.go: encoded cards for the feed snapshot, checked against the database
 
@@ -429,7 +429,7 @@ func New(o Options) *Service {
 	s.todoRoutes()
 	s.agentRoutes()
 	s.sessionReviewRoutes()
-	s.workspaceBoardRoutes()
+	s.workspaceRoutes()
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
 	s.companionRoutes()

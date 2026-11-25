@@ -22,7 +22,7 @@ func TestSubagentSubscriptionIsWatchedAndHearsThePushes(t *testing.T) {
 			h := newTestHub(t)
 			var mu sync.Mutex
 			var calls []string
-			m := boardNode(t, h, "canonical", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
+			m := pipeNode(t, h, "canonical", func(_ context.Context, method string, raw json.RawMessage) (any, error) {
 				var p struct {
 					SessionID string `json:"session_id"`
 				}

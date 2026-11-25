@@ -345,7 +345,7 @@ func repositoryWithoutCommits(err error) bool {
 // below the checkout root.
 func (s *Service) taskWorkspaceOwner(ctx context.Context, machine, cwd, except string, descendants bool) *Todo {
 	key := s.taskDirKey(ctx, machine)
-	machine, cwd = s.effectiveBoardMachine(machine), key(cwd)
+	machine, cwd = s.effectiveMachine(machine), key(cwd)
 	matches := func(dir string) bool {
 		dir = key(dir)
 		return dir == cwd || descendants && strings.HasPrefix(strings.ReplaceAll(dir, `\`, "/"),
@@ -373,7 +373,7 @@ func (s *Service) taskWorkspaceOwner(ctx context.Context, machine, cwd, except s
 			continue
 		}
 		for _, a := range t.Agents {
-			if a.ReleasedAt == nil && a.DismissedAt == nil && s.effectiveBoardMachine(a.MachineID) == machine && matches(a.Cwd) {
+			if a.ReleasedAt == nil && a.DismissedAt == nil && s.effectiveMachine(a.MachineID) == machine && matches(a.Cwd) {
 				return &t
 			}
 		}
@@ -388,7 +388,7 @@ func (s *Service) taskWorkspaceOwner(ctx context.Context, machine, cwd, except s
 // find the same writer.
 func (s *Service) taskDirKey(ctx context.Context, machine string) func(string) string {
 	m, ok := s.machineByName(ctx, machine)
-	if effective := s.effectiveBoardMachine(machine); !ok && effective != machine {
+	if effective := s.effectiveMachine(machine); !ok && effective != machine {
 		m, _ = s.machineByName(ctx, effective)
 	}
 	return func(dir string) string { return homeDirKey(dir, m.Home, m.HomeReal) }
@@ -474,7 +474,7 @@ func (s *Service) admitTaskWorkspace(ctx context.Context, t *PlanTask) error {
 		if owner := s.taskWorkspaceOwner(ctx, t.Machine, t.Cwd, t.TodoID, false); owner != nil {
 			if s.shouldQueueExistingWorkspace(ctx, *t, owner) {
 				return &workspaceBusyQueueError{
-					machine:    s.effectiveBoardMachine(t.Machine),
+					machine:    s.effectiveMachine(t.Machine),
 					path:       t.Cwd,
 					ownerID:    owner.ID,
 					ownerTitle: owner.Title,
@@ -483,7 +483,7 @@ func (s *Service) admitTaskWorkspace(ctx context.Context, t *PlanTask) error {
 			return i18n.ErrEnglish("assistant-tasks_workspace.busy", i18n.Args{"id": owner.ID, "title": owner.Title, "machine": t.Machine, "path": t.Cwd})
 		}
 		if t.TodoID != "" {
-			claim := s.effectiveBoardMachine(t.Machine) + "\x00" + s.taskDirKey(ctx, t.Machine)(t.Cwd)
+			claim := s.effectiveMachine(t.Machine) + "\x00" + s.taskDirKey(ctx, t.Machine)(t.Cwd)
 			s.tasks.mu.Lock()
 			if s.tasks.workspaceClaims == nil {
 				s.tasks.workspaceClaims = map[string]string{}

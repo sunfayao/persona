@@ -52,7 +52,7 @@ func TestLiveTextPastTheQueueDropsTheClient(t *testing.T) {
 // pushes carry.
 func TestSubscribeByAbsorbedAliasHearsThePushes(t *testing.T) {
 	h := newTestHub(t)
-	boardNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
+	pipeNode(t, h, "canonical", func(_ context.Context, method string, _ json.RawMessage) (any, error) {
 		if method == "session.items" {
 			return map[string]any{"items": []proto.Item{}, "history": "h1", "to_seq": 0}, nil
 		}

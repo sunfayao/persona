@@ -1,0 +1,5 @@
+{
+  "err_no_store": "Workspace discovery needs a database that supports it",
+  "err_snapshot_read": "Couldn’t read the workspace history snapshot",
+  "err_snapshot_save": "Couldn’t save the workspace snapshot"
+}

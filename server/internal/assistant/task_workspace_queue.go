@@ -202,7 +202,7 @@ func (s *Service) preclaimWorkspace(ctx context.Context, machine, cwd, todoID st
 	if owner := s.taskWorkspaceOwner(ctx, machine, cwd, todoID, false); owner != nil {
 		return false
 	}
-	claim := s.effectiveBoardMachine(machine) + "\x00" + s.taskDirKey(ctx, machine)(cwd)
+	claim := s.effectiveMachine(machine) + "\x00" + s.taskDirKey(ctx, machine)(cwd)
 	s.tasks.mu.Lock()
 	if s.tasks.workspaceClaims == nil {
 		s.tasks.workspaceClaims = map[string]string{}
@@ -300,7 +300,7 @@ func (s *Service) drainWorkspaceQueue(ctx context.Context, machine, cwd string) 
 	s.tasks.workspaceQueueMu.Lock()
 	defer s.tasks.workspaceQueueMu.Unlock()
 
-	effMachine := s.effectiveBoardMachine(machine)
+	effMachine := s.effectiveMachine(machine)
 	dirKeyFn := s.taskDirKey(dctx, machine)
 	targetDirKey := dirKeyFn(cwd)
 
@@ -315,7 +315,7 @@ func (s *Service) drainWorkspaceQueue(ctx context.Context, machine, cwd string) 
 			if pt.TodoID == "" || pt.Error != "" || q == nil || q.Key != workspaceQueueKey || q.Workspace == nil {
 				continue
 			}
-			if s.effectiveBoardMachine(q.Workspace.Machine) != effMachine ||
+			if s.effectiveMachine(q.Workspace.Machine) != effMachine ||
 				s.taskDirKey(dctx, q.Workspace.Machine)(q.Workspace.Path) != targetDirKey {
 				continue
 			}
@@ -446,7 +446,7 @@ func (s *Service) onTodoWorkspaceReleased(ctx context.Context, before Todo, mayS
 		if strings.TrimSpace(machine) == "" || strings.TrimSpace(cwd) == "" {
 			return
 		}
-		eff := s.effectiveBoardMachine(machine)
+		eff := s.effectiveMachine(machine)
 		key := eff + "\x00" + s.taskDirKey(rctx, machine)(cwd)
 		if seen[key] {
 			return
@@ -512,7 +512,7 @@ func (s *Service) drainWorkspaceQueuesForPrereq(ctx context.Context, prereqID st
 			if !slices.Contains(after, prereqID) {
 				continue
 			}
-			eff := s.effectiveBoardMachine(pt.Queue.Workspace.Machine)
+			eff := s.effectiveMachine(pt.Queue.Workspace.Machine)
 			key := eff + "\x00" + s.taskDirKey(rctx, pt.Queue.Workspace.Machine)(pt.Queue.Workspace.Path)
 			if seen[key] {
 				continue
@@ -543,7 +543,7 @@ func (s *Service) sweepWorkspaceQueues(ctx context.Context) {
 				s.clearWorkspaceQueueEntry(ctx, p.ID, i, pt.TodoID)
 				continue
 			}
-			eff := s.effectiveBoardMachine(pt.Queue.Workspace.Machine)
+			eff := s.effectiveMachine(pt.Queue.Workspace.Machine)
 			key := eff + "\x00" + s.taskDirKey(ctx, pt.Queue.Workspace.Machine)(pt.Queue.Workspace.Path)
 			if seen[key] {
 				continue
