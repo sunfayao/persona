@@ -378,7 +378,7 @@ for it.
 
 ### S6. Inbox scopes in their own extwire file
 - **Change:** the 31 entries at `extwire/scopes.go:22-52` move to a new extwire file and join `RouteScopes` from
-  `init()` through addRouteScopes (the pattern `assistantwire/board.go`, `assistantwire/models.go` and
+  `init()` through addRouteScopes (the pattern `assistantwire/models.go` and
   `assistantwire/agents.go` use for `Routes`); a duplicate key panics. It is one PR with the registry stage's scope
   step, which gives scopes.go a name freeze (D7). The translate routes stay absent, so they keep needing full
   credentials.

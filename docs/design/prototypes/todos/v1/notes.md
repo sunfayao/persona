@@ -5,7 +5,7 @@ to `[data-variant="V1"]`).
 
 **Superseded for the list:** the frames `iphone/list` and its states (the section bar, Review Plan ›, the floating New
 To-Do pill, bare times) predate the owner's 2026-11-21 redraw of the list page, its rows and their container:
-`docs/design/DECISIONS.md` "11-21 The To-dos list" and DESIGN_SYSTEM 3.4 "To-dos list" are the design now. The other
+`docs/design/DECISIONS.md` and DESIGN_SYSTEM 3.4 "To-dos list" are the design now. The other
 frames stand.
 
 ## The idea

@@ -48,7 +48,7 @@ Scope: tokens, components, interaction patterns, content, dark mode, text size a
 
 Relationship to other docs:
 
-- `CLAUDE.md` ("Design system") is the short rule list that agents follow. This document is the longer reference behind it.
+- `CLAUDE.md` ("Design spec for UI changes") is the short rule list that agents follow. This document is the longer reference behind it.
 - `docs/web/web.md` covers web layout and conventions.
 - `docs/SUPER_RULES.md` holds the highest-priority rules, including the product audience foundation and the interaction rules cited in section 4. Changes there need administrator approval.
 - `docs/design/DECISIONS.md` is the history of these rules: what was decided, when, and what it replaced. It holds no rules; where it and this document differ, this document wins.

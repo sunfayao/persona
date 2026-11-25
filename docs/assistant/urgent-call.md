@@ -60,7 +60,7 @@ phone: PushKit → open the payload → report the call (LiveCommunicationKit) +
 
 ### Mainland China iPhones
 
-LiveCommunicationKit, not CallKit's `CXProvider`: apps on the China App Store may not use CallKit, while LiveCommunicationKit (iOS 17.4+) is what calling apps there use. No binary in the app may even link CallKit; CI and the release checks enforce that (`../operations/release.md` "No CallKit"). On some iPhones sold in mainland China the incoming call shows only as a top banner or in the Dynamic Island. So every call also posts a silent time-sensitive **companion notification** ("Persona is calling you: <title>") that stays after the call UI goes and opens the call page; it is withdrawn once the call is answered, ends or is handled elsewhere.
+LiveCommunicationKit, not CallKit's `CXProvider`: apps on the China App Store may not use CallKit, while LiveCommunicationKit (iOS 17.4+) is what calling apps there use. No binary in the app may even link CallKit; CI and the release checks enforce that. On some iPhones sold in mainland China the incoming call shows only as a top banner or in the Dynamic Island. So every call also posts a silent time-sensitive **companion notification** ("Persona is calling you: <title>") that stays after the call UI goes and opens the call page; it is withdrawn once the call is answered, ends or is handled elsewhere.
 
 After two unanswered calls: a time-sensitive push "Missed urgent call: <title>", the Feishu reminder where set up, the card at the top of Needs you with **Call back**, and reminders at 10 and 30 minutes until it is handled anywhere.
 

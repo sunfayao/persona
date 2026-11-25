@@ -337,7 +337,7 @@ A computer that reaches the internet only through an HTTP(S) proxy (common on co
 
 ## SSH tunnel
 
-When a hub machine exposes only SSH (port 22) — its HTTP and TLS ports listen on `127.0.0.1` only, with no open public port or reverse proxy — active-mode Persona Link can reach the hub's TLS port through an SSH tunnel (#3775), matching the apps' SSH tunnel ([network.md](network.md), "Connecting to hub through SSH").
+When a hub machine exposes only SSH (port 22) — its HTTP and TLS ports listen on `127.0.0.1` only, with no open public port or reverse proxy — active-mode Persona Link can reach the hub's TLS port through an SSH tunnel (#3775), matching the SSH tunnel clients use ([network.md](network.md)).
 
 > **How this fits the "No SSH" decision at the top of this page.** "No SSH" there is about the hub SSH-ing into computers, which requires inbound reachability and gives the hub shell-level permission on the computer. Here the computer still dials out as before; SSH is only an optional transport to reach the hub's TLS port, and the hub gains no access to the computer.
 

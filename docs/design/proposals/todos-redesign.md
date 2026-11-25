@@ -169,7 +169,7 @@ selection. The zh-Hans words of every label in this section are in section 3.11.
   pick replaces the root, never animated (option 3). **Everywhere:** the list's title ("All To-dos ▾") is a menu of the
   same places, the second way in that the HIG asks for.
 
-**States are a Filter at the list's foot** (amended 2026-11-21, `docs/design/DECISIONS.md` "11-21 The To-dos list";
+**States are a Filter at the list's foot** (amended 2026-11-21, `docs/design/DECISIONS.md`;
 first drawn as the Inbox's section bar), in All To-dos and each project's place: the same choices as the Inbox's bar, as
 a pop-up at the leading end of the foot toolbar, Mail's, beside the system's search field and **+** (New To-Do). Its
 menu always lists all five with how many each would show; a choice on names itself, with its own ×; the choice is not

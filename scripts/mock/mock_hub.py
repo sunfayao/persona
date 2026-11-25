@@ -14539,7 +14539,7 @@ if os.environ.get("MOCK_LARK_TOPIC"):
                   "lark": {"feed_id": "f4", "is_group": True, "is_topic": True, "start_position": "405", "read_position": "404"}})
 
 
-# MOCK_LARK_RICH=1 (docs/operations/testing.md "Jank measurement"): f3's history is heavier, like a busy work group's: every third message
+# MOCK_LARK_RICH=1 (docs/operations/testing.md): f3's history is heavier, like a busy work group's: every third message
 # before the unread ones is a card, a picture or a rich post instead of a line of chatter.
 if os.environ.get("MOCK_LARK_RICH"):
     for _i, _m in enumerate(m for m in LARK_MESSAGES["f3"] if int(m["position"]) < 300 and not m.get("is_mine")):
@@ -17798,7 +17798,7 @@ if os.environ.get("MOCK_CARDS") == "1":
             "```persona-card\n{\"type\": \"stat\", \"title\": \"步\n```",
         ])),
     ]
-# The health space's conversations (docs/assistant/tracks.md "Charts", #3140): the numbers in each answer come with the charts its
+# The health space's conversations (docs/assistant/tracks.md, #3140): the numbers in each answer come with the charts its
 # CLAUDE.md asks for: sleep and steps by day as lines, a stat for today's steps, each meal's calories as bars, how the
 # day's calories split as a stacked bar, the details as a table. Made-up numbers.
 _hcard = lambda d: "```persona-card\n" + json.dumps(d, ensure_ascii=False) + "\n```"
@@ -18141,7 +18141,7 @@ if os.environ.get("MOCK_TITLES") == "1":
 
 # MOCK_LONG_ASSISTANT=1: the Persona tab's main conversation is a long one, like the one a user keeps for weeks: sixty
 # exchanges, each with a few tool calls and a long Markdown reply (headings, lists, a table, a code block), for measuring
-# the Persona page's frames (docs/operations/testing.md "Jank measurement").
+# the Persona page's frames (docs/operations/testing.md).
 if os.environ.get("MOCK_LONG_ASSISTANT") == "1":
     _long = []
     for _n in range(60):
