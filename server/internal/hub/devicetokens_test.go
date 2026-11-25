@@ -12,7 +12,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/screen"
 )
 
 // tokenStore keeps device tokens in memory, like the device_tokens table.
