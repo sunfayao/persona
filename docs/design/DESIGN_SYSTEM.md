@@ -2050,6 +2050,8 @@ page's composer chip and model panel adopt the same module in their own change; 
 
 ## New Agent's model choice (#5104)
 
+Starting in a known project opens a chat draft beside the usual sidebar. The header identifies the destination, and the existing composer places attachments and first input at the bottom with the model and supported permission controls near Send. A folder draft keeps its inputs across ordinary navigation. Opening a draft creates nothing on the computer. Send hands off to the regular startup and retry states. The global opener keeps the destination picker when the folder is unknown.
+
 New Agent picks its model with the chat's model pill and unified model panel ("Model pill and unified model panel" in
 3.8), at the user's request (2026-11-12) to match Cindy's new task: the user picks a model and the launcher and its
 engine follow; the engine's mark stays on the pill and on every row. Who it serves: people starting coding Agents (the

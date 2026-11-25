@@ -388,7 +388,7 @@ describe("machine and workspace", () => {
     by(items, "node-shell").onSelect();
     expect(onOpenShell).toHaveBeenCalled();
     by(items, "node-new-agent").onSelect();
-    expect(d.newAgent).toHaveBeenCalledWith("m1", "/home/me/proj");
+    expect(d.newAgent).toHaveBeenCalledWith("m1", "/home/me/proj", ws);
   });
 });
 

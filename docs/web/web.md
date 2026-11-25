@@ -2432,6 +2432,10 @@ location ^~ /v1/projects/ {
 
 Keep authorization headers and document bodies out of proxy logs. Members use their project-issued tokens. The Web app sends the token only with the document read and checks the returned project, document, approval and SHA-256 before offering the text. The confirmed text becomes part of the personal session and reaches the selected model provider when the member starts it.
 
+## Start an Agent in a project
+
+From a project's +, its details, a worktree, or a terminal workspace, New Agent opens a chat draft in that location. Type and attach files with the usual composer and choose the model, effort and supported permissions next to Send. The draft stays with the chosen computer, folder and workspace when available. Files stay in the browser until Send. Back and reopening the same project restores its unsent draft. Sending creates the Agent and hands off to the existing startup and retry view. A global New Agent without a preselected folder keeps the destination picker.
+
 ## New Agent's model choice (#5104)
 
 Who it serves: people starting a coding Agent from the web (the **Agents** side). The user asked (2026-11-12) for this

@@ -41,7 +41,7 @@ export function validCatalog(v: unknown): v is SessionCatalog {
 }
 
 /** One directory of a project, or the computer of a space and its folder ("" when the hub does not say). */
-interface GroupPlace { machine: string; path: string; count: number }
+interface GroupPlace { machine: string; path: string; count: number; spaceId?: string }
 
 export interface SessionGroup {
   /** What the value pill holds and what a section is remembered by; unique within its dimension. */
@@ -114,7 +114,7 @@ export function catalogGroups(catalog: SessionCatalog, dimension: "project" | "g
     const pair = listPair(s.machine_id, s.id);
     return {
       key: pair, name: s.id ? s.name || s.id : t("paged-agents.no_space"), count: s.total, needs: s.needs_you ?? 0, rest: !s.id || undefined,
-      members: [pair], filters: { space: [pair] }, places: [{ machine: s.machine_id, path: s.id ? s.path ?? "" : "", count: s.total }],
+      members: [pair], filters: { space: [pair] }, places: [{ machine: s.machine_id, path: s.id ? s.path ?? "" : "", count: s.total, spaceId: s.id || undefined }],
     };
   })).sort(byGroupPlace);
 }

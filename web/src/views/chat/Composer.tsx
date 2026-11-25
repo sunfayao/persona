@@ -24,7 +24,7 @@ import { COMPACT_COMPOSER, COMPOSER_LINES, lineCount, offersExpand } from "./com
 import { INPUT_MAX } from "./dock";
 import { base64File, releaseAttachments } from "../../lib/attachments";
 import { imageLimitsFor, MAX_PICTURE_SOURCE, pictureRoom, type ImageLimits } from "../../lib/image-limits";
-import { addFiles as addComposerFiles, filesBusy, MAX_FILES, readyFiles, restoreFiles, splitFileTags, takeReadyFiles, useComposerFiles, withFiles } from "../../lib/composer-files";
+import { addFiles as addComposerFiles, filesBusy, MAX_FILES, readyFiles, restoreFiles, splitFileTags, takeLocalFiles, takeReadyFiles, useComposerFiles, withFiles } from "../../lib/composer-files";
 import { activateComposer, addContext, getContexts, newContext, registerComposer, removeContext, useContexts, withContexts, type ContextRef, type ComposerHandle } from "../../lib/links";
 import { addQuote, applyDraft, getQuotes, onDraftEvent, parseQuotes, removeQuote, replaceNeedsConfirm, sendDraft, setQuotes, splitQuotes, storeDraft, useQuotes, withQuoteBlock, withUnsent, type DraftImage } from "../../lib/drafts";
 import type { EditedImage } from "../../lib/image-edit";
@@ -77,7 +77,9 @@ export interface Attachment {
 
 export interface Outgoing {
   text: string;
-  images: { mime: string; data: string }[];
+  images: { mime: string; data: string; name?: string }[];
+  /** Picked files waiting for a new Agent. Ordinary chat files are already in the serialized text. */
+  localFiles?: File[];
   /** Ctrl/⌘+Enter hands the message over immediately through the queue's Send now action. */
   sendNow?: boolean;
   /** Use the terminal's next-turn queue rather than its normal follow-up. */
@@ -157,6 +159,7 @@ export const Composer = memo(function Composer({
   stopping,
   autoFocus,
   carryDraft,
+  deferredAttachments,
   footer,
   leading,
   trailing,
@@ -202,6 +205,8 @@ export const Composer = memo(function Composer({
   /** A new `draftKey` can be the same conversation at a newly known address (the assistant's chat, whose computer is
    *  read after a cached first view; PersonaAssistant): the words and pictures in the box stay rather than being swapped. */
   carryDraft?: boolean;
+  /** A draft with no Agent yet owns its pictures across navigation and delays uploads until Send. */
+  deferredAttachments?: { images: DraftImage[] };
   /** In the bottom row's flexible middle (no chat passes one since #5324: the source and folder are under the box). */
   footer?: React.ReactNode;
   /** Right after the +: an Agent's or a Persona conversation's permission picker (#5324, PermissionPicker.tsx). Keep it the
@@ -239,6 +244,8 @@ export const Composer = memo(function Composer({
   const draft = editor?.text ?? chatDraft;
   const editingPrompt = Boolean(editor);
   const [atts, setAtts] = useState<Attachment[]>([]);
+  // Take the saved snapshot before effects. Replaying mount effects must not replace it with the empty initial tray.
+  const savedDraftImages = useRef(deferredAttachments?.images);
   // The suggestion just sent with its arrow: it stays on the hub until the agent starts, and each tap would be a new message.
   const [sentPill, setSentPill] = useState<string | null>(null);
   useEffect(() => {
@@ -249,7 +256,7 @@ export const Composer = memo(function Composer({
   // files picked for this conversation (lib/composer-files.ts, #8361): tiles above the input, uploading or there
   const files = useComposerFiles(draftKey);
   const uploading = files.some((f) => f.state === "waiting" || f.state === "uploading");
-  const filesReady = files.some((f) => f.file);
+  const filesReady = files.some((f) => f.file || f.state === "local");
   const [dismissed, setDismissed] = useState(false);
   const [active, setActive] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -339,7 +346,7 @@ export const Composer = memo(function Composer({
       toast(why === "count" ? t("chat-composer.too_many_images", { max: limits().per_message }) : t("chat-composer.images_too_large"), "error");
       return;
     }
-    const r = addComposerFiles(draftKey, machineId, files);
+    const r = addComposerFiles(draftKey, machineId, files, Boolean(deferredAttachments));
     const went = files.length - r.tooMany;
     if (went > 0) toast(why === "count" ? t("chat-composer.images_as_files", { max: limits().per_message, count: went }) : t("chat-composer.images_bytes_as_files", { count: went }));
     if (r.tooMany) toast(t("chat-composer.too_many_files", { max: MAX_FILES }), "error");
@@ -365,6 +372,9 @@ export const Composer = memo(function Composer({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      if (deferredAttachments) {
+        deferredAttachments.images = attsNow.current.map(({ mime, data, name }) => ({ mime, data, name }));
+      }
       releaseAttachments(attsNow.current);
     };
   }, []);
@@ -385,7 +395,7 @@ export const Composer = memo(function Composer({
     setDraft(restoreSkills(storedValue(`draft:${draftKey}`) ?? ""));
     setPlusOpen(false);
     releaseAttachments(attsNow.current);
-    setAtts([]);
+    setAtts(savedDraftImages.current?.map((image) => fromDraftImage(image)) ?? []);
     // not on a touch screen alone: there the focus brings the keyboard up over the conversation just opened. Nor when
     // the person already went to another field or a dialog by then.
     if (!autoFocus || !hasFinePointer()) return;
@@ -809,7 +819,7 @@ export const Composer = memo(function Composer({
     spillImages(spill.bytes, "bytes");
     // other files go to the session's machine as tiles above the input, never words in it (lib/composer-files.ts, #8361)
     if (others.length) {
-      const r = addComposerFiles(draftKey, machineId!, others);
+      const r = addComposerFiles(draftKey, machineId!, others, Boolean(deferredAttachments));
       if (r.tooMany) toast(t("chat-composer.too_many_files", { max: MAX_FILES }), "error");
       if (r.tooBig.length) toast(t("chat-composer.file_too_large"), "error");
     }
@@ -859,7 +869,7 @@ export const Composer = memo(function Composer({
       toast(t("chat-composer.files_uploading"));
       return;
     }
-    const hasFiles = readyFiles(draftKey).length > 0;
+    const hasFiles = filesReady || readyFiles(draftKey).length > 0;
     if (editor || disabled || blocked || loadingDraft || (!text.trim() && !atts.length && !hasFiles && !refs.length && !q.length)) return;
     // Any message spends the suggestion shown: it stays on the hub until the agent starts (#4644).
     if (suggestion) setSentPill(suggestion);
@@ -879,6 +889,7 @@ export const Composer = memo(function Composer({
     // (onSend false) puts them back; one that failed stays in the chat as a failed bubble.
     const sent = atts;
     const sentFiles = takeReadyFiles(draftKey);
+    const localFiles = deferredAttachments ? takeLocalFiles(draftKey) : [];
     setDraft("");
     draftNow.current = "";
     unsaved.current = null;
@@ -893,11 +904,13 @@ export const Composer = memo(function Composer({
     if (hasFinePointer() && (!at || at === document.body || box.current?.contains(at))) input.current?.focus({ preventScroll: true });
     // picked contexts ride in front as <persona-context> tags (docs/protocol/protocol.md "Tags in messages"), the quote as `> ` lines,
     // files after the words as <persona-file> tags, the words as typed (with none, a line saying to look at them)
-    const said = !text.trim() && !sent.length && sentFiles.length ? t("chat-composer.see_files") : text;
+    const said = !text.trim() && !sent.length && (sentFiles.length || localFiles.length) ? t("chat-composer.see_files") : text;
     const body = withFiles(withQuoteBlock(q, said), sentFiles);
     const quoteReply = !edit && q.some((x) => !x.comment);
     const now = choosesBusySend ? followsUp !== alternate : alternate && Boolean(onSendNow);
-    const ok = await onSend({ text: withContexts(refs, body, sent.length > 0), images: sent.map((a) => ({ mime: a.mime, data: a.data })),
+    const ok = await onSend({ text: withContexts(refs, body, sent.length > 0),
+      images: sent.map((a) => ({ mime: a.mime, data: a.data, ...(deferredAttachments ? { name: a.name } : {}) })),
+      ...(localFiles.length ? { localFiles } : {}),
       ...(now && queues ? { sendNow: true } : {}),
       ...(choosesBusySend && queueNextTurn && !now ? { queueNextTurn: true } : {}),
       ...(quoteReply ? { quoteReply: true } : {}), ...(committed ? { edit: committed } : {}) });
@@ -920,6 +933,7 @@ export const Composer = memo(function Composer({
       // the files back above this conversation's box: they are on the machine, ready to go again; ones over the
       // tile limit stay in the draft as tags rather than disappearing
       const overflow = restoreFiles(draftKey, sentFiles);
+      if (localFiles.length && machineId) addComposerFiles(draftKey, machineId, localFiles, true);
       if (overflow.length) {
         const restored = withFiles("", overflow);
         if (mounted.current && keyNow.current === draftKey) setDraft((cur) => withUnsent(cur, restored));

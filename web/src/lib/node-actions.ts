@@ -57,8 +57,8 @@ export interface NodeActionDeps {
   renameWorkspace: (node: MenuNode, name: string) => Promise<unknown>;
   renameTab: (node: MenuNode, name: string) => Promise<unknown>;
   launchers: (mid: string) => Promise<Launcher[]>;
-  /** "New agent…" in a folder of this machine (the "New agent" dialog, filled in). */
-  newAgent: (mid: string, cwd: string) => void;
+  /** "New agent…" in a folder of this machine. */
+  newAgent: (mid: string, cwd: string, workspace?: Pick<MenuNode, "workspaceId" | "host" | "label">) => void;
   /** "New worktree…" for this workspace (the dialog, #2431); a deps without it leaves the item out. */
   newWorktree?: (node: MenuNode) => void;
   /** Opens a session's chat: the agent "Run agent here" started, as "New agent" opens the one it starts (#3287). */
@@ -82,7 +82,10 @@ export function defaultNodeDeps(changed: () => void = () => {}): NodeActionDeps 
         ? api(`${sessionPath(node.mid, node.tabSessionId)}/rename`, { method: "POST", json: { tab_name: name } })
         : api(`/machines/${enc(node.mid)}/tabs/rename`, { method: "POST", json: { tab_id: node.tabId, label: name, ...(node.host ? { kind: node.host } : {}) } }),
     launchers: (mid) => api<{ launchers: Launcher[] }>(`/machines/${enc(mid)}/launchers`).then((r) => r.launchers ?? []),
-    newAgent: (mid, cwd) => openNewAgent({ machineId: mid, cwd }),
+    newAgent: (mid, cwd, node) => openNewAgent({
+      machineId: mid, cwd, host: node?.host,
+      workspace: node?.workspaceId ? { machineId: mid, cwd, workspaceId: node.workspaceId, host: node.host || "herdr", label: node.label } : undefined,
+    }),
     newWorktree: (node) => openNewWorktree(node, changed),
     openSession: (mid, sid) => navigate({ name: "session", mid, sid }),
     copy: (text) => void copyText(text),
@@ -165,7 +168,7 @@ export function nodeActions(node: MenuNode, deps: NodeActionDeps, opts: NodeActi
   // ── fold and open ──
   group(
     node.fold && { key: "node-fold", label: node.fold.folded ? t("lib-node-actions.expand") : t("lib-node-actions.collapse"), icon: node.fold.folded ? "arrowDown" : "chevron", accel: "z", onSelect: node.fold.toggle },
-    node.kind === "workspace" && online && Boolean(node.cwd) && { key: "node-new-agent", label: t("lib-node-actions.new_agent"), icon: "agent", accel: "n", onSelect: () => deps.newAgent(mid, node.cwd!) },
+    node.kind === "workspace" && online && Boolean(node.cwd) && { key: "node-new-agent", label: t("lib-node-actions.new_agent"), icon: "agent", accel: "n", onSelect: () => deps.newAgent(mid, node.cwd!, node) },
     (node.kind === "workspace" || node.kind === "machine") && online && node.onOpenShell && { key: "node-shell", label: t("lib-node-actions.new_terminal"), icon: "terminal", accel: "t", onSelect: node.onOpenShell },
     node.kind === "machine" && node.onRefresh && { key: "node-refresh", label: t("lib-node-actions.refresh"), icon: "retry", accel: "r", onSelect: node.onRefresh },
   );

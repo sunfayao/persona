@@ -14,6 +14,7 @@ export type SessionView = "chat" | "term";
 export type Route =
   | { name: "home" }
   | { name: "request"; id: string }
+  | { name: "agent-draft"; id: string }
   // `view` is the page's `?view=chat|term`; without it the page shows what it showed last (lib/session-view.ts)
   // `at`: the message to land on (?at=<item id>, the hub's links to one message, docs/protocol/deep-links.md)
   | { name: "session"; mid: string; sid: string; view?: SessionView; work?: true; at?: string }
@@ -78,6 +79,7 @@ export function parse(path: string, search = ""): Route {
   if (p[0] === "t" && p[1] && p[2] && p[3]) return { name: "tab", mid: p[1], space: p[2], slot: p[3], sid: p[4] || undefined, ...detail() };
   // an older version's conversation, new-chat and history links open the main conversation
   if (!p.length || assistantPath(p[0]) || p[0] === "history") return { name: "persona", ...personaQuery(search) };
+  if (p[0] === "agent-draft" && p[1] && !p[2]) return { name: "agent-draft", id: p[1] };
   if (p[0] === "requests" && p[1]) return { name: "request", id: p[1] };
   if (p[0] === "overview") return { name: "home" };
   if (p[0] === "assistant") return { name: "profile" };
@@ -139,6 +141,8 @@ export function href(r: Route, base = BASE): string {
 /** A route's path in the app, without the sub-path (what parse reads). */
 export function routePath(r: Route): string {
   switch (r.name) {
+    case "agent-draft":
+      return `/agent-draft/${encodeURIComponent(r.id)}`;
     case "request":
       return `/requests/${encodeURIComponent(r.id)}`;
     case "session":
