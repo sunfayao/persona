@@ -657,6 +657,10 @@ The node integration (`server/internal/node/traex.go`) shares rollout parsing wi
 
 - **Model selection**: New Agent lists the models with selectable configuration names from the computer's `traex models --json`.
   An explicit choice is passed as `--model` on a fresh start; Default leaves the CLI's own model preference in effect.
+  The composer of a live herdr session can switch among models already available in that TRAE CLI process. Persona
+  uses the session's recorded launcher catalog, omits launch-time thinking variants, and requires an idle, empty
+  prompt owned by that conversation. The node submits TRAE's `/model <id>` command and confirms the new setting from
+  the same native thread in SQLite. The next turn continues in the same terminal and conversation.
 - **herdr does not recognize it**: TRAE CLI panes are ordinary herdr panes (`agent_status: unknown`, absent from `agent list`); herdr has no custom-Agent configuration either.
   The node finds them itself: `~/.trae/cli/thread-writer-locks/<session id>.owner.json` records the pid writing the session. That pid's environment contains herdr's
   `HERDR_PANE_ID` (Linux reads `/proc/<pid>/environ`, macOS uses `ps -E`), giving an exact pane → pid → session mapping without directory guessing. Pane information comes from

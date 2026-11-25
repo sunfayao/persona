@@ -3,6 +3,7 @@
 // what stays here is what the first screen uses.
 import { useRef } from "react";
 import { api, errorText, HubTimeoutError, pastHub, sessionPath } from "../../lib/api";
+import { isTraeCli } from "../../lib/agent-kind";
 import { BYPASS_MODE, renameBody } from "../../lib/session-actions";
 import { bypassRestarts } from "../../lib/header-mode";
 import { sessionLauncher } from "../../lib/model-switch";
@@ -66,12 +67,16 @@ export async function applyModes(latest: () => Session, patch: { permission_mode
   // any other mode drops a restart that waits
   const restart = patch.permission_mode === BYPASS_MODE && bypassRestarts(base);
   const drawn: Partial<Session> = restart ? { ...patch, permission_mode: base.permission_mode, bypass_pending: true } : patch.permission_mode ? { ...patch, bypass_pending: undefined } : patch;
-  upsertSession({ ...base, ...drawn });
+  // TRAE publishes its native settings after readback. Leave the prior model visible while the request is pending.
+  const optimistic = !(patch.model && isTraeCli(base.agent));
+  if (optimistic) upsertSession({ ...base, ...drawn });
   try {
     await api(`${sessionPath(base.machine_id, base.session_id)}/modes`, { method: "POST", json: patch, timeout: MODE_CONFIRM_MS });
+    const current = latest();
+    if (!optimistic && current.model === before.model) upsertSession({ ...current, model: patch.model });
     return true;
   } catch (e) {
-    if (!(e instanceof HubTimeoutError)) upsertSession({ ...latest(), ...Object.fromEntries(Object.keys(drawn).map((k) => [k, before[k as keyof typeof before]])) });
+    if (optimistic && !(e instanceof HubTimeoutError)) upsertSession({ ...latest(), ...Object.fromEntries(Object.keys(drawn).map((k) => [k, before[k as keyof typeof before]])) });
     modeChangeError(e);
     return false;
   }

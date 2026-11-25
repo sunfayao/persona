@@ -7,6 +7,7 @@
   "loading": "モデルを読み込み中…",
   "failed": "モデルを読み込めませんでした",
   "default_model": "デフォルトのモデル",
+  "unknown_model": "現在のモデルは不明",
   "effort_xhigh_short": "とても高い",
   "header_default": "デフォルトに従っています · {setup}",
   "header_own": "このチャットを始めたときのモデル · {setup}",

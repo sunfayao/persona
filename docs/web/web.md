@@ -2234,6 +2234,9 @@ selector; where Persona's earlier rules differ, Cindy's wins, built from Persona
   for the session's push (DESIGN_SYSTEM.md "Codex speed controls"). The panel closes once a pick applied and keeps the
   old setup when it did not. An Antigravity variant brings its own thinking level. `/model` Enter in the composer opens
   the panel (where the agent switches models). Claude Code's ultracode switch is in the flyout of the model that runs.
+- **TRAE CLI**: a live herdr session with native model control opens the model pill even before its current model is known.
+  Its panel shows the recorded launcher's compatible model IDs. Picks wait for native readback before the pill changes,
+  and the panel keeps its current setup while a turn runs or is awaiting input.
 - **The message that carries a switch out**: when the node refuses it (`409` with a `switch_*` code and `delivered: "none"`:
   the launcher went, the agent did not quit, did not come up on the new launcher…), nothing was typed and the switch is
   dropped (the pill loses its clock with the session's push), so the words go back into the box with the hub's reason in

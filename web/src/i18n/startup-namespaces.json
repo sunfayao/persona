@@ -244,6 +244,7 @@
   "chat-modelpill.loading",
   "chat-modelpill.pick_dropped",
   "chat-modelpill.undo_pick",
+  "chat-modelpill.unknown_model",
   "chat-navrail.target_failed",
   "chat-outboxbubbles.check",
   "chat-outboxbubbles.clear_and_send",

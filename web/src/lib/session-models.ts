@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { t } from "../i18n";
 import { ApiError, credentialOwner, errorText, onCredentialChange } from "./api";
-import { agentId, sessionAgent } from "./agent-kind";
+import { agentId, isTraeCli, sessionAgent } from "./agent-kind";
 import { modelShort } from "./context-usage";
 import { sessionCan, stateOf } from "./format";
 import { runsAssistant, type AssistantLauncher } from "./assistant-chat";
@@ -338,9 +338,11 @@ export async function forgetModel(mid: string, launcher: string, id: string, pur
 
 // ── the session's model, from what was read ──────────────────────────────────
 
-/** The catalog host for a session owned by the AGY companion. Its session has no terminal host. */
-export function sessionModelHost(s: Session): "agy" | undefined {
-  return s.source_kind === "runtime" && s.source_instance_id === "agy" ? "agy" : undefined;
+/** Match the catalog to the host that runs the session. The AGY companion has no terminal host. */
+export function sessionModelHost(s: Session): "agy" | "herdr" | undefined {
+  if (s.source_kind === "runtime" && s.source_instance_id === "agy") return "agy";
+  if (isTraeCli(s.agent) && s.host === "herdr") return "herdr";
+  return undefined;
 }
 
 /** The engine a session runs (AgentMark ids: claude, codex, agy…; one of Paseo's providers is that provider, grok…). */

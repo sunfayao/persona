@@ -207,6 +207,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		}
 		if a.Agent == traexAgent && host.ParsePane(a.PaneID).Kind == host.Herdr && s.Capabilities == nil && s.Status != proto.StatusOffline && s.Status != proto.StatusInterrupted {
 			s.Capabilities = &proto.SessionCapabilities{Read: true, Send: true, Interrupt: true, Approve: true, Terminal: true, QueueNextTurn: true, QueueEdit: proto.Bool(false)}
+			n.traexModelRow(&s)
 			if s.Status == proto.StatusWorking {
 				if box, err := n.readTraeComposer(ctx, a.PaneID); err == nil {
 					s.Queued = box.queued
@@ -545,7 +546,7 @@ func (n *Node) decorateIn(s *proto.Session, pass *codexListPass) {
 	if ps := s.PendingSwitch; ps != nil && time.Since(ps.At) > switchMaxAge {
 		s.PendingSwitch = nil // dropped by the next message that would carry it out: not shown as waiting meanwhile
 	}
-	if s.Launcher == "" {
+	if s.Launcher == "" && s.Agent != traexAgent {
 		s.Launcher = n.inferLauncher(s.SessionID)
 	}
 	n.normalizeSessionRowModel(s) // keep the echoed model for display, clearing stand-in markers ("<synthetic>")
