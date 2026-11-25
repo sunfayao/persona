@@ -183,12 +183,6 @@ func (m chanMutex) TryLock() bool {
 	}
 }
 
-// claimChannelMessage claims a message without a thread reservation; unreadable or unwritable state stays retryable.
-func (s *Service) claimChannelMessage(id, msg string) (bool, error) {
-	admission, err := s.admitChannelMessage(id, channel.Message{ID: msg})
-	return admission != nil, err
-}
-
 var errChannelsUnread = errors.New("the channels' state could not be read")
 
 // sinkFor is how channel id's runs reach it: nil when it has gone (a plugin uninstalled), an error when that can't be

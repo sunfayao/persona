@@ -605,12 +605,6 @@ func shellFirstWord(cmd string) string {
 // assignmentRe is a shell word that sets a variable for the command after it.
 var assignmentRe = lazyre.New(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
-// checkCommandPaths: the program each generated file runs exists and can be run. A file moved or removed under a
-// running node (a redeploy to another path) leaves hooks that fail on every call.
-func checkCommandPaths(dir string) DoctorCheck {
-	return checkCommandPathsIn(dir, i18n.Default)
-}
-
 func checkCommandPathsIn(dir string, lang i18n.Lang) DoctorCheck {
 	c := DoctorCheck{Name: "command-paths", Items: []string{}}
 	files := []string{"claude-settings.json", "assistant-settings.json", "mcp.json"}
@@ -730,12 +724,6 @@ func checkHerdrIn(ctx context.Context, path string, lang i18n.Lang) DoctorCheck 
 	conn.Close()
 	c.Status, c.Detail = DoctorOK, i18n.T(lang, "node-doctor.herdr_ok")
 	return c
-}
-
-// checkAgentSandbox is the doctor's line for the agent sandbox: whether it is on and where from, whether this machine
-// can run it, and each kind of start's last status.
-func checkAgentSandbox(dir string) DoctorCheck {
-	return checkAgentSandboxIn(dir, i18n.Default)
 }
 
 func checkAgentSandboxIn(dir string, lang i18n.Lang) DoctorCheck {

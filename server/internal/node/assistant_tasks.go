@@ -42,15 +42,6 @@ func (p *assistantProc) invalidateUpdateTasks() {
 	p.mu.Unlock()
 }
 
-func (p *assistantProc) observedUpdateTasks() ([]string, uint64, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.tasksObserved {
-		return nil, p.tasksRevision, errors.New("runtime background inventory has not been explicitly observed")
-	}
-	return slices.Clone(p.tasks), p.tasksRevision, nil
-}
-
 // claudeTasksSnapshotWait bounds the wait for the task list that follows a repeated initialize's success.
 const claudeTasksSnapshotWait = 2 * time.Second
 

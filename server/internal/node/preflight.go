@@ -497,21 +497,11 @@ func thisPreflightEnv(home string) preflightEnv {
 	return env
 }
 
-// pathPreflight runs the preflight on items and reports it as the path-access check.
-func pathPreflight(ctx context.Context, items []preflightItem, env preflightEnv) DoctorCheck {
-	return pathPreflightIn(ctx, items, env, i18n.Default)
-}
-
 func pathPreflightIn(ctx context.Context, items []preflightItem, env preflightEnv, lang i18n.Lang) DoctorCheck {
 	if env.goos == "windows" {
 		return DoctorCheck{Name: pathAccessCheck, Status: DoctorOK, Detail: i18n.T(lang, "node-doctor.preflight_windows"), Items: []string{}}
 	}
 	return preflightCheckIn(runPreflight(ctx, items, env), items, env, lang)
-}
-
-// preflightCheck says what a run found: each blocked path, and what to do about it.
-func preflightCheck(o preflightOutcome, items []preflightItem, env preflightEnv) DoctorCheck {
-	return preflightCheckIn(o, items, env, i18n.Default)
 }
 
 func preflightCheckIn(o preflightOutcome, items []preflightItem, env preflightEnv, lang i18n.Lang) DoctorCheck {
@@ -745,12 +735,6 @@ func (f preflightFallback) text(lang i18n.Lang) string {
 	default:
 		return ""
 	}
-}
-
-// askNodePreflight keeps the legacy no-locale request and zh-Hans reason for older internal callers.
-func askNodePreflight(ctx context.Context, sock string, wait time.Duration) (c DoctorCheck, why string) {
-	c, reason := askNodePreflightIn(ctx, sock, wait, "")
-	return c, reason.text(i18n.Default)
 }
 
 // askNodePreflightIn asks the node on sock for its path-access check, waiting at most wait. The returned reason is

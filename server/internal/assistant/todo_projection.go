@@ -168,15 +168,6 @@ func (s *Service) todoRunSessions(ctx context.Context, machine string, want map[
 	return s.deletionRows(ctx, machine, list, false), nil
 }
 
-// byID is the view of each to-do, by id.
-func (p todoProjection) byID() map[string]assistantwire.TodoSummary {
-	out := make(map[string]assistantwire.TodoSummary, len(p.views))
-	for i, f := range p.facts {
-		out[f.ID] = p.views[i]
-	}
-	return out
-}
-
 // counts are the list's numbers.
 func (p todoProjection) counts() assistantwire.TodoCounts { return projection.Counts(p.facts, p.views) }
 

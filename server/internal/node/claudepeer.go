@@ -197,19 +197,6 @@ func peerSendAt(ctx context.Context, p claudePeer, sessionID, text, priority str
 	return nil
 }
 
-// peerMessage is the message line for text: the user's words with what the model is told of them
-// (prompts/agents/peer_message: the user's own, from the phone, to be answered here), in Claude Code's envelope signed
-// peerSender, for sessionID; msgV 1, a fresh msg_id, priority next (queued behind a running turn, or run when the
-// session rests), stating no from-mode.
-func peerMessage(sessionID, text string) ([]byte, error) {
-	return peerMessageAt(sessionID, text, peerNext, "")
-}
-
-// peerMessageAt is peerMessage at priority, stating fromMode in the envelope ("" for none).
-func peerMessageAt(sessionID, text, priority, fromMode string) ([]byte, error) {
-	return peerMessageFor(sessionID, text, priority, fromMode, "", false)
-}
-
 func peerMessageFor(sessionID, text, priority, fromMode, language string, source bool) ([]byte, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, errors.New("empty message")

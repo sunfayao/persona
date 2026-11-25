@@ -55,5 +55,3 @@ func (c *lru[K, V]) put(k K, v V) {
 		delete(c.items, el.Value.(*lruItem[K, V]).key)
 	}
 }
-
-func (c *lru[K, V]) len() int { return c.order.Len() }

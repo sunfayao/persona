@@ -47,13 +47,6 @@ func (n *Node) holdFallback(id, launcher string, from, to modelExecution) {
 	n.fallbacks[id] = &assistantFallback{launcher: launcher, from: from, to: to, at: now, until: now.Add(assistantFallbackHold)}
 }
 
-// heldFallback is the execution conversation id's message runs on: its fallback while the hold lasts and the message
-// asks for the model the switch moved away from, else what it asks for. Another model asked for ends the hold.
-func (n *Node) heldFallback(id, launcher string, asked modelExecution) modelExecution {
-	execution, _ := n.heldFallbackWithExpiry(id, launcher, asked)
-	return execution
-}
-
 // heldFallbackWithExpiry also reports whether an existing hold for this exact request expired naturally. A missing
 // hold after a restart is not expiry, and another model choice is not expiry either. Classification leaves the old
 // chain untouched for a new choice; commitModelChoice ends it only once that choice's input is delivered.

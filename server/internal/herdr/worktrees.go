@@ -64,11 +64,6 @@ func expandHome(home, p string) string {
 	return filepath.Clean(p)
 }
 
-// worktreesDirIn reads `directory` out of the `[worktrees]` table of a config file ("" when it is not set).
-func worktreesDirIn(config string) string {
-	return configStringIn(config, "worktrees", "directory")
-}
-
 // configStringIn reads key out of table ("" when it is not set). Only what these settings need of TOML: a basic or
 // literal string on a line of its own in that table. Table headers, keys and values outside that table are ignored.
 func configStringIn(config, table, key string) string {

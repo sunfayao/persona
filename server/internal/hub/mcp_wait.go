@@ -30,12 +30,3 @@ func (h *Hub) mcpWaitReporter(from, machine, callID string) func(proto.MCPWaitKi
 		})
 	}
 }
-
-// waitMCPApproval reports the hub's own permission card while it is pending, then restores remote execution on every exit.
-func (h *Hub) waitMCPApproval(ctx context.Context, ix proto.Interaction, report func(proto.MCPWaitKind)) (proto.Resolution, error) {
-	if report != nil {
-		report(proto.MCPWaitApproval)
-		defer report(proto.MCPWaitComputer)
-	}
-	return h.waitInteraction(ctx, ix)
-}

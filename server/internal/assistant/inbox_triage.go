@@ -358,10 +358,6 @@ func (b *inboxBook) triagePromptItem(it *InboxItem, language string) prompts.Inb
 	return p
 }
 
-func (b *inboxBook) promptItem(it *InboxItem) prompts.InboxItem {
-	return b.promptItemIn(it, answerLanguage(string(b.userLang())))
-}
-
 func (b *inboxBook) promptItemIn(it *InboxItem, language string) prompts.InboxItem {
 	p := prompts.InboxItem{Language: language, Kind: it.Kind, MailDirect: it.Mail != nil && it.Mail.Direct, Context: it.Context}
 	if it.Connector != nil {

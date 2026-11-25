@@ -672,17 +672,6 @@ func (d *Devices) shareReadPublic(w http.ResponseWriter, r *http.Request) error 
 	return shareEncode(w, body)
 }
 
-// enableShareFuture always captures a fresh frontier. Unselected history and the
-// interval since the preview (or since disabling) are excluded, never backfilled.
-func (d *Devices) enableShareFuture(ctx context.Context, s *sealedShare) error {
-	p, err := d.projectShare(ctx, s.Owner, nil)
-	if err != nil {
-		return err
-	}
-	applyShareFuture(s, p)
-	return nil
-}
-
 // applyShareFuture installs a frontier captured outside the share transaction:
 // node RPCs never run while the share writer fence is held.
 func applyShareFuture(s *sealedShare, p devicewire.ShareProjection) {

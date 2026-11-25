@@ -143,18 +143,6 @@ func (r *externalAdapterRegistry) Close() {
 	r.workers.Wait()
 }
 
-// launchers never waits on an ordinary directory read, even on a cold cache. An explicit
-// refresh joins the current inventory request; failure leaves the previous entries stale.
-func (r *externalAdapterRegistry) launchers(ctx context.Context, refresh bool) []proto.Launcher {
-	if r == nil {
-		return nil
-	}
-	_ = r.refresh(ctx, refresh)
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.launchersLocked(r.now())
-}
-
 func (r *externalAdapterRegistry) launchersLocked(now time.Time) []proto.Launcher {
 	out := make([]proto.Launcher, 0, len(r.targets))
 	for _, target := range r.targets {

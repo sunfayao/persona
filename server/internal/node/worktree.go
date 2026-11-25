@@ -160,12 +160,6 @@ type spaceDirectory struct {
 
 var errNoHoldingSpace = errors.New("no workspace holds this directory")
 
-// spaceHolding is the host's space whose directory is dir or holds it, the deepest such space.
-func spaceHolding(ctx context.Context, h host.Host, dir string) (string, error) {
-	space, err := spaceHoldingDirectory(ctx, h, dir)
-	return space.workspace, err
-}
-
 // spaceHoldingDirectory retains the directory that matched, including herdr's workspace source metadata.
 func spaceHoldingDirectory(ctx context.Context, h host.Host, dir string) (spaceDirectory, error) {
 	var dirs []spaceDirectory

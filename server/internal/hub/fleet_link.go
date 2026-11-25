@@ -196,11 +196,6 @@ func (h *Hub) takeFleetSessionsFrom(m *Machine, p assistantwire.FleetSessions, r
 	h.broadcastSessions(m, m.keptSessions())
 }
 
-// takeFleetInteractions is takeFleetInteractionsFrom the assistant the hub starts.
-func (h *Hub) takeFleetInteractions(list []proto.Interaction) {
-	h.takeFleetInteractionsFrom(assistantwire.AssistantID, list)
-}
-
 // takeFleetInteractionsFrom replaces manager owner's pending interactions with what it has now that it
 // (re)connected: those gone are over for the apps, the others are sent as they are. The other managers' stay.
 func (h *Hub) takeFleetInteractionsFrom(owner string, list []proto.Interaction) {
@@ -371,31 +366,6 @@ func (h *Hub) pendingInteraction(id string) (proto.Interaction, bool) {
 // ends an expired card itself and records how it ended; its answer should not lose to the hub's deadline over a slow
 // write or two clocks a little apart.
 const cardAnswerGrace = 30 * time.Second
-
-// waitInteraction asks the user on the phone for one of the hub's own features (a mail send, Cua's apps, ego's
-// scripts, persona_settings): the manager shows the card and waits for its answer (fleet.ask). Without the manager
-// nothing can be asked: a dismiss.
-//
-// The hub waits as long as the card lives, not callBus's two minutes, which withdrew a card good for fifteen (#5907):
-// until its expiry and cardAnswerGrace more, or, with no expiry given, for the manager's own wait for a card (its
-// manager.json hook_timeout_minutes). When the hub stops first (its caller went away, the grace ran out), the manager
-// withdraws the card (serveBus's Cancels).
-func (h *Hub) waitInteraction(ctx context.Context, ix proto.Interaction) (proto.Resolution, error) {
-	if h.askVia != nil { // tests play the manager
-		return h.askVia(ctx, ix)
-	}
-	if !ix.ExpiresAt.IsZero() {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, ix.ExpiresAt.Add(cardAnswerGrace))
-		defer cancel()
-	}
-	var r proto.Resolution
-	if err := h.asstOf(h.machineOwner(ix.MachineID)).callAsIs(ctx, assistantwire.MethodFleetAsk, map[string]any{"interaction": ix}, &r); err != nil {
-		h.logf("[%s] ask %s: %v", ix.MachineID, ix.ToolName, err)
-		return proto.Resolution{Dismiss: true}, nil
-	}
-	return r, nil
-}
 
 // ---- what the hub tells the manager of the apps ----
 
@@ -659,12 +629,6 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 // ---- what the manager asks of the hub for the nodes ----
 
 // ---- the pushes the manager decided on ----
-
-// deliverPush is deliverPushFrom the assistant the hub starts.
-func (h *Hub) deliverPush(n assistantwire.Notification) error {
-	_, err := h.deliverPushFrom(assistantwire.AssistantID, n)
-	return err
-}
 
 // relatedTodoID maps only source forms with a defined meaning. A quiet supervisor's ask:<id> is a real to-do, but a
 // model-controlled notify_user key (Asked=true) is not promoted from that prefix. todo:<id> is already a form every

@@ -60,7 +60,6 @@ func NormalizeLinkRole(role string) (string, Problem) { return repositorywire.No
 func NormalizeTaskWorkflow(workflow string) (string, Problem) {
 	return repositorywire.NormalizeTaskWorkflow(workflow)
 }
-func LinkKey(identity Identity, link TaskLink) string { return repositorywire.LinkKey(identity, link) }
 
 func PreserveLinkTitles(current, next []TaskLink, input []LinkInput) {
 	repositorywire.PreserveLinkTitles(current, next, input)

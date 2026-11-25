@@ -49,11 +49,6 @@ func (ph *pluginHost) validateSync(p proto.PluginNodeSync) error {
 	return nil
 }
 
-func (ph *pluginHost) sync(p proto.PluginNodeSync) proto.PluginNodeStates {
-	states, _ := ph.syncRequest(p)
-	return states
-}
-
 func (ph *pluginHost) syncRequest(p proto.PluginNodeSync) (proto.PluginNodeStates, error) {
 	ph.lifecycle.Lock()
 	defer ph.lifecycle.Unlock()

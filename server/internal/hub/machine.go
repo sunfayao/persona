@@ -126,13 +126,6 @@ type nodeCaller interface {
 	Close(err error)
 }
 
-// ownerID is the manager that reported m; "" before one did.
-func (m *Machine) ownerID() string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.owner
-}
-
 // hasCapability: m's node announced capability c (nodeproto), as its manager reported it; a node from before the
 // handshake (protocol 0) has none of the later ones, a test's (no version) all.
 func (m *Machine) hasCapability(c string) bool {
@@ -446,24 +439,6 @@ func (m *Machine) syncUnwatch(id string) {
 	defer cancel()
 	m.syncWatch(ctx, id)
 }
-
-// addWatcher is a join and its sync in one call, removeWatcher a leave and its sync: for a caller that may wait for
-// the node, which a connection's read loop may not (watcherJoined).
-func (m *Machine) addWatcher(ctx context.Context, id string) {
-	m.watcherJoined(id)
-	m.syncWatch(ctx, id)
-}
-
-func (m *Machine) removeWatcher(id string) {
-	m.watcherLeft(id)
-	m.syncUnwatch(id)
-}
-
-// setSessionList keeps list as the sessions the node has now, and drops the highest item seq of those it no longer
-// lists that no app watches and the node was not told to watch: nothing will ask for their since_seq again. A
-// session it no longer lists whose last session.watch / session.unwatch failed (nodeWatchUnknown) and that no app
-// watches gets its unwatch sent again in the background, then its watch state goes (settleEnded).
-func (m *Machine) setSessionList(list []proto.Session) { m.setSessionListRaws(list, nil) }
 
 // setSessionListRaws is setSessionList of a list the manager's bytes were decoded into: raws[i] are the bytes list[i]
 // came in (proto.SessionListDecoder), by which a push tells which sessions' rows it can send again (encodeKept); nil

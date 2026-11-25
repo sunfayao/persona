@@ -148,13 +148,6 @@ func hashToken(tok string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// authenticate maps a bearer token to its principal; ok false for an unknown or revoked one, and for one the token
-// store could not look up.
-func (h *Hub) authenticate(ctx context.Context, tok string) (principal, bool) {
-	p, ok, _ := h.lookupToken(ctx, tok)
-	return p, ok
-}
-
 // lookupToken is authenticate with the reason a token is not accepted: err is set when the token store did not answer,
 // which says nothing of the token, so the caller must not treat it as revoked (#3217).
 func (h *Hub) lookupToken(ctx context.Context, tok string) (principal, bool, error) {

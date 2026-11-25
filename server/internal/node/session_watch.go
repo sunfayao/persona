@@ -56,13 +56,6 @@ func (n *Node) subagentWatches() int {
 	return count
 }
 
-// watch keeps a session's transcript streaming to the hub. Outside of a hub connection (tests that drive the method
-// directly) there is nothing to end it but session.unwatch; Serve's calls go through watchFor, so the stream stops
-// when its connection does.
-func (n *Node) watch(id string, since int) error {
-	return n.watchFor(context.Background(), id, since)
-}
-
 // watchFor is watch for the hub connection that owns parent: the transcript loop ends with that connection, so a
 // resident node that opens a new Node per reconnect is not left with a reader per watch from the one before.
 func (n *Node) watchFor(parent context.Context, id string, since int) error {

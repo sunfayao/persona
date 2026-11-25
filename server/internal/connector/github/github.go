@@ -248,13 +248,6 @@ func (c *Connector) ratesLow() bool {
 	return !c.limitedUntil(time.Now()).IsZero()
 }
 
-// searchQuotaLow says whether the search API's minute is nearly used up.
-func (c *Connector) searchQuotaLow() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.searchLow && time.Now().Before(c.searchReset)
-}
-
 // New is the connector for cfg, reading the token of machine (its display name) through fetch.
 func New(cfg Config, machine string, fetch TokenSource) *Connector {
 	api := "https://api.github.com"

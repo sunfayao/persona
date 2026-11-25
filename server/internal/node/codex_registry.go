@@ -566,10 +566,6 @@ func (p *codexListPass) assistantProject(n *Node) string {
 	return p.own
 }
 
-func (n *Node) codexSessions(seen map[string]bool) []proto.Session {
-	return n.codexSessionsIn(seen, newCodexListPass())
-}
-
 // codexSessionsIn lists the Codex threads as offline rows, looking up through pass (nil: each time).
 func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []proto.Session {
 	if n.codices == nil {

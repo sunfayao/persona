@@ -453,13 +453,6 @@ func (s *Service) todoReminderPrivate(ctx context.Context, t Todo, text string) 
 	return s.exitPolicy(ctx, text, t.Origin, space).Redact, known, space
 }
 
-// reminderChannelText applies the outbound rule to the phone and channel copies of t's reminder saying title and
-// body; ordinary text is unchanged.
-func (s *Service) reminderChannelText(ctx context.Context, t Todo, title, body string) (string, string) {
-	private, _, space := s.todoReminderPrivate(ctx, t, title+"\n"+body)
-	return s.reminderCopyText(ctx, private, space, title, body)
-}
-
 // reminderCopyText is a reminder's phone or channel copy: only a notice when it is private (from track space).
 func (s *Service) reminderCopyText(ctx context.Context, private bool, space, title, body string) (string, string) {
 	if private {

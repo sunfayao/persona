@@ -67,14 +67,6 @@ func init() {
 	})
 }
 
-// desktops lists the connected desktops, one per device (its newest connection: a Mac reconnecting keeps the old
-// socket for a while), earliest first; withLink, the Persona Link desktops too.
-func (h *Hub) desktops(withLink bool) []desktopView {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.desktopsLocked(withLink)
-}
-
 func (h *Hub) desktopsLocked(withLink bool) []desktopView {
 	byDevice := map[string]desktopView{}
 	var loose []desktopView // the pairing token: no device to tell them apart

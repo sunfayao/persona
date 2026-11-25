@@ -25,28 +25,8 @@ func Web(base, path string) string {
 	return base + path
 }
 
-// App is path's app link (persona://open<path>).
-func App(path string) string {
-	if path == "" {
-		return ""
-	}
-	return AppPrefix + path
-}
-
-// Persona is the assistant's main page.
-func Persona() string { return "/persona" }
-
-// NewConversation is a new conversation with the assistant.
-func NewConversation() string { return "/persona/new" }
-
 // Conversation is one of the assistant's conversations.
 func Conversation(id string) string { return "/persona/" + seg(id) }
-
-// ConversationOf is a conversation of the assistant on machine run by manager (several assistants), either "" when not
-// said.
-func ConversationOf(id, machine, manager string) string {
-	return query(Conversation(id), "machine", machine, "manager", manager)
-}
 
 // Session is an Agent's conversation.
 func Session(machine, session string) string { return "/s/" + seg(machine) + "/" + seg(session) }
@@ -57,41 +37,8 @@ func At(path, item string) string { return query(path, "at", item) }
 // Agents is the list of Agents.
 func Agents() string { return "/agents" }
 
-// Inbox is the Inbox.
-func Inbox() string { return "/inbox" }
-
-// InboxItem is one Inbox item; manager the assistant whose item it is, "" for the current one.
-func InboxItem(id, manager string) string { return query("/inbox/"+seg(id), "manager", manager) }
-
-// Todos is the to-do list.
-func Todos() string { return "/todos" }
-
 // Todo is one to-do. It is a path: the older /todos?id=<id> is still read by every client, never written.
 func Todo(id string) string { return "/todos/" + seg(id) }
-
-// Knowledge is the knowledge base, or one kind of its entries when kind is not "".
-func Knowledge(kind string) string {
-	if kind == "" {
-		return "/kb"
-	}
-	return "/kb/" + seg(kind)
-}
-
-// KnowledgeEntry is one entry of the knowledge base: kind is projects, topics, chats, people, docs, meetings, events or
-// recordings; an id holding "/" stays one segment.
-func KnowledgeEntry(kind, id string) string { return "/kb/" + seg(kind) + "/" + seg(id) }
-
-// Recording is one recording's page in the knowledge base.
-func Recording(id string) string { return KnowledgeEntry("recordings", id) }
-
-// Meeting is one meeting's page in the knowledge base.
-func Meeting(id string) string { return KnowledgeEntry("meetings", id) }
-
-// Machines is the list of computers.
-func Machines() string { return "/machines" }
-
-// Machine is one computer.
-func Machine(id string) string { return "/machines/" + seg(id) }
 
 // settingsItems is the query key that names an item of a settings tab, for the tabs that have one
 // (web/src/views/settings/nav.ts).
@@ -107,14 +54,6 @@ func Settings(tab, item string) string {
 		item = ""
 	}
 	return query("/settings", "tab", tab, key, item)
-}
-
-// ExtensionSettings is an extension's page in Settings.
-func ExtensionSettings(id string) string { return Settings("extensions", id) }
-
-// Extension is a page an extension draws (its ui), in the state it is given ("" for its first).
-func Extension(extension, ui, state string) string {
-	return query("/extension/"+seg(extension)+"/"+seg(ui), "state", state)
 }
 
 // seg is one path segment.

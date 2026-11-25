@@ -799,12 +799,6 @@ func (s *Service) sendToTask(ctx context.Context, t Todo, text string) (string, 
 	return s.sendTaskInput(ctx, t, text, false, nil, true)
 }
 
-// sendToTaskAs is sendToTask; with wait, a closed agent's resume and send is waited for too (up to 5 minutes), so the
-// caller learns whether the text reached it (inboxToAgent, #7346). It is a relay, not rework, and never resumes a stopped Agent.
-func (s *Service) sendToTaskAs(ctx context.Context, t Todo, text string, wait bool) (string, error) {
-	return s.sendTaskInput(ctx, t, text, wait, nil, false)
-}
-
 func (s *Service) sendTaskInput(ctx context.Context, t Todo, text string, wait bool, event *taskInboxEvent, rework bool) (string, error) {
 	agents := s.taskAgents(ctx, t)
 	if len(agents) == 0 {

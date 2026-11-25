@@ -153,11 +153,6 @@ var larkActions = []struct {
 	{lazyre.New(`^CLI /mail`), "发 / 改邮件", larkOrdinary},
 }
 
-// larkSummary is the phone card's text: what each write does, then its method, path and body.
-func larkSummary(gates []proto.CommandGate, calls []larkCall) string {
-	return larkSummaryWithContext(gates, calls, nil, i18n.Default)
-}
-
 // larkSummaryWithContext uses the readable message context when it was fetched; a failed lookup leaves that call's
 // old summary untouched. Other gated calls keep their existing text.
 func larkSummaryWithContext(gates []proto.CommandGate, calls []larkCall, contexts []larkCardContext, lang i18n.Lang) string {

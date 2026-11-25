@@ -444,9 +444,6 @@ func titleTopicMax(locale string) int {
 	}
 }
 
-// parseTitle is parseTitleMax for a Chinese topic.
-func parseTitle(out string) (kind, topic string, ok bool) { return parseTitleMax(out, maxTitleTopic) }
-
 // parseTitleMax reads "kind | topic" from what the model said (one line; a date it added anyway, quotes, a full-width
 // bar are tolerated). kind is "" when it isn't one of titleKinds; ok when the topic fits in max characters too.
 func parseTitleMax(out string, max int) (kind, topic string, ok bool) {

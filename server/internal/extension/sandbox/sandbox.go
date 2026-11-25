@@ -117,9 +117,6 @@ type Support struct {
 	Reason      *StatusReason `json:"reason,omitempty"` // structured form of Persona-owned Why, when available
 }
 
-// WhyIn renders Persona-owned probe reasons in lang. A probe without metadata keeps its original diagnostic verbatim.
-func (s Support) WhyIn(lang i18n.Lang) string { return statusWhy(lang, s.Why, s.Reason) }
-
 func (s *Support) setReason(key string, args i18n.Args) {
 	s.Reason = NewStatusReason(key, args)
 	s.Why = s.Reason.Error()
