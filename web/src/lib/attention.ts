@@ -3,7 +3,6 @@
 //
 // The count is the sidebar's own red "Needs you" count (stateCounts().badge in lib/sessions.ts: quiet tasks' agents are told
 // about in the main conversation, not counted), so the tab and the sidebar never disagree.
-import { useSyncExternalStore } from "react";
 import { stateOf } from "./format";
 import { agentKey } from "./pins";
 import { homeKey } from "./folded-rows";
@@ -211,71 +210,4 @@ export function finishedBatch(keys: readonly string[], unread: ReadonlyMap<strin
   if (!left.length) return { kind: "none" };
   if (left.length === 1) return { kind: "one", key: left[0] };
   return { kind: "many", keys: left, names: left.slice(0, max).map((k) => unread.get(k)!), more: left.length > max };
-}
-
-/** Where the user is looking: the session on the page, and whether the window is the one they are using. */
-export interface Viewing {
-  /** agentKey of the conversation on the page, if any. */
-  key?: string;
-  /** The window is focused and visible. */
-  focused: boolean;
-}
-
-/** No sound for the session on screen while its window is focused: the user is looking at it. */
-export function suppressed(key: string, viewing: Viewing): boolean {
-  return viewing.focused && viewing.key === key;
-}
-
-/** Of a batch the more urgent one speaks: "Needs you" over finished. */
-export function pickEvent(events: AttentionEvent[]): AttentionEvent | undefined {
-  return events.find((e) => e.kind === "needs") ?? events[0];
-}
-
-export const MIN_GAP_MS = 3000;
-
-/** At most one sound per `gap` ms. `now` is a clock in ms (injected for tests). */
-export function rateLimiter(gap = MIN_GAP_MS) {
-  let last = -Infinity;
-  return (now: number): boolean => {
-    if (now - last < gap) return false;
-    last = now;
-    return true;
-  };
-}
-
-// ── "Alert sound" setting (Settings › Notifications), kept in this browser, off by default ──────────────
-
-const KEY = "persona.attentionSound";
-const listeners = new Set<() => void>();
-
-export function attentionSoundEnabled(): boolean {
-  try {
-    return localStorage.getItem(KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function setAttentionSoundEnabled(on: boolean): void {
-  try {
-    if (on) localStorage.setItem(KEY, "1");
-    else localStorage.removeItem(KEY);
-  } catch {
-    // storage unavailable: nothing is kept, the default (off) stays
-  }
-  listeners.forEach((l) => l());
-}
-
-/** Calls `l` when the setting changes here or in another tab; returns the unsubscribe. */
-export function onAttentionSoundChange(l: () => void): () => void {
-  listeners.add(l);
-  window.addEventListener("storage", l);
-  return () => {
-    listeners.delete(l);
-    window.removeEventListener("storage", l);
-  };
-}
-
-export function useAttentionSoundSetting(): boolean {
-  return useSyncExternalStore(onAttentionSoundChange, attentionSoundEnabled, () => false);
 }

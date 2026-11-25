@@ -1,12 +1,12 @@
 // The DOM side of the attention signals (#2332, logic in lib/attention.ts): the tab title, the favicon's badge, and the
-// optional sounds, and the system notifications (#2971, lib/notify.ts). `<AttentionSignals>` is what App renders for them.
+// system notifications (#2971, lib/notify.ts). `<AttentionSignals>` is what App renders for them.
 import { useEffect, useRef } from "react";
 import { attentionReason, interactionCanAnswer, sessionTitle, stateOf } from "./format";
 import { agentKey } from "./pins";
 import { homeKey } from "./folded-rows";
 import { useCounts, useAgentSessions } from "./sessions";
 import { getState, useStore, onHello, onHubEvent, send, sayHello, setHelloExtras, appSocketReady, connect, disconnect, DESKTOP_UNREGISTER_FEATURE } from "./store";
-import { answeredTags, attentionSoundEnabled, onAttentionSoundChange, badgeText, batchDue, finishedBatch, detectNewCards, detectTransitions, isHeldLevel, pickEvent, rateLimiter, SETTLE_MS, settledTags, suppressed, tabTitle, trackTurns, type Turn } from "./attention";
+import { answeredTags, badgeText, batchDue, finishedBatch, detectNewCards, detectTransitions, isHeldLevel, SETTLE_MS, settledTags, tabTitle, trackTurns, type Turn } from "./attention";
 import { claimNotification, closeNotification, dismissNotification, releaseClaim, FRONT_BEAT_MS, inQuietHours, loadNotifyPrefs, markFront, notificationText, notifyPrefs, waitingCard, otherTabInFront, postNotification, systemNotifyAllowed, systemNotifyActive, onSystemNotifyChange, wants, managerMuted } from "./notify";
 import { webPushFlag } from "./web-push-flag";
 import { defaultManager } from "./manager-choice";
@@ -111,74 +111,6 @@ export function setFaviconBadge(needs: number): void {
   }
 }
 
-// ── sounds ───────────────────────────────────────────────
-
-let ctx: AudioContext | undefined;
-let gestured = false;
-
-const GESTURES = ["pointerdown", "keydown", "touchend"] as const;
-
-/** Listens for the gesture that starts audio, or stops listening (adding the same listener twice adds it once). */
-function listen(on: boolean) {
-  for (const ev of GESTURES) window[on ? "addEventListener" : "removeEventListener"](ev, unlock, { capture: true });
-}
-
-function unlock() {
-  gestured = true;
-  listen(false);
-  try {
-    ctx ??= new AudioContext();
-    void ctx.resume();
-  } catch {
-    // no WebAudio here: silent
-  }
-}
-
-/**
- * Browsers only start audio after a user gesture: until one has happened nothing plays (and nothing is queued). Making
- * the AudioContext takes 80–130 ms of the gesture it runs in, so it is made only for the alert sound, which is off by
- * default: on the first gesture once it is on, or at once when it is switched on by a click or a key (Settings ›
- * Notifications), which is a gesture itself. With it off, the page's first key or click pays nothing. Returns the cleanup.
- */
-export function armAudio(): () => void {
-  if (typeof window === "undefined") return () => {};
-  const follow = () => {
-    const want = attentionSoundEnabled() && ctx?.state !== "running";
-    if (want && navigator.userActivation?.isActive) unlock();
-    else listen(want);
-  };
-  follow();
-  const off = onAttentionSoundChange(follow);
-  return () => {
-    off();
-    listen(false);
-  };
-}
-
-// [frequency Hz, start s, length s, peak gain]
-type Note = [number, number, number, number];
-/** "Needs you": two rising notes, clear. */
-const CHIME: Note[] = [[784, 0, 0.22, 0.16], [1175, 0.14, 0.34, 0.16]];
-/** "Done": one low, soft note. */
-const DONE: Note[] = [[523, 0, 0.4, 0.07]];
-
-export function play(kind: "needs" | "finished"): void {
-  if (!gestured || !ctx || ctx.state !== "running") return;
-  const t0 = ctx.currentTime;
-  for (const [freq, at, len, peak] of kind === "needs" ? CHIME : DONE) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, t0 + at);
-    gain.gain.exponentialRampToValueAtTime(peak, t0 + at + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0 + at);
-    osc.stop(t0 + at + len + 0.05);
-  }
-}
-
 // ── the hook ─────────────────────────────────────────────
 
 /** The page is the one in front: its tab is showing and its window has the focus. */
@@ -199,7 +131,7 @@ const ASK_TITLE = {
 } as const;
 
 /** No notification goes out from any tab now: they are off, or one of the tabs is in front (that one's title, badge and
- *  sounds cover it) and "Always show system notifications" is off (#2451). */
+ *  sounds cover it). */
 const unannounced = () => !systemNotifyAllowed({ here: inFront(), other: otherTabInFront() });
 
 /** A system notification for the event (Settings › Notifications): only while unannounced says so, and once for all
@@ -231,7 +163,7 @@ function notify(s: Session | undefined, kind: "needs" | "finished", card?: Inter
   // a permission card's gets Allow / Deny (#4464), when the session can be answered from here and nothing has to be
   // filled in first (fields: as the hub's push and the overview's quick answers); the rest need the conversation
   const ix = waiting.ix?.kind === "permission" && !needsFieldValues(waiting.ix) && interactionCanAnswer(waiting.ix, s) ? waiting.ix.id : undefined;
-  // inside quiet hours a "Needs you" one comes without a sound (a finished one doesn't come at all: wants)
+  // inside quiet hours a "Needs you" one comes silently (a finished one doesn't come at all: wants)
   postNotification({ title, body, tag, url: href(route), icon, ix, silent: inQuietHours(notifyPrefs()) }, () => navigate(route));
   return { about: waiting.ix?.id };
 }
@@ -256,12 +188,11 @@ function notifyBatch(keys: readonly string[], names: readonly string[], more: bo
 }
 
 /**
- * The tab title (`label` is the page's label, as App works it out), the favicon badge, the sounds and the system
- * notifications. `pane` is the agent conversation on the page, if any: it is not announced while the window is focused.
- * Sounds and notifications follow this browser's Settings › Notifications (lib/notify.ts): "Needs you" by its switch, "Done" by its three
+ * The tab title (`label` is the page's label, as App works it out), the favicon badge and the system
+ * notifications. They follow this browser's Settings › Notifications (lib/notify.ts): "Needs you" by its switch, "Done" by its three
  * choices, a turn's length as the page saw it (trackTurns).
  */
-export function useAttentionSignals(label: string, pane: { mid: string; sid: string } | undefined): void {
+export function useAttentionSignals(label: string): void {
   const needs = useCounts().badge;
   useEffect(() => {
     document.title = tabTitle(label, needs);
@@ -309,7 +240,6 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
     return () => { offHello(); offPresence(); offNotifications(); offNotification(); };
   }, []);
 
-  useEffect(armAudio, []);
   // Allow / Deny clicked on a permission card's notification: the service worker hands it to this page (#4464)
   useEffect(listenForNotificationClicks, []);
 
@@ -342,13 +272,8 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
     // Web Push on in this browser (#7459): its subscription is still the hub's, in this page's language
     if (loaded && webPushFlag()) void import("./web-push").then((m) => m.syncWebPush());
   }, [loaded]);
-  const key = pane ? agentKey({ machine_id: pane.mid, session_id: pane.sid }) : undefined;
-  // read when an event fires, not when the effect ran
-  const viewing = useRef(key);
-  viewing.current = key;
   const prev = useRef<ReadonlyMap<string, AgentState>>(new Map());
   const turns = useRef<ReadonlyMap<string, Turn>>(new Map());
-  const allow = useRef(rateLimiter());
   const latest = useRef(sessions);
   latest.current = sessions;
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
@@ -397,11 +322,6 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
     // a manager this device turned off (Settings › Managers) says nothing here either, as its pushes don't reach the phone
     const ownMuted = (e: { key: string; card?: Interaction }) => managerMuted(prefs, e.card?.manager ?? latest.current.find((x) => agentKey(x) === e.key)?.manager, defaultManager());
     const wanted = [...events, ...fresh.events].filter((e) => wants(e.kind, prefs, e.kind === "finished" ? ran(e.key) : undefined) && !ownMuted(e));
-    const sound = attentionSoundEnabled();
-    const speak = (kind: "needs" | "finished", k: string) => {
-      if (!sound || inQuietHours(prefs) || suppressed(k, { key: viewing.current, focused: inFront() })) return;
-      if (allow.current(Date.now())) play(kind);
-    };
     const find = (k: string) => latest.current.find((x) => agentKey(x) === k);
     // The finished turns of a batch make one notification (#4945): one alone is its own, as before.
     const flush = () => {
@@ -441,10 +361,7 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       timers.current.add(timer);
     };
     const urgent = wanted.filter((e) => e.kind === "needs");
-    // a card that follows its session's "Needs you" rewrites that notification without a second sound
-    const first = pickEvent(urgent.filter((e) => !e.follows));
-    if (first) speak(first.kind, first.key);
-    // The sound of "Needs you" does not look at mutes (detectTransitions); the notification does, as the phone's push and
+    // "Needs you" does not look at mutes (detectTransitions); the notification does, as the phone's push and
     // the Mac's do (hub announce, MacAttention.transitions).
     for (const e of urgent) {
       const s = find(e.key);
@@ -453,14 +370,12 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       if (about) announced.current.set(e.key, about);
     }
     // A finished turn speaks once it has stayed finished (the status flaps working → done → working around a turn).
-    // No sound when a "Needs you" one is going out with it: that one is the more urgent.
     for (const done of wanted.filter((e) => e.kind === "finished")) {
       const t = setTimeout(() => {
         timers.current.delete(t);
         if (getState().pushGrading) return;
         const s = find(done.key);
         if (!s || stateOf(s) !== "unread") return;
-        if (!first) speak("finished", done.key);
         gather(done.key);
       }, SETTLE_MS);
       timers.current.add(t);
@@ -469,13 +384,13 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
 
   // The hub's `notify` events (#8145, lib/hub-notify.ts): what the hub tells a phone of the conversations this page does
   // not follow itself (the assistant's), a notify_user, a decision, an alert. Asked for only while this page can alert
-  // (the alert sound or system notifications on), so the hub counts it as a device that hears them only then. The hello
+  // (system notifications on), so the hub counts it as a device that hears them only then. The hello
   // that starts asking has the hub send what it kept while this browser was not asking (hub/notifyring.go): opening the
   // page announces none of that, as it announces no state it finds on loading.
   const quietUntil = useRef(0);
   useEffect(() => {
     let asking: boolean | undefined;
-    const able = () => attentionSoundEnabled() || systemNotifyActive();
+    const able = () => systemNotifyActive();
     setHelloExtras(() => {
       const on = able();
       if (on && !asking) quietUntil.current = Date.now() + HUB_REPLAY_MS;
@@ -486,7 +401,6 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       if (able() !== Boolean(asking)) sayHello();
     };
     follow();
-    const offSound = onAttentionSoundChange(follow);
     const offSystem = onSystemNotifyChange(follow);
     const offNotify = onHubEvent("notify", (msg) => {
       if (Date.now() < quietUntil.current) return;
@@ -502,11 +416,6 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       const prefs = notifyPrefs();
       if ((n.needs && !wants("needs", prefs)) || managerMuted(prefs, n.manager ?? row?.manager, defaultManager())) return;
       const hushed = n.hush && inQuietHours(prefs);
-      // no sound for the conversation on screen while the window is in front, as for an Agent's (suppressed); the main
-      // chat's address names no conversation
-      const on = parse(stripBase(location.pathname), location.search);
-      const looking = inFront() && Boolean(n.key) && (n.key === viewing.current || (on.name === "persona" && state.assistant?.main === sid));
-      if (attentionSoundEnabled() && !hushed && !looking && allow.current(Date.now())) play("needs");
       if (unannounced() || !claimNotification(n.card ? `${n.tag}@${n.card}` : n.tag)) return;
       const ix = n.card ? state.interactions.find((c) => c.id === n.card) : undefined;
       const answer = ix?.kind === "permission" && !needsFieldValues(ix) && interactionCanAnswer(ix, row) ? ix.id : undefined;
@@ -517,7 +426,6 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
       if (n.card && n.key) announced.current.set(n.key, n.card);
     });
     return () => {
-      offSound();
       offSystem();
       offNotify();
       setHelloExtras(() => []);
@@ -538,7 +446,7 @@ export function useAttentionSignals(label: string, pane: { mid: string; sid: str
  * `useAttentionSignals` as a component that draws nothing. It reads every session push (the "Needs you" count, the
  * transitions): rendered as a leaf, a push re-renders only it, not the shell with the sidebar and the page around it.
  */
-export function AttentionSignals({ label, pane }: { label: string; pane: { mid: string; sid: string } | undefined }): null {
-  useAttentionSignals(label, pane);
+export function AttentionSignals({ label }: { label: string }): null {
+  useAttentionSignals(label);
   return null;
 }

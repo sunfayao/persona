@@ -30,21 +30,17 @@ describe("通知偏好", () => {
   });
 });
 
-describe("system notifications: in front or not (#2451)", () => {
+describe("system notifications: in front or not", () => {
   const away = { here: false, other: false };
-  it("go out while no tab is in front, whatever Always says", () => {
-    expect(systemNotifyAllowed(away, { active: true, always: false })).toBe(true);
-    expect(systemNotifyAllowed(away, { active: true, always: true })).toBe(true);
+  it("go out while no tab is in front", () => {
+    expect(systemNotifyAllowed(away, true)).toBe(true);
   });
-  it("this tab or another in front: only with Always on", () => {
-    for (const front of [{ here: true, other: false }, { here: false, other: true }, { here: true, other: true }]) {
-      expect(systemNotifyAllowed(front, { active: true, always: false })).toBe(false);
-      expect(systemNotifyAllowed(front, { active: true, always: true })).toBe(true);
-    }
+  it("not while this tab or another is in front", () => {
+    for (const front of [{ here: true, other: false }, { here: false, other: true }, { here: true, other: true }]) expect(systemNotifyAllowed(front, true)).toBe(false);
   });
   it("never while the main switch is off or the browser doesn't allow them", () => {
-    expect(systemNotifyAllowed(away, { active: false, always: true })).toBe(false);
-    expect(systemNotifyAllowed({ here: true, other: false }, { active: false, always: true })).toBe(false);
+    expect(systemNotifyAllowed(away, false)).toBe(false);
+    expect(systemNotifyAllowed({ here: true, other: false }, false)).toBe(false);
   });
 });
 

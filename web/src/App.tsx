@@ -623,9 +623,9 @@ function Shell() {
       <NewWorktreeHost />
       <CloseAgentHost />
       <ForwardHost />
-      {/* tab title with the "Needs you" count, favicon badge, optional sounds (#2332): a leaf, so a sessions push re-renders
+      {/* tab title with the "Needs you" count, favicon badge (#2332): a leaf, so a sessions push re-renders
           only it, not the whole shell */}
-      <AttentionSignals label={title} pane={pane} />
+      <AttentionSignals label={title} />
       {/* the counts for the desktop app's island at the MacBook notch (#7669), only in a desktop app that has it */}
       {window.personaDesktop?.setIslandState && <DesktopIslandSignals />}
     </div>

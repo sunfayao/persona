@@ -72,7 +72,7 @@ class FakeNotification {
 }
 
 function Probe() {
-  useAttentionSignals("Persona", undefined);
+  useAttentionSignals("Persona");
   return null;
 }
 
@@ -520,10 +520,8 @@ describe("push grading open-page signals (#11771)", () => {
     badgeCount = 0;
     await show([session("p1", "working"), session("p0", "working"), session("fin", "working", "2026-01-01T09:57:00Z")], []);
     await act(async () => {});
-    // Trigger a user gesture so armAudio activates AudioContext.
-    window.dispatchEvent(new Event("pointerdown"));
 
-    // P1 escalated card + finished (P2) turn: silent (no notification, no sound, badge stays 0).
+    // P1 escalated card + finished (P2) turn: silent (no notification, badge stays 0).
     await show(
       [session("p1", "needs_you"), session("p0", "working"), session("fin", "unread")],
       [{ id: "ix_p1", machine_id: "m", session_id: "p1", kind: "permission", summary: "run tests", push_level: "P1" }],

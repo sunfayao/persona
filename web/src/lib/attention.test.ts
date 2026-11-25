@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { answeredTags, badgeText, BATCH_MAX_MS, BATCH_QUIET_MS, batchDue, finishedBatch, detectNewCards, FORGET_CARD_MS, detectTransitions, heldOnlyNeeds, isHeldLevel, MIN_GAP_MS, pickEvent, rateLimiter, SETTLE_MS, suppressed, tabTitle, trackTurns } from "./attention";
+import { answeredTags, badgeText, BATCH_MAX_MS, BATCH_QUIET_MS, batchDue, finishedBatch, detectNewCards, FORGET_CARD_MS, detectTransitions, heldOnlyNeeds, isHeldLevel, SETTLE_MS, tabTitle, trackTurns } from "./attention";
 import { stateCounts } from "./sessions";
 import { agentKey } from "./pins";
 import type { AgentMutes } from "./agent-groups";
@@ -77,41 +77,6 @@ describe("状态变化检测", () => {
     const first = detectTransitions(prevOf(["a", "working"]), [session("a", "unread"), session("b", "working")], noMutes);
     expect(first.next.get("m/b")).toBe("working");
     expect(detectTransitions(first.next, [session("a", "unread"), session("b", "working")], noMutes).events).toEqual([]);
-  });
-  it("一批里需要你优先于完成", () => {
-    const { events } = detectTransitions(prevOf(["a", "working"], ["b", "idle"]), [session("a", "unread"), session("b", "needs_you")], noMutes);
-    expect(events).toHaveLength(2);
-    expect(pickEvent(events)).toEqual({ kind: "needs", key: "m/b" });
-    expect(pickEvent([])).toBeUndefined();
-  });
-});
-
-describe("正在看的会话不响", () => {
-  const a = agentKey({ machine_id: "m", session_id: "a" });
-  it("窗口在前台且就是当前页的会话：不响", () => {
-    expect(suppressed(a, { key: a, focused: true })).toBe(true);
-  });
-  it("窗口不在前台（切到别的标签页或应用）：响", () => {
-    expect(suppressed(a, { key: a, focused: false })).toBe(false);
-  });
-  it("别的会话、或不在会话页：响", () => {
-    expect(suppressed(a, { key: "m/b", focused: true })).toBe(false);
-    expect(suppressed(a, { focused: true })).toBe(false);
-  });
-});
-
-describe("限频", () => {
-  it("3 秒内最多一声，过了又可以", () => {
-    const allow = rateLimiter();
-    expect(allow(1000)).toBe(true);
-    expect(allow(1000 + MIN_GAP_MS - 1)).toBe(false);
-    expect(allow(1000 + MIN_GAP_MS)).toBe(true);
-  });
-  it("被拦下的不重新计时", () => {
-    const allow = rateLimiter(3000);
-    allow(0);
-    expect(allow(2000)).toBe(false);
-    expect(allow(3000)).toBe(true);
   });
 });
 
