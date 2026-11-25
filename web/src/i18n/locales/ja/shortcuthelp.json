@@ -1,7 +1,5 @@
 {
   "title": "キーボードショートカット",
   "in_terminal": "ターミナル内",
-  "in_terminal_fixed": "ターミナル内（固定）",
-  "off": "無効",
-  "unset": "未設定"
+  "in_terminal_fixed": "ターミナル内（固定）"
 }

@@ -1,7 +1,5 @@
 {
   "title": "快捷键",
   "in_terminal": "终端里",
-  "in_terminal_fixed": "终端里（固定）",
-  "off": "已停用",
-  "unset": "未设置"
+  "in_terminal_fixed": "终端里（固定）"
 }

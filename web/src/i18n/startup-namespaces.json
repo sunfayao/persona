@@ -1,6 +1,4 @@
 [
-  "starred.count",
-  "starred.title",
   "agent-goal.plan_",
   "agent-mark",
   "agentmenus.archive",
@@ -448,7 +446,6 @@
   "ui-atoms",
   "ui-attachmenttray",
   "ui-errornotice",
-  "ui-extensionthemepicker",
   "ui-markdown",
   "ui-media",
   "ui-mermaid",

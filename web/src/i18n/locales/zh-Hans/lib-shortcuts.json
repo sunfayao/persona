@@ -27,10 +27,5 @@
   "cmd_collapse_tree": "折叠侧边栏的全部分组",
   "cmd_expand_tree": "展开侧边栏的全部分组",
   "local_terminal_find": "终端里查找",
-  "local_terminal_find_note": "Windows / Linux 上没有接管终端时，Ctrl+F 也是",
-  "check_key": "这个键不能用作快捷键",
-  "check_mod": "需要带 {mod}",
-  "check_digits": "这一项要按数字键 1–9",
-  "check_reserved": "{chord} {why}，换一个",
-  "check_conflict": "已被「{label}」占用"
+  "local_terminal_find_note": "Windows / Linux 上没有接管终端时，Ctrl+F 也是"
 }
