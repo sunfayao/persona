@@ -10,8 +10,7 @@ import { useLarkHome } from "../lib/lark-chats";
 import { agentKey } from "../lib/pins";
 import { NAV_PAGES, extensionNavKey, sidebarActiveKey, sidebarRoute } from "../lib/persona-nav";
 import { handoffFrom, sidebarPageOf } from "../lib/handoff";
-import { arrangeSections, useSidebarPrefs } from "../lib/sidebar-pages";
-import { useStartPageCheck } from "../lib/start-page";
+import { arrangeSections } from "../lib/sidebar-pages";
 import { useExtensionSlot } from "../lib/extension-slots";
 import { toneOf } from "../lib/extension-ui";
 import { BADGE_TONE, navIcon, pageRoute } from "./extensions/ExtensionSlots";
@@ -141,15 +140,12 @@ export function useNavPages() {
     ...(page[k] ? [page[k]] : []),
   ]);
 
-  // as arranged in Settings › General › Sidebar pages: the list, and the pages that wait under More (docs/web/web.md "The sidebar's pages")
-  // and in their groups (#9071): `pages` is every group's in order, for the rail, the drawer and ⌘K
-  const { sections, more } = arrangeSections(all, useSidebarPrefs());
+  // the list, and the pages that wait under More (docs/web/web.md "The sidebar's pages") and in their groups (#9071):
+  // `pages` is every group's in order, for the rail, the drawer and ⌘K
+  const { sections, more } = arrangeSections(all);
   const pages = sections.flatMap((s) => s.pages);
-  // the start page this load opened on, if it is not there after all, gives way to the main chat (lib/start-page.ts)
-  const starredKnown = stars !== undefined;
-  useStartPageCheck((k) => all.some((p) => p.k === k), extensionPages, starredKnown);
 
-  return { phase, online, total, main, pages, sections, more, all, starredKnown };
+  return { phase, online, total, main, pages, sections, more, all };
 }
 
 /** The pages under "More" as menu rows (the phone's grid, the rail): a choice opens the page, then `onNavigate`
@@ -161,7 +157,6 @@ export function morePagesMenu(more: NavPage[], activeKey: string, onNavigate?: (
   };
   return [
     ...more.map((p): MenuItem => ({ key: p.k, label: p.label, icon: p.icon, hint: p.badge !== undefined ? String(p.badge) : p.hint, checked: p.k === activeKey || undefined, onSelect: open(p.to) })),
-    { key: "-arrange", label: t("sidebar.arrange_pages"), icon: "gear", divider: true, onSelect: open({ name: "settings" }) },
   ];
 }
 

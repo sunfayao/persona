@@ -10,7 +10,7 @@ import { t } from "../../i18n";
 import type { UIPlace } from "../../lib/extension-ui";
 import { ALWAYS_SHOWN, cardKey, getOverviewPrefs, overviewRevision, saveOverview, sectionKey, useOverviewKept, useOverviewPrefs, useSectionsLocal, type ArrangedItem, type CardSpan, type OverviewEntry, type SectionId } from "../../lib/overview-cards";
 import { changeEntry, dropEntry, entriesOf, moveEntry, written } from "../../lib/overview-edit";
-import { useStartPageSynced } from "../../lib/start-page";
+import { useNavigationSynced } from "../../lib/navigation-sync";
 import { stateName } from "../../lib/state-labels";
 import { Button, cx, IconButton, Switch, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
@@ -41,7 +41,7 @@ export function OverviewArrange({ items, card, section, onDone }: { items: Items
 /** Over Overview while it is arranged: what to do, whether every device follows, Reset (with Undo) and Done. */
 function EditHead({ onDone }: { onDone: () => void }) {
   const prefs = useOverviewPrefs();
-  const route = useStartPageSynced();
+  const route = useNavigationSynced();
   const field = useOverviewKept();
   const synced = route !== false && field !== false;
   const sectionsHere = useSectionsLocal();

@@ -12,7 +12,7 @@ import type { UIPlace } from "../../lib/extension-ui";
 
 const hub = vi.hoisted(() => ({ cards: [] as UIPlace[], synced: true as boolean | null, mounts: [] as string[] }));
 vi.mock("../../lib/extension-slots", () => ({ useExtensionSlot: () => hub.cards, useExtensionPlace: () => undefined }));
-vi.mock("../../lib/start-page", () => ({ useStartPageSynced: () => hub.synced }));
+vi.mock("../../lib/navigation-sync", () => ({ useNavigationSynced: () => hub.synced }));
 // what a card draws, and so whether its view is asked for: its render request goes out when ExtensionUI mounts
 vi.mock("../settings/ExtensionView", async () => {
   const { useEffect } = await import("react");

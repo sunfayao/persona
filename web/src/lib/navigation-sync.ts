@@ -1,169 +1,36 @@
-// Where the app opens (#9071, docs/web/web.md "Start page"): Persona's main chat, unless the user chose another page in
-// Settings › General › Start page. It also carries the sidebar's arrangement and Overview's (#9745, #10905) to and from the hub (below). The hub keeps the choice (GET / PUT /api/v1/navigation, its default manager's): a
-// hub has one owner, so every device of theirs follows. This browser keeps a copy, so an opening decides before the
-// first paint without waiting for the hub, and keeps the choice itself where the hub has no such route (404). Only an
-// opening at the root address goes there (a new tab, the installed app, the hub's address typed): a reload, Back /
-// Forward, a link to a page and the sidebar's Persona row are left alone. A page that is not there (its extension
-// removed or turned off, Messages switched off) opens the main chat instead; the choice stays,
-// and Settings says so.
-import { useEffect, useRef, useSyncExternalStore } from "react";
+// The hub keeps Overview's cards and sections for every device of the owner (GET / PUT /api/v1/navigation, its default
+// manager's), and this browser keeps a copy (lib/overview-cards.ts), so Overview draws before the hub answers and keeps
+// the arrangement where the hub has no such route (404). This module reads the hub's copy at each hello, sends each change
+// made here and follows the hub's pushes of it (below).
 import { api, ApiError } from "./api";
-import { stripBase } from "./base";
-import { hasSlots } from "./extension-slots";
 import { feedCacheScope } from "./feed-cache";
-import { NAV_PAGES } from "./persona-nav";
 import { adoptOverview, getOverviewPrefs, isSection, keepSections, noteOverviewKept, noteSectionsLocal, onOverviewSaved, overviewChosen, overviewElsewhere, overviewKept, readOverview, sectionsLocal, type CardEntry, type SectionEntry } from "./overview-cards";
-import { adoptSidebarPrefs, chosen, getSidebarPrefs, onSidebarPrefsSaved } from "./sidebar-pages";
 import { isResumed } from "./reconnect";
-import { navigate, type Route } from "./router";
-import { onHubEvent, useStore } from "./store";
-
-const KEY = "persona.startPage";
+import { onHubEvent } from "./store";
+import { useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
-let current = "";
-try {
-  current = localStorage.getItem(KEY) ?? "";
-} catch {
-  // storage off: the main chat
-}
 
-/** The choice as this browser has it: "" for the main chat, else a page's key as the sidebar names it (lib/persona-nav.ts,
- *  `p:<extension>/<page>` for an extension's). */
-export const startPage = () => current;
-
-/** Keeps `key` here: the hub's answer or push, or the choice itself where the hub can't keep it. */
-export function keepStartPage(key: string) {
-  current = key;
-  try {
-    if (key) localStorage.setItem(KEY, key);
-    else localStorage.removeItem(KEY);
-  } catch {
-    // storage off: this page only
-  }
-  changed();
-}
-
-// Whether the hub keeps the choice: null until its answer, false for a hub (or a manager) without the route.
+// Whether the hub keeps the arrangement: null until its answer, false for a hub (or a manager) without the route.
 let synced: boolean | null = null;
-export const startPageSynced = () => synced;
+export const navigationSynced = () => synced;
 
-/** Says the hub keeps the choice (true), or answered `e` (false for a 404 / 405: it has no such route). */
-export function noteStartPageSynced(e?: unknown) {
+/** Says the hub keeps it (true), or answered `e` (false for a 404 / 405: it has no such route). */
+export function noteNavigationSynced(e?: unknown) {
   const was = synced;
   if (!e) synced = true;
   else if (e instanceof ApiError && (e.status === 404 || e.status === 405)) synced = false;
   if (synced !== was) changed();
 }
 
-/** The route a page's key opens; null for the main chat and for a key this version does not know. */
-export function startRoute(key: string): Route | null {
-  if (key.startsWith("p:")) {
-    const at = key.indexOf("/");
-    return at > 2 && at < key.length - 1 ? { name: "extension", extension: key.slice(2, at), ui: key.slice(at + 1) } : null;
-  }
-  return key !== "settings" && (NAV_PAGES as readonly string[]).includes(key) ? ({ name: key } as Route) : null;
-}
-
-// The start page this load opened on and its address, until it is known whether the page is there (useStartPageCheck).
-let opened: { key: string; path: string } | null = null;
-
-/** At load, before the first paint (App): an opening at the root address goes to the start page instead. */
-export function openStartPage() {
-  const to = startRoute(current);
-  if (!to || stripBase(location.pathname) !== "/" || location.search || location.hash) return;
-  const entry = performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined;
-  if (entry && entry.type !== "navigate") return; // a reload or Back / Forward stays on the page it was on
-  navigate(to, true);
-  opened = { key: current, path: location.pathname };
-}
-
-/** Whether the start page `key` is gone, `listed` saying whether the sidebar lists it now: undefined while that can't be
- *  told from the extension list or Starred index. */
-export function startPageGone(key: string, listed: boolean, known: { extensions: boolean; starred: boolean }): boolean | undefined {
-  if (listed) return false;
-  if (key === "starred") return known.starred || undefined;
-  return key.startsWith("p:") && !known.extensions ? undefined : true;
-}
-
-// The hub has answered which extension pages there are: their list changed after the hello, which is when
-// lib/extension-slots.ts asks for it.
-let answered = false;
-
 const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => void listeners.delete(l);
 };
-export const useStartPage = () => useSyncExternalStore(subscribe, startPage);
-export const useStartPageSynced = () => useSyncExternalStore(subscribe, startPageSynced);
-export const useExtensionPagesKnown = () => useSyncExternalStore(subscribe, () => answered);
+export const useNavigationSynced = () => useSyncExternalStore(subscribe, navigationSynced);
 
-/** In the sidebar's pages (useNavPages, always drawn): once it can be told whether the page this load opened on is there,
- *  one that is not opens the main chat in its place, unless the user has gone elsewhere since. */
-export function useStartPageCheck(listed: (key: string) => boolean, extensionPages: readonly unknown[], starredKnown: boolean) {
-  const online = useStore((s) => s.conn === "online");
-  const slots = useStore((s) => hasSlots(s.features));
-  // this list as it was at the first render after the hello: each caller's own, as each memoizes its list
-  const first = useRef<readonly unknown[] | null>(null);
-  useEffect(() => {
-    if (!online) return;
-    if (!first.current) first.current = extensionPages;
-    else if (extensionPages !== first.current && !answered) {
-      answered = true;
-      changed();
-    }
-    if (!opened) return;
-    const gone = startPageGone(opened.key, listed(opened.key), { extensions: answered || !slots, starred: starredKnown });
-    if (gone === undefined) return;
-    if (gone && location.pathname === opened.path) navigate({ name: "persona" }, true);
-    opened = null;
-  });
-}
-
-/** Saves `key` ("" for the main chat) locally, then to the hub. A hub without the route keeps it here; any other
- *  refusal restores the previous choice and is returned for the caller to report. Kept with the navigation state,
- *  not with the Settings page's larger UI graph or its error strings. */
-export async function saveStartPage(key: string): Promise<unknown | undefined> {
-  const was = startPage();
-  keepStartPage(key);
-  if (startPageSynced() === false) return; // this browser only
-  try {
-    const r = await api<{ start?: string }>("/navigation", { method: "PUT", json: { start: key } });
-    noteStartPageSynced();
-    if (startPage() === key) keepStartPage(r.start ?? key);
-  } catch (e) {
-    noteStartPageSynced(e);
-    if (startPageSynced() === false) return;
-    if (startPage() === key) keepStartPage(was);
-    return e;
-  }
-}
-
-// The sidebar's arrangement (lib/sidebar-pages.ts) goes the same way: each change made here is sent; while one is on its
-// way the hub's pushes of it are not taken (an older one would undo a newer); one the hub did not take goes again at the
-// next hello instead of being replaced by the hub's.
-let sending = 0;
-let unsent = false;
-onSidebarPrefsSaved((pages) => {
-  if (synced === false) return; // this browser only
-  sending++;
-  api<{ pages?: unknown }>("/navigation", { method: "PUT", json: { pages } })
-    .then(
-      (r) => {
-        noteStartPageSynced();
-        unsent = false;
-        if (sending === 1 && r.pages) adoptSidebarPrefs(r.pages);
-      },
-      (e) => {
-        noteStartPageSynced(e);
-        unsent = synced !== false;
-      },
-    )
-    .finally(() => sending--);
-});
-
-// Overview's cards and sections (lib/overview-cards.ts) go the same way, sent on their own. A default manager from
+// A change of the cards and sections (lib/overview-cards.ts) is sent as it is made. A default manager from
 // before the field answers a change of only them with its own 400 (OLD_MANAGER), or takes the PUT and leaves them out
 // of its answer: the arrangement then stays in this browser (Overview's editor says so) until the next hello asks
 // again. One from before the sections (#9745's) refuses an arrangement that names one in its own words (NO_SECTIONS):
@@ -174,7 +41,7 @@ onSidebarPrefsSaved((pages) => {
 // time: one made meanwhile goes once that one is answered, the newest as this browser has it then, so the hub takes them in
 // the order they were made and the last answer says whether the newest reached it. Pushes heard meanwhile, and until the
 // hub's push of the last one taken comes (its answer can come first), are settled then (settleOverview), not dropped.
-const OLD_MANAGER = ["start is required", "start or pages is required"]; // #9328, #9351
+const OLD_MANAGER = ["start is required", "start or pages is required"]; // #9328, #9351: a default manager from before the field
 const NO_SECTIONS = 'overview: "" / "" is not an extension\'s card';
 let sendingOverview = false;
 let againOverview = false; // a change made while one was on its way
@@ -237,7 +104,7 @@ function sendOverview(probe = false, ask = false) {
       try {
         if (done.ok) {
           const r = done.r;
-          noteStartPageSynced();
+          noteNavigationSynced();
           unsentOverview = false;
           noteOverviewKept(Array.isArray(r.overview));
           if (!cardsOnly) noteSectionsLocal(false);
@@ -246,7 +113,7 @@ function sendOverview(probe = false, ask = false) {
           else if (Array.isArray(r.overview)) looseOverview = true;
         } else {
           const e = done.e;
-          noteStartPageSynced(e);
+          noteNavigationSynced(e);
           const words = e instanceof ApiError && e.status === 400 ? String(e.body?.error) : "";
           const old = OLD_MANAGER.includes(words);
           const refused = words === NO_SECTIONS;
@@ -328,16 +195,10 @@ onHubEvent("hello", (msg) => {
   answeredOverview = [];
   const edits = sendingOverview ? -1 : editsOverview;
   const version = overviewVersion();
-  api<{ start?: string; pages?: unknown; overview?: unknown }>("/navigation").then(
+  api<{ overview?: unknown }>("/navigation").then(
     (r) => {
       if (overtaken()) return;
-      noteStartPageSynced();
-      const handover: Record<string, unknown> = {};
-      if (typeof r.start === "string") keepStartPage(r.start);
-      else if (current) handover.start = current;
-      if (r.pages && !unsent) adoptSidebarPrefs(r.pages);
-      else if (chosen(getSidebarPrefs())) handover.pages = getSidebarPrefs();
-      if (Object.keys(handover).length) void api("/navigation", { method: "PUT", json: handover }).then(() => (unsent = false), () => {});
+      noteNavigationSynced();
       // ours, unless a change of it did not reach the hub or one was on its way or made since this read began, or the
       // hub pushed one or another tab changed it meanwhile (newer than its answer, review of #9778, P1); else handed
       // over (only while nothing newer came: the hub has one then), or asked again where it was refused
@@ -347,12 +208,10 @@ onHubEvent("hello", (msg) => {
         if (sectionsLocal()) sendOverview(true, true); // an updated manager is handed the sections
       } else if (unsentOverview || overviewKept() === false || (fresh && overviewChosen())) sendOverview(true);
     },
-    (e) => void (overtaken() || noteStartPageSynced(e)), // the copies here stay
+    (e) => void (overtaken() || noteNavigationSynced(e)), // the copies here stay
   );
 });
 onHubEvent("navigation", (msg) => {
-  if (typeof msg.start === "string") keepStartPage(msg.start);
-  if (msg.pages && !sending) adoptSidebarPrefs(msg.pages);
   // not one the earlier sign-in's socket passed on before this one's hello
   if (Array.isArray(msg.overview) && helloScope === feedCacheScope()) {
     pushedOverview++;
