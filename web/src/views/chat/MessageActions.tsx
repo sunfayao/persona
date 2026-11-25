@@ -308,7 +308,7 @@ export function MessageActions({
       )}
       {menu && !picking && <MessageMenu
         anchor={menu.anchor} onClose={close} primary={actions} more={menu.more}
-        itemId={itemId} text={text} ts={ts} rewindText={editText ?? text} messageId={messageId} isUser={isUser} onDelete={onDelete} pick={pick}
+        itemId={itemId} text={text} rewindText={editText ?? text} messageId={messageId} isUser={isUser} onDelete={onDelete} pick={pick}
         onSelectText={() => setSelecting(true)}
       />}
       <SelectMessageText open={selecting} onClose={() => setSelecting(false)} text={text} />

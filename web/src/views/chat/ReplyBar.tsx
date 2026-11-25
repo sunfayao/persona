@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../../i18n";
 import { exactTime, relativeTime } from "../../lib/relative-time";
-import { Button, copyText, cx, Dialog, Menu, Spinner, toast } from "../../ui/atoms";
+import { Button, copyText, cx, Dialog, Menu, toast } from "../../ui/atoms";
 import { Icon } from "../../ui/icons";
 import { REPLY_BAR_FADE_MS, REPLY_BAR_LINGER_MS } from "../../ui/motion";
 import { isNoHover } from "../../ui/media-query";
@@ -125,7 +125,7 @@ function useWhileOpen(live: Rewind["block"] | undefined, open: boolean, closed: 
 }
 
 /** Menu-only actions and their live disabled reasons load with the existing reply controls, not the transcript. */
-export function MessageMenu({ anchor, onClose, primary: actions, itemId, text, rewindText, messageId, isUser, onDelete, more, onSelectText, pick, ts }: {
+export function MessageMenu({ anchor, onClose, primary: actions, itemId, text, rewindText, messageId, isUser, onDelete, more, onSelectText, pick }: {
   anchor: HTMLElement | { x: number; y: number };
   onClose: () => void;
   primary: Action[];
@@ -138,7 +138,6 @@ export function MessageMenu({ anchor, onClose, primary: actions, itemId, text, r
   more?: boolean;
   onSelectText: () => void;
   pick?: ForwardPick;
-  ts?: string;
 }) {
   const chat = useChatActions();
   const rewind = isUser ? chat?.rewind : undefined;
