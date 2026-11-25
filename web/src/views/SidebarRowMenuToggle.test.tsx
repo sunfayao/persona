@@ -12,7 +12,6 @@ vi.hoisted(() => {
   const css = ((globalThis as { CSS?: Partial<typeof CSS> }).CSS ??= {});
   css.escape ??= (s: string) => s.replace(/[^\w-]/g, (c) => `\\${c}`);
 });
-import { t } from "../i18n";
 import { loadPages } from "../lib/lazy-page";
 import { connect, refresh, reset } from "../lib/store";
 import type { Session } from "../lib/types";
