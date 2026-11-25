@@ -40,5 +40,4 @@ the same rule. All data is made up.
 - hub: `cd server && go test ./internal/kb -run MinutesWaitFixture` (`server/internal/kb/transcription_progress_test.go`).
 - iPhone: `apple/PersonaTests/MinutesWaitFixtureTests.swift` (the rule in `MinutesWaitLine`,
   `apple/Persona/Recording/MeetingAudioWire.swift`).
-- web: `cd web && npx vitest run src/lib/minutes-wait.test.ts` (the rule in `web/src/lib/minutes-wait.ts`).
-- A new case: work out the expected line and numbers by hand from the rules above, then run all three.
+- A new case: work out the expected line and numbers by hand from the rules above, then run both.

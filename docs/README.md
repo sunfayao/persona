@@ -15,7 +15,7 @@ and the [architecture](server/architecture.md). The [protocol](protocol/protocol
 | [apple/](apple/) | iPhone, Apple Watch and Vision Pro; native design and phone data | [iOS and watch](apple/ios.md), [performance](apple/performance.md), [icons](apple/icons.md), [sidebars](apple/sidebar.md), [Vision Pro](apple/vision.md) |
 | [desktop/](desktop/) | Electron desktop app and independently installable Persona Link | [Desktop](desktop/desktop.md) |
 | [android/](android/) | Android modules and design system | [Android](android/android.md), [design](android/android-design.md) |
-| [web/](web/) | Browser client | [Web](web/web.md) |
+| [web/](web/) | Browser client and workspace board | [Web](web/web.md), [workspace board](web/workspace-board.md) |
 | [assistant/](assistant/) | Main chat, managers, knowledge, Inbox, tasks, models, prompts and voice | [Assistant](assistant/assistant.md), [managers](assistant/managers.md), [knowledge](assistant/knowledge.md) |
 | [integrations/](integrations/) | Agent runtimes, engines, sessions, launchers and terminal | [Runtime contract](integrations/runtimes.md), [A2A](integrations/a2a.md), [engines](integrations/engines.md), [Claude Code](integrations/claude-integration.md), [Codex](integrations/codex.md) |
 | [extensions/](extensions/) | Extension system, data connectors, messaging and channels | [Extensions](extensions/extensions.md), [extension settings](extensions/extension-settings.md), [connectors](extensions/connectors.md), [channels](extensions/channels.md) |
