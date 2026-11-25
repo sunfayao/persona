@@ -42,7 +42,7 @@ Scope: tokens, components, interaction patterns, content, dark mode, text size a
 
 | Concern | Where |
 | --- | --- |
-| Tokens | `web/src/styles.css`, `web/src/ui/look.ts` (hand-written; nothing generates them) |
+| Tokens | `web/src/styles.css` (hand-written; nothing generates it) |
 | Components | `web/src/ui/atoms.tsx`, `web/src/ui/` |
 | Written rules | `docs/web/web.md` |
 

@@ -359,26 +359,6 @@ and will attach when they adopt `InboxThing` (not done in v1; a separate task).
 
 Size: **medium**. Hub Inbox, GitHub, Telegram, Messages; the App's mute menu is new UI, a separate PR with screenshots shown to you.
 
-### 6. Sender identity hints
-
-**Agreed; v2 records but does not merge. Hints store only HMAC hashes, are hidden from models, and are used only to recognize people (decided).**
-
-Current state: knowledge-base people (`Person` in `kb/store.go`) have only one `Source` + `SourceID`; the same person has separate entries in Lark, mail, Messages and Telegram.
-To keep numbers off disk, Messages already uses a phone/email hash as the person id (`PersonKey` in `connector/imessage/persona.go`).
-
-Proposal:
-
-- `Handle{Kind, Hash}`: `Kind` is `email` / `phone` / `github` / `telegram` / `lark`; `Hash` is an HMAC with the hub's own key after normalization (lowercase email, E.164 phone).
-  The same email in mail and Messages gets the same hash, identifying the same person without writing the number to the knowledge base.
-- Put it in `InboxThing.From.Handles` and `kb.SourceMessage.SenderHandles`; add `Handles []string` to `Person` (append only).
-- **Hidden from models**: no hints in MCP results, Inbox classification prompts or knowledge-base compression prompts (hashes mean nothing to the model and waste context), enforced by goldens;
-  raw values (phone, email) still stay off disk.
-- What each source can supply: mail (address), Messages (phone / email, already its id), GitHub (login; omit email when unavailable), Telegram (user id; phone only for contacts),
-  Lark (user id; email with permission).
-- **Identity merging (combining entries into one person) is outside v2**: design separately once hints exist, including how to undo a bad merge and who confirms it.
-
-Size: **small** (connector fields) **to medium** (knowledge-base writes). Small changes to all five connectors.
-
 ### 7. Login supports "open a web page to authorize"
 
 **Agreed. Mail needs multi-account support first, so comes later.**
