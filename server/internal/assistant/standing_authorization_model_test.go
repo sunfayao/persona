@@ -31,4 +31,3 @@ func TestStandingAuthorizationForcePushNeedsDeletionGrant(t *testing.T) {
 	}
 }
 
-type standingTimeoutModel struct{ calls int }

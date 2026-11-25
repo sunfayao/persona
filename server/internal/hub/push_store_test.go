@@ -40,9 +40,3 @@ func (s *deviceRows) row(id string) (db.Device, bool, int) {
 	return d, ok, s.deletes
 }
 
-// forgetStore is a database whose device row delete either hangs until the caller gives up (a locked row) or fails.
-type forgetStore struct {
-	Store
-	entered chan struct{}
-	fail    error
-}

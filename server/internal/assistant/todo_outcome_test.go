@@ -10,7 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-const outcomeReply = "修好了：登录页在横屏时用了固定宽度。PR https://github.com/o/weather/pull/12 已合并。注意 iPad 模拟器要用原版的，瘦身的复现不了。"
 
 // What the model says is kept within bounds: one line, links that are links, at most five of each.
 func TestTidyOutcome(t *testing.T) {

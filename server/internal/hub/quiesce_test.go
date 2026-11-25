@@ -365,13 +365,8 @@ func (s *tokenTouchStore) TouchDeviceToken(_ context.Context, _ string) error {
 
 type bgWriteStore struct {
 	*meshStore
-	lockTestDue      *time.Time
-	lockTestAttempts atomic.Int32
 	laClaims         atomic.Int32
-	laHolds          atomic.Int32
-	laSaves          atomic.Int32
 	clientOpCleanups atomic.Int32
-	pushReconciles   atomic.Int32
 	settingMu        sync.Mutex
 	settingCounts    map[string]int
 }
@@ -1114,15 +1109,6 @@ func TestResumedPersonaTiersCannotOverwriteNewerState(t *testing.T) {
 	})
 }
 
-type liveActivityOrderStore struct {
-	*meshStore
-	mu          sync.Mutex
-	events      []string
-	heldUntil   map[string]time.Time
-	holdEntered chan struct{}
-	releaseHold chan struct{}
-	holdOnce    sync.Once
-}
 
 // When the hub's first Web Push VAPID key has not yet been created and a
 // background dispatch arrives during a snapshot pause, key creation and push
@@ -1286,11 +1272,6 @@ func TestWebPushDeferredPushNotOvertakenByPostResumeDispatch(t *testing.T) {
 	})
 }
 
-type hookedDeviceStore struct {
-	*meshStore
-	upserts  atomic.Int32
-	onUpsert func(db.Device)
-}
 
 type blockingDeviceSessionStore struct {
 	*meshStore

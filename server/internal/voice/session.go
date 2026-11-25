@@ -157,8 +157,6 @@ type conversation struct {
 	// over or called a function (nudge.go).
 	owed    owedAnswer
 	modelAt time.Time
-	// talkIgnored: a talk frame came on a call that is not a meeting call, and was logged (meeting.go).
-	talkIgnored bool
 	// holdIgnored: a hold frame came on a call that takes none (protocol 1, a meeting call), and was logged (suspend.go).
 	holdIgnored bool
 }

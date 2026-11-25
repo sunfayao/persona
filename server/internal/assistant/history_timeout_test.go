@@ -8,12 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// stuckHistoryStore is a database whose interaction history never answers: every read and write waits for its
-// context.
-type stuckHistoryStore struct{ *fleetMem }
 
-// stuckAlwaysStore is a database whose assistant_always table never answers.
-type stuckAlwaysStore struct{ *fleetMem }
 
 func shortHistoryTimeout(t *testing.T, d time.Duration) {
 	t.Helper()

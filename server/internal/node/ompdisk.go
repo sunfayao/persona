@@ -51,11 +51,9 @@ type ompDiskState struct {
 	mu      sync.Mutex
 	dir     string
 	files   map[string]ompDiskEntry
-	byID    map[string]ompDiskSession
 	order   []ompDiskSession
 	at      time.Time
 	reads   int // files read in all, a test's cache-hit count
-	scanned time.Time
 }
 
 // ompAgentDir is omp's agent directory, the one omp and its Persona extension use (integrations/omp/lib/compat.js):

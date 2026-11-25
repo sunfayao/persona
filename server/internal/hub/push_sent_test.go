@@ -89,8 +89,3 @@ func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 	}
 }
 
-// landedThenFailed is the real database with its first AddPushSent calls committing and then reporting an error.
-type landedThenFailed struct {
-	*db.DB
-	fail atomic.Int32
-}

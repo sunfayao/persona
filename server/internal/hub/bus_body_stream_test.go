@@ -144,16 +144,6 @@ func relaysLeft(h *Hub) int {
 	return len(h.relay.pending) + len(h.relay.owner) + len(h.relay.taken)
 }
 
-// slowConn reads at most rate bytes a second, like a manager behind a slow link.
-type slowConn struct {
-	net.Conn
-	rate   int
-	start  time.Time
-	read   int
-	reads  int
-	mu     sync.Mutex
-	onBody func()
-}
 
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as
 // it answers a small one.

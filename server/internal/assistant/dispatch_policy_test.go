@@ -6,16 +6,6 @@ import (
 	"time"
 )
 
-// dispatchPolicyHarness is an assistant with five conversations: the main one, a leader, the background supervisor,
-// the scheduled task's own conversation and an ordinary side conversation. All ids are placeholders.
-type dispatchPolicyHarness struct {
-	*spawnHarness
-	mainID   string
-	leaderID string
-	bgID     string
-	patrolID string
-	sideID   string
-}
 
 func TestDispatchPolicyValidation(t *testing.T) {
 	now := time.Now().UTC()

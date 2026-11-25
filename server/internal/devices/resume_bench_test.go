@@ -66,7 +66,6 @@ type resumeBenchResult struct {
 	transferFailed           int
 	reconnects, resumed      int
 	worstCall                time.Duration
-	pingsUnanswered, pingCut int
 }
 
 func runResumeBench(t *testing.T, link netshape.Config, scenario string, resume bool) string {

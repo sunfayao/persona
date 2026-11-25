@@ -12,11 +12,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// stuckPrefsStore is a database whose prefs write hangs (a locked row) until the caller gives up.
-type stuckPrefsStore struct {
-	sharedStore
-	entered chan struct{}
-}
 
 // heldPrefs is deviceRows whose first prefs write waits for release (a slow database row), closing entered as it starts.
 type heldPrefs struct {

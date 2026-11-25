@@ -4,11 +4,6 @@ import (
 	"sync/atomic"
 )
 
-// countingPlanHistoryStore counts the plan execution history reads through it.
-type countingPlanHistoryStore struct {
-	Store
-	reads atomic.Int64
-}
 
 // A task that runs on an existing to-do through task_plan's todo_id keeps that to-do's plan id, which a piece of a
 // leader's direction (todo_create) does not have: only the plan task's todo_id binds it to the plan. When its agent does

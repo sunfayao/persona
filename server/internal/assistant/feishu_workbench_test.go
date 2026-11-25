@@ -515,11 +515,6 @@ func TestWorkbenchSourceIsAName(t *testing.T) {
 	}
 }
 
-// tokenSpanStore is the chat's store that also sums the machines' usage (db.DB's UsageSpans), with made-up spans.
-type tokenSpanStore struct {
-	Store
-	spans []db.UsageSpan
-}
 
 // What waits for the owner is rows pressed whole: a card that holds something up comes down. An agent's row says its
 // state as a tag, not a coloured dot.

@@ -4,4 +4,3 @@ package assistant
 // is a decline. A card that expires unanswered, is closed, or that someone else answers for them changes nothing and
 // says nobody answered, so the conversation never reports that the user refused.
 
-const interjectKey = "assistant.interject_background"

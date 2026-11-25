@@ -76,12 +76,7 @@ func (rt *historyRuntime) page(_ string, raw json.RawMessage) (any, error) {
 		"has_more": hasMore, "more_after": more}, nil
 }
 
-type failedHistoryStore struct{ *db.DB }
 
-type gatedHistoryStore struct {
-	*db.DB
-	entered, release chan struct{}
-}
 
 func historyFixture(t *testing.T, logs ...func(string, ...any)) (*Service, *fakeHub, *db.DB, *historyRuntime) {
 	t.Helper()

@@ -42,4 +42,3 @@ func preserveOfficial(ctx context.Context, path string) bool {
 	return OfficialSigned(ctx, path)
 }
 
-var errOfficialSignature = errors.New("the official signed binary did not verify")

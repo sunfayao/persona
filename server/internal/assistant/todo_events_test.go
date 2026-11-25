@@ -35,7 +35,6 @@ func (f *todoEventHub) TodoEvent(event string, params any) error {
 type todoEventEnv struct {
 	*todoEnv
 	hub   *todoEventHub
-	clock *fakeClock
 }
 
 // told waits for the queue to reach the hub and returns what it has been told since the last call.

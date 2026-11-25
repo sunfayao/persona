@@ -7,7 +7,6 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-type failingNorthStarStore struct{ Store }
 
 func TestNorthStarHelpers(t *testing.T) {
 	for _, c := range []struct{ code, msg, want string }{

@@ -21,9 +21,6 @@ const (
 	neverQuoteMost = 64 << 10
 	// contextReadMost is the largest context file read at all (it is cut after cleaning); a larger one is too_large.
 	contextReadMost = 256 << 10
-	// neverQuoteShortest is the fewest characters a never_quote sentence must have after normalizing: shorter ones
-	// ("OK", "thanks") would stop ordinary drafts.
-	neverQuoteShortest = 6
 )
 
 // clipLines is s cut to at most most bytes at a line end (at a character when its first line is longer), and whether

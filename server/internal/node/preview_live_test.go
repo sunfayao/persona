@@ -1,7 +1,5 @@
 package node
 
-// previewPage: a button that renames the page, a field that does too as it is typed in, and a link elsewhere.
-const previewPage = `<!doctype html><html><head><title>Hi</title><style>
 body { margin: 0; background: #00f } #go { position: absolute; left: 0; top: 0; width: 100px; height: 50px }
 #in { position: absolute; left: 0; top: 100px; width: 200px; height: 40px }
 #ext { position: absolute; left: 0; top: 200px; width: 200px; height: 40px; display: block }
@@ -13,8 +11,3 @@ body { margin: 0; background: #00f } #go { position: absolute; left: 0; top: 0; 
 <a id="next" href="/second">second</a>
 </body></html>`
 
-type liveMsg struct {
-	kind byte
-	json map[string]any
-	bin  []byte
-}

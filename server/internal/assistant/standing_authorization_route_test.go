@@ -46,7 +46,6 @@ func TestStandingCardPathsPunctuation(t *testing.T) {
 	}
 }
 
-type failingStandingStore struct{ *db.DB }
 
 func TestStandingAuthorizationConditions(t *testing.T) {
 	for _, test := range []string{"pass", "pending", "empty", "incomplete", "conflict", "unknown", "wrong_pr", "unavailable", "draft", "closed"} {

@@ -12,7 +12,6 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-var startedConvRe = regexp.MustCompile(`Started conversation (\S+);`)
 
 // spawnHarness is an assistant with conversation parent-1 on its machine, the hub's log kept.
 type spawnHarness struct {

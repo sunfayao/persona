@@ -29,14 +29,4 @@ func TestFailedStartSettingsWordingKeepsWordBoundaries(t *testing.T) {
 	}
 }
 
-type failedBatchCASStore struct {
-	Store
-	compareMu     sync.Mutex
-	beforeCompare func()
-}
 
-type failedBatchRelayFailStore struct {
-	Store
-	mu   sync.Mutex
-	fail bool
-}

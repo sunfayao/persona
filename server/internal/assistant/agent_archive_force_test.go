@@ -89,13 +89,6 @@ func TestForceArchiveCloseFailureAndHTTPRole(t *testing.T) {
 	}
 }
 
-// Observe the durable record between the archive write and the final ClosedAt write.
-// A fresh manager has no in-memory fence to mask an unsafe persisted record.
-type forceArchiveWindowStore struct {
-	*db.DB
-	afterArchive   func()
-	beforeFinalize func()
-}
 
 func TestForceArchiveFenceWriteFailureKeepsAgent(t *testing.T) {
 	ft, row := closeTestService(t, func(s *proto.Session) { s.Status = proto.StatusBlocked; s.State = proto.StateNeedsYou })

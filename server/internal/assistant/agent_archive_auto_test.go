@@ -18,7 +18,7 @@ func TestAutoArchivable(t *testing.T) {
 	old := now.Add(-4 * 24 * time.Hour)
 	wake := now.Add(time.Hour)
 	type link struct {
-		open, filed, onTodo, reviewer bool
+		open, onTodo, reviewer bool
 		lastDone                      time.Time
 	}
 	none := link{}

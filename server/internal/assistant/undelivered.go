@@ -132,7 +132,6 @@ type undeliveredBook struct {
 	revoked         map[string]bool          // credentials this manager was told were signed out
 	revocationDirty bool                     // the failed rows still need to be saved
 	wake            chan struct{}
-	start           sync.Once
 }
 
 func (s *Service) undeliveredLocked(ctx context.Context) bool {

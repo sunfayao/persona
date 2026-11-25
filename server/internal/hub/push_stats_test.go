@@ -251,9 +251,3 @@ func TestPushDailyStatsHeldToManager(t *testing.T) {
 	}
 }
 
-// flakyPutStore fails the first failsLeft PutSetting and AddPushSent calls, then delegates to the real in-memory store.
-type flakyPutStore struct {
-	*gradingStore
-	mu        sync.Mutex
-	failsLeft int
-}

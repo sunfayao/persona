@@ -528,5 +528,3 @@ func (s *Service) originRoutes() {
 	})
 }
 
-// originRecord is one conversation's origin as originsOf lists it.
-type originRecord struct{ session, machine, ref string }
