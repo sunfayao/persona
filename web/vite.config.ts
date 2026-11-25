@@ -164,7 +164,7 @@ function startupPreload(): Plugin {
         const page = (roots: string[]) => group(roots.map(find), new Set([...main, ...shared]));
         const files = {
           shared,
-          app: page(["/src/ui/ExtensionThemePicker.tsx", "/src/App.tsx"]),
+          app: page(["/src/App.tsx"]),
           screen: page(["/src/screen/ScreenView.tsx"]),
           catalogs: catalogs("client-startup"),
           matches: Object.fromEntries(Object.entries(langs).flatMap(([lang, ms]) => ms.map((m) => [m.toLowerCase(), lang]))),
