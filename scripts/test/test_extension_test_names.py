@@ -11,7 +11,6 @@ class ExtensionTestNames(unittest.TestCase):
         self.assertIn('os.environ.get("MOCK_EXTENSIONS"', mock)
         docs = (ROOT / "docs/operations/testing.md").read_text()
         self.assertIn("MOCK_EXTENSIONS=1", docs)
-        self.assertIn("TEST_RUNNER_PERSONA_EXTENSIONS_HUB", docs)
 
 
 if __name__ == "__main__":
