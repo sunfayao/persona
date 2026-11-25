@@ -1068,7 +1068,7 @@ redesign adds:
   and in the interim a timeline derived over today's stores); `asks` (one lifecycle and answer route over today's
   `acceptance`, reviews, dismissals and `ask_todos`); `steward` (resolution, verbatim relay, the model turn, scope and
   decision writes with provenance); `store` (a narrow interface, operations named by intent, one transaction each).
-- **Archguard:** `movedClusters` rows (`server/internal/archguard/split_clusters_test.go`) stop moved files from coming
+- **Archguard:** `movedClusters` rows (the split-clusters guard (removed)) stop moved files from coming
   back. A new rule in the settings-key scanner (`server/internal/hub/store_tables_guard_test.go`) bans new `assistant.*`
   settings keys for to-do data.
 - **Hub:** a communication center. It merges per-manager lists and cursors as it does for the Inbox

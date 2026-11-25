@@ -211,7 +211,7 @@ already in `prompts/assistant.go` move out one file at a time, and only while no
 
 ### Frozen central lists
 
-A central list with a seam takes no new name. `server/internal/archguard/central_lists_test.go` checks this.
+A central list with a seam takes no new name. the central-lists guard (removed) checks this.
 
 - **The names**: each frozen list has a row in `centralLists`, and its names are in
   `server/internal/archguard/testdata/central_lists/<id>.txt`. The file holds the names the list had when its freeze

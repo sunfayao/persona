@@ -171,7 +171,7 @@ func (k Kernel) Snapshot(fn func(ctx context.Context, snap *assistantwire.Snapsh
   the stored item: `InboxItem` moves there unchanged as Record, json tags kept, because shared fixtures and stored blobs
   decode straight into it; Restore makes an item from a Record (a stored row that fails is quarantined, never
   defaulted) and Store writes a decision back. The order is the lifecycle core first, InboxItem's methods next, then
-  the stored item (S8). `TestMovedClustersStayOut` (`server/internal/archguard/split_clusters_test.go`) fails when the
+  the stored item (S8). `TestMovedClustersStayOut` (the split-clusters guard (removed)) fails when the
   old package declares a name the subpackage exports or gets back a file with a moved prefix, so package assistant
   forwards the moved names from one file whose name does not start with "inbox", aliases_inbox.go, and the first S8a
   PR changes the guard to accept exactly those forwarders (D4), as in
