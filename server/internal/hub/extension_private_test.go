@@ -175,39 +175,6 @@ func TestAnExtensionResumesOnlyAListedChatOutsideTheHealthSpace(t *testing.T) {
 	}
 }
 
-// extensionResumeHub is computer mb on manager m-0b0b0b alone, an extension's (bx) to drive, with no list of its
-// sessions yet. Its node announces caps (nil: a node the hub has no word of); its devices.call answers session.start
-// with start, given the call's params.
-func extensionResumeHub(t *testing.T, caps []string, start func(params string) (any, error)) (*Hub, string, *guardManager) {
-	t.Helper()
-	h, srv, _ := newBusHub(t)
-	h.listedWait = 10 * time.Millisecond
-	h.cfg.Machines = []MachineConfig{{ID: "mb", Name: "mb", Kind: "local"}}
-	b := connectGuardManager(t, h, srv.URL, "m-0b0b0b", func(method string, params json.RawMessage) (any, error) {
-		switch method {
-		case extwire.MethodAuthorize:
-			return extwire.Authorized{OK: true, Extension: "bx", Name: "BX"}, nil
-		case devicewire.MethodCall:
-			if strings.Contains(string(params), `"method":"session.start"`) {
-				return start(string(params))
-			}
-		}
-		return map[string]any{}, nil
-	})
-	if _, err := h.moveMachine(context.Background(), "mb", "m-0b0b0b"); err != nil {
-		t.Fatal(err)
-	}
-	var info proto.NodeInfo
-	if caps != nil {
-		info = proto.NodeInfo{Version: "test", Protocol: nodeproto.Version, Capabilities: caps}
-	}
-	b.report(t, devicewire.State{Machine: proto.Machine{ID: "mb", Name: "mb"}, Info: info})
-	eventually(t, 5*time.Second, "mb as reported", func() bool {
-		m := h.localMachine("mb")
-		return m != nil && m.ownerID() == "m-0b0b0b" && (caps == nil || m.announces(nodeproto.Sessions))
-	})
-	return h, srv.URL, b
-}
 
 // sessionStarts are the session.start calls m got that resume id, as sent.
 func sessionStarts(m *guardManager, id string) []string {

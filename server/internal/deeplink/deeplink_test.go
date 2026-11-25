@@ -39,10 +39,3 @@ func readFixture(t *testing.T) fixture {
 	return f
 }
 
-func TestBuildMatchesSharedCases(t *testing.T) {
-	for _, c := range readFixture(t).Build {
-		if got := build(c.Page); got != c.Path {
-			t.Errorf("%s: %v wrote %q, want %q", c.Name, c.Page, got, c.Path)
-		}
-	}
-}

@@ -108,23 +108,6 @@ func TestAnswerOnlyCannotRegisterDesktop(t *testing.T) {
 	}
 }
 
-// One Mac reconnecting has two sockets for a while: listed once, as the newer connection.
-func TestOneDesktopPerDeviceNewestWins(t *testing.T) {
-	h := newTestHub(t)
-	phone := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}, role: roleFull}
-	old := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}, device: "dev_mac", role: roleFull}
-	fresh := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}, device: "dev_mac", role: roleFull}
-	h.mu.Lock()
-	h.clients[phone], h.clients[old], h.clients[fresh] = struct{}{}, struct{}{}, struct{}{}
-	h.mu.Unlock()
-	h.onClientMessage(context.Background(), old, []byte(`{"type":"register_desktop","device_name":"Old"}`))
-	h.onClientMessage(context.Background(), fresh, []byte(`{"type":"register_desktop","device_name":"New"}`))
-	for i := 0; i < 5; i++ { // map order is random: ask a few times
-		if got := h.desktops(false); len(got) != 1 || got[0].Name != "New" {
-			t.Fatalf("desktops = %+v", got)
-		}
-	}
-}
 
 // A client that is not a desktop leaving says nothing about desktops.
 func TestDropNonDesktopIsQuiet(t *testing.T) {

@@ -123,11 +123,6 @@ func codexProvider(base string) proto.ManagedLauncher {
 
 func quietNode() *Node { return &Node{logger: log.New(io.Discard, "", 0)} }
 
-// catalogOf is the catalog URL the node gives l's codex.
-func catalogOf(n *Node, l proto.ManagedLauncher) string {
-	u, _ := n.codexCatalog(context.Background(), l)
-	return u
-}
 
 // ageCodexCatalogs makes every kept answer d older, as if it had been given d earlier.
 func ageCodexCatalogs(d time.Duration) {

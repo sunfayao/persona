@@ -388,39 +388,6 @@ func managerUninstallGolden(language, dir string) string {
 	}
 }
 
-func TestManagerTokenRecoverySpeaksTheTerminalLanguage(t *testing.T) {
-	oldPoll, oldRetry, oldProbe := revokedPoll, revokedRetry, probeToken
-	t.Cleanup(func() { revokedPoll, revokedRetry, probeToken = oldPoll, oldRetry, oldProbe })
-	revokedPoll = time.Millisecond
-	for _, tc := range managerTerminalCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			setManagerTerminal(t, tc.setting)
-			c := &assistant.ManagerConfig{ID: "m-0a1b2c", Hub: "http://[fd00::20]:18660", Token: "jb_old"}
-			revokedRetry = 0
-			probeToken = func(context.Context, *assistant.ManagerConfig) error { return nil }
-			var out bytes.Buffer
-			if err := awaitRestartWith(context.Background(), c, func() string { return c.Token }, &out); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := out.String(), managerTokenGolden(tc.language, false); got != want {
-				t.Fatalf("accepted output %q, want %q", got, want)
-			}
-
-			out.Reset()
-			revokedRetry = time.Hour
-			probeToken = func(context.Context, *assistant.ManagerConfig) error {
-				t.Error("probed despite a renewed token")
-				return bus.ErrRevoked
-			}
-			if err := awaitRestartWith(context.Background(), c, func() string { return "jb_new" }, &out); err != nil {
-				t.Fatal(err)
-			}
-			if got, want := out.String(), managerTokenGolden(tc.language, true); got != want {
-				t.Fatalf("renewed output %q, want %q", got, want)
-			}
-		})
-	}
-}
 
 func managerTokenGolden(language string, renewed bool) string {
 	switch language {

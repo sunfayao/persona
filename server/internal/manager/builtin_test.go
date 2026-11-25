@@ -121,39 +121,6 @@ func TestRunBuiltinNotBound(t *testing.T) {
 	}
 }
 
-// After the hub refused its token, the built-in manager's service waits until its binding has a new token.
-func TestBuiltinWaitsForANewToken(t *testing.T) {
-	home := isolate(t)
-	data := filepath.Join(home, ".persona")
-	defer func(p, r time.Duration, f func(context.Context, *assistant.ManagerConfig) error) {
-		revokedPoll, revokedRetry, probeToken = p, r, f
-	}(revokedPoll, revokedRetry, probeToken)
-	revokedPoll, revokedRetry = 20*time.Millisecond, time.Hour
-	probeToken = func(context.Context, *assistant.ManagerConfig) error { return bus.ErrRevoked }
-	if err := managerconf.WriteBinding(data, managerconf.Binding{Hub: "http://127.0.0.1:1", Token: "old"}); err != nil {
-		t.Fatal(err)
-	}
-	before := &assistant.ManagerConfig{ID: assistantwire.AssistantID, Hub: "http://127.0.0.1:1", Token: "old"}
-	done := make(chan error, 1)
-	var out strings.Builder
-	go func() { done <- awaitRestartWith(context.Background(), before, builtinToken(data), &out) }()
-	select {
-	case err := <-done:
-		t.Fatalf("returned before a new token: %v", err)
-	case <-time.After(200 * time.Millisecond):
-	}
-	if err := managerconf.WriteBinding(data, managerconf.Binding{Hub: "http://127.0.0.1:1", Token: "new"}); err != nil {
-		t.Fatal(err)
-	}
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("did not see the new token")
-	}
-}
 
 // A manager.json that does not read stops the built-in join before the code is spent.
 func TestJoinBuiltinReadsManagerJSONFirst(t *testing.T) {

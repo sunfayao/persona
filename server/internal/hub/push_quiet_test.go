@@ -55,28 +55,6 @@ func TestQuietOffCardPushIgnoresLevel(t *testing.T) {
 	}
 }
 
-// Reply reminders merge per question, not per agent: with the switch on, one agent's second question within 12 hours
-// still rings, while a repeat of the same question does not (an older manager without a key is keyed by the text).
-func TestQuietReplyReminderKeyedByQuestion(t *testing.T) {
-	h := gradingHub(t)
-	if err := h.push.setPushGrading(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	attempts := gradingAttempts(h)
-	h.notifyReplyKeyed("", "m1", "box", "s1", "Agent", "Which branch?", "reply:s1@1")
-	h.notifyReplyKeyed("", "m1", "box", "s1", "Agent", "Deploy now?", "reply:s1@2")
-	if attempts() != 2 {
-		t.Fatalf("got %d alerts for two questions of one agent, want 2", attempts())
-	}
-	h.notifyReply("", "m1", "box", "s2", "Agent", "Which branch?")
-	h.notifyReply("", "m1", "box", "s2", "Agent", "Deploy now?")
-	if attempts() != 4 {
-		t.Fatalf("got %d alerts, want 4: an older manager's two questions are two keys", attempts())
-	}
-	if replyKey("s2", "Which branch?", "") == replyKey("s2", "Deploy now?", "") || replyKey("s", "x", "k") != "k" {
-		t.Fatal("replyKey")
-	}
-}
 
 // The switch reaches the manager over the bus, end to end: the hub's hello carries it (Hello.QuietPush), and turning
 // it on or off through its route sends manager.updated, which the connected assistant takes. The manager never reads

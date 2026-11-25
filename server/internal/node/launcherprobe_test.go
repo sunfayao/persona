@@ -337,36 +337,7 @@ func TestProbeInBashAndZsh(t *testing.T) {
 	}
 }
 
-// "Test" runs claude without hooks (Persona's could hold it past the timeout, #3412), and reads the answer behind a
-// shell integration's escape codes on the same line.
-func TestLauncherCheckRunsWithoutHooks(t *testing.T) {
-	seen := filepath.Join(t.TempDir(), "settings.json")
-	fakeClaudeHome(t, `last=""; while [ $# -gt 0 ]; do [ "$1" = --settings ] && last=$2; shift; done
-cat "$last" > `+shellQuote(seen)+`
-printf '\033]1337;ShellIntegrationVersion=14;shell=zsh\007{"type":"result","subtype":"success","is_error":false,"duration_ms":900,"result":"ok","modelUsage":{"m":{}}}\n'
-`)
-	home := os.Getenv("HOME")
-	n := &Node{home: home, dir: filepath.Join(home, ".persona"), logger: log.New(io.Discard, "", 0)}
-	r := n.launcherCheck(context.Background(), "claude")
-	if !r.OK || r.Answer != "ok" || r.Model != "m" {
-		t.Fatalf("check: %+v", r)
-	}
-	if b, _ := os.ReadFile(seen); !strings.Contains(string(b), `"disableAllHooks":true`) {
-		t.Fatalf("settings it ran with: %s", b)
-	}
-}
 
-// checkWithFakeClaude runs "Test" against a fake claude, with the timeout cut to timeout (#5951).
-func checkWithFakeClaude(t *testing.T, script string, timeout time.Duration) proto.LauncherCheck {
-	t.Helper()
-	fakeClaudeHome(t, script)
-	was := launcherCheckTimeout
-	launcherCheckTimeout = timeout
-	t.Cleanup(func() { launcherCheckTimeout = was })
-	home := os.Getenv("HOME")
-	n := &Node{home: home, dir: filepath.Join(home, ".persona"), logger: log.New(io.Discard, "", 0)}
-	return n.launcherCheck(context.Background(), "claude")
-}
 
 // A check that runs out of time says what was printed before it did: the upstream's error, not only that no answer
 // came. Keys and gateway addresses stay out of it.

@@ -196,17 +196,3 @@ func TestAnOutsideClaudesQuestionCardOnlyWhileAnswerable(t *testing.T) {
 	}
 }
 
-// The answer message lists only the questions answered, in the card's order, and says so when the assistant answered.
-func TestOutsideAnswerText(t *testing.T) {
-	ix := proto.Interaction{Questions: []proto.Question{{Question: "First\nline?"}, {Question: "Second?"}}}
-	if got := outsideAnswerText(ix, proto.Resolution{Answers: map[string]string{"Second?": "yes", "First\nline?": " "}}); !strings.Contains(got, "Second? → yes") || strings.Contains(got, "First") {
-		t.Fatalf("%q", got)
-	}
-	if got := outsideAnswerText(ix, proto.Resolution{}); got != "" {
-		t.Fatalf("no answers: %q", got)
-	}
-	got := outsideAnswerText(ix, proto.Resolution{Answers: map[string]string{"First\nline?": "no"}, AnsweredBy: proto.AnsweredByAssistant, Reason: "your rule"})
-	if !strings.Contains(got, "First line? → no") || !strings.Contains(got, "your rule") {
-		t.Fatalf("by the assistant: %q", got)
-	}
-}

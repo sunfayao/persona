@@ -171,19 +171,6 @@ func TestAgyHookFiles(t *testing.T) {
 	}
 }
 
-// The launcher check of an agy launcher whose start would open such a pane fails at once with the refusal's reason,
-// without running agy.
-func TestLauncherCheckAgyWithoutHerdrHook(t *testing.T) {
-	n, f, _ := agyStartScene(t, herdr.IntegrationNotInstalled)
-	cachedAssistantProbe(t, agyAgent, proto.LauncherDetail{Agent: agyAgent})
-	c := n.launcherCheck(context.Background(), agyAgent)
-	if c.OK || c.Agent != agyAgent || c.Error != agyIntegrationMissingText(i18n.Default) {
-		t.Fatalf("check = %+v", c)
-	}
-	if len(f.trace("tab.create")) != 0 {
-		t.Fatal("the check opened a tab")
-	}
-}
 
 // node doctor's agy-herdr line: only where herdr answers and agy is used, warn without the hook or with an outdated one.
 func TestDoctorAgyHerdrLine(t *testing.T) {

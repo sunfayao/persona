@@ -32,14 +32,6 @@ func sentPusher(t *testing.T, store *gradingStore, now time.Time) *Pusher {
 	return p
 }
 
-// recordAndSave records one delivered push and waits for the writer.
-func recordAndSave(t *testing.T, p *Pusher, manager, level, key string, at time.Time) {
-	t.Helper()
-	p.recordSent(pushPolicy{manager: manager, relatedKey: key}, level, at)
-	if !p.waitInterceptsSaved(5 * time.Second) {
-		t.Fatal("the delivered push was not saved")
-	}
-}
 
 // statsViews are what the readers of the record answer: the daily counts for every manager and for one, over the
 // default day, two days and the whole 14 days.

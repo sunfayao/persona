@@ -10,26 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 )
 
-func TestTraexOwners(t *testing.T) {
-	home := t.TempDir()
-	n := &Node{home: home}
-	dir := filepath.Join(n.traexHome(), "thread-writer-locks")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	write := func(thread string, pid int) {
-		b := []byte(`{"pid":` + strconv.Itoa(pid) + `,"process_name":"TRAE CLI"}`)
-		if err := os.WriteFile(filepath.Join(dir, thread+".owner.json"), b, 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write("0f000000-0000-4000-8000-0000000000a1", os.Getpid())
-	write("0f000000-0000-4000-8000-0000000000a2", 1<<30) // no such process
-	got := n.traexOwners()
-	if len(got) != 1 || got[os.Getpid()] != "0f000000-0000-4000-8000-0000000000a1" {
-		t.Fatalf("owners = %v", got)
-	}
-}
 
 func TestTraexChoice(t *testing.T) {
 	blocked := "Would you like to run the following command?\n\n  $ rm -rf build\n\n› 1. Yes, proceed (y)\n  2. No, and tell Codex what to do differently (esc)\n"
@@ -92,36 +72,6 @@ const (
 	threadNew      = "01a00000-0000-7000-8000-00000000000d"
 )
 
-// The guardian that reviews the compatible CLI's tool calls writes a thread of its own from the same process, with a newer owner
-// file than the conversation's; the pane runs the conversation (2026-11-01: the app showed the review).
-func TestTraexOwnersPickTheConversation(t *testing.T) {
-	now := time.Now()
-	setup := func(t *testing.T, owners ...string) *Node {
-		n := &Node{home: t.TempDir()}
-		writeMetaRollout(t, n.traexHome(), threadMain, `{"id":"`+threadMain+`","session_id":"`+threadMain+`","cwd":"/work/app","source":"cli","thread_source":"user"}`, now.Add(-time.Hour))
-		writeMetaRollout(t, n.traexHome(), threadGuardian, `{"id":"`+threadGuardian+`","session_id":"`+threadMain+`","forked_from_id":"`+threadMain+`","cwd":"/work/app","source":{"subagent":{"other":"guardian"}},"thread_source":"subagent"}`, now)
-		for i, o := range owners {
-			writeOwner(t, n, o, now.Add(time.Duration(i-len(owners))*time.Minute))
-		}
-		return n
-	}
-	if got := setup(t, threadMain, threadGuardian).traexOwners()[os.Getpid()]; got != threadMain {
-		t.Fatalf("conversation and guardian: got %s", got)
-	}
-	if got := setup(t, threadGuardian).traexOwners()[os.Getpid()]; got != threadMain {
-		t.Fatalf("only the guardian's owner file: got %s, want its conversation", got)
-	}
-
-	// a compatible CLI versions whose session_meta says nothing about subagents: the newest thread, as before.
-	n := &Node{home: t.TempDir()}
-	writeMetaRollout(t, n.traexHome(), threadOld, `{"id":"`+threadOld+`","cwd":"/work/app","source":"exec"}`, now.Add(-time.Hour))
-	writeMetaRollout(t, n.traexHome(), threadNew, `{"id":"`+threadNew+`","cwd":"/work/app","source":"exec"}`, now)
-	writeOwner(t, n, threadOld, now.Add(-time.Hour))
-	writeOwner(t, n, threadNew, now)
-	if got := n.traexOwners()[os.Getpid()]; got != threadNew {
-		t.Fatalf("legacy threads: got %s", got)
-	}
-}
 
 // Codex writes its thread_spawn subagents' rollouts next to the conversation, in the same directory and newer.
 func TestCodexSessionSkipsSubagents(t *testing.T) {

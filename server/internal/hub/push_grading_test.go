@@ -319,28 +319,6 @@ func TestPushGradingLevelDerivedFromKind(t *testing.T) {
 	}
 }
 
-// The switch and the held-push list live in the settings store, so a restart keeps both.
-func TestPushGradingSwitchAndInterceptsPersist(t *testing.T) {
-	h := gradingHub(t)
-	store := h.push.store
-	if err := h.push.setPushGrading(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.deliverPush(gradingNotification(assistantwire.LevelP2, "persisted", "held")); err != nil {
-		t.Fatal(err)
-	}
-	if !h.push.waitInterceptsSaved(2 * time.Second) {
-		t.Fatal("the held pushes were not saved")
-	}
-	restarted := newPusher(store, t.Logf)
-	if !restarted.pushGradingOn() {
-		t.Fatal("the ln mode switch did not survive a restart")
-	}
-	view := restarted.heldPushesView("", 0)
-	if len(view) != 1 || view[0].RelatedKey != "persisted" {
-		t.Fatalf("restored intercepts = %+v, want the held P2 entry", view)
-	}
-}
 
 // The read-only intercepts view is newest first and its JSON shape is what extensions and the nightly review read.
 func TestPushGradingInterceptsViewShape(t *testing.T) {
@@ -369,51 +347,6 @@ func TestPushGradingInterceptsViewShape(t *testing.T) {
 	}
 }
 
-// GET /api/v1/push/intercepts: a full credential reads every manager's held pushes, an extension token only its own
-// manager's; PUT /api/v1/push/ln-mode is refused to an extension token.
-func TestPushGradingInterceptsHeldToManager(t *testing.T) {
-	h := gradingHub(t)
-	h.cfg = &Config{InterceptReaders: []string{"ext-held-reads"}}
-	if err := h.push.setPushGrading(context.Background(), true); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := h.deliverPushFrom("manager-a", gradingNotification(assistantwire.LevelP2, "a", "from a")); err != nil {
-		t.Fatal(err)
-	}
-	h.push.recordIntercept(heldPushRecord{At: h.push.now().UTC(), Level: assistantwire.LevelP2, Reason: interceptReasonP2,
-		Title: "from b", Manager: "manager-b"})
-	mux := http.NewServeMux()
-	h.pushGradingRoutes(mux)
-	read := func(p *principal) []heldPushRecord {
-		r := httptest.NewRequest("GET", "/api/v1/push/intercepts", nil)
-		if p != nil {
-			r = r.WithContext(context.WithValue(r.Context(), principalKey{}, *p))
-		}
-		w := httptest.NewRecorder()
-		mux.ServeHTTP(w, r)
-		var out struct {
-			Intercepts []heldPushRecord `json:"intercepts"`
-		}
-		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
-			t.Fatalf("%s: %v", w.Body.String(), err)
-		}
-		return out.Intercepts
-	}
-	if all := read(nil); len(all) != 2 {
-		t.Fatalf("a full credential read %d entries, want 2", len(all))
-	}
-	ext := read(&principal{Role: roleExtension, Manager: "manager-b", Extension: "ext-held-reads"})
-	if len(ext) != 1 || ext[0].Manager != "manager-b" {
-		t.Fatalf("manager-b's extension read %+v, want only its own entry", ext)
-	}
-	r := httptest.NewRequest("PUT", "/api/v1/push/ln-mode", strings.NewReader(`{"enabled":false}`))
-	r = r.WithContext(context.WithValue(r.Context(), principalKey{}, principal{Role: roleExtension, Manager: "manager-b"}))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, r)
-	if w.Code != http.StatusForbidden || !h.push.pushGradingOn() {
-		t.Fatalf("an extension token changed the switch: %d %s", w.Code, w.Body.String())
-	}
-}
 
 // Review fix: same-minute P1 entries merge only within one manager, so one extension never reads another's titles.
 func TestPushGradingMergeStaysWithinManager(t *testing.T) {

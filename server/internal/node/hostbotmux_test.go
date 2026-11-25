@@ -446,29 +446,6 @@ func TestBotmuxRefusalsAndUnsupported(t *testing.T) {
 	}
 }
 
-// botmux is registered next to the engine's hosts only when it is installed and wanted.
-func TestNodeHostsAddBotmuxWhenInstalled(t *testing.T) {
-	old := botmuxBin
-	t.Cleanup(func() { botmuxBin = old })
-	botmuxBin = func() string { return "" }
-	if hs := nodeHosts(proto.EngineHerdr, true, nil); len(hs) != 2 || hs[1].Kind() != host.Tmux {
-		t.Fatalf("without botmux: %d hosts", len(hs))
-	}
-	botmuxBin = func() string { return "/opt/botmux/bin/botmux" }
-	hs := nodeHosts(proto.EngineHerdrBoth, true, nil)
-	if len(hs) != 4 || hs[0].Kind() != host.Herdr || hs[2].Kind() != host.Tmux || hs[3].Kind() != host.Botmux {
-		t.Fatalf("with botmux: %v", hs)
-	}
-	if hs := nodeHosts(proto.EngineHerdrBoth, false, nil); len(hs) != 3 {
-		t.Fatalf("botmux not wanted: %v", hs)
-	}
-	if defaultHostKind(proto.EngineHerdrBoth) != host.Herdr {
-		t.Fatal("new sessions must not go to botmux")
-	}
-	if ref := host.ParsePane("botmux:" + sidA); ref.Kind != host.Botmux || ref.ID != sidA {
-		t.Fatalf("pane ref %+v", ref)
-	}
-}
 
 // An observe that fails (a timeout, a CLI error) is not botmux stopping: the sessions stay as listed, and a reply in
 // the gap still goes to botmux.

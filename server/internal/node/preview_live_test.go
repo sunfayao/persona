@@ -32,40 +32,6 @@ body { margin: 0; background: #00f } #go { position: absolute; left: 0; top: 0; 
 <a id="next" href="/second">second</a>
 </body></html>`
 
-// liveTab opens a preview tab of the browser on this computer, at url, and returns the web's end of its stream.
-func liveTab(t *testing.T, url string) (*bufio.Reader, net.Conn) {
-	t.Helper()
-	if testing.Short() {
-		t.Skip("starts a browser")
-	}
-	if _, err := findBrowser(); err != nil {
-		t.Skipf("no browser here: %v", err)
-	}
-	prof := t.TempDir()
-	was := previewProfileDir
-	previewProfileDir = func() (string, error) { return prof, nil }
-	t.Cleanup(func() { previewProfileDir = was })
-	h := &previewHost{logf: log.Printf}
-	t.Cleanup(h.close)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	b, err := h.acquire(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tab, err := b.newTab(ctx, nil, previewViewport{w: 400, h: 400, dpr: 1}.clamp())
-	if err != nil {
-		t.Fatal(err)
-	}
-	mine, theirs := net.Pipe()
-	tab.conn = mine
-	go func() {
-		defer h.release()
-		tab.run(url)
-	}()
-	t.Cleanup(func() { theirs.Close() })
-	return bufio.NewReader(theirs), theirs
-}
 
 type liveMsg struct {
 	kind byte

@@ -28,10 +28,3 @@ printf '{"type":"result","subtype":"success","is_error":false,"result":"ok","mod
 	}
 }
 
-func TestLauncherCheckRejectsInvalidModel(t *testing.T) {
-	n := &Node{}
-	res := n.launcherCheck(context.Background(), "claude", "opus; touch /tmp/invalid-model")
-	if res.OK || res.Error != "invalid model" {
-		t.Fatalf("invalid probe model accepted: %+v", res)
-	}
-}

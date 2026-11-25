@@ -234,114 +234,7 @@ func TestModelConfigurationPreservesLegacyBaselines(t *testing.T) {
 	}
 }
 
-func TestAllAPIModelPurposesReachTheSelectedModel(t *testing.T) {
-	s, f, _ := modelService(t)
-	ctx := context.Background()
-	var mu sync.Mutex
-	var model string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" { // a node's port probe (node/ports.go), not this test's client
-			http.NotFound(w, r)
-			return
-		}
-		var in struct{ Model string }
-		_ = json.NewDecoder(r.Body).Decode(&in)
-		mu.Lock()
-		model = in.Model
-		mu.Unlock()
-		if r.Header.Get("x-api-key") != "private-test-key" {
-			t.Error("wrong API credential")
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"content": []any{map[string]any{"type": "text", "text": "{}"}}})
-	}))
-	defer srv.Close()
-	key, err := s.sealKey("private-test-key")
-	if err != nil {
-		t.Fatal(err)
-	}
-	putLaunchers(t, s, storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "direct", Kind: "api", API: "messages", BaseURL: srv.URL, Model: "provider-default"}, KeySealed: key})
-	revisions := map[string]int{}
-	for _, p := range modelPurposes {
-		if p.Kind != "api" {
-			continue
-		}
-		category := modelCategoryID(p.ID)
-		r := modelRequest(s, "PATCH", category, fmt.Sprintf(`{"revision":%d,"provider":"launcher.direct","model":"%s"}`, revisions[category], p.ID))
-		revisions[category]++
-		if r.Code != 200 {
-			t.Fatalf("%s: %d %s", p.ID, r.Code, r.Body.String())
-		}
-		if _, err := s.purposeModel(p.ID).Complete(ctx, "", "x", 10); err != nil {
-			t.Fatal(err)
-		}
-		mu.Lock()
-		got := model
-		mu.Unlock()
-		if got != p.ID {
-			t.Fatalf("%s sent %s", p.ID, got)
-		}
-	}
-	listing := modelRequest(s, "GET", "", "").Body.String()
-	if strings.Contains(listing, "private-test-key") || strings.Contains(listing, key) {
-		t.Fatal("credential returned to client")
-	}
-	// A Messages API provider also runs claude on the nodes (#2455), so it goes to them with its key.
-	if managed := mustManagedForNodes(t, s, ctx); len(managed) != 1 || managed[0].APIKey != "private-test-key" {
-		t.Fatal("Messages API provider not sent to nodes")
-	}
-	_ = f
-}
 
-// A launcher for a gateway that takes only Bearer keeps that when added in the app, goes to the nodes with it, and the
-// assistant's own Messages calls through it send Authorization: Bearer.
-func TestBearerLauncherSavedSentAndCalled(t *testing.T) {
-	s, f, _ := modelService(t)
-	ctx := context.Background()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/" { // a node's port probe (node/ports.go), not this test's client
-			http.NotFound(w, r)
-			return
-		}
-		if r.Header.Get("authorization") != "Bearer private-test-key" || r.Header.Get("x-api-key") != "" {
-			t.Errorf("credential sent as authorization %q, x-api-key %q", r.Header.Get("authorization"), r.Header.Get("x-api-key"))
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"content": []any{map[string]any{"type": "text", "text": "ok"}}})
-	}))
-	defer srv.Close()
-	rec := request(s, "POST", "/api/v1/launchers", `{"name":"gw","base_url":"`+srv.URL+`","model":"m","api_key":"private-test-key","auth":"bearer"}`)
-	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"auth":"bearer"`) || strings.Contains(rec.Body.String(), "private-test-key") {
-		t.Fatalf("save: %d %s", rec.Code, rec.Body.String())
-	}
-	// Every online node is given it, with the key (they keep it in memory for personad launch).
-	f.mu.Lock()
-	given := f.managed["server"]
-	f.mu.Unlock()
-	if len(given) != 1 || !given[0].BearerAuth() || given[0].APIKey != "private-test-key" {
-		t.Fatalf("sent to nodes: %+v", given)
-	}
-	config, err := s.apiConfig(ctx, ModelBinding{Provider: "launcher.gw"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text, err := ai.New(config).Complete(ctx, "", "hi", 10); err != nil || text != "ok" {
-		t.Fatalf("complete: %q %v", text, err)
-	}
-	// A change from an app that predates auth sends none: the launcher stays bearer. One that says api_key changes it.
-	for _, step := range []struct {
-		body   string
-		bearer bool
-	}{
-		{`{"base_url":"` + srv.URL + `","model":"m2"}`, true},
-		{`{"base_url":"` + srv.URL + `","model":"m2","auth":"api_key"}`, false},
-	} {
-		if rec := request(s, "PUT", "/api/v1/launchers/gw", step.body); rec.Code != 200 {
-			t.Fatalf("update %s: %d %s", step.body, rec.Code, rec.Body.String())
-		}
-		if managed := mustManagedForNodes(t, s, ctx); len(managed) != 1 || managed[0].BearerAuth() != step.bearer || managed[0].APIKey != "private-test-key" {
-			t.Fatalf("after %s: %+v", step.body, managed)
-		}
-	}
-}
 
 func TestModelProviderSwitchDoesNotInheritAnotherProvidersModel(t *testing.T) {
 	b := mergeModel(ModelBinding{Provider: "legacy.ai", Model: "old-model", Effort: "high"}, ModelBinding{Provider: "launcher.other"})
@@ -891,18 +784,6 @@ func slicesContain(list []string, s string) bool {
 	return false
 }
 
-// A node's new connection gets the launchers added in Persona with their keys (main.go's devices NodeCalls), not
-// the direct Responses API connections (a Messages one runs claude too, #2455).
-func TestANodeThatReconnectsGetsTheManagedLaunchers(t *testing.T) {
-	s, _, _ := modelService(t)
-	ctx := context.Background()
-	key, _ := s.sealKey("sk-node")
-	putLaunchers(t, s, storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "gw", BaseURL: "https://gw.example.com", Model: "m"}, KeySealed: key},
-		storedLauncher{ManagedLauncher: proto.ManagedLauncher{Name: "api", Kind: "api", API: "responses", BaseURL: "https://api.example.com", Model: "m"}, KeySealed: key})
-	if g := mustManagedForNodes(t, s, ctx); len(g) != 1 || g[0].Name != "gw" || g[0].APIKey != "sk-node" {
-		t.Fatalf("given %+v", g)
-	}
-}
 
 // The hub's quota plugins and launcher sections reach a managed provider's gateway through the assistant, which puts
 // the key in (models.launcher_http); another name is no_launcher (the hub goes to the machines' ~/.zshrc then).

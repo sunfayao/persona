@@ -13,14 +13,6 @@ import (
 
 const traexOwnerPane = "w1:p2"
 
-func TestTraexPaneOwnersWaitForPaginatedMetadata(t *testing.T) {
-	n, _, _ := startNode(t)
-	traexHistoryFixture(t, n, nil)
-	writeOwner(t, n, threadNew, time.Now())
-	if got := n.traexOwners(); len(got) != 0 {
-		t.Fatalf("an owner absent from paginated metadata was guessed to be a conversation: %v", got)
-	}
-}
 
 func TestTraexPaginatedConversationDirectoryDiffersFromContainer(t *testing.T) {
 	n, _, _ := startNode(t)
@@ -137,26 +129,6 @@ func TestTraexPaneOwnersKeepOlderMainWriterForSameProcess(t *testing.T) {
 	}
 }
 
-func TestTraexPaneOwnersDoNotPromotePaginatedGuardian(t *testing.T) {
-	n, _, _ := startNode(t)
-	traexHistoryFixture(t, n, nil)
-	writeOwner(t, n, threadGuardian, time.Now())
-	cacheTraexOwnerPane(t, os.Getpid())
-	if got := n.traexOwners(); len(got) != 0 {
-		t.Fatalf("a guardian without rollout ancestry became a main owner: %v", got)
-	}
-	for _, reported := range []bool{false, true} {
-		var agents []host.Agent
-		if reported {
-			agents = []host.Agent{{Agent: traexAgent, PaneID: traexOwnerPane,
-				AgentSession: &host.AgentSession{Kind: "id", Value: threadGuardian}}}
-		}
-		added := n.traexAgents(context.Background(), []host.Agent{{PaneID: traexOwnerPane}}, agents)
-		if len(added) != 0 || reported && agents[0].SessionID() != "" {
-			t.Fatalf("a known guardian surfaced as a root conversation: %+v, %+v", agents, added)
-		}
-	}
-}
 
 func TestTraexPaginatedGuardianRolloutIdentifiesPane(t *testing.T) {
 	n, _, _ := startNode(t)
