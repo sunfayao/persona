@@ -62,6 +62,8 @@
   "screen_kicker": "终端等你处理",
   "screen_title": "电脑上的 Agent 停在一个对话框上",
   "screen_hint": "选一项，按键在电脑上按当时的屏幕算",
+  "screen_answer_in_terminal": "打开此会话的终端，完成这道问题。",
+  "screen_open_terminal": "打开终端",
   "password": "密码",
   "type_and_enter": "输入文字后回车",
   "send": "发送",

@@ -18,6 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/screen"
 )
 
 // A Codex-compatible CLI can run in herdr panes without being recognized by the host. The node therefore finds
@@ -338,13 +339,15 @@ var traexChoiceRe = lazyre.New(`(?m)^\s*[›❯>]\s*1\.\s+\S`)
 
 // traexStatus: working from the title's spinner at once; otherwise the screen, read at most every 2s.
 func (n *Node) traexStatus(ctx context.Context, p host.Agent) string {
-	if r := []rune(strings.TrimSpace(p.RawTitle)); len(r) > 0 && r[0] >= 0x2800 && r[0] <= 0x28FF {
-		return proto.StatusWorking // braille spinner: a turn is running
-	}
+	title := []rune(strings.TrimSpace(p.RawTitle))
+	spinning := len(title) > 0 && title[0] >= 0x2800 && title[0] <= 0x28FF
 	traexCache.Lock()
 	s, ok := traexCache.status[p.PaneID]
 	traexCache.Unlock()
 	if ok && time.Since(s.at) < 2*time.Second {
+		if spinning && s.status != proto.StatusBlocked {
+			return proto.StatusWorking
+		}
 		return s.status
 	}
 	status := proto.StatusDone
@@ -357,10 +360,10 @@ func (n *Node) traexStatus(ctx context.Context, p host.Agent) string {
 		if status == "" {
 			status = proto.StatusUnknown
 		}
-	case strings.Contains(text, "esc to interrupt"):
-		status = proto.StatusWorking
-	case traexChoiceRe.MatchString(text):
+	case screen.ReadTraeQuestion(text) != nil, traexChoiceRe.MatchString(text):
 		status = proto.StatusBlocked
+	case spinning, strings.Contains(text, "esc to interrupt"):
+		status = proto.StatusWorking
 	}
 	traexCache.Lock()
 	traexCache.status[p.PaneID] = traexState{status, time.Now()}

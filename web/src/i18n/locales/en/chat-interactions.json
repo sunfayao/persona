@@ -62,6 +62,8 @@
   "screen_kicker": "Terminal needs you",
   "screen_title": "The agent on the computer is waiting at a dialog",
   "screen_hint": "Pick one. Keys are worked out from the screen at that moment.",
+  "screen_answer_in_terminal": "Open this chat’s terminal to finish the question.",
+  "screen_open_terminal": "Open terminal",
   "password": "Password",
   "type_and_enter": "Type, then press Enter",
   "send": "Send",

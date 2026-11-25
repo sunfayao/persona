@@ -423,11 +423,15 @@ func (s *Service) recheckScreen(machine, session, answered string) {
 // (LegacyRev).
 func (s *Service) screenDialog(ctx context.Context, machine, session string) (string, *screen.Dialog, error) {
 	var scr struct {
-		Text      string `json:"text"`
-		DialogRev string `json:"dialog_rev"`
+		Text         string         `json:"text"`
+		DialogRev    string         `json:"dialog_rev"`
+		TraeQuestion *screen.Dialog `json:"trae_question"`
 	}
-	if err := s.nodeCall(ctx, machine, "session.screen", map[string]any{"session_id": session, "lines": screen.DialogLines}, &scr); err != nil {
+	if err := s.nodeCall(ctx, machine, "session.screen", map[string]any{"session_id": session, "lines": screen.DialogLines, "trae_question": true}, &scr); err != nil {
 		return "", nil, err
+	}
+	if d := scr.TraeQuestion; d != nil && strings.HasPrefix(d.Rev, screen.TraeQuestionRev) {
+		return "", d, nil
 	}
 	d := screen.ParseDialog(scr.Text)
 	if d != nil {

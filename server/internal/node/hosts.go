@@ -155,6 +155,9 @@ func (n *Node) dialogScreen(ctx context.Context, pane string) (string, error) {
 			break
 		}
 		if text, err = n.readPane(ctx, pane, "visible", lines); err == nil {
+			if screen.ReadTraeQuestion(text) != nil {
+				return text, nil // TRAE's parser keeps choices off unless the visible page is complete.
+			}
 			if (screen.Choosing(text) || screen.ParseDialog(text) != nil) && !screen.DialogWhole(text) {
 				return "", errDialogCut
 			}

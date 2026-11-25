@@ -846,6 +846,9 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
     };
   }, []);
   const d = ix.dialog;
+  const trae = d?.rev?.startsWith("trae-question:") ?? false;
+  const terminalOnly = trae && !d?.options?.length;
+  const terminal: Route = { name: "session", mid: ix.machine_id, sid: ix.session_id, view: "term" };
   const [text, setText] = useState("");
   const [typing, setTyping] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -865,7 +868,7 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
       return true;
     },
     enter: () => {
-      if (busy !== null || (d?.options?.length ?? 0) > 0) return false;
+      if (terminalOnly || busy !== null || (d?.options?.length ?? 0) > 0) return false;
       void go({ text, keys: ["enter"] }, "text");
     },
   });
@@ -877,11 +880,15 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
       title={d?.question || t("chat-interactions.screen_title")}
       cardKeys={keys}
       tapGuard={tapGuard}
-      onDismiss={() => go({ dismiss: true }, "dismiss")}
+      onDismiss={trae ? undefined : () => go({ dismiss: true }, "dismiss")}
       busy={busy !== null}
       footer={<div className="flex w-full min-w-0 flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
-        {d?.options?.length ? (
+        {terminalOnly ? (
+          <a href={href(terminal)} onClick={(e) => onLinkClick(e, terminal)} className="touch-hit text-[13px] font-medium text-accent-ink hover:underline">
+            {t("chat-interactions.screen_open_terminal")}
+          </a>
+        ) : d?.options?.length ? (
           <span className="text-[11.5px] text-ink-3">{t("chat-interactions.screen_hint")}</span>
         ) : (
           <>
@@ -904,13 +911,15 @@ function PlainScreenCard({ ix }: { ix: Interaction }) {
           </>
         )}
         </div>
-        <CloseBlockedAgent ix={ix} disabled={busy !== null} />
+        {!trae && <CloseBlockedAgent ix={ix} disabled={busy !== null} />}
       </div>}
     >
       {/* long words (a command the hub did not read as one, #6638) fold as the chat's long blocks do, so the choices
           under them are in view: six lines that scroll inside and fade while there is more */}
       {d?.detail && <ScrollFold className={DETAIL_FOLD} data-screen-detail>{d.detail}</ScrollFold>}
-      {d?.options?.length ? (
+      {terminalOnly ? (
+        <p className="text-[13px] text-ink-2">{t("chat-interactions.screen_answer_in_terminal")}</p>
+      ) : d?.options?.length ? (
         <div className="flex flex-col gap-0.5">
           {d.options.map((o, i) =>
             o.kind === "type_something" && typing === o.key ? (
