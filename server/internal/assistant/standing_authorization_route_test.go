@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -45,7 +44,6 @@ func TestStandingCardPathsPunctuation(t *testing.T) {
 		})
 	}
 }
-
 
 func TestStandingAuthorizationConditions(t *testing.T) {
 	for _, test := range []string{"pass", "pending", "empty", "incomplete", "conflict", "unknown", "wrong_pr", "unavailable", "draft", "closed"} {

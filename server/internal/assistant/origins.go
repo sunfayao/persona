@@ -527,4 +527,3 @@ func (s *Service) originRoutes() {
 		apierr.WriteJSON(w, res)
 	})
 }
-

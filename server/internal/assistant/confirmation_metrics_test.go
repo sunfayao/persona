@@ -101,7 +101,6 @@ func TestConfirmationMetricsDatabase(t *testing.T) {
 	t.Logf("BRIEFING_FEED %s", body)
 }
 
-
 func TestGoldenConfirmationBriefFacts(t *testing.T) {
 	golden(t, "routine_facts.confirmations", prompts.RenderBriefFacts(prompts.BriefFacts{Hours: 12,
 		ConfirmationSummary: "Today: 3 confirmation cards sent to you · 2 automatically authorized",

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -143,7 +142,6 @@ func relaysLeft(h *Hub) int {
 	defer h.relay.mu.Unlock()
 	return len(h.relay.pending) + len(h.relay.owner) + len(h.relay.taken)
 }
-
 
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as
 // it answers a small one.

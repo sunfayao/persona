@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 // sentPusher is a pusher on store (nil: memory only) with its clock at now, started as newPusher starts one: it reads
@@ -88,4 +85,3 @@ func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 		t.Fatalf("counts after a second start differ:\n got %+v\nwant %+v", got, want)
 	}
 }
-

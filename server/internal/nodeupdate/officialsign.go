@@ -2,7 +2,6 @@ package nodeupdate
 
 import (
 	"context"
-	"errors"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -41,4 +40,3 @@ func OfficialSigned(ctx context.Context, path string) bool {
 func preserveOfficial(ctx context.Context, path string) bool {
 	return OfficialSigned(ctx, path)
 }
-

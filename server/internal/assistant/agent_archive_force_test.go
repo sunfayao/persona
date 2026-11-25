@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -88,7 +87,6 @@ func TestForceArchiveCloseFailureAndHTTPRole(t *testing.T) {
 		t.Fatal("failed close hid the blocked Agent")
 	}
 }
-
 
 func TestForceArchiveFenceWriteFailureKeepsAgent(t *testing.T) {
 	ft, row := closeTestService(t, func(s *proto.Session) { s.Status = proto.StatusBlocked; s.State = proto.StateNeedsYou })

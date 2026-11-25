@@ -1109,7 +1109,6 @@ func TestResumedPersonaTiersCannotOverwriteNewerState(t *testing.T) {
 	})
 }
 
-
 // When the hub's first Web Push VAPID key has not yet been created and a
 // background dispatch arrives during a snapshot pause, key creation and push
 // delivery are deferred without noting a failure, then completed on resume.
@@ -1271,7 +1270,6 @@ func TestWebPushDeferredPushNotOvertakenByPostResumeDispatch(t *testing.T) {
 		return len(w.tails) == 0
 	})
 }
-
 
 type blockingDeviceSessionStore struct {
 	*meshStore

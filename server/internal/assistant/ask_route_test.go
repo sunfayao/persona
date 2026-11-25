@@ -2,11 +2,7 @@ package assistant
 
 import (
 	"testing"
-
-	"github.com/nwverse/persona/server/internal/proto"
 )
-
-
 
 // settleService waits until s's supervision messages due have gone out. Taking the digest lock for each observation
 // covers restoration as well as delivery and closes the window where a finishing delivery arms its retry.

@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -11,7 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
 
 // spawnHarness is an assistant with conversation parent-1 on its machine, the hub's log kept.
 type spawnHarness struct {

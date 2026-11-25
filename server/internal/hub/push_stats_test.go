@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -250,4 +249,3 @@ func TestPushDailyStatsHeldToManager(t *testing.T) {
 		t.Fatalf("full credential days = %+v (%s), want three manager-day rows", all.Days, body)
 	}
 }
-

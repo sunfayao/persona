@@ -8,8 +8,6 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-
-
 func shortHistoryTimeout(t *testing.T, d time.Duration) {
 	t.Helper()
 	old := historyTimeout

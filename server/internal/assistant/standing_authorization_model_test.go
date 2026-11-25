@@ -30,4 +30,3 @@ func TestStandingAuthorizationForcePushNeedsDeletionGrant(t *testing.T) {
 		}
 	}
 }
-

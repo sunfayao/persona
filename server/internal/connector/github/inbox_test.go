@@ -101,7 +101,6 @@ const (
 // (forgetAfter, archiveFirstDays, archiveForget) and fail the tests once the real date moves on.
 var fixtureDay = time.Now().UTC().Truncate(24 * time.Hour).Add(-24 * time.Hour)
 
-
 // fixtureAt is fixtureDay plus d, as GitHub writes times.
 func fixtureAt(d time.Duration) string { return fixtureDay.Add(d).Format(time.RFC3339) }
 

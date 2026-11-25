@@ -39,4 +39,3 @@ func (s *deviceRows) row(id string) (db.Device, bool, int) {
 	d, ok := s.rows[id]
 	return d, ok, s.deletes
 }
-

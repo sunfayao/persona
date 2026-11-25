@@ -10,7 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-
 // What the model says is kept within bounds: one line, links that are links, at most five of each.
 func TestTidyOutcome(t *testing.T) {
 	var o taskOutcome

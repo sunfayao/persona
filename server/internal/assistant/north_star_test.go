@@ -7,7 +7,6 @@ import (
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
-
 func TestNorthStarHelpers(t *testing.T) {
 	for _, c := range []struct{ code, msg, want string }{
 		{"internal", "assistant exited: No conversation found with session ID: x", "conversation_not_found"},

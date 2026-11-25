@@ -12,7 +12,6 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-
 // heldPrefs is deviceRows whose first prefs write waits for release (a slow database row), closing entered as it starts.
 type heldPrefs struct {
 	*deviceRows

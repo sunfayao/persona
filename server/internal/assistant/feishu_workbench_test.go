@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/feishubot"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -514,7 +513,6 @@ func TestWorkbenchSourceIsAName(t *testing.T) {
 		}
 	}
 }
-
 
 // What waits for the owner is rows pressed whole: a card that holds something up comes down. An agent's row says its
 // state as a tag, not a coloured dot.

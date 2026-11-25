@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -28,5 +27,3 @@ func TestFailedStartSettingsWordingKeepsWordBoundaries(t *testing.T) {
 		t.Errorf("setting %s was not found", key)
 	}
 }
-
-

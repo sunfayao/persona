@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
 	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/coder/websocket"
+	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/prompts"
 )
 
 // One voice conversation: the app's WebSocket on one side (docs/extensions/extensions.md "Voice"), a GPT-Live session on the other.

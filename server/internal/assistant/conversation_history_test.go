@@ -76,8 +76,6 @@ func (rt *historyRuntime) page(_ string, raw json.RawMessage) (any, error) {
 		"has_more": hasMore, "more_after": more}, nil
 }
 
-
-
 func historyFixture(t *testing.T, logs ...func(string, ...any)) (*Service, *fakeHub, *db.DB, *historyRuntime) {
 	t.Helper()
 	database := todoTestDB(t)

@@ -5,8 +5,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 func waitFleetBackground(t *testing.T, name string, wg *sync.WaitGroup) {
@@ -24,10 +22,6 @@ func waitFleetBackground(t *testing.T, name string, wg *sync.WaitGroup) {
 		t.Fatalf("%s did not finish before the database fixture closed", name)
 	}
 }
-
-
-
-
 
 // drainFleetBackground stops new background scheduling, then lets active calls finish before a test closes its store.
 // Production Run uses the same canceled runCtx to stop new naming passes and direction-tree timers.

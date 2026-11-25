@@ -33,7 +33,6 @@ import (
 //     replacement, saying why;
 //   - refused for user/unknown stops, offline computers, or the node's own start refusals.
 
-
 // stoppedRefusal is agent_send's answer for a stopped agent without resume: nothing was sent, and how to choose.
 func stoppedRefusal(c proto.Session) error {
 	return fmt.Errorf("%s has stopped: its conversation and terminal stay, and a plain message does not start it again. "+

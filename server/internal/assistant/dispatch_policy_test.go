@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-
 func TestDispatchPolicyValidation(t *testing.T) {
 	now := time.Now().UTC()
 	rule := func(class string, deny ...string) DispatchRule {

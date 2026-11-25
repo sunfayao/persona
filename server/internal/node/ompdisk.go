@@ -48,12 +48,12 @@ type ompDiskEntry struct {
 
 // ompDiskState is the scan's cache: entries by path, the sessions by id, and when it last ran.
 type ompDiskState struct {
-	mu      sync.Mutex
-	dir     string
-	files   map[string]ompDiskEntry
-	order   []ompDiskSession
-	at      time.Time
-	reads   int // files read in all, a test's cache-hit count
+	mu    sync.Mutex
+	dir   string
+	files map[string]ompDiskEntry
+	order []ompDiskSession
+	at    time.Time
+	reads int // files read in all, a test's cache-hit count
 }
 
 // ompAgentDir is omp's agent directory, the one omp and its Persona extension use (integrations/omp/lib/compat.js):
