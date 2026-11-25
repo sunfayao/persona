@@ -105,16 +105,18 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       // Some launchers need the first input with creation. A capable Codex can also open a waiting conversation.
       const startWithPrompt = async (tryTrae = false) => {
         const agent = agentId(launch.agentType ?? launch.launcher);
-        const takesAttachments = agent === "codex" || agent === "traex" || launch.launcher === "codex-app" || tryTrae;
+        const trae = agent === "traex" || tryTrae;
+        const takesAttachments = agent === "codex" || launch.launcher === "codex-app" || trae;
         if (!takesAttachments && launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
         const out = launch.attachments.length ? await prepareOutgoing() : { text: launch.text, images: [] };
         if (!getState().launches[id]) controller.abort();
         controller.signal.throwIfAborted();
         update({ phase: "creating" });
+        const nameHint = launch.nameHint ?? (trae ? launch.text || launch.attachments[0]?.name : undefined);
         let r: { session: Session };
         try {
           r = await launchOp<{ session: Session }>("/sessions", launch.startPromptOpId, controller.signal, {
-            ...target, name_hint: launch.nameHint, prompt: out.text || undefined, images: out.images.length ? out.images : undefined,
+            ...target, name_hint: nameHint, prompt: out.text || undefined, images: out.images.length ? out.images : undefined,
           });
         } catch (e) {
           if (!out.text && !out.images.length && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "traex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));

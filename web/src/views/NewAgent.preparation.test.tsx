@@ -821,6 +821,7 @@ it.each([false, true])("creates a terminal TRAE session with its first attachmen
     expect(starts()[0].body).not.toHaveProperty("prompt");
   } else {
     expect(starts()[0].body?.prompt).toBe("Inspect the attachment\n/uploads/submitted.txt");
+    expect(starts()[0].body?.name_hint).toBe("Inspect the attachment");
     expect(calls.findIndex((c) => c.url.includes("/files?"))).toBeLessThan(calls.indexOf(starts()[0]));
   }
   expect(messages()).toHaveLength(0);
