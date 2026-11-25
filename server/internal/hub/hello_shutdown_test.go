@@ -39,6 +39,15 @@ func (s *shutdownOrderStore) CloseContext(context.Context) error {
 	return nil
 }
 
+func (s *shutdownOrderStore) PutSetting(ctx context.Context, key string, value any) error {
+	err := s.helloStore.PutSetting(ctx, key, value)
+	if key == userLocaleSetting && err == nil {
+		s.record("hello saved")
+		s.releaseNode()
+	}
+	return err
+}
+
 func (s *shutdownOrderStore) releaseNode() { s.saveOnce.Do(func() { close(s.saved) }) }
 
 func (s *shutdownOrderStore) record(event string) {

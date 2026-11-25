@@ -65,7 +65,7 @@ func TestTrafficSSEFlushPreserved(t *testing.T) {
 		}
 	})
 	writer := httptest.NewRecorder()
-	h.observeClientRequest(inner, writer, httptest.NewRequest("GET", "/api/v1/test-stream", nil), principal{ID: "test-credential", Role: roleRetiredAnswer})
+	h.observeClientRequest(inner, writer, httptest.NewRequest("GET", "/api/v1/test-stream", nil), principal{ID: "test-credential", Role: roleFull})
 	h.flushTraffic(time.Now(), true)
 	if !writer.Flushed || !strings.Contains(output.String(), "event=sse action=completed status=200 count=1") {
 		t.Fatal(output.String())

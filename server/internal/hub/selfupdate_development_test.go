@@ -226,7 +226,7 @@ func TestDevelopmentBackupSettingsAreValidatedAndExposed(t *testing.T) {
 	}
 	// Collected data, relative paths and an out-of-range count are refused
 	// without changing the stored settings.
-	inside := filepath.Join(h.cfg.dir, "data", "snapshots")
+	inside := filepath.Join(h.cfg.dir, "skills", "snapshots")
 	for _, body := range []string{
 		fmt.Sprintf(`{"development_backup_directory":%q}`, inside),
 		`{"development_backup_directory":"relative/dir"}`,

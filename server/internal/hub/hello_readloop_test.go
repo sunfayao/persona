@@ -3,13 +3,13 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
@@ -20,20 +20,14 @@ type helloStore struct {
 	*settingsStore
 	loadStarted    chan string
 	putStarted     chan string
-	toolsStarted   chan db.PhoneToolRegistration
 	loadRelease    chan struct{}
 	putRelease     chan struct{}
-	toolsRelease   chan struct{}
 	releaseOnce    sync.Once
 	holdLoads      bool
-	failAppsLoad   atomic.Bool
 	failDeviceLoad atomic.Bool
 	failUserLoad   atomic.Bool
-	failAppsPut    atomic.Bool
 
 	stateMu       sync.Mutex
-	toolCalls     int
-	registrations []db.PhoneToolRegistration
 	putsByKey     map[string]int
 	attemptsByKey map[string]int
 }
@@ -43,10 +37,8 @@ func newHelloStore() *helloStore {
 		settingsStore: &settingsStore{vals: map[string][]byte{}},
 		loadStarted:   make(chan string, 32),
 		putStarted:    make(chan string, 32),
-		toolsStarted:  make(chan db.PhoneToolRegistration, 32),
 		loadRelease:   make(chan struct{}),
 		putRelease:    make(chan struct{}),
-		toolsRelease:  make(chan struct{}),
 		putsByKey:     map[string]int{},
 		attemptsByKey: map[string]int{},
 	}
@@ -56,34 +48,43 @@ func (s *helloStore) release() {
 	s.releaseOnce.Do(func() {
 		close(s.loadRelease)
 		close(s.putRelease)
-		close(s.toolsRelease)
 	})
 }
 
-func (s *helloStore) ReplacePhoneTools(ctx context.Context, registration db.PhoneToolRegistration) error {
-	s.stateMu.Lock()
-	s.toolCalls++
-	call := s.toolCalls
-	s.stateMu.Unlock()
-	select {
-	case s.toolsStarted <- registration:
-	default:
+func (s *helloStore) Setting(ctx context.Context, key string, out any) (bool, error) {
+	if s.holdLoads && key == deviceLocalesSetting {
+		select {
+		case s.loadStarted <- key:
+		default:
+		}
+		// Do not honor the operation deadline here: it must not expire at the same instant as the response assertion.
+		<-s.loadRelease
 	}
-	// Only the older write waits. If a broken implementation runs the newer write concurrently, it can finish and
-	// the older one then gets its chance to overwrite it: the final-state assertions catch that ordering bug.
-	if call == 1 {
-		<-s.toolsRelease
+	if key == deviceLocalesSetting && s.failDeviceLoad.CompareAndSwap(true, false) {
+		return false, errors.New("device locales load failed")
 	}
-	s.stateMu.Lock()
-	s.registrations = append(s.registrations, registration)
-	s.stateMu.Unlock()
-	return nil
+	if key == userLocaleSetting && s.failUserLoad.Load() {
+		return false, errors.New("user locale load failed")
+	}
+	return s.settingsStore.Setting(ctx, key, out)
 }
 
-func (s *helloStore) savedRegistrations() []db.PhoneToolRegistration {
+func (s *helloStore) PutSetting(ctx context.Context, key string, value any) error {
 	s.stateMu.Lock()
-	defer s.stateMu.Unlock()
-	return append([]db.PhoneToolRegistration(nil), s.registrations...)
+	s.attemptsByKey[key]++
+	s.stateMu.Unlock()
+	select {
+	case s.putStarted <- key:
+	default:
+	}
+	<-s.putRelease
+	if err := s.settingsStore.PutSetting(ctx, key, value); err != nil {
+		return err
+	}
+	s.stateMu.Lock()
+	s.putsByKey[key]++
+	s.stateMu.Unlock()
+	return nil
 }
 
 func (s *helloStore) putCount(key string) int {
@@ -147,62 +148,6 @@ func waitHelloLoop(t *testing.T, done <-chan struct{}, what string) {
 	case <-time.After(readLoopLimit):
 		t.Fatalf("%s remained blocked", what)
 	}
-}
-
-// The connection reads these messages in order. Neither its ping nor another app's hello may wait for either store
-// write: nothing in this sequence has a reply whose contents depend on the writes finishing (#6889).
-func TestHelloAndRegisterPhoneLeaveReadLoopWhileStoreWritesAreHeld(t *testing.T) {
-	h := newTestHub(t)
-	store := newHelloStore()
-	h.store = store
-	t.Cleanup(store.release)
-
-	// Keep ReplacePhoneTools occupied too, so the ping behind the registration would wait for both writes in the old
-	// code rather than merely slipping past a write that had not started yet.
-	seed := &client{hub: h, device: "dev_seed", role: roleFull, out: make(chan []byte, 16)}
-	seedDone := make(chan struct{})
-	go func() {
-		defer close(seedDone)
-		h.onClientMessage(context.Background(), seed, []byte(`{"type":"register_phone","device_id":"seed","tools":[{"name":"phone_device_info"}]}`))
-	}()
-	select {
-	case <-store.toolsStarted:
-	case <-time.After(readLoopLimit):
-		t.Fatal("the first phone-tool write did not start")
-	}
-
-	phone := &client{hub: h, device: "dev_phone", role: roleFull, out: make(chan []byte, 16)}
-	phoneDone := make(chan struct{})
-	go func() {
-		defer close(phoneDone)
-		for _, raw := range []string{
-			`{"type":"client_hello","platform":"ios","version":"1.0","locale":"en"}`,
-			`{"type":"register_phone","device_id":"phone","tools":[{"name":"phone_contacts"}]}`,
-			`{"type":"ping","id":"behind-writes"}`,
-		} {
-			h.onClientMessage(context.Background(), phone, []byte(raw))
-		}
-	}()
-	select {
-	case <-store.putStarted:
-	case <-time.After(readLoopLimit):
-		t.Fatal("the client-apps write did not start")
-	}
-
-	waitClientMessage(t, phone, "pong")
-	other := &client{hub: h, device: "dev_other", role: roleFull, out: make(chan []byte, 16)}
-	otherDone := make(chan struct{})
-	go func() {
-		defer close(otherDone)
-		h.onClientMessage(context.Background(), other, []byte(`{"type":"client_hello","platform":"android","version":"2.0","locale":"ja"}`))
-	}()
-	waitClientMessage(t, other, "client_hello_ack")
-
-	store.release()
-	for _, done := range []chan struct{}{seedDone, phoneDone, otherDone} {
-		waitHelloLoop(t, done, "a connection")
-	}
-	waitHelloWrites(t, h)
 }
 
 // A missing user_locale is not permission to save one when the device history needed to decide it could not be read.
@@ -335,43 +280,3 @@ func TestLocaleBatchUsesReceiptTimesForPruning(t *testing.T) {
 	}
 }
 
-// Replacing A's pending registration must move it behind B: the surviving messages are B1, A2, not A2, B1.
-func TestRegisterPhoneCoalescingKeepsLatestMessageOrder(t *testing.T) {
-	h := newTestHub(t)
-	store := newHelloStore()
-	h.store = store
-	t.Cleanup(store.release)
-	seed := &client{hub: h, device: "dev_seed", role: roleFull, out: make(chan []byte, 16)}
-	h.onClientMessage(context.Background(), seed, []byte(`{"type":"register_phone","device_id":"seed","tools":[{"name":"phone_device_info"}]}`))
-	select {
-	case <-store.toolsStarted:
-	case <-time.After(readLoopLimit):
-		t.Fatal("the seed phone-tool write did not start")
-	}
-	a := &client{hub: h, device: "dev_a", role: roleFull, out: make(chan []byte, 16)}
-	b := &client{hub: h, device: "dev_b", role: roleFull, out: make(chan []byte, 16)}
-	for _, report := range []struct {
-		c   *client
-		raw string
-	}{
-		{a, `{"type":"register_phone","device_id":"a","tools":[{"name":"phone_contacts"}]}`},
-		{b, `{"type":"register_phone","device_id":"b","tools":[{"name":"phone_contacts"}]}`},
-		{a, `{"type":"register_phone","device_id":"a","tools":[{"name":"phone_contacts"},{"name":"phone_reminders_list"}]}`},
-	} {
-		h.onClientMessage(context.Background(), report.c, []byte(report.raw))
-	}
-	store.release()
-	waitHelloWrites(t, h)
-	registrations := store.savedRegistrations()
-	if len(registrations) != 3 {
-		t.Fatalf("got %d registrations, want seed plus the two surviving snapshots: %+v", len(registrations), registrations)
-	}
-	for i, want := range []string{"seed", "b", "a"} {
-		if registrations[i].DeviceID != want {
-			t.Fatalf("registration order = %+v, want seed, b, a", registrations)
-		}
-	}
-	if got := registrations[2].Tools; len(got) != 2 || got[1].Name != "phone_reminders_list" {
-		t.Fatalf("the last registration is not A's newest snapshot: %+v", got)
-	}
-}

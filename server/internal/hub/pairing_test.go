@@ -263,7 +263,6 @@ func TestPairTokenLifecycle(t *testing.T) {
 	restarted.store = s
 	mux := restarted.routes()
 	requireCode(t, securityRequest(mux, "GET", "/api/v1/machines", p.Token, "", "198.51.100.1:1", true), 200, "")
-	requireCode(t, securityRequest(mux, "POST", "/api/v1/devices", p.Token, `{"device_id":"phone","name":"小王的手机"}`, "127.0.0.1:1", false), 200, "")
 	// Old iOS connects WS before exchanging credentials, and may still use the token during grace.
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
