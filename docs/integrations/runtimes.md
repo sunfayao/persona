@@ -536,6 +536,8 @@ with `--desktop-dir` or the Persona runtime socket with `--socket`. The desktop 
 
 ### Antigravity CLI
 
+An agy conversation open in an unmanaged terminal on Linux or macOS remains readable in the web app. While the terminal holds the native presence lock, the composer explains where to continue. When the lock is released, the runtime can receive new turns again. A conversation associated with a live Persona-managed pane keeps its terminal controls, and old conversation links follow that pane once its identity is known.
+
 Assistant context remains an ACP embedded text resource followed by the user's separate text block (#12435).
 Antigravity exports that resource as a leading `Content of persona-context:///snapshot.txt:` line and context XML
 inside `USER_INPUT.content`. Both the companion and pane history readers remove the complete leading Persona resource

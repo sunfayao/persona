@@ -8,7 +8,7 @@ import { api, ApiError, errorText, pastHub, sessionPath } from "../../lib/api";
 import { attentionReason, externalLink, failureReason, isStoppedAgent, resumeCommand, sessionCan, sessionCanRename, sessionDeletable, sessionDisplayTab, sessionMenuActions, sourceSubtitle, sessionTitle, sessionTitleDetail, shortPath, stateOf, tabLabel, uuid } from "../../lib/format";
 import { useHerdrTabName } from "../../lib/agents-display";
 import { navigate, type Route, type SessionView } from "../../lib/router";
-import { canShowTerminal, composerSlot, otherView, terminalJump, terminalWaits, useSessionView, viewOnlyRow } from "../../lib/session-view";
+import { agyTerminalAlias, canShowTerminal, codexDesktopThreadLink, composerSlot, externalTranscript, otherView, terminalJump, terminalWaits, useSessionView, viewOnlyRow } from "../../lib/session-view";
 import { invalidateOverviewPanel } from "../../lib/use-shortcuts";
 import { resumeInTerminal, terminalResume } from "../../lib/agent-resume";
 import { openLink } from "../../lib/links";
@@ -322,6 +322,10 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   landAt?: string;
 }) {
   const { session, detail, retry: retryDetail, known } = useRuntimeSession(mid, sid);
+  const agyPane = useStore((s) => inPage ? agyTerminalAlias(s.sessions[mid] ?? [], sid) : undefined);
+  useEffect(() => {
+    if (agyPane) navigate({ name: "session", mid, sid: agyPane }, true);
+  }, [agyPane, mid]);
   // The main conversation is always Persona (#1313): not its first message, the node's title for it.
   const mainConversation = useStore((s) => s.assistant?.main);
   const isMain = Boolean(assistant && (mainCache || sid === mainConversation));
@@ -552,6 +556,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const canCompose = sessionCan(session, "send");
   // a stopped Agent (#4754): a read-only line with Terminal and Resume where the composer goes
   const stoppedLine = composerSlot(session, { assistant: Boolean(assistant), offline: Boolean(offlineLine) }) === "stopped";
+  const transcriptHost = !assistant && !offlineLine ? externalTranscript(session) : undefined;
+  const desktopLink = transcriptHost === "codex" && session ? codexDesktopThreadLink(session) : undefined;
   // one function while this chat stays put: the header takes it, and must not draw again for every pushed item
   const openTerminal = useCallback(
     () => (switchable ? setView("term") : navigate({ name: "session", mid, sid, view: "term" })),
@@ -2586,9 +2592,16 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         {picker && pickParts.Bar && <pickParts.Bar pick={picker} chat={forwardFrom} onEnd={endPick} />}
         {/* kept while a call is on (its draft, attachments and quotes stay), the bar in its place */}
         <div ref={composerBox} className="shrink-0" hidden={voiceState === "live" || Boolean(picker)}>
+        {transcriptHost && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-inset px-3 py-2 text-sm text-ink-2">
+            <p>{t(transcriptHost === "agy" ? "chat-chatview.agy_external_terminal" : "chat-chatview.codex_desktop_transcript")}</p>
+            {desktopLink && <a href={desktopLink} className="shrink-0 whitespace-nowrap text-accent hover:underline">{t("chat-chatview.open_in_codex")}</a>}
+          </div>
+        )}
         {stoppedLine ? (
           <StoppedAgentLine mid={mid} sid={sid} onTerminal={openTerminal} />
         ) : (
+          <div hidden={Boolean(transcriptHost)}>
         <Composer
           draftKey={draftKey}
           placeholder={offlineLine ? offlineLine : waitsFirst ? t("chat-chatview.codex_first_placeholder") : refusedNoRow ? t(gone ? "chat-chatview.session_gone_placeholder" : "chat-chatview.connecting_placeholder") : viewOnlyRow(session) ? t("chat-chatview.view_only") : computerAway && awayLine ? awayLine : foregroundWorking || state === "needs_you" ? t("chat-chatview.queue_placeholder") : assistant ? t("chat-chatview.ask_placeholder", { name: persona.name }) : state === "offline" ? t("chat-chatview.resume_placeholder") : t("chat-chatview.agent_placeholder")}
@@ -2610,7 +2623,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           suggestion={session?.suggestion}
           suggestionRisky={session?.suggestion_risky}
           mention={mention}
-          autoFocus
+          autoFocus={!transcriptHost}
           carryDraft={Boolean(assistant)}
           onFocusChange={setTyping}
           blocked={composerBlocked}
@@ -2620,6 +2633,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           voice={voiceEntry.offer}
           top={short ? undefined : queue}
         />
+          </div>
         )}
         {!stoppedLine && session && (
           <Suspense fallback={null}>
@@ -2630,7 +2644,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
               items={earlier.liveItems}
               compactBlocked={compactBlocked}
               onCompact={isAssistant || agentCompactBlocked ? undefined : compactSession}
-              source={sourceSubtitle(session) ? <ComposerSource session={session} assistant /> : undefined}
+              source={!transcriptHost && sourceSubtitle(session) ? <ComposerSource session={session} assistant /> : undefined}
             />
           </Suspense>
         )}

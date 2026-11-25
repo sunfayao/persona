@@ -135,7 +135,7 @@ func (n *Node) newCodexAppChat(ctx context.Context, p runtimeStartParams, nameHi
 		return nil, readonlyStartUnsupported()
 	}
 	prompt := strings.TrimSpace(p.Prompt)
-	if prompt == "" {
+	if prompt == "" && len(p.Images) == 0 {
 		// The App lists a chat once it has a message: one with none would be nowhere to be seen.
 		return nil, refusal("codex_needs_prompt", "在 Codex App 里新开对话需要第一条消息，这次没有发送。", nil)
 	}
@@ -185,7 +185,7 @@ func (n *Node) newCodexAppChat(ctx context.Context, p runtimeStartParams, nameHi
 	if pick := n.codexAppPickOf(publicID); pick != nil {
 		s.Model, s.Effort = cmp.Or(pick.model, s.Model), cmp.Or(pick.effort, s.Effort)
 	}
-	if err := n.sendCodexDesktop(ctx, src, p.Prompt, nil); err != nil {
+	if err := n.sendCodexDesktop(ctx, src, p.Prompt, p.Images); err != nil {
 		log.Printf("new Codex App chat %s: the first message did not go in: %v", thread, err)
 		return s, desktopCreatedError(s, err, true)
 	}

@@ -54,51 +54,8 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       launcher_default_effort: launch.launcherDefaultEffort,
       permission_mode: launch.permissionMode || undefined,
     };
-    if (launch.session && launch.desktopSetupIncomplete && launch.launcher === "claude-desktop") {
-      // A failed seed can precede import, model settings or permission setup. Resume only the known native id before
-      // delivering the first message: the node validates it and never seeds another conversation or sends a model turn.
-      update({ phase: "creating" });
-      const r = await launchOp<{ session: Session }>("/sessions", launch.startOpId, controller.signal, {
-        ...target, effort: launch.effort || undefined, resume_session_id: launch.session.session_id, prompt: "", async: false,
-      });
-      update({ session: r.session, desktopSetupIncomplete: false });
-      upsertSession(r.session);
-    }
-    if (!launch.session) {
-      // A Codex (and a compatible CLI) takes its first message with the start. With none, a computer that can opens
-      // Codex waiting for one (docs/integrations/codex.md "Starting without a first message"); an older one refuses.
-      const startWithPrompt = async () => {
-        if (launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
-        let r: { session: Session };
-        try {
-          r = await launchOp<{ session: Session }>("/sessions", launch.startPromptOpId, controller.signal, { ...target, name_hint: launch.nameHint, prompt: launch.text || undefined });
-        } catch (e) {
-          if (!launch.text && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));
-          throw e;
-        }
-        update({ outgoing: { text: "", images: [] } });
-        return r.session;
-      };
-      let session: Session;
-      if (launch.inlinePrompt) {
-        session = await startWithPrompt();
-      } else {
-        try {
-          const r = await launchOp<{ session: Session }>("/sessions", launch.startOpId, controller.signal, {
-            ...target, effort: launch.effort || undefined,
-            ultracode: launch.ultracode === true ? true : undefined, async: launch.launcher !== "claude-desktop" && launch.launcher !== "codex-app", name_hint: launch.nameHint ?? (launch.text || undefined),
-          });
-          session = r.session;
-        } catch (e) {
-          if (!(e instanceof ApiError) || e.code !== "codex_needs_prompt") throw e;
-          session = await startWithPrompt();
-        }
-      }
-      if (!getState().launches[id]) return;
-      update({ session, ...(hasFirstTurn ? { handoffAt: Date.now() } : {}) });
-      upsertSession(session);
-    }
-    if (!launch.outgoing) {
+    const prepareOutgoing = async () => {
+      if (launch.outgoing) return launch.outgoing;
       update({ phase: "uploading" });
       const paths: string[] = [];
       const images: { mime: string; data: string }[] = [];
@@ -130,8 +87,67 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       }
       if (spilled.count) toast(t("chat-composer.images_as_files", { max: limits.per_message, count: spilled.count }));
       if (spilled.bytes) toast(t("chat-composer.images_bytes_as_files", { count: spilled.bytes }));
-      update({ outgoing: { text: [launch.text, ...paths].filter(Boolean).join("\n"), images } });
+      const outgoing = { text: [launch.text, ...paths].filter(Boolean).join("\n"), images };
+      update({ outgoing });
+      return outgoing;
+    };
+    if (launch.session && launch.desktopSetupIncomplete && launch.launcher === "claude-desktop") {
+      // A failed seed can precede import, model settings or permission setup. Resume only the known native id before
+      // delivering the first message: the node validates it and never seeds another conversation or sends a model turn.
+      update({ phase: "creating" });
+      const r = await launchOp<{ session: Session }>("/sessions", launch.startOpId, controller.signal, {
+        ...target, effort: launch.effort || undefined, resume_session_id: launch.session.session_id, prompt: "", async: false,
+      });
+      update({ session: r.session, desktopSetupIncomplete: false });
+      upsertSession(r.session);
     }
+    if (!launch.session) {
+      // Some launchers need the first input with creation. A capable Codex can also open a waiting conversation.
+      const startWithPrompt = async (tryTrae = false) => {
+        const agent = agentId(launch.agentType ?? launch.launcher);
+        const trae = agent === "traex" || tryTrae;
+        const codex = agent === "codex" || launch.launcher === "codex-app";
+        const takesAttachments = codex || trae;
+        if (!takesAttachments && launch.attachments.length) throw new Error(t("lib-new-agent.launcher_no_attachments"));
+        const out = launch.attachments.length ? await prepareOutgoing() : { text: launch.text, images: [] };
+        if (!getState().launches[id]) controller.abort();
+        controller.signal.throwIfAborted();
+        update({ phase: "creating" });
+        const nameHint = launch.nameHint ?? (trae ? launch.text || launch.attachments[0]?.name : undefined);
+        let r: { session: Session };
+        try {
+          r = await launchOp<{ session: Session }>("/sessions", launch.startPromptOpId, controller.signal, {
+            ...target, name_hint: nameHint, prompt: out.text || undefined, images: out.images.length ? out.images : undefined,
+            effort: codex && launch.inlinePrompt ? launch.effort || undefined : undefined,
+          });
+        } catch (e) {
+          if (!out.text && !out.images.length && e instanceof ApiError && (e.code === "codex_needs_prompt" || e.code === "traex_needs_prompt" || e.code === "work_prompt_required")) throw new Error(t("lib-new-agent.launcher_needs_text"));
+          throw e;
+        }
+        update({ outgoing: { text: "", images: [] } });
+        return r.session;
+      };
+      let session: Session;
+      if (launch.inlinePrompt) {
+        session = await startWithPrompt();
+      } else {
+        try {
+          const r = await launchOp<{ session: Session }>("/sessions", launch.startOpId, controller.signal, {
+            ...target, effort: launch.effort || undefined,
+            ultracode: launch.ultracode === true ? true : undefined, async: launch.launcher !== "claude-desktop" && launch.launcher !== "codex-app", name_hint: launch.nameHint ?? (launch.text || undefined),
+          });
+          session = r.session;
+        } catch (e) {
+          if (!(e instanceof ApiError) || (e.code !== "codex_needs_prompt" && e.code !== "traex_needs_prompt")) throw e;
+          if (e.code === "traex_needs_prompt" && !hasFirstTurn) throw new Error(t("lib-new-agent.launcher_needs_text"));
+          session = await startWithPrompt(e.code === "traex_needs_prompt");
+        }
+      }
+      if (!getState().launches[id]) return;
+      update({ session, ...(hasFirstTurn ? { handoffAt: Date.now() } : {}) });
+      upsertSession(session);
+    }
+    await prepareOutgoing();
     if (!getState().launches[id]) return;
     controller.signal.throwIfAborted();
     const out = launch.outgoing!;

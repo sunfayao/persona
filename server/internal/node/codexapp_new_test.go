@@ -151,6 +151,32 @@ func TestNewAgentWithTheCodexAppLauncherStartsTheChatInTheApp(t *testing.T) {
 	}
 }
 
+func TestCodexAppStartsAnImageOnlyTurn(t *testing.T) {
+	n, bus, _, _ := codexAppNode(t)
+	session, err := startCodexApp(t, n, map[string]any{
+		"cwd": t.TempDir(), "launcher": "codex-app",
+		"images": []proto.Image{{Mime: "image/png", Data: "aW1hZ2U="}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case p := <-bus.turns:
+		req := p["turnStart"].(map[string]any)["request"].(map[string]any)
+		input := req["input"].([]any)
+		if len(input) != 1 || req["threadId"] != session.SessionID {
+			t.Fatalf("turn %v", req)
+		}
+		image := input[0].(map[string]any)
+		path, _ := image["path"].(string)
+		if data, err := os.ReadFile(path); image["type"] != "localImage" || err != nil || string(data) != "image" {
+			t.Fatalf("native image %v, file %q: %v", image, data, err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the App ran no turn")
+	}
+}
+
 func TestCodexAppSettingsChangeSupersedesPendingSetup(t *testing.T) {
 	for _, tc := range []struct {
 		name, model, effort, wantModel, wantEffort string

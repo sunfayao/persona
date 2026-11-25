@@ -388,6 +388,138 @@ func TestSessionStartAgyUsesSynchronousBudget(t *testing.T) {
 	}
 }
 
+type traeTabRenameObserver struct {
+	nodeCaller
+	params chan map[string]any
+}
+
+func (c traeTabRenameObserver) Call(ctx context.Context, method string, params, out any) error {
+	if method == assistantwire.DeviceSessionRenameTabIfCurrent {
+		c.params <- params.(map[string]any)
+	}
+	return c.nodeCaller.Call(ctx, method, params, out)
+}
+
+func TestSessionStartTraeNamesTabAfterResponse(t *testing.T) {
+	for _, tc := range []struct {
+		name, requested, configured, initial string
+		wantName                             bool
+	}{
+		{name: "slow naming", initial: "agent-7", wantName: true},
+		{name: "explicit tab name", requested: "My name", initial: "My name"},
+		{name: "manager tab name", configured: "Manager name", initial: "Manager name"},
+		{name: "existing starter tab label", initial: "Workspace tab"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				h := newTestHub(t)
+				session := proto.Session{SessionID: "created", Agent: "traex", Host: proto.EngineHerdr, TabID: "tab-7", SlotName: tc.initial}
+				startReceiptNode(t, h, func(_ context.Context, raw json.RawMessage) (any, error) {
+					var got struct {
+						TabName string `json:"tab_name"`
+						Async   bool   `json:"async"`
+					}
+					if err := json.Unmarshal(raw, &got); err != nil {
+						return nil, err
+					}
+					if got.TabName != tc.requested+tc.configured || got.Async {
+						t.Errorf("start params = %+v, want synchronous start with its supplied name", got)
+					}
+					return map[string]any{"session": session}, nil
+				})
+				m := h.byID["machine"]
+				m.mu.Lock()
+				m.info.Engine = proto.EngineHerdr
+				m.cfg.Launchers = []assistantwire.ConfiguredLauncher{{Launcher: proto.Launcher{Name: "trae-wrapper"}, AgentType: "traex"}}
+				renamed := make(chan map[string]any, 1)
+				m.peer = traeTabRenameObserver{nodeCaller: m.peer, params: renamed}
+				m.mu.Unlock()
+				setSessions(m, session)
+
+				naming := make(chan string, 1)
+				hubIn, managerOut := io.Pipe()
+				managerIn, hubOut := io.Pipe()
+				hubPeer, managerPeer := rpc.New("h", hubOut), rpc.New("m", managerOut)
+				managerPeer.OnRequest = func(_ context.Context, method string, raw json.RawMessage) (any, error) {
+					switch method {
+					case assistantwire.MethodAgentStartParams:
+						var in assistantwire.AgentStartParams
+						if err := json.Unmarshal(raw, &in); err != nil {
+							return nil, err
+						}
+						if in.NameFrom != "" {
+							t.Errorf("start parameters asked for a synchronous name")
+							time.Sleep(8 * time.Second)
+						}
+						if tc.configured != "" {
+							in.Params["tab_name"] = tc.configured
+						}
+						return map[string]any{"params": in.Params}, nil
+					case assistantwire.MethodAgentTabName:
+						var in struct{ Prompt string }
+						if err := json.Unmarshal(raw, &in); err != nil {
+							return nil, err
+						}
+						naming <- in.Prompt
+						time.Sleep(8 * time.Second)
+						return map[string]any{"name": "Inspect export"}, nil
+					}
+					return map[string]any{}, nil
+				}
+				t.Cleanup(func() {
+					hubPeer.Close(io.EOF)
+					managerPeer.Close(io.EOF)
+					_ = hubIn.Close()
+					_ = managerIn.Close()
+				})
+				go hubPeer.Serve(t.Context(), hubIn)
+				go managerPeer.Serve(t.Context(), managerIn)
+				h.bus.mu.Lock()
+				h.bus.current = map[string]*busConn{assistantwire.AssistantID: {peer: hubPeer}}
+				h.bus.mu.Unlock()
+
+				body, _ := json.Marshal(sessionStartRequest{
+					MachineID: "machine", Cwd: "/code", Launcher: "trae-wrapper",
+					Prompt: "private context and request", NameHint: "Inspect export", TabName: tc.requested,
+				})
+				r := httptest.NewRequest("POST", "/api/v1/sessions", strings.NewReader(string(body)))
+				w := httptest.NewRecorder()
+				started := time.Now()
+				h.startSession(w, r)
+				if elapsed := time.Since(started); w.Code != http.StatusOK || elapsed >= 8*time.Second {
+					t.Fatalf("response = %d after %s, want success before naming: %s", w.Code, elapsed, w.Body)
+				}
+				synctest.Wait()
+				if !tc.wantName {
+					select {
+					case seed := <-naming:
+						t.Fatalf("naming requested for an existing name: %q", seed)
+					default:
+					}
+					return
+				}
+				select {
+				case seed := <-naming:
+					if seed != "Inspect export" {
+						t.Fatalf("tab naming did not use the name hint: %q", seed)
+					}
+				case <-time.After(time.Second):
+					t.Fatal("no background naming call")
+				}
+				select {
+				case got := <-renamed:
+					if got["session_id"] != "created" || got["tab_id"] != "tab-7" ||
+						got["expected_tab_name"] != "agent-7" || got["tab_name"] != "Inspect export" {
+						t.Fatalf("guarded rename = %+v", got)
+					}
+				case <-time.After(10 * time.Second):
+					t.Fatal("no guarded tab rename")
+				}
+			})
+		})
+	}
+}
+
 // A start's goal (POST /api/v1/sessions) reaches the node's session.start, where the node sets it after the first
 // message: the route does not drop the documented field.
 func TestSessionStartForwardsTheGoal(t *testing.T) {

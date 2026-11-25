@@ -208,7 +208,8 @@ func (n *Node) startCodex(ctx context.Context, launch host.Launcher, cwd, launch
 		execution.Source.Role = "task_agent"
 	}
 	execution.Source.Session = "" // a fresh Codex thread has no Persona session ID yet
-	waiting := strings.TrimSpace(prompt) == ""
+	images, _ := ctx.Value(terminalInitialImagesKey{}).([]string)
+	waiting := strings.TrimSpace(prompt) == "" && len(images) == 0
 	if waiting {
 		prompt = ""
 	}
@@ -242,7 +243,7 @@ func (n *Node) startCodex(ctx context.Context, launch host.Launcher, cwd, launch
 	if runtime.GOOS == "windows" {
 		prompt = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(inertControls(prompt))
 	}
-	b, _ := json.Marshal(codexStartFile{Source: execution.Source, Argv: argv, Prompt: prompt, Agent: herdrAgentFor(launch, "codex"), IsolateHooks: isolateHooks, Dir: cwd})
+	b, _ := json.Marshal(codexStartFile{Source: execution.Source, Argv: argv, Prompt: prompt, Images: images, Agent: herdrAgentFor(launch, "codex"), IsolateHooks: isolateHooks, Dir: cwd})
 	if err := os.WriteFile(file, b, 0o600); err != nil {
 		return nil, err
 	}
@@ -286,7 +287,7 @@ func (n *Node) startCodex(ctx context.Context, launch host.Launcher, cwd, launch
 			err = nil
 		}
 	} else {
-		id, err = n.waitCodexThread(ctx, pane, cwd, prompt, began)
+		id, err = n.waitCodexThread(ctx, pane, cwd, prompt, began, images...)
 	}
 	if err != nil {
 		shown, _ := n.readPane(ctx, pane, "recent-unwrapped", 30)
@@ -401,8 +402,9 @@ func (n *Node) unclaimCodexThread(id string) {
 // the shell's resolved working directory, or -C as given), begun after the launch, whose first user message is the
 // prompt. Codex's own dialogs on the way are answered as the user would for a start they asked
 // for: the folder is trusted (they chose it), an update is skipped. A launcher that fails ends the wait at once.
-func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, began time.Time) (string, error) {
+func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, began time.Time, images ...string) (string, error) {
 	poll := n.readinessPoll()
+	uploads := filepath.Join(n.dir, "uploads")
 	maxWait := codexStartWait
 	deadline := time.Now().Add(maxWait)
 	resolved := cwd
@@ -427,7 +429,14 @@ func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, be
 					continue
 				}
 				// A thread begun by this launch (not one resumed in the same directory) whose first message is ours.
-				if at, first := codexThreadStart(r.path); !at.Before(began.Add(-2*time.Second)) && strings.TrimSpace(first) == strings.TrimSpace(prompt) {
+				at, first, attached := codexThreadFirstInput(r.path)
+				// A launcher's own preconfigured images are independent of this request. The saved uploads
+				// distinguish a web image start from a simultaneous text start with the same words.
+				attached = slices.DeleteFunc(attached, func(path string) bool {
+					return filepath.Dir(filepath.Dir(path)) != uploads
+				})
+				if !at.Before(began.Add(-2*time.Second)) && strings.TrimSpace(first) == strings.TrimSpace(prompt) &&
+					slices.Equal(images, attached) {
 					id := n.codexPublicID(home, r.id)
 					if n.claimCodexThread(pane, id) {
 						return id, nil
@@ -501,9 +510,14 @@ func codexTrustKeys(text string) []string {
 // codexThreadStart is when a rollout's thread began (its session_meta) and the text of its first user message ("" when
 // there is none yet).
 func codexThreadStart(path string) (time.Time, string) {
+	at, text, _ := codexThreadFirstInput(path)
+	return at, text
+}
+
+func codexThreadFirstInput(path string) (time.Time, string, []string) {
 	f, err := os.Open(path)
 	if err != nil {
-		return time.Time{}, ""
+		return time.Time{}, "", nil
 	}
 	defer f.Close()
 	sc := bufio.NewScanner(f)
@@ -525,6 +539,8 @@ func codexThreadStart(path string) (time.Time, string) {
 					Type    string `json:"type"`
 					Content []struct {
 						Text string `json:"text"`
+						Type string `json:"type"`
+						Path string `json:"path"`
 					} `json:"content"`
 				} `json:"item"`
 			} `json:"payload"`
@@ -533,12 +549,16 @@ func codexThreadStart(path string) (time.Time, string) {
 			continue
 		}
 		var b strings.Builder
+		var images []string
 		for _, c := range l.Payload.Item.Content {
 			b.WriteString(c.Text)
+			if c.Type == "local_image" && c.Path != "" {
+				images = append(images, c.Path)
+			}
 		}
-		return began, b.String()
+		return began, b.String(), images
 	}
-	return began, ""
+	return began, "", nil
 }
 
 // codexStartError starts what `personad codex-start` prints when it cannot run the launcher. codexStartNote starts
@@ -555,6 +575,7 @@ type codexStartFile struct {
 	Source modelhttp.Source `json:"model_source,omitzero"`
 	Argv   []string         `json:"argv"`
 	Prompt string           `json:"prompt"`
+	Images []string         `json:"images,omitempty"`
 	// Agent is the HERDR_AGENT the words run with (hostherdr.go): "codex" for a Codex started in a herdr pane; "" leaves
 	// the variable as it is (tab-start, other hosts).
 	Agent string `json:"agent,omitempty"`
@@ -625,7 +646,7 @@ func CodexStart(args []string) error {
 		return fmt.Errorf("%s %s not found in PATH", codexStartError, words[0])
 	}
 	// On Windows the launcher may be a batch file (npm's codex.cmd): the program behind it, never cmd.exe with the message.
-	path, env, err = codexStartProgram(path, f.Prompt != "", env)
+	path, env, err = codexStartProgram(path, f.Prompt != "" || len(f.Images) > 0, env)
 	if err != nil {
 		return fmt.Errorf("%s %v", codexStartError, err)
 	}
@@ -646,7 +667,10 @@ func CodexStart(args []string) error {
 		cwd, _ := os.Getwd()
 		argv, env = codexModelSource(argv, env, cwd, home)
 	}
-	if f.Prompt != "" { // a resume without a message (`personad tab-start`, pi.go) runs the words alone
+	for _, image := range f.Images {
+		argv = append(argv, "--image", image)
+	}
+	if f.Prompt != "" || len(f.Images) > 0 { // a resume without a message (`personad tab-start`, pi.go) runs the words alone
 		argv = append(argv, "--", f.Prompt)
 	}
 	if filepath.Base(argv[0]) == "codex" {

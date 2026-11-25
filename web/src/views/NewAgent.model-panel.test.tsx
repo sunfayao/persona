@@ -47,7 +47,10 @@ const LAUNCHERS: Record<string, Launcher[]> = {
 const LISTS: Record<string, unknown> = {
   claude: { agent: "claude", models: [{ id: "default", name: "Default", default: true, efforts: EFFORTS }, { id: "opus", name: "Opus 5.5", efforts: EFFORTS, default_effort: "high" }, { id: "sonnet", name: "Sonnet 5", efforts: EFFORTS }] },
   relay: { agent: "claude", models: [{ id: "default", name: "Default", default: true }, { id: "glm-5", name: "GLM 5", efforts: ["low", "medium", "high"] }, { id: "gpt-5.5", name: "GPT 5.5" }] },
-  codex: { agent: "codex", models: [{ id: "default", name: "Default", default: true }, { id: "gpt-5.5", name: "GPT 5.5" }] },
+  codex: { agent: "codex", supports_start_effort: true, models: [
+    { id: "default", name: "Default", default: true, efforts: ["low", "high"] },
+    { id: "gpt-5.5", name: "GPT 5.5", efforts: ["low", "high", "ultra"], default_effort: "high" },
+  ] },
   "only-mac": { agent: "claude", models: [{ id: "default", name: "Default", default: true }] },
   agy: { agent: "agy", models: [{ id: "example-high", name: "Example High", efforts: ["low", "high", "xhigh"], default_effort: "high" }] },
 };
@@ -232,6 +235,28 @@ describe("New agent's model panel (#5104)", () => {
     act(() => pill().click());
     start();
     expect(launched[0]).toMatchObject({ launcher: "relay", model: "glm-5", effort: "low" });
+  });
+
+  it.each([false, true])("sets Codex reasoning effort independently of permission mode, including after reset (reset=%s)", async (reset) => {
+    await open();
+    act(() => radio("计划模式").click());
+    await pick("model:codex\ngpt-5.5");
+    expect(radio("计划模式")).toBeUndefined();
+    await openPanel();
+    await customize("model:codex\ngpt-5.5");
+    await slide("End");
+    expect(pill().querySelector("[data-pill-effort]")).not.toBeNull();
+    if (reset) {
+      act(() => button("恢复推荐").click());
+      await flush();
+      expect(pill().querySelector("[data-pill-effort]")).toBeNull();
+    }
+    act(() => pill().click());
+    start();
+    expect(launched[0]).toMatchObject({ launcher: "codex", agentType: "codex", model: "gpt-5.5", inlinePrompt: true, text: "" });
+    expect(launched[0].effort).toBe(reset ? undefined : "ultra");
+    expect(launched[0].launcherDefaultEffort).toBe(reset ? true : undefined);
+    expect(launched[0].permissionMode).toBeUndefined();
   });
 
   it("Reset to recommended in the flyout clears the effort again", async () => {

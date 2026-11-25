@@ -144,6 +144,10 @@ func (n *Node) launcherModels(ctx context.Context, name, agentType string, refre
 			models = readCodexHomeModels(n.codexHome())
 		}
 		res.Models = withGatewayModels(models, gateway)
+		if agent == "codex" && res.Locked == "" {
+			argv, codex := n.codexLauncher(ctx, name)
+			res.SupportsStartEffort = codex && !codexOnRemote(argv)
+		}
 		launcherModelsCache.Lock()
 		if len(launcherModelsCache.got) > 64 {
 			launcherModelsCache.at, launcherModelsCache.got = map[string]time.Time{}, map[string]proto.LauncherModels{}
@@ -654,6 +658,7 @@ func codexModelList(w io.Writer, r io.Reader) ([]proto.AgentModel, error) {
 					a.Efforts = append(a.Efforts, e.Effort)
 				}
 			}
+			a.Efforts = proto.ProjectEfforts(a.Efforts, proto.CodexEffortLevels)
 			if len(a.Efforts) == 0 && a.DefaultEffort == "none" { // a model that takes no level (a gateway catalog's) has no default one
 				a.DefaultEffort = ""
 			}

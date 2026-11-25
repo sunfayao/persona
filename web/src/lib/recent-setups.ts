@@ -50,10 +50,11 @@ export function machineModel(entries: RecentSetup[], machine: string, launcher: 
   return entries.find((e) => e.machine === machine && e.launcher === launcher)?.model ?? "";
 }
 
-/** The form still holds what the card put in (mode and effort only count for Claude Code, the only agent that takes them). */
+/** The form still holds the card's model, effort for Claude Code or Codex, and Claude Code's mode. */
 export function formHolds(setup: RecentSetup, form: { machine: string; cwd: string; launcher: string; model: string; mode: string; effort: string }): boolean {
   if (setup.machine !== form.machine || setup.cwd !== form.cwd.trim() || setup.launcher !== form.launcher || setup.model !== form.model) return false;
-  return setup.agent_type !== "claude" || (setup.mode === form.mode && setup.effort === form.effort);
+  if (setup.agent_type === "claude") return setup.mode === form.mode && setup.effort === form.effort;
+  return setup.agent_type !== "codex" || setup.effort === form.effort;
 }
 
 /** A card's identity among the entries (the list never holds the same setup twice). */

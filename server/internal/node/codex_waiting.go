@@ -743,14 +743,19 @@ func (n *Node) attachCodexWait(ctx context.Context, w *codexWait, thread, how st
 // began; nil (and no error) when the message went in but its thread could not be told apart (rule 3 found two), in
 // which case the row stays until rule 1 or 2 knows it.
 func (n *Node) sendFirstCodex(ctx context.Context, w *codexWait, text string, images []proto.Image) (*proto.Session, error) {
-	if len(images) > 0 {
-		return nil, refusal("codex_first_text", "Codex 的第一条消息只能是文字：去掉图片或文件再发，这次什么都没输入。", nil)
-	}
-	if strings.TrimSpace(text) == "" {
+	if strings.TrimSpace(text) == "" && len(images) == 0 {
 		return nil, refusal("codex_first_text", "第一条消息是空的，这次什么都没输入。", nil)
 	}
 	if err := n.codexBoxFor(ctx, w.pane); err != nil {
 		return nil, err
+	}
+	if len(images) > 0 {
+		paths, err := n.saveImages(images)
+		if err != nil {
+			return nil, refusal("bad_image", err.Error(), nil)
+		}
+		// The process already runs. Use the same file attachment block as a follow-up in its terminal.
+		text = withAttachedImages(text, paths)
 	}
 	text = inertControls(text) // as typed: the thread's first message is matched against it
 	sent := time.Now()

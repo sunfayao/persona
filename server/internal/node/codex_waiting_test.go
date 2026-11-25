@@ -125,6 +125,28 @@ func TestCodexStartWithoutAMessage(t *testing.T) {
 	}
 }
 
+func TestCodexEffortOnAStartWithoutAMessage(t *testing.T) {
+	n, _, _, _ := codexWaitHerdr(t)
+	res, err := request(t, n, "session.start", map[string]any{
+		"cwd": "~/proj", "launcher": "codex", "agent_type": "codex", "model": "gpt-test", "effort": "xhigh",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := decodeSessions(t, []any{res["session"]})[0]
+	if !row.AwaitingFirstMessage {
+		t.Fatalf("not waiting for a first message: %+v", row)
+	}
+	want := []string{"codex", "--model", "gpt-test", "-c", "model_reasoning_effort=xhigh"}
+	if !slices.Equal(ran, want) {
+		t.Fatalf("waiting start ran %q, want %q", ran, want)
+	}
+	state, ok := n.state.get(row.SessionID)
+	if !ok || state.Model != "gpt-test" || state.ModelEffort != "xhigh" {
+		t.Fatalf("waiting row lost its model and effort: %+v", state)
+	}
+}
+
 // The first message from the app: typed once the box is up, as one paste of exactly what was sent, and answered with
 // the thread it began, which the pane lists from then on; requests naming the row reach the thread.
 func TestCodexFirstMessageFromTheApp(t *testing.T) {
@@ -183,7 +205,7 @@ func TestCodexFirstMessageFromTheApp(t *testing.T) {
 	}
 }
 
-// What the computer has in the box, or a dialog not ours, refuses with nothing typed; so do photos.
+// What the computer has in the box, or a dialog not ours, refuses with nothing typed, including with images.
 func TestCodexFirstMessageRefusals(t *testing.T) {
 	n, f, _, _ := codexWaitHerdr(t)
 	s := startWaiting(t, n)
@@ -195,8 +217,8 @@ func TestCodexFirstMessageRefusals(t *testing.T) {
 	}
 	_, err = request(t, n, "session.send", map[string]any{"session_id": s.SessionID, "text": "hello",
 		"images": []any{map[string]any{"media_type": "image/png", "data": "iVBORw0KGgo="}}})
-	if code, _ := refusalOf(t, err); code != "codex_first_text" {
-		t.Errorf("photo: %v", err)
+	if code, _ := refusalOf(t, err); code != "input_draft" {
+		t.Errorf("photo with existing draft: %v", err)
 	}
 	if typed := f.trace("pane.send_text", "pane.send_keys"); len(typed) != 0 {
 		t.Errorf("typed %q", typed)

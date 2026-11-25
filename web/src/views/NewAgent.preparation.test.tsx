@@ -752,13 +752,11 @@ describe("known terminal CLI text starts (#1842)", () => {
 });
 
 it.each([
-  { kind: "traex", attachment: true, engine: "herdr", source: undefined },
   { kind: "claude", attachment: false, engine: "herdr", source: undefined },
   { kind: "agy", attachment: false, engine: "herdr", source: undefined },
   { kind: "omp", attachment: false, engine: "herdr", source: undefined },
   { kind: undefined, attachment: false, engine: "herdr", source: undefined },
   { kind: "traex", attachment: false, engine: "paseo", source: undefined },
-  { kind: "traex", attachment: false, engine: "orca", source: undefined },
   { kind: "traex", attachment: false, engine: "herdr", source: "future-desktop" },
 ])("preserves existing negotiation for $kind/$engine/attachment=$attachment/source=$source", async ({ kind, attachment, engine, source }) => {
   await click("Close externally");
@@ -793,16 +791,38 @@ it("preserves Codex inline creation with its advertised optional empty prompt", 
   expect(messages()).toHaveLength(0);
 });
 
-it("keeps an empty compatible CLI start on the existing asynchronous path", async () => {
+it("requires first input for a known terminal TRAE launcher", async () => {
   await click("Close externally");
   launcherRows = [{ name: "work", agent_type: "traex" }];
   resetModelListsForTests();
   await click("Reopen start"); await flush();
   await type(" "); await tick(401);
+  expect(button(t("newagent.start")).disabled).toBe(true);
+  await click(t("newagent.start")); await tick();
+  expect(starts()).toHaveLength(0);
+  expect(messages()).toHaveLength(0);
+});
+
+it.each([false, true])("creates a terminal TRAE session with its first attachment (image: %s)", async (image) => {
+  await click("Close externally");
+  launcherRows = [{ name: "work", agent_type: "traex", source: "zshrc" }];
+  resetModelListsForTests();
+  await click("Reopen start"); await flush();
+  await type(image ? "" : "Inspect the attachment");
+  await attach(image ? "figure.png" : "report.txt", image);
+  await tick(401);
+  expect(button(t("newagent.start")).disabled).toBe(false);
   await click(t("newagent.start")); await tick();
   expect(starts()).toHaveLength(1);
-  expect(starts()[0].body).toMatchObject({ async: true });
-  expect(starts()[0].body).not.toHaveProperty("agent_type");
-  expect(starts()[0].body).not.toHaveProperty("prompt");
+  expect(starts()[0].body).toMatchObject({ launcher: "work", agent_type: "traex", host: "herdr" });
+  expect(starts()[0].body).not.toHaveProperty("async");
+  if (image) {
+    expect(starts()[0].body?.images).toEqual([{ mime: "image/png", data: "AQID" }]);
+    expect(starts()[0].body).not.toHaveProperty("prompt");
+  } else {
+    expect(starts()[0].body?.prompt).toBe("Inspect the attachment\n/uploads/submitted.txt");
+    expect(starts()[0].body?.name_hint).toBe("Inspect the attachment");
+    expect(calls.findIndex((c) => c.url.includes("/files?"))).toBeLessThan(calls.indexOf(starts()[0]));
+  }
   expect(messages()).toHaveLength(0);
 });

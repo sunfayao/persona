@@ -78,8 +78,15 @@ func codexStartHerdr(t *testing.T, delay time.Duration) (*Node, *fakeHerdr, stri
 			now := time.Now().UTC().Format(time.RFC3339Nano)
 			resolved, _ := filepath.EvalSymlinks(cwd) // Codex records the shell's working directory, resolved
 			meta, _ := json.Marshal(map[string]any{"timestamp": now, "type": "session_meta", "payload": map[string]any{"id": startThread, "cwd": resolved, "cli_version": startRolloutVersion}})
+			content := []any{}
+			if prompt != "" {
+				content = append(content, map[string]any{"type": "text", "text": prompt})
+			}
+			for _, path := range file.Images {
+				content = append(content, map[string]any{"type": "local_image", "path": path})
+			}
 			user, _ := json.Marshal(map[string]any{"timestamp": now, "type": "event_msg", "payload": map[string]any{"type": "item_completed",
-				"item": map[string]any{"type": "UserMessage", "id": "u1", "content": []any{map[string]any{"type": "text", "text": prompt}}}}})
+				"item": map[string]any{"type": "UserMessage", "id": "u1", "content": content}}})
 			_ = os.WriteFile(filepath.Join(dir, "rollout-2026-11-02T10-00-00-"+startThread+".jsonl"), []byte(string(meta)+"\n"+string(user)+"\n"), 0o600)
 		}()
 	})
@@ -146,6 +153,33 @@ func TestCodexStartAnswersWithTheThread(t *testing.T) {
 	}
 	if live != 1 {
 		t.Errorf("%d sessions for the pane: %+v", live, list)
+	}
+}
+
+func TestCodexStartWithOnlyAnImage(t *testing.T) {
+	withCodexLaunchers(t, map[string][]string{"codex": {"codex"}})
+	n, _, cwd, _ := codexStartHerdr(t, 20*time.Millisecond)
+	result, err := request(t, n, "session.start", map[string]any{
+		"cwd": cwd, "launcher": "codex", "agent_type": "codex", "model": "gpt-test", "effort": "high",
+		"images": []proto.Image{{Mime: "image/png", Data: "aW1hZ2U="}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := decodeSessions(t, []any{result["session"]})[0]
+	if session.SessionID != startThread || session.AwaitingFirstMessage {
+		t.Fatalf("image-only start returned %+v", session)
+	}
+	want := []string{"codex", "--model", "gpt-test", "-c", "model_reasoning_effort=high"}
+	if !slices.Equal(ran, want) {
+		t.Fatalf("image-only start ran %q, want %q", ran, want)
+	}
+	_, text, images := codexThreadFirstInput(rolloutPath(n.codexHome(), startThread))
+	if text != "" || len(images) != 1 {
+		t.Fatalf("first input text %q, images %v", text, images)
+	}
+	if data, err := os.ReadFile(images[0]); err != nil || string(data) != "image" {
+		t.Fatalf("saved image %q: %v", data, err)
 	}
 }
 

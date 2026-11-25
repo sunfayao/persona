@@ -370,6 +370,7 @@ var rpcFailureKeys = map[string]string{
 	"agent_stopped":      "rpc-errors.agent_stopped",
 	"resume_not_allowed": "rpc-errors.resume_not_allowed",
 	"stop_not_saved":     "rpc-errors.stop_not_saved",
+	"traex_needs_prompt": "rpc-errors.traex_needs_prompt",
 	"omp_options":        "rpc-errors.omp_options",
 	// a message to an omp session the node cannot resume: no usable session file (node/ompresume.go)
 	"omp_resume_unknown": "rpc-errors.omp_resume_unknown",

@@ -236,7 +236,7 @@ func (n *Node) codexAppLauncherModels(ctx context.Context, refresh bool) (proto.
 		if models == nil {
 			models = []proto.AgentModel{}
 		}
-		res := proto.LauncherModels{Agent: "codex", Models: models}
+		res := proto.LauncherModels{Agent: "codex", Models: models, SupportsStartEffort: true}
 		launcherModelsCache.Lock()
 		if len(launcherModelsCache.got) > 64 {
 			launcherModelsCache.at, launcherModelsCache.got = map[string]time.Time{}, map[string]proto.LauncherModels{}

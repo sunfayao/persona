@@ -176,7 +176,7 @@ Triage belongs to the **manager** (currently just one: the assistant process `pe
 - **Session-list `work`**: the manager's snapshot reports each session's latest turn's work state (`work.turn_at` is when that turn ended). The hub displays it only if the session is still on that turn.
   Working (`{"phase":"working"}`), the Agent asking its own question (its cards precede the manager's), and a terminal dialog are reported by the hub from the current session state without waiting for the manager. No `work` when the main switch is off.
 - **Starting**: before `POST /api/v1/sessions`, the hub asks the manager for `agents.start_params`. It fills launcher, model, thinking effort, and fingerprint from **Model Settings › Agents** (the launcher / model selected for this start override them; `docs/assistant/model-config.md`),
-  then derives a tab label from the first message. Agents started in the background (`async`) or from Lark cards request their names later through `agents.tab_name`. Before sending to a stopped session with an unknown launcher (resuming it), ask `agents.resume_params`.
+  then derives a tab label from the first message. Agents started in the background (`async`) or from Lark cards request their names later through `agents.tab_name`. A native TRAE launch on herdr or Herdr App requests the optional name after its start response and updates only the same tab while it still has the original generated label. Before sending to a stopped session with an unknown launcher (resuming it), ask `agents.resume_params`.
   `POST /api/v1/tabs/autoname` also belongs to the manager.
 
 **When the manager is disconnected** (the hub just started and it has not handshaken; the second or two during its restart; it crashed and is being relaunched):

@@ -1,4 +1,7 @@
 {
+  "agy_external_terminal": "このチャットは Antigravity CLI で開いています。元のターミナルで続けるか、そこで閉じてからここで送信してください。",
+  "codex_desktop_transcript": "この会話は Codex デスクトップアプリで続けてください。",
+  "open_in_codex": "Codex で開く",
   "skills_route": "選択したスキルはこのアシスタント用です。タスクへの転送を解除してから送信してください。",
   "share": "共有…",
   "forked": "新しいチャットに分岐しました",

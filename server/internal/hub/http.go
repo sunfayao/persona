@@ -1031,7 +1031,9 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 		p.Images = append(p.Images, handoffImages...)
 	}
 	async := startsAsync(p.Async, p.ResumeSessionID, p.Launcher, p.AgentType) && !desktopStartLauncher(p.Launcher)
-	nameAfterStart := async
+	m.mu.Lock()
+	defaultHost := startEngine(m.info)
+	m.mu.Unlock()
 	parent := r.Context()
 	if r.Header.Get("X-Persona-Op-Id") != "" {
 		// Finish an accepted start even if its HTTP response is lost; client_ops records the outcome.
@@ -1051,7 +1053,8 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 	params := map[string]any{}
 	_ = json.Unmarshal(raw, &params)
 	name := "" // a tab named now, before it opens; one started in the background is renamed when its name comes (below)
-	if !async && p.TabName == "" && p.ResumeSessionID == "" {
+	if !async && p.TabName == "" && p.ResumeSessionID == "" &&
+		!nativeTraeTab(p.Launcher, p.AgentType, cmp.Or(p.Host, defaultHost)) {
 		name = nameFrom
 	}
 	// The manager says what it runs on (Models › Agents, a model picked for this start) and names its tab
@@ -1093,11 +1096,17 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 	}
 	askedAsync, _ := params["async"].(bool)
 	async = startsAsync(askedAsync, p.ResumeSessionID, resolvedLauncher, resolvedAgent) && !desktopStartLauncher(resolvedLauncher)
-	nameAfterStart = async
 	params["async"] = async
 	ctx, cancel = context.WithDeadline(parent, startedAt.Add(startBudgetForLauncher(async && !p.WorkSession, resolvedLauncher)))
 	defer cancel()
-	if tabName, _ := params["tab_name"].(string); !async && name == "" && nameFrom != "" && strings.TrimSpace(tabName) == "" && p.ResumeSessionID == "" {
+	tabName, _ := params["tab_name"].(string)
+	resolvedHost, _ := params["host"].(string)
+	ownerForTab := ""
+	if p.TabName == "" && p.ResumeSessionID == "" && strings.TrimSpace(tabName) == "" && strings.TrimSpace(nameFrom) != "" &&
+		nativeTraeTab(resolvedLauncher, resolvedAgent, cmp.Or(resolvedHost, defaultHost)) {
+		ownerForTab = h.machineOwner(m.cfg.ID)
+	}
+	if !async && ownerForTab == "" && name == "" && nameFrom != "" && strings.TrimSpace(tabName) == "" && p.ResumeSessionID == "" {
 		// An initially async start did not ask the manager for a name. It now waits for creation, so name it first.
 		var named struct {
 			Name string `json:"name"`
@@ -1197,7 +1206,9 @@ func (h *Hub) startSessionWith(w http.ResponseWriter, r *http.Request, p session
 	m.mu.Unlock()
 	res.LauncherNote = apierr.JoinNotes(h.requestLang(r), note, apierr.StartInstead(h.requestLang(r), engine, m.name(), res.Instead, res.Session))
 	writeJSON(w, res)
-	if nameAfterStart && p.TabName == "" {
+	if ownerForTab != "" {
+		go h.nameStartedTraeTab(m, ownerForTab, res.Session, nameFrom)
+	} else if async && p.TabName == "" {
 		// The name takes a model call (seconds): the tab opens as agent-<n> and is renamed when it comes.
 		go func(id string) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
