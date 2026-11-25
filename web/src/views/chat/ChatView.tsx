@@ -473,6 +473,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const outgoing = shownPending.length + outbox.filter((e) => e.state !== "failed").length;
   const persona = usePersona();
   const state = session ? stateOf(session) : "unknown";
+  // An idle agy can take a new turn while its background services keep running.
+  const foregroundWorking = state === "working" && !(session?.agent === "agy" && session.background_working);
   // Voice chat (docs/web/web.md "Voice"): the call belongs to this page (the same chat may be open twice, a page and a
   // side panel), and ends as the page leaves the conversation. ChatView learns only whether a call is on here.
   const voiceId = useId();
@@ -1456,8 +1458,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   }, [mid, sid]);
   // the turn ended, and not necessarily by this stop
   useEffect(() => {
-    if (state !== "working") stopDone();
-  }, [state, stopDone]);
+    if (!foregroundWorking) stopDone();
+  }, [foregroundWorking, stopDone]);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -1468,7 +1470,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       if (embedded || inPanel) return;
       if (e.key !== "Escape" || e.defaultPrevented) return;
       if (e.target instanceof Element && e.target.closest("[data-session-overview]")) return;
-      if ((state === "working" || awaiting) && view !== "term" && !document.querySelector("[role=dialog],[role=menu]")) {
+      if ((foregroundWorking || awaiting) && view !== "term" && !document.querySelector("[role=dialog],[role=menu]")) {
         e.preventDefault();
         void interrupt();
       }
@@ -1476,7 +1478,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     addEventListener("keydown", key);
     return () => removeEventListener("keydown", key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, awaiting, session, view, embedded, inPanel]);
+  }, [foregroundWorking, awaiting, session, view, embedded, inPanel]);
 
   // Once the hub says the turn is over, four kinds of background work draw the last exchange finished (its work folded,
   // any run's card inside it) instead of keeping the turn's "Working…" clock going: first a workflow (#3434), then
@@ -2596,7 +2598,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           placeholder={offlineLine ? offlineLine : waitsFirst ? t("chat-chatview.codex_first_placeholder") : refusedNoRow ? t(gone ? "chat-chatview.session_gone_placeholder" : "chat-chatview.connecting_placeholder") : viewOnlyRow(session) ? t("chat-chatview.view_only") : computerAway && awayLine ? awayLine : state === "working" || state === "needs_you" ? t("chat-chatview.queue_placeholder") : assistant ? t("chat-chatview.ask_placeholder", { name: persona.name }) : state === "offline" ? t("chat-chatview.resume_placeholder") : t("chat-chatview.agent_placeholder")}
           machineId={mid}
           agent={session?.agent}
-          working={state === "working" || awaiting}
+          working={foregroundWorking || awaiting}
           needsYou={state === "needs_you"}
           onSend={send}
           queueNextTurn={session?.capabilities?.queue_next_turn}
