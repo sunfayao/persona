@@ -268,3 +268,16 @@ func notifyMessage(kind string, payload map[string]any) map[string]any {
 	}
 	return msg
 }
+
+// notifyInteraction pushes a new card. linkCovered: owner says its Persona Link summary rings for this card
+// (assistantwire.Notification.LinkCovered).
+func (h *Hub) notifyInteraction(owner string, ix proto.Interaction, machine string, linkCovered bool) {
+	h.notifyInteractionAt(owner, ix, machine, linkCovered, "", "")
+}
+
+// notifyDone delivers the same alert and preference decision through both channels. Only the center has apps and
+// devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
+// turned its pushes off get none (NotifyPrefs.MutedManagers).
+func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
+	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, pushPolicy{level: levelFor(kind, "")})
+}

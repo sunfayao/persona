@@ -905,3 +905,21 @@ func (m *Machine) isOnline() bool {
 	defer m.mu.Unlock()
 	return m.online
 }
+
+// addWatcher is a join and its sync in one call, removeWatcher a leave and its sync: for a caller that may wait for
+// the node, which a connection's read loop may not (watcherJoined).
+func (m *Machine) addWatcher(ctx context.Context, id string) {
+	m.watcherJoined(id)
+	m.syncWatch(ctx, id)
+}
+
+func (m *Machine) removeWatcher(id string) {
+	m.watcherLeft(id)
+	m.syncUnwatch(id)
+}
+
+// setSessionList keeps list as the sessions the node has now, and drops the highest item seq of those it no longer
+// lists that no app watches and the node was not told to watch: nothing will ask for their since_seq again. A
+// session it no longer lists whose last session.watch / session.unwatch failed (nodeWatchUnknown) and that no app
+// watches gets its unwatch sent again in the background, then its watch state goes (settleEnded).
+func (m *Machine) setSessionList(list []proto.Session) { m.setSessionListRaws(list, nil) }

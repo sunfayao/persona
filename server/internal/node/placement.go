@@ -705,3 +705,12 @@ func liveTaken(m map[string]host.Agent, id string) bool {
 	a, ok := m[id]
 	return ok && a.AgentStatus != proto.StatusOffline
 }
+
+// setAgents maps live claude agents to session ids: the host's own report when it knows (herdr's claude integration),
+// else what our hooks told us about the pane, else the newest transcript in the agent's project directory.
+func (n *Node) setAgents(agents []host.Agent) {
+	n.mu.Lock()
+	epoch := n.engEpoch
+	n.mu.Unlock()
+	n.setAgentsAt(agents, epoch, nil)
+}

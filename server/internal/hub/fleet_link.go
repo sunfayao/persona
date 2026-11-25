@@ -716,3 +716,9 @@ func (h *Hub) pushGradingNotifyLevel(n assistantwire.Notification, derived strin
 	}
 	return assistantwire.LevelP1
 }
+
+// deliverPush is deliverPushFrom the assistant the hub starts.
+func (h *Hub) deliverPush(n assistantwire.Notification) error {
+	_, err := h.deliverPushFrom(assistantwire.AssistantID, n)
+	return err
+}

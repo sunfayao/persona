@@ -777,3 +777,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 	slotCodexDesktop(out)
 	return out
 }
+
+func (n *Node) codexSessions(seen map[string]bool) []proto.Session {
+	return n.codexSessionsIn(seen, newCodexListPass())
+}

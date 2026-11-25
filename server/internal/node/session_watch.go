@@ -327,3 +327,10 @@ func (n *Node) watchEnded(w *watch) {
 	n.mu.Unlock()
 	n.endLive(w)
 }
+
+// watch keeps a session's transcript streaming to the hub. Outside of a hub connection (tests that drive the method
+// directly) there is nothing to end it but session.unwatch; Serve's calls go through watchFor, so the stream stops
+// when its connection does.
+func (n *Node) watch(id string, since int) error {
+	return n.watchFor(context.Background(), id, since)
+}

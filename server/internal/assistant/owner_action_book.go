@@ -613,3 +613,7 @@ func pruneOwnerActionDocument(doc *ownerActionDocument, now time.Time) {
 		}
 	}
 }
+
+func (book *ownerActionBook) create(ctx context.Context, machine, session string, drafts []ownerActionDraft) (ownerActionBatch, error) {
+	return book.createPersistent(ctx, machine, session, drafts, false)
+}

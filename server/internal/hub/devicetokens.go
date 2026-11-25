@@ -519,3 +519,10 @@ func (h *Hub) revoked(id string) {
 	h.push.signedOut(id) // nil-safe; forgets the devices this credential wrote settings for (push.go)
 	h.logf("device token %s revoked (%d connections closed)", id, len(gone)+links)
 }
+
+// authenticate maps a bearer token to its principal; ok false for an unknown or revoked one, and for one the token
+// store could not look up.
+func (h *Hub) authenticate(ctx context.Context, tok string) (principal, bool) {
+	p, ok, _ := h.lookupToken(ctx, tok)
+	return p, ok
+}

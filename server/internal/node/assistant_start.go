@@ -684,3 +684,12 @@ func watchAssistantStderr(logger *log.Logger, p *assistantProc, stderr io.ReadCl
 
 // ansiRe: terminal color and style sequences (an interactive zsh's prompt plugins print them on stderr).
 var ansiRe = lazyre.New(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+
+func (n *Node) spawnClaude(id, cwd, launcher string, resume, spare bool, options ...modelExecution) (*assistantProc, error) {
+	return n.spawnClaudeWith(id, cwd, launcher, resume, spare, spawnRound{}, options...)
+}
+
+// claudeAssistantMCPAndTools are a conversation's --mcp-config and tool permission flags.
+func (n *Node) claudeAssistantMCPAndTools(id, cwd string, legacyMCP bool) []string {
+	return n.claudeAssistantMCPAndToolsFor(id, cwd, legacyMCP, "")
+}

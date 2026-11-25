@@ -180,3 +180,10 @@ func (n *Node) forgetFallback(id string) {
 	delete(n.fallbacks, id)
 	n.mu.Unlock()
 }
+
+// heldFallback is the execution conversation id's message runs on: its fallback while the hold lasts and the message
+// asks for the model the switch moved away from, else what it asks for. Another model asked for ends the hold.
+func (n *Node) heldFallback(id, launcher string, asked modelExecution) modelExecution {
+	execution, _ := n.heldFallbackWithExpiry(id, launcher, asked)
+	return execution
+}

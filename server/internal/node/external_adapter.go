@@ -695,3 +695,15 @@ func externalAdapterCloneTarget(t proto.ExternalTarget) proto.ExternalTarget {
 	}
 	return t
 }
+
+// launchers never waits on an ordinary directory read, even on a cold cache. An explicit
+// refresh joins the current inventory request; failure leaves the previous entries stale.
+func (r *externalAdapterRegistry) launchers(ctx context.Context, refresh bool) []proto.Launcher {
+	if r == nil {
+		return nil
+	}
+	_ = r.refresh(ctx, refresh)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.launchersLocked(r.now())
+}
