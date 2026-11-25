@@ -3,19 +3,14 @@ package hub
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"slices"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 )
 
@@ -45,8 +40,6 @@ func statsViews(p *Pusher) map[string][]pushDayStats {
 	}
 	return out
 }
-
-
 
 // Upgrade: the entries of the old whole-list setting are added to the table once, at the first start; the expired
 // ones go, the counts equal what the old build read from the setting, and a second start adds nothing again. The
@@ -98,8 +91,6 @@ func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 	}
 }
 
-
-
 // landedThenFailed is the real database with its first AddPushSent calls committing and then reporting an error.
 type landedThenFailed struct {
 	*db.DB
@@ -115,4 +106,3 @@ func (s *landedThenFailed) AddPushSent(ctx context.Context, entries []db.PushSen
 	}
 	return nil
 }
-

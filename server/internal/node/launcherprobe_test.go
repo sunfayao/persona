@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -334,6 +333,3 @@ func TestProbeInBashAndZsh(t *testing.T) {
 		})
 	}
 }
-
-
-

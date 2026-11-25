@@ -3,12 +3,10 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +16,6 @@ import (
 	"github.com/nwverse/persona/server/internal/extwire"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 )
 
 // An extension's token never sees the health space's conversations or a private card (extension_private.go), whatever
@@ -211,12 +208,6 @@ func tokenDo(t *testing.T, token, url, method, path, body string, header map[str
 	out, _ := io.ReadAll(resp.Body)
 	return resp.StatusCode, strings.TrimSpace(string(out))
 }
-
-
-
-
-
-
 
 // Exercise the registered HTTP handlers with in-memory credentials and a fake node that records queue calls.
 func TestRestrictedSessionQueueRoutes(t *testing.T) {

@@ -5,14 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/update"
 )
 
 // sentRecordStore is what the delivered pushes use of the hub's store: its settings and the hub_push_sent table.
@@ -111,13 +109,9 @@ func sentStores(t *testing.T, run func(t *testing.T, store sentRecordStore)) {
 	})
 }
 
-
-
 // failingAdopt is a store whose start could not read the old setting into the table.
 type failingAdopt struct{ *gradingStore }
 
 func (failingAdopt) AdoptPushSentSetting(context.Context, string, time.Time, int) (int, bool, error) {
 	return 0, false, errors.New("database away")
 }
-
-

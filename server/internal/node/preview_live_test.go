@@ -2,15 +2,9 @@ package node
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
-	"image/jpeg"
 	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -78,4 +72,3 @@ func click(t *testing.T, w net.Conn, x, y float64) {
 	say(t, w, map[string]any{"t": "mouse", "type": "down", "x": x, "y": y, "button": "left", "buttons": 1, "clicks": 1})
 	say(t, w, map[string]any{"t": "mouse", "type": "up", "x": x, "y": y, "button": "left", "clicks": 1})
 }
-

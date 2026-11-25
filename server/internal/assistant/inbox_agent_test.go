@@ -388,7 +388,6 @@ func TestInboxAgentStarts(t *testing.T) {
 	}
 }
 
-
 // TestInboxModelsLive runs models 1 and 2 on a sample item against a real gateway:
 // PERSONA_LIVE_AI='{"base_url":"…","api_key_file":"…","model":"…"}' go test -run InboxModelsLive -v ./internal/assistant
 func TestInboxModelsLive(t *testing.T) {

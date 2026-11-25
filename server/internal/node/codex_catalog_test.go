@@ -13,7 +13,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -149,9 +148,6 @@ func waitAsked(t *testing.T, g *catalogGateway, n int) {
 		return kept
 	})
 }
-
-
-
 
 // A codex whose --version fails is not run again on every start, and is again once codexCatalogRetry has passed.
 func TestCodexVersionFailureKeptBriefly(t *testing.T) {
@@ -348,7 +344,6 @@ func TestLauncherEnvWaitsBrieflyForTheCatalog(t *testing.T) {
 	}
 }
 
-
 // A codex behind a shim is the same file before and after an upgrade: its version is read again after
 // codexCatalogTTL, in the background, the version read before given meanwhile, so a slow shim holds no start.
 func TestCodexVersionReadAgainBehindAShim(t *testing.T) {
@@ -464,4 +459,3 @@ func TestCodexMissingKeptBriefly(t *testing.T) {
 		t.Fatalf("after codexCatalogRetry: %q", v)
 	}
 }
-
