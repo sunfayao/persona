@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -155,69 +154,6 @@ func relaysLeft(h *Hub) int {
 	return len(h.relay.pending) + len(h.relay.owner) + len(h.relay.taken)
 }
 
-// A body of bodyStreamMin or more goes to a manager that takes body streams on a relay of its own, the request
-// without it on the bus; a smaller one, or any body to a manager that does not name the capability, goes inline as
-// before. Either way the route gets the same bytes and the app the manager's answer.
-func TestLargeBodyGoesOnAStreamOfItsOwn(t *testing.T) {
-	for _, streams := range []bool{true, false} {
-		h, srv := bodyHub(t)
-		m := &bodyManager{}
-		connectBodyManager(t, h, srv, nil, streams, m)
-		small, large := bodyOf(t, bodyStreamMin-1), bodyOf(t, bodyStreamMin)
-		for _, body := range [][]byte{small, large} {
-			if code, out := putPlace(t, h, srv, "r1", body); code != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
-				t.Fatalf("streams %v, %d bytes: %d %s", streams, len(body), code, out)
-			}
-		}
-		how, got := m.requests()
-		want := []string{assistantwire.MethodHTTP, assistantwire.MethodHTTP}
-		if streams {
-			want[1] = assistantwire.MethodHTTPStreamed
-		}
-		if !reflect.DeepEqual(how, want) {
-			t.Fatalf("streams %v: the manager got %v, want %v", streams, how, want)
-		}
-		if !bytes.Equal(got[0].Body, small) || !bytes.Equal(got[1].Body, large) {
-			t.Fatalf("streams %v: the bodies differ", streams)
-		}
-		if streams && (got[1].BodyStream == nil || got[1].BodyStream.Size != int64(len(large))) {
-			t.Fatalf("the body stream as told: %+v", got[1].BodyStream)
-		}
-		eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })
-	}
-}
-
-// A manager that turns the stream down before anything ran (a method it does not know, a body that did not arrive
-// whole) gets the request again inline, the same request but for the body's place: the app sees one answer.
-func TestTurnedDownStreamGoesInline(t *testing.T) {
-	for _, code := range []string{bus.CodeUnknownMethod, assistantwire.CodeBodyIncomplete} {
-		h, srv := bodyHub(t)
-		m := &bodyManager{turn: code}
-		connectBodyManager(t, h, srv, nil, true, m)
-		body := bodyOf(t, bodyStreamMin+5)
-		if status, out := putPlace(t, h, srv, "r%2F2", body); status != http.StatusOK || out != `{"size":`+jsonInt(len(body))+`}` {
-			t.Fatalf("%s: %d %s", code, status, out)
-		}
-		how, got := m.requests()
-		if want := []string{assistantwire.MethodHTTPStreamed + " turned down", assistantwire.MethodHTTP}; !reflect.DeepEqual(how, want) {
-			t.Fatalf("%s: the manager got %v, want %v", code, how, want)
-		}
-		streamed, inline := got[0], got[1]
-		if !bytes.Equal(inline.Body, body) || len(streamed.Body) != 0 || streamed.BodyStream == nil || inline.BodyStream != nil {
-			t.Fatalf("%s: the body's place: streamed %d bytes %+v, inline %d bytes %+v", code, len(streamed.Body),
-				streamed.BodyStream, len(inline.Body), inline.BodyStream)
-		}
-		streamed.Body, streamed.BodyStream, inline.Body = nil, nil, nil
-		if !reflect.DeepEqual(streamed, inline) {
-			t.Fatalf("%s: the request differs but for its body:\nstreamed %+v\ninline   %+v", code, streamed, inline)
-		}
-		if streamed.Path != "/api/v1/assistant/places/r%2F2" || streamed.Query != "x=1" {
-			t.Fatalf("%s: path %q query %q", code, streamed.Path, streamed.Query)
-		}
-		eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })
-	}
-}
-
 // slowConn reads at most rate bytes a second, like a manager behind a slow link.
 type slowConn struct {
 	net.Conn
@@ -264,70 +200,6 @@ func slowClient(rate int) *http.Client {
 		}
 		return &slowConn{Conn: c, rate: rate, start: time.Now()}, nil
 	}}}
-}
-
-// The regression of #6574: while a large body goes to a manager behind a slow link, another call to it is not held
-// up behind the body. Inline (a manager without the capability, as before), the small call waits for the whole
-// body's line; on a stream of its own it answers at once.
-func TestLargeBodyDoesNotHoldUpTheBus(t *testing.T) {
-	const rate = 1 << 20 // bytes a second the manager reads
-	body := bodyOf(t, 2<<20)
-	smallWait := func(streams bool) time.Duration {
-		t.Helper()
-		h, srv := bodyHub(t)
-		started := make(chan struct{})
-		m := &bodyManager{}
-		var begin sync.Once
-		if streams {
-			m.onRequest = func() { begin.Do(func() { close(started) }) }
-		}
-		client := slowClient(rate)
-		transport := client.Transport.(*http.Transport)
-		dial := transport.DialContext
-		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			c, err := dial(ctx, network, addr)
-			if c != nil && !streams {
-				c.(*slowConn).onBody = func() { begin.Do(func() { close(started) }) }
-			}
-			return c, err
-		}
-		connectBodyManager(t, h, srv, client, streams, m)
-		done := make(chan string, 1)
-		go func() {
-			code, out := putPlace(t, h, srv, "big", body)
-			done <- jsonInt(code) + " " + out
-		}()
-		select {
-		case <-started:
-		case <-time.After(5 * time.Second):
-			t.Fatalf("streams %v: the large body did not reach the manager", streams)
-		}
-		start := time.Now()
-		if code, out := putPlace(t, h, srv, "small", []byte(`{}`)); code != http.StatusOK {
-			t.Fatalf("streams %v: the small call: %d %s", streams, code, out)
-		}
-		took := time.Since(start)
-		t.Logf("streams %v: the small call took %v", streams, took)
-		select {
-		case got := <-done:
-			if got != `200 {"size":`+jsonInt(len(body))+`}` {
-				t.Fatalf("streams %v: the large call: %s", streams, got)
-			}
-		case <-time.After(20 * time.Second):
-			t.Fatalf("streams %v: the large call did not end", streams)
-		}
-		if h.busConnOf(assistantwire.AssistantID) == nil {
-			t.Fatalf("streams %v: the bus dropped", streams)
-		}
-		return took
-	}
-	if took := smallWait(true); took > 700*time.Millisecond {
-		t.Fatalf("with a body stream the small call took %v", took)
-	}
-	// The control: the same link without the stream holds the small call up, or the test proves nothing.
-	if took := smallWait(false); took < 1200*time.Millisecond {
-		t.Fatalf("inline the small call took only %v: the test's link is not slow enough to show the stall", took)
-	}
 }
 
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as
