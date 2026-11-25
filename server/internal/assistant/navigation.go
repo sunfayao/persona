@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -229,17 +230,26 @@ func (s *Service) putNavigation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	n, err := s.saveNavigation(r.Context(), body)
+	if err != nil {
+		apierr.Write(w, http.StatusServiceUnavailable, err)
+		return
+	}
+	apierr.WriteJSON(w, n)
+}
+
+// saveNavigation changes the fields body carries (already checked) and tells the apps; the route's and persona_settings'
+// one way to change the user's navigation.
+func (s *Service) saveNavigation(ctx context.Context, body navigation) (navigation, error) {
 	st := s.store()
 	if st == nil {
-		apierr.Write(w, http.StatusServiceUnavailable, errors.New("the start page needs a database"))
-		return
+		return navigation{}, errors.New("the start page needs a database")
 	}
 	s.navMu.Lock()
 	defer s.navMu.Unlock()
 	var n navigation
-	if _, err := st.Setting(r.Context(), navigationKey, &n); err != nil {
-		apierr.Write(w, http.StatusServiceUnavailable, err)
-		return
+	if _, err := st.Setting(ctx, navigationKey, &n); err != nil {
+		return navigation{}, err
 	}
 	ev := map[string]any{"type": "navigation"}
 	if body.Start != nil {
@@ -259,12 +269,22 @@ func (s *Service) putNavigation(w http.ResponseWriter, r *http.Request) {
 		n.Overview = &kept
 		ev["overview"] = kept
 	}
-	if err := st.PutSetting(r.Context(), navigationKey, n); err != nil {
-		apierr.Write(w, http.StatusServiceUnavailable, err)
-		return
+	if err := st.PutSetting(ctx, navigationKey, n); err != nil {
+		return navigation{}, err
 	}
 	// every app follows at once: its copy decides the next opening and draws the sidebar and Overview before the hub
 	// answers. Only what changed goes out, so an app holding a change of another field it has not sent yet keeps it.
-	s.event(r.Context(), ev)
-	apierr.WriteJSON(w, n)
+	s.event(ctx, ev)
+	return n, nil
+}
+
+// navigationNow is the saved navigation (zero when none).
+func (s *Service) navigationNow(ctx context.Context) (navigation, error) {
+	var n navigation
+	if st := s.store(); st != nil {
+		if _, err := st.Setting(ctx, navigationKey, &n); err != nil {
+			return navigation{}, err
+		}
+	}
+	return n, nil
 }

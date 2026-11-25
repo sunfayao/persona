@@ -21,10 +21,10 @@ func (h *Hub) assistantAppCall(ctx context.Context, from string, p assistantwire
 	case assistantwire.AppSettings + " " + assistantwire.SettingsList:
 		list := []assistantwire.Setting{}
 		for _, s := range h.selfSettings() {
-			list = append(list, assistantwire.Setting{Key: s.key, Title: s.title, About: s.about, Value: s.value, Actions: s.actions()})
+			list = append(list, assistantwire.Setting{Key: s.key, Title: s.title, About: s.about, Current: s.current(ctx), Value: s.value, Actions: s.actions()})
 		}
 		for _, s := range h.managerSettings(ctx, from) { // the mail accounts, the sources' own rules (the caller's)
-			list = append(list, assistantwire.Setting{Key: s.Key, Title: s.Title, About: s.About, Value: s.Value, Actions: s.Actions})
+			list = append(list, assistantwire.Setting{Key: s.Key, Title: s.Title, About: s.About, Current: s.Current, Value: s.Value, Actions: s.Actions})
 		}
 		out = map[string]any{"settings": list}
 	case assistantwire.AppNotify + " " + assistantwire.NotifyQuietGet:

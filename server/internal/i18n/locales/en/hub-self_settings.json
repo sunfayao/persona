@@ -11,5 +11,6 @@
   "servers_feishu": "Lark Mail’s servers",
   "auto": "auto",
   "add_mail": "Add mail account {email} ({servers}). After you enter the password it connects once before saving",
-  "remove_mail": "Remove mail account {email} (Persona stops receiving its mail; the mail in the mailbox isn’t affected)"
+  "remove_mail": "Remove mail account {email} (Persona stops receiving its mail; the mail in the mailbox isn’t affected)",
+  "title_download_mirrors": "Extension download mirrors"
 }
