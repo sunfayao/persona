@@ -3,15 +3,11 @@ import { screen } from "./screen/take";
 import { takeImportLinkOnStart } from "./lib/import-link";
 import { initI18n, startI18n } from "./i18n";
 import "./styles.css";
-import { applyLook } from "./ui/look";
 import { logCaughtError } from "./lib/caught-error";
 
 // A provider import link (#5420) may hold a key: out of the address bar before the page waits for anything, the
 // language's strings or App (lib/import-link.ts). Any other fragment stays, so a sign-in link's `#token=` still signs in.
 takeImportLinkOnStart();
-
-// Theme color and text size (docs/web/web.md "Theme color and text size") before anything draws.
-applyLook();
 
 // The language's catalog loads before the rest of the app: their modules call t() as they load (docs/web/web.md "Internationalization").
 // The build waits only for the first screen's part of it, as its lazy imports wait for the rest; the dev server's do not.
@@ -39,8 +35,8 @@ if (target) {
   root.render(createElement(StrictMode, null, createElement(NativePasswordLogin)));
 } else {
   // Error reports (docs/web/web.md "Error reports") start with the app: they go out only if the hub's hello has the feature.
-  const [{ ExtensionThemeProvider }, { App }] = await Promise.all([import("./ui/ExtensionThemePicker"), import("./App"), import("./lib/error-reports-start")]);
-  root.render(createElement(StrictMode, null, createElement(ExtensionThemeProvider, null, createElement(App))));
+  const [{ App }] = await Promise.all([import("./App"), import("./lib/error-reports-start")]);
+  root.render(createElement(StrictMode, null, createElement(App)));
   // An open page picks up a new build (lib/new-version.ts) and a language another tab picked (lib/language-sync.ts): by
   // itself when idle, else a toast that stays.
   const [{ startNewVersion }, { startLanguageSync }, { toast }, { t }] = await Promise.all([import("./lib/new-version"), import("./lib/language-sync"), import("./ui/atoms"), import("./i18n")]);

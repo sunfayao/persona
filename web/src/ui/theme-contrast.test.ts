@@ -2,12 +2,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("../styles.css?raw", () => ({ default: "" }));
-import { contrast, extensionThemeTokens, MIN_ROLE_CONTRAST } from "./extension-theme";
-import { ACCENT_PRESETS, accentTokens, PRESET_COLORS } from "./look";
+import { contrast, MIN_ROLE_CONTRAST } from "./contrast";
 import { COLORS } from "../lib/extension-ui-v6";
 
 // The default palette's text tokens must stay readable as small text (WCAG AA 4.5:1) on every background token
-// (#2804); the same backgrounds extension themes are checked against (extension-theme.ts).
+// (#2804).
 const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
 const BACKGROUNDS = ["page", "canvas", "surface", "inset", "hover", "hover-2", "field"];
 const TEXT = ["ink", "ink-2", "ink-3", "accent-ink", "attention", "green", "orange", "red", "ai", "source-terminal", "source-desktop"];
@@ -88,13 +87,6 @@ describe("default palette contrast", () => {
       })).filter(Boolean);
       expect(short).toEqual([]);
       expect(contrast(t.ink, t["hover-2"])).toBeGreaterThanOrEqual(4.5);
-    });
-    it(`${scheme}: no theme color or extension theme moves the named colors or the sidebar's backgrounds`, () => {
-      const theme = { extension: "example-theme", extension_name: "Example Theme", id: "sea", name: "Sea", light: { accent: "#1d4ed8" }, dark: { accent: "#8ab4ff" } };
-      const sets = [...ACCENT_PRESETS.map((p) => accentTokens(PRESET_COLORS[p].accent)[scheme]), extensionThemeTokens(theme, scheme)];
-      expect(Object.keys(sets.at(-1)!)).toContain("--accent");
-      const moved = sets.flatMap((tokens) => Object.keys(tokens)).filter((k) => k.startsWith("--hue-") || ["--canvas", "--hover", "--hover-2", "--ink"].includes(k));
-      expect(moved).toEqual([]);
     });
     it(`${scheme}: --ink-3 stays a step quieter than --ink-2`, () => {
       expect(contrast(t["ink-3"], t.surface)).toBeLessThan(contrast(t["ink-2"], t.surface));

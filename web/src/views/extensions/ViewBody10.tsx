@@ -21,9 +21,8 @@ import { useEscapeClose, useModalFocus } from "../../ui/overlay";
 import { Badge, gaugePercent, glyphOf } from "./ViewBody6";
 import { ROW_ICON } from "./ViewBody";
 
-// The web's node pitch, at the standard text size; the whole of it follows the page's text-size choice
-// (--text-scale, small 12/13 and large 14/13, styles.css), as every font does — the graph's node is a size of the
-// design system (docs/design/DESIGN_SYSTEM.md, the graph of "UI version 10"), so it grows with the text.
+// The web's node pitch: the graph's node is a size of the design system (docs/design/DESIGN_SYSTEM.md, the graph of
+// "UI version 10").
 const NODE_W = 224;
 const NODE_H = 64;
 const PITCH_X = 272;
@@ -106,13 +105,6 @@ function nodeLabel(n: UIGraphNode, parentTitle: string | undefined): string {
   const parts = [n.title, n.badge?.text, n.subtitle, n.progress !== undefined ? `${gaugePercent(n.progress)}%` : ""].filter(Boolean);
   if (parentTitle) parts.push(t("extensions-viewbody.graph_under", { title: parentTitle }));
   return parts.join(t("extensions-viewbody.read_sep"));
-}
-
-/** The page's text-size choice (ui/look.ts) as a number the canvas multiplies its pitch by; 1 at "Standard". */
-function textScaleNow(): number {
-  if (typeof window === "undefined") return 1;
-  const n = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-scale"));
-  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 // What one node drew the last time this canvas committed it (its fields as they read): a node that is new, or whose
@@ -364,18 +356,10 @@ export function GraphCanvas({ item, compact, busy, onPress, canPress }: {
   // keeps the canvas's own memory across the swap. Written only by the commit effect (sigs), never in render.
   const memRef = useRef(new Map<string, string>());
   const controls = useRef<{ zoom: (factor: number) => void; fit: () => void } | null>(null);
-  // The node pitch follows the text-size choice (applyLook writes data-text-size on <html> when it changes).
-  const [textScale, setTextScale] = useState(textScaleNow);
-  useLayoutEffect(() => {
-    if (typeof MutationObserver === "undefined") return;
-    const mo = new MutationObserver(() => setTextScale(textScaleNow()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-text-size"] });
-    return () => mo.disconnect();
-  }, []);
-  const nodeW = NODE_W * textScale;
-  const nodeH = NODE_H * textScale;
-  const pitchX = PITCH_X * textScale;
-  const pitchY = PITCH_Y * textScale;
+  const nodeW = NODE_W;
+  const nodeH = NODE_H;
+  const pitchX = PITCH_X;
+  const pitchY = PITCH_Y;
 
   // The layout follows from the nodes, edges and folds alone, so a redraw that changes only states keeps every node
   // in place (spec/fixtures/graph-layout/README.md).

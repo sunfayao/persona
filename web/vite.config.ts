@@ -4,10 +4,8 @@ import { defineConfig, type Logger, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { brotliCopies, firstScreenBytes, firstScreenOverBudget, firstScreenRoom, gzipBytes, IDLE_TIER_BUDGET, idleImports, localeDirs, preloadScript, startupGaps } from "./src/startup-preload";
-import { textScale } from "./src/lib/text-scale";
 import { classicWorkerProblem } from "./src/sw-entry-check";
 import { clientKeys, i18nCatalogs, startupEntries } from "./i18n-catalogs";
-import { pageTokensPlugin } from "./page-tokens";
 import { thirdPartyLicenses } from "./third-party-licenses";
 import { compatBootstrap } from "./compat-bootstrap";
 import { testWorkerLimit } from "./test-scheduling";
@@ -241,10 +239,8 @@ const holdLazyImports: Plugin = {
 };
 
 export default defineConfig({
-  plugins: [testWorkerLimit(), katexFonts, i18nCatalogs, pageTokensPlugin, react(), tailwindcss(), adminFallback, showcaseImages, startupPreload(), holdLazyImports, classicWorker, buildStamp, thirdPartyLicenses,
+  plugins: [testWorkerLimit(), katexFonts, i18nCatalogs, react(), tailwindcss(), adminFallback, showcaseImages, startupPreload(), holdLazyImports, classicWorker, buildStamp, thirdPartyLicenses,
     compatBootstrap(fileURLToPath(new URL("./public/compatibility-bootstrap.js", import.meta.url)))],
-  // Text size (src/lib/text-scale.ts): font sizes become calc(size * var(--text-scale, 1)), after Tailwind wrote them.
-  css: { postcss: { plugins: [textScale()] } },
   server: {
     host: "127.0.0.1",
     proxy: { "/api": { target: hub, changeOrigin: true, ws: true } },

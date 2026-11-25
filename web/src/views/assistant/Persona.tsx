@@ -18,7 +18,6 @@ import { Icon } from "../../ui/icons";
 import { lazyDialog } from "../LazyOverlay";
 import { MochiFace } from "./MochiFace";
 import { useReducedMotion } from "./face-motion";
-import { personaAccent, setPersonaAccent } from "../../ui/look";
 import { currentLanguage, t } from "../../i18n";
 import { setLookIcon } from "../../lib/look-icon";
 
@@ -79,11 +78,7 @@ function saveChosen(id: string) {
 
 function setPS(patch: Partial<PersonaStoreState>) {
   ps = { ...ps, ...patch };
-  // Theme color "Match avatar" (ui/look.ts) keeps the chosen persona's accent, from the last list the hub gave; while there is no
-  // list yet (or the last load failed) and the chosen one is not in it, the saved accent stays.
   const shown = ps.list.find((p) => p.id === ps.chosen);
-  if (isBuiltinPersona(ps.chosen)) setPersonaAccent(null);
-  else if (shown || (ps.loaded && !ps.error)) setPersonaAccent(personaAccent(shown?.manifest.colors));
   setLookIcon(shown ?? null);
   listeners.forEach((l) => l());
 }

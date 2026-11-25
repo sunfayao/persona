@@ -165,7 +165,7 @@ export default function ExportImage({ request, pick, onClose }: { request: Expor
   const sheet = (
     <div aria-hidden className="pointer-events-none fixed top-0" style={{ left: -10000 }} data-export-sheet>
       {!plan && messages && (
-        <div ref={measure} style={{ width: WIDTH, padding: `0 ${PAD}px`, display: "flex", flexDirection: "column", gap: GAP, "--text-scale": 1 } as React.CSSProperties}>
+        <div ref={measure} style={{ width: WIDTH, padding: `0 ${PAD}px`, display: "flex", flexDirection: "column", gap: GAP }}>
           {blocks}
           <div data-export-foot>{foot(1, 1)}</div>
         </div>
@@ -173,7 +173,7 @@ export default function ExportImage({ request, pick, onClose }: { request: Expor
       {plan &&
         plan.slices.map((slices, n) => (
           <div key={n} ref={(el) => void (pageRefs.current[n] = el)}
-            style={{ width: WIDTH, padding: `${TOP}px ${PAD}px ${BOTTOM}px`, display: "flex", flexDirection: "column", background: "var(--page)", "--text-scale": 1 } as React.CSSProperties}>
+            style={{ width: WIDTH, padding: `${TOP}px ${PAD}px ${BOTTOM}px`, display: "flex", flexDirection: "column", background: "var(--page)" }}>
             {slices.map((s, i) => (
               <div key={i} style={{ marginTop: i === 0 ? 0 : GAP, height: s.to - s.from, overflow: "hidden" }}>
                 <div style={{ marginTop: -s.from }}>{blocks[s.block]}</div>
