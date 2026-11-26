@@ -10,12 +10,10 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Stopped agents are read-only (#4754, docs/integrations/engines.md "Agents run in a terminal"). An agent of a
-// terminal engine (herdr, Herdr App, Orca, Tern) that is not running — stopped by Persona (retire.go), closed by the
-// user, exited by itself or cut off by a restart — keeps its conversation and its terminal and takes no messages: a
-// send to it is refused as agent_stopped with nothing typed, where it used to be resumed (claude --resume, codex
-// resume) in a new tab. The one path back is session.start with resume_session_id: the user's Resume, or an explicit
-// supervised resume with a known non-user stop cause (#8214). It types into the shell the agent left when it is still there
+// A stopped terminal Agent keeps its conversation. An owner's message can restart a recorded terminal session after
+// the CLI exits. Explicit stops through Persona and sessions without a recorded launch use session.start with
+// resume_session_id. Supervised resume still requires its own stop provenance (#8214). A terminal resume uses the shell
+// the agent left when it is still there
 // (inKeptTerminal), else opens a new tab as before. Left as they were: assistant conversations, sessions of Claude's
 // desktop app, of runtimes and of engines that run agents themselves (Paseo, Cindy), and a branch nothing has started
 // yet (fork.go), whose first message starts it.
@@ -24,6 +22,36 @@ const agentStopped = proto.CodeAgentStopped
 
 // stoppedReason is a stopped agent's read_only_reason (the apps show their own words for it).
 const stoppedReason = "Agent 已停止：对话和终端可以看，它不再收消息；要它接着做，在终端页点「恢复」"
+
+// The owner may resume a terminal exit with a message using the original launch record. A deliberate Persona stop
+// and automatic recovery outcomes retain their explicit Resume action.
+func (n *Node) terminalExitLaunch(id string) (sessionState, bool) {
+	st, ok := n.state.get(id)
+	if !ok || st.ResumeRequired || st.Pane == "" || st.Cwd == "" || st.Launcher == "" ||
+		(st.StopCause != proto.StopUnknown && st.StopCause != proto.StopExit) {
+		return st, false
+	}
+	kind := host.ParsePane(st.Pane).Kind
+	_, canLaunch := n.hosts.Get(kind).(host.Launcher)
+	return st, canLaunch && n.hostEnabled(kind)
+}
+
+// The input lock is held by send. Explicit Resume acquires the recovery lock before the input lock, so never
+// wait here while holding the input lock. A second action can retry after the first resume or stop completes.
+func (n *Node) claimTerminalExitSend(ctx context.Context, id string) (sessionState, func()) {
+	if ownerDeliveryOf(ctx) == nil || !validID(id) {
+		return sessionState{}, nil
+	}
+	release, ok := n.recovery.tryLock(id)
+	if !ok {
+		return sessionState{}, nil
+	}
+	if st, eligible := n.terminalExitLaunch(id); eligible {
+		return st, release
+	}
+	release()
+	return sessionState{}, nil
+}
 
 // desktopSession: Claude's desktop app names transcript id (a session of its sidebar, archived or not, or one it went
 // on from): the app's session, which a message continues as before (claudedesktop_open.go), not a stopped agent. Only
@@ -98,6 +126,10 @@ func (n *Node) markStopped(s *proto.Session) {
 	}
 	n.noteGatewayStop(s)
 	s.Capabilities = &proto.SessionCapabilities{Read: true, Terminal: true, StopCause: n.stopCause(s.SessionID)}
+	if _, resume := n.terminalExitLaunch(s.SessionID); resume && !s.Archived {
+		s.Capabilities.Send = true
+		return
+	}
 	s.ReadOnlyReason = stoppedReason
 }
 

@@ -65,6 +65,12 @@ func TestRetiredAgentRowUsesSessionHost(t *testing.T) {
 				if row.SessionID != sidA || row.Status != proto.StatusOffline || !reflect.DeepEqual(row.Capabilities, want) || row.ReadOnlyReason != stoppedReason {
 					t.Fatalf("retired row: status=%q capabilities=%+v reason=%q", row.Status, row.Capabilities, row.ReadOnlyReason)
 				}
+				if remembered == "state" {
+					n.recordRunning(sidA)
+					if _, allowed := n.terminalExitLaunch(sidA); !allowed {
+						t.Fatal("a later running terminal kept the legacy Retire restriction")
+					}
+				}
 				closesNothing(t, f)
 			})
 		}

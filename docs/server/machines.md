@@ -496,7 +496,7 @@ The one other live edit of an entry is its kind, from `ssh` to `link` and back (
 
 ## Opt-in machine-ops skill and read-only ops CLI / MCP (#13053)
 
-**Audience:** power users and coding Agents troubleshooting a machine's local health. Everyday Assistant conversations remain untouched unless the user explicitly opts in: neither the default Assistant system prompt nor the default `personad mcp` tool list changes (`TestPromptSizeRatchet` and `TestGoldenMCPTools` stay unchanged).
+**Audience:** power users and coding Agents troubleshooting a machine's local health. Everyday Assistant conversations remain untouched unless the user explicitly opts in: neither the default Assistant system prompt nor the default `personad mcp` tool list changes (`TestGoldenMCPTools` stays unchanged).
 
 | Part | Code |
 | --- | --- |

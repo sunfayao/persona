@@ -127,7 +127,7 @@ func (n *Node) stopWithCause(ctx context.Context, id string, retire bool, cause 
 	}
 	stopped, err = n.quitAgent(ctx, id, a.PaneID)
 	if stopped && err == nil {
-		n.state.stopped(id, cause)
+		n.state.stopped(id, cause, retire && cause == proto.StopUnknown)
 	}
 	return stopped, err
 }
@@ -413,6 +413,7 @@ func (n *Node) resumeOtherWith(ctx context.Context, id string, st sessionState, 
 	}
 	tab := n.resumeTabName(id)
 	if !codex { // a compatible CLI: `<launcher> resume <id> <message>`
+		ctx = n.inKeptTerminal(ctx, id, st.Cwd)
 		_, err = n.startOtherAgent(ctx, launch, st.Cwd, st.Launcher, traexAgent, text, id, ws, tab)
 		return uncertain(err)
 	}

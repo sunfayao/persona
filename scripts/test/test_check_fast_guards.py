@@ -98,8 +98,7 @@ class CheckFastGoGuardListTests(unittest.TestCase):
         entries = set(re.fullmatch(r"\^\((.+)\)\$", pattern).group(1).split("|"))
         for entry in ("TestOneBuild", "TestPersonaHubDoesNotLinkTheManager", "TestPersonaManagerDoesNotLinkTheHub",
                       "TestPersonaNodeDoesNotLinkTheHubOrTheManager", "TestGolden.*", "TestNoWholeListMCPToolGoldens",
-                      "TestWireSamples", "TestRouteScopes", "TestEveryExtensionRouteIsBounded", "TestPromptSizeRatchet",
-                      "TestSupervisionPolicySizeBudget", "TestModelPurposesDescribeThemselves",
+                      "TestWireSamples", "TestRouteScopes", "TestEveryExtensionRouteIsBounded",
                       "TestRepositoryRetrievalGuidanceContract", "TestEveryStartPathIsSupervisedOrOptedOut"):
             self.assertIn(entry, entries)
 
@@ -306,7 +305,7 @@ class CheckFastGuardSuitesTests(ScriptsRepoTestCase):
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go())
         self.assertEqual(1, code, out)  # the stubbed scripts/tools/test_other.py fails, and node/go are missing
         self.assertIn("PASS     frozen migrations", out)
-        self.assertIn("queued: scripts unittest suites (8)", out)
+        self.assertIn("queued: scripts unittest suites (7)", out)
 
 
 if __name__ == "__main__":

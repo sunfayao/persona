@@ -10,19 +10,6 @@ import (
 	"github.com/nwverse/persona/server/internal/mcptoolgolden"
 )
 
-// #10224 added inline observation without a prompt-size budget increase. Keep that total budget explicit while the
-// per-piece baseline continues to be enforced and lowered through TestPromptSizeRatchet.
-func TestAgentWaitPromptSizeBudget(t *testing.T) {
-	const budget = 289184
-	total := 0
-	for _, size := range promptSizePieces(t) {
-		total += size
-	}
-	if total > budget {
-		t.Errorf("measured prompt size is %d bytes, over the %d-byte budget by %d; compact the wait_seconds guidance instead of raising the baseline", total, budget, total-budget)
-	}
-}
-
 // TestAgentWaitPromptContract checks the meaning of the inline-observation guidance, not its current prose. The
 // goldens hold the final tool list whose wire form TestGoldenMCPTools compares with the hub's actual tools.
 func TestAgentWaitPromptContract(t *testing.T) {

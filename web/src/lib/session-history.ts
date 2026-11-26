@@ -6,7 +6,8 @@ import type { Session } from "./types";
 
 /** History uses the sidebar's folded state: an offline parent with live/pending children stays with live work. */
 export function historySessions(rows: Session[], filters: { machine?: string; agent?: string } = {}): Session[] {
-  return foldRows(rows).filter(s => !s.deleted && !s.assistant && stateOf(s) === "offline" &&
+  return foldRows(rows).filter(s => !s.deleted && !s.assistant && (stateOf(s) === "offline" ||
+    (stateOf(s) === "idle" && s.status === "interrupted" && !s.pane_id)) &&
     (!filters.machine || s.machine_id === filters.machine) && (!filters.agent || agentId(sessionAgent(s).agent) === filters.agent)).sort(runtimeOrder);
 }
 export interface HistoryGroup { key: string; date?: Date; sessions: Session[] }

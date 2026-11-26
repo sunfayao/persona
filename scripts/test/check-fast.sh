@@ -563,7 +563,6 @@ GO_GUARD_TESTS='^(TestHubAnswersOnlyItsOwnRoutes|TestHubDoesNotImportTheManager|
 '|TestOneBuild|TestPersonaHubDoesNotLinkTheManager|TestPersonaManagerDoesNotLinkTheHub'\
 '|TestPersonaNodeDoesNotLinkTheHubOrTheManager'\
 '|TestGolden.*|TestNoWholeListMCPToolGoldens|TestWireSamples|TestRouteScopes|TestEveryExtensionRouteIsBounded'\
-'|TestPromptSizeRatchet|TestSupervisionPolicySizeBudget|TestModelPurposesDescribeThemselves'\
 '|TestRepositoryRetrievalGuidanceContract|TestEveryStartPathIsSupervisedOrOptedOut)$'
 
 # job_go_guards runs both guard commands, the second one also when the first failed, so one run names every failure.

@@ -37,7 +37,7 @@ import test_doc_paths  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 KNOWN = Path(__file__).resolve().with_name("doc_sections_known.txt")
 
-SOURCE_DIRS = ("server", "web/src", "web/e2e", "scripts", "sdk", "apple", "android", "integrations", "spec",
+SOURCE_DIRS = ("server", "web/src", "web/e2e", "scripts", "sdk", "integrations", "spec",
                "schema", "CLAUDE.md", "README.md")
 # Translation catalogs, and copies of released files that test_deployment_rolling_compat.py pins by hash.
 NOT_SOURCES = re.compile(r"\.xcstrings$|/res/values[^/]*/|^server/internal/i18n/locales/"

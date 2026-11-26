@@ -694,7 +694,7 @@ The node integration (`server/internal/node/traex.go`) shares rollout parsing wi
   (full context after compaction); decode only `display_completions`. `task_started` / `task_complete` are recorded in `Meta.TurnOpen`.
   `TerminalInteraction` (polling / sending input to a running command) is not displayed.
 - **Messaging**: herdr's `agent prompt` recognizes only known Agents and returns not found for fork panes, so use `pane send-text` + Enter (`Node.prompt`).
-- A phone message to an exited TRAE CLI session is refused: a stopped Agent is read-only (#4754). Resume on its terminal page resumes one Persona started (`<launcher> resume <id>`, `node/retire.go` `resumeOtherWith`); one started outside Persona returns an error (its launcher is not known).
+- After an exit, a message from the owner can reopen a recorded paginated TRAE CLI session with the original launcher and native ID. The terminal also offers **Resume**. If a single TRAE process has locks for several threads, Persona uses the latest recorded thread activity for the conversation shown beside the pane and checks it again before sending. Retained threads are individually readable in History.
 
 ## Research: app-server and approval hooks for Codex in Agents (2026-11-02, conclusions only, not implemented)
 

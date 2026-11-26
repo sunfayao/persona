@@ -116,6 +116,27 @@ func TestCodexHistoryResumesOnAStart(t *testing.T) {
 	}
 }
 
+func TestOwnerSendResumesRecordedCodexTerminalExit(t *testing.T) {
+	withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}})
+	n, f, cwd := codexHistoryNode(t)
+	listSessions(t, n) // load the initial state and Codex index before recording the launch
+	n.state.put(startThread, sessionState{Pane: "w1:p1", Launcher: "cx", Cwd: cwd})
+	s := byID(listSessions(t, n))[startThread]
+	if s.Capabilities == nil || !s.Capabilities.Send || s.ReadOnlyReason != "" {
+		t.Fatalf("the exited session has no composer: %+v", s)
+	}
+	f.reset()
+	got := resumeFile(f, cwd)
+	ctx, _ := withOwnerDelivery(t.Context())
+	if err := n.send(ctx, startThread, "continue the same chat", nil, sendOpts{}); err != nil {
+		t.Fatal(err)
+	}
+	if file := got(); !strings.Contains(strings.Join(file.Argv, " "), "resume "+startThread) ||
+		file.Prompt != "continue the same chat" {
+		t.Fatalf("resume command or prompt changed: %+v", file)
+	}
+}
+
 // A Codex App thread (originator "Codex Desktop") is not resumed in a terminal: the App owns it.
 func TestCodexDesktopThreadIsNotResumedInATerminal(t *testing.T) {
 	n, _, home := herdrNode(t)

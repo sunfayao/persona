@@ -266,14 +266,14 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
     def test_all_runs_every_scripts_suite_in_one_job(self):
         # Mirror CI's Scripts tests job: --all runs every scripts/**/test_*.py, changed or not, except the ones a
         # dedicated job already runs. That stub fails under unittest, so the suite job must not pick it up. The count
-        # is 9: test_other, test_gone, test_deep and the six guard suites stubbed in setUp.
+        # is 8: test_other, test_gone, test_deep and the five guard suites stubbed in setUp.
         self.write("scripts/test/test_external_service_refs.py", FAILING)
         self.write("scripts/deep/nested/test_deep.py", PASSING)
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go())
         self.assertEqual(1, code, out)  # missing node and go are core failures in --all mode
-        self.assertIn("queued: scripts unittest suites (9)", out)
+        self.assertIn("queued: scripts unittest suites (8)", out)
         self.assertIn("FAIL     scripts unittest suites", out)
-        self.assertIn("9 suite(s): 1 failed, 0 timed out", out)
+        self.assertIn("8 suite(s): 1 failed, 0 timed out", out)
         self.assertIn("failed: scripts/tools/test_other.py", out)
         self.assertNotIn("failed: scripts/test/test_external_service_refs.py", out)
         self.assertNotIn("queued: scripts/tools/test_gone.py", out)  # one job, not one per suite
@@ -285,7 +285,7 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go())
         self.assertEqual(1, code, out)  # test_other.py fails, and node and go are missing
         self.assertIn("SKIP  scripts/tools/test_verify.py (not a unittest suite)", out)
-        self.assertIn("8 suite(s): 1 failed, 0 timed out", out)
+        self.assertIn("7 suite(s): 1 failed, 0 timed out", out)
         code, out = self.check_fast()
         self.assertEqual(0, code, out)
         self.assertIn("SKIP  scripts/tools/test_verify.py (not a unittest suite)", out)
@@ -500,13 +500,13 @@ class CheckFastScriptsTests(ScriptsRepoTestCase):
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go(),
                                     env={"CHECK_FAST_TIMEOUT_OTHER": "2"})
         self.assertEqual(1, code, out)
-        self.assertIn("10 suite(s): 1 failed, 1 timed out", out)
+        self.assertIn("9 suite(s): 1 failed, 1 timed out", out)
         self.assertIn("timed out: scripts/tools/test_slow.py", out)
         self.assertIn("failed: scripts/tools/test_z_after.py", out)
         self.write("scripts/tools/test_z_after.py", PASSING)
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go(),
                                     env={"CHECK_FAST_TIMEOUT_OTHER": "2"})
-        self.assertIn("TIMEOUT  scripts unittest suites (10)", out)
+        self.assertIn("TIMEOUT  scripts unittest suites (9)", out)
         self.assertIn("1 suite(s) timed out: scripts/tools/test_slow.py", out)
 
     def test_a_diff_without_the_table_stops_before_planning(self):
