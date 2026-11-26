@@ -90,7 +90,7 @@ export function agentSearchHit(s: Session, query: string, ctx: EvalContext, pref
   const title = sessionTitle(s, preferTab).toLowerCase();
   if (title.startsWith(text)) return { score: 100 };
   if (title.includes(text)) return { score: 80 };
-  const place = [title, s.title, sessionProjectName(s), machineWithHub(s.machine_id, ctx.machines), s.machine_id, s.space_name, s.slot_name, baseName(s.cwd)]
+  const place = [title, sessionTitle(s), sessionProjectName(s), machineWithHub(s.machine_id, ctx.machines), s.machine_id, s.space_name, s.slot_name, baseName(s.cwd)]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();

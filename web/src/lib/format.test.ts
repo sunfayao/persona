@@ -34,6 +34,17 @@ describe("sessionTitle", () => {
     }
     expect(sessionTitle(session({ ...tab, title: "Contact user@host: about exports" }))).toBe("Contact user@host: about exports");
   });
+  it("reads generated context titles in Agent lists without quoting their bodies", () => {
+    const first = '<persona-context kind="context" title="Build &amp; test">Quoted note</persona-context>';
+    expect(sessionTitle(session({ title: first + "\n\nReview the changes" }))).toBe("Review the changes");
+    expect(sessionTitle(session({ title: first }))).toBe("Build & test");
+    expect(sessionTitle(session({ ...tab, title: first.slice(0, 36) }))).toBe(tab.slot_name);
+    expect(sessionTitle(session({ ...tab, title: first.slice(0, 36), todo: { id: "t", title: "Review deployment" } }))).toBe("Review deployment");
+    expect(sessionTitle(session({ title: first.slice(0, 36) }))).toBe("x");
+    expect(sessionTitle(session({ title: "<persona-context> examples" }))).toBe("<persona-context> examples");
+    expect(sessionTitle(session({ title: first, title_manual: true }))).toBe(first);
+    expect(sessionTitle(session({ title: first, title_source: "manual" }))).toBe(first);
+  });
   it("keeps the CLI name in other engines and for sessions without a tab", () => {
     for (const s of [session({ ...tab, assistant: true }), session({ ...tab, space_kind: "orca" }), session({ slot_name: "Workspace" }), session({})]) {
       expect(sessionTitle({ ...s, title: "CLI session name" }, true)).toBe("CLI session name");

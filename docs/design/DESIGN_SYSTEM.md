@@ -382,6 +382,8 @@ Background work and model retry messages have their own information in that bar.
   last state. Left out: cindy's **Stop all** for background subtasks (#5044) and its host-measured speed (Persona measures
   from the status line's count instead, `web/src/lib/token-rate.ts`). New mark: `activity` (Lucide's activity, as cindy's).
 
+On the web, a short, single-line draft in a composer at least 40 rem wide shares a row with its actions. Longer drafts, edit and blocked states, and narrow composers put the controls below the full-width input. The send, model and attachment controls stay available in both arrangements.
+
 ### 3.2 Message bubbles
 
 - User bubble: trailing, radius 20, padding 16 x 12, `ChatBox.user` fill in the unified layout, otherwise the theme's bubble gradient.
@@ -1700,6 +1702,8 @@ No HTTP codes, key algorithms, CLI flags or raw error text in the primary line. 
 Full glossary: `docs/protocol/i18n.md`. Languages: en, zh-Hans, ja. Hub strings are in the server locale files. Keys with a bracketed suffix are translator-context tags; the English value strips them. Japanese uses no space between Japanese and Latin text (the catalogs do not follow this yet; DS-29). Do not concatenate sentences.
 
 ### 5.6 Objects, titles and state words
+
+Generated conversation names can begin with attached context. Agent and Assistant views use the request after those blocks or the attachment’s title. A clipped native name that matches an unfinished opening tag can recover its request from the native thread index. A manually assigned title is displayed literally.
 
 | Object | Called | Home | Title |
 | --- | --- | --- | --- |

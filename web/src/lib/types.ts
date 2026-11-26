@@ -255,6 +255,8 @@ export interface Session {
   /** The manager it belongs to (docs/protocol/protocol.md "Per-manager routing"); none: the default one. */
   manager?: string;
   title: string;
+  title_manual?: boolean;
+  title_source?: string;
   cwd: string;
   status: string;
   starting?: boolean;
