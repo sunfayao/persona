@@ -2,6 +2,7 @@
 // for the cold first screen, so the overlay and its long strings load on intent.
 import { useEffect, useId, useState } from "react";
 import { t as tr } from "../i18n";
+import { BUSY_MOTION, spinStyle } from "../lib/busy-motion";
 import { sendDraft } from "../lib/drafts";
 import { navigate } from "../lib/router";
 import { getState } from "../lib/store";
@@ -89,6 +90,7 @@ export function UsagePopover({
   const [view, setView] = useState<"detailed" | "compact">("detailed");
   const [provider, selectProvider] = useState<string>();
   const [refresh, setRefresh] = useState<"idle" | "loading" | "done" | "failed">("idle");
+  const refreshing = refresh === "loading";
   const detailsId = useId();
   const groups = groupByProvider(accounts).sort((a, b) => groupUsageOrder(b) - groupUsageOrder(a));
   const selected = view === "compact" ? groups.find((g) => g.provider === provider) : undefined;
@@ -129,15 +131,16 @@ export function UsagePopover({
             type="button"
             aria-label={tr("usage.refresh")}
             title={tr("usage.refresh")}
-            disabled={refresh === "loading"}
+            disabled={refreshing}
+            aria-busy={refreshing || undefined}
             onClick={refreshAccounts}
             className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-60 lg:min-h-8 lg:min-w-8"
           >
-            <Icon name="retry" size={16} className={cx(refresh === "loading" && "motion-safe:animate-spin")} />
+            <Icon name="retry" size={16} className={refreshing ? BUSY_MOTION : undefined} style={refreshing ? spinStyle(900) : undefined} />
           </button>
         </div>
         <div role="status" className={refresh === "failed" ? "pb-2 text-submeta text-orange" : "sr-only"}>
-          {refresh === "loading" ? tr("usage.refreshing") : refresh === "done" ? tr("usage.refreshed") : refresh === "failed" ? tr("usage.refresh_failed") : ""}
+          {refreshing ? tr("usage.refreshing") : refresh === "done" ? tr("usage.refreshed") : refresh === "failed" ? tr("usage.refresh_failed") : ""}
         </div>
         {groups.length > 0 && (
           <div role="group" aria-label={tr("usage.display")} className="grid grid-cols-2 gap-1 rounded-control bg-inset p-1">
