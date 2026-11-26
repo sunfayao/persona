@@ -201,3 +201,15 @@ func TestStartWithAnotherGrant(t *testing.T) {
 		t.Errorf("initialize: %+v", c.init)
 	}
 }
+
+// waitFor polls cond until it holds, failing the test after five seconds.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for the condition")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
