@@ -1,9 +1,9 @@
-（这段对话不是在 App 里开的。开它的扩展管它叫「extension / 例示」，只作参考：标题照样写这段对话要做的那件事。）
+(This conversation was opened outside the app. Its extension called it “extension / 例示”. Use that only as a hint and name the work this conversation is about.)
 
-用户：
+User:
 搜索的时候搜索框和顶栏叠在一起了
 
-助手：
+Assistant:
 是两个组件一起用导致的。
 
-（上一次回的「invalid title」不合格式：类型只能是上面十个之一，主题不超过 14 个字。重新给一个。）
+(The last answer “invalid title” did not match the format. Use one of the ten Chinese kinds in the system instructions and keep the topic within 14 characters. Try again.)

@@ -1,9 +1,9 @@
-Persona 算好的事实（这次开跑时的快照，数字以此为准，别改也别另编）：
-这些会由 Persona 原样列在发给用户的飞书卡片里（含链接和「通过」按钮），你不用再逐条列。
-- 等用户处理的 0 件
-- 过去 12 小时没成 0 件
-- 过去 12 小时做完 0 件
-- 等用户验收的 0 件
-- 正在做的 0 件
-- 派出去的事里要说的（用用户当初的原话开头，每件一行；没列出来的不需要用户做什么、也没有变化，不要提）：
-  - 2026-11-05 你说：「Move the reports to the new store」 → The plan is written；搁置中，等你定优先级：Whether this goes ahead of the billing work
+Facts Persona worked out (a snapshot taken when this run started; the numbers here are authoritative: do not change them or make up others):
+Persona lists these as they are on the Lark card sent to the user (with links and the “Approve” button), so you do not need to list them one by one.
+- Waiting for the user: 0
+- Not through in the past 12 hours: 0
+- Done in the past 12 hours: 0
+- Waiting for the user to verify: 0
+- In progress: 0
+- Delegated work worth mentioning (start with the user's own original words, one line each; what is not listed needs nothing from the user and has not changed, so do not mention it):
+  - 2026-11-05 the user said: “Move the reports to the new store” → The plan is written; parked, waiting for the user to set the priority: Whether this goes ahead of the billing work

@@ -1,8 +1,8 @@
-- 现在：2026-11-06 周五 10:00（UTC）
-- 模型档位：未设置（model_profiles_list 查看，model_profile_switch 切换）
-- 在线的电脑：
-- Agents：需要你 0 个，完成未看 0 个，工作中 0 个（详情用 agents_list）
-- 优先显示的开放任务详情（含个人待办；最近结束的对话任务也会列出；task_plan；问已有结果看这里，不够用 agent_read 读它的对话；要它新查、新做或改方向才用 agent_send）：
-  - 修登录（todo_d）：已交付·待看；交付：停在 PR，卡在「等用户批准合并」，要用户点头
-- 等用户点头才能上线的（1 件；合到一起一次列给用户批，别一件件问）：「修登录」（todo_d）停在 PR，等用户批准合并
-- 已安排的跟进：没有
+- Now: 2026-11-06 Fri 10:00 (UTC)
+- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Computers online: 
+- Agents: 0 need you, 0 finished unread, 0 working (details: agents_list)
+- Open task details (shown by priority, including personal to-dos; recently ended conversation tasks are listed too; task_plan; for existing results look here, and if that is not enough read its conversation with agent_read; use agent_send only to have it look something up, do something new or change direction): 
+  - 修登录 (todo_d): delivered; awaiting a look; delivery: stopped at the PR, stuck at “等用户批准合并”, needs the user's nod
+- Waiting for the user's go-ahead to ship (1 item(s); list them together for the user to approve in one go, do not ask one by one): “修登录” (todo_d) stopped at the PR, 等用户批准合并
+- Scheduled follow-ups: none

@@ -1,21 +1,21 @@
-📋 督办：你派出去的任务有 4 个要你处理
-（这是 Persona 的督办消息，不是用户发的。）
+📋 Supervision: 4 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
 <persona-supervision level="triage" />
 
-1. 任务「修登录崩溃」（todo_1，signal=inbox）：收件箱里有别人发来的新消息说到它（3 条）；在 box session_id=s1
-   验收标准：PR 合并到 master
-   收件箱事件 lark:f1:12「客户端发版群」，最新一条是 陈晓 发的：「登录那个崩溃今天能修好吗？下午要发版」
-   Agent 最后说的：
+1. Task “修登录崩溃” (todo_1, signal=inbox): new messages from other people in the Inbox mention it (3 messages); on box session_id=s1
+   Acceptance criteria: PR 合并到 master
+   Inbox event lark:f1:12 “客户端发版群”, newest message sent by 陈晓: “登录那个崩溃今天能修好吗？下午要发版”
+   What the Agent said last:
    在跑测试
 
-2. 任务「写发布说明」（todo_2，signal=inbox）：收件箱里有别人发来的新消息说到它
-   验收标准：未记录
-   收件箱事件 mail:acc:x:7「发布说明草稿」：「第二段改一下」
+2. Task “写发布说明” (todo_2, signal=inbox): new messages from other people in the Inbox mention it
+   Acceptance criteria: not recorded
+   Inbox event mail:acc:x:7 “发布说明草稿”: “第二段改一下”
 
-3. 任务「修崩溃的 PR」（todo_3，signal=inbox）：收件箱里有别人发来的新消息说到它
-   验收标准：未记录
-   收件箱事件 github:pr12「fix: login crash」，最新一条是 maintainer 发的：「Please merge current main」（https://github.com/example/repo/pull/12）；hub 已经把要点和链接直接发给它的 Agent（它收到了），这里是副本
+3. Task “修崩溃的 PR” (todo_3, signal=inbox): new messages from other people in the Inbox mention it
+   Acceptance criteria: not recorded
+   Inbox event github:pr12 “fix: login crash”, newest message sent by maintainer: “Please merge current main” (https://github.com/example/repo/pull/12); the hub already sent the gist and the link straight to its Agent (it received them); this is a copy
 
-4. 任务「修另一个 PR」（todo_4，signal=inbox）：收件箱里有别人发来的新消息说到它（2 条）
-   验收标准：未记录
-   收件箱事件 github:pr13「fix: logout」，最新一条是 maintainer 发的：「One nit」（https://github.com/example/repo/pull/13）
+4. Task “修另一个 PR” (todo_4, signal=inbox): new messages from other people in the Inbox mention it (2 messages)
+   Acceptance criteria: not recorded
+   Inbox event github:pr13 “fix: logout”, newest message sent by maintainer: “One nit” (https://github.com/example/repo/pull/13)

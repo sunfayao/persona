@@ -1,19 +1,19 @@
 <rendered-prompt>
-现在：TIME
-Agent：Agent 原文（box，目录 /code/example）
-它在做的任务：Task 原文
+Now: TIME
+Agent: Agent 原文 (box, directory /code/example)
+Its task: Task 原文
 
-这件事上用户拍过的板：
+The user's decisions on this task:
 Decisions 原文
 
-用户最近给它的要求（从早到晚）：
+The user's recent requests, oldest first:
 - Ask 原文
 
-它最近说的：
+Its recent reply:
 Reply 原文
 
-它在问：
-- Question 原文（可多选）
-  - Label 原文：Description 原文
+Its questions:
+- Question 原文 (multiple selections allowed)
+  - Label 原文: Description 原文
 
 </rendered-prompt>

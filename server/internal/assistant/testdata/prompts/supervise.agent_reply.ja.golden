@@ -1,7 +1,7 @@
-📋 督办：你派出去的任务有 1 个要你处理
-（这是 Persona 的督办消息，不是用户发的。）
+📋 Supervision: 1 of the tasks you handed out need you
+(This is a supervision message from Persona, not a message from the user.)
 <persona-supervision level="triage" />
 
-1. 任务「Example task」（todo_example，signal=decision_reply）：ユーザーが box/agent-session に発言。既定の実行は停止中。`agent_read` で確認し、`task_decided` または質問で確定する。
+1. Task “Example task” (todo_example, signal=decision_reply): Owner wrote in box/agent-session; default paused. Read with `agent_read`, then confirm via `task_decided` or clarify.
 
-   验收标准：未记录
+   Acceptance criteria: not recorded

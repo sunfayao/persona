@@ -1,7 +1,7 @@
-Agent 失败了（box 上的会话 session_1）。失败原因：
+The Agent failed (session session_1 on box). Failure reason:
 
-<persona-context kind="agent_result" title="Agent 的失败原因">
+<persona-context kind="agent_result" title="Agent failure reason">
 original  result
 </persona-context>
 
-读完接着处理这件事：调 inbox_suggest 交下一步建议，同时更新 recap。
+Read this and continue the matter: call inbox_suggest with the next suggestion and an updated recap.

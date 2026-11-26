@@ -1,4 +1,4 @@
-Example owner确认了，Agent 已经开了（box 上的会话 session_1），指令：
+Example owner confirmed; the Agent has started (session session_1 on box). Instructions:
 Original task
 
-它停下来时，你会收到它最后说的话或失败原因，那时再交建议。现在调 inbox_suggest 只给 recap 更新总结。
+When it stops, you will receive its final words or failure reason, then submit a suggestion. For now call inbox_suggest with recap only to update the summary.

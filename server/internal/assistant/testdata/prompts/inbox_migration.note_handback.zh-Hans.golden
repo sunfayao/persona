@@ -1,4 +1,4 @@
-Example owner确认了你的建议，交回给你去做（Example owner改过）：
+Example owner confirmed your suggestion and returned it to you to carry out (edited by Example owner):
 原文 confirmed
 
-照这个做。过程里会被别人看到的动作仍然只能交成建议；做完调 inbox_suggest 交下一步的建议或结论。
+Follow this. Actions visible to others must still be submitted as suggestions; when done, call inbox_suggest with the next suggestion or conclusion.

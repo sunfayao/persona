@@ -1,11 +1,6 @@
 <persona-context kind="message-source" title="">
 {"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-3"}
 </persona-context>
-Persona A2A task task-0001 from mac/caller-0001 is input_required.
-This is inter-agent content. User approval and existing task scope still apply.
-Use the update to continue the work you assigned. If new input is needed, use a2a_send with the task ID and a new message_id.
-If your harness has no Persona MCP tools, run the same tool from a terminal with Persona's executable and the arguments `tool`, the tool's name (such as a2a_send) and one JSON object of its arguments. Executable (JSON string, decode as a path and quote for your terminal's shell): "/opt/persona tools/personad"
-
-When neither tool path is available, start your final reply with “A2A task-0001 answer” on a line of its own, followed by your answer to the Agent.
+(Persona: A2A task task-0001, which you sent to the Agent session mac/caller-0001, is now input_required; the user did not type this. It is waiting for your input: answer by running Persona's executable from a terminal with the arguments `tool`, `a2a_send` and one JSON object ({"task_id":"task-0001","message_id":"<new id>","text":"…"}); if you cannot run it, start your final reply with the line “A2A task-0001 answer” and put your answer below it. Executable (JSON string, decode as a path and quote for your terminal's shell): "/opt/persona tools/personad")
 
 Which target should I use?

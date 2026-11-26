@@ -1,4 +1,4 @@
-⏰ 巡检（定时任务，每 30 分钟）
-（Persona 会按时再运行它，不用再用 schedule_followup 安排下一次。）
+⏰ 巡检 (scheduled task, every 30 minutes)
+(Persona runs it again on time; do not schedule the next run with schedule_followup.)
 
 巡检

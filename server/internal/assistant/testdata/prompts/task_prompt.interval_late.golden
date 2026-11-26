@@ -1,5 +1,5 @@
-⏰ 巡检各台电脑上的 Agent，有卡住的告诉我（定时任务，每 2 小时）
-（本该 10-31 09:00 运行，Persona 当时没在运行，晚了 3 小时；看看还有没有必要按原计划做。）
-（Persona 会按时再运行它，不用再用 schedule_followup 安排下一次。）
+⏰ 巡检各台电脑上的 Agent，有卡住的告诉我 (scheduled task, every 2 hours)
+(It was due at 10-31 09:00, when Persona was not running, so it is 3 h late; check whether the original plan still makes sense.)
+(Persona runs it again on time; do not schedule the next run with schedule_followup.)
 
 巡检各台电脑上的 Agent，有卡住的告诉我

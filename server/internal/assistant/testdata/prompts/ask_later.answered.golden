@@ -1,11 +1,11 @@
-🔔 你 11-08 15:04 用 ask_user 问过用户（wait: false，当时没有等回答）：
+🔔 At 11-08 15:04 you asked the user with ask_user (wait: false, without waiting for the answer):
 - Merge the release PR now?
 - Tag it?
 
-用户在卡片上回答了：
+The user answered on the card:
 - Merge the release PR now? → Merge
 - Tag it? → No
 
-照用户的回答接着做，做了什么、还要用户做什么，简短告诉用户。
+Carry on as the user answered, and tell the user briefly what you did and what is still theirs to do.
 
-（这是 Persona 的通知，不是用户在这里发的消息。）
+(This is a notice from Persona, not a message the user sent here.)

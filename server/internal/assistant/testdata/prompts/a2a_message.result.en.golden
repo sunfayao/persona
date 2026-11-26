@@ -1,0 +1,6 @@
+<persona-context kind="message-source" title="">
+{"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-4"}
+</persona-context>
+(Persona: A2A task task-0001, which you sent to the Agent session mac/caller-0001, is now completed; the user did not type this.)
+
+Two cases fail; details below.

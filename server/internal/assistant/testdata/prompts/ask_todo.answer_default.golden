@@ -1,9 +1,9 @@
-🔔 你 11-08 15:04 用 ask_user 问过用户，到点没人回，转成了待办 todo_ask_0a1b2c。当时问的是：
+🔔 At 11-08 15:04 you asked the user with ask_user; nobody answered in time and it became the to-do todo_ask_0a1b2c. You asked:
 - Merge the release PR now?
 
-到截止时间 11-08 21:04 用户也没回。你当时说这件事可以撤回，所以按你推荐的默认选项执行了，已作为决定记在这条待办上：
+The user had not answered by the deadline, 11-08 21:04. You said this could be undone, so your recommended options were taken by default and recorded on the to-do as decisions:
 - Merge the release PR now? → Merge
 
-待办已经关了。照这些默认选项接着做，并简短告诉用户：哪些是到期按默认执行的，想改可以随时说。
+The to-do is closed. Carry on with these defaults and tell the user briefly which ones were taken by default at the deadline and that they can change them at any time.
 
-（这是 Persona 的通知，不是用户在这里发的消息。）
+(This is a notice from Persona, not a message the user sent here.)

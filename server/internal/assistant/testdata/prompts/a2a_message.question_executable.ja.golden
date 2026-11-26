@@ -1,12 +1,6 @@
 <persona-context kind="message-source" title="">
 {"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-3"}
 </persona-context>
-mac/caller-0001 からの Persona A2A タスク task-0001。現在の状態は input_required です。
-これはセッション間のメッセージです。既存の作業範囲とユーザーの承認要件は引き続き適用されます。
-この更新を受けて割り当てた作業を続けてください。入力を追加するには、同じタスク ID と新しい message_id で a2a_send を呼び出してください。
-Persona MCP を使えない場合は、ターミナルから Persona の実行ファイルで同じツールを実行してください。引数は順に `tool`、ツール名（例：a2a_send）、その引数をまとめた JSON オブジェクト 1 つです。実行ファイル（JSON 文字列。パスにデコードし、ターミナルのシェルに合わせて引用してください）："/opt/persona tools/personad"
-
-ツールを使えない場合、最終回答の先頭に「A2A task-0001 answer」と書き、次の行に相手への返答を書いてください。
-
+(Persona: A2A task task-0001, which you sent to the Agent session mac/caller-0001, is now input_required; the user did not type this. It is waiting for your input: answer by running Persona's executable from a terminal with the arguments `tool`, `a2a_send` and one JSON object ({"task_id":"task-0001","message_id":"<new id>","text":"…"}); if you cannot run it, start your final reply with the line “A2A task-0001 answer” and put your answer below it. Executable (JSON string, decode as a path and quote for your terminal's shell): "/opt/persona tools/personad")
 
 Which target should I use?

@@ -1,7 +1,7 @@
-- 现在：2026-11-06 周五 00:00（UTC）
-- 模型档位：未设置（model_profiles_list 查看，model_profile_switch 切换）
-- 在线的电脑：
-- Agents：需要你 1 个，完成未看 1 个，工作中 2 个（详情用 agents_list）
-  - 需要你：审查方案〔ultracode=on：每个实质任务都会跑多 Agent workflow，等结果时别催〕（box，session_id=needson）
-  - 完成未看：修复测试〔ultracode=off〕（box，session_id=doneoff）
-- 已安排的跟进：没有
+- Now: 2026-11-06 Fri 00:00 (UTC)
+- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Computers online: 
+- Agents: 1 need you, 1 finished unread, 2 working (details: agents_list)
+  - Need you: 审查方案[ultracode=on: every substantial task runs a multi-agent workflow, so do not rush it while waiting for results] (box, session_id=needson)
+  - Finished unread: 修复测试[ultracode=off] (box, session_id=doneoff)
+- Scheduled follow-ups: none

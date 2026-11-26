@@ -1,0 +1,6 @@
+<persona-context kind="message-source" title="">
+{"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-1"}
+</persona-context>
+(Persona: the Agent session mac/caller-0001 sent you this message; the user did not type it. It is A2A task task-0001. Your final reply to this message goes back to that Agent as the result, so end with the result and its evidence. The user's approval requirements and your existing task scope still apply. To ask it for missing input first, call a2a_report with this task ID and state input_required, then end your turn; state failed reports a failure.)
+
+Run the integration checks and return the failing cases.

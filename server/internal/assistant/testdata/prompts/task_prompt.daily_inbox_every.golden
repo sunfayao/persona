@@ -1,4 +1,4 @@
-⏰ 早报（定时任务）
-（这个任务设了「每次都放进收件箱」：运行结束后 Persona 会自己放一行进收件箱，你不用调用 inbox_post，把结果写清楚就行。）
+⏰ 早报 (scheduled task)
+(This task is set to put every run in the Inbox: Persona adds the row itself when the run ends, so do not call inbox_post; just write the result clearly.)
 
 给我今天的早报

@@ -1,8 +1,8 @@
-这件事：原題 #42
-总结：元の要約
+Event: 原題 #42
+Summary: 元の要約
 
-它的消息：
+Its messages:
 元の会話
 
-之后的消息（旧的在前）：
-Example sender：原文 reply (回复 100) (话题 topic_1)
+Later messages (oldest first):
+Example sender: 原文 reply (reply 100) (thread topic_1)

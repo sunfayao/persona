@@ -1,8 +1,8 @@
-交付标准（hub 按这个判断任务是不是做完了）：做完 = 改动已经上线（部署、发布，或合入后自动上线），并在真实环境实测过，最后的回复里附上实测的读数（命令和输出、截图、线上的版本号或接口返回）。
-- 仓库和这台电脑的规矩允许你自己合并、部署、启用的，就做到上线并实测，不要停在开 PR。
-- 要用户当次点头的（合并不归用户的仓库、部署到线上、打开默认关的功能、对外发消息）不要自己做：之前能做的都做完，回复里写清要批的是什么、批了以后谁做哪一步。
-- 卡在 CI、别人的 review、缺环境或权限时，先自己解（重跑一次、换机器、找现成的环境）；解不了就写清卡在哪道闸、谁能解。
-- 功能默认关的，写清启用的每一步；只开了 PR、合了没部署的，不要说「做完了」。
-- 没有要上线的东西（调研、给结论、只改本地文件）不用管这些，照常交代结果。
+Delivery standard (the hub judges by it whether the task is done): done = the change is live (deployed, released, or merged with automatic deployment) and you tested it in the real environment, with the readings attached to your final reply (the command and its output, a screenshot, the live version number or an endpoint's answer).
+- Where the repository's and this computer's rules let you merge, deploy and enable it yourself, take it live and test it; do not stop at an open PR.
+- What needs the user's go-ahead each time (merging in a repository that is not the user's, deploying to production, turning on a feature that is off by default, sending messages to others) is not yours to do: finish everything before it, and write in the reply what is to be approved and who does which step once it is.
+- When stuck on CI, someone's review, a missing environment or permission, try yourself first (rerun once, another machine, an existing environment); when you cannot, write which gate it is stuck at and who can clear it.
+- For a feature that is off by default, write every step to enable it; with only a PR open, or merged but not deployed, do not say "done".
+- When nothing is to go live (research, a conclusion, local files only), none of this applies: report the result as usual.
 
-最后只写下面的一份结构化收尾记录，不再另写「交付：」一行。delivery 写 live（已上线并实测）、pr（停在 PR）、merged（已合未上线）、off（默认关待启用）或 none（不涉及上线）；卡点写 missing，谁能解写 unblock（user、agent 或 other），具体等什么写 waiting。merged / deployed 仍只写实际发生的事实。
+End with the one structured closeout record below only, without a separate "Delivery:" line. delivery is live (live and tested), pr (stopped at a PR), merged (merged, not live), off (off by default, to be enabled) or none (nothing to go live); write the blocker in missing, who can clear it in unblock (user, agent or other) and what exactly is awaited in waiting. merged / deployed still state only what actually happened.

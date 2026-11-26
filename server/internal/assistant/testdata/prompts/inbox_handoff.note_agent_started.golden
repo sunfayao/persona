@@ -1,7 +1,8 @@
-📥 收件箱事件「示例客户」有了下文
-（这是 Persona 的收件箱通知，不是用户在这里说的话。）这是用户交给你的收件箱事件（事件 id：lark:f1:100）。下面提到 inbox_suggest 时都带上 item: "lark:f1:100"；这件事之后的新消息不会转到这里，要看就用来源的工具自己去查。
+<persona-inbox>{"title":"示例客户"}</persona-inbox>
+📥 Inbox matter “示例客户” has an update
+(This is a Persona Inbox notice, not words the user said here.) The user handed this Inbox event to you (event id: lark:f1:100). Include item: "lark:f1:100" whenever inbox_suggest is mentioned below. Later messages will not be forwarded here; use the source's tools to check.
 
-示例用户确认了，Agent 已经开了（box 上的会话 s-sub），指令：
+示例用户 confirmed; the Agent has started (session s-sub on box). Instructions:
 查一下报价单
 
-它停下来时，你会收到它最后说的话或失败原因，那时再交建议。现在调 inbox_suggest 只给 recap 更新总结。
+When it stops, you will receive its final words or failure reason, then submit a suggestion. For now call inbox_suggest with recap only to update the summary.

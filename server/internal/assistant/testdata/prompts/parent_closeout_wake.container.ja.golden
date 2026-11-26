@@ -1,7 +1,7 @@
-配下の part_of 子 To-Do 2 件がすべて完了しました。
-   完了した子 To-Do：
-   - 「Implement API」（todo_child_1；PR：https://github.com/example/app/pull/101）
-   - 「Add UI tests」（todo_child_2；PR：https://github.com/example/app/pull/102）
-   親 To-Do のメモ：
+All 2 part_of child to-dos are now done.
+   Completed children:
+   - "Implement API" (todo_child_1; PRs: https://github.com/example/app/pull/101)
+   - "Add UI tests" (todo_child_2; PRs: https://github.com/example/app/pull/102)
+   Parent notes:
    Track API + UI rollout
-   クローズ方針：子タスクをまとめるだけの集約用親 To-Do であれば todo_complete で完了にしてオーナーへ要約報告してください。オーナーの確認待ちの個人 To-Do であれば、黙って自動クローズせずオーナー確認のため開いたままにしてください。
+   Closeout rule: if this parent is a pure aggregation container grouping those subtasks, close it with todo_complete and summarize the result for the owner. If this parent represents a personal item awaiting the owner's review, keep it open for the owner instead of silently auto-completing it.

@@ -1,4 +1,5 @@
-📥 收件箱事件「示例客户」有了下文
-（这是 Persona 的收件箱通知，不是用户在这里说的话。）这是用户交给你的收件箱事件（事件 id：lark:f1:100）。下面提到 inbox_suggest 时都带上 item: "lark:f1:100"；这件事之后的新消息不会转到这里，要看就用来源的工具自己去查。
+<persona-inbox>{"title":"示例客户"}</persona-inbox>
+📥 Inbox matter “示例客户” has an update
+(This is a Persona Inbox notice, not words the user said here.) The user handed this Inbox event to you (event id: lark:f1:100). Include item: "lark:f1:100" whenever inbox_suggest is mentioned below. Later messages will not be forwarded here; use the source's tools to check.
 
-示例用户驳回了你的建议（原来的建议：好的）。重新想想这件事该怎么处理，调 inbox_suggest 交一条新的建议或结论。
+示例用户 rejected your suggestion (previous suggestion: 好的). Rethink how to handle this matter and call inbox_suggest with a new suggestion or conclusion.

@@ -1,4 +1,4 @@
-<persona-context kind="context" title="Example Chat ボット" url="">
-前のターンはテキストの回答がないまま終了し、Example Chat には空欄や仮のメッセージしか表示されませんでした。
-このターンの最終回答を、結論から直接書いてください。すでに済ませた作業を繰り返す必要はありません。本当に伝えることがなければ、その理由を一文で説明してください。
+<persona-context kind="context" title="Example Chat bot" url="">
+The previous turn ended without a text answer. Example Chat showed only a blank or a placeholder.
+Write the final answer for that turn directly, leading with the conclusion. Do not repeat work you have already done. If there really is nothing to say, explain why in one sentence.
 </persona-context>

@@ -1,0 +1,6 @@
+<persona-context kind="message-source" title="">
+{"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-3"}
+</persona-context>
+(Persona: A2A task task-0001, which you sent to the Agent session mac/caller-0001, is now input_required; the user did not type this. It is waiting for your input: answer with a2a_send, giving this task ID as task_id.)
+
+Which target should I use?

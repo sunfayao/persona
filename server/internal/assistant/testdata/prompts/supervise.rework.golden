@@ -1,9 +1,9 @@
-（督办：验收没通过，第 1 轮返工，最多 2 轮）
-逐条验收：
-- ✅ PR 合并到 master：pull/901 merged
-- ❌ 浅色 / 深色截图贴进 PR：只有浅色
+(Supervision: acceptance did not pass, rework round 1, at most 2 rounds)
+Item-by-item acceptance:
+- ✅ PR 合并到 master: pull/901 merged
+- ❌ 浅色 / 深色截图贴进 PR: 只有浅色
 
-要你做的：
+What you need to do:
 补深色截图
 
-把缺的补上。做完时逐条说明每条验收标准的证据（PR 链接、CI 结果、截图、线上验证的命令和输出），做不到的说清楚为什么、要谁决定。
+Fill in what is missing. When done, give the evidence for each acceptance criterion (PR link, CI result, screenshot, the commands and output of the live check); for anything you cannot do, say why and who has to decide.

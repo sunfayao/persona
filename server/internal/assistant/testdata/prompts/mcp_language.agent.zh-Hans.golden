@@ -1,7 +1,7 @@
 [
   {
     "name": "resource_status",
-    "description": "读取共享门禁、排队票号、重复标记和镜像时效。未知或过期不代表运行成功。",
+    "description": "Read registered shared runners, queue tickets, duplicate markers and mirror freshness. An unknown or stale mirror is not a successful result.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -14,7 +14,7 @@
   },
   {
     "name": "resource_acquire",
-    "description": "按项目、完整提交和分片组申请 CI 租约。返回 granted、queued、joined、cached 或 refused。仅 granted 持有者提交，joined 等待已有结果。",
+    "description": "Request a shared CI lease for a project, full commit and group set. Returns granted, queued, joined, cached or refused. Only the granted holder submits; joined callers read the existing result.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -58,7 +58,7 @@
   },
   {
     "name": "resource_get",
-    "description": "读取本会话持有或加入的租约；等待时不要重新提交。",
+    "description": "Read a lease owned by or joined by this session; never submit again while waiting.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -77,7 +77,7 @@
   },
   {
     "name": "resource_renew",
-    "description": "续期本会话排队中或持有的租约。排队时使用 token 0，授予后使用 fencing token；收到 fenced 时停止门禁客户端。",
+    "description": "Renew this session’s queued or granted lease. Use token 0 while queued and the fencing token once granted. Stop the runner client when fenced.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -100,7 +100,7 @@
   },
   {
     "name": "resource_release",
-    "description": "使用 fencing token 记录本会话持有租约的退出码和结果。",
+    "description": "Record the exit code and result of this session’s granted lease using its fencing token.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -142,7 +142,7 @@
   },
   {
     "name": "resource_cancel",
-    "description": "取消本会话持有的排队租约，加入者不能取消持有者的作业。",
+    "description": "Cancel a queued lease owned by this session. Joined callers cannot cancel the holder’s work.",
     "input_schema": {
       "type": "object",
       "properties": {

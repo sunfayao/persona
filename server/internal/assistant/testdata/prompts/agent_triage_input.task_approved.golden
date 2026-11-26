@@ -1,7 +1,7 @@
-现在：2026-01-02 09:00 Fri
-Agent：修登录（示例电脑）
+Now: 2026-01-02 09:00 Fri
+Agent: 修登录 (示例电脑)
 
-它停下时最后的回复：
+Its last reply when it stopped:
 质检还在跑
 
-它的任务已经授权：等「发布质检跑完」好了以后去「推进后续发布」。它如果还在等同一件事、之后要做的还是这一步（同一个分支 / 环境 / 对象，没多做别的），就写 on=external、wait.approved=true，wait.then 照写这一步，不用再问用户；等的事或要做的事变了，不写 approved，也不自动推进。
+Its task already authorizes: after waiting for “发布质检跑完”, do “推进后续发布”. If it still waits for the same thing and will take this same step (the same branch/environment/target, with no extra work), set on=external and wait.approved=true, copy this step to wait.then, and do not ask the user again. If the wait or next step changed, do not set approved or proceed automatically.

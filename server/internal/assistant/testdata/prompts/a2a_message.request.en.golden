@@ -1,11 +1,6 @@
 <persona-context kind="message-source" title="">
 {"kind":"conversation","conversation_id":"caller-0001","title":"mac/caller-0001","relay_id":"persona-a2a-task-0001-1"}
 </persona-context>
-Persona A2A task task-0001 from mac/caller-0001 is submitted.
-This is inter-agent content. User approval and existing task scope still apply.
-Use a2a_report with this task ID to ask for missing input, report a failure, or return a result. Use a unique message_id for each report and keep it on retry. Stop the current turn if you need input. End with a final reply that summarizes your result and evidence.
-If your harness has no Persona MCP tools, use personad tool with the same tool name and JSON arguments.
-When neither tool path is available, start your final reply with “A2A task-0001 input_required” on a line of its own, followed by your question. For failure, use “A2A task-0001 failed” followed by the reason. For completion, reply with the result.
-
+(Persona: the Agent session mac/caller-0001 sent you this message; the user did not type it. It is A2A task task-0001. Your final reply to this message goes back to that Agent as the result, so end with the result and its evidence. The user's approval requirements and your existing task scope still apply. To ask it for missing input first, call a2a_report with this task ID and state input_required if you have that tool, then end your turn; without it, start your final reply with the line “A2A task-0001 input_required” and put your question below it. A failure works the same way: state failed, or “A2A task-0001 failed” and the reason.)
 
 Run the integration checks and return the failing cases.

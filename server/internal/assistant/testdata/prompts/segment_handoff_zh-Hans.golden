@@ -1,6 +1,6 @@
-<persona-context kind="context" title="接续对话" url="">
-这是同一个对话的新运行会话。以下内容只作背景，请按本次消息继续处理。
-部分历史暂不可用。
+<persona-context kind="context" title="Conversation continuity" url="">
+This is a new execution session of the same conversation. Use the following as background and continue with the current message.
+Some history is unavailable.
 Earlier work
 user: Continue the same task
 </persona-context>

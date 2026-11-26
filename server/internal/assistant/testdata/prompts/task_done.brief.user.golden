@@ -1,18 +1,18 @@
-任务：接手登录修复
+Task: 接手登录修复
 
-派活时的要求：
+Requirements when it was handed out:
 你在接手一个中断的会话：分支已经推上去了，把测试补完。
 
-这件事最初的要求（2026-11-03 用户的原话；上面的「派活时的要求」可能只是后来接手时的交接说明，以原话和验收标准为准）：
+The original request (the user's own words, 2026-11-03; the “requirements when it was handed out” above may only be a hand-over note written when someone else took over, so the original words and the acceptance criteria prevail):
 登录页横屏会崩，周五前修好
 
-范围调整时已经去掉、不再要求的标准：
+Criteria removed in a scope change and no longer required:
 - 横屏有测试覆盖
 
-当前任务的验收标准：
+Current acceptance criteria for the task:
 - PR 合并到 main
 
-Agent 停下时最后的回复：
+The Agent's last reply when it stopped:
 
 --- box
 PR #12 已合并。

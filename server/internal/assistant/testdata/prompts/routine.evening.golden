@@ -1,8 +1,8 @@
-今天的晚间回顾。
-还等我决定的事、过去 12 小时做完和没成的、等我验收的任务：上面有「Persona 算好的事实」时，数字以它为准，要不要你列、怎么列按它的说明；没有这块时，你自己按快照把这几项列在最前面，每件一行，说清要我做什么。
-你写：
-1. 一两句总述：今天最该收尾的是哪件事；
-2. 今天开了哪些会、有哪些待办和承诺没落实（会议纪要、飞书消息里我答应别人的事）、各台电脑上还在跑或卡住的 Agent；
-3. 明天最早的安排。
-快照里的飞书日历只有还没结束的会，已经开完的不在这里；今天开过的会和明天的安排要自己读日历（iPhone 日历用 phone_calendar_events；配了 lark-cli 的话飞书日历用 lark-cli calendar +agenda），明天的写清几点、要准备什么。
-最后问我要不要把待办加进提醒事项。
+Tonight's evening review. Write it in my language.
+Things still waiting for my decision, what finished and what failed in the past 12 hours, tasks waiting for my acceptance: when there is a “Facts Persona worked out” block above, its numbers are authoritative, and whether and how to list them follows its instructions; when there is no such block, list these items at the very top yourself from the snapshot, one line each, saying what I need to do.
+You write:
+1. One or two sentences of summary: which one thing is most worth wrapping up today;
+2. Which meetings I had today, which to-dos and commitments were not followed through (things I promised others in Feishu messages), and which Agents on each computer are still running or stuck;
+3. The earliest items tomorrow.
+The Feishu calendar in the snapshot only has meetings that have not ended; meetings already over are not there. Read the calendar yourself for today's meetings and tomorrow's schedule (if lark-cli is configured, read the Feishu calendar with lark-cli calendar +agenda), and for tomorrow say what time and what to prepare.
+Finally, ask whether I want the to-dos added to my reminders.

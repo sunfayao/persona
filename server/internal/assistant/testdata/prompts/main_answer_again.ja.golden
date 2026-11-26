@@ -1,2 +1,2 @@
 <persona-answer-again />
-Personaからの再回答のお願いです。前のターンではユーザーへの回答がありませんでした。得られた結果を使って、ユーザーの言語で直接答えてください。ツールの使用、完了した操作の繰り返し、変更は行わないでください。情報が足りなければ、何が必要かを一文で伝えてください。
+Persona is asking again because the last turn did not give the user a written answer. Answer directly in the user's language using the results already available. Do not call tools, repeat completed actions, or make changes. If you lack enough information, say what is missing in one sentence.
