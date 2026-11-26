@@ -3,11 +3,9 @@ package hub
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -138,68 +136,11 @@ func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte
 	return res.StatusCode, string(out)
 }
 
-func bodyOf(t *testing.T, n int) []byte {
-	t.Helper()
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		t.Fatal(err)
-	}
-	return b
-}
-
 // relaysLeft is how many relays the hub still holds for a manager or has handed to one.
 func relaysLeft(h *Hub) int {
 	h.relay.mu.Lock()
 	defer h.relay.mu.Unlock()
 	return len(h.relay.pending) + len(h.relay.owner) + len(h.relay.taken)
-}
-
-// slowConn reads at most rate bytes a second, like a manager behind a slow link.
-type slowConn struct {
-	net.Conn
-	rate   int
-	start  time.Time
-	read   int
-	reads  int
-	mu     sync.Mutex
-	onBody func()
-}
-
-func (c *slowConn) Read(p []byte) (int, error) {
-	if len(p) > 16<<10 {
-		p = p[:16<<10]
-	}
-	n, err := c.Conn.Read(p)
-	c.read += n
-	if c.onBody != nil {
-		c.mu.Lock()
-		c.reads++
-		found := c.reads >= 16
-		notify := c.onBody
-		if found {
-			c.onBody = nil
-		}
-		c.mu.Unlock()
-		if found {
-			notify()
-		}
-	}
-	if ahead := time.Duration(float64(c.read)/float64(c.rate)*float64(time.Second)) - time.Since(c.start); ahead > 0 {
-		timer := time.NewTimer(ahead)
-		<-timer.C
-	}
-	return n, err
-}
-
-func slowClient(rate int) *http.Client {
-	var d net.Dialer
-	return &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-		c, err := d.DialContext(ctx, network, addr)
-		if err != nil {
-			return nil, err
-		}
-		return &slowConn{Conn: c, rate: rate, start: time.Now()}, nil
-	}}}
 }
 
 // The assistant names the capability, and a large upload to one of its routes reaches the route: it answers it as

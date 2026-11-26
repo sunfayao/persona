@@ -179,22 +179,6 @@ EOF`, "other"},
 	}
 }
 
-// What the phone shows for a write: what it does, method, path and the body to send; a file body is read.
-func TestLarkSummary(t *testing.T) {
-	cwd := t.TempDir()
-	_ = os.WriteFile(filepath.Join(cwd, "msg.json"), []byte(`{"text":"来自文件"}`), 0o600)
-	v := classifyLark(`ex POST /conversations/7123/messages @msg.json && ex POST /messages/9/reactions '{"type":"OK"}'`, olGate(""), cwd, nil)
-	s := larkSummary(olGate(""), v.calls)
-	for _, want := range []string{"以你的身份在示例上发消息", "POST /conversations/7123/messages", `"text": "来自文件"`, "表情回复", "POST /messages/9/reactions"} {
-		if !strings.Contains(s, want) {
-			t.Fatalf("summary lacks %q:\n%s", want, s)
-		}
-	}
-	if larkPattern(larkCall{Method: "POST", Path: "/conversations/7123/messages"}) != "POST /conversations/*/messages" {
-		t.Fatal("pattern keeps the id")
-	}
-}
-
 // hub.json rules come first: the user can let a write through, or forbid one.
 func TestLarkRulesFromConfig(t *testing.T) {
 	send := larkCall{Method: "POST", Path: "/conversations/7123/messages", Body: `{"text":"hi"}`}

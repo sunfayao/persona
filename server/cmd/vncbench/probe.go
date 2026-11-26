@@ -146,11 +146,6 @@ func (s *session) settle(quiet, d time.Duration) bool {
 	return false
 }
 
-type probeResult struct {
-	Name   string
-	Result string
-}
-
 func probe(ctx context.Context, t target, cred credentials) error {
 	fmt.Printf("VNC probe of %s\n\n", t)
 	c, err := connect(ctx, t, cred, pf32, []int32{encRaw}, nil)

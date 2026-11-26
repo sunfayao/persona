@@ -275,11 +275,3 @@ func (n *staleNotes) note(s string) {
 		n.notes = append(n.notes, s)
 	}
 }
-
-func (n *staleNotes) taken() []string {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	out := n.notes
-	n.notes = nil
-	return out
-}

@@ -615,11 +615,6 @@ func (s *Service) sweepInboxAgents(ctx context.Context, cfg InboxAgentConfig, no
 	s.saveWrites(ctx, changed, "its settled conversation")
 }
 
-// inboxAgentFor is what the AI twin's first message is made of, but the knowledge base's part.
-func (b *inboxBook) inboxAgentFor(it *InboxItem, owner string, linked *prompts.InboxTask, larkDefault int, loc *time.Location) prompts.InboxAgent {
-	return b.inboxAgentForIn(it, owner, linked, larkDefault, loc, answerLanguage(string(b.userLang())))
-}
-
 func (b *inboxBook) inboxAgentForIn(it *InboxItem, owner string, linked *prompts.InboxTask, larkDefault int, loc *time.Location, language string) prompts.InboxAgent {
 	a := prompts.InboxAgent{Language: language, Owner: owner, EventID: it.ID, Title: it.Title, Item: b.promptItemIn(it, language), Task: it.Agent.Task, Reason: it.Agent.Reason,
 		Linked: linked}

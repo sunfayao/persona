@@ -19,12 +19,6 @@ func EnvironmentMap(input map[string]string) map[string]string {
 	return out
 }
 
-// AddMCPAliases registers the identical built-in handler under both namespaces.
-// Extension namespaces are not cloned, and their permission scopes never change.
-func AddMCPAliases(servers map[string]any) map[string]any {
-	return MCPRegistrationServers(servers, true)
-}
-
 // MCPRegistrationServers prepares the built-in handler for a new process. Legacy
 // peers retain the alias; negotiated assistant starts, including resumes, use only
 // Persona. Extension namespaces and their permission scopes never change.

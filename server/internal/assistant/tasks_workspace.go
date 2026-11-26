@@ -419,13 +419,6 @@ func homeDirKey(dir, home, real string) string {
 	return dir
 }
 
-func (s *Service) taskWorkspaceBusy(ctx context.Context, machine, cwd, except string) error {
-	if owner := s.taskWorkspaceOwner(ctx, machine, cwd, except, false); owner != nil {
-		return i18n.ErrEnglish("assistant-tasks_workspace.busy", i18n.Args{"id": owner.ID, "title": owner.Title, "machine": machine, "path": cwd})
-	}
-	return nil
-}
-
 // admitTaskWorkspace resolves at the final placement, creates through the same
 // engine as agent_start and claims the actual cwd before any session can start.
 func (s *Service) admitTaskWorkspace(ctx context.Context, t *PlanTask) error {

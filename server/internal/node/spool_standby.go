@@ -233,12 +233,6 @@ func answers(path string) bool {
 	return err == nil && len(line) > 1
 }
 
-func (s *standby) listening() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.ln != nil
-}
-
 // holding: the manager was there less than standbyHold ago, so a hook that would wait on the phone is told to retry
 // (each one for at most nodeclient.ResumeWait). A manager that only flaps (connections shorter than a minute) does not
 // renew it.

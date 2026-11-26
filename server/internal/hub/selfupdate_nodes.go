@@ -39,12 +39,6 @@ func (u *updater) nodesEnabledLocked() bool {
 	return u.h.cfg != nil && u.h.cfg.AutoUpdateNodes
 }
 
-// stageNodes never fetches or recreates the node package directory unless fleet
-// updates are explicitly enabled. Hub-only releases can contain just one platform.
-func (u *updater) stageNodes(ctx context.Context, m *update.Manifest, staged, bin string) (string, error) {
-	return u.stageNodesFrom(ctx, m, staged, bin, "", false)
-}
-
 func (u *updater) stageNodesFrom(ctx context.Context, m *update.Manifest, staged, bin, localSource string, development bool) (string, error) {
 	if !u.nodesEnabled() && !development {
 		return "", nil

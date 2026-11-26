@@ -44,9 +44,6 @@ type DevelopmentLimits struct {
 func DefaultDevelopmentLimits() *DevelopmentLimits {
 	return &DevelopmentLimits{CPUSeconds: 30, RSSMB: 256, Wall: 5 * time.Minute}
 }
-func (d *DevelopmentLimits) valid() bool {
-	return d != nil && d.CPUSeconds >= 1 && d.CPUSeconds <= 30 && d.RSSMB >= 96 && d.RSSMB <= 256 && d.Wall >= time.Second && d.Wall <= 5*time.Minute
-}
 func (d *DevelopmentLimits) args() []string {
 	return []string{strconv.Itoa(d.CPUSeconds), strconv.Itoa(d.RSSMB), strconv.FormatInt(d.Wall.Milliseconds(), 10)}
 }

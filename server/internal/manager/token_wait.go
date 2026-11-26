@@ -24,14 +24,6 @@ var revokedPoll = 10 * time.Second
 // again, and trying once in ten minutes costs nothing.
 var revokedRetry = 10 * time.Minute
 
-// awaitRestart waits, after the hub refused the token of the manager in dir (before is its manager.json then), until
-// it should start again: a new token in manager.json, or the hub no longer refusing the token. Nothing of the manager
-// runs meanwhile (no bots, connectors, extensions, inbox): the sources it had may be another manager's now. Every
-// revokedRetry the token alone is tried with a bare dial (probeToken), never the whole manager.
-func awaitRestart(ctx context.Context, dir string, before *assistant.ManagerConfig, out io.Writer) error {
-	return awaitRestartLang(ctx, i18n.Terminal(), dir, before, out)
-}
-
 func awaitRestartLang(ctx context.Context, l i18n.Lang, dir string, before *assistant.ManagerConfig, out io.Writer) error {
 	return awaitRestartWithLang(ctx, l, before, func() string {
 		c, err := assistant.ReadManagerConfig(dir)
@@ -40,12 +32,6 @@ func awaitRestartLang(ctx context.Context, l i18n.Lang, dir string, before *assi
 		}
 		return c.Token
 	}, out)
-}
-
-// awaitRestartWith is awaitRestart with token reading the manager's token where it keeps it ("" when it does not
-// read).
-func awaitRestartWith(ctx context.Context, before *assistant.ManagerConfig, token func() string, out io.Writer) error {
-	return awaitRestartWithLang(ctx, i18n.Terminal(), before, token, out)
 }
 
 func awaitRestartWithLang(ctx context.Context, l i18n.Lang, before *assistant.ManagerConfig, token func() string, out io.Writer) error {

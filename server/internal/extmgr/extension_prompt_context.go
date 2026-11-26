@@ -1,10 +1,7 @@
 package extmgr
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -24,9 +21,6 @@ const (
 	neverQuoteMost = 64 << 10
 	// contextReadMost is the largest context file read at all (it is cut after cleaning); a larger one is too_large.
 	contextReadMost = 256 << 10
-	// neverQuoteShortest is the fewest characters a never_quote sentence must have after normalizing: shorter ones
-	// ("OK", "thanks") would stop ordinary drafts.
-	neverQuoteShortest = 6
 )
 
 // clipLines is s cut to at most most bytes at a line end (at a character when its first line is longer), and whether
@@ -144,19 +138,6 @@ func (ps *extensions) contextViews(p *extension.Extension) []AssistantDataView {
 		out = append(out, v)
 	}
 	return out
-}
-
-// withDataRoot calls f with the data directory dir as an os.Root's file system; nothing when it does not exist yet.
-func withDataRoot(dir string, f func(fs.FS) error) error {
-	root, err := os.OpenRoot(dir)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return &dataFileError{dataUnreadable, err}
-	}
-	defer root.Close()
-	return f(root.FS())
 }
 
 func joinDetail(a, b string) string {

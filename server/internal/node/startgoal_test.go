@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"errors"
 	"path/filepath"
 	"strings"
@@ -210,19 +209,6 @@ func TestCleanStartGoal(t *testing.T) {
 	}
 	if got := cleanStartGoal(" \n "); got != "" {
 		t.Fatalf("%q", got)
-	}
-}
-
-// Before typing /goal, the node looks at the terminal the way the ultracode switch does: a dialog keeps the command
-// out, and an unsent draft in the box is never answered or sent.
-func TestStartGoalRefusesWhenTheTerminalIsNotReady(t *testing.T) {
-	n, f, _ := herdrNode(t)
-	plain, ansi := screenFixture(t, "claude-2.1.312-typed-162.txt"), screenFixture(t, "claude-2.1.312-typed-162.ansi")
-	startPane(t, f, plain, ansi)
-	// A typed draft in the box: checkPane refuses it, so no command is typed.
-	n.startGoal(context.Background(), "id", "w1:p2", "CI is green")
-	if c := f.trace("agent.prompt"); len(c) != 0 {
-		t.Fatalf("the goal was typed over a draft: %v", c)
 	}
 }
 

@@ -222,11 +222,6 @@ func (n *Node) spawnAssistantWith(id, cwd, launcher string, resume, spare bool, 
 	return n.spawnClaudeWith(id, cwd, launcher, resume, spare, round, options...)
 }
 
-// claudeAssistantMCPAndTools are a conversation's --mcp-config and tool permission flags.
-func (n *Node) claudeAssistantMCPAndTools(id, cwd string, legacyMCP bool) []string {
-	return n.claudeAssistantMCPAndToolsFor(id, cwd, legacyMCP, "")
-}
-
 // claudeAssistantMCPAndToolsFor is claudeAssistantMCPAndTools for a process with tool set toolSet ("" the assistant's
 // own): a supervision round (roundToolSet) mounts only Persona's server, which asks the manager for the round's tools,
 // with no extension or other MCP server (--strict-mcp-config) and only the built-ins roundBuiltinTools.
@@ -302,10 +297,6 @@ func (n *Node) assistantCLICommand(shell, launcher, cwd string, itself bool, arg
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir, cmd.Env = cwd, env
 	return cmd
-}
-
-func (n *Node) spawnClaude(id, cwd, launcher string, resume, spare bool, options ...modelExecution) (*assistantProc, error) {
-	return n.spawnClaudeWith(id, cwd, launcher, resume, spare, spawnRound{}, options...)
 }
 
 func (n *Node) spawnClaudeWith(id, cwd, launcher string, resume, spare bool, round spawnRound, options ...modelExecution) (*assistantProc, error) {
@@ -693,3 +684,12 @@ func watchAssistantStderr(logger *log.Logger, p *assistantProc, stderr io.ReadCl
 
 // ansiRe: terminal color and style sequences (an interactive zsh's prompt plugins print them on stderr).
 var ansiRe = lazyre.New(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+
+func (n *Node) spawnClaude(id, cwd, launcher string, resume, spare bool, options ...modelExecution) (*assistantProc, error) {
+	return n.spawnClaudeWith(id, cwd, launcher, resume, spare, spawnRound{}, options...)
+}
+
+// claudeAssistantMCPAndTools are a conversation's --mcp-config and tool permission flags.
+func (n *Node) claudeAssistantMCPAndTools(id, cwd string, legacyMCP bool) []string {
+	return n.claudeAssistantMCPAndToolsFor(id, cwd, legacyMCP, "")
+}

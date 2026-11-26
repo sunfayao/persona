@@ -538,10 +538,6 @@ func (m *Manager) armSweepLocked() {
 	})
 }
 
-func validate(ctx context.Context, path string, spec proto.NodeUpdateBeginParams) error {
-	return validateReplacement(ctx, path, spec, false)
-}
-
 func validateReplacement(ctx context.Context, path string, spec proto.NodeUpdateBeginParams, requireHandover bool) error {
 	if err := ctx.Err(); err != nil {
 		return err

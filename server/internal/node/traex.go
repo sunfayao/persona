@@ -66,15 +66,6 @@ type traexState struct {
 	at     time.Time
 }
 
-// traexOwners maps each live compatible CLI process to its newest main conversation.
-func (n *Node) traexOwners() map[int]string {
-	out := map[int]string{}
-	for pid, threads := range n.traexOwnerThreads(n.traexThreads()) {
-		out[pid] = threads[0]
-	}
-	return out
-}
-
 // Fresh starts need positive writer evidence, including when old IDs were archived,
 // outside the rollout scan window, or absent from a cached metadata list.
 func (n *Node) traexLiveThread(pane, preferred string) string {

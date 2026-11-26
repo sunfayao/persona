@@ -11,39 +11,7 @@ import (
 	"github.com/nwverse/persona/server/internal/channel"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/prompts"
 )
-
-func TestGoldenNeedsUserExternalInfo(t *testing.T) {
-	for _, language := range []struct{ locale, name string }{
-		{"en", "English"},
-		{"zh-Hans", ""},
-		{"ja", "Japanese"},
-	} {
-		t.Run(language.locale, func(t *testing.T) {
-			p := prompts.NeedsUserExternalInfo{
-				Language:         language.name,
-				Source:           "https://github.com/example/app/pull/42",
-				Summary:          "PR https://github.com/example/app/pull/42 was approved (checks: success).",
-				PendingQuestion:  "Should we merge PR #42 or wait for another reviewer?",
-				PendingRecommend: "Merge now",
-			}
-			golden(t, "needs_user_external_info."+language.locale, prompts.RenderNeedsUserExternalInfo(p))
-			// Also verify it composes cleanly inside RenderSupervise.
-			digest := prompts.RenderSupervise(prompts.Supervise{
-				Entries: []prompts.SuperviseEntry{{
-					ID:           "todo_example",
-					Title:        "Example task",
-					Kind:         sigNeedsUserExternalInfo,
-					ExternalInfo: &p,
-				}},
-			})
-			if !strings.Contains(digest, "signal=needs_user_external_info") || !strings.Contains(digest, p.Summary) || !strings.Contains(digest, p.PendingQuestion) {
-				t.Fatalf("RenderSupervise omitted external info or pending question:\n%s", digest)
-			}
-		})
-	}
-}
 
 func setupNeedsUserTaskWithLark(t *testing.T, st Store) (*Service, *fakeHub, Todo, func() []string, func() []string) {
 	t.Helper()

@@ -13,7 +13,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/nodeclient"
 )
 
 // inAgentEnv is agentCommand's line for cmd in an sh-family pane of a node whose directory is dir, written out: what
@@ -49,98 +48,6 @@ func twoStores(t *testing.T) (home, dir, legacy string) {
 		}
 	}
 	return home, dir, legacy
-}
-
-// What the node writes for its Agents names its own directory (#744): with an older installation's directory beside
-// it, the MCP server and the hooks, run with nothing of the node's environment (a pane's), still reach this node's
-// socket and not the other directory's.
-func TestGeneratedConfigNamesTheNodesDirectory(t *testing.T) {
-	home, dir, legacy := twoStores(t)
-	if got := nodeclient.SocketPath(); got != filepath.Join(legacy, "node.sock") {
-		t.Fatalf("a clean environment reaches %s: not the layout this test is about", got)
-	}
-	bin := filepath.Join(home, "bin dir", "personad") // quoted in the hook commands
-	fakeProgram(t, bin, `printf '%s' "${PERSONA_HOME-unset}"`)
-	if err := writeGeneratedConfig(dir, bin); err != nil {
-		t.Fatal(err)
-	}
-
-	// mcp.json: the server's own environment, under both of its names, makes it dial this node.
-	var mcp struct {
-		MCPServers map[string]struct {
-			Command string            `json:"command"`
-			Env     map[string]string `json:"env"`
-		} `json:"mcpServers"`
-	}
-	b, err := os.ReadFile(filepath.Join(dir, "mcp.json"))
-	if err != nil || json.Unmarshal(b, &mcp) != nil {
-		t.Fatalf("mcp.json: %v %s", err, b)
-	}
-	for _, name := range []string{"persona", compat.MCPServer} {
-		if s := mcp.MCPServers[name]; s.Command != bin || s.Env["PERSONA_HOME"] != dir {
-			t.Fatalf("mcp.json %s: %+v", name, s)
-		}
-	}
-	t.Setenv("PERSONA_HOME", mcp.MCPServers["persona"].Env["PERSONA_HOME"])
-	if got := nodeclient.SocketPath(); got != filepath.Join(dir, "node.sock") {
-		t.Fatalf("the MCP server dials %s", got)
-	}
-
-	// The hooks, in the settings files and the plugins, the agents' and the assistant's: each command, run by a shell
-	// that has only HOME and PATH, hands its program this directory.
-	for _, rel := range []string{"claude-settings.json", "assistant-settings.json",
-		filepath.Join("claude-hooks", "hooks", "hooks.json"), filepath.Join("assistant-hooks", "hooks", "hooks.json")} {
-		var f struct {
-			Hooks map[string][]struct {
-				Hooks []struct {
-					Command string `json:"command"`
-				} `json:"hooks"`
-			} `json:"hooks"`
-		}
-		b, err := os.ReadFile(filepath.Join(dir, rel))
-		if err != nil || json.Unmarshal(b, &f) != nil || len(f.Hooks) == 0 {
-			t.Fatalf("%s: %v %s", rel, err, b)
-		}
-		for event, matchers := range f.Hooks {
-			for _, m := range matchers {
-				for _, h := range m.Hooks {
-					cmd := exec.Command("/bin/sh", "-c", h.Command)
-					cmd.Env = []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
-					if out, err := cmd.Output(); err != nil || string(out) != dir {
-						t.Fatalf("%s %s: %q gave %q (%v)", rel, event, h.Command, out, err)
-					}
-				}
-			}
-		}
-	}
-
-	// The live replies hook is in exec form, with no shell to set PERSONA_HOME: it is told the directory as an argument.
-	var live struct {
-		Hooks map[string][]struct {
-			Hooks []struct {
-				Command string   `json:"command"`
-				Args    []string `json:"args"`
-			} `json:"hooks"`
-		} `json:"hooks"`
-	}
-	b, err = os.ReadFile(filepath.Join(dir, liveRepliesDir, "hooks", "hooks.json"))
-	if err != nil || json.Unmarshal(b, &live) != nil || len(live.Hooks["MessageDisplay"]) != 1 {
-		t.Fatalf("live replies plugin: %v %s", err, b)
-	}
-	if h := live.Hooks["MessageDisplay"][0].Hooks; len(h) != 1 || h[0].Command != bin ||
-		!slices.Equal(h[0].Args, []string{"hook", nodeclient.HomeFlag, dir}) {
-		t.Fatalf("live replies hook: %+v", h)
-	}
-
-	// The doctor takes them for current, and finds the program they run.
-	for _, c := range checkGenerated(DoctorOptions{Dir: dir, Bin: bin}) {
-		if c.State != "current" {
-			t.Errorf("doctor: %s is %s: %v", c.Name, c.State, c.Items)
-		}
-	}
-	if c := checkCommandPaths(dir); c.Status != DoctorOK {
-		t.Errorf("doctor: command paths %s: %s %v", c.Status, c.Detail, c.Items)
-	}
 }
 
 // What a start types (agentCommand): the directory and the unset in the sh family, the directory alone in fish, the

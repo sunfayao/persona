@@ -2,9 +2,7 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,51 +21,6 @@ func pushQuietFor(t *testing.T, s *Service, on bool) {
 	t.Helper()
 	s.setQuietForTest(&on)
 	t.Cleanup(func() { s.setQuietForTest(nil) })
-}
-
-// cardPushes are the pushes of card id with the level each carried.
-func (e *routeEnv) cardPushes(id string) (levels []string) {
-	for _, p := range e.f.pushed() {
-		if p.Interaction != nil && p.Interaction.ID == id {
-			levels = append(levels, p.Level)
-		}
-	}
-	return levels
-}
-
-// heldNotices are the P1 notices the assistant gave the hub for task todo's held cards.
-func (e *routeEnv) heldNotices(todo string) []Notification {
-	var out []Notification
-	for _, p := range e.f.pushed() {
-		if p.Interaction == nil && p.RelatedKey == "ask:"+todo {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// feishuCards turns the Lark bot on with every agent card wanted, and counts the cards it is given to post.
-func (e *routeEnv) feishuCards() func() int {
-	var mu sync.Mutex
-	n := 0
-	e.f.answerApp(AppFeishu, FeishuStatusGet, func(json.RawMessage) (any, error) {
-		return FeishuStatus{Ready: true, Enabled: true, Owner: "ou_me", PublicURL: "https://hub.example.com",
-			Features: FeishuFeatures{Main: true, Cards: true, AllCards: true}}, nil
-	})
-	e.f.answerApp(AppFeishu, FeishuPost, func(json.RawMessage) (any, error) {
-		mu.Lock()
-		n++
-		mu.Unlock()
-		return map[string]any{"message_id": "om_x"}, nil
-	})
-	e.f.answerApp(AppFeishu, FeishuUpdateCard, func(json.RawMessage) (any, error) { return map[string]any{}, nil })
-	return func() int { mu.Lock(); defer mu.Unlock(); return n }
-}
-
-func (e *routeEnv) announced(id string) bool {
-	e.s.chans.mu.Lock()
-	defer e.s.chans.mu.Unlock()
-	return e.s.chans.announced[id]
 }
 
 func TestEscalateLevel(t *testing.T) {

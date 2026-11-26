@@ -433,13 +433,6 @@ func discoverAgyModels(ctx context.Context, cmd *exec.Cmd, name string) ([]proto
 	return models, nil
 }
 
-// agyModelList reads the same tab-separated catalog as the Antigravity companion, retaining the first row per ID.
-// Effort suffixes identify variants of the same model and advertise the levels present in the catalog.
-func agyModelList(r io.Reader) ([]proto.AgentModel, error) {
-	models, _, err := agyModelListWithWindows(r)
-	return models, err
-}
-
 // agyModelListWithWindows parses `agy models` rows and also extracts any explicit context window token counts
 // declared in extra tab-separated columns without guessing when omitted.
 func agyModelListWithWindows(r io.Reader) ([]proto.AgentModel, map[string]int, error) {

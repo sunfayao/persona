@@ -421,12 +421,6 @@ func (a *codexAppState) listed(thread string) bool {
 	return a != nil && (a.assigned[thread] != "" || a.projectless[thread])
 }
 
-// placeCodexDesktop puts an App thread in its sidebar project — a subagent in its parent's (`group`) — and, for recent
-// ones, gives it its state. A subagent's finished turn is not something to read on its own: it is idle.
-func (n *Node) placeCodexDesktop(s *proto.Session, src codexSource, group string, subagent bool) {
-	n.placeCodexDesktopIn(s, src, group, subagent, nil)
-}
-
 // placeCodexDesktopIn is placeCodexDesktop with the App's state looked up once per home in a list pass (codexListPass).
 func (n *Node) placeCodexDesktopIn(s *proto.Session, src codexSource, group string, subagent bool, pass *codexListPass) {
 	app := pass.appState(src.home)

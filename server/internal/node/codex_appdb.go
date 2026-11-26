@@ -239,35 +239,6 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAp
 	return byID, nil
 }
 
-// readCodexAppProjects reads the migrated App's projects and their roots from its state database (#6388): the
-// projects the App moved out of local-projects, so a chat's project is still found by its cwd (codexAppState.project).
-// A database without these tables or columns answers nothing and leaves the json's projects alone.
-func readCodexAppProjects(home string) map[string]codexAppProject {
-	db := codexAppDBPath(home)
-	if db == "" {
-		return nil
-	}
-	var rows []struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		Root string `json:"root"`
-	}
-	if err := querySQLite(context.Background(), db,
-		`SELECT p.id AS id, p.name AS name, r.root AS root FROM projects p LEFT JOIN project_roots r ON r.project_id = p.id`, &rows); err != nil {
-		return nil
-	}
-	out := map[string]codexAppProject{}
-	for _, r := range rows {
-		p := out[r.ID]
-		p.Name = r.Name
-		if r.Root != "" {
-			p.RootPaths = append(p.RootPaths, r.Root)
-		}
-		out[r.ID] = p
-	}
-	return out
-}
-
 // querySQLite runs q against a SQLite database with the system sqlite3 and decodes the json rows into into
 // (read-only, as readCodexThreads; a WAL database nobody has open is read as it is on disk, codexDBTarget): the Codex
 // App's state database, opencode's (usage_opencode.go).

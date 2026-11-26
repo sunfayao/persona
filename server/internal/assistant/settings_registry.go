@@ -436,7 +436,7 @@ func (s *Service) navigationFields() []settingField {
 // savedPromptsSetting is the user's own "/" prompts (Settings › Saved Prompts used to edit them): get lists them, add
 // saves one, set changes one by id, remove deletes one by id.
 func (s *Service) savedPromptsSetting() ownSetting {
-	const key = "assistant.saved_prompts"
+	const savedPromptsKey = "assistant.saved_prompts"
 	list := func(ctx context.Context) ([]saved.Prompt, error) { return s.savedPrompts.List(ctx) }
 	byID := func(ctx context.Context, id string) (saved.Prompt, error) {
 		prompts, err := list(ctx)
@@ -470,7 +470,7 @@ func (s *Service) savedPromptsSetting() ownSetting {
 		return func(l i18n.Lang) string { return i18n.T(l, "assistant-settings_registry."+k, args) }
 	}
 	return ownSetting{
-		Setting: Setting{Key: key, Title: i18n.T(i18n.Default, "assistant-settings_registry.title_assistant_saved_prompts"), Actions: []string{"get", "add", "set", "remove"},
+		Setting: Setting{Key: savedPromptsKey, Title: i18n.T(i18n.Default, "assistant-settings_registry.title_assistant_saved_prompts"), Actions: []string{"get", "add", "set", "remove"},
 			About: "the user's own “/” prompts: the instructions they send again and again; every chat's “/” list offers them after the built-in commands " +
 				"and picking one fills the composer, it never sends. Names are one word (letters, digits, - _ .), at most 32 characters; text at most 8000; at most 100 prompts",
 			Value: `add: {"name", "text"}; set: {"id", "name", "text"} changes one; remove: the prompt's id (from get)`},
@@ -483,7 +483,7 @@ func (s *Service) savedPromptsSetting() ownSetting {
 				return "", err
 			}
 			if len(prompts) == 0 {
-				return "（无）", nil
+				return "（无）", nil // i18n-ignore: the settings tool's reply to the model, not shown to people
 			}
 			var b strings.Builder
 			for _, p := range prompts {
@@ -550,7 +550,7 @@ func (s *Service) savedPromptsSetting() ownSetting {
 					return "Saved prompt /" + old.Name + " removed.", nil
 				}}, nil
 			}
-			return nil, fmt.Errorf("%s does not take %q", key, action)
+			return nil, fmt.Errorf("%s does not take %q", savedPromptsKey, action)
 		},
 	}
 }

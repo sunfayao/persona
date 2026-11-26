@@ -23,12 +23,6 @@ type extensionEvents struct {
 
 const extensionEventLimit = 512
 
-// queueEvent copies only the allowlisted fields parsed above. At most one worker sends these notifications;
-// overload drops the oldest hint, so a slow extension cannot hold up the assistant's bus or grow an unbounded queue.
-func (ps *extensions) queueEvent(topic string, payload map[string]any) {
-	ps.queueOn(&ps.events, extensionNotice{topic: topic, payload: payload})
-}
-
 // queueOn is queueEvent on queue q: the entries' and the todos' have one each, so a flood of one cannot push
 // the other's out. A todo.changed for a todo that has one waiting is merged into it (assistantwire.MergeTodoChanged),
 // so the backlog is at most one a todo. When the oldest is dropped the log says so, once until the queue is empty again.

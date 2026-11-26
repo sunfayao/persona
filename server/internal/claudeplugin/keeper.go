@@ -75,14 +75,6 @@ func (k *Keeper) Subscribe(f func(proto.ClaudePlugin)) func() {
 	}
 }
 
-// Wake asks for a check now.
-func (k *Keeper) Wake() {
-	select {
-	case k.wake <- struct{}{}:
-	default:
-	}
-}
-
 // Run checks until ctx ends.
 func (k *Keeper) Run(ctx context.Context) {
 	failures := 0

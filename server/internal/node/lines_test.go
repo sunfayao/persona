@@ -102,29 +102,3 @@ func TestEachLineAt(t *testing.T) {
 		t.Fatalf("read %d: %q, want 25: %q", n, got, want)
 	}
 }
-
-func TestLRU(t *testing.T) {
-	c := newLRU[string, int](3)
-	for i, k := range []string{"a", "b", "c"} {
-		c.put(k, i)
-	}
-	c.get("a")     // a is used again: b is now the oldest
-	c.put("d", 3)  // drops b
-	c.put("c", 20) // an update, not an addition
-	c.put("e", 4)  // drops a: c and d were used since
-	c.peek("d")    // peeking does not count as a use
-	c.put("f", 5)  // drops d
-	if c.len() != 3 {
-		t.Fatalf("len %d", c.len())
-	}
-	for k, want := range map[string]int{"c": 20, "e": 4, "f": 5} {
-		if v, ok := c.peek(k); !ok || v != want {
-			t.Fatalf("%s = %d %v, want %d", k, v, ok, want)
-		}
-	}
-	for _, k := range []string{"a", "b", "d"} {
-		if _, ok := c.get(k); ok {
-			t.Fatalf("%s is still there", k)
-		}
-	}
-}

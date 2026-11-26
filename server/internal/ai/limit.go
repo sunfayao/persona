@@ -174,10 +174,6 @@ func gateKeyFor(api, baseURL, key string) string {
 	return normalizeGateBase(api, baseURL) + "#" + hex.EncodeToString(sum[:8])
 }
 
-func gateKey(baseURL, key string) string {
-	return gateKeyFor("", baseURL, key)
-}
-
 func gateForAPI(api, baseURL, key string) *gate {
 	k := gateKeyFor(api, baseURL, key)
 	if g, ok := gates.Load(k); ok {

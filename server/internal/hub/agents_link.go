@@ -47,10 +47,6 @@ type agentWork struct {
 // its), and is answered 503 assistant_offline at once.
 var managerStartWait = 60 * time.Second // after the hub started, for a manager that never connected
 
-// waitManager waits, within ctx (less a few seconds for the call that follows), for the manager to be connected,
-// only while it has not connected since the hub started; false when it is not.
-func (h *Hub) waitManager(ctx context.Context) bool { return h.waitManagerOf(ctx, h.defaultOwner(ctx)) }
-
 // waitManagerOf is waitManager for manager id.
 func (h *Hub) waitManagerOf(ctx context.Context, id string) bool {
 	if h.busConnOf(id) != nil {

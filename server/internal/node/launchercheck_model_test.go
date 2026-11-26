@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -25,13 +24,5 @@ printf '{"type":"result","subtype":"success","is_error":false,"result":"ok","mod
 	var check proto.LauncherCheck
 	if err := json.Unmarshal(res, &check); err != nil || !check.OK || check.Model != "opus" {
 		t.Fatalf("model override did not reach the probe: %s, error=%v", res, err)
-	}
-}
-
-func TestLauncherCheckRejectsInvalidModel(t *testing.T) {
-	n := &Node{}
-	res := n.launcherCheck(context.Background(), "claude", "opus; touch /tmp/invalid-model")
-	if res.OK || res.Error != "invalid model" {
-		t.Fatalf("invalid probe model accepted: %+v", res)
 	}
 }

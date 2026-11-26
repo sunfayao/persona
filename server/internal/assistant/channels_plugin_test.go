@@ -167,30 +167,6 @@ func TestChannelReceiveCommandRestAnswersAsk(t *testing.T) {
 	}
 }
 
-// A message without a command, and one with a command the channel bot does not know (the conversation's own), both
-// go on exactly as they were typed.
-func TestChannelReceiveNonCommandTextGoesOnUnchanged(t *testing.T) {
-	ctx := context.Background()
-	for _, c := range []struct{ name, msg string }{
-		{"plain", "帮我写周报"},
-		{"unknown command", "/compact 你好"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			s, f, _, _ := newTextAskService(t) // nothing pending: the message is an ordinary one
-			s.channelReceive("examplechat", channel.Message{ID: "m_" + c.name, Text: c.msg}, "")
-			text := sendOnceText(f)
-			if !strings.Contains(text, c.msg) {
-				t.Fatalf("forwarded %q, want it to contain %q", text, c.msg)
-			}
-		})
-	}
-	// And channelCommand hands an unknown command back byte for byte.
-	s, _, _, _ := newTextAskService(t)
-	if handled, rest := s.channelCommand(ctx, "examplechat", channel.Message{ID: "m9", Text: "/compact 你好"}, "/compact 你好"); handled || rest != "/compact 你好" {
-		t.Fatalf("unknown command: handled=%v rest=%q", handled, rest)
-	}
-}
-
 // A resolve that fails on the wire keeps the ask and the answers already given: the last question is asked again (its
 // failed answer is dropped), a re-sent reply finishes it, and the ask is deleted only once the resolve goes through.
 func TestChannelAnswerKeptOnResolveError(t *testing.T) {

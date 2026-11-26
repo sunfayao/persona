@@ -473,20 +473,6 @@ func (s *Service) relayRouteFor(ctx context.Context, self string) relayRoute {
 	return relayRoute{fromMain: true}
 }
 
-// relayAllowed checks the hop and rate limits for a message from → to and counts it when allowed. It returns the
-// message's hop and whether it is an answer (hopLocked); an answer that goes uses up from's one free answer.
-func (s *Service) relayAllowed(from, to string, now time.Time) (int, bool, error) {
-	return s.relayAllowedOn(relayRoute{}, from, to, now)
-}
-
-// relayAllowedOn is relayAllowed on a route (#10099). The main conversation is never refused for its hop: its request
-// goes at relayMaxHops, so the receiver may answer it but not go further. Its messages to a leader conversation count
-// against the per-pair cap only. to == relayNewKey is a conversation_new, with its own per-sender budget.
-func (s *Service) relayAllowedOn(r relayRoute, from, to string, now time.Time) (int, bool, error) {
-	a, err := s.relayAdmit(r, from, to, now)
-	return a.hop, a.answer, err
-}
-
 // relayAdmit checks a message from → to and counts it when it may go (#10400):
 //   - the owner's verified words (r.quote) go free, once per quoted message and target;
 //   - two conversations that turn back to each other more than relayRoundsMax times in relayRoundWindow are cut;
@@ -640,18 +626,6 @@ func (b *relayBook) turnsLocked(from, to string, now time.Time) int {
 		}
 	}
 	return turns
-}
-
-// relayRefund gives back the place a message from → to counted at took when it did not go (a conversation_new that
-// did not start, #10099).
-func (s *Service) relayRefund(from, to string, at time.Time) {
-	b := &s.relays
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	k := [2]string{from, to}
-	if i := slices.Index(b.sent[k], at); i >= 0 {
-		b.sent[k] = slices.Delete(b.sent[k], i, i+1)
-	}
 }
 
 // scheduledWake: a scheduled run (a follow-up or routine) went into conversation id, which starts a new chain, as a

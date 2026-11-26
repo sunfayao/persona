@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"context"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"
@@ -30,12 +29,4 @@ func TestStandingAuthorizationForcePushNeedsDeletionGrant(t *testing.T) {
 			t.Fatal("explicit reversible history replacement was rejected")
 		}
 	}
-}
-
-type standingTimeoutModel struct{ calls int }
-
-func (m *standingTimeoutModel) JSON(ctx context.Context, _, _ string, _ any) error {
-	m.calls++
-	<-ctx.Done()
-	return ctx.Err()
 }

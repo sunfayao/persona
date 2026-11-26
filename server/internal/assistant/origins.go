@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/compat"
 	"io"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/identity"
@@ -526,25 +526,4 @@ func (s *Service) originRoutes() {
 		}
 		apierr.WriteJSON(w, res)
 	})
-}
-
-// originRecord is one conversation's origin as originsOf lists it.
-type originRecord struct{ session, machine, ref string }
-
-// originsOf are the conversations of origin, by session id (ordered); none while the book cannot be read.
-func (s *Service) originsOf(ctx context.Context, origin string) []originRecord {
-	b := &s.origins
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !s.originsLocked(ctx) {
-		return nil
-	}
-	var out []originRecord
-	for id, o := range b.m {
-		if o.Origin == origin {
-			out = append(out, originRecord{session: id, machine: o.MachineID, ref: o.Ref})
-		}
-	}
-	slices.SortFunc(out, func(a, b originRecord) int { return strings.Compare(a.session, b.session) })
-	return out
 }

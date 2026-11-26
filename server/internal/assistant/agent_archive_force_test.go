@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -87,31 +86,6 @@ func TestForceArchiveCloseFailureAndHTTPRole(t *testing.T) {
 	if len(archivedIDs(t, ft.s)) != 0 {
 		t.Fatal("failed close hid the blocked Agent")
 	}
-}
-
-// Observe the durable record between the archive write and the final ClosedAt write.
-// A fresh manager has no in-memory fence to mask an unsafe persisted record.
-type forceArchiveWindowStore struct {
-	*db.DB
-	afterArchive   func()
-	beforeFinalize func()
-}
-
-func (s *forceArchiveWindowStore) PutSetting(ctx context.Context, key string, value any) error {
-	if key == agentArchivesKey && s.afterArchive == nil && s.beforeFinalize != nil {
-		check := s.beforeFinalize
-		s.beforeFinalize = nil
-		check()
-	}
-	if err := s.DB.PutSetting(ctx, key, value); err != nil {
-		return err
-	}
-	if key == agentArchivesKey && s.afterArchive != nil {
-		check := s.afterArchive
-		s.afterArchive = nil
-		check()
-	}
-	return nil
 }
 
 func TestForceArchiveFenceWriteFailureKeepsAgent(t *testing.T) {

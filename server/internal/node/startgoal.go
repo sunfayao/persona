@@ -119,12 +119,6 @@ func (n *Node) goalAfterFirst(parent context.Context, id, pane, goal string, unl
 	}
 }
 
-// startGoal types /goal <goal> into the Claude in pane and reads the answer off the screen, holding no lock of its
-// own (tests and callers that hold none). See startGoalUnlocking.
-func (n *Node) startGoal(ctx context.Context, id, pane, goal string) (unsure bool) {
-	return n.startGoalUnlocking(ctx, id, pane, goal, func() {})
-}
-
 // startGoalUnlocking types /goal <goal> into the Claude in pane (after its first message is in), calls unlock once
 // the command is typed (or nothing was), and then reads the answer off the screen. It is the best it can do; what it
 // saw is logged. unsure: the command went to the terminal and is not known to have gone in, so it may still sit in the

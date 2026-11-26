@@ -256,12 +256,6 @@ func (l *startLog) listed(seen map[string]bool) []proto.Session {
 	return out
 }
 
-// startAsync checks the arguments, answers with the session it is going to be and starts it in the background.
-// id is the session id to use (the hub may pick it); empty: a new one.
-func (n *Node) startAsync(id, cwd, launcher, prompt, workspaceID, mode, effort, tabName string, options ...modelExecution) (*proto.Session, error) {
-	return n.startAsyncIn("", id, cwd, launcher, prompt, workspaceID, mode, effort, tabName, options...)
-}
-
 // startAsyncIn is startAsync in host kind ("" : the default host, withStartHost).
 func (n *Node) startAsyncIn(kind, id, cwd, launcher, prompt, workspaceID, mode, effort, tabName string, options ...modelExecution) (*proto.Session, error) {
 	if proto.IsExternalLauncher(launcher) {
@@ -350,4 +344,10 @@ func (n *Node) runAsyncStart(ctx context.Context, id string, r *startRec) *proto
 		n.notifySessions()
 	}()
 	return &s
+}
+
+// startAsync checks the arguments, answers with the session it is going to be and starts it in the background.
+// id is the session id to use (the hub may pick it); empty: a new one.
+func (n *Node) startAsync(id, cwd, launcher, prompt, workspaceID, mode, effort, tabName string, options ...modelExecution) (*proto.Session, error) {
+	return n.startAsyncIn("", id, cwd, launcher, prompt, workspaceID, mode, effort, tabName, options...)
 }

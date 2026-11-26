@@ -605,16 +605,3 @@ func isVoiceID(id string) bool {
 	rest, ok := strings.CutPrefix(id, "voice-")
 	return ok && len(rest) == 16 && strings.Trim(rest, "0123456789abcdef") == ""
 }
-
-// pcm is n bytes of PCM16 whose every sample is v.
-func pcm(n int, v int16) []byte {
-	b := make([]byte, n)
-	for i := 0; i+1 < n; i += 2 {
-		b[i], b[i+1] = byte(uint16(v)), byte(uint16(v)>>8)
-	}
-	return b
-}
-
-func silent(b []byte) bool {
-	return len(b) > 0 && !slices.ContainsFunc(b, func(x byte) bool { return x != 0 })
-}

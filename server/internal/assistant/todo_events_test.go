@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 )
 
 // What the extensions are told of the todos (todo_events.go, #5279): todo.changed for a created, deleted or changed
@@ -35,8 +34,7 @@ func (f *todoEventHub) TodoEvent(event string, params any) error {
 
 type todoEventEnv struct {
 	*todoEnv
-	hub   *todoEventHub
-	clock *fakeClock
+	hub *todoEventHub
 }
 
 // told waits for the queue to reach the hub and returns what it has been told since the last call.
@@ -57,31 +55,6 @@ func (e *todoEventEnv) told() []recordedEvent {
 	}
 	e.t.Fatal("the todo events did not settle")
 	return nil
-}
-
-// settle lets the second after a change pass and returns what the extensions were told by it.
-func (e *todoEventEnv) settle() []recordedEvent {
-	e.t.Helper()
-	e.clock.advance(todoChangedSettle)
-	return e.told()
-}
-
-func changedOf(t *testing.T, ev recordedEvent) assistantwire.TodoChangedEvent {
-	t.Helper()
-	var c assistantwire.TodoChangedEvent
-	if ev.name != assistantwire.EventTodoChanged || json.Unmarshal(ev.raw, &c) != nil {
-		t.Fatalf("not a todo.changed: %s %s", ev.name, ev.raw)
-	}
-	return c
-}
-
-func decisionOf(t *testing.T, ev recordedEvent) assistantwire.TodoDecisionEvent {
-	t.Helper()
-	var d assistantwire.TodoDecisionEvent
-	if ev.name != assistantwire.EventTodoDecision || json.Unmarshal(ev.raw, &d) != nil {
-		t.Fatalf("not a todo.decision: %s %s", ev.name, ev.raw)
-	}
-	return d
 }
 
 // A hub with no extensions (the in-process tests' fake, an embedder without them) gets nothing and nothing waits.
@@ -172,29 +145,4 @@ func TestTodoEventBacklogIsMergedAndBounded(t *testing.T) {
 type recordedEvent struct {
 	name string
 	raw  json.RawMessage
-}
-
-// newTodoEventEnv is the assistant on a hub that takes todo events, st its store (nil: in memory), and a clock that
-// runs the one-second wait and the thread posts' waits only when advanced.
-func newTodoEventEnv(t *testing.T, st Store) *todoEventEnv {
-	t.Helper()
-	f := &todoEventHub{fakeHub: newFakeHub().withMachine()}
-	opts := Options{Hub: f, Logf: testLogf(t)}
-	if st != nil {
-		opts.Store = func() Store { return st }
-	}
-	s := New(opts)
-	clock := newFakeClock()
-	clock.install(s)
-	s.tevents.after = clock.After
-	s = withSettings(t, f.fakeHub, s)
-	return &todoEventEnv{todoEnv: &todoEnv{t: t, s: s, f: f.fakeHub}, hub: f, clock: clock}
-}
-
-func todoEventStores(t *testing.T, body func(t *testing.T, e *todoEventEnv, database *db.DB)) {
-	t.Run("memory", func(t *testing.T) { body(t, newTodoEventEnv(t, nil), nil) })
-	t.Run("store", func(t *testing.T) {
-		database := todoTestDB(t)
-		body(t, newTodoEventEnv(t, database), database)
-	})
 }

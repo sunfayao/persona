@@ -35,20 +35,6 @@ type autoCheckItem struct {
 	Checkable bool `json:"checkable"`
 }
 
-// passed: every criterion is checkable and met with evidence, and the work is live. A task with no criteria never
-// passes: there is nothing to check it against.
-func (c *taskAutoCheck) passed() bool {
-	if c == nil || len(c.Checks) == 0 || c.Delivery != deliveryLive {
-		return false
-	}
-	for _, x := range c.Checks {
-		if !x.Checkable || !x.Met || strings.TrimSpace(x.Evidence) == "" {
-			return false
-		}
-	}
-	return true
-}
-
 // autoCheckOf is the judge's checks matched to criteria: one per criterion in order, the criterion as the ledger has
 // it. A check counts only when the judge gave exactly one per criterion and copied each criterion where it belongs;
 // otherwise every criterion is left unchecked (not met): a list that is off by one must not pass.

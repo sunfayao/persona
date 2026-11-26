@@ -236,21 +236,6 @@ func (h *previewHost) release() {
 	})
 }
 
-// close ends the browser now (the node is stopping).
-func (h *previewHost) close() {
-	h.mu.Lock()
-	b := h.b
-	h.b = nil
-	if h.idle != nil {
-		h.idle.Stop()
-		h.idle = nil
-	}
-	h.mu.Unlock()
-	if b != nil {
-		b.stop()
-	}
-}
-
 // startPreviewBrowser starts the browser and connects to it.
 func startPreviewBrowser(ctx context.Context) (*previewBrowser, error) {
 	bin, err := findBrowser()

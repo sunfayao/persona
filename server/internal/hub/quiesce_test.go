@@ -365,13 +365,8 @@ func (s *tokenTouchStore) TouchDeviceToken(_ context.Context, _ string) error {
 
 type bgWriteStore struct {
 	*meshStore
-	lockTestDue      *time.Time
-	lockTestAttempts atomic.Int32
 	laClaims         atomic.Int32
-	laHolds          atomic.Int32
-	laSaves          atomic.Int32
 	clientOpCleanups atomic.Int32
-	pushReconciles   atomic.Int32
 	settingMu        sync.Mutex
 	settingCounts    map[string]int
 }
@@ -1114,26 +1109,6 @@ func TestResumedPersonaTiersCannotOverwriteNewerState(t *testing.T) {
 	})
 }
 
-type liveActivityOrderStore struct {
-	*meshStore
-	mu          sync.Mutex
-	events      []string
-	heldUntil   map[string]time.Time
-	holdEntered chan struct{}
-	releaseHold chan struct{}
-	holdOnce    sync.Once
-}
-
-func (s *liveActivityOrderStore) ClaimLiveActivityStart(_ context.Context, device, _ string, now time.Time, _, _ time.Duration) (time.Time, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.events = append(s.events, "claim")
-	if due := s.heldUntil[device]; now.Before(due) {
-		return due, false, nil
-	}
-	return time.Time{}, true, nil
-}
-
 // When the hub's first Web Push VAPID key has not yet been created and a
 // background dispatch arrives during a snapshot pause, key creation and push
 // delivery are deferred without noting a failure, then completed on resume.
@@ -1294,20 +1269,6 @@ func TestWebPushDeferredPushNotOvertakenByPostResumeDispatch(t *testing.T) {
 		defer w.queueMu.Unlock()
 		return len(w.tails) == 0
 	})
-}
-
-type hookedDeviceStore struct {
-	*meshStore
-	upserts  atomic.Int32
-	onUpsert func(db.Device)
-}
-
-func (s *hookedDeviceStore) UpsertDevice(_ context.Context, d db.Device) error {
-	s.upserts.Add(1)
-	if s.onUpsert != nil {
-		s.onUpsert(d)
-	}
-	return nil
 }
 
 type blockingDeviceSessionStore struct {
