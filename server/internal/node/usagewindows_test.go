@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -307,7 +308,7 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 		"rateLimitsByLimitId":{"codex":{"planType":"pro","primary":{"usedPercent":42,"windowDurationMins":10080,"resetsAt":%d}}}}`, id, resets.Unix()))
 	writeCodexUsageReply(t, legacyHome, `{"rateLimits":{"planType":"plus","primary":{"usedPercent":0,"windowDurationMins":300}}}`)
 
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), now)
 	result, err := n.handle(t.Context(), "usage.windows", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -344,7 +345,7 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 	// A model-specific answer has no plan windows. A failed read keeps a newer verified sample.
 	writeCodexUsageReply(t, n.codexHome(), `{"accountId":"different-account",
 		"rateLimits":{"limitId":"premium","primary":{"usedPercent":99,"windowDurationMins":300}}}`)
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), now.Add(usageWindowsEvery))
 	current := func() proto.UsageNodeAccount {
 		t.Helper()
 		for _, account := range n.usageSnapshot().Accounts {
@@ -360,12 +361,12 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 	}
 
 	// A newer rollout can be used as a fallback. It never inherits an identity from the app-server.
-	newer := time.Now().Add(time.Second)
+	newer := time.Now()
 	rolloutAt(t, n.codexHome(), newer, "55555555-5555-4555-8555-555555555555", tokenCount(newer, 11, 10080, resets))
 	rolloutCaches.Lock()
 	delete(rolloutCaches.byHome, n.codexHome())
 	rolloutCaches.Unlock()
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), now.Add(2*usageWindowsEvery))
 	if account := current(); account.AccountKey != "" || account.Windows[0].UsedPercent != 11 {
 		t.Fatalf("new rollout did not become an unidentified source: %+v", account)
 	}
@@ -373,7 +374,7 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 	expired := now.Add(-time.Minute)
 	writeCodexUsageReply(t, n.codexHome(), fmt.Sprintf(`{"accountId":%q,
 		"rateLimits":{"limitId":"codex","planType":"pro","primary":{"usedPercent":100,"windowDurationMins":300,"resetsAt":%d}}}`, id, expired.Unix()))
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), now.Add(3*usageWindowsEvery))
 	if account := current(); account.AccountKey != codexUsageKey(id) ||
 		len(account.Windows) != 1 || account.Windows[0].ResetsAt == nil || account.Windows[0].ResetsAt.Unix() != expired.Unix() {
 		t.Fatalf("node did not forward expired authoritative window: %+v", account)
@@ -381,9 +382,95 @@ func TestCodexUsageRefreshPrefersAccountBoundWindowsAndFallsBackBySource(t *test
 
 	writeCodexUsageReply(t, n.codexHome(), fmt.Sprintf(`{"accountId":%q,
 		"rateLimits":{"limitId":"codex","planType":"team","primary":{"usedPercent":10,"windowDurationMins":300}}}`, id))
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), now.Add(4*usageWindowsEvery))
 	if account := current(); account.AccountKey != "" || account.Plan != "team" || account.Windows[0].UsedPercent != 10 {
 		t.Fatalf("workspace ID was used as a personal quota ID: %+v", account)
+	}
+}
+
+func TestCodexUsageBacksOffOnlyTheFailingHomeAndHonorsSignOut(t *testing.T) {
+	useFakeCodexUsageApp(t)
+	n := &Node{home: t.TempDir(), dir: t.TempDir(), codices: newCodexRegistry()}
+	other := t.TempDir()
+	n.codices.config.Homes = []string{other}
+	now := time.Now()
+	resets := now.Add(time.Hour)
+	home := n.codexHome()
+	rolloutAt(t, home, now.Add(-time.Minute), "44444444-4444-4444-8444-444444444444",
+		tokenCount(now.Add(-time.Minute), 7, 10080, resets))
+	const snapshot = `{"accountId":%q,"rateLimits":{"planType":"pro","primary":{"usedPercent":%d,"windowDurationMins":10080}}}`
+	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "first", 42))
+	writeCodexUsageReply(t, other, fmt.Sprintf(snapshot, "second", 23))
+	n.refreshUsageWindows(t.Context(), now)
+
+	writeCodexUsageReply(t, home, "error")
+	n.refreshUsageWindows(t.Context(), now.Add(usageWindowsEvery))
+	source := "codex:" + codexUsageKey(realPath(home))
+	if state := n.usageWin.codex[source]; state.unavailable || !state.retryAt.Equal(now.Add(3*usageWindowsEvery)) {
+		t.Fatalf("first failure did not schedule a home-specific cooldown: %+v", state)
+	}
+	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "first", 44))
+	writeCodexUsageReply(t, other, fmt.Sprintf(snapshot, "second", 25))
+	n.refreshUsageWindows(t.Context(), now.Add(2*usageWindowsEvery))
+	current := n.usageWin.accounts
+	if current[source].Windows[0].UsedPercent != 42 ||
+		current["codex:"+codexUsageKey(realPath(other))].Windows[0].UsedPercent != 25 {
+		t.Fatalf("expected cached failing home and updated healthy home: %+v", current)
+	}
+
+	writeCodexUsageReply(t, home, "error")
+	loginPath := filepath.Join(home, "fixture-usage-login")
+	if err := os.WriteFile(loginPath, []byte(`{"account":null,"requiresOpenaiAuth":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n.refreshUsageWindows(t.Context(), now.Add(3*usageWindowsEvery))
+	if _, found := n.usageWin.accounts[source]; found || !n.usageWin.codex[source].unavailable {
+		t.Fatal("confirmed sign-out should clear both the old reading and rollout fallback")
+	}
+	if err := os.WriteFile(loginPath, []byte(`{"requiresOpenaiAuth":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n.refreshUsageWindows(t.Context(), now.Add(4*usageWindowsEvery))
+	if _, found := n.usageWin.accounts[source]; found {
+		t.Fatal("incomplete account response must not revive an old quota")
+	}
+
+	writeCodexUsageReply(t, home, fmt.Sprintf(snapshot, "new-account", 45))
+	n.refreshUsageWindows(t.Context(), now.Add(6*usageWindowsEvery))
+	if got := n.usageWin.accounts[source]; got.AccountKey != codexUsageKey("new-account") ||
+		len(got.Windows) != 1 || got.Windows[0].UsedPercent != 45 {
+		t.Fatalf("confirmed new login did not restore its own quota: %+v", got)
+	}
+}
+
+func TestCodexUsageLegacyDurationAndKnownWindowDrift(t *testing.T) {
+	useFakeCodexUsageApp(t)
+	for _, tc := range []struct {
+		name string
+		body string
+		want []int
+	}{
+		{"missing legacy lengths", `"primary":{"usedPercent":9},"secondary":{"usedPercent":18}`, []int{300, 10080}},
+		{"explicit weekly first", `"primary":{"usedPercent":9,"windowDurationMins":10079},"secondary":{"usedPercent":18}`, []int{10080}},
+		{"explicit short second", `"primary":{"usedPercent":9},"secondary":{"usedPercent":18,"windowDurationMins":301}`, []int{300}},
+		{"nonstandard length", `"primary":{"usedPercent":9,"windowDurationMins":120}`, []int{120}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			writeCodexUsageReply(t, home, `{"rateLimits":{`+tc.body+`}}`)
+			cli, err := codexUsageCLI()
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := readCodexAppUsage(t.Context(), cli, home)
+			var got []int
+			for _, w := range result.account.Windows {
+				got = append(got, w.WindowMinutes)
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Fatalf("got duration order %v; want %v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -442,7 +529,7 @@ func TestCodexUsageRefreshWithNPMCodex(t *testing.T) {
 			writeCodexUsageReply(t, n.codexHome(), fmt.Sprintf(`{"accountId":%q,
 				"rateLimits":{"planType":"pro","primary":{"usedPercent":42,"windowDurationMins":10080}}}`, accountID))
 
-			n.refreshUsageWindows(t.Context())
+			n.refreshUsageWindows(t.Context(), time.Now())
 			snap := n.usageSnapshot()
 			if len(snap.Accounts) != 1 {
 				t.Fatalf("expected one account from npm Codex, got %+v", snap)
@@ -469,7 +556,7 @@ func TestCodexUsageRefreshDoesNotBlockSnapshotsAndDisableCancelsIt(t *testing.T)
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		n.refreshUsageWindows(ctx)
+		n.refreshUsageWindows(ctx, now)
 	}()
 	defer func() { cancel(); <-done }()
 	waitFor(t, "app-server usage request", func() bool {
@@ -551,6 +638,19 @@ func TestFakeCodexUsageApp(t *testing.T) {
 			_ = out.Encode(map[string]any{"id": message.ID, "result": map[string]any{}})
 		case "initialized":
 			initialized = true
+		case "account/read":
+			var params map[string]bool
+			if err := json.Unmarshal(message.Params, &params); err != nil || !initialized {
+				t.Fatal("unexpected account request")
+			}
+			if refresh, present := params["refreshToken"]; !present || refresh {
+				t.Fatal("usage probe must never force an account refresh")
+			}
+			body := `{"account":{"type":"chatgpt"},"requiresOpenaiAuth":true}`
+			if data, err := os.ReadFile(filepath.Join(home, "fixture-usage-login")); err == nil {
+				body = string(data)
+			}
+			_ = out.Encode(map[string]any{"id": message.ID, "result": json.RawMessage(body)})
 		case "account/rateLimits/read":
 			var params map[string]bool
 			if err := json.Unmarshal(message.Params, &params); err != nil || !initialized || !params["excludeResetCreditDetails"] {
@@ -564,6 +664,10 @@ func TestFakeCodexUsageApp(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(home, "fixture-usage-started"), nil, 0o600); err != nil {
 					t.Fatal(err)
 				}
+				continue
+			}
+			if string(body) == "error" {
+				_ = out.Encode(map[string]any{"id": message.ID, "error": map[string]any{"code": -32603, "message": "fixture unavailable"}})
 				continue
 			}
 			_ = out.Encode(map[string]any{"id": message.ID, "result": json.RawMessage(body)})
