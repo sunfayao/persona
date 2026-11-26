@@ -12,6 +12,11 @@ import { Button, cx, Dialog, Loading, toast } from "../ui/atoms";
 import { SearchField } from "../ui/SearchField";
 import { StatusMark } from "../ui/StatusMark";
 
+function otherTodo(session: Session, todoId: string) {
+  const assigned = session.todo ?? session.completed_todo;
+  return assigned?.id === todoId ? undefined : assigned;
+}
+
 export function TodoAgentPicker({ todo, machines, onClose }: { todo: Todo; machines: Machine[]; onClose: () => void }) {
   const { sessions, loaded, error } = useFullAgentSessions();
   const [query, setQuery] = useState("");
@@ -23,11 +28,18 @@ export function TodoAgentPicker({ todo, machines, onClose }: { todo: Todo; machi
   const attached = useMemo(() => new Set((todo.agents ?? []).filter((a) => !a.released_at).map((a) => rowKey(a.machine_id, a.session_id))), [todo.agents]);
   const needle = query.trim().toLocaleLowerCase();
   const manager = todo.manager ?? defaultManager();
-  const matches = useMemo(() => sessions.filter((s) =>
-    (s.manager ?? defaultManager()) === manager &&
-    !s.archived && !s.starting && !s.folded_under && !attached.has(rowKey(s.machine_id, s.session_id)) &&
-    s.todo?.id !== todo.id && [sessionTitle(s), s.space_name, s.cwd, names.get(s.machine_id)].some((word) => word?.toLocaleLowerCase().includes(needle)),
-  ), [attached, manager, names, needle, sessions, todo.id]);
+  const matches = useMemo(() => {
+    const rank = (session: Session) => {
+      if (!otherTodo(session, todo.id)) return 1;
+      // A live assignment can change while the picker is open. Keep that selection within reach so it can be cleared.
+      return selected.has(rowKey(session.machine_id, session.session_id)) ? 0 : 2;
+    };
+    return sessions.filter((s) =>
+      (s.manager ?? defaultManager()) === manager &&
+      !s.archived && !s.starting && !s.folded_under && !attached.has(rowKey(s.machine_id, s.session_id)) &&
+      s.todo?.id !== todo.id && [sessionTitle(s), s.space_name, s.cwd, names.get(s.machine_id)].some((word) => word?.toLocaleLowerCase().includes(needle)),
+    ).sort((a, b) => rank(a) - rank(b));
+  }, [attached, manager, names, needle, selected, sessions, todo.id]);
 
   function toggle(key: string, session: Session) {
     setSelected((current) => {
@@ -106,9 +118,8 @@ export function TodoAgentPicker({ todo, machines, onClose }: { todo: Todo; machi
           {matches.map((session) => {
             const key = rowKey(session.machine_id, session.session_id);
             const checked = selected.has(key);
-            const assignment = session.todo ?? session.completed_todo;
-            const elsewhere = assignment && assignment.id !== todo.id;
-            const detail = elsewhere ? t("todos.link_agents_other_todo", { title: assignment.title }) :
+            const elsewhere = otherTodo(session, todo.id);
+            const detail = elsewhere ? t("todos.link_agents_other_todo", { title: elsewhere.title }) :
               [names.get(session.machine_id), session.space_name].filter(Boolean).join(t("sidebar.list_separator"));
             return (
               <label key={key} className={cx("flex min-h-12 items-center gap-3 rounded-control px-3 py-2", checked ? "bg-accent-tint" : !elsewhere && "hover:bg-hover")}>

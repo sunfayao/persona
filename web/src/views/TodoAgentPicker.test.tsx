@@ -16,12 +16,13 @@ vi.hoisted(() => {
 const attach = vi.fn<(todoId: string, mid: string, sid: string) => Promise<void>>();
 const refreshTodos = vi.fn<() => Promise<void>>();
 vi.mock("../lib/todos", () => ({ attachUnassignedTodoAgent: attach }));
-const sessions: Session[] = [
+const fixtures: Session[] = [
+  { machine_id: "m2", session_id: "s3", title: "Assigned", todo: { id: "t2", title: "Other to-do" } } as Session,
   { machine_id: "m1", session_id: "s1", title: "Review", state: "working" } as Session,
   { machine_id: "m2", session_id: "s2", title: "Test", state: "needs_you" } as Session,
-  { machine_id: "m2", session_id: "s3", title: "Assigned", todo: { id: "t2", title: "Other to-do" } } as Session,
   { machine_id: "m2", session_id: "s4", title: "Folded worker", folded_under: "s2" } as Session,
 ];
+let sessions = fixtures;
 const todo: Todo = { id: "t1", title: "Release", created_at: "", updated_at: "" };
 vi.mock("../lib/sessions", () => ({ useFullAgentSessions: () => ({ sessions, loaded: true }), retryFullAgentSessions: vi.fn() }));
 vi.mock("../lib/store", () => ({ getState: () => ({ todos: [todo] }), refreshTodos }));
@@ -33,6 +34,7 @@ let host: HTMLDivElement;
 let root: Root;
 const close = vi.fn();
 beforeEach(async () => {
+  sessions = fixtures;
   attach.mockReset().mockResolvedValue(undefined);
   refreshTodos.mockReset().mockResolvedValue(undefined);
   close.mockClear();
@@ -57,6 +59,21 @@ const search = async (word: string) => {
 };
 
 describe("linking existing agents from a to-do", () => {
+  it("shows available agents first and keeps a conflicted selection within reach", async () => {
+    const first = () => document.querySelector('input[type="checkbox"]');
+    expect(first()).toBe(checkbox("Review"));
+
+    await act(async () => checkbox("Test")!.click());
+    sessions = fixtures.map((session) => session.session_id === "s2" ? { ...session, todo: { id: "t2", title: "Other to-do" } } : session);
+    await act(async () => root.render(<TodoAgentPicker todo={todo} machines={[]} onClose={close} />));
+    expect(first()).toBe(checkbox("Test"));
+    expect(checkbox("Test")).toMatchObject({ checked: true, disabled: false });
+
+    await act(async () => checkbox("Test")!.click());
+    expect(first()).toBe(checkbox("Review"));
+    expect(checkbox("Test")).toMatchObject({ checked: false, disabled: true });
+  });
+
   it("keeps selection across search and excludes linked or folded agents", async () => {
     expect(checkbox("Assigned")?.disabled).toBe(true);
     expect(checkbox("Folded worker")).toBeUndefined();
