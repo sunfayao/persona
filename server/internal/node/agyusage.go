@@ -335,7 +335,7 @@ func agyModelCandidates(models ...string) []string {
 // agyContextWindow resolves the context window for an Antigravity session without fabricating numbers for unknown
 // models: a transcript-recorded window comes first, then a managed launcher's MaxContext / Models catalog (matching
 // both exact and effort-stripped IDs), then discovered agyModelList window metadata, then built-in known model rules
-// (Claude models and explicit [1m] suffixes), else 0.
+// (Claude models, explicit [1m] suffixes, and native 1M Gemini models), else 0.
 func agyContextWindow(l *proto.ManagedLauncher, model string, recorded, used int, catalogLookup func(string) int, fallbackModels ...string) int {
 	if recorded > 0 {
 		return recorded
@@ -368,7 +368,7 @@ func agyContextWindow(l *proto.ManagedLauncher, model string, recorded, used int
 		}
 	}
 	for _, c := range candidates {
-		if w := contextWindowOf(c, 0, used); w > 0 {
+		if w := agyBuiltinContextWindow(c, used); w > 0 {
 			return w
 		}
 	}

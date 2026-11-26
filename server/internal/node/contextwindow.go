@@ -35,6 +35,17 @@ func contextWindowOf(model string, recorded, used int) int {
 		}
 		return claudeWindow
 	}
+	return 0
+}
+
+// agyBuiltinContextWindow resolves built-in context windows for Antigravity (agy) models when neither the transcript
+// nor a managed launcher or agyModelList declares a window: Claude rules plus native 1M Gemini models. Generic
+// contextWindowOf stays Claude-only so undeclared gateway models routed through Claude CLI remain 0.
+func agyBuiltinContextWindow(model string, used int) int {
+	if w := contextWindowOf(model, 0, used); w > 0 {
+		return w
+	}
+	id := strings.ToLower(strings.TrimSpace(model))
 	if geminiID := geminiModelAfterRoute(id); geminiID != "" && geminiNative1M(geminiID) {
 		return claudeWindow1M
 	}
