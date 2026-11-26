@@ -131,6 +131,9 @@ export function useTranscript(mid: string, sid: string, opts: { starting?: boole
   const snapshot = useRef<{ scope: string; page: FeedCache } | null>(initial && cacheScope ? { scope: cacheScope, page: initial } : null);
   const updatedAt = useRef(opts.updatedAt);
   updatedAt.current = opts.updatedAt;
+  const starting = useRef(Boolean(opts.starting));
+  starting.current = Boolean(opts.starting);
+  const previousStart = useRef({ mid, sid, starting: starting.current });
   const rev = useRef(opts.rev);
   rev.current = opts.rev;
   const revWatch = useRef<RevWatch | null>(null); // the shown conversation's, for the list's rev as it changes
@@ -590,12 +593,12 @@ export function useTranscript(mid: string, sid: string, opts: { starting?: boole
       } catch (e) {
         if (dead || version !== pageRequest) return;
         if (e instanceof ApiError && e.code === "conversation_deleted") { markConversationDeleted(mid, sid); return; }
-        if (opts.starting) recovered();
+        if (starting.current) recovered();
         // A subscribe may already have supplied the page while the HTTP read was pending.
         if (replacing.current && replacementReplay) {
           commitPage(replacementReplay);
           endRefused();
-        } else if (!opts.starting) {
+        } else if (!starting.current) {
           const text = sessionLoadError(errorText(e));
           historyMissing.current = sessionHistoryNotFound(e);
           if (isNotLoaded(e)) refused = window.setTimeout(() => endRefused(text), READ_TIMEOUT_MS);
@@ -633,6 +636,17 @@ export function useTranscript(mid: string, sid: string, opts: { starting?: boole
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mid, sid, cacheScope, memoryScope, cacheManager, assistant, invalidateHistoryReads, updateHasMore]);
+
+  useEffect(() => {
+    const previous = previousStart.current;
+    previousStart.current = { mid, sid, starting: Boolean(opts.starting) };
+    // An early read can be empty or fail before the node binds the transcript.
+    // Read again when startup finishes even if no transcript push or revision arrived.
+    if (previous.mid === mid && previous.sid === sid && previous.starting && !opts.starting &&
+        (historyMissing.current || !itemsRef.current.some((item) => item.role === "user" || item.role === "assistant"))) {
+      reread.current();
+    }
+  }, [mid, sid, opts.starting]);
 
   // After the effect above, which starts each conversation's watch from the rev it has then.
   useEffect(() => {

@@ -290,7 +290,7 @@ export interface PanelChrome {
   beside?: React.ReactNode;
 }
 
-export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, terminalAvailable, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
+export function ChatView({ mid, sid, assistant, starting: launching, onToggleSidebar, topCenter, inPage, embedded, panel: chrome, banner, offline, mainCache, refreshError, onRefresh, headerActions, landAt }: {
   mid: string;
   sid: string;
   assistant?: boolean;
@@ -306,8 +306,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   embedded?: boolean;
   /** A task's or an Agent's side panel (TaskPanel, AgentPanel): the header is the panel's (PanelChrome). */
   panel?: PanelChrome;
-  /** The work browser has verified that this session has an interactive pane. Standalone chats use their existing policy. */
-  terminalAvailable?: boolean;
   /** Under the header: the assistant page's manager switcher. */
   banner?: React.ReactNode;
   /** The conversation's manager is offline: what the box says instead, and nothing can be sent. */
@@ -433,7 +431,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     const out = launch?.outgoing;
     if (!launch || !out || (!out.text && !out.images.length)) return [];
     const id = launch.messageId;
-    return [{ id, at: Date.now(), msg: { id: `pending:${id}`, ...parseUserText(out.text), images: out.images.map((image, i) => ({ id: `pending:${id}#${i}`, seq: 0, role: "user", kind: "image", image })) } }];
+    const acceptedAt = Date.now();
+    return [{ id, at: launch.promptSentAt ?? acceptedAt, acceptedAt, msg: { id: `pending:${id}`, ...parseUserText(out.text), images: out.images.map((image, i) => ({ id: `pending:${id}#${i}`, seq: 0, role: "user", kind: "image", image })) } }];
   });
   const [draftRefusal, setDraftRefusal] = useState<{ id: string; draft: string; clearable?: string } | null>(null);
   // what other pages sent here ("Ask Persona", "Hand to AI"…): shown like this page's own sending bubbles (lib/outbox.ts)
@@ -528,7 +527,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const opening = Boolean(assistant) && !tr.items.length && outgoing > 0;
 
   // ── the middle of an agent's page: its conversation, or its terminal in place (lib/session-view.ts) ──
-  const switchable = Boolean(inPage && terminalAvailable !== false && !assistant && canShowTerminal(session));
+  const switchable = Boolean(inPage && !assistant && canShowTerminal(session));
   const openFiles = () => session && togglePanel({ kind: "files", mid, sid, cwd: session.cwd });
   const [view, setView] = useSessionView(mid, sid, switchable);
   // The terminal connects when first shown and stays connected while the page is on screen (the chat is hidden under it,
@@ -2060,10 +2059,10 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
     const live = lines.flatMap((l) => l.kind === "supervision" ? l.lines : [l]).findLast((l) => l.kind === "segment" && l.live);
     return live?.kind === "segment" ? live.seg : undefined;
   }, [lines]);
-  const processing = !sendFeedback && Boolean(assistant || session?.assistant) && state === "working" && !backgroundOnly &&
-    !liveSeg && (tr.loading || (opening && !tr.streaming));
+  const processing = sendFeedback === undefined && !liveSeg && (shownPending.some((p) => p.acceptedAt !== undefined) ||
+    (Boolean(assistant || session?.assistant) && state === "working" && !backgroundOnly && (tr.loading || (opening && !tr.streaming))));
   const showMessageFeedback = shownPending.some((p) => p.waits) || processing ||
-    (sendFeedback !== undefined ? Boolean(sendFeedback) : shownPending.length > 0 || outbox.some((e) => e.state === "sending") || (starting && outgoing > 0));
+    (sendFeedback !== undefined ? Boolean(sendFeedback) : shownPending.some((p) => p.acceptedAt === undefined) || outbox.some((e) => e.state === "sending"));
   const runStart = (liveSeg ? turnStart(liveSeg) : undefined) ?? stateSince;
   // what the turn is doing, for the bar's words (cindy's status): kept as it was while it says the same
   const lastStep = useRef<RunStep | undefined>(undefined);
@@ -2444,7 +2443,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
             {/* what is on its way, and failed messages with nothing sent after them, in the order they were written */}
             {[...shownPending.map((p) => ({ at: p.at, el: (
               <div key={p.id} className="flex flex-col gap-3">
-                <UserBubble msg={p.msg} mid={mid} sid={sid} pending sendState="sending" />
+                <UserBubble msg={p.msg} mid={mid} sid={sid} pending sendState={p.acceptedAt === undefined ? "sending" : "sent"} />
               </div>
             ) })), ...placed.rest.map((e) => ({ at: e.at, el: <OutboxBubbles key={`outbox:${e.id}`} mid={mid} sid={sid} entries={[e]} canRetry={!refusedNoRow} /> })),
               ...keptUndelivered.map((m) => ({ at: Date.parse(m.at) || 0, el: (

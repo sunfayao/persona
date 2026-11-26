@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTerminalTree, type PaneHostDTO } from "../../lib/terminals";
-import { interactiveSessionPane, standaloneShells } from "./work-terminal-layout";
+import { standaloneShells } from "./work-terminal-layout";
 
 const host: PaneHostDTO = {
   kind: "herdr", stream: true, control: true, new_tab: true,
@@ -13,15 +13,6 @@ const host: PaneHostDTO = {
 };
 
 describe("work terminal layout", () => {
-  it("requires an interactive host and a real session ID, never treating a pane ID as a session ID", () => {
-    const data = { hosts: [host] };
-    expect(interactiveSessionPane({ data }, "session")).toBe(true);
-    expect(interactiveSessionPane({ data, error: "403 Forbidden" }, "session")).toBe(false);
-    expect(interactiveSessionPane({ data }, "pane:w1:p1")).toBe(false);
-    expect(interactiveSessionPane({ data: { hosts: [{ ...host, control: false }] } }, "session")).toBe(false);
-    expect(interactiveSessionPane(undefined, "session")).toBe(false);
-  });
-
   it("keeps only plain shell rows and preserves their original tab and empty launch targets", () => {
     const result = standaloneShells(buildTerminalTree({ hosts: [host] }, []));
     const mixed = result.find((space) => space.id === "mixed")!;
