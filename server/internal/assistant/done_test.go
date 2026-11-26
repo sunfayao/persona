@@ -134,8 +134,8 @@ func TestDoneSignals(t *testing.T) {
 	}{
 		{"PR https://github.com/o/r/pull/12 已合并", true, false},
 		{"提了 https://github.com/o/r/pull/12，等 review", false, false},
-		{"merged https://github.com/o/r/pull/12; TestFlight build 202611041200 is up", true, true},
-		{"发了 TestFlight，构建号 1234", false, true},
+		{"merged https://github.com/o/r/pull/12; build #202611041200 is up", true, true},
+		{"部署了新版本，构建号 1234", false, true},
 		{"没有全改完", false, false},
 	} {
 		got := doneSignals([]prompts.TaskDoneReply{{Text: tc.text}})

@@ -230,7 +230,7 @@ func handoffCard(id, kind string) proto.Interaction {
 		{Name: "CLOUD_KEY", Provider: "keys", Title: "cloud REFMARK"},
 	}})
 	return proto.Interaction{ID: id, MachineID: "box", SessionID: "s1", Kind: kind, ToolName: proto.SecretHandoffTool,
-		ToolInput: input, Summary: "Approve on iPhone or the web"}
+		ToolInput: input, Summary: "Approve in the web app"}
 }
 
 // An extension's token never approves a hand-off card, even with agents.control: refused and recorded on the providers

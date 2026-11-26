@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loginWithPassword, PakeClient, passwordSuite, readNativeLogin, registerPassword } from "./password";
+import { loginWithPassword, PakeClient, passwordSuite, registerPassword } from "./password";
 
 class PakeWorker {
   onmessage?: (e: { data: unknown }) => void;
@@ -26,7 +26,7 @@ describe("password protocol transport", () => {
     const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ session: "s", message: "server-proof", identity: "hub", suite: passwordSuite })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ token: "jd_device", id: "dev_device", hub_id: "hub" })));
     vi.stubGlobal("fetch", fetch);
-    expect(await loginWithPassword(password, null)).toMatchObject({ token: "jd_device" });
+    expect(await loginWithPassword(password)).toMatchObject({ token: "jd_device" });
     const bodies = [...adminBodies, ...fetch.mock.calls.map((c) => JSON.parse(c[1].body))];
     expect(JSON.stringify(bodies)).not.toContain(password);
     for (const body of bodies) expect(body).not.toHaveProperty("password");
@@ -36,19 +36,8 @@ describe("password protocol transport", () => {
   it("rejects insecure contexts before starting password work", async () => {
     vi.stubGlobal("isSecureContext", false);
     const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
-    await expect(loginWithPassword("password", null)).rejects.toThrow("HTTPS");
+    await expect(loginWithPassword("password")).rejects.toThrow("HTTPS");
     expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("validates the native authorization request without accepting redirect destinations", () => {
-    const state = "S".repeat(43), challenge = "C".repeat(43);
-    const href = `https://hub.example/login/device#state=${state}&challenge=${challenge}&kind=phone&name=Phone`;
-    expect(readNativeLogin(href)).toEqual({ state, challenge, kind: "phone", name: "Phone" });
-    expect(() => readNativeLogin(href.replace(challenge, "invalid"))).toThrow();
-    for (const key of ["state", "challenge", "kind", "name"]) {
-      expect(() => readNativeLogin(`${href}&${key}=duplicate`)).toThrow();
-    }
-    expect(readNativeLogin("https://hub.example/")).toBeNull();
   });
 
   it("terminates stalled password computation and rejects further work", async () => {

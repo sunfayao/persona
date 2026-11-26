@@ -320,7 +320,7 @@ func TestInteractionLineSaysWhatIsAsked(t *testing.T) {
 	}
 }
 
-// The snapshot's "Needs you" is the agents in that state, as the Live Activity, the lists and the badges count them: a
+// The snapshot's "Needs you" is the agents in that state, as the Persona Link summary, the lists and the badges count them: a
 // decision the triage put no card up for (cards off, muted, "Not now") stays "Unread" with what it waits for, and is not
 // listed once seen (#4449).
 func TestSnapshotNeedsYouIsTheState(t *testing.T) {
@@ -341,8 +341,8 @@ func TestSnapshotNeedsYouIsTheState(t *testing.T) {
 		Questions: []proto.Question{{Question: "删掉这个分支吗？"}}}})
 
 	needs, unread, awaiting, waiting, _, _, _ := s.snapshotAgents(context.Background(), ft.f.devices, "")
-	if live := s.fleetSnapshot().NeedsYou; len(needs) != live || live != 1 || needs[0].Session != "cccccccc" {
-		t.Fatalf("需要你: snapshot %+v, Live Activity %d; want the one asking", needs, live)
+	if len(needs) != 1 || needs[0].Session != "cccccccc" {
+		t.Fatalf("需要你: snapshot %+v; want the one asking", needs)
 	}
 	if len(unread) != 1 || unread[0].Session != "aaaaaaaa" || unread[0].Line != "你说先不管" {
 		t.Fatalf("完成未看 %+v: want the cardless decision, with what it waits for", unread)
@@ -356,7 +356,7 @@ func TestSnapshotNeedsYouIsTheState(t *testing.T) {
 	}
 }
 
-// A muted agent (or one in a muted space) is not "Needs you", "Working" or "Unread" in the snapshot, as the Live Activity, the
+// A muted agent (or one in a muted space) is not "Needs you", "Working" or "Unread" in the snapshot, as the Persona Link summary, the
 // Agents badge and the inbox leave it out: the assistant would tell the user an agent waits for them that they muted.
 // It is listed apart, for when they ask about it (#4562).
 func TestSnapshotLeavesMutedAgentsOut(t *testing.T) {
@@ -379,15 +379,14 @@ func TestSnapshotLeavesMutedAgentsOut(t *testing.T) {
 	}
 
 	needs, unread, _, _, _, muted, working := s.snapshotAgents(context.Background(), ft.f.devices, "")
-	live := s.fleetSnapshot()
-	if len(needs) != live.NeedsYou || live.NeedsYou != 1 || needs[0].Session != "aaaaaaaa" {
-		t.Fatalf("需要你: snapshot %+v, Live Activity %d; want only the agent not muted", needs, live.NeedsYou)
+	if len(needs) != 1 || needs[0].Session != "aaaaaaaa" {
+		t.Fatalf("需要你: snapshot %+v; want only the agent not muted", needs)
 	}
-	if len(working) != live.Working || live.Working != 1 || !strings.HasSuffix(working[0].Label, "空间里开着通知") {
-		t.Fatalf("工作中: snapshot %v, Live Activity %d; want the one turned back on in the muted space", working, live.Working)
+	if len(working) != 1 || !strings.HasSuffix(working[0].Label, "空间里开着通知") {
+		t.Fatalf("工作中: snapshot %v; want the one turned back on in the muted space", working)
 	}
-	if len(unread) != live.Unread || live.Unread != 0 {
-		t.Fatalf("完成未看: snapshot %+v, Live Activity %d; want none", unread, live.Unread)
+	if len(unread) != 0 {
+		t.Fatalf("完成未看: snapshot %+v; want none", unread)
 	}
 	var got []string
 	for _, a := range muted {

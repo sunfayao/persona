@@ -1,7 +1,6 @@
 package extmgr
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,48 +54,4 @@ func TestExtensionMarketOCIInstallUnpacksArchive(t *testing.T) {
 	if current := h.extensions.reg.Get("example-ui"); current == nil || extension.FromMarket(current.Record.Origin) != mk["id"] {
 		t.Fatal("installed source lost catalog identity")
 	}
-}
-
-func TestOfficialMarketReaddAndEmptyPinCannotBecomeUnsigned(t *testing.T) {
-	h, phone, _ := marketHub(t)
-	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	payload := []byte(`{"market_version":1,"name":"Official","extensions":[]}`)
-	raw := key.sign(payload)
-	gh := &fakeGitHub{files: map[string][]byte{extension.IndexFile: raw}, assets: map[string][]byte{}}
-	server := httptest.NewTLSServer(gh)
-	defer server.Close()
-	h.extensions.markets.client, h.extensions.markets.githubAPI = server.Client(), server.URL
-	list := marketList(t, h, phone)
-	waitMarketsRead(t, h)
-	id := fmt.Sprint(list[0]["id"])
-	if code, _ := call(t, h.routes(), "DELETE", "/api/v1/extensions/-/markets/"+id, phone, ""); code != 200 {
-		t.Fatal("delete failed")
-	}
-	gh.mu.Lock()
-	gh.files[extension.IndexFile] = payload
-	gh.mu.Unlock()
-	for _, spec := range []string{"github:example/plugins@main", "https://github.com/example/plugins"} {
-		if code, _ := call(t, h.routes(), "POST", "/api/v1/extensions/-/markets", phone, fmt.Sprintf(`{"spec":%q,"token":"fixture-secret"}`, spec)); code == 200 {
-			t.Fatal("official re-add accepted unsigned document")
-		}
-	}
-	gh.mu.Lock()
-	gh.files[extension.IndexFile] = raw
-	gh.mu.Unlock()
-	code, out := call(t, h.routes(), "POST", "/api/v1/extensions/-/markets", phone, `{"spec":"github:example/plugins@main"}`)
-	if code != 200 {
-		t.Fatalf("verified readd: %d %v", code, out)
-	}
-	id = out["id"].(string)
-	reloadMarkets(h)
-	if err := h.marketsLoad(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	h.extensions.markets.mu.Lock()
-	state := h.extensions.markets.byID[id]
-	if state.rec.Signature.State != extension.SigSigned || state.rec.Signature.KeyID != keyIDText(t, key.text) {
-		t.Fatal("cache not reverified")
-	}
-	h.extensions.markets.mu.Unlock()
 }

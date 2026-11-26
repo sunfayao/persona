@@ -3,7 +3,6 @@ package hub
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -117,14 +116,14 @@ func registerClientPassword(t *testing.T, admin *adminClient, password, previous
 	passwordCall(t, admin, "POST", "/api/v1/admin/password-login/register/finish", map[string]any{"session": start["session"], "message": record.Serialize(), "revoke_devices": revoke}, 200)
 }
 
-func passwordProof(t *testing.T, client *adminClient, password, challenge string) (string, []byte, error) {
+func passwordProof(t *testing.T, client *adminClient, password string) (string, []byte, error) {
 	t.Helper()
 	c, _ := passwordpake.Configuration().Client()
 	ke1, err := c.GenerateKE1([]byte(password))
 	if err != nil {
 		t.Fatal(err)
 	}
-	start := passwordCall(t, client, "POST", "/api/v1/auth/password/start", map[string]any{"message": ke1.Serialize(), "name": "测试设备", "kind": "phone", "challenge": challenge}, 200)
+	start := passwordCall(t, client, "POST", "/api/v1/auth/password/start", map[string]any{"message": ke1.Serialize(), "name": "测试设备", "kind": "web"}, 200)
 	m, _ := base64.StdEncoding.DecodeString(start["message"].(string))
 	ke2, err := c.Deserialize.KE2(m)
 	if err != nil {
@@ -175,7 +174,7 @@ func TestPasswordLoginRegistrationAndDevice(t *testing.T) {
 	if state["enabled"] != true || state["suite"] != passwordpake.Suite {
 		t.Fatal(state)
 	}
-	session, proof, err := passwordProof(t, client, password, "")
+	session, proof, err := passwordProof(t, client, password)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +192,7 @@ func TestPasswordLoginRegistrationAndDevice(t *testing.T) {
 		t.Fatal("replay issued another device")
 	}
 	// An incorrect password fails the server proof at the client, without sending the password or a fixed hash.
-	wrongSession, _, err := passwordProof(t, client, "wrong-password", "")
+	wrongSession, _, err := passwordProof(t, client, "wrong-password")
 	if err == nil {
 		t.Fatal("wrong password authenticated server")
 	}
@@ -202,33 +201,21 @@ func TestPasswordLoginRegistrationAndDevice(t *testing.T) {
 	passwordCall(t, client, "POST", "/api/v1/auth/password/start", map[string]any{"password": password}, 400)
 }
 
-func TestPasswordLoginPKCEAndChanges(t *testing.T) {
+func TestPasswordLoginChanges(t *testing.T) {
 	_, store, admin, client := passwordTestHub(t)
 	registerClientPassword(t, admin, "client password", "", false)
-	verifier := strings.Repeat("V", 43)
-	sum := sha256.Sum256([]byte(verifier))
-	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
-	grant := func() string {
-		session, proof, err := passwordProof(t, client, "client password", challenge)
-		if err != nil {
-			t.Fatal(err)
-		}
-		out := passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 200)
-		if _, ok := out["token"]; ok {
-			t.Fatal("device token leaked into browser callback")
-		}
-		return out["code"].(string)
+	session, proof, err := passwordProof(t, client, "client password")
+	if err != nil {
+		t.Fatal(err)
 	}
-	code := grant()
-	passwordCall(t, client, "POST", "/api/v1/auth/password/exchange", map[string]any{"code": code, "verifier": strings.Repeat("X", 43)}, 401)
-	passwordCall(t, client, "POST", "/api/v1/auth/password/exchange", map[string]any{"code": code, "verifier": verifier}, 401)
-	code = grant()
-	passwordCall(t, client, "POST", "/api/v1/auth/password/exchange", map[string]any{"code": code, "verifier": verifier}, 200)
-	passwordCall(t, client, "POST", "/api/v1/auth/password/exchange", map[string]any{"code": code, "verifier": verifier}, 401)
-	code = grant()
+	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 200)
+	session, proof, err = passwordProof(t, client, "client password")
+	if err != nil {
+		t.Fatal(err)
+	}
 	p, _ := store.ClientPassword(context.Background())
 	passwordCall(t, admin, "PUT", "/api/v1/admin/password-login", map[string]any{"revision": p.Revision, "enabled": false}, 200)
-	passwordCall(t, client, "POST", "/api/v1/auth/password/exchange", map[string]any{"code": code, "verifier": verifier}, 401)
+	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 401)
 	if len(store.tokens) != 1 {
 		t.Fatal("disabling should preserve already signed-in devices")
 	}
@@ -249,7 +236,7 @@ func TestPasswordLoginGatesExpiryAndConcurrency(t *testing.T) {
 	cross := *client
 	cross.header = http.Header{"Origin": []string{"https://attacker.example"}}
 	passwordCall(t, &cross, "POST", "/api/v1/auth/password/start", map[string]any{}, 403)
-	session, proof, err := passwordProof(t, client, "client password", "")
+	session, proof, err := passwordProof(t, client, "client password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +246,7 @@ func TestPasswordLoginGatesExpiryAndConcurrency(t *testing.T) {
 	h.passwordLogin.flows[session] = f
 	h.passwordLogin.mu.Unlock()
 	passwordCall(t, client, "POST", "/api/v1/auth/password/finish", map[string]any{"session": session, "message": proof}, 401)
-	session, proof, err = passwordProof(t, client, "client password", "")
+	session, proof, err = passwordProof(t, client, "client password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +311,7 @@ func TestPasswordLoginProxyTLS(t *testing.T) {
 	// Complete the password exchange through the proxy, not just discovery.
 	client.remote, client.tls = "[fd00::20]:1234", false
 	client.header = http.Header{"X-Forwarded-Proto": {"https"}}
-	session, proof, err := passwordProof(t, client, "client password", "")
+	session, proof, err := passwordProof(t, client, "client password")
 	if err != nil {
 		t.Fatal(err)
 	}

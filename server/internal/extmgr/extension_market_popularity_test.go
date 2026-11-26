@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-func TestOfficialCatalogPopularityOrderAndInstalledMetadata(t *testing.T) {
+func TestCatalogOrderAndInstalledMetadata(t *testing.T) {
 	h, phone, _ := marketHub(t)
 	dir := uiPackage(t)
 	pkg := tarDir(t, dir)
@@ -40,11 +40,11 @@ func TestOfficialCatalogPopularityOrderAndInstalledMetadata(t *testing.T) {
 	srv := httptest.NewTLSServer(gh)
 	defer srv.Close()
 	h.extensions.markets.client, h.extensions.markets.githubAPI = srv.Client(), srv.URL
-	useOfficialMarket(t, "github:example/plugins", key.text)
+	storeSignedMarket(t, h, key)
 	list := marketList(t, h, phone)
 	waitMarketsRead(t, h)
 	mid := list[0]["id"].(string)
-	want := []string{"popular", "alpha", "beta", "example-ui", "a-zero", "z-missing"}
+	want := []string{"z-missing", "beta", "alpha", "example-ui", "a-zero", "popular"}
 	assertCatalog := func() {
 		t.Helper()
 		items := h.catalogIn(i18n.En, "", mid)
@@ -58,7 +58,7 @@ func TestOfficialCatalogPopularityOrderAndInstalledMetadata(t *testing.T) {
 		if it := items[3]; it.IconURL != "https://example.com/logo.png" || it.Downloads == nil || *it.Downloads != 1200 || it.DownloadsUpdatedAt != updated {
 			t.Fatalf("catalog metadata: %+v", it)
 		}
-		if items[4].Downloads == nil || *items[4].Downloads != 0 || items[5].Downloads != nil {
+		if items[4].Downloads == nil || *items[4].Downloads != 0 || items[0].Downloads != nil {
 			t.Fatal("zero and unknown counts conflated")
 		}
 		if got := h.catalogIn(i18n.En, "alpha", mid); len(got) != 2 || got[0].ID != "alpha" || got[1].ID != "a-zero" {
@@ -72,10 +72,10 @@ func TestOfficialCatalogPopularityOrderAndInstalledMetadata(t *testing.T) {
 			t.Fatalf("wire catalog %s: %d %+v", prefix, code, out)
 		}
 		items := out[prefix].([]any)
-		if items[0].(map[string]any)["downloads"] != float64(2400) || items[3].(map[string]any)["icon_url"] != "https://example.com/logo.png" {
+		if items[5].(map[string]any)["downloads"] != float64(2400) || items[3].(map[string]any)["icon_url"] != "https://example.com/logo.png" {
 			t.Fatalf("wire metadata: %+v", items)
 		}
-		if _, ok := items[5].(map[string]any)["downloads"]; ok {
+		if _, ok := items[0].(map[string]any)["downloads"]; ok {
 			t.Fatal("unknown count serialized")
 		}
 	}
@@ -136,23 +136,22 @@ func TestOfficialCatalogPopularityOrderAndInstalledMetadata(t *testing.T) {
 	}
 }
 
-func TestMarketPopularityLegacyAndNonofficialOrdering(t *testing.T) {
+func TestMarketMetadataAndCatalogOrder(t *testing.T) {
 	h, _, _ := marketHub(t)
-	useOfficialMarket(t, "github:example/plugins", newMarketKey(t).text)
 	makeEntry := func(id, name string) extension.MarketEntry {
 		return extension.MarketEntry{Parsed: &extension.Manifest{ID: id, Name: name, Version: "1.0.0"}, Packages: []extension.MarketPackage{{URL: "package.tar.gz"}}}
 	}
 	entries := []extension.MarketEntry{makeEntry("zulu", "Zulu"), makeEntry("alpha", "Alpha")}
 	h.extensions.markets.loaded = true
 	h.extensions.markets.byID = map[string]*marketState{
-		"own":      {rec: extension.MarketRecord{ID: "own", Spec: "https://example.com/persona-extensions.json", AddedAt: time.Now().Add(-time.Hour)}, index: &extension.MarketIndex{Extensions: entries}},
-		"official": {rec: extension.MarketRecord{ID: "official", Spec: "github:example/plugins", Signature: extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDOf(extension.Official.SigningKey)}}, index: &extension.MarketIndex{Extensions: entries}},
+		"own":    {rec: extension.MarketRecord{ID: "own", Spec: "https://example.com/persona-extensions.json", AddedAt: time.Now().Add(-time.Hour)}, index: &extension.MarketIndex{Extensions: entries}},
+		"second": {rec: extension.MarketRecord{ID: "second", Spec: "github:example/plugins"}, index: &extension.MarketIndex{Extensions: entries}},
 	}
 	items := h.catalogIn(i18n.En, "", "")
-	if len(items) != 4 || items[0].ID != "alpha" || items[1].ID != "zulu" || items[2].ID != "zulu" || items[3].ID != "alpha" {
-		t.Fatalf("legacy official name fallback or private order: %+v", items)
+	if len(items) != 4 || items[0].ID != "zulu" || items[1].ID != "alpha" || items[2].ID != "zulu" || items[3].ID != "alpha" {
+		t.Fatalf("market catalog order: %+v", items)
 	}
-	if h.extensions.markets.byID["official"].index.Extensions[0].Parsed.ID != "zulu" {
+	if h.extensions.markets.byID["second"].index.Extensions[0].Parsed.ID != "zulu" {
 		t.Fatal("sorting mutated verified catalog")
 	}
 	count := int64(50)

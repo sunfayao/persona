@@ -7,9 +7,7 @@
       "source": {
         "rule": "No revived cards",
         "code": {
-          "web": "web/src/lib/card-answer.ts",
-          "ios": "AppModel.resolve",
-          "android": "HubInteractionCenter"
+          "web": "web/src/lib/card-answer.ts"
         }
       },
       "chat": {
@@ -176,9 +174,7 @@
         "rule": "No revived cards: a snapshot taken before the answer must not undo it",
         "found": "Reading the iOS app: the interaction handler does not skip cards this device ended, though the full-list path does",
         "code": {
-          "ios": "AppModel.handle .interaction, replaceInteractions",
-          "web": "web/src/lib/store.ts mergeInteractions",
-          "android": "HubInteractionCenter ended"
+          "web": "web/src/lib/store.ts mergeInteractions"
         }
       },
       "chat": {
@@ -376,9 +372,7 @@
         "rule": "No revived cards: once this device's answer succeeded, the card is never open again",
         "found": "#1112: after a hello that does not resume, the full card list read next hides it; a resumed hello is followed by no such read, only the snapshot",
         "code": {
-          "ios": "AppModel.handle .interaction, replaceInteractions",
-          "web": "web/src/lib/store.ts mergeInteractions",
-          "android": "HubInteractionCenter ended"
+          "web": "web/src/lib/store.ts mergeInteractions"
         }
       },
       "chat": {
@@ -583,9 +577,7 @@
         "rule": "No revived cards",
         "found": "A past bug: an answered card came back clickable from an older list, and answering again said it was no longer pending",
         "code": {
-          "web": "web/src/lib/store.ts mergeInteractions",
-          "ios": "replaceInteractions endedInteractionIDs",
-          "android": "HubInteractionCenter refresh"
+          "web": "web/src/lib/store.ts mergeInteractions"
         }
       },
       "chat": {
@@ -787,7 +779,6 @@
       "source": {
         "rule": "No revived cards, except when the answer definitely failed",
         "code": {
-          "ios": "AppModel.putBack",
           "web": "web/src/lib/card-answer.ts"
         }
       },
@@ -911,7 +902,6 @@
         "rule": "An error answer does not bring back a card the hub ended",
         "found": "A past iOS bug put the dead card back next to its replacement",
         "code": {
-          "ios": "AnsweringInteractions",
           "web": "web/src/lib/card-answer.ts"
         }
       },

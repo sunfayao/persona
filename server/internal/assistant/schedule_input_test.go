@@ -42,7 +42,7 @@ func TestTaskInputContextUsesDraftExecutionWithoutSaving(t *testing.T) {
 	if r.Code != 200 || !strings.Contains(r.Body.String(), `"task_input":true`) || !strings.Contains(r.Body.String(), `"machine_id":"remote"`) || catalog["cwd"] != "/work/project" || catalog["launcher"] != "codex" {
 		t.Fatalf("context: %d %s %+v", r.Code, r.Body.String(), catalog)
 	}
-	if len(s.tasksView(context.Background(), nil)) != 0 {
+	if len(s.tasksView(context.Background())) != 0 {
 		t.Fatal("discovery saved a task")
 	}
 	b, _ := s.modelRecord(context.Background(), "task.__input_draft")
@@ -311,7 +311,7 @@ func TestTaskInputSaveReopenAndBothRunPaths(t *testing.T) {
 		t.Fatalf("save lost references: %+v", reply)
 	}
 	restarted := newServiceOn(t, f, s.store())
-	reopened := restarted.tasksView(context.Background(), nil)
+	reopened := restarted.tasksView(context.Background())
 	if len(reopened) != 1 || reopened[0].Prompt != prompt || !reopened[0].PromptSelections {
 		t.Fatalf("reopen: %+v", reopened)
 	}
@@ -407,7 +407,7 @@ func TestTaskInputLiteralPromptsStayLiteral(t *testing.T) {
 	if _, err := s.toolScheduleFollowup(t.Context(), "server", "source", followup); err != nil {
 		t.Fatal(err)
 	}
-	tasks := s.tasksView(t.Context(), nil)
+	tasks := s.tasksView(t.Context())
 	if len(tasks) != 3 {
 		t.Fatalf("expected three independent tasks, got %d", len(tasks))
 	}
@@ -470,7 +470,7 @@ func TestTaskInputDispatchKeepsLiteralFileExample(t *testing.T) {
 		if _, err := s.toolScheduleFollowup(t.Context(), "server", source, args); err != nil {
 			t.Fatal(err)
 		}
-		tasks := s.tasksView(t.Context(), nil)
+		tasks := s.tasksView(t.Context())
 		if len(tasks) != 1 || tasks[0].Prompt != prompt || tasks[0].PromptSelections || tasks[0].SessionID != source {
 			t.Fatalf("tool did not save the literal follow-up: %+v", tasks)
 		}
@@ -516,7 +516,7 @@ func TestTaskInputToolPromptEditsAreLiteral(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			tasks := s.tasksView(t.Context(), nil)
+			tasks := s.tasksView(t.Context())
 			if len(tasks) != 1 || tasks[0].ID != task.ID || tasks[0].Prompt != task.Prompt || tasks[0].PromptSelections {
 				t.Fatalf("tool write must save literal text on the existing task: %+v", tasks)
 			}

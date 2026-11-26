@@ -168,7 +168,7 @@ function preload(p: PersonaInfo): Promise<boolean> {
   ).then((all) => all.every(Boolean));
 }
 
-// The list changed (a tiered look moved, an extension with looks came or went): list again, the new files loaded first.
+// The list changed (an extension with looks came or went): list again, the new files loaded first.
 onHubEvent("personas", () => void refreshPersonas());
 // A reconnect the hub could not resume: a `personas` or `look` push missed meanwhile is not replayed (#4954). The read
 // takes the hub's choice as a `look` push would; a page that has not read the looks yet reads them when it shows one.

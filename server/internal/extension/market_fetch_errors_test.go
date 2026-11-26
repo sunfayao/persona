@@ -18,12 +18,9 @@ import (
 func TestFetchSignedClassifiesFailures(t *testing.T) {
 	key, sign := testKey(t)
 	_, otherSign := testKey(t)
-	was := Official
-	Official = OfficialMarket{Spec: "github:example/market", SigningKey: key}
-	t.Cleanup(func() { Official = was })
-	payload := []byte(`{"market_version":1,"name":"Official","extensions":[]}`)
+	payload := []byte(`{"market_version":1,"name":"Example Market","extensions":[]}`)
 	envelope := sign(payload)
-	bad := []byte(strings.Replace(string(envelope), "Official", "Changed", 1))
+	bad := []byte(strings.Replace(string(envelope), "Example Market", "Changed", 1))
 	notFound := func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) }
 	body := func(b []byte) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(b) }
@@ -54,7 +51,7 @@ func TestFetchSignedClassifiesFailures(t *testing.T) {
 			}))
 			defer server.Close()
 			spec, _ := ParseMarket("github:example/market")
-			market := &Market{Spec: spec, Client: server.Client(), GitHubAPI: server.URL}
+			market := &Market{Spec: spec, TrustedKey: key, Client: server.Client(), GitHubAPI: server.URL}
 			if c.mirror != nil {
 				market.CatalogMirror = server.URL + "/mirror.json"
 			}

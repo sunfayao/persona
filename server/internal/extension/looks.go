@@ -80,7 +80,7 @@ const (
 var BuiltinLooks = []string{DefaultLook}
 
 // RetiredLookIDs stay reserved so an extension cannot hijack a saved choice after its built-in artwork is removed.
-var RetiredLookIDs = []string{"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob"}
+var RetiredLookIDs = []string{"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob", "nwverse"}
 
 // ReservedLookID excludes both the current built-in drawing and retired choices from downloadable packages.
 func ReservedLookID(id string) bool {

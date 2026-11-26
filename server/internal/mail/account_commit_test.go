@@ -493,3 +493,8 @@ func TestConcurrentAccountRepairsKeepCommittedCredentials(t *testing.T) {
 		})
 	}
 }
+func (s *Service) accessEntry(creds *OAuthCreds) *accessCache {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.accessEntryLocked(creds)
+}

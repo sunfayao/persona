@@ -152,7 +152,7 @@ func (h *Hub) notifyInteractionAt(owner string, ix proto.Interaction, machine st
 }
 
 // notifyWSFrom projects a push onto the opt-in WebSocket notification event, written in each connection's language
-// (client.lang), by the authenticated device's preferences, even without an APNs token or key, and with what its quiet
+// (client.lang), by the authenticated device's preferences, and with what its quiet
 // hours do to it (quiethours.go): skipped, or marked "quiet" for the client to post without a sound. manager is the
 // one that asked for it: a device that turned that manager's pushes off (NotifyPrefs.MutedManagers) gets none, as with
 // its push (Pusher.sendFrom); "" is the hub's own, for every device wants takes. Returns the selected count and the
@@ -191,8 +191,7 @@ func (h *Hub) notifyWSFrom(manager, kind string, build localized, wants func(Not
 		encoded[form{l, quiet}] = b
 		return b
 	}
-	// Mute phone holds these back while a desktop is online, with the same rule as the APNs pushes (alertWanted): an
-	// Android phone alerts from them. desktopOnline takes h.mu, so it is read before.
+	// Read desktop presence before acquiring h.mu for delivery.
 	wants = alertWanted(wants, h.desktopOnline())
 	// Read before h.mu as well: the user's time zone asks the assistant's profile.
 	now, loc := time.Now(), (*time.Location)(nil)

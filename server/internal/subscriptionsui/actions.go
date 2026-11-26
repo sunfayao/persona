@@ -69,13 +69,7 @@ func (p *pages) act(action string, values map[string]string) (wire.ActionResult,
 		return p.saveRecipe(values)
 	case "raw_save":
 		return p.saveRaw(values["recipe"])
-	case "push_add":
-		// This device's own Shortcuts source, before its first item (#3848): the list again, with it under Off.
-		if _, err := p.svc.Push(p.ctx, p.env.By, subscriptions.PushRequest{}); err != nil {
-			return p.errorResult(err)
-		}
-		v := p.draw()
-		return wire.ActionResult{View: &v, Toast: p.t("toast.push_added")}, nil
+
 	}
 	// A push row pressed on an app too old to push by itself: draw the page it names.
 	v := p.draw()

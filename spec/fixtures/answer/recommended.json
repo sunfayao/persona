@@ -5,11 +5,10 @@
       "name": "recommended_spaced",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -55,11 +54,10 @@
       "name": "recommended_unspaced",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -105,11 +103,10 @@
       "name": "recommended_chinese_fullwidth",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -155,11 +152,10 @@
       "name": "recommended_chinese_ascii",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -205,11 +201,10 @@
       "name": "recommended_trims_prefix_space",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -255,11 +250,10 @@
       "name": "recommended_case_sensitive",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -305,11 +299,10 @@
       "name": "recommended_suffix_only",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -355,11 +348,10 @@
       "name": "recommended_trailing_space",
       "description": "推荐标记仅按已支持的结尾格式显示，发送保留原文。",
       "source": [
-        "ios/Shared/Models.swift：QuestionOption.display",
-        "ios/Persona/Views/Interactions/InteractionViews.swift：QuestionForm.pick"
+        "web/src/views/chat/Interactions.tsx"
       ],
       "input": {
-        "profile": "ios_current",
+        "profile": "current",
         "interaction": {
           "id": "example_request",
           "machine_id": "example_machine",
@@ -397,56 +389,6 @@
         "display": {
           "text": "简洁 (Recommended) ",
           "recommended": false
-        }
-      },
-      "derived": true
-    },
-    {
-      "name": "recommended_corefoundation_boundary",
-      "description": "Display trims CoreFoundation whitespace, including U+200B, but keeps the trailing newline; submission keeps the original label.",
-      "source": [
-        "apple/Shared/Models.swift: QuestionOption.display uses .whitespaces",
-        "apple/Persona/Views/Interactions/InteractionViews.swift: QuestionForm.pick sends the original option label"
-      ],
-      "input": {
-        "profile": "ios_current",
-        "interaction": {
-          "id": "example_request",
-          "machine_id": "example_machine",
-          "session_id": "example_session",
-          "kind": "question",
-          "questions": [
-            {
-              "question": "Which option?",
-              "header": "Choice",
-              "multi_select": false,
-              "options": [
-                {
-                  "label": "\u200b \tKeep current settings\n \u200b (Recommended)"
-                }
-              ]
-            }
-          ]
-        },
-        "operation": {
-          "action": "pick_option",
-          "option_index": 0,
-          "page": 0,
-          "picks": {},
-          "other": {},
-          "sending": false
-        }
-      },
-      "expected": {
-        "allowed": true,
-        "resolution": {
-          "answers": {
-            "Which option?": "\u200b \tKeep current settings\n \u200b (Recommended)"
-          }
-        },
-        "display": {
-          "text": "Keep current settings\n",
-          "recommended": true
         }
       },
       "derived": true

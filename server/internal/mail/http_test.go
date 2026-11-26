@@ -156,17 +156,13 @@ func itoa(n uint32) string {
 	return string(buf[i:])
 }
 
-// TestHTTPSendReferences posts replies the way each client builds them: the iOS app sends references as an array
-// of message ids, the web app and the assistant as one space-separated string.
+// TestHTTPSendReferences checks how replies encode their References header.
 func TestHTTPSendReferences(t *testing.T) {
 	for _, tc := range []struct {
 		name, refs string
 		want       []string
 	}{
-		{"array", `["<a@example.com>", "<b@example.com>"]`, []string{"a@example.com", "b@example.com"}},
-		{"array of bare ids", `["a@example.com", "b@example.com"]`, []string{"a@example.com", "b@example.com"}},
 		{"string", `"<a@example.com> <b@example.com>"`, []string{"a@example.com", "b@example.com"}},
-		{"empty array", `[]`, []string{"b@example.com"}},
 		{"null", `null`, []string{"b@example.com"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

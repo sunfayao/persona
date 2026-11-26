@@ -105,6 +105,9 @@ class SDKBundle(unittest.TestCase):
         sdk_status = subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain", "--", "sdk"],
                                              env=git_env, text=True, timeout=30)
         version = "persona " + commit + (" (with uncommitted changes)" if sdk_status else "")
+        dirty = subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain", "--", "sdk"],
+                                        env=git_env, text=True, timeout=30)
+        version = "persona " + commit + (" (with uncommitted changes)" if dirty else "")
         for selected, preserved in [("go", "ts"), ("ts", "go")]:
             with self.subTest(selected=selected), tempfile.TemporaryDirectory() as dest:
                 other = os.path.join(dest, "sdk", preserved)

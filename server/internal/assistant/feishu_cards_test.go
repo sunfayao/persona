@@ -520,7 +520,7 @@ func TestFeishuPermissionCardOffersAlwaysOnlyWhereItWorks(t *testing.T) {
 	// remembers offers it even for an agent that would not.
 	yes, no := true, false
 	own := claude
-	own.ID, own.ToolName, own.AlwaysHonored = "ix_p6", "iphone_do", &no
+	own.ID, own.ToolName, own.AlwaysHonored = "ix_p6", "computer_run", &no
 	if bs := cardButtons(t, s.interactionCard(ctx, own)); len(bs) != 2 || bs[always] != nil {
 		t.Fatalf("the manager's own card offers 本会话总是允许: %v", bs)
 	}

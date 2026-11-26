@@ -9,12 +9,12 @@ These fixtures turn UI operations into the `Resolution` sent to the hub. A Go te
 | `questions.json` | Single choice, multiple choice, free text, paging through several questions, and the submit gate |
 | `recommended.json` | Showing the recommended mark and sending the original label |
 | [`../question-review/review.json`](../question-review/review.json) | The review of a card of several questions: the click that opens it, its Submit and Previous, and the cards that skip it |
-| `decisions.json` | Plans, permissions, answering from a notification and handing back to the terminal |
+| `decisions.json` | Plans, permissions, handing back to the terminal |
 | `screen.json` | Terminal options, free input and the step bar, for a hub with and without `dialog` |
 | `transport.json` | Offline, success, 410, a changed prompt and what happens to the card after a failure |
 | `unified.json` | Rules the design adds: feedback exclusivity, the read-the-whole-plan gate, state gates, reason length and the MCP protocol gap; "always allow" is offered only for a Claude card or a card with `always_label` |
 
-`ios_current` is the assertion of the existing client's behavior (the cases keep that name); `unified` is the design assertion still to be implemented. When implementing the unified profile, keep the rules of the current cases that it does not explicitly replace, and apply `unified.json` and the override rules of the [approval policy tables](../approval/README.md). Do not require both profiles to hold in a conflicting scenario.
+`current` is the assertion of the current protocol behavior; `unified` is the design assertion still to be implemented. When implementing the unified profile, keep the rules of the current cases that it does not explicitly replace, and apply `unified.json` and the override rules of the [approval policy tables](../approval/README.md). Do not require both profiles to hold in a conflicting scenario.
 
 ## JSON structure
 
@@ -23,7 +23,7 @@ The top level is `schema_version: 1` and a `cases` array; each case has a unique
 - `from_test`: takes an existing unit test's assertion directly, naming the test; a synthetic protocol wrapper is not part of the original assertion.
 - `derived: true`: a boundary added from the implementation.
 - `design_change: true`: a design requirement that no implementation can be replayed against yet; do not treat it as existing behavior.
-- `input.profile`: `ios_current` or `unified`.
+- `input.profile`: `current` or `unified`.
 - `input.interaction`: an Interaction of the existing protocol; identifiers are synthetic placeholders, and the real structure of a terminal `dialog` is the Go type.
 - `input.operation`: the UI operation the test drives, not a network field; unless a context is listed, the request is pending, the connection is available and nothing has been sent.
 - `expected.allowed`: whether the operation can be triggered now; being allowed to page or update a choice does not mean it has been sent.
@@ -87,8 +87,6 @@ Each row is a behavior rule with the cases that cover it; function names in the 
 | When the manager says it will remember (`always_honored: true`), another Agent's card without `always_label` also offers Always allow. | `permission_always_honored_agent` |
 | While sending a plan back is being edited, the approve button is hidden. | `plan_rejecting_hides_approve` |
 | After cancelling the send-back the old feedback is kept and the existing approve buttons work. | `plan_cancel_retains_feedback_allows_approve` |
-| Notification actions map to the existing Resolution. | `notification_ix_allow`, `notification_ix_deny`, `notification_ix_approve_plan`, `notification_ix_reject_plan` |
-| Sending a plan back from a notification without text sends empty feedback. | `notification_reject_without_text` |
 | Handing over to the computer sends `dismiss`, which is not a rejection. | `dismiss_question`, `dismiss_plan`, `dismiss_permission`, `dismiss_screen` |
 
 ### questions.json

@@ -58,8 +58,6 @@ export interface Machine {
   };
   /** ego lite (the hub's extension ego): only while the extension is on and it is a Mac. */
   browser?: import("./browser").MachineBrowser;
-  /** iPhone control (the hub's extension iphone): only while the extension is on and the bridge runs on its system (macOS, Linux). */
-  iphone?: import("./iphone").MachineIPhone;
   /** feature machine_trust (docs/protocol/protocol.md "Computer trust"): "pending" while the user has not said it is theirs; omitted = confirmed. */
   trust?: "pending";
   /** What `error` is about, for words of our own: node_service_down / link_offline / never_connected / node_outdated. */
@@ -927,7 +925,7 @@ export interface Interaction {
   /** Whether answering "Always allow" is kept, as the manager says (#3590): false hides the choice, true offers it;
    *  absent (an older hub, an Agents session's card) the card's own rule (offersAlways). */
   always_honored?: boolean;
-  /** The tool by its name for people, from the manager: its own tools ("iPhone control" for iphone_do) and Persona's
+  /** The tool by its name for people, from the manager: its own tools ("Computer control") and Persona's
    *  MCP tools on a node's card ("Report to supervisor · Done", #4966); absent on other cards. */
   tool_title?: string;
   /** The tool alone where tool_title also says what this call does ("Report to supervisor"): what Always covers. */

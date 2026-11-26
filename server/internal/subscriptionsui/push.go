@@ -8,11 +8,6 @@ import (
 	"github.com/nwverse/persona/server/internal/subscriptions"
 )
 
-// Push sources (#3848): a device fills its own from the iOS Shortcuts action Handle Notification. Nothing is pulled,
-// so its page has no recipe, interval or Pull Now: its switches, how it is sent, its triage and runs, and Delete.
-
-const pushIcon = "bell" // notifications; every UI version has it
-
 // pushSource is a push source's page.
 func (p *pages) pushSource(s subscriptions.Subscription) wire.View {
 	v := wire.View{Title: s.Label, State: state{P: pageSource, ID: s.ID}.String()}
@@ -39,29 +34,4 @@ func (p *pages) pushSource(s subscriptions.Subscription) wire.View {
 	del.Action.Confirm = p.t("source.delete_confirm", i18n.Args{"source": s.Label})
 	v.Sections = append(v.Sections, wire.Section{Key: "act", Items: []wire.Component{del}})
 	return v
-}
-
-// pushSection is the list's Shortcuts section: on an iPhone or iPad without its own source yet, a row that adds it;
-// elsewhere, while nobody has one, a line saying how one comes. None once this device (or, off iOS, any) has one.
-func (p *pages) pushSection(subs []subscriptions.Subscription) (wire.Section, bool) {
-	mine, any := false, false
-	for _, s := range subs {
-		if subscriptions.IsPush(s) {
-			any = true
-			mine = mine || s.Source == p.env.By.ID
-		}
-	}
-	sec := wire.Section{Key: "push", Title: p.t("list.push_section")}
-	switch {
-	case p.env.Platform == wire.PlatformIos && p.env.CanEdit && !mine:
-		r := row("push.add", p.t("list.push_add"))
-		r.Subtitle, r.Icon, r.IconColor = p.t("list.push_add_detail"), p.icon(pushIcon), "orange"
-		r.Action = &wire.Action{ID: "push_add"}
-		sec.Items, sec.Footer = []wire.Component{r}, p.t("list.push_footer")
-	case p.env.Platform != wire.PlatformIos && !any:
-		sec.Items = []wire.Component{text("push.hint", p.t("list.push_hint"), "secondary")}
-	default:
-		return wire.Section{}, false
-	}
-	return sec, true
 }

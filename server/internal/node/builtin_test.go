@@ -111,7 +111,7 @@ func TestEveryOldNameIsABuiltinMethod(t *testing.T) {
 // them on disk.
 func TestBuiltinProgramsInInfoAndNeverAPackage(t *testing.T) {
 	n, _ := pluginTestNode(t)
-	if !slices.Equal(builtinProgramIDs, []string{"cua", "ego", "imessage", "iphone"}) {
+	if !slices.Equal(builtinProgramIDs, []string{"cua", "ego", "imessage"}) {
 		t.Fatalf("builtin_programs %v", builtinProgramIDs)
 	}
 	for _, id := range builtinProgramIDs {

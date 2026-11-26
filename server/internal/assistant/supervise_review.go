@@ -473,16 +473,16 @@ func (s *Service) toolTaskReview(ctx context.Context, self string, args json.Raw
 			} else if ok {
 				return fmt.Sprintf("Task %s is accepted and closed, and marked verified by you: its \"Please verify\" card now says so and the "+
 					"user is not asked to pass it. Tell the user the result in a line only if "+
-					"they are waiting for it, and hand out or schedule anything that follows (TestFlight, closing an issue).", t.ID) + against, nil
+					"they are waiting for it, and hand out or schedule anything that follows (deploy, closing an issue).", t.ID) + against, nil
 			}
 		}
 		if carded {
 			return fmt.Sprintf("Task %s is accepted and closed. Its conclusion card (the verdict, "+
 				"why in a sentence, the link) went to the user in Lark, marked checked by you (nothing waits for them): don't push the result again. Hand out or schedule anything that "+
-				"follows (deploy, TestFlight, closing an issue).", t.ID) + against, nil
+				"follows (deploy, closing an issue).", t.ID) + against, nil
 		}
 		return fmt.Sprintf("Task %s is accepted and closed. Tell the user the result in a line or two "+
-			"if they are waiting for it, and hand out or schedule anything that follows (deploy, TestFlight, closing an issue).", t.ID) + against, nil
+			"if they are waiting for it, and hand out or schedule anything that follows (deploy, closing an issue).", t.ID) + against, nil
 	case reviewNeedsUser:
 		if priorReply != nil {
 			choice, err := s.keepPriorDecisionReply(ctx, t, decision, priorReply, reviewedAt)

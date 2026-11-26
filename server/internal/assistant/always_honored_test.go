@@ -119,7 +119,7 @@ func TestAlwaysHonoredIsTheManagersWord(t *testing.T) {
 	heard := make(chan proto.Resolution, 1)
 	go func() {
 		r, _ := s.AskCard(ctx, proto.Interaction{ID: honestID, MachineID: "mac", SessionID: "conv", Kind: proto.IxPermission,
-			ToolName: "iphone_do", ExpiresAt: time.Now().Add(time.Hour)})
+			ToolName: "computer_run", ExpiresAt: time.Now().Add(time.Hour)})
 		heard <- r
 	}()
 	ft.waitPending(1)
@@ -131,8 +131,8 @@ func TestAlwaysHonoredIsTheManagersWord(t *testing.T) {
 	}
 	ft.waitPending(0)
 
-	if got := own(proto.Interaction{ToolName: "iphone_do"}); honored(got) != "false" || got.ToolTitle != i18n.T(l, "assistant-tool_titles.iphone_do") || got.ToolTitle == "" {
-		t.Fatalf("iphone_do's card: always_honored %s, tool_title %q", honored(got), got.ToolTitle)
+	if got := own(proto.Interaction{ToolName: "computer_run"}); honored(got) != "false" || got.ToolTitle != i18n.T(l, "assistant-tool_titles.computer_run") || got.ToolTitle == "" {
+		t.Fatalf("computer_run's card: always_honored %s, tool_title %q", honored(got), got.ToolTitle)
 	}
 	if got := own(proto.Interaction{ToolName: "extension.ui"}); got.ToolTitle != i18n.T(l, "assistant-tool_titles.extension_ui") {
 		t.Fatalf("extension.ui's title: %q", got.ToolTitle)
@@ -142,7 +142,7 @@ func TestAlwaysHonoredIsTheManagersWord(t *testing.T) {
 		t.Fatalf("a card naming what it keeps: always_honored %s, tool_title %q", honored(got), got.ToolTitle)
 	}
 	// Not a permission card: nothing to say.
-	if got := s.ownCard(ctx, proto.Interaction{Kind: proto.IxQuestion, ToolName: "iphone_do"}); honored(got) != "absent" || got.ToolTitle != "" {
+	if got := s.ownCard(ctx, proto.Interaction{Kind: proto.IxQuestion, ToolName: "computer_run"}); honored(got) != "absent" || got.ToolTitle != "" {
 		t.Fatalf("a question: always_honored %s, tool_title %q", honored(got), got.ToolTitle)
 	}
 

@@ -252,11 +252,6 @@ func (h *Manager) setExtensionSettings(id, title string, v json.RawMessage) (*se
 	if _, ok := patch[volcMeetingsField]; ok && id == volc.ExtensionID {
 		return nil, errors.New(volcMeetingsField + " is the owner's choice of meeting transcription: only Settings › Extensions or Recording settings on a device change it")
 	}
-	for _, f := range iphoneOwnFields {
-		if _, ok := patch[f]; ok && id == iphoneExtensionID {
-			return nil, errors.New(f + " is set by each iPhone's own consent: only that iPhone's Persona app changes it (Settings › Connectors › This iPhone)")
-		}
-	}
 	if p.ReadOnly() {
 		return nil, fmt.Errorf("%s is set in manager.json: change it there (or in the admin page)", id)
 	}
@@ -294,9 +289,6 @@ func (h *Manager) setExtensionSettings(id, title string, v json.RawMessage) (*se
 				return "", err
 			}
 			raw, _ := json.Marshal(next)
-			if raw, err = h.keepIPhonePhones(p, raw); err != nil {
-				return "", err
-			}
 			if err := h.checkExtensionSettings(p, raw); err != nil {
 				return "", err
 			}

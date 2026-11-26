@@ -68,10 +68,6 @@ func TestBuiltinProgramsSameFlows(t *testing.T) {
 		"CallApps":                                       TestCallApps,
 		"ComputerAppsAreAskedOnce":                       TestComputerAppsAreAskedOnce,
 		"EgoExtension":                                   TestEgoExtension,
-		"IPhoneExtension":                                TestIPhoneExtension,
-		"IPhoneApprovals":                                TestIPhoneApprovals,
-		"IPhoneCallFailures":                             TestIPhoneCallFailures,
-		"IPhoneJobs":                                     TestIPhoneJobs,
 		"BrowserCookies":                                 TestBrowserCookies,
 		"IMessageExtensionPicksTheMac":                   TestIMessageExtensionPicksTheMac,
 	} {

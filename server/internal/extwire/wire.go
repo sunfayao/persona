@@ -43,9 +43,6 @@ var Routes = []string{
 	"/api/v1/machines/{mid}/computer/",
 	"/api/v1/machines/{mid}/browser",
 	"/api/v1/machines/{mid}/browser/",
-	"/api/v1/machines/{mid}/iphone",
-	"/api/v1/machines/{mid}/iphone/",
-	"/api/v1/iphone/",
 	"/api/v1/error-reports",
 	"/api/v1/subscriptions",
 	"/api/v1/subscriptions/",
@@ -53,7 +50,7 @@ var Routes = []string{
 }
 
 // KeptRoutes are GET routes whose last answer the hub keeps and gives while the manager is away, so the apps keep
-// drawing what the extensions put in them (their UI, themes, widgets, shortcuts, prompts) until it is back.
+// drawing what the extensions put in them (their UI, themes and prompts) until it is back.
 var KeptRoutes = []string{
 	"/api/v1/extensions",
 	"/api/v1/extensions/-/ui",
@@ -88,12 +85,6 @@ const (
 	EventErrorReports = "extensions.error_reports"
 	// MethodHubCall: HubCall → the answer: what the hub's own features ask of the manager's (Hub*).
 	MethodHubCall = "extensions.hub_call"
-)
-
-// What the hub's own features ask of the manager (HubCall.Method).
-const (
-	// HubGitHubLogin: {} → {login}: the GitHub connector's signed-in login (the persona tiers).
-	HubGitHubLogin = "github_login"
 )
 
 // Manager → hub.
@@ -195,11 +186,10 @@ type APIPrefix struct {
 	Events []string `json:"events,omitempty"`
 }
 
-// MachineExtras is one machine's computer (Cua), browser (ego) and paired iPhones' (iphone) state, nil when not on.
+// MachineExtras is one machine's computer (Cua) and browser (ego) state, nil when not on.
 type MachineExtras struct {
 	Computer json.RawMessage `json:"computer,omitempty"`
 	Browser  json.RawMessage `json:"browser,omitempty"`
-	IPhone   json.RawMessage `json:"iphone,omitempty"`
 	// ScreenPort: the computer's screen may be opened (the plugin cua or ego is on for it).
 	ScreenPort bool `json:"screen_port,omitempty"`
 }

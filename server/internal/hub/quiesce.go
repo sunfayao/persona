@@ -267,7 +267,6 @@ func (h *Hub) resumeDevelopmentWriters() {
 	h.resumeMachineEntries()
 	h.wakeClientOps()
 	h.push.resumeWrites()
-	h.resumePersonaTiers()
 	h.resumeMeshPersist()
 	h.resumeAssistantProfile()
 	h.resumeCodexInventory()

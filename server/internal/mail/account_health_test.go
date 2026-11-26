@@ -126,7 +126,7 @@ func TestRevokedOAuthMarksAccountError(t *testing.T) {
 	for name, refused := range map[string]error{
 		"google invalid_grant": errGoogleRevoked,
 		"xoauth2 NO":           fmt.Errorf("imap: XOAUTH2: %w", &imap.Error{Type: imap.StatusResponseTypeNo, Code: imap.ResponseCodeAuthenticationFailed, Text: "Invalid credentials"}),
-		"outlook refresh":      microsoftError("invalid_grant", "AADSTS70008: expired", "", true),
+		"outlook refresh":      microsoftError("invalid_grant", "AADSTS70008: expired"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := newHealthService(t)

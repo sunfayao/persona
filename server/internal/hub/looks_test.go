@@ -228,3 +228,27 @@ func TestExtensionLooks(t *testing.T) {
 		t.Fatalf("%d look broadcasts after the removal", n)
 	}
 }
+
+// appClient is an app connected to the hub: what is broadcast lands in its queue.
+func appClient(h *Hub) *client {
+	c := &client{out: make(chan []byte, 64), subs: map[[2]string]bool{}}
+	h.mu.Lock()
+	h.clients[c] = struct{}{}
+	h.mu.Unlock()
+	return c
+}
+
+func broadcasts(c *client, typ string) int {
+	n := 0
+	for {
+		select {
+		case b := <-c.out:
+			var m struct{ Type string }
+			if json.Unmarshal(b, &m) == nil && m.Type == typ {
+				n++
+			}
+		default:
+			return n
+		}
+	}
+}

@@ -181,11 +181,11 @@
       "want": ["ask"]
     },
     {
-      "name": "english-testflight-audience",
+      "name": "english-preview-audience",
       "agent": "Crash fix",
       "task": "Fix the launch crash",
       "reply": "The crash is fixed and the build is ready.",
-      "questions": [{"question": "Who should get this build on TestFlight?", "options": [{"label": "Internal testers only"}, {"label": "Internal and external testers"}]}],
+      "questions": [{"question": "Who should get access to the preview build?", "options": [{"label": "Internal testers only"}, {"label": "Internal and external testers"}]}],
       "want": ["ask"]
     }
   ]

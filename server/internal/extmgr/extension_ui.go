@@ -89,11 +89,15 @@ func (ps *extensions) uiPlaces(placement, base string) []UIPlace {
 			continue
 		}
 		for _, u := range p.Manifest.UIs() {
+			if u.Placement == "widget" {
+				continue
+			}
 			slot, known := extension.Slot(u.Placement)
 			switch {
 			case !known:
 				continue
-			case placement == "" && (u.Placement == "launcher_section" || u.Placement == "widget"):
+			case placement == "" && u.Placement == "launcher_section":
+				continue // launcher sections are requested by launcher
 				continue // launcher sections are requested with the launcher
 			case placement != "" && u.Placement != placement && !(extension.PageSlot(placement) && extension.PageSlot(u.Placement)):
 				continue
@@ -262,6 +266,9 @@ func (h *Manager) withUI(ctx context.Context, id, uiID string, in uiRequest, cal
 	}
 	var item *extension.UIItem
 	for _, u := range p.Manifest.UIs() {
+		if u.Placement == "widget" {
+			continue
+		}
 		if u.ID == uiID {
 			u := u
 			item = &u
@@ -273,9 +280,6 @@ func (h *Manager) withUI(ctx context.Context, id, uiID string, in uiRequest, cal
 	slot, known := extension.Slot(item.Placement)
 	if !known {
 		return res, i18n.Err("hub-extension_ui.no_placement", i18n.Args{"placement": item.Placement})
-	}
-	if item.Placement == "widget" {
-		return res, errUseWidget
 	}
 	params := h.uiParams(*item, slot, in)
 	// Older clients may send their system locale in the body. The request's UI language wins when supplied.
@@ -516,8 +520,6 @@ func (h *Manager) extensionUIRoutes(api *http.ServeMux) {
 			writeExtensionResponseError(w, r, http.StatusNotFound, "unsupported", err)
 		case errors.Is(err, errNotItsItem):
 			writeExtensionResponseError(w, r, http.StatusForbidden, "forbidden", err)
-		case errors.Is(err, errUseWidget):
-			writeExtensionResponseError(w, r, http.StatusBadRequest, "bad_request", err)
 		case errors.Is(err, errOffline):
 			writeExtensionResponseError(w, r, http.StatusServiceUnavailable, "offline", err)
 		case err != nil:
@@ -646,4 +648,29 @@ func (ps *extensions) emit(topic string, payload map[string]any) {
 			_ = hp.proc.Notify("event."+topic, payload)
 		}
 	}
+}
+
+// contextLang is the language of what ctx is doing for people: its request's (i18n.With), else the user's.
+func (h *Manager) contextLang(ctx context.Context) i18n.Lang {
+	if l := i18n.From(ctx); i18n.Valid(l) {
+		return l
+	}
+	if h == nil {
+		return i18n.Default
+	}
+	return h.userLang()
+}
+
+// kindErr is a localized message that is also kind (errors.Is), for a sentinel error with detail of its own.
+type kindErr struct {
+	msg  *i18n.Message
+	kind error
+}
+
+func (e *kindErr) Error() string   { return e.msg.Error() }
+func (e *kindErr) Unwrap() []error { return []error{e.msg, e.kind} }
+
+// localizedKind is key's text as an error that is kind.
+func localizedKind(kind error, key string, args i18n.Args) error {
+	return &kindErr{msg: &i18n.Message{Key: key, Args: args}, kind: kind}
 }

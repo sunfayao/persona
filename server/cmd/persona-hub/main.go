@@ -45,7 +45,7 @@ const usage = `usage:
                            until a device says one (default PERSONA_INSTALL_LANG, set by install.sh); --manager-service: an existing
                            hub's built-in manager becomes a service of its own; PERSONA_SPLIT_PROGRAMS=0 keeps
                            its services on personad until setup runs again without it (an installed Mac stays on personad)
-  persona-hub pair [--legacy | --android] | --machine <id> [--add [--name <name>]] | --peer
+  persona-hub pair [--legacy] | --machine <id> [--add [--name <name>]] | --peer
                            pairing codes for phones, a computer's persona-link, another hub
   persona-hub peer add|list|remove|center …    linked hubs (docs/server/mesh.md)
   persona-hub doctor        check the hub's configuration, network and certificates (read only)

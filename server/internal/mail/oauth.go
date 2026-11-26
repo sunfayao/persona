@@ -45,8 +45,6 @@ type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"`
-	Scope        string `json:"scope"`
-	IDToken      string `json:"id_token"`
 	Error        string `json:"error"`
 	ErrorDesc    string `json:"error_description"`
 }
@@ -71,7 +69,7 @@ func (s *Service) googleToken(ctx context.Context, form url.Values) (*tokenRespo
 		return nil, fmt.Errorf("oauth: parse token response (HTTP %d): %w", resp.StatusCode, err)
 	}
 	if resp.StatusCode != http.StatusOK || tr.AccessToken == "" {
-		if tr.Error == "invalid_grant" && form.Get("grant_type") == "refresh_token" {
+		if tr.Error == "invalid_grant" {
 			return nil, errGoogleRevoked
 		}
 		msg := tr.Error
@@ -86,12 +84,6 @@ func (s *Service) googleToken(ctx context.Context, form url.Values) (*tokenRespo
 	return &tr, nil
 }
 
-func (s *Service) accessEntry(creds *OAuthCreds) *accessCache {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.accessEntryLocked(creds)
-}
-
 func (s *Service) accessEntryLocked(creds *OAuthCreds) *accessCache {
 	c := s.access[creds.RefreshToken]
 	if c == nil {
@@ -101,17 +93,6 @@ func (s *Service) accessEntryLocked(creds *OAuthCreds) *accessCache {
 	return c
 }
 
-func (s *Service) storeAccess(creds *OAuthCreds, token string, expiresIn int) {
-	if expiresIn <= 0 {
-		expiresIn = 3600
-	}
-	c := s.accessEntry(creds)
-	c.mu.Lock()
-	c.token, c.expires = token, s.now().Add(time.Duration(expiresIn)*time.Second)
-	c.mu.Unlock()
-}
-
-// accessToken returns a valid access token, refreshing it when it expires within a minute.
 func (s *Service) accessToken(ctx context.Context, id string, creds *OAuthCreds) (string, error) {
 	if creds == nil || creds.RefreshToken == "" {
 		return "", errors.New("mail: oauth2 account without credentials")

@@ -2930,7 +2930,7 @@ func (s *Service) taskViews(ctx context.Context) []TaskView {
 // tasksView is the list as the app sees it: next runs filled in (a cron task's next few too, and its expression in words
 // in the request's language), one-offs that already ran left out. Empty while the schedule can't be read: the routes
 // check scheduleReadable first.
-func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
+func (s *Service) tasksView(ctx context.Context) []Task {
 	sc := s.loadSchedule(ctx)
 	loc, lang := s.location(ctx), s.requestCtxLang(ctx)
 	machine := s.settings(ctx).MachineID
@@ -2941,7 +2941,7 @@ func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
 	sc.mu.Unlock()
 	out := []Task{}
 	for _, t := range tasks {
-		if t.done() || (keep != nil && !keep(t)) {
+		if t.done() {
 			continue
 		}
 		t.NextRun = t.next(now, loc)
@@ -2984,7 +2984,7 @@ func (s *Service) tasksView(ctx context.Context, keep func(Task) bool) []Task {
 }
 
 func (s *Service) taskView(ctx context.Context, id string) (Task, bool) {
-	for _, t := range s.tasksView(ctx, nil) {
+	for _, t := range s.tasksView(ctx) {
 		if t.ID == id {
 			return t, true
 		}
@@ -3065,7 +3065,7 @@ func (s *Service) scheduleRoutes() {
 			apierr.Write(w, http.StatusServiceUnavailable, err)
 			return
 		}
-		tasks := s.tasksView(i18n.With(r.Context(), s.requestLang(r)), nil)
+		tasks := s.tasksView(i18n.With(r.Context(), s.requestLang(r)))
 		if !fullRole(r) {
 			for i := range tasks {
 				tasks[i].CanSkipNext, tasks[i].SkipNextToken = false, ""
@@ -3318,8 +3318,6 @@ func (s *Service) scheduleRoutes() {
 		apierr.WriteJSON(w, map[string]any{"runs": runs})
 	})
 
-	// The two lists app builds from before 2026-10-31 read and write (a task's JSON is a superset of both):
-	// routines are the daily tasks; follow-ups the once and interval ones, by their next run.
 }
 
 func (s *Service) deleteTaskRoute(w http.ResponseWriter, r *http.Request) {

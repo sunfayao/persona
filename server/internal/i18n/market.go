@@ -15,7 +15,7 @@ func MarketText(l Lang, text string) string { return marketText(l, text, 0) }
 var marketTemplates = sync.OnceValue(func() []deploymentTemplate {
 	return makeCatalogTemplates(func(key string) bool {
 		return strings.HasPrefix(key, "extension-market_read.") || strings.HasPrefix(key, "extension-market_security.") ||
-			strings.HasPrefix(key, "extension-market_git.") || key == "hub-extension_market.pin_rotated_pending" ||
+			strings.HasPrefix(key, "extension-market_git.") ||
 			key == "extension-status.entry_translation_skipped"
 	})
 })

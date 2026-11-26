@@ -264,8 +264,8 @@ func TestGoldenTaskDone(t *testing.T) {
 		Missing:  []string{"/tmp/report.pdf（over 50 MB）"},
 		Pictures: []string{"/home/me/.persona/uploads/terminal/2026-11-09/cd34-screen.png"}}))
 	golden(t, "task_done_input.hints", prompts.RenderTaskDoneInput(prompts.TaskDoneInput{Title: "修登录崩溃",
-		Prompt:   "iPad 横屏时登录页崩溃，修好并补测试，走 PR 合并后发 TestFlight",
-		Replies:  []prompts.TaskDoneReply{{Machine: "box", Text: "修好了，PR https://github.com/o/r/pull/901 已合并，TestFlight 构建号 202611041200"}},
+		Prompt:   "iPad 横屏时登录页崩溃，修好并补测试，走 PR 合并后部署到预览环境",
+		Replies:  []prompts.TaskDoneReply{{Machine: "box", Text: "修好了，PR https://github.com/o/r/pull/901 已合并，部署构建号 202611041200"}},
 		MergedPR: true, Build: true}))
 	golden(t, "task_done_input.two_agents", prompts.RenderTaskDoneInput(prompts.TaskDoneInput{Title: "用新 logo 设计默认形象",
 		Prompt:  "按新 logo 重画默认形象的全部表情",
@@ -273,7 +273,7 @@ func TestGoldenTaskDone(t *testing.T) {
 	golden(t, "task_done_input.follow_up", prompts.RenderTaskDoneInput(prompts.TaskDoneInput{Title: "修任务启动失败",
 		Prompt: "任务启动失败时一直显示正在开，修好",
 		Replies: []prompts.TaskDoneReply{{Machine: "box", Ask: "再把「全部 N」挪到这一行最左边",
-			Text: "挪好了，PR 已合并，TestFlight 构建号 202611040923。没截图的：Mac。"}}, Build: true}))
+			Text: "挪好了，PR 已合并，部署构建号 202611040923。没截图的：Mac。"}}, Build: true}))
 	// The user only asked whether it is done: the report is in the turn before (#3111).
 	golden(t, "task_done_input.check_in", prompts.RenderTaskDoneInput(prompts.TaskDoneInput{Title: "新空间加模型",
 		Prompt: "给新空间加上新模型，部署并验证",

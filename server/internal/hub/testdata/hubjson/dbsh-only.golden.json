@@ -18,8 +18,7 @@
   "security": {},
   "admin": {},
   "tailcat": {},
-  "mesh": {},
-  "personas": {}
+  "mesh": {}
 }
 // hub.json after loading
 {

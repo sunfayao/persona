@@ -338,10 +338,6 @@ func TestBlockedDirectoryOlderNodeFallsBackToHide(t *testing.T) {
 			t.Fatalf("agents_list state=%s: %s", state, got)
 		}
 	}
-	fleet := ft.s.fleetSnapshot()
-	if fleet.NeedsYou != 0 || fleet.Unread != 0 || fleet.Working != 1 {
-		t.Fatalf("counts: %+v", fleet)
-	}
 	agents, ixs, told := ft.s.fleetInputs()
 	if got := linkAttention(i18n.Default, agents, ixs, told); got.NeedsYou != 0 {
 		t.Fatalf("needs-you: %+v", got)

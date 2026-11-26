@@ -208,7 +208,7 @@ func (m *Market) Fetch(ctx context.Context) (*MarketIndex, []string, error) {
 	return f.Index, f.Warnings, nil
 }
 
-// FetchSigned reads one document, and enforces the compiled-in pin for all official aliases. A failure is
+// FetchSigned reads one document, and verifies it with the market's stored signing key when present. A failure is
 // ErrCatalogUnavailable (nothing read) or ErrCatalogUnverified (read, and it does not verify). A catalog mirror
 // that cannot be read or does not verify is skipped for the origin, whose answer alone decides: a mirror can
 // neither stand in an unverified catalog nor, when the origin is unreachable, quarantine the market.
@@ -217,13 +217,7 @@ func (m *Market) FetchSigned(ctx context.Context) (*Fetched, error) {
 	if m.Spec.Kind == "git" {
 		limit = gitFor
 	}
-	key := ""
-	if IsOfficialMarket(m.Spec.String()) {
-		key = Official.SigningKey
-		if _, err := ParseSigningKey(key); err != nil {
-			return nil, catalogFailure(ErrCatalogUnverified, i18n.Err("extension-market_security.signature"))
-		}
-	}
+	key := m.TrustedKey
 	if key != "" && m.CatalogMirror != "" {
 		mirrorCtx, stop := context.WithTimeout(ctx, mirrorFetchFor)
 		var b strings.Builder

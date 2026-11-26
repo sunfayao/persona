@@ -30,9 +30,6 @@ const root = createRoot(document.getElementById("root")!, { onCaughtError: logCa
 if (target) {
   const { ScreenView } = await import("./screen/ScreenView");
   root.render(createElement(StrictMode, null, createElement(ScreenView, { target })));
-} else if (window.location.pathname === "/login/device") {
-  const { NativePasswordLogin } = await import("./views/PasswordLogin");
-  root.render(createElement(StrictMode, null, createElement(NativePasswordLogin)));
 } else {
   // Error reports start with the app: they go out only if the hub's hello has the feature.
   const [{ App }] = await Promise.all([import("./App"), import("./lib/error-reports-start")]);

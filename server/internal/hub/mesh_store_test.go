@@ -65,13 +65,6 @@ func (s *meshStore) ClaimSend(context.Context, string, string, string) (string, 
 }
 func (s *meshStore) SettleSend(context.Context, string, string) error { return nil }
 
-func (s *meshStore) UpsertDevice(_ context.Context, d db.Device) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.devices[d.DeviceID] = d
-	return nil
-}
-
 func (s *meshStore) Devices(context.Context) ([]db.Device, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -8,9 +8,7 @@
         "rule": "Matching pending messages: an item with client_msg_id collapses the pending message with that id",
         "docs": "docs/protocol/protocol.md \"Matching pending messages\"",
         "code": {
-          "web": "web/src/lib/echo.ts",
-          "ios": "apple/Shared/ChatStore.swift PendingMessage.arrived",
-          "android": "MessageEcho.tag"
+          "web": "web/src/lib/echo.ts"
         }
       },
       "chat": {
@@ -466,9 +464,7 @@
         "rule": "Never missing: a bubble the hub accepted may only go when its transcript copy shows",
         "found": "Reading the web chat page: its own sending bubbles go 30 seconds after sending at the next change of the transcript, whether or not the copy came",
         "code": {
-          "web": "web/src/views/chat/ChatView.tsx pending",
-          "ios": "AppModel.settleSend",
-          "android": "OutboxMessageSender"
+          "web": "web/src/views/chat/ChatView.tsx pending"
         }
       },
       "chat": {
@@ -1099,7 +1095,7 @@
         "rule": "A failed message stays where it was sent",
         "found": "A past iOS bug drew failed messages below later ones",
         "code": {
-          "ios": "apple/Shared/ChatLines.swift placeFailed"
+          "web": "web/src/views/chat/sync/sync-scenarios.test.tsx"
         }
       },
       "chat": {
@@ -1495,8 +1491,7 @@
         "issue": "#1349",
         "docs": "docs/protocol/protocol.md \"Operation receipts (client_ops)\"",
         "code": {
-          "hub": "server/internal/hub/assistant_link.go startConversationOnce",
-          "ios": "apple/Persona/App/AssistantStart.swift"
+          "hub": "server/internal/hub/assistant_link.go startConversationOnce"
         }
       },
       "chat": {
@@ -1795,7 +1790,7 @@
         "rule": "A failed send stays where it was sent with Retry and Delete, the composer empty (#1122 option A); a refused write's receipt answers its op id with the refusal",
         "issue": "#1368",
         "code": {
-          "ios": "apple/Persona/App/FailedStart.swift"
+          "web": "web/src/views/chat/sync/sync-scenarios.test.tsx"
         }
       },
       "chat": {

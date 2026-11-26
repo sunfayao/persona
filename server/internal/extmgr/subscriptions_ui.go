@@ -46,7 +46,6 @@ func (h *Manager) subscriptionUI(w http.ResponseWriter, r *http.Request) {
 		Ask:       in.Context.Assistant != nil,
 		Graph:     in.Context.Graph,
 		Triage:    h.triagePreview,
-		Platform:  in.Context.Platform,
 	}
 	if env.Ask {
 		env.Assistant = *in.Context.Assistant

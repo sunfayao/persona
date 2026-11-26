@@ -9,7 +9,6 @@
   "empty_body": "I can read your calendar, Lark, email and knowledge base, and get things done on your computers.",
   "ask_placeholder": "What can {name} do for you today?",
   "empty_body_setup": "One more step before we start. Here's what's missing.",
-  "needs_calendar": "Uses your phone's calendar",
   "load_failed": "Couldn't load main conversation: {error}",
   "retry": "Retry",
   "still_starting": "Still starting {launcher}…"

@@ -10,8 +10,6 @@ import { t } from "../i18n";
 import { tRich } from "../i18n/rich";
 import type { PasswordState } from "../lib/password";
 
-import { BrowserLoginQR } from "./BrowserLoginQR";
-
 const PasswordLogin = lazy(() => import("./PasswordLogin").then((m) => ({ default: m.PasswordLogin })));
 
 const code = "whitespace-nowrap rounded-[5px] bg-field px-1 py-0.5 font-mono text-[11.5px] text-ink-2 shadow-hairline";
@@ -36,7 +34,7 @@ export function Login({ onDone, error: linkError = "" }: { onDone: () => void; e
   // the link form's error (a link's token that didn't work starts there) and the master key's
   const [error, setError] = useState(linkError);
   const [masterError, setMasterError] = useState("");
-  const [panel, setPanel] = useState<"qr" | "help" | "advanced" | null>(null);
+  const [panel, setPanel] = useState<"help" | "advanced" | null>(null);
   useEffect(() => void rememberHub(here()), []);
 
   const submit = (from: "link" | "master") => async (e: React.FormEvent) => {
@@ -103,7 +101,6 @@ export function Login({ onDone, error: linkError = "" }: { onDone: () => void; e
 
         <div className="mt-5 flex justify-center gap-3">
           {([
-            ["qr", "phone", "login.qr_short", "login.qr_open"],
             ["help", "info", "login.help_short", "login.get_link"],
             ["advanced", "key", "login.key_short", "login.advanced"],
           ] as const).map(([id, icon, caption, name]) => (
@@ -117,9 +114,6 @@ export function Login({ onDone, error: linkError = "" }: { onDone: () => void; e
               {t(caption)}
             </button>
           ))}
-        </div>
-        <div id="login-qr" className="mt-4" hidden={panel !== "qr"}>
-          {panel === "qr" && <BrowserLoginQR onDone={onDone} />}
         </div>
         <div id="login-help" hidden={panel !== "help"} className="mt-4 rounded-card bg-surface p-4 text-meta text-ink-2 shadow-card">
           <h2 className="mb-2 font-semibold text-ink">{t("login.get_link")}</h2>

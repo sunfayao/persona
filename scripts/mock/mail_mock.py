@@ -2,11 +2,11 @@
 a domain of scripts/mock/mock_domains.py that moved out of mock_hub.py's "area: mail" (#11543).
 
 The accounts (GET / POST /api/v1/mail/accounts, POST …/accounts) and the mail's write
-paths: flags, sending, Google's and Microsoft's sign-in start. Nothing is sent anywhere: what the app posted is in GET
+paths: flags and sending. Nothing is sent anywhere: what the app posted is in GET
 /mock/mail. MOCK_MAIL=1 adds whole mails for the reader (an HTML one with a tracking pixel, a script and an attachment; a
-two-mail thread) and a Gmail account whose authorization ran out and a Feishu one; MOCK_GOOGLE=1 makes google/config say
-configured and google/start answer (with a made-up URL). MOCK_OUTLOOK=1: an Outlook account signed in with Microsoft
-(the web's Outlook badge and line, #2968); MOCK_OUTLOOK_CLIENT=1: its client ID is saved already. With
+two-mail thread) and a Gmail account whose authorization ran out and a Feishu one.
+MOCK_OUTLOOK=1: an Outlook account signed in with Microsoft
+(the web's Outlook badge and line, #2968). With
 MOCK_INBOX_SOURCES=none (mock_hub.py's NO_SOURCES) there is no account at all.
 
 mock_hub.py keeps the inbox's side: the two-mail thread's inbox row (MOCK_MAIL=1), among the inbox's own rows where the
@@ -15,7 +15,6 @@ switches after it still change them, and the mails made from inbox rows (MAIL_ME
 """
 import json
 import os
-import re
 import uuid
 from urllib.parse import unquote
 
@@ -65,6 +64,7 @@ def load(hub):
                   "message_id": "<506@example.com>", "references": ["<505@example.com>"], "flagged": True, "seen": False,
                   "text": "改到周三下午两点吧，会议室我订好了。\n\n议程：\n1. 上季度目标回顾\n2. 下季度计划\n\nJack", "html": ""},
         }
+
 
 
 def mail_area(h, method, p, q):

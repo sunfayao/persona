@@ -184,14 +184,13 @@ describe("AddComputer", () => {
     }
   });
 
-  it("gives a Mac the pairing link and Persona Link's install guide, not a command", async () => {
+  it("gives a Mac the pairing link and Persona Link setup instructions", async () => {
     await act(async () => root.render(<AddComputer open onClose={() => {}} />));
     await flush();
     await type("我的 MacBook");
     await click("下一步");
     expect(posts[0]?.body).toEqual({ add: { name: "我的 MacBook", os: "mac" } });
     expect(button("复制配对链接")).toBeTruthy();
-    expect(document.querySelector<HTMLAnchorElement>('a[href$="docs/operations/link.md"]')).toBeTruthy();
     expect(text()).toContain("要自己从源码编译");
     expect(text()).not.toContain("curl");
   });

@@ -50,7 +50,6 @@ func (h *Hub) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", h.health)
 	h.passwordLoginRoutes(mux)
-	h.browserLoginRoutes(mux)
 	api := http.NewServeMux()
 	h.apiMux = api
 	if h.upd != nil {
@@ -1310,9 +1309,7 @@ type client struct {
 	uiConnection string // hub-owned identity for targeted extension page transport
 	uiRequests   chan struct{}
 	uiManagers   map[string]bool
-	// pushDevice: the app's id for pushes (register_phone's / register_desktop's device_id, PushRegistrar.deviceID in
-	// the app): while it is connected its app is open, and a phone draws its Live Activity itself (liveactivity.go), a
-	// desktop posts its own notifications (desktopOpen). Empty for an older app.
+	// pushDevice is the desktop client's notification device ID.
 	pushDevice string
 	// delta: the app asked for sessions_delta (sessions_push.go); have is, by machine, each session it has (id -> its
 	// JSON as sent), under the hub's sessionsMu.
@@ -1640,7 +1637,7 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 		LazyImages bool   `json:"lazy_images"`
 		FoldWork   bool   `json:"fold_work"`
 		DeviceName string `json:"device_name"`
-		DeviceID   string `json:"device_id"` // register_phone / register_desktop: the app's id for pushes
+		DeviceID   string `json:"device_id"` // register_desktop: the app's id for pushes
 		Epoch      string `json:"epoch"`
 		AfterSeq   int    `json:"after_seq"`
 		// terminal_subscribe, terminal_input: the grid the app drives the terminal at

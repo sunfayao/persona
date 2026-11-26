@@ -12,24 +12,10 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Persona Link's "Needs you" summary (internal/link/attention.go): worked out in
-// liveLoop from the Live Activity's inputs and handed to the devices, which send it to the computers' Persona Link
-// when it changed. It reuses two rules the product has, and writes no third:
-//
-//   - What it lists and counts is the web app's "Needs you" badge (stateCounts().badge in web/src/lib/sessions.ts, the
-//     count iOS shows) as it is: every agent whose row says "Needs you" but quiet tasks' agents and the assistant's
-//     conversations, muted ones and ones waiting only on the assistant's decision included.
-//   - Whether an item notifies (Notify) is the phone's push rule: once a card of the agent is the user's (pending.told:
-//     tell rang it, when the phone is pushed; not while being recorded, nor while the assistant decides on it, nor a
-//     card back from a reconnect or a restart that is not known to have rung), and never for a muted agent (mutedAs).
-//     The web app's system notifications follow the same rule for agents with cards (lookingOnly, isMuted in
-//     web/src/lib); for one in a terminal dialog before its card they ring at once, where the phone waits for the
-//     screen card.
-//
-// spec/fixtures/attention holds the manager and the web app to both.
-//
-// The Live Activity counts otherwise (liveCounts: muted agents left out, questions being decided on counted) and does
-// not change.
+// Persona Link's "Needs you" summary uses the same session state as the web app's badge.
+// It includes muted agents and agents waiting on the assistant's decision. It sends an alert
+// only when an unmuted agent has a card waiting for the owner to answer.
+// The shared cases are in spec/fixtures/attention.
 
 // linkTextMax and linkDetailMax are how long an item's title and place, and its detail, get in runes, the ellipsis
 // that marks a cut included.
@@ -125,7 +111,7 @@ func linkItem(l i18n.Lang, n needer) link.AttentionItem {
 	sess := n.agent.Session
 	it := link.AttentionItem{MachineID: sess.MachineID, SessionID: sess.SessionID, Title: fit(agentTitle(sess, linkTextMax), linkTextMax),
 		Place: fit(agentPlace(n.agent.Machine, sess, linkTextMax), linkTextMax), Kind: proto.IxScreen,
-		Detail: i18n.T(l, "hub-liveactivity.screen"), Muted: n.agent.Muted, Route: sessionPath(sess.MachineID, sess.SessionID, false)}
+		Detail: i18n.T(l, "assistant-link_attention.screen"), Muted: n.agent.Muted, Route: sessionPath(sess.MachineID, sess.SessionID, false)}
 	if ix := n.card; ix != nil {
 		it.Kind, it.Detail, it.InteractionID = ix.Kind, fit(oneLine(interactionDetail(l, *ix)), linkDetailMax), ix.ID
 	}

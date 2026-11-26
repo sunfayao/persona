@@ -220,7 +220,7 @@ func (s *Service) handoffApprove(ctx context.Context, convMachine, self string, 
 	case r.Dismiss && !time.Now().Before(expires.Add(-time.Second)):
 		return "", handoffAnswer(results(handoffExpired), "The hand-off card expired unanswered."), nil
 	case proto.SecretHandoffApproves(r): // not through the hub's gate: refused, as the hub would
-		return "", handoffAnswer(results(handoffDeclined), "The hand-off was not approved on iPhone or the web."), nil
+		return "", handoffAnswer(results(handoffDeclined), "The hand-off was not approved in the web app."), nil
 	default:
 		return "", handoffAnswer(results(handoffDeclined), "The user declined handing over the secrets."), nil
 	}

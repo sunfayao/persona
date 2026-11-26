@@ -14,7 +14,7 @@ import { Devices } from "./Devices";
 let host: HTMLDivElement, root: Root;
 const pending = new Map<string, () => void>();
 const flush = async () => { for (let i = 0; i < 8; i++) await act(async () => { await Promise.resolve(); }); };
-const device = (id: string, name: string) => ({ id, name, kind: "phone", role: "full", created_at: "2026-11-01T00:00:00Z", last_seen: "2026-11-01T00:00:00Z" });
+const device = (id: string, name: string) => ({ id, name, kind: "web", role: "full", created_at: "2026-11-01T00:00:00Z", last_seen: "2026-11-01T00:00:00Z" });
 const names = () => [...host.querySelectorAll("span.truncate")].map((s) => s.textContent);
 const rowOf = (name: string) => [...host.querySelectorAll("span.truncate")].find((s) => s.textContent === name)!.closest("div.flex-wrap")!;
 const revoke = async (name: string) => {

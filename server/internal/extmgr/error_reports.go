@@ -182,8 +182,7 @@ func (h *Manager) deliverErrorBatch(batch []wire.ErrorReport) {
 	}
 }
 
-// postErrorReports is POST /api/v1/error-reports: an app's reports. Only the user's own apps send them (a full
-// device, not a pairing token, not an extension, not the watch).
+// postErrorReports accepts browser reports from a full device credential.
 func (h *Manager) postErrorReports(w http.ResponseWriter, r *http.Request) {
 	who := principalOf(r.Context())
 	if who.Role != roleFull || who.Extension != "" || who.Paired {
@@ -213,7 +212,7 @@ func (h *Manager) postErrorReports(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		rep.Fingerprint, rep.Count, rep.ReceivedAt = "", 0, "" // the manager's to set
-		if h.takeErrorReport(rep, sender, appErrorSources, []string{who.Name}) {
+		if h.takeErrorReport(rep, sender, []string{wire.ErrorSourceWeb}, []string{who.Name}) {
 			accepted++
 		}
 	}
@@ -221,10 +220,6 @@ func (h *Manager) postErrorReports(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, map[string]any{"enabled": true, "accepted": accepted, "dropped": len(body.Reports) - accepted})
 }
-
-// appErrorSources are the sources an app may say (not the hub's or the manager's).
-var appErrorSources = []string{wire.ErrorSourceWeb, wire.ErrorSourceAndroid, wire.ErrorSourceIos, wire.ErrorSourceMac,
-	wire.ErrorSourceWatch, wire.ErrorSourceVision}
 
 // hubErrorReports takes the hub's own reports (extwire.EventErrorReports).
 func (h *Manager) hubErrorReports(params json.RawMessage) {

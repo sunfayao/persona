@@ -148,8 +148,8 @@ func (r *Registry) PreviewMarket(ctx context.Context, mk *Market, marketID strin
 		renameFrom = upgrade
 	}
 	verifiedKey := ""
-	if IsOfficialMarket(mk.Spec.String()) {
-		if e.verifiedKey == "" || e.verifiedKey != Official.SigningKey || e.verifiedKey != mk.TrustedKey || e.verifiedEntry != entryFingerprint(e) {
+	if mk.TrustedKey != "" {
+		if e.verifiedKey != mk.TrustedKey || e.verifiedEntry != entryFingerprint(e) {
 			return nil, i18n.Err("extension-market_security.signature")
 		}
 		verifiedKey = e.verifiedKey

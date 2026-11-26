@@ -147,7 +147,7 @@ func judgedDelivery(state, gate, unblock string, replies []prompts.TaskDoneReply
 		}
 		st, _ := stageOf(r.Text)
 		if buildNumbers.MatchString(r.Text) {
-			st = "deploy" // a TestFlight build sent out is the app's release
+			st = "deploy"
 		}
 		if stageIndex(st) > stageIndex(stage) {
 			stage = st

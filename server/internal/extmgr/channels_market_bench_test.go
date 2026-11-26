@@ -49,23 +49,6 @@ func putMarket(h *Manager, id string, n int, signature string, entries ...extens
 		index: &extension.MarketIndex{MarketVersion: 1, Name: "Market " + id, Extensions: entries}}
 }
 
-// makeOfficial makes market id the official market for this test or benchmark (TestMain turns the official market
-// off for the rest), its index signed with the pinned key: the catalog lists its entries most downloaded first.
-func makeOfficial(tb testing.TB, h *Manager, id string) {
-	tb.Helper()
-	was := extension.Official
-	extension.Official = extension.OfficialMarket{Spec: "github:example/extensions", SigningKey: "ed25519:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}
-	tb.Cleanup(func() { extension.Official = was })
-	ms := h.marketsState()
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	ms.byID[id].rec.Spec = extension.Official.Spec
-	ms.byID[id].rec.Signature = extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDOf(extension.Official.SigningKey)}
-	if !extension.IsOfficialMarket(ms.byID[id].rec.Spec) {
-		tb.Fatal("the market is not the official one")
-	}
-}
-
 // downloaded is e with a download count.
 func downloaded(e extension.MarketEntry, n int64) extension.MarketEntry {
 	e.Downloads = &n
@@ -106,9 +89,9 @@ func marketEntryOf(m *extension.Manifest) extension.MarketEntry {
 		Packages: []extension.MarketPackage{{URL: "packages/" + m.ID + ".tar.gz", SHA256: strings.Repeat("ab", 32)}}}
 }
 
-// officialLikeMarket is a manager whose one market has n entries, as the official one has them (83 when this was
+// largeExampleMarket is a manager whose one market has n entries (83 when this was
 // written, one of them contributing a channel): every 40th entry contributes a channel.
-func officialLikeMarket(tb testing.TB, n int) *Manager {
+func largeExampleMarket(tb testing.TB, n int) *Manager {
 	tb.Helper()
 	h := marketManager(tb, "")
 	entries := make([]extension.MarketEntry, n)
@@ -121,14 +104,13 @@ func officialLikeMarket(tb testing.TB, n int) *Manager {
 		}
 		entries[i] = downloaded(entries[i], int64(i*37%500))
 	}
-	putMarket(h, "official", 0, extension.SigSigned, entries...)
-	makeOfficial(tb, h, "official")
+	putMarket(h, "third", 0, extension.SigSigned, entries...)
 	return h
 }
 
-// BenchmarkMarketChannels: the market's part of the channel list, with a market of the official one's size.
+// BenchmarkMarketChannels: the market's part of the channel list, with one large market.
 func BenchmarkMarketChannels(b *testing.B) {
-	h := officialLikeMarket(b, 83)
+	h := largeExampleMarket(b, 83)
 	have := []channel.View{{ID: channel.App}, {ID: channel.Feishu}, {ID: "voice"}}
 	if got := h.marketChannels(have); len(got) != 2 || got[0].ID != "chat07" || got[0].Source != channel.SourceMarket {
 		b.Fatalf("market channels: %+v", got)

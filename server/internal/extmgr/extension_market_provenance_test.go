@@ -22,27 +22,10 @@ func provenanceTestManager(t *testing.T, states map[string]*marketState, client 
 	return h
 }
 
-func TestMarketMoveCannotCreateSecondOfficial(t *testing.T) {
-	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	raw := key.sign([]byte(`{"market_version":1,"name":"Official","extensions":[]}`))
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(raw) }))
-	defer srv.Close()
-	states := map[string]*marketState{
-		"official": {rec: extension.MarketRecord{ID: "official", Spec: "github:example/plugins", SigningKey: key.text, AddedAt: time.Now()}},
-		"mine":     {rec: extension.MarketRecord{ID: "mine", Spec: "github:example/other", AddedAt: time.Now()}},
-	}
-	h := provenanceTestManager(t, states, srv.Client(), srv.URL)
-	if _, err := h.marketSetSpec(context.Background(), "mine", "github:example/plugins@branch"); err == nil {
-		t.Fatal("move accepted a second official market through a branch alias")
-	}
-}
-
 func TestMarketMoveRechecksTargetAfterFetch(t *testing.T) {
 	for _, target := range []string{"github:example/plugins@branch", "github:example/other"} {
 		t.Run(target, func(t *testing.T) {
 			key := newMarketKey(t)
-			useOfficialMarket(t, "github:example/plugins", key.text)
 			raw := key.sign([]byte(`{"market_version":1,"name":"Target","extensions":[]}`))
 			started, release := make(chan struct{}), make(chan struct{})
 			srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -65,13 +48,9 @@ func TestMarketMoveRechecksTargetAfterFetch(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("target fetch did not start")
 			}
-			claimed := target
-			if extension.IsOfficialMarket(target) {
-				claimed = "github:example/plugins"
-			}
 			ms := h.marketsState()
 			ms.mu.Lock()
-			ms.byID["winner"] = &marketState{rec: extension.MarketRecord{ID: "winner", Spec: claimed}}
+			ms.byID["winner"] = &marketState{rec: extension.MarketRecord{ID: "winner", Spec: target}}
 			ms.mu.Unlock()
 			close(release)
 			select {
@@ -115,10 +94,6 @@ func TestInstalledMarketKeyPostgresRestart(t *testing.T) {
 func testInstalledMarketKeySnapshot(t *testing.T, h *Manager) {
 	t.Helper()
 	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	was := officialMarketKeys
-	officialMarketKeys = []string{keyIDText(t, key.text)}
-	t.Cleanup(func() { officialMarketKeys = was })
 	dir := uiPackage(t)
 	pkg := tarDir(t, dir)
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(pkg) }))
@@ -131,8 +106,8 @@ func testInstalledMarketKeySnapshot(t *testing.T, h *Manager) {
 	}
 	h.extensions.reg = extension.NewRegistry(h.extensions.root, h.store.(extension.Store), nil, 202611100000)
 	mk := &extension.Market{Spec: extension.MarketSpec{Kind: "github", Owner: "example", Repo: "plugins"}, TrustedKey: key.text, Client: server.Client()}
-	h.extensions.markets.byID = map[string]*marketState{"official": {rec: extension.MarketRecord{ID: "official", Spec: mk.Spec.String(), Signature: extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDText(t, key.text)}}, index: f.Index}}
-	pv, err := h.extensions.reg.PreviewMarket(t.Context(), mk, "official", &f.Index.Extensions[0], "")
+	h.extensions.markets.byID = map[string]*marketState{"example": {rec: extension.MarketRecord{ID: "example", Spec: mk.Spec.String(), Signature: extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDText(t, key.text)}}, index: f.Index}}
+	pv, err := h.extensions.reg.PreviewMarket(t.Context(), mk, "example", &f.Index.Extensions[0], "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +115,7 @@ func testInstalledMarketKeySnapshot(t *testing.T, h *Manager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Record.MarketKey != key.text || !h.extensions.fromTrustedMarket(t.Context(), p) {
+	if p.Record.MarketKey != key.text {
 		t.Fatal("verified installed package lost its provenance")
 	}
 	// Reload from storage, not an in-memory preview or mutable market key.
@@ -150,13 +125,13 @@ func testInstalledMarketKeySnapshot(t *testing.T, h *Manager) {
 	}
 	h.extensions.reg = reopened
 	p = reopened.Get("example-ui")
-	if p == nil || p.Record.MarketKey != key.text || !h.extensions.fromTrustedMarket(t.Context(), p) {
+	if p == nil || p.Record.MarketKey != key.text {
 		t.Fatal("storage reload lost the verified snapshot")
 	}
-	// An owner choice remains authoritative even for officially verified code.
+	// An owner choice remains authoritative even for verified code.
 	h.extensions.sandboxes.settings.On = map[string]bool{"example-ui": true}
 	boxed := &extension.Extension{Record: p.Record, Dir: p.Dir, Manifest: &extension.Manifest{Runtime: &extension.Runtime{}}}
-	if st := h.extensions.sandboxOf(t.Context(), boxed); !st.Chosen || !st.Enabled || !st.Trusted {
+	if st := h.extensions.sandboxOf(t.Context(), boxed); !st.Chosen || !st.Enabled {
 		t.Fatalf("explicit choice: %+v", st)
 	}
 	// Installing owner-provided bytes is not allowed to inherit old provenance.
@@ -176,54 +151,13 @@ func testInstalledMarketKeySnapshot(t *testing.T, h *Manager) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Record.MarketKey != "" || h.extensions.fromTrustedMarket(t.Context(), p) {
-		t.Fatal("unsigned upgrade retained the official snapshot")
+	if p.Record.MarketKey != "" {
+		t.Fatal("unsigned upgrade retained the signed snapshot")
 	}
 	if err := reopened.Load(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if reopened.Get("example-ui").Record.MarketKey != "" {
 		t.Fatal("cleared snapshot resurrected on reload")
-	}
-}
-
-func TestSandboxOnlyFinalOfficialKeyIsAllowlisted(t *testing.T) {
-	if len(officialMarketKeys) != 1 || officialMarketKeys[0] != "3cce0f471911a1cf" {
-		t.Fatal("sandbox allowlist must contain only the final key")
-	}
-	retired := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", retired.text)
-	h := provenanceTestManager(t, map[string]*marketState{"official": {rec: extension.MarketRecord{ID: "official", Spec: "github:example/plugins", Signature: extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDText(t, retired.text)}}}}, nil, "")
-	p := &extension.Extension{Record: extension.Record{ID: "retired-code", Source: extension.SourceInstalled, Origin: "market:official/retired-code", MarketKey: retired.text}, Manifest: &extension.Manifest{Runtime: &extension.Runtime{}}}
-	if st := h.extensions.sandboxOf(t.Context(), p); st.Trusted || !st.Default || !st.Enabled {
-		t.Fatalf("nonallowlisted verified key was exempted: %+v", st)
-	}
-}
-
-func TestUnsignedInstallNeverGainsSandboxTrustAfterMove(t *testing.T) {
-	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	originalKeys := officialMarketKeys
-	// This tests provenance with a generated key, not acceptance of the production pin.
-	officialMarketKeys = []string{keyIDText(t, key.text)}
-	t.Cleanup(func() { officialMarketKeys = originalKeys })
-	raw := key.sign([]byte(`{"market_version":1,"name":"Official","extensions":[]}`))
-	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(raw) }))
-	defer srv.Close()
-	states := map[string]*marketState{"mine": {rec: extension.MarketRecord{ID: "mine", Spec: "github:example/other", AddedAt: time.Now(), Signature: extension.MarketSignature{State: extension.SigUnsigned}}}}
-	h := provenanceTestManager(t, states, srv.Client(), srv.URL)
-	installed := &extension.Extension{Record: extension.Record{ID: "unrelated-unsigned-code", Source: extension.SourceInstalled, Origin: "market:mine/unrelated-unsigned-code"}, Manifest: &extension.Manifest{ID: "unrelated-unsigned-code", Runtime: &extension.Runtime{}}}
-	if h.extensions.fromTrustedMarket(context.Background(), installed) {
-		t.Fatal("unexpected initial exemption")
-	}
-	if _, err := h.marketSetSpec(context.Background(), "mine", "github:example/plugins"); err != nil {
-		t.Fatal(err)
-	}
-	if h.extensions.fromTrustedMarket(context.Background(), installed) {
-		t.Fatal("unsigned installed code gained an exemption despite being absent from the signed catalog")
-	}
-	h.extensions.sandboxes.settings.On = map[string]bool{installed.Record.ID: false}
-	if st := h.extensions.sandboxOf(context.Background(), installed); !st.Chosen || st.Enabled || !st.Default {
-		t.Fatalf("owner's explicit sandbox choice was not preserved: %+v", st)
 	}
 }

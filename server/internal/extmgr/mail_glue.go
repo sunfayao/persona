@@ -3,7 +3,7 @@ package extmgr
 import "github.com/nwverse/persona/server/internal/mail"
 
 func init() {
-	NewMail = func(dir, secretKey string, store mailStore, google GoogleConfig, microsoft MicrosoftConfig) (Mail, error) {
+	NewMail = func(dir, secretKey string, store mailStore, google GoogleConfig) (Mail, error) {
 		s, err := mail.NewWithKey(dir, secretKey, store)
 		if err != nil {
 			return nil, err

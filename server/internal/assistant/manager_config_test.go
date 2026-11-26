@@ -21,7 +21,7 @@ func TestWriteManagerConfigKeepsTheSections(t *testing.T) {
 	}
 	path := filepath.Join(dir, ManagerFile)
 	b, _ := os.ReadFile(path)
-	b = []byte(strings.Replace(string(b), "{", `{"google": {"client_id": "mine"}, "moved_from_hub_json": {"keys": []},`, 1))
+	b = []byte(strings.Replace(string(b), "{", `{"google": {"proxy":"socks5://mail.example:1080"}, "moved_from_hub_json": {"keys": []},`, 1))
 	if err := os.WriteFile(path, b, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -92,8 +92,8 @@ func TestMoveConfigFailsClosed(t *testing.T) {
 		{"not JSON, nothing to move", "", `{"lark_gate":`, false},
 		{"empty, nothing to move", "", " ", false},
 		{"empty, with hub.json", `{"token":"t","lark_gate":[{"method":"CLI","path":"/docs/**","action":"deny"}]}`, "\n", false},
-		{"not JSON, with hub.json", `{"token":"t","google":{"client_id":"x"}}`, `{"lark_gate":`, false},
-		{"broken marker", `{"token":"t","google":{"client_id":"x"}}`, `{"moved_from_hub_json":"yes"}`, false},
+		{"not JSON, with hub.json", `{"token":"t","google":{"proxy":"http://mail.example:3128"}}`, `{"lark_gate":`, false},
+		{"broken marker", `{"token":"t","google":{"proxy":"http://mail.example:3128"}}`, `{"moved_from_hub_json":"yes"}`, false},
 		{"wrong shape", `{"token":"t"}`, `{"lark_gate":{"method":"CLI"}}`, false},
 		{"a gate rule the gate can't use", `{"token":"t"}`, `{"connector_gate":[{"connector":"github","action":"*","decision":"denied"}]}`, false},
 		{"hub.json's own part of the wrong shape", `{"token":"t","listen":18660}`, `{"lark_gate":[]}`, false},
@@ -127,11 +127,11 @@ func TestMoveConfigFailsClosed(t *testing.T) {
 	}
 	// hub.json's value that manager.json's wins over is said.
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "hub.json"), []byte(`{"google":{"client_id":"old"}}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "hub.json"), []byte(`{"google":{"proxy":"http://old-mail.example:3128"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	file := filepath.Join(dir, ManagerFile)
-	if err := os.WriteFile(file, []byte(`{"google":{"client_id":"mine"}}`), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte(`{"google":{"proxy":"socks5://mail.example:1080"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var said []string
@@ -139,7 +139,7 @@ func TestMoveConfigFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ext.Google.ClientID != "mine" { // what was checked is what the extensions run with
+	if ext.Google.Proxy != "socks5://mail.example:1080" { // what was checked is what the extensions run with
 		t.Fatalf("google %+v", ext.Google)
 	}
 	if len(said) != 1 || !strings.HasPrefix(said[0], "configuration: google: hub.json's copy differs") {

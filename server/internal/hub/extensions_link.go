@@ -205,7 +205,7 @@ func machineExtrasEqual(a, b map[string]extwire.MachineExtras) bool {
 	}
 	for k, x := range a {
 		y, ok := b[k]
-		if !ok || string(x.Computer) != string(y.Computer) || string(x.Browser) != string(y.Browser) || string(x.IPhone) != string(y.IPhone) ||
+		if !ok || string(x.Computer) != string(y.Computer) || string(x.Browser) != string(y.Browser) ||
 			x.ScreenPort != y.ScreenPort {
 			return false
 		}
@@ -247,14 +247,14 @@ func (h *Hub) features() []string {
 	return out
 }
 
-// extrasOf is machine m's Cua, ego and iPhone state as the manager reports it (each nil when not on), read from one
+// extrasOf is machine m's Cua and ego state as the manager reports it (each nil when not on), read from one
 // report: extReport merges every manager's report each time it is called.
-func (h *Hub) extrasOf(m *Machine) (*proto.Computer, *proto.Browser, *proto.IPhone) {
+func (h *Hub) extrasOf(m *Machine) (*proto.Computer, *proto.Browser) {
 	x, ok := h.extReport().Machines[m.cfg.ID]
 	if !ok {
-		return nil, nil, nil
+		return nil, nil
 	}
-	return decodeExtra[proto.Computer](x.Computer), decodeExtra[proto.Browser](x.Browser), decodeExtra[proto.IPhone](x.IPhone)
+	return decodeExtra[proto.Computer](x.Computer), decodeExtra[proto.Browser](x.Browser)
 }
 
 func decodeExtra[T any](raw json.RawMessage) *T {

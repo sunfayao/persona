@@ -171,8 +171,6 @@ export function installMock(scenario: string) {
           }
         : { role: "center", center: { hub_id: SELF, name: state.hub_name, online: true }, term: 1, hubs: [{ hub_id: SELF, name: state.hub_name, role: "center", online: true, self: true }] };
   let devices: Device[] = [
-    { id: "dev_a1", name: "iPhone", kind: "phone", role: "full", created_at: iso(60 * 24 * 40), last_seen: iso(3) },
-    { id: "dev_b2", name: "Apple Watch", kind: "watch", role: "answer", created_at: iso(60 * 24 * 38), last_seen: iso(50) },
     { id: "dev_c3", name: "Chrome · 网页", kind: "other", role: "full", created_at: iso(60 * 24 * 2), last_seen: iso(60 * 5) },
     { id: "dev_d4", name: "办公室电脑 的 Persona Link", kind: "link", role: "link", machine_id: "desk", created_at: iso(60 * 24 * 9), last_seen: iso(180) },
   ];
@@ -256,7 +254,7 @@ export function installMock(scenario: string) {
     scenario === "empty"
       ? []
       : [
-          { id: MA, spec: "https://extensions.example.com/persona/", name: "Example 扩展", description: "Example 官方维护的扩展", has_token: false, extensions: 4, warnings: [], fetched_at: iso(42), added_at: iso(60 * 72), official: true },
+          { id: MA, spec: "https://extensions.example.com/persona/", name: "Example 扩展", description: "Example 扩展目录", has_token: false, extensions: 4, warnings: [], fetched_at: iso(42), added_at: iso(60 * 72) },
           { id: MB, spec: "github:example/team-extensions", name: "团队扩展", has_token: true, extensions: 2, warnings: ["第 3 个扩展：没有 manifest，跳过"], fetched_at: iso(95), added_at: iso(60 * 48) },
         ];
   const catalogItems = (): CatalogItem[] => {

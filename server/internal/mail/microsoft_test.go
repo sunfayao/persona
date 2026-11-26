@@ -2,11 +2,7 @@ package mail
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,76 +21,25 @@ func TestStoredMicrosoftCredentialsRotate(t *testing.T) {
 			r.Form.Get("client_id") != testMSClient || r.Form.Get("refresh_token") != "rt-"+strconv.Itoa(refreshes) ||
 			!strings.Contains(r.Form.Get("scope"), "IMAP.AccessAsUser.All") {
 			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "at-" + strconv.Itoa(refreshes+1),
 			"refresh_token": "rt-" + strconv.Itoa(refreshes+1), "expires_in": 3599})
-	}))
 	defer endpoint.Close()
-	old := microsoftTokenURL
 	microsoftTokenURL = endpoint.URL
 	defer func() { microsoftTokenURL = old }()
-
 	a := &MailAccount{ID: "acc_test", Email: "me@example.com", Provider: ProviderOutlook, Auth: AuthOAuth2,
 		OAuth: &OAuthCreds{Provider: oauthMicrosoft, ClientID: testMSClient, RefreshToken: "rt-1"}}
 	if err := s.store.save([]*MailAccount{a}); err != nil {
-		t.Fatal(err)
-	}
 	s.accts[a.ID] = a
 	ctx := context.Background()
 	if tok, err := s.oauthToken(ctx, a); err != nil || tok != "at-2" {
 		t.Fatalf("refresh: %q %v", tok, err)
-	}
-	s2, err := New(s.dir, recs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s2.Close()
 	reloaded, err := s2.account(a.ID)
 	if err != nil {
 		t.Fatal(err)
-	}
 	if reloaded.OAuth.RefreshToken != "rt-2" {
 		t.Fatalf("the rotated refresh token was not kept: %q", reloaded.OAuth.RefreshToken)
-	}
 	if tok, err := s2.oauthToken(ctx, reloaded); err != nil || tok != "at-3" {
 		t.Fatalf("refresh after a restart: %q %v", tok, err)
-	}
-}
-
-func TestMicrosoftErrorsSayWhatToDo(t *testing.T) {
-	for _, tc := range []struct {
-		code, desc string
-		refreshing bool
-		want       string
-	}{
-		{"invalid_grant", "AADSTS65001: The user or administrator has not consented", false, "IT 管理员"},
-		{"access_denied", "AADSTS90094: Admin consent is required", false, "管理员同意"},
-		{"access_denied", "", false, "没有同意授权"},
-		{"unauthorized_client", "AADSTS700016: Application with identifier was not found", false, "支持的帐户类型"},
-		{"invalid_request", "AADSTS50011: The redirect URI does not match", false, DefaultMicrosoftRedirect},
-		{"invalid_client", "AADSTS7000218: The request body must contain client_assertion", false, "允许公共客户端流"},
-		{"invalid_grant", "AADSTS70008: The refresh token has expired", true, "重新"},
-		{"invalid_grant", "AADSTS50173: The provided grant has expired due to it being revoked", true, "使用 Microsoft 账号登录"},
-		{"temporarily_unavailable", "AADSTS90002: Tenant not found", false, "Microsoft 登录失败：temporarily_unavailable：AADSTS90002"},
-	} {
-		if err := microsoftError(tc.code, tc.desc, DefaultMicrosoftRedirect, tc.refreshing); !strings.Contains(err.Error(), tc.want) {
-			t.Errorf("%s %q → %v, want %q", tc.code, tc.desc, err, tc.want)
-		}
-	}
-	for _, tc := range []struct{ err, want string }{
-		{"imap: XOAUTH2: AUTHENTICATE failed.", "打开「允许设备和应用使用 IMAP」"},
-		{"smtp: 535 5.7.139 Authentication unsuccessful, SmtpClientAuthentication is disabled for the Tenant.", "经过身份验证的 SMTP"},
-		{"imap: dial: connection refused", "imap: dial: connection refused"},
-	} {
-		if got := outlookHint(errors.New(tc.err)); !strings.Contains(got.Error(), tc.want) {
-			t.Errorf("%q → %v", tc.err, got)
-		}
-	}
-}
-
-// An Outlook account sends over SMTP with XOAUTH2 and nothing is appended to Sent (Exchange files it itself); a
-// company that turned SMTP AUTH off gets told what to ask for.
 func TestOutlookSendsOverSMTPWithXOAUTH2(t *testing.T) {
 	srv := newTestIMAP(t)
 	fs := newFakeSMTPServer(t)

@@ -91,7 +91,7 @@ func appChannel(l i18n.Lang) channel.View {
 	return channel.View{ID: channel.App, Name: "Persona", Kind: channel.KindApp, Source: channel.SourceBuiltin, Installed: true,
 		Enabled: true, State: channel.StateConnected, Bind: channel.BindNone, ReadOnly: true,
 		Description: i18n.T(l, "hub-channels.app_description"),
-		Surfaces:    []string{"iPhone", "Mac", "Apple Watch", "Android", i18n.T(l, "hub-channels.web"), "Siri"},
+		Surfaces:    []string{i18n.T(l, "hub-channels.web")},
 		Capabilities: channel.Capabilities{ImagesIn: true, FilesIn: true, VoiceIn: true, Format: channel.FormatMarkdown, Asks: channel.AsksButtons,
 			Push: true, Typing: true, Progress: true}}
 }
@@ -259,7 +259,7 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 		// Few entries contribute a channel, and the catalog's item is costly (translations, permission lines, every
 		// contribution, whether this hub can install it): only the entries that do are built. The channel list is
 		// asked for every few seconds while agents work, and building the whole catalog for it was 4.4 ms and
-		// 1.1 MB a time with the official market's entries (#3197).
+		// 1.1 MB a time with all catalog entries.
 		var items []CatalogItem
 		channelKinds := map[string]channel.Kind{}
 		for i := range s.index.Extensions {
@@ -271,9 +271,6 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 				continue
 			}
 			items = append(items, h.catalogItem(l, s, e, e.Translations()))
-		}
-		if extension.IsOfficialMarket(s.rec.Spec) {
-			slices.SortFunc(items, officialCatalogOrder) // the catalog's order for that market
 		}
 		for _, it := range items {
 			if it.Installed != "" || len(it.Contributes["channel"]) == 0 || it.Problem != "" {

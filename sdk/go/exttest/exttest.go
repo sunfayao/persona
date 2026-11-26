@@ -202,7 +202,7 @@ func Check(t testing.TB, manifest []byte, run Run, config ...json.RawMessage) wi
 	for _, sc := range m.Contributes.Shortcuts {
 		var raw json.RawMessage
 		err := h.call(ctx, "shortcut.run", wire.ShortcutRunParams{Contribution: sc.ID, Values: map[string]string{}, UIVersion: uiVersion,
-			TZ: "Asia/Shanghai", Locale: "zh-Hans-CN", Platform: wire.PlatformIos}, &raw)
+			TZ: "Asia/Shanghai", Locale: "zh-Hans-CN", Platform: wire.PlatformWeb}, &raw)
 		switch c := code(err); {
 		case c == wire.ErrorCodeUnknownMethod || c == wire.ErrorCodeNoContribution:
 			t.Fatalf("shortcut %s: shortcut.run answered %v", sc.ID, err)

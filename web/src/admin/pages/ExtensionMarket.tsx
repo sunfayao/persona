@@ -97,13 +97,12 @@ export function ExtensionMarkets({ onChanged }: { onChanged: () => void }) {
         ) : (
           markets.map((m) => (
             <div key={m.id} className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-3">
-              <span className={cx("flex size-9 shrink-0 items-center justify-center rounded-[10px]", m.error && !m.official ? "bg-red-tint text-red" : "bg-inset text-ink-2 shadow-hairline")}>
+              <span className={cx("flex size-9 shrink-0 items-center justify-center rounded-[10px]", m.error ? "bg-red-tint text-red" : "bg-inset text-ink-2 shadow-hairline")}>
                 <AdminIcon name={marketKind(m.spec) === "web" ? "web" : "git"} size={16} />
               </span>
               <div className="min-w-[200px] flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-[13.5px] font-medium text-ink">{m.name}</span>
-                  {m.official && <Tag tone="accent">{t("admin-pages-extensionmarket.official")}</Tag>}
                   {m.has_token && (
                     <Tag>
                       <AdminIcon name="lock" size={10} />
@@ -113,14 +112,9 @@ export function ExtensionMarkets({ onChanged }: { onChanged: () => void }) {
                 </div>
                 <div className="mt-0.5 font-mono text-[11.5px] break-all text-ink-3">{specLabel(m.spec)}</div>
                 <div className="mt-0.5 text-[11.5px] text-ink-3">{marketLine(m, (iso) => ago(iso))}</div>
-                {m.error &&
-                  // the official market out of reach is the network's (rate limits, no route), not this hub's fault: grey,
-                  // like Settings › Extensions; the reason stays on hover
-                  (m.official ? (
-                    <p title={m.error} className="mt-1 text-[12px] leading-relaxed text-ink-3">{t("admin-pages-extensionmarket.official_unreachable")}</p>
-                  ) : (
-                    <p className="mt-1 text-[12px] leading-relaxed break-words text-red">{t("admin-pages-extensionmarket.read_failed", { error: m.error })}</p>
-                  ))}
+                {m.error && (
+                  <p className="mt-1 text-[12px] leading-relaxed break-words text-red">{t("admin-pages-extensionmarket.read_failed", { error: m.error })}</p>
+                )}
                 {m.error && wantsGitHubToken(m) && <TokenHint onFix={() => setTokenFor(m)} />}
                 {(m.warnings ?? []).map((w) => (
                   <p key={w} className="mt-1 flex items-start gap-1.5 text-[11.5px] leading-relaxed break-words text-orange">

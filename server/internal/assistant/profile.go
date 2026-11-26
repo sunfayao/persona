@@ -65,7 +65,7 @@ type Settings struct {
 	// Former are the main conversations replaced since (newest first, POST /api/v1/assistant/main/new): their machine
 	// keeps listing them, archived, however long they are quiet.
 	Former []FormerMain `json:"former_main,omitempty"`
-	// MainTasksQuiet: tasks the main conversation opens are told only there, not pushed, on the Live Activity or in
+	// MainTasksQuiet: tasks the main conversation opens are told only there, not pushed, on the Persona Link summary or in
 	// task badges (#1731). nil is on (the default); the view always says what is in effect.
 	MainTasksQuiet         *bool `json:"main_tasks_quiet,omitempty"`
 	IdleAutoCompact        *bool `json:"idle_auto_compact,omitempty"`

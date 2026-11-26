@@ -17,11 +17,6 @@ const (
 
 	oauthMicrosoft  = "microsoft" // OAuthCreds.Provider
 	microsoftScopes = "https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send offline_access openid email"
-	// DefaultMicrosoftRedirect is the redirect URI every hub uses unless hub.json says otherwise: a custom scheme the
-	// app catches with ASWebAuthenticationSession, so no release per hub and nothing in Info.plist.
-	DefaultMicrosoftRedirect = "persona-mail-oauth://outlook"
-
-	microsoftClientSetting = "mail.microsoft_client" // the client ID the user entered, encrypted (settings table)
 )
 
 var (
@@ -29,12 +24,6 @@ var (
 
 	aadCode = lazyre.New(`AADSTS\d+`)
 )
-
-// outlookServers are Microsoft's IMAP and SMTP endpoints for every Outlook / Microsoft 365 mailbox.
-var outlookServers = AddAccountRequest{
-	IMAPHost: "outlook.office365.com", IMAPPort: 993,
-	SMTPHost: "smtp.office365.com", SMTPPort: 587, SMTPSecurity: "starttls",
-}
 
 // userError is a mistake the user fixes (a client ID, a setting in Entra or Exchange), told in words for people:
 // HTTP 400.
@@ -51,24 +40,6 @@ func userErr(msg string) error { return userError{msg: msg} }
 
 // SetMicrosoftRedirect configures the redirect URI used in Outlook error messages.
 func (s *Service) SetMicrosoftRedirect(redirect string) {
-	s.msRedirect = strings.TrimSpace(redirect)
-	if s.msRedirect == "" {
-		s.msRedirect = DefaultMicrosoftRedirect
-	}
-}
-
-type sealedSetting struct {
-	Enc string `json:"enc"`
-}
-
-func (s *Service) redirectURI() string {
-	if s.msRedirect == "" {
-		return DefaultMicrosoftRedirect
-	}
-	return s.msRedirect
-}
-
-// microsoftToken calls Microsoft's token endpoint; its errors come back in words the user can act on.
 func (s *Service) microsoftToken(ctx context.Context, form url.Values) (*tokenResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, microsoftTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {
@@ -89,32 +60,21 @@ func (s *Service) microsoftToken(ctx context.Context, form url.Values) (*tokenRe
 		return nil, fmt.Errorf("oauth: parse token response (HTTP %d): %w", resp.StatusCode, err)
 	}
 	if resp.StatusCode != http.StatusOK || tr.AccessToken == "" {
-		return nil, microsoftError(tr.Error, tr.ErrorDesc, s.redirectURI(), form.Get("grant_type") == "refresh_token")
+		return nil, microsoftError(tr.Error, tr.ErrorDesc)
 	}
 	return &tr, nil
 }
 
-// microsoftError turns an error of Microsoft's sign-in (the redirect's error, the token endpoint's) into what to do
-// about it; refreshing says the sign-in itself was fine before and is now refused.
-func microsoftError(code, desc, redirect string, refreshing bool) error {
+// microsoftError describes a refresh failure for a stored Outlook account.
+func microsoftError(code, desc string) error {
 	aad := aadCode.FindString(desc)
 	switch {
 	case aad == "AADSTS65001" || aad == "AADSTS90094" || aad == "AADSTS90095" || aad == "AADSTS900941" || code == "consent_required":
 		return userErr("你的工作账号不能自己授权第三方应用读邮箱，要公司的 IT 管理员同意：请管理员在 Microsoft Entra 里为这个应用「授予管理员同意」，" +
 			"或者给你开通用户同意；也可以改用个人 Outlook 账号")
-	case aad == "AADSTS65004" || code == "access_denied" && aad == "":
-		return userErr("你在 Microsoft 的页面上没有同意授权，账号没有添加。要添加的话再点一次「使用 Microsoft 账号登录」并同意")
-	case aad == "AADSTS700016" || aad == "AADSTS50194" || aad == "AADSTS700054":
-		return userErr("Microsoft 找不到这个 client ID 能用的应用：检查 App 里填的 client ID；注册应用时「支持的帐户类型」要选" +
-			"「任何组织目录中的帐户和个人 Microsoft 帐户」")
-	case aad == "AADSTS50011":
-		return userErr("回调地址对不上：在 Entra 应用的「身份验证 › 移动和桌面应用程序」里加上 " + redirect)
-	case aad == "AADSTS7000218":
-		return userErr("应用没打开「允许公共客户端流」：在 Entra 应用的「身份验证 › 高级设置」里把它设为「是」")
-	case refreshing && (code == "invalid_grant" || aad == "AADSTS70008" || aad == "AADSTS700082" || aad == "AADSTS50173" ||
-		aad == "AADSTS50076" || aad == "AADSTS50078" || aad == "AADSTS50079"):
-		return userErr("Outlook 的授权过期或被撤销了（改过密码、太久没用、或公司要求重新验证）：在 App 里再点一次" +
-			"「使用 Microsoft 账号登录」选同一个邮箱，账号会原地更新")
+	case code == "invalid_grant" || aad == "AADSTS70008" || aad == "AADSTS700082" || aad == "AADSTS50173" ||
+		aad == "AADSTS50076" || aad == "AADSTS50078" || aad == "AADSTS50079":
+		return userErr("Outlook 的授权过期或被撤销了（改过密码、太久没用、或公司要求重新验证）")
 	}
 	msg := code
 	if first, _, _ := strings.Cut(strings.TrimSpace(desc), "\n"); first != "" {

@@ -31,13 +31,11 @@ type Config struct {
 	GitHub        *github.Config   `json:"github,omitempty"`
 	IMessage      *imessage.Config `json:"imessage,omitempty"`
 	// Google and Microsoft: mail's sign-ins.
-	Google                  GoogleConfig      `json:"google"`
-	Microsoft               MicrosoftConfig   `json:"microsoft,omitempty"`
-	Inbox                   InboxConfig       `json:"inbox"`
-	Bots                    BotsConfig        `json:"bots,omitempty"`
-	Extensions              []ExtensionConfig `json:"extensions,omitempty"`
-	LegacyExtensions        []ExtensionConfig `json:"plugins,omitempty"`
-	TrustedExtensionMarkets []string          `json:"trusted_extension_markets,omitempty"`
+	Google           GoogleConfig      `json:"google"`
+	Inbox            InboxConfig       `json:"inbox"`
+	Bots             BotsConfig        `json:"bots,omitempty"`
+	Extensions       []ExtensionConfig `json:"extensions,omitempty"`
+	LegacyExtensions []ExtensionConfig `json:"plugins,omitempty"`
 	// ExtensionMarket configures outbound marketplace reads and package downloads.
 	ExtensionMarket ExtensionMarketConfig `json:"extension_market,omitempty"`
 	// ExtensionRuntime pins the shared engine; missing/unsupported enforcement blocks source activation.
@@ -71,17 +69,10 @@ type RemoteImagesConfig struct {
 	DoH *string `json:"doh,omitempty"`
 }
 
-// GoogleConfig is the iOS OAuth client behind Gmail's "Sign in with Google".
+// GoogleConfig configures Gmail network access.
 type GoogleConfig struct {
-	ClientID string `json:"client_id"`
 	// Proxy is an http:// (CONNECT) or socks5:// proxy for Gmail IMAP / SMTP and Google's OAuth / Gmail API.
 	Proxy string `json:"proxy,omitempty"`
-}
-
-// MicrosoftConfig is Outlook's "Sign in with Microsoft".
-type MicrosoftConfig struct {
-	ClientID    string `json:"client_id,omitempty"`
-	RedirectURI string `json:"redirect_uri,omitempty"`
 }
 
 // loadConfig reads dir's hub.json with the environment over it as the hub does (PERSONA_PUBLIC_URL, PERSONA_LISTEN),

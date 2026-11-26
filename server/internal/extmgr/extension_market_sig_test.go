@@ -1,7 +1,6 @@
 package extmgr
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -59,25 +58,7 @@ func TestExtensionMarketUnsignedHasNoTOFU(t *testing.T) {
 	h.extensions.markets.mu.Lock()
 	s := h.extensions.markets.byID[id]
 	if s.rec.SigningKey != "" || s.rec.Signature.State != extension.SigUnsigned {
-		t.Fatal("unofficial market acquired trust")
-	}
-	// Simulate a legacy nonofficial TOFU record: load clears both lock and trust.
-	s.rec.SigningKey = key.text
-	s.rec.Signature = extension.MarketSignature{State: extension.SigKeyChanged, KeyID: keyIDText(t, key.text)}
-	s.rec.Error = "legacy trust lock"
-	rec := s.rec
-	h.extensions.markets.mu.Unlock()
-	if err := h.marketStore().PutExtensionMarket(context.Background(), rec); err != nil {
-		t.Fatal(err)
-	}
-	reloadMarkets(h)
-	if err := h.marketsLoad(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	h.extensions.markets.mu.Lock()
-	s = h.extensions.markets.byID[id]
-	if s.rec.SigningKey != "" || s.rec.Signature.State != extension.SigUnsigned || s.rec.Error != "" {
-		t.Fatal("legacy unofficial state still locks catalog")
+		t.Fatal("unregistered key was trusted")
 	}
 	h.extensions.markets.mu.Unlock()
 	raw = payload
@@ -89,12 +70,10 @@ func TestExtensionMarketUnsignedHasNoTOFU(t *testing.T) {
 	}
 }
 
-func TestOfficialCatalogCachedEnvelopeAndUnknownPin(t *testing.T) {
-	h, _, _ := marketHub(t)
+func TestStoredMarketKeyVerifiesCachedCatalog(t *testing.T) {
 	key, unknown := newMarketKey(t), newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
 	now := time.Now()
-	payload := []byte(" \n{\"market_version\":1,\"name\":\"Official\",\"extensions\":[]}\n")
+	payload := []byte(" \n{\"market_version\":1,\"name\":\"Example\",\"extensions\":[]}\n")
 	for _, c := range []struct {
 		name, pin string
 		raw       []byte
@@ -119,5 +98,4 @@ func TestOfficialCatalogCachedEnvelopeAndUnknownPin(t *testing.T) {
 			}
 		})
 	}
-	_ = h
 }

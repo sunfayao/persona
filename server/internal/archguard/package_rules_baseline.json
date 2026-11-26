@@ -1,36 +1,35 @@
 {
   "imports": {
-    "internal/assistant/repositorystore -\u003e internal/assistant/repository": "The repository store uses the repository domain's row and query types.",
-    "internal/node/iphone -\u003e internal/node/nodekit": "The iPhone tool uses the node's scratch screenshot and first-line helpers."
+    "internal/assistant/repositorystore -\u003e internal/assistant/repository": "The repository store uses the repository domain's row and query types."
   },
   "sizes": {
     "internal/assistant": {
-      "files": 604,
-      "lines": 197813
+      "files": 608,
+      "lines": 199707
     },
     "internal/devices": {
-      "files": 68,
-      "lines": 21156
+      "files": 67,
+      "lines": 21506
     },
     "internal/extension": {
-      "files": 74,
-      "lines": 18259
+      "files": 73,
+      "lines": 18151
     },
     "internal/extmgr": {
-      "files": 172,
-      "lines": 41091
+      "files": 176,
+      "lines": 41982
     },
     "internal/hub": {
-      "files": 243,
-      "lines": 62160
+      "files": 245,
+      "lines": 61993
     },
     "internal/node": {
-      "files": 609,
-      "lines": 159865
+      "files": 611,
+      "lines": 160358
     },
     "internal/proto": {
-      "files": 92,
-      "lines": 10323
+      "files": 91,
+      "lines": 10179
     }
   }
 }

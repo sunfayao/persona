@@ -1,4 +1,4 @@
-// "Devices": every device credential the hub issued (phones, watches, browsers, persona-links), revoking one, and a pairing
+// "Devices": every device credential the hub issued (browsers and Persona Links), revoking one, and a pairing
 // QR code for a new phone. On a member hub the center issues and revokes them all (409 member_hub): this page says so.
 import { t } from "../../i18n";
 import { tRich } from "../../i18n/rich";
@@ -14,7 +14,7 @@ import { useShared } from "../store";
 import { Card, ConfirmButton, CopyValue, EmptyState, ErrorBox, Loader, PageHeader, Qr, Tag, useLoad } from "../parts";
 import { PasswordLoginSettings } from "./PasswordLogin";
 
-const KIND_ICON: Record<string, AdminIconName> = { phone: "phone", watch: "pulse", link: "link", web: "web", other: "web" };
+const KIND_ICON: Record<string, AdminIconName> = { link: "link", web: "web", other: "web" };
 
 export function Devices() {
   const { data, error, loading, reload, set } = useLoad(async () => activeDevices((await adminApi<{ devices: Device[] }>("/devices")).devices));

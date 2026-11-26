@@ -46,7 +46,7 @@ const extensionUsage = `usage: personad extension <command> (also: personad ext,
   detach <id>                       run the attached package's program here again
   enable <id> | disable <id> [--cascade]
                                     --cascade: the extensions that depend on it are switched off too
-  sandbox <id> on|off|default       run it in a sandbox or not (default: on unless from a trusted market)
+  sandbox <id> on|off|default       control whether it runs in a sandbox (default: on)
   auth <id> [login|logout]          an extension's sign-in (manifest.auth): its state; login shows the link, code and QR
                                     code here and waits until it is done; logout signs it out
   config <id> key=value …           set settings (a value is JSON when it parses, text otherwise)
@@ -200,9 +200,6 @@ func ExtensionCommand(ctx context.Context, args []string, stdin io.Reader, stdou
 			for _, m := range out.Markets {
 				line := fmt.Sprintf("%-10s %-24s %s  %-12s %s", m.ID, m.Name,
 					i18n.T(l, "extmgr-cli.extension_count", i18n.Args{"count": m.Extensions}), signatureLabel(l, m.Signature), m.Spec)
-				if m.Official {
-					line += "  " + i18n.T(l, "extmgr-cli.market_official")
-				}
 				if m.Error != "" {
 					line += i18n.T(l, "extmgr-cli.paren", i18n.Args{"text": m.Error})
 				}
