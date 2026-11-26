@@ -59,7 +59,7 @@ func TestContextMarksWhomEachMessageMentions(t *testing.T) {
 func TestContextMarksMatchTheTierCriteria(t *testing.T) {
 	criteria := prompts.RenderInboxTriage(prompts.InboxTriage{})
 	for _, mark := range []string{markOwner, markAll} {
-		if !strings.Contains(criteria, "「"+mark+"」") {
+		if !strings.Contains(criteria, "“"+mark+"”") {
 			t.Errorf("the tier criteria do not name the mark %q", mark)
 		}
 	}

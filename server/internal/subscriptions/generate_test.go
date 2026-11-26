@@ -342,10 +342,10 @@ func TestGenerateNoteIsInTheUsersLanguage(t *testing.T) {
 	if err != nil || out.Note != note {
 		t.Fatalf("%q %v", out.Note, err)
 	}
-	if sys := m.asked()[1].System; !strings.Contains(sys, "one or two sentences in 日本語 for the user") {
+	if sys := m.asked()[1].System; !strings.Contains(sys, "one or two sentences in Japanese for the user") {
 		t.Fatalf("the map prompt does not ask for the user's language:\n%s", sys)
 	}
-	if strings.Contains(m.asked()[0].System, "日本語") {
+	if strings.Contains(m.asked()[0].System, "Japanese") {
 		t.Fatal("the pick asks for a language: it writes nothing for the user")
 	}
 }

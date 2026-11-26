@@ -306,8 +306,8 @@ func TestSnapshotRowIDs(t *testing.T) {
 		FollowingEnabled: true, FollowingTotal: 1, Following: []prompts.SnapshotFollowing{{Title: "Contract"}},
 	}
 	want := map[string][]string{
-		"- Agents":      {"Need you", "Finished unread", "Asking the user, seen but unanswered", "Waiting", "Done", "Muted"},
-		"- Open task details": {"todo_0123456789abcdef", "todo_2"},
+		"- Agents":              {"Need you", "Finished unread", "Asking the user, seen but unanswered", "Waiting", "Done", "Muted"},
+		"- Open task details":   {"todo_0123456789abcdef", "todo_2"},
 		"- Feishu unread chats": {"@me", "Other"},
 	}
 	scoped := s

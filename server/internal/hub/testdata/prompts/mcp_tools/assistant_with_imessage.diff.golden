@@ -28,7 +28,7 @@
       "at": "end",
       "tool": {
         "name": "imessage_read",
-        "description": "Read one iMessage / SMS conversation of the user's: its newest messages, oldest first, with who wrote each one and when (what a reply answers, attachments as [图片] / [文件 name] / [语音], group changes as lines; one-time codes masked). Ask again with the before value it gives for earlier messages.",
+        "description": "Read one iMessage / SMS conversation of the user's: its newest messages, oldest first, with who wrote each one and when (what a reply answers, attachments as the literal placeholders [图片] / [文件 name] / [语音] (image / file / voice), copied from the data as they are, group changes as lines; one-time codes masked). Ask again with the before value it gives for earlier messages.",
         "input_schema": {
           "type": "object",
           "properties": {

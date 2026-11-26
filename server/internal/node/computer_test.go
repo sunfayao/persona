@@ -192,7 +192,7 @@ func TestComputerCall(t *testing.T) {
 		t.Fatalf("args null: %s %v", res.Output, err)
 	}
 	cuaBin = func() string { return "" }
-	if _, err := computerCall(ctx, json.RawMessage(`{"tool": "list_apps"}`)); err == nil || !strings.Contains(err.Error(), "没有装") {
+	if _, err := computerCall(ctx, json.RawMessage(`{"tool": "list_apps"}`)); err == nil || !strings.Contains(err.Error(), "not installed") {
 		t.Fatalf("not installed: %v", err)
 	}
 }

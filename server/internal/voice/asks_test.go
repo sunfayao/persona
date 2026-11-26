@@ -136,7 +136,9 @@ func TestAskAnsweredOnTheScreen(t *testing.T) {
 		t.Fatalf("said: %s", got)
 	}
 	time.Sleep(300 * time.Millisecond)
-	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "answered on the screen or elsewhere") }); n != 1 {
+	if n := up.count(func(f map[string]any) bool {
+		return said(f) && strings.Contains(content(f), "answered on the screen or elsewhere")
+	}); n != 1 {
 		t.Fatalf("said %d times that it was answered", n)
 	}
 	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "数据库用哪个") }); n != 1 {
@@ -558,7 +560,9 @@ func TestProtocolOneAsks(t *testing.T) {
 			if res := hub.resolutions(); len(res) != 1 || res[0].Res.Answers["数据库用哪个？"] != "SQLite" {
 				t.Fatalf("resolved %+v", res)
 			}
-			if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "waiting for the user to answer or approve something") }); n != 0 {
+			if n := up.count(func(f map[string]any) bool {
+				return strings.Contains(content(f), "waiting for the user to answer or approve something")
+			}); n != 0 {
 				t.Fatal("the turn said it waits too")
 			}
 			hub.edit("main1", func(s *fakeSession) { s.status, s.pending = "working", 0 })
