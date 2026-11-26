@@ -55,6 +55,10 @@ let root: Root;
 const flush = async () => {
   for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve(); });
 };
+const settleLaunch = () => act(async () => {
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.dynamicImportSettled();
+});
 const machines: Machine[] = [{ id: "mac", name: "Mac", online: true }];
 const todo = { id: "t1", title: "Release checklist", created_at: "2026-11-09T08:00:00Z", updated_at: "2026-11-09T08:00:00Z" };
 const select = () => [...document.querySelectorAll<HTMLSelectElement>("select")].find((s) => [...s.options].some((o) => o.value === "claude"))!;
@@ -167,7 +171,7 @@ it.each([false, true])("hands text to a compatible alias inline (follow default:
   await open();
   const launch = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === t("todos.launch_and_hand"))!;
   await act(async () => launch.click());
-  await act(async () => vi.advanceTimersByTimeAsync(0));
+  await settleLaunch();
   const starts = requests.filter((r) => r.path === "/sessions" && r.init.method === "POST");
   expect(starts).toHaveLength(1);
   expect(starts[0].init.json).toMatchObject({ launcher: "work", agent_type: "traex", prompt: expect.stringContaining("Release checklist") });
@@ -178,7 +182,7 @@ it.each([false, true])("hands text to a compatible alias inline (follow default:
 const launchHandoff = async () => {
   const launch = [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.trim() === t("todos.launch_and_hand"))!;
   await act(async () => launch.click());
-  await act(async () => vi.advanceTimersByTimeAsync(0));
+  await settleLaunch();
   return requests.filter((r) => r.path === "/sessions" && r.init.method === "POST");
 };
 
@@ -229,7 +233,7 @@ it("blocks button and keyboard starts when every computer goes offline", async (
   await open(() => {}, [{ id: "mac", name: "Mac", online: false }]);
   await act(async () => launch.click());
   await act(async () => prompt.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true })));
-  await act(async () => vi.advanceTimersByTimeAsync(0));
+  await settleLaunch();
   expect(requests.filter((r) => r.path === "/sessions" && r.init.method === "POST")).toHaveLength(0);
   expect(launch.disabled).toBe(true);
   expect(prompt.value).toBe("Keep this draft");
@@ -261,7 +265,7 @@ describe("the hand-over dialog's buttons and agent rows", () => {
     await act(async () => button(t("todos.tab_new")).click());
     const prompt = document.querySelector<HTMLTextAreaElement>("textarea")!;
     await act(async () => prompt.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true })));
-    await act(async () => vi.advanceTimersByTimeAsync(0));
+    await settleLaunch();
     expect(requests.filter((r) => r.path === "/sessions" && r.init.method === "POST")).toHaveLength(1);
   });
 

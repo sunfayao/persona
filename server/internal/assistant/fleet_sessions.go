@@ -37,6 +37,7 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 	reconnected := len(before) > 0 && !connected.Equal(beforeConn)
 	var unsure []proto.Session
 	var inlineUpdates []SessionRef
+	var inlineMain SessionRef
 	fm, hasMachine := s.fleetMachine(machine)
 	_, hasInlineStore := s.store().(inlineViewStore)
 	now := time.Now()
@@ -90,6 +91,16 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 			fm.isAssistant(sess) {
 			inlineUpdates = append(inlineUpdates, SessionRef{MachineID: machine, SessionID: sess.SessionID})
 		}
+		// Agy can export the final reply after the stop edge, with unchanged summary text and revision. Also
+		// look at a settled Main when its first list arrives on a new connection, without needing a new turn.
+		if hasInlineStore && hasMachine && sess.Launcher == "agy" &&
+			(sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle) &&
+			(reconnected || sess.Status != prev || sess.Rev != was.Rev || sess.UpdatedAt.After(was.UpdatedAt)) && fm.isAssistant(sess) {
+			cfg := s.settings(context.Background())
+			if sess.SessionID == cfg.Main && s.sameMachine(machine, cfg.mainRouteMachine()) {
+				inlineMain = SessionRef{MachineID: machine, SessionID: sess.SessionID}
+			}
+		}
 		if sess.Status != prev && sess.Status != proto.StatusWorking && !(prev == proto.StatusWorking && (sess.Status == proto.StatusDone || sess.Status == proto.StatusIdle)) {
 			if id := sess.SessionID; prev == proto.StatusWorking { // by id: a closure over sess would put every row on the heap
 				s.inOrder(func() { s.availStopped(machine, id, now) }) // its round is over (availability.go)
@@ -103,6 +114,9 @@ func (s *Service) setSessions(machine string, list []proto.Session) {
 	s.pruneGoneQuiet(machine)        // the verdicts and Stops of task Agents no longer listed (silent_turns.go)
 	s.pruneGoneUpstream(machine, list)
 	s.fleetKeep(machine, list, connected, unsure)
+	if inlineMain.SessionID != "" {
+		go s.reconcileInlineMain(context.Background(), inlineMain)
+	}
 	for _, ref := range inlineUpdates {
 		s.inOrder(func() { go s.registerInlineTurn(context.Background(), ref) })
 	}

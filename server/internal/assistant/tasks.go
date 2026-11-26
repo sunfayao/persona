@@ -973,7 +973,11 @@ func (s *Service) taskRoutes() {
 		var pendingIDs []string
 		// Main watches pending plans from every conversation of this manager. Extension
 		// tokens retain their existing conversation-only feed and visibility rules.
-		if !ext && r.PathValue("id") == s.settings(r.Context()).Main {
+		cfg := s.settings(r.Context())
+		if !ext && r.PathValue("id") == cfg.Main {
+			if fullRole(r) && query.Get("cursor") == "" {
+				go s.reconcileInlineMain(context.Background(), SessionRef{MachineID: cfg.mainRouteMachine(), SessionID: cfg.Main})
+			}
 			pending, readErr := s.mainPendingPlans(r.Context())
 			if readErr != nil {
 				apierr.Write(w, http.StatusServiceUnavailable, readErr)

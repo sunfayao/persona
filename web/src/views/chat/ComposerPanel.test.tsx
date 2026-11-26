@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // The composer's toolbar as cindy's (#5324): the + opens the + / @ panel with a search box that has the keys; a typed @
 // opens the same panel above the box. "Add" first (files or images, Plan mode where the session has modes), then a few of
-// each resource; picking a file types `@path `, a session becomes a context chip. One round button on the right: Stop
-// while the agent works and nothing is typed, Send otherwise (Queue message while it works, with a second Stop).
+// each resource. Typed @ picks stay inline while attaching from the + can still produce a context chip.
+// One round button on the right: Stop
+// while the agent works and the draft is empty, Send otherwise (Queue message while it works).
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,7 @@ import { loadPages } from "../../lib/lazy-page";
 import { getContexts } from "../../lib/links";
 import { applyCompleteSessions } from "../../lib/store";
 import type { Session } from "../../lib/types";
+import { parseUserText } from "../../lib/turns";
 import { Composer } from "./Composer";
 import type { MentionSource } from "./ComposerPanel";
 import type { PlanMode } from "./PermissionPicker";
@@ -34,7 +36,10 @@ let root: Root;
 
 beforeAll(async () => {
   await loadPages();
-  act(() => applyCompleteSessions([{ machine_id: "m2", session_id: "other", title: "Fix the login page", agent: "claude", cwd: "/code/site", updated_at: "2026-11-12T10:00:00Z" } as Session]));
+  act(() => applyCompleteSessions([
+    { machine_id: "m2", session_id: "other", title: "Fix the login page", agent: "claude", cwd: "/code/site", updated_at: "2026-11-12T10:00:00Z" } as Session,
+    { machine_id: "m2", session_id: "review", title: "Summarize the rollout", agent: "codex", cwd: "/code/site", updated_at: "2026-11-12T10:00:00Z" } as Session,
+  ]));
 });
 
 // a precise pointer on a wide screen unless a test changes that (lib/viewport.ts keeps one list per query, so the
@@ -287,6 +292,31 @@ describe("Back with the + panel open (#11442)", () => {
 });
 
 describe("a typed @ (#5324)", () => {
+  it("keeps two picked sessions inline in a sentence and retries with the same targets", async () => {
+    const onSend = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    render({ onSend });
+    act(() => box().focus());
+    setValue(box(), "  😀 Compare @fix");
+    await settle();
+    click(option("Fix the login page"));
+    setValue(box(), box().value + "with @summ");
+    await settle();
+    click(option("Summarize the rollout"));
+    setValue(box(), box().value + "today");
+    const text = "  😀 Compare @Fix the login page with @Summarize the rollout today";
+    expect(box().value).toBe(text);
+    expect(host.querySelector(`button[aria-label="${t("link-contextchips.remove_label")}"]`)).toBeNull();
+    const send = () => host.querySelector<HTMLButtonElement>('[data-testid="composer-send"]')!;
+    await act(async () => send().click());
+    const payload = onSend.mock.calls[0][0].text as string;
+    const parsed = parseUserText(payload);
+    expect(parsed.text).toBe(text.trimStart());
+    expect(parsed.contexts.map((r) => r.url)).toEqual(["persona://session/m2/other", "persona://session/m2/review"]);
+    expect(box().value).toBe(text);
+    await act(async () => send().click());
+    expect(onSend.mock.calls[1][0].text).toBe(payload);
+  });
+
   it("opens the same panel above the box, without a search box, and the keys stay in the box", async () => {
     const plan: PlanMode = { on: false, toggle: vi.fn() };
     render({ planMode: plan });
@@ -386,15 +416,31 @@ describe("the round button (#5324)", () => {
     expect(onStop).toHaveBeenCalledOnce();
   });
 
-  it("queues what is typed while the agent works, a second Stop left of voice", () => {
+  it("queues a draft while working and restores Stop when it is cleared", () => {
     localStorage.setItem(`draft:${KEY}`, "and also this");
     render({ working: true, onStop: () => {}, voice: { mode: "start", label: "voice", onClick: () => {} } });
     expect(send()!.getAttribute("aria-label")).toBe(t("chat-composer.queue"));
     expect(send()!.title).toBe(t("chat-composer.queue_hint"));
-    expect(stops()).toHaveLength(1);
+    expect(stops()).toHaveLength(0);
     const row = send()!.parentElement!;
     const order = [...row.children].map((c) => c.getAttribute("data-testid")).filter(Boolean);
-    expect(order).toEqual(["composer-stop", "composer-voice", "composer-send"]);
+    expect(order).toEqual(["composer-voice", "composer-send"]);
+    setValue(box(), "");
+    expect(send()).toBeNull();
+    expect(stops()).toHaveLength(1);
+  });
+
+  it("still queues a draft with the keyboard while the agent works", async () => {
+    localStorage.setItem("persona.busy-send", "queue");
+    localStorage.setItem(`draft:${KEY}`, "Follow-up");
+    const onSend = vi.fn(async () => true);
+    const onStop = vi.fn();
+    render({ working: true, onStop, onSend, agent: "traex", queueNextTurn: true });
+    await act(async () => {
+      box().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+    expect(onSend).toHaveBeenCalledWith({ text: "Follow-up", images: [], queueNextTurn: true });
+    expect(onStop).not.toHaveBeenCalled();
   });
 
   it.each([

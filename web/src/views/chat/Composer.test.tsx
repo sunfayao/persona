@@ -202,6 +202,20 @@ describe("double Esc recalls the last message", () => {
 });
 
 describe("Composer image object URLs", () => {
+  it("uses the send action for an image-only draft during a turn", async () => {
+    const onStop = vi.fn();
+    const onSend = vi.fn(async () => true);
+    act(() => root.render(<Composer draftKey="a" placeholder="" machineId="m1" working onStop={onStop} onSend={onSend} />));
+    expect(host.querySelector('[data-testid="composer-stop"]')).not.toBeNull();
+    putImage("a");
+    const send = host.querySelector<HTMLButtonElement>('[data-testid="composer-send"]');
+    expect(send?.disabled).toBe(false);
+    expect(host.querySelector('[data-testid="composer-stop"]')).toBeNull();
+    await act(async () => send!.click());
+    expect(onSend).toHaveBeenCalledWith({ text: "", images: [{ mime: "image/png", data: btoa("png") }] });
+    expect(onStop).not.toHaveBeenCalled();
+  });
+
   it("are freed when the box unmounts", () => {
     render("a");
     putImage("a");

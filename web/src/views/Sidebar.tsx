@@ -61,6 +61,7 @@ import { LooseSection, SessionTally, type SpaceMenuFn, SpaceSection } from "./Si
 import { CollapseButton, PagesTally } from "./SidebarRail";
 import type { PageSection } from "../lib/sidebar-pages";
 import { WindowedRows } from "./WindowedRows";
+import { captureSidebarAgentRow, onSidebarAgentRemoval } from "./sidebar-agent-removal";
 import { scoped, useScope, useScoped, useScopedInteractions, useScopedMachines } from "../lib/current-assistant";
 import { AssistantSwitcher } from "./AssistantSwitcher";
 import { sidebarPending } from "./sidebar-pending";
@@ -130,11 +131,23 @@ function useGlide(activeKey: string) {
   const rows = useRef(new Map<string, HTMLElement>());
   const lastKey = useRef<string | null>(null);
   const following = useRef(false);
+  const deletedSelection = useRef<string | null>(null);
   const hovered = useRef<string | null>(null);
   const [box] = useState(glideStore);
   const active = useRef(activeKey);
   active.current = activeKey;
   const sizes = useRef<ResizeObserver | null>(null);
+  useEffect(() => onSidebarAgentRemoval((key) => {
+    const root = nav.current;
+    const play = root && captureSidebarAgentRow(root, rows.current, key);
+    return () => {
+      if (active.current === key) {
+        following.current = false;
+        deletedSelection.current = key;
+      }
+      play?.();
+    };
+  }), []);
   const measure = useRef(() => {});
   measure.current = () => {
     const n = nav.current;
@@ -187,8 +200,10 @@ function useGlide(activeKey: string) {
   }, []);
   useLayoutEffect(() => {
     if (lastKey.current !== activeKey) {
+      // Deleting the open Agent leaves the panel on Home without revealing a different sidebar row.
+      following.current = deletedSelection.current === null || lastKey.current !== deletedSelection.current;
+      deletedSelection.current = null;
       lastKey.current = activeKey;
-      following.current = true;
     }
     const open = following.current ? rows.current.get(activeKey) : undefined;
     // a group that opened for it is still growing, and the list can't scroll past its end yet: again once it has

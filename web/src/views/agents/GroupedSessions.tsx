@@ -77,14 +77,14 @@ export function GroupedSessions<T>({ groups, byComputer = false, machineOrder, .
   );
 }
 
-/** A space's New agent (#13523): the one New agent sheet, on the space's computer and in its folder, with that
+/** A space's New agent (#13523): a chat draft on the space's computer and in its folder, with that
  *  computer's usual launcher. A runtime space only (an account is no place to start one), on a computer that is online,
  *  whose folder the hub says (the catalog's `path`); not No project, which has none. */
 function startIn(group: SessionGroup, kind: string, dimension: GroupDimension, machines: readonly SidebarMachine[]): (() => void) | undefined {
   const place = group.places[0];
   if (kind !== "runtime" || dimension !== "group" || group.rest || !place?.path) return undefined;
   if (!machines.some((m) => m.id === place.machine && m.online)) return undefined;
-  return () => openNewAgent({ machineId: place.machine, cwd: place.path });
+  return () => openNewAgent({ machineId: place.machine, cwd: place.path, spaceId: place.spaceId });
 }
 
 /** A run of sections, a bounded number of them at first (a computer's spaces, or the whole list). */

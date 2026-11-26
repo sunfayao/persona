@@ -22,6 +22,7 @@ import { openLinkPage, taskRoute } from "./handoff";
 import { navigate, parse as parseRoute } from "./router";
 import { BASE, stripBase } from "./base";
 import { contextXML } from "./context-xml";
+import { isInlineMention } from "./inline-mentions";
 import { otherManager } from "./manager-choice";
 import { localhostLink, PREVIEW_FEATURE } from "./preview";
 import type { PortLink } from "./port-links";
@@ -365,8 +366,21 @@ export function addContext(key: string, ref: ContextRef) {
   if (conversationKeyDeleted(key)) return;
   const cur = getContexts(key);
   // the same passage of the same page once
-  if (cur.some((c) => ref.kind === "skill" ? c.kind === "skill" && c.attrs?.ref === ref.attrs?.ref : c.url === ref.url && c.text === ref.text && c.kind === ref.kind)) return;
+  if (cur.some((c) => c.id === ref.id || (!isInlineMention(c) && !isInlineMention(ref) &&
+    (ref.kind === "skill" ? c.kind === "skill" && c.attrs?.ref === ref.attrs?.ref : c.url === ref.url && c.text === ref.text && c.kind === ref.kind)))) return;
   pending.set(key, [...cur, ref]);
+  emitContexts();
+}
+
+/** Replace just the selected inline mentions or other persisted selections. Ordinary attachments stay in the tray. */
+export function replaceContexts(key: string, take: (r: ContextRef) => boolean, refs: ContextRef[]) {
+  if (conversationKeyDeleted(key)) return;
+  const current = getContexts(key);
+  const before = current.filter(take);
+  if (before.length === refs.length && before.every((r, i) => r === refs[i])) return;
+  const next = [...current.filter((r) => !take(r)), ...refs];
+  if (next.length) pending.set(key, next);
+  else pending.delete(key);
   emitContexts();
 }
 

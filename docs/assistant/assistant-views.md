@@ -37,6 +37,8 @@ A key is an opaque string; clients must URL-encode the entire path segment, not 
 
 Body registration reads text items from the trusted assistant; check both when transcript items arrive and when a reply round ends, registering the latest round even without client subscriptions. For long replies, read full text with `session.item`, not just a truncated preview. Replay of the same source does not change definitions or clear selections. After initial persistence, broadcast `assistant_view_block {conversation, key}`; feed `view_blocks` returns a full snapshot of registered keys for that chat, allowing recovery after missed events.
 
+For an Antigravity main conversation, the manager also checks the latest settled native reply on reconnect, after a late transcript flush, and when a full device loads the feed. It matches the native tail to the current session revision and registers the final text with the same validation and receipt rules.
+
 Shared fence rules and key test vectors are in `schema/extension/examples/assistant-text/fences.json`: case-insensitive language names, LF / CRLF / CR, tildes, and long outer fences are supported. Examples inside other code blocks are not registered; invalid blocks still occupy an index, and unclosed blocks show only fallback. Currently only standalone fences are recognized; nested Markdown in lists or quotes is not claimed as supported. Validate at most 3 persona-view blocks per text item; the per-round display cap still requires cooperation from each client and Stop validation.
 
 ## Actions and multiple pages

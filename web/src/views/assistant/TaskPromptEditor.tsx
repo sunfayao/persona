@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react
 import { api, credentialOwner, errorText, subscribeCredentialOwner } from "../../lib/api";
 import { MANAGER_HEADER, useShownManager } from "../../lib/manager-choice";
 import { taskInputSettings, type Task, type TaskExecution } from "../../lib/routines";
-import { splitSkillDraft, type SkillCatalog } from "../../lib/skill-mentions";
+import { splitComposerDraft, type SkillCatalog } from "../../lib/skill-mentions";
 import { contextXML } from "../../lib/context-xml";
 import { AGENT_COMMANDS, Composer } from "../chat/Composer";
 import { WORKFLOWS_COMMAND } from "../../lib/background-panel";
@@ -39,7 +39,7 @@ export function TaskPromptEditor({ draft, saved, disabled, onChange }: { draft: 
   const context = current?.context;
   const ex = context?.execution;
   const scope = context ? scopeOf(context) : "";
-  const { text, skills: refs } = useMemo(() => draft.prompt_selections ? splitSkillDraft(draft.prompt, true) : { text: draft.prompt, skills: [] }, [draft.prompt, draft.prompt_selections]);
+  const { text, refs } = useMemo(() => draft.prompt_selections ? splitComposerDraft(draft.prompt, true) : { text: draft.prompt, refs: [] }, [draft.prompt, draft.prompt_selections]);
   const invalidFile = ex && refs.some((ref) => ref.kind === "file" && Object.entries(fileScope(ex)).some(([field, value]) => (ref.attrs?.[field] ?? "") !== value));
   const inputError = current?.error || current?.context?.input_error;
   const supported = ex && context?.task_input === true && ["claude", "codex"].includes(agentOf(ex));

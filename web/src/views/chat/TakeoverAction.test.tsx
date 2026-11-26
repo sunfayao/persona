@@ -66,6 +66,29 @@ describe("TakeoverAction interactions", () => {
     expect(state.api.mock.calls[1][1]).toMatchObject({ json: { token: "token-1", confirm_stop: false } });
   });
 
+  it("continues a released Desktop thread in place without termination or new-session fallback", async () => {
+    const desktop = { ...baseSession, capabilities: { takeover: { running: false, can_resume: true, released_desktop: true } } };
+    state.api.mockImplementation(async (_path: string, options?: { method?: string }) => options?.method === "POST"
+      ? { session: { ...desktop, capabilities: { send: true } } }
+      : plan({ running: false, released_desktop: true }));
+    render(desktop);
+    expect(button(host, t("chat-takeover.takeover_new"))).toBeUndefined();
+    await act(async () => button(host, t("chat-takeover.desktop_resume")).click()); await flush();
+    expect(state.api.mock.calls.map(([, options]) => options?.method ?? "GET")).toEqual(["GET", "POST"]);
+    expect(state.api.mock.calls[1][1]).toMatchObject({ json: { token: "token-1", confirm_stop: false } });
+    expect(state.upsert).toHaveBeenCalledWith(expect.objectContaining({ session_id: desktop.session_id, capabilities: { send: true } }));
+    expect(state.launch).not.toHaveBeenCalled();
+  });
+
+  it("does not accept a running writer after a released Desktop row was read", async () => {
+    state.api.mockResolvedValue(plan({ running: true, released_desktop: true }));
+    render({ ...baseSession, capabilities: { takeover: { running: false, can_resume: true, released_desktop: true } } });
+    await act(async () => button(host, t("chat-takeover.desktop_resume")).click()); await flush();
+    expect(state.api.mock.calls.map(([, options]) => options?.method ?? "GET")).toEqual(["GET"]);
+    expect(state.toast).toHaveBeenCalled();
+    expect(state.launch).not.toHaveBeenCalled();
+  });
+
   it("continues in a new session with the opaque prompt and original Todo", async () => {
     state.api.mockResolvedValue(plan());
     render();

@@ -43,8 +43,9 @@ type codexAppThread struct {
 	Paginated   bool   `json:"-"`
 	// Model and Effort are what the App runs the chat with (its model and reasoning_effort columns, #6501): its
 	// history in the App's database says neither. Empty in a schema without them.
-	Model  string `json:"model"`
-	Effort string `json:"effort"`
+	Model         string `json:"model"`
+	Effort        string `json:"effort"`
+	ModelProvider string `json:"modelProvider"`
 	// Terminal CLIs have no app-server stream: include the stored items of their running turn too.
 	includeRunning bool
 }
@@ -218,7 +219,11 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAp
 		hideCodexSQLiteWindow(cmd)
 		return cmd.Output()
 	}
-	out, err := query(`, COALESCE(model, '') AS model, COALESCE(reasoning_effort, '') AS effort`)
+	const settings = `, COALESCE(model, '') AS model, COALESCE(reasoning_effort, '') AS effort`
+	out, err := query(settings + `, COALESCE(model_provider, '') AS modelProvider`)
+	if err != nil {
+		out, err = query(settings)
+	}
 	if err != nil { // a schema without those columns: the rest as before
 		out, err = query("")
 	}

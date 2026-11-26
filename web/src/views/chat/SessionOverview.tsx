@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { t } from "../../i18n";
 import { formatTokens } from "../../lib/tokens";
 import { contextLabel, contextTier, contextTooltip, contextUsage } from "../../lib/context-usage";
-import { sessionTitle, shortPath, stateOf } from "../../lib/format";
+import { baseName, sessionTitle, shortPath, stateOf } from "../../lib/format";
 import { credentialOwner } from "../../lib/api";
 import { openPanel } from "../../lib/panel";
 import { followChildSession, followSubagentLink } from "../../lib/subagent-link";
@@ -17,6 +17,8 @@ import { Icon, type IconName } from "../../ui/icons";
 import { StatusMark } from "../../ui/StatusMark";
 import { BackgroundList } from "./BackgroundPanel";
 import { SessionInfoDialog } from "./SessionDialogs";
+import { BreakdownCard, StackedBreakdownBar } from "./SessionInsightsPopover";
+import { normalizeContextBreakdown } from "../../lib/session-insights";
 
 interface OverviewProps {
   session: Session;
@@ -32,6 +34,11 @@ interface OverviewProps {
 export function SessionOverview({ id, session, machineName, items, tasks, children, onJumpToCall, hidden }: OverviewProps) {
   const [infoOpen, setInfoOpen] = useState(false);
   const finished = useMemo(() => finishedBackgroundTasks(items, tasks), [items, tasks]);
+  const outputs = useMemo(() => {
+    const paths = (session.background ?? []).map((task) => task.output_file);
+    for (const { task } of finished) paths.push(task.output_file);
+    return [...new Set(paths.filter((path): path is string => Boolean(path)))];
+  }, [finished, session.background]);
   // Codex child threads are standalone sessions. Use the known rows from this machine and manager.
   const listed = useStore((s) => (s.sessions[session.machine_id] ?? []).filter((row) =>
     row.session_id !== session.session_id && row.manager === session.manager && (
@@ -85,11 +92,10 @@ export function SessionOverview({ id, session, machineName, items, tasks, childr
             onOpenRun={(task) => { if (current()) openPanel({ kind: "background", mid, sid, run: task, from: "overview" }); }}
             onOpenTask={(task) => { if (current()) openPanel({ kind: "background", mid, sid, task: task.id, from: "overview" }); }}
           />
-          <FinishedTasks finished={finished} session={session}
-            onOpenOutput={(path) => { if (current()) openPanel({ kind: "file", mid, path, cwd: session.cwd }); }}
-            onJumpToCall={onJumpToCall}
-          />
+          <FinishedTasks finished={finished} session={session} onJumpToCall={onJumpToCall} />
         </div>
+        {outputs.length > 0 && <Outputs paths={outputs}
+          onOpen={(path) => { if (current()) openPanel({ kind: "file", mid, path, cwd: session.cwd }); }} />}
       </div>
       <SessionInfoDialog session={session} machineName={machineName} open={infoOpen} onClose={() => setInfoOpen(false)} />
     </aside>
@@ -131,6 +137,14 @@ function Environment({ session, machineName, onInfo }: Pick<OverviewProps, "sess
 
 function OverviewContext({ session }: { session: Session }) {
   const usage = contextUsage(session);
+  const breakdown = normalizeContextBreakdown(session.context_breakdown, usage?.window ?? session.context_window);
+  if (breakdown) return (
+    <section className="flex flex-col gap-2 border-t border-line py-3">
+      <h3 className="text-xs font-semibold text-ink-2">{t("chat-sessioninfo.context")}</h3>
+      <StackedBreakdownBar breakdown={breakdown} />
+      <BreakdownCard breakdown={breakdown} />
+    </section>
+  );
   if (!usage) return null;
   const label = contextLabel(usage);
   const percent = usage.used;
@@ -189,9 +203,28 @@ function Subagents({ agents, running, open }: { agents: Subagent[]; running: num
   );
 }
 
-function FinishedTasks({ finished, session, onOpenOutput, onJumpToCall }: Pick<OverviewProps, "session" | "onJumpToCall"> & {
+function Outputs({ paths, onOpen }: { paths: readonly string[]; onOpen: (path: string) => void }) {
+  return (
+    <section className="border-t border-line py-3">
+      <h3 className="text-xs font-semibold text-ink-2">{t("chat-sessionoverview.outputs")}</h3>
+      <ul className="mt-1 flex flex-col gap-0.5">
+        {paths.map((path) => (
+          <li key={path}>
+            <button type="button" onClick={() => onOpen(path)} title={path}
+              className="flex min-h-8 w-full min-w-0 items-center gap-2 rounded-control px-1 text-left text-xs hover:bg-hover">
+              <Icon name="read" size={14} className="shrink-0 text-ink-3" />
+              <span className="min-w-0 flex-1 truncate text-ink">{baseName(path) || shortPath(path)}</span>
+              <Icon name="chevronRight" size={12} className="shrink-0 text-ink-3" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function FinishedTasks({ finished, session, onJumpToCall }: Pick<OverviewProps, "session" | "onJumpToCall"> & {
   finished: readonly FinishedTask[];
-  onOpenOutput: (path: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const list = useRef<HTMLUListElement>(null);
@@ -219,11 +252,9 @@ function FinishedTasks({ finished, session, onOpenOutput, onJumpToCall }: Pick<O
                   <span className="min-w-0 break-words text-ink">{title || taskLabel(task)}</span>
                   <span className={cx("shrink-0 whitespace-nowrap", pill?.tone === "red" ? "text-red" : "text-ink-3")}>{pill?.text}</span>
                 </div>
-                {(task.output_file || (onJumpToCall && call)) && (
-                  <div className="flex flex-wrap gap-2 text-accent-ink">
-                    {task.output_file && <button type="button" onClick={() => onOpenOutput(task.output_file!)} className="hover:underline">{t("chat-activity.open_output_file")}</button>}
-                    {onJumpToCall && call && <button type="button" onClick={() => onJumpToCall(call)} className="hover:underline">{t("chat-sessionoverview.show_in_chat")}</button>}
-                  </div>
+                {onJumpToCall && call && (
+                  <div className="text-accent-ink"><button type="button" onClick={() => onJumpToCall(call)}
+                    className="hover:underline">{t("chat-sessionoverview.show_in_chat")}</button></div>
                 )}
               </li>
             );

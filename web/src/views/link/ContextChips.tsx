@@ -2,13 +2,14 @@
 import { Suspense } from "react";
 import { lazyPage } from "../../lib/lazy-page";
 import { removeContext, useContexts, type ContextRef } from "../../lib/links";
+import { isInlineMention } from "../../lib/inline-mentions";
 import { t } from "../../i18n";
 import { OverlayBoundary } from "../LazyOverlay";
 
 const ChipList = lazyPage(() => import("./ContextChipList").then((m) => m.ContextChipList));
 
 export function ContextChips({ draftKey }: { draftKey: string }) {
-  const refs = useContexts(draftKey).filter((r) => r.kind !== "forward");
+  const refs = useContexts(draftKey).filter((r) => r.kind !== "forward" && !isInlineMention(r));
   return <ContextChipList refs={refs} onRemove={(id) => removeContext(draftKey, id)} />;
 }
 

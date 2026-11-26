@@ -169,7 +169,7 @@ export function SpacePage({ mid, space, onToggleSidebar }: { mid: string; space:
               right={
                 <span className="flex items-center gap-1">
                   {unread.length > 0 && <Button tone="quiet" icon="check" onClick={() => setConfirmSeen(unread)}>{markAllSeenLabel()}</Button>}
-                  {online && first.cwd && <Button tone="secondary" icon="plus" onClick={() => openNewAgent({ machineId: mid, cwd: first.cwd })}>{t("space-page.new_agent")}</Button>}
+                  {online && first.cwd && <Button tone="secondary" icon="plus" onClick={() => openNewAgent({ machineId: mid, cwd: first.workspace_cwd || first.cwd, host: first.host, spaceId: first.workspace_id ?? first.space_id })}>{t("space-page.new_agent")}</Button>}
                 </span>
               }
             />

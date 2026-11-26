@@ -82,22 +82,23 @@ it("searches name/description locally, disambiguates equal names, selects with k
   expect(api).toHaveBeenCalledTimes(1);
   expect(api.mock.calls[0][1]).toMatchObject({ headers: { "X-Persona-Manager": "helper-a" } });
   key("Enter");
-  expect(box().value).toBe("");
-  expect(host.textContent).toContain("review · project");
+  expect(box().value).toBe("@review ");
+  expect(host.querySelector(`button[aria-label="${t("link-contextchips.remove_label")}"]`)).toBeNull();
   expect(host.textContent).not.toContain("project · .");
-  await type("Check this");
+  await type("@review Check this");
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="发送"]')!.click());
   expect(onSend.mock.calls[0][0].text).toContain('kind="skill" title="review" url="" ref="a"');
+  expect(onSend.mock.calls[0][0].text).toMatch(/\n\n@review Check this$/);
   expect(localStorage.getItem("draft:skill-test") ?? "").toBe("");
   key("ArrowUp");
-  expect(box().value).toBe("Check this");
+  expect(box().value).toBe("@review Check this");
   expect(getContexts("skill-test")[0].attrs?.ref).toBe("a");
   key("ArrowDown");
   expect(box().value).toBe("");
   expect(getContexts("skill-test")).toHaveLength(0);
 });
 
-it("sends on Ctrl+Enter with a highlighted @ skill instead of inserting its chip", async () => {
+it("sends the typed text on Ctrl+Enter with an @ skill highlighted", async () => {
   render();
   await type("@security");
   await waitForOptions(1);
@@ -108,20 +109,22 @@ it("sends on Ctrl+Enter with a highlighted @ skill instead of inserting its chip
   expect(getContexts("skill-test").filter((row) => row.kind === "skill")).toHaveLength(0);
 });
 
-it("supports touch/click removal, restores edit/queue references and persists the selected identity in the draft", async () => {
+it("persists a skill selected by pointer and removes its exact reference when the inline label is deleted", async () => {
   render();
-  await type("@wording");
+  await type("Use @wording");
   await waitForOptions(1);
   await act(async () => options()[0].click());
-  await type("Use this");
+  await type("Use @review for this");
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 280)); });
   const draft = localStorage.getItem("draft:skill-test")!;
   expect(draft).toContain('ref="b"');
   act(() => sendDraft("skill-test", { type: "replace", text: draft }));
-  expect(box().value).toBe("Use this");
+  expect(box().value).toBe("Use @review for this");
   expect(getContexts("skill-test").filter((c) => c.kind === "skill")).toHaveLength(1);
-  act(() => host.querySelector<HTMLButtonElement>('button[aria-label="移除这个上下文"]')!.click());
+  await type("Use this");
   expect(getContexts("skill-test")).toHaveLength(0);
+  await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="发送"]')!.click());
+  expect(onSend.mock.calls[0][0].text).toBe("Use this");
 });
 
 it.each(["manager", "directory", "machine", "session", "launcher", "environment"])("never offers stale rows across %s switches, ignores late responses, and allows ordinary chat on failure", async (change) => {
@@ -165,12 +168,12 @@ it("uses the ordinary session catalog and retains its selection on a refused sen
   await waitForOptions(1);
   expect(api.mock.calls[0][0]).toBe("/sessions/computer/chat/skills");
   key("Enter");
-  await type("Review the change");
+  await type("@review Review the change");
   onSend.mockImplementationOnce(async () => false);
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="发送"]')!.click());
   expect(onSend.mock.calls[0][0].text).toContain('ref="a"');
   expect(getContexts("skill-test")[0].attrs?.ref).toBe("a");
-  expect(box().value).toBe("Review the change");
+  expect(box().value).toBe("@review Review the change");
 });
 
 it("keeps existing file rows reachable beside a large skill catalog and searches beyond the empty preview", async () => {

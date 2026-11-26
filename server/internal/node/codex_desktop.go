@@ -633,7 +633,7 @@ func codexThreadOrigin(src codexSource) codexOrigin {
 }
 
 // codexDesktopChat identifies an App chat independently of whether the App still exposes its control bus.
-// An unavailable bus must not turn an App chat into a CLI session or invite a second writer.
+// An unavailable bus still leaves this a Desktop chat. The separate release-only resume path checks native ownership.
 func codexDesktopChat(src codexSource) bool { return codexDesktopChatIn(src, nil) }
 
 // codexDesktopChatIn is codexDesktopChat with sidebar state read once per home in a list pass (codexListPass).

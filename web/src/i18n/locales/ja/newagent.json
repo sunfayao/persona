@@ -9,6 +9,7 @@
   "parent_folder": "上の階層へ",
   "home_folder": "ホームフォルダー",
   "follow_model_settings": "モデル設定に従う",
+  "draft_destination_changed": "現在の実行先を使うには、プロジェクトから下書きを開き直してください。",
   "models_failed": "モデル一覧を読み込めませんでした。デフォルトのモデルで起動できます。",
   "launchers_failed": "このコンピューターのモデルを読み込めませんでした。デフォルトのモデルで起動できます。",
   "retry": "再試行",

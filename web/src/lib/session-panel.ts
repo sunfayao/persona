@@ -9,7 +9,7 @@
 // engine needs a new conversation, and an agent that can't change its model while it runs (a Codex thread) keeps its
 // effort and speed only. Loaded with the panel, not with the composer.
 import { t } from "../i18n";
-import { agentId, agentName, providerAgent } from "./agent-kind";
+import { agentId, agentName, isTraeCli, providerAgent } from "./agent-kind";
 import { ALL_EFFORTS, defaultModel, launcherAgent, modelName, typedModelOffered, type AgentModel, type LauncherModels } from "./launcher-models";
 import { launcherBlock } from "./launcher-health";
 import { validModelId } from "./model-id";
@@ -25,7 +25,7 @@ const hasFast = (s: Session) => Boolean(s.service_tiers?.some((x) => x.id === "p
  *  takes the variant's own); the model a thread runs takes the thread's own levels (a Codex thread says them); an ID
  *  typed by hand into Claude Code takes any, as nobody knows. */
 function rowEfforts(engine: string, m: AgentModel, listed: boolean, current: boolean, s: Session): string[] {
-  if (engine === "agy") return [];
+  if (engine === "agy" || isTraeCli(s.agent)) return [];
   if (current && !sessionSwitches(s).effort) return [];
   if (current && s.efforts?.length) return s.efforts;
   if (listed && !m.custom) return m.efforts ?? [];
@@ -93,10 +93,11 @@ export function sessionPanel(s: Session, launchers: Launcher[] | undefined, list
   const modelSwitch = canSwitchModel(s);
   const switching = switchesLauncher(s, o);
   const all = launchers ?? [];
-  const names = all.some((l) => l.name === own) ? all.map((l) => l.name) : [own, ...all.map((l) => l.name)];
+  const trae = isTraeCli(s.agent);
+  const names = trae ? [own] : all.some((l) => l.name === own) ? all.map((l) => l.name) : [own, ...all.map((l) => l.name)];
   const ownList = listOf(own).list;
   const shownModel = s.model || o.displayModel;
-  const row = currentModelRow(ownList?.models ?? [], shownModel);
+  const row = trae && !shownModel ? undefined : currentModelRow(ownList?.models ?? [], shownModel);
 
   const providers = names.map((name): PanelProvider => {
     const e = listOf(name);
@@ -118,7 +119,8 @@ export function sessionPanel(s: Session, launchers: Launcher[] | undefined, list
       // as the old popover's tabs did with no list
       if (mine && shownModel) p.models = [panelModel({ id: shownModel, name: modelLabel(shownModel) }, kind, true, s, false)];
     } else {
-      let models = (e.list?.models ?? []).map((m) => panelModel(m, kind, mine && m === row, s));
+      const listed = (e.list?.models ?? []).filter((m) => !trae || !m.id.includes("@"));
+      let models = listed.map((m) => panelModel(m, kind, mine && m === row, s));
       // a launcher that fixes its own --model takes no model with a switch: its default entry, only
       if (other && e.list?.locked) models = models.filter((m) => m.id === defaultModel(e.list?.models ?? [])?.id);
       // the model it runs, when the list doesn't name it (a list that couldn't be read, an older hub, a model it lacks)
@@ -168,12 +170,14 @@ export type ModeStep = { model: string } | { effort: string } | { service_tier: 
  *  Antigravity variant brings its own thinking level. `listOf`: each launcher's list as read. */
 export function pickPlan(s: Session, config: PanelConfig, listOf: (launcher: string) => LauncherModels | null | undefined, o: PanelOptions = {}): ModeStep[] | null {
   const own = sessionLauncher(s);
+  const trae = isTraeCli(s.agent);
+  if (trae && (config.provider !== own || config.effort || config.model.includes("@") || modelBusy(s))) return null;
   if (config.provider !== own) return switchPlan(s, config, listOf(config.provider), o);
   const models = listOf(own)?.models ?? [];
   const row = models.find((m) => m.id === config.model);
-  const current = currentModelRow(models, s.model);
+  const current = trae && !s.model ? undefined : currentModelRow(models, s.model);
   const same = row ? row === current || isCurrentModel(row, s.model) : config.model === s.model;
-  if (!same && (!canSwitchModel(s) || (!row && !validModelId(config.model)))) return null;
+  if (!same && (!canSwitchModel(s) || (!row && (trae || !validModelId(config.model))))) return null;
   const steps: ModeStep[] = [];
   if (s.pending_switch?.launcher && s.pending_switch.launcher !== own) steps.push({ launcher: own, from: own });
   if (!same) steps.push({ model: config.model });
