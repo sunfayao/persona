@@ -320,7 +320,6 @@ export interface Contributes {
   speech?: NamedItem[];
   computer?: NamedItem[];
   browser?: NamedItem[];
-  iphone?: NamedItem[];
   quota?: QuotaItem[];
   usage?: UsageItem[];
   providers?: ProviderItem[];

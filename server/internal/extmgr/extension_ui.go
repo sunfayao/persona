@@ -181,8 +181,6 @@ var uiItemBlocks = []string{"lark", "doc", "moment", "mail", "connector"}
 
 // uiRequest is what the apps send: render (no action) or an action, with where it is drawn, for whom, and the
 // plugin's state.
-var errUseWidget = i18n.Err("hub-extension_system.use_widget")
-
 type uiRequest struct {
 	// lang is set only by an explicit HTTP preference; older clients retain their body locale.
 	lang         i18n.Lang

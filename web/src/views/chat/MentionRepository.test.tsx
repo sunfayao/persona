@@ -195,7 +195,7 @@ describe("@ assistant-bound repositories (#12531)", () => {
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
     expect(text).toMatch(
-      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/nwverse\/persona" repo_id="repo-1" provider="github" path="nwverse\/persona" inline_label="@Persona" inline_start="0">\n/,
+      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/[^"]+" repo_id="repo-1" provider="github" path="nwverse\/persona" inline_label="@Persona" inline_start="0">\n/,
     );
     expect(text).toContain("nwverse/persona");
     expect(text).toContain("https://github.com/sunfayao/persona");

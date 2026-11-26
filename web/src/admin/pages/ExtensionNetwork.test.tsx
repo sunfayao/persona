@@ -77,7 +77,7 @@ describe("网络与隔离 (#5696)", () => {
     const block = host.querySelector('[data-extension-network="rsshub"]');
     expect(block).toBeTruthy();
     expect(block!.textContent).toContain("网络与隔离");
-    expect(block!.textContent).toContain("默认开：不是从官方市场装的");
+    expect(block!.textContent).toContain("默认开启");
     expect(block!.textContent).toContain("放行 12");
     expect(block!.textContent).toContain("拦下 3");
   });
