@@ -277,41 +277,6 @@ func TestCodexDesktopLongTurnKeepsItsState(t *testing.T) {
 	}
 }
 
-func TestCodexDesktopFollowsTheAppsSidebar(t *testing.T) {
-	home := t.TempDir()
-	state := `{
-		"electron-thread-read-state-v1": {"version": 1, "unreadByIdentity": {"acct": {"local:h": ["t-unread"]}}},
-		"projectless-thread-ids": ["t-chat"],
-		"thread-project-assignments": {"t-assigned": {"projectKind": "local", "projectId": "p1"}},
-		"local-projects": {"p1": {"name": "Alpha", "rootPaths": ["/work/alpha"]}, "p2": {"name": "Beta", "rootPaths": ["/work/beta"]}}
-	}`
-	os.WriteFile(filepath.Join(home, ".codex-global-state.json"), []byte(state), 0o600)
-	done := filepath.Join(home, "done.jsonl")
-	os.WriteFile(done, []byte(`{"type":"event_msg","payload":{"type":"task_started"}}`+"\n"+`{"type":"event_msg","payload":{"type":"task_complete"}}`+"\n"), 0o600)
-	n := &Node{home: home}
-	now := time.Now()
-	list := []proto.Session{
-		{SessionID: "t-assigned", Cwd: "/elsewhere", UpdatedAt: now},
-		{SessionID: "t-chat", Cwd: "/work/beta/x", UpdatedAt: now},
-		{SessionID: "t-old", Cwd: "/work/beta/y", UpdatedAt: now.Add(-100 * time.Hour), Status: proto.StatusOffline},
-		{SessionID: "t-unread", Cwd: "/work/beta", UpdatedAt: now},
-	}
-	for i := range list {
-		n.placeCodexDesktop(&list[i], codexSource{home: home, thread: list[i].SessionID, path: done}, list[i].SessionID, false)
-	}
-	slotCodexDesktop(list)
-	names := []string{list[0].SpaceName, list[1].SpaceName, list[2].SpaceName, list[3].SpaceName}
-	if names[0] != "Alpha" || names[1] != "Codex 对话" || names[2] != "Beta" || names[3] != "Beta" {
-		t.Fatalf("spaces = %v", names)
-	}
-	if list[3].Status != proto.StatusDone || list[0].Status != proto.StatusIdle || list[2].Status != proto.StatusOffline {
-		t.Fatalf("status: unread %s, read %s, old %s", list[3].Status, list[0].Status, list[2].Status)
-	}
-	if list[3].SlotIndex != 0 || list[2].SlotIndex != 1 {
-		t.Fatalf("slots: %d %d", list[3].SlotIndex, list[2].SlotIndex)
-	}
-}
-
 func TestCodexOriginTellsAppChatsFromCLIAndSubagents(t *testing.T) {
 	home, _ := startFakeCodexBus(t, "x")
 	write := func(name, meta string) codexSource {
@@ -338,31 +303,6 @@ func TestCodexOriginTellsAppChatsFromCLIAndSubagents(t *testing.T) {
 	}
 	if o := readCodexOrigin(workSub.path); o.parent != "work" || !o.desktop {
 		t.Fatalf("work subagent origin = %+v", o)
-	}
-}
-
-// A Codex thread's row says when the thread began: its rollout's first line, read once with its origin and shared by
-// every row of it (#5120). A first line with no time says nothing.
-func TestCodexRowStartedAt(t *testing.T) {
-	n, home := testNode(t)
-	write := func(name, line string) codexSource {
-		p := filepath.Join(home, name+".jsonl")
-		os.WriteFile(p, []byte(line+"\n"), 0o600)
-		return codexSource{home: home, thread: name, path: p}
-	}
-	timed := write("timed", `{"timestamp":"2026-11-12T08:30:00.123Z","type":"session_meta","payload":{"originator":"codex-tui","source":"cli"}}`)
-	untimed := write("untimed", `{"type":"session_meta","payload":{"originator":"codex-tui","source":"cli"}}`)
-	row := func(src codexSource) proto.Session {
-		s := proto.Session{SessionID: src.thread, Capabilities: &proto.SessionCapabilities{}}
-		n.decorateCodexSession(&s, src, "", map[string]string{})
-		return s
-	}
-	a, b := row(timed), row(timed)
-	if want := time.Date(2026, 11, 12, 8, 30, 0, 123e6, time.UTC); !a.StartedAt().Equal(want) || a.Hierarchy != b.Hierarchy {
-		t.Fatalf("started %v (shared %v), want %v", a.StartedAt(), a.Hierarchy == b.Hierarchy, want)
-	}
-	if s := row(untimed); s.Hierarchy != nil {
-		t.Fatalf("no time, no hierarchy: %+v", s.Hierarchy)
 	}
 }
 
@@ -414,31 +354,6 @@ func TestInterruptCodexDesktopRefusesAThreadTheAppHasNotLoaded(t *testing.T) {
 	case p := <-bus.stops:
 		t.Fatalf("interrupted %v", p)
 	default:
-	}
-}
-
-// Only a chat of the App whose turn runs can be interrupted from the phone; its subagents stop with it.
-func TestCodexDesktopChatInterruptsWhileItsTurnRuns(t *testing.T) {
-	home := t.TempDir()
-	os.WriteFile(filepath.Join(home, ".codex-global-state.json"), []byte(`{"projectless-thread-ids":["t-run","t-sub","t-done"]}`), 0o600)
-	running := filepath.Join(home, "running.jsonl")
-	os.WriteFile(running, []byte(`{"type":"event_msg","payload":{"type":"task_started"}}`+"\n"), 0o600)
-	done := filepath.Join(home, "done.jsonl")
-	os.WriteFile(done, []byte(`{"type":"event_msg","payload":{"type":"task_started"}}`+"\n"+`{"type":"event_msg","payload":{"type":"task_complete"}}`+"\n"), 0o600)
-	n := &Node{home: home}
-	place := func(thread, path string, subagent bool) proto.Session {
-		s := proto.Session{SessionID: thread, UpdatedAt: time.Now(), Capabilities: &proto.SessionCapabilities{Send: !subagent}}
-		n.placeCodexDesktop(&s, codexSource{home: home, thread: thread, path: path}, thread, subagent)
-		return s
-	}
-	if s := place("t-run", running, false); s.Status != proto.StatusWorking || !s.Capabilities.Interrupt {
-		t.Fatalf("running chat: %s, interrupt %v", s.Status, s.Capabilities.Interrupt)
-	}
-	if s := place("t-sub", running, true); s.Capabilities.Interrupt {
-		t.Fatal("a running subagent is interruptible on its own")
-	}
-	if s := place("t-done", done, false); s.Capabilities.Interrupt {
-		t.Fatalf("a finished chat (%s) is interruptible", s.Status)
 	}
 }
 

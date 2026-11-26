@@ -62,20 +62,6 @@ func hopOf(t *testing.T, h *Hub, id string) int {
 	return 0
 }
 
-// archive archives (on) or brings back a conversation the way the app does; the status it got.
-func archive(t *testing.T, h *Hub, id string, on bool) int {
-	t.Helper()
-	op := "unarchive"
-	if on {
-		op = "archive"
-	}
-	mux := http.NewServeMux()
-	h.assistantRoutesRelayed(mux)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/assistant/conversations/"+id+"/"+op, nil))
-	return rec.Code
-}
-
 // The hub's facts go to the assistant as events (over the bus); each helper returns once the assistant took it.
 
 // noteStarted is a conversation the assistant started at at (assistant.start), as it keeps it until its first turn
@@ -104,11 +90,6 @@ func userRenamed(t *testing.T, h *Hub, machine, id, title string) {
 	if _, err := h.asst().Rename(context.Background(), machine, id, map[string]any{"title": title}, ""); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func userSpoke(h *Hub, machine, id string) {
-	h.asst().UserSpoke(context.Background(), assistant.SessionRef{MachineID: machine, SessionID: id})
-	settleAssistant(h)
 }
 
 // The hub's end of the bus: a stale snapshot is refused, a newer one replaces the old; nothing is pushed for it (the

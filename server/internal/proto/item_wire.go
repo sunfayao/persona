@@ -11,15 +11,6 @@ func CloneTTFTMS(ms *int64) *int64 {
 	return &v
 }
 
-// SanitizeTTFTMS returns a non-negative copy of ms, or nil when ms is nil or negative.
-func SanitizeTTFTMS(ms *int64) *int64 {
-	if ms == nil || *ms < 0 {
-		return nil
-	}
-	v := *ms
-	return &v
-}
-
 // SetTTFTMS sets an observed non-negative time-to-first-token in milliseconds on it.
 // Negative values are ignored so invalid clock readings are never serialized.
 func (it *Item) SetTTFTMS(ms int64) {

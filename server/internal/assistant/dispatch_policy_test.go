@@ -1,38 +1,10 @@
 package assistant
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/nwverse/persona/server/internal/i18n"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/proto"
 )
-
-// dispatchPolicyHarness is an assistant with five conversations: the main one, a leader, the background supervisor,
-// the scheduled task's own conversation and an ordinary side conversation. All ids are placeholders.
-type dispatchPolicyHarness struct {
-	*spawnHarness
-	mainID   string
-	leaderID string
-	bgID     string
-	patrolID string
-	sideID   string
-}
-
-func (d *dispatchPolicyHarness) putPolicy(t *testing.T, p *DispatchPolicy) {
-	t.Helper()
-	setSettings(t, d.s, func(v *Settings) { v.DispatchPolicy = p })
-}
-
-func (d *dispatchPolicyHarness) tool(t *testing.T, session, name string, args string) proto.ToolResult {
-	t.Helper()
-	return d.s.Tool(context.Background(), ToolCall{
-		MachineID: "server", SessionID: session, Name: name, Arguments: json.RawMessage(args),
-	})
-}
 
 func TestDispatchPolicyValidation(t *testing.T) {
 	now := time.Now().UTC()
@@ -71,41 +43,4 @@ func TestDispatchPolicyValidation(t *testing.T) {
 	if err := long.validate(true, now); err == nil {
 		t.Fatal("an over-long rule message was accepted")
 	}
-}
-
-// newDispatchPolicyHarnessOn is newDispatchPolicyHarness with st as its database.
-func newDispatchPolicyHarnessOn(t *testing.T, st Store) *dispatchPolicyHarness {
-	t.Helper()
-	h := newSpawnHarnessOn(t, st)
-	h.f.hello.Locale = string(i18n.En) // assertions below match the English refusal catalog
-	d := &dispatchPolicyHarness{
-		spawnHarness: h,
-		mainID:       "main-dp-1",
-		leaderID:     "leader-dp-1",
-		bgID:         "bg-dp-1",
-		patrolID:     "patrol-dp-1",
-		sideID:       "side-dp-1",
-	}
-	setSettings(t, h.s, func(v *Settings) {
-		v.Main = d.mainID
-		v.BackgroundSupervisor = d.bgID
-	})
-	for _, id := range []string{d.mainID, d.leaderID, d.bgID, d.patrolID, d.sideID} {
-		h.f.known[id] = true
-	}
-	h.f.setSessions("server",
-		proto.Session{MachineID: "server", SessionID: d.mainID, Assistant: true, Status: proto.StatusIdle},
-		proto.Session{MachineID: "server", SessionID: d.leaderID, Assistant: true, Status: proto.StatusIdle},
-		proto.Session{MachineID: "server", SessionID: d.bgID, Assistant: true, Status: proto.StatusIdle},
-		proto.Session{MachineID: "server", SessionID: d.patrolID, Assistant: true, Status: proto.StatusIdle},
-		proto.Session{MachineID: "server", SessionID: d.sideID, Assistant: true, Status: proto.StatusIdle},
-	)
-	sc := h.s.loadSchedule(context.Background())
-	sc.mu.Lock()
-	sc.tasks = append(sc.tasks, Task{
-		ID: "task_patrol", Title: "rounds", Prompt: "p", Repeat: repeatInterval, EveryMinutes: 30,
-		Enabled: true, RunMachineID: "server", RunSessionID: d.patrolID,
-	})
-	sc.mu.Unlock()
-	return d
 }

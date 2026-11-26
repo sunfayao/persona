@@ -108,12 +108,6 @@ func (n *Node) closeExited(ctx context.Context, id string) (bool, error) {
 	return kept, nil
 }
 
-// stop quits session id's agent and keeps its pane (retire: only one that is still); stopped false (and no error)
-// when it was not running.
-func (n *Node) stop(ctx context.Context, id string, retire bool) (stopped bool, err error) {
-	return n.stopWithCause(ctx, id, retire, proto.StopUser)
-}
-
 func (n *Node) stopWithCause(ctx context.Context, id string, retire bool, cause proto.StopCause) (stopped bool, err error) {
 	release := n.recovery.lock(id)
 	defer release()

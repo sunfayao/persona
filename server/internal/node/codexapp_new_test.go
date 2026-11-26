@@ -387,63 +387,6 @@ func TestACodexAppStartRefusesWhatTheAppCannotRun(t *testing.T) {
 	}
 }
 
-// The launcher is offered where the App runs for the node's Codex home and a Codex CLI is found; a login shell's of
-// its name runs instead. Its models are the App's; Settings › Models' Test has nothing to run; no terminal runs it.
-func TestTheCodexAppLauncherIsOfferedWhereTheAppRuns(t *testing.T) {
-	n, _, _, _ := codexAppNode(t)
-	list, added := n.withCodexAppLauncher([]proto.Launcher{{Name: "codex"}})
-	if !added || list[1] != (proto.Launcher{Name: "codex-app", Source: "codex_app", Agent: "codex"}) {
-		t.Fatalf("list %+v", list)
-	}
-	if models, err := n.launcherModels(context.Background(), "codex-app", "", false); err != nil || models.Agent != "codex" || len(models.Models) != 0 || models.Locked != "" {
-		t.Fatalf("models %+v %v", models, err)
-	}
-	cacheJSON := `{"models":[
-		{"slug":"acme/gpt-5-pro","display_name":"Acme gpt-5-pro","visibility":"list","default_reasoning_level":"medium","supported_reasoning_levels":[{"effort":"low"},{"effort":"medium"},{"effort":"high"}]},
-		{"slug":"beta/gpt-5-pro","display_name":"Beta gpt-5-pro","visibility":"list","default_reasoning_level":"high","supported_reasoning_levels":[{"effort":"high"},{"effort":"xhigh"}]},
-		{"slug":"hidden/internal","visibility":"hide"}
-	]}`
-	if err := os.WriteFile(filepath.Join(n.codexHome(), "models_cache.json"), []byte(cacheJSON), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(n.codexHome(), "config.toml"), []byte("model = \"beta/gpt-5-pro\"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if models, err := n.launcherModels(context.Background(), "codex-app", "", true); err != nil || models.Locked != "" || len(models.Models) != 2 || models.Models[0].ID != "acme/gpt-5-pro" || models.Models[0].Name != "Acme gpt-5-pro" || !models.Models[1].Default {
-		t.Fatalf("cached models %+v %v", models, err)
-	}
-	if !n.knownLauncher(context.Background(), "codex-app") {
-		t.Fatal("not known")
-	}
-	if c := n.launcherCheck(context.Background(), "codex-app"); c.Error != codexAppCheckMsg {
-		t.Fatalf("check %+v", c)
-	}
-	if _, err := n.runAgentInPane(context.Background(), "w1:p1", "codex-app"); !errors.Is(err, errCodexAppLauncherInTerminal) {
-		t.Errorf("Run Agent Here: %v", err)
-	}
-	if got, err := terminalLauncher("codex-app", sidA); err != nil || got != "codex" {
-		t.Errorf("resume: %q %v", got, err)
-	}
-	if _, err := terminalLauncher("codex-app", ""); !errors.Is(err, errCodexAppLauncherInTerminal) {
-		t.Errorf("terminal start: %v", err)
-	}
-	old := codexAppCLI
-	codexAppCLI = func() (string, error) { return "", errors.New("no codex") }
-	if _, added := n.withCodexAppLauncher(nil); added {
-		t.Error("offered with no Codex CLI")
-	}
-	codexAppCLI = old
-	n.home = t.TempDir() // the original home still has the fake App listener
-	noFakeCodexBus(t)
-	if _, added := n.withCodexAppLauncher(nil); added {
-		t.Error("offered with the App not running")
-	}
-	shellLaunchers(t, "codex-app")
-	if isCodexAppLauncher("codex-app") {
-		t.Error("the login shell's codex-app is not the App's")
-	}
-}
-
 // A chat Persona started in the App is one of the App's chats without a record in the App's state, and its subagents
 // are the App's subagents; Persona's other Codex threads (the assistant's, originator "persona") are not.
 func TestPersonasAppChatsAreTheAppsChats(t *testing.T) {

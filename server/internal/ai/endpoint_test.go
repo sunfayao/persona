@@ -122,61 +122,6 @@ func TestOpenCodeGoDirectAPISessionHeader(t *testing.T) {
 	}
 }
 
-func TestOpenCodeGoSessionScopingAndCrossOriginRedirect(t *testing.T) {
-	var seen []string
-	client := NewWith(Config{API: "chat", BaseURL: "https://opencode.ai/inference/go/openai/v1", APIKey: "key", Model: "glm-5"}, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		seen = append(seen, r.URL.Host+"="+r.Header.Get(modelhttp.OpenCodeSessionHeader))
-		if r.URL.Host == "opencode.ai" && r.URL.Query().Get("hop") == "1" {
-			return &http.Response{
-				StatusCode: http.StatusTemporaryRedirect,
-				Header:     http.Header{"Location": {"https://relay.example.com/v1/chat/completions"}},
-				Body:       io.NopCloser(strings.NewReader("")),
-				Request:    r,
-			}, nil
-		}
-		return okStreamResponse(r, "chat"), nil
-	}))
-
-	_, err := client.Chat(WithSessionID(context.Background(), "thread-alpha"), Request{Messages: []Message{{Role: RoleUser, Content: "hi"}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantScoped := modelhttp.OpenCodeSessionID("thread-alpha")
-	if len(seen) != 1 || seen[0] != "opencode.ai="+wantScoped {
-		t.Fatalf("ctx session: got %v, want opencode.ai=%s", seen, wantScoped)
-	}
-
-	seen = nil
-	_, err = client.Chat(WithSessionID(context.Background(), "thread-alpha"), Request{SessionID: "turn-override", Messages: []Message{{Role: RoleUser, Content: "hi"}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "opencode.ai=" + modelhttp.OpenCodeSessionID("turn-override"); len(seen) != 1 || seen[0] != want {
-		t.Fatalf("request session override: got %v, want %s", seen, want)
-	}
-
-	// Cross-origin redirect drops x-opencode-session on the redirected hop.
-	redirectClient := NewWith(Config{API: "chat", BaseURL: "https://opencode.ai/inference/go/openai/v1/chat/completions", APIKey: "key", Model: "glm-5"}, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		seen = append(seen, r.URL.Host+"="+r.Header.Get(modelhttp.OpenCodeSessionHeader))
-		if r.URL.Host == "opencode.ai" {
-			return &http.Response{
-				StatusCode: http.StatusTemporaryRedirect,
-				Header:     http.Header{"Location": {"https://relay.example.com/v1/chat/completions"}},
-				Body:       io.NopCloser(strings.NewReader("")),
-				Request:    r,
-			}, nil
-		}
-		return okStreamResponse(r, "chat"), nil
-	}))
-	seen = nil
-	if _, err := redirectClient.Complete(context.Background(), "sys", "hi", 8); err != nil {
-		t.Fatal(err)
-	}
-	if len(seen) != 2 || !strings.HasPrefix(seen[0], "opencode.ai=") || seen[0] == "opencode.ai=" || seen[1] != "relay.example.com=" {
-		t.Fatalf("redirect headers: %v", seen)
-	}
-}
-
 func TestGateKeyAndChatEffortCacheKeepDeploymentPrefixesApart(t *testing.T) {
 	if a, b := gateKeyFor("responses", "https://gw.example/openai", "k"), gateKeyFor("responses", "https://gw.example/openai/responses", "k"); a == b {
 		t.Fatalf("distinct Responses prefixes collided: %q", a)

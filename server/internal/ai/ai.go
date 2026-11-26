@@ -68,13 +68,6 @@ func NewWith(cfg Config, transport http.RoundTripper) *Client {
 	return c
 }
 
-// net/http copies headers from the first request on every redirect, so check the entire chain before retaining
-// provider-specific values. Once a chain leaves its original origin, all later hops use Persona's identity and omit
-// every custom provider header and gateway-scoped session header.
-func checkRedirect(req *http.Request, via []*http.Request) error {
-	return checkRedirectHeaders(req, via, nil)
-}
-
 func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 	return checkRedirectHeaders(req, via, c.cfg.Headers)
 }

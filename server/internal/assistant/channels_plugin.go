@@ -6,13 +6,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"maps"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/channel"
@@ -141,12 +142,6 @@ func (s *Service) channelReceiveInGeneration(id string, m channel.Message, actio
 		s.logf("channels: %s: send: %v", id, err)
 		_ = s.channelTell(ctx, id, m.ID, i18n.T(s.botLang(ctx), "assistant-channels_plugin.not_sent", i18n.Args{"error": clip(oneLine(err.Error()), 200)}), channel.OutNote)
 	}
-}
-
-// channelCommand runs one of the commands every channel has; false (and the text to send on) for one it does not
-// know: it may be the conversation's own (/compact).
-func (s *Service) channelCommand(ctx context.Context, id string, m channel.Message, text string) (bool, string) {
-	return s.channelCommandInGeneration(ctx, id, m, text, s.channelGeneration(id))
 }
 
 func (s *Service) channelCommandInGeneration(ctx context.Context, id string, m channel.Message, text string, generation uint64) (bool, string) {

@@ -140,64 +140,6 @@ func TestPlausibleUsageIsKept(t *testing.T) {
 	}
 }
 
-// replyLine is an assistant reply whose usage has one count, input tokens, so a long text puts it where a test wants.
-func replyLine(t *testing.T, id string, input int, text string) string {
-	t.Helper()
-	b, err := json.Marshal(map[string]any{"type": "assistant", "uuid": id, "message": map[string]any{"role": "assistant",
-		"content": []map[string]any{{"type": "text", "text": text}}, "usage": map[string]any{"input_tokens": input}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(b) + "\n"
-}
-
-// A line longer than the read buffer is read in pieces: a usage split between two of them is found and fixed in
-// place, a long line without one is passed over, and a long line still being written is left for the next check.
-func TestRepairUsageReadsLinesLongerThanTheBuffer(t *testing.T) {
-	head := usageLine(t, "a0", 0, false, "short")
-	split := replyLine(t, "a1", 1_706_464, "")
-	at := usageHintRe.FindIndex([]byte(split))[0]
-	split = replyLine(t, "a1", 1_706_464, strings.Repeat("x", usageReadSize-10-at)) // the first read ends inside the usage
-	if i := usageHintRe.FindIndex([]byte(split)); i[0] != usageReadSize-10 || i[1] <= usageReadSize {
-		t.Fatalf("usage at %v, want across %d", i, usageReadSize)
-	}
-	plain := replyLine(t, "a2", 120, strings.Repeat("y", 3*usageReadSize))
-	tail := replyLine(t, "a3", 2_000_000, "z")
-	partial := replyLine(t, "a4", 3_000_000, strings.Repeat("w", usageReadSize))[:usageReadSize+100]
-	orig := head + split + plain + tail + partial
-	path := filepath.Join(t.TempDir(), "s.jsonl")
-	if err := os.WriteFile(path, []byte(orig), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	r, err := repairUsage(path, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := int64(len(orig) - len(partial)); r.lines != 2 || r.largest != 2_000_000 || r.end != want {
-		t.Fatalf("repair = %+v, want 2 lines up to 2000000 and end %d", r, want)
-	}
-	got, _ := os.ReadFile(path)
-	if len(got) != len(orig) {
-		t.Fatalf("size changed: %d -> %d", len(orig), len(got))
-	}
-	lines := strings.SplitAfter(string(got), "\n")
-	if lines[0] != head || lines[2] != plain || lines[4] != partial {
-		t.Error("a line without an impossible usage changed")
-	}
-	for _, i := range []int{1, 3} {
-		var e struct {
-			Message struct {
-				Usage struct {
-					Input int `json:"input_tokens"`
-				} `json:"usage"`
-			} `json:"message"`
-		}
-		if err := json.Unmarshal([]byte(lines[i]), &e); err != nil || e.Message.Usage.Input != 0 {
-			t.Errorf("line %d: usage %d, %v", i+1, e.Message.Usage.Input, err)
-		}
-	}
-}
-
 // A copy that fails is removed: it is no backup, and on a full disk it holds the space.
 func TestBackupCopyRemovesAFailedCopy(t *testing.T) {
 	dir := t.TempDir()

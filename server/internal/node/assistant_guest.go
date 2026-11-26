@@ -62,11 +62,6 @@ type guestStart struct {
 	kind  string
 }
 
-// withGuest marks ctx's assistant.send as starting a guest conversation with tools.
-func withGuest(ctx context.Context, tools []string) context.Context {
-	return withGuestKind(ctx, tools, "")
-}
-
 // withGuestKind is withGuest for a guest of kind.
 func withGuestKind(ctx context.Context, tools []string, kind string) context.Context {
 	return context.WithValue(ctx, guestKey{}, guestStart{tools: tools, kind: kind})

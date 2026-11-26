@@ -350,16 +350,6 @@ func (s *Service) checkLeaderRoom(ctx context.Context, scope *leaderScope, addin
 
 // ---- supervision messages ----
 
-// leaderConversation is the conversation above task leader agent lead: the one that handed it its task (its ledger's
-// supervisor), and the main conversation if that is gone. A leader whose own task is closed has nobody above it (""):
-// its workers were closed with it.
-func (s *Service) leaderConversation(ctx context.Context, lead TodoAgent) string {
-	if t, ok := s.taskOfAny(ctx, lead.MachineID, lead.SessionID); ok && t.Supervision != nil && t.Supervision.Supervisor != "" && !s.isLeaderRef(t.Supervision.Supervisor) {
-		return t.Supervision.Supervisor
-	}
-	return s.settings(ctx).Main
-}
-
 // leaderAbove is the task whose agent supervises worker task t, with that agent's session (the ledger's), ok when t is
 // leader-supervised at all. It works for a released or dismissed leader too: what could not be delivered still has a
 // conversation above it to go to.
@@ -379,15 +369,6 @@ func (s *Service) leaderAbove(t Todo) (lead Todo, session string, ok bool) {
 		}
 	}
 	return Todo{}, sid, true
-}
-
-// supervisorAbove is the conversation above worker task t's leader agent, "" when there is none. Used to escalate what
-// can no longer be delivered to the leader.
-func (s *Service) supervisorAbove(ctx context.Context, lead TodoAgent) string {
-	if _, ok := s.taskOfAny(ctx, lead.MachineID, lead.SessionID); !ok {
-		return "" // the leader's own task is closed
-	}
-	return s.leaderConversation(ctx, lead)
 }
 
 // supervisorAboveTask is the conversation above worker task t's leader: the conversation that supervises the leader's own
@@ -873,12 +854,6 @@ func (s *Service) leaderReview(ctx context.Context, lead TodoAgent, args json.Ra
 		v.Round, maxTotalReworkRounds, stalled, maxReworkRounds, sent), nil
 }
 
-// agentSupervisedSession: the open task agent machine/session works for is supervised by a task leader's agent.
-func (s *Service) agentSupervisedSession(machine, session string) bool {
-	t, ok := s.taskOf(context.Background(), s.canonical(machine), session)
-	return ok && s.agentSupervised(t)
-}
-
 // rehomeLeaderlessWorkers gives the open workers of a leader whose own task is closed a supervisor that can act: the
 // conversation above the leader (its own supervisor, else the main one), and with no conversation at all the worker is
 // cancelled with the reason. It runs from the watch loop and every digest, and is idempotent: a rehomed worker is no
@@ -987,14 +962,6 @@ func (s *Service) leaderResumeTime() time.Duration {
 		return s.leaderResume
 	}
 	return leaderResumeWait
-}
-
-// leaderTaskIDOf is the task leader agent lead belongs to ("" if none).
-func (s *Service) leaderTaskIDOf(lead TodoAgent) string {
-	if t, ok := s.taskOfAny(context.Background(), lead.MachineID, lead.SessionID); ok {
-		return t.ID
-	}
-	return ""
 }
 
 // leaderRetryBackoff caps how often an undelivered worker supervision message is tried again.

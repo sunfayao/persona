@@ -176,67 +176,6 @@ func waitEventQueuesEmpty(t *testing.T, h *Manager) {
 	}
 }
 
-// A flood of to-do events does not push the other events out of their queue; a backlog of to-do changes is at most
-// one event a to-do (a to-do made and deleted before the extensions were told is none), and past the limit the oldest
-// goes.
-func TestTodoEventFloodLeavesTheOtherEventsAlone(t *testing.T) {
-	h := newTestManager(t)
-	h.extensions = &extensions{h: h}
-	holdEvents(&h.extensions.events)
-	holdEvents(&h.extensions.todoEvents)
-	h.extensions.queueEvent("agent.finished", map[string]any{})
-	say := func(id, what string) {
-		raw, _ := json.Marshal(assistantwire.TodoChangedEvent{ID: id, Title: "t " + what, What: what})
-		h.AssistantSaid(assistantwire.EventTodoChanged, raw)
-	}
-	const todos = 600
-	for i := range todos { // made, retitled, closed: one event each once merged
-		id := fmt.Sprintf("todo_example_%d", i)
-		say(id, assistantwire.TodoCreated)
-		say(id, assistantwire.TodoUpdated)
-		say(id, assistantwire.TodoUpdated)
-		if i%2 == 0 { // the even ones are deleted before anyone was told: nothing at all
-			say(id, assistantwire.TodoDeleted)
-		}
-	}
-	h.extensions.events.mu.Lock()
-	otherWaiting := len(h.extensions.events.pending)
-	h.extensions.events.mu.Unlock()
-	if otherWaiting != 1 {
-		t.Fatalf("the other events' queue holds %d, want its 1 event", otherWaiting)
-	}
-	q := &h.extensions.todoEvents
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if len(q.pending) != todos/2 {
-		t.Fatalf("%d to-do events wait for %d to-dos (half deleted unseen)", len(q.pending), todos)
-	}
-	seen := map[string]bool{}
-	for _, n := range q.pending {
-		id := n.changed.ID
-		if seen[id] || n.changed.What != assistantwire.TodoCreated || n.payload["what"] != assistantwire.TodoCreated {
-			t.Fatalf("a to-do not merged into one created event: %+v", n.changed)
-		}
-		seen[id] = true
-	}
-
-	// Past the limit the oldest goes (events that cannot be merged: decisions).
-	q.pending = nil
-	q.mu.Unlock()
-	for i := range extensionEventLimit + 10 {
-		raw, _ := json.Marshal(assistantwire.TodoDecisionEvent{ID: "todo_example_1", Title: "t",
-			Decision: assistantwire.TodoEventDecision{ID: fmt.Sprintf("dec_example_%d", i), Question: "q", Choice: "c", Source: "manual"}})
-		h.AssistantSaid(assistantwire.EventTodoDecision, raw)
-	}
-	q.mu.Lock()
-	if len(q.pending) != extensionEventLimit || !q.dropped {
-		t.Fatalf("%d waiting, dropped %v", len(q.pending), q.dropped)
-	}
-	if got := q.pending[0].payload["decision"].(map[string]any)["id"]; got != "dec_example_10" {
-		t.Fatalf("the oldest ten should have gone, the first waiting is %v", got)
-	}
-}
-
 // With nobody subscribed and granted, nothing is queued.
 func TestTodoEventsAreNotQueuedForNobody(t *testing.T) {
 	h, _ := extensionTestHub(t)

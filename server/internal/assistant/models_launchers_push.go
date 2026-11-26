@@ -55,18 +55,6 @@ func (s *Service) managedNodeCalls(ctx context.Context, machine string) []device
 		Fallback: &devicewire.NodeCall{MachineID: machine, Method: DeviceLaunchersManaged, Params: l}}}
 }
 
-// managedForNodes: the providers with their secrets as every node from before the catalog would get them (no scope
-// applied), the check that every secret opens.
-func (s *Service) managedForNodes(ctx context.Context) ([]proto.ManagedLauncher, error) {
-	s.models.mu.Lock()
-	defer s.models.mu.Unlock()
-	stored, err := s.readStoredLaunchers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return s.nodeLaunchers(stored)
-}
-
 // nodeLaunchers opens every provider a node can run (only Messages direct API connections besides launchers): one that
 // does not open holds every publication back (storeManagedLaunchers), as before scopes.
 func (s *Service) nodeLaunchers(stored []storedLauncher) ([]proto.ManagedLauncher, error) {

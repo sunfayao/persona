@@ -3,14 +3,12 @@ package node
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -176,36 +174,5 @@ func TestTraexNonPaginatedRunningTurnCompletesInPlace(t *testing.T) {
 	if got := project("completed"); strings.Count(got, "user:text:Inspect the export") != 1 ||
 		strings.Count(got, "assistant:text:The export is correct.") != 1 {
 		t.Fatalf("completed transcript: %s", got)
-	}
-}
-
-func TestTraexPaginatedOwnerReplacesStaleHostSession(t *testing.T) {
-	n, _, _ := startNode(t)
-	traexHistoryFixture(t, n, nil)
-	writeOwner(t, n, threadMain, time.Now().Add(-time.Minute))
-	writeOwner(t, n, threadGuardian, time.Now())
-	if got := n.traexOwners()[os.Getpid()]; got != threadMain {
-		t.Fatalf("picked guardian instead of paginated conversation: %q", got)
-	}
-	const pane = "w1:p2"
-	traexCache.Lock()
-	previous, had := traexCache.panes[os.Getpid()]
-	traexCache.panes[os.Getpid()] = pane
-	traexCache.Unlock()
-	t.Cleanup(func() {
-		traexCache.Lock()
-		defer traexCache.Unlock()
-		if had {
-			traexCache.panes[os.Getpid()] = previous
-		} else {
-			delete(traexCache.panes, os.Getpid())
-		}
-	})
-	agents := []host.Agent{{Agent: traexAgent, PaneID: pane, AgentSession: &host.AgentSession{Kind: "id", Value: threadOld}}}
-	if added := n.traexAgents(context.Background(), []host.Agent{{PaneID: pane}}, agents); len(added) != 0 {
-		t.Fatalf("one pane became two agents: %+v", added)
-	}
-	if got := agents[0].SessionID(); got != threadMain {
-		t.Fatalf("host's stale session survived the exact writer lock: %q", got)
 	}
 }

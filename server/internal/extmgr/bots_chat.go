@@ -572,12 +572,6 @@ func (h *Manager) botPair(api *feishubot.Client, openID, chatID, text string) {
 	}
 }
 
-func (h *Manager) botFeatures() BotFeatures {
-	h.bots.mu.Lock()
-	defer h.bots.mu.Unlock()
-	return h.bots.set.Features
-}
-
 // botName is a user's name (the contact API; the app may not have that permission, then the hub's owner name).
 func (h *Manager) botName(ctx context.Context, api *feishubot.Client, openID string) string {
 	b := &h.bots

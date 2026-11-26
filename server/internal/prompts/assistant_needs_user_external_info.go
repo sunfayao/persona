@@ -10,8 +10,3 @@ type NeedsUserExternalInfo struct {
 	PendingQuestion  string // concise summary of the currently open needs_user ask
 	PendingRecommend string // optional recommended option on the pending ask
 }
-
-// RenderNeedsUserExternalInfo renders the localized wake prompt for external info arriving during needs_user.
-func RenderNeedsUserExternalInfo(p NeedsUserExternalInfo) string {
-	return render("assistant/needs_user_external_info", p)
-}

@@ -5,9 +5,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func waitFleetBackground(t *testing.T, name string, wg *sync.WaitGroup) {
@@ -24,110 +21,6 @@ func waitFleetBackground(t *testing.T, name string, wg *sync.WaitGroup) {
 	case <-timer.C:
 		t.Fatalf("%s did not finish before the database fixture closed", name)
 	}
-}
-
-// orphanEndMem observes the real grace callback's outcome write without closing a database under a finished test.
-type orphanEndMem struct {
-	*fleetMem
-	ended chan string
-}
-
-func (m *orphanEndMem) FinishInteraction(ctx context.Context, id, status string, r *proto.Resolution) error {
-	m.ended <- id
-	return m.fleetMem.FinishInteraction(ctx, id, status, r)
-}
-
-func orphanTimerFixture(t *testing.T) (*Service, *orphanEndMem, context.CancelFunc) {
-	t.Helper()
-	st := &orphanEndMem{fleetMem: newFleetMem(), ended: make(chan string, 1)}
-	s := New(Options{Hub: newFakeHub(), Store: func() Store { return st }, Logf: testLogf(t), Devices: newFleetDevs()})
-	runCtx, cancel := context.WithCancel(context.Background())
-	s.running.Store(&runCtx)
-	p := &pending{ix: resumable("ix_drain"), done: make(chan proto.Resolution)}
-	p.ix.ExpiresAt = time.Now().Add(30 * time.Millisecond)
-	s.fleet.mu.Lock()
-	s.fleet.interactions = map[string]*pending{p.ix.ID: p}
-	if !s.orphanLocked(p) {
-		t.Fatal("the short grace did not arm")
-	}
-	s.fleet.mu.Unlock()
-	return s, st, cancel
-}
-
-// delayedBackgroundStore lets a background database call finish only after its test has returned. A fixture that drains
-// the call before closing the database sees no error; without that drain, the closed-pool error logs through the ended T.
-type delayedBackgroundStore struct {
-	*db.DB
-	release chan struct{}
-}
-
-func newDelayedBackgroundStore(t *testing.T) *delayedBackgroundStore {
-	t.Helper()
-	st := &delayedBackgroundStore{DB: taskRecoveryDatabase(t), release: make(chan struct{})}
-	time.AfterFunc(100*time.Millisecond, func() { close(st.release) })
-	return st
-}
-
-func (s *delayedBackgroundStore) Setting(ctx context.Context, key string, out any) (bool, error) {
-	if key == settingsKey {
-		select {
-		case <-s.release:
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
-	}
-	return s.DB.Setting(ctx, key, out)
-}
-
-func (s *delayedBackgroundStore) AddWorkEvent(ctx context.Context, e db.WorkEvent) error {
-	<-s.release
-	return s.DB.AddWorkEvent(ctx, e)
-}
-
-// acceptedSendStore pauses an accepted send record while it reads the conversation roles. The test can then stop new
-// scheduling before releasing the record, proving that the rest of that accepted operation still writes its event.
-type acceptedSendStore struct {
-	*db.DB
-	rolesStarted chan struct{}
-	releaseRoles chan struct{}
-	startedOnce  sync.Once
-}
-
-func (s *acceptedSendStore) Setting(ctx context.Context, key string, out any) (bool, error) {
-	if key == settingsKey {
-		s.startedOnce.Do(func() { close(s.rolesStarted) })
-		select {
-		case <-s.releaseRoles:
-		case <-ctx.Done():
-			return false, ctx.Err()
-		}
-	}
-	return s.DB.Setting(ctx, key, out)
-}
-
-// digestLoadStore holds a digest in its todo restoration, before it takes the delivery lock. Draining still has to
-// wait for that callback; otherwise the database fixture can close while the callback is only getting started.
-type digestLoadStore struct {
-	*db.DB
-	started chan struct{}
-	release chan struct{}
-	loaded  chan struct{}
-	once    sync.Once
-}
-
-func (s *digestLoadStore) ListTodos(context.Context) ([]db.TodoRow, error) {
-	s.once.Do(func() { close(s.started) })
-	<-s.release
-	close(s.loaded)
-	return nil, nil
-}
-
-func (s *digestLoadStore) ListAllTodoSpaces(context.Context) ([]db.TodoSpaceRow, error) {
-	return nil, nil
-}
-
-func (s *digestLoadStore) ListAllTodoAgents(context.Context) ([]db.TodoAgentRow, error) {
-	return nil, nil
 }
 
 // drainFleetBackground stops new background scheduling, then lets active calls finish before a test closes its store.
@@ -185,16 +78,4 @@ func drainFleetBackground(t *testing.T, s *Service, cancel context.CancelFunc) {
 	waitFleetBackground(t, "to-do views", &s.tview.runs)
 	waitFleetBackground(t, "screen upgrades", &s.fleet.upgrades)
 	waitFleetBackground(t, "work events", &s.work.eventWrites)
-}
-
-// newRestartedService is a second manager on a test's store, as after a hub restart. Its background work (work events,
-// screen upgrades) is drained before the database fixture closes, as newFleetTestOn does for the first one: otherwise
-// it logs through the ended test, a data race under -race and a "Log in goroutine after ... has completed" panic.
-func newRestartedService(t *testing.T, o Options) *Service {
-	t.Helper()
-	s := New(o)
-	runCtx, cancel := context.WithCancel(context.Background())
-	s.running.Store(&runCtx)
-	t.Cleanup(func() { drainFleetBackground(t, s, cancel) })
-	return s
 }

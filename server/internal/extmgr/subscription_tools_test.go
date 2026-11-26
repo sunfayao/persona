@@ -44,7 +44,6 @@ func (c *toolConn) CatalogCall(context.Context, connector.CatalogQuery) (string,
 	c.calls++
 	return c.answer, nil
 }
-func (c *toolConn) set(answer string) { c.mu.Lock(); c.answer = answer; c.mu.Unlock() }
 
 type toolConns struct{ c *toolConn }
 

@@ -27,12 +27,6 @@ func NewGated(src string) *Regexp {
 	return r
 }
 
-// Gated reports whether r has a gate: it was made with NewGated and every match of it starts with a literal.
-func (r *Regexp) Gated() bool {
-	r.Regexp()
-	return r.gate != nil
-}
-
 // MayMatchLowered is false only when strings.ToLower(s) cannot match r: s is ASCII and, its letters lower-cased as it is
 // read, holds none of the literals every match starts with. A caller that matches lower-cased texts (r.MatchString of
 // strings.ToLower(s)) then lowers, which copies, only the texts that may match. True for any other s, and for a pattern

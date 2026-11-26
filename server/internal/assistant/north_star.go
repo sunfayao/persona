@@ -17,7 +17,6 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -902,12 +901,4 @@ func (s *Service) runFacts(ctx context.Context, t Task, now time.Time) string {
 		return s.briefReportStart(ctx, t, now)
 	}
 	return ""
-}
-
-// northStarRunFacts is the north star's lines as a daily report's run is given them; "" without a database.
-func (s *Service) northStarRunFacts(ctx context.Context, now time.Time) string {
-	if _, ok := s.store().(northStarStore); !ok {
-		return ""
-	}
-	return prompts.RenderNorthStarFacts(s.briefNorthStarAt(ctx, now, s.location(ctx)).lines(s.botLang(ctx)))
 }

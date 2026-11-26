@@ -335,30 +335,6 @@ func TestComputerCodeAgainRevokesTheEarlier(t *testing.T) {
 	}
 }
 
-// alertTo waits for the push to the device with that APNs token and is its body; a push to another one fails.
-func alertTo(t *testing.T, sent chan map[string]any, token string) string {
-	t.Helper()
-	select {
-	case p := <-sent:
-		if p["to"] != token {
-			t.Fatalf("pushed to %v, want only %s", p["to"], token)
-		}
-		return p["aps"].(map[string]any)["alert"].(map[string]any)["body"].(string)
-	case <-time.After(5 * time.Second):
-		t.Fatal("no push")
-	}
-	return ""
-}
-
-func principalFor(t *testing.T, h *Hub, tok string) principal {
-	t.Helper()
-	p, ok := h.authenticate(context.Background(), tok)
-	if !ok {
-		t.Fatal("token not accepted")
-	}
-	return p
-}
-
 // The admin page adds through the same function: confirmed (no trust row), in hub.json and the manager's.
 func TestAdminAddUsesTheSameFunction(t *testing.T) {
 	h, _, _ := addHub(t)

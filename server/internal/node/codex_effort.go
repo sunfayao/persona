@@ -390,11 +390,6 @@ func (n *Node) codexTurnSettingsTaken(id string, c *codexRemote, thread, model, 
 	c.noteThreadSettings(thread, model, effort, effort != "")
 }
 
-// codexEffortTaken: a turn/start carried the pending effort; the thread runs with it from now on.
-func (n *Node) codexEffortTaken(id string, c *codexRemote, thread, effort string) {
-	n.codexTurnSettingsTaken(id, c, thread, "", effort)
-}
-
 // noteThreadSettings records a thread's configured model and/or effort as this connection last learned them.
 func (c *codexRemote) noteThreadSettings(thread, model, effort string, setEffort bool) {
 	c.mu.Lock()
@@ -416,9 +411,4 @@ func (c *codexRemote) noteThreadSettings(thread, model, effort string, setEffort
 		t.revision++
 		c.threads[thread] = t
 	}
-}
-
-// noteEffort records a thread's configured effort as this connection last learned it.
-func (c *codexRemote) noteEffort(thread, effort string) {
-	c.noteThreadSettings(thread, "", effort, true)
 }

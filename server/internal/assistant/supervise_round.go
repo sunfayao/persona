@@ -149,8 +149,6 @@ const maxBackgroundRoundForks = 512
 type superviseRounds struct {
 	mu          sync.Mutex
 	outgrown    map[string]string // background supervisor → why it is replaced at the next chance (no_anchor, oversized)
-	replacement map[string]bool   // a background supervisor started to replace another, until a round of it starts fresh
-	replacedAt  time.Time
 	oldNode     bool
 	forks       map[string]backgroundRoundFork // manager-attested forked round session id → its base background supervisor
 	breaker     superviseBreaker               // circuit breaker / backoff for auth-denied or repeated no-op all_stopped rounds

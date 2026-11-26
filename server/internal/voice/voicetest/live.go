@@ -236,39 +236,6 @@ func (l *Live) Done(n int) <-chan struct{} {
 	return l.conns[n-1].done
 }
 
-// Audio is the seconds of audio each session got, in the order they connected.
-func (l *Live) Audio() []float64 {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	out := make([]float64, len(l.conns))
-	for i, c := range l.conns {
-		c.mu.Lock()
-		out[i] = float64(c.samples) / rate
-		c.mu.Unlock()
-	}
-	return out
-}
-
-// CaptionSamples reports samples actually consumed by the active fake caption peer.
-// It is independent of the adapter's queue and includes any silence it sends.
-func (l *Live) CaptionSamples() (int64, bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	for i := len(l.conns) - 1; i >= 0; i-- {
-		c := l.conns[i]
-		if !c.caption {
-			continue
-		}
-		c.mu.Lock()
-		samples, gone := c.samples, c.gone
-		c.mu.Unlock()
-		if !gone {
-			return samples, true
-		}
-	}
-	return 0, false
-}
-
 // Open is how many sessions are connected now.
 func (l *Live) Open() int {
 	l.mu.Lock()

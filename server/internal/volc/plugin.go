@@ -157,14 +157,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// requestLang is the language a request's caller reads, else the hub's.
-func (pl *Plugin) requestLang(r *http.Request) i18n.Lang {
-	if l := i18n.Resolve(r.Header.Get(extwire.HeaderLang)); l != "" {
-		return l
-	}
-	return pl.lang
-}
-
 // Run is `personad volc`: the program the hub starts, speaking the extension protocol on stdin / stdout and serving
 // its contributions on the hub's socket. version is the build's: the hub started this same executable and registered
 // the built-in under its version, which the program says back at initialize.

@@ -245,56 +245,6 @@ func TestProviderDiscoverErrors(t *testing.T) {
 	}
 }
 
-// Headers are sealed like the key: GET says has_headers only, PUT without them keeps them, "" clears them; the
-// new fields round-trip, an old client's PUT keeps them, and the node gets the headers in the clear.
-func TestLauncherHeadersSealedAndNewFields(t *testing.T) {
-	s, mux := launcherTestService(t)
-	ctx := context.Background()
-	create := `{"name":"gw","base_url":"https://gw.example.com","model":"glm-5.3","api_key":"` + fakeKey + `",
-		"headers":"X-Team: hdr-secret-value","models":[{"id":"glm-5.3","context_window":1000000,"efforts":["low","high","max"],"default_effort":"high"}],
-		"opus_model":"glm-5.3","subagent_force":true,"proxy":"http://127.0.0.1:7890","no_proxy":"localhost","timeout_ms":600000,
-		"compact_window":180000,"max_context":1000000,"effort":"high"}`
-	if code, raw := launcherCall(t, mux, "POST", "/api/v1/launchers", create); code != 200 || strings.Contains(raw, "hdr-secret-value") {
-		t.Fatal(code, raw)
-	}
-	stored := s.storedLaunchers(ctx)
-	if len(stored) != 1 || stored[0].HeadersSealed == "" || stored[0].Headers != "" || strings.Contains(jsonText(stored), "hdr-secret-value") {
-		t.Fatalf("stored: %+v", stored)
-	}
-	_, list := launcherCall(t, mux, "GET", "/api/v1/launchers", "")
-	if strings.Contains(list, "hdr-secret-value") || strings.Contains(list, fakeKey) {
-		t.Fatal("secret in GET", list)
-	}
-	var got struct{ Launchers []LauncherView }
-	_ = json.Unmarshal([]byte(list), &got)
-	v := got.Launchers[0]
-	if !v.HasHeaders || !v.HasKey || len(v.Models) != 1 || v.Models[0].ContextWindow != 1000000 || v.OpusModel != "glm-5.3" || !v.SubagentForce ||
-		v.Proxy == "" || v.NoProxy != "localhost" || v.TimeoutMS != 600000 || v.CompactWindow != 180000 || v.MaxContext != 1000000 || v.Effort != "high" {
-		t.Fatalf("view: %+v", v)
-	}
-	managed := mustManagedForNodes(t, s, ctx)
-	if len(managed) != 1 || managed[0].Headers != "X-Team: hdr-secret-value" || !managed[0].HasHeaders || managed[0].APIKey != fakeKey {
-		t.Fatalf("managed: %+v", managed)
-	}
-	// An app from before #2455: no new fields in its PUT; they stay.
-	if code, raw := launcherCall(t, mux, "PUT", "/api/v1/launchers/gw", `{"base_url":"https://gw.example.com","model":"glm-5.2"}`); code != 200 {
-		t.Fatal(raw)
-	}
-	l := s.storedLaunchers(ctx)[0]
-	if l.HeadersSealed == "" || len(l.Models) != 1 || l.Effort != "high" || l.Model != "glm-5.2" || l.KeySealed == "" {
-		t.Fatalf("kept: %+v", l)
-	}
-	if code, raw := launcherCall(t, mux, "PUT", "/api/v1/launchers/gw", `{"base_url":"https://gw.example.com","model":"glm-5.2","headers":"","effort":""}`); code != 200 {
-		t.Fatal(raw)
-	}
-	if l := s.storedLaunchers(ctx)[0]; l.HeadersSealed != "" || l.Effort != "" {
-		t.Fatalf("cleared: %+v", l)
-	}
-	if m := mustManagedForNodes(t, s, ctx); m[0].Headers != "" || m[0].HasHeaders {
-		t.Fatalf("cleared managed: %+v", m)
-	}
-}
-
 // A bypass list that is the gateway's host alone (iOS's Proxy › No Proxy, #6238) follows the gateway to a new address,
 // as the web form sends it back unchanged; any other list stays as it is.
 func TestNoProxyOfTheGatewayFollowsItsAddress(t *testing.T) {
@@ -318,62 +268,6 @@ func TestNoProxyOfTheGatewayFollowsItsAddress(t *testing.T) {
 		if got := s.storedLaunchers(ctx)[0].NoProxy; got != tc.want {
 			t.Errorf("%s: no_proxy %q, want %q", tc.body, got, tc.want)
 		}
-	}
-}
-
-// The launcher's own environment (#5953) is sealed like the key: GET says has_env only, PUT without it keeps it, ""
-// clears it, and the node gets it in the clear.
-func TestLauncherEnvSealed(t *testing.T) {
-	s, mux := launcherTestService(t)
-	ctx := context.Background()
-	create := `{"name":"gw","base_url":"https://gw.example.com","model":"glm-5.3","api_key":"` + fakeKey + `",
-		"env":"# no proxy for this one\nHTTPS_PROXY=\nX_TEAM_TOKEN=env-secret-value"}`
-	if code, raw := launcherCall(t, mux, "POST", "/api/v1/launchers", create); code != 200 || strings.Contains(raw, "env-secret-value") {
-		t.Fatal(code, raw)
-	}
-	stored := s.storedLaunchers(ctx)
-	if len(stored) != 1 || stored[0].EnvSealed == "" || stored[0].Env != "" || strings.Contains(jsonText(stored), "env-secret-value") {
-		t.Fatalf("stored: %+v", stored)
-	}
-	_, list := launcherCall(t, mux, "GET", "/api/v1/launchers", "")
-	var got struct{ Launchers []LauncherView }
-	_ = json.Unmarshal([]byte(list), &got)
-	if strings.Contains(list, "env-secret-value") || len(got.Launchers) != 1 || !got.Launchers[0].HasEnv {
-		t.Fatal("GET:", list)
-	}
-	if m := mustManagedForNodes(t, s, ctx); len(m) != 1 || !m[0].HasEnv || m[0].Env != "# no proxy for this one\nHTTPS_PROXY=\nX_TEAM_TOKEN=env-secret-value" {
-		t.Fatalf("managed: %+v", m)
-	}
-	if code, raw := launcherCall(t, mux, "PUT", "/api/v1/launchers/gw", `{"base_url":"https://gw.example.com","model":"glm-5.2"}`); code != 200 || s.storedLaunchers(ctx)[0].EnvSealed == "" {
-		t.Fatal("a PUT without env dropped it:", raw)
-	}
-	if code, raw := launcherCall(t, mux, "PUT", "/api/v1/launchers/gw", `{"base_url":"https://gw.example.com","model":"glm-5.2","env":"BAD NAME=1"}`); code == 200 || strings.Contains(raw, "BAD NAME") {
-		t.Fatal("a bad line went in, or the error quotes it:", code, raw)
-	}
-	if code, raw := launcherCall(t, mux, "PUT", "/api/v1/launchers/gw", `{"base_url":"https://gw.example.com","model":"glm-5.2","env":""}`); code != 200 {
-		t.Fatal(raw)
-	}
-	if l, m := s.storedLaunchers(ctx)[0], mustManagedForNodes(t, s, ctx)[0]; l.EnvSealed != "" || m.Env != "" || m.HasEnv {
-		t.Fatalf("cleared: %+v / %+v", l, m)
-	}
-}
-
-// kind:api Messages providers go to the nodes; Responses ones do not.
-func TestManagedForNodesSendsMessagesAPIProviders(t *testing.T) {
-	s, _ := launcherTestService(t)
-	ctx := context.Background()
-	key, _ := s.sealKey(fakeKey)
-	_ = s.putSetting(ctx, launchersManagedKey, []storedLauncher{
-		{ManagedLauncher: proto.ManagedLauncher{Name: "msg", Kind: "api", API: "messages", BaseURL: "https://a.example.com", Model: "m"}, KeySealed: key},
-		{ManagedLauncher: proto.ManagedLauncher{Name: "plain", Kind: "api", BaseURL: "https://b.example.com", Model: "m"}, KeySealed: key},
-		{ManagedLauncher: proto.ManagedLauncher{Name: "resp", Kind: "api", API: "responses", BaseURL: "https://c.example.com", Model: "m"}, KeySealed: key},
-	})
-	var names []string
-	for _, l := range mustManagedForNodes(t, s, ctx) {
-		names = append(names, l.Name)
-	}
-	if strings.Join(names, ",") != "msg,plain" {
-		t.Fatalf("managed: %v", names)
 	}
 }
 

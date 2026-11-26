@@ -159,10 +159,6 @@ func markedUnknown(list []proto.Session) []proto.Session {
 	return list
 }
 
-// devicesUp: the carrier is connected and has reported its machines (devicesUpFor): hub.json's machines nobody moved,
-// and what names no machine.
-func (h *Hub) devicesUp() bool { return h.devicesUpFor(devicesOwner) }
-
 // devicesUpFor: manager owner is connected and has reported its machines.
 func (h *Hub) devicesUpFor(owner string) bool {
 	d := &h.devices

@@ -332,11 +332,6 @@ func clearDraft(it *InboxItem) {
 	}
 }
 
-// renderHandoffNote is a handling note for a conversation the item was handed to, wrapped to name the item.
-func renderHandoffNote(n inboxNote, owner, id, title string) string {
-	return renderHandoffNoteIn(n, owner, id, title, "")
-}
-
 func renderHandoffNoteIn(n inboxNote, owner, id, title, language string) string {
 	if title == "" { // the head the hub recognizes needs a title (prompts.ParseInjected)
 		title = id

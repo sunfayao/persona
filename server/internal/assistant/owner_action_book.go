@@ -246,10 +246,6 @@ func ownerActionDigest(canonical json.RawMessage) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (book *ownerActionBook) create(ctx context.Context, machine, session string, drafts []ownerActionDraft) (ownerActionBatch, error) {
-	return book.createPersistent(ctx, machine, session, drafts, false)
-}
-
 func (book *ownerActionBook) createPersistent(ctx context.Context, machine, session string, drafts []ownerActionDraft, persistent bool) (ownerActionBatch, error) {
 	if strings.TrimSpace(machine) == "" || strings.TrimSpace(session) == "" {
 		return ownerActionBatch{}, errors.New("owner-action batch needs its machine and conversation")

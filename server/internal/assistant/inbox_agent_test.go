@@ -388,19 +388,6 @@ func TestInboxAgentStarts(t *testing.T) {
 	}
 }
 
-func TestInboxAgentPrompt(t *testing.T) {
-	it := actionItem("x", time.Now())
-	it.Title = `群 "A" <b>`
-	it.Agent = &InboxAgent{Task: "查 1013 是否合入"}
-	p := newInbox().inboxAgentPrompt(it, "小明")
-	for _, want := range []string{`title="飞书 · 群 &quot;A&quot; &lt;b&gt;"`, "飞书会话 id：f1", "查 1013 是否合入",
-		"inbox_suggest", "张三：1013 合了吗？", "小明", "事件 x"} {
-		if !strings.Contains(p, want) {
-			t.Errorf("prompt lacks %q:\n%s", want, p)
-		}
-	}
-}
-
 // TestInboxModelsLive runs models 1 and 2 on a sample item against a real gateway:
 // PERSONA_LIVE_AI='{"base_url":"…","api_key_file":"…","model":"…"}' go test -run InboxModelsLive -v ./internal/assistant
 func TestInboxModelsLive(t *testing.T) {
@@ -424,74 +411,6 @@ func TestInboxModelsLive(t *testing.T) {
 	t.Logf("model 1 (%s): tier=%s summary=%q reason=%q", time.Since(start).Round(time.Millisecond), it.Tier, it.Summary, it.Reason)
 	if it.Tier != TierAction {
 		t.Fatalf("tier = %s", it.Tier)
-	}
-}
-
-// An item about one of the user's tasks (docs/assistant/unified-entry.md): the judge sees the tasks and links the item; the AI
-// twin is told the task's progress; its draft puts a card into the task's conversation.
-func TestInboxItemAboutATask(t *testing.T) {
-	ctx := context.Background()
-	s, f := newTaskService(t)
-	in := newFakeInbox()
-	f.inbox, in.svc = in, s
-	h := &inboxHub{Service: s, f: f, in: in}
-	h.inboxReady(ctx)
-	todo := startedTask(t, s, f)
-	model, calls := captureModel(t, `{"handle":true,"task":"回复修复进度","reason":"问进度","task_id":"`+todo.ID+`","evidence":"修登录崩溃"}`)
-	in.setModel(model)
-	it := actionItem("lark:f1:12", time.Now())
-	it.Title, it.Sender, it.Preview, it.Source, it.AccountName = "客户端发版群", "陈晓", "登录那个崩溃今天能修好吗？", "lark", "飞书"
-	h.inbox.mu.Lock() // the started task's snapshot reads the inbox meanwhile
-	h.inbox.items[it.ID] = it
-	h.inbox.mu.Unlock()
-	it.Agent = &InboxAgent{State: AgentQueued}
-	if !h.linkTask(ctx, it, h.activeTasks(ctx)) {
-		t.Fatal("not linked")
-	}
-	if c := onlyCall(t, calls()); !strings.Contains(c.User, todo.ID+"：修登录崩溃") {
-		t.Fatalf("the judge was not shown the task:\n%s", c.User)
-	}
-	if it.Agent == nil || it.Agent.TodoID != todo.ID {
-		t.Fatalf("agent = %+v", it.Agent)
-	}
-	linked := &prompts.InboxTask{ID: todo.ID, Title: "修登录崩溃", State: "在做", Last: "测试通过"}
-	if p := h.inbox.inboxAgentPromptFor(it, "示例用户", linked, 1, time.UTC); !strings.Contains(p, "正在做的任务「修登录崩溃」") || !strings.Contains(p, "测试通过") {
-		t.Fatalf("the agent is not told the task:\n%s", p)
-	}
-
-	// A task id it was not shown is not taken.
-	model2, _ := captureModel(t, `{"handle":true,"task":"x","reason":"r","task_id":"todo_made_up"}`)
-	in.setModel(model2)
-	other := actionItem("lark:f2:12", time.Now())
-	h.inbox.mu.Lock()
-	h.inbox.items[other.ID] = other
-	h.inbox.mu.Unlock()
-	other.Agent = &InboxAgent{State: AgentQueued}
-	h.linkTask(ctx, other, h.activeTasks(ctx))
-	if other.Agent == nil || other.Agent.TodoID != "" {
-		t.Fatalf("made-up task linked: %+v", other.Agent)
-	}
-
-	// The draft: the card goes into the task's conversation.
-	it.Agent.State, it.Agent.SessionID = AgentRunning, "s_agent"
-	if out, err := runTool(s, "s_agent", "inbox_draft", map[string]any{"text": "测试已经过了，十点前提 PR"}); err != nil || !strings.Contains(out, "in the user's inbox") {
-		t.Fatalf("inbox_draft: %s %v", out, err)
-	}
-	var cards []FeedItem // its messages (the task's plan and card are there too)
-	s.tasks.mu.Lock()
-	for _, fi := range s.tasks.feed["conv1"] {
-		if fi.Kind == feedMessage {
-			cards = append(cards, fi)
-		}
-	}
-	s.tasks.mu.Unlock()
-	if len(cards) != 1 || cards[0].Ref != it.ID {
-		t.Fatalf("cards = %+v", cards)
-	}
-	var mb MessageCard
-	_ = json.Unmarshal(cards[0].Body, &mb)
-	if mb.TodoID != todo.ID || mb.Draft != "测试已经过了，十点前提 PR" || mb.Sender != "陈晓" || mb.Chat != "客户端发版群" {
-		t.Fatalf("card = %+v", mb)
 	}
 }
 

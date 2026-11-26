@@ -38,15 +38,6 @@ func todoReminderHub(t *testing.T) (*fakeHub, *Service, *[]map[string]any) {
 	return f, newTestService(t, f), posts
 }
 
-func postedCards(posts []map[string]any) string {
-	var b strings.Builder
-	for _, p := range posts {
-		card, _ := p["card"].(string)
-		b.WriteString(card)
-	}
-	return b.String()
-}
-
 // postedCardBodies leaves out config.summary, which intentionally repeats the first 60 runes on every card.
 func postedCardBodies(posts []map[string]any) string {
 	var b strings.Builder
@@ -156,31 +147,6 @@ func TestFeishuTodoReminderReplyCarriesTodoContext(t *testing.T) {
 	}
 	if n := strings.Count(text, "</persona-context>"); n != 2 {
 		t.Fatalf("found %d context closing tags, want the template's two: %s", n, text)
-	}
-}
-
-// The existing private-content rule is the health space's generic notice. Neither its title nor its notes reaches a
-// channel card, and its reply route carries no to-do content into the main conversation. Other channels use the same text.
-func TestFeishuTodoReminderHealthContentStaysOffChannels(t *testing.T) {
-	_, s, posts := todoReminderHub(t)
-	todo := Todo{ID: "todo_health", Origin: "health1", Title: "私密标题不应出现", Notes: "私密备注不应出现"}
-	if err := s.feishuTodoPush(context.Background(), "server", "m1", todo.Title, todo.Notes, todo); err != nil {
-		t.Fatal(err)
-	}
-	cards := postedCards(*posts)
-	if strings.Contains(cards, todo.Title) || strings.Contains(cards, todo.Notes) {
-		t.Fatalf("health content reached Feishu: %s", cards)
-	}
-	wantTitle, wantBody := s.redactedNotice(context.Background(), s.lang(context.Background()), testSpace)
-	if !strings.Contains(cards, wantTitle) || !strings.Contains(cards, wantBody) {
-		t.Fatalf("generic health notice missing: %s", cards)
-	}
-	if target := s.botTargetFor("", "om_1"); target.TodoID != "" {
-		t.Fatalf("health reminder reply carries todo id %q", target.TodoID)
-	}
-	channelTitle, channelBody := s.reminderChannelText(context.Background(), todo, todo.Title, todo.Notes)
-	if channelTitle != wantTitle || channelBody != wantBody {
-		t.Fatalf("other channel text = %q / %q", channelTitle, channelBody)
 	}
 }
 

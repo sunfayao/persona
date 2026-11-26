@@ -506,27 +506,6 @@ func TestInboxSweepLeavesAHandoffAlone(t *testing.T) {
 	}
 }
 
-// A note for an item without a title still reads as the inbox's notice: the item's id stands in.
-func TestInboxHandoffNoteWithoutATitle(t *testing.T) {
-	note := renderHandoffNote(inboxNote{Name: prompts.NoteRejected, Text: "好的"}, "示例用户", "lark:f1:100", "")
-	if in := prompts.ParseInjected(note); in == nil || in.State != "inbox" || in.Title != "lark:f1:100" {
-		t.Fatalf("ParseInjected = %+v\n%s", in, note)
-	}
-}
-
-func TestGoldenInboxHandoff(t *testing.T) {
-	golden(t, "inbox_handoff.message", prompts.RenderInboxHandoff(prompts.InboxHandoff{ID: "lark:f1:100", Title: "示例客户", Text: "看下这件事，帮我想想怎么回"}))
-	for name, n := range map[string]inboxNote{
-		"sent":          {Name: prompts.NoteSent, Text: "周五上午给你", Edited: true},
-		"rejected":      {Name: prompts.NoteRejected, Text: "好的"},
-		"instructed":    {Name: prompts.NoteInstructed, Text: "先问时间"},
-		"handback":      {Name: prompts.NoteHandback, Text: "先问示例同事"},
-		"agent_started": {Name: prompts.NoteAgentStarted, Text: "查一下报价单", Machine: "box", Session: "s-sub"},
-	} {
-		golden(t, "inbox_handoff.note_"+name, renderHandoffNote(n, "示例用户", "lark:f1:100", "示例客户"))
-	}
-}
-
 // handoffCards are the write-back cards in conversation sid's feed, oldest first.
 func handoffCards(t *testing.T, h *inboxHub, sid string) []handoffCard {
 	t.Helper()

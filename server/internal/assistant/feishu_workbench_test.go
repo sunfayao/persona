@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/feishubot"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -513,16 +512,6 @@ func TestWorkbenchSourceIsAName(t *testing.T) {
 			t.Errorf("%+v: %q, want %q", c.it, got, c.want)
 		}
 	}
-}
-
-// tokenSpanStore is the chat's store that also sums the machines' usage (db.DB's UsageSpans), with made-up spans.
-type tokenSpanStore struct {
-	Store
-	spans []db.UsageSpan
-}
-
-func (u tokenSpanStore) UsageSpans(context.Context, []time.Time, db.UsageBy) ([]db.UsageSpan, error) {
-	return u.spans, nil
 }
 
 // What waits for the owner is rows pressed whole: a card that holds something up comes down. An agent's row says its

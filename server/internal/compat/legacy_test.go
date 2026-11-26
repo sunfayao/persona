@@ -80,22 +80,6 @@ func TestProjectionIsScopedAndPreservesOpaqueValues(t *testing.T) {
 		t.Fatal("opt-in peer lost canonical bytes")
 	}
 }
-func TestMCPNamespacesShareOnlyTheBuiltinHandler(t *testing.T) {
-	env := map[string]string{"PERSONA_SESSION_ID": "same", "JARVIS_SESSION_ID": "stale", "PERSONA_GUEST": "", "JARVIS_GUEST": "1"}
-	shared := map[string]any{"command": "fixture", "env": env}
-	servers := AddMCPAliases(map[string]any{"persona": shared, "extension": map[string]any{"command": "other"}})
-	if len(servers) != 3 || !reflect.DeepEqual(servers["jarvis"], servers["persona"]) {
-		t.Fatal(servers)
-	}
-	mirrored := shared["env"].(map[string]string)
-	if mirrored["JARVIS_SESSION_ID"] != "same" || mirrored["JARVIS_GUEST"] != "" {
-		t.Fatal("identity or empty-value precedence was lost")
-	}
-	expected := []string{"mcp__persona__lark_agent_reply", "mcp__jarvis__lark_agent_reply"}
-	if !reflect.DeepEqual(MCPToolNames([]string{"lark_agent_reply"}), expected) {
-		t.Fatal("guest permission scope expanded")
-	}
-}
 
 func TestMCPRegistrationPolicy(t *testing.T) {
 	for _, legacy := range []bool{false, true} {

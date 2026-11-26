@@ -113,12 +113,6 @@ func (ev busEvent) ctx(ctx context.Context) context.Context {
 	return context.WithValue(ctx, hubConnKey{}, ev.conn)
 }
 
-// hubConnOf is the connection to the hub the event ctx handles came on: 0 for one that did not come over the bus.
-func hubConnOf(ctx context.Context) uint64 {
-	conn, _ := ctx.Value(hubConnKey{}).(uint64)
-	return conn
-}
-
 var _ Hub = (*BusHub)(nil)
 
 // NewBusHub is the hub as the assistant reaches it over the bus; Run connects it.

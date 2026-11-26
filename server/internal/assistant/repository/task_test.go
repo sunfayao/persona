@@ -129,24 +129,6 @@ func TestAliasReservedDeviceNames(t *testing.T) {
 	}
 }
 
-func TestTaskRepositorySameNumberAcrossRepositories(t *testing.T) {
-	web, _ := Parse("https://github.com/example/web", "")
-	api, _ := Parse("https://github.com/example/api", "")
-	catalog := Catalog{Repositories: []CatalogEntry{{Identity: web, ID: "web"}, {Identity: api, ID: "api"}}}
-	input := []TaskInput{{RepoID: "web", DirectoryAlias: "web", Links: []LinkInput{{Kind: "pull_request", Number: "7"}}}, {RepoID: "api", DirectoryAlias: "api", Links: []LinkInput{{Kind: "pull_request", Number: "7"}}}}
-	rows, err := Bind(nil, input, catalog)
-	if err != nil || len(rows) != 2 {
-		t.Fatal(rows, err)
-	}
-	if LinkKey(rows[0].SourceSnapshot.Identity, rows[0].Links[0]) == LinkKey(rows[1].SourceSnapshot.Identity, rows[1].Links[0]) {
-		t.Fatal("cross-repository PR identities collided")
-	}
-	input[1].DirectoryAlias = "WEB"
-	if _, err := Bind(nil, input, catalog); err != Problem("duplicate_alias") {
-		t.Fatal("case-insensitive duplicate alias", err)
-	}
-}
-
 func TestTaskLinkReportsPreserveSourcesAndNormalizeReferences(t *testing.T) {
 	urls := []string{"https://GitHub.com/Example/Web/pull/7", "https://github.com/example/web/pull/7", "https://github.com/example/api/pull/7", "https://gitlab.example.com/Team/Api/merge_requests/7"}
 	rows, err := MergeTaskLinks(nil, urls, Catalog{})

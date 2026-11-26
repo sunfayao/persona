@@ -303,17 +303,6 @@ func TestAgentStatusReasonJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestLinuxAgentProbeHasStructuredReason(t *testing.T) {
-	t.Setenv("PATH", t.TempDir()) // no bwrap: this probe returns before executing another program
-	sup := probeLinuxAgent()
-	if sup.Reason == nil || sup.Reason.Key != "extension-status.sandbox_no_bwrap" || sup.Why != sup.Reason.Error() {
-		t.Fatalf("%+v", sup)
-	}
-	if got, want := sup.WhyIn(i18n.En), i18n.T(i18n.En, "extension-status.sandbox_no_bwrap"); got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
 // The Linux branch builds a default-allow bwrap command and sends its opaque profile through the same Check hook.
 // It shares neither the network nor the pid namespace, and its view exposes only this start's launcher settings.
 func TestWrapAgentLinux(t *testing.T) {

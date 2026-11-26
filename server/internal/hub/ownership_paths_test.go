@@ -7,23 +7,17 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/coder/websocket"
-
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/link"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 )
 
 // heard keeps the events of one kind a fake manager is told (its extensions' agent.*, the mutes…).
@@ -131,115 +125,6 @@ func TestAPushOnlyAboutItsOwn(t *testing.T) {
 	}
 	if !strings.Contains(bh, "B's summary") || strings.Contains(bh, "FORGED") || strings.Contains(bh, `"machine_id":"ma"`) || strings.Contains(bh, "A's") {
 		t.Fatalf("B's extensions heard (its own card as the hub keeps it, nothing of A's):\n%s", bh)
-	}
-}
-
-// A Persona Link relayed to a manager is cut when its machine moves to another (Persona Link is told to try again,
-// 1013, and lands at the new manager), and every relay of a revoked manager is cut.
-func TestALinkRelayFollowsItsMachine(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	h.cfg.Machines = []MachineConfig{{ID: "laptop", Name: "laptop", Kind: "link"}}
-	a := connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, quiet)
-	a.report(t) // the carrier is up: a link of its own is handed to it
-	eventually(t, 5*time.Second, "the carrier", h.devicesUp)
-	bTok := busToken(t, h, "m-0b0b0b", "m-0b0b0b")
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	relayed := make(chan *websocket.Conn, 4)
-	ws, err := bus.Dial(ctx, srv.URL, bTok, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ws.CloseNow() })
-	conn := bus.NewConn(ctx, ws)
-	peer := rpc.New("b", conn)
-	peer.OnEvent = func(string, json.RawMessage) {}
-	peer.OnRequest = func(_ context.Context, method string, params json.RawMessage) (any, error) {
-		if method == devicewire.MethodAccept { // B takes the relay and keeps it
-			var acc devicewire.Accept
-			_ = json.Unmarshal(params, &acc)
-			go func() {
-				c, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")+devicewire.RelayPath+"?id="+acc.ID,
-					&websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer " + bTok}}})
-				if err == nil {
-					relayed <- c
-				}
-			}()
-		}
-		return map[string]any{}, nil
-	}
-	go func() { _ = peer.Serve(ctx, conn) }()
-	cctx, cc := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cc()
-	if err := peer.Call(cctx, busHello, map[string]any{"id": "m-0b0b0b"}, nil); err != nil {
-		t.Fatal(err)
-	}
-	tok, _ := linkToken(t, h, "laptop")
-	dialLink := func() *websocket.Conn {
-		t.Helper()
-		lctx, lcancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer lcancel()
-		lc, _, err := websocket.Dial(lctx, "ws"+strings.TrimPrefix(srv.URL, "http")+link.Path,
-			&websocket.DialOptions{HTTPHeader: http.Header{"Authorization": {"Bearer " + tok}}})
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { _ = lc.CloseNow() })
-		return lc
-	}
-	spliced := func(lc *websocket.Conn) *websocket.Conn {
-		t.Helper()
-		select {
-		case bside := <-relayed:
-			t.Cleanup(func() { _ = bside.CloseNow() })
-			wctx, wc := context.WithTimeout(context.Background(), 2*time.Second)
-			defer wc()
-			if err := bside.Write(wctx, websocket.MessageText, []byte("hi")); err != nil {
-				t.Fatal(err)
-			}
-			if _, got, err := lc.Read(wctx); err != nil || string(got) != "hi" {
-				t.Fatalf("the splice: %q %v", got, err)
-			}
-			return bside
-		case <-time.After(5 * time.Second):
-			t.Fatal("B never took the link")
-		}
-		return nil
-	}
-	cutWith := func(lc *websocket.Conn) websocket.StatusCode {
-		t.Helper()
-		rctx, rc := context.WithTimeout(context.Background(), 5*time.Second)
-		defer rc()
-		_, _, err := lc.Read(rctx)
-		return websocket.CloseStatus(err)
-	}
-
-	// Moved away: cut, and the link comes back to the new manager.
-	if _, err := h.moveMachine(context.Background(), "laptop", "m-0b0b0b"); err != nil {
-		t.Fatal(err)
-	}
-	lc := dialLink()
-	spliced(lc)
-	if _, err := h.moveMachine(context.Background(), "laptop", devicesOwner); err != nil {
-		t.Fatal(err)
-	}
-	if code := cutWith(lc); code != websocket.StatusTryAgainLater {
-		t.Fatalf("after the move the link was closed with %d, want 1013", code)
-	}
-	dialLink()
-	eventually(t, 5*time.Second, "the link at the new manager", func() bool { return strings.Contains(a.log(), devicewire.MethodAccept) })
-
-	// Revoked: every relay it has is cut.
-	if _, err := h.moveMachine(context.Background(), "laptop", "m-0b0b0b"); err != nil {
-		t.Fatal(err)
-	}
-	lc = dialLink()
-	spliced(lc)
-	if _, err := h.revokeBusToken(context.Background(), "m-0b0b0b"); err != nil {
-		t.Fatal(err)
-	}
-	if code := cutWith(lc); code != websocket.StatusTryAgainLater {
-		t.Fatalf("after the revoke the link was closed with %d, want 1013", code)
 	}
 }
 

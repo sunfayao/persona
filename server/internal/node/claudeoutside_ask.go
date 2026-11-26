@@ -154,12 +154,6 @@ func (n *Node) outsideAnswer(ctx context.Context, session, id string, r proto.Re
 // outsideAskGone refuses an answer to a question the session no longer waits on.
 const outsideAskGone = "Claude 已经不在等这个回答了（可能在电脑上答过了，或者这一轮被中断了），这次什么都没发。"
 
-// outsideAnswerText is the user's answers as the message the session takes for them (agents/answer), "" when the
-// resolution answers none of the card's questions.
-func outsideAnswerText(ix proto.Interaction, r proto.Resolution) string {
-	return outsideAnswerTextIn(ix, r, "")
-}
-
 func outsideAnswerTextIn(ix proto.Interaction, r proto.Resolution, language string) string {
 	a := prompts.AgentAnswer{Language: language, ByAssistant: r.AnsweredBy == proto.AnsweredByAssistant}
 	if a.ByAssistant {

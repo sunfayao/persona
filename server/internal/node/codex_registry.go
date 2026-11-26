@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,6 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/nwverse/persona/server/internal/identity"
 
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -566,10 +567,6 @@ func (p *codexListPass) assistantProject(n *Node) string {
 	return p.own
 }
 
-func (n *Node) codexSessions(seen map[string]bool) []proto.Session {
-	return n.codexSessionsIn(seen, newCodexListPass())
-}
-
 // codexSessionsIn lists the Codex threads as offline rows, looking up through pass (nil: each time).
 func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []proto.Session {
 	if n.codices == nil {
@@ -788,4 +785,8 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 	resolveCodexHierarchy(out)
 	slotCodexDesktop(out)
 	return out
+}
+
+func (n *Node) codexSessions(seen map[string]bool) []proto.Session {
+	return n.codexSessionsIn(seen, newCodexListPass())
 }

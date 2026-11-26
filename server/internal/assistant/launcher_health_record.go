@@ -403,19 +403,6 @@ func limitResetOf(r healthResult, at time.Time) *time.Time {
 	return &reset
 }
 
-// launcherLimitTurnEnded: a turn of machine's session sid ended. When it ended on the subscription's usage limit,
-// the launcher the session names counts as usage-limited on machine (source healthSourceSession): until the reset
-// when it is known and still ahead, else until healthStale after the turn (#9646). An agent started with it there
-// would be refused at once too. Nothing runs for it, no check (it would spend a request to be refused) and no repair.
-// The assistant's conversations count as well: the main chat runs the machine's launcher under the same sign-in, so
-// its limit is the launcher's.
-func (s *Service) launcherLimitTurnEnded(ctx context.Context, machine, sid string) {
-	// Once the turn stayed still, as a task's end is judged (settleDelay): right after a write the node's list may not
-	// have read the transcript yet (its meta is read again at most every few seconds), and says no error meanwhile.
-	time.Sleep(s.settleDelay(ctx))
-	s.launcherLimitTurnSettled(ctx, machine, sid)
-}
-
 // launcherLimitTurnSettled is launcherLimitTurnEnded once the turn stayed still: after its sleep, or afterSettle's
 // timer.
 func (s *Service) launcherLimitTurnSettled(ctx context.Context, machine, sid string) {

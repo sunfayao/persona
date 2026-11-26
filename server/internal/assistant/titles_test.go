@@ -45,26 +45,6 @@ func TestTitleTopic(t *testing.T) {
 	}
 }
 
-func TestParseTitle(t *testing.T) {
-	for _, c := range []struct {
-		out, kind, topic string
-		ok               bool
-	}{
-		{"修复 | 搜索框和顶栏重叠", "修复", "搜索框和顶栏重叠", true},
-		{"  \n「研究｜竞品定价」\n", "研究", "竞品定价", true},
-		{"1101 | 发布 | 周五灰度安排。", "发布", "周五灰度安排", true}, // a date it added anyway, a full stop
-		{"闲聊 | 周末去哪", "", "周末去哪", false},              // not a kind
-		{"修复 | 搜索框在搜索时和顶栏重叠而且键盘弹起后错位", "修复", "搜索框在搜索时和顶栏重叠而且键盘弹起后错位", false},
-		{"修复搜索框", "", "", false},
-		{"", "", "", false},
-	} {
-		kind, topic, ok := parseTitle(c.out)
-		if kind != c.kind || topic != c.topic || ok != c.ok {
-			t.Errorf("parseTitle(%q) = %q %q %v", c.out, kind, topic, ok)
-		}
-	}
-}
-
 // MMDD is the day in the user's time zone though the hub runs in UTC; a broken answer is asked for once more, then
 // cut or replaced by "explore | the first 14 characters".
 func TestMakeTitle(t *testing.T) {

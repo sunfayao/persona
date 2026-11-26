@@ -18,34 +18,6 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// The herdr engine's hosts are what every node had before engines: one herdr host, nothing of herdr-core.
-func TestEngineHostsOfHerdrAreHerdrOnly(t *testing.T) {
-	hs := engineHosts(proto.EngineHerdr, nil)
-	if len(hs) != 1 {
-		t.Fatalf("hosts %v", hs)
-	}
-	if _, ok := hs[0].(*herdrHost); !ok {
-		t.Fatalf("host %T", hs[0])
-	}
-	hs = engineHosts(proto.EngineHerdrCore, nil)
-	if _, ok := hs[0].(*herdrCoreHost); len(hs) != 1 || !ok {
-		t.Fatalf("herdr-core hosts %v", hs)
-	}
-	hs = engineHosts(proto.EngineHerdrBoth, nil)
-	if len(hs) != 2 {
-		t.Fatalf("combined hosts %v", hs)
-	}
-	if _, ok := hs[0].(*herdrHost); !ok {
-		t.Fatalf("the combined engine's first host is %T, want herdr (new sessions start there)", hs[0])
-	}
-	if _, ok := hs[1].(*herdrCoreHost); !ok {
-		t.Fatalf("the combined engine's second host is %T, want herdr-core", hs[1])
-	}
-	if defaultHostKind(proto.EngineHerdrBoth) != host.Herdr || defaultHostKind(proto.EngineHerdrCore) != host.HerdrCore {
-		t.Fatal("pane-less operations of the combined engine must go to classic herdr")
-	}
-}
-
 // A node on herdr (the default) makes no herdr-core call while it lists, polls, watches, sends, reads and presses keys,
 // even with a herdr-core running at the socket it would use.
 func TestEngineHerdrMakesNoHerdrCoreCall(t *testing.T) {

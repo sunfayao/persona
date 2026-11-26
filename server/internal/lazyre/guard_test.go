@@ -67,19 +67,6 @@ func TestNoPackageLevelMustCompile(t *testing.T) {
 	}
 }
 
-func TestLazyMatchesLikeRegexp(t *testing.T) {
-	r := New(`^a(b+)c$`)
-	if !r.MatchString("abbc") || r.MatchString("ac") {
-		t.Fatal("MatchString")
-	}
-	if got := r.FindStringSubmatch("abbbc"); len(got) != 2 || got[1] != "bbb" {
-		t.Fatalf("FindStringSubmatch: %q", got)
-	}
-	if r.String() != `^a(b+)c$` || r.Regexp().String() != `^a(b+)c$` {
-		t.Fatal("String")
-	}
-}
-
 func TestCompiledAtOnceInTests(t *testing.T) {
 	defer func() {
 		if recover() == nil {

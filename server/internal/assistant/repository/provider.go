@@ -249,21 +249,10 @@ func CheckParseAnswer(info ProviderInfo, a ParseAnswer) (Parsed, error) {
 	return repositorywire.CheckParseAnswer(info, a)
 }
 
-// plainPath: 1 to most segments of URL-unreserved characters, none empty, . or .., at most 512 bytes.
-func plainPath(path string, most int) bool {
-	return repositorywire.PlainPath(path, most)
-}
-
 // CheckProviderClone: raw is a credential-free clone address on one of the provider's hosts (https, ssh://git@ or
 // git@host:path).
 func CheckProviderClone(info ProviderInfo, raw string) error {
 	return repositorywire.CheckProviderClone(info, raw)
-}
-
-// cloneHost is the host of a clone address that is safe to store and hand to git: https with no user, ssh://git@ or
-// git@host:path, with a plain path and no query or fragment.
-func cloneHost(raw string) (string, bool) {
-	return repositorywire.CloneHost(raw)
 }
 
 // LinkAnswer is repo.link's answer as the program sent it.
