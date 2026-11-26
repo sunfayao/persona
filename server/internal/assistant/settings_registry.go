@@ -550,7 +550,7 @@ func (s *Service) savedPromptsSetting() ownSetting {
 					return "Saved prompt /" + old.Name + " removed.", nil
 				}}, nil
 			}
-			return nil, fmt.Errorf("%s does not take %q", key, action)
+			return nil, fmt.Errorf("%s does not take %q", savedPromptsKey, action)
 		},
 	}
 }
