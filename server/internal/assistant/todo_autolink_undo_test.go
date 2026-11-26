@@ -2,7 +2,6 @@ package assistant
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
