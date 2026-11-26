@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A node that connected again (an ssh node whose link dropped and that started over) lists a Codex turn still running

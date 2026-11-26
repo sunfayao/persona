@@ -15,12 +15,12 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The bus (docs/protocol/protocol.md "Bus"): a service — the assistant (a manager) for now — dials GET /api/v1/bus with a

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // mutes hands the service the mutes as the hub does (fleet.mutes, after a handshake and after every change).

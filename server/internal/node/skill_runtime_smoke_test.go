@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Opt-in bridge for the real CLI smoke: discover and resolve through production code,

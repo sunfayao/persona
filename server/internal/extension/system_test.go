@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // A widget is held to what its family draws: no taps, search or more; few items, rows, stats and lines; a

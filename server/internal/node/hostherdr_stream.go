@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // observeSupport, controlSupport cache whether this herdr has `terminal session observe` / `control` (herdr 0.9 on

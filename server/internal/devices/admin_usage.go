@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/usagesource"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/usagesource"
 )
 
 // The admin UI's usage sources page (#2595): add, edit and remove the

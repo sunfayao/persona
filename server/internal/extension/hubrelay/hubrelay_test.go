@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // Without a proof key the relay sends no proof, and none an extension made either.

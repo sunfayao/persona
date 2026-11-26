@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // hangupProxy is a TCP proxy in front of an IMAP server that ends a connection right after the server answered a

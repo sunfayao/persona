@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Typed calls, both ways, for the extension points whose calls the schemas describe (wire.Calls: the connector, the

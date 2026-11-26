@@ -13,8 +13,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // launchHerdrServer starts `herdr server` in the user's clean login shell (herdrServerArgv), in its own session so it

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // An extension's token on a route the hub relays to the manager is checked on the path the request is relayed with:

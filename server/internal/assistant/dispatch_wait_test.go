@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // `personad tool` waits for dispatch_read as long as the read itself may wait, plus its own short deadline

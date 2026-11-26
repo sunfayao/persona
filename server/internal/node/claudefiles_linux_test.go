@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // BenchmarkLiveClaudes is one rebuild's read of the running claudes' files, at the 67 claudes of the machine in

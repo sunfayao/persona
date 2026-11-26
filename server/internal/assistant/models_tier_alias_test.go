@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Claude Code tier alias stored as an API purpose's model is sent as the model its launcher's tier field names, and

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // agyTestMetadata writes agy's conversation metadata (cache/conversation_metadata.json) under root, in the shape agy

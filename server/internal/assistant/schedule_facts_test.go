@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The facts setting of a routine (schedule.go): on for the default routines of a new hub, turned on for a hub set up before

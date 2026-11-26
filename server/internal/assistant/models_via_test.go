@@ -12,12 +12,12 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // viaDevs answers model.http as a node would, or with err.

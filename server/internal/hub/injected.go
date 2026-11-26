@@ -3,9 +3,9 @@ package hub
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // withInjected marks, on items going to the apps, the user lines Persona wrote for the model (a task's notice, a

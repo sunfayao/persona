@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #13045: accumulated pictures exceeding the model API's size, count or multi-image dimension limit are classified

@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Exercise the actual extension conversation route and the node's launch parameters, not only resolution.

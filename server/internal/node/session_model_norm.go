@@ -3,7 +3,7 @@ package node
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Session rows carry the model a transcript reports, including any upstream gateway routing prefix ("route-a/model-x",

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/quota"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/quota"
 )
 
 // serveUsageExtensionForTest is a usage plugin: it reads the gateway's /v1/usage with the key placeholder in its

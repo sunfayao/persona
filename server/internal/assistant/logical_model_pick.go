@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Equal engine kinds do not prove that a runtime can resume another connection's

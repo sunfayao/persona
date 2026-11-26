@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // The computers the center drives and the ways to each. A way —

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #10527: an external-event park may name the worker's existing pending owner prompt by its interaction id.

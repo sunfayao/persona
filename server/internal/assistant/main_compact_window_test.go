@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The main conversation's starts and messages carry the window it is held to (#7314): 400000 while the setting is

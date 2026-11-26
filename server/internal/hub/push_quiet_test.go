@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A card's push carries the manager's level: with the switch on a P1 escalation is held (recorded, no alert) while a

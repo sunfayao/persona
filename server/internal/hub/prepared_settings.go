@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // preparedSettings retains executable hub operations in the hub. The public

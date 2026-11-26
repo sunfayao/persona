@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // assistantAgent is the agent a launcher runs, as far as the assistant goes: claude (headless -p, stream-json) or

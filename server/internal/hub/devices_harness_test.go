@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // The machines end to end: the manager's device layer (internal/devices, as `personad assistant` runs it) on the hub's

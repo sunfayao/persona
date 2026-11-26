@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Keep these cases under the existing stop-provenance parent: node's round-robin CI partitions otherwise move

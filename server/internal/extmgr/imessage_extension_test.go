@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // imessageHub is a hub with two Macs (mac "Example Mac", mac2 "Another Mac", in Chinese), hub.json's imessage.machine

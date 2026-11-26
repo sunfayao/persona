@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Renaming a computer: the admin page (PUT /api/v1/admin/machines/{id}),

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Every shell's own line for a command it cannot run, as the shells print them (bash 3.2 and 5, zsh 5.9, dash and

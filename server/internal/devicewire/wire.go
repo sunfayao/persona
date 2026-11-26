@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // LegacyTaskExecution is an internal assistant.send hint for unconfigured scheduled turns.

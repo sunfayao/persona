@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // nameWait is how long `persona-link name <new>` waits for the hub's answer.

@@ -3,7 +3,7 @@
 package denohost
 
 import (
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 	"os"
 	"strings"
 	"testing"

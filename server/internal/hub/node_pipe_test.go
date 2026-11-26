@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // answerNode is a machine of the hub's whose node answers with fn, connected over a pipe.

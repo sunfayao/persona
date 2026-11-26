@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // A source's own triage rules (#1644) for persona_settings: a plugin whose settings declare triage_rules (a string at

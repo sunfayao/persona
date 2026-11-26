@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/todo/projection"
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistant/todo/projection"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The To-dos view stays fresh (#10226). A client files each row by

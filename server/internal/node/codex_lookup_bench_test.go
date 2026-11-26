@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // BenchmarkOldCodexTranscriptHit measures repeated successful opaque-id lookups over the same old rollouts. The cached

@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // The built-in manager as a service of its own reads its token from its binding, never from stdin: not bound, it

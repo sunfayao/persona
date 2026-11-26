@@ -4,8 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
 )
 
 // A plugin may take over one of the hub's own connectors while it moves out of the hub (connector.MigratableConnectors:

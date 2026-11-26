@@ -1,6 +1,6 @@
 package node
 
-import "github.com/nwverse/persona/server/internal/node/files"
+import "github.com/sunfayao/persona/server/internal/node/files"
 
 func (n *Node) fileService() *files.Service {
 	n.fileOnce.Do(func() {

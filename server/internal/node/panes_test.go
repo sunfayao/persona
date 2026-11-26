@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // streamingHerdr: this herdr streams and can be driven, as the other terminal tests assume (the answer is cached for

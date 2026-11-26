@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Copying files and folders from the phone (#5830, docs/protocol/protocol.md "Changing files"): into a folder the home

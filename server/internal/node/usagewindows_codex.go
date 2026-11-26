@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 	"os"
 	"slices"
 	"sort"
@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const (

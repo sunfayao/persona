@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // A resident node's hook events go out in order without holding their hooks (#10663, #10829's review). While the

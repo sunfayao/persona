@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // injectedFixtures is shared with the apps (web, Android, Apple read the same cases for their fallback):

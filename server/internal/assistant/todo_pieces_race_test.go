@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Two writes of part_of/after at once, each valid against the to-dos as they were, can't both be stored when together

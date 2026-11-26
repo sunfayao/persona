@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // Mail items whose mail left the account's latest INBOX page (archived or deleted in the mail client, or pushed off

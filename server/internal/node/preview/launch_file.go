@@ -14,8 +14,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // LaunchFile is where a project keeps its dev servers, under its folder.

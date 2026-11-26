@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Guarding a bare `task_review accepted` (#12026). A supervised task must not vanish from the owner's Needs-you list

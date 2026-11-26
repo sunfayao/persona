@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // fitNativeOracle is FitNative as it was before fitting a view it leaves

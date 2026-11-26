@@ -3,8 +3,8 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 func feishuSessionNames(sess proto.Session, preferTab bool) (label, secondary string) {

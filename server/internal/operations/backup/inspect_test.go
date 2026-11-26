@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 func TestInspectBackupWithoutAnInstallOrStaging(t *testing.T) {

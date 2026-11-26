@@ -7,10 +7,10 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func newConnectorChannels(t *testing.T, connectorID string) (*Manager, *fakeAssistant) {

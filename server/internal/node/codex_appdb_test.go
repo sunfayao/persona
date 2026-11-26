@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCodexHistoryAsksAfterUserReply(test *testing.T) {

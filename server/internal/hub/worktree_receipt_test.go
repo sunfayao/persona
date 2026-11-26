@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 const worktreeReceiptID = "00000000-0000-4000-8000-000000001399"

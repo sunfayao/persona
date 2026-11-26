@@ -2,7 +2,7 @@ package node
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Claude assistant gets the extensions' MCP servers (mcp_servers): a command line

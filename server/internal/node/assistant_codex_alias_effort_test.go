@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The model menu advertises Codex's native levels for a custom launcher. Both a first message's explicit effort and

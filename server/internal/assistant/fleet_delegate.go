@@ -11,10 +11,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An agent's question goes to the assistant before the user (manager.json agents.delegate, off by default;

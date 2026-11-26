@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // feishuCardsOn has ft's Feishu bot take every card, and records the cards it posts and updates (in order).

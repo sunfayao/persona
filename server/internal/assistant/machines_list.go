@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // machineFact makes unknown distinct from a measured zero, with a reason the model can relay.

@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Mechanical waits are screened before routing, including before starting a background supervisor.

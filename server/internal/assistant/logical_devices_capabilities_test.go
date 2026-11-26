@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/closeout"
 )
 
 // New wraps the devices in logicalDevices whenever the store keeps logical conversations, which the hub's database

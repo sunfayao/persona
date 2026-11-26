@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Where an assistant conversation comes from (docs/protocol/protocol.md "Origin of assistant chats", #3264): the user's own (the app,

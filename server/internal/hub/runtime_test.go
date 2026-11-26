@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A runtime's card is pushed under its own name: DSH's, and omp's, whose extension names its cards omp

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // rewindNode is a node that answers session.rewind with answer/err and keeps what it was asked.

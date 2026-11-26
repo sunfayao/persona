@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // DispatchStart is a recorded launch and the store that accepted it.

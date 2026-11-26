@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // A spare process started when the app opens the "Chat" tab, so the first message skips claude's startup.

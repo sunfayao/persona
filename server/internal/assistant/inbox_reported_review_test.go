@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Cases around a reported step that the first pass leaves open: what a refused change leaves behind, how `by` is

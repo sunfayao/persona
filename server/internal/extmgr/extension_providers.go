@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // The providers extension point: a plugin declares model providers — address,

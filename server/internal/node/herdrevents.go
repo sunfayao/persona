@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // herdr pushes its changes over events.subscribe: pollAgents takes a snapshot as soon as one arrives instead of

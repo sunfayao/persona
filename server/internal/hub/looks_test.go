@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // copyDir copies the example package so a test may change it.

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // runRelease handles release manifest generation and verification.

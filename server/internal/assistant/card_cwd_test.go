@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A hook's directory is where the model's last `cd` left the shell (#2368): a health conversation's card from

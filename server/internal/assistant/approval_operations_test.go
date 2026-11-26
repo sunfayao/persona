@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/proto"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestClarifiedApprovalRejectsStaleSetting(t *testing.T) {

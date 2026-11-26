@@ -19,10 +19,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/netaddr"
 )
 
 // Doctor prints the hub's read-only self-check (`personad hub doctor`) in the terminal's language (i18n.Terminal,

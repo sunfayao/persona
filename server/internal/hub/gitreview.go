@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // gitReview relays GET /api/v1/machines/{mid}/git/review?cwd=&scope=&base=&path=… to the node's git.review: every

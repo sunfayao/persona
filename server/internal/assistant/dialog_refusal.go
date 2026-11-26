@@ -6,9 +6,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // dialogRefusal is err, a send to task agent c, as the card that sent it needs it when the node refused it because a

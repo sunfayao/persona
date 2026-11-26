@@ -15,16 +15,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/node/engine/orca"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/orcart"
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rexcli"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/terncli"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/engine/orca"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rexcli"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/terncli"
 )
 
 // Orca as the machine's engine (hostorca.go, engine.go), driven through the node's requests against a fake Orca

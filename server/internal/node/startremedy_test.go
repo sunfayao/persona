@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // keptByAQuestion has n start in w1 and stop on a startup question, so the tab w1:p2 is kept (shell_waiting).

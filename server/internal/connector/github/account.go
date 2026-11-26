@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // The account the connector reads as, and what was read as it (#7832).

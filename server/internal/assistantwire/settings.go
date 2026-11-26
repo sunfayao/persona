@@ -3,7 +3,7 @@ package assistantwire
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ---- the assistant's settings, and the conversations the hub's features start ----

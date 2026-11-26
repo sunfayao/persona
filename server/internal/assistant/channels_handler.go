@@ -6,10 +6,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // ---- what the hub hands the channels (Handler) ----

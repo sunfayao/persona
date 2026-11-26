@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // task_plan's todo_id (#5279): a task runs on a todo the conversation opened (a Lark topic's) instead of making one.

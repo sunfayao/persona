@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // assistantNode is the assistant's machine as runTask sees it: assistant.send with no session starts one (s1, s2…),

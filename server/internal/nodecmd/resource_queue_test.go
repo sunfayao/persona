@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	rq "github.com/nwverse/persona/server/internal/resourcequeue"
+	rq "github.com/sunfayao/persona/server/internal/resourcequeue"
 )
 
 func TestGateNewJoinedCachedSubmitExactlyOnce(t *testing.T) {

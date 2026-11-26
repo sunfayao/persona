@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // catalogNode answers git.status with identity_only as a computer's node does: what repository each directory holds.

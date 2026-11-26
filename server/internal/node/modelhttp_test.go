@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const modelHTTPTestKey = "sk-test-never-shown-0123456789"

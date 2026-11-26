@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The hub-made next-message suggestion (suggest_next.go, #4644).

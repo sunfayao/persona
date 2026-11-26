@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #5430: an interaction answered while its card was being made (a program that answers permission cards at once) is

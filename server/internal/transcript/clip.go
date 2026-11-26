@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // snippetLine is the first line of s, at most n runes.

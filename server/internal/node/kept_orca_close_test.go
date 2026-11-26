@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart"
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
 
 // A recovery during the closer's terminal.list must protect the original pane, including when the first close

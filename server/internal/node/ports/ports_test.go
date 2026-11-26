@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/processtable"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/processtable"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // lsof -a -p … -nP -iTCP -sTCP:LISTEN -Fpcn on macOS: vite on IPv6 localhost, a Python server on every address,

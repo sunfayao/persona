@@ -6,10 +6,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 	"mvdan.cc/sh/v3/syntax"
 )
 

@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 )
 
 // codexAppCall performs one metadata request on an isolated app-server. Callers never resume or run a turn in a

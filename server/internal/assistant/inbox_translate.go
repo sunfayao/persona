@@ -16,11 +16,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Translation is the manager's. The app decides what needs translating (its own setting, its

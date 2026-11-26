@@ -34,7 +34,7 @@ python3 scripts/test/test_extension_schema.py     # --check, and the examples ho
 
 | Language | File | Shape |
 | --- | --- | --- |
-| Go | `sdk/go/wire/wire_gen.go` (its own module `github.com/nwverse/persona/sdk/go`, without dependencies) | Structs; a union is **one flat struct** (every variant's fields together, all optional, `Type` says which), like the hub's `UIElem`; an enum is string constants and a list (`Tones`); `ComponentSince` is the UI version each component came with; `Calls` is the calls and events of the extension points (below) |
+| Go | `sdk/go/wire/wire_gen.go` (its own module `github.com/sunfayao/persona/sdk/go`, without dependencies) | Structs; a union is **one flat struct** (every variant's fields together, all optional, `Type` says which), like the hub's `UIElem`; an enum is string constants and a list (`Tones`); `ComponentSince` is the UI version each component came with; `Calls` is the calls and events of the extension points (below) |
 | TypeScript | `sdk/ts/src/wire.ts`; the web app has a copy without the plugin-side schemas, `web/src/lib/extension-wire.ts` | Interfaces; a union is the union of its variants (`Component = TextComponent \| …`); an enum is a union of literals plus `string & {}` (values from a newer hub still read); `CALLS` as in Go |
 
 The same generator also writes the hub wire types of `schema/wire/` (TypeScript and Go, each where its

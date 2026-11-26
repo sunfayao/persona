@@ -3,7 +3,7 @@ package i18n
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestComputerTextLanguages(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The web's full herdr view. A browser asks for one with herdr_open; the node

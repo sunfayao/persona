@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Claude Code's transcript is a tree: every line has a uuid and a parentUuid. A conversation is mostly one chain, but

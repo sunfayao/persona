@@ -5,7 +5,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // agy workers run in Allow all, as Claude Code's do: in a terminal pane nobody answers agy's own approval prompt, and

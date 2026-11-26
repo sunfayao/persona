@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
 )
 
 func TestSkillCatalogIsolationProfilesDeletionAndFailure(t *testing.T) {

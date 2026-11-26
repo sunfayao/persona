@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // An FLV stream as ffmpeg writes it: the header, a sequence header, then frames (0x17 keyframe, 0x27 not).

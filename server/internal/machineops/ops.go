@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Read-only MCP tool names exposed by `personad ops mcp`.

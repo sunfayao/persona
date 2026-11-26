@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Connectors: each source of the user's information plugs in as a connector, and the hub's pipes pick up what it

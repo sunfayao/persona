@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The link an agent stops at in these tests, as the triage gives it and its command printed it (placeholders).

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 type sourceTransport func(*http.Request) (*http.Response, error)

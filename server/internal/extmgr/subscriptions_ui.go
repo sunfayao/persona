@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/subscriptionsui"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/subscriptionsui"
 )
 
 // The subscription pages (#2041): drawn here as declarative UI with the

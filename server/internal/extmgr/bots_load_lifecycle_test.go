@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	larkconnector "github.com/nwverse/persona/server/internal/connector/larkcli"
-	"github.com/nwverse/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/connector"
+	larkconnector "github.com/sunfayao/persona/server/internal/connector/larkcli"
+	"github.com/sunfayao/persona/server/internal/lark"
 )
 
 type botBlockedReadStore struct {

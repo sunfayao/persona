@@ -1,6 +1,6 @@
 package node
 
-import "github.com/nwverse/persona/server/internal/proto"
+import "github.com/sunfayao/persona/server/internal/proto"
 
 // exampleGate is a command gate the way a plugin's assistant.gate makes one: `ex METHOD PATH
 // [BODY]` against an example API at base, its token in EXAMPLE_TOKEN. user are the configured rules, first.

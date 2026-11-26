@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // BenchmarkSessionsChangedEvent: a node's sessions.changed for 300 sessions as the assistant takes it (the devices

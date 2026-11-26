@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/nwverse/persona/server/internal/claudeplugin"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/claudeplugin"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Persona plugin for Claude Code (internal/claudeplugin): the

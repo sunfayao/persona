@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/hub"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/hub"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Usage is the hub's commands, as `personad hub …` (clitext.Named puts the program's name in).

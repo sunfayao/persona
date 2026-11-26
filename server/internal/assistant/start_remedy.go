@@ -11,10 +11,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A supervised task whose agent did not start because the new tab's shell stopped on a question (shell_waiting) or

@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // previewFor is how long a preview's staged package is kept.

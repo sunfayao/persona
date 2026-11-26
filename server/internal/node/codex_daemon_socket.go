@@ -1,8 +1,8 @@
 package node
 
 import (
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // A shared app-server daemon (0.163 and later) that is still running but whose control socket is gone takes no new

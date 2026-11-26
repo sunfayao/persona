@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A "replied" report that is Persona's own confirmed reply, not the user's: the source cannot tell them apart, so the

@@ -19,7 +19,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // TestSupervisorHelper is not a test: the tests below run this binary as the programs the supervisor looks after.

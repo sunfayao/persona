@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Exercise the current manager/Node wire shape, not just direct admission helpers.

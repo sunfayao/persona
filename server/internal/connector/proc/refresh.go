@@ -5,10 +5,10 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // round is one fetch that every refresh asked for meanwhile shares. Its context ends only once every asker's has,

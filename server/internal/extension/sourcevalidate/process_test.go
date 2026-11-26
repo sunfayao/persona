@@ -18,9 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestMain(m *testing.M) {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Codex MCP call's pictures (a connector's, computer use's) become image items on the call's card, as a Claude tool

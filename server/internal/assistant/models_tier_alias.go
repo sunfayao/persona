@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // apiTierAliases: the Claude Code tier aliases a model field can hold (the picker offers them for a launcher's CLI,

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A to-do's relayed writes that keep an operation receipt (#10465, #11084): creating one, including its images;

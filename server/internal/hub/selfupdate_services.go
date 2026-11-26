@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // What runs the programs a self-update swaps beside personad (docs/operations/hub-update.md "Programs swapped

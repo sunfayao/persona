@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 func inboxWakeSlotsListedCompatFixture(withDeferredAt, withWakeSlot, withDeferredPending bool) *InboxItem {

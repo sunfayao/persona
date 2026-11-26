@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // featureDesktopUnregister says this hub withdraws a connection's desktop presence without closing its app socket.

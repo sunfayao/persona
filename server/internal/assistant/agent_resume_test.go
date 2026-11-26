@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // stoppedBoxAgent is agent sid of box as a node after #4754 lists it once it stopped: read-only, its terminal kept.

@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // New items of a plugin's connector enter the inbox triaged (#1644): a collection keeps the items it starts aside

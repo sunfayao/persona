@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCodexPushTitles(t *testing.T) {

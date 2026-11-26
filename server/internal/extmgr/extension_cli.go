@@ -20,12 +20,12 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // `personad extension …` on the hub's machine: what installs, upgrades and removes

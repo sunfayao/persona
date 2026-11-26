@@ -21,8 +21,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // link is one live link to the hub.

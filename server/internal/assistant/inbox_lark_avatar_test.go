@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 func TestListedFeishuAvatarKeepsTheStoredPictureAndAccount(t *testing.T) {

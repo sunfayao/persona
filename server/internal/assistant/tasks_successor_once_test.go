@@ -10,8 +10,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // successorGateHub holds session.start at a gate, outside the fake's own lock, the way a node that is still building

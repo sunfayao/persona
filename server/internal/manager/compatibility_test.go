@@ -1,7 +1,7 @@
 package manager
 
 import (
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"os"
 	"path/filepath"
 	"testing"

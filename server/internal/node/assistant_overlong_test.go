@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // A stream-json line longer than the scanner takes (a big image or tool result) ends the read: the process is

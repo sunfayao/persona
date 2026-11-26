@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A follow submitted while the current Agent runs must also survive an empty or timed-out processing turn after that

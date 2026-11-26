@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/apierr"
 )
 
 // The "Today" card at the top of the day in an assistant conversation, and the kinds of tasks the user lets start

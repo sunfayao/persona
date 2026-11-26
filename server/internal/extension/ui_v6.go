@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // UI version 6: pictures, controls in rows, new charts and sparks, a row's extra

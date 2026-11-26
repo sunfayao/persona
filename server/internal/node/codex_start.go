@@ -18,15 +18,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // Starting a Codex from the phone. A Codex launcher (plain `codex`, or an alias whose

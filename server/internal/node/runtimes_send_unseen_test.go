@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	hostpkg "github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	hostpkg "github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 type runtimeUnseenFixture struct {

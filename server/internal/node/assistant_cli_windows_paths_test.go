@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The scripts the node hands Git Bash as an argument cross the native process → Git Bash boundary on Windows, which

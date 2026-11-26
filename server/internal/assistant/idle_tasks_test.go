@@ -9,7 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // idleTaskHub holds the device outside fakeHub's mutex, so an idle check can still read the hub's settings.

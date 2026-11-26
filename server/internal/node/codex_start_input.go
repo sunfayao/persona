@@ -8,9 +8,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // A terminal can display a paste as several chips with literal text between or

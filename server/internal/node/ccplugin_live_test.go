@@ -27,7 +27,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
 )
 
 func TestCCPluginLive(t *testing.T) {

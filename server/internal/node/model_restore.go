@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // "Back to the configured model" after a refusal fallback (#2528, the follow-up of #2289): Claude Code moved a session

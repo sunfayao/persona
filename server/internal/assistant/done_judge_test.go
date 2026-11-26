@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // cannedJSON is a jsonModel that answers every call with the same JSON (or error) and keeps what it was asked.

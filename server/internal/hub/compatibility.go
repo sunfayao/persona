@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 var contractHeaders = []string{"X-Persona-Client", "X-Persona-Op-Id", "X-Persona-CSRF",

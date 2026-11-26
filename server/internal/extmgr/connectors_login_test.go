@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // keepStore is memStore with settings and connector secrets kept in memory.

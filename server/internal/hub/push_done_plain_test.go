@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The finished push says what the turn came to even when its answer is a table or folded in <details> (#4462).

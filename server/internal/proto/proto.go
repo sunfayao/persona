@@ -1,7 +1,7 @@
 // Package proto holds the wire types shared by hub, node and clients. See docs/protocol/protocol.md.
 package proto
 
-import "github.com/nwverse/persona/server/internal/nodeproto"
+import "github.com/sunfayao/persona/server/internal/nodeproto"
 
 // Protocol is the app <-> hub protocol's major version: it goes up only for a change an older app cannot live with
 // (features cover everything finer). MinAppBuild is the oldest app build (CFBundleVersion) this hub works with; 0:

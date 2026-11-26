@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // How long a question takes from a real Claude Code's terminal to an app (#751): a real node (in this process, with

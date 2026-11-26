@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Recipe is a pull recipe as the connector protocol defines it (#2037).

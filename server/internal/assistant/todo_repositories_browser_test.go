@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Opt-in fixture uses real manager persistence and handlers; unrelated app routes

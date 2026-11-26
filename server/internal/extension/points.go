@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"net/url"
 	"path"
 	"regexp"
@@ -12,11 +12,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Point is an extension point: a place in the hub a plugin contributes to.

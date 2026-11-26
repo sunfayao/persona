@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // renameSpace renames a workspace (what the phone calls a space) in the host it is in (spaceOrganizer) and returns the

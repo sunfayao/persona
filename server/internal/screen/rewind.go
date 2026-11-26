@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Claude Code's /rewind (recorded on 2.1.318, testdata/claude-2.1.318-rewind-*): a full-width panel under a ▔ rule,

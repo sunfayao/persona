@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // AdminConfig is hub.json's "admin": who may open the admin UI and how long a sign-in lasts.

@@ -12,10 +12,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A connector's command line (personad tool, internal/toolcli) reaches the hub through the node's socket like the MCP

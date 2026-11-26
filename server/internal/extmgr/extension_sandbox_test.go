@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/egress"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveBoxedExtensionForTest answers GET /probe on its HTTP side with what it may do from where it runs.

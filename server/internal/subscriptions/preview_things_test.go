@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A dry run's items become what the Inbox would be handed (#5278): one thread row each with its context, the

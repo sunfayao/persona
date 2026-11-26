@@ -15,7 +15,7 @@ import (
 
 	"github.com/tailscale/go-winio"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Codex App's bus on Windows is the named pipe \\.\pipe\codex-ipc (codex_desktop_windows.go). Tests serve a fake

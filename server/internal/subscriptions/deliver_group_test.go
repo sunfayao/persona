@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The Inbox's rows follow the recipe's group_by (#5671): a subscription grouped by

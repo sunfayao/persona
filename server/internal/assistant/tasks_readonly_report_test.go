@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestReadonlyTaskReportDoesNotAskUser(t *testing.T) {

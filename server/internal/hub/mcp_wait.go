@@ -3,9 +3,9 @@ package hub
 import (
 	"encoding/json"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // mcpWaitReporter relays an approval's enum through the manager that owns the pending call's machine. It

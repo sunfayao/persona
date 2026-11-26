@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // emptyHome is a HOME without hub.json.

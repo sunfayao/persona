@@ -3,7 +3,7 @@ package assistant
 import (
 	"path"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // The node resolves arbitrary aliases. The hub also knows custom state roots

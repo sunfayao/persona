@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // While a resident node has no manager connection (the manager restarting, crashed, or not installed yet), it answers

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 var permanentStatusCodes = []string{"400", "401", "402", "403", "404", "405", "409", "410", "413", "422", "501", "505"}

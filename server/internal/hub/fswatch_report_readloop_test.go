@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // heldFSNode answers fs.watch like a node, but keeps the first answer back until the test releases it.

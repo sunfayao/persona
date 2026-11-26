@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // LaunchNodeWait is how long `personad launch` waits for the local node to hand over a launcher's settings. The node

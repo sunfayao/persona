@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A session whose transcript was copied to a new project directory when its working directory moved, and that goes on

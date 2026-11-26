@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A to-do's writes under an op id say how they stand on the socket (todo_send_state, todo_receipts.go, #10465):

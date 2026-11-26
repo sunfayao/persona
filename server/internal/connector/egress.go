@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netproxy"
+	"github.com/sunfayao/persona/server/internal/netproxy"
 )
 
 // Egress is how a connector reaches the services it reads. A connector's hub.json config embeds it to get a "proxy"

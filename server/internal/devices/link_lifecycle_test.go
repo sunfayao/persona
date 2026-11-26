@@ -12,8 +12,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // testLinkClient is a Persona Link connected to d through a relay: it says its hello, then reads until the link ends.

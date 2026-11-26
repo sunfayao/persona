@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // assistant.main_compact_window (#7314): the main conversation is compacted at about this many tokens instead of its

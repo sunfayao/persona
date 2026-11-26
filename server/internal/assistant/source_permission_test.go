@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func testSourcePermission(session, name string, args json.RawMessage, class string) proto.SourcePermission {

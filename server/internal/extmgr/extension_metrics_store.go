@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // ---- all the extensions' ----

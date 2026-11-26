@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // scannedClaude makes the scan of running claudes (claudedirs.go) see exactly one, pid, running session id with e, and

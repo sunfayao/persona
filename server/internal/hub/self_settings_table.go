@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // More of the hub's own settings for persona_settings, from a table (the update channel and auto-update; the shape of

@@ -13,8 +13,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/voice/voicetest"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/voice/voicetest"
 )
 
 // dictationTestPlugin has a function-tool-capable upstream so a dictation session that accidentally inherits an

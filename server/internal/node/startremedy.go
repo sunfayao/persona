@@ -7,7 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // A start that ended with shell_waiting or agent_start_stalled keeps its tab (keepStartTab, #2570). Whoever remedies it

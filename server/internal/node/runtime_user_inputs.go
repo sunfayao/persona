@@ -6,8 +6,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Runtime sessions use their existing item paging, without requiring #2071 or a new runtime SDK method.

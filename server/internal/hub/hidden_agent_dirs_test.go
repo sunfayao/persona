@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The hub only carries manager annotations into the shared list index and DTOs.

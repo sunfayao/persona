@@ -9,8 +9,8 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func workspaceTaskService(t *testing.T) (*Service, *fakeHub) {

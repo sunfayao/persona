@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // Plugin skills: skills from the hub's plugins, kept on this machine in PluginDir as the hub

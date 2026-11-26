@@ -3,8 +3,8 @@ package assistant
 import (
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Use the same predicate as plain archive before suggesting it as a fallback.

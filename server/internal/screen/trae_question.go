@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // TraeQuestionRev identifies an answer that must be checked and sent through TRAE's own question overlay.

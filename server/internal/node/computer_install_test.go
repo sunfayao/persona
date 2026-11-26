@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakeInstaller serves Cua's three installer scripts (scripts replaces some; "" leaves one out): install.sh checks its two helpers are beside it on disk, records

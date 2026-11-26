@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // readCodexProjectSelection is a read-only snapshot seam for selection tests.

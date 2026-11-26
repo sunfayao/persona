@@ -12,8 +12,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/agents"
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/agents"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 type personalORPage struct {

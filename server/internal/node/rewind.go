@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // session.rewind drives Claude Code's own /rewind for an idle session (#2436). The pane is a TUI with no API, so the

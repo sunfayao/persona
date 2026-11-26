@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // The To-dos view across managers (todo_view.go, #10226): the hub adds the managers' counts,

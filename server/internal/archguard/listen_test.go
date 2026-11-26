@@ -104,7 +104,7 @@ func TestListenerRefs(t *testing.T) {
 		{`import "net"; func f(l net.Listener) { _, _ = l.(*net.UnixListener); switch l.(type) { case *net.TCPListener: } }`,
 			[]string{"net.UnixListener", "net.TCPListener"}},
 		{`import . "net"; func f(l Listener) { _ = l.(*TCPListener) }`, []string{"net.TCPListener"}},
-		{`import "github.com/nwverse/persona/server/internal/osproc"; var _, _ = osproc.Listen("tcp", ""); var _ *osproc.UnixListener`, nil},
+		{`import "github.com/sunfayao/persona/server/internal/osproc"; var _, _ = osproc.Listen("tcp", ""); var _ *osproc.UnixListener`, nil},
 		{`func f(s interface{ Listen(string) error }) { _ = s.Listen("tcp") }`, nil}, // a userspace network's, say
 	} {
 		f, err := parser.ParseFile(token.NewFileSet(), "x.go", "package x; "+c.src, parser.SkipObjectResolution)

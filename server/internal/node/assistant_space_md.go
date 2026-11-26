@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The space_state_update tool replaces a track's state block. Each atomic write keeps the previous file in

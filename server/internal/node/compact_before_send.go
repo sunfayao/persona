@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // Compacting a nearly full Agent before a message goes in (#11137). The assistant's agent_send asks for it

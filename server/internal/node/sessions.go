@@ -11,14 +11,14 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // hostTextSlack: the transcript's words this long after the host's record of the answer still belong to that turn.

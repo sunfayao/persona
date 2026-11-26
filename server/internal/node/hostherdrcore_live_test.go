@@ -28,9 +28,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdrcore"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/herdrcore"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func hcBin(t *testing.T) string {

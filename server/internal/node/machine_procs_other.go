@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func osListListeningPorts(context.Context, string) ([]proto.ListeningPort, bool, string, error) {

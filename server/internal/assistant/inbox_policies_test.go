@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 func groupItem(id, feed, sender string, tier string) *InboxItem {

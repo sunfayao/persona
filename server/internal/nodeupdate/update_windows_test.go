@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // On Windows a node takes updates only when persona-link's supervisor says it restarts it (node --attach --supervised);

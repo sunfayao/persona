@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // These are trusted card resolutions. Model-supplied quotes enter as inferred

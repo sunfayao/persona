@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // The names the hub's setup prints are the ones install --builtin uses.

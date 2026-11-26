@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
 )
 
 // resolverHelperEnv runs the test binary as a fresh process whose resolver has not been used yet.

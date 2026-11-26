@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 const deviceSessionRetention = 14 * 24 * time.Hour

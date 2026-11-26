@@ -5,9 +5,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // What a linked schedule's progress check counts besides an Agent's words, a criterion's state and an explicit

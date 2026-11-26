@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Thread preserves the source's message boundaries. Inbox context is a legacy

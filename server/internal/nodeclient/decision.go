@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // DecisionRaiseRequest is the local socket's raise envelope. Cwd and Pane only

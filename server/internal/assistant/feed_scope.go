@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What an extension's token (assistant.ask) is shown of the assistant's conversations (#10941,

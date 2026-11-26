@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func workspaceList(t *testing.T, n *Node) []proto.Workspace {

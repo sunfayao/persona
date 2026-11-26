@@ -3,7 +3,7 @@ package subscriptions
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // TriagePreview is what the Inbox would be handed for a dry run's items (#5278): each one as a run's item comes in

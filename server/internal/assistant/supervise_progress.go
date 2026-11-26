@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The no_progress signal (#10089): a supervised task's agent keeps its session moving, so `stalled` never comes, but

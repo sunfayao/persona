@@ -7,8 +7,8 @@ import (
 
 	"github.com/anmitsu/go-shlex"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart"
 )
 
 // stockOrcaCodexArgv distinguishes the built-in stock launcher from a configured no-op alias

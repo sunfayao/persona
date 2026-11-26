@@ -15,8 +15,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/webpush"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/webpush"
 )
 
 // Web Push (#7459): a browser that turned it on in Settings › Notifications gets what a phone
@@ -35,7 +35,7 @@ const (
 	// (notifyring.go), after which the card is in the lists and the news is old.
 	webPushTTL = notifyRingMaxAge
 	// webPushSubject is the VAPID sub claim, where a push service may reach the sender: the project, never the user.
-	webPushSubject = "https://github.com/nwverse/persona"
+	webPushSubject = "https://github.com/sunfayao/persona"
 	// webPushBrowserMax bounds the browser's name a page gives ("Chrome on macOS").
 	webPushBrowserMax = 64
 	// webPushErrorMax bounds what a push service's answer is kept as.

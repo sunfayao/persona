@@ -3,7 +3,7 @@ package mail
 import (
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // UnknownAccountError names an account that is no longer connected to this manager. It keeps the expected

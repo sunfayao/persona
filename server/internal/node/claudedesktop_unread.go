@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // A turn of a session in Claude's desktop app that ended while nobody looked at it is Unread: its row says done (not

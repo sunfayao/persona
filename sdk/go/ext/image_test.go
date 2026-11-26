@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 func pngBytes(t *testing.T) []byte {

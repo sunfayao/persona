@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A change of one of the manager's settings whose caller stopped waiting while its card was being answered is not

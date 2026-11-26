@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/mail"
 )
 
 type inboxOnlyMail struct{ Mail }

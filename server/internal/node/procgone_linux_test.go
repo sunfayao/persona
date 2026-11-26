@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // A claude killed but not reaped yet is a zombie whose /proc entry still has its start: that is gone, as is one reaped,

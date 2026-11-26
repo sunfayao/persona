@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Account-pool capacity in launcher selection (docs/server/usage-windows.md "Account-pool gateways",

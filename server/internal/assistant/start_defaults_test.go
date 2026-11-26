@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // stubStartDefaults makes s ask fn for every task start's defaults; seen are the facts each start gave, in order.

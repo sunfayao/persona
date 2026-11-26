@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // ompStoppedRefusal is a call a stopped session has nothing to answer with (no terminal, nothing running). The text

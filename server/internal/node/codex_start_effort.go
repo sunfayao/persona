@@ -14,10 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/shellcmd"
-	"github.com/nwverse/persona/server/internal/tomltext"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 // A purpose's or tier's effort reaches a new Codex as `-c model_reasoning_effort=<effort>` (control.go), but any -c

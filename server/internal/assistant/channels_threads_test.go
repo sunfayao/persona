@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // threadsChannelService is a connected IM plugin channel that keeps a conversation per thread (capabilities.threads)

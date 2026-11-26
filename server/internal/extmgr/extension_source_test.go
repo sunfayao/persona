@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/denohost"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/denohost"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
 )
 
 func requireSourceBuildBun(t *testing.T) string {

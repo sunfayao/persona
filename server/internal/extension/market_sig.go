@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"io"
 	"reflect"
 	"strings"

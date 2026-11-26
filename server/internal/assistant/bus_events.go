@@ -3,7 +3,7 @@ package assistant
 import (
 	"encoding/json"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // queueEvent puts one of the hub's events in line (the read loop's: it must not block). The text a followed

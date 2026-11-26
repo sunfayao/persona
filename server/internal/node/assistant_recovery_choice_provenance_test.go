@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const recoveryChoiceProvenanceID = "11111111-2222-3333-4444-555555555555"

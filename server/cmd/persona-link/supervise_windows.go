@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // Restart delays, as the Linux units have them (RestartSec): persona-link 5 s, the node 10 s.

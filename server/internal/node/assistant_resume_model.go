@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Claude Code resumes a session on the model the session last ran on, unless --model, ANTHROPIC_MODEL or one of the

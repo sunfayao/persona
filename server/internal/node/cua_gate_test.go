@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/protectedapps"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/protectedapps"
 )
 
 // fakeCuaLook says what the gate's look at the Mac finds (cua_gate.go), on a Mac, and counts the looks: list_apps

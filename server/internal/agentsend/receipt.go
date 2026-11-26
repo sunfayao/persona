@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/hubclient"
+	"github.com/sunfayao/persona/server/internal/hubclient"
 )
 
 type state string

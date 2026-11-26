@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Native archive against a real Codex, in a throwaway CODEX_HOME of its own:

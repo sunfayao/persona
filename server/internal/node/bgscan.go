@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // bgScan follows one transcript for background tasks. The quick meta only reads the tail, which in a long turn full

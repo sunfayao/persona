@@ -1,8 +1,8 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Stable and beta are two GitHub feeds, not different names for web-dev.

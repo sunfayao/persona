@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The manager's reminder of an agent still waiting on the user's answer (docs/protocol/agent-states.md "Awaiting your reply", #5096): the

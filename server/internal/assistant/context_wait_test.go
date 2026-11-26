@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // snapshotWaitTest is a service with a snapshot taken lastRead ago from a read that took took, whose connectors

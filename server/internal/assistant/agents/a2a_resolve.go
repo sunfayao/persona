@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // a2aResolve is the session an Agent names, as its computer lists it now (#14395): ref itself when a row has its id,

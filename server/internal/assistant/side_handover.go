@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A review a pre-#5732 side-supervised ledger leaves waiting (#8043).

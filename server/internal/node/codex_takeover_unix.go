@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/orcart"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // Ctrl+D enters Codex's shutdown-first TUI path. Process signals do not: never

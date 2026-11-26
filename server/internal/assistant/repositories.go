@@ -12,9 +12,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 const repositoriesKey = "assistant.repositories"

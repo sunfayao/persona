@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // errEngineChanged: the engine was switched while a refresh ran; its result is the old engine's and is dropped.

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const reviewArtifactURL = "https://github.com/example/project/pull/42"

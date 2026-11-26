@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // privateSocket: a Unix control socket and its directory belong to this user, no one else may use them, and neither

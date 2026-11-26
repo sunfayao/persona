@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Live agents whose rows tie on UpdatedAt (none has a transcript yet, so all are zero) come out in id order on every

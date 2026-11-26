@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // startCandidate is one preset a start-defaults rule may choose on a machine: whether it can start there now, and

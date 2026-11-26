@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Shared-server observers never auto-answer, including errors, declines, timeouts and unsupported requests.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/quota"
+	"github.com/sunfayao/persona/server/internal/quota"
 )
 
 // launcherHTTP is how a quota plugin on the hub reads a ~/.zshrc launcher's quota: the probe

@@ -11,7 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Holding a call (#9290, docs/assistant/voice.md 4.9 "Suspension", suspend.go holdFrame): the app's hold frame pauses

@@ -3,8 +3,8 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Assistant-dispatched Agents belong to tasks supervised by their planning lead, or by main for other conversations. The older assistant.agent_tasks switch still

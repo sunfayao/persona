@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func (n *Node) observeUpdateAssistant(ctx context.Context, p *assistantProc) ([]nodeclient.UpdateActivity, string, error) {

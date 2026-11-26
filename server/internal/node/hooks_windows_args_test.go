@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 func TestHookSettingsWindowsNativeArgs(t *testing.T) {

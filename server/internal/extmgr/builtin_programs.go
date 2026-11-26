@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // builtinNode is a built-in extension's node section: its program is in personad (node.command "builtin",

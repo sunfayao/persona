@@ -16,8 +16,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Recycle Bin these tests use is the user's own. They recycle only what is in their temp folders, and

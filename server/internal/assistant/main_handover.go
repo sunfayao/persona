@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Replacing the main conversation (#4866): the open tasks of the main

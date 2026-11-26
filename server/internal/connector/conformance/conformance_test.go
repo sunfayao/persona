@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
 )
 
 var snake = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)

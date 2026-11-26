@@ -12,10 +12,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // The built-in manager's secret.key started as a copy of the hub's (managerconf.MoveFiles), so each part could open

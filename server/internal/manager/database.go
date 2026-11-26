@@ -9,9 +9,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/pgdocker"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/pgdocker"
 )
 
 // A manager's own Postgres: a Docker container and volume named after it, its port

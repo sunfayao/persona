@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // Codex support: herdr reports Codex panes as agent "codex"; their conversations are rollouts under

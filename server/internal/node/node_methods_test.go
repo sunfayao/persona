@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/node/clipshare"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/node/clipshare"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // nodeRPC's adapter decodes a call's params into the method's own type once: a field the type does not have (a newer

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Declarative contributions (#1854): an extension made of a manifest and a few files,

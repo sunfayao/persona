@@ -17,8 +17,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Personas are look packages installed in the hub's personas directory or supplied by an extension.

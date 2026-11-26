@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestAssistantViewStopRepairsOnlyOnceAndBeforeReportingCompletion(t *testing.T) {

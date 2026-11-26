@@ -8,8 +8,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Entry is an executable environment's inventory entry. Paths stay on the node.

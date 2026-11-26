@@ -13,12 +13,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/egress"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // An installed extension's program runs in a sandbox, reaching out only through the hub's egress proxy and only to the

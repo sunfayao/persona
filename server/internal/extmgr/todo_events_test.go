@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // The to-do events (#5279) reach a running extension only when it subscribed to the topic and was granted todos.read

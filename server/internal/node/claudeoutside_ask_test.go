@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // multiAsk is an AskUserQuestion of four questions, one of them multi-select, the shape Claude Code writes (made-up

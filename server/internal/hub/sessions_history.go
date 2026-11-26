@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/sessionhistory"
+	"github.com/sunfayao/persona/server/internal/sessionhistory"
 )
 
 // GET /api/v1/sessions?include_inactive=1&since=…: sessions active in a time window, archived, finished and offline

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // botLoadStore uses the same found/error and JSON decoding contract as db.Setting.

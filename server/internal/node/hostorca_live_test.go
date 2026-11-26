@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart"
 )
 
 func TestOrcaLiveReadOnly(t *testing.T) {

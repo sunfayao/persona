@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const agyMaxImageBytes = 1152 << 10

@@ -15,9 +15,9 @@ import (
 
 	"github.com/creack/pty"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/tmux"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/tmux"
 )
 
 // The interactive side of `personad assistant-tui`. Claude Code runs in a tmux server of its own (a private socket in

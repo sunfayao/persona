@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Exercise normal session.start through the fake herdr pane and inspect the same start metadata the clients read.

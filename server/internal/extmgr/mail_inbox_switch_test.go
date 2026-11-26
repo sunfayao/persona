@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // Mail's Add to Inbox (#5307): on until turned off, kept like the other connector switches; off, the mail rounds read

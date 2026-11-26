@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/node/files"
+	"github.com/sunfayao/persona/server/internal/node/files"
 )
 
 func putFiles(t *testing.T, root string, rels ...string) {

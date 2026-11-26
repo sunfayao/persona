@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 func TestUserLocationUsesManagerProfile(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // largeStart is a new conversation's body with n bytes in base64 as its prompt (an attached file): 16 MiB make the

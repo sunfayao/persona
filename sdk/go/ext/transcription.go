@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Transcription for extensions (docs/extensions/extensions.md "Transcription for extensions", #8485): with the

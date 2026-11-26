@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // EventAction validates the exact displayed session/epoch/version and the saved

@@ -14,8 +14,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // terminalLocale sets the environment i18n.Terminal reads to exactly env (the rest unset), whatever the machine

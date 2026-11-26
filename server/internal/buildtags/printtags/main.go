@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/buildtags"
+	"github.com/sunfayao/persona/server/internal/buildtags"
 )
 
 func main() {

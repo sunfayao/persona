@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The auth relay extension point: an authorization link one of the user's Agents stopped at is

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // The migrations are a hub set and a manager set: a hub's database has only the hub's

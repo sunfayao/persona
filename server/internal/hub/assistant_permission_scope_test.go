@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // Drive the public HTTP route and real WebSocket bus with separate manager services

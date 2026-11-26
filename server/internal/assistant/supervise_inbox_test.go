@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // New Inbox messages about a supervised task reach its supervisor (#4293, supervise_inbox.go).

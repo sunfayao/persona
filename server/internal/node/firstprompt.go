@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // A new Claude's first message (start in control.go) is typed into its input box once the box shows. Claude Code is

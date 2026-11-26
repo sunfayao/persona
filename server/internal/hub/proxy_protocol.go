@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proxyproto"
+	"github.com/sunfayao/persona/server/internal/proxyproto"
 )
 
 // ProxyProtocolConfig is security.proxy_protocol: the hub sits behind a TCP proxy

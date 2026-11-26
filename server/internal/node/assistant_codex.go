@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
 )
 
 // The assistant on a Codex launcher runs `codex app-server` (Codex's JSON-RPC server for IDEs, newline-delimited JSON

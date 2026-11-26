@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The Feishu bot: the user talks to Persona through a Feishu / Lark custom app's bot. The hub keeps its

@@ -7,8 +7,8 @@ import (
 	"io"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // fakeNode models n one-item turns. The initial page takes the latest turns, and a catch-up takes up to 500 items.

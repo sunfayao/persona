@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // storageBytesRows is how many of key's spaces there are, failing when one's stored state_bytes is not the encoded

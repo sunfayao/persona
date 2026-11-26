@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A runtime's title is its own word (#8133). Paseo titles an agent nobody named after its first prompt and keeps any

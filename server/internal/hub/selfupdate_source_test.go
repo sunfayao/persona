@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // hub.json's update.url replaces the URL the build was made with (#4522: v0.2.1's pointed at a site that stayed on an
@@ -70,7 +70,7 @@ func TestUpdateSourceFromHubJSON(t *testing.T) {
 // password in it is never shown.
 func TestUpdateSourceRefusesABadURL(t *testing.T) {
 	for raw, want := range map[string]string{
-		"https://github.com/nwverse/persona/releases/latest/download/": "https://github.com/nwverse/persona/releases/latest/download",
+		"https://github.com/sunfayao/persona/releases/latest/download/": "https://github.com/sunfayao/persona/releases/latest/download",
 		"file:///srv/persona/dl":          "file:///srv/persona/dl",
 		"http://127.0.0.1:8080/dl":        "http://127.0.0.1:8080/dl",
 		"http://[::1]:8080/dl":            "http://[::1]:8080/dl",
@@ -241,7 +241,7 @@ func TestUpdateProxyThatDoesNotReadFailsChecks(t *testing.T) {
 func TestNodePackagesFollowTheUpdateSource(t *testing.T) {
 	h := newTestHub(t)
 	h.build.UpdateURL = "https://dl.example.com/dl"
-	h.cfg.Update = UpdateConfig{URL: "https://github.com/nwverse/persona/releases/latest/download", Proxy: "http://proxy.example:3128"}
+	h.cfg.Update = UpdateConfig{URL: "https://github.com/sunfayao/persona/releases/latest/download", Proxy: "http://proxy.example:3128"}
 	if c := h.devicesConfig(); c.NodePackagesURL != h.cfg.Update.URL || c.NodePackagesProxy != "http://proxy.example:3128" {
 		t.Fatalf("from the update source: %+v", c)
 	}

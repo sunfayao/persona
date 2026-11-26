@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 func TestParseLaunchersSimple(t *testing.T) {

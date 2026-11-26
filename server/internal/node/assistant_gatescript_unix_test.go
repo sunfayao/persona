@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // writeGateScript writes body as a bash script in a fresh directory and returns its path.

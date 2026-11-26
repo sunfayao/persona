@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 func TestTodoRepositoriesAtomicRestartAndLegacyEdits(t *testing.T) {

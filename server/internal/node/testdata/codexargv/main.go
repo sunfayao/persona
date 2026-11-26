@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/node"
 )
 
 func main() {

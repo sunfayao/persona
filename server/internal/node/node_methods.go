@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // The node's method table (#12920). A method that is not

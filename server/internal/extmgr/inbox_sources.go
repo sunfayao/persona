@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/subscriptionsui"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/subscriptionsui"
 )
 
 // The built-in sources of the Inbox Sources pages (#5278): the connectors

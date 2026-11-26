@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"path/filepath"
 	"testing"
 )

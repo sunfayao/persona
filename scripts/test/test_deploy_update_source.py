@@ -56,7 +56,7 @@ class DeployUpdateSourceTests(unittest.TestCase):
         self.assertIn('none (it will not look for releases)', err)
 
     def test_update_url_set_says_nothing(self):
-        github = 'https://github.com/nwverse/persona/releases/latest/download'
+        github = 'https://github.com/sunfayao/persona/releases/latest/download'
         url, err = self.deploy({'site_url': 'https://site.example.test', 'update_url': github})
         self.assertEqual(url, github)
         self.assertEqual(err, '')

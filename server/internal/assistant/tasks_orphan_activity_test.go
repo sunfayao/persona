@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Regression for #12389 (Part 3): before reporting a running task as orphaned, the hub must reconcile closed-tab

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A lark-cli group item sorted FYI that then gets a request @-ing the owner stays the same item with new content, is

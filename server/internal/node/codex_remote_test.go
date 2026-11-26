@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 const remoteRaw = "11111111-2222-3333-4444-555555555555"

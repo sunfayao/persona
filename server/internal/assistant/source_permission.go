@@ -3,8 +3,8 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A digest speaks for every source it contains. A single attested report must not

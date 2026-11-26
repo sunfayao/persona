@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Isolation must work for all six connections with usable packages present,

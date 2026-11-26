@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // loadPathUIDs reads which computer each path reached last time, and the ids given to members' computers.

@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/files"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/node/files"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // A node announces lanes, and frames its connection when a manager that knows them asks; with one that does not, it

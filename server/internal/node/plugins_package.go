@@ -11,8 +11,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // hubPluginNames are the hub's own in its plugins directory: never a node's, whatever is in them (#1933).

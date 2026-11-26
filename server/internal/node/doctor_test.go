@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/node/doctor"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/node/doctor"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // doctorEnv is a node directory, an executable standing in for personad, and the sockets and Claude settings the

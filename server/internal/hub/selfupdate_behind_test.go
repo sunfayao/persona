@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // The hub of #8108: deployed from master 150 commits after v0.5.3, by deploy.sh with no publish.update_url.

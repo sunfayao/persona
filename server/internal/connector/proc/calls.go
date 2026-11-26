@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var errNotRunning = errors.New("not running")

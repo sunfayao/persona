@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
 )
 
 const parkReplyPages = 4

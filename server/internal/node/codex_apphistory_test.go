@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Each kind of the app-server's ThreadItems the chat shows becomes the rollout item the transcript reader knows: the

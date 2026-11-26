@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // ryokanDecision is a complete needs_user review, the fixtures' "Which ryokan?", which can be undone.

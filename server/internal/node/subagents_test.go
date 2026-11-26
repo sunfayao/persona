@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Nested subagents name their launcher (parentAgentId) and forks say so (isFork); one whose parent is past the

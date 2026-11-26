@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Codex launcher's list in the order of a recorded failure (#10277): the configured 1M model failed on a rate limit,

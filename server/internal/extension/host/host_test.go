@@ -19,10 +19,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // TestMain doubles as the plugin: HOST_TEST_PLUGIN=<mode> runs the test binary as one.

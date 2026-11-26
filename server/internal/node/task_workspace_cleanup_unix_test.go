@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	repository "github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
+	repository "github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
 )
 
 func TestBackendWorkspacePartialCleanupRetryProtectsRemovedBranch(t *testing.T) {

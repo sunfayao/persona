@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // reportingWithTask is a reporting conversation lark1 (working) whose task's agent s1 on box is working.

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 const conclusionCrashChild = "PERSONA_TEST_CONCLUSION_CRASH_CHILD"

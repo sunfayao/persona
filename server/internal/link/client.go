@@ -16,7 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // NodeDownMarker is in the error a computer's link reports when its resident node is not running (nodeMissing,

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A fake claude that writes what it was started with (the environment the assistant sets, one argument a line, its

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // Stdio is a short-lived, initialized app-server client used by both native metadata operations and model/list.

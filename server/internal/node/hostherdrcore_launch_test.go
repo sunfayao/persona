@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdrcore"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdrcore"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // appDoc is a Herdr app layout document: one space for folder with one tab holding t1, plus a key the node does not

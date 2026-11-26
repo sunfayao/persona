@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // slowRunDevs answers model.run as a node whose launcher takes delay to answer would: after delay, or not at all when

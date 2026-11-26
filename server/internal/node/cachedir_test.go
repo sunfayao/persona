@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/preview"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cacheEnv points the user cache folder (or, with cache false, none at all) and the temp folder at fresh folders,

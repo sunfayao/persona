@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"net/http"
 	"strings"
 	"time"
@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/crypto/argon2"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The administrator's password and browser sessions.

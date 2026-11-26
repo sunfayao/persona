@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 const fullTestSocket = "/x/lab/herdr.sock"

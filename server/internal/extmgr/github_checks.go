@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
 )
 
 func githubChecksPublicHost(c connector.Connector) bool {

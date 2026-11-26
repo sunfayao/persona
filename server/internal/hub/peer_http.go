@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // HTTP between hubs over their links. Each stream a hub opens on a link is one HTTP/1.1

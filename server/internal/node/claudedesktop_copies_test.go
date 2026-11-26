@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // writeDesktopCopy writes a copy of session local's entry under the account and organization folders given in appDir,

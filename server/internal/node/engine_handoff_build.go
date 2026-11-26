@@ -9,11 +9,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/textfmt"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The handoff note itself (engine_handoff.go reads the items): a pure function of the conversation's items, so the

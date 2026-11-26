@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // loop checks for releases (a minute after starting, then every hour) and installs one when updating itself is

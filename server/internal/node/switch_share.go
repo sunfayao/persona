@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What a node keeps of launcher switches (launcher_switch.go) outside a session's state record, in one place a

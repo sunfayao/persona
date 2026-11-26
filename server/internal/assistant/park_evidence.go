@@ -9,7 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 // nextActorExternal is the evidence.next_actor of a wait on a third party, a system or a date: no owner action.

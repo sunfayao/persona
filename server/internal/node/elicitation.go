@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func elicitationInteraction(in hookInput, ix *proto.Interaction) bool {

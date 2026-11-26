@@ -10,16 +10,16 @@ import (
 	"io"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/manager"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/procs"
-	"github.com/nwverse/persona/server/internal/tunnel"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/manager"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/procs"
+	"github.com/sunfayao/persona/server/internal/tunnel"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Assistant is `assistant [drop-shared-tables … | north-star …]`: the built-in manager on the hub's

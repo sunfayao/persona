@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 // The inbox is the manager's: the items and their state (admission, triage, events, mutes, done,

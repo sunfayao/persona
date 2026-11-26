@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // One voice conversation: the app's WebSocket on one side, a GPT-Live session on the other.

@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Binding the Lark bot in one authorization (#4347): the bind step

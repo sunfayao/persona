@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/mdns"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/mdns"
 )
 
 // `persona-link discover`: the hubs on this LAN, as they advertise themselves over mDNS (_persona-hub._tcp).

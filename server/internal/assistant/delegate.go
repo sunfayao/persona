@@ -7,8 +7,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An agent's question comes here before the user (fleet_delegate.go): a model

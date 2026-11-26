@@ -10,10 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func (s *Service) modelBaseline(ctx context.Context, p ModelPurpose) (ModelBinding, string, error) {

@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/repositorystore"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // TestPersistentOwnerActionSurvivesFormerDeadlineCallerAndRestart exercises the

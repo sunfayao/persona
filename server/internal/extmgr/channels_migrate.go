@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Before the channels' pipeline the WeChat program kept, in its own sealed state, where the owner's messages went

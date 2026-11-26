@@ -11,7 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 var errAccountWrite = errors.New("injected account write failure")

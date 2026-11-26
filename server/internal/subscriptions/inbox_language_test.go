@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The kind descriptions are a prompt for the triage model: English whatever the owner's language, naming the subscription.

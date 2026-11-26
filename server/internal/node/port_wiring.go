@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/node/ports"
-	"github.com/nwverse/persona/server/internal/portprobe"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/node/ports"
+	"github.com/sunfayao/persona/server/internal/portprobe"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // panesOfPID are the panes a process's engine pane variables name (its environment, cached per process), as the

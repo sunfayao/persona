@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/shareproof"
+	"github.com/sunfayao/persona/server/internal/shareproof"
 )
 
 const testOrigin = "http://share.example.test:18081"

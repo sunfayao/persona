@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A question asked without waiting (#4928, ask_later.go) holds no turn, so the conversation and the channels go on

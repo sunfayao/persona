@@ -12,7 +12,7 @@ import (
 	"github.com/emersion/go-sasl"
 	"github.com/emersion/go-smtp"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // mailWordDecoder decodes RFC 2047 encoded words in IMAP envelope fields with

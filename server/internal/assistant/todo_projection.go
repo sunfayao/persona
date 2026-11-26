@@ -6,10 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/todo/projection"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/todo/projection"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The To-dos view (#10226): what the manager works out for each to-do and for the list, by the pure projection in

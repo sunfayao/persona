@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/osproc"
 	"golang.org/x/sys/unix"
 )
 

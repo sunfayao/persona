@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // reconnectNow is the public, narrow command the desktop settings app uses instead of duplicating OS-specific pokes.

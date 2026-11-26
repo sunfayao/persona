@@ -9,7 +9,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // checkEffectiveDeadline checks both the snapshot a reconnecting client receives

@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // Every tab Persona opens for an agent is marked with personaTabToken (herdr keeps a pane's metadata tokens until the

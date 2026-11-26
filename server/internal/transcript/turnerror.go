@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/modelretry"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/modelretry"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A turn that ended on a model API error, as Claude Code's own record says it (Meta.TurnError…, #1710): the reply it

@@ -3,7 +3,7 @@ package node
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/gitworktree"
+	"github.com/sunfayao/persona/server/internal/gitworktree"
 	"os"
 	"path/filepath"
 	"runtime"

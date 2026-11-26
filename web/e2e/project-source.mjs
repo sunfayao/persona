@@ -62,7 +62,7 @@ try {
       const link = page.locator('[data-settings-group="about-persona"] a');
       await link.waitFor({ timeout: 20000 });
       await link.scrollIntoViewIfNeeded();
-      assert.equal(await link.getAttribute("href"), "https://github.com/nwverse/persona");
+      assert.equal(await link.getAttribute("href"), "https://github.com/sunfayao/persona");
       assert.equal(await link.getAttribute("target"), "_blank");
       assert.equal(await link.getAttribute("rel"), "noopener noreferrer");
       assert.match(await link.locator("..").locator("..").innerText(), /开源地址/);
@@ -73,8 +73,8 @@ try {
       const popupPromise = page.waitForEvent("popup");
       await link.click();
       const popup = await popupPromise;
-      await popup.waitForURL("https://github.com/nwverse/persona", { timeout: 30000, waitUntil: "domcontentloaded" });
-      console.log(`PASS settings link: ${width} ${theme}, opened https://github.com/nwverse/persona`);
+      await popup.waitForURL("https://github.com/sunfayao/persona", { timeout: 30000, waitUntil: "domcontentloaded" });
+      console.log(`PASS settings link: ${width} ${theme}, opened https://github.com/sunfayao/persona`);
       if (width === 390) {
         await page.evaluate(() => localStorage.setItem("persona.text-size", "large"));
         await page.reload();

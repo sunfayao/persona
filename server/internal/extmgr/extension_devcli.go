@@ -22,8 +22,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // dev runs `personad extension dev`: build, hang the extension on this machine's hub, print its log, and on each

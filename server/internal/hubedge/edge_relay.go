@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/proxyproto"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/proxyproto"
 )
 
 func (e *edge) accept(ln net.Listener) {

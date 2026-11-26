@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An extension's token changes the permission mode of a conversation its extension opened, and nothing else of any

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // listKeyFmt is the formatting reference for the fields tracked by listKey.

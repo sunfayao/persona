@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // #2429: the machine page's "What this computer can do" card shows what `personad node doctor` finds on a computer (docs/server/machines.md

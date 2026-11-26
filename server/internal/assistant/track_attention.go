@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // How loud a track may be (#13472): a push from a track's conversation

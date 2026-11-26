@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/aiwire"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/shellcmd"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/aiwire"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // model.run (#5823, #12027): an API purpose's

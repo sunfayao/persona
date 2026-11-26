@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // restoreNode is a node that answers session.restore_model with answer/err and keeps every call it was sent.

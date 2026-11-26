@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // GET /api/v1/interactions stamps each card with the hub's mute setting (#4360): the answer-only watch hides a

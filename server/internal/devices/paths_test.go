@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // Regrouping while the last regroup's ids are still being saved: the saved map is a copy (go test -race), and the

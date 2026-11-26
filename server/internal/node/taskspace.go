@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // Task workspaces (#4786): a leader and its workers share one herdr workspace owned by their top-level task. The node

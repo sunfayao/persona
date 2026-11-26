@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakeNode answers the calls: a connector "example" whose example_cli plans `ex list [--limit N]`, `ex say <text|->`

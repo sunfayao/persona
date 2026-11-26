@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // Who is calling an extension: a request or WebSocket the manager

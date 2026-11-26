@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/proto"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func startPreparedInteraction(t *testing.T, ft *fleetTest, ix proto.Interaction, op approvalops.Operation) <-chan preparedTestResult {

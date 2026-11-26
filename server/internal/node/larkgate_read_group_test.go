@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What /read asks the assistant to run (#11803, assistant/feishu_read.go, prompts/bot/read_group.md): read a group as

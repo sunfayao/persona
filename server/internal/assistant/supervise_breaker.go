@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Circuit breaker and backoff for the background supervisor (#12650).

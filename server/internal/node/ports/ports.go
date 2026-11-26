@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/portprobe"
-	"github.com/nwverse/persona/server/internal/processtable"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/portprobe"
+	"github.com/sunfayao/persona/server/internal/processtable"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // The ports the agents listen on: each live agent's processes — what runs under it and what else

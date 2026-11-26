@@ -13,7 +13,7 @@ import (
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 
-	"github.com/nwverse/persona/server/internal/imageorient"
+	"github.com/sunfayao/persona/server/internal/imageorient"
 )
 
 // sniff is the type of data from its first bytes, and whether the hub serves it: JPEG, PNG, GIF and WebP (decoded),

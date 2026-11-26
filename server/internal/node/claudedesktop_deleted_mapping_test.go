@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Delete can remove the only readable entry and leave just deleted_<local uuid>. The association observed while the

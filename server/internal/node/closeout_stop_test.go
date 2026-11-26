@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 func closeoutTranscript(t *testing.T, lines ...string) string {

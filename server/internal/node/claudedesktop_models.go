@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Claude Desktop's model list (claude-desktop launcher and sessions of source claude_desktop):

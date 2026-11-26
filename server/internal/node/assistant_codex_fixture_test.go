@@ -11,7 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Hold the real approval response until the request is waiting. Delivering that

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // env is what the commands that look after persona-link (install, status, logs, uninstall) need from this computer;

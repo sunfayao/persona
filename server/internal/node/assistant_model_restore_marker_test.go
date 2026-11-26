@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // closeStub is an io.WriteCloser whose Close is harmless, for an assistantProc a test stops without a real process.

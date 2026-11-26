@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // closeoutStartNode is a node whose hub answers agents.closeout.brief with answer(); asked counts the asks.

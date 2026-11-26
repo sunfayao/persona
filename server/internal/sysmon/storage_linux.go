@@ -6,7 +6,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // StorageMounts reports per-mount disk capacity and inode usage on Linux using statfs (sub-millisecond, no subprocess).

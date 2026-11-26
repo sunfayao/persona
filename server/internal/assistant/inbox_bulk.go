@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 
-	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/apierr"
 )
 
 // Filing many items (or bringing them back) in one request: Clean up all over what the list shows, Mark all as seen / Clear all on

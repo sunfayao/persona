@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 func TestNodeConfigurationAnnouncesHubFeatures(t *testing.T) {

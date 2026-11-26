@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Force archive is an explicit cancellation of a confirmation-blocked Agent, not a general busy override.

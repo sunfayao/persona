@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // The hub names the assistant's directories relative to HOME (".persona/assistant", ".persona/tracks/qa-private", ".persona/guest",

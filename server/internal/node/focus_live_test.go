@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Against a throwaway herdr session you made yourself (never the one you work in), with at least two tabs in a

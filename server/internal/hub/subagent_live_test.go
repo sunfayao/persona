@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const subagentSID = "aaaaaaaa-0000-0000-0000-000000000002@a1b2c3d4e5f60718"

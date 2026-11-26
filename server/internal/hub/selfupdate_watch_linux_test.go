@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // When the exec into the new version fails, the hub removes the pending marker, the watchdog exits, and the hub

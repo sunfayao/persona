@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 func TestTopicStrictPolicyReadbackAndLegacyUpdate(t *testing.T) {

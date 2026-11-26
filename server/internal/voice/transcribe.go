@@ -11,8 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Meeting transcription (#3862 phase 5, docs/assistant/meeting-minutes.md "The `transcription` extension point" and

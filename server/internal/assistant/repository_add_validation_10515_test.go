@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestRepositoryAddValidationFailureIsDefinitelyNotApplied10515(t *testing.T) {

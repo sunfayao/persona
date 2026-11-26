@@ -3,9 +3,9 @@ package hub
 import (
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 func (m *Machine) checkAssistantView(params json.RawMessage) (assistantwire.ViewCheckResponse, error) {

@@ -3,9 +3,9 @@ package extmgr
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 	"time"
 )
 

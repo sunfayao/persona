@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/shareproof"
+	"github.com/sunfayao/persona/server/internal/shareproof"
 )
 
 func ingressRequest(ip string, now time.Time, signed bool) *http.Request {

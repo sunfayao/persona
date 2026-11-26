@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A pull request or issue opened in the app as GitHub's own thread (connector.Threads):

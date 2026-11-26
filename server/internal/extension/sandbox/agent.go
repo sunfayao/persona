@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // AgentEnv is set in the environment of a process started in the agent sandbox: a launcher it runs (`personad

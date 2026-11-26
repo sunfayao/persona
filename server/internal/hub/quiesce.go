@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The hub's built-in writer quiesce for a Web development snapshot:

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The delegate prompt is English whatever language is passed (the Chinese aliases included); the supplied rule stays in

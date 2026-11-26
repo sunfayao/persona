@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/tmux"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/tmux"
 )
 
 // tmuxHost is a pane of a tmux server Persona did not open: a Claude Code the user started in tmux (#2562). Only what

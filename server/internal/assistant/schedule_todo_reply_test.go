@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #11553: a linked run's explanation is its own reply. Two linked patrols set up in one supervising conversation came

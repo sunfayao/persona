@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // endingQueue has the hub answer interactions.get for ix: pending (with ix) until ended is set, then ok false with

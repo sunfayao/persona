@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // markTodo writes one of the owner's marks on todo id: with the store through write, else on the memory row through

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // fullNode is a node as the hub sees it for full herdr views: herdr.client.open (answering as told) and the events the

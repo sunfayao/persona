@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // installGitHubExtension is one install of a GitHub extension whose settings have proxy and host, installed at `at`

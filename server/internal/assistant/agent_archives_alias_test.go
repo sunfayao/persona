@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An archive kept under an Antigravity CLI pane's id (made while the pane's conversation was not known, or before

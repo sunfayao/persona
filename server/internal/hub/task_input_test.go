@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 func TestTaskInputFollowsManagerCapability(t *testing.T) {

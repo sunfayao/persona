@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Claude clients drop a tool whose input schema has anyOf / oneOf / allOf at the top level (the Anthropic API does

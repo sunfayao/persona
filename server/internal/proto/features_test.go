@@ -245,7 +245,7 @@ func featureAppend(s ast.Stmt, info *types.Info, features *types.Var) (call *ast
 	return call, to, from
 }
 
-const featureModulePath = "github.com/nwverse/persona/server/"
+const featureModulePath = "github.com/sunfayao/persona/server/"
 
 // featureImporter type-checks the server module's packages from their source, enough for their constants: a flag may be
 // a constant of another package (nodeproto.PersonaContracts). Every other import fails, which leaves constants alone

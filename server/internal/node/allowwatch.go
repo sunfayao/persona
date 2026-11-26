@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // An allow that Claude Code does not take (#3752). Claude Code 2.1.322 runs the PermissionRequest hooks for its own

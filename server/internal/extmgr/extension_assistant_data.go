@@ -18,9 +18,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Assistant content from an extension's data directory (docs/extensions/extensions.md "Assistant content from the data

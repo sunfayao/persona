@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Stay below the transport's normal tool deadline. This budget observes an already

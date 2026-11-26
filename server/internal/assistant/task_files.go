@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Task files (#10511): a task's Agent names the files it made for the user by their absolute paths in its final reply

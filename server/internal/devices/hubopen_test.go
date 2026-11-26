@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // A preview the hub opened on a node (preview.open, a headless browser tab on a stream) ends on the node when a new

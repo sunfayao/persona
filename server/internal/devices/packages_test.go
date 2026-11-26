@@ -19,13 +19,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/update"
-	"github.com/nwverse/persona/server/internal/update/updatetest"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update/updatetest"
 )
 
 // nodeBinary is the build a hub of version sends a node of program on goos/arch from this machine's own builds, with

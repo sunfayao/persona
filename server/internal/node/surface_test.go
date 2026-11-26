@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The list reads the client a session runs in off its transcript (#6390): Claude's entrypoint, a rollout's originator.

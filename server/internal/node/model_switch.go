@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Switching the model of a running Claude Code session from the app (issue #2434): the model picker in the composer

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // Where notify_user's copies to the chat channels went, for its answer (#8268). The two senders, the Feishu bot's

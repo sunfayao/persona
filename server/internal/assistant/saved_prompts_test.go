@@ -3,7 +3,7 @@ package assistant
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"strings"
 	"testing"
 )

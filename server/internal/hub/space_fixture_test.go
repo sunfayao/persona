@@ -3,7 +3,7 @@ package hub
 import (
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // testSpaceDir is the directory of the track qa-private in home's state directory: a space whose information is

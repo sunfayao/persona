@@ -11,7 +11,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // These fixtures describe ChatStore, including behavior outside the corpus simulator:

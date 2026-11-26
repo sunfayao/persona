@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 func TestScheduledModelSourceIncludesBothIDs(t *testing.T) {

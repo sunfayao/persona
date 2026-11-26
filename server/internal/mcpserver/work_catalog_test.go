@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Exercise the same list, discovery and original call handlers that a native MCP client uses.

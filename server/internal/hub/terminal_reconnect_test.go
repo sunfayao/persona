@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // A phone takes over a terminal while the computer's node is replaced (a deploy restarts it): the terminal.watch on its

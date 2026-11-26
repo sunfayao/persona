@@ -5,7 +5,7 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func codexHistorySession(sid string, cause proto.StopCause, status string) proto.Session {

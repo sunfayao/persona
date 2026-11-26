@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sendAllowed is the kind of rule that stops confirming sends in a conversation (Gate).

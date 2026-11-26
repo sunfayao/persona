@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // managerDirCLI is fakeCLI that also notes the directory each process runs in (one line per start). The sign-in

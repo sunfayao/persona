@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The built-in model catalog (#2455): what is known of the models gateways commonly serve to Claude Code — the

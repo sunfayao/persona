@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/update/updatetest"
+	"github.com/sunfayao/persona/server/internal/update/updatetest"
 	"github.com/tailscale/tailcat"
 	"tailscale.com/types/key"
 )

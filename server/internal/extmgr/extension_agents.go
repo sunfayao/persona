@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/agents"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/agents"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The agent_sources extension point: a plugin's contribution is a source of

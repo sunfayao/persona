@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 type inventoryHost struct {

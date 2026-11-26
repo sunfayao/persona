@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/conversationlog"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/conversationlog"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 func visibleSegments(c *db.LogicalConversation) []conversationlog.Segment {

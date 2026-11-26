@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Agent A and then Agent B belong to the same matter. A's older stop is still delivered to the processing conversation,

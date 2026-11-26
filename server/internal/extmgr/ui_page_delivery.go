@@ -5,7 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // One bounded FIFO keeps snapshot/delta order without holding session locks over

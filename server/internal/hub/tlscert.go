@@ -16,7 +16,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 func loadTLSFiles(certFile, keyFile string) (tls.Certificate, string, error) {

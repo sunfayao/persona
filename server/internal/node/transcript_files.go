@@ -11,11 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // noTranscript is file's error for a session id this machine has no transcript for: an unknown id (a stale link, a

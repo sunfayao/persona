@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/remoteimage"
 )
 
 // The remote image route (#9473): full devices only, addresses refused before anything is fetched, every refusal a

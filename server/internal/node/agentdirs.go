@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Blocked Agent folders (node.configure agent_dirs_blocked, nodeproto.AgentDirsBlocked, #10053): the Agent folder rules

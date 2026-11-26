@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Faster speed is admitted only for a new Codex or a new Claude Code (fast

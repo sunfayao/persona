@@ -13,9 +13,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // attentionFixtures is shared with the web app's tests (web/src/lib/attention-fixture.test.ts): the same sessions give

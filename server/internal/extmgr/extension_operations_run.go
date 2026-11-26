@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // settle is what comes after an install or upgrade: it waits for the extension to come up, then for its program to

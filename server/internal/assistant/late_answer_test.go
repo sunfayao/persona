@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The card of an ask_user keeps what its arguments said of the decision (deadline, reversible, each question's

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // lark-cli (Feishu's official open-platform CLI) in the assistant's Bash passes the same gate

@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // File is the setting in the data directory (~/.persona/node-signing.json). Without it builds run as they come.

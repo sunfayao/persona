@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 // followupColumns is the shared column list for reading one subscription row.

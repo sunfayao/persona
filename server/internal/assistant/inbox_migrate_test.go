@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // The things of a plugin that took Feishu over keep the items the hub made itself: the same item goes on (its start

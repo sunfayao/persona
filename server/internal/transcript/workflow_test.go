@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Workflow tool's launch, as Claude Code 2.1.308 writes it (#2935), and a Monitor's.

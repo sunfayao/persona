@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // callAttachment sends data as a chat attachment to keep (dest=attachment) the way the hub does.

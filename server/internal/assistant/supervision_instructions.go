@@ -3,8 +3,8 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // supervisionStartup marks a manager-authorized start before its conversation id exists.

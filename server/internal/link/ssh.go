@@ -21,8 +21,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // KindSSH is the route kind reported in Status when the link runs through the SSH tunnel.

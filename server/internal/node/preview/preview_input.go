@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	wire "github.com/nwverse/persona/server/internal/preview"
+	wire "github.com/sunfayao/persona/server/internal/preview"
 )
 
 func (t *previewTab) readWeb() {

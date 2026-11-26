@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // What the owner may type to allow a host (#5697): a specific host, with a port or not, or an http(s) URL's host;

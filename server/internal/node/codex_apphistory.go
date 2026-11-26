@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // A Codex App chat whose rollout is gone (codex_appdb.go) keeps its history in <CODEX_HOME>/thread_history_<n>.sqlite:

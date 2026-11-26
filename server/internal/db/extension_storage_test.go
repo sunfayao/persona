@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func storageFixture(t *testing.T, d *DB, id string) (extension.Record, extension.StorageScope) {

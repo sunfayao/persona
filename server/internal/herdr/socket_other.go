@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // platformConfigDir is herdr's config directory when $XDG_CONFIG_HOME is not set: ~/.config/herdr.

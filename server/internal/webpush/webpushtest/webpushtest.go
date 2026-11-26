@@ -15,7 +15,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/webpush"
+	"github.com/sunfayao/persona/server/internal/webpush"
 )
 
 // Browser is one subscriber.

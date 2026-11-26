@@ -8,7 +8,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // Socket activation: systemd's personad.socket holds the hub's listening sockets and

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What the rules read off the to-do's runs and its other facts: how each linked session stands, the last activity,

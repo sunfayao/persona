@@ -1,6 +1,6 @@
 package prompts
 
-import "github.com/nwverse/persona/server/internal/lazyre"
+import "github.com/sunfayao/persona/server/internal/lazyre"
 
 // The voice extension's prompts (voice/). Every one comes in the user's language: its Lang is
 // an i18n code, en or ja, anything else is Chinese.

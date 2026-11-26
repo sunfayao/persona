@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/sysmon"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/sysmon"
 )
 
 // diskDeadline bounds the disk section's walks; what is not reached by then is left out and the report says partial.

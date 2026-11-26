@@ -6,9 +6,9 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // readonlyCompanionService is readonlyTaskService with settings kept, so a tier can resolve to agy.

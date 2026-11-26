@@ -2,7 +2,7 @@ package extmgr
 
 import (
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 func init() {

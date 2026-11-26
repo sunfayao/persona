@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/filemeta"
 
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
@@ -26,8 +26,8 @@ import (
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 const (

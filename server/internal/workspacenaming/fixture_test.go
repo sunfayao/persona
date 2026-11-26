@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 func TestWorkspaceNamingSharedFixture(t *testing.T) {

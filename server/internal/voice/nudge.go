@@ -4,7 +4,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Nudging a silent model (#2297, docs/assistant/voice.md 4.5 rule 9). Now and then the realtime model owes the user an

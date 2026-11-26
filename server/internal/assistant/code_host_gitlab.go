@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // Built-in GitLab (#11584) reads merge requests on gitlab.com and on the self-hosted instances manager.json names:

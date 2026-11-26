@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A waiting ask_user lets go of its turn when a message from elsewhere waits for its conversation (#7392,

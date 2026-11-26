@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 const warmBody = `{ "model":"example-model", "system": [{"type":"text", "text":"private prompt", "cache_control":{"type":"ephemeral","ttl":"1h"}}], "tools" : [{ "name":"example", "input_schema": { "type":"object" }}], "messages" : [{"role":"user", "content":"private history"}], "thinking":{"type":"disabled"}, "max_tokens" : 1024, "stream" : true }`

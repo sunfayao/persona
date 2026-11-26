@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/netproxy"
-	"github.com/nwverse/persona/server/internal/pinneddial"
+	"github.com/sunfayao/persona/server/internal/netproxy"
+	"github.com/sunfayao/persona/server/internal/pinneddial"
 )
 
 // Match the extension market's priority for the public GitHub API. Enterprise

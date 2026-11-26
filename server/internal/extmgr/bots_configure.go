@@ -3,8 +3,8 @@ package extmgr
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // botConfigure retains only what the localized pairing hint needs, never the platform's raw error text.

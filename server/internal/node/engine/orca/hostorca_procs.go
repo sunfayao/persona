@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // PaneProcesses are the agent processes in front whose ORCA_PANE_KEY is the pane, claude first.

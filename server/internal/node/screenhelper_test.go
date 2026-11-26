@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // fakeHelperBundle makes a minimal Persona Screen.app in dir: its executable and Info.plist, as Persona Link installs.

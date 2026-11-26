@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // assistant.conversations / assistant.messages (extension_assistant_read.go, #1288): only with assistant.read as

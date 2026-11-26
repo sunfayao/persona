@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // A dry run's warnings (DryRun.Warnings): what a recipe says that passes every check but will not do what it seems

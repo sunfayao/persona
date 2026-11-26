@@ -9,8 +9,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Repository providers: an extension's repository_providers contribution is

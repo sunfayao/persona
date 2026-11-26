@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // POST /api/v1/launchers/catalog (#4975): the built-in catalog's metadata for model ids typed by hand, so a provider

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/apierr"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // terminals relays the terminal tab's live streams. The first app to subscribe to a session's

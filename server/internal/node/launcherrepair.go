@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // launcherRepairUpgrade is the one repair a node does by itself for the hub's launcher health:

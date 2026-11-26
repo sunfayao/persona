@@ -13,9 +13,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/hubcli"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/hubcli"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // What the build wrote in (-X), as personad's (the hub's update checks a program by `version -v`).

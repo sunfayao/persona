@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // scriptedHub is a Hub whose calls answer answer(method, params): a result, or an error.

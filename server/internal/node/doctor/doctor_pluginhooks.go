@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/shellcmd"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // A PermissionRequest hook in the user's settings.json can be an extension's: an extension's program on this computer

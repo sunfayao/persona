@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // A hub and manager that ran before the knowledge base, the mobile push and the other removed features were cut still

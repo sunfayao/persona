@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Check says what is in a .docx, .xlsx or .pptx (Persona's or anyone's), for whoever made it to look over: a

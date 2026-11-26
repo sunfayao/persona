@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
 )
 
 // residentCheckLimits bound the replacement's node-update-check before a reload or at startup. A new file gets a

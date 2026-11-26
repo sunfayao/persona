@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The terminal tab's live stream: while the hub watches a session's terminal, one

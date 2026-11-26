@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Persona conversation's queue (#4342). A message to a headless claude that is busy waits in Claude Code's own

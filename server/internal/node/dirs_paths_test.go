@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/pathutil"
 )
 
 func TestDirectoryParentRoots(t *testing.T) {

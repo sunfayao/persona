@@ -11,7 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/apierr"
 )
 
 // DialAt opens another WebSocket on the hub with a service's token: path (with query) instead of the bus itself, e.g.

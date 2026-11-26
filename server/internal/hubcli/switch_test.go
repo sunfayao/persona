@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/hub"
-	"github.com/nwverse/persona/server/internal/hubedge"
+	"github.com/sunfayao/persona/server/internal/hub"
+	"github.com/sunfayao/persona/server/internal/hubedge"
 )
 
 // fakeEdge answers on the hub's control socket as an edge whose active slot runs slot ("": nothing serves), and sends

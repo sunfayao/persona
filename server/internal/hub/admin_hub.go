@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The overview page: what this hub is and how it runs, its name, the doctor, a restart.

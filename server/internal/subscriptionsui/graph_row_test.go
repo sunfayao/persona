@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The list's Source Relationships row (#5741): only for an app that has the view (the iPhone's), on the whole list, and

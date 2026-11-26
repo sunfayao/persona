@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Git panel's diff and versions show a file's content, so they refuse what file.read refuses: an untracked key

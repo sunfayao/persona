@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The inbox's tests (the manager's inbox*.go) run on fakeInbox: the hub's side of the inbox, its sources. Its

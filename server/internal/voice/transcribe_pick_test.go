@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/voice/voicetest"
+	"github.com/sunfayao/persona/server/internal/voice/voicetest"
 )
 
 func TestNormDistance(t *testing.T) {

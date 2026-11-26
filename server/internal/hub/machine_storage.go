@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Machine storage monitoring, on-demand bounded hotspot analysis, and confirmation-gated selective cleanup (#12349).

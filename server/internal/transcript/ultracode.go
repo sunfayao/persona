@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // UltracodeMarkers identify the lines that may change ultracode. Sparse reminders are not guaranteed on every

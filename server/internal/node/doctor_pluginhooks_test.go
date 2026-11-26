@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // installedExtension lays out what the node leaves for an extension package it installed under dataDir (plugins.go):

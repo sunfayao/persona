@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // writeTranscriptIn writes a Claude transcript that ran in cwd, of the desktop app or of the command line.

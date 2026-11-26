@@ -187,7 +187,7 @@ func build(t *testing.T, dir, name, tag string) string {
 func buildPersonad(t *testing.T, dir, name, version string) string {
 	t.Helper()
 	out := filepath.Join(dir, name)
-	cmd := exec.Command("go", "build", "-o", out, "-ldflags", "-X main.version="+version, "github.com/nwverse/persona/server/cmd/personad")
+	cmd := exec.Command("go", "build", "-o", out, "-ldflags", "-X main.version="+version, "github.com/sunfayao/persona/server/cmd/personad")
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("go build personad: %v %s", err, b)
 	}

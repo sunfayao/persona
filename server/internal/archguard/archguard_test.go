@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	modulePath = "github.com/nwverse/persona/server/"
+	modulePath = "github.com/sunfayao/persona/server/"
 	guardDoc   = `see AGENTS/02-server-architecture.md`
 )
 

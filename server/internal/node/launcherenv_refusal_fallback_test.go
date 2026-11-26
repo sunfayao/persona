@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // refusalFallbackOff is the variable that keeps Claude Code from moving a refused reply to a fallback model of its own.

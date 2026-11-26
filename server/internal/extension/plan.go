@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // PreviewRef is the consent for one package in an install plan. It is internal to the registry; existing HTTP

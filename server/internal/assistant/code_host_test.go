@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 // mergeRequestProvider is Acme Code with merge requests under /merge_requests/N, whose describe says state (""

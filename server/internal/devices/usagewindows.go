@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Subscription rate-limit windows across machines (#2432). Every node collects its agents'

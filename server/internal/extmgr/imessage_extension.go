@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The built-in extension Messages (#1830 step 6): which Mac's Messages

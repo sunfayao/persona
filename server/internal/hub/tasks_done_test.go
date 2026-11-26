@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Delivering a finished task for review (#1092, #5732). Every test runs without a store (h.store nil: nothing

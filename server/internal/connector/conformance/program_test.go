@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/extension"
-	progconf "github.com/nwverse/persona/server/internal/extension/conformance"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	progconf "github.com/sunfayao/persona/server/internal/extension/conformance"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The wire fixtures are what a connector program for a chat service says (the example connector "examplechat"):

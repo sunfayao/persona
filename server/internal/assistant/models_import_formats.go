@@ -11,9 +11,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // The formats a pasted configuration is read in (models_import_parse.go): pure functions of the text, none of which

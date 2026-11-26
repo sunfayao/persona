@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/netproxy"
+	"github.com/sunfayao/persona/server/internal/netproxy"
 )
 
 // The hub's update source (#4522): where it reads latest.json and

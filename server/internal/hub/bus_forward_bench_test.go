@@ -12,7 +12,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // largePrompt is a new conversation's body with n bytes in base64 as its prompt (an attached file): 16 MiB make the

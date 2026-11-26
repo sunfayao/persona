@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // redactSecretsByPatterns is redactSecrets with every pattern run on every line, as it was before the words were

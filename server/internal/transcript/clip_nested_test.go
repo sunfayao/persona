@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // pushFilesInput is an MCP push_files call that writes two 500 KB files, both inside files[].

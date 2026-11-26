@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/lark"
 )
 
 // agentsHub is a hub with no personal agents sources (they come from plugins: extension_agents_test.go).

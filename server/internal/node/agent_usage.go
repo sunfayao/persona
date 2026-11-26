@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/tokenuse"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // A finished subagent's or workflow run's usage on the items that report it (#5426). A sync Agent call's result, a

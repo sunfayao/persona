@@ -13,13 +13,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerupdate"
-	"github.com/nwverse/persona/server/internal/terminalmaintenance"
-	"github.com/nwverse/persona/server/internal/textfmt"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerupdate"
+	"github.com/sunfayao/persona/server/internal/terminalmaintenance"
+	"github.com/sunfayao/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Usage is the help of `personad manager` in l.

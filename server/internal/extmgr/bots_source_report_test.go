@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 func TestBotSourceReportDelaySetting(t *testing.T) {

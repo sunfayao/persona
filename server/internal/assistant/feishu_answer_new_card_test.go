@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // newCardHub is endHub with answer_new_card on: a run that shows its progress card, what is posted from then on.

@@ -10,7 +10,7 @@ import (
 )
 
 // Module is the server's module path.
-const Module = "github.com/nwverse/persona/server/"
+const Module = "github.com/sunfayao/persona/server/"
 
 // Platforms are the ones the guards check: the four the programs are released for, and Windows, where the server
 // builds too (CI's Windows build).

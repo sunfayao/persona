@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/webpush"
-	"github.com/nwverse/persona/server/internal/webpush/webpushtest"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/webpush"
+	"github.com/sunfayao/persona/server/internal/webpush/webpushtest"
 )
 
 // fakePushService is a push service over TLS: it keeps what it is sent and answers with the statuses it is told to

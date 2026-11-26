@@ -3,7 +3,7 @@ package i18n
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The notes a node writes on its Paseo engine (the canonical Chinese of node-engine) reach each reader in their

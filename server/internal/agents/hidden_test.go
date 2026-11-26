@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 func ids(list []Session) map[string]bool {

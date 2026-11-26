@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 func cleanRootEnv(t *testing.T) {

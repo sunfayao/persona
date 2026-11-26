@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A pending card's text is clipped in agents_list, but never its interaction_id: without the id the assistant cannot

@@ -26,17 +26,17 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/agents"
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/remoteimage"
-	"github.com/nwverse/persona/server/internal/secretkey"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/agents"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Host is the bus connection to the hub (the manager's).

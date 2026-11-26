@@ -13,7 +13,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // An extension's token may not send terminal control characters:

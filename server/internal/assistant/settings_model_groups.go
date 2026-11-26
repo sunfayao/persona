@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/i18n"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The four background API categories have their own model_config records. Uses that only inherit from a category stay

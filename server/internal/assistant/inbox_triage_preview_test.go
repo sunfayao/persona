@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Trying triage on a dry run's items (#5278): each is asked about as the Inbox would be handed it, under its rules

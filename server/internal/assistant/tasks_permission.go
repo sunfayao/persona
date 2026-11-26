@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The permission mode of a planned task that task_plan left unset (#3026). The hub settles it, so the plan card shows

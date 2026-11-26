@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // What the inbox asks of the hub: its settings, the sources' (a mail's text, a reply, a connector's group tools…),

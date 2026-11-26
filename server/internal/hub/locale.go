@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The user's language (docs/protocol/i18n.md "Protocol"): the language the user chose in their apps, kept in Postgres

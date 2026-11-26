@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 const modelSourceBinEnv = "PERSONA_MODEL_SOURCE_BIN"

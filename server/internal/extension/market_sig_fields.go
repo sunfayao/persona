@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // catalogFields checks names only where encoding/json decodes a known struct.

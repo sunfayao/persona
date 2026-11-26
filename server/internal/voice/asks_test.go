@@ -11,7 +11,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Cards by voice: a question is asked a question at a time by its options' names, what the user

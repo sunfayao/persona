@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // todoReminderHub is a paired fake Feishu transport with pushes on and a public web address. Every posted card gets a

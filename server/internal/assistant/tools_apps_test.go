@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/dialogwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/dialogwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // runTool runs one of the assistant's tools for conversation self on machine mac: its text, or the error it said.

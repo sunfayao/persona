@@ -15,9 +15,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 var thumbCornerColors = [4]color.NRGBA{

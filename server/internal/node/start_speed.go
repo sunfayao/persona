@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Agent start speed is a one-start choice, never a launcher default or a resume

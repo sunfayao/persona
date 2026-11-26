@@ -7,9 +7,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/claudeplugin"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/claudeplugin"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 // When herdr's server restarts it restores its panes and, once a client attaches, resumes the agents in them with its

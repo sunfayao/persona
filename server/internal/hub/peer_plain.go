@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Plaintext hub links (#4514): off unless hub.json lists mesh.plaintext.allow. Then pairing

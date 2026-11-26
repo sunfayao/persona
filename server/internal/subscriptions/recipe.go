@@ -13,9 +13,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/jsonsubset"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Limits on what is kept of an item.

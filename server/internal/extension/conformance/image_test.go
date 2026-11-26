@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/serve"
 )
 
 // fatal is a testing.TB whose Fatalf ends the check and keeps what it said, to test what Check refuses.

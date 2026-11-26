@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // The rule a ledger row gives (connector.ChatRuleFor) is matched against the arguments this connector's gate really

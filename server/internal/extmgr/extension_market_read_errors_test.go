@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // signedReadHub is a signed market already read once (its index cached) behind a server whose catalog

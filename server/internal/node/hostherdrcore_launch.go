@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/herdrcore"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdrcore"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // Starting sessions in the Herdr app (#2532). A new terminal opens the

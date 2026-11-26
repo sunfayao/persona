@@ -5,10 +5,10 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Moving a source from one manager to another (extwire.MethodSource*): the hub asks the old manager

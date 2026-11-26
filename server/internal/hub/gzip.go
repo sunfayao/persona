@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/webasset"
+	"github.com/sunfayao/persona/server/internal/webasset"
 )
 
 // Responses are gzipped for clients that take it (#2149). One Feishu chat's messages came to 2.9 MB of JSON that

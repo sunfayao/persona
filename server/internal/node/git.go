@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/gitworktree"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/gitworktree"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Status, history, diff and safe pull for the Git panel; every command has a timeout.

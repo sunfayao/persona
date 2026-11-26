@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // persona_settings model_profiles.tiers: the tiers of the model

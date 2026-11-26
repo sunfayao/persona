@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Pick the whole reachable graph first, then download packages. When a version changes, collect the constraints again

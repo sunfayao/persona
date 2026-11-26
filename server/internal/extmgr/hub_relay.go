@@ -16,8 +16,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extension/hubrelay"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extension/hubrelay"
 )
 
 // hubRelay is the manager's relay to the hub, started the first time an extension needs it.

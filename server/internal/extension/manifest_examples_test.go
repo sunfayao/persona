@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // The JSON Schema only checks shape; Parse also runs the hub's semantic Validate. The example manifests are what

@@ -3,7 +3,7 @@ package extension
 import (
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // StatusErrorText translates hub-owned status errors, retaining raw parser, OS and extension diagnostics.

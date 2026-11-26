@@ -82,7 +82,7 @@ class UpdateURLConfigTests(unittest.TestCase):
     # What personad is built to look for updates at (-X main.updateURL, #4522): publish.update_url as configured, so
     # a GitHub repository's releases/latest/download needs no /dl added; else publish.site_url's dl/ as before.
     def test_update_url_defaults_to_the_site_and_takes_a_release_base_as_is(self):
-        github = 'https://github.com/nwverse/persona/releases/latest/download'
+        github = 'https://github.com/sunfayao/persona/releases/latest/download'
         cases = {
             'nothing': ({}, ''),
             'site': ({'publish': {'site_url': 'https://site.example.test/'}}, 'https://site.example.test/dl'),

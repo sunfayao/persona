@@ -5,9 +5,9 @@ import (
 	"runtime/debug"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fleetSessionsToldLimit bounds what telling a changed list of 200 sessions allocates when a GC has just emptied

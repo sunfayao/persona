@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The agent's plan: Claude Code keeps a task list, the TodoWrite list (each call writes

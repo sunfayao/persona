@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestDeployErrorsKeepCanonicalTextAndCause(t *testing.T) {

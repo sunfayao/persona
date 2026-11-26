@@ -9,19 +9,19 @@ import (
 )
 
 func TestBetaFeedIsIndependentAndPinsImmutableTag(t *testing.T) {
-	const stable = "https://github.com/nwverse/persona/releases/latest/download"
+	const stable = "https://github.com/sunfayao/persona/releases/latest/download"
 	feed, err := BetaFeed(stable)
-	if err != nil || feed != "https://github.com/nwverse/persona/releases/download/beta-channel" {
+	if err != nil || feed != "https://github.com/sunfayao/persona/releases/download/beta-channel" {
 		t.Fatalf("feed %q, %v", feed, err)
 	}
 	m := &Manifest{Version: "0.7.0-beta.1", Build: 202611171300, Channel: ChannelBeta}
-	if got := BetaReleaseBase(feed, m); got != "https://github.com/nwverse/persona/releases/download/v0.7.0-beta.1" {
+	if got := BetaReleaseBase(feed, m); got != "https://github.com/sunfayao/persona/releases/download/v0.7.0-beta.1" {
 		t.Fatalf("pinned source %q", got)
 	}
 	if got := BetaReleaseBase(feed, &Manifest{Version: "0.7.0", Channel: ChannelStable}); got != "" {
 		t.Fatal("stable manifest was accepted as beta")
 	}
-	for _, base := range []string{"file:///private/feed", "https://mirror.example.com/dl", "https://github.com/nwverse/persona/releases/download/v0.6.2"} {
+	for _, base := range []string{"file:///private/feed", "https://mirror.example.com/dl", "https://github.com/sunfayao/persona/releases/download/v0.6.2"} {
 		if _, err := BetaFeed(base); err == nil {
 			t.Fatalf("replaced custom source %q", base)
 		}

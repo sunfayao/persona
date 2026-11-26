@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
 )
 
 // serveLiveExtensionForTest has a connector of its own (examplelive), a channel bound to it and a page. Each start

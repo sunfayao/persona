@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // healthyGitHub answers /user with a nearly full primary quota (4900 of 5000 left).

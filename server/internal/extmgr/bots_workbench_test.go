@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The workbench's transport (#1961): feishu.pin and feishu.recall take only the bot's own messages in the owner's

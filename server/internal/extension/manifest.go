@@ -10,8 +10,8 @@ import (
 	"sort"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // ManifestMost is the largest persona-plugin.json read.

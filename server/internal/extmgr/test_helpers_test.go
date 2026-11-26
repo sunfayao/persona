@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/netip"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // Shortcuts the tests use into the manager's own code paths, with the defaults a test wants. Production calls the

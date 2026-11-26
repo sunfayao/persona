@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // marketChannelsByCatalog is marketChannels as it was: the whole catalog built, then the entries with a channel

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // nudge_after (bots_nudge.go, #6084): minutes a card waits unanswered before the one nudge under it, 0 off, 60 when

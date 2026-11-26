@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The inbox on the bus: the hub's calls about it (BusHub.request hands the ones it does not know here) and what the

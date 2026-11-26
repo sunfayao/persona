@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // One catalog per MCP connection. Discovery only changes tools/list. Operations

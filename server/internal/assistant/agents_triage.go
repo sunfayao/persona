@@ -3,20 +3,20 @@ package assistant
 import (
 	"context"
 	"errors"
-	"github.com/nwverse/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/closeout"
 	"slices"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // The triage's model (purpose agent.triage, "Model Settings › Triage"'s): the hub's models.json, the one place the Agents

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ClaudeSetting is one Claude Code /config option the app may change. Only these keys are read or written;

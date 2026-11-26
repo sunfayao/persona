@@ -10,7 +10,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
 )
 
 // The shared to-do fixtures round-trip through the generated types and satisfy the schema.

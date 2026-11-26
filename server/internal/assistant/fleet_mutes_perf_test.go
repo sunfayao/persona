@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // mutedAsBeforeEmptyCheck is the original evaluation, including its settings read.

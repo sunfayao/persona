@@ -23,10 +23,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/netaddr"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // What the publisher writes in (-X), as personad's and persona-node's: the connector's build must also be verifiable

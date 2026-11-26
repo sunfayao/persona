@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
 )
 
 // Tasks dispatched from an assistant conversation (#930). The assistant hands the user a plan

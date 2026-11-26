@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // A link request without TLS: from this machine, or from the LAN when a reverse proxy says it took it over HTTPS;

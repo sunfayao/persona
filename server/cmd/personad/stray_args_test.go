@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/hubcli"
+	"github.com/sunfayao/persona/server/internal/hubcli"
 )
 
 // TestStrayArgsRefused runs main in a child process (this test binary, re-executed): arguments after hub run, hub

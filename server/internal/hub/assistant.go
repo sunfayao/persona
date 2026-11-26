@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The assistant ("Persona" tab) is a process of its own (internal/assistant): its conversations are headless ones a

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // newWindowsEnv is fakeEnv as a Windows computer: this build is a (fake) console program, schtasks answers through

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/dialogwire"
+	"github.com/sunfayao/persona/server/internal/dialogwire"
 )
 
 // Interaction kinds.

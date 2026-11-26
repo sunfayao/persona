@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestClaudeModelSourceMergesLauncherHeaders(t *testing.T) {

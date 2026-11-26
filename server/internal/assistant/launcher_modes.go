@@ -3,7 +3,7 @@ package assistant
 import (
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ---- which agents take a permission mode and an effort at their start (#7559) ----

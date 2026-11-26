@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The status question (#3616): an agent on no supervised task has nobody to

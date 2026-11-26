@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // launchers.zshrc (#2455, #5024): the claude

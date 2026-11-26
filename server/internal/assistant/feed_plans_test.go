@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // seedFeedPlans puts n plan cards, each naming its own plan, into a new conversation of st and returns the conversation

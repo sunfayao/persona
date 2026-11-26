@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lcuconfirm"
-	"github.com/nwverse/persona/server/internal/mcpwait"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lcuconfirm"
+	"github.com/sunfayao/persona/server/internal/mcpwait"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // lcuElicit asks the hub to show one LCU elicitation on the phone and returns the MCP result. A nil func, or any

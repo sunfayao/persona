@@ -1,6 +1,6 @@
 package hub
 
-import "github.com/nwverse/persona/server/internal/assistantwire"
+import "github.com/sunfayao/persona/server/internal/assistantwire"
 
 // featureRemoteImages: the default manager answers GET /api/v1/remote-image, the pictures a reply names by address
 // fetched, checked and scaled for the apps (#9473, docs/protocol/protocol.md "Remote images"). The route goes to it, so

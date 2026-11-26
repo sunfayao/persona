@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 var scriptTerminalCases = []struct {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // DeploymentText translates recognized deployment text at the response boundary. Deployment records and manager

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // Watch is one events.subscribe per server: the lifecycle events plus agent status for each of its panes (herdr only

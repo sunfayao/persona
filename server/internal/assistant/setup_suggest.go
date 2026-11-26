@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/deeplink"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/deeplink"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The recommended setup, said once (#5085; step R3, section 4c of

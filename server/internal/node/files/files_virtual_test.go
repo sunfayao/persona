@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/filemeta"
 )
 
 // The underlying file is real; its reported size models a virtual filesystem's stable, overstated size.

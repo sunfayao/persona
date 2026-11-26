@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Reporting conversations (#3192): a conversation started with report_tasks (a

@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Check the final native command line, including quoting and its NUL terminator.

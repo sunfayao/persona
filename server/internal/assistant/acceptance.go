@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // "Please verify" (#2768): once a task's work is deployed, the hub keeps an ask for the user to try it —

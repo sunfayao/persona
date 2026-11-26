@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
 )
 
 const agySkillWalkDepth = 64

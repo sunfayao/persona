@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // sharedStore is what a test hands both the hub and the assistant it runs in-process: the hub's store and the

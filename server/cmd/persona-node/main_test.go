@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const modulePath = "github.com/nwverse/persona/server/"
+const modulePath = "github.com/sunfayao/persona/server/"
 
 // The device's program links the node and its clients, never the hub, the manager or the database, on any platform it
 // ships for (the self-contained packaging plan, step 4).

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Image is a container image reference: the registry, the repository in it, and the

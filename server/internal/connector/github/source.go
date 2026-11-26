@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Where the token comes from: one computer's gh login, which the user picks in the app

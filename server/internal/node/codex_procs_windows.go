@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // Codex on Windows has no ps, lsof or /proc to be found by (codex_discovery.go, codex_openfiles.go): its processes are

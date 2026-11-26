@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var updateUsageGolden = flag.Bool("update-usage-golden", false, "write testdata/usage-meter.golden.json again")

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // credentials are what the speech service is called with: the new console's API Key (X-Api-Key), or with appID the

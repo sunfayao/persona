@@ -16,7 +16,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/startdir"
+	"github.com/sunfayao/persona/server/internal/startdir"
 )
 
 func init() {

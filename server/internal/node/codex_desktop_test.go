@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakeCodexBus plays the Codex App's IPC bus: it answers initialize, asks the new client a discovery question (as the

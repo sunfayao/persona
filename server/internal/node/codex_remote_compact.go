@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The user's /compact to a Codex session Persona drives through its app-server (#10188

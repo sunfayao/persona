@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistant"
 )
 
 // quietTodo is the task the conversation conv opened last, once its agent is linked.

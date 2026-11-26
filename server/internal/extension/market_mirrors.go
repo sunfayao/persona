@@ -1,7 +1,7 @@
 package extension
 
 import (
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"net"
 	"net/url"
 	"path"

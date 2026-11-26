@@ -17,7 +17,7 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Provider import links (#5420, #5428): cindy's

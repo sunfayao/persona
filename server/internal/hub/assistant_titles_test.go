@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // replies is a model that answers each call with the next of its replies (the last one again when they run out).

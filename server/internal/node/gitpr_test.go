@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakePRGh points ghLookPath at a script that answers as gh would: pr view (a PR, or none for branch "lonely"), the

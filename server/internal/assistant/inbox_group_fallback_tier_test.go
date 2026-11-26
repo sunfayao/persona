@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // fallbackTierPutEvent appends messages through the connector and then writes the returned thing directly. The

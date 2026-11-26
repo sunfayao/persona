@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // gatedSource answers Sessions only when released (or when the asker goes away), counting the asks.

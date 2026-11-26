@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func makeCall(t *testing.T, n *Node, method string, params map[string]any) (map[string]any, error) {

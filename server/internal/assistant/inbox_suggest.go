@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // ---- the suggestion tool (inbox_suggest; inbox_draft is its older name for a reply) ----

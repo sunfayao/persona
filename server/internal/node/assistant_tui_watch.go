@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // screenCheck is screen.CheckClaude's refusal code for typing into the box now ("" when it may).

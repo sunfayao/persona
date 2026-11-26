@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 )
 
 func requireDevelopmentValidation(t *testing.T, factory launch) {

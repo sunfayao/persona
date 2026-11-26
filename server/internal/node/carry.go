@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // A resident node (attach.go) makes a new Node for every hub connection. Each new Node read every listed transcript

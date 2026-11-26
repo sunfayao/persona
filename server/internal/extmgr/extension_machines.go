@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // machineKey is how a typed machine is compared with a machine's id, name or host: case, spaces, - and _ ignored.

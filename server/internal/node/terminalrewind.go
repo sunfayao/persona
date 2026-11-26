@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // A rewind done in the terminal (/rewind or Esc Esc, then "Restore conversation") writes nothing to the transcript on

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // The relay pipes both ways to whatever listens on the attach socket, and says "not relayed" when nothing does.

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/claudeplugin"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/claudeplugin"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Tests start claude without the plugin unless one says which claude it is: asking a real one would make what they

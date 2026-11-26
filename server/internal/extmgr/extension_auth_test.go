@@ -18,8 +18,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
 )
 
 // serveAuthExtensionForTest signs in with a device code: auth.step "" gives a link, the same step answers done once

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // scheduleWriteStore rejects just one setting, without disrupting model settings or reads.

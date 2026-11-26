@@ -12,7 +12,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // The "Needs you" summary for Persona Link (internal/link/attention.go): the

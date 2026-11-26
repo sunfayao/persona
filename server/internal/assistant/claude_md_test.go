@@ -2,13 +2,13 @@ package assistant
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // claudeMDHub is a fake hub with the machines and what the hub says for the assistant's directory.

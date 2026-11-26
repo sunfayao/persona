@@ -1,7 +1,7 @@
 {
   "name": "persona",
   "description": "Persona's plugin for Claude Code, kept beside Persona Link.",
-  "owner": { "name": "Persona", "url": "https://github.com/nwverse/persona" },
+  "owner": { "name": "Persona", "url": "https://github.com/sunfayao/persona" },
   "plugins": [
     {
       "name": "persona",

@@ -20,7 +20,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A new session in Claude's desktop app, started from the phone (docs/integrations/claude-integration.md "New sessions

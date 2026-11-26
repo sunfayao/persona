@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Stopping agents that have been idle for a long time. The pass in

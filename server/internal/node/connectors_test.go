@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 const messagesHome = "../connector/imessage/testdata/home" // synthetic (connector/imessage/testdata/gen/make.py)

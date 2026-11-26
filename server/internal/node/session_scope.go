@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // PERSONA_NODE_SESSION_DIR opts a second resident or stdio node into discovering

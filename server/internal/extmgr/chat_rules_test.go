@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // chatGitHub is a connector with GitHub's id and write actions, whose writes are only counted.

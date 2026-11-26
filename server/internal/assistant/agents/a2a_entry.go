@@ -8,8 +8,8 @@ package agents
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // a2aEntry is how an A2A message's recipient reaches the A2A tools, as prompts/agents/a2a_message takes it: the

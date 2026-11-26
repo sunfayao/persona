@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/clitext"
 )
 
 // `hub admin` and `hub manager-mode` keep the command line's convention (#1762): help asked for prints the usage on

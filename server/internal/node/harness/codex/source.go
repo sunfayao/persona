@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // canonicalCodexHome is home absolute, with its links resolved as far as it exists: a home that does not exist yet

@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // herdrAutostartKey is where a machine's own choice is kept. hub.json's machines[].herdr_autostart is only the

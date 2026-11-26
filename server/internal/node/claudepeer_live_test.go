@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // TestLivePeerSend sends one message through the peer inbox of a claude started for the test (never a session the user

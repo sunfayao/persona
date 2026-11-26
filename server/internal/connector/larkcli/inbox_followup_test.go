@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/connector"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 func TestInboxPollFollowupAfterOwnReply(t *testing.T) {

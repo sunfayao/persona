@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/sysmon"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/sysmon"
 )
 
 // The machine pages: what this machine is goes out once with node.info, how busy it is as a

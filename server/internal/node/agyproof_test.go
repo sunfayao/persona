@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // agyProofConv is one conversation's files as an agy terminal leaves them (agyproof.go): its presence lock and its first

@@ -13,8 +13,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // The live screen's video dial carries x264 (#8859) only while the manager reports it on for that Mac (the plugin's

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 const tokenPath = "/open-apis/auth/v3/tenant_access_token/internal"

@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // isolated names the throw-away home once Main made it: a test binary a test starts again inherits the variable and

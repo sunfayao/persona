@@ -11,7 +11,7 @@ package identity
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // DataSecrets are the credential files in the data directory by the start of their name, so a backup beside one is

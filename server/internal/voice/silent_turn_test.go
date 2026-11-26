@@ -3,8 +3,8 @@ package voice
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The hub's word on a task Agent's turn with no output (#10187): Persona's own Stop ends a run as stopped, never as a

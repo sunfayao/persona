@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Parse reads an http://[user:pass@]host:port proxy (port 1-65535, 80 when left out); "" (or blanks) is no proxy

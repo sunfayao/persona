@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // growingLine is one line a busy session appends between two session lists; it names a background marker, so the

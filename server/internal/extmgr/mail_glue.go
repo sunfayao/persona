@@ -1,6 +1,6 @@
 package extmgr
 
-import "github.com/nwverse/persona/server/internal/mail"
+import "github.com/sunfayao/persona/server/internal/mail"
 
 func init() {
 	NewMail = func(dir, secretKey string, store mailStore, google GoogleConfig) (Mail, error) {

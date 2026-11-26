@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestRuntimeList8000OverHTTPAndSocket(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // Attribution is observational, never an authentication or authorization input.

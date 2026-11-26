@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // Serve synthetic readback through the production Open API client and fake hub boundary.

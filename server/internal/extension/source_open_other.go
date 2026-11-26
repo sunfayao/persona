@@ -5,7 +5,7 @@ package extension
 import (
 	"os"
 
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
 )
 
 func newSourceSnapshot() (*os.File, error) {

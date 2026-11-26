@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // The Codex App keeps its threads in <CODEX_HOME>/state_<n>.sqlite (table threads). Since it moved their history into

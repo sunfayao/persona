@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/bytemare/opaque"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/passwordpake"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/passwordpake"
 )
 
 const passwordFlowLifetime = 5 * time.Minute // Protocol lifetime, not a latency claim.

@@ -3,12 +3,12 @@ package node
 import (
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // taskDirectory runs on the execution computer. It never prepares, creates or chmods a user directory.

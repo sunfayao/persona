@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // notifySignals: SIGUSR1 (the network changed) calls check, SIGUSR2 (reconnect now) calls redial. The menu bar app

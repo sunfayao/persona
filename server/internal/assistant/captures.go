@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Quick capture (#13502): what the user jots down from the share sheet, the

@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // `personad hub setup` (5.5): one command that leaves a working hub on this machine. It writes

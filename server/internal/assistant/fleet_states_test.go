@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/dialogwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/dialogwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The finished push's decision and the unified states (fleet_push.go, fleet.go), moved from the hub's tests.

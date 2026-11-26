@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const mcpInstructions = "Persona read-only machine diagnostics server. Exposes structured read-only inspection for storage mounts/hotspots, " +

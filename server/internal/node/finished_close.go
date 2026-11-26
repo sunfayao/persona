@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // A finished Agent's terminal closes on its own after a grace period (#10111, docs/integrations/engines.md "Agents run

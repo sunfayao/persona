@@ -7,10 +7,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/sessionlist"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 var modelPattern = lazyre.New(`(?i)^claude-([a-z]+)((?:-[0-9]{1,2})*)(?:-[0-9]{8})?(\[1m\])?$`)

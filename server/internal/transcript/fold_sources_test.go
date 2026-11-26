@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The cases the web reads too (web/src/lib/turn-sources.test.ts): a folded run names the pages its web calls used

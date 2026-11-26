@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // TestHelloAndHealthCarryTheHubsFeatures holds the real feature list, which the shared wire samples no longer carry

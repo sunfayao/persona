@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // runUpdateWatch is `personad update-watch <pending.json>`: the old binary's watchdog over an update (hub/selfupdate.go,

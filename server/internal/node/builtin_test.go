@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The built-in programs answer plugin.node.call exactly as their old method names do: the same JSON, the same errors

@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/quota"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/quota"
 )
 
 // The usage extension point: an extension contributing usage answers usage.query with the

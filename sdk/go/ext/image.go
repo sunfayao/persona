@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Image is the answer to ui.image: the picture's bytes (a png, jpeg, webp or gif, at most 4 MB and 8192 pixels a

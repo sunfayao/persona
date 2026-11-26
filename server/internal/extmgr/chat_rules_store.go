@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 const chatRulesKey = "connector_chat_rules"

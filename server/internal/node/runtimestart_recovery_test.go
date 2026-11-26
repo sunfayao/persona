@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Starts on a machine whose engine is a runtime (Paseo) that must survive a lost answer or a takeover (#8130): the id

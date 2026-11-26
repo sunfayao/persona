@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/pathutil"
 )
 
 // fs.find: every file under a directory, as paths relative to it, for the web client's ⌘K file search (docs/web/web.md

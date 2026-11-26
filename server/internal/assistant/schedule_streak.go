@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // streakLimit: how many runs in a row a repeating task may fail or be skipped before the user is told (#4658). A

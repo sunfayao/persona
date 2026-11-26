@@ -1,6 +1,6 @@
 package assistant
 
-import "github.com/nwverse/persona/server/internal/i18n"
+import "github.com/sunfayao/persona/server/internal/i18n"
 
 const (
 	maxAgentNamingChanges  = 1000

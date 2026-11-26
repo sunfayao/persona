@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // TestInstallClaimsOperation: one install claims the operation its preview made. A second install of the same preview

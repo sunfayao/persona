@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // splitRelease is a release whose manifest carries persona-hub and persona-manager besides personad (as the release packager

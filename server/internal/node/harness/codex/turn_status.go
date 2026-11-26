@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ReadTurnStatus applies completed event lines through end and returns the offset of the next line.

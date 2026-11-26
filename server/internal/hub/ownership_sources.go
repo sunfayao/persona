@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // ---- moving a source to another manager ----

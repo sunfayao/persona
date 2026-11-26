@@ -14,9 +14,9 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A managed Claude Code provider's gateway models, as Claude Code's /model menu adds them when its gateway model

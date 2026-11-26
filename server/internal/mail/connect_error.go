@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // connectFailure is err told in words for people when it means the mail server could not be reached or trusted

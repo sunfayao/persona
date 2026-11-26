@@ -5,7 +5,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Claude wrapper (a relay script on PATH) whose computer is too slow to list its launchers at start still starts

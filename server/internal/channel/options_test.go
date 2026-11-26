@@ -3,7 +3,7 @@ package channel
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func question(multi bool, labels ...string) proto.Question {

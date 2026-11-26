@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // newStartSessionID is the id the hub asks a node to start its next Claude session under, so a start whose answer

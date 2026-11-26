@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // fakeT3Code is a T3 Code server's MCP endpoint and its t3 command line, as the bridge uses them (synthetic data).

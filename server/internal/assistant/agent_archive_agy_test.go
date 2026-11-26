@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An Antigravity CLI conversation's archive is kept under its own id, agy-<conversation id>, also when it is made on a

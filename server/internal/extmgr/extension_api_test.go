@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveAPIExtensionForTest serves part of the app's API (/api/v1/examplefeed/…, and /api/v1/lark/… taken over from the

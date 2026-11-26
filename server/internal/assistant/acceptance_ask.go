@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // askAcceptance keeps task t's "Please verify" ask once (reply: what its agent said last, on machine/session) and posts its

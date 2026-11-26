@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // listenControl serves `personad hub switch` on the control socket: owner only (0600 in a 0700 directory), the same

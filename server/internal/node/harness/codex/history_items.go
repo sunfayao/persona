@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // A Codex App chat whose rollout is gone (codex_appdb.go) keeps its history in <CODEX_HOME>/thread_history_<n>.sqlite:

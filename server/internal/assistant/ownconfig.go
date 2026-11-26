@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/aiwire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/aiwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ownConfig is what the manager's manager.json says that the hub's hello used to (docs/operations/config.md "manager.json"):

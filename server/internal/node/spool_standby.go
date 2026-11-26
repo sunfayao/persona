@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // standbyAway is what standby says it cannot do.

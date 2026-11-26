@@ -9,10 +9,10 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // An item's parent (#2128): what the item grew out of, so a thing that started in a chat, became

@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/node/doctor"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/node/doctor"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 type generatedFile = doctor.GeneratedFile

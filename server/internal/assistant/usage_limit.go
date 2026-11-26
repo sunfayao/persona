@@ -4,8 +4,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Subscription usage limits (#1710): a turn a subscription's 5-hour or

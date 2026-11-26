@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The channels are the assistant's (internal/assistant, channels*.go and feishu*.go): which

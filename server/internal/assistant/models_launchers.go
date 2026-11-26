@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Settings › Model providers: every launcher in one list. Those in each machine's ~/.zshrc are found by its

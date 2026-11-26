@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/mail"
 )
 
 // pagedMail is one account's inbox, paged by before_uid like the IMAP listing: newest first, NextBeforeUID the

@@ -1,6 +1,6 @@
 package transcript
 
-import "github.com/nwverse/persona/server/internal/proto"
+import "github.com/sunfayao/persona/server/internal/proto"
 
 // The app names a message to rewind to by its words, which of the messages with those words it is counting from the
 // end, and how many of the user's messages came after it (node/rewind.go). It counts every message of the user's it

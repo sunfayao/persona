@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/promptcontent"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/promptcontent"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestTaskInputContextUsesDraftExecutionWithoutSaving(t *testing.T) {

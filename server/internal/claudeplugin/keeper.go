@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Keeper is the resident node's side: a check soon after it starts, then every Every, sooner after a failure

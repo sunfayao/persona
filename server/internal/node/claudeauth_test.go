@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // authNode is a node in the fake home fakeClaudeHome made, its claude at version (cached, as the self-check reads it).

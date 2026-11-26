@@ -11,8 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // sentTargetKeys is the most keys of a sent.record target the hub keeps.

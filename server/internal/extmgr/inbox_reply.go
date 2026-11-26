@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // inboxSendWait bounds one reply's send.

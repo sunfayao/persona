@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // ListenUnix serves ext on a unix socket at path (made anew; only this user may connect): its sandbox's way out.

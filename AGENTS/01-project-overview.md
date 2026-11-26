@@ -45,7 +45,7 @@ the time. That is why `06-wire-contracts-and-extensions.md` matters for almost e
 
 | Layer | Choice |
 | --- | --- |
-| Server | Go 1.27, one module `server/` (`github.com/nwverse/persona/server`), 140 packages under `server/internal/` |
+| Server | Go 1.27, one module `server/` (`github.com/sunfayao/persona/server`), 140 packages under `server/internal/` |
 | Storage | Postgres through pgx v5 with hand-written SQL; embedded migrations in two sets (hub, manager) |
 | Web | React 19, TypeScript 5.9 (strict), Vite 7, Tailwind 4, vitest 4; hand-written router and store |
 | Agent runtimes | TypeScript packages under `integrations/`, embedded into the node by `server/internal/runtimepkg` |

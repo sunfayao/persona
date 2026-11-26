@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const (

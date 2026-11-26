@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // imessageNode is a Mac's node over the real RPC pipe, answering connector.* from answer (method → result or error).

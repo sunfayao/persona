@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/promptcontent"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/promptcontent"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 type taskInputKey struct{}

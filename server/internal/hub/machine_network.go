@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const machineNetworkTimeout = 15 * time.Second

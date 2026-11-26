@@ -16,7 +16,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Collector samples the machine; rates (CPU, network) are measured between two calls.

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
 )
 
 // CheckSelfContained is CheckSelfContainedContext without a deadline of the caller's.

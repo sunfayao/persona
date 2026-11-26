@@ -1,8 +1,8 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 	"os"
 	"strings"
 )

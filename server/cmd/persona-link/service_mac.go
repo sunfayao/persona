@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // The independently installed Mac Link is a launchd user agent. It owns neither the Electron desktop's lifetime nor

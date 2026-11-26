@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Replies go to the connector an item belongs to (the hub sends them): mail's to mail (only document items move a status), an item

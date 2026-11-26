@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func TestNotifyRequestValidate(t *testing.T) {

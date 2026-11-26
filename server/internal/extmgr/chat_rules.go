@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // validChatRules are the rules of list that a gate could run (connector.UserRule.Validate), one to a chat, the first: duplicate or invalid rules remain in storage.

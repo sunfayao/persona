@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // gitCodeOf is err's rpc.Error code and the files its data lists.

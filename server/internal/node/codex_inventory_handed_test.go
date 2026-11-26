@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Every connection is a new Node with an empty Codex registry; the hub hands it the inventory it keeps for the

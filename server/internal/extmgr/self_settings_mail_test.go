@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The mail accounts in persona_settings are the manager's (mail is); the card is the hub's (the fake hub here).

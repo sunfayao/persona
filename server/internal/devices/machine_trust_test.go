@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 func TestMachineTrustIncludesEveryPath(t *testing.T) {

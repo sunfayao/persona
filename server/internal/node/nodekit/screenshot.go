@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ScreenshotImage is the screenshot cua-driver wrote, as a JPEG when that is smaller (a window's transparent corners

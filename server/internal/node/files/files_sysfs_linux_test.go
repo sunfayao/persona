@@ -10,7 +10,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/filemeta"
 )
 
 // Only use a readable, non-symlinked sysfs attribute that proves its stat size overstates its stable contents.

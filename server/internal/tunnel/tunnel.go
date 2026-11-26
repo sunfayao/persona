@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 	"os"
 	"path/filepath"
 	"slices"

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/preview"
 )
 
 func writeLaunch(t *testing.T, dir, body string) string {

@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/engine/orca"
-	"github.com/nwverse/persona/server/internal/orcart"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/node/engine/orca"
+	"github.com/sunfayao/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Orca's structured sessions: Orca's own chats around Claude Code, with no

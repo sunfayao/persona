@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/hubedge"
-	"github.com/nwverse/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/hubedge"
+	"github.com/sunfayao/persona/server/internal/netaddr"
 )
 
 type publicState struct {

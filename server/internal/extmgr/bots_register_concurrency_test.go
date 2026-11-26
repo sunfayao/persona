@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // observeBindWait signals when a request evaluates the admission select's cancellation case.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // run --parent reads the menu bar app's presence and confirmation lines from stdin, skips what it does not know, and

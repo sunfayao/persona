@@ -4,7 +4,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/mail"
 )
 
 // Mail's routes are the manager's (relayed by the hub): their errors reach the apps as mail wrote them.

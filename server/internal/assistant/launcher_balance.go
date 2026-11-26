@@ -18,7 +18,7 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Prepaid balances (#11825): an official DeepSeek account has no

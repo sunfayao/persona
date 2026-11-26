@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/lark"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // With only lark-cli in hub.json, the assistant's machine learns how to run it, and there is

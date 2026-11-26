@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // proxyPorts: an address something listens on and one nothing does (a proxy app that has quit). The answers the

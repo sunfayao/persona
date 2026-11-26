@@ -24,10 +24,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The kinds of a runtime's workspace.

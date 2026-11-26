@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // Pictures an extension serves itself (UI version 6, "Pictures through the hub"):

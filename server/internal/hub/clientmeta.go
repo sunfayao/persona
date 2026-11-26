@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"math/rand/v2"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // clientMeta is what a client says about itself in client_hello.

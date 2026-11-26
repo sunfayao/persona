@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func preparedPauseState(ft *fleetTest, id string) (paused bool, accepted, answered uint64, runs int) {

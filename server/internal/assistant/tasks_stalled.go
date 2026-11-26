@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // stallCloseAfter is how long a stalled terminal Agent may go with no supervisor action or real progress before the

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Without a service manager the watchdog stops the hub that would not come up and starts the restored binary itself,

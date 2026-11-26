@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/aiwire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/aiwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The manager's manager.json goes over the hub's hello section by section; what it lacks keeps the hello's (an older

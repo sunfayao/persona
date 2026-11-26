@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // assistantAsk is a call to the assistant in this process.

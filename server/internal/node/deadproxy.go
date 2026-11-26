@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A proxy that does not answer (a proxy app that has quit, still named in the shell or in ~/.claude/settings.json)

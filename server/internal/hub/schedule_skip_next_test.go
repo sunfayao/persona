@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 const skipNextTestPath = "/api/v1/assistant/tasks/example/skip-next"

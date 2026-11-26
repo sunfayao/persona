@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A-7 (4b) on the whole write path: a fallback-opened event whose title repeats the conversation's name as "<where>："

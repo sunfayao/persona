@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Store is the hub's Postgres as this code keeps its state in it (internal/db; the same keys and tables as when

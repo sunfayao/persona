@@ -9,8 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // Revert keeps the abandoned rows. A continuation's session_meta names the retained base and its exclusive

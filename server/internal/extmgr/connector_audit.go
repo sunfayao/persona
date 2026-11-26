@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // auditStore keeps the audit (plugin_audit): who did what and when, never a secret or a value someone typed.

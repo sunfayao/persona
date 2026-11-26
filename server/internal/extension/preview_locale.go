@@ -3,7 +3,7 @@ package extension
 import (
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // In returns a presentation copy of a staged preview. Consent digests, manifests, staging data and

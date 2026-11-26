@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 const defaultTimeout = 15 * time.Second

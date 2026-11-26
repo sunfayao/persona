@@ -13,7 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Proxy-only mode (Config.ProxyAlways, #12299): active mode goes only through the outbound proxy. These tests keep the

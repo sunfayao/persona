@@ -12,8 +12,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // All calls terminate at fakeHub. Accepted cards are indexed by the transport UUID, independently of whether the

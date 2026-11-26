@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/node/preview"
-	"github.com/nwverse/persona/server/internal/portprobe"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/portprobe"
 )
 
 type previewServer = preview.Server

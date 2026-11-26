@@ -3,7 +3,7 @@ package lark
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // extwire is a contract and may not import this package, so it keeps its own copy of the account limit for the avatar

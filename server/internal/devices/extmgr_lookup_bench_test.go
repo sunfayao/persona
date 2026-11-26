@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // BenchmarkExtensionsPortStreamEvent: one stream.data event of the extensions manager's own port streams on one of

@@ -13,7 +13,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // session.live goes to the session's subscribers that asked for session_live (URL or client_hello), as a live event;

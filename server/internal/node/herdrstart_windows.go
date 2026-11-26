@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // herdr's server is not started on Windows: the node keeps reporting it missing, as before (herdrstart.go).

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/jsonsubset"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The shared To-dos view cases (spec/fixtures/todo-view and todo-counts, #10226): the projection answers every one

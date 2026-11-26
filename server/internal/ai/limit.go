@@ -18,7 +18,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Upstream limits. A relay answering "the account's quota is used up" (HTTP 429

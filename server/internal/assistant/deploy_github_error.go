@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Only allowlisted response metadata is retained, never request headers or the raw body.

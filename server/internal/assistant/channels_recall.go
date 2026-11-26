@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // recalledResult is the end of a run whose message the owner recalled: no answer, its progress message closed.

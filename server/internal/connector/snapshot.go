@@ -3,7 +3,7 @@ package connector
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 // Snapshot is a connector that knows the user's live state worth a glance: the chats waiting on them and the rest of

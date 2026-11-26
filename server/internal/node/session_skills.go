@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // sessionSkillCatalog derives the execution environment from the target, never from client paths or launchers.

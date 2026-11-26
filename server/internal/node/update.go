@@ -8,9 +8,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeupdate"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // SetUpdater is used by the resident's Node factory, never by a stdio node.

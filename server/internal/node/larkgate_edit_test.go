@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func newLarkEditRig(t *testing.T, answer func(proto.Interaction) proto.Resolution, user ...proto.LarkRule) *spaceRig {

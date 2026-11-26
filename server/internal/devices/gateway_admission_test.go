@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/usagesource"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/usagesource"
 )
 
 var quotaFixtureTime = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)

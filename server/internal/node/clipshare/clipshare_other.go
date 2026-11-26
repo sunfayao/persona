@@ -5,7 +5,7 @@ package clipshare
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // winClip is the Windows clipboard (clipshare_windows.go); elsewhere installOS never asks for it.

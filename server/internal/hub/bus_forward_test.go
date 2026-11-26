@@ -21,9 +21,9 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Exercise authentication and the bus codec with in-memory tokens and an RPC pipe, without Postgres.

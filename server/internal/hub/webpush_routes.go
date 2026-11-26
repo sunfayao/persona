@@ -10,9 +10,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/webpush"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/webpush"
 )
 
 // webPushDeviceMax bounds a browser's device id (web lib/notify.ts deviceId: "web-" and a UUID).

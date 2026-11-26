@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // HubHost is the hub's own API as an extension behind the proxy reaches it (its loopback is not the hub's).

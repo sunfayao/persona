@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 var stashOIDPattern = lazyre.New(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)

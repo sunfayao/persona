@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Limits of a widget (FitWidget): the items of each family, the stats of a stat_grid, the rows, the lines of a text.

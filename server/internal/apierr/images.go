@@ -4,8 +4,8 @@ import (
 	"maps"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ImagesOverLimit answers 413 images_over_limit when a message carries more pictures than l allows (#12973) and

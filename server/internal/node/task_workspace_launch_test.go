@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
-	repository "github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	repository "github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
 )
 
 func TestBackendWorkspaceLaunchAndRepositoryRouting(t *testing.T) {

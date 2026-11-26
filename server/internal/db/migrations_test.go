@@ -17,7 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
 )
 
 // bothSets are the migrations in both sets, frozen: from before the split, 0001 made tables for both sides (each set

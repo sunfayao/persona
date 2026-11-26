@@ -10,8 +10,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 func TestCapabilitiesReadOnly(t *testing.T) {

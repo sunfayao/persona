@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The Agents routes include display options and the triage switches.

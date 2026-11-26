@@ -19,9 +19,9 @@ import (
 	"github.com/coder/websocket"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // managersHub is newBusHub with no install codes and no default picked.

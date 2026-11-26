@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The profile the main chat's new conversations start in (#4633): only the assistant offers it, private is stored as

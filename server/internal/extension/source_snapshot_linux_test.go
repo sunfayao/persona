@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 )
 
 func TestSealedSourceSnapshotPinsMountedBytes(t *testing.T) {

@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/hubedge"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/hubedge"
+	"github.com/sunfayao/persona/server/internal/proto"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 func TestHubOnlyUpdateNeverFetchesOrInstallsNodePackages(t *testing.T) {

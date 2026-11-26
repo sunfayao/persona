@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Handler returns the HTTP handler for /api/v1/mail/... . Authentication is

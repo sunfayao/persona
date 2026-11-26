@@ -1,6 +1,6 @@
 package node
 
-import "github.com/nwverse/persona/server/internal/proto"
+import "github.com/sunfayao/persona/server/internal/proto"
 
 // mergeModelFallback uses the existing incremental scan: a session-scoped fallback can be far before the quick
 // tail, including on the first read after a node restart. A pending scan leaves the tail's evidence alone.

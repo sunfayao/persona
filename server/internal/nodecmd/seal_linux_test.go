@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
 )
 
 // TestMain lets the test binary be the node of TestNodeSealsInherited (nodeEntryEnv) and the commands of

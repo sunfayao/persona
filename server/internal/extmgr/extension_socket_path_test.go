@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // unixSocketMost is the longest path a Unix socket binds at here (sockaddr_un's sun_path less its NUL), or 0 where the

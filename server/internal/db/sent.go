@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ClaimSend records a message about to be sent. A client_msg_id seen before returns that send's state instead

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // A todo's project (#2581): a label the owner or the assistant files it under, usually

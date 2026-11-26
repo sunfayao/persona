@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func listedRuntime(t *testing.T, n *Node, id string) (*fakeRuntime, *runtimeConn) {

@@ -7,9 +7,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A list decorated with what its sessions asked in the lists before is the list decorated afresh, for the same inputs,

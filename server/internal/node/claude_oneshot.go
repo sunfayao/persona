@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // A program running Claude Code's command line once (`claude -p`: entrypoint "sdk-cli") writes a transcript like any

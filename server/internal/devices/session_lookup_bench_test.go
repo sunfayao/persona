@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // BenchmarkSessionLookupAll: one lookup per listed session (what the assistant's fleet does per change), 300 sessions.

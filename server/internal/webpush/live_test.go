@@ -35,7 +35,7 @@ func TestLiveDelivery(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	req, err := NewRequest(ctx, in.Subscription, in.VAPID, "https://github.com/nwverse/persona", []byte(in.Message),
+	req, err := NewRequest(ctx, in.Subscription, in.VAPID, "https://github.com/sunfayao/persona", []byte(in.Message),
 		Message{TTL: time.Minute, Urgency: UrgencyHigh, Topic: TopicFor("live")}, time.Now())
 	if err != nil {
 		t.Fatal(err)

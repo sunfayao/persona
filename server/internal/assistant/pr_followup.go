@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // prFollowupStore is the Postgres persistence for post-closure PR subscriptions. A store that does not implement it

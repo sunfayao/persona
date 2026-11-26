@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 func TestInboxTaskOwnerBotHandoffPolicy(t *testing.T) {

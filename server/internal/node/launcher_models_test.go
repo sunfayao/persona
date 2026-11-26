@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Claude Code's initialize answer, as a 2.1 CLI with a gateway gives it: the /model menu's aliases resolved with the

@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestReadOnlyCodexTerminalStart(t *testing.T) {

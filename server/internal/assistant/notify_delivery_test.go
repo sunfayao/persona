@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // What notify_user tells the model, and what the north star records, for each answer the hub (or the outbox) gives

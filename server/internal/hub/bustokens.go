@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // The bus's identities and their tokens (bus.go, migration 0311): one token per service, only its sha256 kept. Every

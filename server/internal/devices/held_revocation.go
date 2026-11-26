@@ -3,7 +3,7 @@ package devices
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // heldCredentialRevoked records the event before doing store work so a concurrent delivery can see it.

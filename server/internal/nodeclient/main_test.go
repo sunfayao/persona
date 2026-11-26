@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/testhome"
+	"github.com/sunfayao/persona/server/internal/testhome"
 )
 
 // TestMain runs the tests in a throw-away HOME with no PERSONA_HOME (testhome). Run from a shell Persona started,

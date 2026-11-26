@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Antigravity CLI (agy) buffers follow-up prompts typed while busy in TUI memory and draws them above the prompt as

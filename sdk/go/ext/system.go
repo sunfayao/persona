@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Places outside the app (docs/extensions/extensions.md "System-level placements"): widgets are ui contributions with placement widget (Page,

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"math"
 	"reflect"
 	"slices"

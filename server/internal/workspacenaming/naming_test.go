@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 func source() Source {

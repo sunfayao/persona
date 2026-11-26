@@ -1,6 +1,6 @@
 package assistantwire
 
-import "github.com/nwverse/persona/server/internal/devicewire"
+import "github.com/sunfayao/persona/server/internal/devicewire"
 
 // ---- the bus ----
 

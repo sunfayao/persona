@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The manager's deployment reports (and saved errors) are canonical, not tied to the language at job start, and so

@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistant/todo/timeline"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/todo/timeline"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A to-do's timeline (#10465): its conversation grouped into

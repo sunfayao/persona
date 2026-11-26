@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 const (

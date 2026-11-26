@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func installUninstallFixture(t *testing.T, h *Manager, id string, pack bool) *extension.Extension {

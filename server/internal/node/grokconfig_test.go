@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/tomltext"
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 const sampleGrokConfig = `# my grok

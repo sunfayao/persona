@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cuaIdleTTL is how long Cua Driver keeps a named session without a call (0.38.0, measured: gone after about 300 s).

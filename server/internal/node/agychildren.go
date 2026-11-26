@@ -3,7 +3,7 @@ package node
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // linkAgyChildren points the Antigravity companion's subagent rows at the row that lists their parent conversation

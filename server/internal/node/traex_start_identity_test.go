@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func traexIdentityNode(t *testing.T, id string, confirmed ...bool) (*Node, *fakeHerdr, string) {

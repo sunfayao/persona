@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/processtable"
+	"github.com/sunfayao/persona/server/internal/processtable"
 )
 
 // Clock supplies the sweep cadence, the time of the last scan and the probe deadline.

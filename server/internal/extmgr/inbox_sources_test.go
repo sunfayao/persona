@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/subscriptionsui"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/subscriptionsui"
 )
 
 // hostConnector is feedConnector whose links live on a host, for telling a subscription that may duplicate it.

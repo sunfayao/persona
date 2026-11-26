@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Hello is manager.hello's answer, and manager.updated's params (the answer again when it changed): what the hub

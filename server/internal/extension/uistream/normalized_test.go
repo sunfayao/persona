@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // What check hands CheckViewJSON is canonical(raw, true) byte for byte, for

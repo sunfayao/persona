@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/update/updatetest"
+	"github.com/sunfayao/persona/server/internal/update/updatetest"
 )
 
 const pinName = "personad-linux-amd64.gz"
@@ -50,14 +50,14 @@ func checkThenPublish(t *testing.T, src *updatetest.Releases, base, tag string) 
 
 func TestReleaseBase(t *testing.T) {
 	for _, tc := range []struct{ base, version, want string }{
-		{"https://github.com/nwverse/persona/releases/latest/download", "0.6.1", "https://github.com/nwverse/persona/releases/download/v0.6.1"},
-		{"https://github.com/nwverse/persona/releases/latest/download/", "0.6.1", "https://github.com/nwverse/persona/releases/download/v0.6.1"},
-		{"https://github.com/nwverse/persona/releases/latest/download", "../0.6.1", ""}, // not a version
-		{"https://github.com/nwverse/persona/releases/latest/download", "", ""},
+		{"https://github.com/sunfayao/persona/releases/latest/download", "0.6.1", "https://github.com/sunfayao/persona/releases/download/v0.6.1"},
+		{"https://github.com/sunfayao/persona/releases/latest/download/", "0.6.1", "https://github.com/sunfayao/persona/releases/download/v0.6.1"},
+		{"https://github.com/sunfayao/persona/releases/latest/download", "../0.6.1", ""}, // not a version
+		{"https://github.com/sunfayao/persona/releases/latest/download", "", ""},
 		{"https://github.com/persona/releases/latest/download", "0.6.1", ""},             // not a repository
 		{"https://mirror.example/nwverse/persona/releases/latest/download", "0.6.1", ""}, // not GitHub
-		{"http://github.com/nwverse/persona/releases/latest/download", "0.6.1", ""},
-		{"https://github.com/nwverse/persona/releases/download/v0.6.1", "0.6.1", ""}, // fixed already
+		{"http://github.com/sunfayao/persona/releases/latest/download", "0.6.1", ""},
+		{"https://github.com/sunfayao/persona/releases/download/v0.6.1", "0.6.1", ""}, // fixed already
 		{"https://downloads.example/dl", "0.6.1", ""},
 		{"file:///srv/persona/dl", "0.6.1", ""},
 	} {

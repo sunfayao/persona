@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 // Threads is a connector whose inbox threads the app opens as a conversation of their own (CapThreads): a page of

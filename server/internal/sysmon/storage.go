@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // storageMountEntry describes a mounted filesystem candidate discovered before calling statfs.

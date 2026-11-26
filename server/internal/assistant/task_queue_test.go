@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // queuedStart builds a supervised todo and a started one-task plan on machine, then runs its start synchronously.

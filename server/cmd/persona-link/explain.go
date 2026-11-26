@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // explain turns the two failures of a pairing a person can fix from here into one plain sentence that says how,

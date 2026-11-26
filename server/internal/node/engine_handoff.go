@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The handoff summary of a conversation moving between Claude Code and Codex (#5054, engine_switch.go): what the

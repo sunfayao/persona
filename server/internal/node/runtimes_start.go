@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // runtimeOf is the runtime that runs launcher name in a terminal host's start: the one offering it, unless the login

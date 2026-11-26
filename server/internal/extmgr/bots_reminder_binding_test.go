@@ -3,8 +3,8 @@ package extmgr
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 	"testing"
 	"time"
 )

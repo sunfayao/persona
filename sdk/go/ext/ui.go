@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Page is one ui contribution (docs/extensions/extensions.md "Declarative UI"): what it draws, and what its buttons do.

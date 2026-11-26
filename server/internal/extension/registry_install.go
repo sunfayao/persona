@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Install installs a previewed package, digest being the one the user was shown. It is on at once, so CanEnable is

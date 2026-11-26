@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // The account kept across restarts (#7832, account.go restore / keepAccount / keepSettled): a store that fails,

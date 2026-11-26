@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/mcptoolgolden"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/mcptoolgolden"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The MCP tools the hub offers, as they go over the wire (json.Marshal compacts the schemas; the goldens are indented

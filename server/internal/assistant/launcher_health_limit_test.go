@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sessionLimitLine is Claude Code's line for a session limit that resets in about in (to the minute, in UTC), and that reset.

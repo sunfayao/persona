@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // SplitEnv set to 0 keeps on personad what would run a program of its own in its place: the hub's and the built-in

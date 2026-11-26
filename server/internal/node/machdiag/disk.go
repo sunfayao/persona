@@ -8,7 +8,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const (

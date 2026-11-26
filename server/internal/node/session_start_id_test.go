@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A hub that names the session id on a synchronous session.start gets exactly that session: the node types Claude's

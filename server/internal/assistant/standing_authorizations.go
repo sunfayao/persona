@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/i18n"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 const standingAuthorizationsKey = "assistant.standing_authorizations"

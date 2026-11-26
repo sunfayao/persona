@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A cursor is process-local: rebuilding it after a manager restart invalidates old

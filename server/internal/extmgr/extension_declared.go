@@ -3,7 +3,7 @@ package extmgr
 import (
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // What the extensions that are on declare for the apps (#1854):

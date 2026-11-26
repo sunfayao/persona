@@ -13,8 +13,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/pgdocker"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/pgdocker"
 )
 
 // --- the machine --------------------------------------------------------------------------------------------------

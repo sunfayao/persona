@@ -3,7 +3,7 @@ package shellcmd
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // NameRe is a name an alias or a launcher may have: the shell's rule for a function name, a dash allowed.

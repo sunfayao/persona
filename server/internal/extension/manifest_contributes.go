@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // Items are the ids of the manifest's contributions to point (nil when it has none there).

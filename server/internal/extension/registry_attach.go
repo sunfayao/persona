@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Attaching an installed package: its program runs on

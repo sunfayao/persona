@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Run is a running program: what the hub writes to and reads from it, and its exit (nil when it cannot be watched).

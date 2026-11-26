@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // The messaging extension point (#2138): an extension gives the apps' "Messages" entry its

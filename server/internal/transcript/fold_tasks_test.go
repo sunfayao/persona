@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestFoldTaskSnapshots(t *testing.T) {

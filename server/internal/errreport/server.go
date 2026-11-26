@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Build is what the hub and the manager say of themselves in a report.
@@ -59,7 +59,7 @@ func (b Build) Line(line string) wire.ErrorReport {
 var (
 	goFunc  = lazyre.New(`^(\S+)\(.*\)$`)
 	goFile  = lazyre.New(`^\t(.+):(\d+)(?: \+0x[0-9a-f]+)?$`)
-	ownCode = "github.com/nwverse/persona/"
+	ownCode = "github.com/sunfayao/persona/"
 )
 
 // GoFrames reads a goroutine's stack as debug.Stack() writes it into frames, innermost last; the recovering frames

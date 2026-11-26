@@ -3,8 +3,8 @@ package assistant
 import (
 	"net/url"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // botAnswerCards is how many cards one answer takes at most; the rest is in the app.

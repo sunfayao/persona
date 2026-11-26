@@ -10,7 +10,7 @@ import (
 	"syscall/js"
 
 	"github.com/bytemare/opaque"
-	"github.com/nwverse/persona/server/internal/passwordpake"
+	"github.com/sunfayao/persona/server/internal/passwordpake"
 )
 
 func main() {

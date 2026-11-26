@@ -9,7 +9,7 @@ package extwire
 import (
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Routes are the routes the manager answers (net/http patterns): the hub relays each request on them to the manager

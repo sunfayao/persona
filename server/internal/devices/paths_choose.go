@@ -3,7 +3,7 @@ package devices
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // pathState is what is known of a path now: whether it can be tried, its round trip (ms, 0 unknown).

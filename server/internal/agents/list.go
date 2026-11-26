@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // indexSessions runs only when a source cache is refreshed, not on every HTTP

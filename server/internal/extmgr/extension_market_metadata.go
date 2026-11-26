@@ -3,7 +3,7 @@ package extmgr
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func (h *Manager) decorateMarketMetadata(ctx context.Context, v *ExtensionView, p *extension.Extension) {

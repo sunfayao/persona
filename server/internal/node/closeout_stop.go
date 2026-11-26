@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/closeout"
 )
 
 // closeoutStop holds an agent's stop once when its turn did work and its last reply has no closeout.

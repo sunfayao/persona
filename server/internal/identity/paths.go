@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 func explicitRoot(home string) string {

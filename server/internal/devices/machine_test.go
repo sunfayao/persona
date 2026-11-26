@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // TestFakeNode is not a test: run as a subprocess (PERSONA_FAKE_NODE=1) it is a node on stdio answering every call.

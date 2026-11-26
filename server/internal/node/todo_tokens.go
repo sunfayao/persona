@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // syncTodoTokens receives expected persona_* tokens for sessions from hub and triggers reconciliation.

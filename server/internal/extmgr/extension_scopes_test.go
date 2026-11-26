@@ -14,9 +14,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveScopedExtensionForTest says on its HTTP side what the hub gave it: the token in its environment and the one in

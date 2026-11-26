@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An agy conversation the user closed or stopped is listed as stopped (#14520). While a live pane runs it, its row is

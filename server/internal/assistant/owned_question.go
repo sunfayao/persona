@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Owner snapshots can lag an answer or be reconstructed after a restart. The

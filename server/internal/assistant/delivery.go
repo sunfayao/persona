@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Delivery (#3306): a task's work is done when it is live and checked, not when a PR is open or

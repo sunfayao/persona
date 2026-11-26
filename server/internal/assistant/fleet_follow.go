@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What a conversation writes, for the channels that follow its turn: the manager follows it

@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/jsonsubset"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The shared to-do rounds cases (spec/fixtures/todo-rounds, #10465): the timeline answers every one exactly, compared
@@ -388,7 +388,7 @@ func readmeLineKeys(t *testing.T) []string {
 // listed, so a package that reads the disk, the network or randomness never gets in unnoticed.
 func TestTimelineStaysPure(t *testing.T) {
 	allowed := []string{"cmp", "encoding/json", "maps", "slices", "strconv", "strings", "time",
-		"github.com/nwverse/persona/server/internal/proto", "github.com/nwverse/persona/server/internal/assistantwire"}
+		"github.com/sunfayao/persona/server/internal/proto", "github.com/sunfayao/persona/server/internal/assistantwire"}
 	clock := []string{"Now", "Since", "Until", "Sleep", "After", "AfterFunc", "Tick", "NewTimer", "NewTicker", "LoadLocation"}
 	files, err := filepath.Glob("*.go")
 	if err != nil {

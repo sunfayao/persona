@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // flakyIdents is memIdents whose lookups fail while down is set (Postgres restarting).

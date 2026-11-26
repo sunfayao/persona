@@ -10,9 +10,9 @@ import (
 	"errors"
 	"io"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Handler answers the calls of one namespace: method is without the namespace ("status" for connector.status),

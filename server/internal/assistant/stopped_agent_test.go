@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A stopped agent is read-only (node stopped.go, #4754): agent_send and agent_interrupt refuse it before anything is

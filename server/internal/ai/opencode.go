@@ -8,7 +8,7 @@ import (
 	"sync"
 	"weak"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 type sessionIDKey struct{}

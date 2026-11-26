@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The public HTTP start keeps the shared speed field intact for the node. A

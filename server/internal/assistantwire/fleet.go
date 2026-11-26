@@ -1,7 +1,7 @@
 package assistantwire
 
 import (
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What comes from the nodes is the manager's: it creates and answers the

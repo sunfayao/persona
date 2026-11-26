@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // codeAuthorizeUnsure (503): a manager did not answer whose an extension's token is (it timed out, or is not ready

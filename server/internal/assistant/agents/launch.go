@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // Run is what an Agent another Agent starts on a tier runs on: the tier's launcher, model, effort and faster speed,

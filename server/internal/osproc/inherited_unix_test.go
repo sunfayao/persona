@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
 )
 
 // TestMain lets the test binary be the processes of TestSealInherited: the reporter (osproctest) and the process in

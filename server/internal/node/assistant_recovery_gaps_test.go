@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // claudeLikeCLI behaves as Claude Code 2.1.311 does on the seams recovery uses: no background_tasks_changed at start,

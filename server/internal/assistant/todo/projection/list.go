@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // What the projection works out over a whole list: the rows' order within each section (rank), the counts, and the

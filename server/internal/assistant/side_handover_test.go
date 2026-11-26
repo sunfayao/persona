@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sideReviewFixture installs a pre-#5732 ledger: side1 handed out the task and still owns its pending review, with

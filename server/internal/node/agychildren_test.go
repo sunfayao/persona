@@ -3,7 +3,7 @@ package node
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An agy subagent names its parent and root by the companion's ids (#14817). While a live herdr pane lists the parent

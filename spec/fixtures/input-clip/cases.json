@@ -5,7 +5,7 @@
       "name": "short_values",
       "description": "The issue's 4,000 rows of three short strings must fit the whole-input budget.",
       "source": [
-        "https://github.com/nwverse/persona/issues/2907 item 2",
+        "https://github.com/sunfayao/persona/issues/2907 item 2",
         "server/internal/transcript/clip.go: clipJSON",
         "integrations/runtime-sdk/lib/items.js: clipInput"
       ],

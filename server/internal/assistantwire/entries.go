@@ -3,7 +3,7 @@ package assistantwire
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const MethodAssistantEntriesList = "assistant.entries.list"

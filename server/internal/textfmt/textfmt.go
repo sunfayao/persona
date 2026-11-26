@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Clip is s cut to its first n runes plus an ellipsis; a string of at most n runes comes back as it is, without a copy.

@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 type answerFixture struct {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // recoverUltracodeLost fills a resume notice when a cold, large transcript's background scan was still pending

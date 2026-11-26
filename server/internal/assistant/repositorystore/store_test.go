@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
 )
 
 // TestMain gives this package an isolated database so concurrent server test lanes do not share state.

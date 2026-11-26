@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // The relationship view (#5741): every source the list has, under what brings it and how it is read, with where it

@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // catalogEntry is a Codex model entry with every field Codex requires (codexCatalogFields), and a few it reads.

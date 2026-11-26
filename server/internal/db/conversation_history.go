@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/conversationlog"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/conversationlog"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var ErrConversationHistoryChanged = errors.New("conversation history changed during read")

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // Each manager works out its own to-dos' views and counts (#10226). The hub relays them and adds the counts

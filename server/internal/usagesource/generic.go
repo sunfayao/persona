@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The generic source is Persona's own shape, for a gateway that is not a relay: GET <url> with

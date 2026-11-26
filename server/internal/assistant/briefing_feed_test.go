@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The `brief` item of a routine's conversation (briefing_feed.go): the apps' copy of the card, written whether or not the

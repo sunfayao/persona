@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The app sets a task's "Push when done" (#2396): POST and PUT take push; a PUT without it — an app that does not know the

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // secret.key in the hub's data directory seals the hub's own secrets in Postgres (the peers' tokens, the computers'

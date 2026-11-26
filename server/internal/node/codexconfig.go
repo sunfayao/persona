@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/tomltext"
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 // Codex's options the app may change ("Settings › Codex Settings"), in ~/.codex/config.toml. Only these top-level keys are read

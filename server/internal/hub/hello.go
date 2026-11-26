@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // health answers GET /api/v1/health, the one route without authentication.

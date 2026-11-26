@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/apierr"
 )
 
 // GET /api/v1/inbox keeps each listed item's JSON and writes the answer from those bytes. It used to copy every item

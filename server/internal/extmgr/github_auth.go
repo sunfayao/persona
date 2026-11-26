@@ -6,12 +6,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Where GitHub's token comes from, as the user picks it in Settings › Connectors › GitHub: a

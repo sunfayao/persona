@@ -3,7 +3,7 @@ package textfmt
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // The published Markdown v1 headings and field names are part of the record across upgrades.

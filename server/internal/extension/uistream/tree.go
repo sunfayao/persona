@@ -17,7 +17,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 const (

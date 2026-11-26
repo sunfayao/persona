@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/gitworktree"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/gitworktree"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart"
 )
 
 // "New worktree…" on Orca: Orca makes the checkout itself (worktree.create), so the new worktree is

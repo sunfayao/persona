@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // fakeCI is GitHub for CI notifications on made-up data: example-org/example-repo (default branch main), my open PR

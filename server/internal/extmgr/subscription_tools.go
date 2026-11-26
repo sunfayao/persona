@@ -10,12 +10,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/subscriptionsui"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/subscriptionsui"
 )
 
 // The assistant's subscription tools (#5240): read the

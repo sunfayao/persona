@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 const cxUpdate0169 = "  Update available · 0.169.0 → 0.170.0\n\n› 1. Update now\n  2. Skip\n  3. Skip until next version\n\n  enter continue · esc skip\n"

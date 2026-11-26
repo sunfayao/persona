@@ -12,7 +12,7 @@ import (
 	"github.com/emersion/go-imap/v2/imapclient"
 	gomessage "github.com/emersion/go-message"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // snippetOf turns the fetched header + body sections into a short preview.

@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // personad plugin on the hub's machine: install (showing what it may do), list, configure, a secret from stdin,

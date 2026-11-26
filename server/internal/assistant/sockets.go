@@ -3,7 +3,7 @@ package assistant
 import (
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // socketRoutes are the assistant's WebSocket routes (assistantwire.SocketRoutes), served by ServeSocket.

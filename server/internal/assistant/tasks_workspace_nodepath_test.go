@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // windowsNodeTaskService is a Windows computer: its node reports its directories as C:\ paths. Whatever system the

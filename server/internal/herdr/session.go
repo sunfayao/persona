@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // One user account has one default herdr server, and what runs in its panes (`personad launch`, the hooks) finds the

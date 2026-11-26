@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What a launcher declares is all Persona applies (#3066): nothing written for one that declares nothing (Claude Code

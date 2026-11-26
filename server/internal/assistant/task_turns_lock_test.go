@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The task lock (s.tasks.mu) is the package's hot lock: starting tasks, routing messages, cards, stages, the

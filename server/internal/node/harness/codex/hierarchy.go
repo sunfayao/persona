@@ -1,7 +1,7 @@
 package codex
 
 import (
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Public IDs isolate Codex homes. Missing parents remain explicit; cycles terminate.

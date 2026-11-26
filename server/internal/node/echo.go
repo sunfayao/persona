@@ -10,10 +10,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Which transcript line is the message an app sent (docs/protocol/protocol.md "Matching pending messages"). The app sends with a

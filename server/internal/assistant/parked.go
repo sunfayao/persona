@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Parked tasks. New parks require a typed external wait and source-backed

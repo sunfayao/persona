@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // What supervision costs per accepted task (#5086, step K1 of docs/assistant/assistant.md;

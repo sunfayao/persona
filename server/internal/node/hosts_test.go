@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // bareHost is a host with only the core methods (no Launcher, Organizer, Streamer…), recording the keys it was sent.

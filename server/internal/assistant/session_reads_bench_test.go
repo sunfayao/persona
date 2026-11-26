@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var updateReads = flag.Bool("update-session-reads", false, "rewrite testdata/session_reads_apps_list.json")

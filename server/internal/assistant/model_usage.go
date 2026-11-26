@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // modelUsageDays: Settings › Models shows each purpose's calls of the last 7 UTC days, today's included

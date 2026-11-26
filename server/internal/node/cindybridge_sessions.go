@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cindyModes maps Cindy's permission_mode values to Persona's (Claude Code's).

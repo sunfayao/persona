@@ -6,9 +6,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // memoryReaders are the commands readsOnlyMemory lets through, with the flags that would make one write or run

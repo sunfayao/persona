@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func overviewHub(t *testing.T, publicURL string) (*Service, *fleetDevs, *[]map[string]any) {

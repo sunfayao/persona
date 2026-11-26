@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/startdir"
+	"github.com/sunfayao/persona/server/internal/startdir"
 )
 
 // folders is a fake file system for check: each path answers at once, fails with EINTR at once ("eintr"), or hangs
@@ -135,7 +135,7 @@ func TestLeftAfterAStartThatAnswered(t *testing.T) {
 	}
 }
 
-const pkgPath = "github.com/nwverse/persona/server/internal/startdir"
+const pkgPath = "github.com/sunfayao/persona/server/internal/startdir"
 
 // This package starts before package os (see the package doc): this test binary, run again with GODEBUG=inittrace=1,
 // lists its packages' initialization in order. If it ever started after os, os's start would already have waited for

@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const cacheFixtureBody = `{"model":"example-model","system":[{"type":"text","text":"fixture prompt","cache_control":{"type":"ephemeral","ttl":"1h"}}],"messages":[{"role":"user","content":"fixture"}],"max_tokens":100,"stream":true}`

@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	repository "github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	repository "github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 const Capability = nodeproto.TaskWorkspace

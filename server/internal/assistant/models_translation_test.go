@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func translationProvider(t *testing.T, s *Service, name, model, haiku string) {

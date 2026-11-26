@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/nwverse/persona/schema/configuration/configuration.schema.json",
+  "$id": "https://github.com/sunfayao/persona/schema/configuration/configuration.schema.json",
   "title": "Portable configuration document, update and error contract",
   "$ref": "#/$defs/Document",
   "$defs": {

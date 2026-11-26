@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // A session.modes call carries who asked, for the manager's record of mode changes (#10297): a device with its id and

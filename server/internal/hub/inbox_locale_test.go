@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The manager may have stored these errors in a different language; public responses use the current request.

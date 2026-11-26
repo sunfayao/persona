@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Origin is where a rollout's thread came from, from its first line (session_meta): the Codex App writes

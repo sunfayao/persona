@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ComputerText translates only hub-owned computer/browser status templates at a response boundary.

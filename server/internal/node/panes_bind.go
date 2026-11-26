@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // sessionFromProcess reads the session a pane's claude runs from ~/.claude/sessions/<pid>.json, which Claude Code

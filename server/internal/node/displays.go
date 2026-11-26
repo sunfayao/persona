@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // displaysScript prints AppKit's screens as JSON: macOS's display number, the frame in points, in AppKit's

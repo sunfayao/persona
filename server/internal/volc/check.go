@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The connection test: one tiny recognition (0.6 s of

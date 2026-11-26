@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/agents"
 )
 
 // machinePresets are the Agent presets machine (an id) can start in host ("": its own launcher list): the profile in

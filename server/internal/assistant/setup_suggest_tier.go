@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A lower tier for the background supervisor, as one more line of the weekly block (#5805; section 9c of

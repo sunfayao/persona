@@ -1,8 +1,8 @@
 package assistant
 
 import (
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Where a notify_user notice went, from the hub's answer (assistantwire.NotifyResult): the tool tells the model so it

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // The tracks a manager names (assistant.prepare deny_dirs, #13104) are denied to the assistant's own conversations,

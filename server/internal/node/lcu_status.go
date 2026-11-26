@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // lcuBin is the installed `lcu` command (tests set it). The resident node's PATH is short, so the installer's

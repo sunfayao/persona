@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // A card's answer (resolve) keeps no filled-in value in its operation receipt: the digest is stored, and the sha256 of

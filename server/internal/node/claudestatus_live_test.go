@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/herdr"
 )
 
 // Against a working claude pane (read only): PERSONA_LIVE_PANE=<pane> go test -tags herdrlive -run TestLiveClaudeStatus

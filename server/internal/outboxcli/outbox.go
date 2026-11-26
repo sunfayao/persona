@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/hubclient"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/hubclient"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 const Usage = "  personad outbox list|retry|discard  inspect and recover held Agent messages (personad outbox -h)"

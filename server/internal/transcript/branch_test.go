@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Synthetic transcripts for the branch rules (branch.go). The shapes are the ones recorded from Claude Code 2.1.318

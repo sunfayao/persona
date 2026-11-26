@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/mcptoolgolden"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/mcptoolgolden"
 )
 
 // Behaviour cases for supervision events (#6879). Each

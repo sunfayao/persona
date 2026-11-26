@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // A flag mistake in a manager command (a flag it does not know, a flag without its value) is a usage mistake: Main

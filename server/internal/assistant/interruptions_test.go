@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // cutTask makes a task from conv1 and writes the interrupted receipt its agent's cut-off turn gets on machine.

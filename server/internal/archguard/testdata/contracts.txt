@@ -13,4 +13,4 @@ internal/nodeproto
 internal/proto
 internal/repositorywire
 internal/rpc
-github.com/nwverse/persona/sdk/go/wire
+github.com/sunfayao/persona/sdk/go/wire

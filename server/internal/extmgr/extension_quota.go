@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/quota"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/quota"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The quota extension point: a plugin contributing quota answers quota.query with a

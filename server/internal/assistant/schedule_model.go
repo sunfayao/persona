@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // errTaskModelNeedsOwnConversation: a task that runs into the conversation it came from keeps that conversation's

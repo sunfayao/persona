@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Decisions of the write gate.

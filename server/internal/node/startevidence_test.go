@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // orcaPrompts is a new Orca tab where only Enter keys arrived: a zsh prompt per key, the start line nowhere (#10588).

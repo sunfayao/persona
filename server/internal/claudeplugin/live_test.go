@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // TestLiveClaudeCLI drives the real Claude Code CLI in a throwaway config directory: set PERSONA_CLAUDE_PLUGIN_LIVE=1

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // questionCalls is the AskUserQuestion lifecycle across PreToolUse, PermissionRequest and PostToolUse. PermissionRequest

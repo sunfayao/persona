@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // exampleConnector reads and comments, on made-up data.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The assistant's live snapshot (the time, agents waiting, unread chats, today's meetings…) goes at the start of each

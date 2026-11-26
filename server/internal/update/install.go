@@ -3,7 +3,7 @@ package update
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 	"io"
 	"os"
 	"path/filepath"

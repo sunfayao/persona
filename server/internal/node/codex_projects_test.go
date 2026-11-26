@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 func TestParseCodexDesktopProjectIDUsesVerifiedNativeAliases(t *testing.T) {

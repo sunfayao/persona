@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The To-dos view on the wire (todo_view_routes.go, #10226): every row of the list carries its view and the list its

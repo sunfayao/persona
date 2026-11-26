@@ -6,10 +6,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/lark"
-	larkcliadapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/lark"
+	larkcliadapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 type fakeHostCLI struct {

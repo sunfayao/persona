@@ -8,9 +8,9 @@ import (
 	"io"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // DropSharedCommand is `personad assistant drop-shared-tables [--yes]`: once the built-in manager's data moved into its

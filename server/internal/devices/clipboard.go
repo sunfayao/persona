@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // clipboardKey is the settings key holding map[machineID]bool: the machines the user turned clipboard sharing on for.

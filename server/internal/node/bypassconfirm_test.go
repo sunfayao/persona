@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // bypassConfirm is Claude Code 2.1.322's Bypass Permissions confirmation as a fresh 160×50 pane shows it: the cursor

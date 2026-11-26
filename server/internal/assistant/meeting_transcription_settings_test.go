@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func transcriptionSettingsRequest(t *testing.T, s *Service, method, role, body string, status int) map[string]any {

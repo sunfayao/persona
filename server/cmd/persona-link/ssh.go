@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // routeFlags holds the optional route flags on `pair` and `install --pair`: the SSH tunnel's and the outbound proxy's.

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
-	"github.com/nwverse/persona/server/internal/procs"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/procs"
 )
 
 // procsEntryEnv runs the test binary as the command in its value (words split on spaces) with stdin closed, then

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // The SDK schema (wire.Validate on schema/extension/manifest.schema.json) and the hub's Parse agree on the strings an

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // opencode's token usage: it keeps its sessions in a SQLite database, a row a

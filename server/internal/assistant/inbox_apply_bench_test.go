@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // benchInbox is a busy week's inbox: n Feishu chat items of two accounts (one in four still open, the rest done

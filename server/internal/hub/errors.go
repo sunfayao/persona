@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The bodies are apierr's, shared with the assistant (internal/assistant), whose routes the hub relays.

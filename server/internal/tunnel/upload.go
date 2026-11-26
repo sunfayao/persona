@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // The upload port takes a new personad for the node, what the hub's "Redeploy" sends over ssh otherwise (devices/deploy.go):

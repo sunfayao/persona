@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // The test plugin has two gateway slots whose avatars have the same key but different dimensions.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // windowedClaude writes a Claude transcript of 4,000 lines whose first one is a long question (cut on pages, so Full

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-imap/v2/imapclient"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Two independent loopback IMAP servers let one account fail without affecting the other.

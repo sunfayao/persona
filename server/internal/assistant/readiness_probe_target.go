@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What "Try it" checks (readinessProbe, #10365): the main conversation's next turn as the send path resolves it (its

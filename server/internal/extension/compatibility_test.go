@@ -2,7 +2,7 @@ package extension
 
 import (
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"testing"
 )
 

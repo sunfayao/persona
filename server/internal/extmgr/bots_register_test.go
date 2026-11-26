@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // fakeAccounts is the accounts site's app registration: begin hands out a device code, each poll answers the next of

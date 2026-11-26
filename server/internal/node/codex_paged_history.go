@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // Paginated native threads keep their authoritative turns in the history database even while a rollout remains.

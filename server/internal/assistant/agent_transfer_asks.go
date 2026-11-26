@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // currentSupervisorSignal uses the same persisted ordinary recipient at admission, dispatch and queue recheck.

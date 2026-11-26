@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // Mail with no subject (or only Re: / Fwd:) is not one thread for the whole account: one person's subject-less mail

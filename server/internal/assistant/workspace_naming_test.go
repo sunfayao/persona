@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/assistant/repositorystore"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 func TestWorkspaceNamingSettingsWireRoundTrip(t *testing.T) {

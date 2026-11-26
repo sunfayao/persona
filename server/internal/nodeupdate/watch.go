@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 type pending struct {

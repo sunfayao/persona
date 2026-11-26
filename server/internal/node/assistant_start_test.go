@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // fakeClaudeHome puts a fake claude on PATH, run through the interactive zsh the assistant starts in.

@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/agents"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/agents"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // agentsPollFallback re-lists agent sessions in case realtime agent-bridge.updated events are missed (the stream

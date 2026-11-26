@@ -13,8 +13,8 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // Error is a refusal with the HTTP status the hub should answer.

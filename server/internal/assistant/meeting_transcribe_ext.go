@@ -5,8 +5,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // transcribers reaches the transcription contributions (docs/assistant/meeting-minutes.md "The `transcription`

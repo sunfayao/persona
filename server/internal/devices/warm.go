@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Warm start: a manager that stops for a restart (the hub's restart stops it too)

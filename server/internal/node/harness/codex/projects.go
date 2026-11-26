@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/pathutil"
 )
 
 // Native project metadata is read to place new desktop chats in an existing

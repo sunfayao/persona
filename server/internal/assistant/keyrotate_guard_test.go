@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // The launchers' keys are sealed in settings (launchersManagedKey): the key rotation re-seals the fields listed for it

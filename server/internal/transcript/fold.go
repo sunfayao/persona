@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // subagentTools are the calls that launch a subagent (Claude Code's Task, renamed Agent).

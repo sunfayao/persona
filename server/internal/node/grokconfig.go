@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/tomltext"
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 // The Grok CLI's own settings (Settings › Agents › Grok, #8353), in $GROK_HOME/config.toml (default ~/.grok/config.toml).

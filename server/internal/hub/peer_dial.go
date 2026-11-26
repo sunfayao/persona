@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Dialing a peer: every paired hub is dialed until there is a link to it, whichever side made

@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The model configuration is the assistant's: its records, the providers' keys, every

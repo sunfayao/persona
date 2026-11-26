@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 func (s *Service) planInboxSource(ctx context.Context, machine, conversation string, t *PlanTask) error {

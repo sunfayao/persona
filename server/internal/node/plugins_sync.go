@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sync stops what should not run here and removes its packages: of a plugin still to run, the version to run and the

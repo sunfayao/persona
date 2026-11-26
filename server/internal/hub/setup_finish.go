@@ -14,8 +14,8 @@ import (
 
 	"github.com/mdp/qrterminal/v3"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // --- running it ---------------------------------------------------------------------------------------------------

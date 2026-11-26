@@ -3,8 +3,8 @@ package voice
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"slices"
 	"strings"
 	"time"

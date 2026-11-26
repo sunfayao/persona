@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The usage windows and the usage sources page are the manager's (internal/devices); the hub

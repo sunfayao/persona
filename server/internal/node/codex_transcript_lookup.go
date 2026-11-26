@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 var codexTranscriptGlob = filepath.Glob

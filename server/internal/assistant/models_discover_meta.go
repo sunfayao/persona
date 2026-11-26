@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What a gateway says of a model beyond its id, name and window (#8778, docs/integrations/launchers.md "Connection

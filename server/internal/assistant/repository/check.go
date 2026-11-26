@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netaddr"
-	"github.com/nwverse/persona/server/internal/pinneddial"
+	"github.com/sunfayao/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/pinneddial"
 )
 
 const (

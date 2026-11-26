@@ -4,9 +4,9 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // ① Inbox Sources (#5278): everything that brings new things into the Inbox or the knowledge base. What needs

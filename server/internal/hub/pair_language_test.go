@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/mdp/qrterminal/v3"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 type pairLanguageTest struct {

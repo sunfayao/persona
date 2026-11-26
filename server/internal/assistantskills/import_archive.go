@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 	"io"
 	"os"
 	"path"

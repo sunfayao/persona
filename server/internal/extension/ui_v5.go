@@ -1,6 +1,6 @@
 package extension
 
-import "github.com/nwverse/persona/server/internal/i18n"
+import "github.com/sunfayao/persona/server/internal/i18n"
 
 // downgrade5 leaves out UI version 5's fields (code review, #3136), in place: a diff's context, viewed marks, generated
 // files, drafts and suggestions, a thread's resolve, a code's line link. A draft thread's first comment gets a badge

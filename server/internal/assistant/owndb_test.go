@@ -13,9 +13,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 func TestDatabaseMovedAt(t *testing.T) {

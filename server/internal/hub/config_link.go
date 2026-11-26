@@ -3,7 +3,7 @@ package hub
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // LinkConfig tunes the heartbeat with the computers' Persona Links (docs/operations/config.md): the hub's

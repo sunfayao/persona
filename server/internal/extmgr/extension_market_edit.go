@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // marketAdd registers a market after reading its index once (a market that cannot be read is not added).

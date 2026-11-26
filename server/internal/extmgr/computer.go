@@ -16,13 +16,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lcuconfirm"
-	"github.com/nwverse/persona/server/internal/mcpwait"
-	"github.com/nwverse/persona/server/internal/protectedapps"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lcuconfirm"
+	"github.com/sunfayao/persona/server/internal/mcpwait"
+	"github.com/sunfayao/persona/server/internal/protectedapps"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const cuaExtensionID = "cua"

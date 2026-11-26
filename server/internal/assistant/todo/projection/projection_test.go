@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The projection stays pure: no IO and no clock, and nothing of the
@@ -20,8 +20,8 @@ import (
 // library it may use is listed, so a package that reads the disk, the network or randomness never gets in unnoticed.
 func TestProjectionStaysPure(t *testing.T) {
 	allowed := []string{"cmp", "errors", "fmt", "maps", "reflect", "regexp", "slices", "sort", "strconv", "strings",
-		"sync", "time", "unicode/utf8", "github.com/nwverse/persona/server/internal/proto",
-		"github.com/nwverse/persona/server/internal/assistantwire"}
+		"sync", "time", "unicode/utf8", "github.com/sunfayao/persona/server/internal/proto",
+		"github.com/sunfayao/persona/server/internal/assistantwire"}
 	clock := []string{"Now", "Since", "Until", "Sleep", "After", "AfterFunc", "Tick", "NewTimer", "NewTicker", "LoadLocation"}
 	files, err := filepath.Glob("*.go")
 	if err != nil {

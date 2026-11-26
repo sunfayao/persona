@@ -10,7 +10,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 type updateLoopTransport func(*http.Request) (*http.Response, error)

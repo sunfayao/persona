@@ -4,7 +4,7 @@ import (
 	"context"
 	"sort"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ---- the hub's machines and sessions, as one pass sees them ----

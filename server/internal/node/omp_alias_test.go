@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // ompStartHerdr answers the start of an omp in ws's pane w1:p2: the pane is reported as omp once the command was typed.

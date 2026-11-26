@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // stateFile remembers which sessions Persona started and with which launcher. It lives in the hub's Postgres:

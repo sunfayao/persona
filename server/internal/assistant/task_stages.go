@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // taskPlanApproval uses pending plan cards, not the runtime's working status or words. Snapshot all

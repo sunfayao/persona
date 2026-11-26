@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // A rollback restores the verification provenance of the version it goes back to, never the one it leaves: unsigned

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Agent runtimes keep their credentials in their own config directories, which a launcher may move: Claude Code in

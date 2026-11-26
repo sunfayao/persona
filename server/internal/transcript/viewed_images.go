@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // pictureExts are the files whose Read is the agent looking at a picture (what the phone's file thumbnails draw).

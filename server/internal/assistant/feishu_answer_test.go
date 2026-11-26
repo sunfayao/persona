@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // cardTags is the element tags of a card and its JSON.
@@ -148,7 +148,7 @@ func TestLinkNamer(t *testing.T) {
 		{"https://hub.example.com/machines", "打开网页版"},
 		{"https://example.feishu.cn/docx/AbC", "打开飞书文档"},
 		{"https://example.feishu.cn/calendar", "打开 example.feishu.cn"},
-		{"https://www.github.com/nwverse/persona", "打开 github.com"},
+		{"https://www.github.com/sunfayao/persona", "打开 github.com"},
 	} {
 		u, _ := url.Parse(c.u)
 		if got := name(u); got != c.want {

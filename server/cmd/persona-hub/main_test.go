@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/depguard"
+	"github.com/sunfayao/persona/server/internal/depguard"
 )
 
 // The hub's program links its own packages and the shared ones, nothing of the manager's side, on every platform the

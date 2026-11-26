@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Agents Persona itself starts run with Allow all on Claude Code and on a provider whose approval is an Auto Accept

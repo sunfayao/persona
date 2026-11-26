@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // FetchSigned says whether a catalog could not be read (ErrCatalogUnavailable) or was read and does not verify

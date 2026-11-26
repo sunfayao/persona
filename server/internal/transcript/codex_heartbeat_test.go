@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func heartbeatItem(t *testing.T, m *Meta, seq int, kind, phase, text string) proto.Item {

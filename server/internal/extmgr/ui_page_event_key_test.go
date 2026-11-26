@@ -3,7 +3,7 @@ package extmgr
 import (
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // A row an older stream's client pressed carries `key/id`; the source registered the callback under the graph's or

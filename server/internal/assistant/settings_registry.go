@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/saved"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The table behind most of persona_settings' assistant keys: one settingField per key says what it is, how to read it

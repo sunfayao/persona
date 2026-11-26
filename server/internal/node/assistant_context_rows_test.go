@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The words a block tells a section's rows with (prompts/assistant/turn_context.md), as a reader of the block meets them.

@@ -3,7 +3,7 @@ package transcript
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The node starts an assistant message with its <persona-view-errors> feedback after the snapshot when the last

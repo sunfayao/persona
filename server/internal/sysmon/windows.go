@@ -17,7 +17,7 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Windows: Win32 calls only (the build is CGO_ENABLED=0, and a sample starts no process). The parsers are in

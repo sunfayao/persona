@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
 )
 
 // Handle answers a linked program's calls (connector.secrets.*, without the namespace), as fromProgram.

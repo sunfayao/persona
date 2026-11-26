@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An ask_user that waits for its answer holds its conversation's turn for as long as its card is up (askUserWait), and

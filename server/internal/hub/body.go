@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // decodeJSONBody decodes the request's JSON body into v, reading at most limit bytes: a larger body stops the read

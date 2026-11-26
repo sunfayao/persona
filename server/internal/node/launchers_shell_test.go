@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // asBash runs script the way the node does where the login shell is bash (`bash -ic`), with defs as the ~/.bashrc,

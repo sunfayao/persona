@@ -17,7 +17,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 	"net/url"
 	"os"
 	"strconv"
@@ -27,7 +27,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Env names the database the tests use; without it they skip what needs one.

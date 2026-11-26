@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdrcore"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/herdrcore"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // herdrCoreHost is herdr-core (hc), the runtime behind the Herdr desktop app (docs/integrations/engines.md "herdr-core

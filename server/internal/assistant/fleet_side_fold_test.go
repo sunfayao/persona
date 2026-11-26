@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sideFoldFixtures is shared with the clients' tests (#7944): the manager's fold of side sessions, the rows a roots=1

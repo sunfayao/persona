@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // An imported alias's environment: the

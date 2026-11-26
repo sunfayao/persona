@@ -2,7 +2,7 @@ package node
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"os"
 	"os/exec"
 	"path/filepath"

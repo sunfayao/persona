@@ -18,8 +18,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/protectedapps"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/protectedapps"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cuaWindow is one of Cua Driver's list_windows.

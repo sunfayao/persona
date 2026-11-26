@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/agents"
 )
 
 // The settings book contains dispatches created before A2A. New dispatches

@@ -9,7 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // screenVideoConnect is GET …/screen/video/connect?pair=…: a binary WebSocket carrying the live-screen hardware video

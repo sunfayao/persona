@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // pictureConnector is a chat app whose people have pictures (made-up ones): a.u1.501 a real PNG, a.svg and a.html

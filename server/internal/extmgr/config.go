@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/extension/denohost"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lark"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/extension/denohost"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Config is the manager's configuration for the extensions, connectors, bots and the inbox: Listen, Token and

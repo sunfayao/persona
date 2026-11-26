@@ -3,9 +3,9 @@ package extmgr
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A health conversation's connector writes are confirmed each time, a user's rule or not, also when its row's

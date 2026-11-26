@@ -25,8 +25,8 @@ import (
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Uploaded looks: the user makes Persona's avatar from an image of their own

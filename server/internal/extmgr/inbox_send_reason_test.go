@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	larkconn "github.com/nwverse/persona/server/internal/connector/larkcli"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	larkconn "github.com/sunfayao/persona/server/internal/connector/larkcli"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // What a lark-cli's failure may print: its output can carry a token, a path and the message itself (#9125). None of

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Where a start goes to an engine runtime that runs only its own launchers (Paseo with caps.same_kind, #8140).

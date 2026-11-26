@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Host is a fake hub for a program's own tests, beyond Check: it opens the protocol, then the test calls the program

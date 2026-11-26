@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Capacity for the scheduler (analysis direction "account-pool capacity in Agent scheduling",

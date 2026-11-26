@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Table-aware TOML for the few keys the app edits in a file it does not own (Grok's config.toml, grokconfig.go):

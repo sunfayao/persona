@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/shareproof"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/shareproof"
 )
 
 func TestPrivateIngressKeyConfiguration(t *testing.T) {

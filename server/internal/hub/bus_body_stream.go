@@ -5,9 +5,9 @@ import (
 	"errors"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // A large request body goes to the manager on a relay stream of its own (#6574). Inside the http.request line it

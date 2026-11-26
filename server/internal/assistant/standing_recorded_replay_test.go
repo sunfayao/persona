@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // TestRecordedStandingReplay is an opt-in, real-model replay. Recorded cards must

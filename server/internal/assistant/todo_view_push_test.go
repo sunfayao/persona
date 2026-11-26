@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The To-dos view stays fresh (todo_view_push.go, #10226): the apps are told to read the list again

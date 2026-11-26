@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/nwverse/persona/server/internal/link"
+import "github.com/sunfayao/persona/server/internal/link"
 
 // supervise is Windows' (supervise_windows.go): elsewhere systemd or launchd restart what exits.
 func supervise(*env, []string) error {
