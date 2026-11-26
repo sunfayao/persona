@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -98,7 +99,7 @@ func TestCodexDesktopUnavailableKeepsChatsViewOnly(t *testing.T) {
 				}
 				id := n.registerCodex(home, appChat, path)
 				src, _ := n.codexSource(id)
-				withCodexAppModels(t, src.home, map[string]codexModelEfforts{})
+				withCodexAppModels(t, src.home, map[string]codex.ModelEfforts{})
 				row := appChatRow(t, n)
 				if row.AgentName != "Codex App" || row.SpaceKind != "codex_app" || row.SourceKind != "codex_history" {
 					t.Fatalf("App identity or grouping lost: %+v", row)

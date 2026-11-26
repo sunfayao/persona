@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/singleflight"
-
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
+	"golang.org/x/sync/singleflight"
 )
 
 // The model and effort a chat of the Codex App runs its next turn with, changed from the phone (#5575) as with the
@@ -40,20 +40,20 @@ const codexAppModelsTTL = 10 * time.Minute
 var codexAppModelLists = struct {
 	sync.Mutex
 	at     map[string]time.Time
-	got    map[string]map[string]codexModelEfforts // home → model → its efforts
-	failed map[string]string                       // home → the failure last logged, not logged again on each retry (#9845)
+	got    map[string]map[string]codex.ModelEfforts // home → model → its efforts
+	failed map[string]string                        // home → the failure last logged, not logged again on each retry (#9845)
 	flight singleflight.Group
-}{at: map[string]time.Time{}, got: map[string]map[string]codexModelEfforts{}, failed: map[string]string{}}
+}{at: map[string]time.Time{}, got: map[string]map[string]codex.ModelEfforts{}, failed: map[string]string{}}
 
 // readCodexAppModels asks the codex the App bundles (codexAppCLI) for the models it lists for home, hidden ones too (a
 // chat may run one), falling back to <home>/models_cache.json when the CLI is unavailable or empty. A variable: tests
 // answer their own.
-var readCodexAppModels = func(ctx context.Context, home string) (map[string]codexModelEfforts, error) {
+var readCodexAppModels = func(ctx context.Context, home string) (map[string]codex.ModelEfforts, error) {
 	cli, err := codexAppCLI()
 	if err == nil {
 		if s, startErr := startCodexStdio(ctx, cli, home, os.TempDir()); startErr == nil {
-			defer s.close()
-			if got, callErr := readCodexModels(ctx, s.call); callErr == nil && len(got) > 0 {
+			defer s.Close()
+			if got, callErr := codex.ReadModels(ctx, s.Call); callErr == nil && len(got) > 0 {
 				return got, nil
 			} else if callErr != nil {
 				err = callErr
@@ -62,13 +62,13 @@ var readCodexAppModels = func(ctx context.Context, home string) (map[string]code
 			err = startErr
 		}
 	}
-	if cached, ok := readCodexHomeModelEfforts(home); ok {
+	if cached, ok := codex.ReadHomeModelEfforts(home); ok {
 		return cached, nil
 	}
 	return nil, err
 }
 
-func (n *Node) codexAppModelMeta(home, model string) (codexModelEfforts, bool) {
+func (n *Node) codexAppModelMeta(home, model string) (codex.ModelEfforts, bool) {
 	codexAppModelLists.Lock()
 	at, ok := codexAppModelLists.at[home]
 	models := codexAppModelLists.got[home]
@@ -100,7 +100,7 @@ func (n *Node) codexAppModelMeta(home, model string) (codexModelEfforts, bool) {
 		})
 	}
 	if model == "" {
-		return codexModelEfforts{}, false
+		return codex.ModelEfforts{}, false
 	}
 	e, found := models[model]
 	return e, found
@@ -112,7 +112,7 @@ func (n *Node) codexAppModelMeta(home, model string) (codexModelEfforts, bool) {
 // rows are listed again once it comes.
 func (n *Node) codexAppEfforts(home, model string) []string {
 	if e, found := n.codexAppModelMeta(home, model); found {
-		return e.levels
+		return e.Levels
 	}
 	return codexEffortLevels
 }
@@ -198,10 +198,10 @@ func (n *Node) codexDesktopModes(ctx context.Context, id string, src codexSource
 	}
 	wantedEffort := cmp.Or(effort, pending.DesktopPendingEffort)
 	if model != "" && effort == "" && pending.DesktopPendingEffort != "" {
-		if meta, known := n.codexAppModelMeta(src.home, model); known && !slices.Contains(meta.levels, pending.DesktopPendingEffort) {
+		if meta, known := n.codexAppModelMeta(src.home, model); known && !slices.Contains(meta.Levels, pending.DesktopPendingEffort) {
 			// Changing the model supersedes an initial effort that the new model cannot use, just as a normal model
 			// change reconciles the current effort. The UI may choose its new effort in a subsequent request.
-			wantedEffort = reconcileCodexEffort(meta)
+			wantedEffort = codex.ReconcileEffort(meta)
 		}
 	}
 	// A partial change also resolves the rest of the original setup before acknowledging it. Otherwise the first
@@ -261,10 +261,10 @@ func (n *Node) setCodexDesktopSettings(ctx context.Context, id string, src codex
 			return fmt.Errorf("这个会话的模型不支持思考强度 %s（可选：%s）", effort, strings.Join(levels, " / "))
 		}
 	} else if meta, known := n.codexAppModelMeta(src.home, model); known {
-		if len(meta.levels) == 0 {
+		if len(meta.Levels) == 0 {
 			clearPickedEffort = true
-		} else if curEffort != "" && !slices.Contains(meta.levels, curEffort) {
-			sendEffort = reconcileCodexEffort(meta)
+		} else if curEffort != "" && !slices.Contains(meta.Levels, curEffort) {
+			sendEffort = codex.ReconcileEffort(meta)
 			hasSendEffort = sendEffort != ""
 		}
 	}
@@ -287,12 +287,12 @@ func (n *Node) setCodexDesktopSettings(ctx context.Context, id string, src codex
 	if err != nil {
 		return codexDesktopUnavailable(ctx)
 	}
-	defer c.close()
-	owner, err := c.loadedOwner(ctx, src.thread)
+	defer c.Close()
+	owner, err := loadedCodexDesktopOwner(ctx, c, src.thread)
 	if err != nil {
 		return err
 	}
-	f, err := c.request("thread-follower-update-thread-settings", map[string]any{"conversationId": src.thread, "threadSettings": ts}, owner.HandledByClient)
+	f, err := c.Request("thread-follower-update-thread-settings", map[string]any{"conversationId": src.thread, "threadSettings": ts}, owner.HandledByClient)
 	if err != nil {
 		if f.Type == "response" { // the window answered: it did not take it
 			return refusal("codex_refused", what+"没有改成：Codex App 回复「"+f.Error+"」", nil)
@@ -305,7 +305,7 @@ func (n *Node) setCodexDesktopSettings(ctx context.Context, id string, src codex
 	if json.Unmarshal(f.Result, &updated) != nil || !updated.Applied {
 		return refusal("codex_refused", "Codex App 没有接受这个"+what, nil)
 	}
-	f, err = c.request("thread-follower-read-model-settings", map[string]any{"conversationId": src.thread}, owner.HandledByClient)
+	f, err = c.Request("thread-follower-read-model-settings", map[string]any{"conversationId": src.thread}, owner.HandledByClient)
 	var read struct {
 		Settings *struct {
 			Model           *string `json:"model"`

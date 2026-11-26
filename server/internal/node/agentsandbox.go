@@ -16,6 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/tomltext"
 )
 
 // The agent sandbox at Persona's own agent starts (#5357): the assistant's Claude on the CLI
@@ -438,27 +439,27 @@ func codexSandboxConfig(text string) (codexConfig, bool) {
 			table, top = m[1]+m[2]+m[3], false
 			continue
 		}
-		if tomlTable.MatchString(line) {
+		if tomltext.IsTable(line) {
 			table, top = "", false
 			continue
 		}
 		if top && tomlDottedKey.MatchString(line) {
 			return c, false
 		}
-		m := tomlKV.FindStringSubmatch(line)
-		if m == nil {
+		key, raw, ok := tomltext.SplitKeyValue(line)
+		if !ok {
 			continue
 		}
-		v, _ := tomlScalar(m[2])
+		v, _ := tomltext.Scalar(raw)
 		s, _ := v.(string)
 		switch {
-		case top && m[1] == "sandbox_mode":
+		case top && key == "sandbox_mode":
 			c.mode = s
-		case top && m[1] == "profile":
+		case top && key == "profile":
 			c.profile = s
-		case top && m[1] == "profiles":
+		case top && key == "profiles":
 			return c, false
-		case table != "" && m[1] == "sandbox_mode":
+		case table != "" && key == "sandbox_mode":
 			c.profiles[table] = s
 		}
 	}
@@ -467,7 +468,7 @@ func codexSandboxConfig(text string) (codexConfig, bool) {
 
 // tomlWord is a -c value: a TOML string, or the word as it is.
 func tomlWord(v string) string {
-	if s, ok := tomlScalar(v); ok {
+	if s, ok := tomltext.Scalar(v); ok {
 		if str, ok := s.(string); ok {
 			return str
 		}

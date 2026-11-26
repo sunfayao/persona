@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/link"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -24,7 +25,7 @@ import (
 func TestCodexRolloutItemsReadAsARollout(t *testing.T) {
 	parse := func(kind, raw string) []proto.Item {
 		t.Helper()
-		item := codexRolloutItem(kind, []byte(raw))
+		item := codex.RolloutItem(kind, []byte(raw))
 		if item == nil {
 			return nil
 		}
@@ -78,7 +79,7 @@ func TestCodexRolloutItemsReadAsARollout(t *testing.T) {
 		t.Fatalf("compaction = %+v", c)
 	}
 	for _, kind := range []string{"sleep", "subAgentActivity", "somethingNew"} {
-		if item := codexRolloutItem(kind, []byte(`{"type":"`+kind+`","id":"x"}`)); item != nil {
+		if item := codex.RolloutItem(kind, []byte(`{"type":"`+kind+`","id":"x"}`)); item != nil {
 			t.Errorf("%s = %v, want left out", kind, item)
 		}
 	}
@@ -542,7 +543,7 @@ func TestCodexAppChatHistoryLockAndPrune(t *testing.T) {
 		{thread: appChat, id: "t0", status: "completed", ordinal: 0, items: [][2]string{userItem("u0", "alpha")}},
 		{thread: appOld, id: "o0", status: "completed", ordinal: 0, items: [][2]string{userItem("o0", "old")}},
 	})
-	src := codexSource{home: canonicalCodexHome(home, n.home), thread: appChat}
+	src := codexSource{home: codex.CanonicalHome(home, n.home), thread: appChat}
 	p := n.codexAppHistoryFile(src)
 	os.MkdirAll(filepath.Dir(p), 0o700)
 	release, err := link.LockFile(p+".lock", false)

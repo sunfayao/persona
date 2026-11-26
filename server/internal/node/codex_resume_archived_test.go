@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -25,7 +26,7 @@ func TestArchivedCodexResumeRestoresBeforeOpeningTerminal(t *testing.T) {
 			n, f, cwd := codexHistoryNode(t)
 			provenanceHerdr(n)
 			listSessions(t, n)
-			home := canonicalCodexHome(n.codexHome(), n.home)
+			home := codex.CanonicalHome(n.codexHome(), n.home)
 			n.state.put(startThread, sessionState{Launcher: "cx", Cwd: cwd, Model: "gpt-7",
 				AppMode: "plan", StopCause: proto.StopTaskCompleted})
 			command := stubCodexArchiveCommand(t)

@@ -173,7 +173,7 @@ func (n *Node) spawnCodexWithMode(id, cwd, launcher string, resume, spare bool, 
 	p := &assistantProc{id: id, agent: "codex", launcher: launcher, cwd: cwd, cmd: cmd, stdin: stdin, exited: make(chan struct{}),
 		born: time.Now(), lastActive: time.Now(), model: execution, fingerprint: n.executionFingerprint(launcher, execution),
 		instructions: instructions, personaMCPOnly: personaMCPOnly, origin: execution.Origin}
-	c := &codexConn{n: n, p: p, key: key, memDir: memDir, pending: map[int64]chan codexReply{}, asks: map[string]context.CancelFunc{}, files: map[string][]string{},
+	c := &codexConn{n: n, p: p, key: key, memDir: memDir, asks: map[string]context.CancelFunc{}, files: map[string][]string{},
 		nameGates: nameGates}
 	p.cx = c
 	n.mu.Lock()
@@ -190,7 +190,7 @@ func (n *Node) spawnCodexWithMode(id, cwd, launcher string, resume, spare bool, 
 		_ = cmd.Wait()
 		releaseGates()
 		c.mu.Lock()
-		c.closed = true
+		c.rpcWire().Stop()
 		for _, cancel := range c.asks {
 			cancel()
 		}

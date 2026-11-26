@@ -273,10 +273,10 @@ func TestWindowsReadCodexAppModelsAsksTheAppsCodex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m := models["gpt-x"]; !reflect.DeepEqual(m.levels, []string{"low", "ultra"}) || m.def != "low" {
+	if m := models["gpt-x"]; !reflect.DeepEqual(m.Levels, []string{"low", "ultra"}) || m.Default != "low" {
 		t.Fatalf("hidden model's efforts = %+v", models)
 	}
-	if m, found := models["gpt-plain"]; !found || len(m.levels) != 0 || m.def != "" || len(models) != 2 {
+	if m, found := models["gpt-plain"]; !found || len(m.Levels) != 0 || m.Default != "" || len(models) != 2 {
 		t.Fatalf("the second model page was not read: %+v", models)
 	}
 	record := readWindowsDesktopSeed(t, seen)

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -87,7 +88,7 @@ func TestCodexRemoteBackoffJoinsANewSocketAtOnce(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	socket := filepath.Join(dir, "app-server-control.sock")
-	spec := proto.CodexServer{ID: "unix", Home: canonicalCodexHome(home, n.home), Endpoint: "unix://" + socket}
+	spec := proto.CodexServer{ID: "unix", Home: codex.CanonicalHome(home, n.home), Endpoint: "unix://" + socket}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	retry := func() (codexRetry, bool) {

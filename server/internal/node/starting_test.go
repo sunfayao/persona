@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -196,7 +197,7 @@ func TestItemsOfMoreSessionsThatHaveNotWrittenYet(t *testing.T) {
 
 	// A thread a ready app-server has loaded, with no rollout yet.
 	n.codices = newCodexRegistry()
-	codexHome := canonicalCodexHome(filepath.Join(home, ".codex"), home)
+	codexHome := codex.CanonicalHome(filepath.Join(home, ".codex"), home)
 	n.codices.config.LegacyHome = codexHome
 	const thread = "019a0000-0000-7000-8000-000000000001"
 	if id := n.registerCodex(codexHome, thread, ""); id != thread {

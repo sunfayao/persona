@@ -1,8 +1,6 @@
 package node
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -193,9 +192,9 @@ func TestCodexAppSettingsChangeSupersedesPendingSetup(t *testing.T) {
 			n, bus, _, _ := codexAppNode(t)
 			n.codices = newCodexRegistry()
 			n.configureCodex(proto.CodexConfig{LegacyHome: n.codexHome()})
-			withCodexAppModels(t, n.codexHome(), map[string]codexModelEfforts{
-				"gpt-x": {levels: []string{"low", "high"}}, "gpt-y": {levels: []string{"low", "high"}},
-				"gpt-low": {levels: []string{"low"}, def: "low"}, "gpt-plain": {},
+			withCodexAppModels(t, n.codexHome(), map[string]codex.ModelEfforts{
+				"gpt-x": {Levels: []string{"low", "high"}}, "gpt-y": {Levels: []string{"low", "high"}},
+				"gpt-low": {Levels: []string{"low"}, Default: "low"}, "gpt-plain": {},
 			})
 			thread := newUUID()
 			path := writeCodexAppRollout(t, n.codexHome(), thread, codexAppClient, t.TempDir())
@@ -246,8 +245,8 @@ func TestCodexAppSettingsFailureRetriesOnCreatedSession(t *testing.T) {
 	n, bus, seed, _ := codexAppNode(t)
 	n.codices = newCodexRegistry()
 	n.configureCodex(proto.CodexConfig{LegacyHome: n.codexHome()})
-	withCodexAppModels(t, n.codexHome(), map[string]codexModelEfforts{
-		"gpt-x": {levels: []string{"low", "high"}, def: "low"},
+	withCodexAppModels(t, n.codexHome(), map[string]codex.ModelEfforts{
+		"gpt-x": {Levels: []string{"low", "high"}, Default: "low"},
 	})
 	var persisted []byte
 	n.state.persist = func(_ string, state sessionState) {
@@ -401,7 +400,7 @@ func TestPersonasAppChatsAreTheAppsChats(t *testing.T) {
 	if codexDesktopChat(codexSource{home: home, thread: "aaaaaaaa-0000-4000-8000-000000000002", path: assistant}) {
 		t.Error("the assistant's thread taken for the App's")
 	}
-	if o := readCodexOrigin(sub); !o.desktop || o.parent == "" || codexDesktopChat(codexSource{home: home, thread: "sub", path: sub}) {
+	if o := readCodexOrigin(sub); !o.Desktop || o.Parent == "" || codexDesktopChat(codexSource{home: home, thread: "sub", path: sub}) {
 		t.Errorf("subagent origin %+v", o)
 	}
 }
@@ -471,7 +470,7 @@ wait
 	go func() {
 		server, err := startCodexStdio(ctx, cli, home, home)
 		if server != nil {
-			server.close()
+			server.Close()
 		}
 		finished <- err
 	}()
@@ -504,36 +503,5 @@ func TestCodexAppSlugIsTheTitlesASCIIWords(t *testing.T) {
 		if got := codexAppSlug(c.title); got != c.want {
 			t.Errorf("%q: %q, want %q", c.title, got, c.want)
 		}
-	}
-}
-
-type codexStdioTestInput struct{ bytes.Buffer }
-
-func (*codexStdioTestInput) Close() error { return nil }
-
-func TestCodexStdioSupportsModelListAndPreservesRPCErrors(t *testing.T) {
-	in := &codexStdioTestInput{}
-	s := &codexStdio{ctx: context.Background(), cancel: func() {}, in: in,
-		lines: bufio.NewScanner(strings.NewReader(`{"method":"thread/status","params":{}}
-{"id":99,"result":{}}
-{"id":1,"result":{"data":[{"model":"gpt-example"}],"nextCursor":null}}
-{"id":2,"error":{"code":-32601,"message":"unknown method"}}
-`))}
-	var models struct {
-		Data []struct {
-			Model string `json:"model"`
-		} `json:"data"`
-	}
-	if err := s.call(context.Background(), "model/list", map[string]any{"includeHidden": true}, &models); err != nil ||
-		len(models.Data) != 1 || models.Data[0].Model != "gpt-example" {
-		t.Fatalf("model/list = %+v, %v", models, err)
-	}
-	err := s.call(context.Background(), "project/list", map[string]any{}, nil)
-	var rpcErr *codexAppServerError
-	if !errors.As(err, &rpcErr) || rpcErr.Method != "project/list" || rpcErr.Code != -32601 {
-		t.Fatalf("lost native RPC error: %v", err)
-	}
-	if !strings.Contains(in.String(), `"method":"model/list","params":{"includeHidden":true}`) {
-		t.Fatalf("model request changed: %s", in.String())
 	}
 }

@@ -1,4 +1,4 @@
-package node
+package tomltext
 
 import (
 	"fmt"
@@ -126,14 +126,14 @@ func joinKey(table, key string) string {
 
 // tomlValues reads every string or bool value outside arrays of tables, by its full dotted key
 // (`[ui]` + `yolo = true` → "ui.yolo"; a top-level `ui.yolo = true` reads the same).
-func tomlValues(text string) map[string]any {
+func Values(text string) map[string]any {
 	out := map[string]any{}
 	lines := strings.Split(text, "\n")
 	for _, l := range tomlScan(lines) {
 		if l.key == "" || l.inner || l.table == "[[" {
 			continue
 		}
-		if v, ok := tomlScalar(l.value); ok {
+		if v, ok := Scalar(l.value); ok {
 			out[joinKey(l.table, l.key)] = v
 		}
 	}
@@ -143,10 +143,10 @@ func tomlValues(text string) map[string]any {
 // tomlSetDotted sets (or, with nil / "", removes) `table.key`. An existing line is replaced in place; a new key goes
 // after the table's last line, and a missing table is added at the end of the file. A key with no dot is tomlSet's.
 // A table written inline (`ui = { … }`) is refused: adding [ui] next to it would make the file invalid.
-func tomlSetDotted(text, dotted string, value any) (string, error) {
+func SetDotted(text, dotted string, value any) (string, error) {
 	cut := strings.LastIndex(dotted, ".")
 	if cut < 0 {
-		return tomlSet(text, dotted, value), nil
+		return Set(text, dotted, value), nil
 	}
 	table, key := dotted[:cut], dotted[cut+1:]
 	remove := value == nil || value == ""

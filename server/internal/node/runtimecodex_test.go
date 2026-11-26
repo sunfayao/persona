@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -19,7 +20,7 @@ func codexRollouts(t *testing.T, n *Node, threads map[string]map[string]any) str
 	n.codices.scan = func() []codexProcess { return nil }
 	n.dir = filepath.Join(n.home, ".persona")
 	n.configureCodex(proto.CodexConfig{})
-	home := canonicalCodexHome(t.TempDir(), n.home)
+	home := codex.CanonicalHome(t.TempDir(), n.home)
 	for id, meta := range threads {
 		payload := map[string]any{"id": id, "originator": "codex_cli_rs", "cwd": "/w/app"}
 		for k, v := range meta {

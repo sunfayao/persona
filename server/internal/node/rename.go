@@ -166,7 +166,7 @@ func (n *Node) renameSession(ctx context.Context, id string, tab, title *string)
 			if server := n.codexArchiveServer(id, home); server != nil {
 				call, cancel := context.WithTimeout(ctx, 30*time.Second)
 				defer cancel()
-				return server.wire.call(call, "thread/name/set", map[string]any{"threadId": thread, "name": t}, nil)
+				return server.wire.Call(call, "thread/name/set", map[string]any{"threadId": thread, "name": t}, nil)
 			}
 			if !live {
 				return fmt.Errorf("%w: connect this Codex session before renaming it", host.ErrUnsupported)

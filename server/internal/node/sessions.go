@@ -16,6 +16,7 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -449,7 +450,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 	}
 	n.listRows.Store(int32(max(peak, len(out))))
 	// Terminal-owned Codex parents were already seen before history was added: over the whole list, before any row goes.
-	resolveCodexHierarchy(out)
+	codex.ResolveHierarchy(out)
 	// A conversation that moved between Claude Code and Codex is one row, the session running it now: the sessions it
 	// ran in before are left out (engine_switch.go).
 	var earlier map[string]bool

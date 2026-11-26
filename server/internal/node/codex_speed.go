@@ -2,29 +2,11 @@ package node
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
-// A missing serviceTier is unknown. Native null means Standard, and older
-// Codex versions used "fast" for the tier now advertised as "priority".
-func codexServiceTier(raw json.RawMessage) string {
-	var tier string
-	if len(raw) == 0 || json.Unmarshal(raw, &tier) != nil {
-		return ""
-	}
-	switch tier {
-	case "":
-		return "default"
-	case "fast":
-		return "priority"
-	default:
-		return tier
-	}
-}
 
 func (n *Node) codexSpeedRow(s *proto.Session) {
 	c, thread, ok := n.codexEffortThread(s.SessionID)
@@ -32,7 +14,7 @@ func (n *Node) codexSpeedRow(s *proto.Session) {
 		return
 	}
 	c.mu.Lock()
-	tiers := c.models[n.codexModelNow(s.SessionID, c, thread, s.Model)].tiers
+	tiers := c.models[n.codexModelNow(s.SessionID, c, thread, s.Model)].Tiers
 	c.mu.Unlock()
 	s.ServiceTier = thread.serviceTier
 	if len(tiers) > 0 {
@@ -55,14 +37,14 @@ func (n *Node) setCodexSpeed(ctx context.Context, id, tier string) error {
 	}
 	model := n.codexModelNow(id, c, thread, n.metaOf(id).model)
 	c.mu.Lock()
-	tiers := c.models[model].tiers
+	tiers := c.models[model].Tiers
 	c.mu.Unlock()
 	if len(tiers) == 0 || tier != "default" && !slices.ContainsFunc(tiers, func(t proto.ServiceTier) bool { return t.ID == tier }) {
 		return fmt.Errorf("this model does not advertise the requested Codex speed")
 	}
 	call, cancel := context.WithTimeout(ctx, codexEffortTimeout)
 	defer cancel()
-	if err := c.wire.call(call, "thread/settings/update", map[string]any{"threadId": thread.id, "serviceTier": tier}, nil); err != nil {
+	if err := c.wire.Call(call, "thread/settings/update", map[string]any{"threadId": thread.id, "serviceTier": tier}, nil); err != nil {
 		return fmt.Errorf("couldn't change Codex speed: %w", err)
 	}
 	c.mu.Lock()

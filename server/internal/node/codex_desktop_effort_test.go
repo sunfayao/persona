@@ -14,11 +14,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // withCodexAppModels has the App's codex list models for home, as read just now.
-func withCodexAppModels(t *testing.T, home string, models map[string]codexModelEfforts) {
+func withCodexAppModels(t *testing.T, home string, models map[string]codex.ModelEfforts) {
 	t.Helper()
 	codexAppModelLists.Lock()
 	codexAppModelLists.at[home], codexAppModelLists.got[home] = time.Now(), models
@@ -60,7 +61,7 @@ func appEffortChatOwned(t *testing.T, owned, later string) (n *Node, id string, 
 	n.configureCodex(proto.CodexConfig{Homes: []string{home}})
 	id = n.registerCodex(home, appChat, rollout)
 	src, _ := n.codexSource(id) // the home as the node spells it
-	withCodexAppModels(t, src.home, map[string]codexModelEfforts{"gpt-x": {levels: []string{"low", "high", "ultra"}, def: "low"}})
+	withCodexAppModels(t, src.home, map[string]codex.ModelEfforts{"gpt-x": {Levels: []string{"low", "high", "ultra"}, Default: "low"}})
 	return n, id, bus, rollout
 }
 
@@ -169,10 +170,10 @@ func TestCodexAppChatEffortNotConfirmedIsNotShown(t *testing.T) {
 func TestCodexAppChatSwitchesModelAndEffort(t *testing.T) {
 	n, id, bus, rollout := appEffortChat(t)
 	src, _ := n.codexSource(id)
-	withCodexAppModels(t, src.home, map[string]codexModelEfforts{
-		"gpt-x":          {levels: []string{"low", "high", "ultra"}, def: "low"},
-		"acme/gpt-5-pro": {levels: []string{"low", "medium"}, def: "medium"},
-		"beta/gpt-5-pro": {levels: []string{"low", "high", "xhigh"}, def: "high"},
+	withCodexAppModels(t, src.home, map[string]codex.ModelEfforts{
+		"gpt-x":          {Levels: []string{"low", "high", "ultra"}, Default: "low"},
+		"acme/gpt-5-pro": {Levels: []string{"low", "medium"}, Default: "medium"},
+		"beta/gpt-5-pro": {Levels: []string{"low", "high", "xhigh"}, Default: "high"},
 	})
 	if s := appChatRow(t, n); s.Capabilities.Model == nil || !*s.Capabilities.Model {
 		t.Fatalf("row should advertise model capability: %+v", s.Capabilities)
@@ -247,11 +248,11 @@ func TestCodexAppChatEffortOpensAChatTheAppHasNotLoaded(t *testing.T) {
 // model the App does not list; none for a model that takes no effort, and then the row offers no change.
 func TestCodexAppEffortsAreTheModelsOnTheAppsCodex(t *testing.T) {
 	home := t.TempDir()
-	defer func(f func(context.Context, string) (map[string]codexModelEfforts, error)) { readCodexAppModels = f }(readCodexAppModels)
+	defer func(f func(context.Context, string) (map[string]codex.ModelEfforts, error)) { readCodexAppModels = f }(readCodexAppModels)
 	asked := make(chan string, 4)
-	readCodexAppModels = func(_ context.Context, h string) (map[string]codexModelEfforts, error) {
+	readCodexAppModels = func(_ context.Context, h string) (map[string]codex.ModelEfforts, error) {
 		asked <- h
-		return map[string]codexModelEfforts{"gpt-x": {levels: []string{"low", "ultra"}}, "gpt-plain": {levels: []string{}}}, nil
+		return map[string]codex.ModelEfforts{"gpt-x": {Levels: []string{"low", "ultra"}}, "gpt-plain": {Levels: []string{}}}, nil
 	}
 	t.Cleanup(func() {
 		codexAppModelLists.Lock()
@@ -315,7 +316,7 @@ read l4
 	if err != nil {
 		t.Fatal(err)
 	}
-	if m := models["gpt-x"]; !slices.Equal(m.levels, []string{"low", "ultra"}) || m.def != "low" {
+	if m := models["gpt-x"]; !slices.Equal(m.Levels, []string{"low", "ultra"}) || m.Default != "low" {
 		t.Fatalf("models = %+v", models)
 	}
 	b, _ := os.ReadFile(seen)
@@ -330,11 +331,11 @@ read l4
 // (#9845): again only when it changes, or after a read that worked.
 func TestCodexAppModelListFailureIsLoggedOnce(t *testing.T) {
 	home := t.TempDir()
-	defer func(f func(context.Context, string) (map[string]codexModelEfforts, error)) { readCodexAppModels = f }(readCodexAppModels)
+	defer func(f func(context.Context, string) (map[string]codex.ModelEfforts, error)) { readCodexAppModels = f }(readCodexAppModels)
 	var mu sync.Mutex
-	answer := func() (map[string]codexModelEfforts, error) { return nil, errors.New("codex not found in PATH") }
+	answer := func() (map[string]codex.ModelEfforts, error) { return nil, errors.New("codex not found in PATH") }
 	asks := 0
-	readCodexAppModels = func(context.Context, string) (map[string]codexModelEfforts, error) {
+	readCodexAppModels = func(context.Context, string) (map[string]codex.ModelEfforts, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		asks++
@@ -350,7 +351,7 @@ func TestCodexAppModelListFailureIsLoggedOnce(t *testing.T) {
 	n := remoteTestNode(t)
 	var logs syncBuffer
 	n.logger = log.New(&logs, "", 0)
-	read := func(want int, answering func() (map[string]codexModelEfforts, error)) {
+	read := func(want int, answering func() (map[string]codex.ModelEfforts, error)) {
 		t.Helper()
 		mu.Lock()
 		answer = answering
@@ -370,8 +371,8 @@ func TestCodexAppModelListFailureIsLoggedOnce(t *testing.T) {
 			return asks == want && ok && time.Since(at) < codexAppModelsTTL
 		})
 	}
-	failing := func(msg string) func() (map[string]codexModelEfforts, error) {
-		return func() (map[string]codexModelEfforts, error) { return nil, errors.New(msg) }
+	failing := func(msg string) func() (map[string]codex.ModelEfforts, error) {
+		return func() (map[string]codex.ModelEfforts, error) { return nil, errors.New(msg) }
 	}
 	logged := func() int { return strings.Count(logs.String(), "its chats offer every effort level") }
 	read(1, failing("codex not found in PATH"))
@@ -384,8 +385,8 @@ func TestCodexAppModelListFailureIsLoggedOnce(t *testing.T) {
 	if got := logged(); got != 2 {
 		t.Fatalf("a different failure was not logged (%d lines):\n%s", got, logs.String())
 	}
-	read(5, func() (map[string]codexModelEfforts, error) {
-		return map[string]codexModelEfforts{"gpt-x": {levels: []string{"low"}}}, nil
+	read(5, func() (map[string]codex.ModelEfforts, error) {
+		return map[string]codex.ModelEfforts{"gpt-x": {Levels: []string{"low"}}}, nil
 	})
 	read(6, failing("timed out"))
 	if got := logged(); got != 3 {

@@ -10,6 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/nwverse/persona/server/internal/tomltext"
 )
 
 // Codex protects these children as read-only within each workspace-write root.
@@ -204,7 +205,7 @@ func tomlPathArray(raw string) []string {
 		if end >= len(raw) {
 			return nil
 		}
-		value, ok := tomlScalar(raw[:end+1])
+		value, ok := tomltext.Scalar(raw[:end+1])
 		path, isString := value.(string)
 		if !ok || !isString {
 			return nil

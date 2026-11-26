@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -50,7 +52,7 @@ func codexMethodMissing(err error) bool {
 }
 
 // Read oldest first. A target's occurrence and prompts_after count user inputs, while legacy rollback counts turns.
-func readCodexRewindTurns(ctx context.Context, c *codexConn, id string) ([]codexRewindTurn, error) {
+func readCodexRewindTurns(ctx context.Context, c *appserver.Wire, id string) ([]codexRewindTurn, error) {
 	var turns []codexRewindTurn
 	cursor := ""
 	seen := map[string]bool{}
@@ -63,14 +65,14 @@ func readCodexRewindTurns(ctx context.Context, c *codexConn, id string) ([]codex
 		if cursor != "" {
 			params["cursor"] = cursor
 		}
-		err := c.call(ctx, "thread/turns/list", params, &page)
+		err := c.Call(ctx, "thread/turns/list", params, &page)
 		if codexMethodMissing(err) && cursor == "" {
 			var old struct {
 				Thread struct {
 					Turns []codexRewindTurn `json:"turns"`
 				} `json:"thread"`
 			}
-			err = c.call(ctx, "thread/read", map[string]any{"threadId": id, "includeTurns": true}, &old)
+			err = c.Call(ctx, "thread/read", map[string]any{"threadId": id, "includeTurns": true}, &old)
 			return old.Thread.Turns, err
 		}
 		if err != nil {
@@ -109,7 +111,7 @@ func (n *Node) rewindCodex(ctx context.Context, id string, o rewindOpts) (map[st
 	var state struct {
 		Thread remoteThreadData `json:"thread"`
 	}
-	if err := c.wire.call(ctx, "thread/read", map[string]any{"threadId": t.id, "includeTurns": false}, &state); err != nil {
+	if err := c.wire.Call(ctx, "thread/read", map[string]any{"threadId": t.id, "includeTurns": false}, &state); err != nil {
 		return nil, err
 	}
 	if state.Thread.ID != t.id {
@@ -137,20 +139,20 @@ func (n *Node) rewindCodex(ctx context.Context, id string, o rewindOpts) (map[st
 	var reverted struct {
 		Thread remoteThreadData `json:"thread"`
 	}
-	err = c.wire.call(ctx, "thread/revert", map[string]any{"threadId": t.id, "beforeTurnId": turns[target].ID}, &reverted)
+	err = c.wire.Call(ctx, "thread/revert", map[string]any{"threadId": t.id, "beforeTurnId": turns[target].ID}, &reverted)
 	if codexMethodMissing(err) {
-		err = c.wire.call(ctx, "thread/rollback", map[string]any{"threadId": t.id, "numTurns": len(turns) - target}, &reverted)
+		err = c.wire.Call(ctx, "thread/rollback", map[string]any{"threadId": t.id, "numTurns": len(turns) - target}, &reverted)
 	}
 	if err != nil {
 		return nil, err
 	}
 	if p := reverted.Thread.Path; p != "" {
-		if reverted.Thread.ID != t.id || rolloutID(p) != t.id {
+		if reverted.Thread.ID != t.id || codex.RolloutID(p) != t.id {
 			return nil, rewindError(rewindFailed, "Codex rewound the conversation and returned an unexpected history segment.")
 		}
 		deadline := time.Now().Add(3 * time.Second)
 		for {
-			if _, whole := readRolloutMeta(p); whole {
+			if _, whole := codex.ReadRolloutMeta(p); whole {
 				break
 			}
 			if time.Now().After(deadline) {

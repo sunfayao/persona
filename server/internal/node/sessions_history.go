@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/sessionhistory"
 )
@@ -101,8 +102,8 @@ func (n *Node) traexHistory(q sessionhistory.Query) []sessionhistory.Item[sessio
 	keep := n.keptSessions()
 	var out []sessionhistory.Item[sessionhistory.Row]
 	for id, thread := range n.traexThreads() {
-		at := thread.updated()
-		if !q.In(at) || !traexConversation(thread) || thread.origin().exec || !n.sessionScopeAllows(thread.Cwd) ||
+		at := thread.Updated()
+		if !q.In(at) || !traexConversation(thread) || thread.Origin().Exec || !n.sessionScopeAllows(thread.Cwd) ||
 			identity.IsAssistantDir(thread.Cwd) || n.isAssistantSession(id) || n.restBlocked(id, thread.Cwd, keep) {
 			continue
 		}
@@ -256,7 +257,7 @@ func (n *Node) codexHistory(q sessionhistory.Query) []sessionhistory.Item[sessio
 		live, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
 		archived, _ := filepath.Glob(filepath.Join(home, "archived_sessions", "rollout-*.jsonl"))
 		for i, p := range append(live, archived...) {
-			thread := rolloutID(p)
+			thread := codex.RolloutID(p)
 			if thread == "" {
 				continue
 			}
@@ -264,7 +265,7 @@ func (n *Node) codexHistory(q sessionhistory.Query) []sessionhistory.Item[sessio
 			if err != nil || st.ModTime().UnixMilli() < q.Since.UnixMilli() {
 				continue
 			}
-			if meta := metaOf(home, p); meta.sub || identity.IsAssistantDir(meta.cwd) || readCodexOrigin(p).exec {
+			if meta := metaOf(home, p); meta.Subagent || identity.IsAssistantDir(meta.Cwd) || readCodexOrigin(p).Exec {
 				continue
 			}
 			id := n.codexPublicID(home, thread)

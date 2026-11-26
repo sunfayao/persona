@@ -18,6 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/screen"
@@ -204,7 +205,7 @@ func (n *Node) traexWriterOwns(id string) bool {
 // traexOwnerThreads keeps every main writer owned by a process, newest first: a host's existing session may still
 // have its own writer even when another thread is newer. Known subagents never fall back to their own id. Legacy
 // subagents may supply a root confirmed by rollout metadata; older CLIs without metadata keep the owner-file fallback.
-func (n *Node) traexOwnerThreads(threads map[string]codexAppThread) map[int][]string {
+func (n *Node) traexOwnerThreads(threads map[string]codex.AppThread) map[int][]string {
 	dir := filepath.Join(n.traexHome(), "thread-writer-locks")
 	files, _ := filepath.Glob(filepath.Join(dir, "*.owner.json"))
 	type owner struct {
@@ -264,11 +265,11 @@ func (n *Node) traexOwnerThreads(threads map[string]codexAppThread) map[int][]st
 				continue
 			}
 			m := metaOf(home, p)
-			if !known && !m.sub {
+			if !known && !m.Subagent {
 				main = append(main, o.thread)
 				continue
 			}
-			root := m.root
+			root := m.Root
 			if root == o.thread || !validID(root) {
 				continue
 			}
@@ -277,7 +278,7 @@ func (n *Node) traexOwnerThreads(threads map[string]codexAppThread) map[int][]st
 				continue
 			}
 			rootPath := rolloutPath(home, root)
-			if (listed || rootPath != "") && (rootPath == "" || !metaOf(home, rootPath).sub) {
+			if (listed || rootPath != "") && (rootPath == "" || !metaOf(home, rootPath).Subagent) {
 				fallback = append(fallback, root)
 			}
 		}
@@ -389,7 +390,7 @@ func (n *Node) traexAgents(ctx context.Context, panes []host.Agent, agents []hos
 		// Run started this CLI. Keep its placement, but report the conversation's cwd.
 		if t, ok := threads[thread]; ok && t.Cwd != "" {
 			p.Cwd = t.Cwd
-		} else if cwd := metaOf(n.traexHome(), rolloutPath(n.traexHome(), thread)).cwd; cwd != "" {
+		} else if cwd := metaOf(n.traexHome(), rolloutPath(n.traexHome(), thread)).Cwd; cwd != "" {
 			p.Cwd = cwd
 		}
 		p.AgentStatus = n.traexStatus(ctx, p)

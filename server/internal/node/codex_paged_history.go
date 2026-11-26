@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 )
 
 // Paginated native threads keep their authoritative turns in the history database even while a rollout remains.
@@ -13,7 +15,7 @@ var codexPagedDBs = struct {
 	byHome map[string]*codexAppDB
 }{byHome: map[string]*codexAppDB{}}
 
-func codexPaginatedThreads(home string, fresh ...bool) map[string]codexAppThread {
+func codexPaginatedThreads(home string, fresh ...bool) map[string]codex.AppThread {
 	if codexHistoryDBPath(home) == "" {
 		return nil
 	}
@@ -50,7 +52,7 @@ func codexPaginatedThreads(home string, fresh ...bool) map[string]codexAppThread
 	return rows
 }
 
-func codexPaginatedThreadOf(src codexSource) (codexAppThread, bool) {
+func codexPaginatedThreadOf(src codexSource) (codex.AppThread, bool) {
 	t, ok := codexPaginatedThreads(src.home)[src.thread]
 	return t, ok
 }

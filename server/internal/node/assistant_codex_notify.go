@@ -1,63 +1,18 @@
 package node
 
 import (
-	"bufio"
 	"encoding/json"
 	"io"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
 // codexLineMax is the longest app-server line read; a var so tests can lower it.
 var codexLineMax = 64 * 1024 * 1024
-
-// read handles everything the app-server writes: responses, notifications, and requests to us (approvals…).
-func (c *codexConn) read(r io.Reader) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 64*1024), codexLineMax)
-	for sc.Scan() {
-		line := sc.Bytes()
-		if len(line) == 0 || line[0] != '{' { // an interactive shell may print banners
-			continue
-		}
-		var m codexMessage
-		if json.Unmarshal(line, &m) != nil {
-			continue
-		}
-		c.receive(m)
-	}
-	stopUnreadAssistant(c.p.ownerOr(c.n).logger, c.p, "codex "+c.key, sc.Err()) // the exit goroutine in spawnCodex cleans up
-}
-
-func (c *codexConn) receive(m codexMessage) {
-	if m.Method == "" && len(m.ID) > 0 {
-		var id int64
-		if json.Unmarshal(m.ID, &id) != nil {
-			return
-		}
-		c.mu.Lock()
-		ch := c.pending[id]
-		c.mu.Unlock()
-		if ch != nil {
-			select {
-			case ch <- codexReply{Result: m.Result, Err: m.Error}:
-			default:
-			}
-		}
-		return
-	}
-	if c.onMessage != nil {
-		c.onMessage(m)
-		return
-	}
-	if m.Method != "" && len(m.ID) > 0 {
-		go c.serve(m)
-	} else if m.Method != "" {
-		c.notification(m.Method, m.Params)
-	}
-}
 
 func (c *codexConn) notification(method string, params json.RawMessage) {
 	n, p := c.p.ownerOr(c.n), c.p
@@ -108,7 +63,7 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 	case "thread/settings/updated":
 		c.mu.Lock()
 		c.speedModel = firstNonEmpty(ev.Settings.Model, c.speedModel)
-		if tier := codexServiceTier(ev.Settings.ServiceTier); tier != "" {
+		if tier := codex.ServiceTier(ev.Settings.ServiceTier); tier != "" {
 			c.serviceTier = tier
 			c.serviceTierRevision++
 		}
@@ -264,3 +219,10 @@ func (c *codexConn) notification(method string, params json.RawMessage) {
 		}
 	}
 }
+
+func (c *codexConn) read(r io.Reader) {
+	err := appserver.ReadMessages(r, codexLineMax, c.receive)
+	stopUnreadAssistant(c.p.ownerOr(c.n).logger, c.p, "codex "+c.key, err)
+}
+
+func (c *codexConn) receive(m codexMessage) { c.rpcWire().Receive(m) }

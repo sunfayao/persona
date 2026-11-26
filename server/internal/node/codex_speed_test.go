@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -14,7 +15,7 @@ func speedPane(t *testing.T) (*Node, *remoteFixture, *codexRemote) {
 	n, f, c := effortPane(t)
 	joinPane(t, n)
 	c.mu.Lock()
-	c.models = map[string]codexModelEfforts{"example": {levels: []string{"low", "high"}, tiers: []proto.ServiceTier{{ID: "priority", Name: "Fast"}}}}
+	c.models = map[string]codex.ModelEfforts{"example": {Levels: []string{"low", "high"}, Tiers: []proto.ServiceTier{{ID: "priority", Name: "Fast"}}}}
 	thread := c.threads[remoteRaw]
 	thread.model, thread.effort = "example", "high"
 	c.threads[remoteRaw] = thread
@@ -82,12 +83,12 @@ func TestCodexSpeedNotifications(t *testing.T) {
 		c.message(codexMessage{Method: "thread/settings/updated", Params: json.RawMessage(`{"threadId":"` + remoteRaw + `","threadSettings":{"model":"example","effort":"high","serviceTier":` + raw + `}}`)})
 		row := proto.Session{SessionID: remoteRaw}
 		n.codexSpeedRow(&row)
-		if row.ServiceTier != codexServiceTier(json.RawMessage(raw)) {
+		if row.ServiceTier != codex.ServiceTier(json.RawMessage(raw)) {
 			t.Fatalf("notification: %+v", row)
 		}
 	}
 	for _, raw := range []string{"", `false`, `{}`} {
-		if got := codexServiceTier(json.RawMessage(raw)); got != "" {
+		if got := codex.ServiceTier(json.RawMessage(raw)); got != "" {
 			t.Fatalf("invalid or absent %q: %q", raw, got)
 		}
 	}

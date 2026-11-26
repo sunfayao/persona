@@ -23,6 +23,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantskills"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/nwverse/persona/server/internal/gitworktree"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
@@ -31,6 +32,7 @@ import (
 	"github.com/nwverse/persona/server/internal/node/clipshare"
 	"github.com/nwverse/persona/server/internal/node/doctor"
 	"github.com/nwverse/persona/server/internal/node/files"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/node/machdiag"
 	"github.com/nwverse/persona/server/internal/node/ports"
 	"github.com/nwverse/persona/server/internal/node/preview"
@@ -48,6 +50,11 @@ import (
 )
 
 type Node struct {
+	codexClientOnce  sync.Once
+	codexAppServer   *appserver.Client
+	projectRootsOnce sync.Once
+	projectRoots     *gitworktree.ProjectRoots
+
 	cacheWarm     *assistantCachePool
 	segmentStarts segmentStarts
 	runtimeUsage  runtimeUsageReports

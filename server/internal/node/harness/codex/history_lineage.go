@@ -1,4 +1,4 @@
-package node
+package codex
 
 import (
 	"bufio"
@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/nwverse/persona/server/internal/nodeclient"
 )
 
 // Revert keeps the abandoned rows. A continuation's session_meta names the retained base and its exclusive
@@ -17,12 +20,12 @@ type codexHistorySegment struct {
 	end *int64
 }
 
-func codexContinuationPath(path string) bool {
+func IsContinuation(path string) bool {
 	name := strings.TrimSuffix(filepath.Base(path), ".jsonl")
-	return len(name) > 37 && name[len(name)-37] == '_' && rolloutUUID(name[len(name)-36:])
+	return len(name) > 37 && name[len(name)-37] == '_' && IsUUID(name[len(name)-36:])
 }
 
-func codexHistorySegments(home string, t codexAppThread) ([]codexHistorySegment, error) {
+func codexHistorySegments(home string, t AppThread) ([]codexHistorySegment, error) {
 	if !t.Paginated || t.RolloutPath == "" {
 		return []codexHistorySegment{{id: t.ID}}, nil
 	}
@@ -36,7 +39,7 @@ func codexHistorySegments(home string, t codexAppThread) ([]codexHistorySegment,
 			return nil, fmt.Errorf("invalid Codex history segment")
 		}
 		id := name[len(name)-36:]
-		if !validID(id) || seen[id] {
+		if !nodeclient.ValidSessionID(id) || seen[id] {
 			return nil, fmt.Errorf("invalid Codex history lineage")
 		}
 		seen[id] = true
@@ -70,12 +73,12 @@ func codexHistorySegments(home string, t codexAppThread) ([]codexHistorySegment,
 		if base == nil {
 			break
 		}
-		if !validID(base.Thread) || base.End < 0 {
+		if !nodeclient.ValidSessionID(base.Thread) || base.End < 0 {
 			return nil, fmt.Errorf("invalid Codex history base")
 		}
 		paths, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*"+base.Thread+".jsonl"))
 		archived, _ := filepath.Glob(filepath.Join(home, "archived_sessions", "rollout-*"+base.Thread+".jsonl"))
-		paths = newestFirst(append(paths, archived...))
+		paths = filemeta.NewestFirst(append(paths, archived...))
 		if len(paths) == 0 {
 			// A removed base rollout has no further lineage to follow. Its indexed rows still supply the prefix.
 			out = append(out, codexHistorySegment{id: base.Thread, end: &base.End})
@@ -87,7 +90,7 @@ func codexHistorySegments(home string, t codexAppThread) ([]codexHistorySegment,
 	return out, nil
 }
 
-func codexHistoryTurnsSQL(home string, t codexAppThread) (string, error) {
+func HistoryTurnsSQL(home string, t AppThread) (string, error) {
 	if !t.Paginated {
 		return fmt.Sprintf("WITH history AS (SELECT *, rollout_ordinal AS history_ordinal FROM thread_turns WHERE thread_id = '%s') ", t.ID), nil
 	}

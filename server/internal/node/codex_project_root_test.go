@@ -1,6 +1,9 @@
 package node
 
 import (
+	"time"
+
+	"github.com/nwverse/persona/server/internal/gitworktree"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,18 +31,23 @@ func TestCodexProjectRootDoesNotStartGitOutsideRepository(t *testing.T) {
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("CODEX_TEST_GIT_CALLS", marker)
 
-	if got := codexProjectRoot(cwd, map[string]string{}); got != realPath(cwd) {
+	clock := &fakeProjectRootClock{at: time.Now()}
+	roots := gitworktree.NewProjectRoots(git, clock)
+	if got := roots.Resolve(cwd, map[string]string{}); got != realPath(cwd) {
 		t.Fatalf("root = %q, want the non-repository directory", got)
 	}
-	codexProjectRoots.Lock()
-	entry := codexProjectRoots.entries[realPath(cwd)]
-	entry.at = entry.at.Add(-codexProjectCacheTTL)
-	codexProjectRoots.entries[realPath(cwd)] = entry
-	codexProjectRoots.Unlock()
-	if got := codexProjectRoot(cwd, map[string]string{}); got != realPath(cwd) {
+	clock.at = clock.at.Add(30 * time.Second)
+	if got := roots.Resolve(cwd, map[string]string{}); got != realPath(cwd) {
 		t.Fatalf("root after cache expiry = %q, want the non-repository directory", got)
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatal("a directory with no repository marker still started Git")
 	}
 }
+
+type fakeProjectRootClock struct {
+	projectRootClock
+	at time.Time
+}
+
+func (c *fakeProjectRootClock) Now() time.Time { return c.at }

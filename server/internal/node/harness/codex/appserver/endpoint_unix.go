@@ -1,6 +1,6 @@
 //go:build !windows
 
-package node
+package appserver
 
 import (
 	"errors"
@@ -11,7 +11,7 @@ import (
 )
 
 // privateSocket: a Unix control socket and its directory belong to this user, no one else may use them, and neither
-// is a symlink (codexSocketPath has already followed the one alias Codex makes).
+// is a symlink (SocketPath has already followed the one alias Codex makes).
 func privateSocket(path string) error {
 	for _, p := range []string{filepath.Dir(path), path} {
 		st, err := os.Lstat(p)

@@ -27,7 +27,7 @@ func (n *Node) sessionSkillCatalog(ctx context.Context, owner, id string) (assis
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		var out codexSkillList
-		if err := c.wire.call(ctx, "skills/list", map[string]any{"cwds": []string{t.cwd}, "forceReload": true}, &out); err != nil {
+		if err := c.wire.Call(ctx, "skills/list", map[string]any{"cwds": []string{t.cwd}, "forceReload": true}, &out); err != nil {
 			return unavailable()
 		}
 		entries, complete, err := n.codexSkillEntries(t.cwd, out)

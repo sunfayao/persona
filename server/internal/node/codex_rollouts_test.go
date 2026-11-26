@@ -7,35 +7,6 @@ import (
 	"time"
 )
 
-// rolloutID reads the same id as rolloutIDRe, for any name.
-func TestRolloutID(t *testing.T) {
-	for _, p := range []string{
-		"/h/.codex/sessions/2026/01/02/rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
-		"/h/.codex/archived_sessions/rollout-2026-01-02T03-04-05-0199A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5B.jsonl",
-		`C:\Users\u\.codex\sessions\2026\01\02\rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl`,
-		"0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
-		"x0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
-		"rollout-time-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b_11111111-2222-3333-4444-555555555555.jsonl",
-		"rollout-time-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b_11111111-2222-3333-4444-555555555555_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jsonl",
-		"/h/rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl.tmp",
-		"/h/rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5.jsonl",
-		"/h/rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5g.jsonl",
-		"/h/rollout-2026-01-02T03-04-05-0199a1b2_c3d4-7e5f-8a9b-0c1d2e3f4a5b.jsonl",
-		"/h/rollout-2026-01-02T03-04-05-0199a1b2-c3d4-7e5f-8a9b0-c1d2e3f4a5b.jsonl",
-		"/h/rollout-2026-01-02T03-04-05-plain.jsonl",
-		".jsonl",
-		"",
-	} {
-		want := ""
-		if m := rolloutIDRe.FindStringSubmatch(p); m != nil {
-			want = m[1]
-		}
-		if got := rolloutID(p); got != want {
-			t.Errorf("rolloutID(%q) = %q, want %q", p, got, want)
-		}
-	}
-}
-
 // A rollout listed before its first line is written (Codex 0.167 creates it empty and writes session_meta some
 // milliseconds later) gets its directory once the line is there: what an empty or half-written line said is not kept.
 func TestRolloutsMetaAfterTheFileIsWritten(t *testing.T) {
@@ -53,10 +24,10 @@ func TestRolloutsMetaAfterTheFileIsWritten(t *testing.T) {
 			t.Fatal(err)
 		}
 		expireRollouts(codex, true)
-		if got := rollouts(codex); len(got) != 1 || got[0].cwd != "" {
+		if got := rollouts(codex); len(got) != 1 || got[0].Cwd != "" {
 			t.Fatalf("%d bytes written: %+v", len(part), got)
 		}
-		if m := metaOf(codex, p); m.cwd != "" {
+		if m := metaOf(codex, p); m.Cwd != "" {
 			t.Fatalf("%d bytes written: metaOf %+v", len(part), m)
 		}
 	}
@@ -64,10 +35,10 @@ func TestRolloutsMetaAfterTheFileIsWritten(t *testing.T) {
 		t.Fatal(err)
 	}
 	expireRollouts(codex, true)
-	if got := rollouts(codex); len(got) != 1 || got[0].cwd != "/w" {
+	if got := rollouts(codex); len(got) != 1 || got[0].Cwd != "/w" {
 		t.Fatalf("written: %+v", got)
 	}
-	if m := metaOf(codex, p); m.cwd != "/w" {
+	if m := metaOf(codex, p); m.Cwd != "/w" {
 		t.Fatalf("written: metaOf %+v", m)
 	}
 }
@@ -102,7 +73,7 @@ func TestRolloutsMetasPruned(t *testing.T) {
 		t.Fatalf("rollouts in the window: %d, want 4", got)
 	}
 	p := rolloutPath(codex, outsideWindow)
-	if p == "" || metaOf(codex, p).cwd != "/w" {
+	if p == "" || metaOf(codex, p).Cwd != "/w" {
 		t.Fatalf("rollout outside the window: %q", p)
 	}
 	if got := rolloutMetaCount(codex); got != 5 {

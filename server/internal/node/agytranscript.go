@@ -17,6 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/shellcmd"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
@@ -857,7 +858,7 @@ func agyNativeFilePath(value any) any {
 	if path[0] == '"' && json.Unmarshal([]byte(path), &decoded) == nil && filepath.IsAbs(decoded) {
 		return decoded
 	}
-	if decoded, ok := shellWord(path); ok && filepath.IsAbs(decoded) {
+	if decoded, ok := shellcmd.Word(path); ok && filepath.IsAbs(decoded) {
 		return decoded
 	}
 	return value

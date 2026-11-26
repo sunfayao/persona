@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/sessionhistory"
 	"github.com/nwverse/persona/server/internal/transcript"
@@ -153,7 +154,7 @@ func TestTraexNonPaginatedRunningTurnCompletesInPlace(t *testing.T) {
 	writeCodexHistory(t, home, []historyTurn{turn})
 	db := codexHistoryDBPath(home)
 	path := filepath.Join(t.TempDir(), "history.jsonl")
-	row := codexAppThread{ID: threadMain, includeRunning: true, Paginated: false}
+	row := codex.AppThread{ID: threadMain, IncludeRunning: true, Paginated: false}
 	f := transcript.NewFile(path)
 	project := func(status string) string {
 		t.Helper()

@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -240,7 +242,7 @@ func connectRemoteFixture(t *testing.T, n *Node, home, id string, threads ...str
 	ctx, cancel := context.WithCancel(context.Background())
 	// The node canonicalizes every server's home before it dials (configureCodex, discoverCodex); macOS's TempDir
 	// lives under the /var -> /private/var symlink, so a raw home never matches the app-server's codexHome.
-	spec := proto.CodexServer{ID: id, Home: canonicalCodexHome(home, n.home), Endpoint: "ws" + strings.TrimPrefix(server.URL, "http")}
+	spec := proto.CodexServer{ID: id, Home: codex.CanonicalHome(home, n.home), Endpoint: "ws" + strings.TrimPrefix(server.URL, "http")}
 	n.ensureCodexRemote(ctx, spec)
 	waitFor(t, "remote connected", func() bool {
 		n.codices.mu.Lock()
@@ -579,7 +581,7 @@ func TestCodexRemotePrivateUnixWebSocket(t *testing.T) {
 	defer server.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n.ensureCodexRemote(ctx, proto.CodexServer{ID: "unix", Home: canonicalCodexHome(home, n.home), Endpoint: "unix://" + socket})
+	n.ensureCodexRemote(ctx, proto.CodexServer{ID: "unix", Home: codex.CanonicalHome(home, n.home), Endpoint: "unix://" + socket})
 	waitFor(t, "Unix WebSocket handshake", func() bool {
 		id := n.registerCodex(home, remoteRaw, "")
 		_, _, err := n.codexOwner(id)
@@ -593,11 +595,11 @@ func TestCodexRemotePrivateUnixWebSocket(t *testing.T) {
 		t.Fatal("Unix transport did not initialize exactly once")
 	}
 	_ = os.Chmod(socket, 0666)
-	if _, _, err := validateCodexEndpoint("unix://" + socket); err == nil {
+	if _, _, err := appserver.New(appserver.Config{}).Endpoint("unix://" + socket); err == nil {
 		t.Fatal("accepted insecure socket")
 	}
 	for _, endpoint := range []string{"ws://example.com:80", "ws://127.0.0.1:80/?token=secret", "ws://user:pass@127.0.0.1:80"} {
-		if _, _, err := validateCodexEndpoint(endpoint); err == nil {
+		if _, _, err := appserver.New(appserver.Config{}).Endpoint(endpoint); err == nil {
 			t.Fatalf("accepted unsafe endpoint %q", endpoint)
 		}
 	}

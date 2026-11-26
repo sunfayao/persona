@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantskills"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -70,7 +71,7 @@ func (c *codexConn) start(ctx context.Context, id, cwd string, resume bool, star
 	c.mu.Lock()
 	c.threadID = res.Thread.ID
 	c.speedModel = res.Model
-	c.serviceTier = codexServiceTier(res.ServiceTier)
+	c.serviceTier = codex.ServiceTier(res.ServiceTier)
 	c.mu.Unlock()
 	n.mu.Lock()
 	c.p.id = res.Thread.ID

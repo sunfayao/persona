@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -124,7 +125,7 @@ func openRolloutsOf(pid uint32, fileType uint32) ([]string, error) {
 			continue
 		}
 		if t, err := windows.GetFileType(dup); err == nil && t == windows.FILE_TYPE_DISK {
-			if p := finalPath(dup); rolloutIDRe.MatchString(p) {
+			if p := finalPath(dup); codex.RolloutID(p) != "" {
 				out = append(out, p)
 			}
 		}
