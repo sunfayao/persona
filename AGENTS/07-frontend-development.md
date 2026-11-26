@@ -82,8 +82,9 @@ What you must not break:
 6. **Text contrast is 4.5:1 in light and dark.** A new text role is added to `src/ui/theme-contrast.test.ts`.
 7. **Motion respects reduced motion.** Busy animations carry `busy-motion`; scripted scrolling goes through
    `scrollBehavior()`; expanding uses `Collapse`.
-8. **Phones are first-class.** Below 1024 pixels dialogs are bottom sheets, inputs use at least 16 pixel text, safe
-   areas and the soft keyboard are respected, nothing depends on hover.
+8. **Phones are first-class.** The layout is narrow below 1024 pixels and dialogs become bottom sheets at phone
+   width (`SHEET_QUERY`); inputs use at least 16 pixel text, safe areas and the soft keyboard are respected, nothing
+   depends on hover.
 9. **Lists stay put.** Opening or closing something in a chat keeps the tapped row where it was. Tool activity is
    collapsed by default. Primary screens show no raw model ids, paths or session ids.
 10. **Words follow the glossary** in `docs/protocol/i18n.md` (Computer, not Machine or Node; Assistant, not manager)
