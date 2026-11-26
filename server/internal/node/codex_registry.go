@@ -748,6 +748,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			s.Capabilities.StopCause = n.stopCause(id)
 			if _, resume := n.terminalExitLaunch(id); resume && !s.Archived {
 				s.Capabilities.Send = true
+				s.ReadOnlyReason = ""
 			} else {
 				s.ReadOnlyReason = stoppedReason
 			}
