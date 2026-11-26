@@ -9,7 +9,7 @@ export interface MentionRepository {
   id: string;
   provider: string;
   instance_url?: string;
-  /** Full repository path (e.g. "nwverse/persona"). */
+  /** Full repository path (e.g. "owner/repo"). */
   path: string;
   canonical_url: string;
   name?: string;
