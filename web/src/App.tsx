@@ -462,10 +462,7 @@ function Shell() {
   }, [drawer, narrow]);
 
   // the keyboard shortcuts (⌘K and the rest, lib/shortcuts.ts): what they do here, and the listener that runs them
-  const workPane = useRef<{ mid: string; sid: string } | undefined>(undefined);
-  const reportWorkPane = useCallback((available?: { mid: string; sid: string }) => { workPane.current = available; }, []);
-  const workPaneAvailable = (at: { mid: string; sid: string }) => workPane.current?.mid === at.mid && workPane.current?.sid === at.sid;
-  useShortcuts({ route, pane, narrow, toggleDrawer: toggle, closeDrawer: close, workPaneAvailable });
+  useShortcuts({ route, pane, narrow, toggleDrawer: toggle, closeDrawer: close });
 
   useEffect(() => setDrawer(false), [route.name, pane ? pane.sid : route.name === "agents" ? route.id : ""]);
   // a session's files / Git belong to that conversation: moving to another page closes them (a link and a task stay),
@@ -500,14 +497,15 @@ function Shell() {
       break;
     case "session":
     case "tab": {
-      const detail = (terminalAvailable?: boolean) =>
+      const work = inWorkView(route);
+      const detail =
         route.name === "session" && target?.link === "ambiguous" ? <SessionChoices mid={route.mid} sid={route.sid} onToggleSidebar={toggle} />
           : !pane ? (loaded && route.name === "tab" && lookup.state === "missing" ? <TabGone onToggleSidebar={toggle} /> : <Loading />)
           : launch ? <StartingAgent launch={launch} onToggleSidebar={toggle} />
-          : <ChatView key={`${pane.mid}/${pane.sid}`} mid={pane.mid} sid={pane.sid} starting={starting} onToggleSidebar={terminalAvailable === undefined ? toggle : undefined} inPage terminalAvailable={terminalAvailable} landAt={route.at} />;
-      main = inWorkView(route)
-        ? <TerminalPage onToggleSidebar={toggle} onNewAgent={openNewAgent} detail={{ selected: pane, render: detail }} onWorkPane={reportWorkPane} />
-        : detail();
+          : <ChatView key={`${pane.mid}/${pane.sid}`} mid={pane.mid} sid={pane.sid} starting={starting} onToggleSidebar={work ? undefined : toggle} inPage landAt={route.at} />;
+      main = work
+        ? <TerminalPage onToggleSidebar={toggle} onNewAgent={openNewAgent} detail={{ selected: pane, content: detail }} />
+        : detail;
       break;
     }
     case "persona":
