@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/sessionhistory"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
 
@@ -62,6 +63,12 @@ func TestTraexPaginatedHistoryListsAndReadsWithoutRollouts(t *testing.T) {
 	}
 	if got := n.traexSessions(map[string]bool{threadMain: true}); len(got) != 0 {
 		t.Fatalf("live conversation listed twice: %+v", got)
+	}
+	window := fmt.Sprintf(`{"since":%q,"source":"traex"}`, time.Now().Add(-time.Hour).Format(time.RFC3339))
+	answer, err := n.sessionsHistory(t.Context(), []byte(window))
+	if err != nil || len(answer.Rows) != 1 || answer.Rows[0].Session.SessionID != threadMain ||
+		answer.Rows[0].Source != sessionhistory.SourceTraex || !answer.Complete {
+		t.Fatalf("TRAE History view omitted the stopped conversation: %+v, %v", answer, err)
 	}
 	f, err := n.file(threadMain)
 	if err != nil {

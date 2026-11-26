@@ -125,6 +125,44 @@ func TestTraexBlankStartRefusedBeforeCreatingTerminal(t *testing.T) {
 	}
 }
 
+func TestTraexOwnerSendContinuesSameExitedThread(t *testing.T) {
+	n, f, home := traexIdentityNode(t, threadMain)
+	traexHistoryFixture(t, n, nil)
+	listSessions(t, n)
+	f.reply("workspace.list", map[string]any{"workspaces": []any{map[string]any{"workspace_id": "w1", "label": filepath.Base(home)}}})
+	st := sessionState{Pane: "w1:p1", Cwd: home, Launcher: "custom-trae", Model: "saved-model", StartedAt: time.Now().Add(-time.Hour).UTC()}
+	n.state.put(threadMain, st)
+	const text = "Continue the existing conversation"
+	if code, _ := refusalOf(t, n.send(t.Context(), threadMain, text, nil, sendOpts{})); code != agentStopped {
+		t.Fatalf("a non-owner send woke the terminal: %s", code)
+	}
+	ctx, _ := withOwnerDelivery(t.Context())
+	n.state.stopped(threadMain, proto.StopUser)
+	if code, _ := refusalOf(t, n.send(ctx, threadMain, text, nil, sendOpts{})); code != agentStopped {
+		t.Fatalf("an explicitly stopped terminal accepted a send: %s", code)
+	}
+	if got := f.trace("tab.create"); len(got) != 0 {
+		t.Fatalf("a refused send created a terminal: %q", got)
+	}
+	n.state.put(threadMain, st)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := n.send(ctx, threadMain, text, nil, sendOpts{}); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	for _, command := range f.calls() {
+		if command.Method == "pane.send_input" && strings.Contains(str(command.Params["text"]), "custom-trae resume "+threadMain) &&
+			strings.Contains(str(command.Params["text"]), text) {
+			count++
+		}
+	}
+	saved, _ := n.state.get(threadMain)
+	if count != 1 || saved.Model != st.Model || !saved.StartedAt.Equal(st.StartedAt) {
+		t.Fatalf("expected one resume preserving the saved launch, got %d and %+v", count, saved)
+	}
+}
+
 func TestTraexFreshStartExcludesHistoricalThreads(t *testing.T) {
 	for _, paginated := range []bool{false, true} {
 		t.Run(map[bool]string{false: "rollout", true: "paginated"}[paginated], func(t *testing.T) {

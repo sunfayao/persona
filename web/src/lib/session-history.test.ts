@@ -24,4 +24,9 @@ describe("History (#10240)", () => {
   it("a resumed authoritative row leaves History immediately", () => {
     expect(historySessions([row("resumed", { status: "idle", state: "idle" })])).toEqual([]);
   });
+  it("retains a terminal exit or interruption in History while its pane is gone", () => {
+    const exited = row("exited", { status: "interrupted", state: "idle" });
+    const live = row("live", { status: "interrupted", state: "idle", pane_id: "w1:p1" });
+    expect(historySessions([exited, live]).map(s => s.session_id)).toEqual(["exited"]);
+  });
 });

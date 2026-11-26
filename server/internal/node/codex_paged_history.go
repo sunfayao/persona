@@ -13,7 +13,7 @@ var codexPagedDBs = struct {
 	byHome map[string]*codexAppDB
 }{byHome: map[string]*codexAppDB{}}
 
-func codexPaginatedThreads(home string) map[string]codexAppThread {
+func codexPaginatedThreads(home string, fresh ...bool) map[string]codexAppThread {
 	if codexHistoryDBPath(home) == "" {
 		return nil
 	}
@@ -28,7 +28,8 @@ func codexPaginatedThreads(home string) map[string]codexAppThread {
 		c = &codexAppDB{}
 		codexPagedDBs.byHome[home] = c
 	}
-	if c.stamp == stamp || time.Since(c.at) < codexAppDBRefresh {
+	force := len(fresh) > 0 && fresh[0]
+	if c.stamp == stamp || !force && time.Since(c.at) < codexAppDBRefresh {
 		defer codexPagedDBs.Unlock()
 		return c.byID
 	}

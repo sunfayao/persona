@@ -51,7 +51,7 @@ var (
 // an after-exit close keeps the cause the Agent stopped with.
 func (n *Node) retire(ctx context.Context, id string, closeTerminal, afterExit bool, cause proto.StopCause) (done bool, err error) {
 	if !closeTerminal {
-		return n.stopWithCause(ctx, id, true, proto.StopUnknown)
+		return n.stopWithCause(ctx, id, true, proto.StopUser)
 	}
 	release := n.recovery.lock(id)
 	defer release()
@@ -413,6 +413,7 @@ func (n *Node) resumeOtherWith(ctx context.Context, id string, st sessionState, 
 	}
 	tab := n.resumeTabName(id)
 	if !codex { // a compatible CLI: `<launcher> resume <id> <message>`
+		ctx = n.inKeptTerminal(ctx, id, st.Cwd)
 		_, err = n.startOtherAgent(ctx, launch, st.Cwd, st.Launcher, traexAgent, text, id, ws, tab)
 		return uncertain(err)
 	}

@@ -48,7 +48,7 @@ func (n *Node) sessionsHistory(ctx context.Context, raw json.RawMessage) (sessio
 		return sessionhistory.Answer{}, err
 	}
 	switch p.Source {
-	case "", sessionhistory.SourceClaude, sessionhistory.SourceCodex, sessionhistory.SourceRuntime:
+	case "", sessionhistory.SourceClaude, sessionhistory.SourceCodex, sessionhistory.SourceTraex, sessionhistory.SourceRuntime:
 	default:
 		return sessionhistory.Answer{}, errors.Join(sessionhistory.ErrInvalid, errors.New("unknown source "+p.Source))
 	}
@@ -63,6 +63,10 @@ func (n *Node) sessionsHistory(ctx context.Context, raw json.RawMessage) (sessio
 	if wants(sessionhistory.SourceCodex) {
 		parts = append(parts, sessionhistory.Part[sessionhistory.Row]{Items: sessionhistory.After(n.codexHistory(q), after)})
 		ans.Sources = append(ans.Sources, sessionhistory.SourceState{Source: sessionhistory.SourceCodex, Honored: true, Complete: true})
+	}
+	if wants(sessionhistory.SourceTraex) {
+		parts = append(parts, sessionhistory.Part[sessionhistory.Row]{Items: sessionhistory.After(n.traexHistory(q), after)})
+		ans.Sources = append(ans.Sources, sessionhistory.SourceState{Source: sessionhistory.SourceTraex, Honored: true, Complete: true})
 	}
 	if wants(sessionhistory.SourceRuntime) && n.runtimes != nil {
 		for _, h := range n.runtimes.ready() {
@@ -91,6 +95,23 @@ func (n *Node) sessionsHistory(ctx context.Context, raw json.RawMessage) (sessio
 // historyItem is a row of this node's with its key in the node's order.
 func historyItem(r sessionhistory.Row) sessionhistory.Item[sessionhistory.Row] {
 	return sessionhistory.Item[sessionhistory.Row]{Key: sessionhistory.KeyOf(r.At(), r.NodeKey()), V: r}
+}
+
+func (n *Node) traexHistory(q sessionhistory.Query) []sessionhistory.Item[sessionhistory.Row] {
+	keep := n.keptSessions()
+	var out []sessionhistory.Item[sessionhistory.Row]
+	for id, thread := range n.traexThreads() {
+		at := thread.updated()
+		if !q.In(at) || !traexConversation(thread) || thread.origin().exec || !n.sessionScopeAllows(thread.Cwd) ||
+			identity.IsAssistantDir(thread.Cwd) || n.isAssistantSession(id) || n.restBlocked(id, thread.Cwd, keep) {
+			continue
+		}
+		s := proto.Session{SessionID: id, Agent: traexAgent, Title: thread.Title, Cwd: thread.Cwd, Model: thread.Model,
+			Status: proto.StatusOffline, UpdatedAt: at, Capabilities: &proto.SessionCapabilities{Read: true}}
+		untitled(&s, quickMeta{})
+		out = append(out, historyItem(sessionhistory.Row{Session: s, Source: sessionhistory.SourceTraex, ActiveAt: at}))
+	}
+	return sessionhistory.Sorted(out)
 }
 
 // runtimeHistory asks one runtime for the page: not at all when it does not declare caps.history. A session the live

@@ -89,6 +89,7 @@ func (n *Node) traexSessions(seen map[string]bool) []proto.Session {
 			}
 		}
 		n.decorate(&s)
+		n.markStopped(&s)
 		out = append(out, s)
 	}
 	// The final list's stable time sort must not inherit random map order for ties.

@@ -220,7 +220,15 @@ func (n *Node) startOtherAgent(ctx context.Context, launch host.Launcher, cwd, l
 				continue
 			}
 		}
-		n.putAgentState(ctx, launch, id, sessionState{Pane: pane, Launcher: launcher, Cwd: cwd, Model: model, StartedAt: time.Now().UTC()})
+		state := sessionState{Pane: pane, Launcher: launcher, Cwd: cwd, Model: model, StartedAt: time.Now().UTC()}
+		if resume != "" && kind == traexAgent {
+			if previous, ok := n.state.get(id); ok {
+				state = previous
+				state.Pane, state.Launcher, state.Cwd = pane, launcher, cwd
+				state.StopCause = proto.StopUnknown
+			}
+		}
+		n.putAgentState(ctx, launch, id, state)
 		n.bindPane(pane, id)
 		session := n.sessionFor(id, agent)
 		session.Agent = kind
