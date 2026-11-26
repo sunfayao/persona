@@ -149,17 +149,16 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		if resumeClaim != nil {
 			defer resumeClaim()
 		}
-	}
-	if err != nil && (n.codexPath(id) != "" || n.traexPath(id) != "") {
-		if resumeClaim != nil {
-			if _, known := n.traexThread(id); known && !n.traexWriterOwns(id) {
+		_, paginatedTrae := n.traexThread(id)
+		if paginatedTrae || n.codexPath(id) != "" || n.traexPath(id) != "" {
+			if resumeClaim != nil && paginatedTrae && !n.traexWriterOwns(id) {
 				if len(selected) > 0 {
 					text = selectedSkillInstructions(selected) + "\n\n" + text
 				}
 				return n.resumeOtherWith(ctx, id, stoppedLaunch, text, images)
 			}
+			return n.stoppedRefusal(id)
 		}
-		return n.stoppedRefusal(id)
 	}
 	kind := "claude"
 	if err == nil {
@@ -242,10 +241,11 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 			return r
 		}
 		// An owner's message may bring back a recorded Claude terminal. Other stopped chats keep explicit Resume.
-		if resumeClaim == nil && !n.freshFork(id) && !n.desktopSession(id) {
+		resumesClaude := resumeClaim != nil && n.claudeTranscript(id, true) != ""
+		if !resumesClaude && !n.freshFork(id) && !n.desktopSession(id) {
 			return n.stoppedRefusal(id)
 		}
-		if resumeClaim != nil {
+		if resumesClaude {
 			ctx = n.inKeptTerminal(ctx, id, stoppedLaunch.Cwd)
 		}
 		r := n.resumeWith(id, opts)

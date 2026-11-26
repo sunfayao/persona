@@ -145,6 +145,8 @@ func TestTraexOwnerSendContinuesSameExitedThread(t *testing.T) {
 		t.Fatalf("a refused send created a terminal: %q", got)
 	}
 	n.state.put(threadMain, st)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	if err := n.send(ctx, threadMain, text, nil, sendOpts{}); err != nil {
 		t.Fatal(err)
 	}
