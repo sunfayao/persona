@@ -238,13 +238,14 @@ Review the release checklist`
 	const manual = "Review the <persona-context> transport"
 	writeCodexApp(t, home, project, codexAppSchema+
 		codexAppRow(appChat, "", project, prompt[:36], time.Now(), 0)+
+		codexAppRow(appMigrated, "", project, prompt[:43], time.Now(), 0)+
 		codexAppRow(appOld, "", project, manual, time.Now(), 0)+
 		`ALTER TABLE threads ADD COLUMN history_mode TEXT DEFAULT 'paginated';
       UPDATE threads SET title = '`+prompt+`';`)
 	writeCodexHistory(t, home, []historyTurn{{thread: appChat, id: "turn-1", status: "completed",
 		ordinal: 1, items: [][2]string{userItem("u1", prompt)}}})
 	history := n.traexSessions(map[string]bool{})
-	for id, want := range map[string]string{appChat: "Review the release checklist", appOld: manual} {
+	for id, want := range map[string]string{appChat: "Review the release checklist", appMigrated: "Review the release checklist", appOld: manual} {
 		if got := n.traexTitle(id); got != want {
 			t.Errorf("live: got %q, want %q", got, want)
 		}
