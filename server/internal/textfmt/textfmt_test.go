@@ -46,7 +46,7 @@ func TestFormatting(t *testing.T) {
 		Ago(time.Now().Add(-3*time.Hour)) != "3 hours ago" || Ago(time.Now().Add(-49*time.Hour)) != "2 days ago" {
 		t.Error("Ago")
 	}
-	if StateNames[proto.StateNeedsYou] != "需要你" {
+	if StateNames[proto.StateNeedsYou] != "needs you" {
 		t.Error("StateNames")
 	}
 }

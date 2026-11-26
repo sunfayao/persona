@@ -310,7 +310,7 @@ func (p *gateProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cfg := n.assistantLark(r.Context())
 	gi := slices.IndexFunc(cfg.Gates, func(g proto.CommandGate) bool { return g.Command == command && g.Auth != nil })
 	if gi < 0 {
-		gateRefuse(w, http.StatusServiceUnavailable, command+" 现在用不了：提供它的扩展停用了，或者 hub 没给它凭据。")
+		gateRefuse(w, http.StatusServiceUnavailable, command+" is not available: the extension that provides it is turned off, or the hub gave it no credentials.")
 		return
 	}
 	g := cfg.Gates[gi]
@@ -319,13 +319,13 @@ func (p *gateProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var err error
 		up, err = url.Parse(g.Env[g.BaseEnv])
 		if err != nil || up.Host == "" || up.Scheme != "http" && up.Scheme != "https" {
-			gateRefuse(w, http.StatusServiceUnavailable, command+" 没有可用的接口地址（扩展没给，或者给的不对）。")
+			gateRefuse(w, http.StatusServiceUnavailable, command+" has no usable API address (the extension gave none, or a wrong one).")
 			return
 		}
 	}
 	restPath, err := url.PathUnescape("/" + rest)
 	if err != nil {
-		gateRefuse(w, http.StatusBadRequest, "路径不对："+err.Error())
+		gateRefuse(w, http.StatusBadRequest, "Bad path: "+err.Error())
 		return
 	}
 	// The call as larkCheck reads `<command> METHOD PATH`: the path past the base, without the gate's prefix.
@@ -337,7 +337,7 @@ func (p *gateProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	isJSON := false
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt == "application/json" || strings.HasSuffix(mt, "+json") {
 		if body, err = io.ReadAll(io.LimitReader(r.Body, gateBodyMax+1)); err != nil {
-			gateRefuse(w, http.StatusBadRequest, "读不完请求："+err.Error())
+			gateRefuse(w, http.StatusBadRequest, "Could not read the whole request: "+err.Error())
 			return
 		}
 		isJSON = len(body) <= gateBodyMax // longer: no rule's body matches it, nor does a body confirmed
@@ -371,7 +371,7 @@ func (p *gateProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			through = proto.LarkLetThrough{Kind: proto.LarkThroughRule, Rule: &rule}
 		}
 	case "deny":
-		gateRefuse(w, http.StatusForbidden, "这个操作按配置不允许（"+c.Method+" "+c.Path+"）。")
+		gateRefuse(w, http.StatusForbidden, "This operation is not allowed by the configuration ("+c.Method+" "+c.Path+").")
 		return
 	default:
 		gr, ok := p.take(gk, c.Method, c.Path, c.Query, body, isJSON)
@@ -417,7 +417,7 @@ func (p *gateProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		FlushInterval: -1, // streams (events, long polls) go as they come
 		ErrorLog:      log.New(io.Discard, "", 0),
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-			gateRefuse(w, http.StatusBadGateway, command+" 的接口连不上："+err.Error())
+			gateRefuse(w, http.StatusBadGateway, command+" API is unreachable: "+err.Error())
 		},
 	}
 	rp.ServeHTTP(sw, r)
@@ -616,8 +616,8 @@ func gateAuthValue(tmpl string, env map[string]string) string {
 
 // gateNeedsPhone refuses a call that goes only after the user confirmed it on the phone, and says how to ask.
 func gateNeedsPhone(w http.ResponseWriter, command string, c larkCall) {
-	gateRefuse(w, http.StatusForbidden, "这个操作要用户先在手机上确认（"+c.Method+" "+c.Path+"）：单独一条 `"+command+
-		" METHOD PATH [BODY]` 发，不放进脚本、循环或 $(…) 里，确认卡片会发到用户手机上，确认过的才发得出去。")
+	gateRefuse(w, http.StatusForbidden, "This operation needs the user to confirm it on their phone first ("+c.Method+" "+c.Path+"): send it as its own `"+command+
+		" METHOD PATH [BODY]` command, not inside a script, loop or $(…); the confirmation card goes to the user's phone, and only a confirmed call goes through.")
 }
 
 // gateRefuse answers for the proxy, in JSON as the APIs do: the gated command prints it, so the model reads why.

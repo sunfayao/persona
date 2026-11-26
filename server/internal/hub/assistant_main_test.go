@@ -94,7 +94,7 @@ func TestNewMainConversation(t *testing.T) {
 		t.Fatalf("first message: %d %v", code, out)
 	}
 	first, _ := n.lastSend(t)["text"].(string)
-	if !strings.Contains(first, `title="接上旧主对话"`) || !strings.Contains(first, "示例摘要") || !strings.Contains(first, "用户：示例问题") ||
+	if !strings.Contains(first, `title="Continuing from the previous main conversation"`) || !strings.Contains(first, "示例摘要") || !strings.Contains(first, "User: 示例问题") ||
 		!strings.HasSuffix(first, "今天有什么安排") {
 		t.Fatalf("the first message:\n%s", first)
 	}
@@ -106,7 +106,7 @@ func TestNewMainConversation(t *testing.T) {
 		t.Fatal(code)
 	}
 	post("/api/v1/assistant/conversations", `{"prompt":"再来","main":true}`)
-	if got, _ := n.lastSend(t)["text"].(string); !strings.Contains(got, "上一段没有能带过来的内容") {
+	if got, _ := n.lastSend(t)["text"].(string); !strings.Contains(got, "The previous conversation left nothing to carry over") {
 		t.Fatalf("carry none still says where it came from:\n%s", got)
 	}
 	post("/api/v1/assistant/conversations", `{"prompt":"第三条","main":true}`)

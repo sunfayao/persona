@@ -140,7 +140,7 @@ func loadPlan(h *Hub, id string) *assistant.TaskPlan {
 	return got.Plan
 }
 
-// taskLine is the task's line in the live context a message to conv1 starts with: "title (id): state…" (in Chinese).
+// taskLine is the task's line in the live context a message to conv1 starts with: "title (id): state…" (in English).
 func taskLine(h *Hub, todo Todo) string {
 	if a, ok := testAssistants.Load(h); ok {
 		a.(*testAssistant).svc.ProfileChanged(context.Background()) // a fresh snapshot, not the one kept for 45 s
@@ -148,7 +148,7 @@ func taskLine(h *Hub, todo Todo) string {
 	res, _ := h.asst().Context(context.Background(), assistant.ContextParams{SessionID: "conv1"})
 	text := res.Text
 	for _, l := range strings.Split(text, "\n") {
-		if strings.Contains(l, todo.Title+"（"+todo.ID+"）：") || strings.Contains(l, todo.Title+"（"+todo.ID+"，链接 ") {
+		if strings.Contains(l, todo.Title+" ("+todo.ID+"): ") || strings.Contains(l, todo.Title+" ("+todo.ID+", link ") {
 			return strings.TrimSpace(l)
 		}
 	}
@@ -198,10 +198,10 @@ func TestTaskPlanReadOnlyStartsAtOnce(t *testing.T) {
 		t.Fatalf("todo = %+v", todo)
 	}
 	starts, _ := tn.calls()
-	wantPrompt := "iPad 横屏时登录页崩溃，修好并补测试\n\n本任务只读：不改项目文件、不提交、不对外写入"
+	wantPrompt := "iPad 横屏时登录页崩溃，修好并补测试\n\nThis task is read-only: do not change project files, commit, or write to external systems."
 	if prompt, _ := starts[0]["prompt"].(string); len(starts) != 1 ||
 		!strings.HasPrefix(prompt, wantPrompt+"\n\nPersona task handoffs:") ||
-		!strings.Contains(prompt, "file: <这台电脑上的绝对路径>") ||
+		!strings.Contains(prompt, "file: <absolute path on this computer>") ||
 		starts[0]["cwd"] != "/code/app" || starts[0]["permission_mode"] != "bypassPermissions" {
 		t.Fatalf("session.start = %+v", starts)
 	}
@@ -223,7 +223,7 @@ func failedStart(t *testing.T, h *Hub, want string) Todo {
 	if !strings.Contains(todo.StartError, want) || len(todo.Agents) != 0 {
 		t.Fatalf("todo = %+v", todo)
 	}
-	if line := taskLine(h, todo); !strings.Contains(line, "：没开起来：") || !strings.Contains(line, want) { // and why (#4124)
+	if line := taskLine(h, todo); !strings.Contains(line, ": did not start: ") || !strings.Contains(line, want) { // and why (#4124)
 		t.Fatalf("the live context = %q", line)
 	}
 	if got := inboxTasks(t, h); len(got) != 0 {
@@ -657,7 +657,7 @@ func TestTaskAnsweredAndRouted(t *testing.T) {
 		t.Fatalf("feed = %v plans = %d", kinds, len(got.Plans))
 	}
 
-	if line := taskLine(h, todo); !strings.HasSuffix(line, "：在做，box session_id=s1") {
+	if line := taskLine(h, todo); !strings.HasSuffix(line, ": working, box session_id=s1") {
 		t.Fatalf("the live context = %q", line)
 	}
 }

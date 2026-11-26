@@ -49,13 +49,13 @@ func TestAskAQuestionByVoice(t *testing.T) {
 	hub.subscribed("a1") // the call follows its conversation, run or not
 	hub.raise(dbQuestion("q1", "a1"))
 	asked := content(up.nextMatch(saying("数据库用哪个")))
-	for _, want := range []string{"Claude Code 停下来在等用户回答一个问题", "还没做完", "问题（数据库）：数据库用哪个？", "选项 1：Postgres（意思：生产环境常用）",
-		"选项 2：SQLite", "只念选项的名字", "「回答：」开头", "「停止：」"} {
+	for _, want := range []string{"Claude Code has stopped to wait for the user to answer a question", "not finished", "Question (数据库): 数据库用哪个？", "Option 1: Postgres (what it means: 生产环境常用)",
+		"Option 2: SQLite", "Read out only the options' names", "starts with \"Answer:\"", "(\"Stop:\")"} {
 		if !strings.Contains(asked, want) {
 			t.Errorf("asked without %q: %s", want, asked)
 		}
 	}
-	if strings.Contains(asked, "回复序号") {
+	if strings.Contains(asked, "reply with the number") {
 		t.Errorf("asked as a text channel does: %s", asked)
 	}
 	a.until(askFrom("q1", askAsking, ""))
@@ -63,8 +63,8 @@ func TestAskAQuestionByVoice(t *testing.T) {
 	a.send(map[string]any{"type": "text", "text": "第二个"})
 	// The card was not asked of a turn the call handed over, but the call follows its bound conversation (observed
 	// turns): what it does next is told by itself.
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "用户的回答已经交给 Claude Code 了") || !strings.Contains(got, "还没做完") ||
-		strings.Contains(got, "这次通话没有跟着它接下来做的事") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "The user's answer went to Claude Code") || !strings.Contains(got, "not finished") ||
+		strings.Contains(got, "What it does next is not followed in this call") {
 		t.Fatalf("told: %s", got)
 	}
 	a.until(askFrom("q1", askAnswered, byVoice))
@@ -90,13 +90,13 @@ func TestAskQuestionsOneAtATime(t *testing.T) {
 	pl := testPlugin(t, liveProvider(up), hub.server(t))
 	a := dialApp(t, pl, boundStart("a1", nil))
 	a.until(ofType("ready"))
-	if got := content(up.nextMatch(saying("数据库用哪个"))); !strings.Contains(got, "第 1 个问题（一共 2 个）") {
+	if got := content(up.nextMatch(saying("数据库用哪个"))); !strings.Contains(got, "question 1 of 2") {
 		t.Fatalf("asked: %s", got)
 	}
 	a.until(askFrom("q2", askAsking, ""))
 	a.send(map[string]any{"type": "text", "text": "回答：用 MySQL 吧"})
 	next := content(up.nextMatch(on("dlg1")))
-	for _, want := range []string{"第 2 个问题（一共 2 个）", "要哪些功能？", "选项 3：导出", "告诉用户可以选几个"} {
+	for _, want := range []string{"question 2 of 2", "要哪些功能？", "Option 3: 导出", "say that several can be picked"} {
 		if !strings.Contains(next, want) {
 			t.Errorf("next question without %q: %s", want, next)
 		}
@@ -105,7 +105,7 @@ func TestAskQuestionsOneAtATime(t *testing.T) {
 		t.Fatal("resolved before its last question")
 	}
 	a.send(map[string]any{"type": "text", "text": "登录和导出"})
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "用户的回答已经交给") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "The user's answer went to") {
 		t.Fatalf("told: %s", got)
 	}
 	res := hub.resolutions()
@@ -132,11 +132,11 @@ func TestAskAnsweredOnTheScreen(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 	hub.answerOnScreen("q1")
 	a.until(askFrom("q1", askReleased, byElsewhere))
-	if got := content(up.nextMatch(saying("已经在屏幕上或者别的地方答了"))); !strings.Contains(got, "不要再问这个问题") {
+	if got := content(up.nextMatch(saying("was answered on the screen or elsewhere"))); !strings.Contains(got, "Do not ask the question again") {
 		t.Fatalf("said: %s", got)
 	}
 	time.Sleep(300 * time.Millisecond)
-	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "别的地方答了") }); n != 1 {
+	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "answered on the screen or elsewhere") }); n != 1 {
 		t.Fatalf("said %d times that it was answered", n)
 	}
 	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "数据库用哪个") }); n != 1 {
@@ -176,7 +176,7 @@ func TestAskResolveRefused(t *testing.T) {
 			a.until(ofType("ready"))
 			up.nextMatch(saying("数据库用哪个"))
 			a.send(map[string]any{"type": "text", "text": "Postgres"})
-			if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "已经在屏幕上或者别的地方答过了") {
+			if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "its question had already been answered on the screen or elsewhere") {
 				t.Fatalf("told: %s", got)
 			}
 			a.until(askFrom("q1", askReleased, byElsewhere))
@@ -194,11 +194,11 @@ func TestAskResolveFails(t *testing.T) {
 		status     int
 		want       string
 	}{
-		{"hub", `{"error":"助手暂时连不上","code":"assistant_offline"}`, http.StatusServiceUnavailable, "没能交给 Claude Code：助手暂时连不上"},
+		{"hub", `{"error":"助手暂时连不上","code":"assistant_offline"}`, http.StatusServiceUnavailable, "The user's answer did not get to Claude Code: 助手暂时连不上"},
 		{"input draft", `{"error":"电脑上 Codex 的输入框里有没发出去的内容：「部署到 prod-secret」。","code":"input_draft","draft":"部署到 prod-secret"}`,
-			http.StatusConflict, "它在电脑上的输入框里有没发出去的字"},
-		{"dialog open", `{"error":"电脑上的 Codex 正开着一道选择题：先答完它","code":"dialog_open"}`, http.StatusConflict, "电脑上先开着另一个对话框"},
-		{"no answer", "", -1, "没能交给 Claude Code。"},
+			http.StatusConflict, "its input box on the computer holds words typed there and not sent"},
+		{"dialog open", `{"error":"电脑上的 Codex 正开着一道选择题：先答完它","code":"dialog_open"}`, http.StatusConflict, "another dialog is open on the computer first"},
+		{"no answer", "", -1, "The user's answer did not get to Claude Code."},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			hub := agentHub(t)
@@ -218,17 +218,17 @@ func TestAskResolveFails(t *testing.T) {
 			up.nextMatch(saying("数据库用哪个"))
 			a.send(map[string]any{"type": "text", "text": "Postgres"})
 			got := content(up.nextMatch(on("dlg1")))
-			if !strings.Contains(got, c.want) || !strings.Contains(got, "还没做完") {
+			if !strings.Contains(got, c.want) || !strings.Contains(got, "not finished") {
 				t.Fatalf("told: %s", got)
 			}
-			for _, not := range []string{"prod-secret", "选择题", "别的地方"} {
+			for _, not := range []string{"prod-secret", "选择题", "elsewhere"} {
 				if strings.Contains(got, not) {
 					t.Fatalf("told %q: %s", not, got)
 				}
 			}
 			fail.Store(false)
 			a.send(map[string]any{"type": "text", "text": "第一个"})
-			if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "用户的回答已经交给") {
+			if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "The user's answer went to") {
 				t.Fatalf("told: %s", got)
 			}
 			if res := hub.resolutions(); len(res) != 1 || res[0].Res.Answers["数据库用哪个？"] != "Postgres" {
@@ -250,7 +250,7 @@ func TestAskResolveFails(t *testing.T) {
 		a.until(ofType("ready"))
 		up.nextMatch(saying("数据库用哪个"))
 		a.send(map[string]any{"type": "text", "text": "Postgres"})
-		if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "不确定用户的回答有没有交到") || !strings.Contains(got, "屏幕上") {
+		if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "Not sure whether the user's answer got to") || !strings.Contains(got, "on the screen") {
 			t.Fatalf("told: %s", got)
 		}
 		if f := a.until(askFrom("q1", askReleased, "")); f["by"] != nil {
@@ -276,11 +276,11 @@ func TestAskResolveTakesItsTime(t *testing.T) {
 	a.until(ofType("ready"))
 	up.nextMatch(saying("数据库用哪个"))
 	a.send(map[string]any{"type": "text", "text": "SQLite"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "用户的回答已经交给 Claude Code 了") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "The user's answer went to Claude Code") {
 		t.Fatalf("told: %s", got)
 	}
 	a.until(askFrom("q1", askAnswered, byVoice))
-	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "别的地方") }); n != 0 {
+	if n := up.count(func(f map[string]any) bool { return said(f) && strings.Contains(content(f), "elsewhere") }); n != 0 {
 		t.Fatal("said it was answered elsewhere")
 	}
 }
@@ -303,14 +303,14 @@ func TestAskEndsQuietlyOnAStop(t *testing.T) {
 	up.nextMatch(saying("数据库用哪个"))
 	a.until(askFrom("q1", askAsking, ""))
 	a.send(map[string]any{"type": "text", "text": "停止：先别做了"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "已经叫停") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "was stopped") {
 		t.Fatalf("told: %s", got)
 	}
 	if f := a.until(askFrom("q1", askReleased, "")); f["by"] != nil {
 		t.Fatalf("released: %v", f)
 	}
 	time.Sleep(300 * time.Millisecond)
-	if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "别的地方") }); n != 0 {
+	if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "elsewhere") }); n != 0 {
 		t.Fatal("told it was answered elsewhere")
 	}
 	if len(hub.resolutions()) != 0 {
@@ -338,7 +338,7 @@ func TestAskBareAnswerMarkTakesTheCaption(t *testing.T) {
 	up.nextMatch(saying("数据库用哪个"))
 	a.until(askFrom("q1", askAsking, ""))
 	a.send(map[string]any{"type": "text", "text": "第二个"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "用户的回答已经交给") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "The user's answer went to") {
 		t.Fatalf("told: %s", got)
 	}
 	if res := hub.resolutions(); len(res) != 1 || res[0].Res.Answers["数据库用哪个？"] != "SQLite" {
@@ -378,13 +378,13 @@ func TestTappedCardsAreNotSaid(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	close(stop)
 	<-streamed
-	got := content(up.nextMatch(saying("在等用户处理")))
-	if !strings.Contains(got, "一份等批准的计划") || strings.Contains(got, "运行一条命令的授权") {
+	got := content(up.nextMatch(saying("has stopped and waits for the user")))
+	if !strings.Contains(got, "a plan to approve") || strings.Contains(got, "a permission to run a command") {
 		t.Fatalf("said: %s", got)
 	}
 	time.Sleep(300 * time.Millisecond)
 	if n := up.count(func(f map[string]any) bool {
-		return said(f) && strings.Contains(content(f), "运行一条命令的授权")
+		return said(f) && strings.Contains(content(f), "a permission to run a command")
 	}); n != 0 {
 		t.Fatal("said a card tapped meanwhile")
 	}
@@ -430,15 +430,15 @@ func TestAskStatusAndUnheardAnswers(t *testing.T) {
 	a.until(ofType("ready"))
 	up.nextMatch(saying("数据库用哪个"))
 	a.send(map[string]any{"type": "text", "text": "状态：到哪了"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "现在的状态，没有发给它") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "nothing was sent to it") {
 		t.Fatalf("status: %s", got)
 	}
 	a.send(map[string]any{"type": "text", "text": "回答："})
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "刚才没听清用户的回答") || !strings.Contains(got, "数据库用哪个") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "The user's answer was not heard") || !strings.Contains(got, "数据库用哪个") {
 		t.Fatalf("again: %s", got)
 	}
 	a.send(map[string]any{"type": "text", "text": "回答："})
-	if got := content(up.nextMatch(on("dlg3"))); !strings.Contains(got, "不再用语音问了") || !strings.Contains(got, "在屏幕上点卡片") {
+	if got := content(up.nextMatch(on("dlg3"))); !strings.Contains(got, "no longer asked by voice") || !strings.Contains(got, "answer the card") {
 		t.Fatalf("screen: %s", got)
 	}
 	f := a.until(askFrom("q1", askReleased, ""))
@@ -475,12 +475,12 @@ func TestApprovalsAreSaidByTheirKind(t *testing.T) {
 	hub.edit("a1", func(s *fakeSession) { s.status, s.pending = "blocked", 2 })
 	a.runStates(m.ID, runNeedsYou)
 	var told strings.Builder
-	told.WriteString(content(up.nextMatch(saying("在等用户处理"))))
-	if !strings.Contains(told.String(), "一份等批准的计划") { // the two may come in one sentence or two
-		told.WriteString(content(up.nextMatch(saying("一份等批准的计划"))))
+	told.WriteString(content(up.nextMatch(saying("has stopped and waits for the user"))))
+	if !strings.Contains(told.String(), "a plan to approve") { // the two may come in one sentence or two
+		told.WriteString(content(up.nextMatch(saying("a plan to approve"))))
 	}
 	got := told.String()
-	for _, want := range []string{"运行一条命令的授权", "一份等批准的计划", "屏幕上", "还没做完"} {
+	for _, want := range []string{"a permission to run a command", "a plan to approve", "on the screen", "not finished"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("said without %q: %s", want, got)
 		}
@@ -496,7 +496,7 @@ func TestApprovalsAreSaidByTheirKind(t *testing.T) {
 	}
 	time.Sleep(300 * time.Millisecond)
 	if n := up.count(func(f map[string]any) bool {
-		return said(f) && strings.Contains(content(f), "等用户回答或批准")
+		return said(f) && strings.Contains(content(f), "waiting for the user to answer or approve something")
 	}); n != 0 {
 		t.Fatal("the turn said it waits too")
 	}
@@ -534,10 +534,10 @@ func TestProtocolOneAsks(t *testing.T) {
 			hub.edit("main1", func(s *fakeSession) { s.status, s.pending = "idle", 1 })
 			if !full {
 				up.nextMatch("go look on the phone", func(f map[string]any) bool {
-					return f["type"] == "session.commentary.append" && f["delegation_id"] == nil && strings.Contains(content(f), "等用户回答或批准")
+					return f["type"] == "session.commentary.append" && f["delegation_id"] == nil && strings.Contains(content(f), "waiting for the user to answer or approve something")
 				})
 				time.Sleep(300 * time.Millisecond)
-				if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "选项 1") }); n != 0 {
+				if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "Option 1") }); n != 0 {
 					t.Fatal("asked by voice")
 				}
 				a.protocolOne()
@@ -546,19 +546,19 @@ func TestProtocolOneAsks(t *testing.T) {
 			asked := up.nextMatch("the question", func(f map[string]any) bool {
 				return f["type"] == "session.commentary.append" && f["delegation_id"] == nil && strings.Contains(content(f), "数据库用哪个")
 			})
-			if got := content(asked); !strings.Contains(got, "Persona 主对话停下来在等用户回答") || !strings.Contains(got, "委派一句「回答：」") ||
-				strings.Contains(got, "「状态：」") {
+			if got := content(asked); !strings.Contains(got, "The Persona main conversation has stopped to wait for the user to answer") || !strings.Contains(got, "starts with \"Answer:\"") ||
+				strings.Contains(got, "\"Status:\"") {
 				t.Fatalf("asked: %s", got)
 			}
 			a.send(map[string]any{"type": "text", "text": "SQLite"})
-			if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "用户的回答已经交给 Persona 主对话了") ||
-				strings.Contains(got, "没有跟着") { // the run follows its turn on
+			if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "The user's answer went to the Persona main conversation") ||
+				strings.Contains(got, "not followed in this call") { // the run follows its turn on
 				t.Fatalf("told: %s", got)
 			}
 			if res := hub.resolutions(); len(res) != 1 || res[0].Res.Answers["数据库用哪个？"] != "SQLite" {
 				t.Fatalf("resolved %+v", res)
 			}
-			if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "等用户回答或批准") }); n != 0 {
+			if n := up.count(func(f map[string]any) bool { return strings.Contains(content(f), "waiting for the user to answer or approve something") }); n != 0 {
 				t.Fatal("the turn said it waits too")
 			}
 			hub.edit("main1", func(s *fakeSession) { s.status, s.pending = "working", 0 })

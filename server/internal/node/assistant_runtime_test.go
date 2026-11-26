@@ -40,7 +40,7 @@ func assistantHub(hub *runtimeHub) *hubCalls {
 		defer c.mu.Unlock()
 		switch method {
 		case "assistant.context":
-			return map[string]any{"text": "- 现在：测试时间\n- 在线电脑：测试机"}, nil, true
+			return map[string]any{"text": "- Now: test time\n- Computers online: test machine"}, nil, true
 		case "assistant.lark":
 			return map[string]any{}, nil, true
 		case "mcp.tools":
@@ -269,7 +269,7 @@ func TestAssistantOnARuntimeStartsAndSendsWithTheSnapshot(t *testing.T) {
 	if p.SessionID != sid || p.Text != "hello" || !p.Assistant || p.MemoryDir == "" {
 		t.Fatalf("send %s", sends[0])
 	}
-	if !strings.Contains(p.Context, "测试时间") || !strings.Contains(p.Context, "MEMORY.md") {
+	if !strings.Contains(p.Context, "test time") || !strings.Contains(p.Context, "MEMORY.md") {
 		t.Fatalf("the first message's context: %q", p.Context)
 	}
 	if p.MemoryDir != n.memoryDir(cwd) || !strings.Contains(p.Context, "(runtime-copy.md)") {
@@ -303,7 +303,7 @@ func TestAssistantOnARuntimeStartsAndSendsWithTheSnapshot(t *testing.T) {
 		Context   string `json:"context"`
 	}
 	_ = json.Unmarshal(sends[1], &q)
-	if q.Text != "next" || q.Mode != "plan" || !q.Assistant || strings.Contains(q.Context, "MEMORY.md") || !strings.Contains(q.Context, "测试时间") {
+	if q.Text != "next" || q.Mode != "plan" || !q.Assistant || strings.Contains(q.Context, "MEMORY.md") || !strings.Contains(q.Context, "test time") {
 		t.Fatalf("second send %s", sends[1])
 	}
 	if s := listed(t, n)[sid]; s.PermissionMode != "plan" {
@@ -359,7 +359,7 @@ func TestAssistantPublicSendOnRuntimeSkipsSnapshot(t *testing.T) {
 	}
 	hub.mu.Unlock()
 	sends := host.got("session.send")
-	if len(sends) != 2 || strings.Contains(string(sends[1]), "测试时间") {
+	if len(sends) != 2 || strings.Contains(string(sends[1]), "test time") {
 		t.Fatalf("public runtime input carries the owner snapshot: %s", sends)
 	}
 }
@@ -833,7 +833,7 @@ func TestAssistantOnARuntimeSendsASlashCommandOnItsOwn(t *testing.T) {
 	if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": sid, "text": "next", "client_msg_id": "m-next"}); err != nil {
 		t.Fatal(err)
 	}
-	if text, ctx := sentText(3); text != "next" || !strings.Contains(ctx, "测试时间") {
+	if text, ctx := sentText(3); text != "next" || !strings.Contains(ctx, "test time") {
 		t.Fatalf("the message after /compact went as %q with context %q", text, ctx)
 	}
 	if seen() == nil {
@@ -845,7 +845,7 @@ func TestAssistantOnARuntimeSendsASlashCommandOnItsOwn(t *testing.T) {
 		if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": sid, "text": text, "client_msg_id": "m-words-" + string(rune('a'+i))}); err != nil {
 			t.Fatal(err)
 		}
-		if got, ctx := sentText(4 + i); got != text || !strings.Contains(ctx, "测试时间") {
+		if got, ctx := sentText(4 + i); got != text || !strings.Contains(ctx, "test time") {
 			t.Fatalf("%q went as %q with context %q", text, got, ctx)
 		}
 	}
@@ -853,7 +853,7 @@ func TestAssistantOnARuntimeSendsASlashCommandOnItsOwn(t *testing.T) {
 	if _, err := nodeCall(t, n, "session.send", map[string]any{"session_id": sid, "text": "/status", "client_msg_id": "m-pic", "images": []map[string]any{{"mime": "image/png", "data": "AA=="}}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, ctx := sentText(6); !strings.Contains(ctx, "测试时间") {
+	if _, ctx := sentText(6); !strings.Contains(ctx, "test time") {
 		t.Fatalf("a /status with a picture went without context: %q", ctx)
 	}
 }

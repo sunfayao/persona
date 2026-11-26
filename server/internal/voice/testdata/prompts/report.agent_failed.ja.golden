@@ -1,2 +1,2 @@
-Claude Code に頼んだ「明日の予定を確認」と「明日の会議は？」は結果が出ませんでした：このチャットは見つかりません（閉じられたか削除されました）。
-まだ終わっていません。この結果は先に渡した「明日の予定を確認」の分も兼ねています。同じ会話に渡され、ここでまとめて扱っているので、そのときの呼び出しには別の結果は返りません。待たなくて大丈夫です。一文でユーザーに伝えてください。
+"明日の予定を確認" and "明日の会議は？", handed to Claude Code, has no result: このチャットは見つかりません（閉じられたか削除されました）。
+It did not finish. This result covers what was handed over before too ("明日の予定を確認"): it went to the same conversation and is taken together here; that earlier call gets no result of its own, so do not wait for one. Tell the user in one sentence.

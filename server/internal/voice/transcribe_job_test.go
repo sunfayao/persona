@@ -289,7 +289,14 @@ func TestTranscriptionLiveSentences(t *testing.T) {
 	captions := 0
 	for _, s := range starts {
 		b, _ := json.Marshal(s)
-		if mods, _ := json.Marshal(s["output_modalities"]); string(mods) != `["text"]` || strings.Contains(string(b), "language") ||
+		withoutText := map[string]any{} // the instructions' own words may say "language"; the start's fields must not name one
+		for k, v := range s {
+			if k != "instructions" {
+				withoutText[k] = v
+			}
+		}
+		fields, _ := json.Marshal(withoutText)
+		if mods, _ := json.Marshal(s["output_modalities"]); string(mods) != `["text"]` || strings.Contains(string(fields), "language") ||
 			s["voice"] != nil || s["tools"] != nil {
 			t.Errorf("session start %s", b)
 		}
@@ -547,12 +554,11 @@ func TestTranscriptionFastReplies(t *testing.T) {
 	})
 }
 
-// The instructions are in the recording's language when it is Chinese, English or Japanese (the language the model
-// hears), else in the hub's (the caller's).
-// 每个用例使用独立上游；TFReady 不等待第三个会话，延迟到下一用例的启动不得混入其断言。
+// The instructions are English whatever the recording's language or the hub's: the language only goes in as a hint.
+// Each case uses its own upstream; TFReady does not wait for the third session, so a start delayed into the next case
+// must not leak into its assertions.
 func TestTranscriptionInstructionsLanguage(t *testing.T) {
 	trFast(t)
-	opening := map[string]string{"zh-Hans": "你是", "en": "You are", "ja": "あなたは"}
 	var previous *voicetest.Live
 	var releasePrevious func()
 	for _, tt := range []struct{ tag, hub, want string }{
@@ -591,8 +597,8 @@ func TestTranscriptionInstructionsLanguage(t *testing.T) {
 			t.Fatalf("%q: no session", tt.tag)
 		}
 		for _, s := range starts {
-			if ins, _ := s["instructions"].(string); !strings.HasPrefix(ins, opening[tt.want]) {
-				t.Errorf("%q (hub %s): instructions not in %s:\n%s", tt.tag, tt.hub, tt.want, ins)
+			if ins, _ := s["instructions"].(string); !strings.HasPrefix(ins, "You are ") {
+				t.Errorf("%q (hub %s): instructions not in English:\n%s", tt.tag, tt.hub, ins)
 			}
 		}
 		if gate != nil {

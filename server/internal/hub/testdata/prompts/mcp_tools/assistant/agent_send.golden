@@ -83,7 +83,7 @@
         "properties": {
           "title": {
             "type": "string",
-            "description": "the task in a short line (Chinese, under 20 characters)"
+            "description": "the task in a short line (Simplified Chinese, under 20 characters)"
           },
           "done_when": {
             "type": "array",

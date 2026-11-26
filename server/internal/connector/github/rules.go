@@ -169,11 +169,11 @@ func ciItemTitle(repo, branch string) string {
 
 // ciContext is a CI item's context, with its newest failure.
 func ciContext(repo, branch string, pr int, failure string) string {
-	where := branch + " 分支"
+	where := "branch " + branch
 	if pr > 0 {
-		where += fmt.Sprintf("（PR #%d）", pr)
+		where += fmt.Sprintf(" (PR #%d)", pr)
 	}
-	return fmt.Sprintf("仓库 %s 的 CI（GitHub Actions）在 %s 上失败了：%s", repo, where, failure)
+	return fmt.Sprintf("CI (GitHub Actions) of repository %s failed on %s: %s", repo, where, failure)
 }
 
 // ciMeta is what the follow-up check of a CI item needs.

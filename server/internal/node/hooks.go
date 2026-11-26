@@ -583,9 +583,9 @@ func (n *Node) handleHook(ctx context.Context, req sockRequest) (any, error) {
 		}
 		stopWatch()
 		if !*res.Approve {
-			msg := "用户在手机上打回了这个计划。"
+			msg := "The user sent this plan back from their phone."
 			if strings.TrimSpace(res.Feedback) != "" {
-				msg += "修改意见：" + res.Feedback
+				msg += " Feedback: " + res.Feedback
 			}
 			return permissionDecision(map[string]any{"behavior": "deny", "message": msg}), nil
 		}
@@ -678,7 +678,7 @@ func (n *Node) handleHook(ctx context.Context, req sockRequest) (any, error) {
 		if !*res.Allow {
 			msg := res.Message
 			if msg == "" {
-				msg = "用户在手机上拒绝了这次调用。"
+				msg = "The user denied this call on their phone."
 			}
 			return permissionDecision(map[string]any{"behavior": "deny", "message": msg}), nil
 		}
@@ -826,8 +826,8 @@ func permissionDecision(d map[string]any) any {
 }
 
 // duplicateQuestionReason goes back to the model when two questions share one text, telling it how to ask again.
-const duplicateQuestionReason = "这次提问里有两道题的题干完全一样，我没法把两道题的答案分别交给你。" +
-	"请把每道题改成不同的问法，或者合并成一道多选题，然后重新调用 AskUserQuestion。"
+const duplicateQuestionReason = "Two of the questions in this ask have exactly the same text, so I cannot hand their answers back to you separately. " +
+	"Rephrase each question differently, or merge them into one multi-select question, then call AskUserQuestion again."
 
 // agentWatch is how often a hook waiting on the phone looks whether the claude it runs under still lives.
 var agentWatch = 2 * time.Second

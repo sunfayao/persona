@@ -1,2 +1,2 @@
-ユーザーの答えがCodex に届きませんでした：パソコン側の入力欄に、そこで打って送っていない文字が残っているので、何も入力していません。
-まだ答えを待っていて、終わっていません。パソコンでその文字を送るか消してから、もう一度答えを言うよう一文でユーザーに頼んでください。
+The user's answer did not get to Codex: its input box on the computer holds words typed there and not sent, so nothing was typed.
+It still waits for the answer, it is not finished. Ask the user in one sentence to send or clear those words on the computer, then say the answer again.

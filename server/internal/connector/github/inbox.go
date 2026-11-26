@@ -471,7 +471,7 @@ func (c *Connector) describe(ctx context.Context, n notification, me string) (co
 	m := subjectURL.FindStringSubmatch(n.Subject.URL)
 	if m == nil { // a CI run: there is nothing to read or answer, only the failure to look at
 		t.Sender, t.Preview, t.URL = "GitHub Actions", n.Subject.Title, n.Repository.HTMLURL+"/actions"
-		t.Context = fmt.Sprintf("仓库 %s 的 CI（GitHub Actions）：%s", n.Repository.FullName, n.Subject.Title)
+		t.Context = fmt.Sprintf("CI (GitHub Actions) of repository %s: %s", n.Repository.FullName, n.Subject.Title)
 		return t, nil
 	}
 	repo, number := m[1], m[2]
@@ -615,21 +615,21 @@ func (c *Connector) describe(ctx context.Context, n notification, me string) (co
 	if pr {
 		t.ThreadState = state
 	}
-	fmt.Fprintf(&b, "GitHub %s %s：%s\n状态：%s · 作者 %s", what, ref, it.Title, state, it.User)
+	fmt.Fprintf(&b, "GitHub %s %s: %s\nState: %s · author %s", what, ref, it.Title, state, it.User)
 	if rv := logins(it.Reviewers); rv != "" {
-		fmt.Fprintf(&b, " · 等这些人 review：%s", rv)
+		fmt.Fprintf(&b, " · waiting for review from: %s", rv)
 	}
-	fmt.Fprintf(&b, "\n%s\n\n描述：\n%s", it.HTMLURL, cut(strings.TrimSpace(it.Body), 1500, "（没有描述）"))
+	fmt.Fprintf(&b, "\n%s\n\nDescription:\n%s", it.HTMLURL, cut(strings.TrimSpace(it.Body), 1500, "(no description)"))
 	if len(moves) > 0 {
 		from := max(0, len(moves)-contextMoves)
-		fmt.Fprintf(&b, "\n\n最近的评论和 review（旧的在前，共 %d 条）：", len(moves))
+		fmt.Fprintf(&b, "\n\nRecent comments and reviews (oldest first, %d in all):", len(moves))
 		for _, mv := range moves[from:] {
 			fmt.Fprintf(&b, "\n\n%s %s", day(mv.at), mv.who)
 			if mv.verb != "" {
 				b.WriteString(" " + mv.verb)
 			}
 			if mv.text != "" {
-				b.WriteString("：\n" + cut(mv.text, 600, ""))
+				b.WriteString(":\n" + cut(mv.text, 600, ""))
 			}
 		}
 	}

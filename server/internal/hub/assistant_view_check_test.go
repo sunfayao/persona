@@ -40,7 +40,7 @@ func TestAssistantViewCheckTrustedSession(t *testing.T) {
 			if !ok || (result.Reason != "") != tc.block {
 				t.Fatalf("check result: %v", out)
 			}
-			if tc.block && (!strings.Contains(result.Reason, "这一轮") || !strings.Contains(result.Reason, "fallback") || strings.Contains(result.Reason, tc.message)) {
+			if tc.block && (!strings.Contains(result.Reason, "In this turn") || !strings.Contains(result.Reason, "fallback") || strings.Contains(result.Reason, tc.message)) {
 				t.Fatal("repair feedback did not provide the bounded template instructions")
 			}
 		})

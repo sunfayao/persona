@@ -87,8 +87,8 @@ This is a public open-source repository; everyone and every Agent maintains it t
 - **User-facing text always goes through localization resources** (`docs/protocol/i18n.md`):
   web `web/src/i18n/locales/` and hub `server/internal/i18n/locales/`. Every new string ships in `en`,
   `zh-Hans` and `ja` together; the checks catch gaps.
-- Chinese stays only as data that must match something real (hub or third-party output, prompts sent to a model, fixtures), marked
-  `// i18n-ignore` where the checks ask.
+- Chinese stays only as data that must match something real (hub or third-party output, text older versions wrote, fixtures), marked
+  `// i18n-ignore` where the checks ask. Prompts sent to a model are English.
 
 ### Server and data
 
@@ -99,7 +99,7 @@ This is a public open-source repository; everyone and every Agent maintains it t
   dependencies and Store; when it fails, move the logic as its hint says (`docs/server/architecture.md`).
 - **Prompts live in `server/internal/prompts/`** (MCP tool descriptions under `mcp/`): one prompt per file, composed with templates, never
   built with `fmt` / `+` in Go. Update the golden tests and read the diff (`docs/assistant/prompts.md`).
-- **Prompt language**: user- and agent-facing templates carry `Language` / `Lang` from the caller and add en / zh-Hans / ja goldens. Preserve source data and existing empty-language bytes; follow `docs/assistant/prompts.md` ("Language migration"). The prompt-language CI inventory may only shrink.
+- **Prompt language**: every prompt is written in English only, with no language branches. Where the model writes text the owner reads, name the owner's language with `{{lang .Language}}` / `{{lang .Lang}}`. Code that recognises prompt text keeps reading what older versions wrote (`docs/assistant/prompts.md`, "Language"). `scripts/ci/prompt_language_ratchet.py` fails on CJK text in a template outside its `DATA` list.
 - **Browsers reach the hub directly over the internet** (TLS, preferring IPv6; VPNs are the user's own business), with the LAN kept
   compatible (`docs/operations/network.md`).
 

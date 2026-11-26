@@ -162,8 +162,8 @@ func TestNotificationsBecomeThings(t *testing.T) {
 		pr.Why != "规则：请你 review" {
 		t.Errorf("review request: %+v", pr)
 	}
-	if !strings.Contains(pr.Context, "GitHub PR example-org/example-repo#12：Add the example") || !strings.Contains(pr.Context, "等这些人 review：me") ||
-		!strings.Contains(pr.Context, "bob：\n请看一下示例") {
+	if !strings.Contains(pr.Context, "GitHub PR example-org/example-repo#12: Add the example") || !strings.Contains(pr.Context, "waiting for review from: me") ||
+		!strings.Contains(pr.Context, "bob:\n请看一下示例") {
 		t.Errorf("context:\n%s", pr.Context)
 	}
 	if is := got["example-org/example-repo#7"]; is.Kind != "assign" || is.Sender != "bob" || is.Preview != "出错了" || is.Tier != "action" ||

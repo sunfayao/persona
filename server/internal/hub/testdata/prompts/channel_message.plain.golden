@@ -1,4 +1,4 @@
-<persona-context kind="context" title="微信机器人" url="">
-示例用户在微信里私聊 Persona 机器人发来这条消息。这一轮的最终回答会以机器人的身份发回微信，用纯文字显示：结论先行、短一些，不用表格和图片，标题、加粗尽量少用，也不用再 notify_user。需要确认的照常 ask_user，微信里回复序号或文字就能答。
+<persona-context kind="context" title="微信 bot" url="">
+示例用户 sent this private message to the Persona bot on 微信. The final answer for this turn goes back to 微信 as the bot, in plain text. Lead with the conclusion, keep it short, use no tables or images, and keep headings and bold text to a minimum. Do not call notify_user again. Use ask_user as usual when you need confirmation. The user can reply with a number or text in 微信.
 </persona-context>
 明天有什么会？

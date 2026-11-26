@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/coder/websocket"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -21,18 +22,24 @@ func TestGoldenMCPVoiceLanguages(t *testing.T) {
 			}
 			golden(t, "mcp_language."+name+"."+lang, string(b)+"\n")
 			if name == "bound" {
-				for _, mark := range []string{"状态：", "停止：", "回答："} {
+				// The descriptions are English whatever the language, and name the English marks.
+				for _, mark := range []string{"Status:", "Stop:", "Answer:"} {
 					if !strings.Contains(string(b), mark) {
 						t.Fatalf("%s lost parser prefix %s", lang, mark)
 					}
 				}
-			}
-			if name == "bound" {
-				for prefix, want := range map[string]string{"状态：": "status", "停止：": "stop", "回答：": "answer"} {
+				// The marks older versions told the model in Chinese are still understood.
+				for prefix, want := range map[string]string{"Status:": "status", "Stop:": "stop", "Answer:": "answer",
+					"状态：": "status", "停止：": "stop", "回答：": "answer"} {
 					kind, rest := splitMark(prefix + "source text")
 					if kind != want || rest != "source text" {
-						t.Fatalf("localized instruction prefix %s no longer parses", prefix)
+						t.Fatalf("instruction prefix %s no longer parses", prefix)
 					}
+				}
+			}
+			if lang != "en" {
+				if en := toolDecls(set, "en"); !reflect.DeepEqual(en, tools) {
+					t.Fatalf("%s %s tools differ from the English ones", lang, name)
 				}
 			}
 		}

@@ -1,16 +1,16 @@
-任务：新空间加模型
+Task: 新空间加模型
 
-派活时的要求：
+Requirements when it was handed out:
 给新空间加上新模型，部署并验证
 
-Agent 停下时最后的回复：
+The Agent's last reply when it stopped:
 
 --- mac
-它上一轮的回复（同一个会话里，这一轮之前）：
+Its reply in the previous turn (same session, before this turn):
 加好了：PR https://github.com/o/r/pull/77 已合并，已部署，接口实测返回新模型列表。
 
-这一轮收到的请求（不一定来自用户，不替代原任务）：
+The request received in this turn (not necessarily from the user, and it does not replace the original task):
 好了吗？
 
-它的回复：
+Its reply:
 好了，全部完成。

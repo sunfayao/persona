@@ -2,7 +2,7 @@
   {
     "type": "function",
     "name": "list_agents",
-    "description": "ユーザーの各コンピュータ上のコーディング Agent（Claude Code / Codex）を一覧表示します。コンピュータ、タイトル、状態（対応待ち／作業中／完了・未読／待機中）、最後の発言を返します。\n\nタイトル、理由、完了条件、メッセージなど、新たに生成するユーザー向けの引数は、ユーザーが別の言語を求める場合や元の表現が必要な項目を除き、日本語で書いてください。引用した原文、識別子、ツール名と引数名、列挙値、コマンドの接頭辞はそのまま保持してください。言語によって承認要件や権限の範囲が変わることはありません。",
+    "description": "List the coding Agents (Claude Code / Codex) on the user's computers: computer, title, status (needs you / working / finished unread / idle) and last words.",
     "parameters": {
       "type": "object",
       "properties": {}
@@ -11,7 +11,7 @@
   {
     "type": "function",
     "name": "send_to_agent",
-    "description": "ユーザーが入力欄に入力して Enter を押すのと同様に、Agent にメッセージを送信します。ユーザーが明示的に求めた場合にのみ使ってください。宛先と内容が明確なら、復唱も確認待ちもせず直接送信します。どの Agent か不明な場合は先に質問してください。machine_id と session_id は list_agents から取得します。\n\nタイトル、理由、完了条件、メッセージなど、新たに生成するユーザー向けの引数は、ユーザーが別の言語を求める場合や元の表現が必要な項目を除き、日本語で書いてください。引用した原文、識別子、ツール名と引数名、列挙値、コマンドの接頭辞はそのまま保持してください。言語によって承認要件や権限の範囲が変わることはありません。",
+    "description": "Send a message to an Agent, as if the user typed it into its input and pressed Enter. Use only when the user explicitly asks. If the recipient and content are clear, send directly without repeating them or waiting for confirmation; ask first if you are unsure which Agent. machine_id and session_id come from list_agents.",
     "parameters": {
       "type": "object",
       "required": [
@@ -28,7 +28,7 @@
         },
         "text": {
           "type": "string",
-          "description": "送信する内容"
+          "description": "The message to send"
         }
       }
     }
@@ -36,7 +36,7 @@
   {
     "type": "function",
     "name": "ask_persona",
-    "description": "Persona のメイン会話に作業を依頼します。メイン会話は、予定、メール、Lark、文書、各コンピュータ、定期タスク、文章作成など、ユーザーの全データとツールを使える完全なアシスタントです。あなたより多くのことができますが、数十秒から数分かかります。自分のツールでは答えられない場合や、ユーザーが実際の作業を求める場合に使ってください。呼び出しはすぐには戻りません。メイン会話に依頼したことをユーザーに伝え、通常どおり会話を続けてください。そのターンが終わると、数分後になる場合もありますが、この呼び出しに回答が返ります。その時点でユーザーに伝えてください。task は単独で意味が通る明確な指示にし、最初の文で作業内容を述べてください。メイン会話はこの音声会話の文脈を見られません。\n\nタイトル、理由、完了条件、メッセージなど、新たに生成するユーザー向けの引数は、ユーザーが別の言語を求める場合や元の表現が必要な項目を除き、日本語で書いてください。引用した原文、識別子、ツール名と引数名、列挙値、コマンドの接頭辞はそのまま保持してください。言語によって承認要件や権限の範囲が変わることはありません。",
+    "description": "Hand work to the Persona main conversation: the full assistant can use all the user's data and tools (calendar, mail, Lark, documents, computers, scheduled tasks, writing and more). It can do much more than you, but takes tens of seconds to several minutes. Use it when your own tools cannot answer or the user needs something done. The call does not return immediately: tell the user you have handed it to the main conversation, then keep talking normally. When that turn finishes, this call returns its answer, possibly minutes later; tell the user then. Make task clear and self-contained, with the work to do in its first sentence: the main conversation cannot see this voice conversation's context.",
     "parameters": {
       "type": "object",
       "required": [
@@ -45,7 +45,7 @@
       "properties": {
         "task": {
           "type": "string",
-          "description": "メイン会話に依頼する作業。完全な文を一つ以上で記述します"
+          "description": "The work for the main conversation, in one or more complete sentences"
         }
       }
     }

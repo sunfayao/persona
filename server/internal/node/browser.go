@@ -297,7 +297,7 @@ func browserCall(ctx context.Context, params json.RawMessage) (*proto.ComputerRe
 	}
 	bin := egoBin()
 	if bin == "" {
-		return nil, errors.New("ego-browser 不在：先装 ego lite 并做完首次设置")
+		return nil, errors.New("ego-browser is not there: install ego lite and finish its first-time setup")
 	}
 	if p.Session == "" || (!p.Look && strings.TrimSpace(p.Script) == "") {
 		return nil, errors.New("browser.call: need a session and a script")
@@ -324,12 +324,12 @@ func browserCall(ctx context.Context, params json.RawMessage) (*proto.ComputerRe
 	text, result := splitBrowserOutput(out.String())
 	if result == nil {
 		if cctx.Err() != nil {
-			return nil, fmt.Errorf("超时（%s）", timeout)
+			return nil, fmt.Errorf("timed out (%s)", timeout)
 		}
 		if runErr != nil {
 			return nil, fmt.Errorf("ego-browser：%s", oneLine(text, 4))
 		}
-		return nil, errors.New("ego-browser 没有给出结果")
+		return nil, errors.New("ego-browser gave no result")
 	}
 	if text != "" {
 		result["console"] = clipOutput(text, browserMost/4)

@@ -395,7 +395,7 @@ func TestCodexStartAndTurns(t *testing.T) {
 	b, _ := json.Marshal(f.sent("thread/start")[0])
 	_ = json.Unmarshal(b, &start)
 	// No mode selected: keep the launcher's policy until the app makes an explicit choice below.
-	if start.Params.ApprovalPolicy != "" || start.Params.Sandbox != "" || !strings.HasPrefix(start.Params.DeveloperInstructions, "# 记忆") ||
+	if start.Params.ApprovalPolicy != "" || start.Params.Sandbox != "" || !strings.HasPrefix(start.Params.DeveloperInstructions, "# Memory") ||
 		strings.Contains(start.Params.DeveloperInstructions, "snapshot") { // the snapshot goes with each message, not here
 		t.Fatalf("thread/start params %+v", start.Params)
 	}
@@ -670,7 +670,7 @@ func TestCodexSharesTheAssistantMemory(t *testing.T) {
 	if got := codexMemoryPrompt(mem); !strings.Contains(got, "- [邮箱](mail.md) — 收信在 hub 上") || !strings.Contains(got, mem) {
 		t.Fatalf("memory prompt lacks the index or the directory:\n%s", got)
 	}
-	if got := codexMemoryPrompt(t.TempDir()); !strings.Contains(got, "还没有记忆") {
+	if got := codexMemoryPrompt(t.TempDir()); !strings.Contains(got, "(no memories yet)") {
 		t.Fatalf("empty memory: %s", got)
 	}
 	if p := codexSandboxPolicy("default", mem); p["writableRoots"].([]string)[0] != mem {

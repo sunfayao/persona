@@ -106,7 +106,7 @@ func TestNudgeAfterATypedLine(t *testing.T) {
 	_ = a.c.Close(websocket.StatusNormalClosure, "bye")
 	logs.wait("call 1: conversation closed", "nudges 2")
 	for _, line := range logs.lines() {
-		if strings.Contains(line, "zebra-typed") || strings.Contains(line, "用户在等") {
+		if strings.Contains(line, "zebra-typed") || strings.Contains(line, "The user is waiting") {
 			t.Errorf("the log has what was typed or said: %s", line)
 		}
 	}
@@ -141,7 +141,7 @@ func TestNoNudgeWhenTheModelAnswers(t *testing.T) {
 				case "session.start":
 					u.send(c, map[string]any{"type": "session.started", "session": map[string]any{}})
 				case "session.commentary.append":
-					if strings.Contains(content(f), "用户在等") || strings.Contains(content(f), "还没告诉用户") {
+					if strings.Contains(content(f), "The user is waiting") || strings.Contains(content(f), "You have not told the user") {
 						return // a nudge: the test fails on it
 					}
 					k := int(n.Add(1))
@@ -317,7 +317,7 @@ func TestNoNudgeWhileACardIsAsked(t *testing.T) {
 	hub.subscribed("a1")
 	hub.answerOnScreen("q1")
 	a.until(askFrom("q1", askReleased, byElsewhere))
-	up.nextMatch(saying("已经在屏幕上或者别的地方答了"))
+	up.nextMatch(saying("was answered on the screen or elsewhere"))
 	up.nextMatch(nudging("result"))
 }
 
@@ -345,7 +345,7 @@ func TestNoNudgeWhilePaused(t *testing.T) {
 	a := dialApp(t, pl, boundStart("a1", nil))
 	a.until(ofType("ready"))
 	a.send(map[string]any{"type": "text", "text": "状态：到哪了"})
-	if got := content(up.find(t, 0, "the status", func(f map[string]any) bool { return f["delegation_id"] == "dlg1" })); !strings.Contains(got, "还在做") {
+	if got := content(up.find(t, 0, "the status", func(f map[string]any) bool { return f["delegation_id"] == "dlg1" })); !strings.Contains(got, "still working") {
 		t.Fatalf("status: %s", got)
 	}
 	a.until(linkIn(linkPaused))

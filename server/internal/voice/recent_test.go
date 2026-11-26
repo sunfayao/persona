@@ -250,8 +250,8 @@ func TestHandoverHasTheRequestThatTriggeredIt(t *testing.T) {
 	say("session.input_transcript.delta", "帮我在当前目录建一个文件 hello.txt，内容写 hi")
 
 	m := hub.waitSent(1)
-	want := strings.Join([]string{"我：你好，现在几点了？", "语音助手：现在下午三点。", "我：帮我在当前目录建一个文件 hello.txt，内容写 hi",
-		"语音助手：好，这就交给它去建 hello.txt。"}, "\n")
+	want := strings.Join([]string{"Me: 你好，现在几点了？", "Voice assistant: 现在下午三点。", "Me: 帮我在当前目录建一个文件 hello.txt，内容写 hi",
+		"Voice assistant: 好，这就交给它去建 hello.txt。"}, "\n")
 	if !strings.HasPrefix(m.Text, "在当前目录建 hello.txt，内容写 hi\n") || !strings.Contains(m.Text, want) {
 		t.Fatalf("sent:\n%s\nwant it to have:\n%s", m.Text, want)
 	}

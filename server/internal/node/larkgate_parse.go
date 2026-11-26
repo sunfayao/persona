@@ -204,21 +204,21 @@ func classifyLarkAt(cmd string, gates []proto.CommandGate, cwd string, risk lark
 	for _, g := range gates {
 		for _, name := range g.Secret {
 			if name != "" && strings.Contains(cmd, name) {
-				v.deny = "不要读取、打印或直接使用 " + name + "：" + g.Title + "一律用 " + g.Command + "，它自己带凭据。"
+				v.deny = "Do not read, print or use " + name + " directly: always use " + g.Command + " for " + g.Title + ", it carries its own credentials."
 				return v
 			}
 		}
 	}
 	if strings.Contains(cmd, "/proc/") && strings.Contains(cmd, "environ") {
-		v.deny = "不要读取进程的环境变量（/proc/*/environ）：里面有凭据。"
+		v.deny = "Do not read the process environment (/proc/*/environ): it holds credentials."
 		return v
 	}
 	if larkProfileEnv.MatchString(larkProfileRead.ReplaceAllString(cmd, "")) && larkCLIRe.MatchString(cmd) {
-		v.deny = "lark-cli 的配置档由管理者定（manager.json 的 lark.cli.profile），不要自己设或清 LARKSUITE_CLI_PROFILE。"
+		v.deny = "The lark-cli profile is set by the manager (lark.cli.profile in manager.json); do not set or clear LARKSUITE_CLI_PROFILE yourself."
 		return v
 	}
 	if strings.Contains(cmd, ".lark-cli/") || strings.HasSuffix(cmd, ".lark-cli") {
-		v.deny = "不要读或改 lark-cli 的配置和凭据（~/.lark-cli）：飞书用 lark-cli 命令，它自己带登录。"
+		v.deny = "Do not read or change lark-cli's config and credentials (~/.lark-cli): use the lark-cli command for Feishu, it carries its own login."
 		return v
 	}
 	if commands, ok := literalLarkLoopCommands(cmd, gates); ok {
@@ -504,7 +504,7 @@ func classifyLarkAt(cmd string, gates []proto.CommandGate, cwd string, risk lark
 			v.calls = append(v.calls, c)
 		case name == "curl" || name == "wget" || name == "http" || name == "xh":
 			if g, ok := gateAimed(gates, s.Text); ok {
-				v.deny = "不要直接 curl " + g.Title + " 的接口：用 " + g.Command + "，写操作要先在手机上确认。"
+				v.deny = "Do not curl the " + g.Title + " API directly: use " + g.Command + "; writes are confirmed on the phone first."
 				return v
 			}
 			v.other = true
@@ -1054,7 +1054,7 @@ func parseGateCall(g proto.CommandGate, args []string, vars map[string]string, c
 		f := rest[i]
 		switch f {
 		case "-v", "--verbose", "--trace", "--trace-ascii", "--trace-time", "-K", "--config", "--libcurl", "-w", "--write-out", "-D", "--dump-header":
-			return larkCall{}, "不要给 " + g.Command + " 加会打印请求头（含凭据）或改写请求的 curl 参数（" + f + "）。", false
+			return larkCall{}, "Do not give " + g.Command + " curl arguments that print request headers (with credentials) or rewrite the request (" + f + ").", false
 		}
 		name, val, inline := strings.Cut(f, "=")
 		if strings.HasPrefix(f, "-X") && len(f) > 2 { // -XPOST
@@ -1108,7 +1108,7 @@ func parseGateCall(g proto.CommandGate, args []string, vars map[string]string, c
 					}
 					b, err := os.ReadFile(p)
 					if err != nil {
-						return larkCall{}, "读不到 --url-query 文件 " + p + "：" + err.Error(), false
+						return larkCall{}, "Cannot read the --url-query file " + p + ": " + err.Error(), false
 					}
 					if len(b) > 0 { // curl adds nothing for an empty file, even when it has a name.
 						query = gateCurlQueryEscape(string(b))

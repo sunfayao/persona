@@ -159,12 +159,12 @@ func TestLongAnswerIsSpokenWhole(t *testing.T) {
 	hub.add("main1", proto.Item{Role: "assistant", Kind: proto.KindText, Text: "最后：测试全部通过。"})
 	hub.end("main1")
 	got := content(up.nextMatch(on("dlg1")))
-	for _, want := range []string{"文件 Login.tsx", "（一段 2 行的代码，在屏幕上）", "（一个链接）", "最后：测试全部通过。"} {
+	for _, want := range []string{"the file Login.tsx", "(a code block of 2 lines, on the screen)", "(a link)", "最后：测试全部通过。"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("result lacks %q: %s", want, got)
 		}
 	}
-	for _, not := range []string{"expect(", "https://", "已截断"} {
+	for _, not := range []string{"expect(", "https://", "the middle is left out"} {
 		if strings.Contains(got, not) {
 			t.Errorf("result reads out %q: %s", not, got)
 		}
@@ -194,7 +194,7 @@ func TestFoldedRunsAnswerTogether(t *testing.T) {
 	hub.add("main1", proto.Item{Role: "assistant", Kind: proto.KindText, Text: "日程和邮件都看过了，没什么要紧的。"})
 	hub.end("main1")
 	got := content(up.nextMatch(on("dlg2")))
-	if !strings.Contains(got, "日程和邮件都看过了") || !strings.Contains(got, "「查明天的日程」和「顺便看看邮件」") {
+	if !strings.Contains(got, "日程和邮件都看过了") || !strings.Contains(got, "\"查明天的日程\" and \"顺便看看邮件\"") {
 		t.Fatalf("result: %s", got)
 	}
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "d1" && f["done"] == true })
@@ -249,7 +249,7 @@ func TestARefusedSendDoesNotHoldTheFirstBack(t *testing.T) {
 	hub.mu.Unlock()
 	a.send(map[string]any{"type": "text", "text": "顺便看看邮件"})
 	refused := content(up.nextMatch(on("dlg2")))
-	if !strings.Contains(refused, "没有发给 Persona 主对话") || !strings.Contains(refused, "在等你先处理上面的卡片") {
+	if !strings.Contains(refused, "was not sent to the Persona main conversation") || !strings.Contains(refused, "在等你先处理上面的卡片") {
 		t.Fatalf("refusal: %s", refused)
 	}
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "d2" && f["done"] == true })
@@ -277,7 +277,7 @@ func TestHeldRunAnswersTwice(t *testing.T) {
 	hub.edit("main1", func(s *fakeSession) { s.background = 1 })
 	hub.end("main1")
 	first := content(up.nextMatch(on("dlg1")))
-	if !strings.Contains(first, "单元测试都过了") || !strings.Contains(first, "后台还有 1 个任务还在做") {
+	if !strings.Contains(first, "单元测试都过了") || !strings.Contains(first, "1 background task is still working") {
 		t.Fatalf("first answer: %s", first)
 	}
 	hub.status("main1", "working")
@@ -285,7 +285,7 @@ func TestHeldRunAnswersTwice(t *testing.T) {
 	hub.edit("main1", func(s *fakeSession) { s.background = 0 })
 	hub.end("main1")
 	again := content(up.nextMatch(on("")))
-	if !strings.Contains(again, "后台的任务做完了") || !strings.Contains(again, "集成测试也都过了") || strings.Contains(again, "单元测试") {
+	if !strings.Contains(again, "background work has finished") || !strings.Contains(again, "集成测试也都过了") || strings.Contains(again, "单元测试") {
 		t.Fatalf("second answer: %s", again)
 	}
 }
@@ -374,7 +374,7 @@ func TestAskPersonaWaitsForTheCaptionAndAnswersOnItsCall(t *testing.T) {
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "d1" && f["done"] == true })
 	a.protocolOne()
 	// The main conversation got what the user said too, though its caption came after the call.
-	if msgs := hub.messages(); len(msgs) != 1 || !strings.HasPrefix(msgs[0].Text, "查明天的日程\n") || !strings.Contains(msgs[0].Text, "我：帮我查一下明天的日程") {
+	if msgs := hub.messages(); len(msgs) != 1 || !strings.HasPrefix(msgs[0].Text, "查明天的日程\n") || !strings.Contains(msgs[0].Text, "Me: 帮我查一下明天的日程") {
 		t.Fatalf("sent %+v", msgs)
 	}
 }
@@ -508,10 +508,10 @@ func TestCardWaitingOnTheUserIsSaidOnce(t *testing.T) {
 	hub.waitSent(1)
 	hub.status("main1", "working")
 	asked := func(f map[string]any) bool {
-		return f["type"] == "session.commentary.append" && f["delegation_id"] == nil && strings.Contains(content(f), "等用户回答或批准")
+		return f["type"] == "session.commentary.append" && f["delegation_id"] == nil && strings.Contains(content(f), "waiting for the user to answer or approve something")
 	}
 	hub.edit("main1", func(s *fakeSession) { s.status, s.pending = "idle", 1 })
-	if got := content(up.nextMatch("go look on the phone", asked)); !strings.Contains(got, "「部署一下」") {
+	if got := content(up.nextMatch("go look on the phone", asked)); !strings.Contains(got, `"部署一下"`) {
 		t.Fatalf("said: %s", got)
 	}
 	time.Sleep(600 * time.Millisecond) // several looks
@@ -555,12 +555,12 @@ func TestListedWorkingWhileACardWaits(t *testing.T) {
 	hub.raise(proto.Interaction{ID: "p1", MachineID: "m", SessionID: "a1", Kind: proto.IxPermission, ToolName: "Bash", Summary: "rm -rf /tmp/x"})
 	hub.edit("a1", func(s *fakeSession) { s.pending = 1 }) // still listed working
 	a.runStates(m.ID, runNeedsYou)
-	up.nextMatch(saying("在等用户处理"))
+	up.nextMatch(saying("has stopped and waits for the user"))
 	time.Sleep(2500 * time.Millisecond) // past heartbeatAfter and pauseAfter
-	if n := up.count(saidWith("还在做")); n != 0 {
+	if n := up.count(saidWith("still working")); n != 0 {
 		t.Fatalf("%d heartbeats while a card waits", n)
 	}
-	if n := up.count(saidWith("等用户回答或批准")); n != 0 {
+	if n := up.count(saidWith("waiting for the user to answer or approve something")); n != 0 {
 		t.Fatal("the turn said it waits too: its card says itself")
 	}
 	a.mu.Lock()
@@ -570,7 +570,7 @@ func TestListedWorkingWhileACardWaits(t *testing.T) {
 		t.Fatal("paused while a card waits on the user")
 	}
 	a.send(map[string]any{"type": "text", "text": "状态：到哪了"})
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "在屏幕上等用户处理") || strings.Contains(got, "还在做") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "stopped, waiting for the user on the screen") || strings.Contains(got, "still working") {
 		t.Fatalf("status: %s", got)
 	}
 	hub.answerOnScreen("p1")
@@ -599,13 +599,13 @@ func TestCardThatComesLateSaysItself(t *testing.T) {
 	m := hub.waitSent(1)
 	hub.status("a1", "working")
 	a.runStates(m.ID, runWorking)
-	turn := saidWith("等用户回答或批准")
+	turn := saidWith("waiting for the user to answer or approve something")
 	hub.edit("a1", func(s *fakeSession) { s.status = "blocked" }) // the dialog is up; its card not yet
 	a.runStates(m.ID, runNeedsYou)
 	time.Sleep(700 * time.Millisecond)
 	hub.raise(proto.Interaction{ID: "s1", MachineID: "m", SessionID: "a1", Kind: proto.IxScreen, Summary: "Continue?"})
 	hub.edit("a1", func(s *fakeSession) { s.pending = 1 })
-	up.nextMatch(saying("在等用户处理"))
+	up.nextMatch(saying("has stopped and waits for the user"))
 	time.Sleep(2 * cardGrace)
 	if n := up.count(turn); n != 0 {
 		t.Fatalf("the turn said it waits %d times besides its card", n)
@@ -649,7 +649,7 @@ func TestGoneConversationIsToldAsAFailure(t *testing.T) {
 	}
 	skew.Store(int64(channel.MissingAfter + time.Minute))
 	got := content(up.nextMatch(on("dlg1")))
-	if !strings.Contains(got, "没有结果") || !strings.Contains(got, i18n.T(i18n.ZhHans, "channel-turns.gone")) {
+	if !strings.Contains(got, "has no result") || !strings.Contains(got, i18n.T(i18n.ZhHans, "channel-turns.gone")) {
 		t.Fatalf("result: %s", got)
 	}
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "d1" && f["done"] == true })

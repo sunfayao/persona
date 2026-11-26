@@ -120,7 +120,7 @@ func TestBoundToAnAgent(t *testing.T) {
 		t.Fatalf("tools: %v", names)
 	}
 	instructions := start["instructions"].(string)
-	for _, want := range []string{"绑定的对话", "在「工作站」这台电脑上的 web-api 目录里干活", "用户：看看登录页", "Claude Code：登录页的测试挂了两个", "「状态：」"} {
+	for _, want := range []string{"The conversation you are bound to", "a coding agent working on the computer \"工作站\", in the folder web-api", "the user: 看看登录页", "Claude Code: 登录页的测试挂了两个", "\"Status:\""} {
 		if !strings.Contains(instructions, want) {
 			t.Errorf("instructions lack %q", want)
 		}
@@ -131,8 +131,8 @@ func TestBoundToAnAgent(t *testing.T) {
 
 	a.send(map[string]any{"type": "text", "text": "修一下登录页的测试"})
 	m := hub.waitSent(1)
-	if m.Session != "a1" || !strings.HasPrefix(m.Text, "修一下登录页的测试\n") || !strings.Contains(m.Text, "有歧义时先问我再动手") ||
-		strings.Contains(m.Text, "回复简短些") || !isVoiceID(m.ID) {
+	if m.Session != "a1" || !strings.HasPrefix(m.Text, "修一下登录页的测试\n") || !strings.Contains(m.Text, "ask me before acting on it") ||
+		strings.Contains(m.Text, "Keep the reply short") || !isVoiceID(m.ID) {
 		t.Fatalf("sent %+v", m)
 	}
 	states := a.runStates(m.ID, runDone)
@@ -140,7 +140,7 @@ func TestBoundToAnAgent(t *testing.T) {
 		t.Fatalf("run states %v", states)
 	}
 	got := content(up.nextMatch(on("dlg1")))
-	if !strings.Contains(got, "Claude Code 这一轮做完了") || !strings.Contains(got, "文件 Login.tsx") {
+	if !strings.Contains(got, "Claude Code has finished this turn") || !strings.Contains(got, "the file Login.tsx") {
 		t.Fatalf("result: %s", got)
 	}
 	a.mu.Lock()
@@ -254,7 +254,7 @@ func TestInputDraftAndResend(t *testing.T) {
 			if refused["code"] != "input_draft" || refused["draft"] != draft || refused["clearable"] != clearable || !isVoiceID(id) {
 				t.Fatalf("refused: %v", refused)
 			}
-			if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "输入框里有没发出去的字") || !strings.Contains(got, "Claude Code") {
+			if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "holds words typed there and not sent") || !strings.Contains(got, "Claude Code") {
 				t.Fatalf("told: %s", got)
 			}
 			if msgs := hub.messages(); len(msgs) != 0 {
@@ -267,7 +267,7 @@ func TestInputDraftAndResend(t *testing.T) {
 			if msgs := hub.messages(); len(msgs) != 1 || msgs[0].ID != id || msgs[0].ClearDraft != clearable {
 				t.Fatalf("sent %+v", msgs)
 			}
-			if got := content(up.nextMatch("the answer, said", said)); !strings.Contains(got, "Claude Code 这一轮做完了") || !strings.Contains(got, "明天下午三点有会") {
+			if got := content(up.nextMatch("the answer, said", said)); !strings.Contains(got, "Claude Code has finished this turn") || !strings.Contains(got, "明天下午三点有会") {
 				t.Fatalf("said: %s", got)
 			}
 		})
@@ -296,7 +296,7 @@ func TestUnpromptedRunCanBeSentAnyway(t *testing.T) {
 	if refused["code"] != "unprompted" || refused["task"] != task || !isVoiceID(id) || refused["resendable"] != true {
 		t.Fatalf("refused: %v", refused)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || !strings.Contains(got, "仍然发送") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || !strings.Contains(got, "Send Anyway") {
 		t.Errorf("told: %s", got)
 	}
 	if msgs := hub.messages(); len(msgs) != 0 {
@@ -336,7 +336,7 @@ func TestUnpromptedRunToAnAppWithoutSendAnyway(t *testing.T) {
 	if refused["code"] != "unprompted" || refused["resendable"] != nil {
 		t.Fatalf("refused: %v", refused)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || strings.Contains(got, "仍然发送") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || strings.Contains(got, "Send Anyway") {
 		t.Errorf("told: %s", got)
 	}
 	a.send(map[string]any{"type": "resend", "id": id})
@@ -368,7 +368,7 @@ func TestSendAnywayOnlyForATaskShownWhole(t *testing.T) {
 	if refused["code"] != "unprompted" || !strings.HasSuffix(fmt.Sprint(refused["task"]), "…") || refused["resendable"] != nil {
 		t.Fatalf("refused: %v", refused)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || strings.Contains(got, "仍然发送") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, unpromptedWords) || strings.Contains(got, "Send Anyway") {
 		t.Errorf("told: %s", got)
 	}
 	a.send(map[string]any{"type": "resend", "id": id})
@@ -405,7 +405,7 @@ func TestSendAnywayKeepsTheApprovalWordCheck(t *testing.T) {
 	if f := a.until(func(f map[string]any) bool { return f["type"] == "run" && f["id"] == id }); f["state"] != runRefused || f["code"] != "on_screen" {
 		t.Fatalf("after the resend: %v", f)
 	}
-	up.nextMatch("the model told to tap the card", func(f map[string]any) bool { return strings.Contains(fmt.Sprint(f), "卡片要在屏幕上点") })
+	up.nextMatch("the model told to tap the card", func(f map[string]any) bool { return strings.Contains(fmt.Sprint(f), "tapping them on the screen") })
 	logs.wait("call 1: run " + id + ": only an approval word while a card waits: not sent")
 	if msgs := hub.messages(); len(msgs) != 0 {
 		t.Fatalf("sent %+v", msgs)
@@ -473,7 +473,7 @@ func TestDialogRefusals(t *testing.T) {
 	a := dialApp(t, pl, boundStart("a1", nil))
 	a.until(ofType("ready"))
 	a.send(map[string]any{"type": "text", "text": "跑一下测试"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "这一轮做完了") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "has finished this turn") {
 		t.Fatalf("result: %s", got)
 	}
 	if msgs := hub.messages(); len(msgs) != 1 || !msgs[0].Dismiss {
@@ -487,7 +487,7 @@ func TestDialogRefusals(t *testing.T) {
 	if f := a.until(runIn(runRefused)); f["code"] != "dialog_open" {
 		t.Fatalf("refused: %v", f)
 	}
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "作为修改意见退回") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "as feedback on the plan") {
 		t.Fatalf("told: %s", got)
 	}
 }
@@ -504,7 +504,7 @@ func TestBoundSendThatBreaksOffIsUnknown(t *testing.T) {
 	if f := a.until(runIn(runUnknown)); f["code"] != "unknown" {
 		t.Fatalf("run: %v", f)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "不确定有没有发到 Claude Code") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "reached Claude Code") {
 		t.Fatalf("told: %s", got)
 	}
 }
@@ -521,7 +521,7 @@ func TestApprovalWordIsNotSent(t *testing.T) {
 	if f := a.until(runIn(runRefused)); f["code"] != "on_screen" {
 		t.Fatalf("run: %v", f)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "卡片要在屏幕上点") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "tapping them on the screen") {
 		t.Fatalf("told: %s", got)
 	}
 	a.send(map[string]any{"type": "text", "text": "回答：第二个"})
@@ -547,7 +547,7 @@ func TestStatusIsNotSent(t *testing.T) {
 	a.until(ofType("ready"))
 	a.send(map[string]any{"type": "text", "text": "状态：到哪了"})
 	got := content(up.nextMatch(on("dlg1")))
-	for _, want := range []string{"Claude Code 现在的状态，没有发给它", "还在做", "2 分", "在做：在读\n", "在查 session 过期", "正在看登录逻辑", "文件 session.go 第 88 行"} {
+	for _, want := range []string{"This is how Claude Code stands now; nothing was sent to it", "still working", "2 分", "Doing: 在读\n", "在查 session 过期", "正在看登录逻辑", "line 88 of session.go"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("status lacks %q: %s", want, got)
 		}
@@ -590,7 +590,7 @@ func TestStatusSaysTheActivityInTheCallsLanguage(t *testing.T) {
 			a.until(ofType("ready"))
 			a.send(map[string]any{"type": "text", "text": "status: how far"})
 			got := content(up.nextMatch(on("dlg1")))
-			doing := map[i18n.Lang]string{i18n.En: "Doing: ", i18n.Ja: "していること："}[c.lang]
+			doing := "Doing: "
 			switch {
 			case c.want == "" && strings.Contains(got, doing):
 				t.Errorf("an unknown category is said: %s", got)
@@ -638,7 +638,7 @@ func TestStopInterrupts(t *testing.T) {
 		t.Fatal("stopped with nobody asking")
 	}
 	a.send(map[string]any{"type": "text", "text": "停止：让 Claude 停下"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "已经叫停了 Claude Code") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "Claude Code was stopped") {
 		t.Fatalf("stop: %s", got)
 	}
 	hub.mu.Lock()
@@ -672,7 +672,7 @@ func TestStopATurnWaitingOnTheUser(t *testing.T) {
 			hub.mu.Lock()
 			interrupts := slices.Clone(hub.interrupts)
 			hub.mu.Unlock()
-			if c.stopped != (len(interrupts) == 1) || c.stopped != strings.Contains(got, "已经叫停了") || !c.stopped && !strings.Contains(got, "不用叫停") {
+			if c.stopped != (len(interrupts) == 1) || c.stopped != strings.Contains(got, "was stopped") || !c.stopped && !strings.Contains(got, "nothing to stop") {
 				t.Fatalf("interrupts %v, told: %s", interrupts, got)
 			}
 		})
@@ -696,7 +696,7 @@ func TestSplitMark(t *testing.T) {
 		{`回答："第二个"`, "answer", `"第二个"`},
 		{"stopwatch: x", "", "stopwatch: x"},
 		{"停止测试", "", "停止测试"},
-		{"「修一下测试」", "", "「修一下测试」"},
+		{"\"修一下测试\"", "", "\"修一下测试\""},
 		{"Stop", "", "Stop"},
 	} {
 		if kind, rest := splitMark(c.in); kind != c.kind || rest != c.rest {
@@ -722,7 +722,7 @@ func TestStopEndsTheRun(t *testing.T) {
 	if f := a.until(func(f map[string]any) bool { return f["type"] == "run" && f["id"] == m.ID && f["state"] == runDone }); f["code"] != "stopped" {
 		t.Fatalf("run: %v", f)
 	}
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "已经叫停了") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "was stopped") {
 		t.Fatalf("stop: %s", got)
 	}
 	time.Sleep(300 * time.Millisecond)
@@ -758,7 +758,7 @@ func TestBoundFold(t *testing.T) {
 	hub.add("a1", proto.Item{Role: "assistant", Kind: proto.KindText, Text: "lint 和测试都过了。"})
 	hub.end("a1")
 	got := content(up.nextMatch(on("dlg2")))
-	if !strings.Contains(got, "「查一下 lint」和「顺便跑测试」") || !strings.Contains(got, "这条结果也包括之前交代的「查一下 lint」") {
+	if !strings.Contains(got, "\"查一下 lint\" and \"顺便跑测试\"") || !strings.Contains(got, "This result covers what was handed over before too (\"查一下 lint\"") {
 		t.Fatalf("result: %s", got)
 	}
 	time.Sleep(300 * time.Millisecond)
@@ -785,27 +785,27 @@ func TestBoundToTheMainConversation(t *testing.T) {
 		t.Fatalf("ready: %v", ready)
 	}
 	instructions := up.next("session.start")["session"].(map[string]any)["instructions"].(string)
-	for _, want := range []string{"Persona 主对话：在 hub 机器上运行的完整助手", "用户：明天有什么会", "（主对话用了 Bash）",
-		"主对话：明天下午三点有个评审会。", "- 提问：用哪个数据库？", "各台电脑上的 Agent：\n- web-api · 工作中"} {
+	for _, want := range []string{"The Persona main conversation: the full assistant running on the hub's computer", "the user: 明天有什么会", "(Main conversation used Bash)",
+		"Main conversation: 明天下午三点有个评审会。", "- A question: 用哪个数据库？", "The agents on each computer:\n- web-api · working"} {
 		if !strings.Contains(instructions, want) {
 			t.Errorf("instructions lack %q: %s", want, instructions)
 		}
 	}
-	if got := content(up.nextMatch(saying("用哪个数据库"))); !strings.Contains(got, "Persona 主对话停下来在等用户回答一个问题") {
+	if got := content(up.nextMatch(saying("用哪个数据库"))); !strings.Contains(got, "The Persona main conversation has stopped to wait for the user to answer a question") {
 		t.Fatalf("asked: %s", got)
 	}
 	a.send(map[string]any{"type": "text", "text": "Postgres"})
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "用户的回答已经交给 Persona 主对话了") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "The user's answer went to the Persona main conversation") {
 		t.Fatalf("answered: %s", got)
 	}
 	if res := hub.resolutions(); len(res) != 1 || res[0].Res.Answers["用哪个数据库？"] != "Postgres" {
 		t.Fatalf("resolved %+v", res)
 	}
 	a.send(map[string]any{"type": "text", "text": "查一下邮件"})
-	if m := hub.waitSent(1); m.Session != "main1" || !strings.Contains(m.Text, "回复简短些") {
+	if m := hub.waitSent(1); m.Session != "main1" || !strings.Contains(m.Text, "Keep the reply short") {
 		t.Fatalf("sent %+v", m)
 	}
-	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "Persona 主对话这一轮做完了") {
+	if got := content(up.nextMatch(on("dlg2"))); !strings.Contains(got, "The Persona main conversation has finished this turn") {
 		t.Fatalf("result: %s", got)
 	}
 }
@@ -833,7 +833,7 @@ func TestResume(t *testing.T) {
 	}))
 	a.until(ofType("ready"))
 	instructions := up.next("session.start")["session"].(map[string]any)["instructions"].(string)
-	for _, want := range []string{"## 刚才的对话", "你：好，交给 Claude Code 了", "## 还在等的事", "交给 Claude Code 的「跑一下全部测试」还没有结果"} {
+	for _, want := range []string{"## The conversation so far", "You: 好，交给 Claude Code 了", "## Still waiting", "These were handed to Claude Code and their results are not back yet: \"跑一下全部测试\""} {
 		if !strings.Contains(instructions, want) {
 			t.Errorf("instructions lack %q: %s", want, instructions)
 		}
@@ -855,7 +855,7 @@ func TestResume(t *testing.T) {
 	if f := a.until(runIn(runUnknown)); f["id"] != lost {
 		t.Fatalf("run: %v", f)
 	}
-	if got := content(up.nextMatch("unknown, said", said)); !strings.Contains(got, "「部署一下」不确定有没有发到 Claude Code") {
+	if got := content(up.nextMatch("unknown, said", said)); !strings.Contains(got, "Not sure whether \"部署一下\" reached Claude Code") {
 		t.Fatalf("said: %s", got)
 	}
 	if msgs := hub.messages(); len(msgs) != 0 {
@@ -1147,7 +1147,7 @@ func TestBoundHeldRun(t *testing.T) {
 	if base, _ := held["base_seq"].(float64); base < 3 || len(held["msg_ids"].([]any)) != 0 {
 		t.Fatalf("held: %v", held)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "Claude Code 这一轮做完了") || !strings.Contains(got, "后台还有 1 个任务") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "Claude Code has finished this turn") || !strings.Contains(got, "1 background task is") {
 		t.Fatalf("first: %s", got)
 	}
 	hub.status("a1", "working")
@@ -1155,7 +1155,7 @@ func TestBoundHeldRun(t *testing.T) {
 	hub.add("a1", proto.Item{Role: "assistant", Kind: proto.KindText, Text: "集成测试也过了。"})
 	hub.edit("a1", func(s *fakeSession) { s.background = 0 })
 	hub.end("a1")
-	if got := content(up.nextMatch("the second answer, said", said)); !strings.Contains(got, "Claude Code 后台的任务做完了") || !strings.Contains(got, "集成测试也过了") {
+	if got := content(up.nextMatch("the second answer, said", said)); !strings.Contains(got, "Claude Code's background work has finished") || !strings.Contains(got, "集成测试也过了") {
 		t.Fatalf("second: %s", got)
 	}
 	a.runStates(m.ID, runDone)
@@ -1185,7 +1185,7 @@ func TestBoundTurnBetweenTheLookAndTheRead(t *testing.T) {
 	if states := a.runStates(m.ID, runHeld); slices.Contains(states, runDone) {
 		t.Fatalf("run states %v", states)
 	}
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "后台还有 1 个任务") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "1 background task is") {
 		t.Fatalf("first: %s", got)
 	}
 }

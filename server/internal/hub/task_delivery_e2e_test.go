@@ -179,10 +179,10 @@ func TestTaskDeliveryTrackingOverTheBus(t *testing.T) {
 	if first.DoneAt != nil || first.Supervision == nil || first.Supervision.State != "pending_review" {
 		t.Fatalf("judged delivery closed or misplaced the task: %+v", first)
 	}
-	if d := digests("main-1")[0]; !strings.Contains(d, "待逐项复核，不代表完成") || !strings.Contains(d, "实现和验证均已交付") {
+	if d := digests("main-1")[0]; !strings.Contains(d, "awaiting item-by-item review; this does not mean it is done") || !strings.Contains(d, "实现和验证均已交付") {
 		t.Fatalf("delivery digest:\n%s", d)
 	}
-	if text := snapshot(); !strings.Contains(text, "已交付·待看") {
+	if text := snapshot(); !strings.Contains(text, "delivered; awaiting a look") {
 		t.Fatalf("snapshot delivery:\n%s", text)
 	}
 	t.Logf("delivery: todo=%s done_at=%v state=%s main_digests=%d side_digests=%d snapshot_awaiting_review=true", first.ID, first.DoneAt,
@@ -220,7 +220,7 @@ func TestTaskDeliveryTrackingOverTheBus(t *testing.T) {
 	}
 
 pushChecked:
-	if text := snapshot(); !strings.Contains(text, "等你处理") || !strings.Contains(text, first.ID) {
+	if text := snapshot(); !strings.Contains(text, "waiting for you to handle it") || !strings.Contains(text, first.ID) {
 		t.Fatalf("snapshot owner wait:\n%s", text)
 	}
 	t.Logf("owner wait: todo=%s done_at=%v state=needs_user waits=present push=1 duplicate_push=0 snapshot_waiting_for_you=true", first.ID, todoNow(h, first.ID).DoneAt)
@@ -244,7 +244,7 @@ pushChecked:
 	if !storedCancelled {
 		t.Fatalf("stored cancellation = %+v", stored)
 	}
-	if text := snapshot(); !strings.Contains(text, "已取消") || !strings.Contains(text, "用户调整方案，不再按原计划发布") {
+	if text := snapshot(); !strings.Contains(text, "cancelled") || !strings.Contains(text, "用户调整方案，不再按原计划发布") {
 		t.Fatalf("snapshot cancellation:\n%s", text)
 	}
 	t.Logf("cancel: todo=%s api_done_by=review stored_done_by=cancelled reason_and_snapshot=present", first.ID)
@@ -330,7 +330,7 @@ pushChecked:
 		t.Fatalf("lineage old=%+v new=%+v", oldLineage, newLineage)
 	}
 	text := snapshot()
-	if !strings.Contains(text, "已由新卡 "+second.ID+" 接手") || !strings.Contains(text, "接手自 "+first.ID) {
+	if !strings.Contains(text, "taken over by new card "+second.ID) || !strings.Contains(text, "taking over from "+first.ID) {
 		t.Fatalf("snapshot lineage:\n%s", text)
 	}
 	t.Logf("takeover: old=%s new=%s old_superseded_by=%s new_continues=%s snapshot_bidirectional=true", first.ID, second.ID, second.ID, first.ID)

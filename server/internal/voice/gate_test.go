@@ -21,9 +21,9 @@ import (
 )
 
 // unpromptedWords are words of what the model is told of a handover the user-speech gate refused (voice/refused.md
-// unprompted, zh-Hans: the tests' language), with or without the screen's Send Anyway: the one place to change when
+// unprompted), with or without the screen's Send Anyway: the one place to change when
 // its wording does.
-const unpromptedWords = "没听到你新的请求，为了安全先没发"
+const unpromptedWords = "did not hear a new request from the user"
 
 // delegate makes the model hand text over as client delegation id.
 func delegate(u *fakeUpstream, c *websocket.Conn, id, text string) {
@@ -184,7 +184,7 @@ func TestTooLongResultIsSentShorter(t *testing.T) {
 	}
 	got := content(up.nextMatch(on("dlg1")))
 	if tokens(got) > appendTokens || !strings.Contains(got, "</agent_output>") || !strings.Contains(got, "先说结论") ||
-		!strings.Contains(got, "测试全部通过") || !strings.Contains(got, "「修一下测试」") {
+		!strings.Contains(got, "测试全部通过") || !strings.Contains(got, "\"修一下测试\"") {
 		t.Fatalf("again (%d tokens): %s", int(tokens(got)), got)
 	}
 }
@@ -646,7 +646,7 @@ func TestUserVoiceOpensTheGateBeforeTheCaption(t *testing.T) {
 	a.sound(100*time.Millisecond, 100, false)
 	waitFor(t, "the service has the user's voice", func() bool { return framesOf(up.fakeUpstream, 3000) == 15 })
 	up.call("dlg1", "回答：第二个")
-	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "用户的回答已经交给 Claude Code 了") {
+	if got := content(up.nextMatch(on("dlg1"))); !strings.Contains(got, "The user's answer went to Claude Code") {
 		t.Fatalf("told: %s", got)
 	}
 	a.until(askFrom("q1", askAnswered, byVoice))
@@ -697,7 +697,7 @@ func TestNoUserVoiceStillRefused(t *testing.T) {
 // that says nothing after it is refused as unprompted, unless the user's own voice was heard once the speech played
 // out. An app with echo cancellation, or one that does not say, has the caption count as before.
 func TestEchoCaptionDoesNotOpenTheGate(t *testing.T) {
-	const answered, refused = "用户的回答已经交给 Claude Code 了", unpromptedWords
+	const answered, refused = "The user's answer went to Claude Code", unpromptedWords
 	for _, c := range []struct {
 		name  string
 		start map[string]any

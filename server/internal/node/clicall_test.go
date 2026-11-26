@@ -155,7 +155,7 @@ func testAssistantCLICallerVerifiedRuntimeWorkers(t *testing.T, engine string) {
 			t.Fatalf("prepared runtime row denied: %+v", res)
 		}
 		for _, role := range []string{"agent", "runtime", "unrelated"} {
-			if res := call(role, "other_list"); !res.IsError || !strings.Contains(res.Content[0].Text, "只能在助手的对话里用") {
+			if res := call(role, "other_list"); !res.IsError || !strings.Contains(res.Content[0].Text, "only works in an assistant conversation") {
 				t.Errorf("%s was not denied as an unauthorized caller: %+v", role, res)
 			}
 		}
@@ -324,7 +324,7 @@ func TestCLICallOnlyForTheAssistant(t *testing.T) {
 	first := prepareAssistantForTest(t, n, ".persona/assistant", []string{"example"}, nil)
 	second := prepareAssistantForTest(t, n, ".persona/managers/second/assistant", []string{"other"}, nil)
 	// This test is no assistant process, whatever it says.
-	if res := ask("example_list"); !res.IsError || !strings.Contains(res.Content[0].Text, "只能在助手的对话里用") || len(asked) != 0 {
+	if res := ask("example_list"); !res.IsError || !strings.Contains(res.Content[0].Text, "only works in an assistant conversation") || len(asked) != 0 {
 		t.Fatalf("not the assistant: %+v, the hub was asked %v", res, asked)
 	}
 	n.mu.Lock()
@@ -399,7 +399,7 @@ func TestCLICallTaskSpawnUsesLivePaneSession(t *testing.T) {
 		t.Fatalf("hub request %v: want live pane session, assistant false, guest false", got)
 	}
 	denied := n.cliCall(context.Background(), nil, sockRequest{Name: "example_list", Pane: "w1:p1"})
-	if !denied.IsError || !strings.Contains(denied.Content[0].Text, "只能在助手的对话里用") {
+	if !denied.IsError || !strings.Contains(denied.Content[0].Text, "only works in an assistant conversation") {
 		t.Fatalf("ordinary connector tool from Agent: %+v", denied)
 	}
 }
@@ -459,7 +459,7 @@ func TestCLICallAgentToolsRefuseUnknownCallers(t *testing.T) {
 	peer := n.peer
 	n.peer = nil
 	t.Cleanup(func() { n.peer = peer })
-	const notAssistant = "这个命令只能在助手的对话里用：这个进程不是 Persona 为助手起的" // i18n-ignore: the node's refusal, matched as it is
+	const notAssistant = "This command is not available here: it only works in an assistant conversation, and this process was not started by Persona for an assistant" // the node's refusal, matched as it is
 	refused := func(what string, req sockRequest, want string) {
 		t.Helper()
 		res := n.cliCall(context.Background(), nil, req)

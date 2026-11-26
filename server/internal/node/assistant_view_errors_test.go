@@ -15,7 +15,7 @@ import (
 
 // The hub's answer when the conversation's last reply drew a view that failed its check (assistant/context_view_errors.go).
 var viewErrorsAnswer = map[string]any{
-	"text":                "- 现在：测试时间",
+	"text":                "- Now: test time",
 	"view_errors":         "<persona-view-errors>\nexample problem\n</persona-view-errors>",
 	"view_error_receipts": []map[string]any{{"item_id": "item-1", "digest": "d1"}},
 }
@@ -184,7 +184,7 @@ func TestViewErrorsGoWithARuntimeMessageAndAreAckedAfterIt(t *testing.T) {
 		Context string `json:"context"`
 	}
 	_ = json.Unmarshal(host.got("session.send")[0], &p)
-	if !strings.Contains(p.Context, "测试时间") || !strings.HasSuffix(p.Context, "</persona-view-errors>") {
+	if !strings.Contains(p.Context, "test time") || !strings.HasSuffix(p.Context, "</persona-view-errors>") {
 		t.Fatalf("context %q", p.Context)
 	}
 

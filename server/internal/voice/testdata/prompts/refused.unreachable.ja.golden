@@ -1,1 +1,1 @@
-「明日の予定を確認」はPersona のメイン会話に送っていません：Persona につながりませんでした。送れなかったことを一文でユーザーに伝えてください。
+"明日の予定を確認" was not sent to the Persona main conversation: Persona could not be reached. Tell the user in one sentence that it was not sent.

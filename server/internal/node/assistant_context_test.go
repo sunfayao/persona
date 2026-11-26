@@ -8,22 +8,22 @@ import (
 	"time"
 )
 
-const snapA = `**这是主对话**：示例用户平时都在这里找你，接着之前聊过的事往下做。
+const snapA = `**This is the main conversation**: the example user usually finds you here; carry on from what you talked about before.
 
-- 现在：2026-11-01 周日 15:04（Asia/Shanghai）
-- 在线的电脑：服务器（server）
-- Agents：需要你 1 个，完成未看 0 个，工作中 0 个（详情用 agents_list）
-  - 需要你：修登录（server，session_id=aaaaaaaa）
-- 飞书日历今天接下来：16:00–17:00 评审
-- 已安排的跟进：没有`
+- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)
+- Computers online: Server (server)
+- Agents: 1 need you, 0 finished unread, 0 working (details: agents_list)
+  - Need you: Fix login (server, session_id=aaaaaaaa)
+- Feishu calendar (meetings today that have not ended yet; ones already finished are not listed): 16:00–17:00 Review
+- Scheduled follow-ups: none`
 
 // The first message carries the whole snapshot; the next ones only what changed, and the time.
 func TestContextDelta(t *testing.T) {
 	first, seen := contextDelta(nil, snapA)
-	if !strings.HasPrefix(first, "<persona-context>\n实时快照（") || !strings.HasSuffix(first, "</persona-context>") {
+	if !strings.HasPrefix(first, "<persona-context>\nLive snapshot (") || !strings.HasSuffix(first, "</persona-context>") {
 		t.Fatalf("first block:\n%s", first)
 	}
-	for _, want := range []string{"**这是主对话**", "- 在线的电脑", "  - 需要你：修登录", "- 飞书日历今天接下来", "- 已安排的跟进：没有"} {
+	for _, want := range []string{"**This is the main conversation**", "- Computers online", "  - Need you: Fix login", "- Feishu calendar (meetings today", "- Scheduled follow-ups: none"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("first block lacks %q:\n%s", want, first)
 		}
@@ -31,23 +31,23 @@ func TestContextDelta(t *testing.T) {
 
 	same := strings.Replace(snapA, "15:04", "15:30", 1)
 	block, seen := contextDelta(seen, same)
-	if want := "<persona-context>\n实时快照里和上一份比变了的（没列出的照旧）：\n- 现在：2026-11-01 周日 15:30（Asia/Shanghai）\n</persona-context>"; block != want {
+	if want := "<persona-context>\n" + deltaIntro + "\n- Now: 2026-11-01 Sun 15:30 (Asia/Shanghai)\n</persona-context>"; block != want {
 		t.Fatalf("nothing changed but the time:\n%s", block)
 	}
 
 	// The waiting agent answered (its indented line goes with the Agents section), the meeting is over (the section
 	// is named the same either way).
 	later := strings.NewReplacer(
-		"需要你 1 个", "需要你 0 个", "\n  - 需要你：修登录（server，session_id=aaaaaaaa）", "",
-		"- 飞书日历今天接下来：16:00–17:00 评审", "- 飞书日历：今天接下来没有会",
+		"1 need you", "0 need you", "\n  - Need you: Fix login (server, session_id=aaaaaaaa)", "",
+		"- Feishu calendar (meetings today that have not ended yet; ones already finished are not listed): 16:00–17:00 Review", "- Feishu calendar (no more meetings today; ones already finished are not listed)",
 	).Replace(same)
 	block, _ = contextDelta(seen, later)
-	for _, want := range []string{"- 现在：", "- Agents：需要你 0 个", "- 飞书日历：今天接下来没有会"} {
+	for _, want := range []string{"- Now: ", "- Agents: 0 need you", "- Feishu calendar (no more meetings today"} {
 		if !strings.Contains(block, want) {
 			t.Errorf("lacks %q:\n%s", want, block)
 		}
 	}
-	for _, not := range []string{"这是主对话", "在线的电脑", "修登录", "跟进"} {
+	for _, not := range []string{"This is the main conversation", "Computers online", "Fix login", "follow-ups"} {
 		if strings.Contains(block, not) {
 			t.Errorf("repeats %q, unchanged:\n%s", not, block)
 		}
@@ -58,31 +58,33 @@ func TestContextDelta(t *testing.T) {
 }
 
 func TestContextDeltaReplacesDoneAndMutedDetails(t *testing.T) {
-	before := strings.Replace(snapA, "  - 需要你：修登录（server，session_id=aaaaaaaa）", `  - 需要你：修登录（server，session_id=aaaaaaaa）
-  - 做完的（24 小时内）：旧完成标题（server，session_id=done-1）：旧结论
-  - 已屏蔽（用户关了它们的通知，上面的数不算它们；别主动提，问到再说）：旧屏蔽标题（server，session_id=mute-1）`, 1)
+	const doneRow = "  - Done (last 24 hours): "
+	const mutedRow = "  - Muted (the user turned off their notifications; the counts above exclude them; do not bring them up unprompted, answer only when asked): "
+	before := strings.Replace(snapA, "  - Need you: Fix login (server, session_id=aaaaaaaa)", `  - Need you: Fix login (server, session_id=aaaaaaaa)
+`+doneRow+`Old done title (server, session_id=done-1): old verdict
+`+mutedRow+`Old muted title (server, session_id=mute-1)`, 1)
 	_, seen := contextDelta(nil, before)
 	counts := strings.NewReplacer(
-		"旧完成标题（server，session_id=done-1）：旧结论", "1 个，agents_list state=done 查",
-		"旧屏蔽标题（server，session_id=mute-1）", "1 个，agents_list state=muted 查",
+		"Old done title (server, session_id=done-1): old verdict", "1 in total, query with agents_list state=done",
+		"Old muted title (server, session_id=mute-1)", "1 in total, query with agents_list state=muted",
 	).Replace(before)
 	block, seen := contextDelta(seen, counts)
-	for _, want := range []string{"- Agents（", "agents_list state=done 查", "agents_list state=muted 查"} {
+	for _, want := range []string{"- Agents (only changed", "agents_list state=done", "agents_list state=muted"} {
 		if !strings.Contains(block, want) {
 			t.Errorf("the count-only Agents rows lack %q:\n%s", want, block)
 		}
 	}
-	for _, unwanted := range []string{"旧完成标题", "旧屏蔽标题", "旧结论", "done-1", "mute-1"} {
+	for _, unwanted := range []string{"Old done title", "Old muted title", "old verdict", "done-1", "mute-1"} {
 		if strings.Contains(block, unwanted) {
 			t.Errorf("stale detail %q survived the rows' replacement:\n%s", unwanted, block)
 		}
 	}
 	empty := strings.NewReplacer(
-		"\n  - 做完的（24 小时内）：1 个，agents_list state=done 查", "",
-		"\n  - 已屏蔽（用户关了它们的通知，上面的数不算它们；别主动提，问到再说）：1 个，agents_list state=muted 查", "",
+		"\n"+doneRow+"1 in total, query with agents_list state=done", "",
+		"\n"+mutedRow+"1 in total, query with agents_list state=muted", "",
 	).Replace(counts)
 	block, _ = contextDelta(seen, empty)
-	if !strings.Contains(block, "（已移除的行：做完的；已屏蔽）") || strings.Contains(block, "agents_list state=") {
+	if !strings.Contains(block, "(removed rows: Done; Muted)") || strings.Contains(block, "agents_list state=") {
 		t.Fatalf("the done and muted rows that are gone were not told removed:\n%s", block)
 	}
 }
@@ -139,7 +141,7 @@ func TestAssistantIdleCompaction(t *testing.T) {
 	if !reap || compact {
 		t.Fatalf("compacted: let go next time (reapable %v), not compacted again (%v)", reap, compact)
 	}
-	if block, _ := n.turnContext(id, contextAnswer{Text: snapA}); !strings.Contains(block, "实时快照（") {
+	if block, _ := n.turnContext(id, contextAnswer{Text: snapA}); !strings.Contains(block, "Live snapshot (") {
 		t.Fatalf("after a compaction the whole snapshot again:\n%s", block)
 	}
 }

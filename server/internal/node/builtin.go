@@ -48,7 +48,7 @@ func builtinCall(ctx context.Context, id, method string, params json.RawMessage,
 		case "call":
 			if useLCU(backend) {
 				if lcu == nil {
-					return nil, errors.New("LCU 还没连上 hub，确认卡片发不出去")
+					return nil, errors.New("LCU is not connected to the hub yet, so the confirmation card cannot be sent")
 				}
 				return lcu(ctx, params)
 			}

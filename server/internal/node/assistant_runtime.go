@@ -454,7 +454,7 @@ func (n *Node) assistantGateTool(ctx context.Context, g *proto.CommandGate, sess
 	defer release()                                  // this run's address at the gate proxy
 	script := n.gateScript(cwd, g)
 	if script == "" {
-		return proto.TextResult("这台电脑上没有 "+g.Command+" 所在的技能（"+g.Script+"）", true)
+		return proto.TextResult("This computer has no skill that provides "+g.Command+" ("+g.Script+")", true)
 	}
 	words := make([]string, len(a.Args))
 	for i, w := range a.Args {
@@ -468,10 +468,10 @@ func (n *Node) assistantGateTool(ctx context.Context, g *proto.CommandGate, sess
 	}
 	decision, reason, err := n.larkCheck(ctx, session, cwd, command, ix)
 	if err != nil {
-		return proto.TextResult("没有执行："+err.Error(), true)
+		return proto.TextResult("Not run: "+err.Error(), true)
 	}
 	if decision == "deny" {
-		return proto.TextResult("没有执行："+reason, true)
+		return proto.TextResult("Not run: "+reason, true)
 	}
 	rctx, cancel := context.WithTimeout(ctx, gateToolTimeout)
 	defer cancel()
@@ -482,7 +482,7 @@ func (n *Node) assistantGateTool(ctx context.Context, g *proto.CommandGate, sess
 // there was more.
 const gateOutputCap = 64 * 1024
 
-const gateOutputNotice = "\n…（输出太长，后面的没有放进来；用 -o 写到文件里再读）"
+const gateOutputNotice = "\n… (output too long, the rest is not included; write it to a file with -o and read that)"
 
 // runGateScript runs a gated command's skill script with bash in cwd and returns its combined output as the tool's
 // result: an error result when it exits non-zero (with its output) or cannot run. The script runs in a process group of

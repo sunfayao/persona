@@ -84,7 +84,7 @@ func TestAssistantImageInterjectionKeepsModelInstructions(t *testing.T) {
 		}
 		note, image, caption := -1, -1, -1
 		for i, b := range input.Message.Content {
-			if strings.Contains(b.Text, `title="插话"`) {
+			if strings.Contains(b.Text, `title="Interjection"`) {
 				note = i
 			}
 			if b.Type == "image" {
@@ -112,7 +112,7 @@ func TestAssistantInterjectBackgroundsForegroundWork(t *testing.T) {
 	if msg < 0 || bg < 0 || bg < msg {
 		t.Fatalf("want the message, then background_tasks:\n%s", after)
 	}
-	if !strings.Contains(after, `title=\"插话\"`) {
+	if !strings.Contains(after, `title=\"Interjection\"`) {
 		t.Fatalf("the message does not say it came mid-turn:\n%s", after)
 	}
 }
@@ -127,10 +127,10 @@ func TestAssistantInterjectOffOrOldClaude(t *testing.T) {
 	}{{"off", "2.1.322", false}, {"old claude", "2.1.138", true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			after := interjectSecond(t, tc.version, tc.on)
-			if strings.Contains(after, "background_tasks") || strings.Contains(after, "已经转到后台") {
+			if strings.Contains(after, "background_tasks") || strings.Contains(after, "moved to the background") {
 				t.Fatalf("moved work to the background:\n%s", after)
 			}
-			if !strings.Contains(after, `title=\"插话\"`) || !strings.Contains(after, "在调用下一个工具之前，先用一句话回应用户") {
+			if !strings.Contains(after, `title=\"Interjection\"`) || !strings.Contains(after, "Before calling the next tool, first respond to the user in one sentence") {
 				t.Fatalf("the mid-turn message carries no note:\n%s", after)
 			}
 		})
@@ -142,12 +142,12 @@ func TestAssistantInterjectOffOrOldClaude(t *testing.T) {
 func TestInterjectNote(t *testing.T) {
 	for _, background := range []bool{false, true} {
 		text := interjectNote(background)["text"].(string)
-		for _, want := range []string{`title="插话"`, "在调用下一个工具之前", "用用户的语言", "你正在做什么，还要多久或在等什么"} {
+		for _, want := range []string{`title="Interjection"`, "Before calling the next tool", "in the user's language", "what you are doing and how long it will take or what you are waiting for"} {
 			if !strings.Contains(text, want) {
 				t.Errorf("background %v: no %q in\n%s", background, want, text)
 			}
 		}
-		if got := strings.Contains(text, "已经转到后台"); got != background {
+		if got := strings.Contains(text, "has moved to the background"); got != background {
 			t.Errorf("background %v: says it went to the background: %v\n%s", background, got, text)
 		}
 	}
@@ -164,7 +164,7 @@ func TestAssistantFirstMessageHasNoInterjectNote(t *testing.T) {
 	}
 	t.Cleanup(func() { n.stopAssistant(id) })
 	cliWait(t, "the first message", func() bool { return strings.Contains(interjectLog(t), "first") })
-	if strings.Contains(interjectLog(t), "插话") {
+	if strings.Contains(interjectLog(t), "Interjection") {
 		t.Fatalf("a message to an idle conversation carries the note:\n%s", interjectLog(t))
 	}
 }

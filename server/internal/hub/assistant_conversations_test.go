@@ -96,7 +96,7 @@ func TestConversationSendAnswerKeepsHop(t *testing.T) {
 		if isErr || !strings.Contains(out, "Sent to") {
 			t.Fatalf("message %d, %s → %s: %s", i+1, from, to, out)
 		}
-		if p := n.lastSend(t); p["session_id"] != to || !strings.Contains(p["text"].(string), fmt.Sprintf("第 %d 跳", want)) {
+		if p := n.lastSend(t); p["session_id"] != to || !strings.Contains(p["text"].(string), fmt.Sprintf("hop %d of at most", want)) {
 			t.Fatalf("message %d went in as %v, want hop %d", i+1, p, want)
 		}
 		if got := hopOf(t, h, to); got != want {
@@ -108,7 +108,7 @@ func TestConversationSendAnswerKeepsHop(t *testing.T) {
 	// the last hop as before.
 	for i, st := range []struct{ from, to string }{{"main-0001", "trip-0002"}, {"trip-0002", "main-0001"}} {
 		out, isErr := tool(t, h, n, st.from, "conversation_send", fmt.Sprintf(`{"id":%q,"text":"第 %d 条"}`, st.to, i+7))
-		if isErr || !strings.Contains(out, "Sent to") || !strings.Contains(n.lastSend(t)["text"].(string), "第 3 跳") {
+		if isErr || !strings.Contains(out, "Sent to") || !strings.Contains(n.lastSend(t)["text"].(string), "hop 3 of at most") {
 			t.Fatalf("message %d, %s → %s: %s", i+7, st.from, st.to, out)
 		}
 	}

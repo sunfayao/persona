@@ -13,14 +13,17 @@ import (
 
 // The words a block tells a section's rows with (prompts/assistant/turn_context.md), as a reader of the block meets them.
 const (
-	rowsMark    = "（只列有变化和新增的行，没列的行照旧）"
-	rowsRemoved = "  - （已移除的行："
-	rowsOrder   = "  - （行现在的顺序："
-	goneSection = "- 这份快照里已经没有的段落"
-	deltaIntro  = "实时快照里和上一份比变了的（没列出的照旧）："
-	fullIntro   = "实时快照（这条消息发出时的；之后的变化用工具查）："
-	tasksHead   = "- 优先显示的开放任务详情（含个人待办；最近结束的对话任务也会列出；task_plan；问已有结果看这里，不够用 agent_read 读它的对话；要它新查、新做或改方向才用 agent_send）："
-	tasksKey    = "- 优先显示的开放任务详情"
+	rowsMark    = "(only changed and new rows are listed; rows not listed are unchanged)"
+	rowsRemoved = "  - (removed rows: "
+	rowsOrder   = "  - (current row order: "
+	goneSection = "- Sections no longer in this snapshot"
+	goneNote    = " (discard their earlier content):"
+	deltaIntro  = "Rows of the live snapshot that changed since the previous one (rows not listed are unchanged):"
+	fullIntro   = "Live snapshot (as of when this message was sent; use tools to check later changes):"
+	tasksHead   = "- Open task details (shown by priority, including personal to-dos; recently ended conversation tasks are listed too; task_plan; for existing results look here, and if that is not enough read its conversation with agent_read; use agent_send only to have it look something up, do something new or change direction):"
+	tasksKey    = "- Open task details"
+	// partialNote follows a section's name when the block tells it by its rows and its own heading did not change.
+	partialNote = " " + rowsMark + ":"
 )
 
 func deltaBlock(lines ...string) string {
@@ -56,7 +59,7 @@ func readBlock(t *testing.T, view map[string]string, block string) map[string]st
 			}
 			continue
 		}
-		name, unchanged := strings.CutSuffix(head, rowsMark+"：")
+		name, unchanged := strings.CutSuffix(head, partialNote)
 		switch {
 		case unchanged:
 			head = ""
@@ -79,7 +82,7 @@ func readBlock(t *testing.T, view map[string]string, block string) map[string]st
 		var order []string
 		for _, r := range rows {
 			if list, ok := strings.CutPrefix(r, rowsRemoved); ok {
-				for k := range strings.SplitSeq(strings.TrimSuffix(list, "）"), "；") {
+				for k := range strings.SplitSeq(strings.TrimSuffix(list, ")"), "; ") {
 					i := at(k)
 					if i < 0 {
 						t.Fatalf("%s: row %q is removed and was never there:\n%s", name, k, block)
@@ -87,7 +90,7 @@ func readBlock(t *testing.T, view map[string]string, block string) map[string]st
 					have = slices.Delete(have, i, i+1)
 				}
 			} else if list, ok := strings.CutPrefix(r, rowsOrder); ok {
-				order = strings.Split(strings.TrimSuffix(list, "）"), "；")
+				order = strings.Split(strings.TrimSuffix(list, ")"), "; ")
 			} else if i := at(id(r)); i >= 0 {
 				have[i] = r
 			} else {
@@ -137,46 +140,46 @@ func snapshotOf(sections ...string) string { return strings.Join(sections, "\n")
 func tasksOf(rows ...string) string { return strings.Join(append([]string{tasksHead}, rows...), "\n") }
 
 const (
-	rowLogin  = "  - 修登录（todo_1）：在做，server session_id=aaaaaaaa：在跑测试"
-	rowDocs   = "  - 写文档（todo_2，链接 http://hub.example.com/todos?id=todo_2）：停着：等评审"
-	rowDeploy = "  - 部署：灰度（先 10%）（todo_3）：做完了（用户还没看）"
+	rowLogin  = "  - Fix login (todo_1): working, server session_id=aaaaaaaa: running tests"
+	rowDocs   = "  - Write docs (todo_2, link http://hub.example.com/todos?id=todo_2): paused: waiting for review"
+	rowDeploy = "  - Deploy: canary (10% first) (todo_3): done (the user has not seen it yet)"
 )
 
 // One task's row changed: that row is all the block says of the tasks, on a heading that says the others stand.
 func TestContextDeltaSendsTheChangedRowOnly(t *testing.T) {
-	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
-	before := snapshotOf(now, "- 在线的电脑：服务器（server）", tasksOf(rowLogin, rowDocs, rowDeploy), "- 已安排的跟进：没有")
+	now := "- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)"
+	before := snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowLogin, rowDocs, rowDeploy), "- Scheduled follow-ups: none")
 	_, seen := contextDelta(nil, before)
-	changed := strings.Replace(rowLogin, "在跑测试", "测试过了，在开 PR", 1)
+	changed := strings.Replace(rowLogin, "running tests", "tests passed, opening a PR", 1)
 	block, seen := contextDelta(seen, strings.Replace(before, rowLogin, changed, 1))
-	if want := deltaBlock(now, tasksKey+rowsMark+"：", changed); block != want {
+	if want := deltaBlock(now, tasksKey+partialNote, changed); block != want {
 		t.Fatalf("one changed row:\n%s\nwant\n%s", block, want)
 	}
 
 	// A row gone and a new one: the new row, and the id of the one that is gone.
-	rowNew := "  - 查日志（todo_4）：在做"
-	block, seen = contextDelta(seen, snapshotOf(now, "- 在线的电脑：服务器（server）", tasksOf(changed, rowDeploy, rowNew), "- 已安排的跟进：没有"))
-	if want := deltaBlock(now, tasksKey+rowsMark+"：", rowNew, rowsRemoved+"todo_2）"); block != want {
+	rowNew := "  - Check logs (todo_4): working"
+	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(changed, rowDeploy, rowNew), "- Scheduled follow-ups: none"))
+	if want := deltaBlock(now, tasksKey+partialNote, rowNew, rowsRemoved+"todo_2)"); block != want {
 		t.Fatalf("a row removed, a row added:\n%s\nwant\n%s", block, want)
 	}
 
 	// The same rows in another order: only the order. A new row that is not the last: the row and the order.
-	block, seen = contextDelta(seen, snapshotOf(now, "- 在线的电脑：服务器（server）", tasksOf(rowDeploy, changed, rowNew), "- 已安排的跟进：没有"))
-	if want := deltaBlock(now, tasksKey+rowsMark+"：", rowsOrder+"todo_3；todo_1；todo_4）"); block != want {
+	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowDeploy, changed, rowNew), "- Scheduled follow-ups: none"))
+	if want := deltaBlock(now, tasksKey+partialNote, rowsOrder+"todo_3; todo_1; todo_4)"); block != want {
 		t.Fatalf("rows reordered:\n%s\nwant\n%s", block, want)
 	}
-	block, seen = contextDelta(seen, snapshotOf(now, "- 在线的电脑：服务器（server）", tasksOf(rowDocs, rowDeploy, changed, rowNew), "- 已安排的跟进：没有"))
-	if want := deltaBlock(now, tasksKey+rowsMark+"：", rowDocs, rowsOrder+"todo_2；todo_3；todo_1；todo_4）"); block != want {
+	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowDocs, rowDeploy, changed, rowNew), "- Scheduled follow-ups: none"))
+	if want := deltaBlock(now, tasksKey+partialNote, rowDocs, rowsOrder+"todo_2; todo_3; todo_1; todo_4)"); block != want {
 		t.Fatalf("a new first row:\n%s\nwant\n%s", block, want)
 	}
 
 	// The section is gone from the snapshot, and so is another: both are named, and seen forgets them, so one that
 	// comes back is told whole.
-	block, seen = contextDelta(seen, snapshotOf(now, "- 在线的电脑：服务器（server）"))
-	if want := deltaBlock(now, goneSection+"（它们之前的内容作废）：", "  - 优先显示的开放任务详情", "  - 已安排的跟进"); block != want {
+	block, seen = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)"))
+	if want := deltaBlock(now, goneSection+goneNote, "  - Open task details", "  - Scheduled follow-ups"); block != want {
 		t.Fatalf("sections gone:\n%s\nwant\n%s", block, want)
 	}
-	block, _ = contextDelta(seen, snapshotOf(now, "- 在线的电脑：服务器（server）", tasksOf(rowDocs)))
+	block, _ = contextDelta(seen, snapshotOf(now, "- Computers online: Server (server)", tasksOf(rowDocs)))
 	if want := deltaBlock(now, tasksOf(rowDocs)); block != want {
 		t.Fatalf("a section that came back:\n%s\nwant\n%s", block, want)
 	}
@@ -185,23 +188,23 @@ func TestContextDeltaSendsTheChangedRowOnly(t *testing.T) {
 // The Agents rows go by their label. A heading that changed is sent as it is now, with the note under it; rows whose
 // label is gone are named by it.
 func TestContextDeltaAgentRowsByLabel(t *testing.T) {
-	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
-	needs := "  - 需要你：修登录（server，session_id=aaaaaaaa）：等你确认迁移"
-	unread := "  - 完成未看：写文档（server，session_id=cccccccc）；计划 2/5"
-	waiting := "  - 在等的（hub 到时会叫醒它们，不用管）：跑回归（server，session_id=bbbbbbbb）：等 CI"
-	head := "- Agents：需要你 1 个，完成未看 1 个，工作中 2 个（详情用 agents_list）"
+	now := "- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)"
+	needs := "  - Need you: Fix login (server, session_id=aaaaaaaa): waiting for your confirmation of the migration"
+	unread := "  - Finished unread: Write docs (server, session_id=cccccccc); plan 2/5"
+	waiting := "  - Waiting (the hub wakes them when it is time; ignore them): Run regression (server, session_id=bbbbbbbb): waiting for CI"
+	head := "- Agents: 1 need you, 1 finished unread, 2 working (details: agents_list)"
 	_, seen := contextDelta(nil, snapshotOf(now, head+"\n"+needs+"\n"+unread+"\n"+waiting))
 
-	moved := strings.Replace(unread, "计划 2/5", "计划 3/5", 1)
+	moved := strings.Replace(unread, "plan 2/5", "plan 3/5", 1)
 	block, seen := contextDelta(seen, snapshotOf(now, head+"\n"+needs+"\n"+moved+"\n"+waiting))
-	if want := deltaBlock(now, "- Agents"+rowsMark+"：", moved); block != want {
+	if want := deltaBlock(now, "- Agents"+partialNote, moved); block != want {
 		t.Fatalf("one changed row:\n%s\nwant\n%s", block, want)
 	}
 
-	answered := "- Agents：需要你 0 个，完成未看 2 个，工作中 3 个（详情用 agents_list）"
-	two := moved + "；查日志（server，session_id=dddddddd）"
+	answered := "- Agents: 0 need you, 2 finished unread, 3 working (details: agents_list)"
+	two := moved + "; Check logs (server, session_id=dddddddd)"
 	block, _ = contextDelta(seen, snapshotOf(now, answered+"\n"+two+"\n"+waiting))
-	if want := deltaBlock(now, answered, "  - "+rowsMark, two, rowsRemoved+"需要你）"); block != want {
+	if want := deltaBlock(now, answered, "  - "+rowsMark, two, rowsRemoved+"Need you)"); block != want {
 		t.Fatalf("the heading and a row changed, a row gone:\n%s\nwant\n%s", block, want)
 	}
 }
@@ -212,13 +215,13 @@ func TestContextDeltaWorkingCountChangesWithoutRows(t *testing.T) {
 	base := prompts.Snapshot{
 		Now:     time.Date(2026, 11, 1, 15, 4, 0, 0, time.UTC),
 		Zone:    "UTC",
-		Working: []prompts.SnapshotAgent{{Label: "后台任务 1", Machine: "server", Session: "11111111"}},
+		Working: []prompts.SnapshotAgent{{Label: "Background task 1", Machine: "server", Session: "11111111"}},
 	}
 	for name, withRows := range map[string]bool{"head only": false, "with other rows": true} {
 		s1 := base
 		if withRows {
-			s1.Needs = []prompts.SnapshotAgent{{Label: "修登录", Machine: "server", Session: "aaaaaaaa", Line: "等你确认"}}
-			s1.Done = []prompts.SnapshotAgent{{Label: "查日志", Machine: "server", Session: "bbbbbbbb"}}
+			s1.Needs = []prompts.SnapshotAgent{{Label: "Fix login", Machine: "server", Session: "aaaaaaaa", Line: "waiting for your confirmation"}}
+			s1.Done = []prompts.SnapshotAgent{{Label: "Check logs", Machine: "server", Session: "bbbbbbbb"}}
 		}
 		snap1 := prompts.RenderSnapshot(s1)
 		first, seen := contextDelta(nil, snap1)
@@ -227,16 +230,16 @@ func TestContextDeltaWorkingCountChangesWithoutRows(t *testing.T) {
 
 		s2 := s1
 		s2.Working = []prompts.SnapshotAgent{
-			{Label: "后台任务 1", Machine: "server", Session: "11111111"},
-			{Label: "后台任务 2", Machine: "server", Session: "22222222"},
-			{Label: "后台任务 3", Machine: "server", Session: "33333333"},
+			{Label: "Background task 1", Machine: "server", Session: "11111111"},
+			{Label: "Background task 2", Machine: "server", Session: "22222222"},
+			{Label: "Background task 3", Machine: "server", Session: "33333333"},
 		}
 		snap2 := prompts.RenderSnapshot(s2)
 		block, _ := contextDelta(seen, snap2)
-		if !strings.Contains(block, "工作中 3 个（详情用 agents_list）") {
+		if !strings.Contains(block, "3 working (details: agents_list)") {
 			t.Fatalf("%s: updated working count missing from delta:\n%s", name, block)
 		}
-		if strings.Contains(block, "后台任务") {
+		if strings.Contains(block, "Background task") {
 			t.Fatalf("%s: working agent title leaked into delta:\n%s", name, block)
 		}
 		view = readBlock(t, view, block)
@@ -247,15 +250,15 @@ func TestContextDeltaWorkingCountChangesWithoutRows(t *testing.T) {
 // Rows that cannot be told apart by an id (two with the same one, one with none), sections with no ids of their
 // own, and a section told no shorter by its rows are sent whole, as before: unmarked, replacing what the conversation had.
 func TestContextDeltaSendsWholeSections(t *testing.T) {
-	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
-	following := "- 在跟的事（2 件）：\n  - 「合同」；在哪：邮件；等谁：法务；下一步：催；再看：11-02 10:00\n  - 「报销」；在哪：没写；等谁：没写；下一步：没写；再看：没定时间"
+	now := "- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)"
+	following := "- Following (2 item(s)): \n  - “Contract”; where: email; waiting on: legal; next step: chase; check again: 11-02 10:00\n  - “Expenses”; where: not written; waiting on: not written; next step: not written; check again: no time set"
 	for name, c := range map[string]struct{ before, after string }{
-		"two rows with one id":              {tasksOf(rowLogin, rowDocs, rowDeploy, rowLogin+"（重复）"), tasksOf(rowLogin+"！", rowDocs, rowDeploy, rowLogin+"（重复）")},
-		"a row without an id":               {tasksOf(rowLogin, rowDocs, "  - 没有编号的一行：在做"), tasksOf(rowLogin+"！", rowDocs, "  - 没有编号的一行：在做")},
-		"inbox follow-ups":                  {following, strings.Replace(following, "下一步：催", "下一步：等回信", 1)},
-		"every row and the heading changed": {"- Agents：需要你 1 个，完成未看 1 个，工作中 1 个\n  - 需要你：修登录\n  - 完成未看：写文档", "- Agents：需要你 2 个，完成未看 2 个，工作中 2 个\n  - 需要你：修登录；查日志\n  - 完成未看：写文档；跑回归"},
+		"two rows with one id":              {tasksOf(rowLogin, rowDocs, rowDeploy, rowLogin+" (duplicate)"), tasksOf(rowLogin+"！", rowDocs, rowDeploy, rowLogin+" (duplicate)")},
+		"a row without an id":               {tasksOf(rowLogin, rowDocs, "  - A row without a number: working"), tasksOf(rowLogin+"！", rowDocs, "  - A row without a number: working")},
+		"inbox follow-ups":                  {following, strings.Replace(following, "next step: chase", "next step: wait for a reply", 1)},
+		"every row and the heading changed": {"- Agents: 1 need you, 1 finished unread, 1 working\n  - Need you: Fix login\n  - Finished unread: Write docs", "- Agents: 2 need you, 2 finished unread, 2 working\n  - Need you: Fix login; Check logs\n  - Finished unread: Write docs; Run regression"},
 		"rows left out for size": {tasksOf(rowLogin, rowDocs, rowDeploy),
-			"- 优先显示的开放任务详情（含个人待办）：3 个，这份快照放不下，没列出来，要看用 todo_list"},
+			"- Open task details (including personal to-dos): 3 in total, too many to fit in this snapshot, use todo_list"},
 	} {
 		_, seen := contextDelta(nil, snapshotOf(now, c.before))
 		block, _ := contextDelta(seen, snapshotOf(now, c.after))
@@ -268,13 +271,13 @@ func TestContextDeltaSendsWholeSections(t *testing.T) {
 // What the conversation is, and a one-time notice, come before the snapshot's own sections: a line of them that is no
 // longer repeated is not told gone (the notice still holds), and is not sent again when it comes back unchanged.
 func TestContextDeltaKeepsLinesBeforeTheSnapshot(t *testing.T) {
-	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
-	main := "**这是主对话**：示例用户平时都在这里找你，接着之前聊过的事往下做。"
-	notice := "从现在起，你派出去、没有主管的任务由后台督办对话（conv_bg）跟进：它们的督办消息发到那里。"
-	direction := "- conv_a：增长"
+	now := "- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)"
+	main := "**This is the main conversation**: the example user usually finds you here; carry on from what you talked about before."
+	notice := "From now on the tasks you hand out that have no supervisor are followed by the background supervision conversation (conv_bg): their supervision messages go there."
+	direction := "- conv_a: growth"
 	_, seen := contextDelta(nil, snapshotOf(main, notice, direction, now))
 	block, seen := contextDelta(seen, snapshotOf(main, now))
-	if want := deltaBlock(now, goneSection+"（它们之前的内容作废）：", "  - conv_a"); block != want {
+	if want := deltaBlock(now, goneSection+goneNote, "  - conv_a"); block != want {
 		t.Fatalf("the notice was delivered and a direction is gone:\n%s\nwant\n%s", block, want)
 	}
 	if block, _ = contextDelta(seen, snapshotOf(main, notice, now)); block != deltaBlock(now) {
@@ -286,30 +289,30 @@ func TestContextDeltaKeepsLinesBeforeTheSnapshot(t *testing.T) {
 // real templates, so a section renamed or a row laid out another way fails here, not silently as whole sections.
 func TestSnapshotRowIDs(t *testing.T) {
 	agent := func(label, session string) prompts.SnapshotAgent {
-		return prompts.SnapshotAgent{Label: label, Machine: "server", Session: session, Line: "等：确认（方案 A；方案 B）", Link: "http://hub.example.com/s/server/" + session}
+		return prompts.SnapshotAgent{Label: label, Machine: "server", Session: session, Line: "waiting: confirm (plan A; plan B)", Link: "http://hub.example.com/s/server/" + session}
 	}
 	s := prompts.Snapshot{
 		Now: time.Date(2026, 11, 1, 15, 4, 0, 0, time.UTC), Zone: "UTC",
-		Needs: []prompts.SnapshotAgent{agent("修登录", "aaaaaaaa")}, Unread: []prompts.SnapshotAgent{agent("写文档", "bbbbbbbb")},
-		Awaiting: []prompts.SnapshotAgent{agent("问方案", "cccccccc")}, Waiting: []prompts.SnapshotAgent{agent("跑回归", "dddddddd")},
-		Done: []prompts.SnapshotAgent{agent("查日志", "eeeeeeee")}, Muted: []prompts.SnapshotAgent{agent("清分支", "ffffffff")},
-		Working: []prompts.SnapshotAgent{agent("升级依赖", "11111111")},
+		Needs: []prompts.SnapshotAgent{agent("Fix login", "aaaaaaaa")}, Unread: []prompts.SnapshotAgent{agent("Write docs", "bbbbbbbb")},
+		Awaiting: []prompts.SnapshotAgent{agent("Pick a plan", "cccccccc")}, Waiting: []prompts.SnapshotAgent{agent("Run regression", "dddddddd")},
+		Done: []prompts.SnapshotAgent{agent("Check logs", "eeeeeeee")}, Muted: []prompts.SnapshotAgent{agent("Clean branches", "ffffffff")},
+		Working: []prompts.SnapshotAgent{agent("Upgrade dependencies", "11111111")},
 		Tasks: []prompts.SnapshotTask{
-			{ID: "todo_0123456789abcdef", Title: "调研：登录（iOS）；方案", State: "在做", Link: "http://hub.example.com/todos?id=todo_0123456789abcdef", Last: "读完了（todo_ffff）：在写"},
-			{ID: "todo_2", Title: "写文档", State: "停着", Health: "正常", Machine: "server", Session: "bbbbbbbb"},
+			{ID: "todo_0123456789abcdef", Title: "Research: login (iOS); options", State: "working", Link: "http://hub.example.com/todos?id=todo_0123456789abcdef", Last: "finished reading (todo_ffff): writing"},
+			{ID: "todo_2", Title: "Write docs", State: "paused", Health: "normal", Machine: "server", Session: "bbbbbbbb"},
 		},
 		OpenTodosLoaded: true, OpenTodosTotal: 2,
-		Chats:            &prompts.SnapshotChats{AtMe: []prompts.SnapshotChat{{Name: "示例群", Unread: 2, Preview: "看下：这个"}}, Other: []prompts.SnapshotChat{{Name: "闲聊群", Unread: 1}}},
-		FollowingEnabled: true, FollowingTotal: 1, Following: []prompts.SnapshotFollowing{{Title: "合同"}},
+		Chats:            &prompts.SnapshotChats{AtMe: []prompts.SnapshotChat{{Name: "Example group", Unread: 2, Preview: "look: this"}}, Other: []prompts.SnapshotChat{{Name: "Chatter group", Unread: 1}}},
+		FollowingEnabled: true, FollowingTotal: 1, Following: []prompts.SnapshotFollowing{{Title: "Contract"}},
 	}
 	want := map[string][]string{
-		"- Agents":      {"需要你", "完成未看", "在问用户、用户看过还没回的", "在等的", "做完的", "已屏蔽"},
-		"- 优先显示的开放任务详情": {"todo_0123456789abcdef", "todo_2"},
-		"- 飞书未读会话":      {"@我", "其他"},
+		"- Agents":      {"Need you", "Finished unread", "Asking the user, seen but unanswered", "Waiting", "Done", "Muted"},
+		"- Open task details": {"todo_0123456789abcdef", "todo_2"},
+		"- Feishu unread chats": {"@me", "Other"},
 	}
 	scoped := s
 	scoped.Scoped = true
-	wantScoped := map[string][]string{"- Agents": want["- Agents"], "- 这个对话派出或督办的任务": want["- 优先显示的开放任务详情"], "- 飞书未读会话": want["- 飞书未读会话"]}
+	wantScoped := map[string][]string{"- Agents": want["- Agents"], "- Tasks this conversation handed out or supervises": want["- Open task details"], "- Feishu unread chats": want["- Feishu unread chats"]}
 	seenKeys := map[string]bool{}
 	for name, c := range map[string]struct {
 		text string
@@ -336,7 +339,7 @@ func TestSnapshotRowIDs(t *testing.T) {
 		}
 	}
 	// The sections with rows and no ids of their own stay whole.
-	for _, key := range []string{"- 在跟的事"} {
+	for _, key := range []string{"- Following"} {
 		found := false
 		for _, sec := range snapshotSections(prompts.RenderSnapshot(s)) {
 			if _, rows := sectionRows(sec.text); sec.key == key && len(rows) > 0 {
@@ -353,19 +356,19 @@ func TestSnapshotRowIDs(t *testing.T) {
 // do not make it another, so the old one is replaced and not left beside the new.
 func TestSectionKeyIsTheSubject(t *testing.T) {
 	for _, same := range [][]string{
-		{"- 飞书日历今天还没结束的会（已经开完的不在这里）：16:00–17:00 评审", "- 飞书日历：今天接下来没有会了（已经开完的不在这里）"},
-		{"- 在跟的事（3 件）：", "- 在跟的事：没有"},
-		{"- 飞书未读会话 3 个（免打扰的不算；用 lark_chats / lark_messages 看）", "- 飞书未读会话 12 个（免打扰的不算；用 lark_chats / lark_messages 看）"},
-		{"- 等用户点头才能上线的（2 件；合到一起一次列给用户批，别一件件问）：「a」", "- 等用户点头才能上线的（3 件；合到一起一次列给用户批，别一件件问）：「a」；「b」"},
-		{"- 开放待办索引（仅列 ID）：todo_1", "- 开放待办索引（列出 ID 和标题）：todo_1「修登录」"},
+		{"- Feishu calendar (meetings today that have not ended yet; ones already finished are not listed): 16:00–17:00 Review", "- Feishu calendar (no more meetings today; ones already finished are not listed)"},
+		{"- Following (3 item(s)):", "- Following: none"},
+		{"- Feishu unread chats 3 (muted chats are not counted; view them with lark_chats / lark_messages)", "- Feishu unread chats 12 (muted chats are not counted; view them with lark_chats / lark_messages)"},
+		{"- Waiting for the user's go-ahead to ship (2 item(s); list them together for the user to approve in one go, do not ask one by one): “a”", "- Waiting for the user's go-ahead to ship (3 item(s); list them together for the user to approve in one go, do not ask one by one): “a”; “b”"},
+		{"- Open to-do index (IDs only): todo_1", "- Open to-do index (IDs and titles): todo_1 “Fix login”"},
 	} {
 		if a, b := sectionKey(same[0]), sectionKey(same[1]); a != b || a == "" {
 			t.Errorf("%q and %q are one section: keys %q and %q", same[0], same[1], a, b)
 		}
 	}
 	keys := map[string]string{}
-	for _, line := range []string{"- 开放待办：共 3 件（完整列表用 todo_list）", "- 开放待办索引（仅列 ID）：todo_1", "- 飞书：没有未读（免打扰的不算）",
-		"- 飞书日历：今天接下来没有会了", "- 已安排的跟进：没有", "- 每天的定时任务：早报（每天 08:00）", "- conv_a：增长", "- conv_b：增长"} {
+	for _, line := range []string{"- Open to-dos: 3 in total (full list: todo_list)", "- Open to-do index (IDs only): todo_1", "- Feishu: no unread (muted chats are not counted)",
+		"- Feishu calendar (no more meetings today)", "- Scheduled follow-ups: none", "- Daily routines: Morning brief (every day 08:00)", "- conv_a: growth", "- conv_b: growth"} {
 		k := sectionKey(line)
 		if other, taken := keys[k]; taken {
 			t.Errorf("%q and %q are two sections with one key %q", other, line, k)
@@ -373,7 +376,7 @@ func TestSectionKeyIsTheSubject(t *testing.T) {
 		keys[k] = line
 	}
 	// Two sections that do share a subject stay two.
-	twice := snapshotSections("- 备注：a\n- 备注：b")
+	twice := snapshotSections("- Note: a\n- Note: b")
 	if len(twice) != 2 || twice[0].key == twice[1].key {
 		t.Errorf("two sections with one subject: %+v", twice)
 	}
@@ -396,7 +399,7 @@ func TestContextDeltaBlocksAddUpToTheSnapshot(t *testing.T) {
 			}
 			var block string
 			block, seen = contextDelta(seen, snapshot)
-			if !strings.Contains(block, "\n- 现在：") {
+			if !strings.Contains(block, "\n- Now: ") {
 				t.Fatalf("seed %d step %d: no time:\n%s", seed, step, block)
 			}
 			partial += strings.Count(block, rowsMark)
@@ -429,10 +432,10 @@ type snapshotGen struct {
 }
 
 func newSnapshotGen(r *rand.Rand) *snapshotGen {
-	return &snapshotGen{r: r, rev: map[string]int{}, labels: map[string]int{"需要你": 1, "完成未看": 1}, chats: map[string]int{"@我": 1}, gone: map[string]bool{}}
+	return &snapshotGen{r: r, rev: map[string]int{}, labels: map[string]int{"Need you": 1, "Finished unread": 1}, chats: map[string]int{"@me": 1}, gone: map[string]bool{}}
 }
 
-var genLabels = []string{"需要你", "完成未看", "在等的（hub 到时会叫醒它们，不用管）", "做完的（24 小时内）"}
+var genLabels = []string{"Need you", "Finished unread", "Waiting (the hub wakes them when it is time; ignore them)", "Done (last 24 hours)"}
 
 func (g *snapshotGen) next() string {
 	r := g.r
@@ -462,7 +465,7 @@ func (g *snapshotGen) next() string {
 				g.labels[l] = g.n
 			}
 		case 8: // so does a chats row
-			l := []string{"@我", "其他"}[r.IntN(2)]
+			l := []string{"@me", "Other"}[r.IntN(2)]
 			if g.chats[l] > 0 && r.IntN(2) == 0 {
 				g.chats[l] = 0
 			} else {
@@ -477,12 +480,12 @@ func (g *snapshotGen) next() string {
 			g.omit, g.noID = r.IntN(4) == 0, r.IntN(4) == 0
 		}
 	}
-	out := []string{"**这是主对话**：示例用户平时都在这里找你。", fmt.Sprintf("- 现在：2026-11-01 周日 15:%02d（UTC）", g.n%60), "- 在线的电脑：服务器（server）"}
+	out := []string{"**This is the main conversation**: the example user usually finds you here.", fmt.Sprintf("- Now: 2026-11-01 Sun 15:%02d (UTC)", g.n%60), "- Computers online: Server (server)"}
 	if !g.gone["agents"] {
-		sec := fmt.Sprintf("- Agents：需要你 %d 个，完成未看 %d 个，工作中 %d 个（详情用 agents_list）", g.labels["需要你"]%3, g.labels["完成未看"]%3, g.n%4)
+		sec := fmt.Sprintf("- Agents: %d need you, %d finished unread, %d working (details: agents_list)", g.labels["Need you"]%3, g.labels["Finished unread"]%3, g.n%4)
 		for _, l := range genLabels {
 			if g.labels[l] > 0 {
-				sec += fmt.Sprintf("\n  - %s：示例 Agent %d（server，session_id=%08x）：第 %d 版；还在等", l, g.labels[l], g.labels[l], g.labels[l])
+				sec += fmt.Sprintf("\n  - %s: Example agent %d (server, session_id=%08x): revision %d; still waiting", l, g.labels[l], g.labels[l], g.labels[l])
 			}
 		}
 		out = append(out, sec)
@@ -490,13 +493,13 @@ func (g *snapshotGen) next() string {
 	if !g.gone["tasks"] {
 		switch {
 		case g.omit:
-			out = append(out, fmt.Sprintf("%s%d 个，这份快照放不下，没列出来，要看用 todo_list", tasksHead, len(g.tasks)))
+			out = append(out, fmt.Sprintf("%s %d in total, too many to fit in this snapshot, use todo_list", tasksHead, len(g.tasks)))
 		case len(g.tasks) > 0:
 			sec := tasksHead
 			for i, id := range g.tasks {
-				row := fmt.Sprintf("\n  - 示例任务：%s（第 %d 步）（%s，链接 http://hub.example.com/todos?id=%s）：在做；督办：正常：第 %d 版", id[5:], i%3, id, id, g.rev[id])
+				row := fmt.Sprintf("\n  - Example task: %s (step %d) (%s, link http://hub.example.com/todos?id=%s): working; supervision: normal: revision %d", id[5:], i%3, id, id, g.rev[id])
 				if g.noID && i == 0 {
-					row = fmt.Sprintf("\n  - 没有编号的任务：第 %d 版", g.rev[id])
+					row = fmt.Sprintf("\n  - A task without a number: revision %d", g.rev[id])
 				}
 				sec += row
 			}
@@ -504,23 +507,23 @@ func (g *snapshotGen) next() string {
 		}
 	}
 	if !g.gone["chats"] {
-		if g.chats["@我"]+g.chats["其他"] == 0 {
-			out = append(out, "- 飞书：没有未读（免打扰的不算）")
+		if g.chats["@me"]+g.chats["Other"] == 0 {
+			out = append(out, "- Feishu: no unread (muted chats are not counted)")
 		} else {
-			sec := fmt.Sprintf("- 飞书未读会话 %d 个（免打扰的不算；用 lark_chats / lark_messages 看）", 1+(g.chats["@我"]+g.chats["其他"])%5)
-			for _, l := range []string{"@我", "其他"} {
+			sec := fmt.Sprintf("- Feishu unread chats %d (muted chats are not counted; view them with lark_chats / lark_messages)", 1+(g.chats["@me"]+g.chats["Other"])%5)
+			for _, l := range []string{"@me", "Other"} {
 				if g.chats[l] > 0 {
-					sec += fmt.Sprintf("\n  - %s：示例群（%d 条）：第 %d 条预览", l, g.chats[l], g.chats[l])
+					sec += fmt.Sprintf("\n  - %s: Example group (%d): preview %d", l, g.chats[l], g.chats[l])
 				}
 			}
 			out = append(out, sec)
 		}
 	}
 	if !g.gone["plans"] {
-		out = append(out, fmt.Sprintf("- 等用户点「开始」的计划（主对话里的卡片，用户点了才开工）：11-01 15:00 示例计划 %d", g.misc))
+		out = append(out, fmt.Sprintf("- Plans waiting for the user's Start (cards in the main conversation, work begins only when the user clicks): 11-01 15:00 Example plan %d", g.misc))
 	}
 	if !g.gone["followups"] {
-		out = append(out, "- 已安排的跟进：没有")
+		out = append(out, "- Scheduled follow-ups: none")
 	}
 	return strings.Join(out, "\n")
 }
@@ -529,9 +532,9 @@ func (g *snapshotGen) next() string {
 // between, a changed row goes alone.
 func TestTurnContextIsWholeAfterCompactionAndRestart(t *testing.T) {
 	const id = "11111111-2222-3333-4444-555555555555"
-	now := "- 现在：2026-11-01 周日 15:04（Asia/Shanghai）"
+	now := "- Now: 2026-11-01 Sun 15:04 (Asia/Shanghai)"
 	first := snapshotOf(now, tasksOf(rowLogin, rowDocs, rowDeploy))
-	changed := strings.Replace(rowLogin, "在跑测试", "测试过了", 1)
+	changed := strings.Replace(rowLogin, "running tests", "tests passed", 1)
 	second := snapshotOf(now, tasksOf(changed, rowDocs, rowDeploy))
 	send := func(n *Node, snapshot string) string {
 		block, commit := n.turnContext(id, contextAnswer{Text: snapshot})
@@ -546,7 +549,7 @@ func TestTurnContextIsWholeAfterCompactionAndRestart(t *testing.T) {
 	if block := send(n, first); block != wholeBlock(first) {
 		t.Fatalf("a new conversation:\n%s", block)
 	}
-	if block, want := send(n, second), deltaBlock(now, tasksKey+rowsMark+"：", changed); block != want {
+	if block, want := send(n, second), deltaBlock(now, tasksKey+partialNote, changed); block != want {
 		t.Fatalf("a changed row:\n%s\nwant\n%s", block, want)
 	}
 	n.contextCompacted(id)
@@ -560,7 +563,7 @@ func TestTurnContextIsWholeAfterCompactionAndRestart(t *testing.T) {
 	if block, _ := n.turnContext(id, contextAnswer{Text: second}); !strings.Contains(block, changed) {
 		t.Fatalf("an unsent block:\n%s", block)
 	}
-	if block, want := send(n, second), deltaBlock(now, tasksKey+rowsMark+"：", changed); block != want {
+	if block, want := send(n, second), deltaBlock(now, tasksKey+partialNote, changed); block != want {
 		t.Fatalf("the row after an unsent block:\n%s\nwant\n%s", block, want)
 	}
 }
@@ -569,8 +572,8 @@ func TestTurnContextIsWholeAfterCompactionAndRestart(t *testing.T) {
 // the section keys of then. The measurement below compares against it.
 func sectionDeltaBefore(seen map[string]string, snapshot string) (string, map[string]string) {
 	key := func(line string) string {
-		k, _, _ := strings.Cut(line, "：")
-		k, _, _ = strings.Cut(k, "今天")
+		k, _, _ := strings.Cut(line, ":")
+		k, _, _ = strings.Cut(k, " (")
 		return strings.TrimSpace(k)
 	}
 	next := map[string]string{}
@@ -593,7 +596,7 @@ func sectionDeltaBefore(seen map[string]string, snapshot string) (string, map[st
 // an agent each, of which one says something new before every message, one more now and then; the working agents'
 // plans move on every third message; every eighth a task ends and a new one starts, and an agent needs the user.
 func shapedSnapshots(messages, tasks int) []string {
-	say := []string{"读完了相关代码，在写实现", "实现写好了，在跑单元测试", "测试过了，在整理提交说明", "开了 PR，在等检查跑完", "检查过了，在看评审意见"}
+	say := []string{"read the code, writing the implementation", "implementation written, running unit tests", "tests passed, tidying the commit message", "opened a PR, waiting for the checks", "checks passed, reading the review comments"}
 	type task struct{ id, rev int }
 	var open []task
 	for i := range tasks {
@@ -613,24 +616,24 @@ func shapedSnapshots(messages, tasks int) []string {
 			}
 		}
 		s := prompts.Snapshot{Now: time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC).Add(time.Duration(m) * 7 * time.Minute), Zone: "UTC",
-			Machines: []prompts.SnapshotMachine{{Name: "服务器", ID: "server", Online: true}}, OpenTodosLoaded: true, OpenTodosTotal: len(open)}
+			Machines: []prompts.SnapshotMachine{{Name: "Server", ID: "server", Online: true}}, OpenTodosLoaded: true, OpenTodosTotal: len(open)}
 		for i, t := range open {
 			id := fmt.Sprintf("todo_%016x", t.id)
 			session := fmt.Sprintf("%08x", 0xa0000000+t.id)
-			title := fmt.Sprintf("示例任务 %d：整理第 %d 个模块的接口和文档", t.id, t.id)
-			s.Tasks = append(s.Tasks, prompts.SnapshotTask{ID: id, Title: title, State: "在做", Health: "正常", DoneWhen: 2, Machine: "server", Session: session,
-				Link: "http://hub.example.com/todos?id=" + id, Last: say[t.rev%len(say)], Plan: &prompts.SnapshotAgentPlan{Done: t.rev % 6, Total: 6, Current: "第 " + fmt.Sprint(t.rev%6+1) + " 步"}})
+			title := fmt.Sprintf("Example task %d: tidy the interface and docs of module %d", t.id, t.id)
+			s.Tasks = append(s.Tasks, prompts.SnapshotTask{ID: id, Title: title, State: "working", Health: "normal", DoneWhen: 2, Machine: "server", Session: session,
+				Link: "http://hub.example.com/todos?id=" + id, Last: say[t.rev%len(say)], Plan: &prompts.SnapshotAgentPlan{Done: t.rev % 6, Total: 6, Current: "step " + fmt.Sprint(t.rev%6+1)}})
 			s.OpenTodos = append(s.OpenTodos, prompts.SnapshotOpenTodo{ID: id, Title: title})
 			a := prompts.SnapshotAgent{Label: title, Machine: "server", Session: session, Link: "http://hub.example.com/s/server/" + session}
 			switch {
 			case i == 0 && m%8 >= 6:
-				a.Line = "等你确认：先合并还是先补测试"
+				a.Line = "waiting for your confirmation: merge first or add tests first"
 				s.Needs = append(s.Needs, a)
 			case i%4 == 3:
-				a.Line = "在等检查跑完"
+				a.Line = "waiting for the checks"
 				s.Waiting = append(s.Waiting, a)
 			default:
-				a.Plan = &prompts.SnapshotAgentPlan{Done: m / 3 % 6, Total: 6, Current: "第 " + fmt.Sprint(m/3%6+1) + " 步"}
+				a.Plan = &prompts.SnapshotAgentPlan{Done: m / 3 % 6, Total: 6, Current: "step " + fmt.Sprint(m/3%6+1)}
 				s.Working = append(s.Working, a)
 			}
 		}

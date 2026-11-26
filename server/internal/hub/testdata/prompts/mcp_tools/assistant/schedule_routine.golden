@@ -17,7 +17,7 @@
       },
       "title": {
         "type": "string",
-        "description": "short name shown in the app, e.g. 早报"
+        "description": "short name shown in the app, e.g. Morning briefing"
       },
       "prompt": {
         "type": "string",

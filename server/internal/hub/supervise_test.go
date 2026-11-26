@@ -140,8 +140,8 @@ func TestSupervisedTaskOverTheBus(t *testing.T) {
 	agent(proto.StatusWorking, "")
 	agent(proto.StatusDone, "两种走法：A 先灰度，B 直接全量。你选一个？")
 	eventually(t, 10*time.Second, "the 督办 message", func() bool { return len(digests()) == 1 })
-	if d := digests()[0]; !strings.Contains(d, "Agent 停下了，但没做完(needs the user to decide: 问用两种部署走法里的哪一种)") ||
-		!strings.Contains(d, "验收标准：测试 hub 已部署并验证") || !strings.Contains(d, "A 先灰度") {
+	if d := digests()[0]; !strings.Contains(d, "the Agent stopped without finishing (needs the user to decide: 问用两种部署走法里的哪一种)") ||
+		!strings.Contains(d, "Acceptance criteria: 测试 hub 已部署并验证") || !strings.Contains(d, "A 先灰度") {
 		t.Fatalf("message:\n%s", d)
 	}
 	eventually(t, 10*time.Second, "the hold on its pushes", func() bool { return shown(h, "main-1").Supervising })
@@ -152,7 +152,7 @@ func TestSupervisedTaskOverTheBus(t *testing.T) {
 	agent(proto.StatusWorking, "")
 	agent(proto.StatusDone, "按 A 部署好了")
 	eventually(t, 10*time.Second, "the review message", func() bool { return len(digests()) == 2 })
-	if d := digests()[1]; !strings.Contains(d, "待逐项复核，不代表完成（已部署）") {
+	if d := digests()[1]; !strings.Contains(d, "awaiting item-by-item review; this does not mean it is done (已部署)") {
 		t.Fatalf("message:\n%s", d)
 	}
 	todo := todoOf()
@@ -183,7 +183,7 @@ func TestSupervisedTaskOverTheBus(t *testing.T) {
 	}
 	eventually(t, 10*time.Second, "the rework at the agent", func() bool {
 		_, sends := box.calls()
-		return len(sends) == 1 && strings.Contains(sends[0]["text"].(string), "第 1 轮返工") &&
+		return len(sends) == 1 && strings.Contains(sends[0]["text"].(string), "rework round 1") &&
 			strings.Contains(sends[0]["text"].(string), "贴上 /healthz 的结果")
 	})
 	agent(proto.StatusWorking, "")

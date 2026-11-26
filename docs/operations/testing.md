@@ -196,7 +196,7 @@ repair worker may not edit baselines (`docs/operations/main-verification.md`), s
 | --- | --- | --- | --- | --- |
 | Fixed sleeps | `time.Sleep` calls per Go test file under `server/` and `sdk/go/` | `scripts/ci/sleep_baseline.json` | `scripts/ci/sleep_ratchet.py` (guards, check-fast, merge) | `--update` |
 | Web font sizes | hard-coded px font sizes per `web/src` file | `scripts/ci/web_font_baseline.json` | `scripts/ci/web_font_ratchet.py` (guards, merge) | `--update` |
-| Prompt language | CJK prompt templates without language handling | `scripts/ci/prompt_language_baseline.json` | `scripts/ci/prompt_language_ratchet.py` (guards) | `--update` |
+| Prompt language | prompt templates with CJK text (prompts are English only; data templates are named in the script's `DATA`) | `scripts/ci/prompt_language_baseline.json` | `scripts/ci/prompt_language_ratchet.py` (guards) | `--update` |
 | Hub hard-coded text | CJK string literals per hub and command-line file | `server/internal/i18n/hardcoded-baseline.json`, `server/internal/i18n/hardcoded-terminal-baseline.json` | `TestHardcodedChineseBaseline`, `TestHardcodedTerminalBaseline` (server lane) | `UPDATE_I18N_BASELINE=1` |
 | Web hard-coded text | CJK strings per `web/src` file | `web/src/i18n/hardcoded-baseline.json` | `web/src/i18n/catalog.test.ts` (web lane) | `UPDATE_I18N_BASELINE=1` |
 | Prompt sizes | bytes per instruction section, tool description and supervision event | `server/internal/assistant/testdata/prompt_sizes.json` | `TestPromptSizeRatchet` (server lane) | `PROMPT_SIZE_UPDATE=1` |

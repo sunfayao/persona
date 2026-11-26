@@ -277,7 +277,7 @@ func (n *Node) cliCall(ctx context.Context, c net.Conn, req sockRequest) proto.T
 	}
 	session, ok := n.assistantCaller(c)
 	if !ok {
-		return proto.ErrorResult(proto.ToolErrorUnavailable, "这个命令只能在助手的对话里用：这个进程不是 Persona 为助手起的", 0)
+		return proto.ErrorResult(proto.ToolErrorUnavailable, "This command is not available here: it only works in an assistant conversation, and this process was not started by Persona for an assistant", 0)
 	}
 	n.mu.Lock()
 	cwd := ""

@@ -1,10 +1,10 @@
-code 12: （12 行のコード、画面に表示）
-code 1: （1 行のコード、画面に表示）
-table 3: （3 行の表、画面に表示）
-link 0: （リンク）
-image 0: （画像）
-path 0: ファイル runs.go
-line 42: runs.go の 42 行目
-hash 0: （ハッシュ）
-snippet 0: （コード）
-omitted 0: （……中略、全文は画面に……）
+code 12: (a code block of 12 lines, on the screen)
+code 1: (a code block of 1 line, on the screen)
+table 3: (a table of 3 rows, on the screen)
+link 0: (a link)
+image 0: (an image)
+path 0: the file runs.go
+line 42: line 42 of runs.go
+hash 0: (a hash)
+snippet 0: (a piece of code)
+omitted 0: (… the middle is left out; the whole answer is on the screen …)

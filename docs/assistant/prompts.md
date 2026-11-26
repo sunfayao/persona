@@ -31,6 +31,11 @@ markers (`<persona-wake>`, `<persona-limit-continue />`, `<persona-inbox>`, `<pe
 Strings shown to the owner (display lines such as `proto.Injected.Line`, notifications, card text) are not prompts:
 they go through the localization resources (`docs/protocol/i18n.md`).
 
+The assistant's instruction file (`assistant/claude_md.md`) names what exists and when to use it; long manuals live in
+built-in skills the assistant opens when it needs them (`server/internal/assistantskills/builtin/`): the card rules,
+components and examples are the `persona-view` skill, Office files `persona-office`. A rule has one home: the tool
+description when it is about one tool's arguments, the instructions when it is about choosing between tools.
+
 ## Directory
 
 | File | Purpose | Used by |

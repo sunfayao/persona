@@ -10,7 +10,7 @@
     "properties": {
       "todo_id": {
         "type": "string",
-        "description": "the task's id, as the 督办 message gives it"
+        "description": "the task's id, as the supervision message gives it"
       },
       "text": {
         "type": "string",

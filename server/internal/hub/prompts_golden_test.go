@@ -85,7 +85,7 @@ func goldenMachines(h *Hub) {
 }
 
 var (
-	snapHeader = regexp.MustCompile(`^- 现在：\d{4}-\d\d-\d\d 周[日一二三四五六] \d\d:\d\d（([^）]+)）\n`)
+	snapHeader = regexp.MustCompile(`^- Now: \d{4}-\d\d-\d\d (?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d:\d\d \(([^)]+)\)\n`)
 )
 
 // normalSnapshot replaces the clock in the snapshot's first line.
@@ -95,7 +95,7 @@ func normalSnapshot(t *testing.T, s string) string {
 	if m == nil {
 		t.Fatalf("snapshot header: %q", s[:min(len(s), 200)])
 	}
-	return "- 现在：YYYY-MM-DD 周X HH:MM（" + m[1] + "）\n" + s[len(m[0]):]
+	return "- Now: YYYY-MM-DD Day HH:MM (" + m[1] + ")\n" + s[len(m[0]):]
 }
 
 func snapshotHub(t *testing.T, full bool) *Hub {
@@ -225,40 +225,34 @@ func TestGoldenChannelMessage(t *testing.T) {
 }
 
 // A mention is public even when its turn runs in the owner's main conversation. Its origin and gathered context are
-// data, and the caution not to disclose private context follows the caller's language (#11130). Decode the fixture as
-// JSON so a host without the new fields fails by losing behavior, rather than by failing to compile this test.
-func TestChannelMentionMessageCarriesOriginAndLocalizedPublicCaution(t *testing.T) {
-	for _, tc := range []struct {
-		name, language string
-		caution        []string
-	}{
-		{"zh-Hans", "", []string{"其他对话", "其他会话", "邮件", "健康", "明确"}},
-		{"en", "English", []string{"other chats", "sessions", "mail", "health", "explicitly"}},
-		{"ja", "日本語", []string{"チャット", "セッション", "メール", "健康", "明示"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			fixture, _ := json.Marshal(map[string]any{
-				"Persona": true, "Name": "Example Chat", "Language": tc.language, "Public": true,
-				"Chat": "Release chat", "Topic": "Release 1.3", "Quote": "We ship on Friday.",
-				"Context": "Alice: The migration is done.", "Text": "What changed?",
-			})
-			var in prompts.ChannelMessage
-			if err := json.Unmarshal(fixture, &in); err != nil {
-				t.Fatal(err)
-			}
-			got := prompts.RenderChannelMessage(in)
-			golden(t, "channel_mention_message."+tc.name, got)
-			for _, want := range []string{"Release chat", "Release 1.3", "We ship on Friday.", "The migration is done.", "What changed?"} {
-				if !strings.Contains(got, want) {
-					t.Errorf("origin/context lost %q:\n%s", want, got)
-				}
-			}
-			for _, want := range tc.caution {
-				if !strings.Contains(got, want) {
-					t.Errorf("public caution lost %q:\n%s", want, got)
-				}
-			}
+// data, and the caution not to disclose private context is in the prompt whatever language the caller has (#11130):
+// the prompt is English only, so the text is the same for every language. Decode the fixture as JSON so a host without
+// the new fields fails by losing behavior, rather than by failing to compile this test.
+func TestChannelMentionMessageCarriesOriginAndPublicCaution(t *testing.T) {
+	render := func(language string) string {
+		fixture, _ := json.Marshal(map[string]any{
+			"Persona": true, "Name": "Example Chat", "Language": language, "Public": true,
+			"Chat": "Release chat", "Topic": "Release 1.3", "Quote": "We ship on Friday.",
+			"Context": "Alice: The migration is done.", "Text": "What changed?",
 		})
+		var in prompts.ChannelMessage
+		if err := json.Unmarshal(fixture, &in); err != nil {
+			t.Fatal(err)
+		}
+		return prompts.RenderChannelMessage(in)
+	}
+	got := render("")
+	golden(t, "channel_mention_message", got)
+	for _, want := range []string{"Release chat", "Release 1.3", "We ship on Friday.", "The migration is done.", "What changed?",
+		"other chats", "sessions", "mail", "health", "explicitly"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("origin, context or public caution lost %q:\n%s", want, got)
+		}
+	}
+	for _, language := range []string{"English", "日本語", "zh-Hans"} {
+		if other := render(language); other != got {
+			t.Errorf("language %q changes the prompt text:\n%s\nwant\n%s", language, other, got)
+		}
 	}
 }
 

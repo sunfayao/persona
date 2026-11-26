@@ -88,7 +88,7 @@ func parseLarkCLI(args []string, risk larkRisk) (c larkCall, deny string, ok boo
 	var words, flags []string
 	for _, f := range args {
 		if f == "--profile" || strings.HasPrefix(f, "--profile=") {
-			return c, "lark-cli 的配置档由管理者定（manager.json 的 lark.cli.profile），不要自己传 --profile。", false
+			return c, "The lark-cli profile is set by the manager (lark.cli.profile in manager.json); do not pass --profile yourself.", false
 		}
 	}
 	i := 0
@@ -133,9 +133,9 @@ func parseLarkCLI(args []string, risk larkRisk) (c larkCall, deny string, ok boo
 			c.Risk = "read"
 			return c, "", true
 		}
-		return c, "lark-cli 的登录、退出和授权由他自己在 hub 所在的机器上做（lark-cli auth login），不要替他运行。", false
+		return c, "The user does lark-cli login, logout and authorization themselves on the machine the hub runs on (lark-cli auth login); do not run them for them.", false
 	case words[0] == "config" || words[0] == "profile" || words[0] == "update":
-		return c, "不要改 lark-cli 的配置、配置档或版本：这些由他自己做。", false
+		return c, "Do not change lark-cli's config, profile or version: the user does that themselves.", false
 	case flagOn(flags, "--dry-run"):
 		c.Risk = "read" // prints the request, runs nothing
 	case larkCLIRead[words[0]]:

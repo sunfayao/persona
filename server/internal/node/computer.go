@@ -246,7 +246,7 @@ func computerCall(ctx context.Context, params json.RawMessage) (*proto.ComputerR
 	}
 	bin := cuaBin()
 	if bin == "" {
-		return nil, &rpc.Error{Code: "not_installed", Message: "这台 Mac 上没有装 Cua Driver"}
+		return nil, &rpc.Error{Code: "not_installed", Message: "Cua Driver is not installed on this Mac"}
 	}
 	args := map[string]any{}
 	if len(p.Args) > 0 {
@@ -312,7 +312,7 @@ func cuaInvoke(ctx context.Context, bin, tool string, input []byte) (*proto.Comp
 			msg = runErr.Error()
 		}
 		if cctx.Err() != nil {
-			msg = "超时（" + computerCallTimeout.String() + "）"
+			msg = "timed out (" + computerCallTimeout.String() + ")"
 		}
 		return nil, fmt.Errorf("cua-driver %s: %s", tool, firstLine(msg))
 	default:

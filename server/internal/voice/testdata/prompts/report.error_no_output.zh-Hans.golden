@@ -1,2 +1,2 @@
-交给 Claude Code 的「查明天的日程」没有结果：模型服务什么都没返回，让它接着做也许就好了。
-它没做完。用一句话告诉用户。
+"查明天的日程", handed to Claude Code, has no result: the model service answered nothing; telling it to go on may work.
+It did not finish. Tell the user in one sentence.

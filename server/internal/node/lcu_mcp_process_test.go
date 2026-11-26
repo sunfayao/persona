@@ -111,7 +111,7 @@ func TestLCUProcessThatDiesOnStartFailsAtOnce(t *testing.T) {
 	defer cancel()
 	began := time.Now()
 	_, err := sess.call(ctx, "js", map[string]any{"code": "return 1"}, "", "")
-	if err == nil || !strings.Contains(err.Error(), "LCU 的进程结束了") {
+	if err == nil || !strings.Contains(err.Error(), "the LCU process has ended") {
 		t.Fatalf("err = %v, want the process ended", err)
 	}
 	if took := time.Since(began); took > 2*time.Second {

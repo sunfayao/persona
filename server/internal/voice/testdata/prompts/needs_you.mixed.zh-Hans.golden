@@ -1,2 +1,2 @@
-Claude Code 停下来在等用户处理：改文件的授权、联网的授权、用一个 MCP 服务的工具的授权、用一个工具的授权、终端里的一个对话框、一张要填的表、一个要在屏幕上答的问题。它还没做完，用户在屏幕上点了才会接着做。
-用一句话告诉用户它在等什么、请他在屏幕上点一下，比如「Claude Code 要运行一条命令，在屏幕上批准一下」。只说是什么类别：不要念命令、路径和计划的内容，也不要替用户答；用户口头说「批准」「可以」时，请他在屏幕上点。
+Claude Code has stopped and waits for the user: a permission to change files; a permission to go online; a permission to use an MCP server's tool; a permission to use a tool; a dialog in its terminal; a form to fill in; a question to answer on the screen. It is not finished: it goes on once the user taps it on the screen.
+Tell the user in one sentence what it waits for and to tap it on the screen, like "Claude Code wants to run a command, approve it on the screen". Say only what sort it is: do not read out a command, a path or what the plan says, and do not answer it for the user; when the user says "approve" or "yes", ask them to tap it on the screen.

@@ -1,2 +1,2 @@
-Persona 主对话这一轮停下来了，在等外面的事（部署、CI、评审、到点之类）：还没做完，等到了 Persona 会叫它接着做，结果到时再说。
-用一句话告诉用户它在等、还没做完。
+The Persona main conversation stopped its turn to wait on something outside (a deploy, CI, a review, a time). It is not finished: Persona wakes it to go on once that is done, and the result is told then.
+Tell the user in one sentence that it is waiting and still working on it.

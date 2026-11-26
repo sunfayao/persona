@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Keep the inventory of CJK prompts without language handling from growing.
+"""Keep CJK text out of the prompt templates: every prompt is written in English only.
 
-This is a structural migration guard, not a translation-quality check. A template
-handles language when an if or else-if action tests .Language/.Lang, directly or through a
-template included with the same data. Existing omissions are recorded by filename
-and directory count; replacing an old omission with a new file is not allowed.
-There are no source exemptions. --update only removes resolved entries.
+A template that holds Chinese or Japanese text is listed, whether or not it tests .Language/.Lang: prompts carry
+no language branches, and what the model writes for the owner follows the owner's language through the `lang`
+template function (docs/assistant/prompts.md, "Language"). The inventory in the baseline may only shrink, and it is
+empty now, so any new template with CJK text fails.
 
-Only a new omission fails. A resolved prompt still in the baseline passes with a notice: lowering
-the baseline is tidying anyone can do, with --update here or scripts/ci/lower_baselines.py for
-every count ratchet (docs/operations/testing.md, "Count ratchets"). With a base given (--base, else
-CI_BASE_SHA), a prompt the baseline still lists but the merge base already handles may not lose its
-language handling again (scripts/ci/ratchet_base.py). With neither, as on main, the baseline alone
-holds the prompts; the check that the baseline itself was not raised still reads origin/main.
+DATA names the templates that keep CJK text because it is data that must match something real: an earlier default
+a hub may still hold byte for byte, identifiers a parser requires, literals another program writes. Adding one is a
+change to this file, with its reason.
+
+Only a new entry fails. A resolved template still in the baseline passes with a notice: lowering the baseline is
+tidying anyone can do, with --update here or scripts/ci/lower_baselines.py for every count ratchet
+(docs/operations/testing.md, "Count ratchets"). With a base given (--base, else CI_BASE_SHA), a template the
+baseline still lists but the merge base already has clean may not gain CJK text again (scripts/ci/ratchet_base.py).
 """
 import argparse
 import json
@@ -40,10 +41,22 @@ SOURCE = "server/internal/prompts"
 BASELINE = "scripts/ci/prompt_language_baseline.json"
 CJK = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 COMMENT = re.compile(r"{{-?\s*/\*.*?\*/\s*-?}}", re.S)
-ACTION = re.compile(r"{{-?\s*(.*?)\s*-?}}", re.S)
-QUOTED = re.compile(r'"(?:\\.|[^"\\])*"|`[^`]*`', re.S)
-LANGUAGE = re.compile(r"^(?:else\s+)?if\s+.*\.(?:Language|Lang)\b", re.S)
-INCLUDE = re.compile(r'^template\s+"([^"]+)"\s+\.$')
+# Templates whose CJK text is data, not prompt wording: path under SOURCE -> why.
+DATA = {
+    "assistant/routine_morning_former1.md": "an earlier default routine, matched byte for byte against what a hub holds",
+    "assistant/routine_morning_former2.md": "an earlier default routine",
+    "assistant/routine_morning_former3.md": "an earlier default routine",
+    "assistant/routine_morning_former4.md": "an earlier default routine (the last Chinese one)",
+    "assistant/routine_evening_former1.md": "an earlier default routine",
+    "assistant/routine_evening_former2.md": "an earlier default routine",
+    "assistant/routine_evening_former3.md": "an earlier default routine (the last Chinese one)",
+    "assistant/task_done.md": "quotes the delivery line older Agent replies end with",
+    "tools/session_title.md": "the ten kind identifiers the title parser and the apps match",
+    "inbox/group.md": "literals the Lark connector writes into the items",
+    "inbox/tiers.md": "a literal the Lark connector writes into the items",
+    "inbox/kinds/larkcli.md": "a marker older stored items hold",
+    "mcp/imessage/imessage_read.md": "attachment placeholders the iMessage connector writes",
+}
 
 
 def scan(root):
@@ -51,22 +64,10 @@ def scan(root):
 
 
 def scan_texts(texts):
-    """The omissions among templates given as {name relative to SOURCE: text}, by directory."""
-    direct, includes = set(), {}
-    for name, text in texts.items():
-        actions = ACTION.findall(COMMENT.sub("", text))
-        if any(LANGUAGE.match(QUOTED.sub('""', a.strip())) for a in actions):
-            direct.add(name)
-        includes[name] = [m.group(1) + ".md" for a in actions if (m := INCLUDE.fullmatch(a.strip()))]
-    localized = set(direct)
-    while True:
-        expanded = localized | {name for name, refs in includes.items() if any(ref in localized for ref in refs)}
-        if expanded == localized:
-            break
-        localized = expanded
+    """The templates with CJK text among those given as {name relative to SOURCE: text}, by directory."""
     counts = {}
     for name, text in sorted(texts.items()):
-        if CJK.search(text) and name not in localized:
+        if name not in DATA and CJK.search(COMMENT.sub("", text)):
             counts.setdefault(str(Path(name).parent), []).append(name)
     return counts
 
@@ -101,7 +102,7 @@ def increases(actual, baseline):
 def lowered(actual, baseline):
     added = increases(actual, baseline)
     if added:
-        raise ValueError("new unlocalized prompts: " + ", ".join(added))
+        raise ValueError("prompt templates with CJK text (prompts are English only; data goes in DATA with a reason): " + ", ".join(added))
     return actual
 
 
@@ -130,7 +131,7 @@ def base_text(base, path):
 
 
 def resolved(actual, baseline):
-    """Files the baseline lists that handle language now (or are gone): lowering it would drop them."""
+    """Files the baseline lists that are English now (or are gone): lowering it would drop them."""
     return sorted(f for directory, files in baseline.items() for f in files if f not in actual.get(directory, []))
 
 
@@ -167,7 +168,7 @@ def main():
         lowered(actual, baseline)
         back = regained(actual, baseline, ratchet_base.resolve(ROOT, args.base))
         if back:
-            raise ValueError("prompts the merge base already localizes lost it again: " + ", ".join(back)
+            raise ValueError("prompts the merge base already has in English gained CJK text again: " + ", ".join(back)
                              + "; the baseline still lists them, but a count may not rise into that room")
         if args.update:
             path.write_text(json.dumps(encoded(actual), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

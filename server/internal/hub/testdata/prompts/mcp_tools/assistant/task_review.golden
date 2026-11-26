@@ -10,7 +10,7 @@
     "properties": {
       "todo_id": {
         "type": "string",
-        "description": "the task's todo id (todo_…), from the 督办 message or the context snapshot"
+        "description": "the task's todo id (todo_…), from the supervision message or the context snapshot"
       },
       "verdict": {
         "type": "string",
@@ -58,7 +58,7 @@
       },
       "note": {
         "type": "string",
-        "description": "rework: what the agent is to do (Chinese, concrete); needs_user: what the user is to decide; parked: anything more than reason, for your own record; cancelled: why; accepted: the result in a line"
+        "description": "rework: what the agent is to do (Simplified Chinese, concrete); needs_user: what the user is to decide; parked: anything more than reason, for your own record; cancelled: why; accepted: the result in a line"
       },
       "outcome": {
         "type": "string",

@@ -112,13 +112,13 @@ func (n *Node) larkCheck(ctx context.Context, session, cwd, command string, ix p
 	for _, c := range v.calls {
 		decision := larkDecision(cfg, c)
 		if decision == "deny" {
-			return "deny", "这个操作按配置不允许（" + c.Method + " " + c.Path + "）。", nil
+			return "deny", "This operation is not allowed by the configuration (" + c.Method + " " + c.Path + ").", nil
 		}
 		if decision == "allow" && c.dataInQuery && c.Gate >= 0 && c.Gate < len(cfg.Gates) {
 			// firstLark matched the data as a request body, but curl -G sends it in the query with an empty body. A
 			// body-scoped allow therefore does not authorize the actual call, especially a direct non-Auth command.
 			if rule, ok := firstLark(cfg.Gates[c.Gate].Rules, c); ok && len(rule.Body) > 0 {
-				return "deny", "-G/--get 会把 data 移到查询并留下空请求体，实际请求不再满足按请求体放行的规则。", nil
+				return "deny", "-G/--get moves the data into the query and leaves an empty request body, so the actual request no longer satisfies a rule that allows by request body.", nil
 			}
 		}
 		// Only a rule-allowed call needs no query-bound grant. A confirmation-required GET needs one too, and a non-Auth
@@ -126,7 +126,7 @@ func (n *Node) larkCheck(ctx context.Context, session, cwd, command string, ix p
 		// rather than confirm different bytes.
 		needsConfirmation := decision != "allow" || (inSpace && !larkRead(c))
 		if c.queryUnknown && needsConfirmation {
-			return "deny", "查询要在执行时才能确定，无法绑定这次确认；请把查询直接写在路径或 --url-query 参数里。", nil
+			return "deny", "The query is only known at run time, so this confirmation cannot be bound to it; write the query directly in the path or the --url-query argument.", nil
 		}
 		classified = classified && larkBypassSafe(c)
 	}
@@ -152,8 +152,8 @@ func (n *Node) larkCheck(ctx context.Context, session, cwd, command string, ix p
 		}
 		for _, g := range cfg.Gates {
 			if _, write := gateWrite([]proto.CommandGate{g}, analysisCommand); write && g.Auth != nil {
-				return "deny", "写操作要单独一条 `" + g.Command + " METHOD PATH [BODY]` 发：不放进循环、脚本或 $(…) 里，输出可以接 jq / head / grep，" +
-					"或者用 -o 写到 /tmp。这样手机上能逐条确认，确认过的才发得出去。", nil
+				return "deny", "A write must be sent as its own `" + g.Command + " METHOD PATH [BODY]` command: not inside a loop, script or $(…); its output may be piped to jq / head / grep, " +
+					"or written to /tmp with -o. That way each write can be confirmed on the phone one by one, and only a confirmed one goes through.", nil
 			}
 		}
 		// Classified reads and ordinary writes can be mixed with non-Lark commands in bypass.
@@ -206,7 +206,7 @@ func (n *Node) larkCheck(ctx context.Context, session, cwd, command string, ix p
 		}
 		switch decision {
 		case "deny":
-			return "deny", "这个操作按配置不允许（" + c.Method + " " + c.Path + "）。", nil
+			return "deny", "This operation is not allowed by the configuration (" + c.Method + " " + c.Path + ").", nil
 		case "allow":
 		default:
 			if inSpace || n.isAssistantSession(session) || !n.larkAlways(session, larkPattern(c)) {
@@ -380,9 +380,9 @@ func (n *Node) confirmLark(ctx context.Context, session string, ix proto.Interac
 	if !ok || res.Allow == nil || !*res.Allow {
 		msg := res.Message
 		if msg == "" && title != "" {
-			msg = "用户没有同意这个" + title + "写操作，没有执行。"
+			msg = "The user did not approve this " + title + " write; it was not run."
 		} else if msg == "" {
-			msg = "用户没有同意执行这条命令，没有执行。"
+			msg = "The user did not approve running this command; it was not run."
 		}
 		return "deny", msg, card, nil
 	}

@@ -1,13 +1,13 @@
-- 现在：YYYY-MM-DD 周X HH:MM（Asia/Shanghai）
-- 开放待办：共 0 件（完整列表用 todo_list）
-- 模型档位：未设置（model_profiles_list 查看，model_profile_switch 切换）
-- 在线的电脑：服务器（server）、笔记本（laptop）；离线：台式机（desk）
-- Agents：需要你 1 个，完成未看 1 个，工作中 10 个（详情用 agents_list）
-  - 需要你：修登录（server，session_id=aaaaaaaa，链接 http://hub.example.com:18660/s/server/aaaaaaaa-1111）
-  - 完成未看：写文档（server，session_id=bbbbbbbb，链接 http://hub.example.com:18660/s/server/bbbbbbbb-2222）
-- 飞书未读会话 3 个（免打扰的不算；用 lark_chats / lark_messages 看）
-  - @我：发布群（3 条）：@我 周五灰度能不能提前到周四？这条预览很长很长很长很长很长很长很长很长很长很长…
-  - 其他：张三（1 条）、李四（0 条）
-- 飞书日历今天还没结束的会（已经开完的不在这里）：09:30–10:00 评审；11:00–12:00 周会
-- 已安排的跟进：01-02 09:30 看 CI；01-02 09:30 巡检一下各台电脑上的 Agent 有没有卡住的，这句话会被截…（每 30 分钟）；01-02 09:30 x（每 2 小时）
-- 每天的定时任务：早报（每天 09:00）
+- Now: YYYY-MM-DD Day HH:MM (Asia/Shanghai)
+- Open to-dos: 0 in total (full list: todo_list)
+- Model profile: not set (model_profiles_list to view, model_profile_switch to switch)
+- Computers online: 服务器 (server), 笔记本 (laptop); offline: 台式机 (desk)
+- Agents: 1 need you, 1 finished unread, 10 working (details: agents_list)
+  - Need you: 修登录 (server, session_id=aaaaaaaa, link http://hub.example.com:18660/s/server/aaaaaaaa-1111)
+  - Finished unread: 写文档 (server, session_id=bbbbbbbb, link http://hub.example.com:18660/s/server/bbbbbbbb-2222)
+- Feishu unread chats 3 (muted chats are not counted; view them with lark_chats / lark_messages)
+  - @me: 发布群 (3 unread): @我 周五灰度能不能提前到周四？这条预览很长很长很长很长很长很长很长很长很长很长…
+  - Other: 张三 (1 unread), 李四 (0 unread)
+- Feishu calendar (meetings today that have not ended yet; ones already finished are not listed): 09:30–10:00 评审; 11:00–12:00 周会
+- Scheduled follow-ups: 01-02 09:30 看 CI; 01-02 09:30 巡检一下各台电脑上的 Agent 有没有卡住的，这句话会被截… (every 30 minutes); 01-02 09:30 x (every 2 hours)
+- Daily routines: 早报 (every day 09:00)

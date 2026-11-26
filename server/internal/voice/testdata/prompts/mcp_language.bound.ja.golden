@@ -2,7 +2,7 @@
   {
     "type": "function",
     "name": "list_agents",
-    "description": "ユーザーの各コンピュータ上のコーディング Agent（Claude Code / Codex）を一覧表示します。コンピュータ、タイトル、状態（対応待ち／作業中／完了・未読／待機中）、最後の発言を返します。\n\nタイトル、理由、完了条件、メッセージなど、新たに生成するユーザー向けの引数は、ユーザーが別の言語を求める場合や元の表現が必要な項目を除き、日本語で書いてください。引用した原文、識別子、ツール名と引数名、列挙値、コマンドの接頭辞はそのまま保持してください。言語によって承認要件や権限の範囲が変わることはありません。",
+    "description": "List the coding Agents (Claude Code / Codex) on the user's computers: computer, title, status (needs you / working / finished unread / idle) and last words.",
     "parameters": {
       "type": "object",
       "properties": {}
@@ -11,7 +11,7 @@
   {
     "type": "function",
     "name": "delegate_task",
-    "description": "この通話に紐づく会話に作業を依頼します。対象は instructions の紐づく会話の説明を参照してください。呼び出すと、復唱も確認待ちもせず直ちに送信されます。ユーザーが依頼を意図しているか不明な場合は、先に質問してください。呼び出しはすぐには戻りません。依頼したことをユーザーに伝え、通常どおり会話を続けてください。そのターンが終わると、数分後になる場合もありますが、回答が返ります。その時点でユーザーに伝えてください。task の最初の文に作業内容を完全な指示として書いてください。対象の会話はこの音声会話の文脈を見られません。現在の作業や進捗を尋ねる場合は、task を正確な接頭辞「状态：」で始めてください。これは対象へ送られず、現在の状態が返ります。ユーザーが明示的に停止を求めた場合は「停止：」、対象からの質問に答えている場合は「回答：」で始めてください。\n\nタイトル、理由、完了条件、メッセージなど、新たに生成するユーザー向けの引数は、ユーザーが別の言語を求める場合や元の表現が必要な項目を除き、日本語で書いてください。引用した原文、識別子、ツール名と引数名、列挙値、コマンドの接頭辞はそのまま保持してください。言語によって承認要件や権限の範囲が変わることはありません。",
+    "description": "Hand work to the conversation bound to this call (identified in the instructions). Calling sends it immediately, without repeating it or waiting for confirmation, so ask first if you are unsure the user wants it done. The call does not return immediately: tell the user you handed it over, then keep talking normally. When that turn finishes, this call returns its answer, possibly minutes later; tell the user then. Put the work in task's first sentence as a complete instruction: the conversation cannot see this voice context. To ask what it is doing or how far it has got, start task with the exact prefix “Status:” (not sent to it; returns its current status). When the user explicitly asks it to stop, use the exact prefix “Stop:”. When the user is answering its question, use the exact prefix “Answer:”.",
     "parameters": {
       "type": "object",
       "required": [
@@ -20,7 +20,7 @@
       "properties": {
         "task": {
           "type": "string",
-          "description": "依頼する作業を完全な文で記述します。または、正確な接頭辞「状态：」「停止：」「回答：」で始める文にします"
+          "description": "The work in complete sentences, or a sentence starting with the exact prefix “Status:”, “Stop:” or “Answer:”"
         }
       }
     }

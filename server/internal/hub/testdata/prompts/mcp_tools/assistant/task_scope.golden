@@ -15,11 +15,11 @@
       },
       "change": {
         "type": "string",
-        "description": "what changes, in one sentence the owner can read (Chinese), e.g. 「不再要求灰度验证，改为只在测试环境验证」"
+        "description": "what changes, in one sentence the owner can read (Simplified Chinese), e.g. require verification in the test environment only, instead of a staged production rollout"
       },
       "why": {
         "type": "string",
-        "description": "why, in one sentence (Chinese)"
+        "description": "why, in one sentence (Simplified Chinese)"
       },
       "done_when": {
         "type": "array",

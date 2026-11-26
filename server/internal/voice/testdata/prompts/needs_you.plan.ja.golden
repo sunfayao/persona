@@ -1,2 +1,2 @@
-Codex が止まって、ユーザーの対応を待っています：承認待ちの計画。まだ終わっていません。ユーザーが画面で押せば続きをやります。
-何を待っているかと、画面で押してほしいことを一文でユーザーに伝えてください。例：「Codex がコマンドを実行したいそうです。画面で承認してください」。種類だけを言い、コマンドやパス、計画の中身は読まず、ユーザーの代わりに答えないでください。ユーザーが口で「承認」「いいよ」と言ったら、画面で押すよう伝えてください。
+Codex has stopped and waits for the user: a plan to approve. It is not finished: it goes on once the user taps it on the screen.
+Tell the user in one sentence what it waits for and to tap it on the screen, like "Codex wants to run a command, approve it on the screen". Say only what sort it is: do not read out a command, a path or what the plan says, and do not answer it for the user; when the user says "approve" or "yes", ask them to tap it on the screen.

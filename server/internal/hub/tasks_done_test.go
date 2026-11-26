@@ -152,7 +152,7 @@ func TestTaskAutoDone(t *testing.T) {
 		t.Fatalf("todo = %+v, %d receipts", got, receipts(h))
 	}
 	in, _ := js.input.Load().(string)
-	for _, want := range []string{"修登录崩溃", "iPad 横屏时登录页崩溃", "pull/901", "已合并的 PR", "TestFlight 构建号"} {
+	for _, want := range []string{"修登录崩溃", "iPad 横屏时登录页崩溃", "pull/901", "a merged PR", "TestFlight 构建号"} {
 		if !strings.Contains(in, want) {
 			t.Errorf("judge input lacks %q: %s", want, in)
 		}
@@ -163,7 +163,7 @@ func TestTaskAutoDone(t *testing.T) {
 	if _, ok := taskOfAgent(h, "box", "s1"); !ok {
 		t.Fatal("a delivered task is no longer followed")
 	}
-	if line := taskLine(h, todo); !strings.Contains(line, "已交付·待看") || !strings.Contains(line, "TestFlight 构建号 202611041200") {
+	if line := taskLine(h, todo); !strings.Contains(line, "delivered; awaiting a look") || !strings.Contains(line, "TestFlight 构建号 202611041200") {
 		t.Fatalf("the live context = %q", line)
 	}
 	found := false
@@ -351,7 +351,7 @@ func TestTaskDoneReadsTheLatestTurn(t *testing.T) {
 	runTurn(h, "挪好了")
 	waitFor(t, "the delivery judgment", func() bool { return js.calls.Load() > 0 })
 	in, _ := js.input.Load().(string)
-	for _, want := range []string{"这一轮收到的请求（不一定来自用户，不替代原任务）", "iPad 横屏时登录页崩溃", "全部 N", "构建号 202611040923", "没截图的：Mac"} {
+	for _, want := range []string{"The request received in this turn (not necessarily from the user, and it does not replace the original task)", "iPad 横屏时登录页崩溃", "全部 N", "构建号 202611040923", "没截图的：Mac"} {
 		if !strings.Contains(in, want) {
 			t.Errorf("judge input lacks %q: %s", want, in)
 		}
@@ -384,7 +384,7 @@ func TestTaskInterruptedByAPIError(t *testing.T) {
 		t.Fatalf("todo = %+v, %d judge calls", got, js.calls.Load())
 	}
 	// Its state is the assistant's: the line the snapshot has for it (taskLine).
-	if line := taskLine(h, todo); !strings.Contains(line, "模型服务出错，中断了（没做完，等用户让它继续）") {
+	if line := taskLine(h, todo); !strings.Contains(line, "interrupted by a model service error (not finished; waiting for the user to let it continue)") {
 		t.Fatalf("snapshot state = %q", line)
 	}
 	inbox := false
@@ -424,7 +424,7 @@ func TestTaskInterruptedByAPIError(t *testing.T) {
 
 	m := h.byID["box"]
 	m.setSessions([]proto.Session{{SessionID: "s1", Cwd: "/code/app", Agent: "claude", Status: proto.StatusWorking, LastText: cut, UpdatedAt: time.Now()}})
-	if line := taskLine(h, todo); !strings.Contains(line, "在做") {
+	if line := taskLine(h, todo); !strings.Contains(line, "working") {
 		t.Fatalf("state after 继续 = %q", line)
 	}
 	time.Sleep(20 * time.Millisecond)

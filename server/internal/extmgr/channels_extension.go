@@ -179,12 +179,12 @@ func (h *Manager) channelReceive(id string, m channel.Message) {
 				total += len(b.Data)
 				return false
 			}
-			m.Unsupported = append(m.Unsupported, kind+"「"+firstNonEmpty(b.Name, "未命名")+"」（太大）")
+			m.Unsupported = append(m.Unsupported, kind+" \""+firstNonEmpty(b.Name, "unnamed")+"\" (too large)")
 			return true
 		}
 	}
-	m.Images = slices.DeleteFunc(m.Images, keep("图片"))
-	m.Files = slices.DeleteFunc(m.Files, keep("文件"))
+	m.Images = slices.DeleteFunc(m.Images, keep("image"))
+	m.Files = slices.DeleteFunc(m.Files, keep("file"))
 	raw, err := json.Marshal(m)
 	if err != nil {
 		return

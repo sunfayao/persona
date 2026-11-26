@@ -80,19 +80,19 @@ func TestToolsReadTheMac(t *testing.T) {
 	}
 
 	out, err := c.Call(ctx, "imessage_chats", nil)
-	if err != nil || !strings.Contains(out, "- 张三 [imessage-000000000001] · 私聊 +15550100 · 2026-10-30 08:59 · 未读 2：示例：验证码 •••• 别告诉别人") ||
-		!strings.Contains(out, "周末徒步 [imessage-000000000002] · 群聊（张三）") || !strings.Contains(out, "：我：好的") {
+	if err != nil || !strings.Contains(out, "- 张三 [imessage-000000000001] · direct +15550100 · 2026-10-30 08:59 · unread 2: 示例：验证码 •••• 别告诉别人") ||
+		!strings.Contains(out, "周末徒步 [imessage-000000000002] · group (张三)") || !strings.Contains(out, ": me: 好的") {
 		t.Errorf("chats:\n%s\n%v", out, err)
 	}
 	out, err = c.Call(ctx, "imessage_read", json.RawMessage(`{"chat":"imessage-000000000001","limit":5}`))
-	if err != nil || !strings.Contains(out, "[2026-10-30 07:59] 张三：示例：验证码 •••• 别告诉别人") || !strings.Contains(out, "[2026-10-30 07:58] 我：在吗") {
+	if err != nil || !strings.Contains(out, "[2026-10-30 07:59] 张三: 示例：验证码 •••• 别告诉别人") || !strings.Contains(out, "[2026-10-30 07:58] me: 在吗") {
 		t.Errorf("read:\n%s\n%v", out, err)
 	}
 	if got := n.sent("connector.older"); len(got) != 1 || !strings.Contains(got[0], `"limit":5`) || !strings.Contains(got[0], `"keep":"contacts"`) {
 		t.Errorf("older %v", got)
 	}
 	out, err = c.Call(ctx, "imessage_search", json.RawMessage(`{"query":"周五"}`))
-	if err != nil || !strings.Contains(out, "- [2026-10-30 07:59] 「张三」[imessage-000000000001] 张三：示例：周五见") {
+	if err != nil || !strings.Contains(out, "- [2026-10-30 07:59] \"张三\" [imessage-000000000001] 张三: 示例：周五见") {
 		t.Errorf("search:\n%s\n%v", out, err)
 	}
 	if got := n.sent("connector.search"); len(got) != 1 || got[0] != `{"days":365,"id":"imessage","keep":"contacts","limit":20,"query":"周五"}` {

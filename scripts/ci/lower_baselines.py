@@ -52,7 +52,7 @@ RATCHETS = (
             [PYTHON, "scripts/ci/sleep_ratchet.py", "--update"], timeout=300),
     Ratchet("web-font", "hard-coded px font sizes in web/src", ["scripts/ci/web_font_baseline.json"],
             [PYTHON, "scripts/ci/web_font_ratchet.py", "--update"], timeout=300),
-    Ratchet("prompt-language", "prompt templates without language handling", ["scripts/ci/prompt_language_baseline.json"],
+    Ratchet("prompt-language", "prompt templates with CJK text (prompts are English only)", ["scripts/ci/prompt_language_baseline.json"],
             [PYTHON, "scripts/ci/prompt_language_ratchet.py", "--update"], timeout=300),
     Ratchet("hub-hardcoded-text", "hard-coded Chinese in the hub's code and command lines",
             ["server/internal/i18n/hardcoded-baseline.json", "server/internal/i18n/hardcoded-terminal-baseline.json"],

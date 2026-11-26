@@ -400,7 +400,7 @@ func guess(text string) (int, int) {
 		return exitRateLimited, n
 	}
 	switch {
-	case strings.Contains(text, "is not available"), strings.Contains(text, "只能在助手的对话里用"), strings.HasPrefix(text, "Persona hub error"):
+	case strings.Contains(text, "is not available"), strings.Contains(text, "只能在助手的对话里用"), strings.Contains(text, "only works in an assistant conversation"), strings.HasPrefix(text, "Persona hub error"):
 		return exitUnavailable, 0
 	case strings.HasPrefix(text, "The user declined"), strings.Contains(text, "(connector_gate) do not allow"):
 		return exitDeclined, 0

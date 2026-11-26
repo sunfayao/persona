@@ -128,7 +128,7 @@ func TestGateProxyHealthWriteWithAnAllowRuleNeedsTheCard(t *testing.T) {
 	r := newSpaceRig(t, sendAllowed)
 	base := r.processIn(filepath.Join(r.state, "tracks", "qa-private"), "h1")
 	code, body := send(t, "POST", base+"/api/v1/conversations/7123/messages", `{"text":"hi"}`)
-	if code != http.StatusForbidden || !strings.Contains(body, "手机上确认") {
+	if code != http.StatusForbidden || !strings.Contains(body, "confirm it on their phone") {
 		t.Fatalf("a write no card confirmed, in a health conversation: %d %s", code, body)
 	}
 	if got := r.api.requests(); len(got) != 0 {
@@ -214,7 +214,7 @@ func TestGateProxyHealthDenyStaysDeny(t *testing.T) {
 	r := newSpaceRig(t, proto.LarkRule{Method: "DELETE", Path: "/messages/*", Action: "deny"})
 	for _, space := range []string{"tracks/qa-private", identity.AssistantDirName("")} {
 		base := r.processIn(filepath.Join(r.state, space), "s1")
-		if code, body := send(t, "DELETE", base+"/api/v1/messages/M1", ""); code != http.StatusForbidden || !strings.Contains(body, "不允许") {
+		if code, body := send(t, "DELETE", base+"/api/v1/messages/M1", ""); code != http.StatusForbidden || !strings.Contains(body, "not allowed") {
 			t.Fatalf("%s: a call the rules deny: %d %s", space, code, body)
 		}
 	}
@@ -333,7 +333,7 @@ func TestGateProxyHealthHoldsEveryKindOfWrite(t *testing.T) {
 		{"DELETE", "/messages/M1/reactions", ""},
 	} {
 		url := base + "/api/v1" + w.path
-		if code, body := send(t, w.method, url, w.body); code != http.StatusForbidden || !strings.Contains(body, "手机上确认") {
+		if code, body := send(t, w.method, url, w.body); code != http.StatusForbidden || !strings.Contains(body, "confirm it on their phone") {
 			t.Fatalf("%s %s that a rule allows, no card made: %d %s", w.method, w.path, code, body)
 		}
 		if got := r.api.requests(); len(got) != 0 {

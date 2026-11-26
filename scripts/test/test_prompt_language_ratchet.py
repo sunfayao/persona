@@ -33,21 +33,21 @@ class PromptLanguageRatchetTests(unittest.TestCase):
                 path.write_text(text)
             return self.ratchet.scan(root)
 
-    def test_language_conditions_and_includes(self):
+    def test_every_template_with_cjk_text_is_listed(self):
         got = self.scan({
             "agents/old.md": "用中文写",
-            "agents/localized.md": '{{if .Language}}Write in {{.Language}}{{else}}用中文写{{end}}',
+            "agents/branch.md": '{{if .Language}}Write in {{.Language}}{{else}}用中文写{{end}}',
             "voice/full.md": '{{if eq .Lang "en"}}Hello{{else}}你好{{end}}',
-            "kb/output.md": '{{template "kb/language" .}}\n总结记录',
-            "kb/language.md": '{{if .Language}}{{.Language}}{{else}}中文{{end}}',
-            "agents/comment.md": '{{/* if .Language */}}\n用中文写',
+            "agents/comment.md": '{{/* 说明 */}}\nEnglish instructions',
             "agents/data.md": 'The field is .Language. 中文',
-            "agents/quoted.md": '{{if eq .Title ".Language"}}中文{{end}}',
-            "agents/else_if.md": '{{if .Handled}}Done{{else if eq .Language "English"}}Hello{{else}}你好{{end}}',
-            "agents/else_other.md": '{{if .Handled}}Done{{else if .Quiet}}安静{{end}}',
-            "agents/plain.md": "English instructions",
+            "agents/plain.md": "Write in {{lang .Language}}",
         })
-        self.assertEqual(got, {"agents": ["agents/comment.md", "agents/data.md", "agents/else_other.md", "agents/old.md", "agents/quoted.md"]})
+        self.assertEqual(got, {"agents": ["agents/branch.md", "agents/data.md", "agents/old.md"], "voice": ["voice/full.md"]})
+
+    def test_data_templates_keep_their_text(self):
+        name = next(iter(self.ratchet.DATA))
+        self.assertEqual(self.scan({name: "早报", "agents/other.md": "早报"}), {"agents": ["agents/other.md"]})
+        self.assertTrue(all(reason.strip() for reason in self.ratchet.DATA.values()))
 
     def test_same_count_cannot_hide_new_file(self):
         old = {"agents": ["agents/old.md"]}
@@ -62,10 +62,6 @@ class PromptLanguageRatchetTests(unittest.TestCase):
         self.assertEqual(self.ratchet.lowered(new, old), new)
         self.assertTrue(self.ratchet.increases({"new": ["new/a.md"]}, old))
         self.assertEqual(self.ratchet.lowered({}, old), {})
-
-    def test_cycle_does_not_grant_localization(self):
-        got = self.scan({"a/a.md": '{{template "a/b" .}}中文', "a/b.md": '{{template "a/a" .}}中文'})
-        self.assertEqual(got, {"a": ["a/a.md", "a/b.md"]})
 
     def test_baseline_counts_and_paths_are_checked(self):
         with self.assertRaises(ValueError):
@@ -147,9 +143,9 @@ class PromptLanguageRatchetTests(unittest.TestCase):
 
 
 class IncreaseOnlyTests(unittest.TestCase):
-    """A resolved prompt still in the baseline passes; with a base it may not lose its language handling again."""
+    """A resolved prompt still in the baseline passes; with a base it may not gain CJK text again."""
 
-    LOCALIZED = '{{if .Language}}Write in {{.Language}}{{else}}用中文写{{end}}'
+    LOCALIZED = 'Write in {{lang .Language}}'
 
     def setUp(self):
         temp = tempfile.TemporaryDirectory(prefix="prompt-language-")
@@ -193,8 +189,8 @@ class IncreaseOnlyTests(unittest.TestCase):
         (self.prompts / "fixed.md").write_text("用中文写")
         result = self.run_ratchet()
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("the merge base already localizes lost it again: agents/fixed.md", result.stdout)
-        self.git("commit", "-q", "-am", "drop the language branch")
+        self.assertIn("the merge base already has in English gained CJK text again: agents/fixed.md", result.stdout)
+        self.git("commit", "-q", "-am", "write it in Chinese again")
         self.assertEqual(self.run_ratchet().returncode, 1)
         # Against itself (no change since the base) the baseline alone holds, and it still lists the file.
         result = self.run_ratchet("--base", "HEAD")
@@ -210,7 +206,7 @@ class IncreaseOnlyTests(unittest.TestCase):
         # no --base and no CI_BASE_SHA the baseline alone holds the prompts, as merge-pr.sh holds them.
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         (self.prompts / "fixed.md").write_text("用中文写")
-        self.git("commit", "-q", "-am", "drop the language branch")
+        self.git("commit", "-q", "-am", "write it in Chinese again")
         result = subprocess.run([sys.executable, str(self.script)], cwd=self.root, env=self.env,
                                 capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -218,7 +214,7 @@ class IncreaseOnlyTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(self.script)], cwd=self.root, env=given,
                                 capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 1, result.stdout)
-        self.assertIn("the merge base already localizes lost it again: agents/fixed.md", result.stdout)
+        self.assertIn("the merge base already has in English gained CJK text again: agents/fixed.md", result.stdout)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ const LEGACY_NOTICE_HEAD = /^🔔 任务「(.+)」(做完了|在等用户|被模
 const FOLLOWUP_HEAD = /^⏰ (.+) \((a follow-up you scheduled|scheduled task(?:, every [^)]+)?)\)$/u;
 const LEGACY_FOLLOWUP_HEAD = /^⏰ (.+)（(你之前安排的跟进|定时任务(?:，每 [^）]+)?)）$/u; // i18n-ignore: matches the hub's injected text
 const WAKE_HEAD = /^⏰（Persona 叫醒你，第 \d+ 次）你上一轮停下时说在等「(.*?)」/u; // i18n-ignore: matches the hub's injected text
+const WAKE_MARKER = /^<persona-wake>(.*)<\/persona-wake>$/u;
 // Only the canonical persona-context tag is recognized.
 
 const NOTICE_MARKER = "This is a Persona task notice";
@@ -51,6 +52,19 @@ export function parseInjected(raw: string): Injected | null {
     if (!m) return null;
     const state = NOTICE_STATES[m[2]];
     return { kind: "task_notice", state, title: m[1], machine: m[3] || undefined, line: t(NOTICE_LINES[state] ?? "lib-injected.task_done", { title: m[1] }) };
+  }
+  if (head.startsWith("<persona-wake")) {
+    // The wake's language-independent marker: one JSON object with the title it waits for, then the message.
+    const m = WAKE_MARKER.exec(head);
+    if (!m || !rest.trim()) return null;
+    try {
+      const meta: unknown = JSON.parse(m[1]);
+      if (!meta || typeof meta !== "object" || Array.isArray(meta)) return null;
+      const keys = Object.keys(meta);
+      const title = (meta as { title?: unknown }).title;
+      if (keys.length !== 1 || typeof title !== "string") return null;
+      return { kind: "followup", state: "wake", title, line: t("lib-injected.wake", { title }) };
+    } catch { return null; }
   }
   if (head.startsWith("⏰（")) { // i18n-ignore: matches the hub's injected text
     const m = WAKE_HEAD.exec(head);

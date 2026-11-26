@@ -141,7 +141,7 @@ func (s *lcuSession) call(ctx context.Context, name string, args map[string]any,
 		}
 		return lcuToolResult(msg.Result)
 	case <-ctx.Done():
-		return nil, errors.New("操控电脑的确认超时或已取消")
+		return nil, errors.New("the confirmation to control the computer timed out or was cancelled")
 	case <-wait:
 		return nil, errLCUEnded
 	}
@@ -188,7 +188,7 @@ func (s *lcuSession) ensure(ctx context.Context) error {
 	bin, args := lcuCommand()
 	if bin == "" {
 		s.mu.Unlock()
-		return errors.New("这台 Mac 上没有装 LCU")
+		return errors.New("LCU is not installed on this Mac")
 	}
 	// The process outlives the call that started it. A cancelled confirmation must not kill the runtime.
 	cmd := exec.Command(bin, args...)
@@ -206,7 +206,7 @@ func (s *lcuSession) ensure(ctx context.Context) error {
 	cmd.Stderr = io.Discard
 	if err := cmd.Start(); err != nil {
 		s.mu.Unlock()
-		return fmt.Errorf("启动 LCU：%w", err)
+		return fmt.Errorf("starting LCU: %w", err)
 	}
 	s.cmd, s.stdin, s.failed = cmd, stdin, nil
 	s.wait = make(chan struct{})
@@ -288,7 +288,7 @@ func (s *lcuSession) initialize(ctx context.Context, cmd *exec.Cmd, exited <-cha
 	case <-exited:
 		return errLCUEnded
 	case <-time.After(30 * time.Second):
-		return errors.New("LCU 没有完成 MCP 握手")
+		return errors.New("LCU did not finish the MCP handshake")
 	}
 	if err := s.write(mcpMessage{JSONRPC: "2.0", Method: "notifications/initialized"}); err != nil {
 		return s.writeFailed(cmd, err)
@@ -297,7 +297,7 @@ func (s *lcuSession) initialize(ctx context.Context, cmd *exec.Cmd, exited <-cha
 }
 
 // errLCUEnded is the error of a call whose lcu process ended.
-var errLCUEnded = errors.New("LCU 的进程结束了")
+var errLCUEnded = errors.New("the LCU process has ended")
 
 // writeFailed is the error of a write to cmd's stdin that failed. A closed pipe (a broken pipe, or one cmd.Wait has
 // closed) means the process ended, maybe before its exit is seen (a child of lcu can keep its stdout open): the
@@ -390,7 +390,7 @@ func (s *lcuSession) write(msg mcpMessage) error {
 	w := s.stdin
 	s.mu.Unlock()
 	if w == nil {
-		return errors.New("LCU 没有连上")
+		return errors.New("LCU is not connected")
 	}
 	s.wmu.Lock()
 	defer s.wmu.Unlock()
@@ -427,7 +427,7 @@ func lcuToolResult(raw json.RawMessage) (*proto.ComputerResult, error) {
 		IsError bool `json:"isError"`
 	}
 	if json.Unmarshal(raw, &res) != nil {
-		return nil, errors.New("LCU 的回答不是 JSON")
+		return nil, errors.New("LCU's answer is not JSON")
 	}
 	out := &proto.ComputerResult{}
 	var text strings.Builder
@@ -451,7 +451,7 @@ func lcuToolResult(raw json.RawMessage) (*proto.ComputerResult, error) {
 	if res.IsError {
 		msg := strings.TrimSpace(text.String())
 		if msg == "" {
-			msg = "LCU 拒绝了这次操控"
+			msg = "LCU refused this control request"
 		}
 		return nil, errors.New(msg)
 	}

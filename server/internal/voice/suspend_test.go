@@ -210,15 +210,15 @@ func TestPauseWhileTheAgentWorks(t *testing.T) {
 	a.until(linkIn(linkWaking))
 	a.until(linkIn(linkLive))
 	instructions := instructionsOf(up.find(t, 1, "its start", isStart))
-	for _, want := range []string{"语音暂停了一下", "暂停前说过的话", "用户：跑一下全部测试", "## 还在等的事", "「跑一下全部测试」还没有结果"} {
+	for _, want := range []string{"the voice was paused", "what was said before the pause", "the user: 跑一下全部测试", "## Still waiting", `results are not back yet: "跑一下全部测试"`} {
 		if !strings.Contains(instructions, want) {
 			t.Errorf("instructions lack %q: %s", want, instructions)
 		}
 	}
-	if strings.Contains(instructions, "语音连接刚断过") || strings.Contains(instructions, "状态：测试跑到哪了") {
+	if strings.Contains(instructions, "The voice connection just dropped") || strings.Contains(instructions, "状态：测试跑到哪了") {
 		t.Errorf("instructions: %s", instructions)
 	}
-	if got := content(up.find(t, 1, "the status", func(f map[string]any) bool { return f["delegation_id"] == "dlg2" })); !strings.Contains(got, "还在做") {
+	if got := content(up.find(t, 1, "the status", func(f map[string]any) bool { return f["delegation_id"] == "dlg2" })); !strings.Contains(got, "still working") {
 		t.Fatalf("status: %s", got)
 	}
 
@@ -228,7 +228,7 @@ func TestPauseWhileTheAgentWorks(t *testing.T) {
 	a.untilAll(linkIn(linkWaking), linkIn(linkLive), func(f map[string]any) bool {
 		return f["type"] == "run" && f["id"] == m.ID && f["state"] == runDone
 	})
-	if got := content(up.find(t, 2, "the answer, said", said)); !strings.Contains(got, "Claude Code 这一轮做完了") || !strings.Contains(got, "全部通过") {
+	if got := content(up.find(t, 2, "the answer, said", said)); !strings.Contains(got, "Claude Code has finished this turn") || !strings.Contains(got, "全部通过") {
 		t.Fatalf("said: %s", got)
 	}
 	if slices.ContainsFunc(up.frames(0), func(f map[string]any) bool { return f["delegation_id"] == "dlg1" }) {
@@ -317,7 +317,7 @@ func TestTypedLineWakesTheUpstream(t *testing.T) {
 	a.until(linkIn(linkWaking))
 	a.until(linkIn(linkLive))
 	instructions := instructionsOf(up.find(t, 1, "its start", isStart))
-	if !strings.Contains(instructions, "暂停前说过的话") || !strings.Contains(instructions, "用户：记住数字七") || strings.Contains(instructions, "数字是几") {
+	if !strings.Contains(instructions, "what was said before the pause") || !strings.Contains(instructions, "the user: 记住数字七") || strings.Contains(instructions, "数字是几") {
 		t.Fatalf("instructions: %s", instructions)
 	}
 	up.find(t, 1, "the typed line", func(f map[string]any) bool {
@@ -350,7 +350,7 @@ func TestTypedLineAfterTheAgentWrote(t *testing.T) {
 				hub.mu.Lock()
 				interrupts := slices.Clone(hub.interrupts)
 				hub.mu.Unlock()
-				if !strings.Contains(got, "已经叫停了 Claude Code") || !slices.Equal(interrupts, []string{"a1"}) {
+				if !strings.Contains(got, "Claude Code was stopped") || !slices.Equal(interrupts, []string{"a1"}) {
 					t.Fatalf("stop: %s (interrupts %v)", got, interrupts)
 				}
 				return
@@ -561,10 +561,10 @@ func TestWokenSessionDrops(t *testing.T) {
 	a.until(linkIn(linkReconnecting))
 	a.until(linkIn(linkLive))
 	in := instructionsOf(up.find(t, 2, "its start", isStart))
-	if !strings.Contains(in, "语音连接刚断过") || strings.Contains(in, "语音暂停了一下") {
+	if !strings.Contains(in, "The voice connection just dropped") || strings.Contains(in, "the voice was paused") {
 		t.Fatalf("instructions: %s", in)
 	}
-	if strings.Contains(in, "用户：数字是几") {
+	if strings.Contains(in, "the user: 数字是几") {
 		return
 	}
 	up.find(t, 2, "the typed line", func(f map[string]any) bool {

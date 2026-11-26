@@ -211,21 +211,21 @@ func (c *Remote) context(ctx context.Context, chat, last string) string {
 	return text
 }
 
-// transcript is messages as the models read them: "Name (10-30 08:00): …" with full-width punctuation, codes masked.
+// transcript is messages as the models read them: "Name (10-30 08:00): …", codes masked.
 func (c *Remote) transcript(msgs []Message) string {
 	var b strings.Builder
 	for _, m := range msgs {
-		who := "我"
+		who := "me"
 		if !m.FromMe {
-			who = "有人"
+			who = "someone"
 			if m.Sender != nil {
 				who = m.Sender.shown()
 			}
 		}
 		if m.Kind == "event" {
-			who = "（群）"
+			who = "(group)"
 		}
-		fmt.Fprintf(&b, "%s（%s）：%s\n", who, m.At.In(c.zone()).Format("01-02 15:04"), MaskCodes(lineText(m)))
+		fmt.Fprintf(&b, "%s (%s): %s\n", who, m.At.In(c.zone()).Format("01-02 15:04"), MaskCodes(lineText(m)))
 	}
 	return strings.TrimSpace(b.String())
 }
@@ -401,76 +401,76 @@ func (c *Remote) when(t time.Time) string { return t.In(c.zone()).Format("2006-0
 
 func (c *Remote) chatsText(page ChatsPage) string {
 	if len(page.Chats) == 0 {
-		return "没有会话。"
+		return "No conversations."
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s 上「信息」的会话，最新的在前：\n", c.machine)
+	fmt.Fprintf(&b, "Conversations in Messages on %s, newest first:\n", c.machine)
 	for _, ch := range page.Chats {
-		kind := "私聊"
+		kind := "direct"
 		if ch.Group {
 			var who []string
 			for _, p := range ch.Members {
 				who = append(who, p.shown())
 			}
-			kind = "群聊（" + strings.Join(who, "、") + "）"
+			kind = "group (" + strings.Join(who, ", ") + ")"
 		} else if len(ch.Members) == 1 && ch.Members[0].Name != "" {
-			kind = "私聊 " + ch.Members[0].Handle
+			kind = "direct " + ch.Members[0].Handle
 		}
 		fmt.Fprintf(&b, "- %s [%s] · %s · %s", ch.Name, ch.ID, kind, c.when(ch.Last))
 		if ch.Unread > 0 {
-			fmt.Fprintf(&b, " · 未读 %d", ch.Unread)
+			fmt.Fprintf(&b, " · unread %d", ch.Unread)
 		}
 		if ch.Preview != "" {
 			prefix := ""
 			if ch.FromMe {
-				prefix = "我："
+				prefix = "me: "
 			}
-			fmt.Fprintf(&b, "：%s%s", prefix, MaskCodes(ch.Preview))
+			fmt.Fprintf(&b, ": %s%s", prefix, MaskCodes(ch.Preview))
 		}
 		b.WriteString("\n")
 	}
 	if page.More {
-		fmt.Fprintf(&b, "（还有更早的：before=%s）\n", page.Before)
+		fmt.Fprintf(&b, "(older ones exist: before=%s)\n", page.Before)
 	}
 	return strings.TrimSpace(b.String())
 }
 
 func (c *Remote) messagesText(page MessagesPage) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "会话「%s」[%s]，旧的在前：\n", page.Chat.Name, page.Chat.ID)
+	fmt.Fprintf(&b, "Conversation \"%s\" [%s], oldest first:\n", page.Chat.Name, page.Chat.ID)
 	if page.More {
-		fmt.Fprintf(&b, "（还有更早的：before=%s）\n", page.Before)
+		fmt.Fprintf(&b, "(older ones exist: before=%s)\n", page.Before)
 	}
 	for _, m := range page.Messages {
-		who := "我"
+		who := "me"
 		switch {
 		case m.Kind == "event":
-			who = "（群）"
+			who = "(group)"
 		case !m.FromMe && m.Sender != nil:
 			who = m.Sender.shown()
 		case !m.FromMe:
-			who = "对方"
+			who = "them"
 		}
-		fmt.Fprintf(&b, "[%s] %s：%s\n", c.when(m.At), who, MaskCodes(lineText(m)))
+		fmt.Fprintf(&b, "[%s] %s: %s\n", c.when(m.At), who, MaskCodes(lineText(m)))
 	}
 	if len(page.Messages) == 0 {
-		b.WriteString("（没有消息）\n")
+		b.WriteString("(no messages)\n")
 	}
 	return strings.TrimSpace(b.String())
 }
 
 func (c *Remote) hitsText(query string, hits []Hit) string {
 	if len(hits) == 0 {
-		return "没有找到含「" + query + "」的消息。"
+		return "No messages containing \"" + query + "\" found."
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "含「%s」的消息，最新的在前：\n", query)
+	fmt.Fprintf(&b, "Messages containing \"%s\", newest first:\n", query)
 	for _, h := range hits {
-		who := "我"
+		who := "me"
 		if !h.Message.FromMe && h.Message.Sender != nil {
 			who = h.Message.Sender.shown()
 		}
-		fmt.Fprintf(&b, "- [%s] 「%s」[%s] %s：%s\n", c.when(h.Message.At), h.Chat.Name, h.Chat.ID, who, MaskCodes(lineText(h.Message)))
+		fmt.Fprintf(&b, "- [%s] \"%s\" [%s] %s: %s\n", c.when(h.Message.At), h.Chat.Name, h.Chat.ID, who, MaskCodes(lineText(h.Message)))
 	}
 	return strings.TrimSpace(b.String())
 }

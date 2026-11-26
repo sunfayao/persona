@@ -223,7 +223,7 @@ func TestGateProxyHoldsRequestsToTheRules(t *testing.T) {
 	if r := api.requests()[0]; r.Auth != "Bearer test-token" || r.Cookie != "" || r.Other != "" || r.Account != "3" {
 		t.Fatalf("the headers the API got: %+v", r)
 	}
-	if code, body := send(t, "POST", msg, `{"text":"hi"}`); code != http.StatusForbidden || !strings.Contains(body, "手机上确认") {
+	if code, body := send(t, "POST", msg, `{"text":"hi"}`); code != http.StatusForbidden || !strings.Contains(body, "confirm it on their phone") {
 		t.Fatalf("a write nobody confirmed: %d %s", code, body)
 	}
 	if code, _ := send(t, "POST", base+"/api/v1/conversations", `{"type":"p2p"}`); code != http.StatusOK {
@@ -240,7 +240,7 @@ func TestGateProxyHoldsRequestsToTheRules(t *testing.T) {
 		t.Fatalf("the confirmed write, sent again: %d", code)
 	}
 	p.grant("ex", "", larkCall{Method: "DELETE", Path: "/messages/M1"}, proto.LarkLetThrough{Kind: proto.LarkThroughCard})
-	if code, body := send(t, "DELETE", base+"/api/v1/messages/M1", ""); code != http.StatusForbidden || !strings.Contains(body, "不允许") {
+	if code, body := send(t, "DELETE", base+"/api/v1/messages/M1", ""); code != http.StatusForbidden || !strings.Contains(body, "not allowed") {
 		t.Fatalf("a call the rules deny: %d %s", code, body)
 	}
 	p.grant("ex", "", larkCall{Method: "POST", Path: "/conversations/F2/messages", Body: `{"text":"$MSG"}`}, proto.LarkLetThrough{Kind: proto.LarkThroughCard})
@@ -378,12 +378,12 @@ func TestGateWriteItCannotFollow(t *testing.T) {
 		larkCfg: proto.AssistantLark{Gates: []proto.CommandGate{proxiedGate("http://api.example.test")}}}
 	loop := `for i in 1 2; do ex POST /conversations/F$i/messages '{"text":"hi"}'; done`
 	ix := proto.Interaction{ExpiresAt: time.Now().Add(time.Minute)}
-	if d, reason, err := n.larkCheck(context.Background(), "s1", t.TempDir(), loop, ix); err != nil || d != "deny" || !strings.Contains(reason, "单独一条") {
+	if d, reason, err := n.larkCheck(context.Background(), "s1", t.TempDir(), loop, ix); err != nil || d != "deny" || !strings.Contains(reason, "as its own") {
 		t.Fatalf("a write in a loop: %s %q %v", d, reason, err)
 	}
 	n.larkCfg = proto.AssistantLark{Gates: []proto.CommandGate{exampleGate("http://api.example.test")}}
 	// No hub to ask here: put to the phone, and not confirmed.
-	if d, reason, _ := n.larkCheck(context.Background(), "s1", t.TempDir(), loop, ix); d != "deny" || strings.Contains(reason, "单独一条") {
+	if d, reason, _ := n.larkCheck(context.Background(), "s1", t.TempDir(), loop, ix); d != "deny" || strings.Contains(reason, "as its own") {
 		t.Fatalf("a write in a loop, credentials in the environment: %s %q", d, reason)
 	}
 }

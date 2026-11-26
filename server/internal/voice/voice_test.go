@@ -296,13 +296,13 @@ func TestLiveDialectConversation(t *testing.T) {
 	f := up.next("session.commentary.append")
 	content, _ := f["content"].(string)
 	if f["delegation_id"] != "dlg1" || !strings.Contains(content, "<agent_output>\n明天下午三点有会\n</agent_output>") ||
-		!strings.Contains(content, "这一轮做完了") {
+		!strings.Contains(content, "has finished this turn") {
 		t.Fatalf("result: %v", f)
 	}
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "d1" && f["done"] == true })
 	a.protocolOne()
 	msgs := hub.messages()
-	if len(msgs) != 1 || !strings.HasPrefix(msgs[0].Text, "明天有什么会\n") || !strings.Contains(msgs[0].Text, `<persona-context kind="context" title="语音对话"`) ||
+	if len(msgs) != 1 || !strings.HasPrefix(msgs[0].Text, "明天有什么会\n") || !strings.Contains(msgs[0].Text, `<persona-context kind="context" title="Voice conversation"`) ||
 		!isVoiceID(msgs[0].ID) {
 		t.Fatalf("main conversation got %+v", msgs)
 	}
@@ -468,7 +468,7 @@ func TestReconnectTellsTheNewSessionWhatWasSaid(t *testing.T) {
 	a.until(func(f map[string]any) bool { return f["type"] == "tool" && f["id"] == "reconnect" && f["done"] == true })
 	up.next("session.start")
 	second := up.next("session.start")["session"].(map[string]any)["instructions"].(string)
-	if !strings.Contains(second, "刚才的对话") || !strings.Contains(second, "用户：记住数字七") || !strings.Contains(second, "你：好的，记住了。") {
+	if !strings.Contains(second, "The voice connection just dropped") || !strings.Contains(second, "the user: 记住数字七") || !strings.Contains(second, "You: 好的，记住了。") {
 		t.Fatalf("second session's instructions: %s", second)
 	}
 }
