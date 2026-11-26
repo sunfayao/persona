@@ -271,7 +271,7 @@ func (d *doctorReport) config(dir string) *Config {
 }
 
 // doctorCredentialFiles are credentials below the top level, in a folder the path guard and the agent sandbox close
-// whole: the Postgres superuser password the container entrypoint writes (docs/operations/docker.md). Everything else
+// whole: the Postgres superuser password the container entrypoint writes (docs/operations/config.md). Everything else
 // this check classifies is directly in the data directory.
 var doctorCredentialFiles = []string{filepath.Join("docker", "db-password")}
 

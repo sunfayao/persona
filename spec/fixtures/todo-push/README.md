@@ -1,6 +1,6 @@
 # To-do push fixtures
 
-What a decision's push carries (#10465; `docs/design/proposals/todos-redesign.md` 3.7 "Outside the app" and 5
+What a decision's push carries (#10465; `docs/assistant/todo-status-sop.md` 3.7 "Outside the app" and 5
 decision 4 (a)): the `todo` a manager sends with a `decide` push (`assistantwire.NotifyTodo`, `notify.request` on the
 bus) → the push's category, whether it sets `aps.mutable-content`, and its top-level `todo` (`TodoDecidePush` in
 `schema/wire/todo-view.schema.json`), which the WebSocket `notify` carries too. `scripts/test/test_wire_schema.py` holds each

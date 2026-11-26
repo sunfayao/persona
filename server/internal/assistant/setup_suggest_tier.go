@@ -12,7 +12,7 @@ import (
 )
 
 // A lower tier for the background supervisor, as one more line of the weekly block (#5805; section 9c of
-// docs/design/proposals/main-chat-availability.md, docs/assistant/assistant.md "Recommended setup"). Unlike the other
+// docs/assistant/assistant.md, docs/assistant/assistant.md "Recommended setup"). Unlike the other
 // lines it is not a mechanism that is off: it says that the reviews the background supervisor made on the model its
 // purpose (purposeSupervise) is bound to held, and that the provider it runs on has a tier below that one which is
 // not its smallest. It is the block's in everything else: computed from the task_reviewed and todo_reopened rows of

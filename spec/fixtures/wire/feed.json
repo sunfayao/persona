@@ -4,7 +4,6 @@
     "description": "回答记录带一行摘要，并按问题成对保存完整的问题和回答（保留换行）；旧记录只有摘要。",
     "source": [
       "server/internal/assistant/answered.go: answeredBody, answeredItems",
-      "apple/Shared/Tasks.swift: FeedItem.answeredItems",
       "docs/protocol/protocol.md: 任务和对话动态"
     ],
     "derived": true,

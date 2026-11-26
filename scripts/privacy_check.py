@@ -7,7 +7,7 @@
     python3 scripts/privacy_check.py --range origin/main..HEAD   # what those commits change, and their messages;
                                                      # all of HEAD when the two share no history (an orphan branch)
     python3 scripts/privacy_check.py --range <base sha>..<head> --message <file>   # plus text recorded as it is, every
-                                                     # line (merge-pr.sh: the fetched base sha, the squash message)
+                                                     # line on the updated branch
 
 Every mode reads what Git records: a symlink is scanned as its link text, never the file it points to; --staged and
 --range take added, copied, modified, renamed and type-changed files (a file turned into a symlink); the tracked-files
@@ -34,10 +34,7 @@ values config.example.json ships as defaults, a config value made only of ASCII 
 private-words.txt takes back (an ordinary word, a machine id named after a room), the repo's own Go module path (it
 names the GitHub owner),
 CLAUDE.local.md spans that only name repo files, commands or config keys, a listed word of one case run where the text
-spells it only across a camel-case join ("fooBar", only_in_camel_joins), and in site/ and the public installation docs
-the contact address and domain the App Store and the OAuth consent screen publish anyway. Generic email-pattern
-hits are no exception; config values, private words,
-banned names and private IPs still scan.
+spells it only across a camel-case join ("fooBar", only_in_camel_joins).
 """
 import ast, io, ipaddress, json, os, plistlib, re, subprocess, sys
 from urllib.parse import unquote, urlsplit
@@ -52,9 +49,6 @@ CONFIG_ENV = ("PERSONA_CONFIG", "JARVIS_CONFIG")
 IGNORE = {"darwin", "linux", "local", "ssh", "true", "false", "server", "localhost"}
 # Files that may hold placeholders that look like the real thing.
 SKIP_FILES = {"scripts/privacy_check.py"}
-# Config keys whose values are published on purpose (App Store contact, the site's address, where personad is published):
-# fine in PUBLIC_DIRS.
-PUBLIC_KEYS = {"feedback_email", "privacy_url", "site_url"}
 # Hosts many people publish on: a URL there is told apart by its path, so the term keeps the path (a privacy policy that
 # is a Google Doc must not make every docs.google.com link private).
 SHARED_HOSTS = {"docs.google.com", "drive.google.com", "sites.google.com", "github.com", "gist.github.com",
@@ -97,9 +91,8 @@ def standard_app(key, value):
 
 
 def config_values():
-    """The config's values, each with the key paths it is held under, and the subset that is published on purpose
-    (PUBLIC_KEYS)."""
-    out, public = {}, set()
+    """The config's values and the key paths that hold them."""
+    out = {}
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(HOME, ".config")
     # Scan both profiles, even when only one is selected for deployment.
     paths = {os.path.join(base, brand, "config.json") for brand in ("persona", "jarvis")}
@@ -122,9 +115,7 @@ def config_values():
             elif key.endswith("path"):
                 o = o.replace(HOME, "~")
             out.setdefault(o, set()).add(key_path)
-            if key in PUBLIC_KEYS:
-                public.add(o)
-    return out, public
+    return out
 
 
 # A token that looks like somebody's value: a long id mixing letters and digits (key ids, team ids, hostnames like
@@ -247,9 +238,8 @@ def reserved(value):
 
 def term_sources():
     """Words to look for, longest first, each with where it comes from ("config machines.id", "private-words.txt",
-    "CLAUDE.local.md", "the home directory"); those of them allowed in PUBLIC_DIRS; and those a `!word` line could
-    take back (config values of ASCII letters that no file lists plainly)."""
-    config, public = config_values()
+    "CLAUDE.local.md", "the home directory"), and the words a `!word` line could take back."""
+    config = config_values()
     listed, waived = word_list()
     plain = {v.lower() for v in listed}
     private = {v.lower() for v in config} | plain
@@ -272,65 +262,7 @@ def term_sources():
     if len(user) >= 3:
         for v in ("/Users/" + user, "/home/" + user):
             found.setdefault(v, set()).add("the home directory")
-    return {v: sorted(found[v]) for v in sorted(found, key=len, reverse=True)}, public, waivable
-
-
-# Exact governance references, not a global waiver for an administrator's coincident private first name (#2568).
-# A changed line cannot approve itself: both the owner and each rendered line must already exist on origin/main.
-PUBLIC_ADMIN_LINES = {
-    ".github/CODEOWNERS": ("/docs/SUPER_RULES.md @{login}",),
-    "CLAUDE.md": ("GitHub issue and explicit approval from administrator `{login}` in that issue before editing or opening a PR.",),
-    "docs/README.md": ("file require explicit approval from administrator `{login}` in a GitHub issue before editing or opening a linked PR.",),
-    "docs/SUPER_RULES.md": (
-        "   Wait for administrator `{login}` to explicitly approve the proposed change in that issue. Only after that approval",
-        "   open the issue and wait for `{login}`'s explicit approval before proceeding.",
-    ),
-}
-PUBLIC_ADMIN_SOURCES = frozenset({"config app_store.external.review.first_name", "config app_store.testers.first_name"})
-
-
-def regular_governance_files(head=None):
-    """A symlink's target is not governance prose, even if its text equals an approved reference."""
-    args = ["ls-tree", "-z", head] if head else ["ls-files", "--stage", "-z"]
-    records = subprocess.run(["git", "-C", ROOT, *args, "--", *PUBLIC_ADMIN_LINES],
-                             capture_output=True, check=True, timeout=10).stdout.split(b"\0")
-    return {record.split(b"\t", 1)[1].decode("utf-8") for record in records
-            if b"\t" in record and record.split(b" ", 1)[0] in (b"100644", b"100755")}
-
-
-def public_admin_lines():
-    """Exact published references by path; missing/unreadable evidence grants no exception."""
-    try:
-        base = subprocess.run(["git", "-C", ROOT, "rev-parse", "--verify", "origin/main^{commit}"],
-                              capture_output=True, check=True, text=True, timeout=10).stdout.strip()
-        regular = regular_governance_files(base)
-        published = git_file_data(list(regular), base + ":")
-        owner = re.fullmatch(r"/docs/SUPER_RULES\.md @([A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?)",
-                             published.get(".github/CODEOWNERS", b"").decode("utf-8").strip())
-        if not owner:
-            return {}
-        login = owner.group(1)
-        return {path: {line: login for template in templates
-                       for line in (template.format(login=login),)
-                       if line in published.get(path, b"").decode("utf-8").splitlines()}
-                for path, templates in PUBLIC_ADMIN_LINES.items()}
-    except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return {}
-
-
-def governance_words(path, line, words, sources, published):
-    """Only the exact published login loses its first-name sources on an exact authorized line."""
-    login = published.get(path, {}).get(line)
-    if login is None:
-        return words
-    return [w for w in words if not (w == login and sources.get(w)
-                                    and set(sources[w]) <= PUBLIC_ADMIN_SOURCES)]
-
-
-def terms():
-    """Words to look for, longest first, and those of them allowed in PUBLIC_DIRS."""
-    found, public, _ = term_sources()
-    return list(found), public
+    return {v: sorted(found[v]) for v in sorted(found, key=len, reverse=True)}, waivable
 
 
 def module_paths():
@@ -365,16 +297,6 @@ OK_EMAIL_DOMAINS = re.compile(r"(^|\.)(example(\.(com|org|net))?|test|invalid|lo
                               r"b\.com)$")  # a@b.com: the placeholder in the Lark extension's skill (assistantskills/)
 REAL_TLDS = {"com", "net", "org", "io", "cn", "dev", "app", "ai", "co", "me", "cc", "info", "so", "xyz", "top", "edu",
              "gov", "uk", "jp", "us", "de", "fr", "hk", "tw", "sg", "in", "ru", "kr", "tech", "cloud", "site", "work", "biz"}
-# The public site (site/) shows a contact address on purpose: the OAuth consent screen requires one.
-PUBLIC_DIRS = ("site/",)
-# The site's own address is also quoted by the public install and getting-started entry points. Keep its configured
-# value out of the private-word set in exactly these files; other config values and addresses remain private.
-PUBLIC_SITE_DOCS = {"README.md", "README.zh-CN.md", "docs/operations/getting-started.md"}
-
-# Names that are never in the repository, in any spelling (#4967): vendors and internal repositories Persona only
-# reaches through extensions, which bring their own names. Case-insensitive, with a hyphen, underscore, space or
-# nothing between the parts; checked in contents, paths and commit messages on every machine, CI included, with no
-# private configuration needed. This file is the only place they are spelled, as patterns.
 BANNED_NAMES = re.compile(r"aster[-_ ]?gate|open[-_ ]?lark|open[-_ ]?wechat|extensions[-_ ]?internal|corp[-_ ]?link",
                           re.IGNORECASE)
 # The same pattern without IGNORECASE, run on the lowercased line problems() already has: about twice as fast. It finds
@@ -673,27 +595,22 @@ def main():
     message = option("--message")
     commit_msg = option("--commit-msg")
     span = commit_range(option("--range")) if "--range" in sys.argv else None
-    sources, public_words, waivable = term_sources()
+    sources, waivable = term_sources()
     words = list(sources)
-    governance = public_admin_lines() if any(set(where) <= PUBLIC_ADMIN_SOURCES for where in sources.values()) else {}
-    if governance:
-        try:
-            regular = regular_governance_files(span[1] if span and not staged else None)
-            governance = {path: lines for path, lines in governance.items() if path in regular}
-        except (OSError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            governance = {}
     modules = module_paths()
     if staged:
         files = git("diff", "--cached", "--name-only", "--diff-filter=ACMRT", "-z").decode().split("\0")
     elif span:
         files = git("diff", "--name-only", "--diff-filter=ACMRT", "-z", span[0], span[1]).decode().split("\0")
     else:
-        files = git("ls-files", "-z").decode().split("\0")
+        deleted = set(git("ls-files", "--deleted", "-z").decode().split("\0"))
+        candidates = git("ls-files", "-z").decode().split("\0")
+        files = [name for name in candidates if name not in deleted]
     files = list(filter(None, files))
     if staged or span:
         from_git = [name for name in files if name not in SKIP_FILES]
     else:
-        # Tracked files the worktree lacks (sparse checkout, skip-worktree, deleted but not staged): the index's copy.
+        # Sparse checkout: scan the index’s copy of paths intentionally left outside the worktree.
         from_git = [name for name in files if name not in SKIP_FILES and not os.path.lexists(os.path.join(ROOT, name))]
     snapshots = {}
     if from_git:
@@ -711,9 +628,6 @@ def main():
         bad.append((f, where, private_kind(w, sources)))
 
     for f in files:
-        public = f.startswith(PUBLIC_DIRS)
-        allowed = ([w for w in words if w not in public_words]
-                   if public or f in PUBLIC_SITE_DOCS else words)
         for w in problems(f, words):
             report(f, "path", w)
         if f in SKIP_FILES:
@@ -743,10 +657,8 @@ def main():
                 bad.extend((f, n, kind) for n, kind in npm_lock_problems(lock_text))
         if modules:
             text = modules.sub("", text)
-        published_lines = governance if f in from_git or not os.path.islink(path) else {}
         for n, line in enumerate(text.splitlines(), 1):
-            line_words = governance_words(f, line, allowed, sources, published_lines)
-            for w in problems(line, line_words, emails=not public):
+            for w in problems(line, words):
                 report(f, n, w)
     if span:
         try:

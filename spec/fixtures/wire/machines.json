@@ -3,9 +3,7 @@
     "name": "machines_list",
     "description": "机器列表同时包含在线信息和离线机器的零时间。",
     "source": [
-      "server/internal/hub/machine.go: Machine.snapshot",
-      "apple/Shared/Models.swift: Machine",
-      "apple/Shared/MachineMetrics.swift: MachineSystem"
+      "server/internal/hub/machine.go: Machine.snapshot"
     ],
     "derived": true,
     "decoder": "machines",
@@ -74,8 +72,7 @@
     "name": "machines_event",
     "description": "机器事件使用与列表一致的机器类型。",
     "source": [
-      "server/internal/hub/http.go: Hub.serveWS",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "server/internal/hub/http.go: Hub.serveWS"
     ],
     "derived": true,
     "decoder": "event",

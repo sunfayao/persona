@@ -5,7 +5,6 @@
 /server/persona-node
 /server/persona-link
 /build/
-/build-release/
 __pycache__/
 /tmp/
 # Root-local isolated checkouts and Node.js dependencies.
@@ -14,15 +13,8 @@ __pycache__/
 florak/
 # Personal notes for coding agents working in this checkout (machines, accounts); see CLAUDE.md.
 /CLAUDE.local.md
-/build-publish/
-/build-publish-site/
 /repos/
 /server/internal/hub/webdist/*
 !/server/internal/hub/webdist/README.md
 /server/internal/runtimepkg/dist/*
 !/server/internal/runtimepkg/dist/README.md
-# A hub run from deploy/docker (docs/operations/docker.md): its secrets and data stay out of the repo.
-/deploy/docker/.env
-/deploy/docker/data/
-/deploy/docker/postgres/
-

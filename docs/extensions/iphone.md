@@ -7,7 +7,7 @@ phone and no VPN on it. It is the built-in extension **`iphone`**, parallel to `
 
 | Block | Issue | What |
 | --- | --- | --- |
-| A | #3452 | The device bridge (RemotePairing) and its wire schema ([iphone-bridge.md](iphone-bridge.md)) |
+| A | #3452 | The device bridge (RemotePairing) and its wire schema ([iphone-control.md](iphone-control.md)) |
 | B | #3452 | Pairing and sessions: the pairing record, finding the iPhone again, reconnecting without replaying input ([iphone-pairing.md](iphone-pairing.md)) |
 | C | #3450 | The node's built-in program `iphone`: `iphone.status`, handing `iphone.call` to D, pair / forget / cancel |
 | D | #3452 | The content: element numbers, reading the screen, timeouts, human-like input, which steps need approval |
@@ -186,8 +186,7 @@ answer on.
 - `GET /api/v1/machines/{mid}/iphone` → `IPhone` `{enabled, installed, version?, devices: [{id, name, product_type?, ios?, paired, usb?, state?, transport?, connected, locked, capabilities?, ready, note?, code?, developer_mode?, auto_prepare?, allowed}], note?, code?, ddi_present?, checked?, job?}` (fields are block C's, `proto/iphone.go`);
   `PUT` `{"enabled": bool}` is the computer's switch. Extension off, or a computer the bridge doesn't run on → 404.
 - `POST /api/v1/machines/{mid}/iphone/{pair|forget|cancel|install|prepare}` `{"device"?}`: pair an iPhone plugged into this computer (progress in `job`),
-  forget one's pairing record, cancel a pairing (no device), install the device bridge from the release (no device;
-  [iphone-bridge.md](iphone-bridge.md), "Releases"), prepare an iPhone (its developer disk image, and from then on again by itself:
+  forget one's pairing record, cancel a pairing (no device), install the device bridge (no device), prepare an iPhone (its developer disk image, and from then on again by itself:
   [iphone-pairing.md](iphone-pairing.md), "Preparing the phone"). Pairing, installing and preparing only once the computer is on (404); forget and cancel
   need only the extension on; no device 400; offline or an old node 409; no release build of the bridge for that
   computer 404, the release site away 502. The log never says which iPhone.

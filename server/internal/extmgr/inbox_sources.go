@@ -127,7 +127,7 @@ func (b builtinSources) assistant(ctx context.Context) subscriptionsui.Builtin {
 }
 
 // migrations are the built-in sources whose Inbox feed can be read through a default subscription (#6345, the M steps
-// of docs/design/proposals/inbox-sources-migration.md), by connector: what each subscription reads.
+// of docs/extensions/subscriptions.md), by connector: what each subscription reads.
 var migrations = map[string]subscriptions.Migration{
 	// iMessage's rows as its Collect makes them, ready-made (#6317).
 	"imessage": {Connector: "imessage", Source: "imessage", Icon: "chat", Recipe: inboxRows(wire.ConnectorSubscriptionKindSubMessage)},

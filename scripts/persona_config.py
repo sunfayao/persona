@@ -55,12 +55,11 @@ def env(cfg: dict) -> dict:
         "PERSONA_HUB_SSH": hub_ssh,
         "PERSONA_HUB_URL": hub.get("url", ""),
         "PERSONA_MACHINES": " ".join(m["id"] for m in cfg.get("machines", [])),
-        # Where scripts/release/publish.sh puts personad and install.sh (the site/ worker's domain), and the wrangler to run.
+        # Legacy setting for a privately hosted update source.
         "PERSONA_PUBLISH_URL": get(cfg, "publish.site_url", "").rstrip("/"),
         # Where the personad built here looks for its updates (-X main.updateURL): an existing environment override,
         # then publish.update_url, else <site_url>/dl.
         "PERSONA_UPDATE_URL": update_url(cfg, os.environ.get("PERSONA_UPDATE_URL")),
-        "PERSONA_WRANGLER": os.path.expanduser(get(cfg, "publish.wrangler", "")),
     }
     for key, default in list(out.items()):
         if key.startswith("PERSONA_"):

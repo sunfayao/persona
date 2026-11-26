@@ -128,7 +128,7 @@ For runs against the real apps (#1073 step 4), `MOCK_SYNC_CASE=<file>#<name>` ma
 - `GET /mock/case` shows where the case is and, per device, its socket, the requests it made (`seen`) and its writes in flight. `POST /mock/case/load {"case": …}` plays another case in the same mock.
 - The cases' times are in January 2026, and the web's runners pin their clock there (2026-01-02T03:05:00Z). A runner on the real clock loads with `"now": true`: every time in the case moves by the same amount so that clock reads the present.
 
-`scripts/mock/test_sync_case_mock.py` plays every case's hub side with a scripted device per case device (a socket and HTTP, no app):
+the mock hub plays every case's hub side with a scripted device per case device (a socket and HTTP, no app):
 
 - every step's frames arrive, after an open the hello and the snapshot first, and nothing else about the chat;
 - writes are answered only at their `reply`, held reads only at their `release`;

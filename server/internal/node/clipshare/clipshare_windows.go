@@ -4,7 +4,7 @@ package clipshare
 // format when an app put one there (browsers, Office), else CF_DIB turned into PNG (clipdib.go). Setting an image puts
 // both PNG and CF_DIB. Content marked with ExcludeClipboardContentFromMonitorProcessing (what password managers set
 // to keep clipboard monitors away) is reported as concealed. The node runs in the user's interactive session (a
-// scheduled task at login, docs/operations/windows.md); a node in session 0 has no desktop and so no clipboard.
+// scheduled task at login, docs/operations/link.md); a node in session 0 has no desktop and so no clipboard.
 
 import (
 	"context"

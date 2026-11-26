@@ -1,4 +1,4 @@
-// Package extension is the extension base (docs/extensions/extensions.md, docs/plans/plan-extensions.md): the manifest
+// Package extension is the extension base (docs/extensions/extensions.md, docs/extensions/extensions.md): the manifest
 // (persona-extension.json, formerly persona-plugin.json) and its rules, the configuration form's JSON Schema subset,
 // permissions, the registry of installed extensions, and the wire types of the process extension protocol. Running
 // extensions is extension/host's; a program's side is the Go SDK (sdk/go/ext), which extension/serve wraps for tests.

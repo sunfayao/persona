@@ -92,8 +92,6 @@
 
 Pitfalls, odd behavior, and the tradeoffs made at the time (originally in `CLAUDE.md`; index in `docs/lessons/README.md`). Add new lessons to the relevant section, or start a section if none fits.
 
-- Fixed `time.Sleep` calls in `_test.go` files under `server/` and `sdk/go/` are ratcheted by `scripts/ci/sleep_ratchet.py` (baseline `scripts/ci/sleep_baseline.json`): a file's count may stay or fall, never rise, a new file starts at zero, and `// sleep-ok: <reason>` on the call's line is the only escape. Prefer `testing/synctest`, a polling helper or a channel. Taking a sleep out does not need the baseline lowered in the same change: only a rise fails, and with a base a changed file may not rise above its count at the merge base either (`docs/operations/testing.md`, "Count ratchets"). When the strict direction failed a fall too, a forgotten lowering broke `main` again and again (#2761, #5635), and baseline edits were the commonest conflict between parallel PRs.
-
 - To keep a fake hub answer out (a press past `cardAnswerWait`), block it on a channel the test closes, not a fixed sleep (2026-11-11, #4274). The assistant's `fakeHub` runs app answers under its lock, so a held answer blocks every other fake call: close the channel before the test touches the hub again, and register the close with `t.Cleanup` so a failed assertion cannot leave it blocked (`heldAnswer` in `server/internal/assistant/feishu_answer_ended_test.go`). Then wait for the last effect of the late path (its note), not for a fixed time.
 
 - `synctest.Wait` is not a general goroutine barrier (#1836): mutex contention and real socket I/O, including an `httptest` server's accept loop, do not count as durably blocked. A test waiting for quiescence can hang even though its target operation is waiting as intended. For these integration tests, use explicit entered/release/completed channels and bounded waits; reserve `synctest` for fixtures whose blocking operations it can track.
@@ -199,15 +197,6 @@ Pitfalls, odd behavior, and the tradeoffs made at the time (originally in `CLAUD
 
 - After resolving rebase conflicts, `git diff --check` covers only uncommitted edits; a clean worktree does not prove commits lack conflict markers (#2195). Before push/merge also run `git diff origin/main...HEAD --check` over the full PR diff.
 
-- macOS Unix-socket regressions need short canonical temp directories (2026-11-03, #277). Long system `TMPDIR` exceeds socket address length; `/tmp` can still resolve to `/private/tmp`, making a Codex fixture's original HOME differ from canonical HOME returned after initialization and appearing as handshake timeout. Use independent `/private/tmp/<short-directory>` as test `TMPDIR`, without changing lexical compatibility rules for runtime roots. Preserve failures first, retest pinned source separately; real `lsof` port-scanning defects belong to #541 / #728, not temp-directory issues.
-- Go 1.27's `testing.T.TempDir()` prefers `GOTMPDIR` over `TMPDIR` (confirmed in the toolchain's `src/testing/testing.go`, #6223). Changing only `TMPDIR` leaves test fixtures under the old root. For Unix-socket and configuration-ancestor tests, set both variables to the same new, real, short system temporary directory and isolate `HOME` separately. A long root can exceed Unix-socket path limits; a symlink into a personal home can expose real Codex configuration to ancestor scans. Verify available disk space and effective roots, preserve build caches separately, and never weaken the security assertions to compensate for a misconfigured runner.
-- A temporary directory can have a Git repository above it (#3017). Node polling tests that require the next push to reflect their own change use a fixture-owned repository and wait for `awaitGitPlace` before polling. Since #2758, cold Git labels arrive asynchronously: their `sessions.changed` can precede a transcript-only revision or a workflow cache refresh. Longer timeouts do not fix consuming that unrelated push. `readGitPlace` walks the filesystem directly, so `GIT_CEILING_DIRECTORIES` does not isolate its tests; an empty `.git` file bounds discovery for a non-repository fixture.
-- A shared offline-session cache can satisfy a reconnected node's list without populating that node's transcript metadata (#3017). Carry tests must exercise the new node's first metadata use and check scan identity, rather than infer a missing carried scan from an empty per-node metadata map. Disable ambient agent-process discovery in the fixture and join `Attach` on failure before restoring global scan settings.
-- The server test wrapper hides macOS `/var` path-spelling mismatches (2026-11-08, #1105). `scripts/test/server_test_env.py`, and so hosted CI, sets `TMPDIR` and `GOTMPDIR` to a resolved directory. A test that compares a path the product resolves with `filepath.EvalSymlinks` (such as `hubBinary`) against one built from `t.TempDir()` passes there and on Linux, but fails under a plain `go test` on a Mac, where `t.TempDir()` is under `/var -> /private/var`. Resolve the expected value at the assertion. Resolving the shared temp home instead would also hide a product that stopped resolving. To check a whole package under `/var` with the wrapper, reset the variables inside its command: `server_test_env.py --database-file <file> -- env -u GOTMPDIR TMPDIR=<macOS temp dir> go test ./internal/hub/`.
-- The same `/var -> /private/var` mismatch hid a release bug in the Python scripts (2026-11-09, #1960). `prune_nodes` compared the resolved `bin/nodes` target with unresolved version directories, so under a root with a linked ancestor it deleted the version in use; `NodeRetentionTests` failed only on a Mac, and resolving the test's temporary directory would have made it pass. Fix such tests at the assertion (or in the product), and build the fixture root through an explicit link so Linux CI catches it too. Separately, `scripts/ci/python-tests.py` runs every `scripts/**/test_*.py` under `unittest`: an argument-driven script with that name runs no tests, which exits 0 on CI's Python 3.11 but 5 ("NO TESTS RAN") on 3.12+, so the runner skips files that are not `unittest` suites.
-- On a Mac the first exec of a newly written executable is slow (2026-11-10, #2706): about 290 ms here, against 13 ms for the second, while the system assesses the new file; Linux CI never sees it. A test that writes a fake binary and gives its first run a deadline shorter than that (`versionWait = 100ms` in `TestBuiltinNewBinaryHangs`) kills the fake before it runs a line, so a count the fake keeps stays empty. Observe the call from the caller's side (wrap the package variable that runs it) and wait for the effect, not for a fixed time after the write. The same latency made the 300 ms deadline in #2674 fail 1 run in 5.
-- A fake server that waits in `Accept` hangs the package when the code under test fails before it connects (2026-11-10, #2706): `TestAuthorityWireReadsPersistedIdentityWithoutMigrationOrWrites` ran into go test's 10 minute timeout on a Mac. Close the listener once the call returns, then read the fake's verdict, and report the call's own error with it.
-
 - Validate display names separately from persisted identity during compatible renaming (2026-11-04, #1189). After `persona-link` / `Persona Link` shipped, compressed-install regressions still asserted old display names, causing full release exit 1. Update only display contracts, while verifying real `persona-link` files, legacy download names, old/new executable commands, and actual installer calls; never blindly rename compatibility identities. Script tests must discover `scripts/test`, `release`, `deploy`, `mock`, and `app` separately; rename-only subsets miss old assertions elsewhere. Preserve original failed freeze/exit code; after merge, rerun with a new build number.
 
 - Time-sorted lists need deterministic ties (then sort by ID): two spaces with equal update times can swap on every render, causing UI tests to tap another row.
@@ -218,42 +207,9 @@ Pitfalls, odd behavior, and the tradeoffs made at the time (originally in `CLAUD
   Fixture machine identifiers can accidentally match configured values; use neutral placeholders, not exemptions.
 ## Privacy checks and dependency download sources
 
-- 2026-11-04, #1775: even unmodified Mermaid assets can coincidentally match short private terms inside public event names. Download the pinned package from npm first, verify registry SHA-512 integrity, then byte-compare repository assets with the archive. Never log private terms or matched text.
-  `check_bundle_privacy.py` checks private terms of up to 4 ASCII letters as whole words only when both filename and pinned SHA-256 match original Mermaid 12.3.0 assets. Complete short words, nonletter values, longer private values, and generic email/private-address checks remain. Hashing and scanning use the same byte snapshot, not a mutable local allowlist.
-  Modified, appended, truncated, renamed, or normalization-created fragments cannot receive this classification. Other app files retain strict substring checking; existing public Go mode is unchanged. Dependency upgrades require rechecking public provenance, negative cases, and pinned digests, not merely copying new hashes. Preserve the original failed archive read-only; release fully after merge with a new freeze/build number.
-
 - On 2026-11-02, after configuring `app.push_relay`, the publisher's public relay URL had to enter Info.plist but also matched configured personal-value scans.
   App bundles recognize only the complete configured HTTPS `/relay` URL with no credentials/query. The same domain elsewhere, appended paths/parameters, emails, or credentials still reject;
   public Go binaries get no exception. Do not remove the whole domain from the private-term list; regress adjacent and extended URLs.
-
-- On 2026-11-02, after fixing privacy scanning, public personad still failed to deploy: networking dependencies made raw binaries about 35–37 MiB, exceeding Workers' 25 MiB per-static-asset limit, not expired cf authentication.
-  Publish `.gz` downloads (about 12–14 MiB), scan uncompressed binaries first, and verify compressed archives before installer decompression; check every asset size before upload. `NO_DEPLOY=1` must also check sizes; build/scan alone is not deployment validation.
-  Do not suggest signing in again for every failure. Report successful TestFlight upload separately from failed server publication, and finish internal/external distribution of uploaded builds.
-- On 2026-11-02, public personad privacy false positives included SSH global-request names mistaken for emails, official contact links in Tailscale embedded pages, complete RFC1918 ranges, and cloud-metadata constants mistaken for personal data.
-  Go concatenates read-only strings, even one CIDR immediately after another, so printable-string boundaries are unreliable. Trace matches to dependency source using actual compiler inputs first; never log raw matches.
-  `check_bundle_privacy.py --whole-short` classifies only exact protocol/HTML/network contexts in dependencies built with the `public` tag, without replace, and with checksums matching `server/go.sum`;
-  `publish.sh` first runs `go mod verify`. Configuration/private-term matching still takes precedence on raw text. Missing dependencies, checksum mismatches, or changed context reject; no whole email-domain or private-range exemptions.
-  Regressions: `python3 -B -m unittest discover -s scripts/release -p 'test*privacy*.py' && python3 -B -m unittest discover -s scripts/test -p 'test_privacy*.py'`, plus `NO_DEPLOY=1 ./scripts/release/publish.sh` for four platforms.
-- 2026-11-03, #963: SSH algorithm and certificate key-type names in Swift archives also contain `@`, causing generic-email false positives. Check complete printable fields against public dependency source first; never log matches.
-  `check_bundle_privacy.py` classifies only 7 verified fixed names in `swift-nio-ssh`, requiring complete original-field matches. Names formed after removing bundle/team IDs do not count.
-  This is not an email-domain exemption and does not change generic-email TLD scope. Private terms still match normally; surrounding context, URLs, variants, and ordinary same-domain emails do not receive protocol classification.
-  Validate field-level and actual-scanner regressions, then inspect failed archives read-only. Preserve original freeze, exit code, deployed/not-uploaded state; later releases use new freezes/build numbers, never reuse failed builds.
-- 2026-11-04, #1026: full SSH name-list compatibility must not become removing names from arbitrary word-boundary contexts; that wrongly permits `mailto:` URLs, XML, and names formed only after normalization (#975 regression).
-  Classify only fixed names in complete original fields, or comma lists whose every item is in the fixed set with no empty items/whitespace. Unknown items, URLs, context, and fragments formed after bundle/team-ID removal still scan.
-  First fail synthetic counterexamples on the old implementation, then verify field-level, actual-scanner, and private-term precedence. Retain positive full-name-list cases; a boundary fix must not break prior compatibility.
-- Watch Release binaries can be arm64 + arm64_32 universal Mach-O. Certificate email/personal names in signatures are not business data; privacy scans exclude only embedded signature blobs verified structurally and by bounds in every slice.
-  `LC_CODE_SIGNATURE` offsets are slice-relative; never truncate the entire file at the first slice's signature, or remove private terms because certificate false positives occurred in a universal file.
-  Scan both architectures before/after signatures, unused signature-placeholder bytes, and file tails normally; malformed signatures and out-of-bounds/overlapping slices are not excluded. Regress thin/universal 32-/64-bit and both endiannesses, plus a real Watch archive.
-- `privacy_check: clean` does not prove a complete private-value dictionary. Without local config/private terms, registered matches may include only local paths. npm lockfile download hosts need independent public-source rules, not only private terms; public package names do not prove public `resolved` URLs.
-- Staged-content checks must read the Git index, not only the worktree. If fixed in the worktree but still old in the index, commit hooks must reject; conversely, a safe index must not be rejected because subsequent worktree edits are unsafe.
-- Check lockfiles as complete JSON before ordinary text scans. NUL/binary detection must not skip them, and duplicate keys/JSON escapes must not bypass checks. Errors report only location/type, never blocked addresses.
-- Existing hook files do not mean enabled hooks: `core.hooksPath` is clone-local configuration. After enabling, verify real `git commit` in an isolated temporary repo, never rejection-test the main worktree. Web builds check too, preventing hook-disabled clones from direct publication.
-- Recursive-failure tests must explicitly control or simulate recursion limits, not assume a fixed depth fails on every Python version. Run Python regressions separately; `npm test` does not cover them automatically.
-- If `npm ci` returns 404 because a mirror lacks a pinned version, inspect the command registry first. Even public lockfile sources can be redirected by local registry configuration. Retry with explicit public registry and locally configured proxy; do not change lockfiles, versions, or test baselines to hide environment failures.
-- Async refreshes triggered by config hot switches need a generation, checked under the state lock before committing cache. Comparing only captured booleans cannot prevent out-of-order returns or old requests overwriting after "on → off → on". New-connection handshake refreshes use the same commit check.
-- Static-card previews distinguish reply from push/pop/open. Action IDs are opaque, not message bodies when reply is absent. Regress with shared-example detail buttons; navigation only demonstrates locally or accurately explains its target, never calls a real chat.
-- Background builds/tests require pinned source snapshots; do not merge branches or edit their worktree while running. On 2026-11-05, targeted Go regression enumerated old files before a merge introduced a new caller, producing undefined-method compilation errors. Mixed snapshots cannot judge commits or count as passes. Freeze a commit in a separate detached worktree and rerun.
-- A Go test wrapper embedding a narrow `Store` interface does not gain methods by assigning real Postgres to it. Once card handlers checked optional persistence interfaces first, admin-page tests returned 503; old handlers rejected bad JSON first and hid the fixture gap. Real bus regressions explicitly pass the full DB to the assistant, while hub admin login keeps its wrapper. Retain status assertions, not longer waits or 503 as a pass.
 
 ## A test that loads a native library must declare the library as an input (2026-11-13, #6871)
 
@@ -269,15 +225,6 @@ Gradle then called the tests up to date and skipped them. A deliberately broken 
 **To check the setup**, break one rule on purpose and confirm the binding tests fail before trusting them.
 
 ## Go's test cache can repeat a pass the change broke (2026-11-22, #12724)
-
-Every Go test command the repository's scripts run passes `-count=1`
-(`docs/operations/testing.md`, "Why tests stay uncached"), and dropping it to save time keeps coming up (#10613).
-The reason: Go reuses a test result while the test binary and what the test process itself recorded opening are
-unchanged, and it rechecks a recorded file only inside the module root (`computeTestInputsID` in `cmd/go`: "Do not
-recheck files outside the module, GOPATH, or GOROOT root"), so for `server/` the rest of the repository is
-invisible. Those inputs are exactly what check-fast sends to the packages that read them (the `spec/fixtures/*` rule in
-`scripts/ci/check_fast_map.py`, and `server_readers` in `scripts/test/check-fast.sh`), and what a child process reads,
-like the `go list` that `internal/archguard` runs, is never recorded at all.
 
 Reproduced on 2026-11-22 with Go 1.27.3 at `origin/main` a133f8cce9, from `server/` (`-run` keeps other tests out of
 it; a package with any failing test is never cached):
@@ -306,14 +253,6 @@ limit also cut off that log (#8962, fixed by #8968).
   `go test` while editing is fine, but its `ok (cached)` says nothing about the change.
 - A test cannot tell Go's cache about a file outside `server/` or about what a child process read, so a reader of
   `spec/`, `schema/`, `sdk/go/`, `docs/` or client sources stays correct only while it runs uncached.
-
-## Running the hosted CI lanes on a Mac (2026-11-09)
-
-The `scripts/ci/` lanes are written for the hosted runners; on a Mac developer machine:
-
-- `scripts/ci/server.sh` (all / `node`) first runs "Browser runner resources" (`google-chrome --version`, `free -m`, `df -h /dev/shm`), a Linux runner diagnostic that exits 127 on macOS before any node test. Run `server.sh build`, `managers` and `other`, and the node shard's own step (`scripts/ci/server-shards.py node --database-file …` against the same Postgres 18 fixture); every Go test still runs.
-- `server/internal/extension/denohost` needs `bun` on PATH at the version `.github/workflows/server-test.yml` pins (1.4.2); without it `TestTrustedAdapterMatchesOfficialSDK` fails with "Bun is required", and with another version the committed `adapter.mjs` looks stale. A pinned copy outside the global environment works: `npm install --prefix <dir> bun@1.4.2`.
-- `scripts/ci/scripts.sh` expects Python 3.11 or later with `scripts/ci/requirements.txt` (PyYAML, Pillow) and `actionlint` (CI: `go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12`). Xcode's `/usr/bin/python3` (3.9, no PyYAML) fails about twenty suites for reasons unrelated to the change; use a venv first on PATH.
 
 ## Test database setup (2026-11-10, #2786)
 
@@ -352,9 +291,6 @@ The `scripts/ci/` lanes are written for the hosted runners; on a Mac developer m
   goroutine with `runtime.Stack(buf, true)`: the stack that calls `MkdirAll` or opens the lock names the timer.
 
 ## Green here, red on the hub: judge server tests on the hub machine (2026-11-12, #5182, #5188)
-
-- A test that needs Postgres skips without `PERSONA_TEST_DATABASE_URL`, and a plain `go test` prints `ok` for its package. #5031 changed what `task_plan` answers and checked `internal/hub` without a database, so `TestSupervisedTaskOverTheBus`, which drives that answer end to end, never ran and went red on `main` (#5182). Before a change that touches what a database test covers, run its package with `scripts/test/test-server.sh <package>`, or `go test -v` and check for `SKIP` lines.
-- Allocation budgets are set from numbers measured on the hub machine (linux/amd64). The same tests read about 2 KB lower on an arm64 Mac, so #5150 passed `TestReindexOneRevAllocation` and `TestIndexWholeListAllocation` there and failed them on the hub (#5188). Judge a budget only from a `test-server.sh` run. To find where a regression comes from, compare `allocated(...)` in a probe at both commits; the Mac shows the same difference, so a `pprof -sample_index=alloc_space` profile of the measured call can be taken there.
 
 ## Settle task outcomes and query review history by ref in Postgres tests (#13231)
 
@@ -403,35 +339,7 @@ Ordinary `go test` and CI do not include `//go:build herdrlive`, so a node helpe
 
 ## A shell proxy sends the mock suites' loopback calls away (2026-11-18, #10465)
 
-- With `http_proxy` (or `HTTPS_PROXY`, `ALL_PROXY`) set in the shell, about 30 suites under `scripts/mock/` run by hand failed with socket timeouts: their `urlopen` calls to the mock on `127.0.0.1` went to the proxy. CI never sees it, since `scripts/ci/python-tests.py` starts every suite with the environment `server_test_env.clean_environment` cleans. By hand, unset the proxy variables or go through `python3 scripts/ci/python-tests.py`; a new suite opens loopback URLs with `build_opener(ProxyHandler({}))` (as `scripts/mock/test_todo_view_mock.py` does) and needs neither.
-
-## A moved file or block needs a test that fails when the old copy comes back (2026-11-20, #11476, #11543)
-
-When a file is split or a block moves to another file, branches written before the move still edit the old copy. Their
-merge stops on a modify/delete conflict (the old file is gone) or a content conflict (the block is gone), and the quick
-resolution keeps their side, so the old copy returns beside the new one and nothing fails at once. After #11288 split the
-MCP tool goldens into one file per tool, three PRs from before the split recreated the whole-list `mcp_tools.*.golden`
-files, and the per-tool files went stale until the prompt size ratchets failed on main (#11476). A domain block put back
-into `scripts/mock/mock_hub.py` after it moved into a module of its own would exist twice: the module's routes answer
-first, and the old copy's state goes its own way.
-
-- Ship the guard in the same PR as the move: a test that fails as soon as the old copy is back, by its file name or by
-  the names the block defined, and that names the file to edit instead. `TestNoWholeListMCPToolGoldens` in
-  `server/internal/hub` does it for the goldens; `MovedBlocksTests` in `scripts/mock/test_mock_domains.py` does it for
-  the mock hub's domains (a new move lists its names in that file's `MOVED`).
-- Leave a one-line pointer where the block was. It is what the person resolving the conflict sees on the other side of
-  the markers.
-
 ## When Go on the hub is older than the repository (2026-11-03, #984)
-
-- `test-server.sh` only says "server test environment preparation failed; tests were not started". `server_test_env.py` first runs `go env`;
-  if hub Go is older than `server/go.mod` requires, it downloads a toolchain, but `go env -w` previously set `GOSUMDB=off` on that machine, preventing verification of the downloaded toolchain and failing `go env`.
-  Not a database-config issue. Download the toolchain first in the repo with `GOPROXY=<go-proxy> GOSUMDB=sum.golang.google.cn go version`,
-  then put `~/go/pkg/mod/golang.org/toolchain@v0.0.1-go<version>.linux-amd64/bin` in PATH and run the same command with `GOTOOLCHAIN=local`, `GOPROXY=<go-proxy>`.
-- Only hub-cached dependencies build: if `proxy.golang.org` is unreachable, other packages report `[setup failed]`, making it look as though half the tests are broken.
-- If hub Postgres is system-installed (no `persona-postgres` container), `db.sh` cannot create `persona_test` (its output is discarded), and role `persona` lacks CREATEDB:
-  `internal/db`, `internal/db/dbtest`, `internal/hub` report `database "persona_test" does not exist`, while others pass.
-  Run these three packages against temporary local `postgres:18-alpine` (`-p 127.0.0.1:<port>:5432`) with `PERSONA_TEST_DATABASE_URL`, then remove the container.
 
 ## Web grouping and collapse
 
@@ -494,15 +402,6 @@ Tests check target text and subscribe to write notifications under the same lock
 
 ## Remote test snapshots must include every input outside `server/` (2026-11-03)
 
-- `scripts/test/test-server.sh` synced only `server/`, but #630's `spec/fixtures` tests (`TestWireSamples`, resumption, resolution) read `../../../spec`,
-  failing full hub tests with `open ../../../spec/fixtures/wire: no such file` and looking like your regression. The script now syncs `spec/` too (#642).
-  Add any future test dependency outside `server/` to the script likewise (2026-11-03).
-- Local Go-module `replace` is part of remote test snapshots too (#2028). After `server/go.mod` added `../sdk/go`, copying only `server/` failed setup with `replacement directory ../sdk/go does not exist`.
-  Sync complete `sdk/go/` (including embedded schema) to `sdk/go/` in the same checkout's independent cache, retaining relative paths and `--delete` for stale SDK files. Do not share source directories with other test/deployment lanes.
-  Extension conformance tests also read source-root `schema/extension/examples` (valid samples and `invalid/` cases); SDK embedded schema is not a substitute. Sync `schema/extension/` with the same relative-path/stale-file rules.
-- Docs count too: `connector/conformance` previously compared an integration guide with fixtures (#2725); omitted `docs/` broke full predeployment tests. `docs/**/*.md` now syncs too (#2769).
-  Synthetic rsync must do more than create empty directories: fake Go reads current SDK source, embedded files, and valid/invalid examples. Test cold start, updated source, and stale-file removal, preventing false passes with missing sync inputs.
-
 ## Sandbox tests use independent synthetic protected directories (#2052)
 
 Isolated test launchers place HOME and TMPDIR under temp directories, which can also contain packages/data/runtime directories. bubblewrap's private `/tmp` creates parents for these mount points; ReadDir or writes against launcher HOME may touch newly created empty sandbox directories, not host-home content. Use an independent unbound synthetic directory with preset synthetic files. Inside the sandbox, verify files unreadable and directory unwritable; on the host, verify no write marker and original files unchanged. Never use a real personal home or treat directory existence as host-content leakage.
@@ -560,11 +459,6 @@ For intermittent constraint violations, reproduce with `-count=30`, enumerate tr
 
 ## Node tests time out in terminals: interactive zsh stopped in a background process group (2026-11-05, #3265)
 
-In real terminals (hc / herdr panes, Terminal), `go test ./internal/node` leaves `TestLauncherRepair` stuck until the 10-minute timeout. CI, `test-server.sh` (ssh without `-t`), and Claude Code's Bash tool lack terminals and do not hang.
-node launcher commands use interactive login shells (`zsh -ic`), previously placed in their own group with `Setpgid`. With a controlling terminal, interactive zsh tries to claim it but its group is not foreground,
-so SIGTTOU / SIGTTIN stops it forever (goroutine stack at `launcherRepair` → `Cmd.Wait`). Foreground `personad node` in production terminals likewise hangs launcher probes, health checks, and repair until timeout.
-`killGroupOnCancel` now uses `osproc.SessionGroupAttr()` (`Setsid`): child in a new session, no controlling terminal, with whole-group killing unchanged.
-
 On test hangs, send `kill -QUIT` to the test process first, identify the test and blocked syscall, then judge environment issues. Interactive-shell children need either a new session or no separate process group.
 ## Testing extensions with a test hub on a Linux development machine (#3136, 2026-11-06)
 
@@ -584,8 +478,6 @@ The test binary does not recognize `voice`, reruns the whole package recursively
 `t.TempDir` removes all of a test's temporary directories in one cleanup, added at its first call, and cleanups run last added, first called. A test that first calls it after starting extension programs (`extensionTestHub` adds the cleanup that stops them) has its directories removed while the programs still run. A program the test's last change restarted (a provider switched back on restarts the extensions holding its references) then writes into a directory being removed, and the run fails with only `TempDir RemoveAll cleanup: … directory not empty`, about one run in three. `startTestExtensions` therefore calls `t.TempDir` before adding its cleanup. Anything else that starts processes writing into a test's directories must also add its stop cleanup after the first `t.TempDir` call.
 
 ## A stub PATH and HOME do not hide fixed paths a script checks (2026-11-12, #5434)
-
-`install.sh` and `ensure-herdr.sh` look for herdr in `PATH`, `$HOME/.local/bin`, `$HOME/bin` and the fixed `/opt/homebrew/bin` and `/usr/local/bin`. Their tests set a stub `PATH` and a temporary `HOME`, so they passed on hosted runners but failed on any Mac with herdr from Homebrew: the scripts found the real one and never ran the fake installer. A test of a shell script that looks at absolute paths runs a copy pointing those paths into its temporary root, asserting the rewritten text is found exactly once so a moved path fails loudly instead of quietly testing the real machine again (`InstallHerdrTests` in `scripts/deploy/test_compressed_publish.py`). Keep anything the script finds relative to itself (`$(dirname "$0")/../persona_identity.py`) at the same relative place in the copy.
 
 ## Web screenshots on Linux unsupported by Playwright (2026-11-06, #3140)
 
@@ -673,10 +565,6 @@ Walking files has pitfalls of its own. Reviews of `server/plugins/guard_test.go`
 - A result from a loaded machine can reverse once it is quiet: at a load of ~400, asking for VNC updates early looked
   239 ms faster for typing (3 of 6 pairs); at 25–80 it was slower in all 5 pairs (median +81 ms). Decide on runs made at
   a low load, interleaved (ABBA), and say the load next to the numbers.
-- Driving the real desktop (`server/cmd/vncbench run`): other lanes' windows and dialogs open on top of yours at any
-  time. Send a click, a wheel notch or a drag only where your own page is seen on the screen (vncbench's target
-  checker), type only while your page says it has the keyboard, and bring your browser forward with `open -a`, never
-  by clicking. A window's rounded corner clips a marker drawn in it: keep markers inset.
 - An agent's shell is not the login session: the login keychain is locked there and `security … -w` exits 36 (no user
   interaction allowed). A secret the user stored in the keychain can't be read; use a 0600 file outside the repository.
 
@@ -694,16 +582,6 @@ Walking files has pitfalls of its own. Reviews of `server/plugins/guard_test.go`
 - `testhome` now resolves `GOENV`, `GOPATH`, `GOMODCACHE` and `GOCACHE` with the real home before swapping it and pins
   them. Anything else that reads the home directory for its own config (git, ssh, a CLI's login) has the same problem
   under testhome: pin what the child needs, or give the test its own config.
-
-## A throw-away HOME also hides Docker's CLI plugins (2026-11-13, #6131)
-
-- The Compose config checks run `docker compose` under a temporary `HOME`, so Docker reads an empty config directory and
-  finds no `docker-compose` plugin where Docker Desktop and Colima register it (`cliPluginsExtraDirs` in the user's
-  `~/.docker/config.json`). The checks skipped only on the text `is not a docker command`; Docker 29 prints
-  `unknown shorthand flag: 'f' in -f` for the same missing plugin, so they failed instead, on `main` too.
-- Don't detect a missing tool by one wording of its error: ask it directly in the test's own environment
-  (`scripts/test/compose_cli.py` runs `docker compose version`) and skip with how to enable the check
-  (`PERSONA_TEST_DOCKER_CONFIG`, `docs/operations/hub-update.md`).
 
 ## A throw-away HOME also hides the login keychain from codesign (2026-11-13, #6368)
 
@@ -752,19 +630,14 @@ the suite with `GIT_CONFIG_GLOBAL` pointing at a file that sets `init.defaultBra
 ## Signal tests: a command that outlives the wait, a runner that ignores the signal (2026-11-19, #11017, #11026)
 
 - A test that waits for a signal to end a command must give the command far longer to live than the wait (#11017).
-  `test_heavy_slot.py`'s command slept 20 s under a 20 s wait. A lost signal could not pass (the command then exits
-  with its own status and catches nothing, which the test checks), but a timeout said nothing: the command never got
-  the signal and was still sleeping, or it got it and its parent had not exited yet on a slow machine. Let it sleep ten
-  times the wait, keep the wait generous, and on a timeout say which side stalled.
+  Let the command sleep ten times the wait, keep the wait generous, and on a timeout say which side stalled.
 
 - A signal test passes alone and hangs when its runner started it with that signal ignored (#11026). A non-interactive
   bash starts its background jobs with SIGINT and SIGQUIT ignored, and `nohup` or a detached shell ignores SIGHUP; a
   signal ignored when a shell starts can never be trapped there, so the script under test never sees it. GNU `timeout`
   (coreutils 9.12 measured) passes an ignored SIGINT and SIGHUP on to its command and resets only SIGTERM, so a check
-  run under it keeps them ignored. `test_check_fast.py`'s SIGINT and SIGHUP tests timed out when check-fast ran that
-  suite (each check is a background job under `timeout`; 4 of 6) and passed on their own. They now start check-fast
-  with SIGINT, SIGHUP and SIGTERM at their defaults (`preexec_fn`, as a terminal would), and one test runs them with the
-  runner ignoring the signals (#11250). Do the same in a new signal test before blaming the change.
+  run under it keeps them ignored. In a signal test, start the child with
+  SIGINT, SIGHUP and SIGTERM at their defaults (`preexec_fn`, as a terminal would).
 
 ## A script started with its stderr closed (2026-11-20, #11250)
 

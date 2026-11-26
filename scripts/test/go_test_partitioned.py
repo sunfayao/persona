@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
-"""Run a `go test` command with the partitioned packages split (scripts/test/test-server.sh on the hub machine,
-scripts/test/check-fast.sh's Go checks).
+"""Run large Go packages in concurrent test partitions.
 
-    python3 go_test_partitioned.py go test -count=1 -p 1 [flags] [packages]
+    python3 go_test_partitioned.py go test -count=1 -p 12 [flags] [packages]
 
-internal/node's and internal/assistant's serial runs outgrew Go's ten-minute -timeout (#5328, #5594, #7644). When the
-packages are the whole module (`./...`), name one of go_partitions.PACKAGES, or include a `./<dir>/...` that covers one
-the runner splits (#12765: check-fast's `./internal/assistant/...`), and no -run narrows the tests, the other packages
-run in one `go test` as before and each partitioned package's tests in the partitions go_partitions.py makes for CI's
-shards and the release build, all at once. A `./<dir>/...` is expanded with `go list`; a package found there that
-splits itself (go_partitions.SPLITS_ITSELF, internal/node) stays with the other packages, where its own TestMain splits
-it. Every command keeps the caller's flags (a deploy's -skip, -v, -timeout). Anything else runs exactly as given: this
-process becomes that command.
+Whole-module and recursive package arguments are expanded with `go list`. Packages listed in
+go_partitions.PACKAGES are split unless -run narrows the selection or the package splits itself.
+Each command keeps the caller's flags. Other commands are passed through unchanged.
 
 Only this process writes the output: the other packages' lines as they come, each partition's whole when it ends, so
 lines never mix and `FAIL <package>` / `--- FAIL` read as in a serial run. The exit status is non-zero when any fails.
@@ -308,7 +302,7 @@ def main(argv):
         commands = [argv]
     if len(commands) == 1:
         # Become the command, as if it had been run without this runner: callers see its process, its signals and its
-        # exit status (check-fast's timeout and heavy slot wrap go itself).
+        # exit status.
         sys.stdout.flush()
         os.execvp(commands[0][0], commands[0])
     return run(commands)

@@ -1,7 +1,7 @@
 # To-do view fixtures
 
 The view the manager works out for each to-do (`view` on a row of `GET /api/v1/todos`, #10226): its phase, section,
-reason, line 2, times, marks, asks and steps, by the decision table of `docs/design/proposals/todos-redesign.md` 6.3.
+reason, line 2, times, marks, asks and steps, by the decision table of `docs/assistant/todo-status-sop.md` 6.3.
 The shape is `TodoSummary` in `schema/wire/todo-view.schema.json`. The manager's projection
 (`server/internal/assistant/todo/projection`) answers every case exactly, and its `next_change_at` is the moment the
 view reads differently (`server/internal/assistant/todo/projection/fixtures_test.go`);

@@ -59,7 +59,7 @@ type wireSample struct {
 }
 
 // TestWireSamples captures production encoders and handlers, then compares the whole fixture byte for byte.
-// Expected fields describe the current iOS decoder; the README contains the read-only Swift cross-check.
+// Expected fields describe the shared wire fixtures, including the compatibility cases.
 func TestWireSamples(t *testing.T) {
 	files := wireSamples(t)
 	dir := filepath.Join("..", "..", "..", "spec", "fixtures", "wire")
@@ -194,7 +194,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	hello["features"] = wireFeatures
 	add("connection", "hello_features", "The hello lists the hub's features; the sample carries a fixed list with one flag no client knows, which decoders keep reading past.", "event", ws(hello),
 		map[string]any{"/type": "hello", "/features": wireFeatures}, "server/internal/hub/hello.go: Hub.hello", "server/internal/hub/hello_features_test.go: TestHelloAndHealthCarryTheHubsFeatures",
-		"apple/Shared/LiveConnection.swift: ServerEvent.decode", "docs/protocol/protocol.md: Health check and feature flags")
+		"docs/protocol/protocol.md: Health check and feature flags")
 	w := httptest.NewRecorder()
 	healthReq := httptest.NewRequest("GET", "/api/v1/health", nil)
 	healthReq.RemoteAddr = "127.0.0.1:1234" // from the LAN, where version and features are shown
@@ -215,7 +215,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("connection", "revs_changed_sessions", "版本事件只携带发生变化的会话及其版本。", "event",
 		ws(map[string]any{"type": "revs", "machine_id": "m1", "revs": map[string]int64{"s1": 120, "s2": 7}}),
 		map[string]any{"/type": "revs", "/machine_id": "m1", "/revs": map[string]int64{"s1": 120, "s2": 7}},
-		"server/internal/hub/machine.go: Machine.onEvent", "apple/PersonaTests/SyncEventTests.swift: decodesRevs")
+		"server/internal/hub/machine.go: Machine.onEvent")
 	files["connection"][2].Derived = false
 	files["connection"][2].FromTest = "SyncEventTests.decodesRevs"
 
@@ -233,10 +233,10 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	sessions[0].StateSince, sessions[1].StateSince = now, now
 	add("sessions", "sessions_list", "会话列表保留状态、模式和后台任务信息。", "sessions", httpJSON(map[string]any{"sessions": sessions}),
 		map[string]any{"/sessions/0/state": "needs_you", "/sessions/0/rev": 120, "/sessions/0/permission_mode": "plan", "/sessions/0/background/0/kind": "shell", "/sessions/1/state": "offline"},
-		"server/internal/proto/session.go: Session", "server/internal/hub/http.go: Hub.listSessions", "apple/Shared/Models.swift: Session.init(from:)")
+		"server/internal/proto/session.go: Session", "server/internal/hub/http.go: Hub.listSessions")
 	add("sessions", "sessions_event", "会话事件以信封中的机器标识为准。", "event", ws(map[string]any{"type": "sessions", "machine_id": "m1", "sessions": sessions}),
 		map[string]any{"/type": "sessions", "/machine_id": "m1", "/sessions/0/machine_id": "m1", "/sessions/1/status": "offline"},
-		"server/internal/hub/http.go: Hub.serveWS", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+		"server/internal/hub/http.go: Hub.serveWS")
 	// A Persona chat's queue: the user's own first, then what the manager holds from other conversations (fleet_sessions.go).
 	personaQueue := []proto.Session{{MachineID: "m1", SessionID: "a1", Title: "Persona", Cwd: "/home/user/persona", Status: proto.StatusWorking,
 		State: proto.StateWorking, StateSince: now, Assistant: true, UpdatedAt: now,
@@ -244,7 +244,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("sessions", "sessions_assistant_queue", "Persona 对话的队列先列用户自己的消息，最后 queued_relayed 条来自其他对话或系统。", "sessions",
 		httpJSON(map[string]any{"sessions": personaQueue}),
 		map[string]any{"/sessions/0/assistant": true, "/sessions/0/queued/0": "请补充示例。", "/sessions/0/queued/2": "来自「示例对话」：示例结果已整理好。", "/sessions/0/queued_relayed": 1},
-		"server/internal/proto/session.go: Session.QueuedRelayed", "server/internal/assistant/fleet_sessions.go: Service.decorateInventory", "apple/Shared/Models.swift: Session.ownQueuedCount")
+		"server/internal/proto/session.go: Session.QueuedRelayed", "server/internal/assistant/fleet_sessions.go: Service.decorateInventory")
 
 	// A launcher switch waiting for the next message (#5035) and a Persona chat's own pick (#5033): the complete rows
 	// carry both; a summary row keeps the pick and leaves the switch and the launcher out (the apps keep theirs).
@@ -277,9 +277,9 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	machines[0].System = &proto.System{OS: "linux", Distro: "linux", Name: "示例系统", Version: "1", Kernel: "example", Arch: "arm64", Cores: 2, Memory: 1073741824}
 	add("machines", "machines_list", "机器列表同时包含在线信息和离线机器的零时间。", "machines", httpJSON(map[string]any{"machines": machines}),
 		map[string]any{"/machines/0/online": true, "/machines/0/system/arch": "arm64", "/machines/1/online": false},
-		"server/internal/hub/machine.go: Machine.snapshot", "apple/Shared/Models.swift: Machine", "apple/Shared/MachineMetrics.swift: MachineSystem")
+		"server/internal/hub/machine.go: Machine.snapshot")
 	add("machines", "machines_event", "机器事件使用与列表一致的机器类型。", "event", ws(map[string]any{"type": "machines", "machines": machines}),
-		map[string]any{"/type": "machines", "/machines/0/id": "m1", "/machines/1/id": "m2"}, "server/internal/hub/http.go: Hub.serveWS", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+		map[string]any{"/type": "machines", "/machines/0/id": "m1", "/machines/1/id": "m2"}, "server/internal/hub/http.go: Hub.serveWS")
 
 	concernMachines := []map[string]any{
 		{"id": "pending", "name": "Pending computer", "online": true, "trust": "pending"},
@@ -330,11 +330,11 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	page := map[string]any{"items": all, "has_more": false, "history": "history_example", "to_seq": 10}
 	add("items", "items_all_kinds", "历史页覆盖文本、工具、图片占位、通知和任务通知。", "items", httpJSON(page),
 		map[string]any{"/items/0/kind": "text", "/items/1/kind": "thinking", "/items/2/tool_input/custom_Key/keep_snake_case": true, "/items/3/tool_use_id": "call_example", "/items/4/is_error": true, "/items/5/kind": "notice", "/items/6/kind": "recap", "/items/7/image/data": "", "/items/7/image/lazy": true, "/items/7/image/width": 2, "/items/8/task/exit_code": 0, "/items/8/wake": true, "/items/9/queued": true},
-		"server/internal/proto/item.go: Item, WithoutImageData", "server/internal/hub/http.go: Hub.sessionItems", "apple/Shared/Models.swift: Item, ImagePayload, TaskNote")
+		"server/internal/proto/item.go: Item, WithoutImageData", "server/internal/hub/http.go: Hub.sessionItems")
 	folded := transcript.FoldWork([]proto.Item{text, thought, use, result, recap})
 	add("items", "items_folded_work", "折叠条目由真实折叠函数生成计数及范围。", "items", httpJSON(map[string]any{"items": folded, "has_more": true}),
 		map[string]any{"/items/1/kind": "fold", "/items/1/fold/items": 3, "/items/1/fold/tools": 1, "/items/1/fold/thoughts": 1, "/items/1/fold/through_seq": 4, "/has_more": true},
-		"server/internal/transcript/fold.go: FoldWork", "apple/Shared/Models.swift: Fold", "docs/protocol/protocol.md: 折叠的工作")
+		"server/internal/transcript/fold.go: FoldWork", "docs/protocol/protocol.md: 折叠的工作")
 	todoUse := use
 	todoUse.ToolName = "TodoWrite"
 	todoUse.ToolInput = json.RawMessage(`{"todos":[{"content":"检查表单","status":"in_progress","activeForm":"检查中"}]}`)
@@ -343,10 +343,10 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	todoFold := transcript.FoldWork([]proto.Item{text, thought, todoUse, todoResult, recap})
 	add("items", "items_folded_tasks", "折叠的任务快照保留成功结果与原调用位置，旧 iOS 忽略新增字段。", "items", httpJSON(map[string]any{"items": todoFold, "has_more": true}),
 		map[string]any{"/items/1/kind": "fold", "/items/1/fold/items": 3, "/items/1/fold/tools": 1, "/items/1/fold/through_seq": 4},
-		"server/internal/transcript/fold.go: FoldWork", "server/internal/proto/item.go: FoldTaskSnapshot", "apple/Shared/Models.swift: Fold", "docs/protocol/protocol.md: 折叠的工作")
+		"server/internal/transcript/fold.go: FoldWork", "server/internal/proto/item.go: FoldTaskSnapshot", "docs/protocol/protocol.md: 折叠的工作")
 	add("items", "items_inline_image", "未启用懒加载时图片保留内联数据。", "items", httpJSON(map[string]any{"items": []proto.Item{img}, "has_more": false}),
 		map[string]any{"/items/0/image/mime": "image/png", "/items/0/image/data": img.Image.Data, "/items/0/image/lazy": nil},
-		"server/internal/proto/item.go: Image", "apple/Shared/Models.swift: ImagePayload")
+		"server/internal/proto/item.go: Image")
 	// A Persona chat's queue edit (take back, delete, move): the messages that were queued and, for the composer, their photos.
 	// The hub writes the node's answer as it is (proxyBody), so the sample is the node's encoding of proto.QueueEdit.
 	queueAnswer := func(v proto.QueueEdit) json.RawMessage {
@@ -372,7 +372,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	agent.Task = &proto.TaskNote{Kind: "agent", Status: "completed", Title: "示例子任务", TaskID: "agent_example", Detail: "子任务已完成。"}
 	add("items", "items_task_notifications", "监控事件和子任务结果都作为带 task 的 notice 传输。", "items", httpJSON(map[string]any{"items": []proto.Item{monitor, agent}, "has_more": false}),
 		map[string]any{"/items/0/kind": "notice", "/items/0/task/kind": "monitor", "/items/0/task/detail": "示例值 > 0 & < 10", "/items/1/task/kind": "agent"},
-		"server/internal/proto/item.go: TaskNote", "apple/Shared/Models.swift: TaskNote")
+		"server/internal/proto/item.go: TaskNote")
 
 	// The model each reply was written by (#5034): the apps mark where it changes.
 	first := item("entry_reply_a#0", 1, "assistant", proto.KindText, "示例回答。")
@@ -390,13 +390,13 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("items", "items_recorded_turn_duration", "轮次耗时保留来源及原生关联；旧客户端忽略未知内容类型和可选字段。", "items",
 		httpJSON(map[string]any{"items": durations, "has_more": false}),
 		map[string]any{"/items/0/id": "duration_example#0", "/items/0/role": "system"},
-		"server/internal/transcript/transcript.go: ParseLine", "server/internal/proto/item.go: TurnDuration", "apple/Shared/Models.swift: ItemKind.init")
+		"server/internal/transcript/transcript.go: ParseLine", "server/internal/proto/item.go: TurnDuration")
 	durationClient := &client{out: make(chan []byte, 1), subs: map[[2]string]bool{{"m1", "s1"}: true}}
 	durationHub := &Hub{clients: map[*client]struct{}{durationClient: {}}}
 	durationHub.itemsToSubscribers("m1", "s1", durations, itemSpan{History: "history_example"}, false)
 	add("item_events", "items_live_recorded_turn_duration", "轮次耗时沿用订阅 items 事件，不新增事件或顶层字段。", "event", wireReceive(t, durationClient),
 		map[string]any{"/type": "items", "/items/0/id": "duration_example#0"},
-		"server/internal/hub/http.go: Hub.itemsToSubscribers", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+		"server/internal/hub/http.go: Hub.itemsToSubscribers")
 
 	ixs := []proto.Interaction{}
 	for _, kind := range []string{proto.IxQuestion, proto.IxPlan, proto.IxPermission, proto.IxScreen} {
@@ -428,7 +428,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 			fields["/interaction/dialog/options/1/kind"] = "type_something"
 		}
 		add("interactions", "interaction_"+kind, "交互卡携带对应类型的提问、计划、权限或屏幕信息。", "event", ws(map[string]any{"type": "interaction", "interaction": ix}), fields,
-			"server/internal/proto/interaction.go: Interaction", "server/internal/hub/http.go: Hub.serveWS", "apple/Shared/Models.swift: Interaction, ScreenDialog", "docs/protocol/protocol.md: 终端对话框（screen 交互）")
+			"server/internal/proto/interaction.go: Interaction", "server/internal/hub/http.go: Hub.serveWS", "docs/protocol/protocol.md: 终端对话框（screen 交互）")
 	}
 	// The assistant's ask_user keeps its decision on the card (deadline, reversible, each question's recommend): keys the
 	// apps do not model, which they read past.
@@ -440,7 +440,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 	add("interactions", "interaction_question_decision", "助手的提问卡带截止时间、能否撤回和每题的建议项；客户端不认识这几个键，照常读其余字段。", "event",
 		ws(map[string]any{"type": "interaction", "interaction": decision}),
 		map[string]any{"/type": "interaction", "/interaction/kind": "question", "/interaction/id": "ix_decision", "/interaction/questions/0/options/0/label": "合并"},
-		"server/internal/proto/interaction.go: Interaction.Deadline, Interaction.Reversible, Question.Recommend", "apple/Shared/Models.swift: Interaction")
+		"server/internal/proto/interaction.go: Interaction.Deadline, Interaction.Reversible, Question.Recommend")
 	secret := ixs[3]
 	for _, mode := range []string{"form", "url"} {
 		ix := proto.Interaction{ID: "ix_elicitation_" + mode, MachineID: "m1", SessionID: "s1", Kind: proto.IxElicitation,
@@ -460,18 +460,18 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 		addTestClient(h, c)
 		h.broadcast(map[string]any{"type": "interaction", "interaction": ix})
 		add("interactions", "interaction_elicitation_"+mode, "仅向声明 elicitation 能力的连接下发，旧 iOS 不接收此样本。", "event", wireReceive(t, c), fields,
-			"server/internal/hub/http.go: Hub.broadcast", "server/internal/proto/interaction.go: Elicitation", "android/core/contracts/src/main/kotlin/persona/core/contracts/Elicitation.kt")
+			"server/internal/hub/http.go: Hub.broadcast", "server/internal/proto/interaction.go: Elicitation")
 	}
 	secret.ID = "ix_secret"
 	secret.Screen = "Password:"
 	secret.Dialog = nil
 	secret.Secret = screen.SecretPrompt(secret.Screen)
 	add("interactions", "interaction_secret", "密码提示只携带密码框标记，不携带用户输入。", "event", ws(map[string]any{"type": "interaction", "interaction": secret}),
-		map[string]any{"/interaction/kind": "screen", "/interaction/secret": true, "/interaction/dialog": nil}, "server/internal/screen/secret.go: SecretPrompt", "apple/Shared/Models.swift: Interaction.secret")
+		map[string]any{"/interaction/kind": "screen", "/interaction/secret": true, "/interaction/dialog": nil}, "server/internal/screen/secret.go: SecretPrompt")
 	ixs = append(ixs, secret)
 	add("interactions", "interactions_list", "待处理列表使用与事件相同的交互类型。", "interactions", httpJSON(map[string]any{"interactions": ixs}),
-		map[string]any{"/interactions/0/kind": "question", "/interactions/0/questions/1/multi_select": true, "/interactions/4/secret": true}, "server/internal/hub/http.go: Hub.routes", "apple/Shared/Models.swift: Interaction")
-	add("interactions", "interaction_resolved", "已处理事件仅用交互标识撤回卡片。", "event", ws(map[string]any{"type": "interaction_resolved", "id": "ix_question"}), map[string]any{"/type": "interaction_resolved", "/id": "ix_question"}, "server/internal/hub/hub.go: Hub.resolve", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+		map[string]any{"/interactions/0/kind": "question", "/interactions/0/questions/1/multi_select": true, "/interactions/4/secret": true}, "server/internal/hub/http.go: Hub.routes")
+	add("interactions", "interaction_resolved", "已处理事件仅用交互标识撤回卡片。", "event", ws(map[string]any{"type": "interaction_resolved", "id": "ix_question"}), map[string]any{"/type": "interaction_resolved", "/id": "ix_question"}, "server/internal/hub/hub.go: Hub.resolve")
 	// A question the assistant answered (the manager's fleet.interaction_resolved as the hub passes it on), and the user's
 	// change of answer (the assistant's interaction_reanswered as the hub relays it).
 	{
@@ -484,7 +484,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 		add("interactions", "interaction_resolved_assistant", "助手代答的问题撤回时带上答案和理由，改答从这些答案开始。", "event", wireReceive(t, c),
 			map[string]any{"/type": "interaction_resolved", "/id": "ix_question", "/answered_by": "assistant", "/reason": "示例代码只用蓝色",
 				"/answers/选择示例颜色": "蓝色", "/answers/选择检查项": "格式, 内容"},
-			"server/internal/hub/fleet_link.go: EventFleetResolved", "apple/Shared/LiveConnection.swift: ServerEvent.decode", "docs/protocol/protocol.md: interaction_resolved")
+			"server/internal/hub/fleet_link.go: EventFleetResolved", "docs/protocol/protocol.md: interaction_resolved")
 		raw, _ := json.Marshal(map[string]any{"type": "interaction_reanswered", "id": "ix_question",
 			"resolution": proto.Resolution{Answers: map[string]string{"选择示例颜色": "绿色"}}})
 		if err := h.relayBroadcastFrom(assistantwire.AssistantID, raw); err != nil {
@@ -493,7 +493,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 		add("interactions", "interaction_reanswered", "用户改答后只带改了的问题及其新答案。", "event", wireReceive(t, c),
 			map[string]any{"/type": "interaction_reanswered", "/id": "ix_question", "/resolution/answers/选择示例颜色": "绿色"},
 			"server/internal/assistant/fleet_delegate.go: Service.reanswer", "server/internal/hub/bus_broadcast.go: Hub.relayBroadcastFrom",
-			"apple/Shared/LiveConnection.swift: ServerEvent.decode", "docs/protocol/protocol.md: interaction_reanswered")
+			"docs/protocol/protocol.md: interaction_reanswered")
 	}
 
 	working := sessions[0]
@@ -508,7 +508,7 @@ func wireSamples(t *testing.T) map[string][]wireSample {
 
 	inboxLark := assistant.InboxItem{ID: "lark:feed_example:10", Source: "lark", Kind: assistant.KindMention, Account: "feishu", AccountName: "飞书", Title: "示例讨论", Sender: "小王", Preview: "请确认示例。", Count: 1, StartedAt: now, UpdatedAt: now, Tier: assistant.TierAction, Lark: &assistant.InboxLark{FeedID: "feed_example", IsGroup: true, StartPosition: "10", MentionPosition: "10"}, Context: "仅详情展示的示例内容", Last: "10", TriagedAt: "10", Agent: &assistant.InboxAgent{State: "drafted", MachineID: "m1", SessionID: "s1", Draft: "已收到示例。"}}
 	inboxMail := assistant.InboxItem{ID: "mail:account_example:thread_example:11", Source: "mail", Kind: assistant.KindMail, Account: "account_example", AccountName: "user@example.com", Title: "示例邮件", Preview: "示例已确认。", Count: 1, StartedAt: now, UpdatedAt: now, DoneAt: &now, DoneBy: "user", Read: true, Mail: &assistant.InboxMail{AccountID: "account_example", Mailbox: "INBOX", UIDs: []uint32{11}, MessageID: "message_example", From: assistant.MailAddress{Name: "小王", Email: "sender@example.com"}, Thread: "thread_example", Direct: true}}
-	add("inbox", "inbox_list", "收件箱列表包含飞书和邮件条目，并移除内部上下文。", "inbox", httpJSON(map[string]any{"items": []assistant.InboxItem{inboxLark.Listed(), inboxMail.Listed()}}), map[string]any{"/items/0/source": "lark", "/items/0/context": nil, "/items/0/agent/draft": "已收到示例。", "/items/1/source": "mail", "/items/1/mail/uids/0": 11, "/items/1/done_by": "user"}, "server/internal/assistant/inbox.go: InboxItem.listed", "server/internal/assistant/inbox_api.go: Service.inboxRoutes", "apple/Shared/InboxModels.swift: InboxItem")
+	add("inbox", "inbox_list", "收件箱列表包含飞书和邮件条目，并移除内部上下文。", "inbox", httpJSON(map[string]any{"items": []assistant.InboxItem{inboxLark.Listed(), inboxMail.Listed()}}), map[string]any{"/items/0/source": "lark", "/items/0/context": nil, "/items/0/agent/draft": "已收到示例。", "/items/1/source": "mail", "/items/1/mail/uids/0": 11, "/items/1/done_by": "user"}, "server/internal/assistant/inbox.go: InboxItem.listed", "server/internal/assistant/inbox_api.go: Service.inboxRoutes")
 	wireInboxEveryBlock(t, add, httpJSON, now)
 	wireFeed(t, add, httpJSON, now)
 	wireErrors(t, add)
@@ -584,10 +584,10 @@ func wireItemEvents(t *testing.T, add wireAdder, now time.Time, items []proto.It
 	c := &client{out: make(chan []byte, 1), subs: map[[2]string]bool{{"m1", "s1"}: true}, lazy: true}
 	h := &Hub{clients: map[*client]struct{}{c: {}}}
 	h.itemsToSubscribers("m1", "s1", items, itemSpan{History: "history_example", FromSeq: &from, ToSeq: &to}, false)
-	add("item_events", "items_live_lazy", "实时事件保留起点零值，并按订阅要求移除图片数据。", "event", wireReceive(t, c), map[string]any{"/type": "items", "/from_seq": 0, "/to_seq": 8, "/backlog": false, "/has_more": nil, "/more_after": false, "/items/1/image/lazy": true, "/items/1/image/data": ""}, "server/internal/hub/http.go: Hub.itemsToSubscribers", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+	add("item_events", "items_live_lazy", "实时事件保留起点零值，并按订阅要求移除图片数据。", "event", wireReceive(t, c), map[string]any{"/type": "items", "/from_seq": 0, "/to_seq": 8, "/backlog": false, "/has_more": nil, "/more_after": false, "/items/1/image/lazy": true, "/items/1/image/data": ""}, "server/internal/hub/http.go: Hub.itemsToSubscribers")
 	from, to = 8, 10
 	h.itemsToSubscribers("m1", "s1", nil, itemSpan{History: "history_example", FromSeq: &from, ToSeq: &to}, false)
-	add("item_events", "items_empty_advance", "没有内容块的行仍发送空数组和连续性范围。", "event", wireReceive(t, c), map[string]any{"/items": []any{}, "/from_seq": 8, "/to_seq": 10}, "server/internal/hub/http.go: Hub.itemsToSubscribers", "docs/protocol/protocol.md: items 的连续性", "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+	add("item_events", "items_empty_advance", "没有内容块的行仍发送空数组和连续性范围。", "event", wireReceive(t, c), map[string]any{"/items": []any{}, "/from_seq": 8, "/to_seq": 10}, "server/internal/hub/http.go: Hub.itemsToSubscribers", "docs/protocol/protocol.md: items 的连续性")
 	for _, scenario := range []string{"latest", "catchup", "capped"} {
 		calls := 0
 		m := wireNode(t, func(p json.RawMessage) any {
@@ -635,7 +635,7 @@ func wireItemEvents(t *testing.T, add wireAdder, now time.Time, items []proto.It
 			fields["/from_seq"] = 10 + backlogPages - 1
 			fields["/to_seq"] = 10 + backlogPages
 		}
-		add("item_events", "items_backlog_"+scenario, "订阅补发按最新页、接续补发或补发上限设置分页字段。", "event", raw, fields, "server/internal/hub/http.go: Hub.sendBacklog", "apple/Shared/LiveConnection.swift: ServerEvent.decode", "docs/protocol/protocol.md: WebSocket / items 的连续性")
+		add("item_events", "items_backlog_"+scenario, "订阅补发按最新页、接续补发或补发上限设置分页字段。", "event", raw, fields, "server/internal/hub/http.go: Hub.sendBacklog", "docs/protocol/protocol.md: WebSocket / items 的连续性")
 	}
 	m := wireNode(t, func(json.RawMessage) any {
 		return map[string]any{"items": items, "has_more": false, "more_after": true, "history": "history_example", "from_seq": 0, "to_seq": 8}
@@ -644,7 +644,7 @@ func wireItemEvents(t *testing.T, add wireAdder, now time.Time, items []proto.It
 	req.SetPathValue("sid", "s1")
 	w := httptest.NewRecorder()
 	(&Hub{}).sessionItems(w, req, m)
-	add("items", "items_http_after", "HTTP 增量页保留连续性、后续页标记和图片占位。", "items_after", wireBody(t, w, 200), map[string]any{"/from_seq": 0, "/to_seq": 8, "/more_after": true, "/items/1/image/lazy": true}, "server/internal/hub/http.go: Hub.sessionItems", "apple/Shared/APIClient.swift: APIClient.ItemsResponse, APIClient.NewerResponse")
+	add("items", "items_http_after", "HTTP 增量页保留连续性、后续页标记和图片占位。", "items_after", wireBody(t, w, 200), map[string]any{"/from_seq": 0, "/to_seq": 8, "/more_after": true, "/items/1/image/lazy": true}, "server/internal/hub/http.go: Hub.sessionItems")
 	rangeNode := wireNode(t, func(json.RawMessage) any {
 		return map[string]any{"items": items[:1], "more": true}
 	})
@@ -654,7 +654,7 @@ func wireItemEvents(t *testing.T, add wireAdder, now time.Time, items []proto.It
 	(&Hub{}).sessionItems(w, req, rangeNode)
 	add("items", "items_fold_range", "展开折叠的分页使用 more 表示范围尚未读完。", "items_range", wireBody(t, w, 200),
 		map[string]any{"/items/0/id": "entry_text#0", "/more": true},
-		"server/internal/hub/http.go: Hub.sessionItems", "apple/Shared/APIClient.swift: APIClient.foldedWork.Range")
+		"server/internal/hub/http.go: Hub.sessionItems")
 }
 
 func wireErrors(t *testing.T, add wireAdder) {
@@ -662,7 +662,7 @@ func wireErrors(t *testing.T, add wireAdder) {
 	r := httptest.NewRequest("GET", "/api/v1/sessions", nil)
 	r.RemoteAddr = "127.0.0.1:1234" // from the LAN, so the answer is the plain 401 every client sees
 	newTestHub(t).auth(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Error("unauthenticated request reached handler") })).ServeHTTP(w, r)
-	add("errors", "unauthorized", "未鉴权响应保持字符串 error 字段。", "error", wireBody(t, w, 401), map[string]any{"/error": "invalid token"}, "server/internal/hub/http.go: Hub.auth", "apple/Shared/APIClient.swift: APIError.fields(in:)")
+	add("errors", "unauthorized", "未鉴权响应保持字符串 error 字段。", "error", wireBody(t, w, 401), map[string]any{"/error": "invalid token"}, "server/internal/hub/http.go: Hub.auth")
 	for _, code := range []string{"input_draft", "dialog_open", "prompt_changed"} {
 		data := json.RawMessage(`{"delivered":"none"}`)
 		if code == "input_draft" {
@@ -675,7 +675,7 @@ func wireErrors(t *testing.T, add wireAdder) {
 			fields["/draft"] = "❯ 示例草稿"
 			fields["/clearable"] = "示例草稿"
 		}
-		add("errors", "conflict_"+code, "拒绝操作的错误字段与 error 平铺在同一层。", "error", wireBody(t, w, 409), fields, "server/internal/hub/http.go: callErr", "apple/Shared/APIClient.swift: APIError.fields(in:)", "docs/protocol/protocol.md: 发消息 / 终端对话框")
+		add("errors", "conflict_"+code, "拒绝操作的错误字段与 error 平铺在同一层。", "error", wireBody(t, w, 409), fields, "server/internal/hub/http.go: callErr", "docs/protocol/protocol.md: 发消息 / 终端对话框")
 	}
 	w = httptest.NewRecorder()
 	apierr.ImagesOverLimit(w, proto.DefaultImageLimits, proto.ImagesPerMessage+1)
@@ -685,16 +685,16 @@ func wireErrors(t *testing.T, add wireAdder) {
 }
 
 func wireCompatibility(t *testing.T, files map[string][]wireSample, add wireAdder, ws, httpJSON func(any) json.RawMessage, now time.Time) {
-	add("compatibility", "unknown_event_ignored", "未知事件被当前 iOS 忽略。", "compat_event", ws(map[string]any{"type": "future_event", "extra": true}), map[string]any{}, "apple/Shared/LiveConnection.swift: ServerEvent.decode default", "docs/archive/redesign/README.md: D5")
+	add("compatibility", "unknown_event_ignored", "未知事件被当前 iOS 忽略。", "compat_event", ws(map[string]any{"type": "future_event", "extra": true}), map[string]any{}, "docs/protocol/protocol.md")
 	files["compatibility"][0].Expected.Accepted = false
-	add("compatibility", "hello_unknown_field", "握手中的未知键不会影响已知字段。", "compat_event", ws(map[string]any{"type": "hello", "features": []string{"future_feature"}, "future_field": map[string]any{"enabled": true}}), map[string]any{"/type": "hello", "/features": []string{"future_feature"}}, "apple/Shared/LiveConnection.swift: ServerEvent.Envelope, ServerEvent.decode")
-	add("compatibility", "hello_missing_features", "旧握手缺少能力列表时按空列表处理。", "compat_event", ws(map[string]any{"type": "hello"}), map[string]any{"/features": []any{}}, "apple/Shared/LiveConnection.swift: ServerEvent.decode")
+	add("compatibility", "hello_unknown_field", "握手中的未知键不会影响已知字段。", "compat_event", ws(map[string]any{"type": "hello", "features": []string{"future_feature"}, "future_field": map[string]any{"enabled": true}}), map[string]any{"/type": "hello", "/features": []string{"future_feature"}}, "docs/protocol/protocol.md")
+	add("compatibility", "hello_missing_features", "旧握手缺少能力列表时按空列表处理。", "compat_event", ws(map[string]any{"type": "hello"}), map[string]any{"/features": []any{}}, "docs/protocol/protocol.md")
 	add("compatibility", "items_legacy_null", "旧事件的空 items 按空数组处理，连续性字段保持缺省。", "compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": nil}),
 		map[string]any{"/items": []any{}, "/history": nil, "/from_seq": nil, "/to_seq": nil, "/backlog": false, "/more_after": false},
-		"apple/Shared/LiveConnection.swift: ServerEvent.decode", "docs/protocol/protocol.md: items 的连续性")
-	add("compatibility", "session_unknown_enums", "未知会话状态降级为 unknown。", "compat_session", httpJSON(proto.Session{SessionID: "s1", Status: "future_status", State: "future_state", UpdatedAt: now}), map[string]any{"/status": "unknown", "/state": "unknown"}, "apple/Shared/Models.swift: SessionStatus.init(from:), AgentState.init(from:)", "docs/archive/redesign/README.md: D5")
-	add("compatibility", "session_missing_fields", "旧会话缺字段时使用当前 iOS 的默认值。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "status": "blocked"}), map[string]any{"/machine_id": "", "/title": "", "/state": "needs_you", "/assistant": false, "/pending_interactions": 0}, "apple/Shared/Models.swift: Session.init(from:)")
-	add("compatibility", "item_unknown_kind", "未知内容块类型降级为 unknown。", "compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": []proto.Item{{ID: "entry_future#0", Seq: 1, TS: now, Role: "assistant", Kind: "future_kind"}}}), map[string]any{"/items/0/kind": "unknown"}, "apple/Shared/Models.swift: ItemKind.init(from:)")
+		"docs/protocol/protocol.md: items 的连续性")
+	add("compatibility", "session_unknown_enums", "未知会话状态降级为 unknown。", "compat_session", httpJSON(proto.Session{SessionID: "s1", Status: "future_status", State: "future_state", UpdatedAt: now}), map[string]any{"/status": "unknown", "/state": "unknown"}, "docs/protocol/protocol.md")
+	add("compatibility", "session_missing_fields", "旧会话缺字段时使用当前 iOS 的默认值。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "status": "blocked"}), map[string]any{"/machine_id": "", "/title": "", "/state": "needs_you", "/assistant": false, "/pending_interactions": 0}, "docs/protocol/protocol.md")
+	add("compatibility", "item_unknown_kind", "未知内容块类型降级为 unknown。", "compat_event", ws(map[string]any{"type": "items", "machine_id": "m1", "session_id": "s1", "items": []proto.Item{{ID: "entry_future#0", Seq: 1, TS: now, Role: "assistant", Kind: "future_kind"}}}), map[string]any{"/items/0/kind": "unknown"}, "docs/protocol/protocol.md")
 	for _, bad := range []struct {
 		name, desc string
 		body       any
@@ -703,11 +703,11 @@ func wireCompatibility(t *testing.T, files map[string][]wireSample, add wireAdde
 		{"session_bad_optional_field", "当前 iOS 不会单独忽略类型错误的会话增强字段。", map[string]any{"type": "sessions", "machine_id": "m1", "sessions": []any{map[string]any{"session_id": "s1", "background": "invalid"}}}},
 		{"interaction_unknown_kind", "当前 iOS 不支持未知交互类型的降级解码。", map[string]any{"type": "interaction", "interaction": proto.Interaction{ID: "ix_future", MachineID: "m1", SessionID: "s1", Kind: "future_kind", CreatedAt: now, ExpiresAt: now}}},
 	} {
-		add("compatibility", bad.name, bad.desc, "compat_event", ws(bad.body), map[string]any{}, "apple/Shared/LiveConnection.swift: ServerEvent.decode", "apple/Shared/Models.swift: InteractionKind, Session.init(from:)", "docs/archive/redesign/README.md: D5（现状差异）")
+		add("compatibility", bad.name, bad.desc, "compat_event", ws(bad.body), map[string]any{}, "docs/protocol/protocol.md")
 		files["compatibility"][len(files["compatibility"])-1].Expected.Accepted = false
 	}
-	add("compatibility", "session_zero_time", "Go 零时间能解码，但不算有意义的日期。", "compat_session", httpJSON(proto.Session{SessionID: "s1"}), map[string]any{"/updated_at_meaningful": false, "/seen_at_meaningful": false}, "server/internal/proto/session.go: Session", "apple/Packages/PersonaWire/Sources/PersonaWire/JSONValue.swift: JSON.decoder, Date.isMeaningful")
-	add("compatibility", "date_at_cutoff", "当前 iOS 将 2000 年起点本身也判为无意义日期。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "updated_at": "2000-01-01T00:00:00Z"}), map[string]any{"/updated_at_meaningful": false}, "apple/Packages/PersonaWire/Sources/PersonaWire/JSONValue.swift: Date.isMeaningful", "docs/archive/redesign/README.md: D5（现状差异）")
+	add("compatibility", "session_zero_time", "Go 零时间能解码，但不算有意义的日期。", "compat_session", httpJSON(proto.Session{SessionID: "s1"}), map[string]any{"/updated_at_meaningful": false, "/seen_at_meaningful": false}, "server/internal/proto/session.go: Session")
+	add("compatibility", "date_at_cutoff", "当前 iOS 将 2000 年起点本身也判为无意义日期。", "compat_session", httpJSON(map[string]any{"session_id": "s1", "updated_at": "2000-01-01T00:00:00Z"}), map[string]any{"/updated_at_meaningful": false}, "docs/protocol/protocol.md")
 	for i := range files["errors"] {
 		switch {
 		case i == 0:
@@ -753,6 +753,6 @@ func wireFeed(t *testing.T, add func(file, name, description, decoder string, in
 		map[string]any{"/items/0/kind": "answered", "/items/0/body/answer": "放到独立仓库（推荐） 先只迁一个；example-plugin",
 			"/items/0/body/items/0/answer": "放到独立仓库（推荐）\n先只迁一个", "/items/0/body/items/1/question": "示例插件叫什么？",
 			"/items/1/body/answer": "批准了", "/items/1/body/items": nil},
-		"server/internal/assistant/answered.go: answeredBody, answeredItems", "apple/Shared/Tasks.swift: FeedItem.answeredItems",
+		"server/internal/assistant/answered.go: answeredBody, answeredItems",
 		"docs/protocol/protocol.md: 任务和对话动态")
 }

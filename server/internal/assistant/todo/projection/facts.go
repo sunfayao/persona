@@ -1,6 +1,6 @@
 // Package projection works out the To-dos view (#10226): for each to-do its phase, section, reason, line 2, times,
 // marks, asks and steps (assistantwire.TodoSummary), its rank in its section, and the list's counts and places, by the
-// decision table of docs/design/proposals/todos-redesign.md 6.3. The rules are pinned by the shared cases in
+// decision table of docs/assistant/todo-status-sop.md 6.3. The rules are pinned by the shared cases in
 // spec/fixtures/todo-view and spec/fixtures/todo-counts, whose READMEs list every rule, line key and judgement call.
 //
 // It is pure: no IO and no clock (the caller passes now), and it imports only the standard library, proto (the

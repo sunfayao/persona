@@ -17,7 +17,7 @@ var (
 )
 
 // HelperDownload is where a computer's node fetches the helper program name (persona-iphone-bridge,
-// docs/extensions/iphone-bridge.md "Releases") for goos/arch, and what the download must be: from the hub's node
+// docs/extensions/iphone-control.md "Releases") for goos/arch, and what the download must be: from the hub's node
 // packages source (docs/operations/node-update.md "Node packages"), the release of the hub's version
 // (dl/<version>/manifest.json), else the newest (latest.json). The addresses go in the order to try them: a build
 // listed in latest.json is fetched from dl/<version>/ first and beside latest.json after, as node builds are. The

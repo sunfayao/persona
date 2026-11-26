@@ -1,12 +1,5 @@
 # Third-party notices
 
-## Container security profiles
-
-`deploy/docker/extension-seccomp.json` and `deploy/docker/persona-hub.apparmor` derive from `moby/profiles` at
-`9ee3204f0d0cfa19ca2c6a7b0fcf5a2b353954ae` (Apache-2.0), with additional
-namespace and mount setup rules for non-root bubblewrap. Its license is in
-`deploy/docker/MOBY-LICENSE`.
-
 ## Password login WebAssembly client
 
 `web/public/pake/client.wasm` uses `github.com/bytemare/opaque` v0.18.0 (MIT),
@@ -72,7 +65,7 @@ The web client's build writes `third-party-licenses.txt` next to its `index.html
 `/third-party-licenses.txt`). It lists every npm package `web/package-lock.json` installs for the client, which is every
 package the build can include (xterm, pdf.js, noVNC, KaTeX, Mermaid and its dependencies, SheetJS and the rest), with its
 version, the license it is used under, its source and the license text it is published with. `web/third-party-licenses.ts`
-writes it, and the build fails (as does `web/third-party-licenses.test.ts` in CI's web tests) when a dependency is under a
+writes it, and the build fails (as does `web/third-party-licenses.test.ts`) when a dependency is under a
 license not accepted yet, offers a choice of licenses not made yet, no longer offers the license chosen, or comes without
 a license file.
 
@@ -83,8 +76,7 @@ a license file.
   `third-party-licenses.txt` names.
 - khroma's package.json names no license; its LICENSE file grants MIT. isarray, rehype-katex and remark-math (MIT) are
   published without a license file; their entries point at their source.
-- Authors' email addresses are left out of the license texts: the published hub binary embeds the web client, and the
-  release scan (`scripts/release/check_bundle_privacy.py`) refuses email addresses in it.
+- The web build removes authors' email addresses from the generated license texts.
 
 ## Ovis
 
@@ -113,8 +105,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 ## JetBrains Mono
 
 The website carries the Latin subset of JetBrains Mono (v2.304) as WOFF2
-(`site/public/fonts/jetbrains-mono-latin-400-normal.woff2`, `site/public/fonts/jetbrains-mono-latin-600-normal.woff2`),
-with its license beside it (`site/public/fonts/OFL-JetBrainsMono.txt`).
 
 https://github.com/JetBrains/JetBrainsMono
 
@@ -211,16 +201,6 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
-
-## Unbounded and Noto Serif CJK
-
-Fonts under the same SIL Open Font License 1.1 as JetBrains Mono (its full text is above). Each keeps its license file
-beside it.
-
-| Font | Files | Copyright | License file |
-| --- | --- | --- | --- |
-| Unbounded (the website) | `site/public/fonts/unbounded-latin-800-normal.woff2` | Copyright 2022 The Unbounded Project Authors (https://github.com/googlefonts/unbounded) | `site/public/fonts/OFL-Unbounded.txt` |
-| Noto Serif CJK SC Bold (the website's headlines, a subset made by `scripts/assets/make_site_assets.py`) | `site/public/fonts/persona-serif.woff` | Copyright 2017-2022 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source' (https://github.com/notofonts/noto-cjk) | `site/public/fonts/OFL-NotoSerifCJK.txt` |
 
 ## KaTeX and Mermaid
 

@@ -78,7 +78,7 @@ and pass Google's verification for restricted scopes; Thunderbird's source expli
 
 The client we created uses the consent screen "Persona", external / in production (unverified: at sign-in you see "Google hasn't verified this app"; click "Advanced → Go to Persona").
 The client ID is only written in the manager's `manager.json` (`google.client_id`, `docs/operations/config.md` ("manager.json")), never in the repo or docs.
-Publishing to production requires the branding page to link a home page, privacy policy, and terms of service, with the domain listed under "Authorized domains", so we built a static site (repo `site/`, domain in `site/wrangler.jsonc`).
+Publishing to production requires the branding page to link a home page, privacy policy, and terms of service, with the domain listed under "Authorized domains".
 
 Steps (for reference when recreating):
 

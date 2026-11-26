@@ -26,7 +26,7 @@ Sort priority of a folded row or tab (which agent it speaks for and which pane i
 
 ### Needs you that is not counted
 
-D6 and D11 of `docs/plans/plan-derived-counts.md` ("6. Decisions") decided this.
+D6 and D11 of `docs/assistant/todo-status-sop.md` ("6. Decisions") decided this.
 
 - **What the count leaves out**: the Agents count (the tab's badge, and the Needs you section's header and filter)
   leaves out a muted agent, a quiet task's agent and a session whose only pending cards are held. A held card is a

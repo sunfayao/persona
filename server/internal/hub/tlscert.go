@@ -134,7 +134,7 @@ func sameSANs(cert *x509.Certificate, dns []string, ips []net.IP) bool {
 
 // tlsNames is the only name the self-signed certificate carries. Clients pin its key and check the hub id, never the
 // names, and anyone who reaches the public port can read the certificate: the host name and the LAN addresses must
-// not be in it (the addresses are only handed out after authentication, hub-changes.md 1.2).
+// not be in it (the addresses are only handed out after authentication, docs/protocol/protocol.md 1.2).
 func (h *Hub) tlsNames() []string {
 	return []string{h.hubID() + ".persona.invalid"}
 }

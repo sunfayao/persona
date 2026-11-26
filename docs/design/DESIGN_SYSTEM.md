@@ -2,7 +2,7 @@
 
 Snapshot commit `738ba824c`, date 2026-11-10. All line numbers refer to that commit and will drift. Verify before relying on one.
 
-**Before you add or change UI or an interaction** on any client, read `docs/design/PRINCIPLES.md` and the parts of this document your change touches, and run the "UI change self-check" at the end. The PR description names the rules it followed and gives a reason for every deviation (`CLAUDE.md`, "Design spec for UI changes").
+**Before you add or change UI or an interaction** on any client, read `docs/design/PRINCIPLES.md` and the parts of this document your change touches, and run the "UI change self-check" at the end. Record the rules followed and explain any deviation in the verification summary.
 
 ## Reading route
 
@@ -50,14 +50,14 @@ Relationship to other docs:
 
 - `CLAUDE.md` ("Design spec for UI changes") is the short rule list that agents follow. This document is the longer reference behind it.
 - `docs/web/web.md` covers web layout and conventions.
-- `docs/SUPER_RULES.md` holds the highest-priority rules, including the product audience foundation and the interaction rules cited in section 4. Changes there need administrator approval.
-- `docs/design/DECISIONS.md` is the history of these rules: what was decided, when, and what it replaced. It holds no rules; where it and this document differ, this document wins.
+- `CLAUDE.md` describes the product audience and default interactions.
+- `docs/design/PRINCIPLES.md` is the history of these rules: what was decided, when, and what it replaced. It holds no rules; where it and this document differ, this document wins.
 
 ### 1.2 Rules
 
 1. UI code uses only tokens (section 2): font level, spacing, radius, size, motion, role colors and icons. A plain pixel value is for lines of 4 px or less.
 2. Never restyle an existing screen directly. A new look is a new style or theme color. A change that brings a screen in line with this document is a fix, not a new look; when it changes what a primary screen shows, it is a large change (section 1.4).
-3. Button text never wraps (decided 2026-11-10). A button label stays on one line at every text size. When a label would be truncated, work through these in order: (a) shorten the copy, in every language; (b) ask whether a button is the right control here, since long or user-supplied text is content and belongs in a row, a list or the body, and a set of actions that doesn't fit goes into a menu (a decision row's actions are not hidden in a menu: see the exception below); (c) stack the whole button group vertically, primary action first, each label still on one line, at any size where a label would not fit its share of the row (decided by measured width, not by text size, #6151). Exception, decided in `docs/design/task-cards.md` P1 (#5569): on a narrow width the owner-decision row's text takes the full width and its buttons go below it, the secondary buttons together in one row (wrapping onto the next line whole when they do not fit) and the primary button on its own full-width line last, at every text size; there is no Actions menu. Shrinking the text is a last resort for small overflows such as long translations, never the fix for a label that is too long.
+3. Button text never wraps (decided 2026-11-10). A button label stays on one line at every text size. When a label would be truncated, work through these in order: (a) shorten the copy, in every language; (b) ask whether a button is the right control here, since long or user-supplied text is content and belongs in a row, a list or the body, and a set of actions that doesn't fit goes into a menu (a decision row's actions are not hidden in a menu: see the exception below); (c) stack the whole button group vertically, primary action first, each label still on one line, at any size where a label would not fit its share of the row (decided by measured width, not by text size, #6151). Exception, decided in `docs/design/DESIGN_SYSTEM.md` P1 (#5569): on a narrow width the owner-decision row's text takes the full width and its buttons go below it, the secondary buttons together in one row (wrapping onto the next line whole when they do not fit) and the primary button on its own full-width line last, at every text size; there is no Actions menu. Shrinking the text is a last resort for small overflows such as long translations, never the fix for a label that is too long.
 4. Use a secret field, not a plain text field, for tokens and keys. A key a secret provider's reference can stand in for uses
    `KeyField`: its **Use a reference** switch stays with that key (at the end of the key's label row, so in a list of
    computers' keys each switch sits with its own), and a reference is typed in plain text, never masked. The client does
@@ -76,7 +76,7 @@ Not enforced anywhere: hit-area size, accessibility labels and shadows (inline l
 
 Every UI change attaches light and dark screenshots (UI change self-check), the evidence principle 6 asks for. Who looks at them depends on the size of the change, because the mistakes in a large change are the kind that an Agent checking its own work tends to miss.
 
-- **Large**: a person looks at the screenshots before merge, the issue's author or a maintainer. The Agent that made the change does not count. A change is large when it changes a default (a grouping, a style, what a primary screen shows first), a page's structure or navigation, what a primary screen contains, how a pending request looks or works, or a rule in this document.
+- **Large**: a person looks at the screenshots before integration. The Agent that made the change does not count. A change is large when it changes a default (a grouping, a style, what a primary screen shows first), a page's structure or navigation, what a primary screen contains, how a pending request looks or works, or a rule in this document.
 - **Small**: the Agent that made the change may check its own screenshots. A change is small when it brings a screen back in line with this document, changes copy within section 5, fixes tokens or spacing, or builds a secondary page from existing components.
 - The PR says which one it is, and why. When unsure, it is large.
 
@@ -114,7 +114,7 @@ State colors never follow style.
 | Waiting in the background | working dot at 0.6 | secondary | clock mark; its soft fill the working dot at 0.08 |
 | Idle / Offline | secondary at 0.55 / 0.3 | secondary | gray |
 
-Needs you is blue (`docs/design/DECISIONS.md`, 11-11); the web still uses amber (`web/src/styles.css:233`), DS-01. Waiting in the background is a count of its own: the quick filters and a heading's state counts (`StateCounts`: a computer's or a space's) leave such an agent out of Working and show it with the clock.
+Needs you is blue (`docs/design/PRINCIPLES.md`, 11-11); the web still uses amber (`web/src/styles.css:233`), DS-01. Waiting in the background is a count of its own: the quick filters and a heading's state counts (`StateCounts`: a computer's or a space's) leave such an agent out of Working and show it with the clock.
 
 #### Fills, diff, hues, shell neutrals
 
@@ -501,7 +501,7 @@ On the web, a short, single-line draft in a composer at least 40 rem wide shares
   on the card, gone 220 ms after the pointer leaves, pinned by a click, Esc or a press elsewhere closes it, the bar
   stays while it is open), or without a cost "23.4k tokens" with their lines in the dark tooltip (`--tooltip-bg`,
   13 px, at most 420 px, 500 ms into a hover, never pinned by a pointer). A Persona conversation shows only "≈ $0.12"
-  and one plain line, and nothing without a cost (super rules 0 and 4). On touch screens the text ends the copy + ⋯
+  and one plain line, and nothing without a cost. On touch screens the text ends the copy + ⋯
   row: a tap holds the card or the tooltip, and a second tap on the text or a press elsewhere closes it.
   Translate (#8650) loads a hub-paged reply's full text before requesting its translation: the original and its
   full-text loading/retry control stay visible until the complete translation succeeds. Show original restores
@@ -642,7 +642,7 @@ Set to Full page, the Agent's page opened from a card shows cindy's way-back str
 
 No new token. The two icons are added to `ui/icons.tsx` in the existing stroke grammar. iOS and Android draw these cards in the chat, one per Agent, and a card with an Agent opens that Agent's page (#5110).
 
-**Changed-files card** (web, #5157, `web/src/views/chat/TurnChanges.tsx`; cindy's `TurnChangesCard`, at the owner's request, 2026-11-12), Agents only (super rules 0 and 4): the last thing in a finished Agent exchange that edited files.
+**Changed-files card** (web, #5157, `web/src/views/chat/TurnChanges.tsx`; cindy's `TurnChangesCard`, at the owner's request, 2026-11-12), Agents only: the last thing in a finished Agent exchange that edited files.
 - **Frame:** a `rounded-xl` `bg-surface` section with a 1 px `--line` border and 4 px above and below.
 - **Head** (at least 64 px, 16 px across, 12 px down, 12 px gaps): a 36 px `--field` tile (`rounded-control`) with the 18 px `fileDiff` mark in `--ink-2`; **Changed N files** (14 px medium `--ink`, one line) with `+N -N` under it (12 px mono, `--diff-add-fg` / `--diff-del-fg`, ASCII minus); **Review**, the standard secondary `Button`, on the right.
 - **Files** (under a `--line` hairline, 12 px across, 8 px down): 36 px rows (44 on a touch screen), `rounded-control`, `hover:bg-hover`: the 15 px `file` mark in `--ink-2`, the path relative to the session's folder (13 px `--ink`, truncated, the full path as its title) and its own `+N -N` (each only above zero). Three rows, then **Show N more files** ⌄ / **Show less** ⌃ (13 px `--ink-2`, 32 px, hover `--ink`).
@@ -785,7 +785,7 @@ A list's controls come in four kinds. Each kind looks like itself, so that narro
 
 Search may take query operators and scopes; they live inside the search field.
 
-On the web a list keeps no standing search field of its own beside the app's one search (#6589, the web's Agents list; the native clients are left out, `docs/design/DECISIONS.md` 11-13). On iOS a list may carry the system's search field (`pageSearchable`), scoped to the list, with one row at the end of its results that takes the words to the app's search, never a hand-built field (the To-dos list, 3.4; iOS, hubs with `todo_view`, from #10465's switch-on). On the web: **Search chats** (⌘K) finds its rows with the list's operators (`machine:`, `project:`, `harness:`, `model:`, `state:`, `is:pinned`, `since:`), a match on the row's name first, then its project or computer, then what is inside it, and its **Filter Agents list** (⇧↵) puts the query on the list in place, as a filter chip whose text reopens ⌘K. ⌘K's own **Filter** button, at the end of its field, offers the list's filter choices (computer, project, status, harness, model, Pinned, updated within) and writes each into the query as its operator, the number of operators on it, so a choice stays text to read and change and no hint line has to name the operators. The list's filter button sits on the list's title row, with the list's other menu buttons, and says how many filters are on, as iOS keeps its Agents filter (the computer) in the top bar's list menu with the chosen one a chip over the list.
+On the web a list keeps no standing search field of its own beside the app's one search (#6589, the web's Agents list; the native clients are left out, `docs/design/PRINCIPLES.md` 11-13). On iOS a list may carry the system's search field (`pageSearchable`), scoped to the list, with one row at the end of its results that takes the words to the app's search, never a hand-built field (the To-dos list, 3.4; iOS, hubs with `todo_view`, from #10465's switch-on). On the web: **Search chats** (⌘K) finds its rows with the list's operators (`machine:`, `project:`, `harness:`, `model:`, `state:`, `is:pinned`, `since:`), a match on the row's name first, then its project or computer, then what is inside it, and its **Filter Agents list** (⇧↵) puts the query on the list in place, as a filter chip whose text reopens ⌘K. ⌘K's own **Filter** button, at the end of its field, offers the list's filter choices (computer, project, status, harness, model, Pinned, updated within) and writes each into the query as its operator, the number of operators on it, so a choice stays text to read and change and no hint line has to name the operators. The list's filter button sits on the list's title row, with the list's other menu buttons, and says how many filters are on, as iOS keeps its Agents filter (the computer) in the top bar's list menu with the chosen one a chip over the list.
 
 - **Inbox section bar** (#9053, `docs/assistant/inbox.md` "Section bar"; the To-dos list draws the same states as a Filter at its foot, 3.4, since it lands on all of them): a filter of states, drawn with each client's quick-filter component (iOS `CapsuleFilterBar`, Android `QuickFilterBar`, the web Agents filter bar's look) with Needs you, In progress, FYI, Done and All. Needs you and All always show; the others while they have rows or are chosen; Collapsed stays under All. Needs you carries the `.needs` `CountBadge`, In progress and FYI the neutral one, Done and All none. It opens on Needs you on each entry and is not kept across visits; All is the stacked page as before, the filter's reset. Grouping sits in the bar's trailing menu, not in a row of its own; on Android it is "Group by" in the Inbox's ⋯ sheet, since `QuickFilterBar` has no trailing control and its five choices already run past a phone's width (hidden while In progress or Done is chosen, as the menu is). Why: the stacked page put FYI and Done several screens below a long Needs you; a bar that lands on Needs you keeps what needs the user first and one tap from everything else (3.4 "Sessions that need the user": the Needs you count stays in sight from every choice).
 
@@ -1131,9 +1131,9 @@ The sidebar footer uses the existing Agent marks, secondary text size and thin m
 
 ## 4. Interaction patterns
 
-### 4.1 Navigation hierarchy (super rule 3)
+### 4.1 Navigation hierarchy
 
-`docs/SUPER_RULES.md` rule 3: Assistant and Agents are the only primary home destinations. Settings opens from the sidebar. Everything else (Recordings, Inbox, To-dos, Scheduled Tasks, Knowledge, Machines, Health, extension pages) is pushed from the drawer.
+Assistant and Agents are the only primary home destinations. Settings opens from the sidebar. Other pages, including Inbox, To-dos, Machines and extension pages, is pushed from the drawer.
 
 A dispatched task's Open link (#3711) is a compact row using existing typography, fill, radius and 44 px touch-target tokens, not a filter or a link to the whole In Progress list. One task shows its title and Open; a plan lists only its own tasks in order. Before an Agent is available it opens that task's starting/failure detail. This targeted navigation correction reuses existing pages; no new visual style or setting. Details and wire contract: `docs/assistant/unified-entry.md`, "What a dispatch opens".
 
@@ -1275,7 +1275,7 @@ loading/retry states and timestamps as other secondary views, and adds no primar
 - Reminders are agent tools and Scheduled Tasks, not a UI object.
 - Wording differs per surface for the same event (section 5.4).
 
-### 4.7 Tool execution collapsed (super rule 2)
+### 4.7 Tool execution collapsed
 
 Tool execution is one summary line, never opens by itself, shows the latest text segment while running and the result when done, and expands by hand. Opened by hand, a step (and the summary itself) changes in place: the tapped row stays under the finger, what opens fades in, what closes goes at once, and the list holds still while the turn goes on (new steps, the answer, the next turn, the footer under the list changing) until the user scrolls, taps ↓ or sends (#3005). The "latest segment only" half was not confirmed from code reading and needs a screenshot test.
 
@@ -1515,9 +1515,9 @@ The existing Agent state column continues to describe the Agent, not the task. O
 task; change feedback returns it to ongoing work and invalidates that verification round. Reuse the existing
 verification card, Pass action and chat feedback path; no new setting, component, group or polling loop.
 
-The task cards follow `docs/design/task-cards.md`, which holds the state tables and the reasons.
+The task cards follow `docs/design/DESIGN_SYSTEM.md`, which holds the state tables and the reasons.
 
-- **One card per task, when it is handed out** (#8237, replacing #5569's conclusion cards): the hand-off card is a task's only card in the chat, and it updates in place: its state word follows the task, and a start that failed or a turn the model service cut off reads as such on it, in the danger color, with why in plain words (a raw error stays in the task's details; one naming no known cause reads "Didn't start. Open it for details."). Receipts (done, stopped, failed to start, interrupted), reviews and reports are not drawn, old ones in the history neither, and nothing in the chat says where progress went. The task's row says it: In Progress and Needs You below. iOS, the web and Android since #8237 (Android: #8312). A failed start's and an interrupted task's Needs you row keeps `--danger-wash` with `--ink` words, as the conclusion cards had (contrast in D10 of `docs/design/task-cards.md`).
+- **One card per task, when it is handed out** (#8237, replacing #5569's conclusion cards): the hand-off card is a task's only card in the chat, and it updates in place: its state word follows the task, and a start that failed or a turn the model service cut off reads as such on it, in the danger color, with why in plain words (a raw error stays in the task's details; one naming no known cause reads "Didn't start. Open it for details."). Receipts (done, stopped, failed to start, interrupted), reviews and reports are not drawn, old ones in the history neither, and nothing in the chat says where progress went. The task's row says it: In Progress and Needs You below. iOS, the web and Android since #8237 (Android: #8312). A failed start's and an interrupted task's Needs you row keeps `--danger-wash` with `--ink` words, as the conclusion cards had (contrast in D10 of `docs/design/DESIGN_SYSTEM.md`).
 - **Rows that act** (#8237): a failed start's row in Needs You carries Retry and Remove, an interrupted one Continue (so does a usage limit nothing continues by itself, in In Progress), right under its words and aligned with them, as buttons of their own, never inside the row's tap. An unrecoverable conversation is the exception: its row says Invalid conversation, shows the full new-conversation guidance and has no Continue. A tap elsewhere on the row opens the task.
 - **Finished** (#10922, replacing #8237's Just Finished group under In Progress): an entry of its own after the unfinished work's (on the web after Parked and Persona reviewing; zh-Hans 已完成, ja 完了, the To-dos page's word for Done) listing the handed-out tasks that finished in the last 24 hours, seen or not, newest finished first: a row each with the done mark, the title, Done and what it did (its accepting review's note, why it closed, its receipt's summary, else its Agent's last words). A row nobody has opened since it finished (the To-dos page's Just Finished) is new: the unread green as a plain dot and the state word Just finished, as the Agents list's Just finished rows. Opening a row opens the task and counts as seeing it; it stays, as Done, until its 24 hours pass. The entry is there only while it has rows or its tray is open, drawn quiet (secondary words; the done check's green as its mark on the web and Android), and its number is its rows: finished work, never added to the open-work counts of section 4.8. Why not keep the group: it listed only the unseen rows, so opening one took it out of the tray and only the board had it. Why 24 hours: the window the To-dos page keeps Just finished by, so tasks have one "recent". The entries' row scrolls sideways when they do not fit, on every client (iOS since #10922).
 - **Accept and decision rows** stack when their container is narrow (a container query, not the viewport): the words take the whole width, the secondary buttons one row, the primary its own full-width line. Never a menu.
@@ -1526,7 +1526,6 @@ The task cards follow `docs/design/task-cards.md`, which holds the state tables 
 - **Needs you rows with something to answer are folded to one line** (mark, title, what it waits for, the kind) and open in place on a click of the line or its chevron (`aria-expanded`); the card leaves with the answer, and every row is folded again when the tray changes. The conversation's own cards stay in the chat, and their rows close the tray onto them.
 - **Persona reviewing rows.** The supervisor-review tray names whose turn it is: its status stays "Supervisor reviewing", even after the task's Agent stops. Its neutral follow-up mark is not an Agent-stopped mark. Finished rows keep their completion mark and label; open rows in In progress use the Agent-only column described above. The separate Waiting for merge group keeps its PR blockers.
 - **To-do state chips** use at most half the title area and truncate, so their text cannot hide the task's title on a narrow screen.
-- **Hard-coded font sizes.** `text-[13px]` and its kin may only fall: `scripts/ci/web_font_ratchet.py` (`docs/operations/testing.md`).
 
 ### 4.8.1 Records of interruptions
 
@@ -1798,7 +1797,7 @@ done, not applicable, or deviated (with the reason). It is short on purpose. The
 - [ ] User control: every new behavior-changing setting is visible, changeable and reversible. If Persona or an Agent can change it, the PR names the explanation, the confirmation and the rollback (principle 3).
 - [ ] Consistency: lists the existing components, patterns and count definitions reused; a number shown under an existing name uses the same rule. Anything new has its reason written down and an update to this document (principle 4).
 - [ ] Model and product separate: names which of speed, model, presentation or features it touches, and changes none of the others (principle 5).
-- [ ] Checkable: each item above marked done carries its evidence (screenshot, test name, command output) in the PR (principle 6).
+- [ ] Checkable: each item above marked done carries its evidence (screenshot, test name, command output) in the verification summary (principle 6).
 - [ ] Fast, local-first and stateful: local Sending is immediate, hub receipt shows Processing, failure recovers; before/after feedback and execution timings are separate (principle 7).
 
 **Rules**

@@ -5,8 +5,8 @@
       "name": "empty_list",
       "description": "No to-dos: every count 0, every section named with 0, and the three fixed places only.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.3",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Counts\""
+        "docs/assistant/todo-status-sop.md 3.3",
+        "docs/assistant/todo-status-sop.md 3.7 \"Counts\""
       ],
       "input": {
         "now": "2026-11-10T12:00:00Z",
@@ -72,8 +72,8 @@
       "name": "mixed_list",
       "description": "One to-do in each section. N counts the failed start only: the quiet task's ask and the Can wait decision are listed, not counted; In progress is Working and Waiting; Someday and the closed ones are not open; projects with nothing open get no place.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Counts\"",
-        "docs/design/proposals/todos-redesign.md 3.3",
+        "docs/assistant/todo-status-sop.md 3.7 \"Counts\"",
+        "docs/assistant/todo-status-sop.md 3.3",
         "#10226 (counting)"
       ],
       "input": {
@@ -522,7 +522,7 @@
       "name": "failed_start_counts_open",
       "description": "A failed start older than 48 hours is an open To do, counted open though done_at is stored; a closed to-do is not; a project the knowledge base does not name is titled by its slug.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Counts\"",
+        "docs/assistant/todo-status-sop.md 3.7 \"Counts\"",
         "#10226 (a failed start reads as open)"
       ],
       "input": {
@@ -654,7 +654,7 @@
       "name": "superseded_failed_start",
       "description": "A start that failed yesterday, and a to-do with the same title and plan that finished the work since: the failed start is superseded, closed and not counted open, where alone it would need the owner.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 6.3 row 7 and \"Rule 1a\"",
+        "docs/assistant/todo-status-sop.md 6.3 row 7 and \"Rule 1a\"",
         "docs/assistant/todo-status-sop.md \"Related to-dos\""
       ],
       "input": {
@@ -763,8 +763,8 @@
       "name": "step_counted_once",
       "description": "A plan whose step waits on the owner's decision, and its other step: the plan is one row in Needs you, counted once; the steps it carries are no rows of their own, so neither counts open or in a section.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4 \"Steps roll up\"",
-        "docs/design/proposals/todos-redesign.md 6.2 invariant 6"
+        "docs/assistant/todo-status-sop.md 3.4 \"Steps roll up\"",
+        "docs/assistant/todo-status-sop.md 6.2 invariant 6"
       ],
       "input": {
         "now": "2026-11-10T12:00:00Z",
@@ -974,7 +974,7 @@
       "name": "ranked_list",
       "description": "Rows in every section, each in the order of its section's rule: Needs you and Can wait by deadline, then the oldest ask; Working by the latest activity; Waiting by the soonest wake; To do by due, priority and the newest; Just finished and Done newest first; Someday soonest back first.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4 \"Within a section\""
+        "docs/assistant/todo-status-sop.md 3.4 \"Within a section\""
       ],
       "input": {
         "now": "2026-11-10T12:00:00Z",
@@ -1653,8 +1653,8 @@
       "name": "ranked_steps",
       "description": "Plans ranked by what their steps carry: a plan carrying its step's decision due at 13:00 comes before a decision due at 15:00 asked earlier, and a plan carrying its step's usage limit that resets at 17:00 comes after a limit that resets at 14:00, though its own Inactive mark would come sooner; each carried step ranks beside its plan (ties go by id) and counts nowhere.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4 \"Within a section\"",
-        "docs/design/proposals/todos-redesign.md 3.4 \"Steps roll up\""
+        "docs/assistant/todo-status-sop.md 3.4 \"Within a section\"",
+        "docs/assistant/todo-status-sop.md 3.4 \"Steps roll up\""
       ],
       "input": {
         "now": "2026-11-10T12:00:00Z",
@@ -1902,8 +1902,8 @@
       "name": "waiting_ranked_by_wake",
       "description": "Runs that wait on another Agent or an outside event are Waiting rows, counted In progress, and rank by the hub's next wake of them (work.wake_at) with the park and the usage limit: the soonest first, rows with no wake after them (a fallback check the hub dropped as long overdue, a named wait the hub schedules no wake for, an open PR), the longest waiting first. A moment's model failure the hub retries is Working.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4 \"Within a section\"",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Counts\"",
+        "docs/assistant/todo-status-sop.md 3.4 \"Within a section\"",
+        "docs/assistant/todo-status-sop.md 3.7 \"Counts\"",
         "#10226 (runs that wait on another Agent or an outside event are Waiting)"
       ],
       "input": {

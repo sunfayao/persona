@@ -3,7 +3,6 @@
 Complete all work in the assistant's main chat: say what you want, and Persona breaks it into tasks, assigns suitable Agents, watches progress, and interrupts only when it needs you.
 Personal information (calendar, reminders, email, Lark) and work Agents share this entry point. Many tasks can run at once, and the conversation can continue indefinitely.
 
-Interaction prototype: `docs/assistant/prototypes/unified-entry.html`. Open it directly in a browser; `#step=5&theme=dark` jumps to step 5 in dark mode.
 The prototype is the UI and interaction standard; compare screen by screen during implementation.
 
 ## Boundaries

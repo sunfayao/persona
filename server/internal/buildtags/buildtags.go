@@ -20,7 +20,7 @@ import (
 	"tailscale.com/feature/featuretags"
 )
 
-// Marker is the tag that marks a published build for scripts/release/check_bundle_privacy.py. It changes no code.
+// Marker is the tag that marks a published build for the bundle privacy scan. It changes no code.
 const Marker = "public"
 
 // keep lists the tailscale.com features persona's programs link. The first four are what tailcat's releases keep

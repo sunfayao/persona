@@ -37,7 +37,7 @@ const adminUsage = `usage:
   personad hub admin setup-code                    a one-time code for first-run setup from this machine (asks the
                                                    running hub; valid 10 minutes)`
 
-// accessChoices explains each scope (the catalog key of its meaning); admin_access_help in scripts/deploy/install.sh
+// accessChoices explains each scope (the catalog key of its meaning); admin_access_help in scripts/deploy/admin-access.sh
 // prints the same.
 var accessChoices = []struct{ name, meaning string }{
 	{accessLoopback, "hub-cli.access_loopback"},

@@ -329,8 +329,8 @@ func TestPluginsDependOnlyOnTheSDK(t *testing.T) {
 // first build (platform and tags) it was listed for.
 type pkg struct{ path, dir, platform string }
 
-// platforms are the GOOS/GOARCH pairs the server ships for: the release builds (scripts/release/publish.sh) and the
-// node on Windows (docs/operations/windows.md).
+// platforms are the GOOS/GOARCH pairs the server ships for: the release builds (the release packager) and the
+// node on Windows (docs/operations/link.md).
 var platforms = []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"}
 
 // buildTags are the tag sets the server is built with: none (go build, the tests) and server/build-tags.txt (the

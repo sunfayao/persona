@@ -18,7 +18,7 @@ takes back row 66 (the mock remembers it until the next /mock/sent?mode=) and an
 first by id, those with an id below `before`, at most `limit` (default 50, at most 200, 400 below 1), `next` the id to
 ask for the page after this one and null on the last. Nothing here is real: the names are placeholders, the machine
 and conversation ids are the ones mock_hub.py's fixtures have so a row's chat link opens something. Standard library
-only, no state but the recalls: mock_hub.py calls route(); test_sent_ledger_mock.py pins the shapes.
+only, no state but the recalls: mock_hub.py calls route().
 """
 import json
 import os

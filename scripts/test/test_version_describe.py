@@ -50,8 +50,7 @@ class VersionDescribeTests(unittest.TestCase):
         return subprocess.run([BASH, '-c', command], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
 
     def test_the_build_scripts_all_name_a_version(self):
-        for script in ('scripts/deploy/deploy.sh', 'scripts/release/publish.sh', 'scripts/ci/hub-image.sh'):
-            self.assertIn(script, self.commands, f'{script} no longer runs git describe: update this test')
+        self.assertIn('scripts/deploy/deploy.sh', self.commands)
 
     def test_a_lightweight_release_tag_names_the_build_and_other_tags_never_do(self):
         with tempfile.TemporaryDirectory() as repo:
@@ -59,7 +58,7 @@ class VersionDescribeTests(unittest.TestCase):
             commit(repo, 'one')
             git(repo, 'tag', '-a', 'v0.3.1', '-m', 'v0.3.1')
             commit(repo, 'two')
-            git(repo, 'tag', 'v0.4.0')  # lightweight, as a GitHub release's tag
+            git(repo, 'tag', 'v0.4.0')  # lightweight
             head = commit(repo, 'three')
             git(repo, 'tag', 'testflight/202611140000')
             git(repo, 'tag', 'promo-v1')

@@ -6,7 +6,7 @@ import (
 )
 
 // gate runs before authentication on every /api/ request: requests are refused here for how they arrive (plaintext
-// from the internet, too many failed tokens) rather than for who sent them (docs/archive/redesign/hub-changes.md 1.4).
+// from the internet, too many failed tokens) rather than for who sent them (docs/protocol/protocol.md 1.4).
 func (h *Hub) gate(next http.Handler) http.Handler {
 	if h.cfg.Security.AllowPublicPlaintext {
 		h.logf("WARNING: security.allow_public_plaintext is enabled; public API traffic can expose credentials")
@@ -25,7 +25,7 @@ func (h *Hub) gate(next http.Handler) http.Handler {
 // noteGatewayPlaintext logs, at most every 10 minutes, that plaintext from this container's gateway was refused. The
 // auth line masks the source, and the gateway is where docker-proxy hands over every connection to a port published
 // on the host's loopback, an SSH tunnel's or a reverse proxy's on that host included: without a word about it, a
-// tunnel that signs in fine but gets 403 tls_required on every request has no visible cause (docs/operations/docker.md
+// tunnel that signs in fine but gets 403 tls_required on every request has no visible cause (docs/operations/config.md
 // "SSH tunnel to a hub on the same host").
 func (h *Hub) noteGatewayPlaintext(r *http.Request) {
 	if _, ok := forwardedOf(r); ok {
@@ -44,6 +44,6 @@ func (h *Hub) noteGatewayPlaintext(r *http.Request) {
 	if log {
 		h.logf("api: plaintext from %s, this container's gateway (port mapping hides the real source), refused with "+
 			"tls_required; an SSH tunnel or reverse proxy on this host needs it in security.trusted_cidrs, with the hub's "+
-			"ports published on 127.0.0.1 only (docs/operations/docker.md)", ip)
+			"ports published on 127.0.0.1 only (docs/operations/config.md)", ip)
 	}
 }

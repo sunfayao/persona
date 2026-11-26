@@ -1,11 +1,11 @@
 // Package supervise is `personad supervise`: the hub and the built-in manager as two processes side by side in one
-// container (docs/operations/docker.md "The hub and the built-in manager in one container"). Each is started again
+// container (docs/operations/config.md "The hub and the built-in manager in one container"). Each is started again
 // when it stops, after a pause that grows while it keeps stopping, and the other is left running. With
 // hub.json's assistant.mode service the built-in manager is a service of its own (docs/assistant/managers.md "The
 // built-in manager as its own service"): the supervisor binds it to the hub (a one-time code made from the hub's
 // database, traded over loopback) before it starts it. Otherwise the hub starts its own child as it always has, and
 // the supervisor becomes the hub (exec): the container is what it was. With --manager-only it runs the built-in
-// manager alone, for a container of its own beside the hub's (compose.yaml's commented example). The hub runs as
+// manager alone, for a container of its own beside the hub's. The hub runs as
 // persona-hub and the built-in manager as persona-manager, the image's programs beside personad, unless
 // update.SplitEnv is 0 (docs/server/server.md "Programs").
 package supervise

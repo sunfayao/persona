@@ -30,7 +30,7 @@ var (
 // ValidID says whether id is a plugin id: a-z0-9_-, at most 32, not starting with - or _ (those are the hub's).
 func ValidID(id string) bool { return idPattern.MatchString(id) }
 
-// Manifest is persona-plugin.json (docs/plans/plan-extensions.md "3").
+// Manifest is persona-plugin.json (docs/extensions/extensions.md "3").
 type Manifest struct {
 	ManifestVersion int    `json:"manifest_version"`
 	ID              string `json:"id"`

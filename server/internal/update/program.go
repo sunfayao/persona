@@ -13,7 +13,7 @@ import (
 // architecture, nothing is run): nodeproto.ProgramPersonaNode for a build of server/cmd/persona-node, else
 // nodeproto.ProgramPersonad (personad and every older build, which do everything persona-node does and more), or ""
 // when path is not a Go executable that can be read. It knows persona-node by its package path, so a build of the
-// package (go build ./cmd/persona-node, as deploy.sh, publish.sh and mac-link.sh do), not of a file list (go build
+// package (go build ./cmd/persona-node, as deploy.sh, the release packager and mac-link.sh do), not of a file list (go build
 // main.go records command-line-arguments).
 func ProgramOf(path string) string {
 	info, err := buildinfo.ReadFile(path)

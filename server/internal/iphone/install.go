@@ -18,7 +18,7 @@ import (
 )
 
 // InstallSource is a release's build of the bridge for this computer, as the manager found it in the release's
-// manifest (helpers, docs/extensions/iphone-bridge.md "Releases"): where to fetch it (tried in order) and what it must
+// manifest (helpers, docs/extensions/iphone-control.md "Releases"): where to fetch it (tried in order) and what it must
 // be: the archive's size and sha256, and the sha256 of the binary it unpacks to.
 type InstallSource struct {
 	URLs         []string `json:"urls"`

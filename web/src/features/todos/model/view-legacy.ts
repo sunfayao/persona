@@ -1,6 +1,6 @@
 // The hub's view of a to-do read in the web's own words (#10226; docs/web/web.md "Developing Persona"): which of today's
 // sections (lib/todo-triage.ts) a row's `view` stands for, and which differences between the two the redesign decided
-// (docs/design/proposals/todos-redesign.md 6.3; docs/assistant/todo-status-sop.md "The hub's view"), so the shadow
+// (docs/assistant/todo-status-sop.md 6.3; docs/assistant/todo-status-sop.md "The hub's view"), so the shadow
 // (view-shadow.ts) reports only the ones nothing explains. Pure: no state, no clock of its own.
 
 import { TODO_LIST_SECTIONS, TODO_REASONS, type TodoSummary } from "../../../lib/todo-view-wire";

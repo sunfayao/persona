@@ -3,7 +3,7 @@
 // those. The program is either a plugin's, run by the plugin host (Config.Link: the hub's way, docs/extensions/extensions.md), or
 // started here with the connector protocol's own opening (Config.Path), which only this package's tests still do.
 // Connector extensions such as Telegram (#1704) run the first way, outside personad for their dependencies
-// (docs/archive/extensions/plan-telegram.md).
+// (docs/extensions/connectors.md).
 package proc
 
 import (

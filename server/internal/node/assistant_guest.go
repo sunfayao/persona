@@ -430,7 +430,7 @@ func (n *Node) assistantDirOf(rel string) string {
 // data_dir the hub reports the assistant's directory in (#5505). On the default layouts it is whichever of ~/.persona and
 // the former state directory (compat.StateDir) is a directory rather than an alias of the other and is the node's: an
 // installation still kept under the former name keeps the path Claude Code knows its sessions and memory by
-// (docs/operations/rename.md), and a migrated one never gets the former directory back. n.dir as it is when it is
+// (docs/protocol/rolling-upgrade-compatibility.md), and a migrated one never gets the former directory back. n.dir as it is when it is
 // neither (not made yet).
 func (n *Node) stateRoot() string {
 	dir := filepath.Clean(n.dir)

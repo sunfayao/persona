@@ -4,8 +4,7 @@
     "description": "会话列表保留状态、模式和后台任务信息。",
     "source": [
       "server/internal/proto/session.go: Session",
-      "server/internal/hub/http.go: Hub.listSessions",
-      "apple/Shared/Models.swift: Session.init(from:)"
+      "server/internal/hub/http.go: Hub.listSessions"
     ],
     "derived": true,
     "decoder": "sessions",
@@ -104,8 +103,7 @@
     "name": "sessions_event",
     "description": "会话事件以信封中的机器标识为准。",
     "source": [
-      "server/internal/hub/http.go: Hub.serveWS",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "server/internal/hub/http.go: Hub.serveWS"
     ],
     "derived": true,
     "decoder": "event",
@@ -206,8 +204,7 @@
     "description": "Persona 对话的队列先列用户自己的消息，最后 queued_relayed 条来自其他对话或系统。",
     "source": [
       "server/internal/proto/session.go: Session.QueuedRelayed",
-      "server/internal/assistant/fleet_sessions.go: Service.decorateInventory",
-      "apple/Shared/Models.swift: Session.ownQueuedCount"
+      "server/internal/assistant/fleet_sessions.go: Service.decorateInventory"
     ],
     "derived": true,
     "decoder": "sessions",

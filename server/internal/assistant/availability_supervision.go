@@ -9,7 +9,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// What supervision costs per accepted task (#5086, step K1 of docs/design/proposals/main-chat-availability.md;
+// What supervision costs per accepted task (#5086, step K1 of docs/assistant/assistant.md;
 // docs/assistant/assistant.md "Supervision by model"): per model and effort the reviewing conversation ran on, how
 // many tasks it accepted, how many of those were reopened within a day and how many rework rounds they took; and per
 // day and supervisor conversation, the tasks it accepted next to the output tokens it generated. Work events like the

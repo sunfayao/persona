@@ -17,7 +17,7 @@ import (
 	"github.com/nwverse/persona/server/internal/update"
 )
 
-// runRelease is `personad release …`, what scripts/release/publish.sh runs to describe and check a release (docs/operations/hub-update.md "Public publishing").
+// runRelease handles release manifest generation and verification.
 func runRelease(args []string) error {
 	if len(args) == 0 {
 		return usageError(releaseUsage())
@@ -74,7 +74,7 @@ func runRelease(args []string) error {
 		b, _ := json.MarshalIndent(m, "", "  ")
 		return os.WriteFile(*out, append(b, '\n'), 0o644)
 	case "verify":
-		// The check before an upload, of the latest.json as written: publish.sh runs it on what it is about to put up.
+		// The check before an upload, of the latest.json as written: the release packager runs it on what it is about to put up.
 		fs := flag.NewFlagSet("release verify", flag.ContinueOnError)
 		dir := fs.String("dir", "", "where latest.json's downloads are")
 		manifest := fs.String("manifest", "", "the manifest (default: latest.json in --dir)")
@@ -124,7 +124,7 @@ func runRelease(args []string) error {
 		if err != nil {
 			return err
 		}
-		// Nothing served is a missing or empty file (publish.sh writes an empty one when the fetch fails). Any other
+		// Nothing served is a missing or empty file (the release packager writes an empty one when the fetch fails). Any other
 		// read error fails the check: a nil manifest passes it whatever the build and commit.
 		var m *update.Manifest
 		b, err := os.ReadFile(served)

@@ -1,9 +1,9 @@
 # To-do detail fixtures
 
-The elements of a to-do's page, the paper (#10465; `docs/design/proposals/todos-redesign.md` ("3.5 The paper")): given
+The elements of a to-do's page, the paper (#10465; `docs/assistant/todo-status-sop.md` ("3.5 The paper")): given
 what the item route answers for a to-do and where its page is shown, which elements the page draws, in which order,
 which action is its one primary, and whom its composer addresses first. Presence and order only: words, sizes and looks
-are each client's (proposal 7.2). `scripts/test/test_todo_fixtures.py` checks the format, holds every case to the rules
+are each client's (proposal 7.2). the shared fixture tests checks the format, holds every case to the rules
 below and the proposal's three columns to its table, and keeps the everyday cases free of machinery (proposal 7.7). No
 client reads them yet (#10465).
 
@@ -17,7 +17,7 @@ client reads them yet (#10465).
 are English.
 
 - `audience`: `everyday`, for the Assistant's audience, whose page needs no programming or Agent tools
-  (`docs/SUPER_RULES.md` rule 4), or `agents`, for work Agents do on a computer.
+  (`CLAUDE.md` rule 4), or `agents`, for work Agents do on a computer.
 - `input.item`: `{"todo": row}`, the row the page has: what `GET /api/v1/todos/{id}` answers from a manager that names
   `todo_view` (`docs/protocol/protocol.md`), else the list's row where that route is not there (404 or 405). The row
   is the listed one, with its `brief`, `agents`, the legacy `ask` while a decision waits, and `view` (`TodoSummary` in
@@ -80,7 +80,7 @@ the pane shows, the pointer. `conversation_block` and `conversation_pointer` tak
   as the pointer, since its home in the pane holds the screen's one primary. With no ask drawn: `none` for phase
   `needs_you` (the to-do waits on the owner, but not for an answer on this page), `mark_done` for phase `ready`
   (finished, open), else `tick`.
-- `addressee` (`docs/design/proposals/todos-redesign.md` ("The addressee chip")): while the pane shows, its channel (a
+- `addressee` (`docs/assistant/todo-status-sop.md` ("The addressee chip")): while the pane shows, its channel (a
   run, or the steward for the to-do's conversation); else the run the page was opened from; else `steward`.
 
 ### Rows this version does not know
@@ -124,7 +124,7 @@ The view's enums are open: a newer hub may send other values (`schema/wire/todo-
 
 The addressee is `steward` in every page but `release_from_agents` (`run:m1/s-notes`),
 `release_pane_on_the_widget_run` (`run:m1/s-widget`) and `nara_pane_on_the_guide_run` (`run:m1/s-guide`). The to-dos
-are the V1 prototype's (`docs/design/prototypes/todos/data/todos.js`), with a few added for the rules the prototype
+are the V1 prototype's, with a few added for the rules the prototype
 does not draw; the Nara row and its view are `step_and_parent_both_ask` of `spec/fixtures/todo-view`.
 
 ## Judgement calls
@@ -183,5 +183,4 @@ Where the proposal and the prototype leave a choice open, these cases make it; c
 ## Run
 
 ```sh
-python3 -B scripts/test/test_todo_fixtures.py   # the format, the rules above, the three columns, the everyday guard
 ```

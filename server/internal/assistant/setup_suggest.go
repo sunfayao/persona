@@ -12,7 +12,7 @@ import (
 )
 
 // The recommended setup, said once (#5085, docs/assistant/assistant.md "Recommended setup"; step R3, section 4c of
-// docs/design/proposals/main-chat-availability.md). The mechanisms that cut asks and background rounds ship off or
+// docs/assistant/assistant.md). The mechanisms that cut asks and background rounds ship off or
 // empty because each spends tokens or acts for the owner. This block says, from the install's own records, which of
 // them would have removed how many of the last setupWindow's asks or background rounds, with what it costs and where
 // it is turned on.

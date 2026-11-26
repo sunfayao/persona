@@ -415,12 +415,6 @@ def command_aliases(directory):
         os.replace(temporary, alias)
 
 
-def render_installer(source, target, url):
-    code = base64.b64encode(pathlib.Path(__file__).read_bytes()).decode()
-    text = pathlib.Path(source).read_text().replace("@PERSONA_DL@", url).replace("@PERSONA_IDENTITY@", code)
-    pathlib.Path(target).write_text(text)
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prepare", action="store_true")
@@ -429,13 +423,9 @@ def main():
     parser.add_argument("--shell", action="store_true")
     parser.add_argument("--env", action="store_true")
     parser.add_argument("--alias-binaries", metavar="DIRECTORY")
-    parser.add_argument("--render-installer", nargs=3, metavar=("SOURCE", "TARGET", "URL"))
     args = parser.parse_args()
     if args.alias_binaries:
         command_aliases(args.alias_binaries)
-        return
-    if args.render_installer:
-        render_installer(*args.render_installer)
         return
     if args.prefix:
         # The resolver travels base64-encoded on the python3 -c line: a heredoc inside $(...) breaks macOS's bash 3.2,

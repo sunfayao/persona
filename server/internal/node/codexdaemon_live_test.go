@@ -26,7 +26,7 @@ import (
 // Codex panes on a shared app-server, answered over its protocol (docs/integrations/codex.md "Sessions on the daemon"): a real
 // `codex app-server` on a socket of its own (never the daemon in use), a TUI attached to it in the isolated herdr, and
 // a node that knows only that app-server (discovery off) and answers the cards the way the phone does. Env as
-// TestLiveCodexCards; PERSONA_CODEX_DAEMON=1 runs it (scripts/test/test-codex.sh, for a Codex with app-server daemons), and
+// TestLiveCodexCards; PERSONA_CODEX_DAEMON=1 runs it (the opt-in Codex test harness, for a Codex with app-server daemons), and
 // PERSONA_CODEX_FALLBACK=<a codex without one> also checks that such a Codex beside it stays on the terminal route.
 func TestLiveCodexDaemon(t *testing.T) {
 	bin, work := os.Getenv("PERSONA_CODEX_BIN"), os.Getenv("PERSONA_CODEX_WORK")

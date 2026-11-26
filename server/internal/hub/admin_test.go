@@ -822,7 +822,7 @@ func TestAdminMachinesWriteHubJSON(t *testing.T) {
 	c := signedIn(t, mux, ip4(192, 168, 1, 20)+":1")
 	for body, code := range map[string]string{
 		`{"kind":"link","id":"Bad ID"}`:                         "invalid_id",
-		`{"kind":"ssh","id":"box","ssh_host":"me@box"}`:         "ssh_unsupported", // not added any more (plan-hub-center.md 4)
+		`{"kind":"ssh","id":"box","ssh_host":"me@box"}`:         "ssh_unsupported", // not added any more (docs/server/mesh.md 4)
 		`{"kind":"tailcat","id":"box"}`:                         "ssh_unsupported",
 		`{"kind":"carrier-pigeon","id":"box"}`:                  "invalid_kind",
 		`{"kind":"link","id":"old"}`:                            "exists",

@@ -34,40 +34,6 @@ func TestAgentsProviderORCapabilityAdvertisement(t *testing.T) {
 	}
 }
 
-func TestAgentsProviderORProtocolContract(t *testing.T) {
-	raw, err := os.ReadFile("../../../docs/protocol/protocol.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.Split(string(raw), "\n")
-	start, end := -1, len(lines)
-	for n, line := range lines {
-		if strings.HasPrefix(line, "#### ") && strings.Contains(line, "agents_provider_or") {
-			start = n
-			continue
-		}
-		if start >= 0 && n > start && strings.HasPrefix(line, "#### ") {
-			end = n
-			break
-		}
-	}
-	if start < 0 {
-		t.Fatal("protocol has no dedicated personal-Agent provider OR section naming agents_provider_or")
-	}
-	section := strings.Join(lines[start:end], "\n")
-	for _, required := range []string{
-		"case-sensitive", "OR", "AND", "full-set", "counts", "cursor", "delta",
-		"64", "empty", "invalid_query", "`provider`", "fallback",
-	} {
-		if !strings.Contains(section, required) {
-			t.Errorf("provider OR protocol section does not define %q", required)
-		}
-	}
-	if lower := strings.ToLower(section); !strings.Contains(lower, "old hub") {
-		t.Error("provider OR protocol section does not define old-hub fallback")
-	}
-}
-
 func TestRuntimeProviderSingletonAndRepetitionCompatibility(t *testing.T) {
 	h := newTestHub(t)
 	machine := newMachine(h, MachineConfig{ID: "demo"})

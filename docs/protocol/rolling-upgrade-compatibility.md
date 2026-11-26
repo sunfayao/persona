@@ -257,71 +257,11 @@ The rule fields of `GET`/`PUT /api/v1/assistant/start-defaults` and of the neste
 | systemd / launchd | `jarvisd{,-node}`, `jarvis-link`, `com.jarvis.{hub,node,manager.*}` | `personad{,-node}`, `persona-link`, `com.persona.…` | 优先已安装服务，避免双启动 | 新装后的旧 installer 再安装不在滚动升级授权范围，另列边界 |
 | Postgres 容器／卷／账号／库 | `jarvis-postgres`, `jarvis-pgdata`, `jarvis` | `persona-postgres`, `persona-pgdata`, `persona` | 沿用配置的 URL 和已有容器／卷，不初始化另一套状态 | 已有 URL 不改写，旧角色仍连接同库 |
 | 二进制下载产物 | `jarvisd-<os>-<arch>.gz`, `jarvis-link-…`, `jarvisd-wechat-…` | `personad-…`, `persona-link-…`, `personad-wechat-…` | 接受 manifest 的旧产物名，保持摘要校验 | 仅 GET 404 可名称 fallback；摘要失败不能降级 |
-| APK | `jarvis.apk` | `persona.apk` | 下载路径／文件名 alias | Android 注册 package 不因显示名改变 |
 
-## 网页与 Android 本地边界
+## 网页本地边界
 
 | 标识 | 旧名 | 新名 | 新实现读旧状态 | 写入／安全约束 |
 | --- | --- | --- | --- | --- |
 | 网页登录 | `jarvis.token`, `jarvis.tokenId` | `persona.token`, `persona.tokenId` | canonical 存在（包括空串）优先；旧 token 的 ID 只与同一旧 token 一起迁移 | 写两套，退出清两套；不把旧 ID 配到新的 token |
 | 网页外观与筛选 | `jarvis.theme`, `jarvis.agents.prefs`, `jarvis.agentFilter`, `jarvis.files.view` | 相应 `persona.…` 精确键 | 只读登记的键，不按 prefix 扫描任意 storage | 外观同步 bootstrap 在首帧前读旧 theme，不接触凭据；修改双写 |
 | 网页新对话草稿 | `draft:jarvis-new` | `draft:persona-new` | Composer 实际读旧键，canonical presence 优先 | 双写，保留其他会话草稿键 |
-| Android 分栏偏好 | `jarvis-panes`, `split.jarvis` | `persona-panes`, `split.persona` | canonical preference／值存在时优先，否则读旧；普通 pane key 不改 | 保存当前键，不清空旧 AppData |
-| Android 已排队确认 | `jarvis.phone.confirm` | `persona.phone.confirm` | receiver 双读 action，既有 data scheme 不加限制 | 保持 live callback 和锁屏授权限制；不自动批准 |
-| Android 更新缓存 | `jarvis-update-*.apk` | `persona-update-*.apk` | 两类都视为更新包 | 清理不当成普通 AppData；不改变 package／签名身份 |
-
-## Side-session fold (`sessions_side_fold`, #7944)
-
-The manager folds a Claude desktop app's side sessions under their parent (`folded_as: "side"`, `folded_side`, the
-`children` sides keys; `docs/protocol/protocol.md` "Session hierarchy") and names `sessions_side_fold` in its bus
-hello; the hub lists the feature only while every manager that carries Agents names it.
-
-| Pair | What it sees |
-| --- | --- |
-| New hub and managers, new client | Sides fold into their parent's chat; lists and counts show the parent once. |
-| A manager without the capability beside a new one | The hub does not list the feature; new clients keep sides as rows. The new manager's rows still carry the fold, so a `roots=1` page leaves its sides out of the rows, as it does any folded row. |
-| Old manager, new hub | No fold and no feature: clients keep today's behaviour. |
-| New hub and managers, an older web bundle | Until it reloads it folds by `folded_under` alone: a side is drawn as a child card in its parent's chat and left out of the rows; its parent shows the side's working or needs-you state, not its unseen result (`sides_unread`). |
-| New hub and managers, an older Android app | The same: it folds rows by `folded_under`, so a side is one of its parent's child sessions until the app is updated. |
-| New hub and managers, an older iOS app | From #8010 on it folds rows by `folded_under` too, so a side is one of its parent's child sessions until the app is updated; an app from before #8010 folds by its own child fields, which a side lacks (no `parent_session_id`), and the side stays a plain row of its own. |
-
-### Screen Link close confirmation (#10006)
-
-Screen Link `close_ack` is message type 14 with the same channel and 64-bit final offset as the `close` it confirms. It is
-additive and needs no feature negotiation: a new phone sends it after every `close`, including a repeated close for an
-already ended channel, and an old node skips the unknown type. A final-data `ack` is not a close confirmation, because
-it can cross with a close the phone has not processed. A new node accepts `close_ack` only for the outstanding close's
-channel and exact final offset; duplicate, stale and unknown-channel confirmations are ignored.
-
-| Pair | Behavior |
-| --- | --- |
-| New node, new phone | An unconfirmed close is offered again on a different surviving route. Confirmation stops another copy; a late valid confirmation also cancels a copy not sent yet. |
-| New node, old phone | No `close_ack` arrives. A route change can offer the close again, which the old phone already accepts idempotently. An unconfirmed video close stays recoverable while it has a route; with no route it finishes as before. |
-| Old node, new phone | The old node skips type 14. The phone's data, reset and close behavior is otherwise unchanged. |
-| Old node, old phone | Unchanged. |
-
-RFB keeps its existing completion rule in every combination: the local close finishes the channel and session at the
-next watchdog tick without waiting for `close_ack`.
-
-## Apple 端交接
-
-原生协议兼容跟踪 #6192；本地状态与系统身份跟踪 #6152。Apple 的实现应遵循上述能力和字节约定；本清单不替它们宣称 Keychain、Intent、偏好、Shortcut、旧 controls、活动或 watch 在途数据已经验证。
-
-## 可重复验证
-
-```sh
-# 显式提供私有 Postgres 管理连接；脚本只创建／删除随机命名的 fixture 库。
-python3 -I scripts/test/test_rolling_compatibility.py --workspace <private-workspace> --real-nodes
-# 新网页和 Android 使用真实旧 hub；Gradle 额外参数只通过环境配置。
-python3 -I scripts/test/test_rolling_compatibility.py --workspace <private-workspace> --clients --android --case old
-```
-
-脚本需要 `PERSONA_COMPAT_DATABASE_URL`；可用 `--old-bin` / `--new-bin` 复用已经构建的二进制。真实 node 使用已缓存的公共 Debian image，不挂载宿主 HOME／socket／PID，不拉取 image。Android 的 `PERSONA_COMPAT_GRADLE_ARGS` 接收本机构建参数；每个 case 先清除测试结果再运行，避免 Gradle 把不同私有 endpoint 的探针当成 up-to-date。诊断和凭据只写到 0700 私有 workspace，超时有明确失败结果。
-
-细项命令、合成截图、初次失败与修正、最终结果和未验证项见 [本地验收记录](../archive/operations/rolling-upgrade-compatibility-verification.md)。
-
-## 验证与边界
-
-本地隔离验收通过：8 个真实 hub／manager 与 fixture／真实 node 组合；新网页和 Android 分别对真实旧 hub＋旧／新 manager 完成实际发送、同 ID 重试仅执行一次和 `done` receipt；服务端 91 包、9,179 个通过测试事件（含子测试）、零失败，53 个可选／平台／helper 跳过；网页 5,025 通过、1 可选 live 跳过，构建通过；Android 10 个模块 2,501 通过、零失败、8 个可选 live 跳过（1 个本兼容探针、7 个新主分支的原生扩展 showcase 场景），APK 重新打包通过。可选 live 探针随后在显式私有环境中另行执行，不把默认跳过当作实测。
-
-网页最终深浅色截图已经查看，只有合成 fixture 数据。SDK、runtime 集成、配置／安装／发布产物及精确标识／隐私／文档路径守卫通过；最初失败和修正细节保留在验收记录。CI 停用，未运行，不能写为通过。没有线上验证或部署；没有 Android 真机／模拟器原地升级与视觉验收，原生系统身份、Watch 在途传输及 Xcode 26.0 验证不由本线程宣称完成。

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs on the hub machine (deploy.sh and scripts/test/test-server.sh pipe it over ssh): make sure the hub's Postgres is
+# Runs on the hub machine (deploy.sh pipes it over SSH): make sure the hub's Postgres is
 # up and that ~/.persona/hub.json has database_url. Idempotent; the password is generated once and lives only in
 # hub.json (0600).
 #   a new hub: container persona-postgres · image postgres:18-alpine · 127.0.0.1:18661 · volume persona-pgdata
@@ -7,7 +7,7 @@
 # is the one that serves it: on a hub set up before the rename that is jarvis-postgres (volume jarvis-pgdata, user and
 # database jarvis), even when a persona-postgres container exists too. A container is made only when there is neither a
 # database_url nor any hub database container or volume. Moving a database to the new names is the operator's step in
-# docs/operations/persona-cutover.md, never this script's.
+# a separate operation.
 set -euo pipefail
 NAME=persona-postgres
 VOLUME=persona-pgdata
@@ -136,7 +136,7 @@ for _ in $(seq 1 30); do
 done
 ready=$(in_db pg_isready -U "$DB_USER" -d "$DB_NAME" 2>&1) ||
   { echo "postgres in $NAME is not ready on port $INNER inside the container after 30s: $ready" >&2; exit 1; }
-# Throwaway database for scripts/test/test-server.sh: <database>_test (scripts/test/server_test_env.py).
+# Throwaway database for scripts/test/server_test_env.py: <database>_test (scripts/test/server_test_env.py).
 in_db psql -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}_test'" | grep -q 1 ||
   in_db createdb -U "$DB_USER" "${DB_NAME}_test"
 [ -n "$(url)" ] || { echo "hub.json has no database_url" >&2; exit 1; }

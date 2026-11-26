@@ -1,5 +1,5 @@
 // Package larkcli exposes the read-only Lark tools backed by the user's
-// lark-cli login (docs/plans/plan-lark-cli.md, L2).
+// lark-cli login (docs/extensions/feishu.md, L2).
 package larkcli
 
 import (

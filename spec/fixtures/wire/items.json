@@ -4,8 +4,7 @@
     "description": "历史页覆盖文本、工具、图片占位、通知和任务通知。",
     "source": [
       "server/internal/proto/item.go: Item, WithoutImageData",
-      "server/internal/hub/http.go: Hub.sessionItems",
-      "apple/Shared/Models.swift: Item, ImagePayload, TaskNote"
+      "server/internal/hub/http.go: Hub.sessionItems"
     ],
     "derived": true,
     "decoder": "items",
@@ -149,7 +148,6 @@
     "description": "折叠条目由真实折叠函数生成计数及范围。",
     "source": [
       "server/internal/transcript/fold.go: FoldWork",
-      "apple/Shared/Models.swift: Fold",
       "docs/protocol/protocol.md: 折叠的工作"
     ],
     "derived": true,
@@ -221,7 +219,6 @@
     "source": [
       "server/internal/transcript/fold.go: FoldWork",
       "server/internal/proto/item.go: FoldTaskSnapshot",
-      "apple/Shared/Models.swift: Fold",
       "docs/protocol/protocol.md: 折叠的工作"
     ],
     "derived": true,
@@ -305,8 +302,7 @@
     "name": "items_inline_image",
     "description": "未启用懒加载时图片保留内联数据。",
     "source": [
-      "server/internal/proto/item.go: Image",
-      "apple/Shared/Models.swift: ImagePayload"
+      "server/internal/proto/item.go: Image"
     ],
     "derived": true,
     "decoder": "items",
@@ -339,8 +335,7 @@
     "name": "items_task_notifications",
     "description": "监控事件和子任务结果都作为带 task 的 notice 传输。",
     "source": [
-      "server/internal/proto/item.go: TaskNote",
-      "apple/Shared/Models.swift: TaskNote"
+      "server/internal/proto/item.go: TaskNote"
     ],
     "derived": true,
     "decoder": "items",
@@ -448,8 +443,7 @@
     "name": "items_http_after",
     "description": "HTTP 增量页保留连续性、后续页标记和图片占位。",
     "source": [
-      "server/internal/hub/http.go: Hub.sessionItems",
-      "apple/Shared/APIClient.swift: APIClient.ItemsResponse, APIClient.NewerResponse"
+      "server/internal/hub/http.go: Hub.sessionItems"
     ],
     "derived": true,
     "decoder": "items_after",
@@ -499,8 +493,7 @@
     "name": "items_fold_range",
     "description": "展开折叠的分页使用 more 表示范围尚未读完。",
     "source": [
-      "server/internal/hub/http.go: Hub.sessionItems",
-      "apple/Shared/APIClient.swift: APIClient.foldedWork.Range"
+      "server/internal/hub/http.go: Hub.sessionItems"
     ],
     "derived": true,
     "decoder": "items_range",
@@ -531,8 +524,7 @@
     "description": "轮次耗时保留来源及原生关联；旧客户端忽略未知内容类型和可选字段。",
     "source": [
       "server/internal/transcript/transcript.go: ParseLine",
-      "server/internal/proto/item.go: TurnDuration",
-      "apple/Shared/Models.swift: ItemKind.init"
+      "server/internal/proto/item.go: TurnDuration"
     ],
     "derived": true,
     "decoder": "items",

@@ -35,7 +35,7 @@ func githubLatestRepo(base string) string {
 }
 
 // tagVersion is a release version that can name its tag in a URL: v<version>, the tags releases are published under
-// (docs/operations/release.md).
+// (docs/operations/hub-update.md).
 var tagVersion = lazyre.New(`^[0-9A-Za-z][0-9A-Za-z._-]*$`)
 
 // releaseBase is where the files of the release of version are when its latest.json was read at base: for a GitHub

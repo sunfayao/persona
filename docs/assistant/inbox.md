@@ -393,7 +393,7 @@ replies to my comments, and mentions of me in posts or comments. Likes and new f
 
 ## Connector: GitHub (2026-11-02)
 
-Connector activity needing me (`docs/plans/plan-connectors.md`) also enters the Inbox. A connector implements `connector.Inbox`, returning candidates (`InboxThing`, one per thread),
+Connector activity needing me (`docs/extensions/connectors.md`) also enters the Inbox. A connector implements `connector.Inbox`, returning candidates (`InboxThing`, one per thread),
 which the manager turns into items (`server/internal/assistant/inbox_connectors.go`; hub delivers candidates each round). Rules match Lark chats: one unhandled item per thread, later activity merged with `count` incremented;
 after handling, new activity opens another. A thing whose `at` is older than its open item's latest step is an earlier step read again (a connector re-reading after a restart): it is not counted and never moves the item back (#1527), and its read state is not applied to the item (#2149). This errs toward unread: a thread read elsewhere that the connector reports only at an older step stays unread here until its next activity or its end, instead of an unread one turning read.
 A new item never takes the id of an existing one (`sha1(thread, last)`): that step already made an item, perhaps handled since. If the connector says an item ended (merged, closed, replied by me), automatically handle it (`done_by` = read / replied); read elsewhere and not Needs you means `read`.
@@ -1005,64 +1005,6 @@ serves: everyone reading the Inbox on the Assistant side; it adds no setting and
 - Tests: Apple `InboxGroupClearTests` and UI `InboxGroupClearUITests` (with the mock's `MOCK_INBOX_EXTRA=<n>` it also shows the
   mail group's title stuck at the top); web `views/inbox/InboxList.group-clear.test.tsx`.
 
-## App
-
-- `InboxStore` (`Persona/App/InboxStore.swift`): list cached locally (`inbox-items`), shown before refresh on cold start; fetch on Inbox events, reconnect, page entry.
-  Mark done locally before request; restore on failure. A mark the hub may not have yet is laid over every list that comes in (`InboxMarks`, #2201): while its request is out, over every list; once the hub took it, over the lists that started before then. So a reload taken before the hub had it (the push after another item's Done) can't bring a swiped-away item back; the web does the same (`withPending`). Tab badge = unhandled Needs you count.
-- Page (`Persona/Views/Inbox/InboxView.swift`): top filters (All / Lark / each mail account | Mentions / Private / Groups / Mail); search titles, senders,
-  body, summary. The section bar is the list's first row, above the filters (`CapsuleFilterBar` with the grouping menu at its end, hidden under In Progress and Done; `Persona/Views/Inbox/InboxBar.swift`, "Section bar" above): a choice shows its section alone under a heading that doesn't fold, and All stacks the sections as follows.
-  Every entry opens on Needs you, also the Inbox chosen again while its page stays up (the place in front picked again, a widget, a quick action,
-  visionOS's Inbox tab: `AppModel.inboxEntries`). iOS and iPadOS never show the list beside an item, so they follow the phone's rule: an item
-  opened from outside (a Needs-you line over the composer) is pushed over the Inbox, the list landed on its choice (`InboxBarLanding`), so
-  closing it shows the list there, as an item a place kept and brings back does; an item opened from another item's chain or relations is
-  pushed over that item and leaves the choice alone, so Back returns to it. A strip that doesn't fit scrolls with `.edgeFade()`, and the
-  choice landed on or tapped scrolls clear of the fade (`revealsSelection`).
-  Sections: Needs you (expanded), Working (always expanded, non-tappable heading, Inbox phase 1; present only with hub `status`, absent on older hubs using `tier`; excluded from badges and Watch Needs you, while urgent `status: action` still counts), FYI (expanded, Mark All Seen to the heading's right), Collapsed (collapsed, Clear All), then Done (collapsed); groups and selection in "Grouping and selection".
-  Tap headings to expand / collapse. Row: 40-point avatar (18pt source badge at bottom right: Lark blue, mail neutral gray), title (headline) + type `Chip` (mentions red), time;
-  a connector's row shows its thread's picture (`connector.avatar_url`; iOS `ChatAvatar`, Android `JAvatar` through `rememberLarkAvatar` at the avatar's actual dp size times display density; #10923, #10932, `docs/protocol/protocol.md` ("Avatars (#10923)")), the initial while it loads, without one or when it fails. Android keeps the item's manager on deferred reads and cache keys, and does not request a loaded picture again on scroll-back;
-  with summary, second line ✦ summary, third small "sender: content" (secondary gray, not tertiary); before triage, just "sender: content." Count badge (normally gray fill, primary-color fill for mentions).
-  Separator starts at text column (16 + 40 + 12). Lark avatar palette avoids red / orange that imply Needs you. Full left swipe = done. More contains Clean up all (see "Clean up all" above).
-- **Waiting Agents also appear under Needs you**: pending questions, plans, permissions, terminal prompts, including assistant `ask_user`, excluding muted Agents, sort first
-  (`InboxAgentRow`: rounded square like Machines session rows, request-type icon on light red fill; Agent title, question second line,
-  red "Claude is asking / Plan needs approval" + machine third line. No type chip after the title, which gets full width). Tap opens the Agent chat (assistant in Chats tab). Combined only in the App,
-  not stored by hub Inbox; Agents unchanged. Agent filter shows only these, while source filters hide them.
-- Opening: Lark chat at the item's first new message (`LarkChatView`, focus = start_position), mail at latest message; Done at top right.
-  Visible Lark messages are reported read, including the first screen opened from Inbox (confirmed 2026-10-31; gate in `docs/archive/redesign/ux.md` 3.5 / 3.6). Done itself stays Persona-only.
-  Under navigation, `InboxActionBar`: ✦ summary + AI Draft Reply / Hand to AI.
-  Relationships below summary (#3071, matching web #2352; `Persona/Views/Inbox/InboxLine.swift`): fetch `GET /api/v1/inbox/tree/inbox/{id}` on open,
-  list parent chain first, distant ancestors above (to-do / Agent session / event), then child Next steps. Tapping an event pushes in the current stack,
-  a to-do opens details, an Agent opens its chat. Missing ancestor items show "No longer in Inbox" and cannot be tapped. No ancestors / children or old hub without API means nothing drawn.
-  Mac puts it below summary in the right action column (`MacInboxActions`); event taps push in the detail column's own stack, returning to the original item.
-- **Events (Inbox phase 1, iOS / Mac)**: models in `Shared/InboxEvents.swift` (`handling`, `suggestion`, `chain`, `related`, tolerant per-entry chain decoding;
-  unknown `kind` rendered from `text` with a generic icon). An item is an event (`isEvent`) only if it has one of these fields or `recap`; otherwise rows / details remain pixel-identical.
-  - Row: suggestions show their kind + first line below the summary (reply / Agent / conclusion / judgment needed), replacing the old AI twin draft card (hub mirrors replies into `agent.draft`; do not render twice).
-    Working shows handling state (AI reviewing / Agent working / awaiting reply); urgent items without suggestions show AI is preparing a suggestion; failures show "AI couldn't handle it" (`InboxEventText.mark`).
-  - iPhone details use one page (`InboxEventPage`): the small where · who: newest line with View original at its trailing edge; state, Conversation and Say something / Try again;
-    ✦ summary in the state's secondary type; suggestion card (adjacent buttons: reply Send · Edit · Reject; Agent Start · Edit · Reject; conclusion OK · Reject;
-    judgment Confirm · Edit · Reject); recap; handling chain; related items and relationships; then AI Draft Reply (absent with a reply suggestion) and Hand to AI at the bottom.
-    Conversation appears when `handling` has both `machine_id` and `session_id`; it pushes the processing conversation over the item, so Back returns to the detail.
-    Original source pages (Lark chat, mail, plugin-rendered) sit behind View original and Received messages chain entries (`InboxSourceRoute` → `InboxSourcePage`, Lark at link position, mail at link uid).
-  - Mac keeps the source on the left rather than opening a separate page. Below summary in right-side `MacInboxActions`: state, recap, suggestion card, chain, related items.
-    Chain entries linking only to the source do not navigate (already beside them); position / uid links push within the detail column's own stack. At narrow width with only the top action strip, recap keeps three lines.
-  - Edit (`InboxSuggestionEditor`): changing text then Send / Start / Confirm = `confirm` with `text` (omit if unchanged); Say something + Tell AI below = `instruct`.
-    One `client_id` per attempt, with the card's displayed `version`. `409 suggestion_stale` shows Suggestion updated and redraws from the returned item, closing the editor. Failure stays in the editor for retry (`InboxSuggestionModel`).
-  - Chain initially shows only the latest entry; Expand all (N) reveals all, oldest first. Each row: time · kind icon · text. Taps follow `link` (`InboxChainTarget`):
-    source → source page; `session` → chat (manager handling chat in assistant, sub-chat as Agent; on the iPhone shell both, and AI Draft Reply's See How the AI Twin Handled It, push over the item (`InboxChatRoute`), so Back returns to it, #3114); `item` → that item; no link → inline `detail` / `messages`.
-    Entries with both navigation and messages (Received messages) have a separate expand arrow on the right.
-  - Manager-archived items (`done_by: "manager"`) show "Handled by the manager" in detail state. Chain `done` (user marked done / manager found no action needed) uses ✓ and is not tappable.
-    FYI conclusions remain under FYI with their card; OK archives them.
-  - Watch unchanged: uses `agent.draft` as before.
-  - Unit tests `InboxEventsTests` (decode every event state in `PersonaTests/Fixtures/inbox-events.json`, sections, row text, chain targets, suggestion buttons with FakeHub).
-- DEBUG: `-tab mail` (Inbox), `-showInboxSection action|working|fyi|done|all` (the section bar's choice, #9053), `-openInboxFirst YES` (first unhandled item), `-openInboxItem <id>` (specific item; on the iPhone both put the item on the Assistant stack in the list's place, so `InboxSectionBarUITests` walks the landing through a Needs-you line on an iPhone and a kept place on an iPad), `-showInboxAction draft|handoff` (then that sheet),
-  `-showInboxSuggestionEdit YES` (suggestion editor on iPhone event page).
-- **Plugin-rendered details** (#1681; `docs/extensions/extensions.md`, "Inbox items"): for items from a plugin connector (`source` = connector) contributing `inbox_item`,
-  the plugin's item View is the slot's source body. Hub passes `{id, title, summary, tier, reason, done, meta, extra}`; meta unchanged, unparsed.
-  On iOS and visionOS, View original and source chain entries whose existing source precedence reaches a native chat open `LarkChatView` directly,
-  at the chain link's position or the conversation's own focus; they skip the plugin's intermediate item View and its Back-to-event strip.
-  Document, connector and Moments content keeps its pages ahead of a native chat when an item carries both; mail and the empty fallback keep their slot behavior too.
-  Sources without a slot, old hubs, read-only devices and rendering failures keep the original body. The Mac detail root is unchanged; its position links use the same source page.
-  For plugin pages still shown, View in chat returns `persona://inbox/<item id>/source`; the App opens its original source page.
-
 ## Item actions (`Persona/Views/Inbox/InboxActions.swift`)
 
 - **AI Draft Reply**: `POST /api/v1/inbox/{id}/draft {instruction}`. The manager uses the Draft reply model in the user's voice (Lark short and conversational; mail matches the incoming language and formality). With nothing the hub can call directly for it (only launchers such as Claude Code default, no Direct API provider or keyed Messages launcher) it answers `503 model_unavailable`, localized and naming Settings › Model providers and Model configuration; the web shows where to set one up instead of a bare HTTP error. Other failures stay `502`.
@@ -1203,10 +1145,3 @@ serves: everyone reading the Inbox on the Assistant side; it adds no setting and
   through the main conversation's outbox when it is listed (a failure shows there with Retry); otherwise it is sent or the conversation started from the sheet, which stays open
   with the error when that fails.
 - **Done**: row swipe-left, top-right ✓ in details, or alongside Send / Hand to AI.
-
-## Watch
-
-- Home Needs you = waiting Agents (formerly Waiting for you) + Inbox `action` items (`WatchInboxRow`: source / kind, title, AI summary).
-  iPhone's Watch summary carries up to 20 items (`WatchSummary.inbox`); while open, Watch fetches `/api/v1/inbox` directly every 8 seconds. New items vibrate.
-- Open `WatchInboxItemView`: summary, latest message; AI reply drafts first and displays it, then Send (`/reply`); Done.
-- DEBUG: Watch `-openInboxFirst YES` opens the first item.

@@ -5,7 +5,6 @@
     "source": [
       "server/internal/hub/hello.go: Hub.hello",
       "server/internal/hub/hello_features_test.go: TestHelloAndHealthCarryTheHubsFeatures",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
       "docs/protocol/protocol.md: Health check and feature flags"
     ],
     "derived": true,
@@ -123,8 +122,7 @@
     "name": "revs_changed_sessions",
     "description": "版本事件只携带发生变化的会话及其版本。",
     "source": [
-      "server/internal/hub/machine.go: Machine.onEvent",
-      "apple/PersonaTests/SyncEventTests.swift: decodesRevs"
+      "server/internal/hub/machine.go: Machine.onEvent"
     ],
     "from_test": "SyncEventTests.decodesRevs",
     "decoder": "event",

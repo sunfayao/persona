@@ -13,7 +13,7 @@ import (
 )
 
 // The reviewer's checks of the snapshot's "Following up" section (docs/assistant/inbox.md "Following up",
-// DECISIONS.md B-11): the real snapshot path carries it, reading it writes nothing, and the rendered section keeps the
+// docs/design/PRINCIPLES.md B-11): the real snapshot path carries it, reading it writes nothing, and the rendered section keeps the
 // snapshot's one-line-per-section shape.
 
 func followingReviewItem(id string, follow *InboxFollow, handling *InboxHandling, tier string) *InboxItem {
@@ -166,7 +166,7 @@ func TestSnapshotFollowingSectionShape(t *testing.T) {
 }
 
 // A returned matter is due in the briefing whatever its check time says: follow_up_ask and check_due are not limited to
-// today's window, only a plain waiting matter is (DECISIONS.md B-11).
+// today's window, only a plain waiting matter is (docs/design/PRINCIPLES.md B-11).
 func TestBriefFollowingReturnedMattersIgnoreTheCheckTime(t *testing.T) {
 	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
 	tomorrow := now.Add(36 * time.Hour)

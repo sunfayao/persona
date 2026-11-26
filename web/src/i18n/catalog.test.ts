@@ -366,7 +366,7 @@ describe("code", () => {
     if (stale.length && !process.env.UPDATE_I18N_BASELINE)
       console.info(
         `fewer hard-coded strings now in ${stale.join(", ")}; lowering the baseline is tidying anyone can do: ` +
-          "python3 scripts/ci/lower_baselines.py, or UPDATE_I18N_BASELINE=1 npx vitest run src/i18n/catalog.test.ts",
+          "python3 the guard baseline, or UPDATE_I18N_BASELINE=1 npx vitest run src/i18n/catalog.test.ts",
       );
   });
 });

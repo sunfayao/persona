@@ -20,30 +20,11 @@ on each message. The configuration names where each key is, never the key (see "
 Audience: Agents, for people who work with agents directly. Nothing changes in Assistant, and nothing appears until
 someone sets the runtime up on one of their computers.
 
-Supported since 2026-11-20 (#11929).
+The companion is supplied separately.
 
 ## Shape
 
-It is a runtime (`docs/integrations/runtimes.md`): `integrations/managed-agents/`, built on `integrations/runtime-sdk`,
-with no code in the hub, the node or the apps. Sessions are listed with `source_kind: "runtime"`, so the apps already
-know what they can do with them (read, send, stop, answer cards; no terminal).
-
-```
- App ── hub ── node ──┬── ~/.persona/runtime.sock ◄── managed-agents companion (this computer) ──► MA REST API (cloud / self)
-                      └── daemons.json ──► ws://<companion>/persona/runtime  (the companion elsewhere, as a daemon)
-```
-
-- **On a computer with a node** (the usual case, cloud or self): `node integrations/managed-agents/companion.mjs`
-  connects to the node's `runtime.sock` and calls the MA API over HTTPS. Keep it running with launchd or systemd, like
-  the Grok and pi companions.
-- **Next to a self-hosted MA that the node cannot share a user with** (another container, another machine):
-  `PERSONA_DAEMON_TOKEN=<token> node integrations/managed-agents/companion.mjs --listen <port>` and an entry in the
-  node's `~/.persona/daemons.json` (`docs/integrations/daemons.md`). The node then names it from that entry, prefixes its
-  session ids, and offers one launcher (the first profile with `start`).
-
-Why not a hub extension or node code: the runtime protocol already carries everything this needs, and runtimes are meant
-to add no code to Persona (`docs/integrations/runtimes.md`, "What to implement"). A hosted service needs no local
-process of its own, but the node is the one place that turns sessions, items and cards into what every app shows.
+The runtime protocol in [Runtimes](runtimes.md) supports Managed Agents sessions. A companion registers with the node over `runtime.sock` or as a [daemon](daemons.md), then calls the Managed Agents API over HTTPS. Sessions carry `source_kind: "runtime"` and support reading, sending, stopping and answering cards.
 
 ## Configuration
 
@@ -101,7 +82,7 @@ it holds no key, but says where they are.
 | `images` | `base64` | `none` sends a message's pictures as nothing (servers without image blocks) |
 | `disabled` | `false` | Keep the profile, list nothing from it |
 
-`node integrations/managed-agents/companion.mjs --check` reads the config, resolves each key and lists each profile's
+The companion’s `--check` option reads the config, resolves each key and lists each profile's
 newest sessions once: it prints counts and errors, never a key or a conversation.
 
 ## Keys
@@ -158,18 +139,3 @@ The public material settles the event log, sending and the stream. These are not
   format is the agent's. The JSON above follows the published AskQuestion / Plan Mode tool setup; other tools can be
   named in `question_tools` / `plan_tools`.
 - **Image blocks** in `user.message` (`{type: "image", source: {type: "base64"}}`); `images: "none"` where refused.
-
-## Verification
-
-- `cd integrations/managed-agents && npm test`: config (cloud / self defaults, refusals that never repeat a key), key
-  references (environment, file and its mode, Keychain, extension secrets, redaction), event mapping, pending asks and
-  answers, and the runtime against the SDK's fake node and a fake MA server: listing and grouping, paging a long log, the
-  MA key on every request and the model key only on sends, sending once per `client_msg_id`, live text, permission,
-  question and plan cards, a card withdrawn when answered elsewhere, starting without a list route, interrupt, a wrong
-  key reported without the key.
-- `PERSONAD=<personad> node integrations/managed-agents/e2e/run.mjs`: a real `personad node --stdio` with the script as
-  the hub and the fake MA server, once on `runtime.sock` and once as a daemon dialed from `daemons.json`: the launcher,
-  an existing session listed, grouped and read, a message sent once and answered with live text and thinking, a session
-  started from the phone, its permission and question cards answered on the phone and back in MA, terminal calls
-  refused, no key in the node's or the runtime's logs, its sessions leaving with it.
-- Live (opt-in, read-only): `node integrations/managed-agents/companion.mjs --check` with a real profile.

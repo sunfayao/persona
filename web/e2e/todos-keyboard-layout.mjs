@@ -14,7 +14,7 @@
 // Needs the web page against the fake hub with its tasks (made-up data; a disposable hub: the date checks save to it),
 // and Chrome:
 //
-//   MOCK_TASKS=1 MOCK_TODO_ASKS=1 MOCK_LEADERS=1 PORT=18931 python3 scripts/mock/mock_hub.py &
+//   MOCK_TASKS=1 MOCK_TODO_ASKS=1 PORT=18931 python3 scripts/mock/mock_hub.py &
 //   (cd web && PERSONA_HUB_URL=http://127.0.0.1:18931 npx vite --port 5931 --strictPort &)
 //   node web/e2e/todos-keyboard-layout.mjs http://127.0.0.1:5931 [--shots <dir>] [--executable <chromium>]
 //

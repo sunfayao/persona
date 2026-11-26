@@ -39,9 +39,6 @@ domain can also drop one; a block that moves out of mock_hub.py into a domain ca
 list (MOCK_DESKTOPS=1 with MOCK_AGENT_ARCHIVES=1: desktops, desktop_unregister now follow the agent archive features),
 and its help lines after the built-in ones. Clients read the features as a set.
 
-Moving a block out of mock_hub.py: list the names it took in MOVED in scripts/mock/test_mock_domains.py. A branch from
-before the move that edited the old block can resolve its conflict by keeping it (#11476), and the domain would then
-exist twice; that test fails as soon as one of those names is back in mock_hub.py, and says which module to edit.
 """
 import importlib
 import json
@@ -54,8 +51,6 @@ from urllib.parse import parse_qs, urlparse
 DOMAINS = [
     "desktops_mock",  # desktop client registration (hub/desktops.go), GET /mock/desktops, MOCK_DESKTOPS
     "github_mock",  # GitHub's sign-ins and MOCK_GITHUB_INBOX's thread page (/api/v1/connectors/github/…)
-    "kb_selection_mock",  # Settings › Knowledge selection (/api/v1/kb/selection), MOCK_KB_SELECTION
-    "project_lessons_mock",  # a project's lessons from finished tasks (/api/v1/kb/projects/{id}/lessons…), MOCK_PROJECT_LESSONS
     "mail_mock",  # mail accounts and write paths (/api/v1/mail/…, GET /mock/mail), MOCK_MAIL, MOCK_GOOGLE, MOCK_OUTLOOK
     "hub_update_mock",  # the hub's own update (/api/v1/hub/update…, GET /mock/hub_update), MOCK_HUB_UPDATE
     "imessage_mock",  # Messages' reader (/api/v1/imessage…), MOCK_IMESSAGE; the connector stays in mock_hub.py
@@ -64,8 +59,6 @@ DOMAINS = [
     "starred_mock",  # Starred messages (/api/v1/assistant/starred…), MOCK_STARRED
     "page_counts_mock",  # A paged session read with its counts, MOCK_PAGE_COUNTS
     "task_skip_mock",  # One scheduled occurrence, MOCK_SKIP_OCCURRENCE
-    "outside_directions_mock",  # conversationless reporting directions (#8236), MOCK_OUTSIDE_DIRECTIONS
-    "direction_sessions_mock",  # Move To… and one direction's page (#11516), MOCK_DIRECTION_SESSIONS
     "dock_mock",  # more of the main conversation's tasks waiting in the To Decide pager (#12831), MOCK_DOCK
     "extension_scene_mock",  # UI version 11's scene on a made-up Home page (#12544), MOCK_EXTENSION_SCENE
     "space_folders_mock",  # two of the MacBook's spaces with one name, in two folders (#13522), MOCK_SPACE_FOLDERS

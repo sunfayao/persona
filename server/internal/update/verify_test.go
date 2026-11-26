@@ -20,7 +20,7 @@ func otherPlatform() string {
 	return "linux-amd64"
 }
 
-// releaseDir writes a release's downloads into a new directory as publish.sh leaves them: personad for this machine
+// releaseDir writes a release's downloads into a new directory as the release packager leaves them: personad for this machine
 // (a script that answers `version -v` as the real one does) and for otherPlatform (bytes with the build number in
 // them, as -X main.build leaves it), a program and a node build. build gives each one's build number by name.
 func releaseDir(t *testing.T, version string, build func(name string) int64) string {

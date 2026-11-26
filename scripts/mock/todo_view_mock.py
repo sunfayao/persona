@@ -1,6 +1,6 @@
 """The To-dos view as a hub with the redesign's stage 1 serves it (#10226, #10465; proposal
-docs/design/proposals/todos-redesign.md 3.3, 3.4, 3.7 and 6), for mock_hub.py's MOCK_TODO_VIEW: the design prototype's
-to-dos (T01 to T14 of docs/design/prototypes/todos/data/todos.js) as wire rows, each with its `view`, so an app's
+docs/assistant/todos.md), for mock_hub.py's MOCK_TODO_VIEW: the design prototype's
+to-dos as wire rows, each with its `view`, so an app's
 screenshot lines up with the V1 frame it draws.
 
 MOCK_TODO_VIEW=1      features todo_view and todo_places. GET /api/v1/todos: every row with `view`, the list's
@@ -82,7 +82,7 @@ MODES = ("1", "old", "late")
 TWO_MANAGERS = os.environ.get("MOCK_TODO_MANAGERS") == "2"
 LATE_SECONDS = float(os.environ.get("MOCK_TODO_VIEW_LATE_SECONDS") or 5)
 
-PROTO_NOW = datetime(2026, 11, 18, 10, 14)  # todos.js NOW
+PROTO_NOW = datetime(2026, 11, 18, 10, 14)
 NO_DATE = datetime(9999, 12, 31, tzinfo=timezone.utc)  # db.SomedayNoDate: Someday with no date
 SECTIONS = ("needs_you", "can_wait", "working", "waiting", "todo", "just_finished", "someday", "done")
 VIEW_KEYS = ("phase", "section", "reason", "line", "since", "next_change_at", "rank", "seen", "inactive", "can_wait",

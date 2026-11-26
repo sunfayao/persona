@@ -283,7 +283,7 @@ An open concern never shelves either: it waits for its report, however long.
   another browser or device still shows it shelved until it moves. The hub now stores restores too (`restored_at`,
   `PUT /api/v1/todos/{id}/restored`, `docs/assistant/todos.md` "Restores and Someday"), but today's triage still uses
   each device's own restore, and the hub's copy of the triage uses none, until the clients switch to the status the hub
-  works out (`view`, `docs/design/proposals/todos-redesign.md` section 6.1), from stage 2 of #10226.
+  works out (`view`, `docs/assistant/todo-status-sop.md` section 6.1), from stage 2 of #10226.
 
 ## Related to-dos
 
@@ -383,7 +383,7 @@ is not done yet.
 
 The manager works out each to-do's `view` (`schema/wire/todo-view.schema.json`: phase, section, reason, line 2,
 times, marks, asks, steps and rank) and the list's counts and places, by the redesign's decision table
-(`docs/design/proposals/todos-redesign.md` 6.3), in `server/internal/assistant/todo/projection`, fed by
+(`docs/assistant/todo-status-sop.md` 6.3), in `server/internal/assistant/todo/projection`, fed by
 `server/internal/assistant/todo_projection.go`. The rules' source is the shared cases: `spec/fixtures/todo-view` and
 `spec/fixtures/todo-counts`, whose READMEs list every rule, field, line key (a stable key with string arguments, never
 words: "Line keys"), judgement call and the reasons not produced yet. It differs from the rules above where the
@@ -440,7 +440,7 @@ records what the decided differences (the list above, Steps rolling up and Somed
 
 ## The to-do's timeline (#10465)
 
-A to-do's conversation (`docs/design/proposals/todos-redesign.md` 3.6) is its history grouped into rounds: each
+A to-do's conversation (`docs/assistant/todo-status-sop.md` 3.6) is its history grouped into rounds: each
 instruction or answer of the owner's heads a round, and what followed folds under it (relays to its runs, one line per
 run with how many turns it took, asks, decisions, results, scope changes); supervision nobody asked for (reworks, parks,
 a run's reports to its supervisor, the overdue mark) forms one folded Background round per day in the owner's zone.

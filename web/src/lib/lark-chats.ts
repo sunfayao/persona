@@ -1,4 +1,4 @@
-// "Messages" (docs/extensions/lark-migration.md "Entry point", the narrow exception of #392): every Feishu private and group chat in one
+// "Messages" (docs/extensions/feishu.md "Entry point", the narrow exception of #392): every Feishu private and group chat in one
 // list, shown only when this browser turned on Settings › Connectors › Lark › "Show messages on home" (off by default, kept per browser like
 // the app keeps it per device). The list reads the hub's account-bound snapshots (`account_bound=1`): conversations a
 // page at a time and the pinned conversations on top. A chat opens in the inbox's Feishu chat view (LarkThread).

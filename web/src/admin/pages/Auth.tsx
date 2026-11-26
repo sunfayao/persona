@@ -92,7 +92,7 @@ export function Setup({ state, onDone }: { state: AdminState; onDone: (s: AdminS
                   <li>{tRich("admin-pages-auth.code_from_setup", { command: <span className="whitespace-nowrap font-mono text-[11.5px]">personad hub setup</span> })}</li>
                   <li>{tRich("admin-pages-auth.code_from_command", { command: <span className="whitespace-nowrap font-mono text-[11.5px]">personad hub admin setup-code</span> })}</li>
                   <li>
-                    {/* the hub's systemd unit keeps its personad name (docs/operations/rename.md): the command is the real one */}
+                    {/* the hub's systemd unit keeps its personad name (docs/protocol/rolling-upgrade-compatibility.md): the command is the real one */}
                     {tRich("admin-pages-auth.code_from_logs", {
                       systemd: <span className="whitespace-nowrap font-mono text-[11.5px]">journalctl --user -u personad</span>,
                       docker: <span className="whitespace-nowrap font-mono text-[11.5px]">docker compose logs hub</span>,

@@ -23,7 +23,7 @@ personad iphone mount-ddi <udid> [--ddi-dir <dir>] [--force]   # the developer d
 ```
 
 `mount-ddi` is the owner's own step, not something the assistant can do: it sends the phone's identifiers to Apple's signing server
-when the phone has no ticket for the image ([iphone-bridge.md](iphone-bridge.md), "`mount_ddi`").
+when the phone has no ticket for the image ([iphone-control.md](iphone-control.md), "`mount_ddi`").
 
 1. Plug the phone in with a cable and unlock it.
 2. `personad iphone pair` asks the bridge (`persona-iphone-bridge pair --udid <udid> --out <path>`) for the trusted
@@ -41,7 +41,7 @@ while the job waits for that, the status says so (`job.code` `trust_pending` or 
 
 A phone that paired with Developer Mode off neither advertises nor takes connections until it is on, and iOS hides its switch until a
 developer tool asks. So right after such a pairing, still on the cable, the node asks the bridge to show it
-(`reveal-developer-mode`, [iphone-bridge.md](iphone-bridge.md)); a failure there is only logged.
+(`reveal-developer-mode`, [iphone-control.md](iphone-control.md)); a failure there is only logged.
 
 Pairing again replaces the record and keeps a manual address and the owner's Prepare (below). `personad iphone forget <udid>` removes the pairing from
 this computer only; the phone keeps listing the computer as trusted until its user resets that on the phone (Settings
@@ -53,7 +53,7 @@ The developer services behind screenshots, input and apps are there only while t
 iOS 27 a cryptex, as Xcode installs it there). A phone drops the personalized image at every restart (`ddi_not_mounted`); whether an
 iOS 27 phone keeps the cryptex across a restart is not verified, and either way the node mounts it again as below. The guided setup's **Prepare**
 (`StartPrepare`, a background job like pairing, `POST /api/v1/machines/{mid}/iphone/prepare`) mounts it through the session (`mount_ddi`,
-[iphone-bridge.md](iphone-bridge.md)); an image already there, Xcode's included, counts as mounted. Right after a mount the session reads
+[iphone-control.md](iphone-control.md)); an image already there, Xcode's included, counts as mounted. Right after a mount the session reads
 `device_info` again, so the phone's status says it is ready at once instead of at the next health check (#12171); after a cryptex install
 that session can't list the new services, its `device_info` answers `disconnected`, and the link that follows a few seconds later says it.
 Done, the record keeps `auto_prepare`: the owner allowed this computer to mount it again by itself, and from then on a link that comes up
@@ -189,7 +189,7 @@ one `iphonectl.Controller` for the node process, [iphone-control.md](iphone-cont
 | `status` | `{}` → `IPhone` | The bridge (installed, version, kept 30 s), the paired phones and those on USB with their session's state, and for a connected one its latest `device_info`: `connected`, `locked`, `capabilities`, `ready` (connected, unlocked, screenshot, accessibility tree and input available), `note` and its `code`, and `developer_mode`. An idle paired phone's session is started. `enabled` and `allowed` are the manager's to fill |
 | `call` | `IPhoneCall {device?, session?, op, args?, approved?, confirm?, self_apps?, self_names?, timeout_ms?}` → `IPhoneResult {output?, text?, image?, needs_approval?, approval_summary?, approval_id?}` | `op` is `status` (answered here, with a fresh `device_info`), `look` or `do` (the core's, with the bridge's operations on that phone; `approved`, `confirm`, `self_apps` and `self_names` go to it as they came, and a resume is `do` with only `approved`). `device` empty is the only paired phone. The wait is clamped to 1–120 s (30 s by default). A screenshot the core wrote into the call's temporary directory (or answered inline, then written there) becomes `image`; the directory is removed after the call. `approval_summary` is the core's approval as data (`proto.IPhoneApproval`, [iphone-control.md](iphone-control.md), "Approval"), passed on for the manager to word; the node never phrases it |
 | `pair` / `forget` / `prepare` | `{device}` → `IPhone` | Start the pairing job above, forget a phone, or prepare it (its developer disk image, "Preparing the phone"); its state is `job` |
-| `install` | `{urls, size, sha256, binary_sha256}` → `IPhone` | Install the bridge from the release's build ([iphone-bridge.md](iphone-bridge.md), "Releases"); its state is `job` |
+| `install` | `{urls, size, sha256, binary_sha256}` → `IPhone` | Install a supplied bridge build and report progress in `job` |
 | `cancel` | `{}` → `IPhone` | Stop the job |
 
 - **Whether a failed step reached the phone**: every `call` error is an RPC error with a code and `data: {"sent": "no" | "unknown"}`.

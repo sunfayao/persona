@@ -331,7 +331,7 @@ func (d *Devices) lookupPackage(ctx context.Context, k packageKey) (nodePackage,
 					continue
 				}
 			} else if stamped := strings.TrimSpace(string(b)); err == nil && stamped != "" {
-				version = stamped // a packaged personad can be of another build (docs/operations/docker.md "Node builds")
+				version = stamped // a packaged personad can be of another build (docs/operations/config.md "Node builds")
 			} else {
 				inferred = true
 			}

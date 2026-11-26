@@ -2258,7 +2258,7 @@
         "ios/Persona/App/AppModel.swift: fill, reload",
         "ios/Shared/ChatStore.swift: replace",
         "server/internal/transcript/continuity_corpus_test.go: simRun.fill",
-        "docs/archive/redesign/flows.md：第 11 张"
+        "docs/protocol/protocol.md：第 11 张"
       ],
       "input": {
         "initial": {

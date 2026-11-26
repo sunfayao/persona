@@ -1,4 +1,4 @@
-"""go_test_partitioned: test-server.sh's and check-fast's go test runs internal/node, internal/assistant and the other
+"""go_test_partitioned runs internal/node, internal/assistant and the other
 partitioned packages in go_partitions' partitions (#5594, #7644, #12765)."""
 import io
 import os

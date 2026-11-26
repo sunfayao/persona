@@ -1,5 +1,5 @@
 // Package timeline groups a to-do's history into the rounds of its conversation (#10465, proposal 3.6 of
-// docs/design/proposals/todos-redesign.md): each instruction or answer of the owner's heads a round, and what followed
+// docs/assistant/todo-status-sop.md): each instruction or answer of the owner's heads a round, and what followed
 // folds under it (relays, one line per run, asks, decisions, results, scope changes); supervision nobody asked for
 // forms one Background round a day. It also picks the to-do's results and what changed since the owner last looked
 // (the paper's Results and Since you looked). The rules are pinned by the shared cases in spec/fixtures/todo-rounds,

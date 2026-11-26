@@ -1,6 +1,6 @@
 // Package larkcli is the small, subprocess-only adapter for the official lark-cli.
 // Credentials remain owned by lark-cli; this package only starts commands and decodes
-// their JSON output (docs/plans/plan-lark-cli.md).
+// their JSON output (docs/extensions/feishu.md).
 package larkcli
 
 import (

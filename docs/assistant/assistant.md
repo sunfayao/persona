@@ -1,7 +1,7 @@
 # Assistant (the "Persona" tab, formerly "Chat")
 
 Persona in the "Persona" tab is Claude Code running **headlessly** in `~/.persona/assistant` on the hub machine (`claude -p` + stream-json; see
-`docs/integrations/claude-integration.md` ("Headless assistant")). A Codex launcher uses `codex app-server` instead ("Codex" below); a launcher for an assistant-capable Agent runtime (DSH) runs in that runtime ("Agent runtime (DSH)" below). This doc covers what it can do, how it works, and the trade-offs behind its design; what it lacked before the 2026-10-26 capability upgrade is in `docs/archive/assistant/assistant-records.md`.
+`docs/integrations/claude-integration.md` ("Headless assistant")). A Codex launcher uses `codex app-server` instead ("Codex" below); a launcher for an assistant-capable Agent runtime (DSH) runs in that runtime ("Agent runtime (DSH)" below). This doc covers what it can do, how it works, and the trade-offs behind its design.
 
 ## Claude assistant profile compatibility (#3345)
 
@@ -84,7 +84,7 @@ Changing trust does not erase context already delivered to a computer or termina
 | Archive Agent sessions | `agent_archive` / `agent_unarchive`: when the user asks, archive or restore a coding Agent's session with the same manager-owned, reversible archive the apps use (`setAgentArchive`, `docs/protocol/protocol.md` ("Agent session archives")); nothing is ever deleted. Archive and restore change nothing on the computer and need no confirmation (like `conversation_archive`). `agent_archive` with `close: true` is "Archive and close" (`archiveAndCloseAgentSession`): a busy Agent is refused before anything is asked, then the user confirms on a phone permission card every time (also outside a track, as `persona_settings`), and a declined card changes nothing. The result states what happened for the assistant to repeat: archived or not, the native archive (`native: done / pending / unsupported`), and the close outcome (`closed`, `not_running`, or `refused` / `offline` / `failed` with the localized reason: the session stays archived and still open). Busy Agents are refused with nothing changed; an Agent awaiting the user's reply is not busy. `agents_list` leaves archived sessions out unless `state` is `archived` (only those) or `all` (marked `archived`). Persona conversations are refused (`conversation_archive`). `assistant/agent_archive_tools.go` |
 | Dispatch tasks | `task_plan`: hand Agent work to the user, one task per to-do (`origin` = this chat). Read-only and user-remembered tasks start directly; others become plan cards awaiting "Start" without blocking the turn. Progress appears in the live snapshot's "Tasks started from chat"; completion receipts, answered questions, and direct task messages enter chat activity ([unified-entry.md](unified-entry.md), `assistant/tasks.go`) |
 | Telegram | Available only with the Telegram extension (extension market `nwverse/persona-extensions`, #1704, #2057): read-only MCP `telegram_chats` / `telegram_messages` / `telegram_search`; more flexible reads and writes use the bundled telegram skill (Bash `tg …`, i.e. `personad tool --cli telegram`, through hub, writes confirmed on the phone). `tg` is on PATH only while Telegram is logged in (`docs/protocol/connector-protocol.md` ("Command line")) |
-| Lark | The open-source version uses official lark-cli ("Lark: lark-cli" below). With a Lark-gateway extension installed, mainly use its skill (extension commands in Bash, both reads and writes), see "Lark: skill supplied by the Lark extension"; MCP `lark_chats` / `lark_messages` / `lark_search` also come from the extension (since #1571 no Lark gateway client in hub, `docs/plans/plan-extensions.md` ("Step 3")). The old read-only `lark_api` and `lark_send` were removed as duplicates of the skill |
+| Lark | The open-source version uses official lark-cli ("Lark: lark-cli" below). With a Lark-gateway extension installed, mainly use its skill (extension commands in Bash, both reads and writes), see "Lark: skill supplied by the Lark extension"; MCP `lark_chats` / `lark_messages` / `lark_search` also come from the extension (since #1571 no Lark gateway client in hub, `docs/extensions/extensions.md` ("Step 3")). The old read-only `lark_api` and `lark_send` were removed as duplicates of the skill |
 | Control Persona itself | `persona_settings` (`list` first, an assistant tool, `assistant/settings_tool.go`: About Me, direction notes, default launcher, and `main_tasks_quiet` are assistant-owned settings, read / written by it with its own phone confirmation cards; other settings belong to hub, listed through `app.call settings.list`, read / written through `app.tool persona_settings`, with hub confirmation): read / write triage rules (global `inbox.rules` and per-plugin-source `inbox.rules.<plugin>` for sources declaring `triage_rules`, overriding global when present), every configurable extension's form settings (`extension.<id>`: `get` lists each field, `set` changes only the fields given, each shown before → after on the card, #2385), inbox task-linking rules (`inbox.agent_rules`: which running task a needs-you item belongs to; what the AI twin takes on is inbox policies. Reading or changing it says when the AI twin is off, #5865), About Me, direction notes (`direction.<id>.prompt`: readable in any assistant conversation, set only by the main conversation as a whole string or a unique `old` / `new` fragment replacement; `docs/assistant/unified-entry.md`), default launcher, "Main chat tasks notify only in main chat" (`assistant.main_tasks_quiet`), per-machine muted Claude config directories (`agents.blocked_claude_dirs`), push grading for every device (`notifications.low_distraction`, the compatibility key for the hub's push grading switch, #8157; `docs/server/server.md` "Push grading (push urgency filtering, `hub/push_grading.go`)"), and add / remove mail accounts. Changes first show a phone confirmation card; added-account passwords / authorization codes are entered on the phone card, never through the model or chat / interaction history. After approval, hub tests IMAP / SMTP and encrypts / saves only if both work. Gmail requires Google sign-in in the App; launchers are written to unified model configuration while retaining existing model and effort |
 | Live snapshot | Each message to the assistant starts with `<persona-context>` (not system prompt, see "Live snapshots and prefix caching"): time (phone timezone), online computers, Needs you and Unread Agents plus the count of working ones (`agents_list` lists them on demand, #11261), unread connector chats and @me, today's upcoming meetings, scheduled follow-ups, and up to five open Inbox matters being followed by check time. Agents and tasks include web links: hub `public_url` (default `http://<hostname>:18660` when unset) plus `/s/<machine>/<session id>`, `/todos?id=<to-do id>`; the assistant uses Markdown links when mentioning them. Omit if hub can't supply the address (#2194). The main conversation's task lists (task details, open-task index, waiting to be verified or approved) hold every task; a leader's or side conversation's hold only the ones it handed out or supervises (#8666, `docs/assistant/todos.md`). Include only changes since this chat's previous snapshot (time always included): changed sections, and inside the task details, the Agents section and the unread chats only the rows that changed (#9078). hub gives each source 3 seconds, reuses reads for 45 seconds, and messages wait at most 1.5 seconds for fresh data, not at all while reads take longer than that (#8948) |
 | Faster | When the App displays a new-chat page, `POST /api/v1/assistant/warm` starts a spare node process (`spare`, valid for 10 minutes), used directly by new chats. `personad mcp` marks the Persona tools assistant conversations use often `anthropic/alwaysLoad`; the rest, and other MCP servers' tools, keep Claude Code's ordinary ToolSearch deferral (#5838, #7317): the manager picks them (`coreTools`, `assistant/tool_loading.go`), tool loading does not expand caller permissions. `assistant.load_all_tools` (`persona_settings`, off by default) loads every Persona tool up front again, in running conversations too: the change wakes each `personad mcp`'s tool watch (`assistant/mcp_tools_changes.go`), which sends the new list (`notifications/tools/list_changed`); a `personad mcp` older than tool refresh keeps its list until its process restarts. On Anthropic's own API the assistant's processes carry `ENABLE_TOOL_SEARCH=true`, so a conversation that once ran without ToolSearch defers too instead of loading every tool until its next compaction; behind a gateway they carry `false` and load every tool, and a gateway's refusal of tool search is resent once that way and remembered (#10365, `docs/integrations/claude-integration.md` "Tool search behind a gateway (#10365)") |
@@ -386,7 +386,7 @@ The current mechanisms are generic; specific commands, routes, and variables are
 
 ## Lark: lark-cli (L2 of #273)
 
-A hub without a Lark gateway can still let the assistant read / write Lark through official developer-platform lark-cli (`@larksuite/cli`); plan and later steps: `docs/plans/plan-lark-cli.md`.
+A hub without a Lark gateway can still let the assistant read / write Lark through official developer-platform lark-cli (`@larksuite/cli`); plan and later steps: `docs/extensions/feishu.md`.
 The assistant and the L2 read-only connector are available; Inbox, knowledge base, and `/agent` still require the Lark gateway.
 
 - **Enable**: `lark.cli` in the manager's manager.json (`docs/operations/config.md` ("manager.json")), lark-cli installed on the assistant machine; the user runs `lark-cli auth login --domain all` once, or `lark-cli --profile <profile> auth login --domain all` when a profile is configured.
@@ -507,7 +507,7 @@ With over ten Agents running, most mid-task questions concern internal choices t
 
 ## Asking without holding the turn (#4928)
 
-`ask_user` takes `wait`, a boolean that defaults to true (hold the turn until the answer, as described under "Ask on the phone" above). With `wait: false` the card is raised and the tool returns at once; the turn ends, and whatever ends the card reaches the asking conversation as one message. Step Q1 of `docs/design/proposals/main-chat-availability.md` (3c); code in `assistant/ask_later.go`.
+`ask_user` takes `wait`, a boolean that defaults to true (hold the turn until the answer, as described under "Ask on the phone" above). With `wait: false` the card is raised and the tool returns at once; the turn ends, and whatever ends the card reaches the asking conversation as one message. Step Q1 of `docs/assistant/assistant.md` (3c); code in `assistant/ask_later.go`.
 
 - **The card is the same card**: the same `question` interaction (`tool_name: ask_user`), push, Lark / channel cards, 2-hour expiry (`askUserWait`), `deadline` / `reversible` / `recommend` handling and duplicate-question check. The one difference is `resumable: true`, which the queue already knows from hook cards: nothing waits on it in memory, so it must outlive a manager restart and its node's connection.
 - **What the tool says** (`prompts/agents/question_asked_later.md`): the card is up, the answer comes later as a new message, end the turn without guessing or going ahead, and until when the card waits.
@@ -788,31 +788,8 @@ remain subject to existing runtime permissions and higher-priority instructions.
 
 Offline contracts: `server/internal/assistant/skill_mentions_test.go`,
 `server/internal/node/skill_mentions_test.go`, `server/internal/assistantskills/references_test.go`,
-and `web/src/views/chat/MentionSkill.test.tsx`. Opt-in real runtime checks:
-`node scripts/test/skill-runtime-smoke.mjs codex` (actual inventory, no model),
-`node scripts/test/skill-runtime-smoke.mjs codex --model`, and
-`node scripts/test/skill-runtime-smoke.mjs claude --model`. Model runs use disposable read-only-request fixtures and
-existing authentication; optional `--model-id <existing-model-id>` selects a model for this invocation only.
-Claude also accepts `--settings <current-profile-settings-file>` without copying its contents or changing the default.
-Its Go test bridge uses production catalog, opaque-reference validation and instruction rendering against the
-current profile (`CLAUDE_CONFIG_DIR`, or Claude's unset/default profile), explicitly keeping the catalog partial.
-It confirms an explicit model override against the runtime's initialization event, then requires an actual
-exact-file `Read`/successful tool-result pair and the random marker stored only in
-the disposable instruction body, not merely a successful chat reply. Go must be installed for that bridge.
-Output is allowlisted; arbitrary replies, catalogs and credentials are not printed. A successful runtime
-smoke is not a production Web-to-hub end-to-end test. Synthetic browser fixture:
+and `web/src/views/chat/MentionSkill.test.tsx`. Synthetic browser fixture:
 `PORT=25357 python3 scripts/mock/skill_mentions.py`.
-
-Inspected browser captures use only that fictional fixture, not the requester's reference image or account data:
-[light](../web/screenshots/skill-mentions/light-menu.png),
-[dark](../web/screenshots/skill-mentions/dark-menu.png),
-[narrow large-text light](../web/screenshots/skill-mentions/narrow-light-menu.png),
-[narrow large-text dark](../web/screenshots/skill-mentions/narrow-dark-menu.png),
-[selected](../web/screenshots/skill-mentions/narrow-selected.png),
-[loading](../web/screenshots/skill-mentions/narrow-loading.png),
-[unavailable](../web/screenshots/skill-mentions/narrow-error.png), and
-[partial](../web/screenshots/skill-mentions/narrow-light-partial.png).
-These demonstrate rendered interaction, not production connectivity or model execution.
 
 Runtime contracts were checked against the official
 [Codex app-server skills documentation](https://developers.openai.com/codex/app-server/#skills) and
@@ -1617,7 +1594,7 @@ explicit user-facing actions still follow the usual visibility rules.
 ## Messages from the system wait for the owner (#4925)
 
 The owner comes first in every assistant conversation, the main chat and leader conversations alike
-(`docs/design/proposals/main-chat-availability.md` 3b rules 1 and 3; `server/internal/assistant/relay_presence.go`).
+(`docs/assistant/assistant.md` 3b rules 1 and 3; `server/internal/assistant/relay_presence.go`).
 What the system puts into a conversation (supervision messages, task notices, late `ask_user` answers, messages from
 other conversations) goes through one per-conversation queue (`assistant.relay`, "Managing its own conversations"):
 
@@ -1905,7 +1882,7 @@ manager that connects the computer holds it and sends it once the computer is ba
 
 ## Availability metrics (#4924)
 
-Step M1 of `docs/design/proposals/main-chat-availability.md`: four numbers that say whether the main chat stays
+Step M1 of `docs/assistant/assistant.md`: four numbers that say whether the main chat stays
 available to the owner while background work grows. They are measured for every assistant conversation and read with
 `GET /api/v1/assistant/availability?hours=168` (full devices only, `docs/protocol/protocol.md`); nothing shows them in
 an app or a briefing yet. Each number in one sentence:
@@ -1984,7 +1961,7 @@ outcome (`session.assistant_sent`) only takes back the wait of a message that wa
 
 ## Recommended setup (#5085)
 
-Step R3 (section 4c) of `docs/design/proposals/main-chat-availability.md`. The mechanisms that cut asks and
+Step R3 (section 4c) of `docs/assistant/assistant.md`. The mechanisms that cut asks and
 background rounds ship off or empty, because each spends tokens or acts for the owner. Once a week a briefing says,
 from this install's own records, which of them would have removed how many of the last 7 days' asks or background
 rounds, what it costs in one sentence, and where it is turned on. Code: `server/internal/assistant/setup_suggest.go`.
@@ -2097,7 +2074,7 @@ All four must hold:
   (an acceptance is a judgment call: `docs/assistant/model-config.md` "Models for each role"), nor is a tier the
   manager cannot tell is not the smallest. Not known, and so never suggested: plain `claude` and an rc-file launcher
   (nothing is stored about their models), a provider with fewer than three distinct tier models, a model that is none
-  of the provider's tier models, a direct API provider, and Agent presets (`docs/assistant/model-profiles.md`), which
+  of the provider's tier models, a direct API provider, and Agent presets (`docs/assistant/model-config.md`), which
   have names and descriptions but no order.
 
 The line names the two models as the owner's provider has them (no model is named in code): by the name the
@@ -2558,7 +2535,7 @@ Snapshots accompany each message as Claude does (first `turn/start` / `turn/stee
 | Effort | `--effort` / control | `turn/start` `effort`, low…max unchanged, gateway support depends on model |
 | Images | base64 image blocks | Files in `~/.persona/uploads/<date>/`, `localImage`; rollout path becomes App thumbnail |
 | Instructions | Shared `CLAUDE.md`; authorized supervision policy via `--append-system-prompt` | Shared `AGENTS.md` (identical to `CLAUDE.md`); authorized supervision policy via `developerInstructions`; also user `~/.codex/AGENTS.md` |
-| Extension skills | `.claude/skills/<name>` | Same directory as extra skill root (same format, visible in `skills/list`); gated commands on PATH, credentials in node proxy (previous environment tokens required `shell_environment_policy.ignore_default_excludes=true`, or Codex stripped `*TOKEN*` from command environments) |
+| Extension skills | `<assistant dir>/.claude/skills/<name>` | Same directory as extra skill root (same format, visible in `skills/list`); gated commands on PATH, credentials in node proxy (previous environment tokens required `shell_environment_policy.ignore_default_excludes=true`, or Codex stripped `*TOKEN*` from command environments) |
 | Memory | Assistant-specific Claude auto memory | **Same files** (chosen 2026-11-01): `developerInstructions` gives directory, one-file-per-entry + `MEMORY.md` format, current index (`codexMemoryPrompt`); directory added to sandbox `writableRoots`. apply_patch and memory-only reads (cat / head / rg…, `readsOnlyMemory`) don't ask, but Plan writes do. Disable Codex's machine-wide rollout-derived `~/.codex/memories` for assistant (`features.memories=false`) |
 | Background / Monitor | `background_tasks_changed`, claude wakes on completion | Read `thread/backgroundTerminals/list` after every turn, record tasks and retain process, report lost tasks after restart; **completion doesn't wake chat**, no Monitor |
 | Prewarmed spare | Yes | Yes, pre-start thread reused (measured 50 ms return) |
@@ -2603,7 +2580,7 @@ DSH details (permission preset mapping, persistent `dsh web`): `docs/integration
 
 Running them is in `docs/operations/testing.md`; the scheduler's tests are in `server/internal/assistant/schedule_test.go`
 (`TestNextRun`, `TestParseWhen`, `TestScheduleAcrossHubRestart`), the app's in `AssistantScheduleTests`, `AssistantRoutinesModelTests`
-and the UI suite `AssistantProfileTests`, and the 2026-10-26 to 2026-10-30 measurements in `docs/archive/assistant/assistant-records.md`.
+and the UI suite `AssistantProfileTests`,.
 
 A user can ask main chat to cancel and archive an Agent stuck at a terminal confirmation. `agent_archive` with
 `force: true` closes that blocked Agent and rejects or cancels its pending confirmations, without approving a tool

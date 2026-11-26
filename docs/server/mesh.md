@@ -2,10 +2,10 @@
 
 Pair several hubs into a group with **exactly one primary hub**: it serves all Apps, stores all state, and connects all computers. The other hubs are **members**, doing only two things:
 forward App requests unchanged to the primary, and hand the node streams of their connected computers to the primary. Computers connect through a preinstalled service (resident node + persona-link connector), not SSH;
-a computer reachable through several paths appears only once and uses the best path. The proposal is in [plan-hub-center.md](../archive/operations/plan-hub-center.md) (overview #293, this track's issue #435).
+a computer reachable through several paths appears only once and uses the best path. The proposal is in [mesh.md](mesh.md) (overview #293, this track's issue #435).
 This document covers the implementation: protocol, tradeoffs, and verification.
 
-> The recommended deployment is **one hub only**, with node services on all other computers ([plan-hub-center.md](../archive/operations/plan-hub-center.md) section 0). Linked hubs are for a few cases:
+> The recommended deployment is **one hub only**, with node services on all other computers ([mesh.md](mesh.md) section 0). Linked hubs are for a few cases:
 > always-on machines in two locations that cannot reach each other, or several existing hubs you want to combine. "Linked hubs" is under "Advanced" in the admin UI.
 
 ```text
@@ -323,5 +323,5 @@ All optional; `plaintext` is covered in "Plaintext links". Peer relationships, t
 ## First version (replaced)
 
 #394 built a peer-to-peer mesh: every hub served Apps, computers were connected by an "owning hub" and other hubs forwarded through it; events, session lists, and interactions flooded through the group; App subscriptions had proxies
-on the owning hub; credentials worked group-wide (asking the issuer by hash); pushes went through the credential-issuing hub. After seeing it, the user switched to a single primary (plan-hub-center.md), and these were all removed:
+on the owning hub; credentials worked group-wide (asking the issuer by hash); pushes went through the credential-issuing hub. After seeing it, the user switched to a single primary (mesh.md), and these were all removed:
 `mesh_events.go`, `peer_clients.go`, `mesh_owner.go`, `mesh_push.go`, `mesh_metrics.go`, `mesh_ids.go`. Machine identity, pairing, links, records and routing, discovery, and admin APIs remain.

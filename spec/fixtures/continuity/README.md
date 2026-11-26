@@ -1,6 +1,6 @@
 # 对话同步的连续性
 
-本领域记录对话同步的连续性行为，由 Go 服务端逐步回放。依据是 [协议](../../../docs/protocol/protocol.md)「items 的连续性」「折叠的工作」和 [流程图 11](../../../docs/archive/redesign/flows.md)。夹具共 38 个用例、94 个事件步骤，数据全部编造。
+本领域记录对话同步的连续性行为，由 Go 服务端逐步回放。依据是 [协议](../../../docs/protocol/protocol.md)「items 的连续性」「折叠的工作」和 [流程图 11](../../../docs/protocol/protocol.md)。夹具共 38 个用例、94 个事件步骤，数据全部编造。
 
 ## 来源与规则
 

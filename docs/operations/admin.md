@@ -2,7 +2,7 @@
 
 The hub's built-in web admin console: view the hub's status, add / remove computers, manage device credentials, install extensions, link hubs, change networking and access scope. The address is `<hub address>/admin`,
 the API prefix is `/api/v1/admin/`, and it is **authenticated separately** from the app's API (admin password + session cookie; app tokens are not accepted).
-The proposal is section 5 of [plan-hub-mesh.md](../archive/operations/plan-hub-mesh.md), overview #293, issue #296. One-click install (#287) and hub version updates (#284) will land here too.
+The proposal is section 5 of [../server/mesh.md](../server/mesh.md), overview #293, issue #296. One-click install (#287) and hub version updates (#284) will land here too.
 
 Code: server `server/internal/hub/admin*.go` (extensions in `admin_extensions.go`), `server/internal/db/admin.go` (migration `0161_admin.sql`),
 web `web/admin/index.html` + `web/src/admin/` (same project and same design tokens as the web app, with its own entry point).
@@ -66,7 +66,7 @@ The admin console is only at the hub's root path: the web app can be mounted und
   To widen, use the command line `personad hub admin access <loopback|lan|cidrs|any> [--cidrs a,b]` or the deploy script ("Choosing at deploy time" below).
   If narrowing on the web page would leave you outside the new scope, it asks for confirmation first (the API returns 409 `would_lock_you_out` without `force`).
 - **Environment variables win**: if `PERSONA_ADMIN_ACCESS` (and `PERSONA_ADMIN_CIDRS`, comma-separated) is set, it takes precedence and is not written back to hub.json (like the other `PERSONA_*`
-  overrides, [docker.md](docker.md)); the web page then cannot change it and shows "Set by PERSONA_ADMIN_ACCESS at deploy time".
+  overrides, [config.md](config.md)); the web page then cannot change it and shows "Set by PERSONA_ADMIN_ACCESS at deploy time".
 - Scope changes take effect immediately without a restart: changes from the web page apply directly; after the command line writes hub.json it notifies the running hub over loopback to reload (if the hub is not running, it applies on next start).
 
 ## Admin password and sessions
@@ -235,7 +235,7 @@ Page `web/src/admin/pages/Assistant.tsx` (#2023; design in [assistant-views.md](
 | `install.sh` (public version) | `curl … \| PERSONA_ADMIN_ACCESS=lan sh` or `sh -s -- --admin-access lan`; if neither is given, asks "Will this machine run the hub?" and then the scope when a terminal (`/dev/tty`) exists; otherwise prints a reminder without writing hub.json (omitted means `lan`) |
 | Docker | `PERSONA_ADMIN_ACCESS` in `.env` (plus `PERSONA_ADMIN_CIDRS` for `cidrs`); when unset, the entrypoint prints a reminder and uses hub.json (omitted means `lan`) |
 
-The prompt explains all four options and their risks (see the admin access section of `scripts/deploy/install.sh`; `deploy.sh` uses it unchanged, so the public installer and deployment ask the same question).
+The prompt explains all four options and their risks (see `scripts/deploy/admin-access.sh`).
 
 The public installer chooses English, Simplified Chinese or Japanese from `LC_ALL` (when set), then `LANG`; Chinese
 locales use `zh-Hans`, Japanese locales use `ja`, and every other, missing or unknown locale uses `en`. Pass

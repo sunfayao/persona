@@ -14,7 +14,7 @@ func TestActivitySaysWhatAToolCallDoes(t *testing.T) {
 		name, input, want string
 	}{
 		{"Bash", `{"command":"cd server && go test ./internal/hub/..."}`, "在跑测试"},
-		{"Bash", `{"command":"./scripts/test/test-server.sh"}`, "在跑测试"},
+		{"Bash", `{"command":"./scripts/test/server_test_env.py"}`, "在跑测试"},
 		{"Bash", `{"command":"xcodebuild test -scheme Persona -destination id=X"}`, "在跑测试"},
 		{"Bash", `{"command":"cd web && npm test && npm run build"}`, "在跑测试"},
 		{"Bash", `{"command":"gh pr checks 123 --watch"}`, "在等 CI"},

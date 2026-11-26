@@ -99,7 +99,7 @@ type ScreenVideo struct {
 }
 
 // Browser is a Mac's ego lite, the agent browser the assistant may drive (the built-in plugin ego,
-// docs/plans/plan-ego-browser.md). In proto.Machine only while the plugin is on, and only for a Mac; Enabled: the user turned
+// docs/extensions/computer-use.md). In proto.Machine only while the plugin is on, and only for a Mac; Enabled: the user turned
 // it on for this machine. The rest is what the node found when last asked (browser.status).
 type Browser struct {
 	Enabled bool `json:"enabled"`

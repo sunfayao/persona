@@ -78,7 +78,7 @@ Use synthetic conversations for screenshots, not the user's real main conversati
   the hub pushes only each session's `rev` (transcript byte count), and the App pulls increments with `after_seq`. The full session list is about 130 KB;
   do not resend it for rev changes—use a separate `revs` event. The Lark gateway has a real-time event WebSocket (`/agent/v1/events`, `message.upserted` /
   `conversation.upserted`); Lark pushes come from there.
-- Validate changes to transcript parsing or the sync protocol against a real corpus (`docs/archive/integrations/msg-render-verification.md`). `corpus_test.go` compares the old and new parsers file by file;
+- Validate changes to transcript parsing or the sync protocol against a real corpus. `corpus_test.go` compares the old and new parsers file by file;
   `continuity_corpus_test.go` simulates lost pushes, gap filling, and rewrites using the App's rules. Keep the corpus only in `~/persona-corpus`. Active session files grow while being read, so take a snapshot before comparing.
   To view real sessions in the simulator App, use a local test hub (fake HOME, no herdr connection, separate database), not the production hub.
 - Cold-opening a large transcript parses only a tail window (`transcript/window.go`). A line's parsed result depends on preceding lines through just three things: background task notifications already displayed
@@ -205,18 +205,6 @@ Claude Code 2.1.319 adds two more shapes (#6381). A hand-back that arrives while
 A subagent that waits on its own background work gets an interim notification ("This agent has not reported yet … SubagentHandback"), and the notification that ends it names only the subagent, no `<tool-use-id>`.
 The apps find a task's card by `tool_use_id`, else by the id in the launch receipt, and the 2.1.319 receipt's first sentence says "including the agentId below": their pattern took "below" for the id. So the report stayed off the card, which kept the interim text as its result.
 The node now gives such a notification the call an earlier notification of the task named (`noteCall`), drops the interim text, and seeds both, with the reports handed back, into windows read from a file's end (`window.go`), so a cold open of a big file gives the same notices.
-
-## Apple subagent results (#3377)
-
-A background Agent launch receipt is not a completion result. Keep its progress card until authoritative terminal
-state arrives, then use the ordinary collapsed tool-result row. Keep report deliveries separately from lifecycle
-state: an empty completion pointer must not erase earlier report bodies, and `running`, `waiting` or unknown
-statuses must not stop the progress bar. Preserve exact tool-use IDs; a shared subagent type
-or title cannot safely identify a report's call. Legacy notice detail and notice text are separate payloads: do not
-reuse a notice's text-truncation metadata for its report detail. When the hub changes peer input into tool results,
-bump the Apple chat cache so old peer cards are not retained. Retain referenced launch exchanges when trimming
-cached tails, and treat `wake` as turn evidence without drawing another message card. Run the shared result tests
-in both Apple app targets.
 
 ## Work opened in the App folded again by the same page (2026-11-07, #6038)
 

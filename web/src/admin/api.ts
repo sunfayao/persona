@@ -131,7 +131,7 @@ export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-// ── the center and connectors (docs/archive/operations/plan-hub-center.md 6) ──
+// ── the center and connectors (docs/server/mesh.md 6) ──
 
 const enc = encodeURIComponent;
 

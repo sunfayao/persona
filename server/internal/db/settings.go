@@ -236,7 +236,7 @@ func (d *DB) PutSetting(ctx context.Context, key string, v any) error {
 }
 
 // PutSettings writes several settings in one transaction: all of them or none (a model profile's switch writes the
-// categories it sets, the launchers and what it replaced together, docs/assistant/model-profiles.md). Only keys of this
+// categories it sets, the launchers and what it replaced together, docs/assistant/model-config.md). Only keys of this
 // database's own: a hub key, kept for an older hub too, goes through PutSetting.
 func (d *DB) PutSettings(ctx context.Context, values map[string]any) error {
 	keys, raws, err := encodeSettings(values)

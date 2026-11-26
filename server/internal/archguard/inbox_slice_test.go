@@ -14,14 +14,14 @@ import (
 	"testing"
 )
 
-// The Inbox is becoming the first vertical domain slice (docs/plans/plan-inbox-vertical-slice.md, #11309). While its
+// The Inbox is becoming the first vertical domain slice (docs/plans/plan-server-packages.md). While its
 // code moves behind a module boundary (the plan's steps S4-S9), these tests keep code from flowing the other way: no
 // other file of internal/assistant starts reaching the Inbox's in-memory state, and the central lists the moves empty
 // gain no Inbox entry. They parse source only, like the rest of archguard.
 
 const (
 	assistantDir = serverDir + "/internal/assistant"
-	inboxPlan    = "docs/plans/plan-inbox-vertical-slice.md"
+	inboxPlan    = "docs/plans/plan-server-packages.md"
 )
 
 // inboxBridge says whether a file of internal/assistant is the task bridge's (the plan's section 2): To-dos code that

@@ -16,12 +16,10 @@ send it back if anything is off.
 
 Before you change a file, read these, and the sections of them your change touches:
 
-1. `docs/design/PRINCIPLES.md`: the six principles. They decide before any visual rule.
+1. `docs/design/PRINCIPLES.md`: the seven principles. They decide before any visual rule.
 2. `docs/design/DESIGN_SYSTEM.md`: tokens, components, motion (section 2.7), the accessibility baseline (section 6.3),
    and the "UI change self-check" at the end.
 3. `CLAUDE.md`: repository rules (English everywhere, privacy, design spec for UI changes, build and verify).
-4. `docs/operations/collaboration.md`: issue, claim and PR flow.
-5. `.github/pull_request_template.md`: the PR text you will fill in.
 
 Then read the code around the change, and the web doc (`docs/web/web.md`).
 
@@ -43,8 +41,8 @@ Then read the code around the change, and the web doc (`docs/web/web.md`).
   at once. Busy indicators keep their existing exception.
 - **Accessibility.** Hit areas, spoken labels, expanded/selected state as attributes, contrast (`DESIGN_SYSTEM.md` 6.3).
 - **Small diffs.** Change only what the brief needs. Do not reformat, rename or "tidy" unrelated code.
-- **No git pushes, PRs, deploys or messages.** You edit files in the worktree you were given and run local checks; the
-  main agent commits, opens the PR and merges.
+- **Work in your assigned worktree.** You edit files in the worktree you were given and run local checks; the
+  main agent handles integration.
 
 ## Verify before you report
 
@@ -57,8 +55,8 @@ Then read the code around the change, and the web doc (`docs/web/web.md`).
 Return, in this order:
 
 1. **Files changed**, one line each, and what changed.
-2. **Principles self-check**, PRINCIPLES.md 1 to 6, each marked done (with its evidence), not applicable, or deviated
-   (with the reason), in the wording of the PR template.
+2. **Principles self-check**, PRINCIPLES.md 1 to 7, each marked done (with its evidence), not applicable, or deviated
+   (with the reason).
 3. **DESIGN_SYSTEM.md sections used** (for example 2.7 Motion, 6.3 Accessibility baseline), and the "UI change
    self-check" list marked item by item.
 4. **Commands run** and their results; what you did not run, and why.

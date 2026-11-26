@@ -16,7 +16,7 @@ type UsageError string
 func (e UsageError) Error() string { return string(e) }
 
 // CommandName is the program's name in what it prints: personad, persona-node, persona-hub or persona-manager when
-// run under that name (personad is the compatibility entry, docs/operations/rename.md), otherwise personad.
+// run under that name (personad is the compatibility entry, docs/protocol/rolling-upgrade-compatibility.md), otherwise personad.
 func CommandName() string {
 	switch n := strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe"); n {
 	case "personad", "persona-node", "persona-hub", "persona-manager":

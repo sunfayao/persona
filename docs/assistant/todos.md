@@ -603,7 +603,7 @@ checks are evidence for that review, never a result or acceptance by themselves.
 
 ## Delivery
 
-(#3306, #12034, lessons in `docs/lessons/delivery.md`) Assistant setting `delivery_gate` (`assistant.delivery_gate` in `persona_settings`, `PUT /api/v1/assistant` with `{"delivery_gate": "off" | "merged" | "live"}`, and Web Settings › Assistant › Agent follow-up) controls the three-tier delivery closeout gate, while keeping full backward compatibility with the legacy boolean `assistant.done_needs_delivery` (`true` maps to `live`, explicit `false` maps to `off`, both unset defaults to `merged`):
+(#3306, #12034, lessons in `docs/design/PRINCIPLES.md`) Assistant setting `delivery_gate` (`assistant.delivery_gate` in `persona_settings`, `PUT /api/v1/assistant` with `{"delivery_gate": "off" | "merged" | "live"}`, and Web Settings › Assistant › Agent follow-up) controls the three-tier delivery closeout gate, while keeping full backward compatibility with the legacy boolean `assistant.done_needs_delivery` (`true` maps to `live`, explicit `false` maps to `off`, both unset defaults to `merged`):
 
 - **`merged` (default)**: for supervised tasks with linked PR(s) (`pr_url`, review `link`, or saved repository `pull_request` links) and/or linked repository `issue` links, `task_review accepted` verifies that every PR is merged and every linked issue is closed before closing the to-do. Otherwise it refuses premature acceptance and instructs the supervisor to `park` the task (`waiting_on: "external_event"` with `evidence.kind: "external_event"`, `url`, `pr_event: "terminal"`, or `waiting_on: "someone_else"` with `evidence.kind: "merge_review"`) until merge and issue closure—so `sweepPRStatuses` / `parked_due` wakes the supervisor for final verification and closeout. `outcome: "cannot"`, non-PR/non-issue tasks, read-only tasks, and tasks whose brief/criteria explicitly opt into PR-only/draft-only scope are not held. Uncheckable/rate-limited GitHub checks return a temporary verification error without marking work unfinished; unreadable non-GitHub hosts add a reply note and do not block.
   - **Link roles (`delivery` vs `reference`)**: a saved repository link carries a `role` (default `delivery`; rows saved before roles existed read as `delivery`). The gate verifies only `delivery` links; `reference` links are display-only. At import, prose that explicitly frames a PR as related work or background (a "Related work"/"Background" line, a "not this task's delivery" clause, or a runtime citation footer) stores it as `reference`. At acceptance, a still-default `pull_request` link the GitHub forge can prove was opened by someone other than the authenticated viewer is downgraded to `reference` automatically; when ownership cannot be established (GitHub unconnected, non-GitHub host, unknown author) the conservative `delivery` default stays and the gate still holds. The role is editable through `PUT /api/v1/todos/{id}/repositories/{repo_id}/links` (and the `todo_repository_links_set` MCP tool), which is the supported alternative to deleting a misattributed link.
@@ -772,7 +772,7 @@ The costliest long-task mistake is an Agent forgetting a decision already made: 
 
 ## Concerns
 
-Something the owner raises in the main conversation and wants an answer to is a **concern** (#3561, owner-at-a-glance.md (removed) G5 and H2): a to-do with `kind = concern`, so it is a record with a status that nothing forgets (`server/internal/assistant/concerns.go`). It reuses the to-dos and their decisions, no store of its own.
+Something the owner raises in the main conversation and wants an answer to is a **concern** (#3561, todos.md (removed) G5 and H2): a to-do with `kind = concern`, so it is a record with a status that nothing forgets (`server/internal/assistant/concerns.go`). It reuses the to-dos and their decisions, no store of its own.
 
 - **Recorded** by the main conversation, `todo_create {title, notes?, kind: "concern"}` (only the main conversation may; `origin` is the main conversation, no agent needed, nothing to confirm), or by hand, `POST /api/v1/todos {"title", "kind": "concern"}`. It needs the hub's database (without it a concern could never be reported, so it is not recorded).
 - **Closes only after its report**: the main conversation tells the owner the outcome in its reply and, in the same reply, calls `concern_report {id, report}` with the words it told them. That writes a decision of source `reported` (`question` the concern's title, `choice` the report) and closes the concern (`done_by = reported`, `done_reason` the report) in one transaction (`db.ReportConcern`): there is never a close without its report, nor a report on a concern left open. By hand: `POST /api/v1/todos/{id}/decisions {"choice", "source": "reported"}`.
@@ -876,7 +876,7 @@ When recovery needs the owner’s terminal Resume, give that instruction in the 
 
 ## Decisions that can wait
 
-(#4930, `assistant/decision_wait.go`; `docs/design/proposals/main-chat-availability.md` section 4b.) A decision nobody needs today used to ring the owner's phone the moment it was raised. A supervisor may now say that it can wait, and it arrives with the next briefing instead.
+(#4930, `assistant/decision_wait.go`; `docs/assistant/assistant.md` section 4b.) A decision nobody needs today used to ring the owner's phone the moment it was raised. A supervisor may now say that it can wait, and it arrives with the next briefing instead.
 
 **The default, in one sentence**: a decision is pushed the moment it is raised, unless its supervisor marked it as able to wait and a daily briefing will bring it to the owner in time. Without a daily routine with `facts` nothing changes. With one, turning `facts` off on the routine (or the routine off) brings back "every decision is pushed"; there is no switch of its own.
 
@@ -1129,7 +1129,7 @@ Not yet: manual editing/undo of conclusions (currently **Replace** in decisions)
 
 ## Restores and Someday
 
-#10226 (`assistant/todo_marks.go`), from stage 1 of the To-dos redesign (`docs/design/proposals/todos-redesign.md`,
+#10226 (`assistant/todo_marks.go`), from stage 1 of the To-dos redesign (`docs/assistant/todo-status-sop.md`,
 sections 6.1 and 6.3). Two of the owner's marks live on the to-do, on the hub, so every device can agree on them, as
 they already do on seen (`docs/assistant/todo-status-sop.md` "Seen"):
 
@@ -1201,9 +1201,6 @@ several requests, in a stable order, and counts the set as sent only once every 
 ## Project
 
 #2581. A to-do can belong to one project (`todos.project`, a free label; `todo_project.go`), usually standing for an area of the user's work. Since the knowledge base was removed the label is no longer checked against anything.
-
-- **Setting it**: the apps through `POST` / `PATCH /api/v1/todos` (`project`), the assistant through `todo_create` / `todo_update` and each `task_plan` task's `project`. The label is stored as given, trimmed.
-- **The web To-dos page** groups open to-dos under their project label before the groups by repository, which only to-dos without a project still fall into; those with neither go last under **Unsorted**. The detail picks the project from a menu (long-term projects first). An area's group never folds for being quiet and shows no "Done" when no agent is at work: its to-dos are the user's open ones. The iPhone and iPad (#7077) show it too: a **Project** row in the detail with the due date, reminder and priority (the same choices and order as the web's picker), and **Group By › Project** on the To-dos list (a section per project, the one with the most pressing to-do first, then **Unsorted**, then Done folded, as the other groupings). The Mac and Android ignore the field for now. Checked by `scripts/test/web_todo_project_e2e.py` (mock hub, light and dark, wide and phone width).
 
 ## Requests in pieces
 

@@ -6,9 +6,9 @@
       "audience": "everyday",
       "description": "The everyday page (proposal 3.5's first column): the to-do's own decision has its card under the state line, the owner's notes and what they asked both show, and the card's recommended answer is the one primary.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/prototypes/todos/v1 iphone/kyoto",
-        "docs/design/prototypes/todos/v1 iphone/kyoto~scrolled"
+        "docs/assistant/todo-status-sop.md 3.5",
+        "To-do example: iphone/kyoto",
+        "To-do example: iphone/kyoto~scrolled"
       ],
       "input": {
         "item": {
@@ -199,8 +199,8 @@
       "audience": "everyday",
       "description": "The same page selected beside the list at a regular width: what the paper shows does not depend on its host.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/prototypes/todos/v1 ipad11-landscape/closed~kyoto"
+        "docs/assistant/todo-status-sop.md 3.5",
+        "To-do example: ipad11-landscape/closed~kyoto"
       ],
       "input": {
         "item": {
@@ -391,8 +391,8 @@
       "audience": "everyday",
       "description": "Opened from a card in the main chat (decision 2 (v)): pushed on the Assistant's stack, the same elements, and the composer still writes to Persona.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 5 decision 2 (v)",
-        "docs/design/prototypes/todos/v1 iphone/kyoto~from-assistant"
+        "docs/assistant/todo-status-sop.md 5 decision 2 (v)",
+        "To-do example: iphone/kyoto~from-assistant"
       ],
       "input": {
         "item": {
@@ -583,9 +583,9 @@
       "audience": "everyday",
       "description": "The to-do's conversation open beside the paper: the card stays (its home is the paper, not the pane), the conversation block becomes its one-line pointer and the composer has moved into the pane.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Drawn once per screen\"",
-        "docs/design/prototypes/todos/v1 ipad11-portrait/open"
+        "docs/assistant/todo-status-sop.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.7 \"Drawn once per screen\"",
+        "To-do example: ipad11-portrait/open"
       ],
       "input": {
         "item": {
@@ -775,8 +775,8 @@
       "audience": "agents",
       "description": "The developer page (proposal 3.5's second column): waiting for its code change to merge, no ask; the brief with Done when instead of empty notes, and Work details folded for the code work.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/proposals/todos-redesign.md 6.3 row 10"
+        "docs/assistant/todo-status-sop.md 3.5",
+        "docs/assistant/todo-status-sop.md 6.3 row 10"
       ],
       "input": {
         "item": {
@@ -893,10 +893,10 @@
       "audience": "agents",
       "description": "The page with several Agents (proposal 3.5's third column): the run's plan is a door headed by the run, whose Review Plan is the one primary; its home stays at the foot of the run's own conversation.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Homes\"",
-        "docs/design/prototypes/todos/v1 iphone/release",
-        "docs/design/prototypes/todos/v1 iphone/release~scrolled"
+        "docs/assistant/todo-status-sop.md 3.5",
+        "docs/assistant/todo-status-sop.md 3.7 \"Homes\"",
+        "To-do example: iphone/release",
+        "To-do example: iphone/release~scrolled"
       ],
       "input": {
         "item": {
@@ -1039,7 +1039,7 @@
       "audience": "agents",
       "description": "Opened from one of its runs under Agents: the same page, kept on Agents' stack, and the composer addresses that run.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6 \"The addressee chip\"",
+        "docs/assistant/todo-status-sop.md 3.6 \"The addressee chip\"",
         "#10465 (a page opened from Agents)"
       ],
       "input": {
@@ -1183,8 +1183,8 @@
       "audience": "agents",
       "description": "The pane shows the to-do's conversation: the run's door stays a door (the pane is not its home), the conversation block becomes the pointer and the composer is in the pane.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Drawn once per screen\"",
-        "docs/design/prototypes/todos/v1 ipad11-landscape/open"
+        "docs/assistant/todo-status-sop.md 3.7 \"Drawn once per screen\"",
+        "To-do example: ipad11-landscape/open"
       ],
       "input": {
         "item": {
@@ -1326,9 +1326,9 @@
       "audience": "agents",
       "description": "The pane shows the run whose plan waits: the door shrinks to the pointer, the plan's Approve in the pane is the screen's one primary, the paper keeps its conversation block, and the pane's composer addresses the run.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Drawn once per screen\"",
-        "docs/design/prototypes/todos/v1 ipad11-landscape/open~widget",
-        "docs/design/prototypes/todos/v1 duo-inner-landscape/release-pane-on-widget"
+        "docs/assistant/todo-status-sop.md 3.7 \"Drawn once per screen\"",
+        "To-do example: ipad11-landscape/open~widget",
+        "To-do example: duo-inner-landscape/release-pane-on-widget"
       ],
       "input": {
         "item": {
@@ -1470,8 +1470,8 @@
       "audience": "everyday",
       "description": "A to-do just written down: title, its chips with +, the Add Notes line and the composer. Persona can help waits for the steps routes, so stage 2 draws four of the proposal's five things.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5 \"A new to-do shows five things\"",
-        "docs/design/prototypes/todos/v1 iphone/passport",
+        "docs/assistant/todo-status-sop.md 3.5 \"A new to-do shows five things\"",
+        "To-do example: iphone/passport",
         "#10465 (no Persona can help in stage 2)"
       ],
       "input": {
@@ -1525,8 +1525,8 @@
       "audience": "agents",
       "description": "Closed by Persona and not seen yet: it says how it ended, its chips have no +, the composer asks about it without reopening it, and the tick (done) is the primary.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/proposals/todos-redesign.md 6.3 row 6"
+        "docs/assistant/todo-status-sop.md 3.5",
+        "docs/assistant/todo-status-sop.md 6.3 row 6"
       ],
       "input": {
         "item": {
@@ -1641,7 +1641,7 @@
       "audience": "everyday",
       "description": "Didn't start, on a to-do the main chat handed out: the to-do's retry ask has its card, whose Retry is the one primary.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4",
+        "docs/assistant/todo-status-sop.md 3.4",
         "#10465 (Retry only on a to-do with an origin)"
       ],
       "input": {
@@ -1872,7 +1872,7 @@
       "description": "Three days after its start failed, and edited since, which keeps the Inactive mark off: a plain To do row with no line, but its page still says why it did not start.",
       "source": [
         "spec/fixtures/todo-view/README.md \"Judgement calls\"",
-        "docs/design/proposals/todos-redesign.md 6.3 rows 1, 13, 14"
+        "docs/assistant/todo-status-sop.md 6.3 rows 1, 13, 14"
       ],
       "input": {
         "item": {
@@ -1930,8 +1930,8 @@
       "audience": "everyday",
       "description": "Finished and not seen (the ask says it is done): Mark Done is the one primary.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5 \"One primary action\"",
-        "docs/design/proposals/todos-redesign.md 6.3 row 9"
+        "docs/assistant/todo-status-sop.md 3.5 \"One primary action\"",
+        "docs/assistant/todo-status-sop.md 6.3 row 9"
       ],
       "input": {
         "item": {
@@ -1997,8 +1997,8 @@
       "audience": "everyday",
       "description": "A To do with the Inactive mark has something to say, so its state line shows.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4",
-        "docs/design/proposals/todos-redesign.md 6.3 row 13"
+        "docs/assistant/todo-status-sop.md 3.4",
+        "docs/assistant/todo-status-sop.md 6.3 row 13"
       ],
       "input": {
         "item": {
@@ -2055,8 +2055,8 @@
       "description": "A step's run asks, and the to-do's own decision can wait: the page draws the decision's card under the state line and the run's door after it, and the door's Review holds the primary, since the hub lists the run's ask first, as the row shows it.",
       "source": [
         "spec/fixtures/todo-view/README.md \"Judgement calls\"",
-        "docs/design/proposals/todos-redesign.md 3.5",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Homes\""
+        "docs/assistant/todo-status-sop.md 3.5",
+        "docs/assistant/todo-status-sop.md 3.7 \"Homes\""
       ],
       "input": {
         "item": {
@@ -2182,7 +2182,7 @@
       "audience": "agents",
       "description": "The pane shows the step's run that asks: its door shrinks to the pointer and its home in the pane holds the screen's one primary, while the to-do's own card stays on the paper and the pane's composer addresses the run.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Drawn once per screen\"",
+        "docs/assistant/todo-status-sop.md 3.7 \"Drawn once per screen\"",
         "spec/fixtures/todo-view/README.md \"Judgement calls\""
       ],
       "input": {
@@ -2308,8 +2308,8 @@
       "audience": "everyday",
       "description": "A decision that can wait for the briefing (Can wait: listed, not counted): the to-do still needs the owner, so its card holds the primary.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.4 \"Can wait\"",
-        "docs/design/proposals/todos-redesign.md 3.5 \"One primary action\""
+        "docs/assistant/todo-status-sop.md 3.4 \"Can wait\"",
+        "docs/assistant/todo-status-sop.md 3.5 \"One primary action\""
       ],
       "input": {
         "item": {
@@ -2534,7 +2534,7 @@
       "description": "A newer hub lists an ask of a kind this version cannot answer before the to-do's decision: the page leaves that one out, as it leaves out a Retry the hub would refuse, and draws the decision's card, which holds the primary.",
       "source": [
         "schema/wire/todo-view.schema.json OwnerAskKind",
-        "docs/design/proposals/todos-redesign.md 3.7 \"Homes\""
+        "docs/assistant/todo-status-sop.md 3.7 \"Homes\""
       ],
       "input": {
         "item": {

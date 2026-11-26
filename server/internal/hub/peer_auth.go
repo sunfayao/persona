@@ -12,7 +12,7 @@ import (
 
 // Calls between hubs of a group (docs/server/mesh.md "Mesh links"): a call for a hub the caller has no link to goes hop by hop along
 // the route (relay). What one hub may ask another: the center takes over a member's device credentials (creds.import,
-// plan-hub-center.md 3 "Device credentials"); a revocation reaches every copy of a credential (creds.revoked, docs/server/mesh.md).
+// docs/server/mesh.md 3 "Device credentials"); a revocation reaches every copy of a credential (creds.revoked, docs/server/mesh.md).
 
 // meshRelayReq is a call to another hub of the group, passed along the way to it.
 type meshRelayReq struct {

@@ -94,12 +94,12 @@ type Machine struct {
 	HubName    string        `json:"hub_name,omitempty"`
 	MachineUID string        `json:"machine_uid,omitempty"`
 	Route      *MachineRoute `json:"route,omitempty"`
-	// Paths: every way the center has to this computer (docs/archive/operations/plan-hub-center.md 5), when there is more than one or it
+	// Paths: every way the center has to this computer (docs/server/mesh.md 5), when there is more than one or it
 	// is a member hub's; the machine detail and the admin page show them.
 	Paths []MachinePath `json:"paths,omitempty"`
 }
 
-// MachineRoute is how the center reaches a machine now (docs/archive/operations/plan-hub-center.md 5): via one of its own ways (local |
+// MachineRoute is how the center reaches a machine now (docs/server/mesh.md 5): via one of its own ways (local |
 // service | link | ssh | tailcat, hops 0) or through a member hub (hub, hops 1); RTTMS is the node's round trip
 // when it was measured.
 type MachineRoute struct {

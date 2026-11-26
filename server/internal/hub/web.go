@@ -22,7 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/webasset"
 )
 
-// webDist is the web client built into a published personad (scripts/release/publish.sh copies web/dist here before building);
+// webDist is the web client built into a published personad (the release packager copies web/dist here before building);
 // in other builds only the placeholder is there. Its hashed assets and its third-party-licenses.txt are kept gzipped
 // (webasset.Precompress, run by the build after the copy): name.gz instead of name.
 //

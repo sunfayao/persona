@@ -70,8 +70,6 @@ and `<codex_internal_context>` appear only in response_item (model input), not i
 
 The Persona assistant ("Persona" tab) can also use Codex launchers through `codex app-server`; see `docs/assistant/assistant.md` ("Codex").
 
-Multiple existing app-server instances on one computer (desktop App, separate `CODEX_HOME`s, multiple clients reading / writing / approving) are integrated into the existing Agents list. See [`codex-app-server.md`](codex-app-server.md) for how that works and its limits; the source research behind it is in [the archive](../archive/integrations/codex-app-server-research.md). Discovering history requires no herdr; only instances exposing a protected Unix / loopback WebSocket endpoint support live connection and control. External stdio is explicitly read-only.
-
 ## Visualize
 
 Codex's visualize plugin asks the model to write a self-contained HTML fragment (no network access of its own: no `fetch` / XHR, everything inlined, under 1 MB) and marks it inside an AgentMessage's text with private-use runes:
@@ -102,47 +100,6 @@ An existing explicit capability object retains its operation restrictions when t
 Since 2026-11-02, for Codex panes running on a shared app-server daemon, Persona joins their threads as a second client. Questions, approvals, and messaging use the protocol,
 not screen reading or typing into the terminal. Panes it cannot join retain the terminal route under "Questions and approvals" below (#214).
 
-- **Why joining works**: since 0.163, bare `codex` automatically starts or joins the shared daemon (`<CODEX_HOME>/app-server-control/app-server-control.sock`).
-  The TUI is just one client. Server requests for a thread (approvals, `request_user_input`) go to every subscriber; the first answer wins, then everyone gets
-  `serverRequest/resolved` and removes their prompts (`docs/integrations/codex-app-server.md`).
-- **Finding the daemon**: the node already discovers each home's official control socket and app-server processes with `--listen`, opening one WebSocket per instance
-  (`codex_remote.go`). The 0.163 control socket is an alias: a symlink to `<canonical /tmp>/codex-daemon-<uid>/<SHA-256 of the alias's canonical path>`
-  (Codex's `uds/src/daemon_directory.rs`, `unix_socket.rs`). Previously, "not a socket / is a symlink" was always rejected, so it never connected.
-  Now follow only the exact target Codex itself computes (the alias directory must belong to the current user and be unwritable by others; target directory 0700, socket 0600). Other symlinks remain rejected (`codexSocketPath`).
-- **Which panes use it**: if the thread id identified by the node for a live Codex pane in herdr (`agent_session` / thread name / rollout, see "Recognition") appears in a connected
-  app-server's `thread/loaded/list`, that app-server runs the thread (only one writer per thread); the TUI in the pane is its client.
-  The node checks every second, joining unconnected threads in the background with `thread/resume` (only `threadId` and `excludeTurns`, no model, directory, sandbox, or instructions, changing no session settings;
-  app-server also ignores overrides when subscribers already exist). Failed joins retry after 30 seconds, with the reason recorded on the session (`codex_daemon.go`).
-- **Once connected**:
-  - Approvals (commands, file changes, permissions, MCP tools) and Plan-mode `request_user_input` are app-server requests, converted to the same cards as the assistant's
-    (with `agent: "codex"`, Codex's reason, and "Always Approve" = this session: `acceptForSession` / permission `scope: session`). Answers return through the protocol.
-    If a reason accompanies a denial, return `decline`, then inject the reason as a message into this turn (`turn/steer`, like the assistant's `tellModel`).
-  - Async questions (`request_user_input_async`) are messages, not requests. Recognize them from rollout as before ("Questions and approvals"); send the answer envelope as an app-server message (`turn/start` / `turn/steer`).
-  - Phone messages use `turn/start` when idle or `turn/steer` with the current turn while working (for a turn already running before connection, read it once with `thread/read`).
-    No terminal typing: computer input drafts stay untouched, neither swallowed nor mixed into the message.
-  - `/compact` alone (spaces around it allowed, no photos) compacts the thread with `thread/compact/start`, the call the TUI's own `/compact` makes (#10188, `node/codex_remote_compact.go`).
-    The app-server runs no slash commands: sent as a turn, `/compact` reached the model as words. Codex writes the rollout's `compacted` line and its `ContextCompaction` item, so the session shows
-    the same "Context compacted" notice as a terminal compaction and no user message. While a turn runs it is refused with `codex_compact_busy`, nothing sent and nothing steered: Codex's compaction
-    replaces a running turn instead of waiting for it, and the TUI refuses `/compact` mid-turn too. A thread the node last saw resting is read again (`thread/read`) just before, so a turn
-    begun at the computer since is not cut short; an app-server without the method refuses it (`codex_refused`). Anything more (`/compact now`, a photo) is a message as before. Other slash
-    commands still go to the model as text; panes on the terminal route type `/compact` into the TUI as before.
-  - The thread's turn on the app-server counts over herdr's state: a pane herdr calls done / idle / unknown is listed Working while the app-server runs a turn in it,
-    from the reply to `turn/start` on (#4865, `docs/protocol/agent-states.md`, "Codex").
-  - Thinking effort can be changed on the phone (permission mode cannot); see "Thinking effort" below.
-  - Computer answers first: `serverRequest/resolved` removes the card (`interaction.dismiss`); a later phone answer does nothing. Phone answers first: the TUI prompt closes.
-    Simultaneous answers: app-server accepts only the first, and runs the command only once. Observers never auto-answer (`codex_remote_asks.go`).
-  - Disable the terminal route for these panes: do not inspect their screens for approvals or recognize blocking questions from their rollout. One question must not produce two cards or two answers.
-- **Panes that cannot join**: launches with `-c` / `--profile` and similar arguments (0.163 runs in its own process rather than the daemon in this case), already-running non-daemon sessions, 0.153 (auto-connects only
-  if the socket already exists), and TRAE CLI retain the terminal route.
-- **Daemon restart, disconnect, or version change**: disconnect clears join state, and these panes immediately fall back to the terminal route (screen cards, typing), with existing cards removed. The TUI displays
-  "Reconnecting to server…", reconnects when the new daemon starts, and reloads the thread. The node reconnects to the new daemon every 2–5 seconds and rejoins; pending requests replay as new cards.
-  Persona does not block the TUI: requests also go to it, so users can answer on the computer at any time.
-- **Visible routing**: sessions carry `codex_route` (`app_server` / `terminal`) and `codex_route_note` (why terminal). The App's "Session Info" shows "Connection: app-server (structured)"
-  or "Terminal (screen reading)" plus the reason. Node logs record every successful / failed join.
-- **Tests**: `node/codex_daemon_test.go` (auto-join on a synthetic app-server, messages, async answers, approval cards, denial reasons, join retry, socket alias), `node/codex_remote_compact_test.go` (`/compact`);
-  real Codex: `scripts/test/test-codex.sh` with `PERSONA_CODEX_DAEMON_BINS` (`docs/operations/testing.md`, "Codex integration"), starts a test-only `codex app-server --listen unix://…` in isolated herdr
-  (does not touch the active daemon; node discovery is disabled and recognizes only this one), with the TUI connected using `--remote`.
-
 ## Thinking effort
 
 Since 2026-11-04 (#1709), Codex sessions controlled by the phone through app-server can have their thinking effort changed on the phone: send-capable "Codex live" sessions in Agents
@@ -152,44 +109,6 @@ Messages to them already use `turn/start` / `turn/steer`; thinking effort is the
 Assistant conversations on a custom Codex launcher also accept Codex's native levels, including `minimal` and `ultra`.
 Both the first-message selection and a configured effort are checked against the agent that the launcher actually runs,
 not its command name; Claude launchers still reject Codex-only levels (`node/assistant_codex_alias_effort_test.go`).
-
-- **Unchanged**: permission mode still cannot be changed on the phone (Codex approval policy and sandbox remain determined by launch arguments and `config.toml`; requests with permission mode return
-  "Only Codex thinking effort can be changed on the phone; change permission mode on the computer"). Terminal-only panes (terminal route), sub-Agents
-  and TRAE CLI cannot even change thinking effort, with existing prompts unchanged. Codex desktop App chats change it through the App (#5575, "Sessions in the Codex desktop App" below). New Agent can also set a listed effort before a supported Codex start (see "Starting from the phone").
-- **Available levels**: `supportedReasoningEfforts` reported by this thread's model in app-server `model/list` (read once per connection with `includeHidden`,
-  since the thread may use a hidden model). If the model is absent or the list cannot be read, use the same set as the "Codex Settings" page: minimal / low / medium / high / xhigh / max / ultra.
-  An explicitly empty list means unsupported: neither show nor accept it. The session includes `efforts` (levels from weakest to strongest) and `effort` (current value); clients show the selector only when `efforts` is nonempty
-  (`docs/protocol/protocol.md`, "Codex sources and capabilities"). The node validates levels itself: observed 0.163 `thread/settings/update` accepts any string.
-- **Current value**: the value app-server says is configured for this thread (`reasoningEffort` from `thread/read` every 5 seconds, the join-time `thread/resume` reply,
-  and `thread/settings/updated` notifications). Otherwise use the latest rollout turn's `turn_context.effort`, including
-  terminal-only and history-only sessions. A model's default (`defaultReasoningEffort` in `model/list`) is only a fallback
-  for a controlled thread with no recorded effort. The computer-wide `config.toml` is not session evidence.
-  The incremental metadata scan retains the latest effort even when long tool output pushes its turn context outside the quick tail.
-  Changes in the computer TUI update the phone. Readback does not grant control: unsupported sessions still offer no effort choices.
-- **Changing it**: after validation, the node sends `thread/settings/update {threadId, effort}`. It applies from the next turn, whether sent from phone or computer; the TUI also receives
-  `thread/settings/updated`. It can be changed while the current turn runs, without affecting that turn. In 0.163 this method is experimental (the node already declares `experimentalApi` when connecting).
-  Observed: successful call, immediate `thread/settings/updated`, new value read back with `thread/read`.
-- **App-server lacks the method**: recognize only JSON-RPC `-32601` (method not found). Store the selection temporarily in node memory (`sessionModes.Codex`),
-  include `effort` on the phone's next `turn/start` (its effort applies to this and later turns), then clear it after one send. The session displays this selection meanwhile.
-  `turn/steer` (interjecting during a running turn) cannot carry effort, so wait for the next `turn/start`. The selection is valid only for that thread on that connection:
-  a disconnect/reconnect (possibly a newer version now supporting the method, or a computer-side effort change), or the thread being unloaded in app-server (session ended there),
-  invalidates it. Do not send it; show the thread's own value and require another phone selection. Also discard it if Codex rejects the `turn/start` carrying it, avoiding failure of every later message.
-  A node restart loses unsent selections (a restart is a new connection); successful `thread/settings/update` values reside in app-server and are not lost.
-- **All other failures return errors without recording a selection**: also clear any previous unsent selection, so a later `turn/start` does not carry a value the phone has already been told failed to change. Pass through other Codex errors
-  (-32602 invalid arguments, missing thread, etc.); report "Disconnected" on disconnect; after 15 seconds without a reply, report "May not have changed" (the request may already have reached app-server;
-  session display follows its next read).
-- **Clients**: web, iOS, and Android show only thinking effort for send-capable sessions with nonempty `efforts`: the chip below the web input, the label above the old iOS input and new shell's "Model · Thinking effort"
-  menu, Android's "Mode" button. Options come directly from `efforts` (minimal "Minimal", ultra "Ultra"; unknown values shown as-is). Claude Code and the assistant still have both settings.
-  On the web, the current Codex model row remains actionable for its effort flyout even when changing the model itself is unsupported.
-  The panel preserves recorded effort even if the launcher's catalog omits that level; it never replaces it with the catalog default.
-  Offline, read-only, parent-controlled, terminal-only, and non-adjustable-model states explain why effort cannot change here.
-  Supported changes explain that they apply on the next turn without interrupting the current one.
-- **Tests**: `node/codex_effort_test.go` (synthetic app-server: rejected before joining; after joining accepts only effort; invalid levels; `thread/settings/update` parameters;
-  -32601 carries effort on next `turn/start` but not `turn/steer`; other errors / timeout / disconnect report failure, record nothing, and clear previous selections; rejected `turn/start` discards the selection;
-  changed connection or unloaded thread invalidates it; model levels and defaults; Codex rejection; model without levels; `thread/settings/updated`; terminal route and TRAE CLI still rejected);
-  web `session-actions.test.ts`; iOS `SyncEventTests.codexThreadOnItsAppServerSetsItsEffortOnly`; Android `SessionSourceTest`, `SessionModesTest`.
-  Real Codex was manually checked only for `model/list`, `thread/settings/update`, and `thread/read` on a stdio app-server with temporary `CODEX_HOME` (no model run).
-  `scripts/test/test-codex.sh` does not yet cover this.
 
 ## Gateway model catalog
 
@@ -334,13 +253,13 @@ The app's `codex://new` link only fills its composer. The metadata client uses t
 
 If metadata creation returns a thread ID but naming or first-message delivery fails, `desktop_start_incomplete` retains that session and reports `created: true` plus `first_message_delivered`. Retry sends to the existing session instead of creating another chat. An unknown first-message outcome remains uncertain to the user; a transport failure before the thread ID is known also remains uncertain. See the [new-session protocol](../protocol/protocol.md#new-session).
 
-An explicit folder may be an existing absolute directory or one new child under an existing parent. A blank folder creates a unique directory under `~/Documents/Codex/<date>/`. The chat follows the App's project assignment for its folder. Windows tests exercise metadata creation, safe process arguments and mocked owner delivery; real Windows creation and message delivery remain unverified. See [Windows support](../operations/windows.md#desktop-projects-and-new-sessions).
+An explicit folder may be an existing absolute directory or one new child under an existing parent. A blank folder creates a unique directory under `~/Documents/Codex/<date>/`. The chat follows the App's project assignment for its folder. Windows tests exercise metadata creation, safe process arguments and mocked owner delivery; real Windows creation and message delivery remain unverified. See [Windows support](../operations/link.md).
 
 The temporary folder's slug comes from ASCII words in the first message's first line, falling back to `chat` and adding `-2`, `-3` and so on when occupied. Upstream acceptance on November 12, 2026 used Codex App 26.1106 and its Codex 0.167 on macOS without a terminal engine: the start answered after 16.7 seconds, the App replied after 24 seconds, and the chat appeared among chats with no project. This does not validate Windows creation or native project synchronization. Tests: `node/codexapp_new_test.go`.
 
 ## Windows
 
-Same features as macOS, with Windows' own ways in (`codex_desktop_windows.go`, `codex_procs_windows.go`; status table and verification record in [windows.md](../operations/windows.md), "Codex"):
+Same features as macOS, with Windows' own ways in (`codex_desktop_windows.go`, `codex_procs_windows.go`; status table and verification record in [../operations/link.md](../operations/link.md), "Codex"):
 
 - **Codex App**: the bus is one named pipe per user session, `\\.\pipe\codex-ipc`, not a socket in the Codex home (the App's `app.asar` picks it when `process.platform` is `win32`); frames, methods and versions are the macOS ones.
   The node looks for the pipe in the pipe namespace (`FindFirstFile`) and connects only to send: `os.Stat` on a pipe opens it. As the pipe is the same whatever the home, an App chat is one in a home holding the App's
@@ -432,18 +351,6 @@ The entry point is the same as Claude's (machine, directory, launcher); subseque
   desktop app bundles as `codex-cli/bin/codex`, which only execs `../CodexCLI.app/Contents/MacOS/codex` next to it.
   Any other script may set its own `CODEX_HOME` or `--profile`, so the effort in `~/.codex/config.toml` would not apply
   (#10432). On Windows this check is skipped.
-
-  Otherwise the flag stays (`node/codex_start_effort.go`, #4860). Effort can also be changed in chat after joining app-server (see "Thinking effort"). Resuming an existing session: see "Resuming from the phone" below.
-- **In the conversation's folder**: the file also names the directory (`dir`), and `codex-start` changes to it (and sets `PWD` to it when the shell had one) before it runs the words, for a resume too.
-  Codex records that directory as the thread's, and finds the thread's files from there; nothing but `codex-start` and its file is typed, so no `cd` goes to the shell either.
-- **In an Agent's own terminal** (a switch from Claude Code, #5054; [claude-integration.md](claude-integration.md) "Switching a running Agent to another engine"): the start runs in the pane the claude left, once its shell is at rest, instead of a new tab.
-  That pane is the user's terminal: a start that fails there never closes it (nor counts it as a start to clean up later); the switch quits what it left in front and brings the claude back.
-  The first message is the handoff block, then the user's words.
-- **Tests**: `node/codex_start_test.go` (fake herdr: pane command only `codex-start <file>`, file contains launcher words and message, exactly one session, route note, rejection, timeout and startup failure errors, trust dialogs,
-  `codex-start` subprocess receives message byte-for-byte, Codex aliases in `~/.zshrc`), `node/codex_orca_launch_preferences_test.go` (fake Orca: stock launch defaults, model/effort precedence, literal quoting, bypasses and fail-closed validation with no terminal or settings writes). Real Codex: `TestLiveCodexStart` in `scripts/test/test-codex.sh`
-  (0.163 connected with `--remote` to the test's own app-server, 0.153, 0.163 with `-c`; each round in a fresh git repository, so Codex asks to trust it and the start must answer;
-  multiple turns each, messages with quotes / newlines / `$` / backticks / Chinese / long text,
-  unchanged in rollout, one session per pane, correct route, a subsequent phone message received). App: `MachinePagesTests.testNewCodexSessionStartsWithItsFirstMessage`.
 
 ### Starting without a first message
 
@@ -625,13 +532,6 @@ own receipt paths; Botmux has no readable terminal composer.
 
 ### Tests
 
-- Unit tests: `screen/codex_test.go` (recorded screens, 0.153.4 / 0.163.0, `screen/testdata/codex-*`), `transcript/codexask_test.go` (rollout recognition, both schemas,
-  partial answers, direct typing, old desktop replies, TRAE CLI), `node/codexask_test.go` (keys and input for every UI state on fake herdr, no keys on refusal),
-  `node/codex_submit_test.go` (terminal submission confirmation, uncertain outcomes, retry deduplication and matching-draft preservation),
-  `hub/codexcards_test.go` (list additions / removals, restoring cards after failed answers, silent reconnect, push titles).
-- Real Codex: `scripts/test/test-codex.sh` (`docs/operations/testing.md`, "Codex integration testing") starts Codex in isolated herdr, asks questions and requests approvals, with one case per UI state and multiple turns each.
-- App: `CodexCardsTests` (mock `MOCK_CODEX=1`), light / dark screenshots.
-
 ## Closeout
 
 A Codex Agent learns the closeout's form (`docs/assistant/agent-work.md`, "Closeout") the way it learns its task: in the prompt. With the `closeout` triage switch on, the prompts of `task_plan`, `agent_start` and `dispatch_start` end with the form, whatever launcher runs them, and the first message is what a Codex session is started with ("Starting from the phone"). Triage reads the closeout from the last reply of the turn as the node reads it from the rollout, so a Codex closeout is parsed like any other (`TestCodexCloseoutIsRead`).
@@ -726,7 +626,7 @@ Read codex-rs source tags `rust-v0.153.4` / `rust-v0.163.0`, plus binaries for b
   requiring `turn/start` before opening the pane. Simpler: run `codex "<first message>"` directly in the pane and identify the thread from `thread/started`.
 - **Conclusion**: worth doing, but only for 0.163 daemon panes, retaining screen cards as fallback for everything else. **First step implemented**: see "Sessions on the daemon".
   Step two (phone creation) does not use `thread/start`; it runs `codex -- <first message>` directly in the pane ("Starting from the phone").
-- **Relationship to existing implementation**: `codex-app-server.md` (dd83e7b0) already integrates external instances with Unix / loopback WebSocket endpoints, which includes the 0.163 shared daemon.
+- **Relationship to existing implementation**: `codex.md` (dd83e7b0) already integrates external instances with Unix / loopback WebSocket endpoints, which includes the 0.163 shared daemon.
   However, live Codex panes in herdr are treated as terminal sessions first (`externalCodex` false), without joining their daemon threads. Next step could be: for 0.163 Codex in herdr,
   find a daemon owner (`codexOwner`), join if found, and use app-server for questions / approvals (either side may answer first, `serverRequest/resolved` removes cards);
   otherwise fall back to rollout / screen reads here. Already-joined threads are already skipped here ("Questions and approvals" above).
@@ -800,3 +700,38 @@ capability gets 501 `assistant_service_tier_manager_outdated` before relaying; a
 returns 409 `node_outdated`. An older hub ignores the unknown field, so the web neither offers nor sends it there. The
 start choice is one-shot, not execution-fingerprint or recovery state; later changes still use `session.speed`.
 New terminal Agent starts have a separate `speed` contract for Codex Fast / Ultrafast and Claude Code fast mode, including catalog validation, start-only semantics and the `session_start_speed` compatibility gate; see [Launchers](launchers.md) "Speed". The New Agent form itself still has no speed control.
+
+## App-server protocol
+
+### What the code relies on
+
+- **A Unix socket carries WebSocket, not JSON lines.** The node dials the socket and runs a WebSocket handshake over it (`validateCodexEndpoint` in `codex_remote.go`); Persona's JSON-lines RPC client cannot talk to it. A stdio app-server has no endpoint a second client can attach to, so its threads are view only.
+- **The writer lock is not a takeover protocol.** Codex keeps one writer per thread with a file lock under `<CODEX_HOME>/thread-writer-locks/`, and the lock points to no owner endpoint. The node never deletes it, never starts another app-server to resume a thread, and sends only to the one connected instance whose `thread/loaded/list` has the thread (`codexOwner`): none or several, and the thread is view only.
+- **An observer never answers on its own.** A server request goes to every subscriber and the first answer, or error, wins. Only the user's own answer on the card is sent: requests the node cannot show, and cards that are dismissed, expire or are withdrawn, get no reply at all, not an error or a decline, so the desktop keeps its chance to answer (`codex_remote_asks.go`). `serverRequest/resolved` only takes the card away; it never means approved.
+- **Listing is not joining.** `thread/loaded/list` and `thread/read` load nothing; `thread/resume` subscribes and can start queued work, so the node resumes a thread only when the user joins it or sends to it (or joined it before), never while it lists.
+- **Live work outranks completed history.** A connected, unambiguous owner's cached active or waiting state prevents the stale-rollout correction from marking a pane done. Paginated history may contain only older completed turns while a continuation runs; a late join need not have observed its turn ID. Completed history still corrects stale terminal activity once the owner finishes or disconnects (#8946).
+
+### First implementation
+
+Parent thread IDs remain raw inside the app-server connection; session decoration converts them to public IDs exactly
+once. Otherwise a secondary home's child points at a twice-hashed ID instead of its listed parent (#9393). The
+assistant's `agents_list` and live context use the existing fold's root rows and folded states, just like the clients:
+known children stay inspectable through their parent, while missing-parent and unknown-ancestry sessions remain
+independent. Pending child interactions keep their original interaction IDs and are described under the parent.
+
+Entry points are `node/codex_registry.go`, `codex_discovery.go`, and `codex_remote.go`. Reuses RPC envelopes/pending from `assistant_codex.go`, connecting external WebSockets through pluggable message writers and dispatch without putting external instances into assistant-process stop/reap.
+
+- Automatically discovers multiple homes, current-user processes/allowlisted fields, and existing listen/control sockets; configuration is in `docs/operations/config.md`. Only open rollout filenames of selected processes identify a stdio source as still running, never recent files or cwd. These sessions (desktop-bundled stdio app-servers running outside the app sidebar; codex terminal UIs running directly in tmux, such as botmux's Codex; sidebar chats get sidebar-based status through app IPC in #380) derive status from their open rollout: a tail ending mid-turn is working (also if a turn exceeds node's 384 KB tail window and no turn event is present—`task_complete` is always within the last few KB when a turn ends); a tail ending in `task_complete` / `turn_aborted` is done (like idle loaded threads on the same app-server). Only threads with no turn yet or no provable work state are unknown, rather than incorrectly exited or permanently working. The app treats unknown as idle, once placing running desktop tasks under "Idle spaces" (#290). An open rollout not written for over a day (using the later of last-line time and file mtime) no longer counts as running and returns to offline: a bridge running for months kept stdio app-servers holding previously loaded threads open, leaving that history perpetually Unread (#2425). Read-only reasons identify the process holding the file: "app-server is running" or "Codex is running" (terminal UI).
+- One resolver unifies terminal, history, and protocol entries for the same home/thread. The default legacy home keeps old IDs; non-default homes get `c0de-` opaque IDs. PID and connection generation do not change history identity. Known homes/named instances/per-thread join permissions live in hub settings; default scanning and history display do not depend on the terminal engine.
+- One Unix-WebSocket or literal-loopback WS connection per instance, multiple threads per connection; complete loaded/list pagination establishes owners. Multiple owners for the same home/thread reject writes. Disconnect if initialize returns a mismatched home; initialization never overrides desktop skills/models/permissions.
+- A Unix endpoint (discovered or configured) that does not get through validation, dial and handshake is tried again after 5, 10, 20 and 40 s, then every 60 s, while its socket is unchanged: the node compares `lstat` of the socket, its directory and, for an alias, the target and its directory (inode, mode, modification time, or missing). Any change there, such as an app-server starting again and creating its socket, makes the next 5 s check try at once; a changed server entry or a connection that got ready clears the count. Loopback WS endpoints keep the 5 s check. Before #2439 a socket left behind by an exited app-server was dialed every 5 s, and each failure pushed the session list again.
+- Every 5 s the node lists the loaded threads and reads each with `thread/read`, four at a time. Each read has its own 5 s timeout inside the refresh's 20 s, so one slow thread does not use up the time of the others. A thread whose read timed out keeps its last state and is read again after the same 5, 10, 20, 40, then 60 s steps, counted from when the reads ended; a thread seen for the first time is listed once a read succeeds. Once the 20 s run out, no further reads are sent that refresh: the threads left keep their last state and are read on the next refresh, without a backoff. A refresh with failed reads writes one log line with the counts. Before this, all reads shared one 20 s deadline: once a few slow reads had used it, every later read failed and each failure was logged.
+- The reads go out in an order that matters only when the 20 s cannot cover them all (`readOrder`): first the threads with a turn running or a request waiting, whose next state is the one Unread and pushes wait for, then the others by when each was last read, never read first; a read the refresh's time cut short does not count as read, but goes behind threads not asked. A thread left unread goes ahead of the threads read in its place, so a long loaded list does not cut the same threads on every refresh. Before #12517 the reads went in loaded-list order, and the threads at the end of a long list were not read in time on every refresh, those with a turn running included.
+- A thread whose read says `ephemeral: true` is one of Codex's own background jobs (naming a thread, a sub-Agent helper): never a session, and it stays loaded after it finishes. A thread is ephemeral or not from its creation, so the node remembers the answer for as long as the connection lasts and the thread stays loaded, and does not read it again; an id that leaves the loaded list is forgotten and read once more if it comes back. The refresh's log line counts these threads as skipped. Before #12517 they were read on every refresh: a daemon that kept hundreds of finished helper threads loaded got about 100 reads a second, and the 20 s ran out before the other threads were read.
+- Ordinary viewing syncs local rollouts. Only **Join live** or the first send requests joining; no batch resume of all discovered threads, automatic cold restore, or substitute process. Sending supports text and uploaded local images; working turns steer with an observed turn ID, and arbitrary failures do not fall back to start. Stopping does not clear background terminals.
+- External questions/command/file/MCP tool and permission approvals use existing phone cards without assistant auto-approval policy. Request IDs include source and generation, replay deduplicates, external resolved removes cards and records dismissed. Unknown dynamic tools/forms/user verification receive no automatic replies, and no claimed desktop handler support.
+- Apple/Android/web parse optional source capabilities, show read-only reasons, and hide terminal/resume/close actions without capabilities. Sending and retry recheck capabilities. Even if old clients still show buttons, the server rejects read-only or incorrect routes.
+
+Explicit limitations remain: parent-managed child threads do not receive direct turn input; queue management, dynamic-tool execution, and dedicated audio/skill/mention inputs are not exposed. Threads without local rollouts are guaranteed only visible metadata and new live output after joining, not complete paginated history. Unix long-path rendezvous and authenticated WS/remote endpoints are not adapted yet; loosening permissions or widening accounts is not a workaround. `loaded/list` and resume are not atomic, and joining is not strictly zero-side-effect subscription; unproven races and upstream exactly-once keep the limits the research lists.
+
+Synthetic regressions cover identical IDs across homes, multiple owners, loaded pagination, Unix handshake, legacy ID preservation, restart mapping, read-only zero control, no resend after steer failure, unknown delivery, approval replay/external resolution with zero replies, multi-thread deltas, payload wrapping, remembered ephemeral threads, and the read order under a short refresh budget (`codex_remote_reads_test.go`). `PERSONA_CODEX_NODE_BINARY=<built-personad> go test ./internal/node -run CodexRemoteNodeProcess` also starts an actual node with independent HOME, driving a test WebSocket through its stdio RPC without touching user sessions.

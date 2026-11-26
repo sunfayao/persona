@@ -1,6 +1,6 @@
 # To-do ask answer fixtures
 
-What an answer to one of a to-do's own asks does (#10465; `docs/design/proposals/todos-redesign.md` 3.7 and 7.3
+What an answer to one of a to-do's own asks does (#10465; `docs/assistant/todo-status-sop.md` 3.7 and 7.3
 "Asks"): given what waits on the to-do, the ask's id as its view lists it and the answer
 (`POST /api/v1/todos/{id}/asks/{ask}/answer`, `TodoAskAnswer` in `schema/wire/todo-view.schema.json`), the status, the
 error code, the answer (`TodoAskAnswered`) and what changed. The manager replays every case against its route
@@ -16,7 +16,7 @@ feature flags"). The operation's id is the `X-Persona-Op-Id` header, never a bod
 ## Format
 
 `{"version": 1, "cases": [...]}`. A case is `{name, description, source, input, expected}`; the descriptions are
-English. All data is made up (the prototype's trip to Kyoto, `docs/design/prototypes/todos/data/todos.js`).
+English. All data is made up (the prototype's trip to Kyoto).
 
 - `input.state`: what waits on the to-do whose row the path names, one of the states below.
 - `input.ask`: the ask's id, as the row's `view.asks` lists it (`spec/fixtures/todo-view/README.md` "asks"), sent as one

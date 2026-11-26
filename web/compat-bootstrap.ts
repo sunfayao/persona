@@ -3,8 +3,7 @@
 // was a parser-blocking request on every page load: the service worker passes it through (lib/sw-routes.ts) and the
 // hub has root files checked again on every load (no-cache, a 304 at best). The page waited a round trip to the hub
 // before its first paint, also when the worker had answered with the kept shell because the hub was slow or
-// unreachable. The file stays the one source of the code (scripts/compatibility-identifiers.json lists it as the
-// adapter) and is still copied for shells kept from before.
+// unreachable. The original file is still copied for older cached shells.
 import { readFileSync } from "node:fs";
 import type { Plugin } from "vite";
 

@@ -451,7 +451,7 @@ func (r *Registry) checkPackageFiles(ctx context.Context, m *Manifest, root stri
 	return checkProgram(root, "runtime.command", cmd)
 }
 
-// NodePrograms says whether this hub runs plugins' programs on computers (docs/plans/plan-extensions.md "7"): off, a package
+// NodePrograms says whether this hub runs plugins' programs on computers (docs/extensions/extensions.md "7"): off, a package
 // with a node program does not install, rather than install and never run there (a test turns it off).
 var NodePrograms = true
 

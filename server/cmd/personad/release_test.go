@@ -23,7 +23,7 @@ func TestReleaseManifestHasNoMinNodeFlag(t *testing.T) {
 }
 
 // A served latest.json that is there but cannot be read fails check-next instead of counting as nothing served: a
-// nil manifest passes the check whatever the build and commit, and publish.sh would publish an older build.
+// nil manifest passes the check whatever the build and commit, and the release packager would publish an older build.
 func TestReleaseCheckNextUnreadableServed(t *testing.T) {
 	served := t.TempDir() // a directory: reading it fails
 	err := runRelease([]string{"check-next", served, "--build", "209901010000", "--commit", "abc"})
@@ -36,7 +36,7 @@ func TestReleaseCheckNextUnreadableServed(t *testing.T) {
 	}
 }
 
-// Nothing served yet, a missing file or the empty one publish.sh writes when the fetch fails, still passes.
+// Nothing served yet, a missing file or the empty one the release packager writes when the fetch fails, still passes.
 func TestReleaseCheckNextNothingServed(t *testing.T) {
 	dir := t.TempDir()
 	empty := filepath.Join(dir, "served.json")
@@ -112,7 +112,7 @@ func TestReleaseManifestBetaChannel(t *testing.T) {
 
 // release manifest refuses downloads of another build than the one it is told, and writes nothing: v0.2.1's
 // latest.json said build 202611110749 over binaries of 202611110745, and every hub refused it after downloading
-// (#4522). release verify checks a written latest.json the same way, as publish.sh does before uploading.
+// (#4522). release verify checks a written latest.json the same way, as the release packager does before uploading.
 func TestReleaseManifestAndVerifyRefuseAnotherBuild(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the binary is a shell script")

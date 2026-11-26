@@ -383,7 +383,7 @@ To avoid going to the computer and clicking every time, the plugin is split into
   (`Packages` in `server/internal/runtimepkg`) and JS (`PACKAGES` in `runtime-sdk/lib/package.js`), and the two must match
   (guarded by `TestPackagesMatchTheLoader`). Before building personad, run `go generate ./internal/runtimepkg`, which packs these files from `integrations/` and embeds them in the binary
   (gzipped, a directory several packages share stored once; a package is unpacked the first time node needs it)
-  (the Dockerfile, `deploy.sh` and `publish.sh` all run it), so node always carries the plugin from the same build as itself. A build that skipped generation carries no package and offers nothing.
+  (`scripts/deploy/deploy.sh` runs it), so node always carries the plugin from the same build as itself. A build that skipped generation carries no package and offers nothing.
 - **Flow**: hello carries `package: {name, hash}`; when node carries a package with the same name and a different hash, the reply includes `update: {name, hash, version}`.
   The SDK passes it to `onUpdate`; the loader fetches the files with `runtime.package`, checks paths, sizes and hashes, and writes them to `<store>/<hash>/` (written alongside and then renamed, so there's never a half-written version).
   It then **waits until the phone has no cards from this runtime** (`rt.busy()`, at most 2 hours), stops the old one, imports the new one and starts it. If the new one fails to start, it goes back to the old one
@@ -473,7 +473,7 @@ OpenCode's companion follows the same dedicated-worker boundary as agy: Assistan
 6. **Optional supervision policy channel (`supervisionPolicy: true` → `caps.supervision_policy`)** (#11173): only declare this if the runtime can apply `supervision_instructions` on an authoritative channel separate from user message text, persisting across compaction and isolated per session (never rewriting shared `~/.persona/assistant/AGENTS.md` and never leaking policy into concurrent ordinary chats). The runtime must refuse a policy change while the session is busy with `code: "busy"`, clear its per-session policy when `supervision_instructions` is `""` or the session closes, and fail closed with `code: "assistant_supervision_runtime"` (never sending the prompt) if the policy cannot be applied. Runtimes that do not declare `caps.supervision_policy` never receive `supervision_instructions` and keep the existing refusal boundary for supervision deliveries (`docs/assistant/assistant.md` "Role-scoped supervision instructions (#8251)").
 
 The assistant launcher's entry in `launchers` may also carry `assistant_for`: the name of an Agent launcher on the same computer that runs the same agent with the same
-account but can't run the assistant itself (a Paseo provider; the Grok companion's `--assistant-for grok`, `integrations/grok/README.md`). The person setting the runtime up
+account but can't run the assistant itself, such as a Paseo provider. The person setting the runtime up
 declares it; nothing guesses it from names. `launchers.list` passes it on only for the launcher that runs the assistant, and the main chat's picker then points that
 launcher at this one (`unavailable[].instead`, [model-config.md](../assistant/model-config.md) "A conversation's own model"). Nothing is ever run on one in place of the other.
 
@@ -488,9 +488,7 @@ end to end in `integrations/dsh/e2e/assistant.mjs`.
 | pi (`pi-<pid>`, `pi-web`, `pi-files`) | `integrations/pi`: pi extension (one connection per pi process) + pi-web companion process | `docs/integrations/pi.md` |
 | omp (`omp-<pid>`) | `integrations/omp`: the pi host under omp's identity (agent and name `omp`); no companion and no auto-update | `docs/integrations/omp.md` |
 | opencode (`opencode` / `opencode-<pid>`) | `integrations/opencode`: embedded `persona-opencode-runtime` ACP companion (`companion.mjs`, auto-supervised by `personad` via `server/internal/node/opencodebridge.go` when `opencode` is installed and no external companion or `opencode serve` plugin is connected; `start`, `models`, `modes`, `assistant: true` with loopback HTTP MCP proxy, lazy/idle ACP cleanup, reads 1.x & 2.x `opencode.db`) and opencode server plugin (`index.js`, one connection per `opencode serve` process, merges with herdr TUI panes) | `docs/integrations/opencode.md` |
-| Grok CLI (`grok-chat`) | `integrations/grok/companion.mjs`: optional standalone ACP companion with assistant tools, permission hooks, native renaming and restart recovery; also lists conversations started in a terminal (read-only while the terminal holds them) | `integrations/grok/README.md` |
 | Antigravity CLI (`antigravity`) | `integrations/antigravity/companion.mjs`: companion process; reads CLI transcripts and runs terminal-less Agent and assistant sessions through `agy acp` | "Antigravity CLI" below |
-| Managed Agents (`managed-agents`, configurable) | `integrations/managed-agents/companion.mjs`: standalone companion for Volcengine Ark Managed Agents and compatible endpoints (cloud or self-hosted, the user's own key); reads sessions over the REST API, sends, interrupts, starts, and answers tool confirmations and question / plan tools on the phone; `--listen` makes it a daemon | `docs/integrations/managed-agents.md` |
 | echo (example) | `integrations/runtime-sdk/examples/echo-runtime.mjs` (with `--listen <port>` it's a daemon) | "Minimal example" in this doc, `docs/integrations/daemons.md` |
 
 ### Separate task follow-up instructions

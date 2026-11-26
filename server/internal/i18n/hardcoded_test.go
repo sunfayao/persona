@@ -322,7 +322,7 @@ func checkHardcodedBaseline(t *testing.T, name string, counts map[string]int, hi
 	}
 	if len(stale) > 0 {
 		t.Logf("fewer hard-coded strings now; lowering %s is tidying anyone can do, not this change's job: "+
-			"python3 scripts/ci/lower_baselines.py, or UPDATE_I18N_BASELINE=1 go test ./internal/i18n/ -run %s\n%s",
+			"python3 the guard baseline, or UPDATE_I18N_BASELINE=1 go test ./internal/i18n/ -run %s\n%s",
 			name, test, strings.Join(stale, "\n"))
 	}
 }

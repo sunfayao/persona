@@ -1,8 +1,8 @@
 # To-do layout fixtures
 
-The To-dos window rule (#10465; `docs/design/proposals/todos-redesign.md` ("3.8 Layout per device: the window rule")): a
+The To-dos window rule (#10465; `docs/assistant/todo-status-sop.md` ("3.8 Layout per device: the window rule")): a
 window, its text size and what the owner asked for → which regions show, in which form and how wide.
-`scripts/test/test_todo_fixtures.py` checks the format, that the regions fill the window, that every window of the
+the shared fixture tests checks the format, that the regions fill the window, that every window of the
 proposal's table is here at the default text size with the conversation closed and open and the table's widths, and
 holds every case to the rule below. No client reads them yet (#10465); a client would replay them with its own pure function
 (proposal 3.8's `todoPanes`).
@@ -44,7 +44,7 @@ are English.
   the others), `hidden`, and on the web `rail` (the sidebar drawn as its rail). Widths are points to two decimals:
   compare within 0.01. A hidden region is 0 wide.
 
-All windows are the V1 prototype's devices (`docs/design/prototypes/todos/README.md`) or plain sizes.
+All windows are the V1 prototype's devices or plain sizes.
 
 ## The rule
 
@@ -196,5 +196,4 @@ Where the proposal leaves a choice open, these cases make it; change a case and 
 ## Run
 
 ```sh
-python3 -B scripts/test/test_todo_fixtures.py   # the format, the table's windows, the rule above
 ```

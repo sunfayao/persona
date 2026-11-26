@@ -523,7 +523,7 @@ func nodeLetThrough(t proto.LarkLetThrough) (map[string]any, error) {
 }
 
 // nodeCreationRoutes are the routes of a gated API that create one message in the conversation their path names: the
-// text send, and the attachments' own (images and files, docs/extensions/lark-attachments.md; the messaging extension point's
+// text send, and the attachments' own (images and files, docs/extensions/feishu.md; the messaging extension point's
 // attachments, docs/extensions/extension-messaging.md "6"). Their answer is the receipt of that message.
 var nodeCreationRoutes = []string{"messages", "images", "files", "attachments"}
 

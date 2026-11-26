@@ -1,6 +1,6 @@
 # Persona Runtime SDK
 
-产品名为 Persona。私有 npm 包名为 `persona-runtime-sdk`（#753），按 `package.json.name` 使用；它与自动更新包 ID 不是同一身份。DSH / pi 的更新 ID `persona-dsh-runtime` / `persona-pi-runtime` 和线上子协议 `persona-runtime.v1` 保留，不能按 npm 名称机械替换。本文使用迁移版本的 `personad`（`personad` 兼容），见 [配置与兼容说明](../../docs/operations/config.md#命名与兼容) 和 [完整保留清单](../../docs/operations/rename.md)。
+产品名为 Persona。私有 npm 包名为 `persona-runtime-sdk`（#753），按 `package.json.name` 使用；它与自动更新包 ID 不是同一身份。DSH / pi 的更新 ID `persona-dsh-runtime` / `persona-pi-runtime` 和线上子协议 `persona-runtime.v1` 保留，不能按 npm 名称机械替换。本文使用迁移版本的 `personad`（`personad` 兼容），见 [配置与兼容说明](../../docs/operations/config.md#naming-and-configuration) 和 [完整保留清单](../../docs/protocol/rolling-upgrade-compatibility.md)。
 
 把一个没有终端、自己管会话的 Agent 运行时（runtime）接进 Persona 的 SDK：`runtime.sock` 协议的 runtime 一端。
 连不上本机 socket 的常驻服务用监听模式当 daemon（`createRuntime(driver, {listen: {port, token}})` 或 `rt.accept(req, socket, head)`），

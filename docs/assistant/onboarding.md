@@ -32,74 +32,11 @@ Terminology rules (enforced by the copy guard tests in section 8.1):
 - For ordinary users, call launchers / providers "models" (which provider, which key). Put run mode, kind, protocol, and Bearer / x-api-key in "Advanced".
 - The user decides what hub is called in the UI ("hub", "host", "center"; decision 13 in section 6.3). Until then, keep "hub" and explain it as "your home switchboard" on first use.
 
-## 2. Current state: the path new users face today
-
-| Step | What users must do today | Where they get stuck | Evidence |
-| --- | --- | --- | --- |
-| Get the app | iOS is TestFlight-only and requires iOS 26+; Android requires sideloading an APK; the website links the public TestFlight beta and its demo mode (#3842; it used to say "Write to us if you'd like to try it") | The first step excludes most people | `site/public/index.html`, README "Platforms" |
-| Install hub | `install.sh --hub` only installs a binary; it does not create Postgres, install a service, or start it. It ends with the English instruction `personad hub run … then personad hub pair` | Starting in an empty directory exits immediately: `database_url is empty (run scripts/deploy/deploy.sh …)`, pointing to a repository script the user does not have | `scripts/deploy/install.sh:421`, `server/internal/db/db.go:37` |
-| First pairing code | All four platforms' first screens say "Run `personad hub pair`"; the web login page also teaches `jq -r .token ~/.persona/hub.json` | Users without a terminal stop here. `/admin` can generate a code, but setting its password locally requires a one-time setup code from the logs | `web/src/views/Login.tsx:45-48`, `server/internal/hub/admin_setupcode.go:51-52,75-79` |
-| Address in the QR code | The default `public_url` is `http://<full-hostname>:18660` | Phones often cannot resolve the hostname; changing the port does not update it either | `server/internal/hub/config.go:215` |
-| Add a computer | Only possible in `/admin`; phones are explicitly prohibited from generating computer codes. New hubs do not enable TLS, so "computer connects to hub" always returns 409 `tls_required`. Mac Persona Link must be built from source | Ordinary users mostly stop here | `hub/pairing.go:132-135`, `hub/admin_machines.go:307-310`, `docs/operations/persona-link-install.md` |
-| Main chat | The first screen looks usable; failure comes only after sending the first message | No computer: 502 `{"code":"internal","error":"assistant machine is not configured"}`, with a web toast that disappears after a few seconds. No claude installed: `zsh:1: command not found: claude` after about 6 seconds. Not logged in: an ordinary English bubble, "Not logged in · Please run /login" | `assistant/start.go:29,157-158`, `web/src/views/PersonaAssistant.tsx:65`, `assistantwire/handler.go` (`APIErrorMarkers`) |
-| Model | Providers, launchers, purposes, kind, protocol, and Bearer / x-api-key are all exposed. A fresh hub has no presets (`{"presets":[]}`). Names must be English. After adding a keyed provider, main chat and Agents still use "Claude Code default" | Adding a key does not connect it; "Import from ~/.zshrc" spins forever with zero computers | `assistant/models_presets.go:20-28`, `assistant/models_launchers.go:98` |
-| Empty states | With zero computers, Overview says "Everything is ready"; Machines says "Once hub connects…" but offers no "Add computer". Assistant settings render as "Each chat runs in the background in [blank] on [blank]" | Misleading, with no next-step button | `web/src/i18n/locales/zh-Hans/home.json:31`, `machines.json:25` |
-
-Facts that determine the design:
-
-- **Main chat requires an online computer with Claude Code installed and logged in.** Even a direct-API provider used for main chat runs claude on a computer against its gateway (`assistant/models_apply.go:72-107`: `finishModel` accepts only `launcher.<name>`). The Docker image has neither claude nor a local computer (`Dockerfile:79-81`, `PERSONA_LOCAL_NODE=0`), so main chat cannot initially run for NAS / Docker users.
-- **No endpoint currently answers "Can main chat work now, and what is missing?"** `POST /api/v1/assistant/warm` returns `{ok:true}` whether it succeeds or fails (`assistant/profile.go:283-289`). Launcher health checks default to off (`assistant/launcher_health.go:136`), so they cannot assess readiness for new users.
-- **Most parts already exist**: one-time pairing codes and hub-rendered QR codes (`hub/pairing.go:97`, 10 minutes, single-use), "Connect new device" on web and iOS, `/admin`'s add-computer flow (takes effect live, `hub/devices_handover.go:202`, `addMachineLive`), self-signed TLS, one-word launcher tests (`assistant/models_launchers_routes.go:242`), connection tests before saving (`assistant/models_probe.go:358`), adding from presets (`presetFill`), changing purposes (`assistant/models_routes.go:167`), and Android's readiness checklist (`ReadinessRecords.kt`). What is missing is connecting them, making them available to logged-in apps, and providing machine-readable error codes.
-- **The iOS `"ccc"` fallback** (`AssistantView.swift:738,921`) appears only when reading `GET /api/v1/assistant` fails. It is not a normal blocker; fix it alongside the work.
-- **The official extension marketplace is inaccessible**: the research-time 403 was probably caused by the development machine's network. Fix graceful degradation when it cannot be read, rather than treating failure as the default.
-
-## 3. Target path
-
-### 3.1 Ideal shortest path (the direction to work toward)
-
-Prerequisite: a signed and notarized Mac download containing hub + local computer support + database; see decisions 1 and 2 in section 6.3.
-
-| # | User action | Persona action |
-| --- | --- | --- |
-| 1 | Click "Download for Mac" on the website, drag into Applications, and open | — |
-| 2 | On the first screen, choose "Use this Mac as hub" and tap "Start" | Create the database, write hub.json (new defaults in 4.1), and install a LaunchAgent. Automatically count this machine as a computer (`kind: local`, `hub/config.go:208`); detect local Claude Code |
-| 3 | Tap "Allow" when the system asks for local network access | LAN broadcast (mDNS, only with TLS enabled, `hub/mesh_discovery.go:26`) |
-| 4 | Scan the on-screen QR code with the iPhone camera | One-time pairing code; if the app is not installed, land on the website download page |
-| 5 | The app opens and connects automatically | Deep-link pairing (already wired on three platforms) |
-| 6 | "Connect a model": if logged-in Claude Code is detected, show only "Use this"; otherwise choose a provider and paste a key | Section 4.3 |
-| 7 | Tap "Try a message" | Run one real main-chat turn; on success, locally display a welcome and three small tappable tasks |
-
-About 8 taps, without the command line.
-
-### 3.2 Starting points by "What do I have?"
-
-| What I have | Recommended hub location | How far this round gets | Blocker |
-| --- | --- | --- | --- |
-| One Mac + phone only | That Mac | Demo mode + an honest "No hub yet?" page; users with Docker Desktop / OrbStack can paste one command and run `personad hub setup` | Developer ID notarization; database without Docker (decisions 1, 2) |
-| Mac + always-on Linux / NAS | Linux or NAS | Paste one command (Linux) or download compose (NAS) → scan code → "Add computer" in the app → install Persona Link on Mac (currently built from source) → connect a model | Persona Link installer (decision 1) |
-| Phone only; wants a preview | No installation | Demo mode (already on iOS / Mac / Android); exiting lands on "No hub yet?", not back at the pairing screen | — |
-| Work computer (cannot install software; managed computer) | Home Linux / NAS or cloud server | Hub can be installed and phone connected; main chat needs a computer that can install Claude Code, otherwise wait for "Chat only" mode | "Chat only" mode (decision 9); cloud templates (decision 6) |
-| Developer already using Claude Code, with always-on Linux | That Linux machine | One command → scan code → automatically recognize logged-in Claude Code and chat immediately; `~/.zshrc` launchers still work | — |
-
-### 3.3 Where hub lives: trade-offs
-
-| Location | Benefit | Cost (plain-language text under the option) |
-| --- | --- | --- |
-| Always-on Linux desktop / mini PC | Online 24 hours; it is the first computer, so users do not need to "Add computer" | When it shuts down, the phone cannot connect |
-| NAS (Docker) | Already at home and always on | The Docker image does not include claude. AI does not do work on the NAS; another computer must be added |
-| User's own Mac | People with only one computer do not need another machine; it is also the work computer | Closing the lid puts Persona to sleep too. On wake, catch up on messages and scheduled tasks |
-| Cloud server | Connect from anywhere, any time | Requires buying a server; data lives in the cloud. Without a computer, wait for "Chat only" |
-| Windows | — | Cannot be hub (#1179); a Windows computer can only be one of "your computers" |
-
-Recommendation for the website and installer: **if you have an always-on computer, install hub there**. A laptop can be hub, but the installer must explain what happens when the lid closes.
-
-Away from home: no hole punching or relay tunnels in the first version (decision 7). After pairing, run one "Can you connect away from home?" check (Android already has a cellular-network test). If it fails, say "You can use it on your home Wi-Fi. Away from home, use a VPN or enable IPv6 on your router (illustrated instructions)."
-
 ## 4. Design
 
 ### 4.1 Installer: `personad hub setup`
 
-Same namespace as `hub pair` and `hub admin`. Implemented in Go, with no dependency on the repository or Python. `install.sh --hub` calls it after installing the binary (replacing the English text at `install.sh:421-423`).
+Same namespace as `hub pair` and `hub admin`. Implemented in Go and available in `personad`.
 
 ```
 personad hub setup [--yes] [--listen :18660] [--tls :18662] [--outside] [--no-service] [--manager-service] [--json] [--lang en|zh-Hans|ja]
@@ -125,17 +62,14 @@ Fields written to a new file:
 | `machines` | Keep local `kind: local` if herdr or claude exists; remain empty in Docker | Same as today |
 | `initial_locale` | The language the installer ran in: `--lang`, else `PERSONA_INSTALL_LANG` (which `install.sh` sets from its own language); omitted when neither gives `en` / `zh-Hans` / `ja` | The hub's user language until a device reports one, so a new English install's first pushes and assistant replies are in English (#5519, [i18n.md](../protocol/i18n.md) "User language") |
 
-Implementation (#3349): `server/internal/hub/setup.go`, `setup_config.go`, `setup_database.go`, `setup_service.go`. Only `hub setup` writes the new defaults (`LoadConfig` still writes `defaultConfig()` on first run; Docker image startup uses `deploy/docker/entrypoint.sh` to write container defaults separately—see "Implementation (#4045)" below). A "new file" means a hub.json without `token` (missing, or prewritten by `db.sh` / `hub admin access`); fill missing fields from `newInstallConfig()` and leave existing fields alone. `--outside` is the only option that changes an existing value (`public.tls_listen` becomes `:<port>`). Without Docker, check for Postgres on port 5432; if present, ask the user to put its address in `database_url` (port check only; connecting to local Postgres and creating the persona user and database as in #321 is follow-up work). If the default ports are occupied, a new installation uses the pair +100 (18760 / 18762). If the LAN address bound by `tls_listen` disappears, hub starts normally without TLS and logs a line. The socket unit has `FreeBind=true` (also updated in `hub-systemd.sh`), so listening still starts under socket activation; hub logs a line if the address is not local (the app notice is follow-up work). The Mac LaunchAgent is `com.persona.hub`; if another agent already runs `<root>/bin/personad hub`, use it (like `hub-systemd.sh`, resolve symlinks and `~` in `ProgramArguments` for comparison; also recognize `~/.persona` pointing to `~/.persona`). If hub is already running without an agent (for example, in a terminal), do not install an agent that cannot acquire the port; ask the user to stop it first. Restart hub when `bin/personad` differs from the binary used to start the service last time (`install.sh --hub` replaced it on upgrade; recorded in `bin/.personad.setup-sha256`): Linux uses `restart personad`, seamless because the socket owns the port; Mac uses `launchctl kickstart -k`.
+Implementation (#3349): `server/internal/hub/setup.go`, `setup_config.go`, `setup_database.go`, `setup_service.go`. Only `hub setup` writes the new defaults (`LoadConfig` still writes `defaultConfig()` on first run). A "new file" means a hub.json without `token` (missing, or prewritten by `db.sh` / `hub admin access`); fill missing fields from `newInstallConfig()` and leave existing fields alone. `--outside` is the only option that changes an existing value (`public.tls_listen` becomes `:<port>`). Without Docker, check for Postgres on port 5432; if present, ask the user to put its address in `database_url` (port check only; connecting to local Postgres and creating the persona user and database as in #321 is follow-up work). If the default ports are occupied, a new installation uses the pair +100 (18760 / 18762). If the LAN address bound by `tls_listen` disappears, hub starts normally without TLS and logs a line. The socket unit has `FreeBind=true` (also updated in `hub-systemd.sh`), so listening still starts under socket activation; hub logs a line if the address is not local (the app notice is follow-up work). The Mac LaunchAgent is `com.persona.hub`; if another agent already runs `<root>/bin/personad hub`, use it (like `hub-systemd.sh`, resolve symlinks and `~` in `ProgramArguments` for comparison; also recognize `~/.persona` pointing to `~/.persona`). If hub is already running without an agent (for example, in a terminal), do not install an agent that cannot acquire the port; ask the user to stop it first. Restart hub when `bin/personad` differs from the binary used to start the service last time (`install.sh --hub` replaced it on upgrade; recorded in `bin/.personad.setup-sha256`): Linux uses `restart personad`, seamless because the socket owns the port; Mac uses `launchctl kickstart -k`.
 
 Implementation (the hub/manager split): with services (not `--no-service`, not in a container; Linux with a systemd user instance, or a Mac), a new `hub.json` gets `assistant.mode: service`, and the `manager` step after the start runs `<root>/bin/personad manager install --builtin --join http://127.0.0.1:<port>` with a one-time code in its environment. The manager's own program binds it and installs `persona-manager-assistant.service` (Mac: `com.persona.manager.assistant`); the hub writes none of its files. Then the step waits for it on the hub's bus. An existing `hub.json` keeps its mode, and the step only says how to switch (`--manager-service`, which checks first and undoes a switch it cannot finish). Details: [managers.md](managers.md) ("The built-in manager as its own service").
 
-**Docker / NAS**: does not use `hub setup`. Keep compose; a separate small PR makes the entrypoint generate missing `.env` values on first run (random database password, PUID / PGID) and maps the TLS port in `compose.yaml` (the image currently only has `EXPOSE 18660`, `Dockerfile:83`). NAS instructions must explicitly say "You also need to add a computer."
 
 Implementation (#4481, #4484): select the final admin UI address from hub's actual `listen`. If it listens only on loopback (`127.0.0.1` / `localhost` / `::1`), print a loopback address, explain "Only accessible on this computer," and show how to make it accessible from the phone (include the actual hub.json path, change its `listen` to `:<port>`, and rerun `hub setup`); the final `--json` line adds `admin_local_only: true`. If bound to a specific address, use that address; use the LAN IP only when listening on all addresses. On reruns, explain "Existing values are not changed" for `--listen` / `--tls` only if explicitly supplied and different from hub.json, showing both values. `--tls :<port>` and the new-install `LAN-IP:<port>` count as equivalent. Commands in the admin UI, hub logs, `hub doctor`, and usage / errors for `hub admin` / `hub peer` all use `personad` (the `personad` alias still works; guarded by server `command_name_test.go` and web `web/src/admin/command-name.test.ts`). The systemd unit remains `personad`; where the admin UI mentions `journalctl --user -u personad`, explain "The service retains its old name." The admin extension page matches **Settings › Extensions**: when the official marketplace is unreadable, show muted text "Official extensions are temporarily unavailable. Try again later." (reason on hover). When the marketplace is unreadable, the catalog must not say "No extensions here yet."
 
-Implementation (#4045): generated values are **not written back to `.env`**. Compose reads `.env` on the host before the container starts. Instead, compose no longer requires `PERSONA_DB_PASSWORD`, `PERSONA_PUBLIC_URL`, or `PUID` / `PGID` (only `PERSONA_IMAGE` remains required). If no database password is set, the postgres entrypoint (a wrapper in compose) generates one on first startup and stores it in `data/docker/db-password` (postgres mounts only this subdirectory). The image's `personad` wrapper reads it on every invocation (including `docker compose exec`) and fills it into the database URL. Without `PUID` / `PGID`, use the owner of `data/` (1000 if owned by root). When `data/` has no `hub.json`, the entrypoint writes container-specific new-install defaults (`public_url: ""`, `public.tls_listen: ":18662"`, `admin.first_setup: "code"`, `machines: []`, without a token, which hub fills on first read). It does not use `newInstallConfig()`: the container cannot obtain the NAS's LAN address. `public_url` only recognizes `PERSONA_PUBLIC_URL`; when empty, both the entrypoint and `hub pair` explicitly ask for it. Compose maps `${PERSONA_TLS_PORT:-18662}:18662`; the image has `EXPOSE 18660 18662`. Deployments with existing `.env` / `hub.json` retain their behavior (`scripts/test/test_docker_entrypoint.py`). See `docs/operations/docker.md` ("Install").
 
-**All-in-one Mac** (after decisions 1 and 2): add "Use this Mac as hub" to Persona Link, calling `personad hub setup` internally. After installation, the local machine is `kind: local`, and the window displays `qr.rows` returned by `pair-codes` directly. Whether to combine it with Mac app `PersonaMac` into one download is a separate decision (decision 3).
 
 ### 4.2 Pairing
 
@@ -167,10 +101,9 @@ This round's goal: **"Add computer" in the app is enough**, without `/admin`, en
 3. **Compatibility**: store trust state in a new Postgres table; **no record = confirmed**. Existing machines, ones added through `/admin`, and ones added through loopback + main token (`hub pair --machine`) therefore remain confirmed on upgrade, with no behavior change. For old apps, a pending machine's `error` says "Confirm in a newer app or on the web."
 4. **Visible receipts**: when a device generates a computer code, a new device redeems an app code, or a new computer connects, notify other paired devices with "Not you? Revoke" (revocation endpoint already exists). Today this only appears in hub logs (`pairing.go:187`).
 5. Send the link to that computer, with a screen for its OS:
-   - **Linux**: a single command containing the link (`install.sh --node --pair '<link>'`, already exists), "Copy" + "Open a terminal on that computer, paste, and press Enter."
-   - **Mac**: "Install Persona Link" ([installation guide](../operations/persona-link-install.md), which honestly says when a local build is required) + "Send this link to that computer" (system share). The independent Link service is paired with the optional desktop setup or the `persona-link pair` command; the old menu bar pairing window is retired. Hub still sends `persona://link?…` (`pairing.go:57`), recognized by Persona Link and node.
-   - **Windows**: provide commands from `docs/operations/windows.md`; the independent scheduled task does not require a tray app.
-6. `personad hub pair --machine <id>`: if the machine does not exist, `--add [--name]` adds it automatically; without it, ask "Add --add," rather than returning 400 `hub.json has no machine …`. Update the independent Link pairing flow and `install.sh` instructions accordingly.
+   - **Linux**: a command containing the link (`persona-link pair '<link>'`), "Copy" + "Open a terminal on that computer, paste, and press Enter."
+   - **Mac**: "Install Persona Link" ([installation guide](../operations/link.md#pairing-and-managing-the-mac-connector), which honestly says when a local build is required) + "Send this link to that computer" (system share). The independent Link service is paired with the optional desktop setup or the `persona-link pair` command; the old menu bar pairing window is retired. Hub still sends `persona://link?…` (`pairing.go:57`), recognized by Persona Link and node.
+6. `personad hub pair --machine <id>`: if the machine does not exist, `--add [--name]` adds it automatically; without it, ask "Add --add," rather than returning 400 `hub.json has no machine …`.
 7. Old hubs without TLS: 409 `tls_required` + action `enable_tls`; the app says "Hub has not enabled secure connections, so computers cannot join." If managed, enable and restart in one tap.
 8. **Member hubs in linked hubs**: app codes are currently forwarded to the primary hub (`pairing.go:161-164`); the computer flow is undecided. This round, adding a computer from a member-hub device returns 409 `mesh_member`, "Add it on the primary hub." New users will not reach this.
 
@@ -271,60 +204,6 @@ For people with only an API key and no computer (Docker / NAS / work computers t
 
 Risks (why a decision is needed): memory, transcript, and permissions split into two systems; the work lies in storage, streaming, and client rendering.
 
-### 4.5 First-launch onboarding and empty states by platform
-
-#### First screen (not paired yet)
-
-On iOS and Android, center the Persona mark and a single scan button above three shortcuts:
-
-```
-                 Persona
-            [ Scan to pair ]
-       Other ways   Help   Demo
-```
-
-- **Other ways** opens the platform's alternative connection methods. **Help** explains where to find the code and opens the getting-started guide when the build provides one. **Demo** lets the user try the app with sample data.
-- Web uses the same hierarchy. Paste a pairing link and submit it using the arrow. The shortcuts open phone scanning, help, or the master-key form. Keep the credential warning with that form.
-- Nearby hub discovery (P1, mDNS) belongs with alternative connection methods.
-- Android: remove `JCodeBlock("personad hub pair")` from the welcome page. Replace "Run personad hub pair again" in failure copy with "Generate a new code on a logged-in device."
-- Exiting demo mode lands on "No hub yet?".
-
-#### After pairing: one checklist
-
-Extend Android's readiness checklist (`ReadinessScreen` / `ReadinessRecords.kt`, skippable, revisitable, remembers choices) to all four platforms. Add four items before the phone-side items, all reading the readiness endpoint:
-
-1. **Computer**: ✓ for a confirmed online computer; automatically ✓ if hub itself is a computer. If none, show "Add computer"; if pending, "Confirm this is my computer."
-2. **Claude Code**: installed or not.
-3. **Model**: logged in / key works (detection and three routes in 4.3).
-4. **Try a message**: run a check (`?probe=1`) or a main-chat turn; on success, `first_message` is marked ok and recorded in `AnsweredAt`; on failure, show the reason and fix.
-5. Phone-side items (notifications, background activity, local network, cellular-network test…; already exist).
-
-The checklist does not block entry: users can enter the main UI at any time, and the main-chat guidance card is a compact version of it. "Later" persists in Postgres (dismiss in 5.1); the full-page checklist then stops appearing, but the card still returns if readiness worsens.
-
-#### Rewriting empty states
-
-| Location | Today | Replace with |
-| --- | --- | --- |
-| Overview (`home.json:31`, `all_set`) | "Everything is ready" with zero computers | "One step left: add your computer" + button |
-| Machines (`machines.json:25`, `MachinesView.swift:98`, equivalent Android text) | "Once hub connects, this will show…" | "No computers yet. Add one so Persona can do work for you on it" + "Add computer" |
-| Agents | "Start Claude in herdr on any computer…" | With zero computers, same as Machines; otherwise "New session" |
-| New Agent | Empty computer field; disabled "Start" with no reason | Explain why + entry point |
-| Inbox (iOS, web) | "All done" even with no sources connected | "No message sources connected yet" + only sources that take a few taps to connect (email, WeChat) |
-| Assistant settings "Runs on" | "Each chat runs in the background in [blank] on [blank]" | If no machine, "No computer selected to run on yet" |
-| Model configuration | Exposes `legacy.kb` / `legacy.triage` | Show only localized names |
-| Official extension marketplace unreadable | Red text + "Enter token" | Muted "Official extensions are temporarily unavailable. Try again later." Do not ask beginners for a token here. With no token, a subtle link below leads to "Manage marketplaces" (where it can be entered). When GitHub rate-limits hub, try a fallback address first (extensions.md, "GitHub rate limits") |
-| Avatar empty state (web) | "Avatar packages belong in ~/.persona/personas/ on the hub machine" | Remove the path |
-| iOS launcher fallback | Uses `"ccc"` if configuration cannot be read | Show "Loading / Settings unavailable," not a nonexistent name |
-
-Web implementation (#4485, #4480; details in `docs/web/web.md`, "No computers, no sources") differs from or adds to the table:
-
-- When there are zero computers, no Agents, and none starting, replace the entire Agents page with the Machines-style "No computers yet" + "Add computer"; keep the sidebar Agents section unchanged. With no computers, New Agent contains only the Computer field, the reason, and "Add computer" (close New Agent before opening Add computer; do not stack dialogs).
-- Show "No message sources connected yet" in Inbox only if it has never received any items, is neither searching nor filtering, and hub has no email accounts, Lark is unconfigured (ask `/lark/status` if hub has `lark`), and no logged-in connector contributes to Inbox. If any check cannot be read, retain "All done." List email, Lark (when hub has `lark` but is unconfigured), and up to three connectors that can log in here (`login` capability, supply data, not logged in); all open **Settings › Connectors**.
-- The sentence in **Settings › General** gives only the computer name, not the working directory (the path remains in **Settings › Assistant**). Likewise for the assistant profile subtitle; with no computer, say "No computer connected yet."
-- Pressing Enter while readiness blocks main chat shows one line in the composer: "Not sent: add a computer first. Your text will stay here." (disappears after 4 seconds). The Send replacement shakes, and the readiness card flashes a border then shakes. Touchscreen Enter already inserts a newline, so no notice. "How do I connect a model?" ends by explaining that main chat still runs on a computer today; entering a key alone is not enough. With zero computers (step action `add_computer`), the primary button becomes "Add computer." If a computer exists but is offline / pending / outdated, use that step's own action (wake / confirm / update) and say "Your computer is not ready yet; fix this first: …," rather than asking users to add another. Enter with an empty composer or only attachments gives the same notice.
-- If adding a 4th computer is rejected with `too_many_pending`, the dialog lists the blocking computers. If none has ever connected, say "None has connected yet. Delete the ones you do not need," with "Delete" on each; deleting one returns to the form. Hub's `too_many_pending` text also stops saying "Waiting for confirmation." Computers that have never connected (`error_code: never_connected`, or pending without `last_seen`) show "Not connected yet" in the sidebar and machine cards, not "Offline."
-- Disabled secondary buttons lose their border and bright text in dark mode (light mode unchanged). If all viewed marketplaces are unreadable, the extension list says "Extensions will appear here once loaded," not also "This marketplace has no extensions yet." With multiple marketplaces and none selected individually (some unreadable), say "No extensions in the loaded marketplaces yet."
-
 ### 4.6 Error copy
 
 Principles:
@@ -369,7 +248,7 @@ HTTP status: new codes use `rpc.Error{Code}`. `apierr.Call` returns 409 for code
 | Example questions | Web has 4, iOS 6, maintained separately | Hub supplies one set in readiness (`suggestions`), selected by connected capabilities; all four clients only render it |
 | Built-in providers | None | Built-in presets in 4.3 |
 
-## 5. Protocol (client contract; iOS / macOS implement this)
+## 5. Protocol
 
 General rules:
 
@@ -568,160 +447,6 @@ Two additions to existing `POST /api/v1/launchers`:
 | --- | --- |
 | `personad hub setup [--json]` | One localized line per step; with `--json`, one `{"step","ok","detail","next"}` per line, followed by `{"done":true,"pair_url","admin_url","admin_local_only","setup_code","expires_at"}` for Persona Link / all-in-one Mac callers |
 | `personad hub pair --machine <id> --add` | Same as today, with an extra "Added: <name>" line |
-
-## 6. Do / defer / decisions needed
-
-### 6.1 In this round
-
-- Server: structured main-chat error codes and localized copy; add `Not logged in` to `APIErrorMarkers`; readiness endpoint and readiness in warm; node reports Claude Code installation / login; built-in presets, localized display names, empty names when adding from presets, `assign`; pending computers + keys only to confirmed ones + receipt notifications; logged-in devices add computers, `hub pair --machine --add`; machine `error_code`; skip scheduled tasks before readiness; `personad hub setup` (TLS, LAN `public_url`, `admin.first_setup` in new files); localized next steps in `db.go`, the end of `install.sh`, and startup logs; degradation when the extension marketplace is unreadable.
-- Web: main-chat guidance and failure cards; command-free login, device deduplication; empty states; post-pairing checklist; model wizard starts from presets; add and confirm computers.
-- Android: same as web; add Connect new device, Test connection, Get model list, built-in presets; `operationFeedback` chooses copy by code (today everything becomes "Operation failed").
-- Deployment: fill `.env` at Docker first startup; map the TLS port.
-- Documentation and website: this document; a "Get started" page for ordinary users (website + in-app, demo-mode screenshots); split the README top into "I want to use it" and "I want to develop"; rewrite pairing steps in `../operations/persona-link-install.md` and `../operations/link.md` around "Add computer in the app"; put actual download options on the website's first screen, moving curl into "Command-line installation."
-- iOS / macOS / Persona Link: open issues (7.3), with protocol in section 5.
-
-Documentation implementation (#4046): "Get started" lives in `docs/operations/getting-started.md`. The README top is split into "I want to use it" and "I want to develop"; pairing in `../operations/persona-link-install.md` and `../operations/link.md` primarily uses web **Machines › Add computer**, with admin UI and command line under "Advanced."
-Differences from the plan: the website was not changed (first screen and FAQ await decision 15), and the app still has no entry point to this page. No screenshots were added; demo-mode screenshots will accompany the website version.
-Until iOS / Android add-computer, preset wizard, and readiness cards merge, the page honestly says "Use the web for now"; update it as those items merge.
-When Claude Code is installed after the hub, rerunning `hub setup` adds this machine (`kind: local`) while hub.json has `"machines": []` and no manager keeps a computer, and restarts the running hub so it picks it up (#4083); no hand edit of hub.json is needed. A manager that keeps its own list takes the computers out of hub.json and leaves `"machines": []` there ([managers.md](managers.md) "Each manager's computers"), so setup reads the hub's record of who keeps what (`hub.machines_kept`, in the hub's database, migrating nothing) after the database step and adds nothing while it names a computer kept by a manager still on the roster. When it can't read the record, it adds nothing either and says why.
-
-### 6.2 Deferred
-
-| Item | Reason |
-| --- | --- |
-| "Chat only" mode | Separate P1 issue: a new run mode with memory and permissions separate from main chat on node; needs decision 9 |
-| One-tap Claude Code installation in the app | P1: executes a downloaded installer on the user's computer; needs confirmation, verification, and fallback for networks in China |
-| Claude subscription sign-in without a terminal | First spike whether `claude setup-token` / `claude auth login` can finish without a terminal; write conclusions in `docs/lessons/agents.md`; also needs decision 10 |
-| mDNS hub discovery in the app | P1: after default TLS; discovery only, initial trust still requires a one-time code |
-| Computer-initiated, phone-approved pairing | P1: separate security review; copying / sharing links is sufficient this round |
-| Phone displays a short code, computer enters it | mDNS can be spoofed on the same network, allowing code theft |
-| All-in-one Mac package, Persona Link installer | Requires Developer ID (decision 1) |
-| Embedded Postgres / SQLite | Repository policy puts all state in Postgres; bundling third-party Postgres binaries needs evaluation (decision 2) |
-| Health checks / automatic repair enabled for beginners | Real requests every 30 minutes cost money; repair-Agent bypass is the user's 2026-11-05 decision, not changed in onboarding |
-| "Allow all" / "Read without asking" in beginner presets | The former's risk is unacceptable; the latter cannot safely be expressed for Bash (decision 14) |
-| Windows hub, Windows tray app | #1179, #299 tracked by others |
-| One-click cloud templates, relay tunnels for away-from-home connections | Requires external service accounts or operated infrastructure (decisions 6, 7) |
-| Hub migration tool (Mac to NAS) | Make first installation work first |
-| Web demo mode | `docs/web/web.md` already decides against it; hub hosts the web app itself |
-| Linked hubs, passive mode (hub connects), ssh, or Lark setup in onboarding | Beginners always have one hub; Lark setup does not work for ordinary users today |
-| Publisher-provided Gmail OAuth | Requires Google restricted-scope verification (decision 12); onboarding recommends only IMAP / app passwords |
-
-### 6.3 User decisions needed
-
-| # | Decision | Why it needs a decision | Fallback without a decision |
-| --- | --- | --- | --- |
-| 1 | Developer ID signing + notarization for Persona Link and the future all-in-one Mac package | Paid developer account and notarization process | Mac installation only from source; say so on the website; acceptance tier B (8.3) is unavailable |
-| 2 | Database on machines without Docker: bundled Postgres binary or embedded-postgres | New dependency, package size (tens of MB), data-directory management during upgrades | Require Docker Desktop / OrbStack or local Postgres |
-| 3 | Combine Mac app (`PersonaMac`) and Persona Link into one download | Product form | Two apps, with the difference explained on the first screen |
-| 4 | Make the Docker image (ghcr) public | Public release policy | NAS users need `docker login` |
-| 5 | Public signed Android APK download page, or Google Play | Signing key, store registration fee | Hub-hosted APK (`hub pair --android`) |
-| 6 | One-click cloud-server templates | Cloud marketplace account registration | Run the same one-line command on a cloud server |
-| 7 | Away-from-home direct connection: publisher-operated relay tunnels | New traffic costs and operations | LAN works; use VPN or IPv6 away from home |
-| 8 | New-install TLS binds only LAN IPv4 (recommended), or opens all addresses at `:18662` | On machines with public IPv6, all-address binding directly exposes the port publicly (device tokens and rate limits provide protection, `docs/operations/network.md`) | Follow the recommendation: LAN only; ask "Use away from home too?" at the end of onboarding |
-| 9 | Whether to build "Chat only" mode (P1) | Product decision: Docker / NAS and key-only users no longer get a blank screen; cost is two main-chat systems | These users see only a guidance card and must add a computer |
-| 10 | Node performs headless Claude subscription sign-in and stores the token in hub | Compliance with Anthropic terms | API key is the only terminal-free path |
-| 11 | Which providers "Where to get a model" recommends, their order, affiliate links, and whether official Anthropic is first (may be unreachable directly in China) | Business and compliance judgment | List providers by language, without endorsements or prices |
-| 12 | Publisher-provided verified Gmail OAuth client | Google restricted-scope verification / CASA, potentially paid | Recommend only IMAP / app passwords |
-| 13 | Hub's UI name: "hub", "host", or "center" | Global terminology | Keep "hub," explaining it on first use |
-| 14 | Whether beginners get a "Read without asking" permission tier | Looser security default; read-only Bash commands cannot be distinguished | Default mode; count approvals in real testing first |
-| 15 | Reorient the website and TestFlight description toward ordinary users (remove "Write to us" from FAQ, publish links) | Public positioning | Change only README and documentation |
-| 16 | Real-user testing: who recruits, screen-recording consent template | Requires external participants | Automated tests and internal walkthroughs only |
-
-## 7. Ownership and staged plan
-
-### 7.1 Platform ownership
-
-| Platform | Work this round | Where |
-| --- | --- | --- |
-| Server | Error codes, readiness, node Claude Code status, presets and `assign`, pending computers and key filtering, add computers, receipt notifications, scheduled-task gating, `hub setup`, CLI copy | Linux development machine, tests against real Postgres |
-| Web | Guidance cards, failure cards, empty states, login page, device deduplication, checklist, model wizard, add / confirm computer | Linux development machine, Playwright screenshots |
-| Android | Four checklist items, coded copy, first screen, Connect new device, Test connection, built-in presets, add / confirm computer | Linux development machine; state in the PR when screenshots were not taken due to lack of KVM |
-| iOS / macOS / Persona Link | Issues in 7.3 | Mac |
-| Deployment | Docker entrypoint and compose | Linux development machine |
-| Documentation / website | Get started, README, Persona Link pairing steps, website first screen and FAQ (FAQ awaits decision 15) | Linux development machine; publish per `docs/operations/site.md` |
-
-### 7.2 PR order
-
-Create an issue for each PR first (`Refs #287`), one issue per PR, in the order below. Earlier PRs are useful independently.
-
-| # | Title (for PR) | Platform | Content | Value when merged alone |
-| --- | --- | --- | --- | --- |
-| 1 | fix(assistant): say why the main conversation can't start, with a code | server | Codes and localized copy from 5.2; add `Not logged in` to markers as `user`, with scheduled-task / to-do tests; unify `start.go` and `memory()`; update goldens | Old clients immediately get a localized 409 instead of raw English 502; later clients show cards by code |
-| 2 | test: guard onboarding copy and add readiness scenarios to the mock hub | scripts, mock | Copy guard from 8.1; seven readiness states and scenarios for every error code in `mock_hub.py` / `mock_scenarios.py` | Every later UI PR has copy guards and screenshot data |
-| 3 | feat(node): report whether Claude Code is installed and signed in | server (node) | `claude.auth_status` RPC (actual launcher environment, version check, `unknown` fallback); prefer absolute paths for default launcher (coordinate in #2854 first) | Readiness can detect login for free |
-| 4 | feat(assistant): readiness of the main conversation | server | All of 5.1; `readiness` in warm; `features` registration; endpoint in `docs/protocol/protocol.md` | Single data source for all four clients and iOS issues |
-| 5 | feat(web): show what the main conversation still needs | web | Guidance card, Send button, failure cards instead of toasts, empty states in 4.5 | New web users no longer see "looks ready, fails only after sending" |
-| 6 | fix(web): sign in without commands and keep one device per browser | web | Rewrite login page; reuse / replace old device on sign-in | Web's first screen stops teaching `jq` |
-| 7 | feat(assistant): built-in provider presets and assign-if-default | server | `presets_builtin.json` (test every provider), `signup_url`, `display_name`, empty names allowed, `assign`, default model for tests | Key-only users connect in three steps |
-| 8 | feat(web): provider wizard starts from presets | web | Provider list first, paste only a key, automatic test, `assign`; move "Import from ~/.zshrc" into Advanced | Web model wizard becomes usable for beginners |
-| 9 | feat(hub): pending machines get no keys until confirmed | server | Trust table (no record = confirmed), `pushManaged` / assistant-machine / Agent-list filters, confirm / reject, 24-hour cleanup, machine `trust` / `error_code` | Security prerequisite for allowing devices to add computers; no behavior change when merged alone |
-| 10 | feat(hub): a signed-in device can add a computer | server | `add` in pair-codes (extract admin add function), `hub pair --machine --add`, receipt notifications, `mesh_member`, `too_many_pending` | Adding computers no longer requires /admin or a setup code |
-| 11 | feat(web): add and confirm a computer from the machines page | web | Pages in 4.2, reuse countdown and polling from `connect-device.ts`; confirmation on the waiting screen | Web users never need /admin |
-| 12 | feat(assistant): routines wait until the main conversation is ready | server | Skip before readiness, record "Skipped," no failure push | New hubs with zero computers stop failing at scheduled times |
-| 13 | feat(hub): personad hub setup | server, scripts | All of 4.1; called by `install.sh --hub`; copy at `db.go:37`; `newInstallConfig()` and old-file loading goldens | Website's "one command" actually installs hub for the first time; can run alongside 5–12 |
-| 14 | feat(docker): first start fills .env and maps the TLS port | deploy | Entrypoint, compose | Two fewer manual steps for NAS |
-| 15 | feat(android): onboarding checklist, coded errors and first screen | Android | Four checklist items, coded `operationFeedback`, remove first-screen commands, empty states, guidance card | Android matches web |
-| 16 | feat(android): presets, connection test, connect a device, add a computer | Android | Model wizard, Connect new device, add / confirm computer | Same |
-| 17 | docs: getting started for people who don't use a terminal | docs, site | Get started, README, Persona Link pairing, website first screen | A readable explanation for people arriving from an ad |
-
-Separate P1 issues: "Chat only" mode (after decision 9), node `claude.install`, headless sign-in spike, in-app mDNS discovery, computer-initiated pairing, all-in-one Mac (after decisions 1 and 2).
-
-### 7.3 iOS / macOS work assigned to a Mac
-
-Each issue references the protocol in section 5 and states "The Linux development machine cannot compile Swift; note in the PR if Xcode 26.0 was not verified." UI uses only the design system (`.surface`, `EmptyStateView(action:)`, `Theme.*`); do not raise the `TokenRatchetTests` baseline. Single-line buttons; light and dark screenshots.
-
-| # | Title | Changes | Acceptance |
-| --- | --- | --- | --- |
-| M1 | iOS / Mac: show missing main-chat setup by readiness, use cards for failures | Read `GET /api/v1/assistant/readiness` (depends on PR 4; check `assistant_readiness` in `features`); guidance card above composer, "Connect a model first" Send replacement, preserve drafts without queueing; cards for 5.2 codes, original text in "Details"; replace `turn_error_code` bubbles with cards; remove `"ccc"` fallback | Light / dark screenshots for seven states (mock hub): zero computers, offline, pending, missing Claude Code, not logged in, wrong key, all ready. No raw English errors on first screen; 409 not swallowed by `isQuiet`; `AssistantView` model has FakeHub unit tests; old hub (404) behaves as before |
-| M2 | iOS / Mac: first screen and post-pairing checklist | WelcomeView uses 4.5 structure, command line under "Other ways"; after pairing, reuse `pairingEngineMachine` insertion to add computer / Claude Code / model / test message, skippable and revisitable; "Later" calls dismiss; exiting demo goes to "No hub yet?" | No `personad`, token, hub.json on first screen or checklist (copy guard includes iOS strings); screenshots of each state for all four items; "N steps left" at top of Settings after skipping; Mac paste-link pairing still works |
-| M3 | iOS / Mac: add and confirm computers | Machines, Agents empty state, checklist "Add computer" → choose OS → name (may be Chinese) → pair-codes with `add` (depends on PR 10) → copy Linux command / share Mac link → countdown waiting for online → "This is my computer" calls confirm on the same screen. Machine list shows localized `trust` and `error_code`; "New computer wants to join" push allows direct confirm / reject | 0 to 1 confirmed online computer without hub.json, TLS, or node; regenerate expired codes; pending computers absent from New Agent; rejection removes it from list; no entry point on old hubs without `add` |
-| M4 | iOS / Mac: model wizard starts from presets | ProviderWizard first step reads vendors from `GET /api/v1/launchers/presets` (remove hardcoded "Official Anthropic"), key only, automatic test, save with `assign`; "Use for main chat" defaults off when readiness finds working Claude Code; "I already use Claude Code" uses `?probe=1`; "Where to get a model" opens `signup_url` in-app | Screenshots for all three routes; 401 / 403 / 404 / 429 / timeout copy matches `assistant-models_probe.json`; Chinese display name saves; customized main-chat model is not overwritten on save (listed in `kept`) |
-| M5 | Persona Link: pair by opening a link, no command required | Register `persona` and `persona` URL schemes; `persona://link?…` opens and prefills pairing window; pairing copy becomes "Copy this from Add computer in the phone app"; first-screen plain-language states: unpaired / connected / waiting for phone confirmation / background service not running | Links from Notes, AirDrop, email open pairing; pending shows "Confirm on your phone"; document unsigned-build behavior in the PR |
-| M6 | iOS / Mac: pairing and connection receipt notifications | "<device> generated a pairing code" and "New device / computer connected" notifications (depends on PR 10 pushes), with "Not you? Revoke" | Tapping Revoke after arrival revokes the device or rejects the computer; notification text contains no IDs or addresses |
-
-## 8. Validation
-
-### 8.1 Automation
-
-- **Server unit tests** (Linux development machine, real Postgres, `go test -p 1 ./...`):
-  - Loading old hub.json gives the same configuration as before (goldens include db.sh's database_url-only file and a handwritten file without `public`); `newInstallConfig()` includes TLS, LAN `public_url`, `admin.first_setup`.
-  - Pending: device codes add pending computers; no keys, no assistant selection, absent from New Agent, cleanup after 24 hours. Pre-upgrade machines and `/admin` / loopback additions are confirmed; Watch, link, and pairing-code identities cannot generate computer codes.
-  - `assign` changes only untouched-default purposes; preset additions allow empty names and suffix collisions; built-in presets have complete fields.
-  - Readiness: a case for each state; no model request by default; `?probe=1` reuses results within 30 seconds.
-  - After adding `Not logged in` to markers, test scheduled tasks, to-dos, and session-list `TurnError` behavior.
-  - Codes such as `no_machine` return 409 with localized `error`.
-- **Copy guard**: add test_onboarding_copy.py under `scripts/test/`, scanning onboarding, empty states, and error-code copy (web i18n, Android `values-zh`, iOS strings, server i18n). Prohibit `hub.json`, `token` ("pairing code" does not count), `jq`, `personad`, `TLS`, `node`, `herdr`, `launcher`, `localhost`, `~/.`. Whitelist keys under "Advanced" / "Details." Include it in tests like `privacy_check.py`.
-- **Failure scenarios**: add seven readiness states (zero computers, offline, pending, missing Claude Code, not logged in, wrong key, all ready) and every code in 4.6 to `mock_hub.py` / `mock_scenarios.py`. Web Playwright, Android `android.sh shots`, and iOS screenshots share them.
-- Implementation (#4033; usage in `docs/operations/testing.md`, "New-user copy guard" and "Readiness scenarios") differs from or adds to the design:
-  - Alongside the whitelist (`ALLOW`, with reasons), the copy guard has `PENDING` for existing issues being fixed (Android first screen / empty states in #4032; iOS / Mac in M2–M4 of 7.3). Remove entries once fixed; never add new ones. iOS has no catalogs yet, so scan Chinese literals in a few Swift files.
-  - The pending scenario reports `machine_pending` with `confirm_computer` and the pending computer's ID and display name. Main-chat creation returns the same code, and `?probe=1` sends nothing to that computer. After confirmation, the next readiness request evaluates the confirmed computer normally. Pending computers remain excluded from runnable `devices.list` entries and the assistant placement.
-  - Additional scenarios: `demo`, `unverified`, `launcher_missing`, `model_route`, `rate_limited`, `node_outdated`, `assistant_offline`. `server/internal/assistant/readiness_scenarios_test.go` generates goldens for readiness and chat-creation rejection from real code; mock tests compare each rather than copying by hand.
-- **Fresh-user end-to-end** (Linux development machine): on an isolated test hub (own port, data directory, database, `PERSONA_LOCAL_NODE=0`), Playwright follows web login → guidance card → add a preset provider through a fake gateway → `assign` takes effect → readiness `model` changes. Assert the first screen and onboarding contain no prohibited copy-guard terms.
-- **Upgrade regression**: upgrade using a handwritten hub.json, `~/.zshrc` launchers, and a database with Persona-managed providers. Keys still distribute, all machines are confirmed, main chat works as before; `./scripts/test/test-server.sh` passes completely.
-
-### 8.2 Screenshots
-
-For every UI PR: a light and dark screenshot for each state above; web also at width 390. Take Android screenshots on a KVM-capable machine; if unavailable on the Linux development machine, state that in the PR. iOS / Mac screenshots follow 7.3 acceptance on a Mac.
-
-### 8.3 Testing with nontechnical users
-
-**Two acceptance tiers**:
-
-- **Tier A (achievable this round)**: an always-on Linux mini PC or NAS + phone. The tester pastes one command using the website screenshots (the only command on the hub machine); everything else happens in the app.
-- **Tier B (after decisions 1 and 2)**: clean Mac + iPhone, downloads apps only, no terminal. The original "10 minutes" acceptance in #287 belongs to this tier.
-
-**Steps**:
-
-1. **Paper prototype first**: turn onboarding screenshots into a clickable prototype (Wizard of Oz); have 2 people try it, fixing copy before writing the UI.
-2. **Recruit 5 people**: never used a terminal, not developers, product managers, or testers, with their own phones. Use a clean OS user and an uninstalled / reinstalled app.
-3. **Give goals, not steps**: the scenario card says "Have Persona tell you the largest folders on this computer." Tier A also asks "Connect your laptop." Provide a funded test key or let them sign up themselves (testing whether "Where to get a model" works).
-4. **Two networks**: home Wi-Fi; at the end, switch to cellular and ask another question (checking whether away-from-home guidance is clear).
-5. **Inject failures**: randomly assign 1 failure per person, prepared by the observer: computer sleep, expired pairing code, wrong key, Claude Code not logged in, phone denied local network permission. See whether the error card lets them fix it themselves.
-6. **Observer watches without helping**: if asked, say only "What do you think you should do?" Give a hint only after more than 3 minutes stuck; record one help request.
-7. **Record**: completion, total time, time per step, help requests, every error card seen, and confusing terms spoken ("What is hub?"). Screen recording requires signed consent and is not committed; anonymized conclusions go in `docs/archive/onboarding-usability-<date>.md`.
-8. **Count one more thing**: approvals prompted when main chat first acts on the computer (for decision 14).
-
-**Passing threshold**: at least 4 of 5 independently finish tier A within 15 minutes; no one sees raw English diagnostics; at most 3 help requests in total; every failure scenario has someone fix it using card buttons alone. Return failed steps to the paper prototype and revise.
 
 ## 9. Compatibility
 

@@ -24,7 +24,7 @@ import (
 // assistant_in_doubt, kept and replayed, never assistant_offline, which says nothing reached a manager and keeps no
 // receipt.
 //
-// While such a write is under way the hub says how it stands (todo_send_state, docs/SUPER_RULES.md 5): processing as
+// While such a write is under way the hub says how it stands (todo_send_state, docs/design/PRINCIPLES.md, principle 7): processing as
 // soon as it has claimed the op id, before the manager has the write (a message may wait for its Agent's computer, or
 // for a new Agent to start), then how the relay ended. Like message_send_state for a session's message it is
 // transport only: it never says what the to-do or its Agent is doing.

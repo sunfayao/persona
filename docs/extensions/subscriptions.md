@@ -2,7 +2,7 @@
 
 Source subscriptions let the manager pull new information from a connector's read-only tools into the Inbox. The design is tracked in #2036. The optional catalog protocol (#2037), the manager's storage, validation, scheduler, runner and API (#2038), delivery to the Inbox and the knowledge base (#2039) and drafting a recipe with a model (#2040), the pages (#2041, "Pages"), push sources a device fills itself (#3848, "Push sources") and the assistant's tools (#5240, "Assistant tools") are implemented. A catalog alone does not turn on polling or store source content.
 
-Moving the Inbox's built-in sources (iMessage, GitHub, Lark, mail) onto subscriptions, with what subscription items still lack and the per-source switch, is planned in `docs/design/proposals/inbox-sources-migration.md` (#6150).
+Moving the Inbox's built-in sources (iMessage, GitHub, Lark, mail) onto subscriptions, with what subscription items still lack and the per-source switch, is planned in `docs/extensions/subscriptions.md` (#6150).
 
 ## Source catalog
 
@@ -323,7 +323,7 @@ pages would make.
 
 ### Built-in sources switched to their default subscription
 
-A built-in source's Inbox feed can be switched to its default subscription and back (#6265; `docs/design/proposals/inbox-sources-migration.md`, decisions 1–3). The code is `server/internal/subscriptions/migrate.go`.
+A built-in source's Inbox feed can be switched to its default subscription and back (#6265; `docs/extensions/subscriptions.md`, decisions 1–3). The code is `server/internal/subscriptions/migrate.go`.
 
 - **Identity.** The default subscription has a fixed id, `sub_m_<connector>` (`MigrationID`); a random id's rest is hex, so no other starts so. While it is switched on (`migrated`, the time it was), the manager leaves the built-in out of the Inbox round (`readConnectors`). It hands the subscription's rows under the built-in's own source id, with the items' own threads and ids instead of `sub:<id>:` threads. The Inbox's item ids (`<source>:sha1(thread, last)`), mutes, policies, done threads, read errors and replies (through the built-in's connector) then match the built-in's, as long as the recipe maps the same thread and id.
 - **The switch** is `Service.Migrate(Migration, on)`, given each source's default recipe.

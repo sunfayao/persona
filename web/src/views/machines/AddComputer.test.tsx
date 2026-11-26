@@ -191,7 +191,7 @@ describe("AddComputer", () => {
     await click("下一步");
     expect(posts[0]?.body).toEqual({ add: { name: "我的 MacBook", os: "mac" } });
     expect(button("复制配对链接")).toBeTruthy();
-    expect(document.querySelector<HTMLAnchorElement>('a[href$="persona-link-install.md"]')).toBeTruthy();
+    expect(document.querySelector<HTMLAnchorElement>('a[href$="docs/operations/link.md"]')).toBeTruthy();
     expect(text()).toContain("要自己从源码编译");
     expect(text()).not.toContain("curl");
   });

@@ -49,7 +49,7 @@ func (r *Resources) Limits() Resources {
 // SpeaksRPC says whether the program speaks the plugin protocol.
 func (r *Runtime) SpeaksRPC() bool { return r != nil && r.RPC != "none" }
 
-// NodeRuntime is the plugin's program that runs on computers, not on the hub (docs/plans/plan-extensions.md "7"): on each
+// NodeRuntime is the plugin's program that runs on computers, not on the hub (docs/extensions/extensions.md "7"): on each
 // machine the user switched on in the configuration field Machines, started and stopped by that machine's node.
 type NodeRuntime struct {
 	// Command is one per platform ("darwin-arm64": "node/bin/x"); its platforms are the computers it runs on.

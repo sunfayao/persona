@@ -28,7 +28,7 @@ const Image = "postgres:18-alpine"
 // and on a personal hub that is most of the WAL of a write to a random page: wal_compression=lz4 halves those page
 // images for a little CPU (Image is built with lz4), and checkpoint_timeout=15min (PostgreSQL's is 5min) writes them
 // a third as often, for a longer crash recovery. scripts/deploy/db.sh passes the same, and compose its own defaults
-// (docs/operations/docker.md "Disk writes").
+// (docs/operations/config.md "Disk writes").
 var ServerArgs = []string{"postgres", "-c", "wal_compression=lz4", "-c", "checkpoint_timeout=15min"}
 
 // User and Database are the role and database a container is made with.

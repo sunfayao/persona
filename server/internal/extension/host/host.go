@@ -1,4 +1,4 @@
-// Package host runs plugins for the hub (docs/plans/plan-extensions.md "4" and "6"): it starts a plugin's program when
+// Package host runs plugins for the hub (docs/extensions/extensions.md "4" and "6"): it starts a plugin's program when
 // something needs it and stops it when nothing does, restarts it with a backoff when it exits, speaks the plugin
 // protocol with it (initialize, ping, namespaced calls over internal/rpc), and keeps the HTTP side of a plugin that
 // serves one (GET /health). A plugin elsewhere is reached on its sockets instead of started.

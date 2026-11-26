@@ -562,25 +562,12 @@ Use its normal release/configuration lifecycle, not an unrelated reload endpoint
 A loopback proxy also shares the upstream's aggregate IP budget unless a separately
 reviewed trusted-address protocol is in place; do not silently trust X-Forwarded-For.
 
-## Shared web fixtures belong in the Docker build context (2026-11-11, #4260)
-
-The web production build typechecks test files. A JSON fixture imported from `spec/fixtures/` needs both a
-`.dockerignore` exception and a `COPY` into the web stage at the same relative path. A native build sees the
-whole checkout and can pass while the Docker build fails with TS2307. The Docker entrypoint suite now checks
-shared JSON imports, including globs, against both files, catching new fixture groups before an image build.
-
-Checking was not enough (2026-11-12, #5197): PRs run no hosted CI, so #4968 merged a test reading
-`spec/fixtures/forward/` with neither line, and every image build from `main` failed, the fourth time after #2666,
-#2517 and #4260. The image now carries all of `spec/fixtures/` (about 2 MB, web stage only) with one exception and one
-`COPY`, and the guard checks that no per-folder lines come back. A fixture-only change now rebuilds the web stage; that
-cost is smaller than a broken image. When something has to be listed by hand in two files, prefer a rule that needs no list.
-
 ## Sharing frontiers and migration lanes (#3604)
 
 - Hand-picked migration numbers were global across the hub and manager sets, even
   though their files live in separate directories: distinct filenames with the same
   prefix collided. New migrations are named by the UTC second they are written
-  (`docs/lessons/workflow.md`), so nobody picks a number, and two files of one second
+  (`docs/operations/testing.md`), so nobody picks a number, and two files of one second
   may be one in each set since each records its own part (one file in both sets is
   still refused); move only an unpublished migration to another second, never an
   applied migration or the guard.
@@ -733,12 +720,6 @@ install-state mutex. A result from the old channel must not replace a new select
 Regression tests must observe the state while the request is blocked as well as
 after success or failure; checking only the final state misses a transient
 `checking` event that already hid the progress in every client.
-
-In timer tests, wait on a request channel with a timeout and assert the request's
-timestamp, then use `synctest.Wait` before inspecting the completed result. This
-synchronizes the observation without fixed sleeps or a shared request counter.
-Even inside `synctest`, new `time.Sleep` calls fail the repository's sleep ratchet;
-run `scripts/ci/guards.sh` as well as the server build and race checks.
 
 ## Model connection tests must match the runtime (#1732)
 
@@ -1038,16 +1019,6 @@ Revocation ended pairing codes with `expires_at = now()` (Postgres's clock) whil
 
 ## Rolling-upgrade identity contracts (#6223)
 
-- Treat a rename as an ABI change wherever a byte reaches another process, persisted state, a cryptographic domain or an operating-system registration. Use an explicit authenticated feature, an old-safe default and exact aliases; display names and build strings do not prove compatibility. Push-to-start needs a persisted registration capability, independent of the socket's XML capability.
-- Connection capability changes must invalidate unused warm processes (#3269). The devices manager can reconnect to another hub while retaining the node connection, so a Claude spare can carry the previous MCP namespace policy. Record the policy at process start and require it to match before adopting or reusing the spare. With a capable hub, assistant resumes can also use only `persona`: a real Claude Code 2.1.322 transcript containing a legacy tool call accepted the next request after the alias was removed. Ordinary Agents' shared generated MCP files still serve automatic resumes without a per-session decision and cannot be narrowed using only the current hub capability.
-- Measure a headless assistant with its actual environment and registered conversation identity (#4238). `system/init` under ToolSearch, or a manually spawned MCP process whose session was not discovered as the assistant, exposes a smaller tool set than the real request. Compare the request's `api-request-shape` and first assistant usage together; an init tool count or a standalone `tools/list` alone is not the fixed-context baseline.
-- A deterministic receipt or thread seed, HPKE info or grant AAD is an invariant, not copy. Keep the original output bytes; decoding can accept both explicitly known domains. A dual-key JSON payload cannot repair encryption the old receiver cannot open. Never rotate a key, token or database to hide incompatibility.
-- Normalize typed protocol fields only. Generic recursive replacements can change unrelated event sources, user text and large opaque JSON numbers. Preserve field presence (including false and null), use exact aliases, and project detached manifest validation values without rewriting signed package bytes. Both copies of forwarded headers must be removed together, or the legacy copy can resurrect a forwarding loop.
-- Keep custom JSON methods off an anonymously embedded DTO. A method promoted from the embedded launcher swallowed its surrounding health and agent-type fields on both encode and decode. Use an explicit root transport envelope and test that embedding the plain DTO preserves sibling fields.
-- Child-process environment updates must mirror both names with current-name presence taking priority. Updating only one test database or manager root variable leaves old child binaries attached to the parent's previous value. Real node verification belongs in isolated PID/network/home containers: a node scans process environments and must not inspect other agents on the development host.
-- Preserve an existing service, executable and data store instead of creating a second identity. Refuse independent installations; permit verified aliases. Atomic binary replacement must target the real file so both executable names remain attached. A discovery goodbye removes one service record, not a hub still advertised by the other service.
-- A Compose fallback between two spellings takes no `?` check in its default (2026-11-07): Compose before 5.0.2 (2.x included) evaluates `${NEW-${OLD:?…}}`'s default even when `NEW` is set, so installs that set only the new name failed. Leave the default empty and let Compose's own error for a missing value stop it (an empty image: "neither an image nor a build context"). `scripts/test/test_docker_entrypoint.py` rejects a nested check.
-
 ## Retired look IDs are still reserved (#6219)
 
 - Removing a built-in drawing does not make its ID available to extensions. A saved setting can outlive that drawing; letting a new package reclaim the ID would silently change the user's choice. Share reserved-ID validation between hub disk packs and extension manifests, test old manager reports as well as new installs, and always send a valid `current.effective` fallback. Keep the raw choice and timestamp so temporary extension unavailability retains its existing restore behavior.
@@ -1312,7 +1283,7 @@ Splitting a registry at its first colon reads `[::1]:5000` as `[`, selecting HTT
   so the phone can't open files there. node explains the error (`explainDenied`): for an SSH-started node, enable sshd-keygen-wrapper in Full Disk Access; for a node a LaunchAgent started, add that agent's program (the node's own agent's binary; for the node of the hub's computer, the built-in manager's agent's `persona-manager` or `personad`, or the hub's agent's `persona-hub` or `personad` when the hub starts the manager as its child; `fullDiskAccessProgram` reads it from the agent's plist, by the label in `XPC_SERVICE_NAME`); or use another folder (#5944, "A LaunchAgent node is throttled, and a protected folder stalls Claude before any hook" below).
   Put user-visible files (screenshots etc.) in an ordinary directory under `~/`, not Desktop.
   TCC attributes permission to the responsible process: SSH-started node and children all count as `sshd-keygen-wrapper`; granting the personad binary itself doesn't help (and redeployment replaces the binary and loses authorization).
-  Granting it gives every SSH login Full Disk Access (including `~/Library/Messages/chat.db`). To authorize only one program, launch it via launchd (LaunchAgent), see `docs/plans/plan-connectors.md`.
+  Granting it gives every SSH login Full Disk Access (including `~/Library/Messages/chat.db`). To authorize only one program, launch it via launchd (LaunchAgent), see `docs/extensions/connectors.md`.
 - If node differs from the hub version (`node_mismatch`), App "Redeploy" asks the hub to install it: hub deployment leaves platform node binaries in
   `~/.persona/bin/nodes/`; the hub installs via SSH, kills resident node for launchd to restart, then reconnects (`devices/deploy.go`). Deploying only one machine, not the hub, leaves old binaries there and the button reinstalls the old version.
 - SSH remote commands are parsed by the target's **login shell**, not necessarily POSIX (2026-11-04, #1770): fish rejected the deployment script's first `b=…` with
@@ -1387,41 +1358,6 @@ Splitting a registry at its first colon reads `[::1]:5000` as `[`, selecting HTT
   then `ws.Close(code, …)`, then close node's socket.
 - `docker build` with `FROM <image id>` looks for a registry image named that id (`registry-1.docker.io … EOF`): first `docker tag <id> <name>`, then `FROM <name>`.
   Removing a tag added to a dangling image also deletes the image.
-
-## A node service in a Docker container on the hub's own NAS (2026-11-07)
-
-Setup: a plain Debian container on a bridge network of its own, no published ports, not privileged; a small supervisor script as the main
-process (under `--init`) keeps `personad node --attach` and `persona-link run` up, both restarted when they exit; everything else lives in the
-home volume (docs/operations/link.md "Without systemd").
-
-- **Only the bridge's gateway reaches the hub.** The NAS's LAN address timed out from the container and its public name was refused:
-  Synology's policy routing (`ip rule`: `from <LAN address> lookup <interface>-table`) sends the replies of a connection to the LAN address out
-  through the router instead of back over the bridge, and the container had no IPv6 for the name's AAAA. The pairing link carries only the
-  hub's addresses, so the redeem failed with both. Fix: rewrite the link's `url` host to the gateway (`172.x.0.1`) before `persona-link pair -`
-  (the pin is the hub's key and does not check names) and `persona-link address add https://<gateway>:<TLS port>`: manual candidates survive
-  the hub's endpoint updates and rank first. Pipe the link straight from `hub pair` into `pair -` so it never lands on a screen or in a log.
-- **Restart measurements need over a minute between restarts.** Ten `docker restart`s about 6 s apart took 2.3, 4.5, 8.3, 16, 32 s to come back
-  online, then hit a 2-minute timeout: Persona Link reconnected in about a second every time, but the manager's run loop counts a connection
-  that ended within a minute of starting as a failed path (`pathEnded`: 2 s doubling to a minute) and does not try the path before then, even
-  though a new link is up (`setLink` wakes the loop, `choosePath` still skips the path). With a container that stayed up 75 s or more before
-  each restart, ten runs came back in min 2.2 / p50 2.4 / p90 2.5 / max 2.8 s (time from `docker restart` to the hub listing it online on a
-  new link). A real flapping link (a laptop on a bad network) gets the same delays.
-- **No systemd: remote node updates need the supervisor to say so** (2026-11-08). `nodeupdate.New` recognized only systemd (`INVOCATION_ID`
-  plus `systemd-run`) and launchd (`XPC_SERVICE_NAME`), so the box showed `can_deploy` false ("The resident node is not managed by
-  launchd/systemd…") and Redeploy skipped it. What an update needs from a supervisor is only a restart when the node exits: the switch execs
-  the new program in place (same pid; the script's `wait -n` sees nothing), and the restart matters only after a crash or the watchdog's
-  rollback. The script now runs `personad node --attach --supervised` (docs/operations/link.md "Without systemd"); the watchdog then runs
-  detached in a session of its own, as on a Mac, so the script must restart only the pid it started. Don't fake `INVOCATION_ID` instead: the
-  node would then call `systemd-run`, which the box doesn't have. A personad from before the flag ignores whatever follows `--attach`, so the
-  script can pass it before the box runs a build that knows it; until then, upgrade by hand: put the hub's own node build (`~/.persona/bin/nodes/…-linux-amd64`,
-  the same version) into the volume and kill the node process.
-- **Some downloads only work over IPv6 from that network, and a default bridge has none**: the Claude Code installer's download host timed out
-  over IPv4 from the NAS and its containers, while the npm registry worked (`npm install -g @anthropic-ai/claude-code` with
-  `npm config set prefix ~/.local`). herdr's manifest (`herdr.dev/latest.json`) timed out repeatedly; the binary itself came from GitHub
-  releases, checked against the manifest's sha256 fetched from another machine.
-- **The node starts herdr's server by itself** when herdr is installed but not running (`herdr_autostart`, default on): no need to start it in
-  the supervisor. Without systemd it runs in a session of its own: killing the node left it running (reparented to the container's init) and
-  the restarted node used it again; a container stop ends it.
 
 ## Safe pulls in the Git panel (2026-11-03, #684)
 
@@ -1503,13 +1439,6 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
   otherwise one file mixes old and new clock times, and `Since` parsing old rows in the new zone shifts them 8 hours and misses messages in compaction windows ( ("Time zones")).
 - Send IANA zone names to other programs (the manager's `Manager.userTZName()`, `extmgr/usertz.go`): `time.Local.String()` is "Local", not a zone name.
 - pgx reads `timestamptz` into `time.Local` by default (#3755): a non-UTC hub serializes database times with `+08:00`, violating protocol UTC. `AfterConnect` in `db.Open` registers a `ScanLocation: time.UTC` codec (`utcTimes`) per connection, so all reads are UTC; don't scatter `.UTC()` fixes.
-- Hub Docker images (`docs/operations/docker.md`, 2026-11-01): lockfile `resolved` entries pointing at other npm registries make `npm ci` on other networks (GitHub Actions, NAS)
-  stall over a minute then report npm's "Exit handler never called!", hiding the network cause. `privacy_check.py` rejects nonstandard lockfile registries
-  (`docs/operations/testing.md` ("npm registry checks")); `Dockerfile` checks before installation too. Web builds inside the image use `--ignore-scripts` to skip `prebuild`'s
-  privacy check (build context lacks `scripts/` and git); workflow runs that check against the full checkout before building.
-- Container ssh can't identify uids absent from passwd (`No user exists for uid`); duplicate uid entries use the first home (alpine guest is 405,
-  home `/dev/null`, making mounted `~/.ssh` useless). The entry script changes the `persona` user itself to PUID / PGID and removes colliding entries rather than using
-  `docker run --user <uid>`. `docker compose exec` defaults to root; image `personad` wraps privilege dropping to `persona`, or newly generated tailcat keys belong to root and the hub can't read them.
 
 ## Knowledge base
 
@@ -1686,28 +1615,6 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
 - Measure the chain: start a real node in the hub package (same process, own HOME, `~/.claude` linked to the real config), connect with pipes like SSH, and timestamp every hop for real Claude
   in isolated herdr (`hub/cardlatency_live_test.go`). Reports all sharing the same fractional second (.57 s, .58 s) indicate per-second ticks, not events.
 
-## Deploy website Worker only through publish.sh (2026-11-03, #940)
-
-- The `site/` Worker also serves public personad (`/dl/`) and `install.sh`, absent from the repo: `publish.sh` adds them to a copy of `site/` before deployment.
-  Direct `wrangler deploy` inside `site/` (done during domain change) replaces all static assets, immediately making `/dl/*` and `/install.sh` 404 and breaking hub update checks / installation.
-  Recovery: find the last release with `wrangler deployments list`, then `wrangler rollback <version>` (custom domains aren't versioned, so unaffected), restored in about 3 minutes.
-- For `site/`-only changes (domains, pages), use `SITE_ONLY=1 ./scripts/release/publish.sh`: reuse published production artifacts, no new release (#951).
-- Renaming the Worker (`name` in `site/wrangler.jsonc`) deploys a new Worker without the old one's secrets: the push relay answered 503 "push relay not configured"
-  for every hub without its own APNs key until the secrets were put on the new name (2026-11-07, #1263). Move the secrets first; `publish.sh` now fails a deploy
-  after which a relay that was healthy no longer is (`docs/operations/site.md`).
-  Large-file downloads on this machine often reset connections, so curl uses `--retry-all-errors` (default `--retry` doesn't retry "Connection reset").
-- Decide what happens to the old domain: shipped Apps hardcode the push-relay address and deployed personad checks old-domain `/dl/` for updates.
-  With only 301 redirects, POST (push relay) isn't resent unchanged and breaks; the user accepted this on 2026-11-05, redirecting the whole old domain with 301 (#2389, `docs/operations/site.md` ("Old domain")).
-
-## Faster access from China (2026-11-04, #1134, `docs/operations/site.md`)
-
-- "CDN node in Hong Kong" doesn't mean fast mainland access: Alibaba Cloud CDN "global excluding mainland China" Hong Kong nodes took 200–390ms to connect, versus 37–38ms for Function Compute / ECS in Hong Kong. Measure ping and HTTPS using Globalping mainland probes (all three carriers) before deciding.
-- Corporate-network international bandwidth varies wildly: the same 15MB file from the same entry point takes 1 second at one moment, over 60 seconds at another. Don't conclude throughput from corporate-network tests alone.
-- Cloudflare geographic load balancing defaults `location_strategy.mode` to `pop`, determining country from the Cloudflare datacenter receiving DNS queries; mainland queries reach overseas datacenters and never classify as China. Use `resolver_ip` (`prefer_ecs: always`).
-- DNS-only load-balancer records routing back to Cloudflare itself produce `error 1000`; use Cloudflare for SaaS. For a domain already on Cloudflare (O2O), custom hostnames accept only CNAMEs pointing at the SaaS zone; TXT prevalidation doesn't work.
-- Alibaba Cloud Function Compute custom domains must CNAME to it; apex domains can't bind because Cloudflare flattens apex CNAMEs into A records.
-- `wrangler deploy` reconciles Worker custom domains with `routes` in `wrangler.jsonc`: API-added extras are removed, listed domains reclaimed.
-
 ## Role permissions (2026-11-04, #1128)
 
 - **GET doesn't mean read** (#1128): the `answer` role originally allowed "GET is read", so one GET could execute commands through the launcher API and another read `hub.json` to obtain the master token. Use role allowlists: list endpoints actually called by that role's clients, deny by default. Check historical client versions (`git log -p`), not only current code; inspect request bodies too, since parameters may be unauthorized choices (`launcher` on sends, `text` on card answers). Inspect side effects: sending to a nonexistent session id starts a new Agent, so rejecting `POST /sessions` alone doesn't help.
@@ -1730,15 +1637,6 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
 - **Hub and web share an origin; isolate inline files**: standalone `Content-Disposition: inline` SVG / HTML scripts run as the web app and can read localStorage tokens. Inline only images, audio/video, PDF, with `Content-Security-Policy: sandbox`; PDF is exempt because Chrome won't display sandboxed PDFs.
 
 ## Deploying from a stale branch (2026-11-04, #1314)
-
-- Symptom: 13 minutes after #1283 (move task dock "All N" first) merged and deployed, the user still saw the old dock.
-- Cause: hub logs showed another deploy after #1283 with `commit before #1283 + -dirty`: someone ran `deploy.sh` from an unre-based branch / workspace,
-  and hub deployment also replaced the web with that directory's `web/`. Not cache: index.html is `no-cache`, assets hashed, no Service Worker.
-- Diagnose through each startup version (`git describe`) in `journalctl --user -u personad`, and production `web/index.html` mtime (tar preserves build time);
-  a PR-specific string in the live bundle identifies the web version.
-- `deploy.sh` now requires HEAD to contain the remote's default branch, otherwise refuses; deliberately deploying an old commit requires `PERSONA_DEPLOY_ANY_COMMIT=1`.
-- Fake backends can't catch dependencies in connectors written in other languages (2026-11-04, #1487): an external Lark connector pinned `SQLAlchemy==2.0.30`, which crashes on import under Python 3.13; green `CheckProgram` tests miss it. Build a real package and run actual pip/install/import checks. Accountless parts (dependencies, imports, QR initialization, decoding one synthetic push frame) can all be tested this way.
-- `./scripts/test/test-server.sh ./... | tail` hides failed packages: Go sorts package names, putting `cmd/` first; `tail` leaves only final `FAIL` (2026-11-04). Save output, grep `^FAIL`; zsh uses `$pipestatus`, not `$PIPESTATUS`. If the hub can't reach proxy.golang.org, new-dependency packages show `[setup failed]`, not test failure.
 
 ## Plugin packages built on Mac won't install (2026-11-04, #1590)
 
@@ -1820,16 +1718,6 @@ back) and only keeps the entry. Tell them apart by git's `CONFLICT` lines plus `
   The same on the wire (#1573): `proto.Question.Options` has no `omitempty`, so a Codex free-text question arrives as `"options": null`. iOS and Android decode it as empty;
   the web typed it as a required array and `q.options.map` took the whole page down. A client type for a Go slice field without `omitempty` is optional (`?: T[] | null`), so the compiler finds every use.
 - **Don't show raw ego JS errors to users**: replace with "Can't read ego sign-ins on this Mac; tap Retry…"; original errors only in node logs (property names, no cookie values).
-
-## New runtime packages must enter the hub image (2026-11-04, #1777)
-
-`go generate` in `server/internal/runtimepkg` reads `integrations/<name>/`, but image build context includes only `.dockerignore`-allowed directories,
-and build stages only those COPYed by `Dockerfile`. #1668 added `persona-paseo-runtime` to neither, so `v0.1.4` image failed at `go generate`;
-PR smoke paths didn't include `integrations/**`, so no premerge run. Add runtime packages to both `.dockerignore` and `Dockerfile`; image workflow PR paths now include `integrations/**`.
-
-Same for web tests (2026-11-05, #2666): web-stage `npm run build` runs `tsc -b` on `src/**/*.test.ts` too; #2399 `injected.test.ts` imports fixtures from repo-root
-`spec/fixtures/injected/`, causing image `TS2307`. When web (or another build stage) references outside `web/`, allow it in `.dockerignore`, COPY to the same relative location in `Dockerfile`,
-and add that directory to image workflow PR paths.
 
 ## Adding permission-digest fields mustn't change old plugin digests (2026-11-05, #1830)
 
@@ -1933,7 +1821,6 @@ Official extension catalogs embed payload and signatures in one document. Reject
 ## personad downloads exceeded Workers' 25 MiB static-file limit (2026-11-05, #2541)
 
 #1002 embedded 3.1 MB of tiered-avatar PNGs in hub (already compressed, little gzip benefit), growing compressed personad from 22.4 MiB to 25.8 MiB.
-`check_asset_sizes.py` blocked publish before upload; TestFlight uploaded normally, only personad wasn't released. All four platforms were already within one or two MiB of the limit;
 image compression only buys time, so archives moved to R2 (Worker forwarding, two rotating slots), leaving small files in the site. Check release-package sizes before embedding large `server/` assets.
 ## Hub-created cards must identify their initiating session (2026-11-05, #2558)
 
@@ -2143,14 +2030,6 @@ is resolved with links followed, the entry's own name is not (a link is renamed 
 Also, `os.Rename` replaces whatever has the new name without a word: a rename or move that must not overwrite uses `renameat2(RENAME_NOREPLACE)` on Linux and `renamex_np(RENAME_EXCL)` on macOS (`renameExcl`), not Lstat-then-rename.
 And an Undo id must carry everything it needs (`trash_id` holds where the file went and came from): the hub and node get redeployed between the delete and the Undo.
 
-## Docker: containers can't write `.env`; Postgres loopback doesn't verify passwords (2026-11-06, #4045)
-
-- Compose reads `.env` on the host before containers start, including `${X:?}` failures. "Fill missing values on first startup" requires mounted storage (DB password in `data/docker/db-password`) read by image scripts, not rewriting `.env`.
-- Postgres starts first (hub `depends_on`), so generate random passwords in its entrypoint: wrap compose `entrypoint` with `sh -c` (`$` becomes `$$`). Overriding `entrypoint` removes image `CMD` too; add `command: ["postgres"]`.
-- Don't verify passwords with `psql -h 127.0.0.1` inside Postgres: official `pg_hba.conf` uses `trust` for local loopback, accepting wrong passwords. Connect to `postgres` from another container on the same network.
-- Build database URLs with `postgres://persona:${PERSONA_DB_PASSWORD:-}@…`, not `${X:+…}`: old docker-compose v1 doesn't support `:+`.
-- Generate random passwords only before a database exists: Postgres reads `POSTGRES_PASSWORD` only during data-directory initialization; if DB exists (restored only `postgres/`, deleted `data/`), generating a new one mismatches its stored password.
-
 ## Response bytes do not establish a successful read (#6063, #6158)
 
 `io.ReadAll` can return valid JSON bytes together with a transport error. Check the error before decoding or publishing successful output, including raw logs and calls that discard the body. Keep existing HTTP-status classification, scrub diagnostics and close the body. A failed response after a write does not establish whether the remote action happened, so do not add an automatic retry.
@@ -2169,10 +2048,6 @@ Another trap after adding pipes: `NetConn` context was canceled when `Serve` ret
 while that side is still writing to `NetConn`. Server closes, `Serve` returns, context cancels, and the write is interrupted; coder/websocket closes the connection and hub receives truncated responses
 (small bodies entirely gone, large bodies missing the final frame; ordinary manager requests too, not just extension HTTP). Cancel `NetConn` context only after copying finishes;
 regression `TestRelayedAnswersArriveWhole` (concurrent small responses, slow-read large responses, SSE, byte-for-byte comparison). WebSocket-only tests, direct mux calls, or fake managers with a separately written splice don't catch it.
-
-## Docker Hub references share one registry endpoint (#6167)
-
-Explicit `docker.io` references use the same `registry-1.docker.io` API endpoint as implicit Docker Hub names. Apply the `library/` namespace to their single-component repositories only after rejecting empty names. Keep other explicitly named registry hosts unchanged, and test the actual tag-list request as well as parsed fields.
 
 ## Self-update node platforms can't depend on "current machines" (2026-11-05, #3186)
 
@@ -2309,7 +2184,7 @@ What each `ProcessType` gives a LaunchAgent, measured with short-lived test agen
 
 - A plist with no `ProcessType` doesn't get default scheduling: the job and every child run at the utility clamp (priority 20 instead of 31) on every cluster and yield to default-priority work (on macOS 27, a 6-thread default-priority job started beside one got about 5.7 cores at once). `Background` is the throttled one: priority 4 on one cluster, inherited by every child. The priority comes from the spawn type and changes only when launchd starts the job again from a new definition (`bootout`, then `bootstrap`): `taskpolicy -B -p <pid>` returns 0 and leaves the job, and the children it starts afterwards, at 4 (both versions). A background mark set from outside with `taskpolicy -b` is cleared by `-B` at once, which makes the two easy to confuse. `Nice` does not move threads that run with a QoS class (macOS 27).
 - The case behind this lesson (#5944): a resident node got 15.45 CPU seconds in 139 s at scheduling priority 4 instead of 31, and the Claude Code it started did not become ready in time. Priority 4 is what `Background` gives; neither version measured gives it to a job without `ProcessType`, so that node ran under a background policy from somewhere else or on an earlier macOS (which was not recorded). Nothing looks wrong in the node's own logs; only the timings are long. When a Mac's Agents start slowly or time out, look at the agent's spawn type and its threads' priority before blaming the machine's load.
-- `ProcessType=Interactive` gives `spawn type = interactive (4)`. It changes scheduling only and grants no TCC permission: a job that cannot read a protected folder still cannot (`docs/plans/plan-connectors.md` "Full Disk Access (TCC)"). The plists Persona wrote (`scripts/deploy/node-launchd.sh`, `nodePlist` in `cmd/persona-link/nodesvc.go`) did not set it; both write it now, and `personad node doctor` reports an agent without it.
+- `ProcessType=Interactive` gives `spawn type = interactive (4)`. It changes scheduling only and grants no TCC permission: a job that cannot read a protected folder still cannot (`docs/extensions/connectors.md` "Full Disk Access (TCC)"). The plists Persona wrote (`scripts/deploy/node-launchd.sh`, `nodePlist` in `cmd/persona-link/nodesvc.go`) did not set it; both write it now, and `personad node doctor` reports an agent without it.
 - Editing the plist isn't enough. `kickstart -k` restarts the job from the definition launchd loaded, so the change needs `bootout` then `bootstrap`. Right after `bootout`, `bootstrap` can briefly fail with `5: Input/output error`, so retry it. Whether a running agent has the key is visible only in `launchctl print`'s spawn type, not in the file.
 - The rename (#277) introduced a new node-agent label, but both installers leave an installed agent as it is. A Mac can have either supported plist, or both. Code that looks for the node's agent has to recognize the installed definitions. With both there, use the one launchd has loaded: the other is a file launchd is not running, and loading it starts a second node next to the running one.
 - Never reload the agent from inside the node. The web page's Fix (`node.doctor.fix`) and a doctor running under the agent (`XPC_SERVICE_NAME` is the agent's label, either one) would be stopped by their own `bootout` before the `bootstrap`, leaving the node unloaded. Only `personad node doctor --fix` from a terminal does it. Test the real `launchctl` sequence with a throwaway label (`go test -tags launchdlive -run TestLiveLaunchAgentFix ./internal/node/`), never with the node's labels.
@@ -2332,11 +2207,6 @@ What each `ProcessType` gives a LaunchAgent, measured with short-lived test agen
 - A service file's new `ExecStart` (or a plist's `ProgramArguments`) takes effect only when the service starts again: systemd after `daemon-reload` and a restart, launchd only after `bootout` and `bootstrap` (KeepAlive restarts a job from the definition it loaded, not from the file). So `persona-link node switch` writes the file, restarts, and only then knows whether the new program runs.
 - Ask the node itself whether it came up, without touching the hub's connection: `ping` on `node.sock` answers `program` and `version` (a Node's and standby's alike). Dialing `node-attach.sock` instead would take the node from the hub.
 - Keep the old service file beside the new one until the new node answers, and put it back on any failure or interruption; a backup still there later means a switch that did not finish, which `persona-link run` (at start and every 30 s) and the next `node install` or `node switch` undo (`node uninstall` drops it with the service). Drop the backup only once the service manager has taken the old service's restart: launchd can refuse a `bootstrap` for a while after a `bootout`, and a backup dropped then leaves no node and nothing to retry. The old program's file is never touched, so going back always works.
-
-## A release's version is not a Docker image's (2026-11-06, node packages)
-
-- The image built from the tag `v1.2.3` reports `1.2.3`; the release published from the same commit reports `v1.2.3-<build time>` (publish.sh appends it). A node build fetched from the release therefore never "is the hub's build" by its version string: whatever compares a node with what it should run must compare it with the build its platform resolves to (`devices.nodeTarget`), not the hub's version, or the computer is redeployed forever. publish.sh also keeps the release under `dl/X.Y.Z/` for the tag so the image finds it.
-- A node build for another platform cannot run on the hub: check its Go build info (`debug/buildinfo`: `GOOS`, `GOARCH`, the main package for the kind) besides the manifest's hashes, and leave `version -v` to the manager's own platform and the node's `node-update-check`.
 
 ## A DELETE through a client that follows redirects can come back 200 (#5278)
 
@@ -2405,10 +2275,6 @@ A connector that folds several notifications into one thread (GitHub CI failures
 
 ## Hot paths: compressing the same file on every request, a privacy scan that cannot read gzip (2026-11-09, #2219)
 
-- A response compressed as it is sent costs the same CPU for every client: the hub's gzip at level 6 over the web client's hashed assets was about 38 ms of CPU per cold first screen, 1.2 ms when the gzip bytes are stored. Files that never change under one name (Vite's `assets/`) are compressed once at build time (`webasset.Precompress`) and sent as stored; a request that must not get gzip (no `Accept-Encoding`, `HEAD`, `Range`, the admin paths) gets them decompressed, so its answer is the plain file's. Decompress such a file as it is read (`gunzipSeeker`: the size from the gzip trailer, a seek forward skips, a seek back starts again), not into memory first: a `HEAD` or a 304 then inflates nothing. A client without gzip pays the inflate (about 22 ms per first screen, against 0.9 ms for plain files); browsers always take gzip. Prove it against the plain site behind the same middleware for each kind of request, comparing status, headers and decoded bytes (`TestWebAppServesPrecompressedAssetsAsThePlainFiles`), and check that the stored bytes go out unchanged, not compressed again.
-- A stored file's own name must not become a second way to fetch it: the built-in copy answers `assets/<name>.gz` with a 404, as the plain site did.
-- `check_bundle_privacy.py` reads printable strings, and gzip turns a file's strings into noise: scan the plain web copy before precompressing it, or the scan of the binaries silently stops covering the web client.
-
 ## Fixed heap: a lazy value evaluated as an argument, a whole set built for one member (2026-11-09, #2475)
 
 - A value made on first use is made anyway when it is passed as an argument to a call that may not need it: `writeIfMissing(p, prompts.RenderKBReadme())` parsed every prompt template on each manager start for a README that was already there. Pass the function (`writeIfMissing(p, prompts.RenderKBReadme)`) and call it after the check; a `heap?gc=1` profile of an idle process shows such frames.
@@ -2441,18 +2307,6 @@ A connector that folds several notifications into one thread (GitHub CI failures
 - A smaller first buffer sends the lines just past it through growth on every read (#3506): with `rpc.lineReader` at 16 KiB, a computer's session list of a few dozen rows (16-64 KiB) grew 16 -> 32 -> 64 KiB each time, and reading captured node traffic took 10% longer than with the 64 KiB start. Growing out of the first buffer straight to 64 KiB and not searching the bytes already searched for a newline (`seen`) read it as fast, and an idle connection keeps 18 KiB instead of 68 KiB. Measure the line lengths a reader really gets before choosing its sizes.
 
 ## A large upload on its way: read by doubling, encoded three times, decoded twice, kept for minutes (2026-11-12, #3199)
-
-- One 22.4 MB request body relayed to the manager cost the slot 107 MiB of allocation and the manager's route 85 MiB to decode; the slot went from 45 to 180 MB resident and the manager from 56 to 192 MB, and an idle pair still held it all a minute later. `io.ReadAll` grows its buffers by half again and copies them into a final one (49 MiB): with the Content-Length known and within the limit, read into a buffer of exactly that size through the same `MaxBytesReader` (21 MiB), and give anything that differs (more bytes, fewer, an error) the results `io.ReadAll` gives, compared case by case (`TestReadRelayedIsReadAll`).
-- An encoder given a struct with a `[]byte` field writes the base64 into a pooled buffer and copies it out; the envelope's encoder then checks and copies it again, and json keeps the grown buffer in its pool until the second collection (30 MB in the slot). When the large field is the struct's last and has nothing to escape, encode the rest without it, drop the closing brace and append the field straight into the line (`rpc.Appended`, `httpParams`: 58 to 28 MiB and a third of the time per call), sized up front so the frame budget is checked before anything is built. Pin the field order with a test of its own (`TestHTTPRequestBodyIsLast`).
-- A line built by hand must come from the encoder the value would go through, and its oracle must be the code that writes the line today. The first version made the head with `json.Marshal` and one test compared with `json.Marshal` too; meanwhile #2907 had stopped `Call` from escaping `< > &`, so every query with an `&` would have gone out as other bytes, and only the test that compares with a real `Call` of the whole value saw it (`TestHTTPParamsAreJSONMarshals`). `rpc.Marshal` is that encoder; a copy of the old code as oracle proves what the code was, not what it is.
-- In Go 1.27 `encoding/json`'s `Decoder` is jsontext underneath but hides a `*bytes.Buffer` from it, so a body already in memory is read again through growing buffers (85 MiB for 22.4 MB). Decoding the bytes where they are takes what `Decode` does by hand: `jsontext.NewDecoder(bytes.NewBuffer(b), json.DefaultOptionsV1()).ReadValue()` then `jsonv2.Unmarshal` with the same options (21 MiB: the decoded strings). Its errors are not always the Decoder's words, so on any error put the value back to zero and decode the same bytes the old way (`decodeLargeBody`); without `DefaultOptionsV1` field names stop matching case-insensitively, duplicate keys and invalid UTF-8 are refused, which the equivalence table catches (`TestDecodeLargeBodyIsDecodeBody`).
-- After the request nothing allocates in an idle process, so no collection runs (`GODEBUG=gctrace=1` shows none in the minute after) and the pages stay. `debug.FreeOSMemory` a second after a body of 8 MiB or more returns them (`memtrim`); the second lets the request's own buffers become garbage first. A rate limit the first body claims leaves a second upload inside the window with nothing: schedule instead. Each body asks for a trim a second after it, trims run 30 s apart at the closest, and one asked for inside the window gets the next turn (`TestEveryLargeBodyGetsATrim`, on a clock moved by hand).
-- Fewer bytes allocated is not a lower peak. The manager's route allocates 64 MiB less, and its peak stayed (192 to 188 MB): what sets it comes before the route, the bus line read by doubling (64 MiB for a 30 MB line) and the envelope's `json.RawMessage` copying the params once more (30 MB), and the last collection before the peak runs at the same heap size either way. Measure the process end to end (`scripts/diag/relay_body_rss.py`), beside the function's benchmark.
-- RSS means different things per system. On Linux the runtime returns pages with `MADV_DONTNEED` and RSS falls at once. On macOS it marks them reusable: the physical footprint (Activity Monitor's Memory, `proc_pid_rusage`) falls at once, RSS only when the kernel takes the pages; and when the Mac is short of memory it compresses an idle process's pages, so RSS falls though nothing was given back (an unchanged build went from 192 to 70 MB by itself in one round of three). Compare builds by RSS and `VmHWM` on Linux and by the footprint on macOS.
-- Run the baseline again before fixing what an older measurement found (2026-11-15). Three days after the note above, the same post took the manager to 110 MB, not 193: #6574 had moved a body of 1 MiB or more off the bus line onto a stream read into one buffer of its size, so the line that note blames was no longer on that path. It still is on others: a manager that takes no body stream (an older one, a stream turned down), a large answer, and the 1 MiB chunks of a file to or from a computer (1.4 MiB lines). To measure the line end to end, compare builds whose manager leaves `http_body_stream` out of its hello (`docs/operations/testing.md`, "A relayed upload's memory"): 199 to 167 MB at the manager's peak (Linux, median of three, measured twice). The pieces are garbage once the line is put together, so the peak falls another 20 MB when a collection takes them back before the route decodes the body: two of three runs of an earlier set did, none of the last six. The bytes allocated are the same in every run (92 to 58 MiB to read the line); where the peak lands follows when the collector runs.
-- A line of unknown length read by doubling costs more than twice its size in buffers (64 MiB for a 30 MB line), each one copied into the next. Past the largest pooled buffer (1 MiB), read on in pieces of that size and put them together once in a buffer of the line's size (`lineReader.line`; `bytes.Join` makes that buffer without clearing it first): the pieces and the line, twice the line whatever its length, and lines up to 1 MiB are read exactly as before (the same bytes allocated with the GC off). Leave a long line's pieces to the GC, its first and last too: a `sync.Pool` keeps what it is given until the second collection, so two 1 MiB buffers given back at the line's end stayed through `memtrim`'s one collection (2.3 MB held after it, 0.2 MB on main, where the same buffer went back early and was gone by then). Only a line of two pieces (a file's 1 MiB chunk is a 1.4 MiB line, and they come one after another) takes both from the pool and gives both back, so each costs its own buffer and no more. A heap bound cannot see one pooled megabyte among megabytes of slack: drain the pool before the line and count what is in it after (`TestLineReaderLeavesNoPiecePooled`). The limit is now a sum over pieces, so take `bufio.Scanner` as the oracle at the limit and one byte either side, with Serve's own 64 MiB too (`TestLineReaderInPiecesIsAScanner`, `TestLineReaderLimitIsServes`), and let the fuzz pick the piece size.
-- `json.RawMessage` copies its value because the input may not stay. A line the reader gave away stays, so its params can be a part of it: a field type with `UnmarshalJSONFrom` keeps what `ReadValue` handed it and `InputOffset`, and afterwards the value's first byte must be the line's own byte at that offset (compare the addresses, not the bytes) or the line is read the old way. `json.Unmarshal` hands the decoder the caller's bytes and never writes to them; nothing documents that the value is a part of them, hence the check. Compare with `json.Unmarshal` into the old struct over a table and a fuzz (null, a key twice, a key in other letters, lines that are not messages), cap the slice so an append cannot write into the line, copy a value that is a small part of its line (whoever keeps it would keep the megabytes around it), and take only lines the reader does not reuse: a test must fail when every line is taken that way (`TestServeHandsOnLongLines` keeps short and medium params until the end).
-- Break each change on purpose and see a test fail. Nine breaks found two holes: nothing failed when short lines' params were left in the reader's buffer, because the test kept only long ones, and a test that read an expected number of results from a channel hung for the package's ten minutes instead of failing when the broken code lost one. Wait on a channel with a bound and say how many came.
 
 ## Hot paths: a node list copied three times, a list marshalled only to be compared (2026-11-10, #2826)
 
@@ -2543,12 +2397,6 @@ empty flags, then prove empty Hub ownership twice. Zero owned machines needs no 
 any conversation, runtime row, partial assignment or revision change must still fail closed.
 
 
-## Release status reporting is opt-in (#2671)
-
-A source validation result and a deployment result are different facts. Keep release
-logs and receipts regardless of whether GitHub accepts commit statuses. Default both
-release workers to no status writes; explicit opt-in retains all three transitions,
-including errors. Never fabricate a success to remove an old failing status.
 ## Idle wakeups: a ticker per watch, a P per core, a fallback that never waits (2026-11-09, #2590)
 
 - A goroutine with a ticker of its own per watched session looks free, but every tick wakes the scheduler, and each tick opened, stat'ed and closed the transcript whether or not it grew. Two tickers per watch (250 ms transcript, 1 s status line) made 4 watched sessions at rest cost +260 ms of CPU and +9,150 context switches a minute over none. One ticker for every watch (`watchPump`), a stat before the open (`transcript.File.Changed`, and the same gate at the start of `refresh`), and goroutines only for work that can be slow (reading new lines, reading a screen) brought it to +60 ms and +2,420. What is left is mostly the 4 Hz tick itself: wakeups of the runtime's timer thread and sysmon, not work. Keep a guard per watch (`reading`, `live.reading`) so a slow parse or screen read skips that watch's ticks, as a busy ticker did, without holding up the others; and a lock taken on a tick must be a `TryLock` (a file being paged answers "changed").
@@ -2618,13 +2466,6 @@ A regular Git HEAD can block in open despite stat succeeding. Keep project label
 - `i18n.InboxJSON` decoded and marshaled the whole inbox list on every GET to change a few labels (17-22 ms, 4-7 MB for 400 items). What it does to a value depends on that value alone, so the hub localizes each item on its own and keeps the result by a 128-bit hash of the item's bytes, per list route, manager and language, for the items of the latest answer only (`inbox_forms.go`). Byte identity with the whole-body pass needs one more step: when anything in an answer changes, the whole answer is marshaled again, so every unchanged item and the top level are then written as `InboxReencoded` (decode with `UseNumber`, marshal) gives them. An answer whose top level is itself an item is localized whole, since `InboxJSON` then visits none of its list. Equal bytes do not show the per-item path ran, so the relay test also counts the slots kept (`TestInboxListsLocalizedAsWhole`).
 - A 2xx answer whose body was `null` made `writeMerged` panic: `json.Unmarshal` of `null` into a map leaves it nil, and the merge then assigned to it. Treat any answer that is not a JSON object, `null` included, as no answer.
 
-## Remote tests need fixtures outside the Go module (2026-11-10, #2980)
-
-When server tests read a shared fixture outside `server/`, include it in `scripts/test/test-server.sh` at the same
-relative path and create its remote parent directory. The inbox list tests read `scripts/mock/inbox_events.json`;
-copying only the Go module left them failing on the test machine. Extend the fake remote launcher test to read the
-staged fixture from the package directory, check refreshed contents, and reject a missing source before Go starts.
-
 ## A node error without a code reads as "the hub is down" (2026-11-10, #1888)
 
 A node method that answers a refusal with a plain `errors.New` / `fmt.Errorf` has no code, so `apierr.Call` treats it as `internal` and the hub answers 502 with the generic `rpc-errors.failed` summary; the real reason survives only in `detail`, which no client shows. Web words every 502 as "the hub can't respond right now", iOS and Android show "The request could not be completed": a dirty worktree or a missing upstream looked like a broken hub. A refusal the user can act on goes out as `refusal(code, english message, data)`, its code goes into `rpcFailureKeys` with a summary in every `rpc-errors` locale (name `{reason}` there to keep git's or the program's own words), and the hub then answers a 409 in the client's language. Success texts follow the same rule: answer a code (`outcome`) the clients put into their own strings, and keep an English `message` for older clients.
@@ -2642,7 +2483,6 @@ A node method that answers a refusal with a plain `errors.New` / `fmt.Errorf` ha
 - `//go:embed` stores files as they are. The runtime packages (`server/internal/runtimepkg`) went into `personad`, `persona-node` and `persona-manager` raw: 1.63 MB, 1.06 MB of it one package's bundled bridge, and `runtime-sdk` three times over. Generate writes each `integrations/` directory a package takes as one gzipped tar, stored once however many packages take it: 425 KB. A release archive is gzipped anyway, so the download stays the same (within 0.1%); what shrinks is the binary on disk and in memory, by about 0.93 MB.
 - Keep generated archives byte-for-byte reproducible: no name or time in the gzip header, mode 0644, time 0 and no owner in tar entries, a fixed level, entries in path order (`TestGenerate` runs it twice and compares).
 - A set read whole on first use keeps all of it: the first `Load` walked every package, so a node serving only DSH held that 1 MB bridge too (1.6 MB retained). Unpack per package and per part, each once (`dist.load`): 0.21 MB for DSH. Prove the unpacked files and hash equal the sources' (`TestGeneratedPackages`).
-- Compressed code is noise to a strings scan. `check_bundle_privacy.py --whole-short` inflates every gzip member it finds in a binary and scans that text as well; a test hides a private word in a member inside binary bytes, after another member and in a member cut short.
 
 ## A download the app gave up on, and a budget no slow link could meet (2026-11-10, #3692)
 
@@ -3120,16 +2960,14 @@ documenting an order.
   session is the switch's own. The connector would start, connect, and stop again once the installer's ssh session closed.
   Refuse instead.
 - ssh reads `~/.ssh/config` from the passwd entry's home directory, not from `$HOME`. To keep a test hub's ssh off the
-  user's config and keys, put a wrapper named `ssh` that runs `/usr/bin/ssh -F <own config>` first on its PATH
-  (`scripts/test/link_switch_e2e.py`).
+  user's config and keys, put a wrapper named `ssh` that runs `/usr/bin/ssh -F <own config>` first on its PATH.
 - systemd as PID 1 in a container needs a writable cgroup. Plain `docker run` (cgroup v2, private namespace) exits 255 with
   "Failed to create /init.scope control group: Read-only file system". `--privileged --cgroupns=private` works, and
   `loginctl enable-linger` then gives `testuser` a user manager reachable over ssh.
 - **A rollback must not take away the only way back.** The first version gave up asking the hub to end a failed switch after
   2 minutes, then removed Persona Link from the computer anyway. The hub still said `kind: link`, and nothing asked again, so
   the computer had neither a link nor SSH. Undo the side that decides how the computer is reached (the hub's entry) first,
-  and keep asking until it answers. Remove things from the computer only after that. `scripts/test/link_switch_e2e.py
-  --scenario hub_pause` stops the hub's slot process for 150 s to check this.
+  and keep asking until it answers. Remove things from the computer only after that.
 - **Proof that something began must be written before it begins, under the same lock as anything that reads it.** An end
   read "has it begun?" before taking the lock its begin held, a begin wrote its audit row after changing the kind, and the
   guards against moving a switching computer were checked in memory and acted on without a lock. Each of these could leave

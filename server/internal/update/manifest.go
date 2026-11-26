@@ -42,7 +42,7 @@ type Manifest struct {
 	// explicitly, never swapped by a hub or manager. Old hubs ignore this field.
 	Links map[string]File `json:"links,omitempty"`
 	// Helpers are native programs a computer's node runs beside it and installs on demand (HelperPrograms:
-	// persona-iphone-bridge, docs/extensions/iphone-bridge.md "Releases"): name -> "linux-amd64" -> its download. Built
+	// persona-iphone-bridge, docs/extensions/iphone-control.md "Releases"): name -> "linux-amd64" -> its download. Built
 	// from native/, with versions of their own (no build number in them); a platform this release could not build is
 	// left out. Old hubs ignore this field.
 	Helpers map[string]map[string]File `json:"helpers,omitempty"`
@@ -272,7 +272,7 @@ func describe(gz string) (File, error) {
 	return File{Name: filepath.Base(gz), Size: n, SHA256: hex.EncodeToString(outer.Sum(nil)), BinarySHA256: hex.EncodeToString(inner.Sum(nil))}, nil
 }
 
-// CheckNext is publish.sh's check before a release: its build number must be larger than the one served, and the
+// CheckNext is the release packager's check before a release: its build number must be larger than the one served, and the
 // served release's commit an ancestor of this one (isAncestor runs git), or a release from an older branch would
 // read as newer. Nothing served yet (served nil) passes.
 func CheckNext(served *Manifest, build int64, commit string, isAncestor func(older, newer string) (bool, error)) error {

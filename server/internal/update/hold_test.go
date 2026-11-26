@@ -77,7 +77,7 @@ func TestHold(t *testing.T) {
 		{"a hub that does not know its commit", "", atD, "没有记下"},
 		{"built with changes not committed", commitB + "-dirty", atD, "没提交的改动"},
 		{"a short commit cannot be looked up", "b2b2b2", atD, "不完整"},
-		{"a manifest from an older publish.sh", commitB, &Manifest{Commit: commitD}, "没有提交记录"},
+		{"a manifest from an older the release packager", commitB, &Manifest{Commit: commitD}, "没有提交记录"},
 		{"a list that does not read", commitB, &Manifest{Commit: commitD, Ancestors: "@@"}, "读不出来"},
 	} {
 		got := Build{Commit: c.commit}.Hold(c.m)

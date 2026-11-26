@@ -30,7 +30,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// The single-center mesh end to end (docs/archive/operations/plan-hub-center.md): hubs in this process on 127.0.0.1 over TLS, nodes in
+// The single-center mesh end to end (docs/server/mesh.md): hubs in this process on 127.0.0.1 over TLS, nodes in
 // the process, apps on WebSockets, a connector played by a TLS server here.
 
 func init() {

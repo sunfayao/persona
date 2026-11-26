@@ -28,7 +28,7 @@ func (h *Hub) healthWithSource(w http.ResponseWriter, r *http.Request, sourceOf 
 }
 
 // hello is the first message on every WebSocket. Fields added here must not reuse a key the iOS app decodes with a
-// different type (its LiveConnection Envelope), or the whole hello is dropped there (hub-changes.md 1.2).
+// different type (its LiveConnection Envelope), or the whole hello is dropped there (docs/protocol/protocol.md 1.2).
 func (h *Hub) hello() map[string]any {
 	port, fp := h.tlsPin()
 	m := map[string]any{
@@ -40,7 +40,7 @@ func (h *Hub) hello() map[string]any {
 		proto.FeatureTodoSendState:    proto.TodoSendStateVersion,
 		"channel":                     h.build.Channel, "build": h.build.Number, "protocol": proto.Protocol, "min_app_build": proto.MinAppBuild,
 		"hub_id": h.hubID(), "hub_name": h.hubName(), "endpoints": h.endpointList(), "tls_port": port, "fp": fp,
-		// The hubs of this hub's mesh group, itself included (docs/archive/operations/plan-hub-mesh.md 2.6): only after authentication.
+		// The hubs of this hub's mesh group, itself included (docs/server/mesh.md 2.6): only after authentication.
 		"mesh": map[string]any{"hubs": h.meshHubs()},
 		// Push grading switch (hub.ln_mode / push_grading): synced on hello and on switch toggles.
 		"push_grading": h.push.pushGradingOn(),

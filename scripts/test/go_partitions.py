@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-"""Run the largest server packages' tests in concurrent `go test -run` partitions (docs/operations/testing.md, "Hosted CI").
+"""Discover top-level Go tests and divide large packages into concurrent runs.
 
-internal/node runs about 2,400 top-level tests one after another and internal/assistant about 4,100 (almost none call
-t.Parallel: most swap a package variable or the environment), so each serial run outgrew Go's ten-minute -timeout and
-CI's ten-minute step (#5328, #5594, #7644). CI's shards (scripts/ci/server-shards.py), the release build
-(scripts/release/build_hub_release.py) and test-server.sh (go_test_partitioned.py) all split them here, so they cannot
-drift. Each partition is a whole `go test` process with an exact `-run '^(A|B|…)$'` list: every listed test runs in
-exactly one of them, and subtests follow their parent.
+Each package gets an exact -run pattern per partition. Top-level tests run once,
+and their subtests follow the parent.
 """
 import re
 import subprocess
@@ -17,7 +13,7 @@ import subprocess
 # Three keeps every test exactly once. internal/assistant took 570 s serially on the hub machine (#7644); its tests
 # mostly wait on timers and Postgres. By 2026-11-22 it had about 7,300 tests and three partitions took 420 to 500 s
 # each on the CI machine while using about 13% of a core each; with the test database's fsync off
-# (scripts/ci/server.sh), eight took at most 165 s, with the same CPU time. internal/node, likewise mostly waiting
+# eight took at most 165 s, with the same CPU time. internal/node, likewise mostly waiting
 # (4,300 tests, about 1,060 s of test time, under a core and a half of CPU): three took 360 s, six 186 s.
 # internal/devices (about 580 tests, 260 s in one process, mostly link-switch timers) and internal/extmgr (about 1,040
 # tests, 145 s) were the other shard's longest packages once the database stopped syncing; three each took 106 s and

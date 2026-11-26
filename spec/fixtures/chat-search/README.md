@@ -1,7 +1,7 @@
 # What chat search finds
 
 One rule for what is searchable in a chat, shared by every client and the hub's managers
-(`docs/design/proposals/assistant-search.md`, section 2): what the chat can show, including behind a disclosure, and
+(`docs/assistant/assistant.md`, section 2): what the chat can show, including behind a disclosure, and
 nothing it never shows.
 
 | File | Covers |

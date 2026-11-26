@@ -5,7 +5,7 @@
       "name": "decision_recommended_option",
       "description": "OK on the recommended option takes the recommendation: it goes to the to-do's Agent and the decision leaves the row.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7",
+        "docs/assistant/todo-status-sop.md 3.7",
         "server/internal/assistant/decision.go chooseOption"
       ],
       "input": {
@@ -29,7 +29,7 @@
       "name": "decision_other_option",
       "description": "Another option is the owner's own choice: sent to the Agent with what it leads to, kept with the to-do's decisions.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7",
+        "docs/assistant/todo-status-sop.md 3.7",
         "server/internal/assistant/decision.go chooseOption"
       ],
       "input": {
@@ -120,7 +120,7 @@
       "name": "decision_in_words",
       "description": "The owner's own words go to the Agent as they are and are kept as the decision.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 7.3 Asks",
+        "docs/assistant/todo-status-sop.md 7.3 Asks",
         "server/internal/assistant/decision.go answerDecisionText"
       ],
       "input": {
@@ -144,7 +144,7 @@
       "name": "decision_in_words_without_origin",
       "description": "A to-do no conversation opened, supervised by the main conversation, is answered in words the same way: the route names no conversation, so the origin guard of the conversation route does not apply.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 5 decision 5 (the origin guards lifted for answers)",
+        "docs/assistant/todo-status-sop.md 5 decision 5 (the origin guards lifted for answers)",
         "server/internal/assistant/decision.go answerDecisionText"
       ],
       "input": {
@@ -280,7 +280,7 @@
       "name": "decision_later",
       "description": "Later writes nothing: the ask still waits, and the client keeps Later for its app session.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 (three outcomes on every ask)"
+        "docs/assistant/todo-status-sop.md 3.7 (three outcomes on every ask)"
       ],
       "input": {
         "state": "decision",
@@ -303,7 +303,7 @@
       "name": "decision_decline",
       "description": "Don't handle is kept with a receipt; the decision leaves the row, and nothing is taken or sent.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 (three outcomes on every ask)",
+        "docs/assistant/todo-status-sop.md 3.7 (three outcomes on every ask)",
         "server/internal/assistant/task_review_dismissals.go changeDecisionDismissal"
       ],
       "input": {
@@ -374,7 +374,7 @@
       "name": "decision_earlier_round",
       "description": "An answer for a round that no longer asks (a screen that is behind) answers nothing: 409 with the row as it is now.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 7.3 Asks (a stale round)",
+        "docs/assistant/todo-status-sop.md 7.3 Asks (a stale round)",
         "server/internal/assistant/decision.go askRound"
       ],
       "input": {
@@ -475,7 +475,7 @@
       "name": "failed_start_later",
       "description": "Later on a failed start writes nothing; it still waits.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 (three outcomes on every ask)"
+        "docs/assistant/todo-status-sop.md 3.7 (three outcomes on every ask)"
       ],
       "input": {
         "state": "failed_start",
@@ -580,7 +580,7 @@
       "name": "run_ask_in_session",
       "description": "A run's ask is answered at its card in its session, not here.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 (a run's ask has its home in its session)"
+        "docs/assistant/todo-status-sop.md 3.7 (a run's ask has its home in its session)"
       ],
       "input": {
         "state": "decision",

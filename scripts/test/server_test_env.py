@@ -79,7 +79,7 @@ def clean_environment(environment):
 
 
 def with_trimpath(goflags):
-    """GOFLAGS with -trimpath added unless it already sets the flag, -trimpath=false included (go_trimpath.sh)."""
+    """GOFLAGS with -trimpath added unless it already sets the flag, -trimpath=false included."""
     if any(flag.lstrip("-").split("=", 1)[0] == "trimpath" for flag in goflags.split()):
         return goflags
     return (goflags + " -trimpath").strip()

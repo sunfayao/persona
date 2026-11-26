@@ -764,7 +764,7 @@ describe("UI 10: the graph canvas", () => {
   });
 
   it("grows only through design tokens: no new pixel font sizes or hex colors in what it draws", () => {
-    // the per-file ratchet (scripts/ci/web_font_ratchet.py) counts the source; here the markup carries no raw
+    // the markup carries no raw
     // hex color of its own — sizes may still come from shared components (a badge's Pill)
     const html = renderToStaticMarkup(<GraphCanvas item={draw(WORK)} busy="" onPress={() => {}} />);
     expect(html).not.toMatch(/#[0-9a-f]{3,8}\b/i);

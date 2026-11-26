@@ -7,7 +7,7 @@
 The hub can't reliably SSH into computers such as laptops whose IP and network keep changing. Requested 2026-10-31: no Tailscale or reverse tunnels;
 instead, the client on the computer connects to the hub and reconnects on its own after a disconnect, and the hub reuses that link to talk to its node. No SSH or VPN is needed anywhere along the path.
 
-The user decided again on 2026-11-02 ([plan-hub-center.md](../archive/operations/plan-hub-center.md), sections 0 and 4): hubs and computers always connect through a preinstalled service on the computer, not SSH (too much permission);
+The user decided again on 2026-11-02 ([../server/mesh.md](../server/mesh.md), sections 0 and 4): hubs and computers always connect through a preinstalled service on the computer, not SSH (too much permission);
 the computer can connect to the hub or accept a connection from it. The recommendation is one hub for the whole household, with a **node service** on every other computer: resident node plus persona-link, installed by one command or one App.
 
 ## On computers: the web app and Persona Link
@@ -46,40 +46,16 @@ but can enter the computer's network through a proxy), or you don't want the com
 
 ## Install the node service
 
-Where to get a pairing link: preferably from **Machines › Add Computer** on the signed-in web app (iOS and Android entry points are in progress). It provides a full copyable command or link for the selected OS;
-after the computer connects, confirm **This is my computer** on the same screen ("[Connecting a computer](#connecting-a-computer-mac-example)" below). The admin interface and command-line steps on the hub machine are in that section's "Advanced" subsection.
+Build and install the node and connector for the configured computer with `scripts/deploy/deploy.sh <machine id>`. On the Mac, `persona-link install` registers `com.persona.link` and `com.persona.node` as separate launchd agents. On Linux the connector and node run as systemd user services.
 
-**Linux** (one command, the "node" role in `scripts/deploy/install.sh`):
-
-```sh
-curl -fsSL <site>/install.sh | sh -s -- --node --pair '<pairing link>'   # Active
-curl -fsSL <site>/install.sh | sh -s -- --node --listen [:18663] [--addr <address the hub uses to reach this computer>]         # Passive
-```
-
-- Downloads persona-node, the device's own program ("[The device's program](#the-devices-program)"), and persona-link (both verified against `SHA256SUMS`) to `~/.persona/bin/`, then hands off to `persona-link install`: installs the resident node's systemd user service
-  `personad-node` (running persona-node; one that is there already is left as it is, then switched with `persona-link node switch`) and persona-link's own service, pairs, and waits for connection (passive mode: waits for the listener to start, then prints a link for the hub admin interface).
-  A release without persona-node, or a computer that runs a hub or a manager, gets personad instead, as before.
-- `--pair` / `--listen` imply `--node`; so do `PERSONA_ROLE=node`, `PERSONA_PAIR`, `PERSONA_LISTEN`. With no options and a terminal, it asks;
-  if a hub is already detected on the LAN (mDNS `_persona-hub._tcp`, `persona-link discover`), it first says "One hub is enough for the whole household; install the node service on this computer."
-- Without systemd, it still installs the binaries and prints alternative instructions (see "Linux (headless)").
-- On Mac, `--node` installs the connector and resident-node launchd agents and pairs.
-- Publishing: `scripts/release/publish.sh` builds four extra `persona-link-<os>-<arch>.gz` and `persona-node-<os>-<arch>.gz` files alongside personad and adds them to the same `SHA256SUMS`. Persona Link also has Windows amd64 and arm64 downloads named `persona-link-windows-<arch>.exe.gz`; `latest.json` indexes every connector under `links`.
-
-**Mac**: `install.sh --node` (above) downloads persona-link and persona-node and runs `persona-link install`, which installs the connector LaunchAgent `com.persona.link` and the resident-node LaunchAgent `com.persona.node`; a step-by-step guide is in [persona-link-install.md](persona-link-install.md).
-The connector is copied to `~/.persona/bin/persona-link`, the fixed path. An existing node agent is left unchanged (for example one from `scripts/deploy/node-launchd.sh install`); one that runs personad moves over with `persona-link node switch`. A deleted node service is not silently reinstalled.
-The agent it writes has `ProcessType=Interactive` (the same as `node-launchd.sh`), so launchd doesn't throttle the node like a background job. Since an existing installation is left unchanged, one written before #5944 lacks it: `personad node doctor` reports it and `personad node doctor --fix` adds it (docs/server/server.md "Scheduling and privacy on the Mac").
-Updating the connector does not replace the installed resident node. Nodes supporting the update protocol can be remotely updated by the hub over the existing connection, with backup, rollback and online confirmation; first-time local upgrades for old nodes, progress and installation boundaries are in [node-update.md](node-update.md) (#1158).
-
-**Windows** (Orca engine, [windows.md](windows.md) ("Install and start at logon")): download `persona-link-windows-amd64.exe.gz` or `persona-link-windows-arm64.exe.gz` from the GitHub release, verify and unpack it using the PowerShell commands there, then run `persona-link install [--personad <personad.exe>] [--pair '<link>']`, without admin privileges.
-Registers the current user's scheduled task **Persona Link**, starting at sign-in and checked every 5 minutes; it runs a windowless supervisor (`persona-link supervise`), which starts
-persona-link and the resident node and restarts them on exit. Both are in one task (no separate `node install`). The retired tray is not installed. There is no one-command installer script or installation package; the release provides the connector executable.
+For active mode, copy the pairing link from **Machines › Add computer**, pass it to `persona-link pair`, then confirm **This is my computer** in the web app. For passive mode, use `persona-link pair --listen` and paste the result into the hub's admin page. See [Pairing and managing the Mac connector](#pairing-and-managing-the-mac-connector) for the commands.
 
 ### The device's program
 
 A device runs persona-node (`server/cmd/persona-node`), the node and the commands its Agents run (hook, MCP, ask, notify, launch, …) without the hub or the manager, at `~/.persona/bin/persona-node`. A hub or a manager runs personad at `~/.persona/bin/personad`. The two are separate files, so a computer that has both keeps both.
 
 - **New node services run persona-node** where the computer has it: `persona-link node install` (and `persona-link install`, including on Mac) picks `bin/persona-node`, else `bin/personad`. On a computer that runs a hub or a manager (its data directory has `hub.json` or `managers/*/manager.json`) the node stays on personad: their services run personad too, and it updates with the node.
-- **Existing node services keep running personad** until they are switched. `persona-link node switch` (run by `install.sh --node`) does it whole or not at all, holding a lock (`~/.persona/node-switch.lock`) the whole time:
+- **Existing node services keep running personad** until they are switched. `persona-link node switch` does it whole or not at all, holding a lock (`~/.persona/node-switch.lock`) the whole time:
   1. It keeps the service file as it is (`~/.persona/node-switch.backup`, written and synced to disk first).
   2. It points the service at `bin/persona-node`. Only the program changes; the file's other settings stay.
   3. It restarts the service (systemd `daemon-reload` and `restart`; launchd `bootout` and `bootstrap`, the latter tried again for a few seconds). On a Mac it runs only in the desktop's session (`launchctl managername` is `Aqua`, as in Terminal on the Mac); over ssh it is refused before anything changes, and so is undoing an unfinished switch, because launchd there may take the agent away and then refuse to load one again. The node stays on the program it runs.
@@ -87,7 +63,7 @@ A device runs persona-node (`server/cmd/persona-node`), the node and the command
 
   When persona-node does not answer, or the switch is stopped (Ctrl-C, TERM, the terminal closing), the old file comes back, the service restarts on personad, and the command says why. The backup goes only once the service manager has taken the restart (or a node answers all the same): when launchd refuses the old agent's `bootstrap` for longer than the retries, it stays, and the next recovery starts it again. A switch cut off harder (`kill -9`, the computer losing power) leaves the backup: `persona-link node status` says so, and the running `persona-link run` (it looks every 30 s and when it starts, and writes what it did to `link.log`) or the next `persona-link node install`/`switch` puts it back; `persona-link node uninstall` drops it with the service. None of that touches a switch that holds the lock (`node install`, `persona-link install`'s node step and `node uninstall` refuse while one runs), and a backup that is no usable service file (empty, or naming a program that is not there) is dropped rather than put back. `bin/personad` is never touched.
   The switch restarts the node at once: an answer the assistant is writing on that computer at that moment is cut off (Agents in herdr go on).
-- **Back to personad**: `persona-link node switch --to personad` does the same the other way. `install.sh --hub` and the manager's install script run it when the node service file names `persona-node` (whoever wrote it), because a computer that runs a hub or a manager keeps its node on personad, which updates with the node. `personad hub setup` and `personad manager install` run directly do not: run the switch yourself there. A manager joined into a directory outside `~/.persona/managers/` is not seen as one.
+- **Back to personad**: `persona-link node switch --to personad` does the same the other way. The manager's install script runs it when the node service file names `persona-node` (whoever wrote it), because a computer that runs a hub or a manager keeps its node on personad, which updates with the node. `personad hub setup` and `personad manager install` run directly do not: run the switch yourself there. A manager joined into a directory outside `~/.persona/managers/` is not seen as one.
 - The node writes the hook and MCP configs of the sessions it starts with its own path at every connection, so after a switch they run persona-node, and after a rollback personad again.
 - `node.info` says which program runs the node and from which file (`program`, `executable`, [protocol.md](../protocol/protocol.md) "Node handshake"); Redeploy sends the device's file persona-node of the build it should run (the hub's own, or the release's, [node-update.md](node-update.md) "Node packages"), else personad to that same file, which persona-node replaces again later. `node-update-check` prints `program` too, which is how scripts tell the two apart. `persona-link node install --node-bin <persona-node>` (and `persona-link install --node-bin`) puts the device's program in beside a personad the computer may have (unless it runs a hub or a manager, where it is refused).
 - The office skill the node gives its sessions runs `office` with whichever program is there (personad, else persona-node).
@@ -99,7 +75,7 @@ A device runs persona-node (`server/cmd/persona-node`), the node and the command
 
 The Persona plugin for Claude Code (`integrations/claude-code-plugin`) lets the owner's own messages reach a Claude Code session Persona has no terminal for, such as a Code session in Claude's desktop app, the way typed input does. The resident node carries the plugin of its own build and keeps it installed; Persona Link shows it and switches it. Implementation: `server/internal/claudeplugin`, wired into the node in `server/internal/node/claudeplugin.go`.
 
-**Where it comes from.** The plugin's files are packed into personad and persona-node at build time (`go generate ./internal/runtimepkg`, which `scripts/deploy/deploy.sh`, `scripts/release/publish.sh`, the `Dockerfile` run; `runtimepkg.Assets`), so the installed plugin is always the node's own version. A node built without that step (a plain `go build`) reports `unavailable`. Updating the node, by Redeploy ([node-update.md](node-update.md)) or a new Link install, brings a new plugin, which the node puts in place at its next check.
+**Where it comes from.** The plugin's files are packed into personad and persona-node at build time (`go generate ./internal/runtimepkg`, which `scripts/deploy/deploy.sh` runs; `runtimepkg.Assets`), so the installed plugin is always the node's own version. A node built without that step (a plain `go build`) reports `unavailable`. Updating the node, by Redeploy ([node-update.md](node-update.md)) or a new Link install, brings a new plugin, which the node puts in place at its next check.
 
 **How it is installed.** Only with Claude Code's own CLI, never by editing Claude Code's files, and every command names this plugin or its marketplace alone:
 
@@ -157,7 +133,7 @@ The node writes the plugin to `~/.persona/claude-code-plugin` (under `PERSONA_HO
   - When the link disconnects, this computer goes offline immediately; while the manager is away the hub returns 503 on `/api/v1/link`, and Persona Link backs off normally and connects when the manager returns.
 - **Mac** runs the connector as the independent launchd agent `com.persona.link`.
   On **Linux** (servers, NAS, Raspberry Pi, no GUI), `persona-link install` installs itself as a systemd user service; see "Linux (headless)";
-  on **Windows**, it installs as a sign-in scheduled task supervising both it and the resident node; see [windows.md](windows.md), "Install and start at logon".
+  on **Windows**, it installs as a sign-in scheduled task supervising both it and the resident node; see [link.md](link.md), "Install and start at logon".
 
 ## Link (active mode)
 
@@ -263,7 +239,7 @@ Both sides ignore a message type they don't know.
   - If still present, ping immediately (3 seconds, or the hub-configured heartbeat timeout if longer), reconnecting on failure;
   - If already disconnected, retry immediately.
 - Linux: persona-link watches address changes itself with netlink (`internal/netaddr`); Windows: with `NotifyIpInterfaceChange` (same package).
-- **Reconnect now** is `SIGUSR2`. Windows has no such signals: there `persona-link reconnect` and the pairing flow set the corresponding named events ([windows.md](windows.md), "Install and start at logon"). Waiting for pong blocks neither this nor the network-change check: on a slow link, ping may wait the hub's entire configured timeout.
+- **Reconnect now** is `SIGUSR2`. Windows has no such signals: there `persona-link reconnect` and the pairing flow set the corresponding named events ([link.md](link.md), "Install and start at logon"). Waiting for pong blocks neither this nor the network-change check: on a slow link, ping may wait the hub's entire configured timeout.
 
 **Forwarding**
 - Only forwards to `~/.persona/node-attach.sock` and only connects back to the hub address used by this link; stream ids may contain only letters, digits, `-`, `_`. The hub can't make it connect elsewhere.
@@ -387,7 +363,7 @@ When a hub machine exposes only SSH (port 22) — its HTTP and TLS ports listen 
 
 ## Passive mode (the hub connects)
 
-The protocol is fixed in [plan-hub-center.md](../archive/operations/plan-hub-center.md), section 4; details are here. The dialing side (#435) follows this specification and has belonged to the manager since 2026-11-04
+The protocol is fixed in [../server/mesh.md](../server/mesh.md), section 4; details are here. The dialing side (#435) follows this specification and has belonged to the manager since 2026-11-04
 (`server/internal/devices/service.go`; credentials generated during pairing are handed to the hub for encrypted storage with its key and retrieved when dialing). Implementation: `server/internal/link/`
 (`listen.go` for the listener and three endpoints, `passive.go` for pairing codes and links, `tlsid.go` for identity, `ratelimit.go` for rate limiting); CLI in `server/cmd/persona-link/passive.go`.
 
@@ -608,9 +584,9 @@ The compatibility parent-presence protocol below is retained for older helper in
 ## Connecting a computer (Mac example)
 
 Prefer adding it in the App: no admin interface or sign-in to the hub machine needed. Below is active mode on Mac; for Linux, replace steps 2 and 3 with pasting the web app's one-line command into that computer's terminal;
-for Windows see [windows.md](windows.md). Instructions for people who don't use terminals are in [getting-started.md](getting-started.md), "Connect a computer".
+for Windows see [link.md](link.md). Instructions for people who don't use terminals are in [config.md](config.md), "Connect a computer".
 
-1. Install Persona Link on the Mac: `persona-link install` ([persona-link-install.md](persona-link-install.md)). It registers the launchd services. Existing node installations are left untouched.
+1. Install Persona Link on the Mac: `persona-link install` ([link.md](link.md#pairing-and-managing-the-mac-connector)). It registers the launchd services. Existing node installations are left untouched.
 2. In the signed-in web app, open **Machines › Add Computer**, select Mac and enter a name (Chinese is allowed; the hub generates the id from the name). The hub adds `kind: link`, **pending confirmation**, and provides its pairing link
    (`POST /api/v1/auth/pair-codes` with `add`, [protocol.md](../protocol/protocol.md), "Computer pairing codes").
 3. Send the link to this Mac (**Copy pairing link** or **Share…**) and use `~/.persona/bin/persona-link pair -` with the link on stdin.
@@ -819,9 +795,9 @@ On servers, NAS boxes and Raspberry Pis without a GUI, `persona-link` alone is e
 
 **Build**
 - Pure Go, no cgo: `cd server && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o persona-link ./cmd/persona-link`.
-  Builds for `amd64`, `arm64` and 32-bit Raspberry Pi (`GOARCH=arm GOARM=7`); Windows also builds (file locks and signals in platform-specific files); the scheduled task works without a tray ([windows.md](windows.md), "Install and start at logon").
+  Builds for `amd64`, `arm64` and 32-bit Raspberry Pi (`GOARCH=arm GOARM=7`); Windows also builds (file locks and signals in platform-specific files); the scheduled task works without a tray ([link.md](link.md), "Install and start at logon").
 - `personad` also builds for Windows (`GOOS=windows go build ./...`; process groups, signals, file locks and CPU time are platform-specific in `internal/osproc` and each package's `_windows.go`),
-  and the Windows resident node works with Orca; `persona-link install` installs a sign-in scheduled task on Windows (the Windows paragraph under "Install the node service"), see [windows.md](windows.md).
+  and the Windows resident node works with Orca; `persona-link install` installs a sign-in scheduled task on Windows (the Windows paragraph under "Install the node service"), see [link.md](link.md).
 - The resident node runs the device's program, persona-node, built from the same commit (`~/.persona/bin/persona-node`; personad where the computer has no persona-node or runs a hub or a manager, "The device's program"); `scripts/deploy/node-launchd.sh install` installs a personad node on Linux as systemd user service `personad-node`.
 
 **One-command installation**
@@ -868,7 +844,7 @@ StandardOutput=null
 WantedBy=default.target
 ```
 
-- Paths use this computer's data directory (`~/.persona` for new installs, `~/.persona` on machines using an old version, or `PERSONA_HOME` if set; see [rename.md](rename.md)); both `Environment` lines pass the same directory to the service so it doesn't resolve another.
+- Paths use this computer's data directory (`~/.persona` for new installs, `~/.persona` on machines using an old version, or `PERSONA_HOME` if set; see [../protocol/rolling-upgrade-compatibility.md](../protocol/rolling-upgrade-compatibility.md)); both `Environment` lines pass the same directory to the service so it doesn't resolve another.
 - Doesn't wait for `network-online.target`: user instances don't have this target, and persona-link retries itself.
 - Status JSON lines are not needed by the service; logs go to `~/.persona/link.log` (`run --log`; at 1 MB, rotates to `link.log.1`, a configured value).
   On machines without persistent journals, ordinary users can't see user-service logs with `journalctl --user`, so logging doesn't depend on it.
@@ -906,7 +882,7 @@ Two things to know about a node without systemd:
     staged and swapped there, next to a backup of the old one.
 
   As on any other computer, only personad is updated: persona-link, herdr and the Agents' CLIs keep their versions. herdr's server runs in a
-  session of its own and keeps its panes when the node restarts. Windows nodes still can't be updated by the hub ([windows.md](windows.md)).
+  session of its own and keeps its panes when the node restarts. Windows nodes still can't be updated by the hub ([link.md](link.md)).
 - A container on the hub's own machine may not reach the hub at the hub's LAN address or public name (a NAS's policy routing sends the
   replies elsewhere; a default bridge network has no IPv6). Its bridge's gateway does reach it: pair with the link's `url` host replaced by the
   gateway address, and add `https://<gateway>:<TLS port>` with `persona-link address add` so it stays first ([lessons/server.md](../lessons/server.md)
@@ -1020,3 +996,51 @@ HTTP headers, response bodies or raw errors. Existing status and legacy error lo
 their established behavior; this does not make an entire historical log safe to share.
 The diagnostics cover outbound Link WebSocket handshakes; pairing, passive listener
 acceptance and SSH process startup failures retain their existing diagnostics.
+
+## Pairing and managing the Mac connector
+
+### Pairing
+
+1. Open **Machines › Add computer** in the signed-in web app, choose Mac, name the computer and copy its pairing link.
+2. Pair in a terminal:
+
+   ```bash
+   ~/.persona/bin/persona-link pair - <<< '<pairing-link>'
+   ```
+
+3. Return to the web screen and confirm **This is my computer**. A link is valid for 10 minutes and can be used once; never post it publicly.
+4. Verify with `~/.persona/bin/persona-link status`. The command reports the connector's mode, connection, resident-node state as seen by the hub, and the launchd agent. `status --json` is available for scripts.
+
+For passive mode, use `persona-link pair --listen` and paste the printed link into hub admin **Computers › Add computer › Hub connects**. SSH tunnel setup and other advanced options remain in the CLI; see [SSH tunnel](#ssh-tunnel).
+
+### Everyday commands
+
+Human-readable command output follows the terminal locale (`PERSONA_LANG`, then `LC_ALL`, `LC_MESSAGES` and `LANG`), with English as the fallback and `en`, `zh-Hans` and `ja` shipped together. JSON, saved status and peer messages keep their canonical form. Set `PERSONA_LANG` explicitly when a Link invocation needs a particular language.
+
+| Command | Purpose |
+| --- | --- |
+| `persona-link status [--json]` | Connector and service state; no credential contents |
+| `persona-link reconnect` | Ask the running connector to reconnect immediately |
+| `persona-link node status [--json]` | Resident-node service state without connecting to its socket |
+| `persona-link logs -f` | Follow `~/.persona/link.log` |
+| `persona-link pair --listen` | Generate a passive-mode pairing link |
+| `persona-link name <new>` | Rename this computer on the hub while connected |
+| `persona-link plugin status\|install\|uninstall\|on\|off` | The Persona plugin for Claude Code, which the resident node keeps installed for this Mac's Claude Code and Code sessions ([link.md](link.md) "Claude Code plugin") |
+
+### Upgrade and uninstall
+
+Use the local deploy script to update binaries. See [node-update.md](node-update.md) for resident-node upgrades over Link.
+
+To remove the connector while keeping its pairing and resident node:
+
+```bash
+~/.persona/bin/persona-link uninstall
+```
+
+To take the Persona plugin out of Claude Code too, run `~/.persona/bin/persona-link plugin uninstall` while the node is still installed. To remove the resident node too, inspect its actual service and binary first, then run `persona-link node uninstall`. `--purge` is a separate, explicit destructive operation that removes connector credentials, status, logs and its installed executable; revoke this computer on the hub as well. Do not run those removal commands merely to troubleshoot a connection.
+
+### Troubleshooting
+
+- **Connector not running**: `launchctl print gui/$(id -u)/com.persona.link` and `persona-link logs -f`.
+- **Hub cannot reach the local node**: `persona-link node status`; logs are in `~/.persona/node-attach.log`.
+- **LAN unreachable**: check macOS local-network permission for the connector. Other routes and TLS errors are explained by `persona-link status`.

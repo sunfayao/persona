@@ -40,7 +40,7 @@ type MachineConfig struct {
 	Trust string `json:"trust,omitempty"`
 	// Kind: local | service (the hub dials the computer's connector, service.go) | link (the computer's persona-link
 	// dials the hub, link.go) | ssh | tailcat (tailcat only, no ssh). ssh and tailcat are kept for hub.json files that
-	// have them (docs/archive/operations/plan-hub-center.md 4).
+	// have them (docs/server/mesh.md 4).
 	Kind    string `json:"kind"`
 	SSHHost string `json:"ssh_host,omitempty"`
 	// Address is a service computer's connector, host:port (its pin and credential are in Postgres); Proxy an optional
@@ -95,7 +95,7 @@ type MachineConfig struct {
 }
 
 // NodePackagesConfig is where the manager fetches the node builds for the computers that the hub has none of its own
-// for (docs/operations/node-update.md "Node packages", docs/operations/docker.md "Node builds"): URL is a release's dl/ (a mirror of the
+// for (docs/operations/node-update.md "Node packages", docs/operations/config.md "Node builds"): URL is a release's dl/ (a mirror of the
 // publisher's), "" the hub build's own update URL, "off" never; Proxy an http://[user:pass@]host:port proxy for it
 // (internal/netproxy; "" direct, the environment's proxies are not used).
 type NodePackagesConfig struct {
@@ -228,7 +228,7 @@ func defaultLocalMachine() MachineConfig {
 
 // defaultConfig is what a first run writes to ~/.persona/hub.json: this machine only, reachable by its host name.
 // Other machines (ssh), the public URL and the assistant's notes are filled in there (docs/operations/config.md). With
-// PERSONA_LOCAL_NODE=0 (the Docker image, docs/operations/docker.md) there is no machine at all: the hub's own has no herdr or
+// PERSONA_LOCAL_NODE=0 (the Docker image, docs/operations/config.md) there is no machine at all: the hub's own has no herdr or
 // claude to drive, every computer is added to hub.json.
 func defaultConfig() *Config {
 	host, _ := os.Hostname()
@@ -244,7 +244,7 @@ func defaultConfig() *Config {
 	}
 }
 
-// envOverrides are settings the environment gives over hub.json's, e.g. a compose file's (docs/operations/docker.md): the
+// envOverrides are settings the environment gives over hub.json's, e.g. a compose file's (docs/operations/config.md): the
 // database's address and the hub's own address and port. Never written back to the file.
 var envOverrides = []struct {
 	name string
@@ -548,7 +548,7 @@ func (c *Config) requestPairCodeWithLang(ctx context.Context, reqBody map[string
 	err = json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&p)
 	if err == nil && p.Token != "" && p.URL == "" && time.Now().Before(p.ExpiresAt) {
 		// A hub that does not know its own address (a first Docker start leaves public_url empty: the container cannot
-		// see the NAS's LAN address, docs/operations/docker.md): the code is fine, the address a phone would dial is missing.
+		// see the NAS's LAN address, docs/operations/config.md): the code is fine, the address a phone would dial is missing.
 		return nil, errors.New(i18n.T(l, "hub-cli.pair_no_public_url"))
 	}
 	if err != nil || p.Token == "" || p.URL == "" || !time.Now().Before(p.ExpiresAt) {

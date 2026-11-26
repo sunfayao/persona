@@ -188,7 +188,7 @@ try {
   const done = "many:done:0";
   const opener = "many:action:0";
   // the mock's done and collapsed items share their made-up titles: the Related line is picked by its place, the done
-  // one first (scripts/mock/test_inbox_many_mock.py)
+  // one first
   const related = (p) => p.locator("[data-event-related] button").first();
   {
     const { context, p } = await page("light", "en");

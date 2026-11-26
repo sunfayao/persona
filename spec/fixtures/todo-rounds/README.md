@@ -1,6 +1,6 @@
 # To-do rounds fixtures
 
-A to-do's conversation (#10465, `docs/design/proposals/todos-redesign.md` 3.6): its history grouped into rounds, what
+A to-do's conversation (#10465, `docs/assistant/todo-status-sop.md` 3.6): its history grouped into rounds, what
 its work produced, and what changed since the owner last looked. The shapes are `TodoTimeline` (its `TodoRound`s and
 their `TodoTimelineEntry`s), `TodoResult` and `TodoRecap` in `schema/wire/todo-view.schema.json`. The manager's timeline
 (`server/internal/assistant/todo/timeline`) answers every case exactly, whatever order the rows come in

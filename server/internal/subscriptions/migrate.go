@@ -7,7 +7,7 @@ import (
 )
 
 // A built-in source's Inbox feed switched to its default subscription and back (#6265,
-// docs/design/proposals/inbox-sources-migration.md "3g. Switching, compatibility and rollback"). The default
+// docs/extensions/subscriptions.md "3g. Switching, compatibility and rollback"). The default
 // subscription has a fixed id (MigrationID); while it is Migrated it is pulled, and its rows go to the Inbox under the
 // built-in's own source id with the items' own threads and ids, so the item ids, mutes, policies, done threads and
 // replies the owner has keep matching. Its destination switches stay off in storage: a manager that does not know

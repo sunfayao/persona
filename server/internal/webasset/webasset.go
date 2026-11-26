@@ -89,8 +89,7 @@ type Stats struct {
 }
 
 // Precompress replaces each file below root that is Precompressible and of MinSize bytes or more with its Gzip
-// copy (name + Suffix). Run it on the web client's copy before go build embeds it (scripts/release/publish.sh,
-// scripts/release/build_hub_release.py, the Dockerfile); running it again changes nothing.
+// copy (name + Suffix). Run it on the web client's copy before go build embeds it. Running it again changes nothing.
 func Precompress(root string) (Stats, error) {
 	var st Stats
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {

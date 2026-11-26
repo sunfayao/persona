@@ -19,7 +19,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Point is an extension point: a place in the hub a plugin contributes to (docs/plans/plan-extensions.md "contributes").
+// Point is an extension point: a place in the hub a plugin contributes to (docs/extensions/extensions.md "contributes").
 type Point struct {
 	Name string // the key under contributes ("connectors")
 	// Namespace is the prefix of its methods ("connector": connector.status).

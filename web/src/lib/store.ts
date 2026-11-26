@@ -70,7 +70,7 @@ export interface State {
   features: string[];
   /** Whether the hub's push grading switch is enabled (`hello.push_grading` / `push_grading` event). */
   pushGrading: boolean;
-  /** This hub's name and its interconnected group (docs/archive/operations/plan-hub-mesh.md 2.6); empty on older hubs. */
+  /** This hub's name and its interconnected group (docs/server/mesh.md 2.6); empty on older hubs. */
   hubName: string;
   mesh: MeshHub[];
   machines: Machine[];

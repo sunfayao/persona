@@ -18,7 +18,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// Cross-machine dispatch (docs/plans/plan-agent-dispatch.md): an agent on one computer hands a subtask to a new agent
+// Cross-machine dispatch (docs/integrations/a2a.md): an agent on one computer hands a subtask to a new agent
 // on another connected computer (dispatch_start) and reads its state and final reply back (dispatch_read). The
 // manager starts the session as it starts any agent, so the hub stays the only path between computers. Off unless
 // manager.json agents.dispatch.enabled is true; while off the tools are not listed and their calls are refused.

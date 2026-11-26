@@ -204,7 +204,7 @@ export function validMachineId(id: string): boolean {
   return /^[a-z0-9][a-z0-9._-]{0,62}$/.test(id);
 }
 
-// ── computers: paths, adding, repairing (docs/archive/operations/plan-hub-center.md 4, 5) ──
+// ── computers: paths, adding, repairing (docs/server/mesh.md 4, 5) ──
 
 // hubLabel names the hub a path goes through: this hub, a hub of the group by name, else the start of its id.
 export function hubLabel(mesh: MeshView | null | undefined, hubId: string | undefined, selfId?: string): string {
@@ -306,7 +306,7 @@ export function linuxInstallCommand(pairUrl: string): string {
   return `persona-link install --pair - <<< ${shellQuote(pairUrl)}`;
 }
 
-// ── the group of hubs (docs/archive/operations/plan-hub-center.md 2) ──────
+// ── the group of hubs (docs/server/mesh.md 2) ──────
 
 // sortMeshHubs: the center first, then this hub, then by name.
 export function sortMeshHubs(hubs: MeshHub[]): MeshHub[] {

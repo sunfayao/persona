@@ -3,8 +3,7 @@
     "name": "unknown_event_ignored",
     "description": "未知事件被当前 iOS 忽略。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode default",
-      "docs/archive/redesign/README.md: D5"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -21,7 +20,7 @@
     "name": "hello_unknown_field",
     "description": "握手中的未知键不会影响已知字段。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.Envelope, ServerEvent.decode"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -48,7 +47,7 @@
     "name": "hello_missing_features",
     "description": "旧握手缺少能力列表时按空列表处理。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -66,7 +65,6 @@
     "name": "items_legacy_null",
     "description": "旧事件的空 items 按空数组处理，连续性字段保持缺省。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
       "docs/protocol/protocol.md: items 的连续性"
     ],
     "derived": true,
@@ -93,8 +91,7 @@
     "name": "session_unknown_enums",
     "description": "未知会话状态降级为 unknown。",
     "source": [
-      "apple/Shared/Models.swift: SessionStatus.init(from:), AgentState.init(from:)",
-      "docs/archive/redesign/README.md: D5"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_session",
@@ -125,7 +122,7 @@
     "name": "session_missing_fields",
     "description": "旧会话缺字段时使用当前 iOS 的默认值。",
     "source": [
-      "apple/Shared/Models.swift: Session.init(from:)"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_session",
@@ -148,7 +145,7 @@
     "name": "item_unknown_kind",
     "description": "未知内容块类型降级为 unknown。",
     "source": [
-      "apple/Shared/Models.swift: ItemKind.init(from:)"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -177,9 +174,7 @@
     "name": "hello_wrong_known_type",
     "description": "已知信封键类型错误会让整条握手被丢弃。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
-      "apple/Shared/Models.swift: InteractionKind, Session.init(from:)",
-      "docs/archive/redesign/README.md: D5（现状差异）"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -199,9 +194,7 @@
     "name": "session_bad_optional_field",
     "description": "当前 iOS 不会单独忽略类型错误的会话增强字段。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
-      "apple/Shared/Models.swift: InteractionKind, Session.init(from:)",
-      "docs/archive/redesign/README.md: D5（现状差异）"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -224,9 +217,7 @@
     "name": "interaction_unknown_kind",
     "description": "当前 iOS 不支持未知交互类型的降级解码。",
     "source": [
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
-      "apple/Shared/Models.swift: InteractionKind, Session.init(from:)",
-      "docs/archive/redesign/README.md: D5（现状差异）"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_event",
@@ -250,8 +241,7 @@
     "name": "session_zero_time",
     "description": "Go 零时间能解码，但不算有意义的日期。",
     "source": [
-      "server/internal/proto/session.go: Session",
-      "apple/Packages/PersonaWire/Sources/PersonaWire/JSONValue.swift: JSON.decoder, Date.isMeaningful"
+      "server/internal/proto/session.go: Session"
     ],
     "derived": true,
     "decoder": "compat_session",
@@ -282,8 +272,7 @@
     "name": "date_at_cutoff",
     "description": "当前 iOS 将 2000 年起点本身也判为无意义日期。",
     "source": [
-      "apple/Packages/PersonaWire/Sources/PersonaWire/JSONValue.swift: Date.isMeaningful",
-      "docs/archive/redesign/README.md: D5（现状差异）"
+      "docs/protocol/protocol.md"
     ],
     "derived": true,
     "decoder": "compat_session",

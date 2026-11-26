@@ -24,7 +24,7 @@ iOS and Android also offer "No Terminal Engine", the empty set, last in Choose E
   `node.info` (for "Detected"). An engine that is not installed or not running does not slow the others down.
 - **Hosts do not hold each other up.** Each host refreshes in parallel with its own timeout, and its events refresh only itself. A host that is down
   (unreachable, `not_running`) clears only its own sessions; the others are listed and driven as usual. This is the same mechanism as herdr-both
-  (`docs/plans/plan-orca-support.md` "Side-by-side engines").
+  (`docs/integrations/engines.md` "Side-by-side engines").
 - **Default engine**: new sessions, offline sessions without a remembered terminal host and the mode menus go to the default engine; renaming a space goes to the
   enabled host that lists it, the default one first (`spaceOrganizer` in `node/rename.go`: space ids carry no host kind). Per-pane
   operations (reading the screen, sending, keys, closing) still go to the host the pane belongs to. Changing only the default resets nothing; changing
@@ -66,7 +66,7 @@ iOS and Android also offer "No Terminal Engine", the empty set, last in Choose E
   every host, herdr's refresh ran Orca's process scan whenever an Orca pane was due for a look (p95 174 ms on the fakes, 1.6 ms now), and
   Orca's poll asked herdr about every herdr pane due for one.
 
-"Engine" below means this choice. APIs, storage, and node switching: `docs/protocol/protocol.md` ("Engines"); design / trade-offs: `docs/plans/plan-orca-support.md`.
+"Engine" below means this choice. APIs, storage, and node switching: `docs/protocol/protocol.md` ("Engines"); design / trade-offs: `docs/integrations/engines.md`.
 
 ## Engines
 
@@ -116,7 +116,7 @@ iOS / Android have both entry points (Android Machines is under Agents: **List s
 | Colored screen reads, draft detection | Yes | No (plain text, dialogs only) | No (plain text, dialogs only) | Yes | Yes (`rex capture --format=vt`) | No (no terminal) |
 | Change permission mode / thinking effort | Yes | Supported, untested | Supported, untested | Supported, untested | Supported, untested | Yes (end-to-end tested) |
 
-Windows: herdr has native Windows support since 0.9.5; except live terminal, capabilities match above. Orca works too. See [windows.md](../operations/windows.md), "herdr."
+Windows: herdr has native Windows support since 0.9.5; except live terminal, capabilities match above. Orca works too. See [../operations/link.md](../operations/link.md), "herdr."
 
 Antigravity CLI panes can show chat history after the hook installed by `herdr integration install antigravity-cli`
 reports the pane's conversation ID. Without the hook Persona does not start agy in herdr (`agy_integration_missing`,
@@ -149,7 +149,7 @@ conversations closed: after a restart the companion's rows are listed as it says
 
 Orca's native Claude chats (structured, no terminal) connect through node's bridge: list, state, send text / images, interrupt, close,
 answer approvals / questions, change permission / thinking (no plan mode); no screen reads, keys, or live terminal. Chats appear only after their first message;
-Codex chats not listed in this version. See `docs/plans/plan-orca-support.md` ("Structured sessions").
+Codex chats not listed in this version. See `docs/integrations/engines.md` ("Structured sessions").
 
 Unsupported actions explain failure instead of partially acting. Orca rejects sending without entering anything when its pane is still
 there with Claude not in front, saying "Claude is not in foreground (possibly suspended); nothing sent," or asking to reopen on the computer.

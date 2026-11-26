@@ -25,7 +25,7 @@ const ExtensionHeader = "X-Persona-Extension"
 const AdminHeader = "X-Persona-Admin"
 
 // DeviceNameHeader carries the name of the device a relayed request came from ("" for the hub's own token), so a
-// manager can say who did something (a model profile's switch, docs/assistant/model-profiles.md); set by the hub like
+// manager can say who did something (a model profile's switch, docs/assistant/model-config.md); set by the hub like
 // RoleHeader, never the client's.
 const DeviceNameHeader = "X-Persona-Device-Name"
 

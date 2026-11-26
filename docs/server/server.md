@@ -25,8 +25,8 @@ The hub and the managers apart:
 - **An installed Mac stays on personad.** An agent that ran `personad` before (any Mac installed before this, unless it was opted out) keeps it on every rerun of setup and `manager install --builtin`, `persona-hub` and `persona-manager` beside it or not. So does a new built-in manager's agent while the hub's agent runs `personad` (an installed Mac switched to service mode): the node of the hub's computer moves from under the hub's agent to under it. Full Disk Access lists the `personad` the user allowed, and staying keeps that entry; moving would need another program added there (a self-update replaces the binary either way, and macOS may then want the switch turned off and on again, `node/file_permissions.go`). Setup's report and `manager install --builtin` say so when the program is there, and say which program Full Disk Access needs when they move an agent. An agent of your own that runs this data directory's `persona-hub` is still taken as the hub's and left as it is.
 - **Some services stay on personad.** The hub's unit, or the built-in manager's unit or agent, under the former name keeps its program (`compatibility_service.go`, `manager/compatibility.go`), and so do the managers made in the app (`manager install`: `personad manager run`). Nothing else moves an install: a deploy keeps the program the hub's unit runs (`scripts/deploy/hub-systemd.sh`, [hub-restart.md](../operations/hub-restart.md)), and so does a self-update.
 - **A hub run as persona-hub stays persona-hub.** It starts the built-in manager as `persona-manager assistant` beside it when that is the same build (`version -v`), else as the `personad` beside it (`hub.managerBinary`). A self-update replaces `personad` (the release's main download, `hub.ServerBinary`) with the two programs and goes on as the swapped `persona-hub`: the restart, the edge's hand-over and every way back (the new process, the edge, the watchdog) run it (`run` in `pending.json`; a build that does not know `run` brings the hub back as `personad hub run`, the same hub). `hub switch` without `--binary` goes on with the program the edge's active slot runs, from either program, so while a slot serves it never moves a hub between `personad` and `persona-hub`; with nothing serving it names `personad` (`hub.ServerBinary`), as before. The edge refuses any switch while it backs off a failing slot, so that default only reaches a switch it takes once a slot is up again; on a hub that runs `persona-hub` it moves the hub to `personad` until its service restarts, so give `--binary` there.
-- **One container in Docker.** The hub image runs the hub and the built-in manager as two processes under `personad supervise`, each restarted on its own, as `persona-hub run` and `persona-manager assistant` unless `PERSONA_SPLIT_PROGRAMS=0` ([docker.md](../operations/docker.md) ("Programs")).
-- **Two services on a new install.** `hub setup` installs the hub's service and the built-in manager's own (`persona-manager-assistant.service` running `persona-manager assistant`, or on a Mac the launchd agent `com.persona.manager.assistant`, running `persona-manager assistant` on a new install, each with `PERSONA_ASSISTANT_DEPLOY=service`), and binds the second to the first with a one-time code. Existing installs keep the hub's child until `hub setup --manager-service` ([upgrade.md](../operations/upgrade.md): every install type, step by step). See [managers.md](../assistant/managers.md) ("The built-in manager as its own service").
+- **One container in Docker.** The hub image runs the hub and the built-in manager as two processes under `personad supervise`, each restarted on its own, as `persona-hub run` and `persona-manager assistant` unless `PERSONA_SPLIT_PROGRAMS=0` ([../operations/config.md](../operations/config.md) ("Programs")).
+- **Two services on a new install.** `hub setup` installs the hub's service and the built-in manager's own (`persona-manager-assistant.service` running `persona-manager assistant`, or on a Mac the launchd agent `com.persona.manager.assistant`, running `persona-manager assistant` on a new install, each with `PERSONA_ASSISTANT_DEPLOY=service`), and binds the second to the first with a one-time code. Existing installs keep the hub's child until `hub setup --manager-service` ([../operations/hub-update.md](../operations/hub-update.md#development-updates): every install type, step by step). See [managers.md](../assistant/managers.md) ("The built-in manager as its own service").
 
 ## Send an Agent message and check its receipt
 
@@ -171,7 +171,7 @@ awk '{print "Authorization: Bearer " $0}' member.token > member.header
    curl --fail-with-body -H @member.header "$API/revisions/1"
    ~~~
 
-Publishing and approving are separate actions. A reader may retrieve a published, pending revision by number. Members can distinguish approval from authorship using `approved_by`, `approved_at` and `author`. A later draft leaves the previous approved revision current until an approver accepts the new head. Writers editing the same head receive one success and one conflict. A document holds up to 256 KiB of UTF-8 text per revision. The [team project proposal](../design/proposals/team-project-spaces.md) covers the planned Web experience, attachments and opening a revision in a personal agent.
+Publishing and approving are separate actions. A reader may retrieve a published, pending revision by number. Members can distinguish approval from authorship using `approved_by`, `approved_at` and `author`. A later draft leaves the previous approved revision current until an approver accepts the new head. Writers editing the same head receive one success and one conflict. A document holds up to 256 KiB of UTF-8 text per revision.
 
 ## Code
 
@@ -181,7 +181,7 @@ Publishing and approving are separate actions. A reader may retrieve a published
 | `internal/rpc` | Bidirectional hub↔node JSON-lines RPC |
 | `internal/transcript` | Claude Code JSONL → `proto.Item`, incremental reading and pagination |
 | `internal/herdr` | Herdr socket API client (CLI fallback) and event subscription |
-| `internal/herdrcore` | JSON-RPC client and events for herdr-core (hc behind Herdr desktop), `docs/plans/plan-orca-support.md`, “herdr-core host” |
+| `internal/herdrcore` | JSON-RPC client and events for herdr-core (hc behind Herdr desktop), `docs/integrations/engines.md`, “herdr-core host” |
 | `internal/node` | Sessions, launch, send, screen sampling, hook / MCP Unix sockets, `runtime.sock` (`runtimes.go`, `docs/integrations/runtimes.md`) |
 | `internal/hub` | HTTP / WebSocket, machine connections, interaction queue, phone-tool forwarding, APNs |
 | `internal/assistant` | personad assistant for Persona tab; separate process connected through bus, hub child by default; `docs/assistant/assistant.md`, “Process” |
@@ -305,19 +305,19 @@ App hop guarded by UI tests: `ScreenTruthTests.testWhatNeedsTheUserShowsUnderThe
 
 ## Connecting to herdr-core
 
-Each machine's node uses one engine (`node/engine.go`): herdr default, herdr-core (`node/hostherdrcore.go`), or Orca (`node/engine/orca/hostorca.go` below). User chooses per machine in app; hub sends `engine.use` on connection (`docs/protocol/protocol.md`, “Engines”). Herdr mode is unchanged and does not touch herdr-core, except `node.info` checks availability once. Selected but stopped herdr-core returns No Terminal immediately, without dialing / logging. Socket, methods, mapping, and first-phase omissions: `docs/plans/plan-orca-support.md` (“herdr-core host”).
+Each machine's node uses one engine (`node/engine.go`): herdr default, herdr-core (`node/hostherdrcore.go`), or Orca (`node/engine/orca/hostorca.go` below). User chooses per machine in app; hub sends `engine.use` on connection (`docs/protocol/protocol.md`, “Engines”). Herdr mode is unchanged and does not touch herdr-core, except `node.info` checks availability once. Selected but stopped herdr-core returns No Terminal immediately, without dialing / logging. Socket, methods, mapping, and first-phase omissions: `docs/integrations/engines.md` (“herdr-core host”).
 Integration: `go test -tags hclive -run HerdrCoreLive ./internal/node/ -v`, own isolated herdr-core plus read-only default-instance listing.
 
 ## Connecting to Orca
 
 For Orca machines, node controls terminals through desktop runtime Unix socket (`internal/orcart` client, `node/engine/orca/hostorca.go` host). Read `orca-runtime.json` for socket / token; Orca changes token on every launch, so reread on connection failure / unauthorized; `status.get` checks protocol version first.
 No socket push: node polls `terminal.list` + `worktree.ps` each second, mapping Claude panes via `ORCA_PANE_KEY` in process environment.
-Stopped Orca returns No Terminal immediately, no log. Mapping / first-phase omissions: `docs/plans/plan-orca-support.md` (“Orca source”).
+Stopped Orca returns No Terminal immediately, no log. Mapping / first-phase omissions: `docs/integrations/engines.md` (“Orca source”).
 Read-only integration: `go test -tags orcalive -run OrcaLive ./internal/node/ -v`.
 
 ## Deployment
 
-Two equivalent hub deployment modes: **native binary** (below, `systemd --user` + Postgres container) and **Docker** (hub + Postgres containers, for NAS / hub-only computers, `docs/operations/docker.md`). Nodes remain `~/.persona/bin/personad` regardless of hub deployment.
+Two equivalent hub deployment modes: **native binary** (below, `systemd --user` + Postgres container) and **Docker** (hub + Postgres containers, for NAS / hub-only computers, `docs/operations/config.md`). Nodes remain `~/.persona/bin/personad` regardless of hub deployment.
 
 New users without repository: `curl -fsSL <website>/install.sh | sh -s -- --hub`, then personad hub setup ([onboarding.md](../assistant/onboarding.md), 4.1). Writes `hub.json` (new-install defaults only for new files), creates same-name / same-volume Postgres as `db.sh` or uses existing configured database, installs same socket-activation units as `hub-systemd.sh` (Mac LaunchAgent `com.persona.hub`), waits for hub, binds and installs the built-in manager's own service (a new install's; `--manager-service` for an existing hub), prints only problematic self-checks, then phone QR code and admin URL with #setup=. Safe to rerun: retain existing values and do not restart unchanged services. `--json` gives one line per step for Persona Link.
 
@@ -327,7 +327,7 @@ New users without repository: `curl -fsSL <website>/install.sh | sh -s -- --hub`
 ```
 
 - Binary: each machine `~/.persona/bin/personad`. Hub launches node through `ssh <alias> ~/.persona/bin/personad node --stdio`; no persistent Mac service required. Platform from configured os / arch; if absent, query machine `uname -s` / uname -m. Run version after installation; failure reports error, not installed. All four binaries also live in hub `bin/nodes/` (`personad-<os>-<arch>`, with `persona-node-<os>-<arch>` and its `.version` from `deploy.sh`); app Redeploy selects machine's platform and the kind of program its node runs, and the manager fetches the release's build where the hub has none (`docs/operations/config.md`, `docs/operations/node-update.md` ("Node packages")).
-- Hub: `systemd --user` personad on hub machine; HTTP listen default `:18660`, TLS via `public.tls_listen`, e.g. :18662. Expose only TLS publicly. IPv6 inbound, firewall, TUN return-path troubleshooting: [Network](../operations/network.md). Logs: journalctl --user -u personad -f. Docker hub is not managed by `deploy.sh`: omit hub machine from machines, or deploy only computers with `deploy.sh` <machine id>. Upgrade pulls image; Redeploy uses the image's own platform's build and fetches the others from the release (`docs/operations/docker.md` ("Node builds")).
+- Hub: `systemd --user` personad on hub machine; HTTP listen default `:18660`, TLS via `public.tls_listen`, e.g. :18662. Expose only TLS publicly. IPv6 inbound, firewall, TUN return-path troubleshooting: [Network](../operations/network.md). Logs: journalctl --user -u personad -f. Docker hub is not managed by `deploy.sh`: omit hub machine from machines, or deploy only computers with `deploy.sh` <machine id>. Upgrade pulls image; Redeploy uses the image's own platform's build and fetches the others from the release (`docs/operations/config.md` ("Node builds")).
 - Replacing node binary does not reconnect existing hub links automatically. `deploy.sh` <hub machine id> restarts hub, or Reconnect on app Machines page.
 - Admin scope (`<hub address>/admin`, [admin.md](../operations/admin.md)): `deploy.sh --admin-access <loopback|lan|cidrs|any>`, plus `--admin-cidrs a,b` for cidrs. If omitted and never chosen on hub, ask in terminal; without terminal default lan with warning. Later use personad hub admin access to view / change, `personad hub admin reset-password` to reset admin password. First-run local setup code in hub logs, `admin: first-run setup code …`, or `personad hub admin setup-code` ([admin.md](../operations/admin.md), “Admin password and sessions”).
 
@@ -342,258 +342,6 @@ If Docker Hub is unreachable in China, try official Docker image from AWS public
 Use HTTPS reverse proxy on a separate public domain; hub / database listen only on loopback. Nginx must forward WebSocket Upgrade / Connection, disable response buffering, extend read timeout, and avoid token-bearing query strings in access logs. For existing-domain subpaths (location /<prefix>/ strips prefix before hub), add proxy_set_header X-Forwarded-Prefix /<prefix> so web works ([web.md](../web/web.md), “Subpaths”). Immediate requests after Nginx reload may hit old workers; wait for config activation before verifying cert, auth APIs, WSS 101. Free cloud-console certificates must be reapplied / installed before expiry; existing certbot timers do not renew them.
 
 PowerShell piping shell scripts may append CR, causing remote `$'\r': command not found`. Upload UTF-8 files or base64-encode and decode remotely; do not rely on pipeline newline encoding.
-
-## NAS (Docker) deployment and upgrades (compatibility example)
-
-This records existing deployment operations. `~/.persona`, personad, container / image names, and backup filenames retain old compatibility identities, not new-install defaults. Upgrade / rollback must use actual deployed paths / services; do not globally replace names and run commands.
-
-Another option is `deploy/docker` compose ([docker.md](../operations/docker.md)); this section records two manually run containers on the current NAS.
-
-Synology DSM cannot use `deploy.sh` (no `systemd --user`; Docker requires sudo); hub and Postgres both run in Docker.
-`<nas>` is developer-machine SSH alias, `<LAN address>` NAS private IPv4, `<commit>` deployment commit. Run NAS commands as hub user with passwordless sudo.
-
-DSM pitfalls: full path `sudo /usr/local/bin/docker`, absent from noninteractive SSH PATH; `/tmp` noexec, no binaries there. System `pg_dump` 11 cannot dump Postgres 18; back up inside container. Without SFTP, scp fails; upload via ssh … 'cat > file'.
-
-### Build and upload (developer machine, repository)
-
-```sh
-git worktree add --detach /tmp/persona-build <commit>
-(cd /tmp/persona-build/server && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags "$(cat build-tags.txt)" -trimpath \
-  -ldflags "-s -w -X main.version=$(git describe --tags --match 'v[0-9]*' --always)-$(date +%Y%m%d%H%M)" -o /tmp/personad-linux-amd64 ./cmd/personad)
-git worktree remove /tmp/persona-build
-ssh <nas> 'umask 077; mkdir -p ~/.persona/bin && cat > ~/.persona/bin/personad.new && chmod 755 ~/.persona/bin/personad.new' < /tmp/personad-linux-amd64
-```
-
-### Initial deployment (NAS)
-
-1. Postgres: `persona-postgres` container, `persona-pgdata` volume, published only at 127.0.0.1:18661. Creation password is only for initialization; generate a separate random actual password, set with ALTER ROLE, write only to hub.json.
-
-   ```sh
-   D="sudo /usr/local/bin/docker"
-   $D volume create persona-pgdata
-   $D run -d --name persona-postgres --restart unless-stopped -p 127.0.0.1:18661:5432 \
-     -v persona-pgdata:/var/lib/postgresql -e POSTGRES_USER=persona -e POSTGRES_DB=persona \
-     -e POSTGRES_PASSWORD="$(python3 -c 'import secrets;print(secrets.token_hex(24))')" \
-     --log-driver json-file --log-opt max-size=20m --log-opt max-file=3 postgres:18-alpine postgres -c wal_compression=lz4 -c checkpoint_timeout=15min
-   until $D exec persona-postgres pg_isready -h 127.0.0.1 -U persona -d persona >/dev/null; do sleep 1; done
-   export PW=$(python3 -c 'import secrets;print(secrets.token_hex(24))')
-   echo "ALTER ROLE persona WITH PASSWORD '$PW';" | $D exec -i persona-postgres psql -U persona -d persona -q
-   ```
-
-2. `~/.persona/hub.json` (0600; machines initially empty, later fill per `docs/operations/config.md`):
-
-   ```sh
-   python3 - <<'PY'
-   import json, os, secrets
-   cfg = {
-       "listen": ":18660",
-       "token": secrets.token_hex(24),
-       "public_url": "http://<LAN address>:18660",
-       "database_url": "postgres://persona:%s@127.0.0.1:18661/persona?sslmode=disable" % os.environ["PW"],
-       "machines": [],
-       "public": {"tls_listen": ":18662", "advertise_ipv6": True, "advertise_lan": True},
-       "security": {"trusted_cidrs": [], "allow_public_plaintext": False},
-   }
-   fd = os.open(os.path.expanduser("~/.persona/hub.json"), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-   with open(fd, "w") as f:
-       json.dump(cfg, f, indent=2)
-   PY
-   unset PW
-   ```
-
-3. Runtime image `personad-runtime:alpine3.22`: no bundled personad (mount binary from `~/.persona/bin`), includes SSH client for computers and `netcat-openbsd` for SSH ProxyCommand via SOCKS (step 7; busybox nc lacks proxy support). `~/.persona/docker/Dockerfile`:
-
-   ```dockerfile
-   FROM alpine:3.22
-   ARG UID
-   ARG GID=100
-   ARG USER_NAME
-   ARG HOME_DIR
-   RUN apk add --no-cache openssh-client ca-certificates tzdata netcat-openbsd \
-    && adduser -D -H -u "$UID" -G users -h "$HOME_DIR" -s /bin/sh "$USER_NAME" \
-    && mkdir -p "$HOME_DIR" && chown "$UID:$GID" "$HOME_DIR"
-   ENV HOME=$HOME_DIR
-   WORKDIR $HOME_DIR
-   USER $UID:$GID
-   ENTRYPOINT ["/opt/persona/bin/personad"]
-   CMD ["hub"]
-   ```
-
-   ```sh
-   cd ~/.persona/docker && $D build --network host --build-arg UID=$(id -u) --build-arg GID=$(id -g) \
-     --build-arg USER_NAME=$(id -un) --build-arg HOME_DIR=$HOME -t personad-runtime:alpine3.22 .
-   ```
-
-4. Personad container (save as `~/.persona/docker/run-personad.sh` for recreation): host network, `--init`, current user's UID. Read/write `~/.persona`, read-only `~/.persona/bin` → `/opt/persona/bin`, mounted `~/.ssh`; container HOME matches NAS.
-
-   ```sh
-   mv ~/.persona/bin/personad.new ~/.persona/bin/personad
-   REAL_HOME=$(readlink -f "$HOME")
-   $D run -d --name personad --restart unless-stopped --network host --init \
-     --user "$(id -u):$(id -g)" -e TZ="$(readlink /etc/localtime | sed 's#.*/zoneinfo/##')" \
-     --log-driver json-file --log-opt max-size=20m --log-opt max-file=5 \
-     -v "$REAL_HOME/.persona:$HOME/.persona" -v "$REAL_HOME/.persona/bin:/opt/persona/bin:ro" \
-     -v "$REAL_HOME/.ssh:$HOME/.ssh" \
-     personad-runtime:alpine3.22 hub
-   ```
-
-5. Checks:
-
-   ```sh
-   $D exec persona-postgres psql -U persona -d persona -tAc "select max(version), count(*) from schema_migrations"
-   curl -s http://127.0.0.1:18660/api/v1/health    # ok, version, fp
-   openssl s_client -connect 127.0.0.1:18662 </dev/null 2>/dev/null | openssl x509 -pubkey -noout |
-     openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '='   # Must equal fp
-   (umask 077; $D exec personad /opt/persona/bin/personad hub pair > ~/.persona/pair-$(date +%Y%m%d-%H%M%S).txt)  # Contains token, valid 10 minutes
-   ```
-
-6. Public direct connection: DSM firewall permits `18662/tcp`, not 18660; router permits inbound IPv6; [Network](../operations/network.md).
-
-7. Proxy-only computers, e.g. an internal development computer reachable through NAS SOCKS5: keep `kind: ssh`, proxy in NAS `~/.ssh/config` mounted into container, `hub.json` alias only. Address, account, proxy port are private configuration, only on NAS:
-
-   ```
-   Host <alias>
-     HostName <computer LAN address>
-     User <account>
-     HostKeyAlias <alias>
-     IdentityFile ~/.ssh/<hub-specific key>
-     IdentitiesOnly yes
-     ProxyCommand nc -X 5 -x 127.0.0.1:<SOCKS port> %h %p
-   ```
-
-   - This nc is container `netcat-openbsd`; NAS nc may not support -X. Test inside container too, e.g. temporary same-image `--entrypoint sh`, running hub's `ssh -T -o BatchMode=yes … <alias> '~/.persona/bin/personad node --stdio'`.
-   - Hub uses `BatchMode=yes`; prepopulate ~/.ssh/known_hosts. Prefer public key from an already trusted connection to that computer, indexed by `HostKeyAlias`; do not blindly accept first connection.
-   - Restrict key on computer `authorized_keys` to node only: `restrict,command="~/.persona/bin/personad node --stdio" ssh-ed25519 …`.
-   - Dockerfile changes require image and container rebuild. Timestamp-tag old image for rollback, build, then `$D stop personad && $D rm personad && ~/.persona/docker/run-personad.sh`. Docker restart still uses old image.
-
-### Upgrade
-
-Follow Build and Upload to transfer new binary as `~/.persona/bin/personad.new`, then on NAS:
-
-```sh
-~/.persona/docker/upgrade.sh ~/.persona/bin/personad.new
-```
-
-Script steps:
-
-1. Verify new binary runs on NAS with version.
-2. Stop container.
-3. Copy current binary to ~/.persona/bin/personad.bak-<time>.
-4. Container `pg_dump -Fc` → ~/.persona/backups/persona-<time>.dump, 0600. Dump after stopping service to match old binary's final state. Dump the built-in manager's database too, `persona_manager` in the same server ("The default manager's own database"), or the whole server with `pg_dumpall`: once it moved, the dump of `persona` no longer holds the manager's data.
-5. Replace binary with mv; start container.
-6. Wait for `/api/v1/health`; verify new version and unchanged TLS public-key fingerprint.
-7. Print latest three migrations and logs since start, hiding known Lark gateway errors.
-8. Print rollback command. Failed health / wrong version / changed fingerprint returns nonzero.
-
-### Rollback
-
-```sh
-~/.persona/docker/rollback.sh --check ~/.persona/bin/personad.bak-<time> ~/.persona/backups/persona-<time>.dump   # Verify only, leave hub untouched
-~/.persona/docker/rollback.sh ~/.persona/bin/personad.bak-<time> ~/.persona/backups/persona-<time>.dump
-sudo /usr/local/bin/docker exec persona-postgres dropdb -U persona persona_before_rollback_<time>   # After confirming rollback succeeded
-```
-
-Script steps:
-
-1. Restore dump into a new database; restoration failure changes nothing. (The built-in manager's own database is restored on its own, from its own dump: rolling the hub back does not roll it back.)
-2. Stop container.
-3. Rename original database persona_before_rollback_<time>, retaining writes made after dump only there.
-4. Rename restored database persona.
-5. Restore old binary, start container, wait for health.
-
-### Whole-install backup (`personad backup`)
-
-`personad backup create|verify|restore` backs up the hub and the built-in manager together: both databases, `secret.key` files, the hub's TLS identity (`tls/`, so certificate pins saved by managers and clients still match after a restore), runtime files and the knowledge base (`personad backup <command> -h`). A bundle therefore holds private keys: keep it private. Stop the hub and the built-in manager first (`--writes-quiesced`).
-
-- **The writes-stopped check must see every session.** With `--writes-quiesced`, `create` and `restore` refuse while another client session is connected to either database. PostgreSQL hides the kind of another role's session from a role without `pg_read_all_stats`, so such a session counts as a possible writer: if the database role in `hub.json` is not a superuser and other roles connect to the databases, the check fails and says so; stop those sessions, or grant the role `pg_read_all_stats` (`GRANT pg_read_all_stats TO <role>`). Background processes with no role (autovacuum) are not counted; a subscription's apply worker is not counted when the role can see it (with `pg_read_all_stats`, as a superuser, or as its owner), and blocks the check otherwise. A logical-replication walsender (the hub database as a publisher, under a replication role) likewise blocks an unprivileged role's check: it fails closed.
-- **It needs `pg_dump` and `pg_restore` of the server's major version**, on `PATH` where `personad backup` runs. They connect as Persona does: every host of a multi-host URL, in order with its own port, and an encrypted TLS client key's `sslpassword` (which libpq takes from no environment variable) through a private libpq service file deleted when they exit, never their arguments. A query parameter given twice counts once, with its first value, as for pgx. The service file is mode 0600 in a mode-0700 directory of its own under `TMPDIR`; if `personad backup` is killed (SIGKILL, power loss) while a client runs it stays there, still private: delete the `persona-backup-libpq-*` directory. An `sslpassword` with trailing white space or a line break is refused (a service file cannot hold it). The encrypted key must be in traditional PEM form (`-----BEGIN RSA PRIVATE KEY-----` with `Proc-Type: 4,ENCRYPTED`, as `openssl rsa -aes256 -traditional` writes it): pgx cannot open an encrypted PKCS#8 key (`BEGIN ENCRYPTED PRIVATE KEY`). Without them, it falls back to `docker exec` into `persona-postgres` only when the database host is a loopback address (the native Docker deployment); `--hub-docker-container` / `--manager-docker-container` name another container. The clients inside a container connect over its own loopback without TLS, so they are given no `sslpassword` or other TLS settings.
-- **The shipped Docker Compose deployment is not supported yet.** Its database host is `postgres`, not loopback, and the hub image has neither the PostgreSQL client tools nor the `docker` command. `personad backup` then stops before the databases or runtime files are touched (only the bundle's staging directory for `create`, or a temporary extraction of the bundle for `verify` and `restore`, exist by then), and says so. Use the dump steps above, or run it where the client tools are installed and the database is reachable.
-- **A pending key rotation refuses the backup** (a `secret.key.next-*` file exists and the manager's database names the new key). Start the built-in manager once so it finishes the rotation (it resumes at startup), then stop it and retry; a rotation cannot be rolled back after its commit.
-- **Restore keeps this install's `docker/db-password`.** A bundle's copy belongs to the database cluster it was taken from; a new or surviving cluster only accepts the password its own file names, so replacing it would stop the containers from starting. Restore prints a note when it keeps the file while the bundle has one, and names the previous external knowledge base when the restore replaced one. An install with no such file gets the bundle's.
-- **Restore replaces only what the bundle has.** A runtime file or directory, or the knowledge base, of which the bundle has no copy stays in place as it is (for example `apns.json` or a skill added after the backup): the bundle cannot tell an absent file from one never collected, and moving it aside would take it out of the install with nothing in its place. That includes what the manifest records as absent or empty: a knowledge base it records as missing (`present: false`) or a runtime directory it lists that held no files is left in place, untouched, and restore prints a note naming it (`note: the bundle records no knowledge base; this install's knowledge base … was left in place, untouched`), so restoring another install's bundle onto a used one shows what still belongs to the earlier install. (A knowledge base inside a directory the bundle replaces, such as `managers/assistant/kb`, goes with that directory into the previous files, not lost: it sits in the previous-files directory restore names, as `NNN-assistant/kb` or the matching name. The note that says so is based on the knowledge-base path recorded in the bundle, so when this install's own `kb_dir` differs from the bundle's record the note may not appear.) Everything replaced is kept in the previous-files directory restore names. A pending key rotation's `secret.key.next-*` beside the hub's `secret.key` is never moved: the bundle's is installed only under a name the install does not have (the name is the key's fingerprint). The built-in manager's own pending key goes with `managers/assistant` into the previous files, beside the rest of that directory: it belongs to the previous manager database (`persona_previous_*`), and the restored manager would delete a key file its database does not name when it starts.
-- **If restoring the files cannot be undone completely**, the originals that could not be put back stay in the previous-files directory (`.persona-backup-previous-<id>` in the runtime directory, or `.<name>.persona-backup-previous-<id>` beside an external knowledge base), each as `NNN-<name>`; the error names the directory and each file, and the directory is deleted only once it is empty. Move each back by hand.
-- **`--output` must be outside the collected trees** (the knowledge base, `managers/assistant`, `extensions`, `skills`, `hub.machines_kept`, `tls`); `create` refuses it with a message, since the bundle and its staging directory would be copied into themselves. `~/.persona/backups/` is fine. On a case-insensitive file system (macOS) a differently-cased spelling of such a path is not recognised; spell the path as it is.
-- **If a restore cannot put the databases back** (for example the server goes away during the swap), what happens to the runtime files follows what restore could establish. If a database from the bundle may be live (it could not be moved back, or the checks that would show it was not installed failed), the files stay as restored, so they match it, and the error names every database that may be the bundle's, the previous databases that may still exist (`persona_previous_*`), any staged copy that may remain (`persona_staged_*`, not in use; when something outside the restore changed the databases, so that what a staged name holds cannot be confirmed, the error says so instead of calling it safe to drop: check it before dropping), the directory with the previous files and, for an external knowledge base, its previous copy. Otherwise the files are rolled back, and the error still names any previous database left parked and any staged copy that could not be dropped. The files can therefore stay as restored while both live databases are in fact the install's own only when every check that would tell failed; when one database was put back and the other could not be, the files stay as restored while one live database is the install's own. Running restore again converges, and nothing is lost either way.
-
-### Inspect a backup offline
-
-Use `personad backup inspect` to check a copied or rotated bundle before a recovery environment is ready. It reads
-the bundle directly, so it needs no Persona install, PostgreSQL clients, live database, or extraction space.
-
-```sh
-personad backup inspect --bundle '<backup file>'
-personad backup inspect --bundle '<backup file>' --json
-```
-
-The file must be a regular owner-only archive. Inspection checks the manifest, member names, sizes, modes, and
-SHA-256 hashes, then checks the bundled hub and built-in manager keys against their manifest fingerprints. It checks
-the archive ending too, so a file cut off after its last payload still fails. An interrupted or failed check exits
-with an error and prints no partial report.
-
-The report gives the format, creation time, archive bytes, and file and byte totals for the hub dump, manager dump,
-runtime files, and knowledge base. It shows whether the knowledge base was absent, empty, or included and whether
-the manifest puts it outside the installation. It omits file paths, database names, configuration, keys, and
-fingerprints. JSON has `check: "offline_integrity"` and `database_restore_verified: false`.
-
-The checks compare the archive with its own manifest. Run `personad backup verify` for a temporary restore of both
-databases and a check of their schema and key identity.
-
-### Restore drill (`scripts/test/backup_restore_drill.py`, #10497)
-
-`backup verify` proves the bundle (checksums, schema and key identity, both dumps restoring into temporary databases).
-It restores no runtime and starts nothing, so it cannot show that the work in flight survives a restore. Starting the
-restored hub to look would change exactly that state: startup marks pending client operations unknown, expires stale
-interactions, drains the manager's outbox and starts connectors, extensions and nodes. The drill checks it offline instead.
-
-```sh
-cd server && CGO_ENABLED=0 go build -o /tmp/personad-drill ./cmd/personad && cd ..
-python3 scripts/test/backup_restore_drill.py --execute --binary /tmp/personad-drill [--docker "sudo -n docker"] [--report <new file>]
-```
-
-- **What it runs.** A disposable `postgres:18-alpine` container (`--image`, never pulled) on a Docker `--internal`
-  network with no published ports; databases created with the checkout's own migration files, applied as `db.Open`
-  applies them to a new database (each file in a transaction, recorded in `schema_migrations` with its part; a change
-  to that procedure in `server/internal/db/db.go` has to be mirrored in the drill's `migration_script`); a synthetic runtime (random `hub.json` token, both `secret.key` files, a `sealing_key` record, a small
-  knowledge base); and markers of each kind of work in flight: tasks and their Agent links, pending and resolved
-  interactions (approvals), the manager's outbox, and client operations in every state. The caller's static personad
-  then runs `backup create --writes-quiesced` and `verify` in a throwaway client container on the same network.
-- **The disaster and the restore.** The markers move on as a started hub and manager would move them (approvals resolved
-  and notified, the outbox drained and refilled, client operations settled and a new one made, tasks finished), the
-  runtime directory is deleted, and `backup restore --writes-quiesced` runs into an empty runtime directory under the
-  original database names (the changed databases are kept as `persona_previous_*`), followed by `verify` again.
-- **Read-only acceptance.** Every session has `default_transaction_read_only=on`. Schema and sealing-key identity match the
-  backup, the restored manager `secret.key` matches the `sealing_key` fingerprint, tasks and Agent links are as backed up,
-  pending approvals are still pending (no resolution, notification or authorization), the outbox has the same items in
-  `seq` order and its sequence was not advanced, client operations keep their states, order, timestamps and ids, the
-  knowledge base's digest matches, and the restored `hub.json` and `manager.json` name the restored databases. One
-  guarded write (resolving an approval) must fail with SQLSTATE 25006 and leave the row as restored, and no
-  `persona-hub` or `persona-manager` session may exist. The restored hub and manager are never started.
-- **The report** (stdout, and `--report`) has phase timings, the backup's `created_at`, each check's result, state counts,
-  `services_started: false` and the cleanup result: no row content, token, URL or key. Containers, the network and
-  the private temporary directory are removed on success, failure, timeout (`--timeout`, `--step-timeout`) and
-  SIGINT/SIGTERM; exit 0 only on `PASS`.
-- **Inputs it refuses.** Nothing runs without `--execute`. There is no flag for a hub URL, database URL, runtime
-  directory or existing bundle. A binary, `--work-dir`, `--report` or `TMPDIR` inside `~/.persona`, `PERSONA_HOME` or
-  any directory holding a `hub.json` or `secret.key` is refused, as is a dynamically linked binary (the Alpine client
-  image could not run it) or one built for another architecture than the Docker server's.
-- **Tests.** `scripts/test/test_backup_restore_drill.py` covers the arguments, the comparisons, redaction, and timeouts,
-  failures and interrupts against a fake docker. With `PERSONA_RESTORE_DRILL_BINARY` (and `PERSONA_RESTORE_DRILL_DOCKER`)
-  it also runs the real drill: a passing restore, `--checks verify-only` passing a restore whose approval was resolved
-  (what `backup verify` alone misses) while the full drill fails it, and each `--fault` failing with a clean teardown.
-  Hosted CI does not set them, so there the real drill is skipped, not verified.
-- **What it does not prove.** It is not a failover test. The shipped Docker Compose deployment, an independently hosted
-  manager, a restore onto another machine or another PostgreSQL cluster, real power loss, offsite copies, starting the
-  restored services and their first start's recovery are outside it. A later Settings page belongs under Settings →
-  Hub (Backup & Recovery), apart from the program backups of hub updates, not under Machines.
-
-### Logs
-
-```sh
-sudo /usr/local/bin/docker logs -f personad
-sudo /usr/local/bin/docker restart personad    # After hub.json changes
-```
-
-Old hub versions log repeated Lark gateway token-read failures when `hub.json` lacks lark; operation unaffected. Lark gateway integration now belongs to its extension: enable agent API on gateway, fill extension address / token per extension instructions. Hub container has no Docker CLI and cannot read other containers' environment.
 
 ## Computers hub cannot reach (persona-link)
 
@@ -665,9 +413,9 @@ Computers unreachable by hub SSH (NAT, other LAN, no public IP) use [tailcat](ht
 
 ## Database (Postgres)
 
-Hub Docker container `persona-postgres`, `postgres:18-alpine` with `-c wal_compression=lz4 -c checkpoint_timeout=15min` (fewer, lz4-compressed full page images: about half the WAL bytes of a write to a random page, the same latency; [docker.md](../operations/docker.md) ("Disk writes")), listening only `127.0.0.1:18661`, `persona-pgdata` volume, --restart unless-stopped. `scripts/deploy/db.sh` idempotently creates / starts it, initially generates password into `hub.json` `database_url`; `deploy.sh` <hub machine id> runs it first each time. It never replaces a database (#6149): a `database_url` already in `hub.json` is never rewritten, and the container started is the one made with that URL's user. On a hub set up before the rename, that is `jarvis-postgres` (volume `jarvis-pgdata`, user and database `jarvis`), even when a `persona-postgres` exists as well. A container is made only when there is neither a `database_url` nor a hub database container or volume; otherwise db.sh stops and says what to restore. The throwaway test database is `<database>_test` (`persona_test`, or `jarvis_test` on such a hub). Moving a database to the new names is the operator step in [persona-cutover.md](../operations/persona-cutover.md), never db.sh's. Hub startup applies outstanding migrations, `schema_migrations` records, advisory lock prevents concurrency; on an up-to-date database that is one catalog check and one read of `schema_migrations`, with no DDL and no write ("Migrations" below).
+Hub Docker container `persona-postgres`, `postgres:18-alpine` with `-c wal_compression=lz4 -c checkpoint_timeout=15min` (fewer, lz4-compressed full page images: about half the WAL bytes of a write to a random page, the same latency; [../operations/config.md](../operations/config.md) ("Disk writes")), listening only `127.0.0.1:18661`, `persona-pgdata` volume, --restart unless-stopped. `scripts/deploy/db.sh` idempotently creates / starts it, initially generates password into `hub.json` `database_url`; `deploy.sh` <hub machine id> runs it first each time. It never replaces a database (#6149): a `database_url` already in `hub.json` is never rewritten, and the container started is the one made with that URL's user. On a hub set up before the rename, that is `jarvis-postgres` (volume `jarvis-pgdata`, user and database `jarvis`), even when a `persona-postgres` exists as well. A container is made only when there is neither a `database_url` nor a hub database container or volume; otherwise db.sh stops and says what to restore. The throwaway test database is `<database>_test` (`persona_test`, or `jarvis_test` on such a hub). Moving a database to the new names is the operator step in [../protocol/rolling-upgrade-compatibility.md](../protocol/rolling-upgrade-compatibility.md), never db.sh's. Hub startup applies outstanding migrations, `schema_migrations` records, advisory lock prevents concurrency; on an up-to-date database that is one catalog check and one read of `schema_migrations`, with no DDL and no write ("Migrations" below).
 
-Without Docker, use system Postgres (Ubuntu postgresql, version 16 tested, localhost only). Create persona user and persona / `persona_test` databases, both owned by persona; test database for test-server.sh. Put `postgres://persona:<password>@127.0.0.1:5432/persona?sslmode=disable` in 0600 hub.json. Without Docker, `db.sh` only checks configured address with `pg_isready`; `deploy.sh` / `test-server.sh` unchanged. Replace docker exec … psql below with `psql "<database_url>"`.
+Without Docker, use system Postgres (Ubuntu postgresql, version 16 tested, localhost only). Create persona user and persona / `persona_test` databases, both owned by persona; test database for the local server test runner. Put `postgres://persona:<password>@127.0.0.1:5432/persona?sslmode=disable` in 0600 hub.json. Without Docker, `db.sh` only checks configured address with `pg_isready`. Replace docker exec … psql below with `psql "<database_url>"`.
 
 | Table | Content |
 | --- | --- |
@@ -684,7 +432,7 @@ Without Docker, use system Postgres (Ubuntu postgresql, version 16 tested, local
 | `handed_over` | The hub's record of what each manager handed it lately (pushes, outbox items) by manager and id, so an item that comes again is delivered once, also by the next hub process (two hours) |
 
 Connect: `ssh <hub machine> 'docker exec -it persona-postgres psql -U persona -d persona'`.
-Tests: `./scripts/test/test-server.sh` syncs to hub and runs all; local without Docker skips DB tests. `PERSONA_TEST_DATABASE_URL` pointing `persona_test` is only a starting point: each test binary creates adjacent private database and deletes afterward (`server/internal/db/dbtest`), isolating concurrent runs. Persona role needs database creation (container superuser; system Postgres grant CREATEDB). Without privilege, fallback queues on persona_test.
+Tests use the local server test runner described in [Testing](../operations/testing.md). `PERSONA_TEST_DATABASE_URL` pointing `persona_test` is only a starting point: each test binary creates adjacent private database and deletes afterward (`server/internal/db/dbtest`), isolating concurrent runs. Persona role needs database creation (container superuser; system Postgres grant CREATEDB). Without privilege, fallback queues on persona_test.
 
 Legacy `phone_tools.json`, `devices.json`, `mail_accounts.json`, `sessions.json` auto-import on first start, renamed *.migrated.
 
@@ -734,8 +482,8 @@ The built-in manager (the assistant the hub starts) used to keep its state in th
 Adding a migration:
 
 1. Decide whose table it is: the side whose store reads and writes it. A table both sides need is a sign that one side should ask the other over the bus instead (as the manager learns the computers waiting to be confirmed from the hub's handover, `devicewire.Config.Pending`, rather than reading `machine_trust`).
-2. Put the file in exactly that set's directory, named by the UTC second you write it, `YYYYMMDDHHMMSS_what.sql` in lower case: `echo "$(date -u +%Y%m%d%H%M%S)_what.sql"` prints it. Its version is that second as a number (`20261119123000`), so two lines of work adding migrations at once practically never pick the same one, and there is nothing to look up first. Two files of one second in one set can still happen: the runner then refuses the set, applying nothing, so keep the name of the one that merged first (a database may have recorded it) and give the other a second of its own (`scripts/ci/migration_freeze.py` lets one of two such files on the base be renamed). Two files of one second, one in each set, are fine: each records its own part. One file in both sets is not: on a database both sides share it would run once for each, so a backfill would be applied twice. The runner applies every migration a part has not recorded, in name order: the timestamped files sort after the numbered ones (`NNNN_what.sql`, picked by hand up to `0561`, frozen), and one that merges after a later second still runs where that one already has (`docs/lessons/workflow.md`). Hand-picked numbers collided: 421 is in both sets (`hub/0421_hub_settings.sql`, `manager/0421_machine_usage.sql`), frozen in the guard and harmless since each set records its own part, and `db.go` moves the records of four that were renumbered (`renumbered`). Write it idempotently (`IF NOT EXISTS`) where you can.
-3. Guards: `TestMigrationSets` (`internal/db`) fails for a file in both sets (one name in `hub/` and `manager/`, but the three frozen above) or at the top level, for a number used by both sets outside the frozen exceptions above, for a version used twice in one set, for a name that is neither a frozen number nor a real UTC second from 2026-11-18 00:00:00 UTC to a day after now (`firstStamp`, `stampAhead`), and for a numbered file added after the freeze (`lastNumbered`, `numberedFiles`); the runner refuses a set with two files of one version rather than take one for done. `TestStoresTouchTheirOwnTables` (`internal/hub`) fails when a store interface of the hub reaches a table outside the hub set, or one of the managers' (assistant, devices, extmgr, extension, mail, agents) a table outside the manager set. `scripts/ci/migration_freeze.py` (from `scripts/ci/guards.sh` on every pull request, and from `scripts/check-fast.sh` when a migration changes) fails when a file already on the base branch is edited, deleted or renamed, or a new one is neither one of the frozen numbered files nor named by a UTC second within the same bounds, whatever the base. A comment-only or whitespace-only edit passes; add a new migration instead.
+2. Put the file in exactly that set's directory, named by the UTC second you write it, `YYYYMMDDHHMMSS_what.sql` in lower case: `echo "$(date -u +%Y%m%d%H%M%S)_what.sql"` prints it. Its version is that second as a number (`20261119123000`), so two lines of work adding migrations at once practically never pick the same one, and there is nothing to look up first. Two files of one second in one set can still happen: the runner then refuses the set, applying nothing, so keep the name of the one that merged first (a database may have recorded it) and give the other a second of its own (`scripts/ci/migration_freeze.py` lets one of two such files on the base be renamed). Two files of one second, one in each set, are fine: each records its own part. One file in both sets is not: on a database both sides share it would run once for each, so a backfill would be applied twice. The runner applies every migration a part has not recorded, in name order: the timestamped files sort after the numbered ones (`NNNN_what.sql`, picked by hand up to `0561`, frozen), and one that merges after a later second still runs where that one already has (`docs/operations/testing.md`). Hand-picked numbers collided: 421 is in both sets (`hub/0421_hub_settings.sql`, `manager/0421_machine_usage.sql`), frozen in the guard and harmless since each set records its own part, and `db.go` moves the records of four that were renumbered (`renumbered`). Write it idempotently (`IF NOT EXISTS`) where you can.
+3. Guards: `TestMigrationSets` (`internal/db`) fails for a file in both sets (one name in `hub/` and `manager/`, but the three frozen above) or at the top level, for a number used by both sets outside the frozen exceptions above, for a version used twice in one set, for a name that is neither a frozen number nor a real UTC second from 2026-11-18 00:00:00 UTC to a day after now (`firstStamp`, `stampAhead`), and for a numbered file added after the freeze (`lastNumbered`, `numberedFiles`); the runner refuses a set with two files of one version rather than take one for done. `TestStoresTouchTheirOwnTables` (`internal/hub`) fails when a store interface of the hub reaches a table outside the hub set, or one of the managers' (assistant, devices, extmgr, extension, mail, agents) a table outside the manager set. `scripts/ci/migration_freeze.py` (run by `scripts/test/check-fast.sh`) fails when a file already on the base branch is edited, deleted or renamed, or a new one is neither one of the frozen numbered files nor named by a UTC second within the same bounds, whatever the base. A comment-only or whitespace-only edit passes; add a new migration instead.
 
 ## Configuration (hub `~/.persona/`, 0600, never committed)
 

@@ -5,7 +5,7 @@
       "name": "owner_rounds_and_one_line_per_run",
       "description": "The owner's request heads the start round; each later instruction of theirs heads a round of its own. A run's turns in a round are one line, its latest summary with how many turns; the run works now, so its line in the latest round is live and says what it does. Persona's relays fold under the round they fall in, with the run they reached when the relay names it. A run is named by its session's title (the session list's, renamed since the link), and the hand-off card that started it says nothing its link does not.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1, R2, R4"
       ],
       "input": {
@@ -369,7 +369,7 @@
       "name": "start_round_without_the_owners_request",
       "description": "Persona started the work on its own (the brief's started_by is assistant), so the start round has no header: it holds what came before the owner's first word. A hand-off card that started its run says nothing the run's link does not.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R2"
       ],
       "input": {
@@ -547,7 +547,7 @@
       "name": "answer_in_words_folds_its_decision",
       "description": "The owner answered the decision in their own words; the hub relayed them (an instruction) and recorded the decision with that instruction as its source. One act, one round: the instruction heads it and the decision folds under it. The ask it answered is no longer open, so the ask entry carries no ask id.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (routeDecisionAnswer, server/internal/assistant/decision.go)"
       ],
       "input": {
@@ -762,7 +762,7 @@
       "name": "card_answer_folds_its_card_decisions",
       "description": "The owner answered a run's card: the hub wrote the answer to the conversation and the card's decision to the to-do, in no fixed order and a moment apart. The answer heads the round and the decision folds under it. A card decision with no answer near it (from a card answered where no conversation follows the to-do) heads a round of its own.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (server/internal/assistant/answered.go, server/internal/assistant/todo_decisions.go)"
       ],
       "input": {
@@ -948,7 +948,7 @@
       "name": "chosen_option_folds_its_relay",
       "description": "The owner chose an option: the hub worded it for the run (a relay), then recorded the decision a moment later. The decision heads the round and the relay folds under it. Later nobody answered a second decision by its deadline, so Persona took the recommendation: that is Persona's call (via default, which says what the hub's reason sentence says, so the entry leaves it out), relayed and recorded the same way, and it stays in the round it falls in.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (chooseOption, server/internal/assistant/decision.go; takeRecommendation, server/internal/assistant/conclusion.go)"
       ],
       "input": {
@@ -1152,9 +1152,9 @@
       "name": "background_round_per_day_in_the_owners_zone",
       "description": "Supervision nobody asked for (a rework, the run's report to its supervisor, a park, the overdue mark, a review waiting to be done) forms one Background round per day in the owner's zone (Tokyo here): 14:50 and 15:10 UTC are one UTC day but two Tokyo days. Each Background round sits among the owner's rounds by its first entry's time. The paper shows the latest two rounds that are not Background ones: the start round and the owner's round, which holds the ask, though both Background rounds began after it. A needs_user review the background supervisor gave stays in its round, since it asks the owner.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6 (\"one folded Background round per day\")",
+        "docs/assistant/todo-status-sop.md 3.6 (\"one folded Background round per day\")",
         "spec/fixtures/todo-rounds/README.md R3",
-        "docs/design/proposals/todos-redesign.md 3.5 row 10 (\"the latest 2 rounds\")"
+        "docs/assistant/todo-status-sop.md 3.5 row 10 (\"the latest 2 rounds\")"
       ],
       "input": {
         "todo": {
@@ -1462,7 +1462,7 @@
       "name": "older_receipts_given_to_their_run",
       "description": "Receipts written before #10465 name only the run's computer. Each goes to the one run on that computer whose link covers its time: on MacBook only Widget; on Desk Mac Release notes alone at 08:10 (Icons, whose start failed, never ran), both Release notes and Screenshots at 08:40 (several: \"A run\"), Screenshots alone at 09:30 once Release notes was let go of. A computer no run is on gives \"A run\" too, and the unnamed turns of a round make one line.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R4"
       ],
       "input": {
@@ -1835,7 +1835,7 @@
       "name": "superseded_decision_stays",
       "description": "Decisions the owner wrote by hand are answers that head their rounds. A decision a later one superseded stays in the timeline, marked with the one that replaced it: the timeline is a record. A run's own note of a call (todo_decision_add) is the run's decision.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R5"
       ],
       "input": {
@@ -2010,7 +2010,7 @@
       "name": "ledger_review_read_once",
       "description": "A review the conversation shows is also in the ledger, written a moment before its feed row: it is read once, under the feed row, with what only the ledger keeps (who gave it: the independent reviewer; a decision's question). A ledger review with no feed row (given before the to-do had a conversation) is read from the ledger: an acceptance that wants the owner to check closes nothing, so it is a review line. The open decision is on the needs_user review that raised it, under the id the view gives its ask.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R6, R7"
       ],
       "input": {
@@ -2227,7 +2227,7 @@
       "name": "leader_task_without_a_feed",
       "description": "A to-do a task leader handed to its Agent writes no feed (nobody reads one there), so its timeline comes from the ledger, the decisions and the runs' links alone. The supervisor's acceptance is a review line in the owner's round; the close that followed is the to-do's own entry, by Persona (done_by review).",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R6 (appendFeedItem, server/internal/assistant/tasks.go)"
       ],
       "input": {
@@ -2421,7 +2421,7 @@
       "name": "failed_starts",
       "description": "Each failed start is one line. A run whose own start failed is the same failure as the receipt written with it, which then names the run and its error; such a run never starts or ends. The latest failure, which the to-do's start error belongs to, says that error as a line. Where the hub kept an error, the line says it and the receipt's words are left out; a failure nothing names an error for keeps the receipt's words, the hub's sentence as the conversation showed it.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\""
       ],
       "input": {
@@ -2559,7 +2559,7 @@
       "name": "failed_start_without_a_conversation",
       "description": "A to-do no conversation follows has no failed start's receipt: its start error goes on the failure nearest its done_at, here its run's, which names the run; with neither it would be a line of its own at its done_at.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\""
       ],
       "input": {
@@ -2633,7 +2633,7 @@
       "name": "failed_start_with_nothing_to_go_on",
       "description": "A failed start with no receipt and no run linked: the start error is a line of its own, at the to-do's done_at.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\""
       ],
       "input": {
@@ -2689,7 +2689,7 @@
       "name": "interrupted_and_live_lines",
       "description": "A run whose latest turn in the round was cut off is an interrupted line, still counting its turns. A run that was cut off and works again now is a live line, saying what it does. A run that works now with no turn in the latest round yet gets a live line there, from when it has worked.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R4"
       ],
       "input": {
@@ -3003,7 +3003,7 @@
       "name": "calls_made_for_the_owner",
       "description": "Persona answering a run's card in the owner's place is Persona's decision, its answer as a line; a card without questions (a plan, a permission) has no answer but the hub's summary sentence, so its line says only that Persona answered. A call Persona made on a run's card (a standing permission) is Persona's too, and a run's own note is the run's. A run the task did not start but took on as it was says how it came (wake) on its start.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\""
       ],
       "input": {
@@ -3223,7 +3223,7 @@
       "name": "results_close_and_recap",
       "description": "What the work produced: the code change a receipt named (at that receipt, with how the hub last saw it; the receipt wrote its address in other letters, and one PR is one chip), the work going live, and what it came to (the hub's outcome line, with the first link it named); an earlier change the hub only looked at is the fourth result and is left out. The outcome's decisions and pitfalls are the run's decisions. The done judge accepted the work and closed the to-do (the hub's, both). Since the owner looked, everything counts in the recap but their own answer and the hub's relay of it, which folds under it; the recap points at the round of the first change.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5 rows 3 and 9, 3.6",
+        "docs/assistant/todo-status-sop.md 3.5 rows 3 and 9, 3.6",
         "spec/fixtures/todo-rounds/README.md \"Results\" and \"Since you looked\""
       ],
       "input": {
@@ -3658,7 +3658,7 @@
       "name": "owner_ticks_it_done",
       "description": "The owner closed the to-do themselves: the close is theirs. An extension's outcome and one the owner wrote by hand are results too, the extension's and the owner's, newest first. The owner looked once everything had happened, so there is no recap.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\" and \"Results\""
       ],
       "input": {
@@ -3780,7 +3780,7 @@
       "name": "concern_closed_by_its_report",
       "description": "A concern closes once the main conversation reported its outcome to the owner: the report is a result of Persona's, and the close says it was reported.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\" and \"Results\""
       ],
       "input": {
@@ -3873,7 +3873,7 @@
       "name": "scope_and_what_it_continues",
       "description": "A to-do that took the work over from another says so where it began, naming the other; the other's rounds stay on the other. The shared brief's request still heads its start round. Of the brief's log only this to-do's count: a scope change the earlier to-do made is left out, this one's is a scope line, and the overdue mark is supervision nobody asked for.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\" (what a to-do continues)"
       ],
       "input": {
@@ -4083,7 +4083,7 @@
       "name": "conclusion_says_it_cannot_be_done",
       "description": "A run's conclusion that the work cannot be done asks the owner with no review to raise it: the ask is an entry of its own, at the time it was asked, under the id the view gives it.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R7",
         "spec/fixtures/todo-view cannot_be_done"
       ],
@@ -4227,7 +4227,7 @@
       "name": "dont_handle_takes_the_ask_id",
       "description": "The owner chose Don't handle on the decision: the view no longer lists it as an ask, so its entry carries no ask id.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R7"
       ],
       "input": {
@@ -4304,7 +4304,7 @@
       "name": "message_that_started_a_new_run",
       "description": "Every run had stopped, so the owner's message started a new one; the message was written before #10465 and names the run only as the new one. The new run's start, a moment before the message's line, folds under that message's round, not the round before it.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1"
       ],
       "input": {
@@ -4536,7 +4536,7 @@
       "name": "nothing_happened_yet",
       "description": "A to-do written by hand that nothing has happened to has no rounds, no results and no recap.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6"
+        "docs/assistant/todo-status-sop.md 3.6"
       ],
       "input": {
         "todo": {
@@ -4565,7 +4565,7 @@
       "name": "cancelled_by_its_supervisor",
       "description": "Its supervisor cancelled the to-do: the list sends that close's done_by as review and the ledger says cancelled, so the close is a cancellation, Persona's. The cancelling review stays in the round it ends; its round argument is left out, since only a rework starts a round (the ledger's rework count rides on every later review).",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\" (formatTodo, server/internal/assistant/todos.go; the view's outcome, server/internal/assistant/todo/projection/view.go)"
       ],
       "input": {
@@ -4803,7 +4803,7 @@
       "name": "owner_closes_a_once_cancelled_task",
       "description": "Its supervisor cancelled the to-do, which was opened again, and the owner then ticked it done: the ledger still says cancelled, but the close is the owner's, and done.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md \"Entries\" (the view's outcome, server/internal/assistant/todo/projection/view.go)"
       ],
       "input": {
@@ -4903,7 +4903,7 @@
       "name": "owner_cannot_answer_a_decision",
       "description": "The owner gave a decision one of the fixed answers instead of an option: decide it yourself, not what I asked, explain first. The ledger keeps each on the review that asked (no decision and no feed item says it), and each is the owner's answer: it heads a round, the line saying which, under the question it answers. What the supervisor did next follows in that round or the day's Background one. Since the owner looked, the asks count and their own answers do not.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (ownerCannotAnswer, server/internal/assistant/decision.go)"
       ],
       "input": {
@@ -5178,7 +5178,7 @@
       "name": "one_card_many_questions_without_a_feed",
       "description": "A to-do a task leader handed to its Agent has no feed, so a card the owner answered there is known only by its decisions, one per question, under the card's id. They are one answer: the first heads the round and the others follow in it.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (cardDecisions, server/internal/assistant/todo_decisions.go)"
       ],
       "input": {
@@ -5343,7 +5343,7 @@
       "name": "answer_in_lark_relayed_later",
       "description": "The owner answered the decision by replying to its card in Lark: the hub recorded the decision first and relayed it once the run took it, 40 seconds later. The relay is still the owner's answer passed on: it folds under the decision, and Since you looked does not count it as news.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6",
+        "docs/assistant/todo-status-sop.md 3.6",
         "spec/fixtures/todo-rounds/README.md R1 (the acceptance reply, server/internal/assistant/acceptance_reply.go)"
       ],
       "input": {
@@ -5537,7 +5537,7 @@
       "name": "owner_words_head_their_answers",
       "description": "A round's header is the owner's own words. Their answer of a run's card with two questions is both answers, whole (the conversation's summary line is clipped); the card's two decisions fold under it. A decision recorded from what they said in a conversation says those words, with the option they chose beside them (via chat).",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.6 (\"Its header is the owner's exact words\")",
+        "docs/assistant/todo-status-sop.md 3.6 (\"Its header is the owner's exact words\")",
         "spec/fixtures/todo-rounds/README.md R1 (taskAnswered, server/internal/assistant/answered.go; decisionTold, server/internal/assistant/task_decided.go)"
       ],
       "input": {
@@ -5753,7 +5753,7 @@
       "name": "change_known_only_by_its_pr_url",
       "description": "A to-do a task leader handed to its Agent has no receipts, and the hub never looked at its PR: the PR its runs named (pr_url) is still a result, at the to-do's close since nothing else dates it. An earlier PR the hub looked at is one too, at that look, with how it stood.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.5 row 9",
+        "docs/assistant/todo-status-sop.md 3.5 row 9",
         "spec/fixtures/todo-rounds/README.md \"Results\""
       ],
       "input": {

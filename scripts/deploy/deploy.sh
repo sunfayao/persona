@@ -4,7 +4,7 @@
 #   ./scripts/deploy/deploy.sh <hub machine>   # only the hub
 #   ./scripts/deploy/deploy.sh <machine id>    # only one machine (node binary; the hub restarts its connection)
 #   ./scripts/deploy/deploy.sh web             # only the web client (web/, docs/web/web.md): no restart
-# The checkout must contain the remote's default branch (it fetches it first), else nothing is deployed;
+# The checkout must contain the remote deploy branch (it fetches it first), else nothing is deployed;
 # PERSONA_DEPLOY_ANY_COMMIT=1 skips the check.
 # Who may open the hub's admin UI (docs/operations/admin.md): --admin-access <loopback|lan|cidrs|any> [--admin-cidrs a,b] (or
 # PERSONA_ADMIN_ACCESS / PERSONA_ADMIN_CIDRS) sets it on the hub; without them a hub that never had one chosen asks on
@@ -13,17 +13,12 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 # All callers, including remote build computers, serialize against the hub's lock.
 if [ "${PERSONA_OPERATION_DEPLOY_LOCKED:-}" != 1 ]; then
-  exec python3 scripts/operations/operation_lock.py deploy -- bash "$PWD/scripts/deploy/deploy.sh" "$@"
+  exec python3 scripts/deploy/operation_lock.py -- bash "$PWD/scripts/deploy/deploy.sh" "$@"
 fi
-# Shared default-branch resolution and detached-worktree helper; sourcing it keeps this script and out-of-tree build
-# orchestration from hardcoding master (#1064, #2361).
-# shellcheck source=scripts/deploy/default-branch.sh
-source "$PWD/scripts/deploy/default-branch.sh"
 # Normalize caller overrides before reading deployment options; never print their values.
 eval "$(python3 scripts/persona_identity.py --env)"
-# The question, its explanations and their language catalog live in install.sh (the public installer asks the same).
-eval "$(sed -n -e '/^# >>> install language/,/^# <<< install language/p' \
-  -e '/^# >>> admin access/,/^# <<< admin access/p' scripts/deploy/install.sh)"
+# shellcheck source=scripts/deploy/admin-access.sh
+source "$PWD/scripts/deploy/admin-access.sh"
 INSTALL_LANG=$(install_language)
 ADMIN_ACCESS="${PERSONA_ADMIN_ACCESS:-}"
 ADMIN_CIDRS="${PERSONA_ADMIN_CIDRS:-}"
@@ -47,15 +42,10 @@ if [ -n "$ADMIN_ACCESS" ] && ! admin_access_valid "$ADMIN_ACCESS" "$ADMIN_CIDRS"
   exit 2
 fi
 set -- ${ARGS[@]+"${ARGS[@]}"}
-# Only from a checkout that has everything already on the default branch: a hub or web deploy from an older branch
-# puts back what other people deployed since (docs/lessons/server.md "Deploying from a stale branch").
-# PERSONA_DEPLOY_ANY_COMMIT=1 deploys anyway, e.g. to roll back on purpose.
-# The default branch is the remote's current one (remote symref, else the clone's possibly-stale origin/HEAD, else
-# master), validated and fetched as refs/heads/<name>; persona_default_branch / persona_fetch_default_branch in
-# default-branch.sh hold that logic and are shared with build orchestration.
+# Require the fork trunk for ordinary deploys. Set PERSONA_DEPLOY_ANY_COMMIT=1 for a deliberate rollback.
 if [ -z "${PERSONA_DEPLOY_ANY_COMMIT:-}" ]; then
-  DEFAULT_BRANCH=$(persona_default_branch)
-  if ! persona_fetch_default_branch "$DEFAULT_BRANCH" 2>/dev/null; then
+  DEFAULT_BRANCH=deploy
+  if ! git fetch -q origin "refs/heads/$DEFAULT_BRANCH" 2>/dev/null; then
     echo "deploy: could not fetch origin/$DEFAULT_BRANCH to check this checkout is up to date; PERSONA_DEPLOY_ANY_COMMIT=1 deploys anyway" >&2
     exit 2
   fi
@@ -148,10 +138,9 @@ fi
 LDFLAGS="-s -w -X main.version=$VERSION -X main.channel=release -X main.build=$BUILD -X main.commit=$COMMIT${UPDATE_URL:+ -X main.updateURL=$UPDATE_URL}"
 # The runtime packages personad carries (the DSH plugin's code, docs/integrations/runtimes.md "Auto-update"), from integrations/.
 go generate ./internal/runtimepkg
-# The release's tags (server/build-tags.txt): without the tailscale.com features persona never uses.
+# Build tags (server/build-tags.txt): without the tailscale.com features persona never uses.
 TAGS="$(cat build-tags.txt)"
-# Every platform a machine can run, the same four the release and the Docker image build (docs/operations/release.md): each
-# machine gets the one it runs (machine_platform), and the hub keeps all four for "Redeploy" (#3103).
+# Build the Linux and macOS variants for the configured machines and for Redeploy.
 PLATFORMS=(linux-amd64 linux-arm64 darwin-amd64 darwin-arm64)
 # persona-node is the device's own program (cmd/persona-node): the hub keeps it beside personad, and "Redeploy" gives it
 # to a machine whose node runs it (devices/deploy.go nodeBinary). The connector (cmd/persona-link) goes there too: a
@@ -161,15 +150,6 @@ for plat in "${PLATFORMS[@]}"; do
   GOOS=${plat%-*} GOARCH=${plat#*-} CGO_ENABLED=0 go build -tags "$TAGS" -trimpath -ldflags "$LDFLAGS" -o "bin/personad-$plat" ./cmd/personad
   GOOS=${plat%-*} GOARCH=${plat#*-} CGO_ENABLED=0 go build -tags "$TAGS" -trimpath -ldflags "$LDFLAGS" -o "bin/persona-node-$plat" ./cmd/persona-node
   GOOS=${plat%-*} GOARCH=${plat#*-} CGO_ENABLED=0 go build -tags "$TAGS" -trimpath -ldflags "$LDFLAGS" -o "bin/persona-link-$plat" ./cmd/persona-link
-done
-# The Windows node programs, named with .exe as the release names them (publish.sh): no machine this script installs
-# runs Windows, but the hub keeps them for Redeploy. Without them the hub's version has no Windows build of its own,
-# and the one an earlier deploy or update left there is another build (#12958).
-WINDOWS_PLATFORMS=(windows-amd64 windows-arm64)
-for plat in "${WINDOWS_PLATFORMS[@]}"; do
-  for p in personad persona-node; do
-    GOOS=${plat%-*} GOARCH=${plat#*-} CGO_ENABLED=0 go build -tags "$TAGS" -trimpath -ldflags "$LDFLAGS" -o "bin/$p-$plat.exe" "./cmd/$p"
-  done
 done
 # adhoc_identifiers <dir>: the darwin builds in dir, signed ad hoc again under their program's identifier
 # (com.nwverse.personad, com.nwverse.persona-node, ...) in place of the a.out Go's linker always writes. Only the name
@@ -206,7 +186,7 @@ is_here() {
 
 # machine_platform <machine id>: the os-arch of the binary that machine runs ("<os>-<arch>", bin/personad-<os>-<arch>).
 # `os` and `arch` in the config win; whatever it leaves out is asked of the machine itself (`uname -s` / `uname -m`,
-# the mapping scripts/deploy/install.sh makes), so an Intel Mac is not handed an Apple-silicon build and an ARM Linux
+# normalized below), so an Intel Mac is not handed an Apple-silicon build and an ARM Linux
 # box not an amd64 one. A platform there is no build for is an error, never a silent install (#3103).
 # Returns 3 when the machine could not be asked at all (asleep, no route): that is an unreachable machine, which is a
 # normal deploy (`unreachable, skipped`), not a platform the hub has no build for. 1 is a platform it cannot run.
@@ -382,7 +362,6 @@ for t in "${TARGETS[@]}"; do
       for plat in "${PLATFORMS[@]}"; do
         remote_state "$PERSONA_HUB_SSH" 'mkdir -p "$PERSONA_HOME/bin/nodes"; n="$PERSONA_HOME/bin/nodes/'"personad-$plat"'"; rm -f "$n.version"; cat > "$n.new" && mv "$n.new" "$n"' < "bin/personad-$plat"
         # This deploy's personad is the hub's version: a version file beside it (a release's build put there by hand,
-        # docs/operations/docker.md "Node builds") would say it is another, so it went above.
         # persona-node says which build it is in a file beside it, and Redeploy sends it only while that is the hub's
         # version (the hub's own updates replace personad-* alone; devices/packages.go). So the old version file
         # goes first, the binary lands whole (a temporary file renamed), and the new version file comes last: a deploy
@@ -392,12 +371,6 @@ for t in "${TARGETS[@]}"; do
         # The connector the same way: a switch to Persona Link sends it only while its version file says the hub's.
         remote_state "$PERSONA_HUB_SSH" 'n="$PERSONA_HOME/bin/nodes/'"persona-link-$plat"'"; rm -f "$n.version"; cat > "$n.new" && mv "$n.new" "$n"' < "bin/persona-link-$plat"
         printf '%s\n' "$VERSION" | remote_state "$PERSONA_HUB_SSH" 'cat > "$PERSONA_HOME/bin/nodes/'"persona-link-$plat.version"'"'
-      done
-      # The Windows node programs the same way, under the names the hub looks them up by (devices/packages.go).
-      for plat in "${WINDOWS_PLATFORMS[@]}"; do
-        remote_state "$PERSONA_HUB_SSH" 'mkdir -p "$PERSONA_HOME/bin/nodes"; n="$PERSONA_HOME/bin/nodes/'"personad-$plat.exe"'"; rm -f "$n.version"; cat > "$n.new" && mv "$n.new" "$n"' < "bin/personad-$plat.exe"
-        remote_state "$PERSONA_HUB_SSH" 'n="$PERSONA_HOME/bin/nodes/'"persona-node-$plat.exe"'"; rm -f "$n.version"; cat > "$n.new" && mv "$n.new" "$n"' < "bin/persona-node-$plat.exe"
-        printf '%s\n' "$VERSION" | remote_state "$PERSONA_HUB_SSH" 'cat > "$PERSONA_HOME/bin/nodes/'"persona-node-$plat.exe.version"'"'
       done
       remote_state "$PERSONA_HUB_SSH" 'persona_alias_binaries "$PERSONA_HOME/bin/nodes"'
       hub_plat=$(machine_platform "$t") || exit 2

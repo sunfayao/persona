@@ -1037,7 +1037,7 @@ Six parallel lanes (chat rendering, message actions, Agents list / Machines, Ter
 
 ## Spreadsheet viewer (2026-11-04, #1310)
 
-- **npm `xlsx` is an unmaintained old release**: since 2023, SheetJS distributes new versions only through its own CDN. npm 0.18.5 has public prototype-pollution / ReDoS vulnerabilities when reading untrusted files. Repository privacy checks and Dockerfile accept only registry.npmjs.org, so `npm i https://cdn.sheetjs.com/…` is blocked by `prebuild` (`unapproved npm source`). Put the tarball in `web/vendor/`, install with relative `file:`, and allow `file:vendor/` in Dockerfile checks.
+- **npm `xlsx` is an unmaintained old release**: since 2023, SheetJS distributes new versions only through its own CDN. npm 0.18.5 has public prototype-pollution / ReDoS vulnerabilities when reading untrusted files. Repository privacy checks accept only registry.npmjs.org, so `npm i https://cdn.sheetjs.com/…` is blocked by `prebuild` (`unapproved npm source`). Put the tarball in `web/vendor/`, install with relative `file:`.
 - **Dragging cell selection scrolls the table horizontally**: cells are ordinary text, so the browser selects text and autoscrolls near the edge. Use `preventDefault()` on pointer-down plus `select-none`.
 - **Translucent selection backgrounds reveal cells underneath**: sticky row numbers cover horizontally scrolled cells, whose text shows through selected `bg-accent/12`. Sticky layers must be opaque: `color-mix(in srgb, var(--accent) 14%, var(--inset))`.
 - **Do not estimate column width by average glyph width**: 12.5px digits / uppercase letters are wider; 7.2px per character truncates fixed-length values such as `SO-260000`, `2026-08-04`. They fit at 8px. Excel character widths are often too narrow too; take the larger estimate.
@@ -1261,7 +1261,7 @@ A narrow shell can unmount its sidebar list and mount the same list in the Agent
 
 - The published hub binary embeds `web/dist`, and the release privacy scan refuses any real email address in it. Package license files routinely name their authors with addresses, so `third-party-licenses.ts` drops the addresses (names and years stay) and its test checks none is left. A generator that copies license texts verbatim passes every web check and fails only at release.
 - Count what the client ships from `package-lock.json` (entries not marked `dev`, `optional` or `devOptional`), not from `node_modules`: a local install also holds dev tools and platform-specific optional binaries the browser never loads.
-- `scripts/release/publish.sh` and the Docker image run `npm run build`, never `npm test`. A rule a release must keep goes in the build: the plugin fails on whatever `uncovered()` returns, and the test asserts the same function returns nothing, so the rule is written once.
+- `scripts/deploy/deploy.sh` runs `npm run build`, never `npm test`. A rule a release must keep goes in the build: the plugin fails on whatever `uncovered()` returns, and the test asserts the same function returns nothing, so the rule is written once.
 
 ## Resizing a column without re-rendering the shell (2026-11-07, #6466)
 
@@ -1560,3 +1560,33 @@ the heading takes the row's marks and menu. A host that does not say which works
 `is_main`) leaves it to the folder, the workspace at the repository's own folder, and that guess may only mark and
 order the tree: actions keep reading what the host said. Guess only for a host that names no project: a desktop app's
 project lists each of its folders as its own `project_path`, so the section's first folder wore the home mark (#14497).
+
+## Model display names and raw IDs
+
+### Friendly names must never flow back into requests (#2201)
+
+- The input bar and model picker share a display helper. Format only the name portion of GPT IDs; do not maintain a guessed catalog of models. Preserve versions, variants, and date suffixes.
+- If a list item's `name` differs from its `id` (case-insensitive), treat it as an explicit alias and preserve it verbatim. An empty name falls back to the ID; non-GPT names keep their existing display behavior.
+- Preserve known aliases after the list closes, too. This is temporary UI state scoped to a machine / launcher; it does not change model selection or persisted configuration.
+- To decide whether a detail row needs to show the ID as well, keep comparing the raw `name` and `id`, not the friendly name. Otherwise, merely stripping a prefix creates an unnecessary second line for every GPT item.
+- Search may match both the friendly name and the raw ID; selection callbacks, requests, and serialization still use the raw ID. Isolated browser verification must check menu text, the label after closing the menu, and intercepted request parameters, not just the helper's output.
+- After changing a shared helper, also run the new-session tests that depend on it (#2302). Changes to `AgentModel.label` affect the fallback in `defaultModelDetail`, even if the new-session page itself is unchanged. When updating display expectations, retain request assertions for the raw model ID and effort.
+
+If Android's existing input bar has no model list / current-model data, do not add a new query and selection flow just for a display change. Reuse the session model already passed in, and preserve the existing fallback when it is missing.
+
+### Gateway reply names are not launch selections (#10125)
+
+A gateway can echo a different model ID from the one the launcher accepted. Keep the launch ID in node state and use it for assistant carry-over; leave the echoed name available for display. Distinguish an explicitly empty launch model (launcher default) from missing metadata on an older node. Configuration and conversation picks still take precedence.
+
+Do not fold `Session.Model` back to a bare declared launcher ID in node decoration or strip `/` routing prefixes in display helpers (`modelShort`, `modelLabel`, `pillView`): upstream gateway route prefixes (`route-a/model-x`) show which channel actually served the turn. Keep `/` suffix and `[1m]` matching strictly in carry-over validation (`resolveLauncherModel`, `SameLauncherModel`), context-window detection, and picker active-row matching (`isCurrentModel`, `currentModelRow`), while clearing only angle-bracketed stand-ins (`<synthetic>`).
+
+Session metadata has two encoders: adding a field to `proto.Session` also requires its line and layout hash in `session_wire.go`. Run the wire/reflection equality and allocation tests together; falling back to reflection preserves data but can break otherwise unrelated session-list allocation budgets.
+
+### Display text is not a wire model (#4663)
+
+- A launcher that names no model sends an empty `model`, not a localized placeholder. Normalize the legacy placeholder at the pure display/fallback boundary too: older nodes still send it, and an empty-catalog fallback must not turn it into a concrete row or a model pick.
+- Removing the placeholder must not change launcher inference. An absent model is unknown, never evidence for choosing between several launchers on one endpoint; keep the no-guess test beside the wire tests.
+
+### A launcher label must survive the narrow composer (#10248)
+
+Two launchers can run the same model. Reuse the panel's launcher name in an Agent's pill and keep it alongside the shortened model at phone width; an engine mark alone cannot distinguish accounts. Keep the full current and queued setups accessible, and preserve the model-only fallback when the session has no explicit launcher. A label correction must not change the launcher or model sent to the hub.

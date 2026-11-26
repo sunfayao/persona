@@ -33,10 +33,10 @@ Common tasks work out of the box, with no setup, and the defaults suit most peop
 Complex capabilities sit behind settings or an advanced entry and open on request.
 
 - New advanced options default to off and live in Settings or an advanced group, not on the main chat or Agents screens.
-- Detail opens on request: tool execution stays one summary line (super rule 2); expert terms and raw values (model IDs, ports, paths, hub, node, MCP) appear only in the advanced area that needs them, or come with a plain explanation (`DESIGN_SYSTEM.md` section 5).
+- Detail opens on request: tool execution stays one summary line; expert terms and raw values (model IDs, ports, paths, hub, node, MCP) appear only in the advanced area that needs them, or come with a plain explanation (`DESIGN_SYSTEM.md` section 5).
 - A new look is an opt-in style or theme color; the default style stays pixel-identical.
 
-**How to check**: with the feature off, before / after screenshots of the primary screens are identical; the PR names where the option lives and that it is off by default.
+**How to check**: with the feature off, before / after screenshots of the primary screens are identical; the verification summary names where the option lives and that it is off by default.
 
 ## 3. User control
 
@@ -45,9 +45,9 @@ The user can see, change and undo every behavior; what Persona shows can be expl
 - Every behavior-changing setting is visible in Settings with its current value; no hidden flag whose only switch is a chat command or a file.
 - Reversible actions offer Undo; irreversible ones confirm first, with a destructive-styled button and Cancel (`DESIGN_SYSTEM.md` section 4.4). An undo or rollback the user made sticks: no background job silently redoes it.
 - Background work stops things and keeps the terminal available. The user can close it by hand, turn on a close setting, or authorize closing the original tab of a particular task when it is accepted (`docs/integrations/engines.md`, "Agents run in a terminal").
-- When Persona or an Agent changes a setting for the user, it first says in plain words what changes, where and from when, waits for confirmation, records the change and offers a rollback (reference: model profile switch, `docs/assistant/model-profiles.md`). Every count or status can say what it counts.
+- When Persona or an Agent changes a setting for the user, it first says in plain words what changes, where and from when, waits for confirmation, records the change and offers a rollback (reference: model profile switch, `docs/assistant/model-config.md`). Every count or status can say what it counts.
 
-**How to check**: for each new setting the PR names where it is shown, how it is changed back, and, if an Agent can change it, the confirmation text and the rollback path (test or screenshot). Each new number has a one-line definition in the docs or in the UI.
+**How to check**: for each new setting the verification summary names where it is shown, how it is changed back, and, if an Agent can change it, the confirmation text and the rollback path (test or screenshot). Each new number has a one-line definition in the docs or in the UI.
 
 ## 4. Consistency first
 
@@ -57,7 +57,7 @@ Reuse the existing interaction, visual and data patterns; a new pattern needs a 
 - One label, one definition: a number or state shown under the same name ("Not done", "Needs you") is computed by the same rule on every screen and platform, ideally by one shared function.
 - Moving or adding an entry point follows the place similar entries already use; a new component, pattern or definition goes into `DESIGN_SYSTEM.md` (or the module doc) with why the existing one did not fit.
 
-**How to check**: the PR lists the components, patterns and definitions it reused; anything new links its reason in the updated doc. For counts: the same data shows the same number in every place that names it (test or side-by-side screenshots).
+**How to check**: the verification summary lists the components, patterns and definitions it reused; anything new links its reason in the updated doc. For counts: the same data shows the same number in every place that names it (test or side-by-side screenshots).
 
 ## 5. Model and product are separate
 
@@ -67,7 +67,7 @@ Speed, model, persona and features are four separate settings; changing one neve
 - The avatar, theme color and interface style are independent; the avatar does not pick a model, and switching models does not change the avatar or the UI.
 - Feature switches decide what Persona can do, not which model does it; switching profiles does not turn features on or off.
 
-**How to check**: the PR names which of the four it touches; a test or manual check shows that switching any other one leaves the change's behavior unchanged.
+**How to check**: the verification summary names which of the four it touches; a test or manual check shows that switching any other one leaves the change's behavior unchanged.
 
 ## 6. Rules are checkable
 
@@ -77,7 +77,7 @@ A principle that no one checks is a wish: every rule here ends in evidence someo
 - A PR that touches UI, settings or defaults, or how something is counted, fills in the template's principles self-check: each item done, not applicable, or deviated with a reason.
 - A violation found after merge becomes a case below, and, where it can, a test or check that catches it next time.
 
-**How to check**: the linked issue has acceptance criteria; the PR body has the self-check with evidence (screenshots, test names, commands and their output) for each item marked done.
+**How to check**: the task records the self-check with evidence (screenshots, test names, commands and their output) for each item marked done.
 
 ## 7. Fast, local-first and stateful
 
@@ -107,6 +107,5 @@ Recent examples, so the principles are concrete. Numbers are issues and PRs in t
 
 ## How the principles enter the workflow
 
-- **Requirement**: the feature form's acceptance criteria and the claim comment's `Acceptance:` line are written against these principles (`docs/operations/collaboration.md`).
-- **Development**: `.github/pull_request_template.md` carries the principles self-check; UI changes also run the "UI change self-check" in `DESIGN_SYSTEM.md`.
+- **Development**: Run the "UI change self-check" in `DESIGN_SYSTEM.md` for UI changes.
 - **Acceptance**: whoever merges checks the evidence named under "How to check"; a missing item is marked deviated with a reason, never left blank.

@@ -337,8 +337,7 @@ launcher ran on another account, and a provider added in Persona never applied i
   (`docs/protocol/protocol.md`, `launchers.list`). The main chat's menu still lists the computer's own launchers: the assistant
   runs them on the command line, whatever the engine. Paseo's providers are not among them (the Paseo runtime does not declare
   the assistant): the menu shows each as unavailable, "Can start Agents … but can't run assistant chats". Where an assistant
-  runtime on the computer declares it runs the assistant for one (the Grok companion's `--assistant-for grok`,
-  `integrations/grok/README.md`), that entry names it instead ("For assistant chats, choose Grok"); the user picks it.
+  runtime on the computer declares it runs the assistant for one of those providers, the menu names the assistant launcher the user can choose instead.
 - **A name both have is Paseo's provider there.** On such a computer a launcher of the login shell's (or one added in Persona)
   named like a Paseo provider means that provider: its models, its Test in Settings › Models, its start options and the
   start. In a terminal engine the shell's launcher of that name runs, as before.

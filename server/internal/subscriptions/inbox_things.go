@@ -13,7 +13,7 @@ import (
 )
 
 // InboxThingsTool reads a connector's own Inbox rows for a things recipe (#6381, P4b of
-// docs/design/proposals/inbox-sources-migration.md): the connector's own tool when its catalog declares one
+// docs/extensions/subscriptions.md): the connector's own tool when its catalog declares one
 // (iMessage's, #6317), else the subscriptions' generic one, which answers the connector's Collect, the very rows the
 // Inbox's own round gets. It is the Inbox's own rows, for a built-in's default subscription only: not listed for
 // people, and no subscription is made with it.

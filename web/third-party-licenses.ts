@@ -92,7 +92,7 @@ export function sourceUrl(repository: unknown, name: string, version: string): s
     .replace(/^(?:github:)?([\w.-]+\/[\w.-]+)$/, "https://github.com/$1");
 }
 
-// The release scan (scripts/release/check_bundle_privacy.py) refuses any real email address in the hub binary, which
+// The release scan (the bundle privacy scan) refuses any real email address in the hub binary, which
 // embeds this file: authors' addresses are left out, their names and years stay in the copyright lines.
 const ADDRESS = String.raw`(?:mailto:)?[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}`;
 const EMAIL = new RegExp(String.raw`[ \t]*<${ADDRESS}>|[ \t]*\(${ADDRESS}\)|(?<=\()${ADDRESS},[ \t]*|[ \t]*${ADDRESS}`, "g");

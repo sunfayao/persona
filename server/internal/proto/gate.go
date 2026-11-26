@@ -17,7 +17,7 @@ type LarkRule struct {
 // and credentials through Gates; an older hub's "account", "base" and "token" are unknown keys and ignored.)
 type AssistantLark struct {
 	Rules  []LarkRule `json:"rules,omitempty"`
-	CLI    *LarkCLI   `json:"cli,omitempty"`    // lark-cli is configured (hub.json lark.cli, docs/plans/plan-lark-cli.md)
+	CLI    *LarkCLI   `json:"cli,omitempty"`    // lark-cli is configured (hub.json lark.cli, docs/extensions/feishu.md)
 	Prefer string     `json:"prefer,omitempty"` // "cli", or the serving extension's own source: the primary one when both are there
 	// Gates are the command gates of the assistant's skills (plugins' assistant.gate, docs/extensions/extensions.md "Assistant"):
 	// a command calling an HTTP API as the user, its credentials and the rules its calls go by.

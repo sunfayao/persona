@@ -107,7 +107,7 @@ func webSignInBase(raw string) (string, error) {
 }
 
 // pairRoutes are the pairing endpoints: short-lived pairing tokens for `personad hub pair`
-// (docs/archive/redesign/hub-changes.md 1.3), and for a signed-in device pairing another one (#2731).
+// (docs/protocol/protocol.md 1.3), and for a signed-in device pairing another one (#2731).
 // Also a computer's code (machines_add.go): for a link computer there is, or one added now, from the master token over
 // loopback or a signed-in full device.
 func (h *Hub) pairRoutes(api *http.ServeMux) {
@@ -173,7 +173,7 @@ func (h *Hub) pairRoutes(api *http.ServeMux) {
 		var err error
 		member := h.isMember()
 		if member {
-			// An app pairs with the center: devices are the center's (plan-hub-center.md 3).
+			// An app pairs with the center: devices are the center's (docs/server/mesh.md 3).
 			p = &pairCode{}
 			err = h.meshCall(r.Context(), h.centerID(), "pair.code", map[string]any{}, p)
 		} else {

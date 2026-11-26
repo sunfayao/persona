@@ -26,7 +26,7 @@ func tokenRecordOn(t *testing.T) (*db.DB, string) {
 	t.Helper()
 	url := os.Getenv("PERSONA_TEST_DATABASE_URL")
 	if url == "" {
-		t.Skip("PERSONA_TEST_DATABASE_URL not set (scripts/test/test-server.sh runs this on the hub machine)")
+		t.Skip("PERSONA_TEST_DATABASE_URL not set (use scripts/test/server_test_env.py)")
 	}
 	database, err := db.Open(context.Background(), url, db.ManagerSet)
 	if err != nil {

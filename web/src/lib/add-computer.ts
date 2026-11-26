@@ -18,7 +18,7 @@ export type ComputerOS = "mac" | "linux" | "windows";
 export const COMPUTER_OSES: readonly ComputerOS[] = ["mac", "linux", "windows"];
 
 /** How to build and install Persona Link on a Mac until there is a download (docs/assistant/onboarding.md decision 1). */
-export const PERSONA_LINK_INSTALL_DOC = "https://github.com/nwverse/persona/blob/main/docs/operations/persona-link-install.md";
+export const PERSONA_LINK_INSTALL_DOC = "https://github.com/nwverse/persona/blob/main/docs/operations/link.md";
 
 /** How to install persona-link on a headless Linux when the hub has no install script (docs/operations/link.md "Linux (headless)"). */
 export const LINK_LINUX_DOC = "https://github.com/nwverse/persona/blob/main/docs/operations/link.md#linux-headless";
@@ -110,7 +110,7 @@ export function linuxCommand(reply: Pick<ComputerCodeReply, "pair_url" | "comman
   return line ? { line, installs: true } : { line: pairCommand(reply), installs: false };
 }
 
-/** What Windows runs in PowerShell, in the folder with persona-link.exe and personad.exe (docs/operations/windows.md). */
+/** What Windows runs in PowerShell, in the folder with persona-link.exe and personad.exe (docs/operations/link.md). */
 export function windowsCommand(pairURL: string): string {
   return `.\\persona-link.exe install --personad .\\personad.exe --pair ${quoted(pairURL)}`;
 }

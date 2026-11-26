@@ -392,7 +392,7 @@ if [ -n "$BIN" ] && ! supports_manager_config "$BIN"; then
 	BIN=
 fi
 if [ -z "$BIN" ]; then
-	[ -n "$DL" ] || fail "no compatible personad (requires config.own), and the hub does not know where to download it: update personad first (docs/operations/release.md), then run this again"
+	[ -n "$DL" ] || fail "no compatible personad (requires config.own), and the hub does not know where to download it: update personad first (docs/operations/hub-update.md), then run this again"
 	case "$(uname -s)" in Linux) os=linux ;; Darwin) os=darwin ;; *) fail "no build for $(uname -s)" ;; esac
 	case "$(uname -m)" in x86_64 | amd64) arch=amd64 ;; arm64 | aarch64) arch=arm64 ;; *) fail "no build for $(uname -m)" ;; esac
 	if command -v curl >/dev/null 2>&1; then fetch() { curl -fsSL "$1" -o "$2"; }

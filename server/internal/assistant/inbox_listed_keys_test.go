@@ -16,7 +16,7 @@ import (
 // paths ("agent.pending", "chain[].turn_at"; a map's one key is "x"), each with why. A path covers the paths under it.
 // The list carries everything else the item encodes. The plan's step S8 moves InboxItem into a package of its own;
 // this test and TestWireSamples are how that move shows the list did not change
-// (docs/plans/plan-inbox-vertical-slice.md, section 3.2).
+// (docs/plans/plan-server-packages.md, section 3.2).
 var listedDrops = map[string]string{
 	// The item's bookkeeping, persisted, not listed (inbox.go: InboxItem).
 	"context":     "the conversation as text, for triage and Hand to AI; GET /api/v1/inbox/{id} returns it",

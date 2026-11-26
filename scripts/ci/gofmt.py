@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """List the Go files gofmt would change, and fail when there is one.
 
-    python3 scripts/ci/gofmt.py server sdk/go                # every .go file under them (CI's Go formatting step)
-    python3 scripts/ci/gofmt.py server/internal/foo/foo.go   # just these files (check-fast's gofmt job, #12894)
+    python3 scripts/ci/gofmt.py server sdk/go                # every .go file under them (the local fast check)
+    python3 scripts/ci/gofmt.py server/internal/foo/foo.go   # just these files (selected files)
 
 A directory stands for every .go file below it, testdata included; a file stands for itself. A path that is neither is
 an error, so a list of changed files that names a deleted one fails instead of passing on nothing. gofmt -l runs on 100

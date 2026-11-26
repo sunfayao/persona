@@ -56,7 +56,7 @@ func DataSecretName(name string) bool {
 
 // DataSecretDirs are folders in the data directory that are secret whole, by their path in it: the launchers' merged
 // settings hold their tokens, tls/ the hub's TLS key (hub/public.go), link-tls/ Persona Link's (link/tlsid.go),
-// docker/ the Postgres password the container entrypoint writes (docs/operations/docker.md), extensions/data/ the
+// docker/ the Postgres password the container entrypoint writes (docs/operations/config.md), extensions/data/ the
 // extensions' own data, their sign-ins and tokens among it, and extensions/staging/ what an uninstall or an upgrade
 // sets aside of it (extension/registry_install.go, plan.go); plugins/, whole, is the extensions' folder of a hub from
 // before #1844 (or the link to extensions/ it left, extmgr/extension_compat.go) and a node's from before #1921;

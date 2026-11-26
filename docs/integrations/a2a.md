@@ -103,7 +103,7 @@ personad tool a2a_send '{"machine_id":"box","cwd":"~/code/project","message_id":
 ```
 
 Add `tier` to start the Agent on one of the owner's Agent presets: the tiers
-of the model profile in use ([model profiles](../assistant/model-profiles.md)
+of the model profile in use ([model profiles](../assistant/model-config.md#model-profiles)
 "Agent presets (tiers)"), each with a description saying when to use it. The
 tier resolves as it does for the assistant's `agent_start`, before anything is
 recorded or started: an unknown tier is refused (`err_tier_not_found`, naming

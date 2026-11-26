@@ -1195,7 +1195,7 @@ func (n *Node) assistantSend(ctx context.Context, id, cwd, launcher, text string
 
 // storedCwd is where a conversation resumed without a folder runs: the folder it ran in before (the node's state, kept
 // in the hub's database), else the assistant directory. A stored folder that is gone (the data directory moved,
-// docs/operations/persona-cutover.md) is the folder of the same name in the data directory when there is one (the assistant
+// docs/protocol/rolling-upgrade-compatibility.md) is the folder of the same name in the data directory when there is one (the assistant
 // directory, a guest's, another manager's), else the assistant directory: it is never made again where it was,
 // which would start the conversation in an empty folder without its instructions and memory (#6299).
 func (n *Node) storedCwd(stored string) string {

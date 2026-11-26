@@ -1,20 +1,4 @@
-# Union merge: lists of one entry a line that many PRs append to at once. Git keeps both sides' lines instead of a
-# conflict, without sorting them or dropping a duplicate or a line one side deleted, so a list goes here only when a
-# test compares its entries exactly and fails on such an entry. Comment lines are not all checked: one that a side
-# reworded can keep its old wording next to the new. Name that test right above the list's line ("# guarded by <test>
-# (<its file>)"), and rerun it after merging main. Only merges and rebases on your machine use this; GitHub's merge
-# ignores it and still reports the conflict. One file a line, no patterns; scripts/test/test_gitattributes.py checks
-# this block. How to merge both kinds of file here:
-# docs/operations/collaboration.md, "Merging main: union-merged lists and generated files".
-# guarded by TestRouteScopes (server/internal/hub/route_scopes_test.go)
-server/internal/hub/testdata/route_scopes.txt merge=union
-# guarded by TestHubAnswersOnlyItsOwnRoutes (server/internal/hub/architecture_guard_test.go)
-server/internal/hub/testdata/hub_routes_allowed.txt merge=union
-# guarded by TestHubStoreStaysSmall (server/internal/hub/architecture_guard_test.go)
-server/internal/hub/testdata/hub_store_methods.txt merge=union
-
-# Generated outputs: GitHub folds their diffs. Resolve a conflict in one by rerunning its generator, never by hand. Only
-# files a generator in this repository rewrites from the checkout belong here, each pattern matching a tracked file.
+# Generated files are folded in the review panel. Regenerate them when their inputs change.
 # scripts/gen/extension_schema.py (it also runs scripts/gen/sdk_bundle.py)
 sdk/go/wire/wire_gen.go linguist-generated=true
 sdk/go/wire/schema/*.schema.json linguist-generated=true

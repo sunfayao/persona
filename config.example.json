@@ -6,10 +6,5 @@
   "machines": [
     { "id": "server", "ssh": "server", "os": "linux" },
     { "id": "laptop", "ssh": "laptop", "os": "darwin", "hostnames": ["MyMacBook"] }
-  ],
-  "publish": {
-    "site_url": "https://persona.example.com",
-    "getting_started_url": "",
-    "wrangler": ""
-  }
+  ]
 }

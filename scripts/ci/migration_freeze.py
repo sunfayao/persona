@@ -12,9 +12,8 @@ one in it passes even against a base from before it merged.
 
 The frozen files are the .sql files directly under server/internal/db/migrations/hub and
 server/internal/db/migrations/manager at the merge base of HEAD and the base ref. The base ref
-is --base, else CI_BASE_SHA, else the clone's default branch: origin/HEAD if it points at a
-commit, else origin/main, else origin/master. Those files are compared with the index and the
-working tree.
+is --base, else the local deploy branch or origin/deploy. Files are compared with
+the index and working tree.
 
 One exception: when two frozen files of one set have the same version, either may be renamed or
 deleted. The runner refuses such a set before it applies anything, so the one that merged later
@@ -215,16 +214,8 @@ def _git(root, args, check=True):
 
 
 def _default_ref(root):
-    """The clone's default branch, local refs only: origin/HEAD, else origin/main, else origin/master."""
-    symbolic = subprocess.run(
-        ["git", "-C", str(root), "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"],
-        capture_output=True, text=True, timeout=30)
-    if symbolic.returncode == 0 and symbolic.stdout.strip():
-        candidates = [symbolic.stdout.strip()]
-    else:
-        candidates = ["refs/remotes/origin/HEAD"]
-    candidates.extend(["refs/remotes/origin/main", "refs/remotes/origin/master"])
-    for ref in candidates:
+    """Resolve the fork trunk using local refs."""
+    for ref in ("refs/heads/deploy", "refs/remotes/origin/deploy"):
         verify = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "--end-of-options", ref + "^{commit}"],
             capture_output=True, timeout=30)
@@ -233,14 +224,12 @@ def _default_ref(root):
     return None
 
 
-def resolve_base_commit(root, base=None, env=None):
+def resolve_base_commit(root, base=None):
     """The commit whose migrations are already on the base branch (merge-base of HEAD and the ref)."""
-    env = os.environ if env is None else env
-    ref = base or env.get("CI_BASE_SHA") or _default_ref(root)
+    ref = base or _default_ref(root)
     if not ref:
         raise FreezeError(
-            "migration freeze: no base commit (set CI_BASE_SHA, pass --base, or fetch origin: "
-            "origin/HEAD, else origin/main)")
+            "migration freeze: no deploy ref (pass --base to select a base commit)")
     sha = _git(root, ["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"]).stdout.decode().strip()
     return _git(root, ["merge-base", "HEAD", sha]).stdout.decode().strip()
 
@@ -332,11 +321,11 @@ def describe_addition(path, problem):
     return "migration freeze: {0} {1}; {2}".format(path, problem, HOW_TO_NAME)
 
 
-def check(root, base=None, env=None, now=None):
+def check(root, base=None, now=None):
     """Return (commit, frozen count, violation lines). Raises FreezeError when the base cannot be resolved."""
     root = Path(root)
     now = datetime.now(timezone.utc) if now is None else now
-    commit = resolve_base_commit(root, base, env)
+    commit = resolve_base_commit(root, base)
     base_files = tree_migrations(root, commit)
     views = [index_migrations(root), worktree_migrations(root)]
     renamable = colliding(base_files)
@@ -348,7 +337,7 @@ def check(root, base=None, env=None, now=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--base", help="base ref (default: CI_BASE_SHA, else origin/HEAD, else origin/main)")
+    parser.add_argument("--base", help="base ref (default: deploy, else origin/deploy)")
     parser.add_argument("--root", default=".", help="repository root (default: the working directory)")
     args = parser.parse_args(argv)
     try:

@@ -24,7 +24,7 @@ import (
 // TestMain runs the tests on a database of their own (dbtest, #583): other runs on the same machine do not touch it.
 func TestMain(m *testing.M) { os.Exit(dbtest.Main(m)) }
 
-// open connects to PERSONA_TEST_DATABASE_URL (a throwaway database; scripts/test/test-server.sh creates it on the hub machine)
+// open connects to PERSONA_TEST_DATABASE_URL (a throwaway database; scripts/test/server_test_env.py supplies it)
 // and wipes every table so each test starts clean.
 func open(t testing.TB) *DB {
 	t.Helper()

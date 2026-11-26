@@ -6,7 +6,7 @@
       "description": "A manager from before #10465 names no lock-screen rule: the push is exactly as before, TODO_DECIDE with Take Recommendation, and the options it sends are not forwarded.",
       "source": [
         "docs/assistant/todos.md \"Waiting for the owner\"",
-        "docs/design/proposals/todos-redesign.md 3.7"
+        "docs/assistant/todo-status-sop.md 3.7"
       ],
       "input": {
         "owner": "assistant",
@@ -41,8 +41,8 @@
       "name": "safe_decision_offers_its_options",
       "description": "A decision that is safe to answer from the notification: TODO_DECIDE with its ask, the rule and the options, whole and the recommended first, and mutable-content so the app's extension can offer them as actions.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Answers and taps per surface\"",
-        "docs/design/proposals/todos-redesign.md 5 decision 4 (a)"
+        "docs/assistant/todo-status-sop.md 3.7 \"Answers and taps per surface\"",
+        "docs/assistant/todo-status-sop.md 5 decision 4 (a)"
       ],
       "input": {
         "owner": "assistant",
@@ -86,7 +86,7 @@
       "name": "open_decision_opens_only",
       "description": "A decision other people will see (or one that cannot be undone): TODO_DECIDE_OPEN, which no app gives actions, so every app, an older one too, opens it on a tap; no options and no mutable-content.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Outside the app\"",
+        "docs/assistant/todo-status-sop.md 3.7 \"Outside the app\"",
         "spec/fixtures/todo-view/README.md \"Risk and the lock screen\""
       ],
       "input": {
@@ -164,7 +164,7 @@
       "name": "options_recommended_first_at_most_four",
       "description": "The labels as the hub forwards them whatever the manager sent: no empty one or repeat, the recommended first, at most four, each whole however long.",
       "source": [
-        "docs/design/proposals/todos-redesign.md 3.7 \"Outside the app\""
+        "docs/assistant/todo-status-sop.md 3.7 \"Outside the app\""
       ],
       "input": {
         "owner": "assistant",

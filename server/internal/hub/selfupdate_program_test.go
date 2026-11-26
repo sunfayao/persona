@@ -13,7 +13,7 @@ import (
 	"github.com/nwverse/persona/server/internal/update"
 )
 
-// splitRelease is a release whose manifest carries persona-hub and persona-manager besides personad (as publish.sh
+// splitRelease is a release whose manifest carries persona-hub and persona-manager besides personad (as the release packager
 // makes it), each a script answering `version -v` as the release's build. Its code contains gitA's.
 func splitRelease(t *testing.T, programs ...string) *fakePublisher {
 	t.Helper()

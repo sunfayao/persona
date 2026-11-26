@@ -29,7 +29,7 @@ Who gets it (decided by the user 2026-11-04): **only the assistant and Agents st
 
 The generate command does not pop an approval card on the user's phone: when Persona starts claude, it allows this one command with `--allowedTools`, matching only the absolute path and valid only for that session.
 - Agents started by Persona: `Bash(sh <node dir>/agent-plugin/skills/persona-office/scripts/office.sh *)`, added together with the `--plugin-dir` that loads the plugin (Claude Code 2.1 and later).
-- Assistant: the same rule for `.claude/skills/persona-office/scripts/office.sh` in its directory, appended after its existing `--allowedTools mcp__persona`.
+- Assistant: the same rule for its local copy of the Office skill script, appended after its existing `--allowedTools mcp__persona`.
 - Not written into any settings file. Sessions the user opens themselves are unaffected, and the launcher's own `--settings` still applies (since #1462 Persona only passes `--settings` to managed launchers).
 
 Why it works this way (tried on real claude on 2026-11-04):

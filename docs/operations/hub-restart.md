@@ -277,7 +277,7 @@ Two deployment changes:
 | Hand the hub's listener to `personad.socket` | `scripts/deploy/hub-systemd.sh` (deploy.sh runs it on every deployment): write `personad.socket`, add `Wants/After=personad.socket` and `TimeoutStopSec=20` to the service; stop the service briefly the first time to hand the port to the socket | `PERSONA_HUB_SOCKET=0 scripts/deploy/hub-systemd.sh`: remove the socket unit, stop the socket, let the hub listen itself; or manually `systemctl --user stop personad; systemctl --user disable --now personad.socket; rm ~/.config/systemd/user/personad.socket; systemctl --user daemon-reload; systemctl --user start personad` |
 | Install a resident node on the hub machine | `scripts/deploy/node-launchd.sh install` (once), then deploy.sh uses `restart-idle` | `scripts/deploy/node-launchd.sh uninstall`; on the hub's next reconnect it goes back to starting `node --stdio` itself |
 
-Unchanged: Docker deployment (`deploy/docker/`, no `LISTEN_FDS`, still listens itself), the hub on Mac (launchd), the database and data.
+Unchanged: the hub on Mac (launchd), the database and data.
 
 After blue-green switching ("Blue-green switching" above):
 
@@ -310,30 +310,3 @@ Socket activation caveats:
   To really stop: `systemctl --user stop personad.socket personad`.
 
 ## Verification
-
-- Isolated resident reloads (Linux, Docker, a built test binary):
-  `python3 scripts/test/node_reload_lab.py --binary /tmp/personad-test --iterations 10 --max-gap 1`.
-  The driver creates its own home, hub, resident node and disposable Postgres; it accepts no existing hub address or credentials.
-  It continuously checks the machine's online state and a real node RPC through the hub, confirms a new relay after each SIGHUP,
-  and checks that the attach socket inode stays the same. `--max-gap` bounds observed RPC waiting, including safe retries;
-  signal-to-readiness is reported separately because preflight and idle-process drain happen while the old node still answers.
-  Neither measurement claims that the active connection survives exec. Raw logs stay private; the last line is `PASS` / `FAIL` / `TIMEOUT`.
-- Blue-green switching:
-  - `internal/hubedge` tests (Linux / macOS): the test binary plays the slot itself. Covers source addresses, zero failed requests during switching, concurrency across 6 consecutive switches, a new version that cannot start
-    (also several times in a row, then a switch that succeeds), rollback after failed takeover, a slot requesting its own switch, rejection of a wrong build number, rollback of an unconfirmed update, and restart after a crash.
-  - `TestUpdateHandsOverToTheEdge` and others in `hub`; `scripts/test/test_hub_switch_deploy.py` (hub-systemd.sh's three outcomes).
-  - End-to-end test with real personad: private Postgres, v1 → `hub switch` → v2, with continuous requests to `/api/v1/health`, then try a binary that cannot start.
-- Unit / integration tests (`server/`): `TestEventLogSince`, `TestHelloResumes`, `TestStampEvent`, `TestListenInherited` (pass fd 3 to a child like systemd),
-  `TestEventLogHandOver`, `TestRestartIsPlanned` (actually runs `hub.Run` twice: the client first receives `hub_restarting` and 1001 "hub restarting", then the next hub continues the same stream with `resumed: true`),
-  `TestResidentNodeKeepsConversations` in `node` (the chat process survives the connection ending, and the next connection's `Node` receives its output after takeover).
-  Web: `src/lib/reconnect.test.ts`, `store-reconnect.test.ts`, `ops.test.ts`.
-- Repeated restarts: run `scripts/test/hub_restart_seamless.py --restarts N --converse` on the hub machine:
-  - Request `/api/v1/health` every 100 ms; any refused / failed request is a failure;
-  - A WebSocket client following the web client's behavior: each broadcast's `event_seq` must follow the previous one (no loss or duplicates), every reconnect after the first connection must be `resumed` on the same stream,
-    and the time from disconnect to the next hello must stay within the client's grace period (default 8 s);
-  - `--converse`: open a new **side chat** (leave the main chat alone), have it run `sleep 75` in the background while outputting 1 through N line by line; restart during output, then check that every number is present,
-    the background command's result came back, and the chat received no "just restarted" message.
-  - The last line is `PASS` / `FAIL` / `TIMEOUT` and the numbers.
-
-After socket activation and the resident node were deployed (#1617), repeated restarts with a streaming side chat passed on a real hub: no failed health probe, every reconnect resumed on the same stream with no lost or duplicated event, and each disconnect lasted about a second, well inside the clients' grace period.
-Before the change a restart refused connections for about 1.3 s and killed the local node's assistant processes. The numbers are in `docs/archive/operations/hub-restart-records.md`.

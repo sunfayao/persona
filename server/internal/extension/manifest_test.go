@@ -14,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-// exampleManifest is the plan's example (docs/plans/plan-extensions.md "3"), a made-up notes service.
+// exampleManifest is the plan's example (docs/extensions/extensions.md "3"), a made-up notes service.
 const exampleManifest = `{
   "manifest_version": 1,
   "id": "example-notes",

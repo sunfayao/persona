@@ -46,7 +46,7 @@ export interface Machine {
   arch?: string;
   home?: string;
   last_seen?: string;
-  /** Interconnected hubs (docs/archive/operations/plan-hub-mesh.md 2.6): the hub that owns this computer, and the way there. */
+  /** Interconnected hubs (docs/server/mesh.md 2.6): the hub that owns this computer, and the way there. */
   hub_id?: string;
   hub_name?: string;
   machine_uid?: string;
@@ -56,7 +56,7 @@ export interface Machine {
     enabled: boolean; installed?: boolean; daemon?: boolean; ready?: boolean; accessibility?: string; screen_recording?: string;
     desktop?: string; screen_sharing?: boolean; note?: string;
   };
-  /** ego lite (the hub's extension ego, docs/plans/plan-ego-browser.md): only while the extension is on and it is a Mac. */
+  /** ego lite (the hub's extension ego, docs/extensions/computer-use.md): only while the extension is on and it is a Mac. */
   browser?: import("./browser").MachineBrowser;
   /** iPhone control (the hub's extension iphone, docs/extensions/iphone.md): only while the extension is on and the bridge runs on its system (macOS, Linux). */
   iphone?: import("./iphone").MachineIPhone;
@@ -83,7 +83,7 @@ export interface MachineLinkSwitch {
   at?: string;
 }
 
-/** The hubs of this hub's interconnected group, from the signed-in hello (docs/archive/operations/plan-hub-mesh.md 2.6). */
+/** The hubs of this hub's interconnected group, from the signed-in hello (docs/server/mesh.md 2.6). */
 export interface MeshHub {
   hub_id: string;
   name: string;

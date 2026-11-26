@@ -13,7 +13,7 @@ import (
 
 // Channels: how a binary was built, which decides whether it updates itself.
 const (
-	Release = "release" // published by publish.sh, or deployed straight from master (deploy.sh): updates itself
+	Release = "release" // a packaged or deployed build with update metadata
 	Docker  = "docker"  // in the Docker image: says when a newer image is out, the user pulls it
 	Dev     = "dev"     // a local build: shows its version only
 )
@@ -104,7 +104,7 @@ func (b Build) Hold(m *Manifest) string {
 	ok, err := m.Contains(commit)
 	switch {
 	case errors.Is(err, errNoAncestors):
-		return "新版本的清单里没有提交记录（发布它的 publish.sh 太旧），确认不了它包含这个 hub 的代码"
+		return "新版本的清单里没有提交记录（发布工具版本太旧），确认不了它包含这个 hub 的代码"
 	case err != nil:
 		return "新版本的清单里的提交记录读不出来"
 	case !ok:

@@ -24,7 +24,7 @@ import (
 //
 // Go initializes every package-level variable before it runs any init(), and runs the init()s file by file in file-name
 // order, so the hello and /health list the literal's flags in their order, then each domain file's, file by file.
-// server/internal/archguard/central_lists_test.go keeps new names out of the literal, and scripts/test/test_doc_wire.py
+// server/internal/archguard/central_lists_test.go keeps new names out of the literal, and wire documentation review
 // reads the appends, so every flag keeps its row in the protocol docs.
 
 const featureSeamDoc = `docs/server/architecture.md "Registering a domain's entries"`
@@ -159,7 +159,7 @@ func featureSeam(dir, serverRoot string) (want, problems []string, err error) {
 				out = append(out, constant.StringVal(tv.Value))
 			} else {
 				problem(e, "%s is not a constant string: a flag is a constant, beside it in its domain's file, so that "+
-					"scripts/test/test_doc_wire.py can read it", types.ExprString(e))
+					"wire documentation review can read it", types.ExprString(e))
 			}
 		}
 		return out
@@ -193,7 +193,7 @@ func featureSeam(dir, serverRoot string) (want, problems []string, err error) {
 						found[to], found[from] = true, true
 						if call.Ellipsis.IsValid() {
 							problem(call, "append(Features, %s...) spreads a slice: list each flag as a constant, so that "+
-								"scripts/test/test_doc_wire.py can read it", types.ExprString(call.Args[len(call.Args)-1]))
+								"wire documentation review can read it", types.ExprString(call.Args[len(call.Args)-1]))
 							continue
 						}
 						want = append(want, flags(call.Args[1:])...)

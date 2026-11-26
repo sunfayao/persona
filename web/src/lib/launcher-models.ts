@@ -66,7 +66,7 @@ export interface LauncherDefault {
   runtime?: string;
 }
 
-/** One of "New agent"'s presets (#2225, docs/assistant/model-profiles.md "Agent presets"): a tier of the model profile in use
+/** One of "New agent"'s presets (#2225, docs/assistant/model-config.md "Agent presets"): a tier of the model profile in use
  *  whose launcher this computer starts. Picking it fills launcher, model, effort and permission mode as picking them by hand would. */
 export interface PickerTier {
   name: string;

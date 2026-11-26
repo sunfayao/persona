@@ -1,4 +1,4 @@
-// Search in chat against the mock hub (#6281, docs/design/proposals/assistant-search.md): what the chat shows is found,
+// Search in chat against the mock hub (#6281, docs/assistant/assistant.md): what the chat shows is found,
 // a hidden tag never is, folded work is found without opening it and going to it opens it. Synthetic data only.
 // Start the mock with MOCK_CHAT_SEARCH=1 and Vite pointing at it (PERSONA_HUB_URL), then:
 // node web/e2e/chat-search.mjs <loopback web URL> <screenshot directory> [Chromium executable]

@@ -135,7 +135,7 @@ func (h *Hub) adminRoutes(mux *http.ServeMux, api, web http.Handler) http.Handle
 	h.adminShareRoutes(closed)
 	h.adminNetworkRoutes(closed)
 	h.adminExtensionRoutes(closed)
-	// Hub mesh (docs/archive/operations/plan-hub-mesh.md 2.7): /peers and /routes, from the mesh's own file.
+	// Hub mesh (docs/server/mesh.md 2.7): /peers and /routes, from the mesh's own file.
 	h.registerPeerAdmin(closed)
 	h.peerCLIRoutes(open) // personad hub pair --peer, personad hub peer … (peer_admin.go)
 	signedIn := jsonRouteErrors(closed)

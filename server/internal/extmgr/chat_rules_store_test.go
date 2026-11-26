@@ -23,7 +23,7 @@ import (
 type settingsOnly struct{ Store }
 
 // onRuleSettings runs f once with the settings in memory and, when PERSONA_TEST_DATABASE_URL is set
-// (scripts/test/test-server.sh), once on Postgres with the manager's database: the rules' setting cleared before and
+// (scripts/test/server_test_env.py), once on Postgres with the manager's database: the rules' setting cleared before and
 // after. manager makes a new manager on that store, as a restart does.
 func onRuleSettings(t *testing.T, f func(t *testing.T, store Store, manager func() *Manager)) {
 	run := func(t *testing.T, store Store) {
@@ -37,7 +37,7 @@ func onRuleSettings(t *testing.T, f func(t *testing.T, store Store, manager func
 	t.Run("postgres", func(t *testing.T) {
 		url := os.Getenv("PERSONA_TEST_DATABASE_URL")
 		if url == "" {
-			t.Skip("PERSONA_TEST_DATABASE_URL not set (scripts/test/test-server.sh runs this on the hub machine)")
+			t.Skip("PERSONA_TEST_DATABASE_URL not set (use scripts/test/server_test_env.py)")
 		}
 		database, err := db.Open(context.Background(), url, db.ManagerSet)
 		if err != nil {

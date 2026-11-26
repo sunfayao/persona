@@ -1,6 +1,6 @@
 // "Computers": every computer the hub drives and every way it reaches each one (paths), adding computers, persona-link pairing,
 // re-pairing a connector, reconnect, remove, switching an ssh computer to Persona Link (#10662, views/machines/LinkSwitch.tsx).
-// New computers come through the node service (docs/archive/operations/plan-hub-center.md 0,
+// New computers come through the node service (docs/server/mesh.md 0,
 // 4): the computer dials the hub (kind link, a persona-link pairing link) or the hub dials the computer's connector
 // (kind service, the persona://connector link it prints). Both connect at once; removing waits for a restart.
 import { useEffect, useState } from "react";

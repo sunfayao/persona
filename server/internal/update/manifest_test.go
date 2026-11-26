@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// The manifest carries no min_node_build: nothing ever read it, publish.sh never wrote it, and the "a node older than
+// The manifest carries no min_node_build: nothing ever read it, the release packager never wrote it, and the "a node older than
 // it updates first" it was meant to express is not how a hub updates (the nodes follow once the new hub confirmed,
 // docs/operations/hub-update.md, "Update nodes along with it").
 func TestManifestHasNoMinNodeBuild(t *testing.T) {

@@ -285,12 +285,12 @@ func TestWindowsPersonadErrorTerminalLanguages(t *testing.T) {
 			if err == nil {
 				t.Fatal("persona-node was accepted for a Windows node")
 			}
-			want := languageText(tc.want,
-				node+" is not personad: on Windows the node runs personad (docs/operations/windows.md); give personad with --personad",
-				node+" is not personad: the Windows node runs personad (docs/operations/windows.md); provide personad with --personad",
-				node+" は personad ではありません。Windows の node には personad が必要です（docs/operations/windows.md）。--personad で personad を指定してください")
-			if got := explainLanguage(tc.want, err); got != want {
-				t.Fatalf("error = %q, want %q", got, want)
+			wantHint := languageText(tc.want,
+				"give personad with --personad",
+				"provide personad with --personad",
+				"--personad で personad を指定してください")
+			if got := explainLanguage(tc.want, err); !strings.HasPrefix(got, node) || !strings.HasSuffix(got, wantHint) {
+				t.Fatalf("error = %q, want path %q and hint %q", got, node, wantHint)
 			}
 		})
 	}
@@ -303,9 +303,8 @@ func TestLegacyEnglishMessagesStayEnglishInChinese(t *testing.T) {
 		t.Fatalf("supervise = %q", got)
 	}
 	path := filepath.Join(f.home, "persona-node")
-	want := path + " is not personad: on Windows the node runs personad (docs/operations/windows.md); give personad with --personad"
-	if got := explainLanguage(i18n.ZhHans, link.NewTextError("link-cli.windows_personad_required", nil, i18n.Args{"path": path, "program": "persona-node"})); got != want {
-		t.Fatalf("Windows personad error = %q, want %q", got, want)
+	if got := explainLanguage(i18n.ZhHans, link.NewTextError("link-cli.windows_personad_required", nil, i18n.Args{"path": path, "program": "persona-node"})); !strings.HasPrefix(got, path+" is not personad: on Windows the node runs personad") || !strings.HasSuffix(got, "give personad with --personad") {
+		t.Fatalf("Windows personad error = %q, want the legacy English hint for %q", got, path)
 	}
 	for _, tc := range []struct{ key, want string }{
 		{"node_program_unknown", path + " does not say which program it is (node-update-check did not answer here): give personad or persona-node built for this computer"},

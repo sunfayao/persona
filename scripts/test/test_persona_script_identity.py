@@ -461,18 +461,6 @@ sys.exit(2)
                 self.assertEqual(binary.read_bytes(), old, 'a failed staged check replaced the installed binary')
                 self.assertFalse(Path(str(binary) + '.new').exists(), 'the rejected staged binary was left behind')
 
-    def test_a_checkout_missing_master_commits_deploys_nothing(self):
-        # merge-base --is-ancestor fails: HEAD does not contain origin/master (#1314)
-        executable(self.commands / 'git', '#!/bin/sh\ncase "$1" in merge-base) exit 1;; describe) printf "fixture-version\\n";; rev-parse) printf "fixture-commit\\n";; esac\n')
-        result = subprocess.run(['bash', str(self.repo / 'scripts/deploy/deploy.sh'), 'web'], env=self.env, capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        self.assertIn('missing commits on origin/master', result.stderr)
-        self.assertFalse((self.state / 'web/index.html').exists())
-        env = dict(self.env, PERSONA_DEPLOY_ANY_COMMIT='1')
-        result = subprocess.run(['bash', str(self.repo / 'scripts/deploy/deploy.sh'), 'web'], env=env, capture_output=True, text=True, timeout=30)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
-
     def git(self, cwd, *args):
         result = subprocess.run([GIT, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.com', *args], cwd=cwd,
                                 env=self.env, capture_output=True, text=True, timeout=30)
@@ -510,53 +498,23 @@ sys.exit(2)
         self.assertIn(message, result.stderr)
         self.assertFalse((self.state / 'web/index.html').exists())
 
-    def test_an_up_to_date_clone_of_a_main_repository_deploys(self):
-        # The remote has main and no master (#1064).
-        self.clone_of('main', 'main')
+    def test_a_checkout_up_to_date_with_deploy_installs_web(self):
+        self.clone_of('deploy', 'deploy')
         self.run_script('scripts/deploy/deploy.sh', 'web')
         self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
 
-    def test_a_checkout_behind_the_remote_default_branch_deploys_nothing(self):
-        for default, origin_head in (('main', 'main'), ('main', None), ('main', 'master'), ('master', 'master')):
-            with self.subTest(default=default, origin_head=origin_head):
-                self.clone_of(default, origin_head)
-                self.advance_remote(default)
-                self.assert_refused('missing commits on origin/' + default)
-
-    def test_a_remote_that_names_no_valid_default_branch_falls_back_to_origin_head(self):
-        # ls-remote names nothing, or a name git does not allow for a branch (':' would make the fetch a refspec).
-        for listed in ('', 'ref: refs/heads/x:refs/heads/y\\tHEAD\\n'):
-            with self.subTest(listed=listed):
-                self.clone_of('main', 'main')
-                self.advance_remote('main')
-                executable(self.commands / 'git', '#!/bin/sh\n[ "$1" = ls-remote ] && { printf ' + shlex.quote(listed) +
-                           '; exit 0; }\nexec ' + shlex.quote(GIT) + ' "$@"\n')
-                self.assert_refused('missing commits on origin/main')
+    def test_a_checkout_behind_deploy_is_refused_even_if_origin_head_points_elsewhere(self):
+        self.clone_of('deploy', 'another-branch')
+        self.advance_remote('deploy')
+        self.assert_refused('missing commits on origin/deploy')
 
     def test_an_unreachable_remote_deploys_nothing_unless_any_commit_is_set(self):
-        # ls-remote and fetch both fail (set -e, pipefail): the message names the clone's origin/HEAD, else master.
-        for origin_head, branch in (('main', 'main'), (None, 'master')):
-            with self.subTest(origin_head=origin_head):
-                self.clone_of('main', origin_head)
-                self.git(self.repo, 'remote', 'set-url', 'origin', str(self.base / 'missing.git'))
-                self.assert_refused('could not fetch origin/' + branch + ' to ')
-        # PERSONA_DEPLOY_ANY_COMMIT=1 skips the check, so it needs no remote.
+        self.clone_of('deploy', None)
+        self.git(self.repo, 'remote', 'set-url', 'origin', str(self.base / 'missing.git'))
+        self.assert_refused('could not fetch origin/deploy')
         self.env['PERSONA_DEPLOY_ANY_COMMIT'] = '1'
         self.run_script('scripts/deploy/deploy.sh', 'web')
         self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
-
-    def test_a_default_branch_named_like_an_option_is_fetched_as_a_branch(self):
-        # Passed bare, this name would be git fetch's --upload-pack and run the command on this machine.
-        self.clone_of('main', 'main')
-        executable(self.commands / 'fixture-upload-pack', '#!/bin/sh\ntouch "$HOME/upload-pack.fixture"\nexit 1\n')
-        branch = 'refs/heads/--upload-pack=fixture-upload-pack'
-        remote = '--git-dir=' + str(self.base / 'origin.git')
-        self.git(self.base, remote, 'update-ref', branch, 'main')
-        self.git(self.base, remote, 'symbolic-ref', 'HEAD', branch)
-        self.run_script('scripts/deploy/deploy.sh', 'web')
-        self.assertFalse((self.local / 'upload-pack.fixture').exists())
-        self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
-
 
 
 if __name__ == '__main__':

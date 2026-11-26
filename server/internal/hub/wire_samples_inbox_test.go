@@ -12,7 +12,7 @@ import (
 
 // wireInboxEveryBlock adds inbox_every_block: one made-up item that carries every block an Inbox item has, as GET
 // /api/v1/inbox lists it. inbox_list stays the realistic pair. This one is there so that a move of the item type
-// (docs/plans/plan-inbox-vertical-slice.md, step S8) shows byte for byte that the list did not change; the keys
+// (docs/plans/plan-server-packages.md, step S8) shows byte for byte that the list did not change; the keys
 // listed() leaves out are pinned by internal/assistant's TestListedKeys.
 func wireInboxEveryBlock(t *testing.T, add wireAdder, httpJSON func(any) json.RawMessage, now time.Time) {
 	t.Helper()

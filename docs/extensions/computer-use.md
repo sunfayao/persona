@@ -332,33 +332,6 @@ Only through the hub tunnel, no new externally exposed port:
   moving box (`MOCK_COMPUTER=ready MOCK_SCREEN=fake MOCK_SCREEN_ANIMATE=1`) `node web/e2e/screen-stats.mjs <web URL>`:
   off by default, measured numbers in light and dark, kept per Mac, no round-trip line while the hub's health is refused.
 
-### Measuring (#3067)
-
-`server/cmd/vncbench` measures a VNC server the way the app uses it, from the computer the server runs on (straight to
-`127.0.0.1:5900`) or through a hub's relay (`-hub <hub address> -machine <id>`, a device token in `VNCBENCH_TOKEN`).
-It signs in with the login keychain's generic password `persona-vnc-bench` (added once with
-`security add-generic-password -s persona-vnc-bench -a "$(id -un)" -w`) or `VNCBENCH_ACCOUNT` / `VNCBENCH_PASSWORD`, never printing it.
-
-- `probe`: which image encodings, pseudo-encodings and pixel formats the server answers with, Apple's private range
-  included, and Tight's bytes and SSIM / PSNR at each quality level against lossless ZRLE.
-- `run -scenes idle,type,scroll,drag,video -config <encodings> -mode stopwait|gated|early|pipeline|continuous`: a bench page of
-  its own shown in a browser on that Mac; per scene the Mbit/s, updates a second, input-to-pixels latency (the page's
-  marker changing colour, split into getting the input and drawing it back), and the picture's SSIM / PSNR against a
-  second, lossless connection of the same moment. `-delay` and `-rate` add a phone link's latency and bandwidth.
-- `wheel -apps page,finder,terminal -browser <executable> [-replay <schedules.json>]` (#7775): how far wheel notches
-  scroll on that Mac. One notch at a time, then 20 at gaps from 100 ms down to none (does macOS speed quick notches up,
-  or merge them?), then each named schedule (`{"name": "ms:n,…"}`, a gesture's notches at the times the app sends
-  them). A browser page reports its own scroll position and each wheel event's `deltaY`; Finder and Terminal are
-  measured from the picture, by how far their rows moved. It uses only windows it opens itself (a browser of its own
-  with a profile of its own, a Finder window on a folder of its own, a Terminal window running its own script),
-  closes them and brings back the app that was in front. It starts only after a minute with no input on the Mac and
-  stops at the first key, click or pointer move it did not send.
-- `record`: what the server sends, for replaying through the app's own client (decode CPU, bytes copied).
-- `trace -scene <scene> -rec-mode <mode> [-trace-area x,y,w,h|page|stage]`: each request and each update's start, end,
-  size and painted box in order, to see how the server answers a way of asking (or a part of the screen).
-- `relay`: an echo server of its own behind the hub's port relay: small-message round trips and throughput, hop by hop
-  when run on the hub and on the node in turn.
-
 ### Displays (#80)
 
 macOS Screen Sharing sends one framebuffer with every display, laid out as System Settings › Displays arranges them. On iOS, iPadOS
@@ -435,7 +408,7 @@ Android don't decode video yet: they keep RFB and show no switcher.
     (`~/.persona/cache/persona-screen`). Every later Persona Link build reuses it byte for byte until those change,
     as it does for Persona Input. `mac-link.sh verify-screen` checks that two clean copies at different paths build
     the same executable and cdhash. With a certificate set (`mac.link_signing_identity`,
-    `docs/operations/persona-link-install.md`) both helpers are signed with it, and their grants follow the certificate
+    `docs/operations/link.md`) both helpers are signed with it, and their grants follow the certificate
     across any change.
   - `--request-permission` calls `CGRequestScreenCaptureAccess()` and exits;
   `--preflight` prints whether Screen Recording is granted without asking (`CGPreflightScreenCaptureAccess()`), which
@@ -1281,7 +1254,7 @@ Flags used:
   - Hub sends on settings change and node connection (`extmgr/computer_cursor.go`): configured value only on machines enabled for the extension, "on" for other Macs.
   - "On" only undoes what this node disabled; Cua started by the user with `--no-overlay` isn't touched. No restart if the process already matches or isn't running.
   - Computer Agents' own Cua MCP uses the same background process, so their cursor is disabled too.
-- **Separate Office / Messages permissions**: not implemented. We have no dedicated integration for these; reading Messages belongs to the future iMessage connector ([plan-connectors.md](../plans/plan-connectors.md)).
+- **Separate Office / Messages permissions**: not implemented. We have no dedicated integration for these; reading Messages belongs to the future iMessage connector ([connectors.md](../plans/connectors.md)).
 
 ### Order
 

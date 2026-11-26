@@ -839,7 +839,7 @@ func (c *Connector) thingForGroup(ctx context.Context, group *inboxGroup, me str
 }
 
 // replyTo says where a reply to the item goes and who sees it (connectorwire.InboxThing.ReplyTo): Reply sends as the
-// app's bot, not as the user (Runner.SendText / ReplyText, docs/plans/plan-lark-cli.md), to the chat or into the topic
+// app's bot, not as the user (Runner.SendText / ReplyText, docs/extensions/feishu.md), to the chat or into the topic
 // the message is in, and the sentence says so (#12399). name is the chat's name; without one (only an opaque id is
 // known), the sentence names no chat.
 func replyTo(lang i18n.Lang, name string, topic bool) string {

@@ -1,4 +1,4 @@
-// Shapes of the hub's admin API (docs/operations/admin.md "API", docs/archive/operations/plan-hub-mesh.md 2.7 for peers).
+// Shapes of the hub's admin API (docs/operations/admin.md "API", docs/server/mesh.md 2.7 for peers).
 import type { MachineLinkSwitch } from "../lib/types";
 
 export type Access = "loopback" | "lan" | "cidrs" | "any";
@@ -71,7 +71,7 @@ export interface DoctorReport {
 
 type MachineState = "active" | "pending_add" | "pending_remove";
 
-// How a hub reaches a computer (docs/archive/operations/plan-hub-center.md 4, 5). service: the hub dials the computer's connector; link:
+// How a hub reaches a computer (docs/server/mesh.md 4, 5). service: the hub dials the computer's connector; link:
 // the computer's persona-link dials the hub; hub: through a member hub of the group (configured on that member only).
 type Via = "local" | "service" | "link" | "ssh" | "tailcat" | "hub";
 
@@ -183,7 +183,7 @@ export interface Peer {
   role?: Role;
 }
 
-// The group of hubs (docs/archive/operations/plan-hub-center.md 2, 6): exactly one center serves every client and keeps all state;
+// The group of hubs (docs/server/mesh.md 2, 6): exactly one center serves every client and keeps all state;
 // members pass requests and their computers on to it. A lone hub is its own center.
 type Role = "center" | "member";
 

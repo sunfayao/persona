@@ -23,7 +23,7 @@ type AgentsConfig struct {
 	Triage   TriageConfig   `json:"triage,omitzero"`
 	Delegate DelegateConfig `json:"delegate,omitzero"`
 	// Dispatch is manager.json agents.dispatch: an agent handing a subtask to another connected computer
-	// (docs/plans/plan-agent-dispatch.md).
+	// (docs/integrations/a2a.md).
 	Dispatch DispatchConfig `json:"dispatch,omitzero"`
 	A2A      A2AConfig      `json:"a2a,omitzero"`
 	// LauncherHealth is manager.json agents.launcher_health: checking each machine's launchers (docs/server/launcher-health.md).

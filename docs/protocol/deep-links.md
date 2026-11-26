@@ -87,7 +87,7 @@ The older product name's scheme and paths are accepted as these are (`docs/proto
 
 - **A web link names its hub by its address.** An app opens it natively only when the address is one of a paired
   hub's: the address it was paired with, addresses the user added, its `public_url` (the hub's hello) and its linked
-  hubs' endpoints (`docs/protocol/multi-hub.md`). Host and port must match (host case-insensitive, an IPv6 host without
+  hubs' endpoints (`docs/server/mesh.md`). Host and port must match (host case-insensitive, an IPv6 host without
   brackets, the scheme's default port when none is written); the scheme may differ. A hub served under a sub-path
   (`https://<host>/<prefix>`) has its pages under that prefix. Any other address is an outside link.
 - **An app link may carry `hub=<hub id>`** (the hub's id from its hello). Without it, the page opens on the hub the app

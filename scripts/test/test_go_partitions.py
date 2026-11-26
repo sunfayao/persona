@@ -1,5 +1,4 @@
-"""go_partitions: internal/node's and internal/assistant's tests split into exact, disjoint -run patterns (CI shards,
-release build, test-server.sh)."""
+"""Partition selection for the local Go test runner."""
 from pathlib import Path
 import re
 import unittest

@@ -1,8 +1,5 @@
 # Terminal: building a real terminal
 
-The Terminal tab should behave like a real terminal: full colors, cursor, alternate screen, wide-character / Chinese alignment, resuming after disconnection, and complete long lines on the phone (wrapping),
-**without moving the session out of herdr**. This describes the resulting design; the measurements behind it, from the 2026-10-29 spike on, are in `docs/archive/integrations/terminal-records.md`.
-
 The initial constraint was "don't resize the computer's pane", followed by sections 1–10 (mirror the pane, wrap on the phone). The user changed direction the same day: real phone dimensions like Moshi,
 with the phone taking control of the pane when opening the Terminal tab (section 11); mirroring remains as Computer Size mode and fallback when control can't be acquired.
 That evening it briefly became view-only (abc18a9: removed key bar, typing and control), before the user decided to restore phone-sized control + typing + key bar. Section 12 explains scrolling upward.
@@ -90,11 +87,6 @@ Now the right half is written separately (`putRightHalf`), clearing only the nex
 
 ## 10. Latency and frame coalescing
 
-Measured on a lab pane on 2026-10-29 (the tables, the per-segment breakdown and the retest after #48 are in `docs/archive/integrations/terminal-records.md`):
-- typing echo through the production hub has a median of about 37 ms;
-- the phone parses, wraps and draws a frame in about 12 ms (`TerminalFrameCostTests`);
-- Claude Code redraws about every 110 ms while streaming. Node, hub and WebSocket neither accumulate nor throttle frames, so that cadence is Claude's own.
-
 The tunable end is fast-changing panes (Codex-like 60 fps TUIs, long logs run through `!`, vim paging): herdr then emits a frame every 16 ms, and at about 12 ms per frame (16 ms at p95) the phone would have almost no idle time if every frame were forwarded. The node coalesces with `termMinGap = 30 ms`:
 - First frame after quiet is sent immediately (typing echo doesn't wait).
 - Subsequent frames within 30 ms merge: concatenate delta bytes; a full frame discards preceding deltas. Send at the end of 30 ms.
@@ -164,11 +156,6 @@ Pre-control content isn't carried over (previously computer-width pane history w
 Real-frame verification: replaying `terminal-control-scroll.jsonl` (Claude writing 60 lines at 44×30) gives history + screen with 1. through 60. exactly once, whether replayed frame-by-frame, node 30 ms coalescing, or coarse 250 ms merging (`TerminalControlTests`).
 
 ### Latency
-
-Through the production hub, acquiring control takes under 100 ms and typing under control echoes in about 40–50 ms median; the slow tail is half that of `POST /keys`, because typing no longer queues behind separate HTTP requests and herdr processes.
-Control returns to the computer as soon as the tab closes, about 5 s after the App goes to the background, and about 27 s after a phone vanishes without closing its connection (hub ping timeout).
-A node without `session control` still observes and returns `control: false`; the App gets `unsupported` and only mirrors (`TestTerminalControlOnAnOldNodeOnlyWatches`).
-The measurements are in `docs/archive/integrations/terminal-records.md`.
 
 ## 12. What scrolling up shows
 
@@ -365,10 +352,6 @@ Single pane reads herdr's observe/control streams, which don't carry it ("Progra
 - **Shift+Enter → `ESC CR`** already existed (`encodeKey` and key handling in `feed.ts`); moved to `keyDecision` with IME exception added.
 
 ### Program OSC 52 and color queries never reach pane streams
-
-None of herdr's three pane-level streams (`session observe`, `session control --takeover`, `terminal attach --takeover`) carries program OSC 52 or color queries: they are VT redraws of herdr's pane grid, not raw program output.
-herdr (libghostty-vt based) handles program OSC 52 with its own clipboard writes and sends them only to full herdr TUI clients. Full view is one (section 24), so OSC 52 works there and not in Single pane.
-The measurement, in a temporary tab, is in `docs/archive/integrations/terminal-records.md`.
 
 ### Can herdr's own copying reach the web?
 
@@ -727,17 +710,6 @@ hub → browser: `herdr_state {id, state: "open", cols, rows}`, `herdr_data {id,
 
 ### Two clients on one session
 
-Measured with two `herdr --session` clients on a temporary session (herdr 0.9.5; the size table and the startup sequences are in `docs/archive/integrations/terminal-records.md`):
-
-- **Most recently active client wins** (connect, resize, typing), not smallest/largest. Layout and program-visible dimensions are session-wide—**with browser Full view connected, Claude on the computer reflows at browser size until a computer keypress switches it back**;
-  alternating input alternates size. Same class of cost as Single pane control (section 11), explained in first-use hint; default was therefore user-decided, not chosen by us.
-- **Focus (current space/tab) is session-wide**: `tab focus` makes both A/B jump; B opens displaying current tab. Initial focus on the requested pane therefore requires changing shared focus (Initial Focus above).
-- **OSC 52**: mouse selection in herdr (SGR press/drag/release) emits `ESC ] 52 ; c ; <base64> BEL`; program-issued OSC 52 also appears unchanged in client output.
-  Without a display environment (or nonexistent `WAYLAND_DISPLAY`), this machine emits OSC 52 with or without `SSH_CONNECTION`. Behavior with display/clipboard tools wasn't measured (avoid writing user's real clipboard), so `SSH_CONNECTION` remains set.
-  **Real herdr → browser clipboard**: `scripts/test/web_herdr_full_live.py` passes (fake hub `MOCK_TERMINAL_FULL_EXEC` runs real `herdr session attach` in PTY; Chrome drag-selects `LIVE_COPY_MARK`, clipboard reads `LIVE_COPY_MARK`).
-- herdr `[ui] mobile_width_threshold = 64`: ≤64 columns uses single-column layout, so phone Full view (390px, about 46 columns) has no sidebar, only pane and tab bar.
-- `sidebar_collapsed_mode` is herdr **shared config**; Moshi Hide collapsed Herdr sidebar changes it (`POST /gateway/v1/pty?mux=herdr&hideSidebar=…`, warns "Changes Herdr's shared config"). Persona doesn't change user herdr config; collapse sidebar with herdr prefix+b.
-
 ### Differences from Moshi
 
 | Moshi | Here | Why |
@@ -751,10 +723,6 @@ Measured with two `herdr --session` clients on a temporary session (herdr 0.9.5;
 | `pagehide` destroys all terminals | Hub closes on disconnect, unmount sends `herdr_close`, lease fallback | No leftover node processes, tested |
 
 ### Tests
-
-- Go: `go test -count=1 ./internal/herdr ./internal/host ./internal/node ./internal/hub ./internal/proto`; real herdr: `PERSONA_LIVE_FULL_SESSION=<temporary session> go test -tags herdrlive -run 'TestLiveFullClient|TestLiveFocusPane' ./internal/herdr/`.
-- Web: `cd web && npm test && npm run build` (`terminal-mode.test.ts`, `Surface.test.tsx`, shortcut registry).
-- End-to-end: `scripts/test/web_herdr_full_e2e.py` (fake hub `MOCK_TERMINAL_FULL=1`, usage at script top: default Full view, ack, color replies, typing, OSC 52 clipboard, switching/mid-animation/remember choice/shortcut/resize/close, Settings, Reduce Motion, reconnect after end, unsupported fallback, old hub hides switch; dark/light × wide/390px screenshots), and `scripts/test/web_herdr_full_live.py` (real herdr, above).
 
 ## 25. Mouse: click, drag, buttons and modifiers (web, #2441)
 
@@ -896,12 +864,6 @@ Shared `views/session/terminal/transfer.ts` (`FileTransfer`, also used by Single
 
 ### Tests
 
-- `cd web && npm test`: `terminal-conflicts.test.ts` (right-click/link/prefix/Ctrl+V decisions, only Mod+B among Persona defaults overlaps herdr), `transfer.test.ts` (upload, escaping, disconnect/switch guards, drops, Files entries), `shortcuts.test.ts` (Full view Ctrl+B doesn't open panel, unchanged in Single pane/page).
-- `scripts/test/web_herdr_full_conflicts_e2e.py` (fake hub `MOCK_TERMINAL_FULL=1`; fake herdr enables mouse/bracketed paste like real, right-click menu, displays bracketed text after prompt, full `herdr_input` recorded in `/mock/herdr_client`):
-  right-click → report + herdr menu, no Persona menu, browser menu suppressed (failed before fix); Shift-right-click → Persona menu, no herdr right-click; same on Mac; Ctrl+B → `\x02` to herdr; Ctrl+K still command palette;
-  wheel only SGR; left drag reports, Shift-drag doesn't; Ctrl+Shift+V text, text-only Ctrl+V still `^V`; Ctrl+V image → upload + bracketed paths; bar image/text paste; file drop outline; Files entries; other-computer rejected; Mac file `paste` event.
-- `scripts/test/web_herdr_full_conflicts_live.py` (real herdr, temporary `persona-conflict-test`, stop/delete afterward): right-click herdr pane menu without Persona; Shift-right-click Persona without herdr; Ctrl+V image path reaches real pane prompt.
-
 ## 27. Character width and CJK alignment: crooked Chinese table borders in Full view (web, #2751)
 
 User screenshot: Claude table rows containing Chinese/fullwidth punctuation shift right border by 1–2 cells, adjacent fish pane's left border becomes jagged `||`. Moshi web lacks the issue, so its implementation was checked:
@@ -918,8 +880,6 @@ So rather than copy "switch to WebGL", measurements were taken in a temporary se
 - xterm's default Unicode 6 width table disagrees with herdr on emoji (herdr draws them two cells wide and skips the second); Unicode 15 with grapheme clusters leaves only characters added after Unicode 15.
 - Font fallback is ruled out (`cjk.ts` already sizes CJK glyphs to exactly two cells). WebGL draws the borders straight but changes the default look, so it stays off.
 
-The measurements (a temporary herdr session, headless Chrome) are in `docs/archive/integrations/terminal-records.md`.
-
 ### Changes
 
 - `terminal.css`: `.xterm { text-spacing-trim: space-all; text-autospace: no-autospace }`. First fixes the measured cause; second (automatic CJK/Latin spacing) already defaults to `no-autospace` in Chrome 156, with no observed impact, but set explicitly because it also changes widths and browser-version defaults vary. **Not verified on a browser exhibiting that second issue**. Shared by Full view/Single pane, so both benefit. Safari `text-spacing-trim` support wasn't tested on a real Mac.
@@ -933,10 +893,6 @@ The measurements (a temporary herdr session, headless Chrome) are in `docs/archi
 - `a🏿` (skin-tone modifier after non-emoji) is 3 cells in herdr, 2 in xterm; unhandled.
 
 ### Tests
-
-- `cd web && npm test`: new `widths.test.ts` (default 😀 ✅ width 1; with addon, emoji/ZWJ family/flags/`❤️` width 2; ideographs/fullwidth punctuation 2; Latin/borders/`⌘ ✓ ★ →` 1).
-- `scripts/test/web_herdr_full_cjk_e2e.py` (fake hub acting as client, positions each wide glyph like real herdr): four `│` borders per row within 0.25 cells of ASCII row (after fix max 0.08, without CSS max 4.77); second emoji cell has no previous-frame residue (without width table, `Z` remains); light/dark each once.
-- `scripts/test/web_herdr_full_live.py` / `web_herdr_full_conflicts_live.py` use same approach with real temporary herdr session; the archived measurements (`docs/archive/integrations/terminal-records.md`) used it.
 
 ## 28. Focus synchronization: herdr and Persona sidebars move together (web, #3021)
 
@@ -990,10 +946,6 @@ herdr sidebar/tab pane changes didn't change Persona page/sidebar; choosing anot
 - Already at address (`same`): no action; `mine` changes followed only when foreground and connected.
 
 ### Tests
-
-- Go: `node/focus_test.go` (input activity, all source attribution, most recent client, mouse motion excluded, request/echo, replaced requests, reject missing view/pane, old-herdr fallback), `hub/herdrclient_test.go` (full-only, own view, bad parameters not forwarded, `mine` per view, other-computer node rejected), `-tags herdrlive` `TestLiveFocusSync`.
-- Web: `lib/herdr-focus.test.ts` (follow decisions, echoes, guards, routes), `terminal/full-registry.test.ts` (one per computer, retained on page change, destroyed only after last leaves).
-- End-to-end: `scripts/test/web_herdr_focus_e2e.py` (fake hub + browser, usage at script top); `TestLiveFocusSync` runs against a temporary session named by `PERSONA_LIVE_FULL_SESSION`. Their last runs are in `docs/archive/integrations/terminal-records.md`.
 
 ### Not implemented
 

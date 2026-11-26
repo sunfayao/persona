@@ -150,7 +150,7 @@ func HeaderConflict(h http.Header, name string) bool {
 func ContextPattern() string { return `(?:jarvis|persona)-context` }
 func ContextNames() []string { return []string{"jarvis-context", "persona-context"} }
 
-// compat is also built on its own, copied without the rest of the server (scripts/test/test_persona_migration_edges.py),
+// compat is also built on its own, copied without the rest of the server (standalone compatibility builds),
 // so it uses the standard library only: its patterns compile on first use with sync.OnceValue, not internal/lazyre.
 var currentContextTags = lazy(`(</?)persona-(context|file)([[:space:]/>])`)
 

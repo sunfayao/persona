@@ -3,7 +3,7 @@
 // Code that finds its state through the home directory (the assistant process a hub test starts, the hub's own
 // setup) writes there when a test does not point PERSONA_HOME somewhere else. Run from a developer machine that has a
 // hub on it, such a test rewrote the real hub's manager.json and secret.key, and the next run's assistant child read
-// the poisoned file and never came up. scripts/test/test-server.sh already runs with a throw-away HOME; a plain
+// the poisoned file and never came up. scripts/test/server_test_env.py already runs with a throw-away HOME; a plain
 // `go test` did not.
 //
 // A package whose tests start Persona processes, or reach the node's socket, calls Main from its TestMain: the tests

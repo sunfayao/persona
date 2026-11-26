@@ -4,7 +4,6 @@ Comment-only and whitespace-only edits pass. A new file may be added, named by t
 was written. The cases build a throwaway repository; they do not touch this checkout's migrations.
 """
 from datetime import datetime, timezone
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -171,7 +170,6 @@ class GitFreezeTests(unittest.TestCase):
     def setUp(self):
         self.repo = Path(tempfile.mkdtemp(prefix="migration-freeze-"))
         self.addCleanup(self._cleanup)
-        self._saved_base = os.environ.pop("CI_BASE_SHA", None)
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
@@ -179,14 +177,9 @@ class GitFreezeTests(unittest.TestCase):
         self.write(MANAGER, OTHER)
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
-        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
 
     def _cleanup(self):
-        if self._saved_base is None:
-            os.environ.pop("CI_BASE_SHA", None)
-        else:
-            os.environ["CI_BASE_SHA"] = self._saved_base
         subprocess.run(["rm", "-rf", str(self.repo)], check=True)
 
     def write(self, path, text):
@@ -267,7 +260,7 @@ class GitFreezeTests(unittest.TestCase):
         self.write(later, "CREATE TABLE later (id int);\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "both merged")
-        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
         self.git("mv", later, "server/internal/db/migrations/manager/20261119123001_later.sql")
         self.assertEqual(0, self.run_check())
         self.write(first, "CREATE TABLE first (id text);\n")
@@ -343,41 +336,12 @@ class GitFreezeTests(unittest.TestCase):
         self.write("server/internal/db/migrations/hub/0009_later.sql", "CREATE TABLE later (id int);\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "later")
-        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
         self.git("checkout", "-q", "topic")
         self.assertEqual(0, self.run_check())
 
-    def test_origin_head_wins_over_a_moved_origin_main(self):
-        # HEAD is the rewritten migration. The default branch (origin/HEAD) is still the parent, so the rewrite is
-        # not on the base and must fail. origin/main pointing at HEAD would have hidden it.
-        self.git("branch", "trunk")
-        self.git("update-ref", "refs/remotes/origin/trunk", "HEAD")
-        self.git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk")
-        self.write(HUB, "CREATE TABLE devices (id text);\n")
-        self.git("add", "-A")
-        self.git("commit", "-q", "-m", "rewritten")
-        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
-        self.assertEqual(1, self.run_check())
-
-    def test_ci_base_sha_is_the_ref(self):
-        # The tip matches the default branch again, but CI_BASE_SHA is the commit that rewrote the migration. Freezing
-        # that commit fails; ignoring it and using origin/main would pass.
-        self.write(HUB, "CREATE TABLE devices (id text);\n")
-        self.git("add", "-A")
-        self.git("commit", "-q", "-m", "edited")
-        os.environ["CI_BASE_SHA"] = subprocess.check_output(
-            ["git", "-C", str(self.repo), "rev-parse", "HEAD"], text=True, timeout=30).strip()
-        self.write(HUB, ORIGINAL)
-        self.git("add", "-A")
-        self.git("commit", "-q", "-m", "reverted")
-        self.assertEqual(1, self.run_check())
-        os.environ.pop("CI_BASE_SHA")
-        self.assertEqual(0, self.run_check())
-
     def test_no_base_exits_2(self):
-        self.git("update-ref", "-d", "refs/remotes/origin/main")
-        self.git("symbolic-ref", "--delete", "refs/remotes/origin/HEAD")
+        self.git("update-ref", "-d", "refs/remotes/origin/deploy")
         stderr = sys.stderr
         try:
             from io import StringIO
@@ -387,16 +351,7 @@ class GitFreezeTests(unittest.TestCase):
         finally:
             sys.stderr = stderr
         self.assertEqual(2, code)
-        self.assertIn("no base commit", buf.getvalue())
-
-
-class WiringTests(unittest.TestCase):
-    def test_guards_and_check_fast_run_the_checker(self):
-        guards = (ROOT / "scripts/ci/guards.sh").read_text()
-        check_fast = (ROOT / "scripts/test/check-fast.sh").read_text()
-        self.assertIn("python3 scripts/ci/migration_freeze.py", guards)
-        self.assertIn("python3 scripts/ci/migration_freeze.py", check_fast)
-        self.assertIn("server/internal/db/migrations/", check_fast)
+        self.assertIn("no deploy ref", buf.getvalue())
 
 
 if __name__ == "__main__":

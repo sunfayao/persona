@@ -1,4 +1,4 @@
-// Loopback HTTP MCP proxy owned by the opencode runtime (mirrors integrations/grok/lib/mcp.js).
+// Loopback HTTP MCP proxy owned by the opencode runtime.
 // Exposes Persona's MCP tools (via `rt.tools` / `rt.callTool` over `~/.persona/runtime.sock`) to opencode sessions
 // without ever passing hub credentials to opencode. Each session (or directory binding) gets its own URL path and
 // requires a random per-process Bearer token checked in constant time.

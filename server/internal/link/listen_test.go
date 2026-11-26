@@ -27,7 +27,7 @@ import (
 	"github.com/nwverse/persona/server/internal/netaddr"
 )
 
-// The tests here play the hub as plan-hub-center.md section 4 has it: pin the connector's key from the pairing link,
+// The tests here play the hub as docs/server/mesh.md section 4 has it: pin the connector's key from the pairing link,
 // trade the code for a credential, and open streams with that credential to a fake resident node. Everything listens
 // on 127.0.0.1 and a port the system picks, in temporary directories.
 

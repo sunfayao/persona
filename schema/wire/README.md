@@ -9,7 +9,7 @@ shares its package with hand-written code. Go is generated only for a schema who
 
 ```sh
 python3 scripts/gen/extension_schema.py           # after changing a schema
-python3 scripts/gen/extension_schema.py --check   # compare only (also part of scripts/ci/guards.sh)
+python3 scripts/gen/extension_schema.py --check   # compare only
 python3 scripts/test/test_wire_schema.py          # --check, fixture samples hold to the schema, no hand-written copy
 ```
 

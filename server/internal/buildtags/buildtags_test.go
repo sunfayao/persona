@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// build-tags.txt is what the build scripts read (publish.sh, deploy.sh, the Dockerfile, scripts/ci/server.sh): it must
+// build-tags.txt is what the build scripts read (the release packager, deploy.sh, the Dockerfile, the local server build): it must
 // be Tags() for the tailscale.com version in go.mod, which a bump can change by adding or removing features.
 func TestTagsFileInSync(t *testing.T) {
 	b, err := os.ReadFile("../../build-tags.txt")

@@ -429,7 +429,7 @@ func (h *Hub) resumeMeshPersist() {
 	}()
 }
 
-// meshHub is a hub of the group as the apps see it in hello's mesh (docs/archive/operations/plan-hub-mesh.md 2.6, plan-hub-center.md
+// meshHub is a hub of the group as the apps see it in hello's mesh (docs/server/mesh.md 2.6, docs/server/mesh.md
 // 5): this hub, every hub it can reach, and the paired ones it cannot reach now. Center marks the group's center.
 type meshHub struct {
 	HubID     string   `json:"hub_id"`

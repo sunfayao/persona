@@ -3,8 +3,7 @@
     "name": "items_live_lazy",
     "description": "实时事件保留起点零值，并按订阅要求移除图片数据。",
     "source": [
-      "server/internal/hub/http.go: Hub.itemsToSubscribers",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "server/internal/hub/http.go: Hub.itemsToSubscribers"
     ],
     "derived": true,
     "decoder": "event",
@@ -60,8 +59,7 @@
     "description": "没有内容块的行仍发送空数组和连续性范围。",
     "source": [
       "server/internal/hub/http.go: Hub.itemsToSubscribers",
-      "docs/protocol/protocol.md: items 的连续性",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "docs/protocol/protocol.md: items 的连续性"
     ],
     "derived": true,
     "decoder": "event",
@@ -88,7 +86,6 @@
     "description": "订阅补发按最新页、接续补发或补发上限设置分页字段。",
     "source": [
       "server/internal/hub/http.go: Hub.sendBacklog",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
       "docs/protocol/protocol.md: WebSocket / items 的连续性"
     ],
     "derived": true,
@@ -129,7 +126,6 @@
     "description": "订阅补发按最新页、接续补发或补发上限设置分页字段。",
     "source": [
       "server/internal/hub/http.go: Hub.sendBacklog",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
       "docs/protocol/protocol.md: WebSocket / items 的连续性"
     ],
     "derived": true,
@@ -170,7 +166,6 @@
     "description": "订阅补发按最新页、接续补发或补发上限设置分页字段。",
     "source": [
       "server/internal/hub/http.go: Hub.sendBacklog",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode",
       "docs/protocol/protocol.md: WebSocket / items 的连续性"
     ],
     "derived": true,
@@ -211,8 +206,7 @@
     "name": "items_live_recorded_turn_duration",
     "description": "轮次耗时沿用订阅 items 事件，不新增事件或顶层字段。",
     "source": [
-      "server/internal/hub/http.go: Hub.itemsToSubscribers",
-      "apple/Shared/LiveConnection.swift: ServerEvent.decode"
+      "server/internal/hub/http.go: Hub.itemsToSubscribers"
     ],
     "derived": true,
     "decoder": "event",

@@ -69,7 +69,7 @@ var Features = []string{
 	"todo_threads",             // a to-do's chat thread: PUT/DELETE /api/v1/todos/{id}/thread, and `thread` on the to-dos GET returns (docs/assistant/todos.md "Chat thread")
 	"todo_seen",                // Got it on a Just finished to-do: PUT/DELETE /api/v1/todos/{id}/seen, and `seen_at` on the to-dos GET returns (docs/assistant/todo-status-sop.md "Seen")
 	"task_retry_launcher",      // POST /api/v1/todos/{id}/retry takes {launcher, model}: a failed start again on another launcher of its computer; a failed plan task's retry_with (docs/assistant/todos.md "Retrying on another launcher")
-	"tls",                      // optional TLS listener and SPKI pin (hub-changes.md 1.1)
+	"tls",                      // optional TLS listener and SPKI pin (docs/protocol/protocol.md 1.1)
 	"endpoints",                // authenticated address discovery and capability-gated updates
 	"plugins",                  // GET /api/v1/plugins and the relay under /api/v1/plugins/{id}/ (docs/extensions/extensions.md)
 	"plugin_manager",           // a plugin's detail, form, settings, secrets and switch under /api/v1/plugins/{id}/-/ (docs/extensions/extensions.md)
@@ -92,7 +92,7 @@ var Features = []string{
 	"desktops",                 // register_desktop, the desktops event, NotifyPrefs.mute_while_desktop ("Mute phone")
 	"desktops_link",            // ?features=desktops_link (or client_hello): the desktops event lists Persona Link desktops too (docs/protocol/protocol.md "desktops")
 	"sessions_delta",           // ?features=sessions_delta on the WebSocket: a snapshot, then sessions_delta (docs/protocol/protocol.md "Session deltas")
-	"connectors",               // GET /api/v1/connectors (docs/plans/plan-connectors.md)
+	"connectors",               // GET /api/v1/connectors (docs/extensions/connectors.md)
 	"channels",                 // GET /api/v1/channels and each channel's settings, binding, test (docs/extensions/channels.md)
 	"conversation_origin",      // Session.origin on assistant conversations (docs/protocol/protocol.md "Origin of assistant conversations")
 	"builtin_presets",          // the hub's own provider presets in GET /api/v1/launchers/presets; POST /api/v1/launchers with a preset takes an empty name, display_name and assign (docs/integrations/launchers.md "Built-in presets")

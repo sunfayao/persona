@@ -54,7 +54,7 @@ The `resolve` operation carries `api_available`, `network_up` and `outcome`; `re
 
 原因长度用例使用合成 ASCII，避免擅自规定“字”按 UTF-16、码点还是字素计数；Unicode 计数和原因／意见的空白归一化仍需产品规格补充。夹具中的非空原因按原文发送。空意见打回沿用现状。`default` 虽被协议列为计划模式，计划表单没有对应按钮，不能凭协议增加界面入口。
 
-`transport.json` 保留现状：网络不可用不移走卡片；正常提交先移走；普通失败恢复；410 和 `prompt_changed` 不恢复旧卡片。`ux.md` 的 `answering → answered` 和“已回传你的选择”属于后续状态机，不应拿当前乐观移除行为冒充已实现。
+`transport.json` 保留现状：网络不可用不移走卡片；正常提交先移走；普通失败恢复；410 和 `prompt_changed` 不恢复旧卡片。`../../../docs/protocol/protocol.md` 的 `answering → answered` 和“已回传你的选择”属于后续状态机，不应拿当前乐观移除行为冒充已实现。
 
 ## 对照方法
 
@@ -167,37 +167,37 @@ go test -count=1 -p 1 -run 'TestResolutionFixture' -v ./internal/proto
 
 | 规则 | 来源 | 用例 |
 | --- | --- | --- |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_no_client` |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_network_down` |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_success` |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_gone` |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_prompt_changed` |
-| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `resolve_error_restores_card` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_no_client` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_network_down` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_success` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_gone` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_prompt_changed` |
+| 作答回传根据连接条件和 hub 结果保留或移除交互卡片。 | `docs/protocol/protocol.md §3.4、§5.3` | `resolve_error_restores_card` |
 
 ### unified.json
 
 | 规则 | 来源 | 用例 |
 | --- | --- | --- |
-| 填写拒绝原因后不能允许一次。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `reason_disables_allow` |
-| 填写拒绝原因后不能本会话总是允许。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `reason_disables_always` |
-| 拒绝原因通过 message 原样传给 hub。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `deny_with_reason` |
-| 清空拒绝原因后恢复允许。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `clear_reason_enables_allow` |
-| 填写计划意见后批准按钮不可用。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_disables_approve_all` |
-| 填写计划意见后批准按钮不可用。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_disables_approve_edits` |
-| 填写计划意见后通过打回发送。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_rejects_plan` |
-| 没有读过全文时不能全部放行。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `unread_plan_blocks_bypass` |
-| 对话页读过全文且无意见时可全部放行。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `read_plan_allows_bypass` |
-| 无意见时可以只自动接受编辑。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `unified_accept_edits` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_answering_blocks_submit` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_answered_blocks_submit` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_expired_blocks_submit` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_resolvedelsewhere_blocks_submit` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_handedtoterminal_blocks_submit` |
-| 非待处理状态不能再次提交作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_unknown_blocks_submit` |
-| 待处理状态允许作答。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_pending_allows_submit` |
-| 当前协议尚不能编码 MCP 表单作答，应走终端降级。 | `docs/archive/redesign/ux.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `mcp_form_requires_protocol_extension` |
-| 拒绝原因按设计限制最多四千字。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `reason_length_at_limit` |
-| 拒绝原因按设计限制最多四千字。 | `docs/archive/redesign/ux.md §3.4、§5.3` | `reason_length_above_limit` |
+| 填写拒绝原因后不能允许一次。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `reason_disables_allow` |
+| 填写拒绝原因后不能本会话总是允许。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `reason_disables_always` |
+| 拒绝原因通过 message 原样传给 hub。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `deny_with_reason` |
+| 清空拒绝原因后恢复允许。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `clear_reason_enables_allow` |
+| 填写计划意见后批准按钮不可用。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_disables_approve_all` |
+| 填写计划意见后批准按钮不可用。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_disables_approve_edits` |
+| 填写计划意见后通过打回发送。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `feedback_rejects_plan` |
+| 没有读过全文时不能全部放行。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `unread_plan_blocks_bypass` |
+| 对话页读过全文且无意见时可全部放行。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `read_plan_allows_bypass` |
+| 无意见时可以只自动接受编辑。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `unified_accept_edits` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_answering_blocks_submit` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_answered_blocks_submit` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_expired_blocks_submit` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_resolvedelsewhere_blocks_submit` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_handedtoterminal_blocks_submit` |
+| 非待处理状态不能再次提交作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_unknown_blocks_submit` |
+| 待处理状态允许作答。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `state_pending_allows_submit` |
+| 当前协议尚不能编码 MCP 表单作答，应走终端降级。 | `docs/protocol/protocol.md §3.4、§5.3`；`docs/protocol/protocol.md：Resolution` | `mcp_form_requires_protocol_extension` |
+| 拒绝原因按设计限制最多四千字。 | `docs/protocol/protocol.md §3.4、§5.3` | `reason_length_at_limit` |
+| 拒绝原因按设计限制最多四千字。 | `docs/protocol/protocol.md §3.4、§5.3` | `reason_length_above_limit` |
 
 ## 新增用例
 

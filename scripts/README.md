@@ -1,47 +1,16 @@
-# Scripts
+# Local tools
 
-Scripts are grouped by purpose and resolve their own repository root. Build/deploy configuration is read only from `PERSONA_CONFIG` or `~/.config/persona/config.json`; runtime state uses `PERSONA_HOME` or `~/.persona`. No previous-brand aliases, fallback configuration reads or dual environment exports are supported. See [configuration](../docs/operations/config.md), [the naming contract](../docs/operations/rename.md) and [the approval-gated cutover](../docs/operations/persona-cutover.md).
+Run these from the repository root unless a command says otherwise.
 
-| Directory | Purpose | Common entry points |
-| --- | --- | --- |
-| `ci/` | Portable hosted-runner checks and path/result aggregation | `ci/server.sh`, `ci/web.sh`, `ci/scripts.sh`, `ci/runtimes.sh`, `ci/hub-image.sh` |
-| `deploy/` | Hub / node installation and service definitions | `deploy/deploy.sh`, `deploy/install.sh`, `deploy/link-systemd.sh` |
-| `release/` | Binary releases, signing and artifact checks | `release/publish.sh`, `release/sign_darwin_cli.py`, `release/check_bundle_privacy.py` |
-| `migrate/` | One-shot, explicitly approved offline maintenance | `migrate/persona-cutover.py` (plan only by default; never starts a service) |
-| `mock/` | Synthetic hub and screenshot/demo fixtures | `mock/mock_hub.py`, `mock/mock_scenarios.py` |
-| `assets/` | Avatar packages and the website's generated assets | `assets/make_persona.py`, `assets/make_example_looks.py`, `assets/make_site_assets.py` |
-| `diag/` | Client traffic, redacted transcript, assistant token use and memory diagnostics | `diag/assistant_token_report.py`, `diag/hub_traffic_report.py`, `diag/pane_probe.py`, `diag/redact_transcript.py`, `diag/relay_body_rss.py` |
-| `test/` | Server, protocol, source and script regression checks | `test/check-fast.sh`, `test/test-server.sh`, `test/test_doc_paths.py` |
-| `hooks/` | Privacy hooks, the trusted Deno adapter check and PR merging | `hooks/merge-pr.sh`, `hooks/check-deno-adapter.sh` |
-| `operations/` | Maintainer automation, including semantic PR review and exact-head merging | `operations/pr_watch.py`, `operations/pr_watch_merge.py`; [configuration](../docs/operations/pr-review-automation.md) |
-| `gen/` | Generated extension and hub wire types (`schema/extension`, `schema/wire`) and SDK bundles | `gen/extension_schema.py`, `gen/sdk_bundle.py`, `gen/sync-sdk.sh` |
+| Tool | Purpose |
+| --- | --- |
+| `scripts/deploy/deploy.sh [machine id or web]` | Build and deploy to the fork's configured Linux and macOS machines |
+| `scripts/test/check-fast.sh [migration base]` | Check Go formatting, migrations, English prompt templates and privacy |
+| `scripts/test/server_test_env.py` | Isolate server tests from the live profile and select the test database |
+| `scripts/test/go_test_partitioned.py` | Run Go packages in bounded partitions with `-p 12` |
+| `scripts/mock/mock_hub.py` | Serve synthetic hub data for the web app and browser tests |
+| `scripts/gen/` | Regenerate SDKs, wire types and the Deno adapter from their sources |
+| `scripts/privacy_check.py` and `scripts/hooks/` | Scan the worktree, staged changes, commits and push ranges for private values |
+| `scripts/test/backup_restore_drill.py` | Verify a backup on an isolated test target |
 
-## Shared tools
-
-- `mock/mock_domains.py` is the mock hub's domain registry: a new made-up area of the hub is a module with `register(d)` and one line in its `DOMAINS`, not another edit of `mock/mock_hub.py` (`docs/operations/testing.md` "Mock hub domains"). A block moved out of `mock/mock_hub.py` lists the names it took in `mock/test_mock_domains.py`'s `MOVED`, so a branch that brings it back fails. `mock/mock_hub.py` takes no new `MOCK_*` switch, nor a new value on one: the names it may read are in `mock/mock_hub_switches.txt`, held by `mock/test_mock_hub.py`, and `mock/mock_hub_switches.py pending` lists the names open PRs add; with `--write`, run the day the freeze lands, it rewrites the list (#12737).
-- `test/name_freezes.py pending` lists the names open PRs add to the server's frozen central lists (`assistantwire.Routes`, `prompts/assistant.go`, `proto.Features`), whose check is the central-lists guard (removed); `--write` rewrites their files the day a freeze lands, and only prunes a list `main` has already, reporting a name `main` has that the list lacks as an error rather than adding it (`docs/server/architecture.md` "Registering a domain's entries"). The mock hub's switch freeze takes its list format and its reading of open PRs from the same module (#12844).
-- `persona_config.py` reads private build/deploy configuration (`hub`, `machines`, `publish`) and exports it as shell variables.
-- `persona_identity.py --service hub|node|link` resolves only a matching canonical service's root. It honors unit resets, ordered drop-ins, XDG paths, HOME-only environment files and unset rules; it never executes configuration or exposes other credentials. `--prepare` creates only the selected directory, with no directory aliases. `--prefix` resolves remote paths using the remote HOME.
-- `privacy_check.py` scans repository/staged content. Git hooks, web builds and CI use it.
-- `heavy_slot.py run --kind go|web -- <command>` runs a heavy build in one of a few machine-wide slots of its kind, so parallel worktrees queue instead of thrashing; `check-fast.sh` uses it, and `PERSONA_HEAVY_SLOTS=0` turns it off ([heavy build slots](../docs/operations/testing.md#heavy-build-slots)).
-- Existing non-brand shell shortcuts (`deploy.sh`, `publish.sh` and others) only forward arguments/environment/stdin/exit status to their grouped implementation. Repository examples use grouped paths. Python tools have only their canonical entry points.
-
-## Verification
-
-Use synthetic fixtures and an isolated outer HOME for script tests. Server tests need a real **test** Postgres database under `PERSONA_TEST_DATABASE_URL`; never let a failed environment override select live configuration. Test modules may import neighboring helpers, so run each in its own directory rather than assuming one top-level discovery covers every suite.
-
-```sh
-n=0 failed=""
-for f in $(find scripts -name 'test_*.py' -not -path '*/node_modules/*' | sort); do
-  grep -q unittest "$f" || continue  # a verification script, not a suite: CI skips it too (scripts/ci/python-tests.py)
-  n=$((n + 1))
-  (cd "$(dirname "$f")" && python3 -B -m unittest -q "$(basename "$f" .py)") || failed="$failed $f"
-done
-printf '%s suites, failed:%s\n' "$n" "${failed:- none}"
-[ -z "$failed" ]
-node scripts/test/pr_needs_issue_test.mjs
-python3 scripts/privacy_check.py
-python3 scripts/gen/extension_schema.py --check
-```
-
-The doc/source checks verify current paths, top-level docs registration, shell syntax, Python 3.9 syntax/annotations and real mock startup. Do not raise token baselines or remove checks to pass a rename. macOS's Python 3.9 needs postponed annotations for `X | None`. Actual deployments/releases require separate approval; a passing synthetic test is not permission to operate live services.
+See [local testing](../docs/operations/testing.md) and [configuration](../docs/operations/config.md).

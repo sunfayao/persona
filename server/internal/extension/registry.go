@@ -211,7 +211,7 @@ func NewRegistry(dir string, store Store, seal Sealer, build int64) *Registry {
 }
 
 // Yields marks the built-in plugin id as one an installed plugin of the same id takes the place of, while it moves out
-// of personad into a package (Telegram, docs/plans/plan-extensions.md): installing that plugin puts the built-in aside (the hub
+// of personad into a package (Telegram, docs/extensions/extensions.md): installing that plugin puts the built-in aside (the hub
 // stops its program before the installed one starts), uninstalling it brings the built-in back.
 func (r *Registry) Yields(id string) {
 	r.mu.Lock()

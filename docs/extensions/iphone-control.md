@@ -7,7 +7,7 @@ tool call is one hub ↔ node round trip.
 
 | Piece | Where |
 | --- | --- |
-| Device bridge (`device_info`, `screenshot`, `ax_tree`, `tap`, `long_press`, `drag`, `swipe`, `keys`, `button`, `launch_app`, `terminate_app`, `list_apps`) | `persona-iphone-bridge` ([iphone-bridge.md](iphone-bridge.md)) |
+| Device bridge (`device_info`, `screenshot`, `ax_tree`, `tap`, `long_press`, `drag`, `swipe`, `keys`, `button`, `launch_app`, `terminate_app`, `list_apps`) | `persona-iphone-bridge` ([iphone-control.md](iphone-control.md)) |
 | Pairing, the node's session with the phone, the per-machine switch, the node's built-in `iphone` program | [iphone-pairing.md](iphone-pairing.md) |
 | **Core**: element numbers, results, limits, approval rules (#3449) | `server/internal/iphonectl` |
 | The assistant's tools, waiting for the owner's approval and its wording | the manager |
@@ -63,7 +63,7 @@ timings: the same steps always send the same input.
 
 ## Without an element tree
 
-The bridge's v1 has no `ax_tree` (`capabilities.ax_tree` false, [iphone-bridge.md](iphone-bridge.md)), so the
+The bridge's v1 has no `ax_tree` (`capabilities.ax_tree` false, [iphone-control.md](iphone-control.md)), so the
 assistant works from screenshots:
 
 - look says the elements can't be read, gives the screen's size in points, attaches the screenshot and says how its

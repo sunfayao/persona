@@ -341,7 +341,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
   running phone sessions stop two days back, sub-Agents report not found, and the same session appears twice (2026-10-31, 45 on one machine). Always take the most recently modified file when looking up an id (`newestFirst`).
 - Don't map Codex panes from "newest rollout in the same directory" (same pitfall as Claude): terminal titles are "thread name | directory"; map by thread name in `session_index.jsonl`.
   Rollouts keep writing in the directory of the thread's start date; scanning only the last two weeks' date directories misses old threads (2026-10-31: a running Codex appeared as another session with a gray dot).
-  Comparing content by id won't catch this; compare against actual pane truth (`scripts/diag/live_panes_check.py`).
+  Comparing content by id won't catch this; compare against actual pane truth.
 - A Codex pane title that names no thread in `session_index.jsonl` is not evidence that the pane runs another thread: the index may simply lack the name.
   Discarding herdr's reported session id for it left the pane mapped to nothing, so a Persona-started Codex joined on its app-server was listed only as the `codex_app_server` row, with no pane or terminal (#7538).
   Drop the reported id only when the index knows that thread under a different name, and never under a name it gave the thread before (a rename leaves the earlier line in the index, and the node keeps only the latest); a remembered pane binding is still dropped.
@@ -351,7 +351,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
   ago, and the binding of the session that ran there comes back on every hub connection. A tab Persona opens forgets every binding of its id first (#14682).
   After changing pane identification logic, rerun verification after deployment (restart); pre- and post-restart results may differ.
 - herdr `agent.prompt` pastes, then waits about 300 ms before Enter: serialize sends to the same session, or the second screen read mistakes the first message for an input draft. Sending deduplication lives in hub Postgres (`sent_messages`):
-  node's in-memory deduplication disappears on reconnect / hub restart, exactly when the App auto-retries. Full session-reading and sending verification, with per-hop timings: `docs/archive/integrations/session-verify.md`.
+  node's in-memory deduplication disappears on reconnect / hub restart, exactly when the App auto-retries.
 - Like `/effort`, `/model <alias>` writes to `~/.claude/settings.json` (`model` / `effortLevel`) as the default for future sessions, not just this one;
   cached chats first prompt "Switch model?" (changing model rereads all history). Don't test in your usual configuration; restore both keys afterward if you do.
 - Claude Code 2.1.206 changed `/effort` to a slider ("←/→ to adjust · Enter to confirm", low at the left), removing the old list's "for this session only";
@@ -404,7 +404,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
   Forty-two later attempts in a separate herdr session (small PNG, 1.8 MB JPEG, saturated CPU) didn't reproduce it; cause unknown. On 11-01 a phone photo did it again. node fallback (`ensureSubmitted`): 2 seconds after sending,
   read the input box once; if it's still the just-sent text (strip `[Image #n]` / `[Pasted text #n]`, compare the first few words), press Enter once more. If empty or different, press nothing.
   Use only that post-wait read: the first version read immediately and gave up on a mismatch, which missed the 11-01 case (right after pasting the box may not yet contain this text).
-- Codex app-server integration (2026-11-02): Unix sockets carry WebSocket, not JSON-lines; external stdio has no second attach port. Directory discovery doesn't resume; control goes only to the original loaded owner. Unknown / cancelled requests must not send error / decline, which could consume the desktop approval callback. `serverRequest/resolved` withdraws cards as dismissed without fabricating approval; deduplicate using generation and typed request ID together. Generic server errors after send admission aren't "definitely not sent" and must not auto-retry; old outbox operation ids don't expire after one day (`docs/integrations/codex-app-server.md`).
+- Codex app-server integration (2026-11-02): Unix sockets carry WebSocket, not JSON-lines; external stdio has no second attach port. Directory discovery doesn't resume; control goes only to the original loaded owner. Unknown / cancelled requests must not send error / decline, which could consume the desktop approval callback. `serverRequest/resolved` withdraws cards as dismissed without fabricating approval; deduplicate using generation and typed request ID together. Generic server errors after send admission aren't "definitely not sent" and must not auto-retry; old outbox operation ids don't expire after one day (`docs/integrations/codex.md`).
 - An npm-installed Codex can be found by absolute path while its `/usr/bin/env node` launcher still fails under a node
   service (#11686). For stdio app-server calls, resolve the npm launcher symlink and add its installation's bin directory
   to the child PATH when Node.js is missing. Test subscription polling with a service PATH that omits the NVM directory;
@@ -425,7 +425,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
 - Codex image generation (`scripts/assets/make_persona.py generate`): `codex exec`'s built-in `image_gen` can create transparent PNGs using Codex's own ChatGPT login,
   but its HTTP client doesn't accept `socks5h://` proxies (chat requests do); use an HTTP CONNECT proxy. `-i` takes multiple values, prompts come from stdin; ChatGPT login supports only some models.
   If generation hangs (over ten minutes per image, all parallel work stopped), measure proxy tunnel throughput before blaming rate limits: on 2026-10-31 the hub machine's outbound bandwidth was only 11 KB/s; opening `ssh -D` on a faster internet machine produced four avatars in 6 minutes.
-- Orca host (`docs/plans/plan-orca-support.md` ("Orca source")): `terminal.send`'s `client` requires `id`; providing only `type` returns `invalid_argument` on every send
+- Orca host (`docs/integrations/engines.md` ("Orca source")): `terminal.send`'s `client` requires `id`; providing only `type` returns `invalid_argument` on every send
   (the first version did this; fake runtime didn't validate parameters, so all tests passed; `orcarttest` now validates Orca's schema). If Orca can't recognize the foreground Agent, it types the "prompt" straight into
   the shell and presses Enter; `accepted:false` exists only with `requireAgentStatus`. Before sending, verify the Agent is foreground using the process table + `terminal.agentStatus`;
   Orca's `agentPrompt` pastes only for Agents it has seen working; newly started claude receives raw text, and multiline input submits at the first newline. Persona sends bracketed paste itself, then Enter separately;
@@ -479,7 +479,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
   `~/.claude/projects` transcripts and `sessions/<pid>.json` (`entrypoint: "claude-desktop"`). Without a terminal host, Persona couldn't see it running, listed it from transcripts as
   "Not running", and phone sends attempted `claude --resume` in herdr. With herdr installed, this starts a second process writing the same session; without it, the error was
   `herdr is not running on this machine: herdr workspace list: exec: "herdr"…`. Before resuming, now check whether a live claude's `sessions/<pid>.json` has this session open;
-  if so, reject (`open_elsewhere`, explaining where). Engine startup failures also get human-readable refusals (`engine_missing`). Since 2026-11-07 such sessions list as running (`claude_desktop` / `claude_cli`) and take messages through Claude Code's peer inbox (`docs/integrations/claude-integration.md` ("Claude outside Persona's terminals"), pitfalls in `docs/lessons/windows.md` ("Claude Code's peer inbox")).
+  if so, reject (`open_elsewhere`, explaining where). Engine startup failures also get human-readable refusals (`engine_missing`). Since 2026-11-07 such sessions list as running (`claude_desktop` / `claude_cli`) and take messages through Claude Code's peer inbox (`docs/integrations/claude-integration.md` ("Claude outside Persona's terminals"), pitfalls in `docs/operations/link.md` ("Claude Code's peer inbox")).
 - Sub-Agents in Codex and TRAE CLI write their own rollouts alongside the main chat, with the same directory and cwd, and newer updates. TRAE CLI's pre-tool automatic approval evaluation (guardian)
   is written by the same process, with its own owner file. Identifying sessions by "newest rollout / newest owner file" makes the App show the review chat, unlike the terminal (2026-11-01).
   Always inspect `thread_source` / `source.subagent` in `session_meta`; replace sub-Agent `session_id` with its main chat (`docs/integrations/codex.md`).
@@ -492,7 +492,7 @@ may legitimately repeat an earlier answer, so retirement follows the landed stre
   alongside `herdr remote-client-bridge` and `peers.json`; terminal tabs live in `doc.get("herdr-app")`. It and terminal `herdr server`
   (`~/.config/herdr/herdr.sock`) can't see each other. If "sessions opened locally through App remote aren't found", check herdr-core `terminal.list` first, not only the classic socket.
   When using both on a computer, select engine `herdr-both`: node refreshes both hosts in parallel, isolates events per host (`watcherSignals`), and always creates / resumes sessions through classic herdr
-  (`docs/integrations/engines.md` ("Host sets"), `docs/plans/plan-orca-support.md` ("Combined engine")). Don't return to "refresh asks every host sequentially": a 2-second herdr-core delay slows herdr too.
+  (`docs/integrations/engines.md` ("Host sets"), `docs/integrations/engines.md` ("Combined engine")). Don't return to "refresh asks every host sequentially": a 2-second herdr-core delay slows herdr too.
 
 ## Starting a headless conversation clean without changing its id (2026-11-14, #7315, Claude Code 2.1.322)
 

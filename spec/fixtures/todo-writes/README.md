@@ -17,7 +17,7 @@ never import each other (the hub's architecture guard), so this file is the seam
 
 `{"version": 1, "cases": [...]}`. A case is `{name, description, source, input, expected}`; `source` lists the code
 that decides it (`<repository path> <function>`), the descriptions are English, and all data is made up (the
-prototype's trip to Kyoto, `docs/design/prototypes/todos/data/todos.js`).
+prototype's trip to Kyoto).
 
 - `input.route`: `message` (the conversation route, from the conversation that opened the to-do) or `answer` (the asks
   route, on the decision that waits: "Which ryokan?", Ryokan Hanami recommended, as in `spec/fixtures/todo-asks`).

@@ -353,7 +353,7 @@ def old_link(browser, base, token):
 def lazy_pages(browser, base, token):
     ctx, page = phone(browser)
     sign_in(page, base, token)
-    for path, text in (("/settings", "设置"), ("/inbox", "收件箱"), ("/kb", "知识库"), ("/machines", "机器"), ("/workspace-board", "看板"), ("/routines", "定时任务"), ("/todos", "待办"), ("/history", "对话")):
+    for path, text in (("/settings", "设置"), ("/inbox", "收件箱"), ("/machines", "机器"), ("/routines", "定时任务"), ("/todos", "待办"), ("/history", "对话")):
         page.goto(base + path)
         expect(page.locator("main").get_by_text(text).first).to_be_visible()
     # and in-app navigation to one that has not loaded yet

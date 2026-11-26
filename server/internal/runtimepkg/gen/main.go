@@ -1,6 +1,5 @@
 // Command gen packs the runtime packages' files (runtimepkg.Packages) from integrations/ into dist/, which personad
-// embeds: `go generate ./internal/runtimepkg`, run from server/ before building (the Dockerfile and the deploy and
-// publish scripts do).
+// embeds: `go generate ./internal/runtimepkg`, run from server/ before building (the deploy script does).
 package main
 
 import (

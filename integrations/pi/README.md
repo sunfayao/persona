@@ -1,6 +1,6 @@
 # Persona：pi / pi-web 接入
 
-私有 npm 包名为 `persona-pi-runtime`（#753）；自动更新包 ID 与安装 / 加载标识 `persona-pi-runtime` 保留。`package.json.name` 改名不改变更新目录和旧 loader 身份；#773 已让 host kind 优先读取 `PERSONA_PI_HOST`、兼容 `PERSONA_PI_HOST`，新变量显式空值不回退。此项输入兼容不代表整个迁移或最终发布已验收。本文使用迁移版本的 `personad` 和 `~/.persona`；旧 `personad`、`~/.persona` 与 `PERSONA_*` 继续兼容，已迁移的 `PERSONA_*` 优先，见 [配置与兼容说明](../../docs/operations/config.md#命名与兼容) 和 [完整保留清单](../../docs/operations/rename.md)。
+私有 npm 包名为 `persona-pi-runtime`（#753）；自动更新包 ID 与安装 / 加载标识 `persona-pi-runtime` 保留。`package.json.name` 改名不改变更新目录和旧 loader 身份；#773 已让 host kind 优先读取 `PERSONA_PI_HOST`、兼容 `PERSONA_PI_HOST`，新变量显式空值不回退。此项输入兼容不代表整个迁移或最终发布已验收。本文使用迁移版本的 `personad` 和 `~/.persona`；旧 `personad`、`~/.persona` 与 `PERSONA_*` 继续兼容，已迁移的 `PERSONA_*` 优先，见 [配置与兼容说明](../../docs/operations/config.md#naming-and-configuration) 和 [完整保留清单](../../docs/protocol/rolling-upgrade-compatibility.md)。
 
 pi（`@earendil-works/pi-coding-agent`）和 pi-web（`@agegr/pi-web`）接入 Persona：pi 扩展加 pi-web 伴随进程，建在
 [`integrations/runtime-sdk`](../runtime-sdk/README.md) 上。说明、安装、配置和限制见 [`docs/integrations/pi.md`](../../docs/integrations/pi.md)。

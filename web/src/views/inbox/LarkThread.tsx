@@ -56,7 +56,7 @@ function useAttachmentSupport() {
 }
 
 /** Text, then each attachment, as the messages to send. False when the extension cannot route the attachments as
- * asked (a quote): nothing goes and it all stays in the box (docs/extensions/lark-attachments.md, #1035). */
+ * asked (a quote): nothing goes and it all stays in the box (docs/extensions/feishu.md, #1035). */
 function outgoingOf(text: string, attachments: LarkAttachment[], route: LarkOutgoing["route"], quote?: LarkOutgoing["quote"],
   features: string[] = getState().features, mentions?: LarkOutgoing["mentions"]): LarkOutgoing[] | false {
   if (attachments.length && !routeAllowed(route, features)) return false;
@@ -951,7 +951,7 @@ function useReadReports(
       if (!report) return;
       api(larkPath(`/lark/conversations/${enc(feed)}/read`, ol, manager), { method: "POST", json: report, token: getToken() }).catch(() => t.undo(report, previous));
     };
-    // The gate (docs/archive/redesign/ux.md 3.5): in front, placed, nothing covering the list.
+    // The gate (docs/protocol/protocol.md 3.5): in front, placed, nothing covering the list.
     const look = () => {
       const t = tracker.current;
       if (!t || !placed.current || document.visibilityState !== "visible" || document.querySelector('[aria-modal="true"]')) return;

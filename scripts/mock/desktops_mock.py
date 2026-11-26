@@ -2,7 +2,7 @@
 
 An app's socket sends `register_desktop`, and withdraws it with `unregister_desktop` (a hub with the feature
 desktop_unregister) or by closing. GET /mock/desktops says who is registered now and what happened in order, for the
-desktop shell's smoke (desktop/scripts/e2e-main.mjs) and scripts/mock/test_desktops_mock.py. MOCK_DESKTOPS=1 lists the
+the desktop fixture. MOCK_DESKTOPS=1 lists the
 features; without it the registration works as on an older hub.
 """
 import os

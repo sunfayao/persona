@@ -247,7 +247,7 @@ Run against an exclusively owned mock-backed web server with the mock's alert fl
 ## To-dos with a keyboard, narrow and wide (web audit items 2, 74, 75, 88)
 
 ```sh
-MOCK_TASKS=1 MOCK_TODO_ASKS=1 MOCK_LEADERS=1 PORT=<port> python3 scripts/mock/mock_hub.py &
+MOCK_TASKS=1 MOCK_TODO_ASKS=1 PORT=<port> python3 scripts/mock/mock_hub.py &
 (cd web && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite --port <web port> --strictPort &)
 node web/e2e/todos-keyboard-layout.mjs <loopback-web-origin> [--shots <artifact-directory>] [--executable <chromium>]
 ```
@@ -257,7 +257,7 @@ Run against an exclusively owned mock-backed web server; the date checks save to
 ## The complete Agents list with hundreds of Agents
 
 ```sh
-MOCK_SESSIONS_LIST=1 MOCK_SESSIONS_MANY=400 MOCK_LEADERS=1 MOCK_TASKS=1 MOCK_RECENT=1 MOCK_HISTORY=1 PORT=<port> python3 scripts/mock/mock_hub.py &
+MOCK_SESSIONS_LIST=1 MOCK_SESSIONS_MANY=400 MOCK_TASKS=1 MOCK_RECENT=1 MOCK_HISTORY=1 PORT=<port> python3 scripts/mock/mock_hub.py &
 (cd web && npx vite build && PERSONA_HUB_URL=http://127.0.0.1:<port> npx vite preview --port <web port> --strictPort &)
 node web/e2e/sidebar-many-agents.mjs <loopback-web-origin> <artifact-directory>
 ```

@@ -340,45 +340,6 @@ Other values: allowing 450 tokens per append (500-token limit, rejection observe
   Read as working, the call said "the main chat is still processing" every 2 minutes while it waited for an approval. A wait on the user is `blocked`, `needs_you` or a pending card, whatever `status` says (`atWork`).
   The other way round, a terminal dialog shows as `blocked` about 1.5 s before the node's screen reading makes it a card: a turn that says "check your phone" the moment it sees `blocked` says it twice, once more by the card's kind (`cardGrace`).
 
-## The iOS voice mode (#3508, 2026-11-06)
-
-- **On a simulator whose Mac does not let it record, `AVAudioEngine.inputNode` aborts the app**: reading the property sets the I/O unit up
-  (`AURemoteIO::Initialize`); the input never starts, the setup RPC times out after about 9 s and `_ReportRPCTimeout` calls `abort`. Nothing to catch,
-  and the "no voice processing, plain capture" fallback came too late: the abort is on the first read, before voice processing is asked for (#5029).
-  - **Why**: the simulator's audio is the Mac's (the app's log says `AVAudioSessionImpl_Simulator`; the Mac's `coreaudiod` activates
-    `iOSSimulatorAudioDevice-<pid>` devices). For the input, `coreaudiod` asks the Mac's TCC about the microphone on behalf of the app, attributed to
-    `com.apple.CoreSimulator.SimulatorTrampoline`; on the Mac where it crashed that preflight answered "unknown" (the Simulator had never been allowed or
-    denied the microphone), no prompt followed, and the input was never started.
-  - **What the simulator cannot tell**: the app's session says what a working one says (`isInputAvailable` true, a `MicrophoneBuiltIn` input, 1 channel,
-    48 kHz, recording permission granted): checking the session is enough on a device, not on the simulator.
-  - **What does not abort**: an AudioQueue input (`AudioQueueNewInputWithDispatchQueue` returns at once, `AudioQueueStart` waits, 18 s and more,
-    without aborting, and the app goes on). So on the simulator a call first starts a short AudioQueue recording on a queue of its own and waits up to
-    3 s (`VoiceInputProbe`); one that does not come back ends the call as `audioFailed` and is left waiting, and Retry does not start another until it
-    does. Where it starts, the call records plain, without voice processing (docs/assistant/voice.md 6.4).
-  - **Checking it**: `-openVoice YES` against `MOCK_VOICE=1` on such a simulator now ends with "Something went wrong with the microphone or speaker"
-    and Retry, and Retry ends the same way at once; no crash report. To drive the real socket and UI there, use `-openVoice silent`
-    (`VoiceSample.SilentAudio`: no microphone and no speaker, it reports playing for as long as the received PCM lasts). Audio itself can only be checked
-    on a device, or on a simulator whose Mac lets it record.
-    `CallScreenTests`' three walks are such a check (#10553): on a Mac with no audio input at all (a Mac Studio with no microphone
-    attached) every call there ends this way, from `main` and from the commit that added them alike, and the tests say so.
-  - **Reading it**: the app's own log is in the simulator (`xcrun simctl spawn <udid> log show --predicate 'process == "Persona"'`); the TCC and
-    `coreaudiod` side is in the Mac's (`log show --predicate 'process == "tccd" AND eventMessage CONTAINS "kTCCServiceMicrophone"'`).
-- **The voice bar was squeezed when cards were up**: the cards and the composer share the footer's height; offered too little, the bar shrank 在听 with
-  `minimumScaleFactor` and cut its second line to one line with an ellipsis. The bar lays itself out at its own height
-  (`fixedSize(horizontal: false, vertical: true)`); the cards' area scrolls anyway.
-- **The second line's words and buttons**: `ViewThatFits(in: .horizontal)` picks by ideal width, and a `Text`'s ideal width is its unwrapped line, so
-  "words over buttons" has to be the last candidate (the one that is always used). The buttons' overflow gets its own `ViewThatFits` holding only the
-  buttons; with the words in it, long words never "fit" and every button ends up in ⋯.
-- **A mark in a card's title row widened the whole page at large text sizes**: `Chip` does not shrink (`fixedSize`); at AX sizes 正在语音提问 was wider
-  than the row, and the card, the footer and the page ran off both sides of the screen. A tag put into someone else's row goes through `ViewThatFits`
-  and falls back to an icon.
-- **Don't size the cards from a header that folds with the list**: making the cards' area give way in a call, the first try used `FooterRoom.header`
-  (the header as folded now). The list grew → the header folded → the cards grew → the list shrank → the header unfolded… every frame: the app took a
-  whole core and XCUITest never saw it idle, so the test hung. The open header (`fixedHeader`) fixed that. The next try took "what else the footer
-  holds" as the measured footer minus the cards' measured height; the two update in different frames, and the cap flipped by a point around half the
-  page (a plan card in BeautifulUI at the standard size): another loop. Now it uses only values the cards do not move: the page height, the open
-  header, the bar's own measured height (`VoiceBarRoom`) and the count's. The rule: what sizes an area must not take inputs the area itself moves.
-
 ## The call's audio route (#3015, 2026-11-10)
 
 - **"Always on the loudspeaker" with a headset connected**: the session was `.playAndRecord` / `.voiceChat` / `[.defaultToSpeaker]` and nothing else.

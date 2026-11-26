@@ -1,5 +1,4 @@
-"""scripts/ci/gofmt.py takes directories, as CI's Go formatting step passes them, and single files, as check-fast's gofmt
-job passes the changed ones (#12894). The cases build a throwaway tree; the gofmt runs need gofmt on PATH."""
+"""Formatting checks accept directories and individual Go files."""
 from pathlib import Path
 import shutil
 import subprocess

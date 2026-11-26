@@ -57,7 +57,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 EXTENSION = "voice"
-# MOCK_VOICE_PACE=0.1: the script ten times as fast (test_voice_mock.py); 1 for the app, at a pace a screen can follow.
+# MOCK_VOICE_PACE=0.1: the script ten times as fast; 1 for the app, at a pace a screen can follow.
 PACE = float(os.environ.get("MOCK_VOICE_PACE") or "1")
 # speech_gate (#5904): a run refused unprompted can be sent again (resend), and start takes speech_gate. hold (#9290):
 # the app's hold frame pauses the upstream until its off.
@@ -71,7 +71,7 @@ MEETING = None
 SPEAK = {"mode": os.environ.get("MOCK_VOICE_SPEAK", "") or "ok",
          "seconds": float(os.environ.get("MOCK_VOICE_SPEAK_SECONDS") or "3")}
 SPEAK_MODES = ("ok", "fail", "slow", "off")
-SPEAK_SLOW = float(os.environ.get("MOCK_VOICE_SPEAK_SLOW") or "12")  # test_voice_mock.py shortens it
+SPEAK_SLOW = float(os.environ.get("MOCK_VOICE_SPEAK_SLOW") or "12")
 SPEAK_RATE = 24000
 HUB_MODE = {"mode": lambda: "1"}  # MOCK_VOICE as install sees it (the extension's state)
 CALLS = []  # the protocol 2 calls going on (GET /mock/voice2?unprompted=1 reaches them)

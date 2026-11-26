@@ -2,7 +2,7 @@
 
 Persona's extension foundation (#1101): the open-source repository holds only general capabilities and **extension points**. Anything that only makes sense for one company or one service is built as an extension: install it and you have it; without it, everything still runs.
 The skeleton follows VS Code (manifest + `contributes` + on-demand activation + separate process), permissions follow Chrome (declared explicitly, shown at install time), and from WordPress we borrow only event notifications, not filters.
-Design trade-offs, the step plan and what is not done yet are in `docs/plans/plan-extensions.md`. Code: manifest, schema subset, permissions and registry in `server/internal/extension`, process host in `extension/host`,
+Design trade-offs, the step plan and what is not done yet are in `docs/extensions/extensions.md`. Code: manifest, schema subset, permissions and registry in `server/internal/extension`, process host in `extension/host`,
 the program side is the official SDK `sdk/go/ext` (public extensions use it through `ext.Serve`; `extension/serve` wraps it for the conformance kit and tests), conformance tests in `extension/conformance`; the wiring lives in the manager (see "Who owns what" below): `server/internal/extmgr/extensions.go`, `extension_routes.go`, `extension_cli.go`, and the admin UI endpoints in `admin_extensions.go`.
 
 Extensions come from three places; the App and the API show them as one list:
@@ -70,7 +70,7 @@ UI text always says "extension" (**Settings › Extensions**, **Extension Market
 ## Naming and compatibility
 
 This system used to be called "plugin"; #1844 renamed it. Apps already shipped (iOS / Mac / Android / web), extensions already installed, and existing extension packages and marketplaces still use the old names,
-so the old extension-system terms **keep working** where listed below. This does not retain previous product-brand names or marketplace filenames; the [Persona-only cutover](../operations/persona-cutover.md) takes precedence. New code, manifests and docs use the new terms.
+so the old extension-system terms **keep working** where listed below. This does not retain previous product-brand names or marketplace filenames; the [Persona-only cutover](../protocol/rolling-upgrade-compatibility.md) takes precedence. New code, manifests and docs use the new terms.
 
 | Old | New | Compatibility |
 | --- | --- | --- |
@@ -88,7 +88,7 @@ so the old extension-system terms **keep working** where listed below. This does
 | WebSocket events `plugin_ui {plugin, …}`, `plugin_upgrade {plugin, …}` | `extension_ui {extension, …}`, `extension_upgrade {extension, …}` | During the compatibility period both are sent (old first); push payloads carry both `plugin_upgrade` and `extension_upgrade` keys |
 | Protocol `initialize`'s `plugin` | `extension` | The hub sends both keys; the SDK accepts both |
 | Go packages `internal/plugin`, `plugin/host`, `plugin/serve`, `plugin/conformance` | `internal/extension/…` | — |
-| Database tables `plugins`, `plugin_secrets`, `plugin_audit`, `plugin_markets`, setting key `plugin_upgrades`, push `thread-id` `plugin_upgrade`, model purpose `plugin.<id>`, hub↔node `plugin_skills`, `~/.persona/plugin-skills/`, slot name `plugin_page`, icon name `plugin`, error codes `plugin_failed` / `invalid_plugin` / `no_plugins` | **Unchanged** | Identities in persistence and internal protocols (same approach as Previous-brand → Persona, `docs/operations/rename.md`); changing them would need a data migration, and node and hub would fall out of sync |
+| Database tables `plugins`, `plugin_secrets`, `plugin_audit`, `plugin_markets`, setting key `plugin_upgrades`, push `thread-id` `plugin_upgrade`, model purpose `plugin.<id>`, hub↔node `plugin_skills`, `~/.persona/plugin-skills/`, slot name `plugin_page`, icon name `plugin`, error codes `plugin_failed` / `invalid_plugin` / `no_plugins` | **Unchanged** | Identities in persistence and internal protocols (same approach as Previous-brand → Persona, `docs/protocol/rolling-upgrade-compatibility.md`); changing them would need a data migration, and node and hub would fall out of sync |
 
 **Manager-configuration `plugins` retirement (#2656)**: the release that introduces the deprecation warning keeps reading legacy `plugins` entries for that one release, preserving the merge order and `extensions`-wins behavior. The next release stops reading `plugins` and uses only `extensions`; the release after that removes the alias and its merge code. This schedule applies only to the manager-configuration key, not to the other compatibility entries in this table.
 
@@ -112,7 +112,7 @@ What an extension contributes where is written in the manifest's `contributes`: 
 | `transcription` (version 1) | — | `id`, `name?` | `runtime.http` | Meeting transcription on the hub, for the manager only (#3862 phase 5); contract under "Transcription" below |
 | `speech` (version 1) | — | `id`, `name?` | `runtime.http` | A text read aloud for the apps (#8712): a meeting answer the iPhone says when Persona takes part; contract under "Speech" below |
 | `computer` (version 1) | — | `id`, `name?` | — | The assistant's computer-control tools and the toggle on the machine page (only the built-in `cua`), see [computer-use.md](computer-use.md) |
-| `browser` (version 1) | — | `id`, `name?` | — | The assistant's browser tools (`browser_run` / `browser_look`) and **Browser** on the machine page (only the built-in `ego`), see [plan-ego-browser.md](../plans/plan-ego-browser.md) |
+| `browser` (version 1) | — | `id`, `name?` | — | The assistant's browser tools (`browser_run` / `browser_look`) and **Browser** on the machine page (only the built-in `ego`), see [computer-use.md](computer-use.md) |
 | `iphone` (version 1) | — | `id`, `name?` | — | The assistant's phone-control tools (`iphone_status` / `iphone_look` / `iphone_do`), **Phone Control** on a computer's page and **Control of This iPhone** on the iPhone (only the built-in `iphone`), see [iphone.md](iphone.md) |
 | `quota` (version 1) | `quota.` | `id`, `name`, `hosts?` (gateway host names, may start with `*.`) | Process speaks the protocol, permission `launcher_keys` | **Quota** on the launcher page, see "Quota" below |
 | `usage` (version 1, #12402) | `usage.` | `id`, `name`, `hosts?` (gateway host names, may start with `*.`) | Process speaks the protocol, permission `launcher_keys` | Rows of the **subscription usage bars** from a gateway whose usage answer has its own shape, see "Usage extensions" below |
@@ -193,7 +193,7 @@ Lives at the root of the extension package. Example (a connector for a fictional
 | `engines.persona` | No | A range of hub build numbers, only `>=N`, `<N` and combinations; if not satisfied it can't be installed, and installed ones are marked `incompatible`. Development builds (build number 0) are not checked; a warning is given |
 | `engines.extension_protocol` | Yes when there is `runtime` or `node` | `1` |
 | `runtime` | No | Without it, the extension is declarative only. `command`: a relative path in the package, or `{"<GOOS>-<GOARCH>": path}`; if this hub's platform is missing it can't be installed. Must not be absolute or escape the package (`..` and links pointing outside the package are both checked), and must be executable; `personad` is allowed only for built-in extensions. `args`; `env` (must not start with `PERSONA_` / `PERSONA_`, nor be the dynamic loader's `LD_*` / `DYLD_*`, which would reach the sandbox launcher outside the sandbox; secrets don't go here); `rpc`: `stdio` (default) / `none`; `http`: serve HTTP on `PERSONA_EXTENSION_SOCKET`. `rpc: none` without `http` can't be installed |
-| `node` | No | A program that runs on computers you pick (#1830, `docs/plans/plan-extensions.md` ("Running an extension on selected computers")). `command`: per platform only, `{"darwin-<arch>" \| "linux-<arch>": path}`, same path rules as `runtime`, cannot be `personad`; the platforms listed are the computers it can run on, and every platform's program must be in the package and executable (the hub does not check its own platform). `machines`: the name of the config field that picks computers; this field must be an array of `format: machine`, its `items` must set `x-os`, and only to systems that `command` has a program for (to limit it to one computer, set `maxItems`). `args`, `env`, `rpc`, `http` as in `runtime`; `keep_running`: `lease` (default, stops if the hub hasn't renewed for half an hour) / `always`; `secrets`: names of secrets sent to the computer (must be in `secrets`), the rest stay on the hub only; `permissions`: `network` (host names), `files`, `macos_privacy`, see "Permissions". You can have `node` without `runtime` (if the extension points you contribute don't need a program on the hub). How it runs: see "Programs that run on computers" |
+| `node` | No | A program that runs on computers you pick (#1830, `docs/extensions/extensions.md` ("Running an extension on selected computers")). `command`: per platform only, `{"darwin-<arch>" \| "linux-<arch>": path}`, same path rules as `runtime`, cannot be `personad`; the platforms listed are the computers it can run on, and every platform's program must be in the package and executable (the hub does not check its own platform). `machines`: the name of the config field that picks computers; this field must be an array of `format: machine`, its `items` must set `x-os`, and only to systems that `command` has a program for (to limit it to one computer, set `maxItems`). `args`, `env`, `rpc`, `http` as in `runtime`; `keep_running`: `lease` (default, stops if the hub hasn't renewed for half an hour) / `always`; `secrets`: names of secrets sent to the computer (must be in `secrets`), the rest stay on the hub only; `permissions`: `network` (host names), `files`, `macos_privacy`, see "Permissions". You can have `node` without `runtime` (if the extension points you contribute don't need a program on the hub). How it runs: see "Programs that run on computers" |
 | `activation_events` | No | `on_startup` / `on_call` / `on_http`, see "When it runs"; with `runtime` the default is `on_call`; `rpc: none` allows only `on_startup` |
 | `contributes` | Yes (except packs) | See "Extension points", at least one item; contributions to an extension point exported by another extension are written `"<extension id>.<extension point id>"`, see "Dependencies, exports and packs" |
 | `off_by_default` | No | Contributions that start off when installed (`["ui/github"]`, #2829), see "Turning contributions on and off". Cannot list connectors or channels bound to connectors. Hubs from before this field read manifests strictly, so extensions with it can't be installed there and their marketplace entries are skipped (with a warning): extensions using it need a new hub anyway |
@@ -459,11 +459,7 @@ Restore commits atomically, clears old-installation replay receipts and leaves d
 
 This generic store is **not a legacy filesystem importer, business-schema upgrade/downgrade, media URL or protocol-specific send/recovery implementation**. Migrations needing those contracts remain blocked until their separately scoped implementation and installed-source restart/crash acceptance preserve the original behavior. The store's schema version is 1; unsupported persisted versions fail closed. Source-default packages, marketplace indexes, signing changes and production activation remain separate phase gates.
 
-The [authenticated source handler design](source-api-handlers.md) defines how owner confirmation, manager-owned reservations and external-effect receipts compose with this store. It is a design gate, not an implemented capability.
-
 #### Hub API: scopes (#1855)
-
-The [source handler design](source-api-handlers.md) keeps its per-operation session rename/mode tickets separate from these legacy standing scopes; it neither broadens nor silently migrates them.
 
 To call the hub's HTTP API, an extension lists the scopes it uses in `permissions.hub` instead of asking for the full token:
 
@@ -1085,7 +1081,7 @@ only the proxy's port is reachable, direct connections to the internet fail, and
   so denying home-directory reads makes every path through it fail to open (`execvp … Operation not permitted`). The profile allows these directories by their real paths, then allows each symlink along the way individually (`literal`, which only lets it read where the link points;
   what follows is still judged by the real path). So the hub keeps using the original paths (arguments, `HOME`, `TMPDIR`, sockets in env vars), and nothing else in the home directory can be read through the symlinks.
 
-**This machine has no sandbox** (bwrap not installed, the kernel doesn't allow user namespaces, other systems): extensions with the sandbox on are refused before their program starts. Proxy environment variables are never a substitute for isolation. The extension reports `status: error`, `sandbox.active: false`, and a reason in `error`, `sandbox.why` and `warnings`, shown by Settings, the admin page and `personad extension show`. Verified official extensions retain their default exemption; explicit owner choices and recorded pre-sandbox choices remain in effect. To install bwrap: Debian / Ubuntu `apt install bubblewrap`; for containers, see `docs/operations/docker.md` ("Extension sandboxes"). A later sandbox launch failure is a process error and never retries outside the wrapper.
+**This machine has no sandbox** (bwrap not installed, the kernel doesn't allow user namespaces, other systems): extensions with the sandbox on are refused before their program starts. Proxy environment variables are never a substitute for isolation. The extension reports `status: error`, `sandbox.active: false`, and a reason in `error`, `sandbox.why` and `warnings`, shown by Settings, the admin page and `personad extension show`. Verified official extensions retain their default exemption; explicit owner choices and recorded pre-sandbox choices remain in effect. To install bwrap: Debian / Ubuntu `apt install bubblewrap`; for containers, see `docs/operations/config.md` ("Extension sandboxes"). A later sandbox launch failure is a process error and never retries outside the wrapper.
 
 **API**: the `ExtensionView` of installed extensions (list and details) has an extra `sandbox`: `{enabled, default, chosen, active, why?, trusted?, egress: {allowed, denied, last_denied?, denied_at?, recent_denied?}, owner_allowed?}` (`owner_allowed`: `[{host, port?, at}]`, see "Egress").
 
@@ -1690,10 +1686,6 @@ An extension installed from a package (a marketplace, `file:`, `dir:`, …) can 
 
 ## Source runtime (#5956)
 
-The [2026-11-07 migration and acceptance record](../archive/extensions/source-extension-migration-2026-11-07.md) separates merged implementation, native-client evidence, complete source-package acceptance and outstanding production/platform gates. It is a historical snapshot, not deployment authorization.
-
-The [authenticated source API and assistant handler contract](source-api-handlers.md) is the design gate for source-dispatched API routes, bounded media and durable external writes. It does not make the source runtime an HTTP host or authorize activation.
-
 Executable packages retain the default `runtime.mode: "process"` behavior. A source package explicitly selects `"deno"` and carries a prebuilt, self-contained JavaScript module:
 
 ```json
@@ -1960,8 +1952,6 @@ When a request goes to the extension's own HTTP (the last row of the table above
 
 ## App endpoints
 
-The [source handler contract](source-api-handlers.md) deliberately keeps this native contribution separate from a future source-dispatched `namespaces.api` handler; an existing `api` grant does not open an inbound source route.
-
 An extension contributes `api` to provide a set of app-facing endpoints `/api/v1/<prefix>/…` on its own HTTP side (`PERSONA_EXTENSION_SOCKET`):
 
 - The hub authenticates first (like any other endpoint; read-only devices are restricted as usual), then forwards as-is to the extension: path unchanged, `Authorization` and `token` removed, `X-Persona-Device` (device id, empty for the master token) and
@@ -1984,8 +1974,6 @@ An extension contributes `api` to provide a set of app-facing endpoints `/api/v1
 ## Assistant
 
 An extension contributes `assistant`:
-
-The [source handler contract](source-api-handlers.md) defines the separate typed command-to-handler mapping and its independent credential-reference and per-write grants. It does not replace this command gate or open a generic command forwarder.
 
 - `skills`: skill directories in the package (each with a `SKILL.md`). The hub brings them in `assistant.prepare` to the computer that runs the assistant (each skill's files only once per computer, after that only a digest;
   those the node reports as "missing" are brought again next time). The assistant's check of its directories every minute compares the skills' digests as well as the CLAUDE.md, so a skill that an upgrade changes reaches that computer within a minute even when the CLAUDE.md stays the same (#4256). The node puts them in `~/.persona/plugin-skills/<name>` and copies them into the assistant directory like built-in skills; the user's own skill with the same name takes precedence; they are removed from the assistant directory when the extension is disabled or uninstalled.
@@ -2314,28 +2302,6 @@ When the app draws a slot, it states in `context` whom it is drawing for and whe
 | `machine` | `machine_section`: machine id (machine name also accepted) | `{id, name, os, online}`; `machine_section` without it returns 404 |
 | `launcher` | `launcher_section`: launcher name (`machine` is the computer it is on) | `{name, base_url, query_id}`, see "Declarative UI" above |
 | `item` | `inbox_item`: the Inbox item's id | `{id, title, summary?, tier?, reason?, done, meta, extra?}`, see "Inbox items" below; `inbox_item` without it returns 404 |
-
-### Android floating capsule (#2124)
-
-`capsule_card` is a declarative content and action slot opened up by Android's native floating module. It only shows after the app turns it on in **Settings › Floating capsule** and gets the system overlay permission.
-An extension manifest adding this placement goes into the install permission summary and the upgrade confirmation, stating clearly that the content shows outside the app; the switch, window, dragging, keyboard and system permissions always belong to the client.
-Other clients ignore slots they do not support. Extensions cannot use this slot to run code on the phone, or to get screenshot or microphone permission.
-
-```json
-"contributes": {"ui": [
-  {"id": "home", "title": "Task details", "placement": "extension_page"},
-  {"id": "task", "title": "Task status", "placement": "capsule_card", "opens": "home"}
-]}
-```
-
-When the capsule expands to the main chat / session details, it queries `GET /api/v1/extensions/-/ui?placement=capsule_card` and requests `ui.render` per card; the unread and Inbox lists do not load extension cards. The extension receives
-`placement: "capsule_card"`, `size: "compact"`, `platform: "android"`. Card limits apply (at most 2 sections, 12 items, no field / search / filter / more);
-buttons, rows and segmented choices go through the usual `ui.action`. Buttons that need confirmation first show a confirmation row inside the capsule, and the action is sent only after confirming; errors and receipts also stay inside the card.
-`opens` and an action's `push` open the full extension page inside the app, and links are https only. `refresh_after` and `ui.invalidate` only refresh while the card is expanded and the window visible;
-on collapse, close, unpairing or switching identity, the composition is removed and requests are canceled; no extra WebSocket is added.
-
-When writing the manifest, set `engines.persona` to the first hub build number that supports this slot; older hubs explicitly reject unknown placements. A full manifest example is in
-`schema/extension/examples/Manifest.capsule-card.json`. The client entry point is `ExtensionCapsuleCards(api, onOpen)`.
 
 ### Inbox items (`inbox_item`, #1681)
 
@@ -3307,7 +3273,7 @@ What extensions with only a manifest and a few files, no program, can do (model 
 ## Avatars (`looks`, #3200)
 
 Extensions add avatars to Persona: name, avatar image (multisize PNG, optional SVG, optional light/dark variants), colors, animated status dot in the top bar, and which built-in avatar's icon to use where only app-bundled icons work.
-"Avatar" and "Logo" are one concept: Settings has one **Avatar** option, which changes the avatar image, brand mark, colors, favicon and desktop icon (where changeable) together. Example: `schema/extension/examples/example-looks/` (two avatars, images generated by `scripts/assets/make_example_looks.py`); install with `personad extension install dir:schema/extension/examples/example-looks`.
+"Avatar" and "Logo" are one concept: Settings has one **Avatar** option, which changes the avatar image, brand mark, colors, favicon and desktop icon (where changeable) together. Example: `schema/extension/examples/example-looks/` (two avatars, images generated by `the extension look examples`); install with `personad extension install dir:schema/extension/examples/example-looks`.
 
 ```json
 "looks": [{
@@ -3636,7 +3602,7 @@ Once the built-in is removed, hubs without the extension have no Telegram connec
 
 ## GitHub: from hub to extension (#2830)
 
-The GitHub connector is moving to extension `github` in official repo `nwverse/persona-extensions`, like Lark (`docs/plans/plan-extensions.md` ("Step 3")): `github` is in `connector.MigratableConnectors`,
+The GitHub connector is moving to extension `github` in official repo `nwverse/persona-extensions`, like Lark (`docs/extensions/extensions.md` ("Step 3")): `github` is in `connector.MigratableConnectors`,
 so an installed, enabled extension replaces the hub's own connector; disabling, uninstalling or failure to start restores the hub's. Hubs without the extension behave as before. The id stays, preserving login (device-code token in `connector_secrets`),
 Inbox, knowledge base `github-*` sessions, switches, options and mutes; uninstalling the extension **does not delete** these (the hub's connector still needs them, `hasOwnConnector`).
 

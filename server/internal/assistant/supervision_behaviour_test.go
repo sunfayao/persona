@@ -21,7 +21,7 @@ import (
 	"github.com/nwverse/persona/server/internal/mcptoolgolden"
 )
 
-// Behaviour cases for supervision events (#6879, step P0 of docs/design/proposals/assistant-instructions.md). Each
+// Behaviour cases for supervision events (#6879, step P0 of docs/assistant/prompts.md). Each
 // case hands a model the text a supervising conversation reads, taken from the goldens so a prompt change is tested
 // as soon as its goldens are regenerated: the instructions (a CLAUDE.md golden) as the system prompt, the assistant's
 // tool list (rebuilt from hub's mcp_tools goldens, plus a Bash tool standing in for the shell) and a supervision event

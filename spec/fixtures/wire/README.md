@@ -2,7 +2,7 @@
 
 这里的“线上”指 hub 实际发送的 JSON 结构，数据全部编造，没有连接线上 hub 或读取真实会话。样本由 [wire_samples_test.go](../../../server/internal/hub/wire_samples_test.go) 导出，作为 hub 线上格式的 golden 样本。
 
-依据是 [hub-changes.md 4.13](../../../docs/archive/redesign/hub-changes.md)、[设计总纲 D1、D4、D5](../../../docs/archive/redesign/README.md) 和 [协议文档](../../../docs/protocol/protocol.md)。设计中的目标行为与现状有差异时，见下文。
+依据是 [../../../docs/protocol/protocol.md 4.13](../../../docs/protocol/protocol.md)、[设计总纲 D1、D4、D5](../../../docs/protocol/protocol.md) 和 [协议文档](../../../docs/protocol/protocol.md)。设计中的目标行为与现状有差异时，见下文。
 
 ## 文件与接口
 
@@ -58,7 +58,7 @@ The export replaces two values after the production builders return: `hello.clie
 | 助手 ask_user 的提问卡另带 deadline、reversible（没说就没有）和每题的 recommend；客户端不建模这几个键，照常读卡片的其余字段。 | `server/internal/proto/interaction.go`：`Interaction.Deadline`、`Interaction.Reversible`、`Question.Recommend`；`server/internal/assistant/decision_deadline.go`：`keepAskDecision` | `interaction_question_decision` |
 | 助手代答的问题撤回时另带 answered_by、reason 和按问题文字的 answers；改答事件 interaction_reanswered 只带改了的问题，放在 resolution.answers。 | `server/internal/hub/fleet_link.go`：`EventFleetResolved`；`server/internal/assistant/fleet_delegate.go`：`reanswer`；`Hub.relayBroadcastFrom`；`docs/protocol/protocol.md`「WebSocket `/api/v1/ws`」 | `interaction_resolved_assistant`、`interaction_reanswered` |
 | 收件箱列表统一承载飞书和邮件，移除 context 等内部字段并保留草拟回复。 | `server/internal/assistant/inbox.go`：`InboxItem.listed` | `inbox_list` |
-| One made-up item carries every block an Inbox item has, as the list shows it: the item's bookkeeping and each block's internal fields are left out, and `TestListedKeys` pins which keys those are. A move of the item type keeps this case byte for byte (`docs/plans/plan-inbox-vertical-slice.md`, S8). | `server/internal/assistant/inbox.go`：`InboxItem.listed`；`server/internal/assistant/inbox_listed_keys_test.go`：`TestListedKeys` | `inbox_every_block` |
+| One made-up item carries every block an Inbox item has, as the list shows it: the item's bookkeeping and each block's internal fields are left out, and `TestListedKeys` pins which keys those are. A move of the item type keeps this case byte for byte (`docs/plans/plan-server-packages.md`, S8). | `server/internal/assistant/inbox.go`：`InboxItem.listed`；`server/internal/assistant/inbox_listed_keys_test.go`：`TestListedKeys` | `inbox_every_block` |
 | 回答记录保留一行摘要，`items` 成对保存完整问答并保留换行；旧记录没有 `items`。 | `server/internal/assistant/answered.go`：`answeredBody`、`answeredItems` | `feed_answered_items` |
 | 401 保留字符串 error，409 的 code、delivered、draft、clearable 与 error 平铺。 | `Hub.auth`、`callErr`；`docs/protocol/protocol.md`「Sending messages」 | `unauthorized`、`conflict_input_draft`、`conflict_dialog_open`、`conflict_prompt_changed` |
 

@@ -18,7 +18,7 @@ import (
 // has open): PERSONA_LIVE_PID names that claude, PERSONA_LIVE_DIR its CLAUDE_CONFIG_DIR, PERSONA_LIVE_TEXT the message,
 // PERSONA_LIVE_MODE the from-mode to state (bypass or prompting, as peerAttest would; unset states none). With
 // PERSONA_LIVE_CLASSIFY set, peerAttest chooses the mode as an owner's message, using the real tmux host.
-// go test -tags peerlive -run TestLivePeerSend ./internal/node/ (docs/lessons/windows.md, "Claude Code's peer inbox").
+// go test -tags peerlive -run TestLivePeerSend ./internal/node/ (docs/operations/link.md, "Claude Code's peer inbox").
 func TestLivePeerSend(t *testing.T) {
 	pid, _ := strconv.Atoi(os.Getenv("PERSONA_LIVE_PID"))
 	dir := os.Getenv("PERSONA_LIVE_DIR")

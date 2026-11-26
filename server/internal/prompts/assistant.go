@@ -54,7 +54,7 @@ type AssistantClaudeMD struct {
 	Notes     string // Settings › Assistant › About me, trimmed
 	StateDir  string
 	OnHub     bool
-	// LarkCLI: hub.json configures lark-cli (docs/plans/plan-lark-cli.md), on the assistant's PATH.
+	// LarkCLI: hub.json configures lark-cli (docs/extensions/feishu.md), on the assistant's PATH.
 	LarkCLI bool
 	// Language is the language the user reads, by its own name ("English", or Japanese written in Japanese); "" is Chinese, as before i18n.
 	Language string
@@ -255,7 +255,7 @@ type SnapshotWorkflow struct {
 	For                string // how long it has run ("12 minutes"), "" under a minute
 }
 
-// SnapshotProfile is the model profile in use (docs/assistant/model-profiles.md) with its tiers, the Agent presets
+// SnapshotProfile is the model profile in use (docs/assistant/model-config.md) with its tiers, the Agent presets
 // agent_start and task_plan take; Unreadable when the profiles could not be read, Gone when the one in use was deleted
 // (a rollback to it).
 type SnapshotProfile struct {

@@ -645,7 +645,7 @@ func (u *updater) updateNodes(ctx context.Context, staged, from string, developm
 					}
 					u.h.logf("update: node binary %s: %v", filepath.Base(f), err)
 				} else {
-					// It is this build now: a version file put beside an older one (docs/operations/docker.md "Node builds") goes.
+					// It is this build now: a version file put beside an older one (docs/operations/config.md "Node builds") goes.
 					_ = os.Remove(filepath.Join(identity.NodeBinaryDir(), filepath.Base(f)+".version"))
 				}
 			} else if first == nil {

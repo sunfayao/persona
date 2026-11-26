@@ -1,6 +1,6 @@
 # To-do counts fixtures
 
-The numbers of the To-dos list and its places (#10226; `docs/design/proposals/todos-redesign.md` 3.3 and 3.7): one list
+The numbers of the To-dos list and its places (#10226; `docs/assistant/todo-status-sop.md` 3.3 and 3.7): one list
 of to-dos → `counts` (`TodoCounts`, top level on `GET /api/v1/todos`) and the places (`TodoPlaces`, the answer of
 `GET /api/v1/todos/places`), both in `schema/wire/todo-view.schema.json`. Each to-do here is placed as in
 `spec/fixtures/todo-view`; most are the same rows. The manager's projection answers every case exactly

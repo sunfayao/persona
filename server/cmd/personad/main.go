@@ -69,7 +69,7 @@ const usage = `usage:
                            isolated anonymous sharing ingress on a separate unprivileged port (docs/server/agent-sharing.md)
   personad supervise [--manager-only [--hub <hub address>]]
                            the hub and the built-in manager side by side in one container, each started again when it
-                           stops (the hub image runs it; docs/operations/docker.md)
+                           stops
   personad voice            the built-in voice extension: the hub runs it (hub.json extensions, docs/extensions/extensions.md "Built-in voice extension")
   personad volc             the built-in Volcengine speech extension: the hub runs it (docs/extensions/volcengine-speech.md)
   personad extension …      extensions on the hub's machine: list, install, upgrade, rollback, enable, disable, config,
@@ -82,7 +82,7 @@ const usage = `usage:
   personad backup create|inspect|verify|restore …
                            verified whole-install backup and staged recovery (personad backup <command> -h)
   personad release manifest|verify|check-next …
-                           the publisher's release manifest and checks (scripts/release/publish.sh, docs/operations/hub-update.md "Public publishing")
+                           build, verify, or compare release manifests
   personad update-watch <pending>
                            the watchdog the hub starts over its own update (docs/operations/hub-update.md "Updating")
   personad version [-v]     the version; -v adds the channel and build number`
@@ -145,7 +145,7 @@ func main() {
 		err = managercli.Manager(ctx, buildInfo(), os.Args[2:])
 	case "share-http":
 		err = shareproxy.Run(ctx, os.Args[2:], os.Stderr)
-	case "supervise": // the hub image's: the hub and the built-in manager side by side (docs/operations/docker.md)
+	case "supervise":
 		if err = supervise.Run(ctx, os.Args[2:], os.Stderr); errors.Is(err, supervise.ErrStopped) {
 			os.Exit(1) // it said why in its log
 		}
