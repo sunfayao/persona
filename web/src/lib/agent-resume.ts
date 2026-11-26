@@ -1,5 +1,5 @@
-// Resume (#4754, docs/integrations/engines.md "Agents run in a terminal"): the one way a stopped Agent runs again is the
-// user's Resume on its terminal page, `POST /sessions {machine_id, resume_session_id}` with no message. The chat's
+// Resume (#4754, docs/integrations/engines.md "Agents run in a terminal") opens the Agent without sending a message,
+// through `POST /sessions {machine_id, resume_session_id}`. The chat's
 // read-only line and the terminal's not-running state both start it, so how it went is kept here, per session, and
 // both show the same progress and the same error. A pure store, tested without a DOM.
 import { useSyncExternalStore } from "react";
@@ -19,7 +19,7 @@ export function terminalResume(s: Session | undefined, machine?: Pick<Machine, "
   if (!s || s.assistant || s.starting || (s.status !== "offline" && s.status !== "interrupted")) return "hidden";
   const agent = (!s.source_kind || s.source_kind === "codex_history") && [undefined, "", "claude", "codex", "traex"].includes(s.agent);
   if (agent && s.agent_surface !== "desktop" && machine?.engine_hosts?.length === 0) return "no_engine";
-  return isStoppedAgent(s) ? "available" : "hidden";
+  return isStoppedAgent(s) || (agent && !s.archived && !s.pane_id && s.capabilities?.send && s.capabilities.terminal) ? "available" : "hidden";
 }
 
 export type ResumeState =

@@ -112,19 +112,28 @@ func TestTraexPaneOwnersChooseAncestorOncePerPane(t *testing.T) {
 	}
 }
 
-func TestTraexPaneOwnersKeepOlderMainWriterForSameProcess(t *testing.T) {
+func TestTraexPaneOwnersPreferConversationActivityOverAnotherLockInSameProcess(t *testing.T) {
 	n := traexPaneOwnerFixture(t)
 	writeTraexOwner(t, n.home, threadNew, os.Getppid())
 	old := time.Now().Add(-time.Hour)
-	p := filepath.Join(n.traexHome(), "thread-writer-locks", threadMain+".owner.json")
+	p := filepath.Join(n.traexHome(), "thread-writer-locks", threadNew+".owner.json")
 	if err := os.Chtimes(p, old, old); err != nil {
 		t.Fatal(err)
 	}
+	writeCodexApp(t, n.traexHome(), "/work/app", `UPDATE threads SET updated_at_ms = 10000 WHERE id = '`+threadMain+
+		`'; UPDATE threads SET updated_at_ms = 20000 WHERE id = '`+threadNew+`';`)
+	invalidateCodexPaginated(n.traexHome())
 	agents := []host.Agent{{Agent: traexAgent, PaneID: traexOwnerPane,
 		AgentSession: &host.AgentSession{Kind: "id", Value: threadMain}}}
 	added := n.traexAgents(context.Background(), []host.Agent{{PaneID: traexOwnerPane, RawTitle: "⠸ running"}}, agents)
-	if len(added) != 0 || agents[0].SessionID() != threadMain {
-		t.Fatalf("the newer main thread displaced a still-owned host session: %+v, %+v", agents, added)
+	if len(added) != 0 || agents[0].SessionID() != threadNew {
+		t.Fatalf("the old host claim took the active thread's terminal: %+v, %+v", agents, added)
+	}
+	if got := n.traexLiveThread(traexOwnerPane, threadMain); got != threadNew {
+		t.Fatalf("pre-send validation confirmed %q, want %q", got, threadNew)
+	}
+	if !n.traexWriterOwns(threadMain) {
+		t.Fatal("the old thread still has a writer and cannot be resumed in a second terminal")
 	}
 }
 

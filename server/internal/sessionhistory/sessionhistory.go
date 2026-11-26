@@ -33,6 +33,7 @@ const (
 const (
 	SourceClaude  = "claude"  // Claude Code transcripts the node reads itself
 	SourceCodex   = "codex"   // Codex rollouts the node reads itself (codex_history and Codex app-server threads)
+	SourceTraex   = "traex"   // TRAE CLI native conversation history
 	SourceRuntime = "runtime" // a connected runtime's listHistory (Row.Runtime / SourceState.Runtime: its id)
 )
 

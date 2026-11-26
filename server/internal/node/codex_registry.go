@@ -744,11 +744,13 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			}
 		}
 		if !desktopViewOnly && s.SourceKind == "codex_history" && !s.Capabilities.Send && !s.IsSubagent && s.Status == proto.StatusOffline && n.codexResumableIn(context.Background(), id, pass) {
-			// Nothing has it open: a stopped agent, read-only like any (stopped.go, #4754); its terminal page's Resume
-			// brings it back in a new tab (session.start, codex_resume.go).
 			s.Capabilities.Terminal = true
-			s.ReadOnlyReason = stoppedReason
 			s.Capabilities.StopCause = n.stopCause(id)
+			if _, resume := n.terminalExitLaunch(id); resume && !s.Archived {
+				s.Capabilities.Send = true
+			} else {
+				s.ReadOnlyReason = stoppedReason
+			}
 		}
 		if s.SourceKind == "codex_history" && !s.Capabilities.Send && !s.IsSubagent && !n.codexBlocked(id) {
 			if desktopViewOnly || (s.SpaceKind == "codex_app" && codexDesktopContinuationChat(src, pass) &&

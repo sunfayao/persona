@@ -83,6 +83,18 @@ func (n *Node) traexLiveThread(pane, preferred string) string {
 	return traexPaneThread(owners, preferred, parentPID)
 }
 
+// No foreground match does not mean the native writer is gone. TRAE can keep another thread locked in the same TUI.
+func (n *Node) traexWriterOwns(id string) bool {
+	for _, ids := range n.traexOwnerThreads(n.traexThreads()) {
+		for _, owned := range ids {
+			if owned == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // traexOwnerThreads keeps every main writer owned by a process, newest first: a host's existing session may still
 // have its own writer even when another thread is newer. Known subagents never fall back to their own id. Legacy
 // subagents may supply a root confirmed by rollout metadata; older CLIs without metadata keep the owner-file fallback.
@@ -119,6 +131,12 @@ func (n *Node) traexOwnerThreads(threads map[string]codexAppThread) map[int][]st
 	out := make(map[int][]string, len(byPID))
 	for pid, owners := range byPID {
 		sort.Slice(owners, func(i, j int) bool {
+			// The TUI can hold more than one thread lock. Looking at a referenced thread can
+			// refresh its lock without writing a turn to it. Prefer native conversation activity.
+			left, right := threads[owners[i].thread].UpdatedAtMs, threads[owners[j].thread].UpdatedAtMs
+			if left != right {
+				return left > right
+			}
 			if owners[i].mtime.Equal(owners[j].mtime) {
 				return owners[i].thread < owners[j].thread
 			}
@@ -252,6 +270,9 @@ func (n *Node) traexAgents(ctx context.Context, panes []host.Agent, agents []hos
 	for _, p := range panes {
 		pane := p.PaneID
 		if isAgent[pane] || len(byPane[pane]) == 0 {
+			if i, ok := compatible[pane]; ok && len(byPane[pane]) == 0 {
+				agents[i].AgentSession = nil
+			}
 			continue
 		}
 		preferred := ""
@@ -318,10 +339,8 @@ func traexPaneThread(owners map[int][]string, preferred string, parent func(int)
 		}
 	}
 	for _, pid := range roots {
-		for _, id := range owners[pid] {
-			if id == preferred {
-				return id
-			}
+		if owners[pid][0] == preferred {
+			return preferred
 		}
 	}
 	if len(roots) == 0 || !complete && len(roots) > 1 {

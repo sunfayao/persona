@@ -110,7 +110,14 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		return err
 	}
 	if n.externalCodex(id) {
-		if n.codexResumable(ctx, id) { // nothing runs it: a stopped agent takes no messages (stopped.go, #4754)
+		if n.codexResumable(ctx, id) {
+			st, release := n.claimTerminalExitSend(ctx, id)
+			if release != nil {
+				defer release()
+				if home, _, ok := n.codexThread(id); ok && !codexArchived(home, n.codexPath(id)) && n.codexResumable(ctx, id) {
+					return n.resumeCodexThread(ctx, id, st.Launcher, text, images, "")
+				}
+			}
 			return n.stoppedRefusal(id)
 		}
 		return n.sendCodex(ctx, id, text, images)
@@ -134,11 +141,22 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		return n.exitAgent(ctx, id)
 	}
 	pane, err := n.paneFor(ctx, id)
+	var stoppedLaunch sessionState
+	var resumeClaim func()
 	if err != nil {
 		ctx = n.withResumeHost(ctx, id)
+		stoppedLaunch, resumeClaim = n.claimTerminalExitSend(ctx, id)
+		if resumeClaim != nil {
+			defer resumeClaim()
+		}
 	}
 	if err != nil && (n.codexPath(id) != "" || n.traexPath(id) != "") {
-		return n.stoppedRefusal(id) // a stopped Codex or TRAE CLI takes no messages (stopped.go, #4754)
+		if resumeClaim != nil {
+			if _, known := n.traexThread(id); known && !n.traexWriterOwns(id) {
+				return n.resumeOtherWith(ctx, id, stoppedLaunch, text, images)
+			}
+		}
+		return n.stoppedRefusal(id)
 	}
 	kind := "claude"
 	if err == nil {
@@ -220,11 +238,12 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		if r := n.openElsewhereRefusal(id); r != nil {
 			return r
 		}
-		// A stopped agent takes no messages; its terminal page's Resume brings it back (stopped.go, #4754). Only a
-		// branch nothing has started yet (fork.go) is started by its first message, with the launcher it came from.
-		// Desktop-owned sessions return through sendThroughDesktopApp above, including an import or opening failure.
-		if !n.freshFork(id) && !n.desktopSession(id) {
+		// An owner's message may bring back a recorded Claude terminal. Other stopped chats keep explicit Resume.
+		if resumeClaim == nil && !n.freshFork(id) && !n.desktopSession(id) {
 			return n.stoppedRefusal(id)
+		}
+		if resumeClaim != nil {
+			ctx = n.inKeptTerminal(ctx, id, stoppedLaunch.Cwd)
 		}
 		r := n.resumeWith(id, opts)
 		s, err := n.start(ctx, r.cwd, r.launcher, "", id, r.workspaceID, r.mode, r.effort, r.tab, "", "", r.execution)
@@ -290,6 +309,10 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 	typedAt := time.Now()
 	traeTerminal := kind == traexAgent && host.ParsePane(pane).Kind == host.Herdr
 	if traeTerminal {
+		if n.traexLiveThread(pane, id) != id {
+			n.notifySessionsSoon()
+			return refusal(notRunning, "The TRAE terminal is displaying another conversation. No input was sent.", map[string]any{"delivered": "none"})
+		}
 		err = n.sendTraeTerminal(ctx, pane, text, opts.QueueNextTurn)
 	} else {
 		err = n.prompt(ctx, pane, text)
