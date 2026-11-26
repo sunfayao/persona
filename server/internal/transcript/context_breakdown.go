@@ -374,6 +374,12 @@ func estimateWeightedBytes(s string) int64 {
 	return (weightedSample * int64(n)) / int64(len(sample))
 }
 
+// EstimateWeightedBytes converts text into ASCII-equivalent bytes (~4 weighted bytes per token),
+// scanning at most breakdownSampleLimit bytes so cost is strictly O(1) bounded.
+func EstimateWeightedBytes(s string) int64 {
+	return estimateWeightedBytes(s)
+}
+
 // EstimateTokens converts weighted bytes to a bounded, deterministic token count (~4 bytes/token).
 func EstimateTokens(weightedBytes int64) int {
 	if weightedBytes <= 0 {

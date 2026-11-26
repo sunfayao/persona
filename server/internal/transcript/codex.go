@@ -45,7 +45,13 @@ type codexPayload struct {
 	SandboxPolicy  struct {
 		Type string `json:"type"`
 	} `json:"sandbox_policy"`
-	Effort string `json:"effort"`
+	Effort            string `json:"effort"`
+	ReasoningEffort   string `json:"reasoning_effort"`
+	CollaborationMode *struct {
+		Settings *struct {
+			ReasoningEffort string `json:"reasoning_effort"`
+		} `json:"settings"`
+	} `json:"collaboration_mode"`
 	// event_msg
 	Item       *codexItem          `json:"item"`
 	Goal       json.RawMessage     `json:"goal"` // thread_goal_updated (goal.go)
@@ -287,9 +293,20 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 		}
 		meta.codexTurnModel = p.Model
 		meta.PermissionMode, meta.CodexSandbox, meta.ModeAt = p.ApprovalPolicy, p.SandboxPolicy.Type, l.Timestamp
-		if p.Effort != "" {
-			meta.Effort, meta.EffortAt = p.Effort, l.Timestamp
+		effort := p.Effort
+		if effort == "" {
+			effort = p.ReasoningEffort
 		}
+		if effort == "" && p.CollaborationMode != nil && p.CollaborationMode.Settings != nil {
+			effort = p.CollaborationMode.Settings.ReasoningEffort
+		}
+		if effort != "" {
+			meta.Effort, meta.EffortAt = effort, l.Timestamp
+		}
+		return nil
+	case "compacted":
+		meta.ContextTokens, meta.ContextCompacted = 0, true
+		meta.ContextStats.ResetCompacted()
 		return nil
 	case "event_msg":
 	default:
@@ -307,6 +324,9 @@ func parseCodexLine(seq int, line []byte, meta *Meta) []proto.Item {
 			meta.ContextTokens, meta.OutputTokens = int(p.Info.Last.Input), int(p.Info.Total.Output)
 			if p.Info.ModelContextWindow > 0 {
 				meta.ContextWindow = p.Info.ModelContextWindow
+			}
+			if p.Info.AutoCompactTokenLimit > 0 {
+				meta.AutoCompactThreshold = p.Info.AutoCompactTokenLimit
 			}
 			meta.codexRequest(p.Info.Total.Total, p.Info.Last)
 		}

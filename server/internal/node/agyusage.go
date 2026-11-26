@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/transcript"
 )
 
 // Antigravity (agy) transcript token accounting and model context window resolution (#12540).
@@ -116,6 +117,7 @@ func (u *agyTranscriptUsage) observeCheckpoint() {
 	u.compactions++
 	u.contextTokens = 0
 	u.compacted = true
+	u.contextStats.ResetCompacted()
 }
 
 func (u *agyTranscriptUsage) observePlanner(step agyStep) (proto.TokenUsage, bool) {
@@ -145,7 +147,7 @@ func (u *agyTranscriptUsage) observePlanner(step agyStep) (proto.TokenUsage, boo
 }
 
 // extractAgyUsage summarizes session-level and per-step token usage from parsed agy steps without building items, and
-// keeps the first message the user typed.
+// keeps the first message the user typed plus bounded context category byte stats since the latest checkpoint.
 func extractAgyUsage(steps []agyStep) agyTranscriptUsage {
 	var u agyTranscriptUsage
 	for _, step := range steps {
@@ -157,10 +159,44 @@ func extractAgyUsage(steps []agyStep) agyTranscriptUsage {
 					u.first = agyUserText(step.Content)
 				}
 			}
+			if step.Content != "" {
+				w := transcript.EstimateWeightedBytes(step.Content)
+				if step.Source == "SYSTEM" || strings.Contains(step.Content, "<system-reminder>") || strings.Contains(step.Content, "<persona-context") {
+					u.contextStats.SystemBytes += w
+				} else {
+					u.contextStats.ConversationBytes += w
+				}
+			}
+			if len(bytes.TrimSpace(step.Media)) > 2 {
+				u.contextStats.ConversationBytes += 6400
+			}
+		case "SYSTEM_MESSAGE":
+			if step.Content != "" {
+				u.contextStats.SystemBytes += transcript.EstimateWeightedBytes(step.Content)
+			}
 		case "CHECKPOINT":
 			u.observeCheckpoint()
 		case "PLANNER_RESPONSE":
 			u.observePlanner(step)
+			if step.Content != "" {
+				u.contextStats.ConversationBytes += transcript.EstimateWeightedBytes(step.Content)
+			}
+			if step.Thinking != "" {
+				u.contextStats.ConversationBytes += transcript.EstimateWeightedBytes(step.Thinking)
+			}
+			for _, tc := range step.ToolCalls {
+				if tc == nil {
+					continue
+				}
+				u.contextStats.ToolOutputBytes += int64(len(tc.Name)) + transcript.EstimateWeightedBytes(string(tc.Args))
+			}
+		case "GENERIC", "ERROR_MESSAGE":
+			if step.Content != "" {
+				u.contextStats.ToolOutputBytes += transcript.EstimateWeightedBytes(step.Content)
+			}
+			if step.Error != "" {
+				u.contextStats.ToolOutputBytes += transcript.EstimateWeightedBytes(step.Error)
+			}
 		}
 	}
 	return u
@@ -299,7 +335,7 @@ func agyModelCandidates(models ...string) []string {
 // agyContextWindow resolves the context window for an Antigravity session without fabricating numbers for unknown
 // models: a transcript-recorded window comes first, then a managed launcher's MaxContext / Models catalog (matching
 // both exact and effort-stripped IDs), then discovered agyModelList window metadata, then built-in known model rules
-// (Claude models and explicit [1m] suffixes), else 0.
+// (Claude models, explicit [1m] suffixes, and native 1M Gemini models), else 0.
 func agyContextWindow(l *proto.ManagedLauncher, model string, recorded, used int, catalogLookup func(string) int, fallbackModels ...string) int {
 	if recorded > 0 {
 		return recorded
@@ -331,8 +367,8 @@ func agyContextWindow(l *proto.ManagedLauncher, model string, recorded, used int
 			}
 		}
 	}
-	for _, m := range allModels {
-		if w := contextWindowOf(m, 0, used); w > 0 {
+	for _, c := range candidates {
+		if w := agyBuiltinContextWindow(c, used); w > 0 {
 			return w
 		}
 	}
@@ -500,11 +536,27 @@ func (n *Node) mergeAgyTranscript(s *proto.Session, conversation string) {
 			}
 			model := firstNonEmpty(u.model, s.Model)
 			s.ContextWindow = proto.Tokens32(n.agyContextWindowFor(s, model, recorded, u.contextTokens))
+			s.SetContextBreakdown(transcript.BuildContextBreakdown(u.contextStats, int(s.ContextTokens), int(s.ContextWindow), 0, true))
 			return
 		case u.compacted:
 			s.ContextTokens, s.ContextWindow = 0, 0
+			s.SetContextBreakdown(nil)
 			return
 		}
 	}
 	n.resolveAgyContextWindow(s)
+}
+
+// applyAgyBreakdown attaches an estimated ContextBreakdown to a companion-backed agy session row from its cached local
+// transcript stats without modifying companion-authoritative Model, ContextTokens, ContextWindow, or OutputTokens.
+func (n *Node) applyAgyBreakdown(s *proto.Session, conversation string) {
+	if s == nil || s.ContextTokens <= 0 || s.ContextBreakdown() != nil || conversation == "" {
+		return
+	}
+	u, ok := n.agyTranscriptMeta(conversation)
+	if !ok || u.contextStats.Empty() {
+		return
+	}
+	fullWindow := u.contextTokens == int(s.ContextTokens)
+	s.SetContextBreakdown(transcript.BuildContextBreakdown(u.contextStats, int(s.ContextTokens), int(s.ContextWindow), 0, fullWindow))
 }

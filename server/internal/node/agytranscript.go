@@ -90,6 +90,7 @@ type agyTranscriptUsage struct {
 	compacted     bool
 	hasUsage      bool
 	first         string // the first message the user typed, as shown (agyUserText): an untitled pane's title (agytitle.go)
+	contextStats  transcript.ContextStats
 }
 
 type agyHistory struct {

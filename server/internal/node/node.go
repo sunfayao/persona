@@ -2962,6 +2962,31 @@ func (n *Node) sessionInfo(ctx context.Context, id string) (map[string]any, erro
 		row.SessionID, row.Model = id, m.Model
 		n.codexDesktopEffortRow(&row, src, n.metaOf(id))
 		model, effort = row.Model, row.Effort
+	} else if t, ok := n.traexThread(id); ok {
+		if t.Model != "" {
+			model = t.Model
+		}
+		if t.Effort != "" {
+			effort = t.Effort
+		}
+		rm := n.traexEnrichMeta(id, f.Path, quickMeta{})
+		if effort == "" && rm.effort != "" {
+			effort = rm.effort
+		}
+		if effort == "" && st.Model != "" {
+			if base, eff, ok := splitTraexEffortModel(st.Model); ok && (model == "" || strings.EqualFold(base, model)) {
+				effort = eff
+			}
+		}
+		if m.ContextTokens == 0 && rm.contextTokens > 0 {
+			m.ContextTokens = rm.contextTokens
+		}
+		if m.OutputTokens == 0 && rm.outputTokens > 0 {
+			m.OutputTokens = rm.outputTokens
+		}
+		if m.Version == "" && rm.version != "" {
+			m.Version = rm.version
+		}
 	}
 	if pane, err := n.paneFor(ctx, id); err == nil && !n.isAssistantSession(id) {
 		if screen, err := n.readPane(ctx, pane, "visible", 60); err == nil && tuiMode(screen) != "" {

@@ -378,22 +378,62 @@ func (n *Node) listAgentModels(ctx context.Context, name, agent string) ([]proto
 // TRAE CLI expects the configuration name as --model, not the display name or backend ID.
 func traexModelList(out []byte) ([]proto.AgentModel, error) {
 	var catalog []struct {
-		ID          string `json:"config_name"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
+		ID            string `json:"config_name"`
+		Name          string `json:"name"`
+		Description   string `json:"description"`
+		ContextWindow int    `json:"context_window"`
+		Meta          *struct {
+			Trae *struct {
+				ContextWindow int `json:"contextWindow"`
+			} `json:"trae"`
+		} `json:"_meta"`
 	}
 	if err := json.Unmarshal(out, &catalog); err != nil {
 		return nil, fmt.Errorf("decode TRAE CLI model catalog: %w", err)
 	}
 	models := []proto.AgentModel{}
 	seen := map[string]bool{}
+	windows := map[string]int{}
+	effortsByBase := map[string]map[string]bool{}
 	for _, m := range catalog {
 		if !proto.ValidModelID(m.ID) || seen[m.ID] {
 			continue
 		}
 		seen[m.ID] = true
-		models = append(models, proto.AgentModel{ID: m.ID, Name: firstOf(m.Name, m.ID), Description: m.Description})
+		entry := proto.AgentModel{ID: m.ID, Name: firstOf(m.Name, m.ID), Description: m.Description}
+		if base, effort, ok := splitTraexEffortModel(m.ID); ok {
+			entry.DefaultEffort = effort
+			if effortsByBase[base] == nil {
+				effortsByBase[base] = map[string]bool{}
+			}
+			effortsByBase[base][effort] = true
+		}
+		win := m.ContextWindow
+		if win <= 0 && m.Meta != nil && m.Meta.Trae != nil {
+			win = m.Meta.Trae.ContextWindow
+		}
+		if win >= agyMinCatalogWindow {
+			windows[strings.ToLower(m.ID)] = win
+			if base, _, ok := splitTraexEffortModel(m.ID); ok && windows[strings.ToLower(base)] == 0 {
+				windows[strings.ToLower(base)] = win
+			}
+		}
+		models = append(models, entry)
 	}
+	for i := range models {
+		base := models[i].ID
+		if b, _, ok := splitTraexEffortModel(base); ok {
+			base = b
+		}
+		if levels := effortsByBase[base]; len(levels) > 0 {
+			for _, lvl := range proto.EffortLevels {
+				if levels[lvl] {
+					models[i].Efforts = append(models[i].Efforts, lvl)
+				}
+			}
+		}
+	}
+	recordTraexModelWindows(windows)
 	return models, nil
 }
 

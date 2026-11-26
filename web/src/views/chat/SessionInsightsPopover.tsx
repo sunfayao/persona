@@ -85,8 +85,8 @@ export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBr
       : undefined;
 
   return (
-    <div className="relative h-2 w-full" data-insights-stacked-bar>
-      <div className="flex h-full w-full overflow-hidden rounded-full bg-hover-2">
+    <div className="relative h-1.5 w-full" data-insights-stacked-bar>
+      <div className="flex h-full w-full overflow-hidden rounded-full bg-line">
         {breakdown.segments.map((seg) => {
           if (seg.tokens <= 0 || seg.windowShare <= 0) return null;
           const label = t(BREAKDOWN_LABEL_KEY[seg.key]);
@@ -110,7 +110,7 @@ export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBr
           aria-label={markerLabel}
           title={markerLabel}
           data-breakdown-compact-marker
-          className="pointer-events-auto absolute -top-0.5 -bottom-0.5 w-0.5 -translate-x-1/2 rounded-full bg-ink"
+          className="pointer-events-auto absolute -top-0.5 -bottom-0.5 w-px -translate-x-1/2 rounded-full bg-ink/80"
           style={{ left: `${markerShare}%` }}
         />
       )}
@@ -124,37 +124,37 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
     estimated ? t("chat-sessioninsights.breakdown_estimated_tokens", { tokens: compactTokens(n) }) : compactTokens(n);
 
   return (
-    <div className="rounded-lg bg-inset px-2.5 py-2" data-insights-breakdown>
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="font-medium text-ink-2">{t("chat-sessioninsights.breakdown_section")}</span>
+    <div className="rounded-lg bg-inset/60 px-3 py-2.5 ring-1 ring-inset ring-line/60" data-insights-breakdown>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-submeta font-medium text-ink-3">{t("chat-sessioninsights.breakdown_section")}</span>
         <span
           data-breakdown-source={breakdown.source}
           className={cx(
             "shrink-0 rounded-chip px-1.5 py-0.5 text-submeta font-medium",
-            estimated ? "bg-hover-2 text-ink-3" : "bg-green-tint text-green",
+            estimated ? "bg-hover text-ink-3" : "bg-green-tint text-green",
           )}
         >
           {t(estimated ? "chat-sessioninsights.breakdown_source_estimated" : "chat-sessioninsights.breakdown_source_exact")}
         </span>
       </div>
 
-      <dl className="flex flex-col gap-1 tabular-nums">
+      <dl className="flex flex-col gap-1.5 text-label tabular-nums">
         {breakdown.segments.map((seg) => {
           const isTop = breakdown.topConsumer?.key === seg.key;
           return (
             <div key={seg.key} className="flex items-center justify-between gap-2" data-breakdown-row={seg.key}>
-              <dt className="flex min-w-0 items-center gap-1.5 text-ink-3">
+              <dt className="flex min-w-0 items-center gap-2 text-ink-3">
                 <span
                   aria-hidden
-                  className="size-2 shrink-0 rounded-full"
+                  className="size-1.5 shrink-0 rounded-full"
                   style={{ backgroundColor: BREAKDOWN_COLOR[seg.key] }}
                 />
-                <span className={cx("truncate", isTop && "font-medium text-ink")}>{t(BREAKDOWN_LABEL_KEY[seg.key])}</span>
+                <span className={cx("truncate", isTop ? "font-medium text-ink" : "text-ink-2")}>{t(BREAKDOWN_LABEL_KEY[seg.key])}</span>
               </dt>
-              <dd className="shrink-0 text-ink">
+              <dd className="flex shrink-0 items-baseline gap-1.5 text-ink">
                 <span className="font-medium">{formatCatTokens(seg.tokens)}</span>
                 {breakdown.totalTokens > 0 && (
-                  <span className="ml-1 text-ink-3">{formatShare(seg.windowShare)}</span>
+                  <span className="inline-block w-8 text-right text-submeta text-ink-3">{formatShare(seg.windowShare)}</span>
                 )}
               </dd>
             </div>
@@ -163,29 +163,29 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
 
         {breakdown.freeTokens !== null && (
           <div className="flex items-center justify-between gap-2" data-breakdown-row="free">
-            <dt className="flex min-w-0 items-center gap-1.5 text-ink-3">
-              <span aria-hidden className="size-2 shrink-0 rounded-full border border-line-strong bg-hover-2" />
+            <dt className="flex min-w-0 items-center gap-2 text-ink-3">
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full border border-line-strong bg-surface" />
               <span className="truncate">{t("chat-sessioninsights.breakdown_free")}</span>
             </dt>
-            <dd className="shrink-0 text-ink-2">
+            <dd className="flex shrink-0 items-baseline gap-1.5 text-ink-2">
               <span className="font-medium">{compactTokens(breakdown.freeTokens)}</span>
               {breakdown.freeShare !== null && (
-                <span className="ml-1 text-ink-3">{formatShare(breakdown.freeShare)}</span>
+                <span className="inline-block w-8 text-right text-submeta text-ink-3">{formatShare(breakdown.freeShare)}</span>
               )}
             </dd>
           </div>
         )}
 
         {breakdown.autoCompactThreshold !== null && (
-          <div className="mt-1 flex items-center justify-between gap-2 border-t border-line pt-1.5 text-submeta" data-breakdown-auto-compact>
-            <dt className="flex min-w-0 items-center gap-1.5 text-ink-3">
-              <span aria-hidden className="inline-block h-2.5 w-0.5 shrink-0 rounded-full bg-ink" />
+          <div className="mt-1 flex items-center justify-between gap-2 border-t border-line/60 pt-2 text-submeta" data-breakdown-auto-compact>
+            <dt className="flex min-w-0 items-center gap-2 text-ink-3">
+              <span aria-hidden className="inline-block h-2.5 w-px shrink-0 rounded-full bg-ink/70" />
               <span className="truncate">{t("chat-sessioninsights.breakdown_auto_compact")}</span>
             </dt>
-            <dd className="shrink-0 font-medium text-ink-2">
-              {compactTokens(breakdown.autoCompactThreshold)}
+            <dd className="flex shrink-0 items-baseline gap-1.5 font-medium text-ink-2">
+              <span>{compactTokens(breakdown.autoCompactThreshold)}</span>
               {breakdown.autoCompactShare !== null && (
-                <span className="ml-1 font-normal text-ink-3">{formatShare(breakdown.autoCompactShare)}</span>
+                <span className="inline-block w-8 text-right font-normal text-ink-3">{formatShare(breakdown.autoCompactShare)}</span>
               )}
             </dd>
           </div>
@@ -195,11 +195,11 @@ export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdow
       {breakdown.topConsumer && (
         <div
           data-breakdown-top-consumer={breakdown.topConsumer.key}
-          className="mt-1.5 flex items-center gap-1.5 border-t border-line pt-1.5 text-submeta text-ink-2"
+          className="mt-2 flex items-center gap-2 border-t border-line/60 pt-2 text-submeta text-ink-3"
         >
           <span
             aria-hidden
-            className="size-2 shrink-0 rounded-full"
+            className="size-1.5 shrink-0 rounded-full"
             style={{ backgroundColor: BREAKDOWN_COLOR[breakdown.topConsumer.key] }}
           />
           <span className="min-w-0 truncate">
