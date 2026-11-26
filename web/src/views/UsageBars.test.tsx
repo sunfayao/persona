@@ -93,14 +93,35 @@ describe("the sidebar's usage strip", () => {
       expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(4);
       expect(host.querySelector("[data-usage-overflow]")?.textContent).toContain("+2");
 
+      // Default 284px sidebar: container < 304px hides mini meters (67px/pill), fitting 3 pills + +3 cleanly.
+      const containerEl = host.querySelector("[data-usage-bars]")!;
       await act(async () => {
-        observerCallback?.([{ contentRect: { width: 190 } } as ResizeObserverEntry], {} as ResizeObserver);
+        observerCallback?.(
+          [
+            { target: containerEl, contentRect: { width: 252 } } as unknown as ResizeObserverEntry,
+            { contentRect: { width: 234 } } as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      });
+      expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(3);
+      expect(host.querySelector("[data-usage-overflow]")?.textContent).toContain("+3");
+
+      // Widened 353px sidebar: container >= 304px shows mini meters (93px/pill), keeping +4 unclipped.
+      await act(async () => {
+        observerCallback?.(
+          [
+            { target: containerEl, contentRect: { width: 321 } } as unknown as ResizeObserverEntry,
+            { contentRect: { width: 283 } } as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
       });
       expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(2);
       expect(host.querySelector("[data-usage-overflow]")?.textContent).toContain("+4");
 
       await act(async () => {
-        observerCallback?.([{ contentRect: { width: 480 } } as ResizeObserverEntry], {} as ResizeObserver);
+        observerCallback?.([{ contentRect: { width: 560 } } as ResizeObserverEntry], {} as ResizeObserver);
       });
       expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(6);
       expect(host.querySelector("[data-usage-overflow]")).toBeNull();

@@ -76,11 +76,14 @@ function distinctAccountLabel(rawName: string, providerName: string, providerId:
 /** Sources that add context beyond the device card header and provider heading. */
 function filterRedundantSources(from: readonly string[], accountName: string, providerId: string, providerName: string, device: DeviceGroup): string[] {
   const aliasSet = new Set(device.aliases);
+  const localLabel = tr("usage.source_local").toLowerCase();
   const out: string[] = [];
   for (const src of from) {
     const raw = src.trim();
     if (!raw) continue;
-    if (aliasSet.has(raw.toLowerCase())) continue;
+    const rawLower = raw.toLowerCase();
+    if (aliasSet.has(rawLower)) continue;
+    if (device.kind !== "global" && rawLower === localLabel) continue;
     const stripped = stripDeviceHostHint(raw, device);
     const lower = stripped.toLowerCase();
     if (!stripped || aliasSet.has(lower)) continue;

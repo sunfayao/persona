@@ -53,8 +53,13 @@ export function Meter({ used, expected, protect, label, tall }: { used: number; 
 
 const EMPTY_UNCONNECTED: readonly UnconnectedProvider[] = [];
 const SSR_VISIBLE_ITEMS = 4;
-const ITEM_SLOT_PX = 76;
-const OVERFLOW_BADGE_PX = 30;
+/** @container/usage hides the 20px mini meter below 19rem (304px), shrinking each pill from ~87px to ~61px. */
+const METER_BREAKPOINT_PX = 304;
+const ROW_METER_FALLBACK_PX = 260;
+const COMPACT_SLOT_PX = 67;
+const WIDE_SLOT_PX = 93;
+const PILL_GAP_PX = 6;
+const OVERFLOW_BADGE_PX = 35;
 
 function orderStripCandidates(bars: UsageAccount[], balances: UsageAccount[], custom: boolean): UsageAccount[] {
   if (custom) return [...bars, ...balances];
@@ -76,7 +81,7 @@ function orderStripCandidates(bars: UsageAccount[], balances: UsageAccount[], cu
 /** The sidebar's strip. `accounts` as the hub gave them; `unconnected` lists active providers without usage data yet. */
 export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; now?: number }) {
   const [open, setOpen] = useState(false);
-  const [rowWidth, setRowWidth] = useState(0);
+  const [stripSize, setStripSize] = useState({ row: 0, container: 0 });
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const rowRef = useRef<HTMLSpanElement>(null);
@@ -88,18 +93,40 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
 
   useEffect(() => {
     const el = rowRef.current;
+    const containerEl = root.current;
     if (!el || !hasContent) return;
-    const measure = (w: number) => {
-      const next = Math.round(w);
-      setRowWidth((prev) => (prev === next ? prev : next));
+    const measure = (rowPx: number, containerPx?: number) => {
+      const nextRow = Math.round(rowPx);
+      const nextContainer = containerPx !== undefined ? Math.round(containerPx) : undefined;
+      setStripSize((prev) => {
+        const c = nextContainer ?? prev.container;
+        return prev.row === nextRow && prev.container === c ? prev : { row: nextRow, container: c };
+      });
     };
-    measure(el.getBoundingClientRect().width);
+    const rootContentWidth = () => {
+      if (!containerEl) return 0;
+      const rectW = containerEl.getBoundingClientRect().width;
+      return rectW > 0 ? Math.max(0, rectW - 16) : 0;
+    };
+    measure(el.getBoundingClientRect().width, rootContentWidth());
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) measure(entry.contentRect.width);
+      let nextRow: number | undefined;
+      let nextContainer: number | undefined;
+      for (const entry of entries) {
+        if (entry.target === containerEl) nextContainer = entry.contentRect.width;
+        else nextRow = entry.contentRect.width;
+      }
+      if (nextRow !== undefined || nextContainer !== undefined) {
+        setStripSize((prev) => {
+          const r = nextRow !== undefined ? Math.round(nextRow) : prev.row;
+          const c = nextContainer !== undefined ? Math.round(nextContainer) : prev.container;
+          return prev.row === r && prev.container === c ? prev : { row: r, container: c };
+        });
+      }
     });
     ro.observe(el);
+    if (containerEl) ro.observe(containerEl);
     return () => ro.disconnect();
   }, [hasContent]);
 
@@ -126,12 +153,14 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
 
   const candidates = orderStripCandidates(top, balances, custom);
   const totalItems = candidates.length + unconnected.length;
+  const meterHidden = stripSize.container > 0 ? stripSize.container < METER_BREAKPOINT_PX : stripSize.row < ROW_METER_FALLBACK_PX;
+  const slotPx = meterHidden ? COMPACT_SLOT_PX : WIDE_SLOT_PX;
   const capacity =
-    rowWidth <= 0
+    stripSize.row <= 0
       ? SSR_VISIBLE_ITEMS
-      : Math.floor(rowWidth / ITEM_SLOT_PX) >= totalItems
+      : Math.floor((stripSize.row + PILL_GAP_PX) / slotPx) >= totalItems
         ? totalItems
-        : Math.max(1, Math.floor((rowWidth - OVERFLOW_BADGE_PX) / ITEM_SLOT_PX));
+        : Math.max(1, Math.floor((stripSize.row + PILL_GAP_PX - OVERFLOW_BADGE_PX) / slotPx));
   const shownAccounts = candidates.slice(0, capacity);
   const shownUnconnected = unconnected.slice(0, Math.max(0, capacity - shownAccounts.length));
   const extra = totalItems - shownAccounts.length - shownUnconnected.length;
