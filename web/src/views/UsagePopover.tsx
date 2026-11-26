@@ -322,7 +322,7 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
   return (
     <div data-usage-timeline className="border-t border-line pt-2" role="group" aria-label={tr("usage.timeline_title")}>
       <div className="relative h-4" style={{ marginLeft: TIMELINE_NAME_W }} aria-hidden>
-        <span className="absolute left-0 top-0 text-submeta font-semibold leading-none text-ink">{tr("usage.timeline_now")}</span>
+        <span className="absolute right-full top-0 mr-1 whitespace-nowrap text-submeta font-semibold leading-none text-ink">{tr("usage.timeline_now")}</span>
         {TIMELINE_TICKS_HOURS.map((h, i) => (
           <span key={h} className={cx("absolute top-0 text-submeta leading-none text-ink-3", i === TIMELINE_TICKS_HOURS.length - 1 ? "-translate-x-full" : "-translate-x-1/2")} style={{ left: `${timelinePosition(h * 3600_000) * 100}%` }}>
             {tickLabel(h)}
