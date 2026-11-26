@@ -11,9 +11,9 @@ Each computer's OS, current load and curves for the past 24 hours. The node coll
 | Inspect local samples / overhead | `personad sysmon [n]`: prints system info and n+1 samples (one every 10 seconds, n ≤ 8640, one day); final line gives actual sample count, collection duration and personad CPU (Ctrl-C stops immediately) |
 
 For node `session.send` and `codex.answer`, the devices manager supplies the optional `prompt_language` native
-language name from the owner locale. It replaces caller-provided variants and affects only generated Agent prompt
-wrappers. Missing language preserves legacy Chinese; old nodes ignore the field. It neither supplies nor changes
-owner provenance or permission mode. Details: `docs/assistant/prompts.md` ("Agent prompt migration (#6268)").
+language name from the owner locale. It replaces caller-provided variants and names only the language an Agent is told
+to write for the owner: the wrappers themselves are English. Old nodes ignore the field. It neither supplies nor changes
+owner provenance or permission mode. Details: `docs/assistant/prompts.md` ("Language").
 
 ## Who connects to computers
 
