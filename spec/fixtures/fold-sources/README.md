@@ -1,6 +1,6 @@
 # Sources of a run of work
 
-The web pages a run of work used: the Sources row under a finished reply (web, #9132) and the `sources` a fold
+The web pages a run of work used: the Sources row under a finished reply and the `sources` a fold
 carries (`docs/protocol/protocol.md` "Folded work"). The hub's node reads a folded run
 (`server/internal/transcript/fold_sources.go` `foldSources`); the web reads the same calls when they are on the page
 (`web/src/lib/turn-sources.ts` `turnSources`). Both read these cases, so the row says the same before a reload (the

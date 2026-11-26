@@ -1,7 +1,6 @@
 # To-do push fixtures
 
-What a decision's push carries (#10465; `docs/assistant/todo-status-sop.md` 3.7 "Outside the app" and 5
-decision 4 (a)): the `todo` a manager sends with a `decide` push (`assistantwire.NotifyTodo`, `notify.request` on the
+What a decision's push carries: the `todo` a manager sends with a `decide` push (`assistantwire.NotifyTodo`, `notify.request` on the
 bus) → the push's category, whether it sets `aps.mutable-content`, and its top-level `todo` (`TodoDecidePush` in
 `schema/wire/todo-view.schema.json`), which the WebSocket `notify` carries too. `scripts/test/test_wire_schema.py` holds each
 expected `todo` to the schema, and the generated Go type reads it back unchanged
@@ -39,4 +38,4 @@ All data is made up.
   notification names; it comes with `lockscreen`.
 - **Too big to send** (not a case here: it depends on the transport's limit): the hub shortens the alert first, down
   to 500 characters, then drops `todo.options` and `mutable-content` and fits the full alert again, never the
-  category, `lockscreen` or `ask` (`docs/assistant/todos.md` "Waiting for the owner").
+  category, `lockscreen` or `ask`.

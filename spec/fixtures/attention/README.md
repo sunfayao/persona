@@ -1,6 +1,6 @@
 # "Needs you" summary fixtures
 
-Persona Link's "Needs you" summary (docs/operations/link.md "Needs you") lists and counts what the web app's "Needs you"
+Persona Link's "Needs you" summary lists and counts what the web app's "Needs you"
 badge counts. This fixture holds both sides to it: the manager's summary (`linkAttention` in
 `server/internal/assistant/fleet_attention.go`, `TestLinkAttentionFollowsTheSharedFixtures`) and the web app's own functions
 (`web/src/lib/attention-fixture.test.ts`).
@@ -18,7 +18,7 @@ the user's (recorded, announced, back from a detach or a restart): the manager's
 | `muted`: the session mute wins over `allowed`, which wins over the space mute. | `isMuted` in `web/src/lib/session-actions.ts`, `mutedAs` in `server/internal/assistant/fleet_mutes.go` | `badge_rules` |
 | `notify`: not muted, and the agent has a card that is the user's (not a question the assistant is still deciding on): the phone's push rule. The web app's system notifications agree for agents with cards (`lookingOnly`, `isMuted`); an agent in a terminal dialog before its card (`s-dialog`) rings there at once, while the phone and Persona Link wait for the screen card made for it. | `lookingOnly` in `web/src/lib/attention.ts`, `isMuted`; `tell` in `server/internal/assistant/fleet_ix.go` | `badge_rules`, `deciding_only`, `deciding_beside_elicitation` |
 | `route` is the web app's session path. | `routePath` in `web/src/lib/router.ts` | every case |
-| Nothing needs you: the count is 0 and `items` is an empty list. | issue #2214 | `nothing_needs_you` |
+| Nothing needs you: the count is 0 and `items` is an empty list. | | `nothing_needs_you` |
 
 - Every card in `input.interactions` is one the apps were told of, as the web app sees them; a card the manager has not
   decided on yet (the Go tests' own cases) never reaches the web app.

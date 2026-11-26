@@ -1,26 +1,26 @@
 # Extension schemas
 
 The JSON Schemas here are the one truth of the extension manifest, the process protocol, the extension points' calls
-and the declarative UI (Views and their components) (#1849, phase 3 of #1843). Every language's types are generated
+and the declarative UI (Views and their components). Every language's types are generated
 from them instead of being written once per platform:
 
 | File | Contents |
 | --- | --- |
-| `manifest.schema.json` | The manifest `persona-extension.json` (called `persona-plugin.json` before the rename, same fields): the root, `engines`, `runtime`, `secrets`, `permissions`, `contributes` and each extension point's contributions |
+| `manifest.schema.json` | The manifest `persona-extension.json`: the root, `engines`, `runtime`, `secrets`, `permissions`, `contributes` and each extension point's contributions |
 | `protocol.schema.json` | The process protocol: one frame a line (`Frame`, `RPCError`), error codes, `initialize`'s params and answer, `ui.render` / `ui.action`'s params `UIParams`, the badge event, and the `UIContext` / `UIRequest` the apps send the hub to draw a slot and the `UIPlace` the hub lists |
-| `stream.schema.json` | Native UI stream protocol 1 (#5956): explicit capability, canonical app WebSocket envelopes, owner-session lifecycle requests, complete keyed snapshots, atomic deltas and bounded interaction values; source runtime activation remains independently gated |
+| `stream.schema.json` | Native UI stream protocol 1: explicit capability, canonical app WebSocket envelopes, owner-session lifecycle requests, complete keyed snapshots, atomic deltas and bounded interaction values; source runtime activation remains independently gated |
 | `view.schema.json` | Views, sections, components (`Component`, told apart by `type`), actions, `ui.action`'s answer, and the `persona-card` in assistant answers (`PersonaCard`, folded into components in #1850) |
-| `messaging.schema.json` | The `messaging` extension point (#2138): the manifest's sources (`MessagingItem`), conversations, messages and parts (`MessagingPart`, by `kind`), sends, composer modes, documents, posts, events and errors; see `docs/extensions/extension-messaging.md` |
+| `messaging.schema.json` | The `messaging` extension point: the manifest's sources (`MessagingItem`), conversations, messages and parts (`MessagingPart`, by `kind`), sends, composer modes, documents, posts, events and errors |
 | `connector.schema.json` | **Plugin-side.** The `connectors` extension point's calls (`docs/protocol/connector-protocol.md`): everything the hub asks a connector program (`connector.status`, `connector.inbox.collect`, `connector.thread.page`, `connector.group.*`, `connector.login.step`…), what the program asks back (`connector.secrets.*`, `connector.credentials.gh_token`, and the hub's own `sent.record`, which puts a send of the connector's in the sent-as-user ledger), `connector.recall` (the hub asks a connector that declares `recall` to take back a message it sent, once the user agreed), the `connector.changed` event, the capabilities, states and error codes |
-| `channel.schema.json` | **Plugin-side.** The `channel` extension point's calls (`docs/extensions/channels.md` "4. Contributing a channel"): `channel.receive` and `channel.status` from the program, `channel.send`, `channel.typing` and `channel.edit` from the hub, `cannot_send` |
-| `assistant.schema.json` | **Plugin-side.** Reading the user's conversations with the assistant (`docs/extensions/extensions.md` "Assistant conversations"): `assistant.conversations`, `assistant.messages` with the permission `assistant.read`; unified ledger `assistant.entries.list` and `event.assistant.entries.changed` with `assistant.entries.read` |
-| `assistant_data.schema.json` | **Plugin-side.** The assistant content an extension writes in its data directory (`docs/extensions/extensions.md` "Assistant content from the data directory"): `assistant.data_status`, what the assistant reads now of the calling extension's data contributions |
-| `browser.schema.json` | **Plugin-side.** Cross-machine browser automation via pluggable `BrowserBackend` (#12866): `browser.machines` and `browser.run` (`browser.run`) |
-| `models.schema.json` | **Plugin-side.** Calling a model through the hub (`docs/extensions/extensions.md` "Model calls"): `model.complete` with the permission `models` |
-| `transcription.schema.json` | **Plugin-side.** An extension's own audio turned into text with the transcription the owner chose (`docs/extensions/extensions.md` "Transcription for extensions"): `transcription.start`, `transcription.audio`, `transcription.finish`, `transcription.cancel` with the permission `transcription` |
-| `storage.schema.json` | **Plugin-side.** Default-deny installation-owned business storage (#1187): CAS/atomic transactions, bounded request receipts and queues, and opaque chunked blobs; manager-owned authentication/retention/restore are not guest RPC methods. See `docs/extensions/extensions.md` ("Installation-owned business storage") |
-| `todos.schema.json` | **Plugin-side.** The to-do events an extension subscribed to and was granted `todos.read` is told of (`docs/extensions/extensions.md` "Events"): `event.todo.changed`, `event.todo.decision` |
-| `repository.schema.json` | **Plugin-side.** The `repository_providers` extension point's calls (#10330): the manager asks a code-hosting source's program `repo.parse` (what repository an address on its hosts names), `repo.check` (it exists and is visible), `repo.link` (an issue or pull request of a repository, by address or by kind and number) the optional `repo.describe` (a stored link's title and state) and `repo.pr_status` (a stored pull request's state, for a contribution declaring the `pr_status` capability, #11584), and re-checks every answer; `RepoErrorCode`. The manifest's item (`RepositoryProviderItem`, `RepositoryLinkLabel`, `RepositoryLinkKind`, `RepositoryCapability`) is in `manifest.schema.json` |
+| `channel.schema.json` | **Plugin-side.** The `channel` extension point's calls: `channel.receive` and `channel.status` from the program, `channel.send`, `channel.typing` and `channel.edit` from the hub, `cannot_send` |
+| `assistant.schema.json` | **Plugin-side.** Reading the user's conversations with the assistant: `assistant.conversations`, `assistant.messages` with the permission `assistant.read`; unified ledger `assistant.entries.list` and `event.assistant.entries.changed` with `assistant.entries.read` |
+| `assistant_data.schema.json` | **Plugin-side.** The assistant content an extension writes in its data directory: `assistant.data_status`, what the assistant reads now of the calling extension's data contributions |
+| `browser.schema.json` | **Plugin-side.** Cross-machine browser automation via pluggable `BrowserBackend`: `browser.machines` and `browser.run` (`browser.run`) |
+| `models.schema.json` | **Plugin-side.** Calling a model through the hub: `model.complete` with the permission `models` |
+| `transcription.schema.json` | **Plugin-side.** An extension's own audio turned into text with the transcription the owner chose: `transcription.start`, `transcription.audio`, `transcription.finish`, `transcription.cancel` with the permission `transcription` |
+| `storage.schema.json` | **Plugin-side.** Default-deny installation-owned business storage: CAS/atomic transactions, bounded request receipts and queues, and opaque chunked blobs; manager-owned authentication/retention/restore are not guest RPC methods. |
+| `todos.schema.json` | **Plugin-side.** The to-do events an extension subscribed to and was granted `todos.read` is told of: `event.todo.changed`, `event.todo.decision` |
+| `repository.schema.json` | **Plugin-side.** The `repository_providers` extension point's calls: the manager asks a code-hosting source's program `repo.parse` (what repository an address on its hosts names), `repo.check` (it exists and is visible), `repo.link` (an issue or pull request of a repository, by address or by kind and number) the optional `repo.describe` (a stored link's title and state) and `repo.pr_status` (a stored pull request's state, for a contribution declaring the `pr_status` capability, #11584), and re-checks every answer; `RepoErrorCode`. The manifest's item (`RepositoryProviderItem`, `RepositoryLinkLabel`, `RepositoryLinkKind`, `RepositoryCapability`) is in `manifest.schema.json` |
 | `examples/` | Examples: `<definition>.<name>.json` must hold to the schema; those under `examples/invalid/` must not. The plugin-side schemas' are in `examples/plugin/` (and `examples/plugin/invalid/`) |
 
 ## Generating
@@ -46,11 +46,10 @@ The View semantics both extensions and the assistant check (charts, tables, fiel
 
 ## Native UI stream protocol 1
 
-Stage 1 of #5956 defined the contracts for **server-only TSX execution, native client rendering and WebSocket
-deltas**. Later stages add the immutable keyed-tree core, process page bridge and manager-owned lifecycle below.
+The stream contracts cover **server-only TSX execution, native client rendering and WebSocket
+deltas**, with the immutable keyed-tree core, process page bridge and manager-owned lifecycle below.
 Runtime activation still requires independent sandbox, resource-isolation and egress verification. Existing
-process extensions and HTTP render/action/invalidation behavior remain compatible. The hub's UI version (9 since
-#9337) does not turn the stream on; generated client models and transport forwarding do not alone enable client or
+process extensions and HTTP render/action/invalidation behavior are unaffected. The hub's UI version does not turn the stream on; generated client models and transport forwarding do not alone enable client or
 source-runtime support.
 
 ### Negotiation and messages
@@ -294,7 +293,7 @@ The generator understands only what is below; anything else stops it with an err
 - The validation keywords (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `minItems`, `maxItems`,
   `uniqueItems`, `minProperties`, `maxProperties`, `propertyNames`, `const`, `enum`, `allOf`, `anyOf`, `not`) do not change what is generated; `sdk/go/wire`'s
   `Validate` and the validator in `scripts/test/test_extension_schema.py` both know them. A keyword neither knows
-  fails `test_schema_keywords_are_known` (#4012); what an `x-` annotation holds is not checked as keywords.
+  fails `test_schema_keywords_are_known`; what an `x-` annotation holds is not checked as keywords.
   Rules a schema cannot say (at most 300 components a page, the same labels in every chart series, field names
   unique, `state` at most 16 KB) stay the hub's hand-written checks.
 - A manifest example also has to pass the hub's `extension.Parse` (semantic checks beyond the schema, such as
@@ -303,7 +302,7 @@ The generator understands only what is below; anything else stops it with an err
   and `examples/invalid/Manifest.*.json` not to. A fixture only for type round trips
   (`Manifest.custom-contributions.json`) is listed apart in that test, with why the hub refuses it.
 
-## Custom contributions (#2467)
+## Custom contributions
 
 `Contributes` explicitly allows `additionalProperties`, so the built-in `ui`, `providers` and the rest stay strongly
 typed while custom `<extension id>.<extension point id>` keys are not lost in a JSON round trip through the official
@@ -330,7 +329,7 @@ the Go SDK's tests, the TS SDK's `bun test`.
 `extension_schema.py` also rebuilds `sdk/go/bundle/sdk.tar.gz` deterministically; commit the generated types and the
 bundle together, so a new extension does not get old types.
 
-## Assistant cards (#2018)
+## Assistant cards
 
 They still use View and Component, adding `View.fallback` / `pages`, `Action.reply` / `open` / `pop`, `Push.page`
 and the `html` component. `AssistantView` is a live card with an owner and a version; `ViewAction` is a stored
@@ -365,28 +364,28 @@ output goes through `gofmt` (the generator needs it on PATH).
 
 An action (`Action`) is an object; later page navigation (push / pop), new context (`UIContext`) and new slots
 (`Placement` values) are fields or values added to existing definitions, which older apps ignore.
-3b (#1850) was added this way: `markdown` / `table` / `empty` / `loading`, a row's icon / avatar / thumbnail, `key`,
+UI version 3 was added this way: `markdown` / `table` / `empty` / `loading`, a row's icon / avatar / thumbnail, `key`,
 a View's `search` / `filter`, a section's `more`, `Action.push`, `ActionResult.push` / `pop`, `InvalidateEvent`
-(UI version 3, `docs/extensions/extensions.md` "UI version 3"). How `persona-card` becomes components, with its cases, is in
+How `persona-card` becomes components, with its cases, is in
 `sdk/go/wire/personacard.go` and `examples/persona-card/`.
-UI version 6 (#5464) was added the same way: the `image` / `grid` / `carousel` components and fields such as
+UI version 6 was added the same way: the `image` / `grid` / `carousel` components and fields such as
 `row.control`, `row.actions` and `spark`. Its numeric fields live in sub-objects of their own (`RowControl`,
 `ChartPoint`) rather than in `Component`'s flat struct; `Thumbnail.url` is optional now (exactly one of it and `ref`). Its examples are `examples/View.v6-*.json`; the showcase's version 6 pages come from
-the extensions repository (#5477), and until then `SHOWCASE_UI` in `test_extension_schema.py` stays at 5.
-UI version 8 (#9158) adds no component, only fields: `View.layout: "columns"` and a section's `span`, `icon`,
+the extensions repository, and until then `SHOWCASE_UI` in `test_extension_schema.py` stays at 5.
+UI version 8 adds no component, only fields: `View.layout: "columns"` and a section's `span`, `icon`,
 `icon_color`, `link` (`SectionLink`) and `columns`, each `x-since: 8`. The hub's `downgrade8`
 (`server/internal/extension/ui_v8.go`) takes them out for an older app; `UIStreamSection` lists them too, so a native
 stream's source may draw them. Its examples are `examples/View.v8-*.json`.
-UI version 9 (#9337) adds one field: a tile's `gauge` (`Gauge`: `ratio`, `unit`, `color`), `x-since: 9`, a ring with the tile's
+UI version 9 adds one field: a tile's `gauge` (`Gauge`: `ratio`, `unit`, `color`), `x-since: 9`, a ring with the tile's
 value in its centre. The hub's `downgrade9` (`server/internal/extension/ui_v9.go`) leaves it out for an older app and puts the unit,
 the percentage and the color on the tile instead. Its examples are `examples/View.v9-*.json`.
-UI version 10 (#9727) adds one component, `graph` (`GraphComponent`: `nodes`, `edges`, `layout`, `direction`, `selected`,
+UI version 10 adds one component, `graph` (`GraphComponent`: `nodes`, `edges`, `layout`, `direction`, `selected`,
 `folded`): a canvas of nodes joined by edges, each node `GraphNode` with `id`, `title` and optional state, color, progress,
 group and action, plus the optional inspector and timeline fields `started_at`, `ended_at`, `facts`, `detail` and `links`
 (`GraphNodeLink`, a `{title, url}` pair). The hub's `downgrade10` (`server/internal/extension/ui_v10.go`) draws an older app one indented row per
 visible node in reading order; a native stream's source may draw a graph too (`UIStreamItem` lists it), but its client
 never gets one, at 10 included: the hub draws it as those rows. Its examples are `examples/View.v10-*.json`.
-UI version 11 (#12544) adds one component, `scene` (`SceneComponent`: `alt`, `caption`, `poster`, `camera`, `shapes`,
+UI version 11 adds one component, `scene` (`SceneComponent`: `alt`, `caption`, `poster`, `camera`, `shapes`,
 `labels`, `pins`): a small 3D model of simple shapes (`SceneShape`, told apart by `kind`: `SceneBox`, `SceneCylinder`,
 `ScenePrism`, each with a `SceneColor` and a `SceneMaterial`), quiet floor names (`SceneLabel`) and devices (`ScenePin`, with
 an optional `SceneLight`). Numbers where 0 means something (`bottom`, `top`, `yaw`, `round`, heights, the camera's) are

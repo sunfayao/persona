@@ -1,6 +1,6 @@
 # Chat sync scenarios
 
-Stories about one chat seen by one or more devices: what the hub holds over time, which frames reach each device (with faults), how the hub answers each write, and what each device must show after each step. Every client replays the same files, and so do the end-to-end runs against the mock hub (#1073). All data is made up.
+Stories about one chat seen by one or more devices: what the hub holds over time, which frames reach each device (with faults), how the hub answers each write, and what each device must show after each step. Every client replays the same files, and so do the end-to-end runs against the mock hub. All data is made up.
 
 This domain follows [the shared conventions](../../README.md), with two differences: the README and `description` are in English (the repository's language rule), and a case's `source` names public issues or describes the past bug in words.
 
@@ -79,7 +79,7 @@ Reads a device makes on its own (filling a gap, a latest page, the card list aft
 | `cards` | `{id: state}` for cards on screen or just answered: `open` (its buttons work), `answering` (this device's answer is in flight: hidden or locked), `answered` (shown as answered, or gone). Ids not listed are not on screen. Only `open` against not-`open` is strict; see "Allowed differences" |
 | `status` | The chat's state: `working`, `needs_you`, `unread`, `idle` |
 | `live` | The streamed text on screen, or `null` |
-| `requests` | Requests the device must have sent since the last step that listed `requests` for it (or the start), in this order; others may come in between: `{"get": "/items", "after_seq": 4}`, `{"ws": "subscribe", "since_seq": 4}`, `{"post": "resolve", "id": "ix1"}`, `{"post": "messages", "id": "m1"}`, `{"post": "conversations", "id": "c1"}` (a start; `id` is the op id; `"new_op": true` instead: an op id this message never had), `{"get": "/ops", "id": "m1"}` (the receipt of the op a write went with, by the write's id). Where the protocol allows several ways, an entry `{"one_of": [request, request…]}` is met by any one of them: a send in flight posted again or its op's receipt read; the rest of a capped replay asked from its cap or the whole gap read when the socket came back (#2770) |
+| `requests` | Requests the device must have sent since the last step that listed `requests` for it (or the start), in this order; others may come in between: `{"get": "/items", "after_seq": 4}`, `{"ws": "subscribe", "since_seq": 4}`, `{"post": "resolve", "id": "ix1"}`, `{"post": "messages", "id": "m1"}`, `{"post": "conversations", "id": "c1"}` (a start; `id` is the op id; `"new_op": true` instead: an op id this message never had), `{"get": "/ops", "id": "m1"}` (the receipt of the op a write went with, by the write's id). Where the protocol allows several ways, an entry `{"one_of": [request, request…]}` is met by any one of them: a send in flight posted again or its op's receipt read; the rest of a capped replay asked from its cap or the whole gap read when the socket came back |
 
 ### Allowed differences
 
@@ -109,14 +109,12 @@ The clients draw the same states differently. A consumer maps what it draws onto
 | Client | Test | Known failures |
 | --- | --- | --- |
 | Go (the files themselves) | `server/internal/proto/sync_scenarios_test.go` | — |
-| Web | `web/src/views/chat/sync/sync-scenarios.test.tsx`: the real store, `useTranscript`, chat page, composer and cards; a fake hub (`sync/fake-hub.ts`) answers reads from the case and holds writes; the page is read back through `data-*` marks (`sync/project.ts`) | `KNOWN` in the test, each with its issue and the reason it must fail for |
-| Web, end to end | `web/e2e/sync-cases.mjs` (#2777): the real web app in a browser against the mock hub playing the case (below), one browser context per device | `KNOWN` in the runner, each with its issue |
-
-
+| Web | `web/src/views/chat/sync/sync-scenarios.test.tsx`: the real store, `useTranscript`, chat page, composer and cards; a fake hub (`web/src/views/chat/sync/fake-hub.ts`) answers reads from the case and holds writes; the page is read back through `data-*` marks (`web/src/views/chat/sync/project.ts`) | `KNOWN` in the test, each with the reason it must fail for |
+| Web, end to end | `web/e2e/sync-cases.mjs`: the real web app in a browser against the mock hub playing the case (below), one browser context per device | `KNOWN` in the runner, each with the reason |
 
 ## The mock hub plays a case
 
-For runs against the real apps (#1073 step 4), `MOCK_SYNC_CASE=<file>#<name>` makes `scripts/mock/mock_hub.py` play one case (`scripts/mock/sync_case.py`, #2766). An app paired with `token=mock-<device>` is that device. With `MOCK_WEB=<web/dist>` the mock also serves the built web app, so a browser talks to it with no proxy in between (`web/e2e/README.md`, "Shared chat sync cases end to end").
+For runs against the real apps, `MOCK_SYNC_CASE=<file>#<name>` makes `scripts/mock/mock_hub.py` play one case. An app paired with `token=mock-<device>` is that device. With `MOCK_WEB=<web/dist>` the mock also serves the built web app, so a browser talks to it with no proxy in between.
 
 - **The chat** is served from the case's hub state, with the same rules as the web's fake hub: its session list entry, `/items` (latest page, `after_seq`, `before_seq`), `/interactions`, `/ops/{id}` receipts, and the hello's `event_stream` / `event_seq`.
   - The first socket gets the hub's snapshot: the machine, the session list and the pending cards.
@@ -149,7 +147,6 @@ cd server && go test ./internal/proto/ -run SyncScenarios
 ```
 
 The web replays the cases against its own state code (see the table above).
-
 
 ## Adding a case
 

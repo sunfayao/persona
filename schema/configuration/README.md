@@ -1,7 +1,7 @@
 # Portable configuration forms
 
 This is the version 1 data contract for module-supplied settings, first used by
-Settings › Labs (#9877). The web app renders the same JSON with its
+Settings › Labs. The web app renders the same JSON with its
 own design-system controls. The generic form does not know what an assistant,
 hub, browser, experiment or storage key is. The module supplies a source already
 bound to the resource being configured.
@@ -158,5 +158,4 @@ Run `go test ./internal/configuration` from `server/` and
 The shared example and validation cases are also inputs to the Web tests. The
 HTTP tests cover rejected writes, atomic mixed updates, preservation/reset,
 resource/revision conflicts, concurrent writers, authorization, malformed and
-oversized requests, canonical responses and localized failures. Native UI tests
-belong to the later client integrations; this change makes no native execution claim.
+oversized requests, canonical responses and localized failures. Native UI execution is not covered here.

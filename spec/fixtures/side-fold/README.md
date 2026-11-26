@@ -1,7 +1,7 @@
 # Side-session fold fixtures
 
 A Claude desktop app side session (a side chat, a /btw question, a session spawned for a task; the node sets
-`parent_agent_id`, #5935) lives in its parent session's chat (#7944): the manager folds it under the parent's row as
+`parent_agent_id`) lives in its parent session's chat: the manager folds it under the parent's row as
 a side, and every client lists, counts and routes it the same way (`docs/design/PRINCIPLES.md`, "Consistency first"
 and "Checkable rules"). These cases pin the fold the manager computes and what a client does with it.
 
@@ -28,4 +28,4 @@ and "Checkable rules"). These cases pin the fold the manager computes and what a
   `<machine id>/<session id>`.
 - All data is made up.
 - Run: `TestSideFoldFollowsTheSharedFixtures` in `server/internal/assistant/fleet_side_fold_test.go`. Each client adds a
-  test reading these cases (#7944).
+  test reading these cases.

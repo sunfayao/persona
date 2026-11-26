@@ -1,6 +1,6 @@
 # Comment blocks at the start of a message
 
-The `> ` blocks a message starts with when it carries comments: on picked words (`Comment N`), on lines of a file or a diff (`Code comment N`, a review's comments, #151) and on an element of a dev server's page (`Element comment N`, #150). The format is in [protocol.md](../../../docs/protocol/protocol.md), "Quote and comment blocks at the start of messages". The web app (`web/src/lib/comments.ts`, `web/src/lib/drafts.ts`) writes and reads these blocks and checks them against these cases.
+The `> ` blocks a message starts with when it carries comments: on picked words (`Comment N`), on lines of a file or a diff (`Code comment N`, a review's comments) and on an element of a dev server's page. The format is in `docs/protocol/protocol.md`, "Quote and comment blocks at the start of messages". The web app (`web/src/lib/comments.ts`, `web/src/lib/drafts.ts`) writes and reads these blocks and checks them against these cases.
 
 ## Rules
 

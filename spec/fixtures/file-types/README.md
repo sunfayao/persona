@@ -1,6 +1,6 @@
 # file-types
 
-What a file whose name cannot tell is (#7974, `docs/protocol/protocol.md` "File preview"): a `.ts`, `.mts` or `.cts`
+What a file whose name cannot tell is (`docs/protocol/protocol.md` "File preview"): a `.ts`, `.mts` or `.cts`
 file is TypeScript as often as an MPEG transport stream, so the node and the hub's `file.read` relay type it by its
 first bytes (`server/internal/proto/filetype.go`, `ScriptOrStream`). Clients switch on the `mime` and `text` they are
 given, never on the name.

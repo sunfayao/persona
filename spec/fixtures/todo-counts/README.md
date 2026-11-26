@@ -1,6 +1,6 @@
 # To-do counts fixtures
 
-The numbers of the To-dos list and its places (#10226; `docs/assistant/todo-status-sop.md` 3.3 and 3.7): one list
+The numbers of the To-dos list and its places: one list
 of to-dos → `counts` (`TodoCounts`, top level on `GET /api/v1/todos`) and the places (`TodoPlaces`, the answer of
 `GET /api/v1/todos/places`), both in `schema/wire/todo-view.schema.json`. Each to-do here is placed as in
 `spec/fixtures/todo-view`; most are the same rows. The manager's projection answers every case exactly
@@ -33,18 +33,17 @@ All data is made up.
 - `open`: every to-do that is not closed, in any section but Someday. A failed start is open, though its
   `done_at` is stored; a ready or `finished_seen` to-do is open.
 - `needs_you` (N): the to-dos in the Needs you section, each once; Can wait and quiet tasks (`quiet`) are left out, as
-  the badge leaves them out today (`docs/assistant/todo-status-sop.md` "Header count").
+  the badge leaves them out today.
 - `in_progress`: the rows of Working and Waiting. Just finished is not counted.
 - `sections`: the rows of each section, every `TodoListSection` key present, 0 included. A quiet task counts here as the
   row it is, so `sections.needs_you` can be larger than `needs_you`: where N is drawn, clients show `needs_you`.
-- A step its parent carries is counted with its parent only (proposal 3.4 "Steps roll up", "counted once"): a to-do
+- A step its parent carries is counted with its parent only: a to-do
   whose `part_of` names an open to-do of the list adds to no count and to no place, its parent standing for both. A
   step whose parent is closed or not listed counts as the row it is.
 - A failed start whose work finished in a related to-do is closed (`superseded`), not open: related to-dos share a
-  plan, a PR, an issue number in the title or the title itself, closed ones with closed ones
-  (`docs/assistant/todo-status-sop.md` "Related to-dos").
+  plan, a PR, an issue number in the title or the title itself, closed ones with closed ones.
 - `places`: `all`, `today`, `upcoming`, then one place for each project with an open to-do (as `open` counts), ordered
-  by slug (bytes, not a locale). `all` carries N; `today` and `upcoming` carry 0, since they draw no count (3.3); a
+  by slug (bytes, not a locale). `all` carries N; `today` and `upcoming` carry 0, since they draw no count; a
   project carries its part of N, counted the same way. Fixed places have the title `""`; a project's title is its
   `input.projects` title, else its slug. A manager's own answer has no `manager` field: the hub stamps it when it merges
   several managers' places, and adds their counts up field by field and key by key.
@@ -55,19 +54,18 @@ All data is made up.
 - `today` and `upcoming` say 0 rather than a number nobody draws, so their bytes need no Today rule yet.
 - Projects are ordered by slug, which stays stable across languages and managers.
 - **A project whose open to-dos are all in Someday gets no place** (`reading` in `mixed_list`): places follow `open`,
-  which leaves Someday out, while proposal 3.3 says only "each knowledge-base project with open to-dos". Counting
+  which leaves Someday out. Counting
   Someday in would keep such a project in the sidebar; change `mixed_list` with this line.
 - **A project the knowledge base does not name still gets a place**, titled by its slug (`errands` in
-  `failed_start_counts_open`), so its to-dos stay reachable from the sidebar; 3.3 lists knowledge-base projects only.
-- **The order within a section** (`rank`, proposal 3.4 "Within a section"; `ranked_list`, `ranked_steps`): Needs you
+  `failed_start_counts_open`), so its to-dos stay reachable from the sidebar.
+- **The order within a section** (`rank`; `ranked_list`, `ranked_steps`): Needs you
   and Can wait by the soonest deadline (the earliest of the deadlines of the decisions on the row, a step's included,
   and the to-do's own due), then the oldest ask (`since`); Working by the latest activity, its steps' included;
   Waiting by the soonest wake (a park's end, a usage limit's reset plus its grace, the hub's next wake of a run that
   waits on another Agent or an outside event, the leading step's when a step leads the row), rows with none (an open
   PR, a run's wait with no `wake_at`) last, then the longest waiting; To do by due (overdue, today, later), then
   priority (high, normal, low), then the newest; Just finished and Done newest first (`since`); Someday by the soonest
-  return, no date last, then the newest. Ties go by id, so the order never depends on the list's. The proposal's "the
-  owner's order" for To do has no input yet: priority and age stand in.
+  return, no date last, then the newest. Ties go by id, so the order never depends on the list's. The owner's own order for To do has no input yet: priority and age stand in.
 - **A run that waits ranks by the hub's next wake of it** (`waiting_ranked_by_wake`): its `work.wake_at`, when the hub
   wakes it to check on an outside event or, for another Agent, looks again if that Agent's turn has not ended by then.
   It is the same kind of moment as a park's end, when the supervisor looks again, so the two rank together. A wait with

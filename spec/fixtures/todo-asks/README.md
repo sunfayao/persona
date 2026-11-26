@@ -1,7 +1,6 @@
 # To-do ask answer fixtures
 
-What an answer to one of a to-do's own asks does (#10465; `docs/assistant/todo-status-sop.md` 3.7 and 7.3
-"Asks"): given what waits on the to-do, the ask's id as its view lists it and the answer
+What an answer to one of a to-do's own asks does: given what waits on the to-do, the ask's id as its view lists it and the answer
 (`POST /api/v1/todos/{id}/asks/{ask}/answer`, `TodoAskAnswer` in `schema/wire/todo-view.schema.json`), the status, the
 error code, the answer (`TodoAskAnswered`) and what changed. The manager replays every case against its route
 (`server/internal/assistant/todo_asks_routes_test.go`), `scripts/test/test_wire_schema.py` holds every answer and reply

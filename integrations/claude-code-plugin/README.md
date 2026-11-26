@@ -3,8 +3,7 @@
 A Claude Code plugin that lets the owner's own messages from the Persona apps reach a Claude Code session the way
 typed input does, in sessions Persona has no terminal for: Claude's desktop app, a terminal herdr / Orca / Tern do not
 run, a background session. Without it the node can only use Claude Code's peer inbox there, which tells the model the
-words come from another session and that they are not the person's approval (`docs/integrations/claude-integration.md`,
-"Owner input through the Persona plugin").
+words come from another session and that they are not the person's approval.
 
 The plugin polls the local Persona node while its session lives: it submits the owner's messages with
 `$.prompt.submit({ text, asUser: true })` (immediately when idle, or into Claude Code's prompt queue while a turn runs),
@@ -93,5 +92,3 @@ Text the owner typed in a Persona app (`owner_input` on `session.send`, idle or 
 owner-attested turn interrupts (`interrupt`, `$.turn.abort`), and session-scoped model / effort overrides (`settings`).
 Everything else keeps the peer inbox: messages from the Persona assistant, extensions and channels (Lark, WeChat),
 relays between conversations, slash commands, the answer to a question the session asked, and non-owner interrupts.
-Details and fallback rules:
-`docs/integrations/claude-integration.md`.

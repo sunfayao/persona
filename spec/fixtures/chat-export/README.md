@@ -1,8 +1,7 @@
 # Exporting a conversation
 
-A conversation exported as Markdown (#7375): the web app's **Export Conversation…** writes it (`web/src/lib/chat-export.ts`,
-`transcriptMarkdown`), and the apps are to write the same file. How the web reads the whole conversation and what the
-dialog offers are in [web.md](../../../docs/web/web.md), "Exporting a conversation".
+A conversation exported as Markdown: the web app's **Export Conversation…** writes it (`web/src/lib/chat-export.ts`,
+`transcriptMarkdown`). The rules below are the format of that file.
 
 ## Rules
 

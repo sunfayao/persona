@@ -1,20 +1,20 @@
 # screen-tiers
 
-The live screen's quality tiers (#6396, `docs/extensions/computer-use.md` "Live screen video (#3954)"): what the
-browser's port (`web/src/screen/tiers/`, #6558) must give. One scenario per file: its input and the expected output, never internal state.
+The live screen's quality tiers: what the
+browser's port must give. One scenario per file: its input and the expected output, never internal state.
 
 ## `ladder/`
 
 `TierLadder.make`: `input` is `points` and `pixels` (`[width, height]`), `maxSize` (the long-edge cap; 0: none),
 `bias` (`auto` / `sharper` / `smoother`), `capKbps` (0: no cap), `maxFps` and `codec` (`hevc` / `h264`). `expected` is
 the whole ladder, best first: `scale` (what the helper is asked for), `fps`, `width`, `height`, `minKbps`, `maxKbps`,
-`pixelsPerPoint` (the scale the picture really has: `width` over the display's points, #7842).
+`pixelsPerPoint` (the scale the picture really has: `width` over the display's points).
 
 ## `signals/`
 
 `ReceiverSignals`: `steps` in order, each one of
 - `frame`: `capture`, `arrival` and `firstByte` (µs; `firstByte` null when the frame came in one read), `bytes`,
-  `refinement`, `keyframe` (#7842: a keyframe's wake is left out of `queueP95Ms`), `fps`;
+  `refinement`, `keyframe` (a keyframe's wake is left out of `queueP95Ms`), `fps`;
 - `decoded`: `ms`, `at` (µs); `shown`: `replaced`, `at` (µs); `pathChanged`: `{}`;
 - `take`: `now` (µs), with `expected`, every `TierSignals` field (`frames`, `queueP50Ms`, `queueP95Ms`, `queueLastMs`,
   `queueRising`, `queueFalling`, `deliveredKbps`, `burstKbps`, `lateShare`, `decodeP95Ms`, `replacedShare`), null

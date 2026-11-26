@@ -1,99 +1,81 @@
-# 审批策略表
+# Approval policy tables
 
-`InteractionCenter` 应统一查询这张表。输入入口、交互类型和锁屏状态，输出可用动作、计划模式及解锁要求；具体答案文本和表单门禁再由 [作答夹具](../answer/README.md) 判断。两层都允许后才能发送。
+A resolution center should query these tables. The input is the entry point, the interaction kind and the lock state; the output is the available actions, the plan mode and the unlock requirement. The text of an answer and the form gates are judged separately by the [answer fixtures](../answer/README.md). Both layers must allow an action before it is sent.
 
-## 现状与统一目标
+## The two profiles
 
-| 入口 | 现状计划批准 | 统一后的批准 | 拒绝／打回的解锁规则 |
+| Entry | `ios_current`: plan approval | `unified`: plan approval | Unlock rule for reject / send back |
 | --- | --- | --- | --- |
-| 对话页 | `bypassPermissions` 或 `acceptEdits` | 保留两种，全部放行须读过全文，意见非空时两种都禁用 | 进入 App 需要解锁；没有额外生物识别要求 |
-| 通知 | `acceptEdits` | 只允许 `acceptEdits`，批准前解锁 | 当前拒绝无需解锁，打回要求解锁；统一后两者都不要求 |
-| 锁屏实时活动 | `acceptEdits` | 只允许 `acceptEdits`，批准前解锁 | 拒绝无需解锁；计划没有直接打回按钮，点查看进 App |
-| 手表 | `acceptEdits` | 只允许 `acceptEdits`，批准要求认证 | 当前代码未声明动作级认证；统一表将拒绝设为无需额外认证 |
-| Siri／快捷入口 | `acceptEdits` | 只允许 `acceptEdits`，批准要求认证 | 这个快捷入口只批准最早的待处理项，没有拒绝动作 |
+| Conversation page | `bypassPermissions` or `acceptEdits` | Both kept; approving everything requires having read the whole plan, and both are disabled while the feedback is non-empty | Opening the app needs an unlock; no extra biometrics |
+| Notification | `acceptEdits` | Only `acceptEdits`, unlocked before approving | `ios_current`: reject needs no unlock, send back does; `unified`: neither does |
+| Lock-screen live activity | `acceptEdits` | Only `acceptEdits`, unlocked before approving | Reject needs no unlock; a plan has no direct send-back button, tapping View opens the app |
+| Watch | `acceptEdits` | Only `acceptEdits`, approval requires authentication | The code declares no action-level authentication; the unified table sets reject to need none |
+| Siri / shortcut | `acceptEdits` | Only `acceptEdits`, approval requires authentication | The shortcut approves only the oldest pending item and has no reject action |
 
-依据：`docs/protocol/protocol.md` 2.3、4.2，`docs/protocol/protocol.md` 3.4、5.3。
+Sources: `docs/protocol/protocol.md`.
 
-设计总纲写“5 个入口用了 3 种模式”，现状记录里实际出现的批准模式是上表两种；协议还允许 `default`，这些入口没有选择它的按钮。因此夹具不编造第三种现状模式。通知打回的认证要求与 UX 目标冲突，两个版本分别保留。
+The protocol also allows `default`, but none of these entries has a button that selects it, so the fixtures invent no third current mode. The authentication requirement for sending a plan back from a notification conflicts with the UX target, so both versions are kept.
 
-所有外部入口的计划批准都收敛到 `acceptEdits`；手表的具体系统认证接法尚未实现，相关统一策略作为后续契约保留。通知上的“单题单选”按可一次提交完整答案处理，多题／多选需打开 App；这项范围限制避免通知按钮提交半份答案。
+In the unified profile every external entry approves a plan with `acceptEdits`. How the watch authenticates through the system is not implemented; the unified policy for it is a contract kept for later. A notification handles "one question, single choice" as a complete answer that can be submitted at once; several questions or multiple choice need the app, so that a notification button never submits half an answer.
 
-## JSON 结构与查询
+## JSON structure and lookup
 
-两个文件均为 `schema_version: 1` 和 `cases` 数组：`ios_current.json` 固定原有客户端的现状，`unified.json` 固定目标；各自覆盖 5 个入口 × 4 种类型 × 锁定／未锁定。每条含唯一 `name`、中文 `description`、出处数组 `source`、`input`、`expected`，来源标记与作答领域一致。
+Both files have `schema_version: 1` and a `cases` array: `ios_current.json` pins the existing client's behavior (it is still read by `server/internal/proto/resolution_fixtures_test.go`), `unified.json` pins the target. Each covers 5 entries x 4 kinds x locked/unlocked. A case has a unique `name`, a `description`, a `source` array, `input` and `expected`; the source markers are the same as in the answer domain.
 
-`input` 字段：
+`input` fields:
 
-| 字段 | 值 |
+| Field | Value |
 | --- | --- |
-| `profile` | `ios_current`／`unified` |
-| `entry` | `conversation`／`notification`／`lock_screen`／`watch`／`siri_shortcut` |
-| `kind` | 现有协议的 `plan`／`permission`／`question`／`screen` |
-| `locked` | 当前入口所在设备是否锁定；手表指手表自身，不把手机锁定推算成手表锁定 |
+| `profile` | `ios_current` or `unified` |
+| `entry` | `conversation`, `notification`, `lock_screen`, `watch` or `siri_shortcut` |
+| `kind` | `plan`, `permission`, `question` or `screen` of the existing protocol |
+| `locked` | Whether the device of that entry is locked; for the watch, the watch itself, never derived from the phone's lock |
 
-`expected.actions` 是动作描述数组，顺序只用于稳定夹具，客户端查询按 `id` 匹配；没有列出的动作不可用。
+`expected.actions` is an array of action descriptions. The order only keeps the fixture stable; a client looks an action up by `id`; an action not listed is unavailable.
 
-| 动作字段 | 含义 |
+| Action field | Meaning |
 | --- | --- |
-| `id` | `approve_all`、`approve_edits`、`approve_stepwise`（对话页的计划：批准，每步确认，mode default）、`reject`、`allow`、`deny`、`always`、`answer`、`screen_answer`、`choose_option`、`open_app`、`dismiss` |
-| `mode` | 仅计划批准有值，直接传入 Resolution；其他动作不应带 mode |
-| `authentication` | `required` 要求认证或打开已解锁 App；`none` 不要求额外认证；`platform_default` 当前源码未声明；`unspecified` 设计没有明确规定 |
-| `requires_unlock` | 锁定且明确要求认证时为 true；已解锁或明确无需解锁时为 false；未知时为 null |
-| `available_now` | 是否无需先解锁即可继续动作；与 `requires_unlock` 互补，未知同样为 null |
-| `requirements` | 额外内容门禁，需要与作答夹具一起判断；不是请求体字段 |
-| `input` | `feedback` 或 `message` 表示支持文本输入，`none` 表示没有文本框；省略时由对应表单决定 |
-| `max_options` | 通知选项按钮最多 3 个；其余选项通过打开 App 处理 |
+| `id` | `approve_all`, `approve_edits`, `approve_stepwise` (a plan on the conversation page: approve, confirm each step, mode default), `reject`, `allow`, `deny`, `always`, `answer`, `screen_answer`, `choose_option`, `open_app`, `dismiss` |
+| `mode` | Set only for plan approval, passed straight into the Resolution; other actions must not carry a mode |
+| `authentication` | `required`: authentication, or opening an already unlocked app; `none`: no extra authentication; `platform_default`: not declared in the current source; `unspecified`: the design does not say |
+| `requires_unlock` | True when locked and authentication is explicitly required; false when unlocked or explicitly not needed; null when unknown |
+| `available_now` | Whether the action can continue without unlocking first; the complement of `requires_unlock`, null likewise when unknown |
+| `requirements` | Extra content gates, to be judged together with the answer fixtures; not a request body field |
+| `input` | `feedback` or `message`: text input is supported; `none`: no text box; when omitted the matching form decides |
+| `max_options` | A notification shows at most 3 option buttons; the other options are handled by opening the app |
 
-`requirements` 可取 `not_rejecting`、`feedback_empty`、`reason_empty`、`full_plan_read`、`session_present`、`single_question_single_choice`、`question_not_irreversible`（`reversible: false` 的提问只能打开 App）、`plain_dialog_option`、`always_offered`（授权卡是 Claude 的，或者别的 Agent 的卡带了 `always_label`：Codex / TRAE CLI / Agent 运行时的卡只有在终端界面给出「总是同意」会放行什么时才有这个按钮）。`choose_option` 是待展开的按钮模板，仅在要求满足时按原始选项顺序取前 3 个；文本输入／转回对话选项不冒充普通按钮。`open_app` 是导航，不产生 Resolution；`answer`、`screen_answer` 是打开或操作对应表单，不是批准权限。
+`requirements` takes `not_rejecting`, `feedback_empty`, `reason_empty`, `full_plan_read`, `session_present`, `single_question_single_choice`, `question_not_irreversible` (a question with `reversible: false` can only be answered in the app), `plain_dialog_option` and `always_offered` (the permission card is Claude's, or another Agent's card carries an `always_label`: for a Codex, TRAE CLI or Agent runtime card the button exists only when the terminal's "always allow" says what it would permit). `choose_option` is a button template, expanded in the original option order to the first 3 only when the requirements hold; a text-input or turn-back-to-conversation option does not pose as an ordinary button. `open_app` is navigation and produces no Resolution; `answer` and `screen_answer` open or operate the matching form and do not approve a permission.
 
-null 是明确的未知值，不能当 false 放行：现状没有显式声明手表的认证要求，不足以证明锁定时能执行。通知上的提问／屏幕选项按钮原来没有定义是否要认证；协调者 2026-10-31 补定：**和「允许」一样要先解锁**（选项会让 Agent 往下做，屏幕对话框的选项常常就是命令审批），只有拒绝和打回不用。统一表已按此填 `required`。
+Null is an explicit unknown and must not be treated as false: the current behavior does not declare the watch's authentication requirement, which is not enough to prove that an action can run while locked. For question and screen option buttons on a notification the original behavior did not say whether authentication is needed; the decision is that **they need an unlock like Allow** (an option lets the Agent proceed, and a screen dialog's option is often a command approval), and only reject and send-back do not. The unified table says `required` accordingly.
 
-对话页的 `required` 表示锁屏时要先进入已解锁的 App，不意味着 App 内每个按钮再弹一次 Face ID。`available_now` 只回答锁屏维度，填写原因、是否读过计划、请求是否过期等门禁要叠加作答规则。通知和锁屏的 `open_app` 包括点击通知／卡片本身，其他 action 表示按钮。
+On the conversation page `required` means that while locked the unlocked app must be entered first, not that every button inside the app asks again. `available_now` answers only the lock dimension; gates such as the filled-in reason, whether the plan was read and whether the request expired combine with the answer rules. For notifications and the lock screen, `open_app` includes tapping the notification or card itself; other actions are buttons.
 
-## 对照与限制
-
-从仓库根目录运行：
+## Checking and limits
 
 ```sh
 cd server
 go test -count=1 -p 1 -run 'TestResolutionFixture' -v ./internal/proto
 ```
 
-共用测试位于 `server/internal/proto/resolution_fixtures_test.go`。Go 检查唯一名称、来源、矩阵内动作不重复、解锁与可立即执行的关系，以及统一版外部入口只能使用 `acceptEdits`。
+The shared test is `server/internal/proto/resolution_fixtures_test.go`. Go checks unique names, sources, no duplicate actions within a matrix cell, the relation between unlocking and immediate availability, and that the unified external entries use only `acceptEdits`.
 
-认证能力没有脱离系统单独实测；现状值是原有客户端的记录。手表没有对应认证断言，表中用 null，未猜测系统默认行为。
+Authentication ability was not measured apart from the system; the `ios_current` values are the existing client's record. The watch has no authentication assertion, so the table uses null and guesses no system default.
 
-`unified` 是设计规格，这里没有修改生产实现。通知“打回不用解锁”、原因输入、手表的认证，需要各入口接入时落实。MCP `elicitation` 尚未进入现有 Interaction 协议，不加入这张现有类型表；作答夹具明确记录其不可直接提交。
+`unified` is a design specification and changes no production implementation. "Notification send-back needs no unlock", reason input and the watch's authentication must be implemented when each entry connects. MCP `elicitation` is not part of the existing Interaction protocol and is not added to this table; the answer fixtures record that it cannot be submitted directly.
 
-## 规则与覆盖用例
+## Rules and covering cases
 
-每行同时列出现状和统一目标在锁定／未锁定下的用例。动作及模式的完整期望在 JSON。
+Case names follow `<profile>_<entry>_<kind>_<locked|unlocked>`, for example `ios_current_notification_plan_locked` and `unified_watch_permission_unlocked`; every combination of profile (`ios_current`, `unified`), entry (`conversation`, `notification`, `lock_screen`, `watch`, `siri_shortcut`), kind (`plan`, `permission`, `question`, `screen`) and state exists. The full expectation of actions and modes is in the JSON. For every entry the rules are:
 
-| 规则 | 覆盖用例 |
+| Rule | Kind |
 | --- | --- |
-| 对话页按对应版本选择计划批准模式，并在锁定时遵守认证要求。 | `ios_current_conversation_plan_unlocked`、`ios_current_conversation_plan_locked`、`unified_conversation_plan_unlocked`、`unified_conversation_plan_locked` |
-| 对话页只提供该入口已有的授权动作，统一版允许动作必须满足认证要求。 | `ios_current_conversation_permission_unlocked`、`ios_current_conversation_permission_locked`、`unified_conversation_permission_unlocked`、`unified_conversation_permission_locked` |
-| 对话页通过作答或打开 App 处理提问，通知快捷选项只适用于完整的单选答案。 | `ios_current_conversation_question_unlocked`、`ios_current_conversation_question_locked`、`unified_conversation_question_unlocked`、`unified_conversation_question_locked` |
-| 对话页通过终端作答或打开 App 处理屏幕卡，未规定的认证不得视为免解锁。 | `ios_current_conversation_screen_unlocked`、`ios_current_conversation_screen_locked`、`unified_conversation_screen_unlocked`、`unified_conversation_screen_locked` |
-| 通知按对应版本选择计划批准模式，并在锁定时遵守认证要求。 | `ios_current_notification_plan_unlocked`、`ios_current_notification_plan_locked`、`unified_notification_plan_unlocked`、`unified_notification_plan_locked` |
-| 通知只提供该入口已有的授权动作，统一版允许动作必须满足认证要求。 | `ios_current_notification_permission_unlocked`、`ios_current_notification_permission_locked`、`unified_notification_permission_unlocked`、`unified_notification_permission_locked` |
-| 通知通过作答或打开 App 处理提问，通知快捷选项只适用于完整的单选答案。 | `ios_current_notification_question_unlocked`、`ios_current_notification_question_locked`、`unified_notification_question_unlocked`、`unified_notification_question_locked` |
-| 通知通过终端作答或打开 App 处理屏幕卡，未规定的认证不得视为免解锁。 | `ios_current_notification_screen_unlocked`、`ios_current_notification_screen_locked`、`unified_notification_screen_unlocked`、`unified_notification_screen_locked` |
-| 锁屏实时活动按对应版本选择计划批准模式，并在锁定时遵守认证要求。 | `ios_current_lock_screen_plan_unlocked`、`ios_current_lock_screen_plan_locked`、`unified_lock_screen_plan_unlocked`、`unified_lock_screen_plan_locked` |
-| 锁屏实时活动只提供该入口已有的授权动作，统一版允许动作必须满足认证要求。 | `ios_current_lock_screen_permission_unlocked`、`ios_current_lock_screen_permission_locked`、`unified_lock_screen_permission_unlocked`、`unified_lock_screen_permission_locked` |
-| 锁屏实时活动通过作答或打开 App 处理提问，通知快捷选项只适用于完整的单选答案。 | `ios_current_lock_screen_question_unlocked`、`ios_current_lock_screen_question_locked`、`unified_lock_screen_question_unlocked`、`unified_lock_screen_question_locked` |
-| 锁屏实时活动通过终端作答或打开 App 处理屏幕卡，未规定的认证不得视为免解锁。 | `ios_current_lock_screen_screen_unlocked`、`ios_current_lock_screen_screen_locked`、`unified_lock_screen_screen_unlocked`、`unified_lock_screen_screen_locked` |
-| 手表按对应版本选择计划批准模式，并在锁定时遵守认证要求。 | `ios_current_watch_plan_unlocked`、`ios_current_watch_plan_locked`、`unified_watch_plan_unlocked`、`unified_watch_plan_locked` |
-| 手表只提供该入口已有的授权动作，统一版允许动作必须满足认证要求。 | `ios_current_watch_permission_unlocked`、`ios_current_watch_permission_locked`、`unified_watch_permission_unlocked`、`unified_watch_permission_locked` |
-| 手表通过作答或打开 App 处理提问，通知快捷选项只适用于完整的单选答案。 | `ios_current_watch_question_unlocked`、`ios_current_watch_question_locked`、`unified_watch_question_unlocked`、`unified_watch_question_locked` |
-| 手表通过终端作答或打开 App 处理屏幕卡，未规定的认证不得视为免解锁。 | `ios_current_watch_screen_unlocked`、`ios_current_watch_screen_locked`、`unified_watch_screen_unlocked`、`unified_watch_screen_locked` |
-| Siri／快捷入口按对应版本选择计划批准模式，并在锁定时遵守认证要求。 | `ios_current_siri_shortcut_plan_unlocked`、`ios_current_siri_shortcut_plan_locked`、`unified_siri_shortcut_plan_unlocked`、`unified_siri_shortcut_plan_locked` |
-| Siri／快捷入口只提供该入口已有的授权动作，统一版允许动作必须满足认证要求。 | `ios_current_siri_shortcut_permission_unlocked`、`ios_current_siri_shortcut_permission_locked`、`unified_siri_shortcut_permission_unlocked`、`unified_siri_shortcut_permission_locked` |
-| Siri／快捷入口通过作答或打开 App 处理提问，通知快捷选项只适用于完整的单选答案。 | `ios_current_siri_shortcut_question_unlocked`、`ios_current_siri_shortcut_question_locked`、`unified_siri_shortcut_question_unlocked`、`unified_siri_shortcut_question_locked` |
-| Siri／快捷入口通过终端作答或打开 App 处理屏幕卡，未规定的认证不得视为免解锁。 | `ios_current_siri_shortcut_screen_unlocked`、`ios_current_siri_shortcut_screen_locked`、`unified_siri_shortcut_screen_unlocked`、`unified_siri_shortcut_screen_locked` |
+| The entry selects the plan approval mode of its profile and obeys the authentication requirement while locked. | `plan` |
+| The entry offers only the permission actions it has; in `unified` an allowed action must satisfy the authentication requirement. | `permission` |
+| A question is answered in the form or by opening the app; the notification quick options apply only to a complete single-choice answer. | `question` |
+| A screen card is answered in the terminal or by opening the app; authentication that is not specified is never treated as needing no unlock. | `screen` |
 
-## 新增用例
+## Adding cases
 
-新增入口或交互类型时，先给现状列出证据，再明确统一目标，补齐锁定与未锁定两行；不把“未声明认证”写成无需解锁。修改批准模式时同步作答领域中的 Resolution，并确认外部入口不会发送 `bypassPermissions`。新增内容门禁时说明对应表单如何提供上下文，不能仅凭交互类型假定条件满足。
+When adding an entry or an interaction kind, first list the evidence for the current behavior, then state the unified target, and fill in both the locked and unlocked rows; never write "authentication not declared" as "needs no unlock". When changing an approval mode, update the Resolution in the answer domain and confirm that external entries never send `bypassPermissions`. When adding a content gate, say how the form supplies the context; never assume the condition holds from the interaction kind alone.
 
-运行对照命令并更新规则清单。现有实现衍生边界标 `derived`；既有单测直接覆盖的断言标 `from_test`；设计新增或覆盖规则标 `design_change`。只使用合成数据。
+Run the check command and update the rule list. A boundary derived from the implementation is marked `derived`; an assertion covered directly by an existing unit test is marked `from_test`; a rule that the design adds or overrides is marked `design_change`. Use synthetic data only.

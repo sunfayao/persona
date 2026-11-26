@@ -5,8 +5,7 @@ the conversation, live text, sending, interrupting, renaming, the `ask_user` que
 the phone. Without it an omp in a herdr pane is still listed, with its terminal only.
 
 omp reads pi extensions through its compatibility layer, so this package is the pi extension
-(`integrations/pi`) running under omp's identity: runtime `omp-<pid>` and card ids starting with `omp`. Details:
-`docs/integrations/omp.md`.
+(`integrations/pi`) running under omp's identity: runtime `omp-<pid>` and card ids starting with `omp`.
 
 ## Install
 

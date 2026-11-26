@@ -1,6 +1,6 @@
 # deep-links
 
-The cases the hub and the web check against the route table in `docs/protocol/deep-links.md` (#9926): the same link opens
+The cases the hub and the web check against the route table in `docs/protocol/deep-links.md`: the same link opens
 the same page on the web, and the hub writes every page's link one way.
 
 All addresses are made up (`example.com`, `example.org`, `example.net`, `2001:db8::/32`).

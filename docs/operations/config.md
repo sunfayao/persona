@@ -1,28 +1,16 @@
-# Configuration (so others can use this repo too)
+# Configuration
 
-The repo hard-codes nobody's machines, accounts, domains, or preferences. Everything personal lives in two configs, and code and scripts only read the configs:
+The repository hard-codes no machine, account, domain or preference. Everything personal lives in the configuration files below, and code and scripts only read them:
 
 | Config | Location | Read by | Covers |
 | --- | --- | --- | --- |
 | Build / deploy config | `~/.config/persona/config.json` on the dev machine (point elsewhere with `PERSONA_CONFIG`), template `config.example.json` at the repo root | `scripts/*` (via `scripts/persona_config.py`) | which machine / address the hub is on, machines to deploy to, publish settings |
 | hub runtime config | `~/.persona/hub.json` on the hub machine (0600, contains the token and database password; written by `personad hub setup`, or generated automatically the first time the hub starts; `hub pair`, `hub peer`, `hub manager-code` and `hub assistant-token` only talk to a running hub: they need this file and never create it) | `personad hub` | Listen address, public address, which machines to connect, push timings, whether the hub starts the built-in manager |
-| Link config | `~/.persona/link.json` on each computer with Persona Link (0600, contains its credentials; written by `persona-link pair`, `ssh`, `proxy` and the running link) | `persona-link` | Active and passive pairings, hub addresses, the optional SSH tunnel ([link.md](link.md), "SSH tunnel") and outbound proxy (`proxy`: a URL or `"off"`, [link.md](link.md), "Outbound proxy") |
+| Link config | `~/.persona/link.json` on each computer with Persona Link (0600, contains its credentials; written by `persona-link pair`, `ssh`, `proxy` and the running link) | `persona-link` | Active and passive pairings, hub addresses, the optional SSH tunnel and outbound proxy (`proxy`: a URL or `"off"`) |
 | Manager config | `~/.persona/managers/assistant/manager.json` for the built-in manager, `~/.persona/managers/<id>/manager.json` for one made in the app (0600) | the manager (`personad assistant`, `personad manager run`) | Whose assistant it is and what it should know, where it runs by default, the AI gateway and models, the Agents' triage, question delegation and launcher health, the Inbox and its AI twin, how long hook cards wait; connectors, extensions written by hand, bots, mail sign-ins and the Gmail proxy, Lark and lark-cli, usage sources ("manager.json" below) |
 
 Keep machine configuration outside the checkout.
 `CLAUDE.local.md` is in `.gitignore`.
-
-<a id="命名与兼容"></a>
-
-## Naming and configuration
-
-Persona is the only supported spelling. The canonical binary is `personad`, the connector is `persona-link`, runtime state defaults to `~/.persona`, and build/deploy configuration defaults to `~/.config/persona/config.json`. `PERSONA_HOME` and `PERSONA_CONFIG` are the only brand-prefixed overrides. No previous-brand variable, directory, command or URL aliases are read or created.
-
-See [the naming contract](../protocol/rolling-upgrade-compatibility.md) and [the approval-gated cutover](../protocol/rolling-upgrade-compatibility.md). Existing installations require explicit, one-time service/config/data/MCP migration before running this version. A source merge does not change live services. Back up and identify the actual storage first; two independent stores must never be merged automatically.
-
-Other runtime contracts, caches and persisted preferences need the cutover described above. The avatar model remains `persona`: the two bundled choices are Mochi (`persona`) and Milk Frog (`nwverse`); retired choices resolve to Mochi.
-
-The role-specific root resolver reads only canonical service definitions, including HOME-only environment-file overrides; it does not execute shell configuration or expose credentials. Missing required files fail closed. Queries are read-only, and `--prepare` initializes only the selected root without compatibility links.
 
 ## Who owns a setting
 
@@ -32,95 +20,18 @@ One setting has one writer. When two places seem to hold the same thing, this is
 | --- | --- | --- | --- |
 | Build / deploy `config.json` | deploy machines, publish | you, once per environment | Scripts only. The hub, manager and node never read it |
 | `hub.json` | listen, public/security, database, machines and their per-computer defaults | you / the installer | Hub runtime configuration and **defaults**. Read at hub start |
-| `manager.json` | assistant identity, connectors, `agents`, `ai`, `inbox`, `usage` | you / the installer | The manager's own configuration and **defaults**. The hub reads none of these sections; a copy left in `hub.json` is stale ([hub-update.md](hub-update.md#development-updates)) |
+| `manager.json` | assistant identity, connectors, `agents`, `ai`, `inbox`, `usage` | you / the installer | The manager's own configuration and **defaults**. The hub reads none of these sections; a copy left in `hub.json` is ignored |
 | Postgres settings (hub `hub_settings`, manager `settings`) | model configuration, launchers, inbox rules, extension settings, board and triage switches | the apps, the assistant, or a one-time migration | **User preferences. They win over the file defaults** |
 | Per-device `devices.prefs` | quiet hours, translation scope, notification switches | that device | Per-device only; not a settings key and not synced as one |
-| `PERSONA_*` environment | `DATABASE_URL`, `PUBLIC_URL`, `LISTEN`, `NODE_PACKAGES`, `ADMIN_ACCESS` | the deployment | Overrides the matching `hub.json` field, never written back. Each also accepts its former `JARVIS_*` name |
+| `PERSONA_*` environment | `DATABASE_URL`, `PUBLIC_URL`, `LISTEN`, `NODE_PACKAGES`, `ADMIN_ACCESS` | the deployment | Overrides the matching `hub.json` field, never written back. Each is also read under its former `JARVIS_` prefix (`JARVIS_DATABASE_URL`, …) so that a part of an older version keeps working during a rolling upgrade (`server/internal/compat`, `scripts/persona_identity.py`); `PERSONA_HOME` and `PERSONA_CONFIG` are the only brand-prefixed overrides of the state directory and the deploy config |
 | Node-local third-party files | Claude / Codex / Antigravity / OMP `settings.json` | the user or those tools | Read by the node on that computer; the Agents settings page edits the allow-listed subset |
-| Node-local `node-signing.json` | the certificate a Mac's resident node signs its builds with | you, on that Mac | Read by the resident node at start; never sent to the hub ([mac-node-signing.md](mac-node-signing.md)) |
+| Node-local `node-signing.json` | the certificate a Mac's resident node signs its builds with | you, on that Mac | Read by the resident node at start; never sent to the hub (`docs/operations/mac-node-signing.md`) |
 
 Consequences worth remembering:
 
 - **The database wins.** A value saved in an app is not written back to `hub.json` or `manager.json`, and editing the file afterwards does not override it. This covers model configuration, launcher and provider settings, inbox rules, per-machine switches such as `botmux` / `herdr_autostart`, and `auto_update_nodes`.
-- **Files are defaults, not the current value.** `ai`, `inbox.triage_ai`, `inbox.judge_ai`, `assistant.launcher` and `machines[].launchers` are the compatibility baseline the model configuration inherits from, not a second place to change the model (`docs/assistant/model-config.md`).
+- **Files are defaults, not the current value.** `ai`, `inbox.triage_ai`, `inbox.judge_ai`, `assistant.launcher` and `machines[].launchers` are the baseline the model configuration inherits from, not a second place to change the model.
 - **Scope is explicit, not inferred**: per-computer (a machine's own settings), per-manager (Model Settings, Assistant, Knowledge pick one), per-device (notification and translation preferences). A setting that looks the same in two places — the assistant time zone, a device's quiet-hours time zone, the browser's zone — is not one setting.
-
-## Quick start: connecting several machines
-
-An always-on Linux machine runs the hub, and every other computer is connected by the hub over SSH. The other computers need no resident service: when the hub connects it runs
-`ssh <host> ~/.persona/bin/personad node --stdio` and speaks the node protocol over SSH's stdin/stdout, reconnecting automatically when it drops (`server/internal/hub/machine.go`).
-
-### Prerequisites
-
-| Machine | Needs |
-| --- | --- |
-| hub machine (Linux) | docker (the Postgres container; without Docker, use the system's Postgres, see `docs/server/server.md` ("Database")), systemd user services, herdr; the phone must be able to reach the hub: same network, a VPN you set up yourself, or direct public access (IPv6 preferred, with the TLS port open). On a NAS, or when it only serves as a hub without running Agents, it can also run entirely in Docker (`docs/operations/config.md`); steps 1 and 2 below are then only for installing `personad` on each computer |
-| Each computer to connect | Claude Code (or Codex); `~/.persona/bin/personad` and herdr (the deploy script in step 2 copies them over; if herdr is missing, install it into `~/.local/bin` with its official installer, or set `PERSONA_SKIP_HERDR=1` if you use another engine and don't want it) |
-| SSH | The hub machine can log in to every computer **without a password** (the hub uses `BatchMode=yes`, so keys only), with an alias for each in the hub machine's `~/.ssh/config`; the dev machine also needs SSH to each one (for deploying) |
-
-For computers behind NAT that the hub can't reach (e.g. a Mac at home, a machine on another private network), use **tailcat** (`docs/server/server.md` ("tailcat hole punching")):
-install the resident node on that computer, run `personad node tailcat init` once, and put the printed address into that machine's `tailcat_addr` in hub.json. Neither side needs a public IP,
-open ports, or a Tailscale account; the hub tries ssh first and falls back to tailcat. You can also, as before, open a reverse tunnel from that computer to the hub machine
-(`ssh -R 2222:localhost:22 <hub machine>`, kept alive with launchd / autossh) and point the alias at `localhost:2222` in the hub machine's `~/.ssh/config`.
-
-### Steps
-
-1. **Dev machine: write the build / deploy config** `~/.config/persona/config.json` (copy from `config.example.json`; fields in the next section).
-   The two sections relevant to connecting machines:
-
-   ```json
-   "hub": { "machine": "server", "url": "http://server.example.com:18660" },
-   "machines": [
-     { "id": "server", "ssh": "server", "os": "linux" },
-     { "id": "laptop", "ssh": "laptop", "os": "darwin", "hostnames": ["MyMacBook"] }
-   ]
-   ```
-
-   `ssh` is the host name the **dev machine** uses to SSH to this one. `os` (`linux` / `darwin`) and the optional `arch` (`amd64` / `arm64`) decide which binary to install; when one or both are omitted, the deploy script asks that machine (`uname -s` / `uname -m`), so leaving them out won't install the wrong one (an Intel Mac gets `darwin/amd64`, ARM Linux gets `linux/arm64`). A machine that can't be asked (powered off, unreachable) is skipped as unreachable, not treated as a wrong platform; only a written or reported platform with no matching build is an error, and the whole deploy exits non-zero. `hostnames` are this machine's own host names (`hostname -s`; on macOS the LocalHostName works too); when the deploy script runs on this machine, it copies locally instead of using SSH.
-   **Add `hostnames` for whichever machine you run the deploy on**: any machine without them is treated as remote and installed over SSH (if the machine running the deploy lacks them, it SSHes to itself).
-   For a computer the dev machine can't reach but another machine (usually the hub machine) can (the key only lives there, no route), write `"via": "<that machine's id>"`:
-   the deploy copies to that machine first and installs from there, and `ssh` is then the host name **on that machine**.
-
-2. **Deploy**: `./scripts/deploy/deploy.sh`. It builds `personad` for four platforms (`linux` / `darwin` × `amd64` / `arm64`, same as releases and the Docker image), and each computer gets the one it runs (after installing, it runs `version` once on that machine as a self-check; if that fails it reports an error and doesn't print installed). On the hub machine it
-   starts the Postgres container and installs `personad hub` as a systemd user service and starts it.
-
-3. **hub machine: tell the hub which computers to connect**. The first start generates `~/.persona/hub.json` (0600), containing only itself. Add the other computers and the address the phone uses:
-
-   ```json
-   "public_url": "http://server.example.com:18660",
-   "machines": [
-     { "id": "server", "name": "Server", "kind": "local", "icon": "server" },
-     { "id": "laptop", "name": "Laptop", "kind": "ssh", "ssh_host": "laptop", "icon": "laptop" }
-   ]
-   ```
-
-   `ssh_host` is the host name the **hub machine** uses to SSH to this one (each side has its own `~/.ssh/config`, so it can differ from `ssh` in step 1); `id` should match step 1;
-   `name` is the name shown in the App; `icon` is `server` / `laptop` / `desktop`. `remote_bin` is the path of `personad` on that computer; when omitted the hub uses `~/.persona/bin/personad` (the canonical binary the deploy script installs); set it if installed elsewhere. It may be a wrapper script that sets the node's environment and runs personad; **Redeploy** over ssh does not replace a script, so update the personad it runs by hand ([node-update.md](node-update.md) "Usage").
-   Whose assistant it is and what it should know (`assistant.owner`, `assistant.notes`) go into the built-in manager's `~/.persona/managers/assistant/manager.json` (make it, 0600, if it isn't there yet; see "manager.json" below). For direct public access add `public.tls_listen` and `public.advertise` and open the TLS port per the [network doc](network.md); keep `public_url` as a reachable private-network address.
-
-4. **Restart the hub so it reads the new config**: `./scripts/deploy/deploy.sh <hub machine id>` (or `systemctl --user restart personad` on the hub machine).
-
-5. **Pair the phone**: run `~/.persona/bin/personad hub pair` on the hub machine and scan the QR code with the App. The command gets a temporary token from the hub running locally; it is valid for 10 minutes, can be redeemed for a device token only once, and after redemption has at most a 2-minute grace period for requests still in the middle of pairing. Only `--legacy` prints the main token.
-
-6. **Check**: in the App, **Settings › Machines** shows every machine online; the "Agents" tab shows the sessions in herdr on each computer. If one is offline, run
-   `ssh -o BatchMode=yes <ssh_host> '~/.persona/bin/personad node --stdio'` by hand on the hub machine to see whether SSH fails or the binary is missing.
-
-To add a computer later: add a line to `machines` in both configs and run `./scripts/deploy/deploy.sh <new machine id> <hub machine id>`.
-
-**Recommended: install the node service on the other computers** (2026-11-02, [../server/mesh.md](../server/mesh.md) section 0): install only one hub for the whole household; the other computers skip SSH and
-install a resident node plus the connector persona-link, with one command or one App, see [link.md](link.md) ("Install the node service"):
-
-- Linux: `curl -fsSL <site>/install.sh | sh -s -- --node --pair '<link from personad hub pair --machine <id>>'` (this computer connects to the hub; in `machines` it is
-  `{"id":"laptop","name":"Laptop","kind":"link","icon":"laptop"}`, and the hub needs `public.tls_listen`), or `… --node --listen` (the hub connects to it;
-  paste the printed link into the hub admin UI under **Computers › Add computer › Hub connects**, and in `machines` it is kind `service`).
-- Mac: install Persona Link with the [deployment script](link.md#install-the-node-service); the connector and resident node run as launchd agents. Pair with `persona-link pair`.
-
-No `ssh_host`, and no SSH setup on the hub. The SSH setup in steps 1–6 above still works, and is kept only for compatibility from now on.
-
-### Current limitations
-
-- The deploy script only installs the hub on Linux (systemd + docker); the hub can't live on a Mac for now.
-- The machine list has to be written in two places: the dev machine's `config.json` covers "where to deploy", the hub's `hub.json` covers "which machines the hub connects".
 
 ## Build / deploy config (config.json)
 
@@ -157,7 +68,7 @@ Each machine in `hub.json` can configure `codex_homes` (an array of directories)
 
 No application name needs hard-coding: every 30 seconds the node discovers the current user's Codex/app-server processes, `CODEX_HOME`, and enabled listen endpoints; existing official control sockets under known homes can also be discovered. Discovered directories and named instances are remembered in the hub's Postgres settings; process/connection generations are not persisted. Private paths belong only in runtime config; do not commit actual config values.
 
-The Unix socket and its immediate parent directory must belong to the current user and be inaccessible to groups/other users; WebSocket runs inside. TCP endpoints allow only literal loopback IPs, disallow external hosts, userinfo, and query credentials, and do not use the system HTTP proxy. Stdio without an endpoint is read-only; no daemon is started, no desktop app replaced, and no file permissions loosened. More limitations in `../integrations/codex.md#app-server-protocol`.
+The Unix socket and its immediate parent directory must belong to the current user and be inaccessible to groups/other users; WebSocket runs inside. TCP endpoints allow only literal loopback IPs, disallow external hosts, userinfo, and query credentials, and do not use the system HTTP proxy. Stdio without an endpoint is read-only; no daemon is started, no desktop app replaced, and no file permissions loosened.
 
 ## hub runtime config (hub.json)
 
@@ -185,40 +96,39 @@ The sections that are a manager's (whose assistant it is, `ai`, `agents`, `inbox
 }
 ```
 
-- First run writes only the local machine (`kind: local`, id is the host name); the generated `public_url` is the HTTP address for that host name, only a private-network compatibility endpoint. TLS is off by default; the example explicitly enables `:18662` (an example port, changeable). Configure other machines and domains yourself.
+- First run writes only the local machine (`kind: local`, id is the host name); the generated `public_url` is the HTTP address for that host name (a private-network endpoint). TLS is off by default; the example explicitly enables `:18662` (an example port, changeable). Configure other machines and domains yourself.
 - `listen` is the retained HTTP listener, default `:18660`; `public_url` goes into the QR code's `url` and the candidate list.
-- For each `public` and `security` setting, its defaults, and how to allow traffic, see [network configuration](network.md#hubjson-网络配置). Candidate addresses are sent only after authentication.
+- For each `public` and `security` setting, its defaults, and how to allow traffic, see network configuration. Candidate addresses are sent only after authentication.
 - `security.proxy_protocol` (optional, omitted by default): with same-machine port forwarding, a reverse tunnel, or nginx `stream` passthrough in front of the hub, public connections all look like loopback to the hub.
   Set `{"from": ["127.0.0.1/32"]}`: connections from these upstreams must carry a PROXY header (v1 / v2), and the hub checks the real source in the header; `listeners` defaults to only `tls`.
-  Syntax, rules, and self-checks in [network.md](network.md#proxy-protocol).
+  Syntax, rules, and self-checks.
 - `name` (optional): the hub's display name (e.g. "Home"), reported by persona-link and shown by clients.
   Defaults to the short host name of the hub machine; if the host name is a Docker container id or `PERSONA_LOCAL_NODE=0`, it uses `hub-<first 6 chars of hub_id>`. Manual file edits require a hub restart;
-  edits in the admin UI's "Overview" take effect immediately ([admin.md](admin.md)).
-- `initial_locale` (optional, `en` / `zh-Hans` / `ja`): the user language until a device reports one ([i18n.md](../protocol/i18n.md), "User language").
-  A new install's `personad hub setup` writes the language the installer ran in (`--lang`, else `PERSONA_INSTALL_LANG`, which `install.sh` sets);
+  edits in the admin UI's "Overview" take effect immediately.
+- `initial_locale` (optional, `en` / `zh-Hans` / `ja`): the user language until a device reports one (`docs/protocol/i18n.md`, "User language").
+  A new install's `personad hub setup` writes the language the installer ran in (`--lang`, else `PERSONA_INSTALL_LANG`);
   setup never changes it in an existing file. Once a device has reported a language (Postgres `user_locale`), this field no longer matters;
   omitted or unknown means `zh-Hans`. Edits take effect at the next hub start.
-- `admin` (optional): hub admin UI (`<hub address>/admin`, [admin.md](admin.md)). `access` controls who can open it: `loopback` / `lan` (default) / `cidrs` / `any`
+- `admin` (optional): hub admin UI (`<hub address>/admin`). `access` controls who can open it: `loopback` / `lan` (default) / `cidrs` / `any`
   (requires TLS); `cidrs` lists networks allowed with `access: cidrs`; `session_hours` is the login expiry (default 12); `first_setup: "code"` (written by a fresh `personad hub setup` install) requires a setup code even from LAN sources to set the first password; without it only loopback requires one. Access can only be broadened on the hub machine with
   `personad hub admin access <scope>` (or the deploy script); the web UI can only narrow it. Env vars `PERSONA_ADMIN_ACCESS` / `PERSONA_ADMIN_CIDRS` take precedence.
-  The admin UI writes hub.json atomically and preserves unknown fields ([admin.md](admin.md) ("Editing hub.json")).
-- `mesh` (optional, linked hubs, [mesh.md](../server/mesh.md)): `discovery` (default true: advertise itself with mDNS on the LAN and list discovered hubs; unavailable inside a Docker bridge network),
+  The admin UI writes hub.json atomically and preserves unknown fields.
+- `mesh` (optional, linked hubs): `discovery` (default true: advertise itself with mDNS on the LAN and list discovered hubs; unavailable inside a Docker bridge network),
   `path_switch_seconds` (default 60: when a computer has a better path, it must stay better this long before the primary switches; broken paths switch immediately),
-  `plaintext` (off by default: `allow` lists `*`, networks / addresses, `192.0.2.*`, and host names / `*.example.com` used only for dialing that may pair and link without TLS; `advertise` lists `http://` addresses other hubs use to connect to this one in plaintext; no encryption or pinning, see [mesh.md](../server/mesh.md) ("Plaintext links")). Peers, the group's primary, and its term live in
-  Postgres, not here. The first version's `takeover_seconds` is no longer used.
-- `link` (optional, computer-link heartbeat, [link.md](link.md) ("Heartbeat")): `ping_seconds` (ping interval, default 10), `ping_timeout_seconds` (time without pong before disconnecting, default 5).
+  `plaintext` (off by default: `allow` lists `*`, networks / addresses, `192.0.2.*`, and host names / `*.example.com` used only for dialing that may pair and link without TLS; `advertise` lists `http://` addresses other hubs use to connect to this one in plaintext; no encryption or pinning). Peers, the group's primary, and its term live in
+  Postgres, not here.
+- `link` (optional, computer-link heartbeat): `ping_seconds` (ping interval, default 10), `ping_timeout_seconds` (time without pong before disconnecting, default 5).
   Omitted or 0 uses the default; setting only one leaves the other at its default. Range 1–600 seconds, capped at 600. Controls the hub's pings on Persona Link connections and streams, and the manager's pings on connector (kind service) streams.
   When set, the manager also tells Persona Link (in `endpoints` for active mode, in stream-opening request headers for passive mode), and the computer pings accordingly; hub-to-hub links are unaffected and remain 10 seconds / 5 seconds.
   On slow links (only tens of KB/s between hub and computer), pings queue behind data being written (a 1 MiB chunk at 30 KB/s takes over 30 seconds); a timeout shorter than writing one chunk always causes a false disconnect. Set
   `ping_timeout_seconds` longer (e.g. `{"ping_seconds": 30, "ping_timeout_seconds": 90}`); a dead link then takes roughly "interval + timeout" to detect. The network library's ping send and pong reply
-  themselves wait at most 5 seconds, and forwarding a message writes for at most 1 minute; neither is configurable (link.md ("Heartbeat")).
+  themselves wait at most 5 seconds, and forwarding a message writes for at most 1 minute; neither is configurable.
   Older Persona Link versions do not recognize these settings and still ping at their own 10 seconds / 5 seconds (active mode only pings the connection itself; passive mode also pings every stream); upgrade both together. Manual file edits require a hub restart.
-- `machines`: since 2026-11-04 these are defaults handed by the hub to the manager (the assistant process) at handshake, and **the manager connects them** ([machines.md](../server/machines.md) ("Who connects to computers")). Where the text below says "the hub dials" or "the hub connects",
+- `machines`: these are defaults handed by the hub to the manager (the assistant process) at handshake, and **the manager connects them**. Where the text below says "the hub dials" or "the hub connects",
   the manager actually dials (on the hub machine it is the hub's child process using the same HOME: ssh config and its keys in `~/.persona/managers/assistant/` are all this machine's). Computers added in the admin UI at runtime are also handed to it and connected immediately.
 - `machines[].kind`: `local` (the hub's own machine), `service` (the hub dials this connector's passive port, "Hub connects", see the next item), `link` (this machine's persona-link
-  actively connects to the hub, "Computer connects", [link.md](link.md)); `ssh` (the hub connects via `ssh_host`) and `tailcat` (tailcat only, see the item after next) are retained only for existing configs,
-  no longer added through the admin UI; migration steps in [mesh.md](../server/mesh.md) ("SSH / tailcat: compatibility"). One computer may have several entries (e.g. a service and a link); the hub recognizes
-  the same computer by machine_uid, lists it once, and uses the best path ([mesh.md](../server/mesh.md) ("Multiple paths to one computer")).
+  actively connects to the hub, "Computer connects"); `ssh` (the hub connects via `ssh_host`) and `tailcat` (tailcat only, see the item after next) exist for configs that already have them and are not added through the admin UI. One computer may have several entries (e.g. a service and a link); the hub recognizes
+  the same computer by machine_uid, lists it once, and uses the best path.
 - `machines[].trust` (optional): `"work"` prevents that computer from reading personal data through the manager. Omitted or `"personal"` keeps the existing access; other values are rejected when loading hub.json.
   Work computers cannot list or execute phone tools, connector tools (including mail), or assistant tools, and cannot read the assistant's live context or model configuration. `personad notify`, `personad ask`, and Agent question / approval cards still work; personal computers and the assistant can continue driving Agents on work computers.
   This policy applies to every path to the same physical computer: a `work` entry also restricts its aliases. The assistant's default placement skips work computers, and `manager.json` cannot set `assistant.machine` to one. A bad explicit placement rejects the manager's handshake; a bad edit while connected is logged and keeps the last valid settings. With no eligible computer, no assistant is placed. The app's assistant-machine setting has the same restriction.
@@ -226,97 +136,87 @@ The sections that are a manager's (whose assistant it is, `ai`, `agents`, `inbox
 - `machines[].address`, `machines[].proxy` (kind `service`): the connector's `host:port` (included in the link from `persona-link pair --listen`; paste it under **Add computer ›
   Hub connects** in the admin UI to fill it in); optional `proxy`, `socks5://[user:password@]host:port`, lets the hub connect through this SOCKS proxy (when the computer is only reachable through another machine).
   The connector's public-key fingerprint and the credentials the hub gives it are not in hub.json: pairing stores them in Postgres (credentials encrypted with `~/.persona/secret.key`).
-- `machines[].tailcat_addr` (optional): the `tc…` address printed by `personad node tailcat init` on that computer; the hub connects through tailcat when ssh fails
-  (`docs/server/server.md` ("tailcat hole punching")). The address is a secret (includes the WireGuard preshared key); keep it only in hub.json, like the token. `kind: "tailcat"` means
+- `machines[].tailcat_addr` (optional): the `tc…` address printed by `personad node tailcat init` on that computer; the hub connects through tailcat when ssh fails. The address is a secret (includes the WireGuard preshared key); keep it only in hub.json, like the token. `kind: "tailcat"` means
   tailcat only, no ssh attempt (no `ssh_host`); `kind: "ssh"` plus `tailcat_addr` means ssh first, tailcat on failure.
-- Env vars `PERSONA_DATABASE_URL`, `PERSONA_PUBLIC_URL`, `PERSONA_LISTEN`, `PERSONA_NODE_PACKAGES`, `PERSONA_ADMIN_ACCESS` override the corresponding settings (new `PERSONA_*` names win, not written back to the file); Docker deployments use them. A nonempty `PERSONA_ADMIN_ACCESS` replaces the whole `admin` access scope together with `PERSONA_ADMIN_CIDRS`; setting only `PERSONA_ADMIN_CIDRS` has no effect
-  (`docs/operations/config.md` ("Environment variables")); with `PERSONA_LOCAL_NODE=0`, first run does not write the local machine.
-- `node_packages` (optional): where the manager fetches the node builds the hub has none of its own for (a computer of another OS or architecture, persona-node: `docs/operations/node-update.md` ("Node packages")). `url` is a release's `dl/` (`https://<site>/dl`, or a mirror of it that serves `latest.json` and `<version>/manifest.json` with the archives beside them); empty uses the hub's update source (`update.url`, else this build's update URL: a release hub's; a Docker image built with one), through `update.proxy` unless `proxy` here names one; `"off"` never fetches. A mirror must answer 404 for a file it does not have (any other error counts as the site being away). `proxy` is an `http://[user:pass@]host:port` proxy for it (the environment's proxies are not used). The env var `PERSONA_NODE_PACKAGES` overrides `url` (a compose file's mirror, or `off`); `docs/operations/config.md` ("Node builds") covers hubs without internet access.
-- `update` (optional): where the hub looks for its own releases, and how it reaches them (`docs/operations/hub-update.md` ("Update source")). `url` is the directory `latest.json` is in (`https://github.com/<owner>/<repo>/releases/latest/download`, a publish site's `https://<site>/dl`, or a mirror), in place of the one the build was made with; empty keeps the build's. It must be `https://` (`http://` only to this machine: releases are not signed), or `file:///<directory>`, without a user, password, query or fragment; one that does not read leaves the hub with no source, and Settings › hub says why. `proxy` is an `http://[user:pass@]host:port` proxy for the update's checks and downloads alone (and for node builds fetched from the same source, below); everything else the hub talks to goes as before. A `proxy` that does not read fails every check rather than going around it. Empty uses the environment's proxies for these requests, as before. Its user and password never appear in the log or the app. Read at the hub's start.
-- `update.development` (optional): snapshot configuration for Web development updates from `https://github.com/nwverse/persona.git`, fixed to `main`. The Hub pauses its own writers for the snapshot by default; `backup.quiesce` and `backup.resume` are an optional advanced override for writers outside the Hub's control, and must be set together. `backup.directory` and `backup.retain` are read when Settings › Hub › Update source › Web development does not set them (the Web UI accepts only a folder and a count, never a command or credential); optional `extra_roots` and `extra_databases` extend the snapshot. Build platforms are selected automatically from the Hub and registered computers' last-reported OS/architecture. See [Web development updates](hub-update.md#web-development-updates) for the recommended folder, path safety rules, snapshot boundaries and recovery.
-- `tailcat.derp_map_url` (optional): the DERP map URL when using a self-hosted DERP relay (derper, see `docs/server/server.md` ("Self-hosted relay")) instead of Tailscale's public relays; each computer's
+- Env vars `PERSONA_DATABASE_URL`, `PERSONA_PUBLIC_URL`, `PERSONA_LISTEN`, `PERSONA_NODE_PACKAGES`, `PERSONA_ADMIN_ACCESS` override the corresponding settings (new `PERSONA_*` names win, not written back to the file); Docker deployments use them. A nonempty `PERSONA_ADMIN_ACCESS` replaces the whole `admin` access scope together with `PERSONA_ADMIN_CIDRS`; setting only `PERSONA_ADMIN_CIDRS` has no effect; with `PERSONA_LOCAL_NODE=0`, first run does not write the local machine.
+- `node_packages` (optional): where the manager fetches the node builds the hub has none of its own for (a computer of another OS or architecture, persona-node). `url` is a release's `dl/` (`https://<site>/dl`, or a mirror of it that serves `latest.json` and `<version>/manifest.json` with the archives beside them); empty uses the hub's update source (`update.url`, else this build's update URL: a release hub's; a Docker image built with one), through `update.proxy` unless `proxy` here names one; `"off"` never fetches. A mirror must answer 404 for a file it does not have (any other error counts as the site being away). `proxy` is an `http://[user:pass@]host:port` proxy for it (the environment's proxies are not used). The env var `PERSONA_NODE_PACKAGES` overrides `url` (a compose file's mirror, or `off`).
+- `update` (optional): where the hub looks for its own releases, and how it reaches them. `url` is the directory `latest.json` is in (`https://github.com/<owner>/<repo>/releases/latest/download`, a publish site's `https://<site>/dl`, or a mirror), in place of the one the build was made with; empty keeps the build's. It must be `https://` (`http://` only to this machine: releases are not signed), or `file:///<directory>`, without a user, password, query or fragment; one that does not read leaves the hub with no source, and Settings › hub says why. `proxy` is an `http://[user:pass@]host:port` proxy for the update's checks and downloads alone (and for node builds fetched from the same source, below); everything else the hub talks to is unaffected. A `proxy` that does not read fails every check rather than going around it. Empty uses the environment's proxies for these requests. Its user and password never appear in the log or the app. Read at the hub's start.
+- `update.development` (optional): snapshot configuration for Web development updates from `https://github.com/nwverse/persona.git`, fixed to `main`. The Hub pauses its own writers for the snapshot by default; `backup.quiesce` and `backup.resume` are an optional advanced override for writers outside the Hub's control, and must be set together. `backup.directory` and `backup.retain` are read when Settings › Hub › Update source › Web development does not set them (the Web UI accepts only a folder and a count, never a command or credential); optional `extra_roots` and `extra_databases` extend the snapshot. Build platforms are selected automatically from the Hub and registered computers' last-reported OS/architecture. See Web development updates for the recommended folder, path safety rules, snapshot boundaries and recovery.
+- `tailcat.derp_map_url` (optional): the DERP map URL when using a self-hosted DERP relay (derper) instead of Tailscale's public relays; each computer's
   `init` must use the same `--derp-map-url`.
 - `machines[].claude_config_dirs` (optional): Claude Code config directories on this machine besides `~/.claude` (`CLAUDE_CONFIG_DIR` set by launchers,
   e.g. `["~/.config/claude-code/profiles/work"]`; `~/` is that machine's home). The node finds directories used by running claude processes itself and remembers them in the database;
   only list directories "not usually running, but whose historical sessions you want in the list" here. Conversely, hide unwanted directories (automation scripts' own `CLAUDE_CONFIG_DIR`)
-  in **Settings › Claude Code › Blocked Config Folders** in the App; stored in the database, not hub.json (`docs/integrations/claude-integration.md` ("Blocking configuration directories")).
+  in **Settings › Claude Code › Blocked Config Folders** in the App; stored in the database, not hub.json.
 - `machines[].claude_start_dir` (optional): the `CLAUDE_CONFIG_DIR` passed when Persona starts an Agent with the `claude` launcher on this machine
   (new Agent, to-do dispatch, assistant's agent_start, assistant chats), e.g. `"~/.config/claude-code/profiles/work"` (`~/` is that machine's home). For computers where "claude is signed into a profile directory, not `~/.claude`":
-  without it, Persona's claude uses the default directory, which is not logged in and immediately replies `Not logged in · Please run /login` (#1459). Only controls the `claude` launcher;
+  without it, Persona's claude uses the default directory, which is not logged in and immediately replies `Not logged in · Please run /login`. Only controls the `claude` launcher;
   aliases / functions in `~/.zshrc` and Persona-managed launchers keep their own settings. This directory is also added automatically to the session-search directories above. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
 - `machines[].inbox_dir` (optional): this computer's **receive folder**, where files sent to it to keep land (from the phone with `dest=inbox`, and from another computer through `POST /api/v1/files/transfer`), e.g. `"~/Inbox"` (`~/` is that machine's home) or an absolute folder in the home.
-  Omitted means `~/Downloads/Persona`. The node makes it when missing and refuses a folder the phone may not write to (outside the home, `~/.persona`, `~/Library`, key folders, links out of the home: 409 `read_only`), so a typo never creates a folder elsewhere ([file-transfer.md](../protocol/file-transfer.md)). Manual hub.json edits require a hub restart.
+  Omitted means `~/Downloads/Persona`. The node makes it when missing and refuses a folder the phone may not write to (outside the home, `~/.persona`, `~/Library`, key folders, links out of the home: 409 `read_only`), so a typo never creates a folder elsewhere. Manual hub.json edits require a hub restart.
 - `machines[].extra_path` (optional): directories this computer's node puts in front of its PATH, for tools a service's PATH (launchd, systemd, an ssh session) does not have,
   e.g. `["~/.cargo/bin", "/opt/tools/bin"]` (`~/` is that machine's home; other relative entries and `$VARIABLES` are ignored). The node also adds the shims directories of mise
   (`$MISE_DATA_DIR`, else `$XDG_DATA_HOME/mise`, else `~/.local/share/mise`) and asdf (`$ASDF_DATA_DIR`, else `~/.asdf`) that exist, after the rest of its PATH, by itself: a repository whose `git-lfs` comes from mise
-  gets its worktrees without any setting (#10127). Both reach the herdr server the node starts too, after the system directories its login shell starts from
-  (`docs/integrations/engines.md` ("When herdr is not running")); a server already running keeps its PATH until it restarts. The node reads them itself, so no service file holds them
+  gets its worktrees without any setting. Both reach the herdr server the node starts too, after the system directories its login shell starts from; a server already running keeps its PATH until it restarts. The node reads them itself, so no service file holds them
   and rerunning `personad hub setup` or `node-launchd.sh install` keeps them. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
 - `machines[].botmux` (optional): false means this computer's node neither lists botmux sessions nor runs botmux (no `botmux observe`, `botmux dashboard current`);
-  omitted means the old behavior, listing sessions if botmux is installed (`docs/integrations/engines.md` ("botmux")). The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
-  It is now only a default: "Also Show botmux Sessions" in machine details (the web in the page header) is stored per machine in settings (`botmux/<machine id>`) and wins once set (#2575).
-- `machines[].herdr_autostart` (optional): false means this computer's node does not start herdr's server itself when herdr is not running; omitted means on
-  (`docs/integrations/engines.md` ("When herdr is not running")). **Only a default**: once the user chooses per machine under **Settings › Machines › Engine**, that choice wins
+  omitted lists sessions if botmux is installed. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
+  It is now only a default: "Also Show botmux Sessions" in machine details (the web in the page header) is stored per machine in settings (`botmux/<machine id>`) and wins once set.
+- `machines[].herdr_autostart` (optional): false means this computer's node does not start herdr's server itself when herdr is not running; omitted means on. **Only a default**: once the user chooses per machine under **Settings › Machines › Engine**, that choice wins
   (stored in the hub's settings, `herdr_autostart/<machine id>`); later edits here do not affect machines already configured.
 - `machines[].herdr_autoinstall` (optional, off by default): true means when herdr is missing on this computer, the node installs a pinned version before starting herdr itself
-  (at startup, before creating / continuing sessions). Without it, installation happens only when the user taps "Start" in the Agents list (`docs/integrations/engines.md` ("When herdr is not installed")). The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
+  (at startup, before creating / continuing sessions). Without it, installation happens only when the user taps "Start" in the Agents list. The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
 - `machines[].claude_global_hooks` (optional, off by default): true means this computer's node adds **report-only** hooks to `settings.json` in the default Claude config directory (asynchronous, short timeout, never answer approvals),
   so sessions not started by Persona also report turns and question events to Persona; false or removing the key removes Persona's entries on the next connection (if none exist, nothing is written).
-  No blocking hooks are added: users' global configs often have other tools' synchronous PermissionRequest hooks; stacking them delays terminal dialogs (`docs/integrations/claude-integration.md` ("Global report-only hooks")).
+  No blocking hooks are added: users' global configs often have other tools' synchronous PermissionRequest hooks; stacking them delays terminal dialogs.
   The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
 - `machines[].usage_windows` (optional, on by default): false stops this computer's node from collecting Codex and Claude subscription usage. Omitted means refresh every
-  5 minutes via Codex app-server or local files, without giving Persona access to login credentials (`docs/server/usage-windows.md`).
+  5 minutes via Codex app-server or local files, without giving Persona access to login credentials.
   The node must also be this version; manual hub.json edits require a hub restart and take effect on reconnect.
 - `machines[].launchers` (optional): add launchers the node cannot list on this computer (e.g. shell wrapper functions), or override `agent_type`, `base_url`, `model` for same-name launchers the node reports (omitted fields stay unchanged),
-  e.g. `[{"name":"example_wrapper","agent_type":"codex"}]`: the wrapper actually runs Codex (`agent_type` is `claude` / `codex` / `traex` or a runtime's agent; `docs/protocol/protocol.md`, `docs/assistant/model-config.md`).
+  e.g. `[{"name":"example_wrapper","agent_type":"codex"}]`: the wrapper actually runs Codex (`agent_type` is `claude` / `codex` / `traex` or a runtime's agent).
 - `machines[].launcher_recovery` (optional, advanced): controls how an Assistant conversation recovers when its resolved launcher is missing from one discovery snapshot, for example
   `{"wait_seconds":30,"fallbacks":{"custom-launcher-a":["custom-launcher-b","claude"]}}`. The manager asks for fresh discovery immediately and then retries for up to `wait_seconds` (default 30, capped at 120; omitted or non-positive uses the default), including time spent in discovery, and honors request cancellation. A failed refresh or a forced response containing only managed/built-in entries is not evidence that the requested shell launcher recovered. The last successful in-budget catalog is reused at the deadline; no extra discovery runs after it. Unframed node output does not replace the previous cache: an ordinary picker read may retain that last good list and independently usable runtime or app overlays, while a forced recovery read returns the error and its overlays preserve it. If the launcher returns, it runs with its original model.
   `fallbacks` maps a resolved launcher to its only permitted ordered substitutes. A candidate must currently run Assistant on this computer, have the same Agent kind, and pass the existing health check; unavailable candidates are skipped in list order. If a disappeared launcher's kind is absent from both its managed configuration and its last successful shell snapshot, no candidate is eligible because the manager will not guess its kind. Built-in `claude` has no implicit priority or eligibility: list it explicitly to permit it when the original kind is known to be Claude. With no configured usable substitute the send fails with the launcher's own error. A present but Assistant-incompatible launcher does not wait and follows the same explicit-substitute rule. An inherited task baseline on another computer also waits for fresh recovery before using this allowlist. This is machine-local Agent/launcher administration, not an everyday model setting; primary screens are unchanged. Edit `hub.json` and restart the hub. To roll back the change, remove this section and restore the previous hub, manager and node binaries together.
 - `personas.github_login` (optional): whose level on the NWVERSE board determines the tiered avatar (Milk Frog). Defaults to the GitHub connector's logged-in account;
   with neither, shows the default "Unhatched" tier.
-- `assistant.mode` (default `child`): `child`, the hub starts the built-in manager as its child (below); `service`, the built-in manager is a service of its own, bound once with a one-time code, and the hub neither starts it nor gives it a token (`persona-hub manager-mode`, [managers.md](../assistant/managers.md) ("The built-in manager as its own service")). `hub setup` writes `service` into a new install's `hub.json` when it installs services, and installs and binds that service; `hub setup --manager-service` switches an existing hub. A value this version does not know (a later version's, a typo) starts no built-in manager, and the hub says so in its log. Taken at the hub's start.
-- `assistant.external` (default `false`): the assistant process (`personad assistant`, `docs/assistant/assistant.md` ("Process")) is started externally. By default the hub starts it as a child process and restarts it on exit,
+- `assistant.mode` (default `child`): `child`, the hub starts the built-in manager as its child (below); `service`, the built-in manager is a service of its own, bound once with a one-time code, and the hub neither starts it nor gives it a token (`persona-hub manager-mode`). `hub setup` writes `service` into a new install's `hub.json` when it installs services, and installs and binds that service; `hub setup --manager-service` switches an existing hub. A value this version does not know (a later version's, a typo) starts no built-in manager, and the hub says so in its log. Taken at the hub's start.
+- `assistant.external` (default `false`): the assistant process (`personad assistant`) is started externally. By default the hub starts it as a child process and restarts it on exit,
   giving it a fresh bus token at every start (via stdin); with `true` the hub does not start it. On the machine that will run it, first generate a token with `personad hub assistant-token` (printed once; generating again replaces the old one), then
   `PERSONA_ASSISTANT_TOKEN=<token> PERSONA_ASSISTANT_HUB=<hub address> personad assistant`. It reads hub.json and env vars just like the hub: database from `database_url` (`PERSONA_DATABASE_URL` takes priority);
-  its own sections come from the `manager.json` on that machine (`~/.persona/managers/assistant/manager.json`, moved once from the hub.json there, "manager.json" below); without `PERSONA_ASSISTANT_HUB`, it connects to the local `listen` port. While the assistant is disconnected, its APIs return `503 assistant_offline`.
-  An `https` hub with its own self-signed certificate (the public TLS port, [network.md](network.md)) also needs `PERSONA_ASSISTANT_FINGERPRINT=<fp>`: the public-key fingerprint `personad hub pair` prints, which it pins as a manager on another computer does (#1255).
+  its own sections come from the `manager.json` on that machine (`~/.persona/managers/assistant/manager.json`, "manager.json" below); without `PERSONA_ASSISTANT_HUB`, it connects to the local `listen` port. While the assistant is disconnected, its APIs return `503 assistant_offline`.
+  An `https` hub with its own self-signed certificate (the public TLS port) also needs `PERSONA_ASSISTANT_FINGERPRINT=<fp>`: the public-key fingerprint `personad hub pair` prints, which it pins as a manager on another computer does.
   Without it the system's CAs are checked (a hub behind a reverse proxy with a public certificate); a value that is not a fingerprint, or one set for an `http` hub, stops it at start.
-  The assistant also carries all computers ([machines.md](../server/machines.md) ("Who connects to computers")): when running elsewhere, that machine connects the computers in `machines` (ssh host names, tailcat key,
+  The assistant also carries all computers: when running elsewhere, that machine connects the computers in `machines` (ssh host names, tailcat key,
   and even the hub machine's own `node --stdio` are on that machine); while disconnected, machines show offline and machine APIs return `503 assistant_offline`.
-  Other managers created in the App do not read this hub.json section: their configuration is `manager.json` in their own directory ([managers.md](../assistant/managers.md) ("A second manager")); their database is a Postgres of their own (a Docker container `personad manager install` makes, or `--database-url`), never the hub's.
+  Other managers created in the App do not read this hub.json section: their configuration is `manager.json` in their own directory; their database is a Postgres of their own (a Docker container `personad manager install` makes, or `--database-url`), never the hub's.
   This key stays in hub.json: the hub decides whether to start the built-in manager, before any manager is connected.
-- `assistant.persona_view` / `assistant.html_views`: no longer read (#5509). The assistant's cards, HTML ones included, are always on: replies use ```` ```persona-view ```` and HTML components may call `persona.reply` / `persona.open`, each client running HTML only once it passed its own security acceptance and showing fallback otherwise (`docs/assistant/assistant-views.md` ("Prompts")).
-  A hub.json that still has either key works as before; the hub logs at start that they are ignored, and they can be removed.
 - `notify`: timing for "Done" pushes (`hub/notify.go`, omitted uses defaults): `done_delay_seconds` (how long after completion to wait for someone to look before pushing, default 60),
   `long_turn_seconds` (how long a round must be to count as a "long task", default 60), `background_hold_minutes` (maximum wait for background tasks to finish, default 120),
   `live_metrics_seconds` (minimum interval between pushes to one device when only Live Activity numbers change, default 60).
   Each device's push preferences are set separately in the App (**Settings › Notifications**, stored in hub `devices.prefs`), not here.
   This section stays in hub.json: push delivery is the hub's, and it hands the timings to the managers in its hello.
 - `screen_link_off` (default `false`): the hub never selects the live screen's session subprotocol, so every live screen stays on the
-  plain relay through the hub, whatever the apps and nodes support ([computer-use.md](../extensions/computer-use.md) ("Live screen routes (#6398)")).
+  plain relay through the hub, whatever the apps and nodes support.
   The switch for when direct routes misbehave; it takes effect when the hub restarts.
 - `intercept_readers` (default empty): extension IDs whose tokens may read `GET /api/v1/push/intercepts`, on top of the
   `notify` scope. Full credentials always may; an extension token whose ID is not listed gets 403 even with `notify`.
   A listed extension still reads only its own manager's entries, and held-push bodies are stored and served as a
   summary (title plus at most 140 runes), never as full text. Add the extension's ID (its manifest `name`) here when
   its control panel needs the held-push list; it takes effect when the hub restarts.
-- `shutdown_timeout_seconds` (default 8): total hub shutdown budget, including closing the database connection pool; external `docker stop -t` must be longer (`docs/server/server.md` ("Shutdown")).
+- `shutdown_timeout_seconds` (default 8): total hub shutdown budget, including closing the database connection pool; external `docker stop -t` must be longer.
 - `auto_update_nodes` (default `false`): lets the managers update the computers' nodes by themselves, after a confirmed hub update and when a node on another build reconnects (the hub hands it over in `devices.config`).
-  Off, a node changes only when someone picks **Redeploy** for its computer ([hub-update.md](hub-update.md) ("Node upgrade policy")).
+  Off, a node changes only when someone picks **Redeploy** for its computer.
 
 ## manager.json
 
-A manager's own sections of the configuration are in its `manager.json`, not in `hub.json`: the hub reads none of them (`server/internal/managerconf`). When its `hub.json` still has some (from before they moved), the hub says once at start which: an edit there does nothing.
+A manager's own sections of the configuration are in its `manager.json`, not in `hub.json`: the hub reads none of them (`server/internal/managerconf`). When its `hub.json` still has some, the hub says once at start which: an edit there does nothing.
 
 - The built-in manager (the assistant process the hub starts, `personad assistant`): `~/.persona/managers/assistant/manager.json` (0600, its directory 0700), where its own directory goes once it is a service of its own. It holds no identity: the hub hands this manager its token.
-- A manager made in the app: the `manager.json` of its own directory (`~/.persona/managers/<id>/manager.json`), next to who it is (`id`, `hub`, `token`…; [managers.md](../assistant/managers.md) ("Directory and manager.json")).
-- **The move out of `hub.json`, and switching to an older build**: these sections were copied into `manager.json` once; nothing reads `hub.json`'s copies any more, and an edit there after the move is stale and said so at start. The move itself, the backup copies, and what to check before running an older build are in [hub-update.md](hub-update.md#development-updates) ("hub.json → manager.json").
-- **Its computers** (`machines`, `machines_from_hub`): the entries the manager connects, as the hub last handed them over, kept so that a manager whose hub hasn't answered within 20 seconds of its start connects them ([managers.md](../assistant/managers.md) ("Each manager's computers")). The hub still edits the lists for now (adding, removing and moving a computer go through `hub.json` and the admin page), and each hand-over is written over `machines`: an edit there by hand lasts only until the hub's next one.
-- **The hub's hello**: the hub no longer hands these sections over in its answer to `manager.hello`; the manager lays its `manager.json` over that answer. What the answer still carries is the hub's: the machines this manager owns and a default machine among them, the launchers `hub.json`'s `machines[].launchers` add for them, `persona_view` / `html_views` (always true, for a manager from before #5509), the push timings, the user's language and the mutes (`docs/protocol/protocol.md` ("Handshake")). A manager from before this change gets no owner, notes, Agents or model defaults from the hub any more and runs on its built-in ones ([managers.md](../assistant/managers.md) ("Configuration")).
-- The built-in manager's own files are in its directory beside its `manager.json`: `secret.key` and `tailcat-hub.json`, copied there once from `~/.persona` (`moved_from_data_dir`); its `secret.key` is rotated to a key of its own once its data is in its own database ([managers.md](../assistant/managers.md) ("Its own secret.key")).
-- Edits: the admin UI's **Usage sources** writes `manager.json`'s `usage`; hand edits of `manager.json` take effect when the hub restarts (which restarts the built-in manager), or the manager for one made in the app. The sections the hub's hello used to carry (`assistant`'s four keys, `agents`, `ai`, `inbox`'s models and `inbox.agent.machine`, `hook_timeout_minutes`) are also read again whenever the hello arrives (a reconnect, a `manager.updated`). What is changed in the app (About me, the assistant's machine and launcher, the triage switches, model configuration) is stored in the database and wins over these defaults.
-- A `lark` section that fails its own check (an account out of range, an unknown `prefer`) no longer stops the hub: the manager says so at start and doesn't use it (lark-cli is then off for the assistant).
-- **A `manager.json` that doesn't read stops the manager, not the hub**: when it isn't JSON or is empty, a section the manager reads at start (every moved one but `usage`, the hello's `assistant`, `agents`, `ai`, `inbox` and `hook_timeout_minutes` included: a `usage` of the wrong shape is said in the log and no usage source runs) has the wrong shape, a `connector_gate` rule is one the gate can't use, its `moved_from_hub_json` is broken, it, its directory or the `hub.json` beside it is a link to nothing (a volume not mounted yet), that `hub.json` doesn't read, or the move can't be written, the manager doesn't start and says why (naming the file). A `lark_gate` rule's action is not checked: one the gate doesn't know asks for confirmation. Started without its sections it would drop the user's gate rules (`lark_gate`, `connector_gate`), and the computers would fall back to their own, which let every read through. The hub keeps running and starts the built-in manager again with its usual backoff (1 s doubling to a minute), saying the reason each time until the file is fixed; the app shows that manager as offline meanwhile. A manager made in the app does the same each time its service starts it again (every few seconds): its own Postgres container, when install made one, is started first, and the check runs before the manager connects to its database or starts any work; a `manager.json` that isn't JSON, is empty or isn't there at all (a link to a volume not mounted yet) is the exception: as before, a manager made in the app exits with status 2 on it, which its systemd service doesn't restart on (launchd and Docker do), so on Linux start it again once the file is back.
+- A manager made in the app: the `manager.json` of its own directory (`~/.persona/managers/<id>/manager.json`), next to who it is (`id`, `hub`, `token`…).
+- **Its computers** (`machines`, `machines_from_hub`): the entries the manager connects, as the hub last handed them over, kept so that a manager whose hub hasn't answered within 20 seconds of its start connects them. The hub still edits the lists for now (adding, removing and moving a computer go through `hub.json` and the admin page), and each hand-over is written over `machines`: an edit there by hand lasts only until the hub's next one.
+- Edits: the admin UI's **Usage sources** writes `manager.json`'s `usage`; hand edits of `manager.json` take effect when the hub restarts (which restarts the built-in manager), or the manager for one made in the app. The sections the hub's hello can carry (`assistant`'s four keys, `agents`, `ai`, `inbox`'s models and `inbox.agent.machine`, `hook_timeout_minutes`) are also read again whenever the hello arrives (a reconnect, a `manager.updated`). What is changed in the app (About me, the assistant's machine and launcher, the triage switches, model configuration) is stored in the database and wins over these defaults.
+- **A `manager.json` that does not read stops the manager, not the hub**: when it is not JSON, is empty, has a section of the wrong shape, has a `connector_gate` rule the gate cannot use, or is a link to nothing (a volume not mounted yet), the manager does not start and says why, naming the file. Started without its sections it would drop the user's gate rules (`lark_gate`, `connector_gate`). The hub keeps running and starts the built-in manager again with backoff (1 s doubling to a minute), logging the reason each time; the app shows that manager as offline meanwhile. A manager made in the app exits with status 2 on it, which its systemd service does not restart on (launchd and Docker do), so on Linux start it again once the file is fixed. While a manager runs, a `manager.json` that stops reading keeps the sections it last read and says so in its log.
   While a manager runs, a `manager.json` that stops reading (a hand edit gone wrong) doesn't take effect: it keeps the sections it last read and says so in its log, rather than falling back to defaults, until the file is fixed (its next start fails as above).
 
 ```json
@@ -333,27 +233,27 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
 }
 ```
 
-- `assistant.owner`: how the assistant in the "Chat" tab addresses you; `assistant.notes`: Markdown appended to the assistant instructions (`~/.persona/assistant/CLAUDE.md`),
+- `assistant.owner`: how the assistant in the "Chat" tab addresses you; `assistant.notes`: Markdown appended to the assistant instructions,
   describing things specific to your environment: code locations, skills / CLIs for work data, directories it must not touch.
 - `assistant.machine` / `assistant.launcher`: default machine and launcher for the assistant (unset, or a machine the hub doesn't have: the hub's own machine, else the first one; `claude`); App settings take priority once changed.
-  `owner`, `notes`, `machine`, `launcher` are all defaults, laid over the hub's hello: changed settings belong to the assistant itself (settings `assistant`, only it reads/writes them, `docs/assistant/assistant.md` ("Boundary with hub")).
+  `owner`, `notes`, `machine`, `launcher` are all defaults, laid over the hub's hello: changed settings belong to the assistant itself (settings `assistant`, only it reads/writes them).
 - `assistant.memory_dreaming`: set to `true` in `manager.json` to enable background consolidation of the main chat's memory.
-  It is off by default and uses the Data processing model. See [Assistant memory](../assistant/assistant.md#memory-dreaming).
-- `assistant.complete_agentless_todos`: advanced, off by default. Set to `true` to let the conversation supervising an agentless memo complete it without a second confirmation card. A memo from the same conversation with no supervision ledger also qualifies. The fast path never applies to another conversation or a planned task (with or without an Agent attached); reopening and track outbound confirmation are unchanged ([To-dos](../assistant/todos.md), "The assistant's todo tools").
-- `assistant.supervision_batch_minutes`: advanced, unset by default. An administrator can pin a whole number from 0 to 1440 here; a present value, including explicit `0`, takes precedence over the assistant's saved `assistant.supervision_batch_minutes` setting. When omitted, the saved setting and its default `0` are unchanged. Removing the pin restores the saved value. An out-of-range value is a configuration error: a running manager keeps the configuration it last read ([supervision batching](../assistant/unified-entry.md)).
+  It is off by default and uses the Data processing model. See Assistant memory.
+- `assistant.complete_agentless_todos`: advanced, off by default. Set to `true` to let the conversation supervising an agentless memo complete it without a second confirmation card. A memo from the same conversation with no supervision ledger also qualifies. The fast path never applies to another conversation or a planned task (with or without an Agent attached); reopening and track outbound confirmation are unchanged (To-dos, "The assistant's todo tools").
+- `assistant.supervision_batch_minutes`: advanced, unset by default. An administrator can pin a whole number from 0 to 1440 here; a present value, including explicit `0`, takes precedence over the assistant's saved `assistant.supervision_batch_minutes` setting. When omitted, the saved setting and its default `0` are unchanged. Removing the pin restores the saved value. An out-of-range value is a configuration error: a running manager keeps the configuration it last read (supervision batching).
 - `assistant.task_execution_wait_seconds`: advanced, default `600`, from 0 to 3600. A scheduled task whose strict execution options need a node capability waits this long for an update before recording `task_execution_wait_timeout`; nothing is sent during the wait. `0` records the refusal immediately. Removing the setting restores 600 seconds.
-- `assistant.task_execution_legacy_fallback`: advanced, default `true`. It lets only an attested inherited ordinary task omit `task_execution` on an old node, and records actual use as `compatibility_fallback: "legacy_task_execution"` in run history. Set it to `false` to make every such task wait for the capability instead. Explicit execution choices and Health tasks never use this omission.
+- `assistant.task_execution_legacy_fallback`: advanced, default `true`. It lets only an attested inherited ordinary task omit `task_execution` on a node that predates it, and records actual use as `compatibility_fallback: "legacy_task_execution"` in run history. Set it to `false` to make every such task wait for the capability instead. Explicit execution choices and Health tasks never use this omission.
 - `assistant.node_update_handoff_grace_seconds`: advanced, default `60`, from 0 to 86400. After this much continuous headless activity, an update stops admitting new headless turns while admitted RPCs and current turns finish. `0` preserves the indefinite natural-idle wait. Removing the setting restores 60 seconds. The value is also carried by `node.update.commit` for the resident drain.
   `assistant.external` stays in hub.json ("hub runtime config" above).
-- The everyday entry for model settings is **Settings › Model Providers / Model Configuration** (`docs/assistant/model-config.md`): the former manages connections and credentials; the latter manages uses such as chat, classification, translation, knowledge processing, `/agent`, and scheduled tasks. Old `ai`, `inbox.*_ai`, `kb.ai` (here) and launcher defaults (`assistant.launcher` here, `machines[].launchers` in hub.json) remain as a compatibility baseline; unified-use overrides live in Postgres, not written back to either file. Without an override the original model is kept; opening settings does not migrate it to another provider.
-- `ai` (no default since 2026-10-31): model for small App features calling model APIs directly (not through Claude Code): Inbox triage, drafting replies, recognizing email config from pasted text.
-  When omitted, these uses automatically select a directly callable connection on the hub (with a Key in **Settings › Model Providers**, see `docs/assistant/model-config.md` ("Editing and inheritance")); only if none exist do they report "No directly callable model yet".
+- The everyday entry for model settings is **Settings › Model Providers / Model Configuration**: the former manages connections and credentials; the latter manages uses such as chat, classification, translation, knowledge processing, `/agent`, and scheduled tasks. `ai`, `inbox.*_ai` and the launcher defaults (`assistant.launcher` here, `machines[].launchers` in hub.json) remain as a baseline; unified-use overrides live in Postgres, not written back to either file. Without an override the original model is kept; opening settings does not migrate it to another provider.
+- `ai` (no default): model for small App features calling model APIs directly (not through Claude Code): Inbox triage, drafting replies, recognizing email config from pasted text.
+  When omitted, these uses automatically select a directly callable connection on the hub (with a Key in **Settings › Model Providers**); only if none exist do they report "No directly callable model yet".
   `api` is `messages` (Anthropic Messages, default) or `responses` (OpenAI Responses, always streamed, compatible with relays accepting only `stream: true`);
   `base_url` gets `/v1/messages` or `/v1/responses` appended; `api_key_file` is the key file on the manager's machine (the hub machine for the built-in manager; 0600, read only at call time); `model`;
   `reasoning_effort` applies to `responses` and `messages` (e.g. `low`): `off` maps to Responses `none` and the model's supported Messages no-thinking mode, or low effort on Messages models that cannot disable thinking; `bearer` (default `false`) true sends the Messages API key as `Authorization: Bearer` instead of `x-api-key`, for gateways accepting only Bearer (`responses` always uses Bearer).
 - `inbox.triage_ai` / `inbox.judge_ai` (optional, same fields as `ai`, omitted fields inherit from `ai`): AI twin model 1 (triage) and model 2 (linking a Needs you item to one of the user's tasks);
   omitted means both use `ai`. `inbox.agent`: model 3, `enabled`, `launcher` (Claude Code launcher, default the assistant's), `machine` (default the assistant's machine),
-  `concurrency` (1), `timeout_minutes` (15), `max_age_hours` (24), `rules` (no longer read; what the twin takes on is set by inbox policies, `docs/assistant/inbox.md` ("Policies")). See `docs/assistant/inbox.md` ("AI twin: handling chats and suggestions").
+  `concurrency` (1), `timeout_minutes` (15), `max_age_hours` (24), `rules` (not read; what the twin takes on is set by inbox policies).
 
   ```json
   "inbox": {
@@ -362,16 +262,15 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
     "agent": { "enabled": true, "launcher": "<launcher>" }
   }
   ```
-- `inbox.rules`: personal rules for Inbox AI triage (natural language, e.g. "anything from this person needs me", "this alert group is only noise"), appended to the triage prompt and preferred over default judgments (`docs/assistant/inbox.md`).
+- `inbox.rules`: personal rules for Inbox AI triage (natural language, e.g. "anything from this person needs me", "this alert group is only noise"), appended to the triage prompt and preferred over default judgments.
   When a connector item carries its own rules (`rules`, e.g. an extension's `triage_rules` setting), those are used instead of this setting.
-- `kb` (removed): the knowledge base is gone from the server. A `kb` section left in `manager.json` is ignored, and the data directory it kept (`~/.persona/data` by default, or `kb_dir`) is no longer read or written: its files stay on disk until you delete them yourself.
-- `agents.triage`: triage after a round stops ([agent-work.md](../assistant/agent-work.md) ("Switches")). Switches are under **Settings › Session Triage** in the App (stored in the manager's settings, all off by default but `transient_retry`),
-  and only limits live here: legacy `max_retries` (retained but unused for temporary model failures), `retry_base_seconds` (the first continuation's backoff, doubled for each next one, default 15), `account_exhaustion_max_retries` (default 0), `max_wakes` (maximum wakes, default 6), `settle_seconds` (delay after stopping before triage, default 15), `just_finished_hours` (how long a done turn nobody has seen stays Just finished in the Agents lists, default 3; `docs/protocol/agent-states.md` ("Just finished")).
-  `account_exhaustion_max_retries` applies only to coding Agent sessions after the explicit upstream account-pool phrases documented in [agent-work.md](../assistant/agent-work.md) ("Transient errors: automatic continuation"). A task leader's Agent (`role=leader`) is a coding Agent and remains subject to the budget. All Assistant conversations keep their existing continuation: main chat, leader conversations, background supervision, side conversations, scheduled-task and track conversations, and meeting-room conversations including guests; only main-chat, leader-conversation and background-supervision protected continuations re-resolve the configured launcher and model. The default 0 sends no automatic continuation for that class. A positive value compares the existing consecutive transient retry count (continuations already sent, including ordinary transient sends in the same failed sequence) with the bound. Any turn that does not end in a transient error resets it; a turn that works and then ends in a transient error, or a manual Continue, does not. Manual Retry and explicit Continue remain available regardless of the budget.
+- `agents.triage`: triage after a round stops. Switches are under **Settings › Session Triage** in the App (stored in the manager's settings, all off by default but `transient_retry`),
+  and only limits live here: `max_retries` (unused for temporary model failures), `retry_base_seconds` (the first continuation's backoff, doubled for each next one, default 15), `account_exhaustion_max_retries` (default 0), `max_wakes` (maximum wakes, default 6), `settle_seconds` (delay after stopping before triage, default 15), `just_finished_hours` (how long a done turn nobody has seen stays Just finished in the Agents lists, default 3; `docs/protocol/agent-states.md` ("Just finished")).
+  `account_exhaustion_max_retries` applies only to coding Agent sessions after the explicit upstream account-pool phrases documented. A task leader's Agent (`role=leader`) is a coding Agent and remains subject to the budget. All Assistant conversations keep their existing continuation: main chat, leader conversations, background supervision, side conversations, scheduled-task and track conversations, and meeting-room conversations including guests; only main-chat, leader-conversation and background-supervision protected continuations re-resolve the configured launcher and model. The default 0 sends no automatic continuation for that class. A positive value compares the existing consecutive transient retry count (continuations already sent, including ordinary transient sends in the same failed sequence) with the bound. Any turn that does not end in a transient error resets it; a turn that works and then ends in a transient error, or a manual Continue, does not. Manual Retry and explicit Continue remain available regardless of the budget.
   `enabled` / `auto_continue` / `wake` / `decide` / `tool_loop` / `closeout` / `closeout_ask` / `transient_retry` are merely initial values if never saved in the App (omitted means off, but `transient_retry` on). Triage is done by the manager (assistant process), which reads this section here. Hand edits take effect on manager restart (a hub restart for the built-in manager) or the next hello (a reconnect or `manager.updated`), as described in **Edits** above.
-- `agents.launcher_health`: launcher health checks and automatic repair ([launcher-health.md](../server/launcher-health.md)): `enabled` (off by default; true enables periodic checks and automatic repair), `interval_minutes` (default 30),
+- `agents.launcher_health`: launcher health checks and automatic repair: `enabled` (off by default; true enables periodic checks and automatic repair), `interval_minutes` (default 30),
   `repair` (repair Agent: no `skill` means no repair Agent, only CLI upgrades; `machine` defaults to the assistant's computer, `cwd` to home, `launcher` to an available one, `permission` is the permission mode, default `bypassPermissions`).
-- `agents.delegate` (#3029): the assistant answers Agent questions first ([assistant.md](../assistant/assistant.md) ("Assistant answers questions first")). **Off by default**, enabled only with `enabled: true`;
+- `agents.delegate`: the assistant answers Agent questions first. **Off by default**, enabled only with `enabled: true`;
   `timeout_seconds` is how long the assistant may take (default 180); if no result arrives, the question is pushed to the user unchanged. `rules` are the user's own delegation rules (prose shown to the model with built-in rules; they cannot relax red lines).
   For hand edits see **Edits** above. Example enabling it (alongside the other sections of `manager.json`):
 
@@ -387,7 +286,7 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
 
   Model selection is elsewhere: **Settings › Model Configuration › Question Delegation** (purpose `agent.delegate`). If never selected, it uses the "Information Filtering" connection with Opus 5.5 (`claude-opus-5-5`);
   change provider or model there, or use `PATCH /api/v1/model-config/purposes/agent.delegate` (`{"revision": <current>, "model": "claude-sonnet-5-5"}`); "Restore Defaults" returns to Opus.
-- `agents.dispatch` (#3253) allows an Agent to start a new Agent on another connected computer. New dispatches use A2A for questions and results. Dispatch is off by default.
+- `agents.dispatch` allows an Agent to start a new Agent on another connected computer. New dispatches use A2A for questions and results. Dispatch is off by default.
   `enabled` (true lists the Agents' `dispatch_start` / `dispatch_read` tools; a dispatched task runs on the target computer's default launcher and model for new Agents, started by an Agent and not by you),
   `max_active` (how many of one Agent's dispatched tasks may be working at a time, default 3). Work computers and guest conversations never get the tools. Restart the hub after changing it. Example:
 
@@ -398,9 +297,9 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
   ```
 
 - `agents.a2a` defaults to the manager's confirmed personal computers. `machines` limits participation in A2A and new dispatches. An empty list disables both.
-  Set `public_url` to expose Agent Cards and A2A JSON-RPC endpoints with Persona credentials. [Agent-to-Agent communication](../integrations/a2a.md)
+  Set `public_url` to expose Agent Cards and A2A JSON-RPC endpoints with Persona credentials. Agent-to-Agent communication
 
-- `agents.review` (#2173): the independent review of a supervised task's finished change ([unified-entry.md](../assistant/unified-entry.md) ("Independent review")). **Off by default**, on once `launcher` names a launcher on the working agent's computer (pick one on another model than your agents'; there is no default reviewer).
+- `agents.review`: the independent review of a supervised task's finished change. **Off by default**, on once `launcher` names a launcher on the working agent's computer (pick one on another model than your agents'; there is no default reviewer).
   `model` and `effort` (optional) override the launcher's own; `permission` is the reviewer's permission mode (default `plan`); `timeout_minutes` bounds one review (default 30). The reviewer works in a disposable copy of the change, so its permission mode is a second guard, not the only one. Example:
 
   ```json
@@ -409,52 +308,49 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
   }
   ```
 
-- `hook_timeout_minutes` (default 30, 0 or negative also means 30): maximum time Claude Code hooks wait for phone answers (questions, approvals); timeout hands control back to the terminal (`docs/integrations/claude-integration.md`).
-- `usage` (optional): subscription usage sources from an account-pool gateway (such as a relay), merged into the sidebar's usage bar (`docs/server/usage-windows.md` ("Account-pool gateways"), #2595).
-  `usage.sources[]` (at most 8): `id`, `name` (source name in the sidebar), `type` (`relay` / `relay_key` / `generic`, or `extension` with `extension` and `launcher` instead of `url` and `key`, `docs/server/usage-windows.md` ("Usage extensions"); old type names are still read as `relay` and rewritten to the new name the next time this source is edited in the admin UI), `url`, `key` (the gateway's admin Key, or for `relay_key` an ordinary API key of the relay, **a secret: only in `manager.json` (0600)**, unreadable from the admin UI and APIs, absent from logs), `enabled` (false disables this source).
+- `hook_timeout_minutes` (default 30, 0 or negative also means 30): maximum time Claude Code hooks wait for phone answers (questions, approvals); timeout hands control back to the terminal.
+- `usage` (optional): subscription usage sources from an account-pool gateway (such as a relay), merged into the sidebar's usage bar.
+  `usage.sources[]` (at most 8): `id`, `name` (source name in the sidebar), `type` (`relay` / `relay_key` / `generic`, or `extension` with `extension` and `launcher` instead of `url` and `key`), `url`, `key` (the gateway's admin Key, or for `relay_key` an ordinary API key of the relay, **a secret: only in `manager.json` (0600)**, unreadable from the admin UI and APIs, absent from logs), `enabled` (false disables this source).
   `usage.enabled` (false is the master switch), `usage.poll_minutes` (poll interval per source, default 5, 1 to 1440), `usage.hidden_providers` (providers such as `codex` that the usage bars leave out; display only). This section belongs to **the manager** (`personad assistant`, which reads and writes it in its `manager.json`; the hub does not read it): it only reads the gateway's cached numbers (`refresh=false`), requests come from the manager, and nodes never touch the gateway.
   Edit in the admin UI at `/admin/usage` (the hub forwards to the manager) for immediate effect; manual edits require a hub restart (which restarts the manager too), or opening this admin page (the manager adopts the version on disk).
-- `microsoft` (optional): Outlook's "Sign In with Microsoft" (`docs/extensions/mail.md` ("Outlook: Sign In with Microsoft")). `client_id` is the default client ID
+- `microsoft` (optional): Outlook's "Sign In with Microsoft". `client_id` is the default client ID
   (usually unnecessary: the user enters their own Microsoft Entra-registered one in the App, encrypted in the hub and preferred over this); `redirect_uri` defaults to
   `persona-mail-oauth://outlook`, and changes must match the registration in Entra.
-- `lark.token` / `lark.container` / `lark.base_url` / `lark.native_olk_token` (old syntax, **no longer effective**): since #1571, integration through the Lark gateway is provided by an extension
-  (start of `docs/extensions/feishu.md`, `docs/extensions/extensions.md`). The manager still reads these keys, but doesn't connect to the Lark gateway with them; if `token` or `container` is set,
-  it logs one warning at startup. Set the Agent token, container, address, and separate encrypted-message authorization (`native_olk_token`) in the Lark extension's settings instead; these keys can be removed.
 - `lark.account` (optional integer, still effective): the default Lark gateway account number, `1` for the main account, `2` for the second; omitted or `0` uses the main account, valid range 1–999999999,
   e.g. `"lark": {"account": 2}`. The number comes from the `id` in the Lark gateway's `/accounts`, not the Lark user ID. Operations on Inbox Lark items from the default account omit `ol_account`,
-  while other accounts pass their own number; the Inbox Agent also uses this default when handling Lark items (`docs/extensions/feishu.md` ("Multiple accounts")). The Lark extension's default account is authoritative (`default` in its messaging source's `GET accounts`, #5098):
+  while other accounts pass their own number; the Inbox Agent also uses this default when handling Lark items. The Lark extension's default account is authoritative (`default` in its messaging source's `GET accounts`, #5098):
   if the extension cannot be queried, use the last retrieved value; only if none has been retrieved since the manager started is this field used. Restart the hub after changing (`systemctl --user restart personad`).
   Server-side Inbox records are isolated and retained per account, available again when switching back.
-- `lark.cli` (optional): Lark's official open-platform CLI, lark-cli, as a second Lark source besides the Lark extension (gateway) (`docs/extensions/feishu.md`):
+- `lark.cli` (optional): Lark's official open-platform CLI, lark-cli, as a second Lark source besides the Lark extension (gateway):
   `"lark": {"cli": {"bin": "lark-cli", "profile": ""}}`. `bin` is a command name or absolute path, default `lark-cli`; non-absolute paths are found in a login shell
   (global npm installs often live under nvm-like directories absent from systemd's PATH); `profile` is optional lark-cli's `--profile`.
   When it is empty and the built-in Lark bot has credentials, the manager binds managed profile `persona` to the bot's app (using `config show` and `config init`, with the secret on stdin); otherwise lark-cli's default profile is used. An explicit profile always wins.
-  Optional `inbox_poll_seconds` (default 120, at least 60) and `inbox_page_limit` (search pages per Inbox round, default 5; the rest continue next round) tune the lark-cli Inbox (`docs/extensions/feishu.md`, L4).
+  Optional `inbox_poll_seconds` (default 120, at least 60) and `inbox_page_limit` (search pages per Inbox round, default 5; the rest continue next round) tune the lark-cli Inbox.
   Application and user logins stay with lark-cli (`~/.lark-cli`), never in `manager.json`: sign in from Settings › Connectors › Lark via the device link, or run
   `lark-cli auth login --domain all` yourself on the assistant's machine (or `lark-cli --profile <profile> auth login --domain all` when `lark.cli.profile` is set). The App's login starts the blocking command without `--no-wait` and polls it; after a week unused, sign in again.
-  Its PATH contains `lark-cli` (with the configured `profile`), write operations go through the gate (`docs/assistant/assistant.md` ("Lark: lark-cli")), and the built-in `larkcli` connector's status, read tools, and watched-document comment Inbox are available when this section is present. Choose document links and wiki spaces in Settings › Connectors; nothing is watched by default. The app's `larkcli_profile` setting is stored with `bots.feishu` in manager settings: an empty value follows the automatic rule, while a profile name selects an existing `lark-cli profile list` entry. A non-empty `lark.cli.profile` in `manager.json` wins and makes that app choice read-only.
+  Its PATH contains `lark-cli` (with the configured `profile`), write operations go through the gate, and the built-in `larkcli` connector's status, read tools, and watched-document comment Inbox are available when this section is present. Choose document links and wiki spaces in Settings › Connectors; nothing is watched by default. The app's `larkcli_profile` setting is stored with `bots.feishu` in manager settings: an empty value follows the automatic rule, while a profile name selects an existing `lark-cli profile list` entry. A non-empty `lark.cli.profile` in `manager.json` wins and makes that app choice read-only.
   The app's sign-in asks only for the connector's read-as-me scopes (the commands it uses). `lark-cli auth login --domain all` remains an optional manual step when someone wants the assistant wrapper to reach every Lark domain.
   Another personal computer where the manager starts assistant conversations (a Lark `/agent` placed there) gets lark-cli's name and the gate rules, not the profile (an absolute `bin` goes by its base name): its own lark-cli, with its default profile, tells its gate which calls only read. A work computer gets nothing.
-  `extensions: true` additionally permits extensions that declare the `lark-cli` host integration to use its typed, read-only RPC for auxiliary context and auth status (`docs/extensions/extensions.md`, "Host CLI integrations"). It does not permit arbitrary commands, writes or credential export; the manager retains the binary, profile and timeouts. Omitted or false keeps this integration off.
+  `extensions: true` additionally permits extensions that declare the `lark-cli` host integration to use its typed, read-only RPC for auxiliary context and auth status. It does not permit arbitrary commands, writes or credential export; the manager retains the binary, profile and timeouts. Omitted or false keeps this integration off.
 - `lark.prefer` (optional): which source is primary when both the Lark extension (gateway) and lark-cli are available: omitted (default, extension path preferred) or `cli`; other values are the Lark extension's own source names, passed through and validated by it. Currently only affects how the assistant prompt divides the work.
-- `lark_gate` (optional, old syntax, still effective; put new rules in `connector_gate` below with `connector: lark`): gate rules for the assistant's Lark writes (the Lark extension's command gate, and lark-cli), after `connector_gate`'s `lark` rules and before built-in rules; first match wins:
-  `[{"method":"POST","path":"/conversations/*/messages","action":"allow"}]` (`action` is `allow` / `confirm` / `deny`, optional `body` matches top-level fields;
-  `docs/assistant/assistant.md` ("Lark: skill supplied by the Lark extension")). lark-cli commands use `{"method":"CLI","path":"/im/+messages-send","action":"allow"}`
+- `lark_gate` (optional; new rules go in `connector_gate` below with `connector: lark`): gate rules for the assistant's Lark writes (the Lark extension's command gate, and lark-cli), after `connector_gate`'s `lark` rules and before built-in rules; first match wins:
+  `[{"method":"POST","path":"/conversations/*/messages","action":"allow"}]` (`action` is `allow` / `confirm` / `deny`, optional `body` matches top-level fields).
+  lark-cli commands use `{"method":"CLI","path":"/im/+messages-send","action":"allow"}`
   (`path` joins command words with `/`, `*` / `**` wildcards as above); a match skips lark-cli's self-reported risk level.
 - `connector_gate` (optional): gate rules for connector writes (such as `github_comment`); first match wins, no match means confirm each operation on the phone:
   `[{"connector":"github","action":"github_comment","match":{"repo":"example-org/*"},"decision":"allow"}]`
   (`connector`, `action` allow `*` wildcards; `match` matches top-level tool arguments, strings may also use wildcards; `decision` is `allow` / `confirm` / `deny`,
-  an invalid list is reported in the manager's log at start; `server/internal/connector/gate.go`, `docs/extensions/connectors.md`). Writes matching `confirm_always` in an extension manifest clamp even an `allow` rule to `confirm` (`docs/extensions/extensions.md`). A call whose arguments give a field more than once is refused before any rule is read, and a `deny` or `confirm` rule's `match` reads field names without regard to capitals (`docs/extensions/connectors.md`, "Gate").
+  an invalid list is reported in the manager's log at start; `server/internal/connector/gate.go`). Writes matching `confirm_always` in an extension manifest clamp even an `allow` rule to `confirm`. A call whose arguments give a field more than once is refused before any rule is read, and a `deny` or `confirm` rule's `match` reads field names without regard to capitals.
   The assistant's Lark write rules also go here: `connector` is `lark`, `action` is "method path", e.g. `{"connector":"lark","action":"POST /conversations/*/messages","decision":"allow"}`,
   or lark-cli's `{"connector":"lark","action":"CLI /im/+messages-send","decision":"allow"}` (`*` matches one path segment, `**` the rest, `"*"` any call; `match` matches top-level body fields).
-  These precede the old `lark_gate`, followed by built-in rules (`docs/assistant/assistant.md` ("Lark: skill supplied by the Lark extension")).
-- `sent_ledger_days` (optional): how many days the ledger of what was written as the user is kept (`docs/extensions/connectors.md` "Sent as the user"); omitted or 0 means 90, below 0 keeps it for good.
-- `sent_recall_hours` (optional): how many hours after a send its message can still be taken back (`docs/extensions/connectors.md` "Sent as the user", Recall); omitted or 0 means 24, below 0 no limit. A connector may allow less (GitHub's comments have no limit of their own).
+  These precede `lark_gate`, followed by built-in rules.
+- `sent_ledger_days` (optional): how many days the ledger of what was written as the user is kept; omitted or 0 means 90, below 0 keeps it for good.
+- `sent_recall_hours` (optional): how many hours after a send its message can still be taken back; omitted or 0 means 24, below 0 no limit. A connector may allow less (GitHub's comments have no limit of their own).
 - `github` (optional): GitHub connector. `{"auth": {"from_machine": "<machine id>"}}`: use `gh`'s login on that machine (the hub runs `gh auth token` via the node,
   keeping the token only in hub memory, never in the database or logs, or exposing it to the App or assistant). Keep `gh` signed in there, with the login in `~/.config/gh/hosts.yml`
   (keychain credentials cannot be read via ssh: `gh auth login --insecure-storage`). `auth.host` defaults to `github.com`; put a GitHub Enterprise host name here (not implemented yet).
   Check status under **Settings › Connectors › GitHub**. `from_machine` is only a default: every hub has GitHub, and under "Sign In From" in **Settings › Connectors › GitHub**
-  you can switch to another computer's gh login, or use device-code login (the built-in GitHub CLI Client ID, no OAuth App registration needed; the authorization page shows "GitHub CLI", see `docs/extensions/connectors.md` ("II · 7"));
+  you can switch to another computer's gh login, or use device-code login (the built-in GitHub CLI Client ID, no OAuth App registration needed; the authorization page shows "GitHub CLI");
   once chosen in the App, that wins (stored in hub settings). The connector needs `repo` scope: gh's default login has it; otherwise the page suggests `gh auth refresh -s repo`.
   `github.proxy` (optional): HTTP proxy for all requests to GitHub (device-code creation and polling at `github.com`, API at `api.github.com`, plus CI logs),
   `http://[user:password@]host:port`, same format as `google.proxy`; omitted means direct (does not read process `HTTPS_PROXY`). Some networks reach only `api.github.com`, not `github.com`,
@@ -462,31 +358,21 @@ A manager's own sections of the configuration are in its `manager.json`, not in 
   When `extension_market.proxy` is not set, the extension market also uses it to read GitHub markets and download extension packages (`github.com`, `*.github.com`, `*.githubusercontent.com`; when both are unset, uses process `HTTPS_PROXY`, #3277).
   Repository binding checks of public GitHub repositories use `github.proxy` too; when unset they use the manager process's `HTTPS_PROXY` and `NO_PROXY`.
   GitLab and self-hosted repository checks use the process's proxy environment. Checks validate destination DNS locally and tunnel to a pinned IP, preserving TLS hostname checks;
-  they do not pass connector tokens to the repository or fall back to direct when a selected proxy fails. See `docs/assistant/managers.md` ("Repository references").
-  `github.inbox` (optional) supplies default Inbox rules (App changes take priority, `docs/assistant/inbox.md` ("Noise reduction")): `ci` (`off` / `default_branch` / `mine` (default) / `all`),
+  they do not pass connector tokens to the repository or fall back to direct when a selected proxy fails..
+  `github.inbox` (optional) supplies default Inbox rules (App changes take priority): `ci` (`off` / `default_branch` / `mine` (default) / `all`),
   `muted_repos` (`["owner/name"]`), `ignore_branches` (branches not to notify for, `path.Match` patterns, default `["train/*"]`).
-- `imessage` (optional, **old syntax, retained for one version, read-only**): now choose the Mac to read in **Settings › Extensions › Messages** in the App (#1830). If configured here, the manager migrates it once at startup;
-  when the extension is off or no Mac is selected, it still reads here. Messages connector. `{"machine": "<machine id>"}`: which Mac's "Messages" appear in the App (that Mac's node reads `~/Library/Messages/chat.db` read-only,
-  requiring Full Disk Access; **Settings › Connectors › Messages** explains how). Configure one machine only (Macs on the same Apple ID share the same messages).
-  The App can show all chats. With "Hand to Persona" on (**Settings › Connectors › Messages**, on by default, stored in the hub), real chats (members include someone in Contacts or you have spoken there)
-  incrementally enter the Inbox by ROWID (triaged like Lark); the assistant gets `imessage_chats` / `imessage_read` / `imessage_search`; verification codes are masked. Turning it off stops everything,
-  and existing data on the hub can be deleted separately. Logs contain neither numbers nor bodies (`docs/extensions/connectors.md` ("V")).
 - `bots.feishu` (optional): application credentials for the bot used to chat with Persona in Lark: `app_id`, `app_secret`, `domain` (`feishu` / `lark` / open-platform address),
-  for people who do not want to enter them in the App. Values saved in the App (**Settings › Connectors › Lark Bot**) win; switches, pairing, and all features are in the App (`docs/extensions/bots.md`).
-- `extensions` (old `plugins` key still read): extensions hand-written in manager.json, started by the manager and forwarded to the App (voice chat, etc.): `id`, `name`, `kind`, `command` + `args` (or only `socket` for an extension running elsewhere),
-  `dir` (working directory), `env` (extra environment variables), `disabled` (`true` disables while keeping the config), `config` (the extension's own settings), see `docs/extensions/extensions.md` ("Extensions in manager.json");
+  for people who do not want to enter them in the App. Values saved in the App (**Settings › Connectors › Lark Bot**) win; switches, pairing, and all features are in the App.
+- `extensions`: extensions hand-written in manager.json, started by the manager and forwarded to the App (voice chat, etc.): `id`, `name`, `kind`, `command` + `args` (or only `socket` for an extension running elsewhere),
+  `dir` (working directory), `env` (extra environment variables), `disabled` (`true` disables while keeping the config), `config` (the extension's own settings);
   extensions installed with `personad extension install` are registered in the database, not here. For personad's built-in voice extension (GPT-Live), use `"command": "personad", "args": ["voice"]`,
-  with upstreams in `config.providers` (`docs/extensions/extensions.md` ("Built-in voice extension")). Restart the hub after changes.
+  with upstreams in `config.providers`. Restart the hub after changes.
 - `extension_market.proxy` (optional): an HTTP or SOCKS5 proxy for extension marketplace catalog reads, package downloads and HTTPS git clones, independent of the GitHub connector. Write `http://[user:password@]host:port` or `socks5://[user:password@]host:port` (default ports 80 and 1080). It covers GitHub, ordinary HTTPS markets, OCI registries and mirrors. An explicit value overrides `github.proxy`, the process proxy environment and `NO_PROXY`; an invalid value fails rather than falling back to a direct connection. SSH git clones do not use it. When omitted, GitHub keeps using `github.proxy` and other market traffic follows the manager process environment, as before. Proxy credentials belong only in this 0600 manager.json. Restart the manager after changing it.
 - `extension_market.ca_file` (optional): a path to a PEM file containing one or more CA certificates for a private HTTPS extension marketplace. Use an absolute path so lookup does not depend on the manager's working directory, for example `"extension_market":{"ca_file":"/etc/persona/market-ca.pem"}`. The certificates are appended to the system root pool only for the extension marketplace HTTP client used for catalog reads and package downloads; other manager HTTP clients, process-wide trust and git clones are unchanged. HTTPS git clones that need the same CA must configure Git separately (for example `http.sslCAInfo`). The added roots are trusted for every host this client contacts, including GitHub, registries, mirrors and redirect targets, so configure only CAs you control and use a name-constrained CA when the trust must be narrower. Certificate and hostname verification stays enabled, and marketplaces must still use HTTPS or GitHub. The file must be a regular file no larger than 1 MiB. An unreadable, non-regular or oversized file, or one with no parseable PEM certificates, fails all marketplace operations that use this client, including the official marketplace, with a clear error instead of silently using the system-only pool. When omitted, TLS behavior is unchanged. Remove the setting and restart the manager to return to system roots only; restart after every change to the file or setting.
-- `trusted_extension_markets` (legacy): retained for configuration decoding only. Nonofficial signing metadata and saved keys no longer grant a sandbox exemption; installed extensions keep the default sandbox unless the owner explicitly chooses otherwise (`docs/extensions/extensions.md` ("Sandbox")).
-
-<a id="ddnspublicddns"></a>
 
 ## A dedicated assistant node on an existing computer
 
-Register a separate `kind: local` machine with its manager through the atomic admin endpoint described in
-`docs/assistant/managers.md` ("Registering a dedicated local computer"). Keep the existing computer's ownership and
+Register a separate `kind: local` machine with its manager through the atomic admin endpoint described by the manager's admin API. Keep the existing computer's ownership and
 runtime unchanged. Do not create a carrier-owned local entry and move it afterwards.
 
 A second node opts into session discovery isolation with four absolute paths:
@@ -549,34 +435,7 @@ launcher. Existing connections and their defaults are unchanged. If a saved pick
 that local configuration or reset the main chat's pick; Persona does not choose another connection silently.
 
 The inventory is sanitized metadata. Connection credentials stay on the executing computer; a bootstrap may use a
-0600 temporary settings file in a 0700 directory, removed at process exit or forced stop. Full protocol, cache and
-lifecycle rules: `docs/integrations/launchers.md` ("External model adapters").
-
-## DDNS (public.ddns)
-
-Use a fixed domain to find the hub after reconnecting changes its IPv6 prefix (`docs/operations/network.md`). Omit `public.ddns` to leave it disabled.
-
-```json
-"public": {
-  "tls_listen": ":18662",
-  "advertise": ["https://hub.example.com:18662"],
-  "ddns": {"provider": "cloudflare", "record": "hub.example.com", "zone_id": "<zone id>", "token_file": "<token file on the hub machine>"}
-}
-```
-
-- `provider`:
-  - `cloudflare`: updates AAAA / A records, requires `zone_id` and `token_file`; `ttl` is 1 (automatic, default) or 30–86400.
-  - `alidns`: updates AAAA / A records on Alibaba Cloud DNS (`alidns.aliyuncs.com`), requires `domain` (the registered DNS zone, for example `example.com`) and `token_file` (`<access_key_id>:<access_key_secret>`); `ttl` is optional (1–86400; omitting it keeps an existing record's TTL or uses Alibaba Cloud DNS's default).
-  - `webhook`: POSTs `{"record","ipv6","ipv4"}` to `webhook_url`; with `token_file`, sends it as `Authorization: Bearer`.
-  - DNSPod is not implemented yet.
-- `record`: full domain name.
-- `domain`: registered DNS zone for `alidns` (use the same value as `record` for the zone apex `@`).
-- `token_file`: a file containing only the provider credential (`<token>` for `cloudflare` / `webhook`, `<access_key_id>:<access_key_secret>` for `alidns`), must be a regular file with 0600 permissions. Credentials do not go into hub.json.
-- **Which addresses are published**:
-  - IPv6 follows the same rules as the candidate list: only stable local global IPv6 addresses; an already published address is kept as long as it remains stable.
-  - IPv4 is published only if a public IPv4 was explicitly entered in `public.advertise`: a locally visible IPv4 does not prove public inbound reachability.
-- **When it updates**: once at startup, then whenever addresses change. Failures back off exponentially from 1 second, capped at 5 minutes. Logs record only the failure reason, not the token, URL, or response content.
-- **It only updates DNS**: it neither opens a listener nor allows firewall traffic. To make the App use the domain, also put the HTTPS URL including its TLS port in `public.advertise`; only then does it appear in the candidate list and the QR code's `alt`.
+0600 temporary settings file in a 0700 directory, removed at process exit or forced stop.
 
 ## For developers
 

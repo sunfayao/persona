@@ -1,6 +1,6 @@
 # screen-link
 
-The live screen's session wire (#6398, `docs/extensions/computer-use.md` "Live screen routes (#6398)"): the messages
+The live screen's session wire: the messages
 the client and the node's `internal/screenlink` exchange on every transport of a screen session. Both sides read the
 same cases, so the client and the node frame every message alike.
 

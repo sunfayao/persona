@@ -1,6 +1,6 @@
 # Recent setups fixtures
 
-The rules for New Agent's recent setups (#2134): the web (`web/src/lib/recent-setups.ts`) reads `recent_setups.json` in its tests. Machines, folders, launchers and models are made up.
+The rules for New Agent's recent setups: the web (`web/src/lib/recent-setups.ts`) reads `recent_setups.json` in its tests. Machines, folders, launchers and models are made up.
 
 ## A setup
 
@@ -26,7 +26,7 @@ Only these ids are kept, on the device, per hub; never a message.
 
 # Recently opened conversations
 
-The conversations opened on a device, in the order they were opened, not by their last activity (#2191): the web's ⌘K
+The conversations opened on a device, in the order they were opened, not by their last activity: the web's ⌘K
 shows them first (`web/src/lib/recent-chats.ts`). `recent_conversations.json` holds the rules.
 
 ## An entry

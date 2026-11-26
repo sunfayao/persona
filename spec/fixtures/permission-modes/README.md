@@ -1,6 +1,6 @@
 # permission-modes
 
-The standalone name the web gives each permission mode (#10363), using the wording settled in #5378. Keys are
+The standalone name the web gives each permission mode, using the wording settled in the settings. Keys are
 the mode IDs `default`, `acceptEdits`, `plan`, `auto` and `bypassPermissions`; every entry has exactly `en`, `zh-Hans`
 and `ja`. These are names, not descriptions, approval-button actions, launcher-default choices, raw-ID handoff formats
 or unset/default-behavior labels.

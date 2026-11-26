@@ -1,6 +1,6 @@
 # Review answers
 
-What the node's `git.review` really answers (`GET /api/v1/machines/{mid}/git/review`, [review.md](../../../docs/web/review.md), #151), for the clients to decode. Written by `TestGitReviewWireFixture` in `server/internal/node/gitreview_fixture_test.go` from real repositories, with the temporary folder, commit and blob ids replaced by placeholders; rewrite it with `go test ./internal/node -run '^TestGitReviewWireFixture$' -update` and read the diff.
+What the node's `git.review` really answers (`GET /api/v1/machines/{mid}/git/review`), for the clients to decode. Written by `TestGitReviewWireFixture` in `server/internal/node/gitreview_fixture_test.go` from real repositories, with the temporary folder, commit and blob ids replaced by placeholders; rewrite it with `go test ./internal/node -run '^TestGitReviewWireFixture$' -update` and read the diff.
 
 The answer leaves out what is empty (`omitempty`, `server/internal/proto/review.go`), and a client reads it as empty:
 

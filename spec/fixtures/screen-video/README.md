@@ -1,8 +1,8 @@
 # screen-video
 
-The live screen's video wire (#3954, `docs/extensions/computer-use.md` "Live screen video (#3954)"): the messages
-Persona Screen and its clients exchange. The browser (`web/src/screen/video-wire.ts`,
-#6558) reads these cases.
+The live screen's video wire: the messages
+Persona Screen and its clients exchange. The browser (`web/src/screen/video-wire.ts`)
+reads these cases.
 
 ## Rules
 

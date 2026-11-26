@@ -1,6 +1,6 @@
 # Graph layout fixtures
 
-An extension view's `graph` component (UI version 10, #9727; `docs/extensions/extensions.md`, "UI version 10") is
+An extension view's `graph` component (UI version 10) is
 laid out by each app itself, and an older app gets its nodes as indented rows from the hub. These cases hold every copy
 of the rules to one definition. `scripts/gen/graph_layout.py` is the reference: it states the rules exactly and writes
 `cases.json` (`python3 scripts/gen/graph_layout.py --check` fails when the file is stale).

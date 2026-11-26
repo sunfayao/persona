@@ -13,4 +13,4 @@ Run these from the repository root unless a command says otherwise.
 | `scripts/privacy_check.py` and `scripts/hooks/` | Scan the worktree, staged changes, commits and push ranges for private values |
 | `scripts/test/backup_restore_drill.py` | Verify a backup on an isolated test target |
 
-See [local testing](../docs/operations/testing.md) and [configuration](../docs/operations/config.md).
+Testing is described in `AGENTS/09-testing.md` and deployment in `AGENTS/10-deployment.md`; configuration in `docs/operations/config.md`.

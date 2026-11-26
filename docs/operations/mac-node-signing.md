@@ -1,8 +1,7 @@
 # Keeping a Mac node's privacy permissions across updates
 
 For people who run Agents on their own Mac through its resident node and have given that node macOS privacy
-permissions (Full Disk Access, Accessibility, Documents and the like). Nothing here is needed to use Persona: without
-the setting nothing changes. Issue: #6368 (and #6239 for what an unanswered prompt does).
+permissions (Full Disk Access, Accessibility, Documents and the like). Without the setting nothing changes.
 
 ## Why the permissions go away
 
@@ -20,7 +19,7 @@ $ codesign -d -r- ~/.persona/bin/personad
 ```
 
 An ad-hoc DR is the build's cdhash, so every node update (Redeploy, the hub's ssh deploy, tailcat,
-`scripts/deploy/deploy.sh`, `install.sh`) installs a program TCC has never seen: the permissions stop applying and macOS
+`scripts/deploy/deploy.sh`) installs a program TCC has never seen: the permissions stop applying and macOS
 asks again, or a prompt waits on a screen nobody is looking at. Signing ad hoc again under a fixed identifier
 (`codesign -f -s - -i com.nwverse.personad`) changes the name only; the DR stays `cdhash H"…"`.
 
@@ -83,9 +82,9 @@ keychain is open: from an ssh session codesign fails with `errSecInternalCompone
 - **An update over the node RPC** (Redeploy of a computer connected through Persona Link): once the upload's size,
   sha256, build info and self-check pass, the node signs a copy of it, runs the signed copy's `node-update-check`, and
   swaps in that copy. The transaction records the signed file's sha256, so confirmation and rollback
-  ([node-update.md](node-update.md) ("Restart and rollback")) compare the installed program with what was actually
+  compare the installed program with what was actually
   installed. The upload stays as it came until the swap, so a retried commit checks it against the hub's sha256 again.
-- **Any other path** (the hub's ssh deploy script, tailcat, `scripts/deploy/deploy.sh`, `install.sh`, a copy by hand):
+- **Any other path** (the hub's ssh deploy script, tailcat, `scripts/deploy/deploy.sh`, a copy by hand):
   the resident node signs its program at start and before a reload when the file does not meet the setting. A signed,
   checked copy replaces the file only while the file is still the build it was copied from, and the node then runs the
   signed file (an exec: same process). An update awaiting confirmation is left alone.
@@ -97,8 +96,7 @@ keychain is open: from an ssh session codesign fails with `errSecInternalCompone
   the program keeps the signature it has, which may still match the permissions given to it. Usual causes: the
   certificate's name is not exact, the keychain is locked or asks (codesign gets 15 seconds), the certificate expired.
 
-The node of the hub's own Mac runs under the hub's or the manager's agent, and macOS holds it to that agent's program
-([server.md](../server/server.md)); this setting does not sign those programs, nor the Persona Link app.
+The node of the hub's own Mac runs under the hub's or the manager's agent, and macOS holds it to that agent's program; this setting does not sign those programs, nor the Persona Link app.
 
 **The live-screen video helper (Persona Screen) uses the same setting.** Its Screen Recording grant is its own, so
 signing the node alone wouldn't keep it. With this setting the node runs its own copy, `~/.persona/bin/Persona
@@ -107,11 +105,10 @@ again only when Persona Link installs a different helper, and checks the copy me
 the old one. It never re-signs the helper inside Persona Link.app, since that would break the app's own seal. When
 signing fails it runs the installed helper, as the node itself does. The first signed copy is a new program to macOS:
 allow **Persona Screen** under Screen & System Audio Recording once more. Without the setting the installed helper
-runs; Persona Link builds it the same way each time, so its grant lasts until the helper itself changes
-([computer-use.md](../extensions/computer-use.md) ("Live screen video (#3954)")).
+runs; Persona Link builds it the same way each time, so its grant lasts until the helper itself changes.
 
 ## Builds
 
 `scripts/deploy/deploy.sh`, when run on a Mac, signs its Darwin builds ad hoc again as
 `com.nwverse.<program>` instead of `a.out`. That gives the builds a readable name and nothing more: their DR is still the
-cdhash. Builds made elsewhere (the Docker image, Linux release workers) keep `a.out`.
+cdhash. Builds made elsewhere (the Docker image) keep `a.out`.

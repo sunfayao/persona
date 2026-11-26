@@ -1,7 +1,6 @@
 # Changed files of a run of work
 
-What a run of an Agent's work changed, by file: the changed-files card at the end of a finished Agent exchange (web,
-#5157) and the `changes` a fold carries (`docs/protocol/protocol.md` "Folded work"). The hub's node counts a folded run
+What a run of an Agent's work changed, by file: the changed-files card at the end of a finished Agent exchange (web) and the `changes` a fold carries (`docs/protocol/protocol.md` "Folded work"). The hub's node counts a folded run
 (`server/internal/transcript/fold_changes.go` `foldChanges`); the web counts the same calls when they are on the page
 (`web/src/views/chat/TurnChanges.tsx` `turnChanges`). Both read these cases, so the card says the same before a reload
 (the calls came live) and after it (the page came folded). All data is made up.

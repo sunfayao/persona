@@ -1,7 +1,7 @@
 # Forwarded messages
 
-A message forwarded from one chat to another (#3807) carries the original in a `<persona-context kind="forward">` block
-before the note the user typed. The format is in [protocol.md](../../../docs/protocol/protocol.md), "Forwarded messages".
+A message forwarded from one chat to another carries the original in a `<persona-context kind="forward">` block
+before the note the user typed. The format is in `docs/protocol/protocol.md`, "Forwarded messages".
 The web app writes and reads these blocks and follows these cases.
 
 ## Rules
@@ -22,7 +22,7 @@ writes); a reading case has `message` and `expected`.
 
 ## Several at once
 
-Forwarding several messages at once (#3838) sends one block per message; nothing new is written into a block.
+Forwarding several messages at once sends one block per message; nothing new is written into a block.
 
 - The blocks go in the chat's order, not the order they were picked, one per line; a blank line, then the note.
   `three_then_a_note`

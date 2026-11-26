@@ -1,6 +1,6 @@
 # screen-udp
 
-The live screen's video over UDP (#7873, `docs/extensions/computer-use.md` "Video over UDP (#7873)"): the packets a
+The live screen's video over UDP: the packets a
 phone and the node's `internal/screenlink` exchange on a UDP flow, how a video message is cut into Reed-Solomon blocks,
 and the parity itself. Both sides read the same cases, so they seal, number, cut and rebuild alike.
 

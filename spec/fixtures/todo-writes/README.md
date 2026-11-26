@@ -1,7 +1,6 @@
 # To-do write outcome fixtures
 
-How a to-do's write that carries the owner's words ends (#10465; `docs/protocol/protocol.md` "Message feedback
-(#5258)", its "To-do writes"): a message on `POST /api/v1/assistant/conversations/{id}/route {todo_id, text}` or an
+How a to-do's write that carries the owner's words ends (`docs/protocol/protocol.md` "Message feedback", its "To-do writes"): a message on `POST /api/v1/assistant/conversations/{id}/route {todo_id, text}` or an
 answer on `POST /api/v1/todos/{id}/asks/{ask}/answer`. Given what happens on its way to the to-do's Agent, the manager's
 answer (its status, `code` and `delivered`) and what the hub makes of that answer under an `X-Persona-Op-Id`: the final
 `todo_send_state` and the operation's receipt. The manager replays every case against its routes
