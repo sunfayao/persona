@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 // paneEnvOfPID reads the engine pane variables (enginePaneEnvs) from a process's environment: what tells a claude in
@@ -53,7 +55,7 @@ func pickedEnv(listing string) map[string]string {
 	for _, name := range paneEnvKeys {
 		re, ok := paneEnvRes.Load(name)
 		if !ok {
-			re, _ = paneEnvRes.LoadOrStore(name, paneEnvRe(name))
+			re, _ = paneEnvRes.LoadOrStore(name, osproc.PaneEnvRE(name))
 		}
 		if m := re.(interface{ FindStringSubmatch(string) []string }).FindStringSubmatch(listing); m != nil {
 			out[name] = m[1]

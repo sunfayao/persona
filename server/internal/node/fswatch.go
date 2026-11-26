@@ -254,7 +254,7 @@ func (w *fsWatcher) poll(n *Node, ctx context.Context, stop <-chan struct{}, eve
 // the shown entries' Info is read.
 // A folder that cannot be read has the signature of its error (so it going away is a change, and staying away is not).
 func (n *Node) dirSignature(d fsWatchDir) string {
-	_, real, err := n.resolveDir(d.Path, d.Cwd)
+	_, real, err := n.fileService().ResolveDir(d.Path, d.Cwd)
 	if err != nil {
 		return "err"
 	}
@@ -262,13 +262,7 @@ func (n *Node) dirSignature(d fsWatchDir) string {
 	if err != nil {
 		return "err"
 	}
-	shown := ents
-	if len(ents) > maxDirEntries {
-		shown = make([]os.DirEntry, maxDirEntries)
-		for i, t := range n.treeOrder(real, ents)[:maxDirEntries] {
-			shown[i] = t.e
-		}
-	}
+	shown := n.fileService().VisibleEntries(real, ents)
 	h := fnv.New64a()
 	for _, e := range shown {
 		fmt.Fprintf(h, "%s\x00%d\x00", e.Name(), e.Type())

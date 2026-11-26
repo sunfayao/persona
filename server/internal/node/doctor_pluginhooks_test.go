@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 // installedExtension lays out what the node leaves for an extension package it installed under dataDir (plugins.go):
@@ -72,22 +73,22 @@ func TestGlobalPermissionHooksNamesInstalledExtension(t *testing.T) {
 	cmd := shellQuote(prog) + " permission-request"
 	writePermissionHooks(t, configDir, commandHook(cmd))
 
-	c := checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Default)
+	c := globalPermissionHooks(t, configDir, dataDir, i18n.Default)
 	if c.Status != DoctorOK || c.Hint != "" {
 		t.Fatalf("an installed extension's hook: %s %q (hint %q)", c.Status, c.Detail, c.Hint)
 	}
 	if want := "1 个同步的 PermissionRequest 钩子，都来自已安装的扩展（Example Approver）"; c.Detail != want {
 		t.Errorf("detail %q, want %q", c.Detail, want)
 	}
-	if len(c.Items) != 1 || c.Items[0] != shorten(cmd, 80) {
+	if len(c.Items) != 1 || c.Items[0] != textfmt.Shorten(cmd, 80) {
 		t.Errorf("items %q", c.Items)
 	}
-	en := checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Resolve("en"))
+	en := globalPermissionHooks(t, configDir, dataDir, i18n.Resolve("en"))
 	if !strings.Contains(en.Detail, "all from installed extensions (Example Approver)") {
 		t.Errorf("en detail %q", en.Detail)
 	}
 	// Without the persona dir (nothing to check the install record against) it is a hook like any other.
-	if c := checkGlobalPermissionHooksIn(configDir, "", i18n.Default); c.Status != DoctorWarn {
+	if c := globalPermissionHooks(t, configDir, "", i18n.Default); c.Status != DoctorWarn {
 		t.Errorf("no persona dir: %s %q", c.Status, c.Detail)
 	}
 }
@@ -110,7 +111,7 @@ func TestGlobalPermissionHooksExtensionSpellings(t *testing.T) {
 		`{"type":"command","command":`+string(mustJSON(other))+`,"args":["--gate"]}`,
 		`{"command":`+string(mustJSON(other))+`,"args":[]}`,
 	)
-	c := checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Default)
+	c := globalPermissionHooks(t, configDir, dataDir, i18n.Default)
 	if c.Status != DoctorOK {
 		t.Fatalf("%s %q", c.Status, c.Detail)
 	}
@@ -125,14 +126,14 @@ func TestGlobalPermissionHooksForeignStillWarns(t *testing.T) {
 	prog := installedExtension(t, dataDir, "approver", "1.4.0", "Example Approver")
 
 	writePermissionHooks(t, configDir, commandHook("/usr/local/bin/other-gate check"))
-	c := checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Default)
+	c := globalPermissionHooks(t, configDir, dataDir, i18n.Default)
 	if c.Status != DoctorWarn || c.Hint == "" || c.Detail != "1 个同步的 PermissionRequest 钩子（/usr/local/bin/other-gate check）" {
 		t.Errorf("a foreign hook: %s %q (hint %q)", c.Status, c.Detail, c.Hint)
 	}
 
 	writePermissionHooks(t, configDir, commandHook(prog), commandHook("other-gate check"),
 		`{"type":"command","command":"async-logger","async":true}`)
-	c = checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Default)
+	c = globalPermissionHooks(t, configDir, dataDir, i18n.Default)
 	if want := "1 个同步的 PermissionRequest 钩子（other-gate check），另有 1 个来自已安装的扩展（Example Approver）"; c.Status != DoctorWarn || c.Detail != want {
 		t.Errorf("foreign next to an extension's: %s %q, want warn %q", c.Status, c.Detail, want)
 	}
@@ -210,7 +211,7 @@ func TestGlobalPermissionHooksNeedTheInstallRecord(t *testing.T) {
 			configDir, dataDir := hookRoots(t)
 			prog := installedExtension(t, dataDir, "approver", "1.4.0", "Example Approver")
 			writePermissionHooks(t, configDir, commandHook(shellQuote(tc.setup(t, dataDir, prog))))
-			c := checkGlobalPermissionHooksIn(configDir, dataDir, i18n.Default)
+			c := globalPermissionHooks(t, configDir, dataDir, i18n.Default)
 			if c.Status != DoctorWarn || strings.Contains(c.Detail, "扩展") {
 				t.Errorf("%s %q, want a warning about a foreign hook", c.Status, c.Detail)
 			}
@@ -234,4 +235,10 @@ func rm(t *testing.T, path string) {
 	if err := os.Remove(path); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func globalPermissionHooks(t *testing.T, configDir, dataDir string, lang i18n.Lang) DoctorCheck {
+	t.Helper()
+	rep := RunDoctor(t.Context(), DoctorOptions{Dir: dataDir, ClaudeConfigDir: configDir, Lang: lang})
+	return doctorCheckNamed(t, rep, "global-permission-hooks")
 }

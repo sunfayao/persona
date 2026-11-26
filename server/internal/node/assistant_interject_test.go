@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -63,7 +64,7 @@ func interjectSecond(t *testing.T, version string, on bool, images ...proto.Imag
 		t.Fatal(err)
 	}
 	cliWait(t, "the second message", func() bool { return strings.Contains(interjectLog(t), "second") })
-	if on && versionAtLeast(version, backgroundTasksMinVersion) {
+	if on && claudeplugin.VersionAtLeast(version, backgroundTasksMinVersion) {
 		cliWait(t, "background_tasks", func() bool { return strings.Contains(interjectLog(t), "background_tasks") })
 	}
 	log := interjectLog(t)

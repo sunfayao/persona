@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart"
 	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -341,10 +342,7 @@ func TestOrcaStartOpensGitBashOnWindows(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			withPaneShell(t, tc.paneShell)
-			old := orcaOnWindows
-			orcaOnWindows = func() bool { return tc.windows }
-			t.Cleanup(func() { orcaOnWindows = old })
-			n, _, o, _, home := orcaNode(t)
+			n, _, o, _, home := orcaNode(t, func(cfg *orca.Config) { cfg.Windows = tc.windows })
 			o.SetStatus(map[string]any{"capabilities": tc.caps})
 			repoDir := mkdir(t, filepath.Join(home, "proj"))
 			o.SetWorktrees(orcarttest.Worktree("wt-proj", repoDir, "refs/heads/main"))
@@ -443,7 +441,7 @@ func TestOrcaFindsANewTerminalOrcaReKeyed(t *testing.T) {
 	}
 
 	// claude runs in it (its ORCA_PANE_KEY is the key the shell was started with) and shows its input box.
-	procs.set(created.Pane.ID, orcaProc{pid: 4242, agent: "claude", cwd: outside})
+	procs.set(created.Pane.ID, orcaProc{PID: 4242, Agent: "claude", Cwd: outside})
 	o.SetScreen(handle, "? for shortcuts\n")
 	a, err := n.waitReady(context.Background(), created.Pane.String(), nil)
 	if err != nil || a.Agent != "claude" {
@@ -451,10 +449,8 @@ func TestOrcaFindsANewTerminalOrcaReKeyed(t *testing.T) {
 	}
 	// Under the key Orca gave it now, claude is found as well.
 	procs.set(created.Pane.ID)
-	procs.set(newKey, orcaProc{pid: 4242, agent: "claude", cwd: outside})
-	h.mu.Lock()
-	h.procsAt = time.Time{}
-	h.mu.Unlock()
+	procs.set(newKey, orcaProc{PID: 4242, Agent: "claude", Cwd: outside})
+	procs.clock.advance(orcaProcsMaxAge + time.Nanosecond)
 	if a, err := h.Agent(context.Background(), created.Pane); err != nil || a.Agent != "claude" {
 		t.Fatalf("Agent under the new key = %+v, %v", a, err)
 	}
@@ -494,36 +490,6 @@ func TestOrcaStartSaysWhenItsPaneIsGone(t *testing.T) {
 	}
 }
 
-// A started terminal the user moves to another tab is still in Orca's UI: it is listed where it is now, and that tab
-// is renamed, not the one it was made in (#5547 keeps only an orphaned one under its first key).
-func TestOrcaListsAMovedTerminalWhereItIs(t *testing.T) {
-	fake := orcarttest.New(t)
-	root := t.TempDir()
-	fake.SetWorktrees(orcarttest.Worktree("wt-1", root, "refs/heads/main"))
-	h := newOrcaHost(&orcart.Client{MetaPath: fake.MetaPath})
-	h.scan = (&fakeProcs{}).scan
-	created, err := h.CreateSpace(context.Background(), root, "tab1")
-	if err != nil {
-		t.Fatalf("CreateSpace: %v", err)
-	}
-	fake.Move("term_fake_1", "tab_moved", "leaf_moved")
-	l, err := h.Snapshot(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(l.Panes) != 1 || l.Panes[0].PaneID != (host.PaneRef{Kind: host.Orca, ID: "tab_moved:leaf_moved"}).String() || l.Panes[0].TabID != "tab_moved" {
-		t.Errorf("panes %+v, want the moved one under tab_moved:leaf_moved (made as %s)", l.Panes, created.Pane.ID)
-	}
-	if err := h.RenameSlot(context.Background(), "tab_moved", "renamed"); err != nil {
-		t.Errorf("RenameSlot(tab_moved): %v", err)
-	}
-	if tr := fake.Trace("terminal.rename"); len(tr) != 1 || !strings.Contains(tr[0], `"terminal":"term_fake_1"`) {
-		t.Errorf("renames %v", tr)
-	}
-}
-
-// Run types only into the terminal this host made: one Orca orphaned without re-keying it is refused, and so is a
-// new handle under the same pane key (#972: Persona trusts the handle terminal.create returned).
 func TestOrcaRunRefusesAnotherTerminalUnderItsKey(t *testing.T) {
 	fake := orcarttest.New(t)
 	root := t.TempDir()

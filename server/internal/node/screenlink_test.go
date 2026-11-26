@@ -79,6 +79,13 @@ func (r *linkRig) dial(id string, params map[string]any) (net.Conn, map[string]a
 	r.t.Cleanup(func() { phone.Close() })
 	r.hub.Start(id, hubEnd)
 	out, _ := res.(map[string]any)
+	if out["link"] == 1 && params["attach"] != true {
+		session := r.n.links.Get(params["pair"].(string))
+		if session == nil {
+			r.t.Fatal("Screen Sharing session did not open")
+		}
+		r.t.Cleanup(session.End)
+	}
 	return phone, out, nil
 }
 

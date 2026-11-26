@@ -26,7 +26,7 @@ suggest.
 
 - `server/internal/proto/filetype_test.go`: the rule itself, plus M2TS, text with `G` where packets would start, a
   character cut by the probe, one packet only, lost sync.
-- `server/internal/node/filemime_test.go` (`TestTypeScriptAndTransportStreamByTheirBytes`): `file.read` with and
+- `server/internal/node/files/filemime_test.go` (`TestTypeScriptAndTransportStreamByTheirBytes`): `file.read` with and
   without `stream`, the download's type and the Info sheet's `mime`, for `.ts`, `.mts` and `.cts`.
 - `server/internal/hub/fileread_test.go`: the hub turning an older node's `video/mp2t` for TypeScript into the text
   page, and leaving the real segment a streamed video.

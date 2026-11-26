@@ -17,9 +17,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 // machinePathOptions controls canonical path and symlink boundary resolution.
@@ -200,7 +203,7 @@ func (n *Node) resolveCanonicalBoundary(boundaryRoot string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	realRoot, err := n.realPath(absPath(expanded))
+	realRoot, err := n.realPath(pathutil.Abs(expanded))
 	if err != nil {
 		if errors.Is(err, errOffLimits) || errors.Is(err, errICloud) || errors.Is(err, errTooManyLinks) {
 			return "", machineBoundaryError(err.Error())
@@ -241,7 +244,7 @@ func (n *Node) resolveMachinePath(asked, boundaryRoot string, opts machinePathOp
 		return nil, err
 	}
 
-	absDisplay := absPath(display)
+	absDisplay := pathutil.Abs(display)
 	canonical, err := n.realPath(absDisplay)
 	if err != nil {
 		switch {
@@ -348,12 +351,12 @@ func (n *Node) openSafeMachineRegularFile(res *machinePathResolution) (*os.File,
 		f.Close()
 		return nil, nil, fmt.Errorf("only regular files can be read")
 	}
-	if !sameFileRead(before, st) {
+	if !filemeta.SameFile(before, st) {
 		f.Close()
-		return nil, nil, errFileChanged
+		return nil, nil, filemeta.ErrChanged
 	}
 	// Re-verify the original display path still resolves to the exact same canonical file.
-	rechecked, err := n.realPath(absPath(res.DisplayPath))
+	rechecked, err := n.realPath(pathutil.Abs(res.DisplayPath))
 	if err != nil {
 		f.Close()
 		if errors.Is(err, errOffLimits) || errors.Is(err, errICloud) || errors.Is(err, errTooManyLinks) {
@@ -366,9 +369,9 @@ func (n *Node) openSafeMachineRegularFile(res *machinePathResolution) (*os.File,
 		return nil, nil, machineBoundaryError("path escapes the allowed root boundary")
 	}
 	after, err := os.Stat(rechecked)
-	if err != nil || !sameFileRead(st, after) {
+	if err != nil || !filemeta.SameFile(st, after) {
 		f.Close()
-		return nil, nil, errFileChanged
+		return nil, nil, filemeta.ErrChanged
 	}
 	return f, st, nil
 }
@@ -442,15 +445,15 @@ func isBinaryExtension(name string) bool {
 
 // isBinaryPreviewContent detects binary payloads so raw text rendering is refused.
 func isBinaryPreviewContent(path string, data []byte, trimLeadingUTF8, trimTrailingUTF8 bool) (bool, string) {
-	sniff := data[:min(len(data), sniffBytes)]
-	mime := fileMime(path, sniff)
+	sniff := data[:min(len(data), filemeta.SniffBytes)]
+	mime := filemeta.MIME(path, sniff)
 	if len(data) == 0 {
 		return false, mime
 	}
 	if bytes.IndexByte(data, 0) >= 0 {
 		return true, mime
 	}
-	if streamedMime(mime) {
+	if filemeta.StreamedMIME(mime) {
 		return true, mime
 	}
 	check := data
@@ -458,7 +461,7 @@ func isBinaryPreviewContent(path string, data []byte, trimLeadingUTF8, trimTrail
 		check = trimLeadingPartialRune(check)
 	}
 	if trimTrailingUTF8 {
-		check = trimPartialRune(check)
+		check = textfmt.TrimPartialRune(check)
 	}
 	if !utf8.Valid(check) {
 		return true, mime
@@ -780,7 +783,7 @@ func (n *Node) machineFilePreview(req proto.MachineFilePreviewRequest) (*proto.M
 			if perr != nil {
 				return nil, explainDenied(res.DisplayPath, n.home, perr)
 			}
-			if int64(len(buf)) != want || !sameFileRead(st, after) || !sameFileRead(st, pathNow) {
+			if int64(len(buf)) != want || !filemeta.SameFile(st, after) || !filemeta.SameFile(st, pathNow) {
 				if attempt+1 < maxPreviewAttempts {
 					continue
 				}
@@ -800,7 +803,7 @@ func (n *Node) machineFilePreview(req proto.MachineFilePreviewRequest) (*proto.M
 			Perm:            uint32(st.Mode().Perm()),
 			ModTime:         st.ModTime().UTC(),
 			Mime:            mime,
-			Revision:        fileRevision(st),
+			Revision:        filemeta.Revision(st),
 			EditMaxBytes:    proto.MachineFileEditMaxBytes,
 			Symlink:         res.Symlink,
 			LinkTarget:      res.LinkTarget,
@@ -823,7 +826,7 @@ func (n *Node) machineFilePreview(req proto.MachineFilePreviewRequest) (*proto.M
 
 		text := buf
 		if more {
-			text = trimPartialRune(text)
+			text = textfmt.TrimPartialRune(text)
 			if idx := bytes.LastIndexByte(text, '\n'); idx >= 0 {
 				text = text[:idx+1]
 			}
@@ -872,19 +875,19 @@ func (n *Node) machineFileTail(req proto.MachineFileTailRequest) (*proto.Machine
 		Name:            filepath.Base(res.DisplayPath),
 		Size:            size,
 		ModTime:         st.ModTime().UTC(),
-		Revision:        fileRevision(st),
+		Revision:        filemeta.Revision(st),
 		Sensitive:       res.Sensitive,
 		SensitiveReason: res.SensitiveReason,
 		RequestedLines:  lines,
 	}
 
 	if size == 0 {
-		resp.Mime = fileMime(res.DisplayPath, nil)
+		resp.Mime = filemeta.MIME(res.DisplayPath, nil)
 		return resp, nil
 	}
 
 	// Probe file head first so binary files with trailing text headers/comments are still refused.
-	headLen := min(size, int64(sniffBytes))
+	headLen := min(size, int64(filemeta.SniffBytes))
 	head := make([]byte, headLen)
 	if hn, herr := f.ReadAt(head, 0); herr == nil || errors.Is(herr, io.EOF) {
 		head = head[:hn]
@@ -1000,9 +1003,9 @@ func (n *Node) machineFileChunk(req proto.MachineFileChunkRequest) (*proto.Machi
 	}
 	defer f.Close()
 
-	revision := fileRevision(st)
+	revision := filemeta.Revision(st)
 	if req.Revision != "" && req.Revision != revision {
-		return nil, errFileChanged
+		return nil, filemeta.ErrChanged
 	}
 	if req.Offset > st.Size() {
 		return nil, fmt.Errorf("offset is outside the file")
@@ -1018,7 +1021,7 @@ func (n *Node) machineFileChunk(req proto.MachineFileChunkRequest) (*proto.Machi
 		Offset:        req.Offset,
 	}
 	if req.Length == 0 {
-		out.Mime = fileMime(res.DisplayPath, readHead(f))
+		out.Mime = filemeta.MIME(res.DisplayPath, filemeta.ReadHead(f))
 		return out, nil
 	}
 	out.Data = make([]byte, min(int64(req.Length), st.Size()-req.Offset))
@@ -1034,7 +1037,7 @@ func (n *Node) machineFileChunk(req proto.MachineFileChunkRequest) (*proto.Machi
 		return nil, err
 	}
 	if after.Size() != st.Size() || !after.ModTime().Equal(st.ModTime()) {
-		return nil, errFileChanged
+		return nil, filemeta.ErrChanged
 	}
 	return out, nil
 }

@@ -208,7 +208,7 @@ var terminalSources = []string{
 	"internal/hub/setup_finish.go",
 	"internal/hub/setup_service.go",
 	"internal/hub/setup_manager.go",
-	"internal/node/doctor.go",
+	"internal/node/doctor",
 	"internal/node/preflight.go",
 	"internal/manager/join.go",
 	"internal/manager/run.go",

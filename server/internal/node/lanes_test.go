@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/files"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -61,7 +62,7 @@ func TestNodeServesLanes(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		var read FileContent
+		var read files.FileContent
 		if err := hub.Call(cctx, "file.read", map[string]any{"path": file}, &read); err != nil {
 			t.Fatal(err)
 		}

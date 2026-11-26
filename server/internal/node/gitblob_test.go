@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -95,7 +96,7 @@ func TestGitBlobSameVersionAtOnce(t *testing.T) {
 		if err != nil {
 			return "", err
 		}
-		head, err := n.readFileChunk(proto.FileChunkRequest{Path: b.Path})
+		head, err := n.fileService().ReadChunk(proto.FileChunkRequest{Path: b.Path})
 		if err != nil {
 			return "", err
 		}
@@ -132,7 +133,7 @@ func TestGitBlobSameVersionAtOnce(t *testing.T) {
 		}
 		info, _ := ents[0].Info()
 		for i, rev := range revs {
-			if rev != fileRevision(info) {
+			if rev != filemeta.Revision(info) {
 				t.Fatalf("round %d: the copy request %d got was replaced after it was handed out", round, i)
 			}
 		}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 type codexProcess struct {
@@ -37,7 +38,7 @@ func codexProcessArgs(pid int, args []string, env string) (codexProcess, bool) {
 	if len(args) == 0 {
 		return codexProcess{}, false
 	}
-	if at < 1 && progName(args[0]) != "codex" { // progName: codex.exe on Windows
+	if at < 1 && osproc.ProgramName(args[0]) != "codex" { // progName: codex.exe on Windows
 		return codexProcess{}, false
 	}
 	p := codexProcess{pid: pid}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"io"
 	"io/fs"
 	"os"
@@ -13,7 +12,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/pathutil"
 )
 
 // What a client may look at by a path a conversation names (fs.stat, file.read, fs.list, downloads): anything the
@@ -389,19 +390,9 @@ func splitPath(p string) []string {
 	return strings.FieldsFunc(p, func(r rune) bool { return r == '/' || r == filepath.Separator })
 }
 
-// absPath makes a path absolute against the node's own working directory (a relative path asked with no cwd), with
-// Windows short names spelled out (longPath). The file tools resolve every client path through here, so the guard and
-// the operations see the names the entries have.
-func absPath(p string) string {
-	if a, err := filepath.Abs(p); err == nil {
-		return longPath(a)
-	}
-	return p
-}
-
 // statSafe is os.Stat through realPath; path is how it was asked (resolved, before links).
 func (n *Node) statSafe(path string) (string, os.FileInfo, error) {
-	real, err := n.realPath(absPath(path))
+	real, err := n.realPath(pathutil.Abs(path))
 	if err != nil {
 		return "", nil, err
 	}

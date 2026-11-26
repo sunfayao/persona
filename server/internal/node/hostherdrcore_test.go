@@ -12,7 +12,9 @@ import (
 	"github.com/nwverse/persona/server/internal/herdrcore"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/nwverse/persona/server/internal/processtable"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/screen"
 )
 
 // herdr-core as the machine's engine (hostherdrcore.go, engine.go), driven through the node's requests against a fake
@@ -136,10 +138,10 @@ func TestHerdrCoreStatusAndAgent(t *testing.T) {
 			t.Errorf("%s/%s/%s: agent %q status %q pane %q", c.app, c.state, c.fg, a.Agent, a.AgentStatus, a.PaneID)
 		}
 	}
-	if got := stripSpinner("✳ fix the build"); got != "fix the build" {
+	if got := screen.StripSpinner("✳ fix the build"); got != "fix the build" {
 		t.Errorf("stripSpinner = %q", got)
 	}
-	if got := stripSpinner("a fix"); got != "a fix" {
+	if got := screen.StripSpinner("a fix"); got != "a fix" {
 		t.Errorf("stripSpinner = %q", got)
 	}
 }
@@ -444,11 +446,11 @@ func TestHerdrCoreWindowsPowerShellIsAShell(t *testing.T) {
 // On Windows herdr-core names the first program below the shell as in front: a start's claude runs three bash deep.
 // The nearest agent below it is found in the process table, and its terminal is claude's (#11214).
 func TestHerdrCoreAgentBelowTheReportedForeground(t *testing.T) {
-	procs := map[int]proc{
-		10: {cmd: "powershell.exe"},
-		20: {ppid: 10, cmd: "bash.exe"}, 21: {ppid: 20, cmd: "bash.exe"}, 22: {ppid: 21, cmd: "bash.exe"},
-		30: {ppid: 22, cmd: "claude.exe"}, 31: {ppid: 30, cmd: "claude.exe"}, 32: {ppid: 30, cmd: "bash.exe"},
-		40: {ppid: 10, cmd: "node.exe"},
+	procs := map[int]processtable.Process{
+		10: {Command: "powershell.exe"},
+		20: {PPID: 10, Command: "bash.exe"}, 21: {PPID: 20, Command: "bash.exe"}, 22: {PPID: 21, Command: "bash.exe"},
+		30: {PPID: 22, Command: "claude.exe"}, 31: {PPID: 30, Command: "claude.exe"}, 32: {PPID: 30, Command: "bash.exe"},
+		40: {PPID: 10, Command: "node.exe"},
 	}
 	children := procChildren(procs)
 	if got := agentBelow(procs, children, 20); got != 30 {
@@ -457,7 +459,7 @@ func TestHerdrCoreAgentBelowTheReportedForeground(t *testing.T) {
 	if got := agentBelow(procs, children, 40); got != 0 {
 		t.Errorf("agentBelow(40) = %d, want none", got)
 	}
-	cycle := map[int]proc{1: {ppid: 2, cmd: "bash.exe"}, 2: {ppid: 1, cmd: "bash.exe"}}
+	cycle := map[int]processtable.Process{1: {PPID: 2, Command: "bash.exe"}, 2: {PPID: 1, Command: "bash.exe"}}
 	if got := agentBelow(cycle, procChildren(cycle), 1); got != 0 {
 		t.Errorf("agentBelow in a cycle = %d", got)
 	}

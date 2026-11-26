@@ -49,7 +49,12 @@ server/
       engine/herdr/, engine/orca/, engine/paseo/, engine/tmux/   one per terminal engine
       assistantrt/               running the assistant's own conversations (Claude Code headless, Codex, runtimes)
       gates/                     tool hooks, the Lark gates, the gate proxy and relay
-      machine/                   machine facts, files, ports, previews, worktrees, updates
+      doctor/                    node diagnostics and LaunchAgent repair
+      preview/                   local browser and preview streams
+      ports/                     discovery and probing for live agent panes
+      files/                     file reads, metadata, listings, search and downloads
+      computeruse/               computer and browser tools after separating their shared lifecycle from the root
+      machine/                   machine facts, the remaining file operations, worktrees and updates
     devices/, extmgr/            the other managers; split the same way once they pass the size limit
 ```
 
@@ -63,14 +68,15 @@ server/
 3. **No package-level state in a domain package**: no mutable package variables, no reads of the process environment
    outside the constructor. State lives on the domain's struct, so two tests can run two instances side by side.
 4. **Time is injected.** A domain takes a clock; its tests use a fake one and never `time.Sleep`.
-5. **Size limits** for every package under `internal/`: at most 15,000 non-test lines and 80 non-test files. The two
-   roots are exempt until their last stage, and their numbers may only go down.
+5. **Size limits** for every package under `internal/`: at most 15,000 non-test lines and 80 non-test files.
+   Packages already above either limit have a baseline, and each recorded number may only go down.
 6. **The root keeps the names the outside sees.** RPC method names, tool names, HTTP routes, table names and wire types
    do not change in a move. A move is a move: no behaviour change, no prompt change, goldens stay byte-identical.
 
 `server/internal/archguard` enforces 1 and 5: an import of a root or a sibling domain from a domain package fails,
 and so does a package over the limits. The limits of the packages that are still too big are recorded in a baseline
 that may only shrink.
+From `server/`, run `UPDATE_GOLDEN=1 go test ./internal/archguard -run '^TestPackageRules$'` after a reduction.
 
 ## How a domain moves
 
@@ -89,19 +95,44 @@ Extract leaves before trunks: a domain that nothing else in the root calls into 
 
 | Stage | Moves | Notes |
 | --- | --- | --- |
-| 0 | The guard: the import and size rules in `archguard`, with the baseline of today's sizes | No code moves; makes the rules checkable |
+| 0 | Import and size rules in `archguard` | Done. The baseline records existing import exceptions with reasons and oversized packages with both counts. |
 | A1 | `assistant/agents`: A2A (`a2a_*`), dispatch between computers (`dispatch*`) | About 3,000 lines; proves the pattern on a domain with a store, node calls and a delivery loop |
 | A2 | `assistant/schedule`: follow-ups, routines, briefing | About 9,000 lines; timers, so the fake clock pays most here |
 | A3 | `assistant/models` and `assistant/settings` | About 20,000 lines; few callers into the rest |
 | A4 | `assistant/todo`, then `assistant/inbox` with `feishu` and `channels` | About 45,000 lines |
 | A5 | `assistant/tasks`, `assistant/supervision`, `assistant/conversation` | The core; last, when the smaller domains have left |
-| N1 | `node/gates`, `node/machine` | Leaves of the node: about 15,000 lines |
-| N2 | `node/engine/*`, then `node/harness/*` | One package per engine and CLI |
+| N1 | `node/engine/orca`, `node/doctor`, `node/preview`, `node/ports` and `node/files` | Done for these five domains. The node wires RPC, workspace policy, and stream transport at the existing entry points. |
+| N2 | Remaining `node/engine/*` and `node/harness/*`, then `node/gates` and the rest of `node/machine` | Extract the shared Screen Sharing and approval or installer seams before moving `node/computeruse`. Keep file writes and watches with the node path policy until their shared mutation workflow has a boundary. |
 | N3 | `node/assistantrt`, `node/sessions` | The node's core; last |
 
 Stages of the two roots are independent and can run side by side. After each stage the baseline in `archguard` is
 lowered and the partition counts in `scripts/test/go_partitions.py` are revisited: a root whose serial run fits in a
 minute no longer needs partitions.
+
+### Stage N1 measurements
+
+Product counts include build-tagged Go files and exclude Go tests. Times are for one uncached test run with the
+disposable database wrapper on Linux.
+
+| Package | Product files | Product lines | Test time |
+| --- | ---: | ---: | ---: |
+| `internal/node` before | 640 | 167,841 | Partitioned |
+| `internal/node` after | 611 | 160,494 | Partitioned |
+| `internal/node/engine/orca` | 6 | 1,745 | 0.038 s |
+| `internal/node/doctor` | 3 | 1,357 | 2.781 s |
+| `internal/node/preview` | 9 | 1,853 | 0.036 s |
+| `internal/node/ports` | 5 | 669 | 0.192 s |
+| `internal/node/files` | 12 | 1,206 | 0.175 s |
+
+- Orca needs a runtime client, a process scanner, and node callbacks for Git, workspace policy and refusals.
+- Doctor needs generated configuration, installed extension checks, sandbox status and the startup preflight.
+- Preview owns the browser and tabs. The node starts the project's dev server in a terminal and supplies streams.
+- Ports needs live pane process IDs, pane ownership and a change callback. The node also owns Screen Sharing streams.
+- Files needs the node's path policy, permissions explanations and Git commands. File writes and watches still share
+  the node's path policy and change events.
+- Computer and browser tools remain in the root. The computer, plugin and gate entry points share installer and
+  cancellation state. Computer calls also use node-owned approval sessions and screen, cursor and idle state. Define
+  these lifecycle boundaries before moving the tool handlers.
 
 ## Acceptance of a stage
 

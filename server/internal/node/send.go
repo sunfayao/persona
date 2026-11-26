@@ -13,6 +13,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/screen"
 )
 
 type a2aIdleKey struct{}
@@ -479,3 +480,9 @@ func (n *Node) keys(ctx context.Context, id string, keys []string, text string) 
 	}
 	return nil
 }
+
+const (
+	pasteStart  = screen.PasteStart
+	inertEscape = screen.InertEscape
+	pasteEnd    = screen.PasteEnd
+)

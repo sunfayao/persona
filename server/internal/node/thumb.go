@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
+
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
 	_ "golang.org/x/image/bmp"
@@ -76,13 +78,13 @@ func (n *Node) fileThumb(ctx context.Context, p proto.FileThumbRequest) (*proto.
 		size = proto.ThumbDefault
 	}
 	size = max(proto.ThumbMin, min(size, proto.ThumbMax))
-	path, f, st, err := n.openRegular(p.Path, p.Cwd)
+	path, f, st, err := n.fileService().OpenRegular(p.Path, p.Cwd)
 	if err != nil {
 		return nil, err
 	}
-	head := readHead(f)
+	head := filemeta.ReadHead(f)
 	f.Close()
-	etag := fmt.Sprintf("%s-%s-%d", thumbProcessingVersion, fileRevision(st), size)
+	etag := fmt.Sprintf("%s-%s-%d", thumbProcessingVersion, filemeta.Revision(st), size)
 	if p.ETag == etag {
 		return &proto.FileThumb{ETag: etag, NotModified: true}, nil
 	}
@@ -92,7 +94,7 @@ func (n *Node) fileThumb(ctx context.Context, p proto.FileThumbRequest) (*proto.
 	}
 	ctx, cancel := context.WithTimeout(ctx, thumbTimeout)
 	defer cancel()
-	m := fileMime(path, head)
+	m := filemeta.MIME(path, head)
 	var t *proto.FileThumb
 	switch {
 	case m == "image/svg+xml" && st.Size() <= thumbMaxSVG:

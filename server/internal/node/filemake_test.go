@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -97,13 +98,13 @@ func TestPastRevisionOnACoarseClock(t *testing.T) {
 	if err := os.Chtimes(path, time.Time{}, old.ModTime()); err != nil {
 		t.Fatal(err)
 	}
-	if now, _ := os.Stat(path); fileRevision(now) != fileRevision(old) {
+	if now, _ := os.Stat(path); filemeta.Revision(now) != filemeta.Revision(old) {
 		t.Fatal("setup: the two versions should share a revision")
 	}
 	pastRevision(path, old)
 	now, _ := os.Stat(path)
-	if fileRevision(now) == fileRevision(old) || !now.ModTime().After(old.ModTime()) {
-		t.Fatalf("revision %s, mtime %v: want past %s", fileRevision(now), now.ModTime(), fileRevision(old))
+	if filemeta.Revision(now) == filemeta.Revision(old) || !now.ModTime().After(old.ModTime()) {
+		t.Fatalf("revision %s, mtime %v: want past %s", filemeta.Revision(now), now.ModTime(), filemeta.Revision(old))
 	}
 	if b, _ := os.ReadFile(path); string(b) != "echo 2\n" {
 		t.Fatalf("content %q", b)
@@ -118,7 +119,7 @@ func TestWriteReplacesOnlyTheVersionOpened(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, _ := os.Stat(path)
-	rev := fileRevision(st)
+	rev := filemeta.Revision(st)
 
 	out, err := makeCall(t, n, "file.write", map[string]any{"path": "~/proj/run.sh", "text": "echo 2\n", "revision": rev})
 	if err != nil {

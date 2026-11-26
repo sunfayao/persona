@@ -22,6 +22,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/nwverse/persona/server/internal/processtable"
 	"github.com/nwverse/persona/server/internal/procinfo"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -498,7 +499,7 @@ func (n *Node) agyLanguageServer(ctx context.Context, pane string) (agyLS, error
 	if err != nil {
 		return agyLS{}, fmt.Errorf("the pane's processes: %w", err)
 	}
-	procs, err := listProcs(ctx)
+	procs, err := processtable.List(ctx)
 	if err != nil {
 		return agyLS{}, fmt.Errorf("the process table: %w", err)
 	}

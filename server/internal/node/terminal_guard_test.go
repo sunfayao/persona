@@ -75,7 +75,7 @@ func TestOnlyUserActionsClosePanes(t *testing.T) {
 				closes := (sel.Sel.Name == "close" || sel.Sel.Name == "closeAfterExit" || sel.Sel.Name == "closeWithCause" ||
 					sel.Sel.Name == "closeExited") && recv != nil && recv.Name == "n" ||
 					(sel.Sel.Name == "PaneClose" || sel.Sel.Name == "PaneCloseIf") && nodeMethod ||
-					sel.Sel.Name == "guardedClose" && (nodeMethod || keptClaimMethod) ||
+					sel.Sel.Name == "GuardedClose" && (nodeMethod || keptClaimMethod) ||
 					sel.Sel.Name == "Close" && len(c.Args) == 4 // host.Organizer.Close(ctx, pane, workspace, tab)
 				if closes && !slices.Contains(found, fn.Name.Name) {
 					found = append(found, fn.Name.Name)

@@ -14,6 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/nwverse/persona/server/internal/screen"
 )
 
 // herdrHost is the herdr host: every method is one herdr client call (Close: the tab's pane count, then a close), on
@@ -203,7 +204,7 @@ func herdrUnnamedKey(k string) (string, bool) {
 	name := strings.ToLower(strings.TrimSpace(k))
 	switch name[strings.LastIndex(name, "+")+1:] {
 	case "home", "end", "pageup", "pagedown":
-		return orcaKeyBytes(name)
+		return screen.XtermKeyBytes(name)
 	}
 	return "", false
 }
@@ -241,7 +242,7 @@ func (h *herdrHost) prompt(ctx context.Context, pane host.PaneRef, text string, 
 		select {
 		case <-ctx.Done():
 			return ctx.Err() // pasted, but not submitted: delivery is unknown
-		case <-time.After(orcaPasteGap(text)):
+		case <-time.After(screen.PasteGap(text)):
 		}
 		after, err := t.c.AgentGet(ctx, t.id)
 		if err != nil {

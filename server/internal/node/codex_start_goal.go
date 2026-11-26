@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -82,7 +83,7 @@ func (n *Node) codexStartGoal(ctx context.Context, id, pane, goal string, unlock
 		n.logf("start %s: goal not set: the thread's rollout is not found", id)
 		return codexGoalOutcome{}
 	}
-	if v := codexRolloutVersion(path); !versionAtLeast(v, codexGoalMinVersion) {
+	if v := codexRolloutVersion(path); !claudeplugin.VersionAtLeast(v, codexGoalMinVersion) {
 		n.logf("start %s: goal not set: Codex %q has no /goal (0.169 or later has)", id, v)
 		return codexGoalOutcome{fallback: true, path: path}
 	}

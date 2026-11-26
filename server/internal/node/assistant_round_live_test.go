@@ -33,6 +33,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
@@ -271,7 +272,7 @@ func TestAssistantRoundLive(t *testing.T) {
 	}
 	path := l.transcriptOf(id)
 	tr, err := roundAnchor(path)
-	if err != nil || tr.anchor == "" || !versionAtLeast(tr.version, roundMinClaude) {
+	if err != nil || tr.anchor == "" || !claudeplugin.VersionAtLeast(tr.version, roundMinClaude) {
 		t.Fatalf("after the start: %+v %v", tr, err)
 	}
 	anchor := tr.anchor

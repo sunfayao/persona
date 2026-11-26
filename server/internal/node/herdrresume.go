@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/modelhttp"
 )
@@ -121,7 +122,7 @@ var resumeArgvMinHerdr = [3]int{0, 9, 2}
 // herdrDropsResume: v, the version a herdr server answers ping with, is older than resumeArgvMinHerdr. A server that
 // names no version is not taken to drop it: its command is reported as before.
 func herdrDropsResume(v string) bool {
-	return versionAtLeast(v, [3]int{}) && !versionAtLeast(v, resumeArgvMinHerdr)
+	return claudeplugin.VersionAtLeast(v, [3]int{}) && !claudeplugin.VersionAtLeast(v, resumeArgvMinHerdr)
 }
 
 // warnDroppedResume says once per herdr server (its ServerID) that it drops resume commands, which only an upgrade of

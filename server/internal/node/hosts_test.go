@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 // bareHost is a host with only the core methods (no Launcher, Organizer, Streamer…), recording the keys it was sent.
@@ -81,7 +82,7 @@ func TestRefreshWithoutHostsFails(t *testing.T) {
 // replaced.
 func TestHerdrPaneEnvParsesLikeBefore(t *testing.T) {
 	old := `(?:^|[\x00\s])HERDR_PANE_ID=([^\x00\s]+)`
-	re := paneEnvRe((&herdrHost{}).PaneEnv())
+	re := osproc.PaneEnvRE((&herdrHost{}).PaneEnv())
 	if re.String() != old {
 		t.Fatalf("regex %q, was %q", re.String(), old)
 	}

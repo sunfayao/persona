@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -107,7 +107,7 @@ func (n *Node) writableDir(path, cwd string) (shown, real string, err error) {
 	if strings.TrimSpace(path) == "" {
 		return "", "", errors.New("empty path")
 	}
-	shown, real, err = n.resolveDir(path, cwd)
+	shown, real, err = n.fileService().ResolveDir(path, cwd)
 	if err != nil {
 		return "", "", err
 	}

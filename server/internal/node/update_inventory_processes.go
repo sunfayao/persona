@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 type updateProcess struct {
@@ -59,7 +61,7 @@ func updateProcessCensus(ctx context.Context) ([]updateProcess, error) {
 			endpoint = p.endpoint
 		}
 		p := updateProcess{PID: pid, Signature: updateDigest(args), Endpoint: endpoint}
-		if progName(args[0]) == "codex" && endpoint == "" {
+		if osproc.ProgramName(args[0]) == "codex" && endpoint == "" {
 			// ps formats a command for display, losing argument boundaries. Only
 			// the kernel argv may establish a remote-client binding.
 			argv, err := updateProcessArgv(pid)

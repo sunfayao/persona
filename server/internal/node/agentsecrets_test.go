@@ -51,19 +51,19 @@ func TestPathGuardAgentCredentials(t *testing.T) {
 		t.Skip("symlinks:", err)
 	}
 	for _, rel := range append(refused, "work-link/.credentials.json", "work-link/settings.json") {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read %s: %v, want off limits", rel, err)
 		}
-		if _, _, _, err := n.openRegular("~/"+rel, ""); !errors.Is(err, errOffLimits) {
+		if _, _, _, err := n.fileService().OpenRegular("~/"+rel, ""); !errors.Is(err, errOffLimits) {
 			t.Errorf("download %s: %v, want off limits", rel, err)
 		}
 	}
 	for _, rel := range readable {
-		if fc, err := n.readFile("~/"+rel, "", 0, false); err != nil || fc.Text == "" {
+		if fc, err := n.fileService().Read("~/"+rel, "", 0, false); err != nil || fc.Text == "" {
 			t.Errorf("read %s: %+v %v, want its text", rel, fc, err)
 		}
 	}
-	stat := n.statPaths([]string{"~/.claude-work/.credentials.json", "~/.claude-work/projects/p/s.jsonl"}, "")
+	stat := n.fileService().Stat([]string{"~/.claude-work/.credentials.json", "~/.claude-work/projects/p/s.jsonl"}, "")
 	if stat[0].Kind != "missing" || stat[1].Kind != "file" {
 		t.Errorf("stat: %+v", stat)
 	}

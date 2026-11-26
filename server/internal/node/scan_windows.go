@@ -4,6 +4,9 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 // agentImages are the programs an agent process runs as on Windows: Claude Code's native binary, Codex's, or either's
@@ -25,37 +28,37 @@ func scanOrcaProcsOS() (map[string][]orcaProc, error) {
 	}
 	byPID := map[int]cand{}
 	for _, p := range procs {
-		agent := agentOfCmd(p.argv)
+		agent := osproc.AgentOfCommand(p.argv)
 		if agent == "" {
 			continue
 		}
-		pane := orcaPaneOf(envListing(p.env))
+		pane := orca.PaneOfEnvironment(envListing(p.env))
 		if pane == "" {
 			continue
 		}
-		byPID[p.pid] = cand{orcaProc{pid: p.pid, agent: agent, cwd: p.cwd, start: p.start.Truncate(time.Second)}, pane}
+		byPID[p.pid] = cand{orcaProc{PID: p.pid, Agent: agent, Cwd: p.cwd, Start: p.start.Truncate(time.Second)}, pane}
 	}
 	out := map[string][]orcaProc{}
 	for pid, c := range byPID {
-		if !nestedAgent(pid, c.pane, c.start.UnixNano(), parents, func(pid int) (string, int64, bool) {
+		if !nestedAgent(pid, c.pane, c.Start.UnixNano(), parents, func(pid int) (string, int64, bool) {
 			a, ok := byPID[pid]
-			return a.pane, a.start.UnixNano(), ok
+			return a.pane, a.Start.UnixNano(), ok
 		}) {
 			out[c.pane] = append(out[c.pane], c.orcaProc)
 		}
 	}
 	for _, ps := range out {
 		slices.SortFunc(ps, func(a, b orcaProc) int {
-			if (a.agent == "claude") != (b.agent == "claude") {
-				if a.agent == "claude" {
+			if (a.Agent == "claude") != (b.Agent == "claude") {
+				if a.Agent == "claude" {
 					return -1
 				}
 				return 1
 			}
-			if c := a.start.Compare(b.start); c != 0 {
+			if c := a.Start.Compare(b.Start); c != 0 {
 				return c
 			}
-			return a.pid - b.pid
+			return a.PID - b.PID
 		})
 	}
 	return out, nil
@@ -95,7 +98,7 @@ func scanClaudeProcessesOS() map[int]procEnv {
 		return out
 	}
 	for _, p := range procs {
-		if !isClaudeCmd(p.argv) {
+		if !osproc.IsClaudeCommand(p.argv) {
 			continue
 		}
 		pe := procEnv{ConfigDir: p.env["CLAUDE_CONFIG_DIR"], BaseURL: p.env["ANTHROPIC_BASE_URL"], Model: p.env["ANTHROPIC_MODEL"]}

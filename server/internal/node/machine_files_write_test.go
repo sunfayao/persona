@@ -260,7 +260,7 @@ func TestMachineFilesWritePreRenamePathSwapRefused(t *testing.T) {
 
 	// Before pre-rename re-verification, replace realTarget with unrelated external content and
 	// repoint displayLink to altHardLink (which still shares the original inode, size, mode, and mtime).
-	// Without comparing rechecked == res.CanonicalPath, sameFileRead(st, now) would pass and rename
+	// Without comparing rechecked == res.CanonicalPath, filemeta.SameFile(st, now) would pass and rename
 	// would clobber the unrelated file now sitting at res.CanonicalPath.
 	unrelatedText := "unrelated-external-content\n"
 	n.machineFileWriteBeforeVerify = func() {

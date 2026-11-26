@@ -159,11 +159,11 @@ func TestDoctorRPCCheckNamesAreWhatTheWebGroups(t *testing.T) {
 	got = got[:0]
 	for _, c := range rep.Checks {
 		got = append(got, c.Name)
-		if (c.Name == launchdCheck || c.Name == pathAccessCheck) && c.State != "" {
+		if (c.Name == "launchd-process-type" || c.Name == pathAccessCheck) && c.State != "" {
 			t.Errorf("%s: state %q", c.Name, c.State)
 		}
 	}
-	if want = append(want, launchdCheck, pathAccessCheck); !slices.Equal(got, want) {
+	if want = append(want, "launchd-process-type", pathAccessCheck); !slices.Equal(got, want) {
 		t.Errorf("checks = %v\nwant     %v", got, want)
 	}
 }

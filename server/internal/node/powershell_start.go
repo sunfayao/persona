@@ -30,7 +30,7 @@ func windowsPowerShellProgram(shell string) bool {
 // takesAssign retain main's behavior; case, slashes and .exe are normalized only here.
 func windowsShellProgram(shell string) bool {
 	name := windowsShellName(shell)
-	return name == "cmd" || windowsPowerShellProgram(shell) || shells[name]
+	return name == "cmd" || windowsPowerShellProgram(shell) || shellProgram(name)
 }
 
 // windowsClassicShellKind maps only the two failing classic-pane cases to new behavior. A POSIX or unknown shell gets

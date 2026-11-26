@@ -1,0 +1,495 @@
+package ports
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/nwverse/persona/server/internal/portprobe"
+	"github.com/nwverse/persona/server/internal/processtable"
+	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/shellcmd"
+)
+
+// The ports the agents listen on (docs/operations/ports.md): each live agent's processes — what runs under it and what else
+// runs on its terminal — and the TCP ports they listen on that answer HTTP, with the page's title. They go out with
+// the session list; the list is pushed again only when they change.
+//
+// A scan costs a process listing and a socket listing: on Linux both are read from /proc, on macOS `ps` and `lsof`
+// (about 0.17 s of CPU with ~3,700 processes), on Windows a Toolhelp snapshot and GetExtendedTcpTable
+// (ports_windows.go). It runs every portSweep while there are live agents, and sooner
+// (portKickGap after the last) when an agent's transcript grew — a dev server is usually started by a tool call — or
+// a forward found its port gone. The host is asked for a pane's foreground processes only when its first one is no
+// longer the process it was (#5515): with agents at work, asking for each pane on each scan was ~10 herdr calls/s.
+
+const (
+	portSweep   = 15 * time.Second
+	portKickGap = 4 * time.Second
+)
+
+// Service discovers and probes the ports of live panes.
+type Service struct {
+	config Config
+
+	mu     sync.Mutex
+	byPane map[string][]proto.Port // pane -> its ports, as last found
+	probes map[string]portProbe    // "pid:port" -> what asking it found
+	kick   chan struct{}
+	// scanErr: the last scan's error, logged when it first happens and when scans work again, not every scan
+	// (only Scan, on the Watch goroutine, touches it).
+	scanErr string
+	// roots: each live pane's foreground processes as the host last reported them (only Scan touches it).
+	roots map[string]paneRoots
+}
+
+// paneRoots is a pane's foreground processes and what the process table said of each then (seen[0] is the first
+// one: claude / codex itself). They are used again while the first is still there unchanged, each other one only while
+// its own entry is (a pid that exited may be reused by an unrelated process); the rest of what the scan walks (their
+// children, the processes on their terminals) comes from the process table, which every scan reads anyway.
+type paneRoots struct {
+	pids []int
+	seen []processtable.Process
+}
+
+// reuse is r's pids still in procs as they were, or ok false when the first is not (ask the host again). Dropping a
+// changed one loses nothing: the foreground processes are on the first one's terminal or under it.
+func (r paneRoots) reuse(procs map[int]processtable.Process) (kept paneRoots, ok bool) {
+	if len(r.pids) == 0 {
+		return paneRoots{}, false
+	}
+	if p, in := procs[r.pids[0]]; !in || p != r.seen[0] {
+		return paneRoots{}, false
+	}
+	for i, pid := range r.pids {
+		if p, in := procs[pid]; in && p == r.seen[i] {
+			kept.pids, kept.seen = append(kept.pids, pid), append(kept.seen, p)
+		}
+	}
+	return kept, true
+}
+
+type portProbe struct {
+	portprobe.Result
+	tries int // probes so far
+}
+
+// listener is one listening TCP socket.
+type listener struct {
+	pid  int
+	port int
+	addr string // what it is bound to: 127.0.0.1, 0.0.0.0, ::, ::1, a LAN address
+	cmd  string
+}
+
+// Kick asks for a scan soon (a transcript grew, a forward found nothing listening).
+func (s *Service) Kick() {
+	select {
+	case s.kick <- struct{}{}:
+	default:
+	}
+}
+
+// Watch scans while the node serves the hub.
+func (s *Service) Watch(ctx context.Context) {
+	t := s.config.Clock.Ticker(portSweep)
+	defer t.Stop()
+	var last time.Time
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.Ticks():
+		case <-s.kick:
+			select {
+			case <-ctx.Done():
+				return
+			case <-s.config.Clock.After(max(500*time.Millisecond, last.Add(portKickGap).Sub(s.config.Clock.Now()))):
+			}
+		}
+		last = s.config.Clock.Now()
+		if s.Scan(ctx) {
+			s.config.Notify()
+		}
+	}
+}
+
+// Scan finds each live agent's ports; changed: they differ from the last scan.
+func (s *Service) Scan(ctx context.Context) (changed bool) {
+	panes := s.config.Panes()
+	failed := func(err error) bool {
+		if e := err.Error(); e != s.scanErr {
+			s.config.Logf("ports: %v (logged again only if it changes)", err)
+			s.scanErr = e
+		}
+		return false
+	}
+	var procs map[int]processtable.Process
+	if len(panes) > 0 {
+		var err error
+		if procs, err = s.config.Processes(ctx); err != nil {
+			return failed(err)
+		}
+	}
+	roots := map[string][]int{}
+	kept := map[string]paneRoots{}
+	for pane := range panes {
+		if r, ok := s.roots[pane].reuse(procs); ok {
+			roots[pane], kept[pane] = r.pids, r
+			continue
+		}
+		pctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		pids, err := s.config.PaneProcesses(pctx, pane)
+		cancel()
+		if err != nil || len(pids) == 0 {
+			continue
+		}
+		roots[pane] = pids
+		// Kept only for the agent itself: a shell first (claude not started yet) stays while claude starts under it, and
+		// claude's own sockets would then count as the pane's servers. A process not in the table (it started after
+		// the table was read, or a host's pid from elsewhere) is asked for again next scan.
+		if lead, ok := procs[pids[0]]; ok && !shellcmd.IsShellProgram(lead.Command) {
+			r := paneRoots{pids: pids, seen: make([]processtable.Process, len(pids))}
+			for i, pid := range pids {
+				r.seen[i] = procs[pid] // one not in the table is zero, so it is dropped on reuse
+			}
+			kept[pane] = r
+		}
+	}
+	// Saved before the listener scan, which can still fail (lsof, the Windows table; never on Linux): kept is what
+	// this scan checked against the process table, every reusable root included, so a failed scan loses nothing and
+	// the panes asked for just now are not asked again next scan. A failed process listing returns above, with the
+	// cache untouched.
+	s.roots = kept
+	var found map[string][]listener
+	if len(roots) > 0 {
+		var err error
+		if found, err = scanListeners(ctx, procs, roots, s.config.PanesOfPID); err != nil {
+			return failed(err)
+		}
+	}
+	if s.scanErr != "" {
+		s.config.Logf("ports: scanning again")
+		s.scanErr = ""
+	}
+	next := s.probePanes(ctx, found)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	changed = portsKey(next) != portsKey(s.byPane)
+	s.byPane = next
+	return changed
+}
+
+// Of is a pane's ports from the last scan.
+func (s *Service) Of(pane string) []proto.Port {
+	if pane == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.byPane[pane]
+}
+
+// Listed is the listener the last scan found on port, if any (where to dial it).
+func (s *Service) Listed(port int) (proto.Port, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, ps := range s.byPane {
+		for _, p := range ps {
+			if p.Port == port {
+				return p, true
+			}
+		}
+	}
+	return proto.Port{}, false
+}
+
+func portsKey(m map[string][]proto.Port) string {
+	panes := make([]string, 0, len(m))
+	for p := range m {
+		panes = append(panes, p)
+	}
+	slices.Sort(panes)
+	var b strings.Builder
+	for _, pane := range panes {
+		b.WriteString(pane)
+		for _, p := range m[pane] {
+			fmt.Fprintf(&b, "|%d/%d/%s/%s", p.Port, p.PID, p.Process, p.Title)
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+// probePanes is each pane's listeners that answer HTTP. The results of asking are kept for every pid:port this scan
+// found, in any pane; the others go (a process gone, or no longer listening there).
+func (s *Service) probePanes(ctx context.Context, found map[string][]listener) map[string][]proto.Port {
+	next := map[string][]proto.Port{}
+	live := map[string]bool{}
+	for pane, ls := range found {
+		if ps := s.httpPorts(ctx, ls, live); len(ps) > 0 {
+			next[pane] = ps
+		}
+	}
+	s.mu.Lock()
+	for key := range s.probes {
+		if !live[key] {
+			delete(s.probes, key)
+		}
+	}
+	s.mu.Unlock()
+	return next
+}
+
+// httpPorts keeps the listeners that answer HTTP, one per port, with their titles; each pid:port is asked once
+// (again while it has not answered). It adds the pid:ports it saw to live.
+func (s *Service) httpPorts(ctx context.Context, ls []listener, live map[string]bool) []proto.Port {
+	var out []proto.Port
+	seen := map[int]bool{}
+	for _, l := range ls {
+		if seen[l.port] {
+			continue
+		}
+		key := strconv.Itoa(l.pid) + ":" + strconv.Itoa(l.port)
+		live[key] = true
+		s.mu.Lock()
+		if s.probes == nil {
+			s.probes = map[string]portProbe{}
+		}
+		pr, ok := s.probes[key]
+		s.mu.Unlock()
+		if !ok || (pr.Pending && pr.tries < 5) {
+			got := portProbe{Result: portprobe.Probe(ctx, l.port, l.addr, s.config.Clock.Now), tries: pr.tries + 1}
+			pr = got
+			s.mu.Lock()
+			s.probes[key] = pr
+			s.mu.Unlock()
+		}
+		if !pr.HTTP {
+			continue
+		}
+		seen[l.port] = true
+		out = append(out, proto.Port{Port: l.port, Addr: l.addr, PID: l.pid, Process: l.cmd, Title: pr.Title})
+	}
+	slices.SortFunc(out, func(a, b proto.Port) int { return a.Port - b.Port })
+	return out
+}
+
+// scanListeners finds, for each pane, the listeners of the processes it owns (owned) in procs. On Windows, where Git
+// Bash breaks the process tree, also those of a process whose environment names the pane (panesOf, paneListeners).
+func scanListeners(ctx context.Context, procs map[int]processtable.Process, roots map[string][]int,
+	panesOf func(pid int) []string) (map[string][]listener, error) {
+	var err error
+	owners := map[int]string{} // pid -> pane
+	var all []int
+	for pane, pids := range roots {
+		agent := 0
+		if len(pids) > 0 {
+			agent = pids[0] // claude / codex itself: its own sockets (IDE bridges, MCP) are not the agent's servers
+		}
+		for pid := range processtable.Owned(pids, procs) {
+			if pid == agent {
+				continue
+			}
+			if _, dup := owners[pid]; !dup {
+				owners[pid] = pane
+				all = append(all, pid)
+			}
+		}
+	}
+	// Windows reads every listener anyway, and a server whose process tree Git Bash broke is in none of roots' trees.
+	if len(all) == 0 && runtime.GOOS != "windows" {
+		return nil, nil
+	}
+	var ls []listener
+	switch runtime.GOOS {
+	case "linux":
+		ls = procfsListeners("/proc", all)
+	case "windows":
+		ls, err = winListeners(owners, roots, panesOf) // adds to owners the processes it finds by their environment
+	default:
+		ls, err = lsofListeners(ctx, all)
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]listener{}
+	for _, l := range ls {
+		if pane, ok := owners[l.pid]; ok {
+			if l.cmd == "" {
+				l.cmd = procs[l.pid].Command
+			}
+			out[pane] = append(out[pane], l)
+		}
+	}
+	return out, nil
+}
+
+func lsofListeners(ctx context.Context, pids []int) ([]listener, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	list := make([]string, len(pids))
+	for i, p := range pids {
+		list[i] = strconv.Itoa(p)
+	}
+	out, err := exec.CommandContext(ctx, "lsof", "-a", "-p", strings.Join(list, ","), "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").Output()
+	// lsof exits 1 when one of the pids has nothing to list: none listens, or one is gone or a zombie (ps saw it, a
+	// short-lived command has exited since) while it still prints what the others have. Its complaints go to
+	// stderr, so stdout is the listing either way.
+	var ee *exec.ExitError
+	if err != nil && (ctx.Err() != nil || !errors.As(err, &ee) || ee.ExitCode() != 1) {
+		return nil, fmt.Errorf("lsof: %w", err)
+	}
+	return parseLsof(string(out)), nil
+}
+
+func parseLsof(out string) []listener {
+	var ls []listener
+	pid, cmd := 0, ""
+	for line := range strings.SplitSeq(out, "\n") {
+		if line == "" {
+			continue
+		}
+		v := line[1:]
+		switch line[0] {
+		case 'p':
+			pid, _ = strconv.Atoi(v)
+			cmd = ""
+		case 'c':
+			cmd = v
+		case 'n':
+			i := strings.LastIndexByte(v, ':')
+			if i < 0 {
+				continue
+			}
+			port, err := strconv.Atoi(v[i+1:])
+			if err != nil || port <= 0 {
+				continue
+			}
+			ls = append(ls, listener{pid: pid, port: port, addr: strings.Trim(v[:i], "[]"), cmd: cmd})
+		}
+	}
+	return ls
+}
+
+// procfsListeners: the TCP listeners of pids (Linux): the sockets in /proc/net/tcp{,6} in state LISTEN, matched by
+// inode to the pids' file descriptors.
+func procfsListeners(root string, pids []int) []listener {
+	socks := map[uint64]listener{}
+	for _, f := range []string{"net/tcp", "net/tcp6"} {
+		b, err := os.ReadFile(filepath.Join(root, f))
+		if err == nil {
+			for ino, l := range parseProcNet(string(b)) {
+				socks[ino] = l
+			}
+		}
+	}
+	if len(socks) == 0 {
+		return nil
+	}
+	var ls []listener
+	for _, pid := range pids {
+		dir := filepath.Join(root, strconv.Itoa(pid), "fd")
+		fds, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, fd := range fds {
+			target, err := os.Readlink(filepath.Join(dir, fd.Name()))
+			if err != nil || !strings.HasPrefix(target, "socket:[") {
+				continue
+			}
+			ino, err := strconv.ParseUint(strings.TrimSuffix(strings.TrimPrefix(target, "socket:["), "]"), 10, 64)
+			if err != nil {
+				continue
+			}
+			if l, ok := socks[ino]; ok {
+				l.pid = pid
+				ls = append(ls, l)
+			}
+		}
+	}
+	slices.SortFunc(ls, func(a, b listener) int { return a.port - b.port })
+	return ls
+}
+
+// parseProcNet reads /proc/net/tcp or tcp6: the listening sockets (st 0A) by inode. Addresses are hex, each 32-bit
+// word in host (little-endian) order: 0100007F:1435 is 127.0.0.1:5173.
+func parseProcNet(data string) map[uint64]listener {
+	out := map[uint64]listener{}
+	for i, line := range strings.Split(data, "\n") {
+		f := strings.Fields(line)
+		if i == 0 || len(f) < 10 || f[3] != "0A" {
+			continue
+		}
+		host, port, ok := strings.Cut(f[1], ":")
+		if !ok {
+			continue
+		}
+		p, err := strconv.ParseUint(port, 16, 16)
+		if err != nil {
+			continue
+		}
+		ino, err := strconv.ParseUint(f[9], 10, 64)
+		if err != nil || ino == 0 {
+			continue
+		}
+		addr, ok := procNetAddr(host)
+		if !ok {
+			continue
+		}
+		out[ino] = listener{port: int(p), addr: addr}
+	}
+	return out
+}
+
+func procNetAddr(h string) (string, bool) {
+	if len(h) != 8 && len(h) != 32 {
+		return "", false
+	}
+	ip := make(net.IP, len(h)/2)
+	for w := 0; w < len(h)/8; w++ {
+		v, err := strconv.ParseUint(h[w*8:w*8+8], 16, 32)
+		if err != nil {
+			return "", false
+		}
+		ip[w*4], ip[w*4+1], ip[w*4+2], ip[w*4+3] = byte(v), byte(v>>8), byte(v>>16), byte(v>>24)
+	}
+	return ip.String(), true // ::ffff:a.b.c.d (tcp6 also lists those) reads as a.b.c.d
+}
+
+// ProbeRPC is port.probe: whether anything answers on the port here, and its page's title.
+func (s *Service) ProbeRPC(ctx context.Context, params json.RawMessage) (any, error) {
+	var p struct {
+		Port int `json:"port"`
+	}
+	if err := json.Unmarshal(params, &p); err != nil || p.Port <= 0 || p.Port > 65535 {
+		return nil, errors.New("port.probe: need a port")
+	}
+	addr := ""
+	if l, ok := s.Listed(p.Port); ok {
+		addr = l.Addr
+	}
+	pr := portprobe.Probe(ctx, p.Port, addr, s.config.Clock.Now)
+	if !pr.HTTP && pr.Title == "" {
+		// Not HTTP, or nothing there: tell them apart by connecting.
+		dctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		c, err := portprobe.Dial(dctx, p.Port, addr)
+		cancel()
+		if err != nil {
+			return map[string]any{"port": p.Port, "listening": false}, nil
+		}
+		_ = c.Close()
+	}
+	return map[string]any{"port": p.Port, "listening": true, "http": pr.HTTP, "title": pr.Title}, nil
+}

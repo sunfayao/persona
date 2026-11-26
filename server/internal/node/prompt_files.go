@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/promptcontent"
 	"github.com/nwverse/persona/server/internal/prompts"
 )
@@ -59,7 +60,7 @@ func (n *Node) selectedFiles(ctx context.Context, text, cwd, launcher, runtime s
 		if ref.Machine != machine || ref.Cwd != cwd || ref.Launcher != launcher || ref.Runtime != runtime {
 			return nil, fileSelectionUnavailable(ctx)
 		}
-		path := n.resolvePath(ref.Path, cwd)
+		path := pathutil.Resolve(ref.Path, cwd, n.home)
 		if path == "" || strings.TrimSpace(ref.Path) != ref.Path {
 			return nil, fileSelectionUnavailable(ctx)
 		}
@@ -67,7 +68,7 @@ func (n *Node) selectedFiles(ctx context.Context, text, cwd, launcher, runtime s
 		if e != nil || !st.Mode().IsRegular() {
 			return nil, fileSelectionUnavailable(ctx)
 		}
-		if !withinTaskDirectory(base, real) || strings.ContainsAny(real, "\r\n") {
+		if !pathutil.Within(base, real) || strings.ContainsAny(real, "\r\n") {
 			return nil, fileSelectionUnavailable(ctx)
 		}
 		f, e := os.Open(real)

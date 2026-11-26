@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/lazyre"
@@ -667,7 +668,7 @@ var paseoMinVersion = [3]int{0, 15, 0}
 // paseoVersionNote is node.info's note on a Paseo of version v: one asking to update it when v is older than
 // paseoMinVersion, "" for a newer one or a version it cannot read.
 func paseoVersionNote(v string) string {
-	if !versionAtLeast(v, [3]int{}) || versionAtLeast(v, paseoMinVersion) {
+	if !claudeplugin.VersionAtLeast(v, [3]int{}) || claudeplugin.VersionAtLeast(v, paseoMinVersion) {
 		return ""
 	}
 	least := fmt.Sprintf("%d.%d.%d", paseoMinVersion[0], paseoMinVersion[1], paseoMinVersion[2])

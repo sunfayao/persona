@@ -32,7 +32,7 @@ func (n *Node) doctorOptions() DoctorOptions {
 		opts.HerdrSock = def.HerdrSock
 	}
 	// The LaunchAgent is looked at, never reloaded from here: that would stop this node in the middle of the call.
-	opts.withLaunchd(n.home)
+	withDoctorLaunchd(&opts, n.home)
 	opts.InsideNode = true
 	if runtime.GOOS != "windows" {
 		opts.Preflight = n.preflightIn
@@ -72,5 +72,5 @@ func (n *Node) doctor(ctx context.Context, params json.RawMessage, fix bool) (an
 	if a.Preflight != nil && !*a.Preflight {
 		opts.Preflight = nil
 	}
-	return RunDoctor(ctx, opts), nil
+	return n.doctorChecks.Run(ctx, opts), nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
 )
 
@@ -26,7 +27,7 @@ type orcaWorktreeFixture struct {
 	dir      string
 }
 
-func orcaWorktreeNode(t *testing.T) *orcaWorktreeFixture {
+func orcaWorktreeNode(t *testing.T, options ...func(*orca.Config)) *orcaWorktreeFixture {
 	t.Helper()
 	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
@@ -34,7 +35,7 @@ func orcaWorktreeNode(t *testing.T) *orcaWorktreeFixture {
 	t.Setenv("GIT_AUTHOR_EMAIL", "dev@example.com")
 	t.Setenv("GIT_COMMITTER_NAME", "Sample Dev")
 	t.Setenv("GIT_COMMITTER_EMAIL", "dev@example.com")
-	n, _, o, _, home := orcaNode(t)
+	n, _, o, _, home := orcaNode(t, options...)
 	repo := mkdir(t, filepath.Join(home, "proj"))
 	runPullGit(t, repo, "init", "--initial-branch=main")
 	runPullGit(t, repo, "commit", "--allow-empty", "-m", "first")
@@ -175,8 +176,10 @@ func TestOrcaWorktreeTerminalSurvivesARekey(t *testing.T) {
 	if w.o.Orphan("term_new") == "" {
 		t.Fatal("no terminal to orphan")
 	}
-	if got, err := h.terminal(t.Context(), "tab-new:leaf-new", true); err != nil || got.Handle != "term_new" {
-		t.Errorf("terminal(tab-new:leaf-new) = %+v, %v", got, err)
+	w.o.SetScreen("term_new", "the original terminal")
+	got, err := h.Read(t.Context(), host.PaneRef{Kind: host.Orca, ID: "tab-new:leaf-new"}, host.ReadOpts{})
+	if err != nil || !strings.Contains(got, "the original terminal") {
+		t.Errorf("terminal(tab-new:leaf-new) = %q, %v", got, err)
 	}
 }
 
@@ -237,11 +240,8 @@ func TestOrcaWorktreeRefusesABranchInUse(t *testing.T) {
 // Orca's folder setting is its own: when Orca puts the worktree elsewhere the answer says where it is; with no
 // terminal in it (yet) the worktree is still made.
 func TestOrcaWorktreeWhereOrcaPutIt(t *testing.T) {
-	w := orcaWorktreeNode(t)
+	w := orcaWorktreeNode(t, func(cfg *orca.Config) { cfg.WorktreeWait = 100 * time.Millisecond })
 	w.dir, w.terminal = filepath.Join(w.home, "elsewhere", "proj"), false
-	saved := orcaWorktreeTerminalWait
-	orcaWorktreeTerminalWait = 100 * time.Millisecond
-	t.Cleanup(func() { orcaWorktreeTerminalWait = saved })
 	res, err := request(t, w.n, "worktree.create", map[string]any{"workspace_id": w.src, "branch": "feat-y",
 		"path": filepath.Join(w.home, "orca", "workspaces", "proj", "feat-y")})
 	if err != nil {

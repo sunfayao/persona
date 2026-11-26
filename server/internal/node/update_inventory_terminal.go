@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 type updateTerminalSource struct {
@@ -20,7 +21,7 @@ type updateTerminalSource struct {
 // app-server. A title, cwd, historical session or default daemon is not a binding.
 // Other CLI forms remain unsupported rather than guessing their flag semantics.
 func updateRemoteResume(args []string) (endpoint, thread string) {
-	if len(args) < 2 || progName(args[0]) != "codex" || args[1] != "resume" {
+	if len(args) < 2 || osproc.ProgramName(args[0]) != "codex" || args[1] != "resume" {
 		return "", ""
 	}
 	f := flag.NewFlagSet("resume", flag.ContinueOnError)

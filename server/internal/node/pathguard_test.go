@@ -7,7 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/nwverse/persona/server/internal/node/files"
 )
 
 // A path into iCloud Drive or onto a secret is never looked at: asked directly, through a link, or through a link
@@ -44,7 +45,7 @@ func TestPathGuard(t *testing.T) {
 	link("repo/main.go", "code/main.go")
 	link(filepath.Join(home, "code/repo"), "repo")
 
-	stat := n.statPaths([]string{
+	stat := n.fileService().Stat([]string{
 		"~/Library/Mobile Documents/com~apple~CloudDocs/a.md",
 		"~/library/mobile documents/com~apple~CloudDocs/a.md", // macOS: case-insensitive
 		"~/cloud/com~apple~CloudDocs/a.md",                    // a link into iCloud Drive
@@ -67,28 +68,28 @@ func TestPathGuard(t *testing.T) {
 		}
 	}
 
-	if _, err := n.readFile("~/cloud/com~apple~CloudDocs/a.md", "", 0, false); !errors.Is(err, errICloud) {
+	if _, err := n.fileService().Read("~/cloud/com~apple~CloudDocs/a.md", "", 0, false); !errors.Is(err, errICloud) {
 		t.Errorf("read through a link into iCloud Drive: %v", err)
 	}
-	if _, err := n.readFile("keys/id_ed25519", filepath.Join(home, "code"), 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read("keys/id_ed25519", filepath.Join(home, "code"), 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("read a key through a link: %v", err)
 	}
-	if _, err := n.listDir("~/code/keys", ""); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().List("~/code/keys", ""); !errors.Is(err, errOffLimits) {
 		t.Errorf("list ~/.ssh through a link: %v", err)
 	}
-	if _, _, _, err := n.openRegular("~/.persona/hub.json", ""); !errors.Is(err, errOffLimits) {
+	if _, _, _, err := n.fileService().OpenRegular("~/.persona/hub.json", ""); !errors.Is(err, errOffLimits) {
 		t.Errorf("download hub.json: %v", err)
 	}
-	fc, err := n.readFile("main.go", filepath.Join(home, "repo"), 0, false)
+	fc, err := n.fileService().Read("main.go", filepath.Join(home, "repo"), 0, false)
 	if err != nil || fc.Text != "package main\n" || fc.Path != filepath.Join(home, "repo/main.go") {
 		t.Fatalf("read through links: %+v %v", fc, err)
 	}
 	// A listing marks a link to a directory as one, except a link into iCloud Drive (not looked at).
-	ls, err := n.listDir("~", "")
+	ls, err := n.fileService().List("~", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range ls["entries"].([]DirEntry) {
+	for _, e := range ls["entries"].([]files.DirEntry) {
 		switch e.Name {
 		case "repo":
 			if !e.Dir || !e.Symlink {
@@ -120,13 +121,13 @@ func TestPathGuardHomeBehindALink(t *testing.T) {
 	}
 	_ = os.Symlink("../.ssh", filepath.Join(real, "code", "keys"))
 	n := &Node{home: home}
-	if _, err := n.listDir("~/code/keys", ""); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().List("~/code/keys", ""); !errors.Is(err, errOffLimits) {
 		t.Errorf("list ~/.ssh through a link: %v", err)
 	}
-	if _, err := n.readFile("~/code/keys/config", "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read("~/code/keys/config", "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("read ~/.ssh/config through a link: %v", err)
 	}
-	if _, err := n.listDir("~/code", ""); err != nil {
+	if _, err := n.fileService().List("~/code", ""); err != nil {
 		t.Errorf("list ~/code: %v", err)
 	}
 }
@@ -143,31 +144,6 @@ func TestRealPathLoop(t *testing.T) {
 	// A missing component ends the walk with the error looking at it gave.
 	if _, err := (&Node{}).realPath(filepath.Join(dir, "nope", "x")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing: %v", err)
-	}
-}
-
-// One stat that does not answer leaves its path missing and does not hold up the others.
-func TestStatPathsTimeout(t *testing.T) {
-	dir := t.TempDir()
-	_ = os.WriteFile(filepath.Join(dir, "a.go"), nil, 0o600)
-	oldTimeout, oldStat := statTimeout, statOne
-	defer func() { statTimeout, statOne = oldTimeout, oldStat }()
-	hang := make(chan struct{})
-	defer close(hang)
-	statTimeout = 100 * time.Millisecond
-	statOne = func(n *Node, asked, cwd string) PathStat {
-		if asked == "~/stuck" {
-			<-hang
-		}
-		return oldStat(n, asked, cwd)
-	}
-	start := time.Now()
-	got := (&Node{home: dir}).statPaths([]string{"~/stuck", "~/a.go"}, "")
-	if took := time.Since(start); took > time.Second {
-		t.Fatalf("took %s", took)
-	}
-	if len(got) != 2 || got[0].Kind != "missing" || got[0].Path != "~/stuck" || got[1].Kind != "file" {
-		t.Fatalf("%+v", got)
 	}
 }
 
@@ -246,16 +222,16 @@ func TestPathGuardDataDirCredentials(t *testing.T) {
 		write(p, `{"token":"x"}`)
 	}
 	for _, p := range refused {
-		if _, err := n.readFile(p, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read(p, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read %s: %v, want it refused", p, err)
 		}
 	}
 	for _, p := range readable {
-		if _, err := n.readFile(p, "", 0, false); err != nil {
+		if _, err := n.fileService().Read(p, "", 0, false); err != nil {
 			t.Errorf("read %s: %v", p, err)
 		}
 	}
-	if _, err := n.listDir(state, ""); err != nil {
+	if _, err := n.fileService().List(state, ""); err != nil {
 		t.Errorf("list the data folder: %v", err)
 	}
 }
@@ -291,12 +267,12 @@ func TestPathGuardDataDirIsHome(t *testing.T) {
 		}
 	}
 	for _, rel := range refused {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read ~/%s: %v, want it refused", rel, err)
 		}
 	}
 	for _, rel := range readable {
-		if _, err := n.readFile("~/"+rel, "", 0, false); err != nil {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); err != nil {
 			t.Errorf("read ~/%s: %v", rel, err)
 		}
 	}
@@ -305,11 +281,11 @@ func TestPathGuardDataDirIsHome(t *testing.T) {
 		t.Skip("symlinks:", err)
 	}
 	for _, rel := range []string{"code/back/hub.json", "code/back/managers/m1/manager.json", "code/../link.json", "code/app/../../tls/hub.key"} {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read ~/%s: %v, want it refused", rel, err)
 		}
 	}
-	if _, err := n.listDir("~/code/app", ""); err != nil {
+	if _, err := n.fileService().List("~/code/app", ""); err != nil {
 		t.Errorf("list ~/code/app: %v", err)
 	}
 }
@@ -345,21 +321,21 @@ func TestPathGuardDataDirDefaultLayout(t *testing.T) {
 		t.Skip("symlinks:", err)
 	}
 	for _, rel := range refused {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read ~/%s: %v, want it refused", rel, err)
 		}
 	}
 	for _, rel := range []string{"code/state/hub.json", "code/state/managers/m1/manager.json", "code/state/tls/hub.key", "code/../.persona/link.json"} {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read ~/%s: %v, want it refused", rel, err)
 		}
 	}
 	for _, rel := range readable {
-		if _, err := n.readFile("~/"+rel, "", 0, false); err != nil {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); err != nil {
 			t.Errorf("read ~/%s: %v", rel, err)
 		}
 	}
-	if _, err := n.listDir("~/.persona", ""); err != nil {
+	if _, err := n.fileService().List("~/.persona", ""); err != nil {
 		t.Errorf("list the data folder: %v", err)
 	}
 }
@@ -386,12 +362,12 @@ func TestPathGuardDataDirNestedInPersona(t *testing.T) {
 		}
 	}
 	for _, rel := range refused {
-		if _, err := n.readFile("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read ~/%s: %v, want it refused", rel, err)
 		}
 	}
 	for _, rel := range readable {
-		if _, err := n.readFile("~/"+rel, "", 0, false); err != nil {
+		if _, err := n.fileService().Read("~/"+rel, "", 0, false); err != nil {
 			t.Errorf("read ~/%s: %v", rel, err)
 		}
 	}
@@ -441,16 +417,16 @@ func TestPathGuardManagerDirAnywhere(t *testing.T) {
 		}
 	}
 	for _, p := range refused {
-		if _, err := n.readFile(p, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read(p, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read %s: %v, want it refused", p, err)
 		}
 	}
 	for _, p := range readable {
-		if _, err := n.readFile(p, "", 0, false); err != nil {
+		if _, err := n.fileService().Read(p, "", 0, false); err != nil {
 			t.Errorf("read %s: %v", p, err)
 		}
 	}
-	if _, err := n.listDir(mgr, ""); err != nil {
+	if _, err := n.fileService().List(mgr, ""); err != nil {
 		t.Errorf("list the manager's folder: %v", err)
 	}
 }

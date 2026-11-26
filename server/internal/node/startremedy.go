@@ -164,7 +164,7 @@ func (c *keptClaim) tab(ctx context.Context) (*host.Created, error) {
 		c.release()
 		return nil, nil
 	}
-	if o, isOrca := c.k.launch.(*orcaHost); !isOrca || o.launchable(c.k.created.Pane) {
+	if o, isOrca := c.k.launch.(*orcaHost); !isOrca || o.Launchable(c.k.created.Pane) {
 		c.drop()
 		return c.k.created, nil
 	}
@@ -190,7 +190,7 @@ func (c *keptClaim) closeStalledTab(ctx context.Context) error {
 	}
 	cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	return o.guardedClose(cctx, c.k.created.Pane, func() error {
+	return o.GuardedClose(cctx, c.k.created.Pane, func() error {
 		c.n.mu.Lock()
 		free := c.n.keptTabFreeLocked(c.pane, c.k)
 		c.n.mu.Unlock()

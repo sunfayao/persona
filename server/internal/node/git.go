@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/gitworktree"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 // Status, history, diff and safe pull for the Git panel; every command has a timeout.
@@ -150,7 +153,7 @@ func cutAtLine(s string, limit int) string {
 	if i := strings.LastIndexByte(s, '\n'); i >= 0 {
 		return s[:i+1]
 	}
-	return string(trimPartialRune([]byte(s)))
+	return string(textfmt.TrimPartialRune([]byte(s)))
 }
 
 // gitSubcommand is the command args run (after git's own options), for errors.
@@ -582,4 +585,8 @@ func (n *Node) gitLog(ctx context.Context, cwd string, skip, limit int) ([]GitCo
 
 func sortFiles(fs []GitFile) {
 	sort.Slice(fs, func(i, j int) bool { return fs[i].Path < fs[j].Path })
+}
+
+func branchCheckedOutAt(ctx context.Context, dir, branch string) (string, error) {
+	return gitworktree.BranchCheckedOutAt(ctx, git, dir, branch)
 }

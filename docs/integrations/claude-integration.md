@@ -1021,7 +1021,7 @@ file, and generation precedes the hub handshake. Doctor checks and repairs that 
 `persona_contracts_v1` optimization applies to per-process assistant configurations instead ("Headless assistant"
 below; [rolling-upgrade-compatibility.md](../protocol/rolling-upgrade-compatibility.md), "MCP namespace / tools").
 
-`personad node doctor [--json] [--fix]` performs read-only checks on this computer (`node/doctor.go`). It prints one line per check in the terminal's language (`i18n.Terminal`), with the report's order and layout unchanged; the zh-Hans labels remain `正常` / `注意` / `有问题` (“OK” / “Attention” / “Problem”) and correspond to JSON `ok` / `warn` / `fail`. Any fail yields a nonzero exit code (hub doctor has no `--json` and does not use exit status):
+`personad node doctor [--json] [--fix]` performs read-only checks on this computer (`node/doctor/doctor.go`). It prints one line per check in the terminal's language (`i18n.Terminal`), with the report's order and layout unchanged; the zh-Hans labels remain `正常` / `注意` / `有问题` (“OK” / “Attention” / “Problem”) and correspond to JSON `ok` / `warn` / `fail`. Any fail yields a nonzero exit code (hub doctor has no `--json` and does not use exit status):
 
 | Check | Content | Status |
 | --- | --- | --- |

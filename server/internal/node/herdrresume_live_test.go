@@ -17,6 +17,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 // Against a real herdr and real Claude Code, in a herdr session of its own (never default or the node's own), on Linux
@@ -247,7 +248,7 @@ func (r liveClaude) mcp(path string) bool { return mcpConfigsHold(claudeMCPConfi
 func liveClaudeRunning(id string) liveClaude {
 	var out liveClaude
 	for pid, argv := range readProcArgv("/proc", uint32(os.Getuid())) {
-		if !isClaudeCmd(argv) || !slices.Contains(argv, id) {
+		if !osproc.IsClaudeCommand(argv) || !slices.Contains(argv, id) {
 			continue
 		}
 		if out.pid != 0 {

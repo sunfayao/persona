@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
+	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/shellcmd"
 )
@@ -688,24 +689,4 @@ func jsonLines(r io.Reader, fn func([]byte) (bool, error)) error {
 	return io.ErrUnexpectedEOF
 }
 
-// tailBuffer keeps the last 8 KB written to it (a process's stderr, for the error message).
-type tailBuffer struct {
-	mu  sync.Mutex
-	buf []byte
-}
-
-func (t *tailBuffer) Write(p []byte) (int, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.buf = append(t.buf, p...)
-	if len(t.buf) > 8<<10 {
-		t.buf = t.buf[len(t.buf)-8<<10:]
-	}
-	return len(p), nil
-}
-
-func (t *tailBuffer) String() string {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return string(t.buf)
-}
+type tailBuffer = osproc.TailBuffer

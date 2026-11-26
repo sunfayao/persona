@@ -93,10 +93,10 @@ func TestShortNamesAreGuardedAsTheNamesTheyStandFor(t *testing.T) {
 		aliasOf(t, filepath.Join(home, deep, "id_ed25519")),   // the same past MAX_PATH
 	}
 	for _, p := range secrets {
-		if fc, err := n.readFile(p, "", 0, false); !errors.Is(err, errOffLimits) {
+		if fc, err := n.fileService().Read(p, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("file.read %s: %v (read: %v)", p, err, fc != nil)
 		}
-		if _, f, _, err := n.openRegular(p, ""); !errors.Is(err, errOffLimits) {
+		if _, f, _, err := n.fileService().OpenRegular(p, ""); !errors.Is(err, errOffLimits) {
 			if f != nil {
 				f.Close()
 			}
@@ -104,14 +104,14 @@ func TestShortNamesAreGuardedAsTheNamesTheyStandFor(t *testing.T) {
 		}
 	}
 	for _, detail := range []bool{false, true} {
-		for _, s := range n.statPaths(secrets, "", detail) {
+		for _, s := range n.fileService().Stat(secrets, "", detail) {
 			if s.Kind != "missing" {
 				t.Errorf("fs.stat (detail %v) %s: %s, want missing", detail, s.Path, s.Kind)
 			}
 		}
 	}
 	for _, dir := range []string{filepath.Join(alias, ".ssh"), aliasOf(t, filepath.Join(home, ".ssh"))} {
-		if _, err := n.listDir(dir, ""); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().List(dir, ""); !errors.Is(err, errOffLimits) {
 			t.Errorf("fs.list %s: %v", dir, err)
 		}
 	}
@@ -135,7 +135,7 @@ func TestShortNamesAreGuardedAsTheNamesTheyStandFor(t *testing.T) {
 
 	// What the guard lets through is still there by its alias.
 	notes := shortName(t, filepath.Join(home, "Project Notes", "meeting notes.md"))
-	if fc, err := n.readFile(notes, "", 0, false); err != nil || fc.Text != "notes\n" {
+	if fc, err := n.fileService().Read(notes, "", 0, false); err != nil || fc.Text != "notes\n" {
 		t.Errorf("file.read %s: %v", notes, err)
 	}
 }

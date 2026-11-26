@@ -22,8 +22,10 @@ import (
 
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/node/doctor"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 // Before SessionStart, Claude Code reads its settings, its skills, commands and agents (following the links among
@@ -425,7 +427,7 @@ func launchedVia(getenv func(string) string) string {
 // plist says none.
 func fullDiskAccessProgram(via, home, label, exe string) string {
 	if via == "launchd" {
-		if p := launchdProgram(home, label); p != "" {
+		if p := doctor.LaunchdProgram(home, label); p != "" {
 			return p
 		}
 	}
@@ -509,12 +511,12 @@ func preflightCheckIn(o preflightOutcome, items []preflightItem, env preflightEn
 	if o.unsupported != "" {
 		c.Status = DoctorWarn
 		reason := i18n.T(lang, "node-doctor.preflight_child_unsupported", i18n.Args{"program": o.unsupported})
-		c.Detail = i18n.T(lang, "node-doctor.preflight_check_failed", i18n.Args{"error": shorten(reason, 80)})
+		c.Detail = i18n.T(lang, "node-doctor.preflight_check_failed", i18n.Args{"error": textfmt.Shorten(reason, 80)})
 		return c
 	}
 	if o.err != nil {
 		c.Status = DoctorWarn
-		c.Detail = i18n.T(lang, "node-doctor.preflight_check_failed", i18n.Args{"error": shorten(o.err.Error(), 80)})
+		c.Detail = i18n.T(lang, "node-doctor.preflight_check_failed", i18n.Args{"error": textfmt.Shorten(o.err.Error(), 80)})
 		return c
 	}
 	var problems []preflightResult
@@ -573,7 +575,7 @@ func preflightCheckIn(o preflightOutcome, items []preflightItem, env preflightEn
 				tcc = i
 			}
 		default:
-			problemItems = append(problemItems, i18n.T(lang, "node-doctor.preflight_read_failed_item", i18n.Args{"path": shown, "reason": shorten(failReason(r.msg), 80)}))
+			problemItems = append(problemItems, i18n.T(lang, "node-doctor.preflight_read_failed_item", i18n.Args{"path": shown, "reason": textfmt.Shorten(failReason(r.msg), 80)}))
 		}
 	}
 	c.Items = append(problemItems, c.Items...)
@@ -592,7 +594,7 @@ func preflightCheckIn(o preflightOutcome, items []preflightItem, env preflightEn
 	if first.state == "hung" {
 		c.Detail = i18n.T(lang, "node-doctor.preflight_hung_detail", i18n.Args{"path": where, "wait": env.stall, "who": who})
 	} else {
-		c.Detail = i18n.T(lang, "node-doctor.preflight_read_failed_detail", i18n.Args{"path": where, "reason": shorten(failReason(first.msg), 60), "who": who})
+		c.Detail = i18n.T(lang, "node-doctor.preflight_read_failed_detail", i18n.Args{"path": where, "reason": textfmt.Shorten(failReason(first.msg), 60), "who": who})
 	}
 	if len(problems) > 1 {
 		c.Detail = i18n.T(lang, "node-doctor.preflight_detail_with_count", i18n.Args{"detail": c.Detail, "count": len(problems)})
@@ -729,7 +731,7 @@ func (f preflightFallback) text(lang i18n.Lang) string {
 	case "timeout":
 		return i18n.T(lang, "node-doctor.preflight_fallback_timeout", i18n.Args{"wait": f.wait})
 	case "error":
-		return i18n.T(lang, "node-doctor.preflight_fallback_error", i18n.Args{"error": shorten(f.err.Error(), 60)})
+		return i18n.T(lang, "node-doctor.preflight_fallback_error", i18n.Args{"error": textfmt.Shorten(f.err.Error(), 60)})
 	case "old_node":
 		return i18n.T(lang, "node-doctor.preflight_fallback_old_node")
 	default:

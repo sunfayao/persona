@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -379,14 +380,14 @@ func TestMachineFilesRootsAndChunkedDownload(t *testing.T) {
 		t.Fatalf("reassembled chunk payload mismatch")
 	}
 
-	// Revision mismatch returns errFileChanged.
+	// Revision mismatch returns filemeta.ErrChanged.
 	_, err = n.machineFileChunk(proto.MachineFileChunkRequest{
 		Path:     head.Path,
 		Offset:   0,
 		Length:   64,
 		Revision: "stale-rev",
 	})
-	if !errors.Is(err, errFileChanged) {
-		t.Fatalf("expected errFileChanged on stale revision, got %v", err)
+	if !errors.Is(err, filemeta.ErrChanged) {
+		t.Fatalf("expected filemeta.ErrChanged on stale revision, got %v", err)
 	}
 }

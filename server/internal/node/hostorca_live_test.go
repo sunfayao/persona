@@ -52,7 +52,7 @@ func TestOrcaLiveReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("refresh took %s", time.Since(start).Round(time.Millisecond))
-	procs, err := h.agentProcs(time.Minute)
+	procs, err := h.ScanProcesses()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestOrcaLiveReadOnly(t *testing.T) {
 		ref := host.ParsePane(a.PaneID)
 		pid, fileID := 0, ""
 		if ps := procs[ref.ID]; len(ps) > 0 {
-			pid = ps[0].pid
+			pid = ps[0].PID
 			fileID = readClaudeSessionID(filepath.Join(home, ".claude", "sessions", strconv.Itoa(pid)+".json"))
 		}
 		check := "ok"

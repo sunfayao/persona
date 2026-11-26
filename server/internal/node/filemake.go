@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -124,7 +126,7 @@ type fileWritten struct {
 
 // errChanged: the file is not the version the app opened; nothing was written. data: the file's revision and time now.
 func errChanged(st os.FileInfo) error {
-	data, _ := json.Marshal(map[string]any{"revision": fileRevision(st), "mtime": st.ModTime()})
+	data, _ := json.Marshal(map[string]any{"revision": filemeta.Revision(st), "mtime": st.ModTime()})
 	return &rpc.Error{Code: proto.CodeFileChanged, Message: "the file changed on the computer since it was opened", Data: data}
 }
 
@@ -170,7 +172,7 @@ func (n *Node) writeText(p fileMakeParams) (*fileWritten, error) {
 		return written(inFolder(shown, name), path)
 	}
 	shown := strings.TrimSpace(p.Path)
-	asked := n.resolvePath(shown, p.Cwd)
+	asked := pathutil.Resolve(shown, p.Cwd, n.home)
 	if asked == "" {
 		return nil, errors.New("empty path")
 	}
@@ -187,7 +189,7 @@ func (n *Node) writeText(p fileMakeParams) (*fileWritten, error) {
 	if err := n.writable(real); err != nil {
 		return nil, err
 	}
-	if !p.Force && fileRevision(st) != p.Revision {
+	if !p.Force && filemeta.Revision(st) != p.Revision {
 		if p.SHA256 == "" || !sameHash(real, p.SHA256) {
 			return nil, errChanged(st)
 		}
@@ -213,7 +215,7 @@ func (n *Node) writeText(p fileMakeParams) (*fileWritten, error) {
 		return nil, err
 	}
 	// Changed while the bytes were written: leave it.
-	if now, err := os.Stat(real); err == nil && !p.Force && !sameFileRead(st, now) {
+	if now, err := os.Stat(real); err == nil && !p.Force && !filemeta.SameFile(st, now) {
 		return nil, errChanged(now)
 	}
 	if err := os.Rename(tmp.Name(), real); err != nil {
@@ -229,7 +231,7 @@ func (n *Node) writeText(p fileMakeParams) (*fileWritten, error) {
 func pastRevision(real string, old os.FileInfo) {
 	for _, d := range []time.Duration{time.Microsecond, time.Second} {
 		now, err := os.Stat(real)
-		if err != nil || fileRevision(now) != fileRevision(old) {
+		if err != nil || filemeta.Revision(now) != filemeta.Revision(old) {
 			return
 		}
 		_ = os.Chtimes(real, time.Time{}, old.ModTime().Add(d)) // zero atime: left as it is
@@ -241,7 +243,7 @@ func written(shown, real string) (*fileWritten, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &fileWritten{Path: shown, Size: st.Size(), Revision: fileRevision(st), ModTime: st.ModTime()}, nil
+	return &fileWritten{Path: shown, Size: st.Size(), Revision: filemeta.Revision(st), ModTime: st.ModTime()}, nil
 }
 
 // sameHash: the file's bytes hash to want (hex SHA-256).
@@ -497,11 +499,11 @@ func (n *Node) zipPaths(ctx context.Context, paths []string, cwd, dir, name stri
 // link is zipped as a link).
 func (n *Node) readEntry(path, cwd string) (string, error) {
 	shown := strings.TrimRight(strings.TrimSpace(path), "/")
-	abs := n.expandPath(shown, cwd)
+	abs := pathutil.Expand(shown, cwd, n.home)
 	if abs == "" {
 		return "", errors.New("empty path")
 	}
-	abs = absPath(abs)
+	abs = pathutil.Abs(abs)
 	parent, err := n.realPath(filepath.Dir(abs))
 	if err != nil {
 		return "", explainDenied(shown, n.home, err)
@@ -545,7 +547,7 @@ func (n *Node) changeMode(path, cwd string, mode *int) (map[string]any, error) {
 		return nil, errors.New("mode must be from 0 to 0777")
 	}
 	shown := strings.TrimSpace(path)
-	asked := n.resolvePath(shown, cwd)
+	asked := pathutil.Resolve(shown, cwd, n.home)
 	if asked == "" {
 		return nil, errors.New("empty path")
 	}
@@ -572,5 +574,5 @@ func (n *Node) changeMode(path, cwd string, mode *int) (map[string]any, error) {
 	if n.logger != nil {
 		n.logger.Printf("permissions changed from the phone: %s %o", real, st.Mode().Perm())
 	}
-	return map[string]any{"path": shown, "mode": unixMode(st.Mode())}, nil
+	return map[string]any{"path": shown, "mode": filemeta.UnixMode(st.Mode())}, nil
 }

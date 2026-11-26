@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/nwverse/persona/server/internal/node/files"
 )
 
 // linkFixture makes a folder with a file, a subfolder and links: relative to the file, absolute to the subfolder, to
@@ -53,8 +55,12 @@ func linkFixture(t *testing.T, home string) string {
 func TestListDirShowsLinkTargets(t *testing.T) {
 	n, home := testNode(t)
 	dir := linkFixture(t, home)
-	ents, _ := listNames(t, n, dir)
-	by := map[string]DirEntry{}
+	out, err := n.fileService().List(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ents := out["entries"].([]files.DirEntry)
+	by := map[string]files.DirEntry{}
 	for _, e := range ents {
 		by[e.Name] = e
 	}
@@ -80,8 +86,8 @@ func TestListDirShowsLinkTargets(t *testing.T) {
 func TestStatDetail(t *testing.T) {
 	n, home := testNode(t)
 	dir := linkFixture(t, home)
-	stats := n.statPaths([]string{"a.txt", "sub", ".", "rel", "abs", "gone", "l1", "key", "~/.ssh/id_ed25519", "nope"}, dir, true)
-	by := map[string]PathStat{}
+	stats := n.fileService().Stat([]string{"a.txt", "sub", ".", "rel", "abs", "gone", "l1", "key", "~/.ssh/id_ed25519", "nope"}, dir, true)
+	by := map[string]files.PathStat{}
 	for _, s := range stats {
 		by[s.Path] = s
 	}
@@ -136,17 +142,8 @@ func TestStatDetail(t *testing.T) {
 	}
 
 	// Without detail, as before: no Info fields.
-	plain := n.statPaths([]string{"a.txt", "rel"}, dir)
+	plain := n.fileService().Stat([]string{"a.txt", "rel"}, dir)
 	if plain[0].Mode != nil || plain[0].ModTime != nil || plain[1].Symlink {
 		t.Fatalf("fs.stat without detail grew fields: %+v", plain)
-	}
-}
-
-func TestUnixModeKeepsSpecialBits(t *testing.T) {
-	if m := unixMode(os.ModeSetuid | os.ModeSticky | 0o755); m != 0o5755 {
-		t.Fatalf("mode %o, want 5755", m)
-	}
-	if m := unixMode(os.ModeSetgid | 0o640); m != 0o2640 {
-		t.Fatalf("mode %o, want 2640", m)
 	}
 }

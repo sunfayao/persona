@@ -30,7 +30,7 @@ func TestAgyQuotedReadTargetOpensPreview(t *testing.T) {
 		t.Fatalf("preview target = %s %s (%v), want Read %q", name, input, err, path)
 	}
 	n := &Node{home: dir}
-	preview, err := n.readFile(f.Path, dir, 0, true)
+	preview, err := n.fileService().Read(f.Path, dir, 0, true)
 	if err != nil || preview.Path != path || preview.Name != filepath.Base(path) || preview.Text != body {
 		t.Fatalf("preview = %+v, %v", preview, err)
 	}

@@ -113,7 +113,7 @@ Based on and checked against Orca 1.4.245 source.
 ### Phase 1 (merged 2026-11-01)
 
 Orca is this machine's third "engine" ("One engine per machine" below): engine name `orca`, display name "Orca". Code: client `server/internal/orcart`,
-host `server/internal/node/hostorca.go`, fake test runtime `server/internal/orcart/orcarttest`.
+host `server/internal/node/engine/orca/hostorca.go`, fake test runtime `server/internal/orcart/orcarttest`.
 
 - **Pane ID**: Orca pane key `<tabId>:<leafId>` (`worktree.ps` reports Agents by it; terminal process `ORCA_PANE_KEY` also contains it), stored as
   `orca:<tabId>:<leafId>`. The host resolves handles required by `terminal.*` (`term_<uuid>`) by pane key from the latest `terminal.list`.

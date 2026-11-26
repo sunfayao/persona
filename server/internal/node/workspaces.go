@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -29,7 +30,7 @@ type workspaceDirectoryCache struct {
 // runtime's original cwd. Cache both successful and failed lookups: offline
 // transcripts and live sessions are listed every second, often sharing a cwd.
 func (n *Node) sessionWorkspaceCwd(cwd string) string {
-	path := n.resolvePath(cwd, "")
+	path := pathutil.Resolve(cwd, "", n.home)
 	if path == "" || inICloud(path) {
 		return ""
 	}
@@ -158,7 +159,7 @@ func (n *Node) listWorkspaces(ctx context.Context) (proto.WorkspacesResponse, er
 // portable (portableWorktreeLinks: files only, no git run), as a checkout made before, or by git on the host, still
 // names the real path.
 func (n *Node) resolveWorkspace(asked string, terminal bool) (proto.Workspace, error) {
-	path := n.resolvePath(asked, "")
+	path := pathutil.Resolve(asked, "", n.home)
 	if path == "" {
 		return proto.Workspace{}, fmt.Errorf("workspace path must be an absolute directory or ~/ path")
 	}

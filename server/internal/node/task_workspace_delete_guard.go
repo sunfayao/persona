@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/taskworkspace"
 )
 
@@ -44,7 +45,7 @@ func (n *Node) guardBackendDeletion(path string) error {
 			if j.State == "removed" && (j.Cleanup == nil || !slices.Contains(j.Cleanup.RetainedPaths, owned)) {
 				continue
 			}
-			if !isInsideOrEqual(target, owned) && !isInsideOrEqual(owned, target) {
+			if !pathutil.Contains(target, owned) && !pathutil.Contains(owned, target) {
 				continue
 			}
 			if id, err := workspaceFileID(owned); err == nil && id == identity {

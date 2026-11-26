@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/anmitsu/go-shlex"
+
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/orcart"
 )
@@ -40,7 +41,7 @@ func codexOrcaLaunchDefaults(ctx context.Context, launch host.Launcher, argv []s
 			Env      map[string][]string `json:"environmentNames"`
 		} `json:"settings"`
 	}
-	if err := h.c.Call(ctx, orcart.CallTimeout, "settings.getAgentLaunch", nil, &res); err != nil || res.Settings == nil {
+	if err := h.Runtime().Call(ctx, orcart.CallTimeout, "settings.getAgentLaunch", nil, &res); err != nil || res.Settings == nil {
 		// No fallback: an old or unavailable host cannot confirm which preferences it would use.
 		return nil, refusal("codex_launch_preferences", "Could not read Orca's launch preferences. Update Orca or select an explicitly configured launcher.", nil)
 	}

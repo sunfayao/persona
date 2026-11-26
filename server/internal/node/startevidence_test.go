@@ -79,7 +79,7 @@ func TestOrcaStartNeedsEvidenceBeyondOrcasWord(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n, o, procs, created := orcaStartTab(t, start, ready)
-			procs.set(created.Pane.ID, orcaProc{pid: 4242, agent: "claude"})
+			procs.set(created.Pane.ID, orcaProc{PID: 4242, Agent: "claude"})
 			file := filepath.Join(t.TempDir(), "agent-start-1.sh")
 			if !tc.ran {
 				if err := os.WriteFile(file, []byte("true\n"), 0o600); err != nil {
@@ -130,7 +130,7 @@ func TestOrcaStartNeedsEvidenceBeyondOrcasWord(t *testing.T) {
 func TestOrcaStartTrustDialogStillCounts(t *testing.T) {
 	const start, ready = 5 * time.Second, 300 * time.Millisecond // the answer is followed by a second's pause
 	n, o, procs, created := orcaStartTab(t, start, ready)
-	procs.set(created.Pane.ID, orcaProc{pid: 4242, agent: "claude"})
+	procs.set(created.Pane.ID, orcaProc{PID: 4242, Agent: "claude"})
 	o.SetScreen(orcaFirstTab, screenFixture(t, "claude-2.1.312-trust-162.txt"))
 	file := filepath.Join(t.TempDir(), "agent-start-1.sh")
 	if err := os.WriteFile(file, []byte("true\n"), 0o600); err != nil {
@@ -161,7 +161,7 @@ func TestOrcaStartTrustDialogStillCounts(t *testing.T) {
 func TestOrcaStartWhoseLineNeverArrivedIsNotDelivered(t *testing.T) {
 	const start, ready = 1500 * time.Millisecond, 300 * time.Millisecond
 	n, o, procs, root := orcaStartNode(t, start, ready)
-	procs.set(orcaFirstPane, orcaProc{pid: 4242, agent: "claude"})
+	procs.set(orcaFirstPane, orcaProc{PID: 4242, Agent: "claude"})
 	o.SetScreen(orcaFirstTab, orcaPrompts)
 	began := time.Now()
 	_, err := request(t, n, "session.start", map[string]any{"session_id": startID, "cwd": root})

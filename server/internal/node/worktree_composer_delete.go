@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -92,9 +93,9 @@ func (n *Node) worktreeDelete(ctx context.Context, kind, id string, raw json.Raw
 	if prior != nil && !sameComposerWorkspace(prior.workspace, w) {
 		return nil, composerError(ctx, "preview_stale")
 	}
-	st, err := o.c.Probe(ctx)
+	st, err := o.Runtime().Probe(ctx)
 	if err != nil {
-		return nil, orcaErr(err)
+		return nil, orca.RuntimeError(err)
 	}
 	if !slices.Contains(st.Capabilities, "worktree.remove-branch-policy.v1") ||
 		!slices.Contains(st.Capabilities, "worktree.archive-failure-blocking.v1") ||
@@ -158,17 +159,17 @@ func (n *Node) worktreeDelete(ctx context.Context, kind, id string, raw json.Raw
 		BranchDeleted bool `json:"branchDeleted"`
 	}
 	if folderComposerWorkspace(w) && strings.HasPrefix(id, "folder:") {
-		err = o.c.Call(ctx, 2*time.Minute, "folderWorkspace.delete", map[string]any{
+		err = o.Runtime().Call(ctx, 2*time.Minute, "folderWorkspace.delete", map[string]any{
 			"folderWorkspaceId": strings.TrimPrefix(id, "folder:"), "requireUniqueId": true}, &result)
 	} else {
-		err = o.c.Call(ctx, 2*time.Minute, "worktree.rm", map[string]any{"worktree": "id:" + id, "hostId": "local",
+		err = o.Runtime().Call(ctx, 2*time.Minute, "worktree.rm", map[string]any{"worktree": "id:" + id, "hostId": "local",
 			"deleteBranch": in.DeleteBranch, "force": in.Force, "runHooks": true, "waitForBackgroundRemoval": true}, &result)
 	}
 	if err != nil {
 		// A transport error after dispatch cannot establish whether the runtime mutated anything.
 		var rpcErr *orcart.Error
 		if errors.As(err, &rpcErr) && rpcErr.Code != "runtime_timeout" {
-			return nil, orcaErr(err)
+			return nil, orca.RuntimeError(err)
 		}
 		return proto.WorktreeDeleteResult{WorkspaceID: id, State: "unknown"}, nil
 	}

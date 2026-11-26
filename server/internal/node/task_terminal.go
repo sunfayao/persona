@@ -10,6 +10,7 @@ import (
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/processtable"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/screen"
 )
@@ -228,7 +229,7 @@ func (n *Node) taskTerminalLocallyIdle(target devicewire.TaskTerminal, agent hos
 // taskTerminalProcessesIdle treats unidentified processes sharing the terminal
 // or descending from the agent as live work. Its launcher and shell are ancestors.
 func taskTerminalProcessesIdle(ctx context.Context, pid int) bool {
-	procs, err := listProcs(ctx)
+	procs, err := processtable.List(ctx)
 	if err != nil {
 		return false
 	}
@@ -236,10 +237,10 @@ func taskTerminalProcessesIdle(ctx context.Context, pid int) bool {
 		return false
 	}
 	ancestors := map[int]bool{pid: true}
-	for parent := procs[pid].ppid; parent > 0 && !ancestors[parent]; parent = procs[parent].ppid {
+	for parent := procs[pid].PPID; parent > 0 && !ancestors[parent]; parent = procs[parent].PPID {
 		ancestors[parent] = true
 	}
-	for member := range owned([]int{pid}, procs) {
+	for member := range processtable.Owned([]int{pid}, procs) {
 		if !ancestors[member] {
 			return false
 		}

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/nwverse/persona/server/internal/portprobe"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -42,7 +43,7 @@ type apiSeen struct {
 
 // portProbeAgents are the User-Agents of the port probe of any node a machine may run: today's, and that of a node
 // installed before the Persona-only rename (#6079), which keeps sending it until it is replaced.
-var portProbeAgents = []string{portProbeAgent, compat.PortProbeAgent}
+var portProbeAgents = []string{portprobe.UserAgent, compat.PortProbeAgent}
 
 type fakeAPI struct {
 	*httptest.Server
@@ -87,7 +88,7 @@ func newFakeAPI(t *testing.T) *fakeAPI {
 // runs the agents, the node probes the tests' servers too, and a count of the API's requests saw one more.
 func TestFakeAPIIgnoresPortProbes(t *testing.T) {
 	api := newFakeAPI(t)
-	if got := probePort(context.Background(), portOf(t, api.URL), "127.0.0.1"); !got.http {
+	if got := portprobe.Probe(context.Background(), portOf(t, api.URL), "127.0.0.1", time.Now); !got.HTTP {
 		t.Fatalf("the probe did not reach the API: %+v", got)
 	}
 	// A node installed before the rename probes the same way under its old name.

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/files"
 )
 
 // events collects what a watcher emits.
@@ -92,33 +94,40 @@ func TestFsWatchReportsChangesInWatchedFoldersOnly(t *testing.T) {
 		}
 	}
 	n := &Node{home: dir}
-	ev := newEvents()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	fastWatch(n)
-	n.fsw.start(ctx, ev.emit)
-	defer n.fsw.close()
+	var changes []fsChanged
+	// Drive polls directly so a snapshot cannot overlap the rename of the watched folder.
+	n.fsw.start(nil, func(ch fsChanged) { changes = append(changes, ch) })
+	checkPoll := func(want int) {
+		t.Helper()
+		changes = changes[:0]
+		n.fsw.poll(n, context.Background(), nil, fsWatchEvery, gitWatchEvery)
+		if len(changes) != want {
+			t.Fatalf("got %d changes, want %d: %+v", len(changes), want, changes)
+		}
+		if want == 1 {
+			c := changes[0]
+			if len(c.Dirs) != 1 || c.Dirs[0] != watched || len(c.Git) != 0 {
+				t.Fatalf("unexpected change: %+v", c)
+			}
+		}
+	}
 
 	n.fsw.set(n, fsWatchParams{Dirs: []fsWatchDir{{Path: watched, Cwd: dir}}})
-	ev.none(t, 150*time.Millisecond) // the baseline is not a change
+	checkPoll(0) // the baseline is not a change
 
 	if err := os.WriteFile(filepath.Join(other, "x.txt"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ev.none(t, 150*time.Millisecond) // a folder nobody has open is not looked at
+	checkPoll(0) // a folder nobody has open is not looked at
 
 	writeWhole(t, dir, filepath.Join(watched, "a.txt"), []byte("a"))
-	if c := ev.next(t); len(c.Dirs) != 1 || c.Dirs[0] != watched || len(c.Git) != 0 {
-		t.Fatalf("created file: %+v", c)
-	}
-	ev.none(t, 150*time.Millisecond) // reported once, not on every poll
+	checkPoll(1)
+	checkPoll(0) // reported once, not on every poll
 
 	// A rewrite that changes the size shows in the listing, so it is a change too.
 	writeWhole(t, dir, filepath.Join(watched, "a.txt"), []byte("longer"))
-	if c := ev.next(t); len(c.Dirs) != 1 {
-		t.Fatalf("rewritten file: %+v", c)
-	}
-	ev.none(t, 150*time.Millisecond)
+	checkPoll(1)
+	checkPoll(0)
 
 	// Gone in one step (RemoveAll empties it first: a poll in between sees two real changes), then removed.
 	if err := os.Rename(watched, filepath.Join(dir, "gone")); err != nil {
@@ -127,10 +136,8 @@ func TestFsWatchReportsChangesInWatchedFoldersOnly(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(dir, "gone")); err != nil {
 		t.Fatal(err)
 	}
-	if c := ev.next(t); len(c.Dirs) != 1 {
-		t.Fatalf("removed folder: %+v", c)
-	}
-	ev.none(t, 150*time.Millisecond) // staying away is not a change
+	checkPoll(1)
+	checkPoll(0) // staying away is not a change
 }
 
 // A folder that stays in the set keeps its signature across set calls, so re-sending the same set is silent.
@@ -235,7 +242,7 @@ func TestFsWatchCapsTheSet(t *testing.T) {
 	}
 }
 
-// A folder over the cap is watched as the tree shows it (the first maxDirEntries in treeOrder), not as os.ReadDir lists
+// A folder over the cap is watched as the tree shows it (the first files.MaxDirEntries in treeOrder), not as os.ReadDir lists
 // it: an edit or rename of a shown entry that sorts past the cap in byte order is a change, and an edit of an entry the
 // tree leaves out is not.
 func TestFsWatchSignatureFollowsTheTreeOrderPastTheCap(t *testing.T) {
@@ -244,7 +251,7 @@ func TestFsWatchSignatureFollowsTheTreeOrderPastTheCap(t *testing.T) {
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	for i := range maxDirEntries {
+	for i := range files.MaxDirEntries {
 		writeEmpty(t, dir, fmt.Sprintf("B%05d", i))
 	}
 	writeEmpty(t, dir, "a-first")
@@ -277,7 +284,7 @@ func TestFsWatchSignatureFollowsTheTreeOrderPastTheCap(t *testing.T) {
 	changed("new time of zz-sub")
 
 	// B01998 and B01999 are past the cap in the tree's order: the listing does not show them.
-	writeWhole(t, home, filepath.Join(dir, fmt.Sprintf("B%05d", maxDirEntries-1)), []byte("hidden"))
+	writeWhole(t, home, filepath.Join(dir, fmt.Sprintf("B%05d", files.MaxDirEntries-1)), []byte("hidden"))
 	if now := n.dirSignature(w); now != sig {
 		t.Fatal("an edit of an entry the tree does not show changed the signature")
 	}
@@ -359,10 +366,10 @@ func TestListDirMarksIgnored(t *testing.T) {
 	must(os.WriteFile(filepath.Join(dir, "b.go"), nil, 0o600))
 
 	n := &Node{home: dir}
-	res, err := n.listDir(dir, "")
+	res, err := n.fileService().List(dir, "")
 	must(err)
 	ignored := map[string]bool{}
-	for _, e := range res["entries"].([]DirEntry) {
+	for _, e := range res["entries"].([]files.DirEntry) {
 		ignored[e.Name] = e.Ignored
 	}
 	want := map[string]bool{"build": true, "a.log": true, "src": false, "b.go": false, ".gitignore": false}
@@ -375,9 +382,9 @@ func TestListDirMarksIgnored(t *testing.T) {
 	// Outside a repository nothing is marked.
 	plain := t.TempDir()
 	must(os.WriteFile(filepath.Join(plain, "a.log"), nil, 0o600))
-	res, err = (&Node{home: plain}).listDir(plain, "")
+	res, err = (&Node{home: plain}).fileService().List(plain, "")
 	must(err)
-	for _, e := range res["entries"].([]DirEntry) {
+	for _, e := range res["entries"].([]files.DirEntry) {
 		if e.Ignored {
 			t.Errorf("%s marked ignored outside a repository", e.Name)
 		}
@@ -393,27 +400,27 @@ func TestListDirMarksIgnoredBesideMagicNames(t *testing.T) {
 		t.Helper()
 		dir := t.TempDir()
 		gitIn(t, dir, "init", "-q")
-		files := map[string]string{".gitignore": "*.log\n", "a.log": "", "keep.txt": ""}
+		contents := map[string]string{".gitignore": "*.log\n", "a.log": "", "keep.txt": ""}
 		for _, name := range odd {
-			files[name] = ""
+			contents[name] = ""
 		}
-		for name, body := range files {
+		for name, body := range contents {
 			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}
-		res, err := (&Node{home: dir}).listDir(dir, "")
+		res, err := (&Node{home: dir}).fileService().List(dir, "")
 		if err != nil {
 			t.Fatal(err)
 		}
 		ignored := map[string]bool{}
-		for _, e := range res["entries"].([]DirEntry) {
+		for _, e := range res["entries"].([]files.DirEntry) {
 			if e.Name != ".git" {
 				ignored[e.Name] = e.Ignored
 			}
 		}
-		if len(ignored) != len(files) {
-			t.Fatalf("listed %v, want the %d files written", ignored, len(files))
+		if len(ignored) != len(contents) {
+			t.Fatalf("listed %v, want the %d files written", ignored, len(contents))
 		}
 		return ignored
 	}

@@ -1,11 +1,13 @@
 package node
 
 import (
+	"context"
 	"runtime"
 	"slices"
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/herdrcore"
+	"github.com/nwverse/persona/server/internal/processtable"
 )
 
 // agentForegrounds puts the agent in front where herdr-core names a program above it. herdr-core on Windows reports
@@ -20,7 +22,7 @@ func agentForegrounds(ts []herdrcore.Terminal) {
 		return
 	}
 	var children map[int][]int
-	var procs map[int]proc
+	var procs map[int]processtable.Process
 	for i := range ts {
 		fg := ts[i].Foreground
 		if fg == nil || fg.Pid <= 0 || hcAgentProgram(fg.Name) != "" || len(fg.Argv) > 0 && hcAgentProgram(fg.Argv[0]) != "" {
@@ -28,24 +30,24 @@ func agentForegrounds(ts []herdrcore.Terminal) {
 		}
 		if procs == nil {
 			var err error
-			if procs, err = winProcs(); err != nil {
+			if procs, err = processtable.List(context.Background()); err != nil {
 				return
 			}
 			children = procChildren(procs)
 		}
 		if pid := agentBelow(procs, children, fg.Pid); pid > 0 {
-			name := procs[pid].cmd
+			name := procs[pid].Command
 			ts[i].Foreground = &herdrcore.Foreground{Pid: pid, Name: name, Argv: []string{name}, Cwd: fg.Cwd}
 		}
 	}
 }
 
 // procChildren is each process's children, in pid order.
-func procChildren(procs map[int]proc) map[int][]int {
+func procChildren(procs map[int]processtable.Process) map[int][]int {
 	children := map[int][]int{}
 	for pid, p := range procs {
-		if p.ppid > 0 && p.ppid != pid {
-			children[p.ppid] = append(children[p.ppid], pid)
+		if p.PPID > 0 && p.PPID != pid {
+			children[p.PPID] = append(children[p.PPID], pid)
 		}
 	}
 	for _, c := range children {
@@ -55,7 +57,7 @@ func procChildren(procs map[int]proc) map[int][]int {
 }
 
 // agentBelow is the nearest claude or codex process below pid, breadth first; 0 when there is none.
-func agentBelow(procs map[int]proc, children map[int][]int, pid int) int {
+func agentBelow(procs map[int]processtable.Process, children map[int][]int, pid int) int {
 	seen := map[int]bool{pid: true}
 	queue := slices.Clone(children[pid])
 	for len(queue) > 0 {
@@ -65,7 +67,7 @@ func agentBelow(procs map[int]proc, children map[int][]int, pid int) int {
 			continue
 		}
 		seen[p] = true
-		if hcAgentProgram(strings.ToLower(procs[p].cmd)) != "" {
+		if hcAgentProgram(strings.ToLower(procs[p].Command)) != "" {
 			return p
 		}
 		queue = append(queue, children[p]...)

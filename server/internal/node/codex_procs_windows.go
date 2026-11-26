@@ -45,7 +45,7 @@ func scanCodexProcessesOS() ([]codexProcess, bool) {
 			continue
 		}
 		argv := p.argv
-		if len(argv) == 0 || progName(argv[0]) != "codex" {
+		if len(argv) == 0 || osproc.ProgramName(argv[0]) != "codex" {
 			// The image is codex.exe whatever its command line calls it.
 			argv = append([]string{"codex.exe"}, argv[min(len(argv), 1):]...)
 		}

@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/base64"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/preview"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -271,7 +273,7 @@ func TestFileCacheHitsKeepADownloadGoing(t *testing.T) {
 	paths := open()
 	revs := map[string]string{}
 	for name, path := range paths {
-		head, err := n.readFileChunk(proto.FileChunkRequest{Path: path})
+		head, err := n.fileService().ReadChunk(proto.FileChunkRequest{Path: path})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -279,7 +281,7 @@ func TestFileCacheHitsKeepADownloadGoing(t *testing.T) {
 	}
 	open() // another client opens both while the first one reads them
 	for name, path := range paths {
-		if _, err := n.readFileChunk(proto.FileChunkRequest{Path: path, Length: 4, Revision: revs[name]}); err != nil {
+		if _, err := n.fileService().ReadChunk(proto.FileChunkRequest{Path: path, Length: 4, Revision: revs[name]}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
@@ -332,8 +334,13 @@ func TestPreviewProfileInTheUserCacheRefusesASymlink(t *testing.T) {
 	if err := os.WriteFile(bin, []byte("#!/bin/sh\ntouch \"$0.ran\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(previewBrowserEnv, bin)
-	if _, err := startPreviewBrowser(context.Background()); err == nil || !strings.Contains(err.Error(), "profile folder") {
+	t.Setenv("PERSONA_CHROME", bin)
+	h := preview.New(preview.Config{ProfileDir: previewProfileDir, DialPort: func(context.Context, int, string) (net.Conn, error) {
+		conn, peer := net.Pipe()
+		peer.Close()
+		return conn, nil
+	}})
+	if _, err := h.Open(context.Background(), []byte(`{"id":"profile","port":8000}`)); err == nil || !strings.Contains(err.Error(), "profile folder") {
 		t.Fatalf("started with the profile behind a symlink: %v", err)
 	}
 	if _, err := os.Stat(bin + ".ran"); err == nil {

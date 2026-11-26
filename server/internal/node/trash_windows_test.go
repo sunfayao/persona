@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -50,7 +51,7 @@ func recycledFrom(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	in := []string{dir, longPath(dir)}
+	in := []string{dir, pathutil.Abs(dir)}
 	if r, err := filepath.EvalSymlinks(dir); err == nil {
 		in = append(in, r)
 	}

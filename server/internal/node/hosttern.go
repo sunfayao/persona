@@ -13,7 +13,9 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/screen"
 	"github.com/nwverse/persona/server/internal/terncli"
 )
 
@@ -231,7 +233,7 @@ func ternAgent(s terncli.Session, t terncli.Tab, b terncli.Block, p *terncli.Pro
 	a := host.Agent{
 		Cwd: b.Cwd, PaneID: host.PaneRef{Kind: host.Tern, ID: string(b.ID)}.String(),
 		WorkspaceID: string(s.ID), TabID: string(t.ID),
-		Title: stripSpinner(b.Title), RawTitle: b.Title,
+		Title: screen.StripSpinner(b.Title), RawTitle: b.Title,
 	}
 	if p == nil || p.Foreground == nil {
 		return a
@@ -241,7 +243,7 @@ func ternAgent(s terncli.Session, t terncli.Tab, b terncli.Block, p *terncli.Pro
 	if ternShellOrHerdr(fg) {
 		return a
 	}
-	if k := agentOfCmd(fg.Argv); k != "" {
+	if k := osproc.AgentOfCommand(fg.Argv); k != "" {
 		a.Agent, a.AgentStatus = k, proto.StatusUnknown
 	}
 	return a
@@ -357,7 +359,7 @@ func (h *ternHost) front(ctx context.Context, pane host.PaneRef) error {
 	if err != nil {
 		return ternInputErr(err)
 	}
-	if p.Foreground == nil || ternShellOrHerdr(p.Foreground) || agentOfCmd(p.Foreground.Argv) == "" {
+	if p.Foreground == nil || ternShellOrHerdr(p.Foreground) || osproc.AgentOfCommand(p.Foreground.Argv) == "" {
 		return host.Mark(fmt.Errorf("tern: no agent runs in front of block %s", pane.ID), host.ErrNotDelivered)
 	}
 	return nil
@@ -380,7 +382,7 @@ func (h *ternHost) Prompt(ctx context.Context, pane host.PaneRef, text string) e
 	select {
 	case <-ctx.Done():
 		return afterPaste(ctx.Err())
-	case <-time.After(orcaPasteGap(text)):
+	case <-time.After(screen.PasteGap(text)):
 	}
 	if err := h.front(ctx, pane); err != nil {
 		return afterPaste(err)

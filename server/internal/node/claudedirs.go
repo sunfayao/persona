@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -464,7 +465,7 @@ func scanClaudeProcesses() map[int]procEnv {
 	}
 	if runtime.GOOS == "linux" {
 		for pid, argv := range userProcesses() {
-			if !isClaudeCmd(argv) {
+			if !osproc.IsClaudeCommand(argv) {
 				continue
 			}
 			env, _ := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/environ")
@@ -492,7 +493,7 @@ func parsePSEnv(s string) map[int]procEnv {
 			continue
 		}
 		pid, err := strconv.Atoi(f[0])
-		if err != nil || !isClaudeCmd(f[1:]) {
+		if err != nil || !osproc.IsClaudeCommand(f[1:]) {
 			continue
 		}
 		pe := parseProcEnv(line)
@@ -500,20 +501,6 @@ func parsePSEnv(s string) map[int]procEnv {
 		out[pid] = pe
 	}
 	return out
-}
-
-// isClaudeCmd: the command line runs Claude Code — its native binary, or its script under node / bun.
-func isClaudeCmd(argv []string) bool {
-	if len(argv) == 0 {
-		return false
-	}
-	switch progName(argv[0]) {
-	case "claude":
-		return true
-	case "node", "bun":
-		return len(argv) > 1 && strings.Contains(argv[1], "claude")
-	}
-	return false
 }
 
 // listClaudeDirs: every config directory the node knows of (default, found in running claudes, from the hub),

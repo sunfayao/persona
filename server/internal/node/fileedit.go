@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -39,11 +40,11 @@ func (n *Node) entry(path, cwd string) (editEntry, error) {
 	if s := strings.TrimRight(shown, "/"); s != "" {
 		shown = s
 	}
-	abs := n.expandPath(shown, cwd)
+	abs := pathutil.Expand(shown, cwd, n.home)
 	if abs == "" {
 		return editEntry{}, errors.New("empty path")
 	}
-	abs = absPath(abs)
+	abs = pathutil.Abs(abs)
 	parent, err := n.realPath(filepath.Dir(abs))
 	if err != nil {
 		return editEntry{}, explainDenied(shown, n.home, err)

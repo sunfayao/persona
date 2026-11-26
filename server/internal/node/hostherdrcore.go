@@ -10,12 +10,13 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/nwverse/persona/server/internal/herdrcore"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/nwverse/persona/server/internal/shellcmd"
 )
 
 // herdrCoreHost is herdr-core (hc), the runtime behind the Herdr desktop app (docs/plans/plan-orca-support.md "herdr-core
@@ -372,7 +373,7 @@ func fromTerminal(t herdrcore.Terminal) host.Agent {
 	a := host.Agent{
 		Name: t.Name, Cwd: t.Cwd, PaneID: host.PaneRef{Kind: host.HerdrCore, ID: t.Address}.String(),
 		WorkspaceID: t.Labels[herdrSpaceLabel], TabID: t.Labels[herdrTabLabel],
-		Title: stripSpinner(t.Title), RawTitle: t.Title,
+		Title: screen.StripSpinner(t.Title), RawTitle: t.Title,
 	}
 	if t.Parent != "" {
 		a.ParentPaneID = host.PaneRef{Kind: host.HerdrCore, ID: t.Parent}.String()
@@ -417,10 +418,6 @@ func hcAgentProgram(name string) string {
 	return ""
 }
 
-// shells are the programs a terminal returns to when its agent exits.
-var shells = map[string]bool{"sh": true, "bash": true, "zsh": true, "fish": true, "dash": true, "ksh": true, "tcsh": true,
-	"csh": true, "nu": true, "pwsh": true, "elvish": true, "xonsh": true}
-
 // isShell: the foreground program is a shell (a login shell's name starts with "-").
 func isShell(fg *herdrcore.Foreground) bool {
 	return hcShell(fg.Name) || len(fg.Argv) > 0 && hcShell(fg.Argv[0])
@@ -431,8 +428,7 @@ func isShell(fg *herdrcore.Foreground) bool {
 // then takes the PowerShell handoff (windowsPaneShellDecision).
 func hcShell(name string) bool { return shellProgram(name) || windowsPowerShellProgram(name) }
 
-// shellProgram: a program name or path ("-zsh", "/bin/bash") is a shell's.
-func shellProgram(name string) bool { return shells[strings.TrimPrefix(filepath.Base(name), "-")] }
+func shellProgram(name string) bool { return shellcmd.IsShellProgram(name) }
 
 // nestedHerdr: the terminal's foreground program is classic herdr's client. The claude in one of herdr's panes may
 // report its OSC 7501 state through it, so this terminal would look like claude's own; it is not an agent here.
@@ -441,13 +437,4 @@ func nestedHerdr(fg *herdrcore.Foreground) bool {
 		return true
 	}
 	return len(fg.Argv) > 0 && filepath.Base(fg.Argv[0]) == "herdr"
-}
-
-// stripSpinner drops the glyph a busy TUI puts before its title ("✳ fix the build", "⠸ fix the build").
-func stripSpinner(title string) string {
-	r := []rune(title)
-	if len(r) >= 2 && r[1] == ' ' && !unicode.IsLetter(r[0]) && !unicode.IsDigit(r[0]) && r[0] > unicode.MaxASCII {
-		return strings.TrimSpace(string(r[2:]))
-	}
-	return title
 }

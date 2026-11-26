@@ -10,6 +10,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 // claudeStartWait is how long a new tab's shell may take to run claude: on a machine busy with a dozen agents,
@@ -471,13 +472,7 @@ func firstRunScreen(screen string) string {
 	return ""
 }
 
-func lastLines(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) > n {
-		lines = lines[len(lines)-n:]
-	}
-	return strings.Join(lines, "\n")
-}
+func lastLines(s string, n int) string { return textfmt.LastLines(s, n) }
 
 // paneGoneLooks: this many looks in a row (500 ms apart) at which the pane's host lists no such pane end a start
 // whose claude has not come: a pane that is gone does not come back.

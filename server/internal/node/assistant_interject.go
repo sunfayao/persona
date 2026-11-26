@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
@@ -36,7 +37,7 @@ func (p *assistantProc) interjects() bool {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return versionAtLeast(p.claudeVersion, backgroundTasksMinVersion)
+	return claudeplugin.VersionAtLeast(p.claudeVersion, backgroundTasksMinVersion)
 }
 
 // interjectNote goes with a mid-turn message, after the live snapshot: one sentence on what is going on before the next

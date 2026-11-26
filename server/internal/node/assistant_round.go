@@ -12,6 +12,8 @@ import (
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 )
 
 // The background supervisor's rounds (#7315, docs/assistant/unified-entry.md "Each round starts clean"). The manager
@@ -186,7 +188,7 @@ func (n *Node) superviseRound(ctx context.Context, r *roundResult, id string, p 
 	if version = cmp.Or(version, tr.version); version == "" {
 		version = n.claudeV.get(ctx)
 	}
-	if !versionAtLeast(version, roundMinClaude) {
+	if !claudeplugin.VersionAtLeast(version, roundMinClaude) {
 		return kept(roundWhyUnsupported)
 	}
 	if tr.anchor == "" {

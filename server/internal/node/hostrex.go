@@ -16,8 +16,10 @@ import (
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rexcli"
+	"github.com/nwverse/persona/server/internal/screen"
 )
 
 // rexHost is Rex, a multiplexing terminal (docs/integrations/engines.md "Rex"), driven through its `rex` command line
@@ -324,7 +326,7 @@ func rexAgentKind(fg *rexcli.Proc) string {
 		if cand == "" {
 			continue
 		}
-		if k := agentOfCmd([]string{cand}); k != "" {
+		if k := osproc.AgentOfCommand([]string{cand}); k != "" {
 			return k
 		}
 	}
@@ -332,10 +334,10 @@ func rexAgentKind(fg *rexcli.Proc) string {
 		if cand == "" {
 			continue
 		}
-		switch progName(cand) {
+		switch osproc.ProgramName(cand) {
 		case "node", "bun":
 			if fg.Pid > 0 {
-				if k := agentOfCmd(readRexProcArgv(fg.Pid)); k != "" {
+				if k := osproc.AgentOfCommand(readRexProcArgv(fg.Pid)); k != "" {
 					return k
 				}
 			}
@@ -353,7 +355,7 @@ func rexAgent(sessionID, windowID, blockID, rawTitle string, p *rexcli.Process) 
 		PaneID:      host.PaneRef{Kind: host.Rex, ID: blockID}.String(),
 		WorkspaceID: sessionID,
 		TabID:       windowID,
-		Title:       stripSpinner(rawTitle),
+		Title:       screen.StripSpinner(rawTitle),
 		RawTitle:    rawTitle,
 	}
 	if p == nil || p.Foreground == nil {
@@ -513,7 +515,7 @@ func (h *rexHost) Prompt(ctx context.Context, pane host.PaneRef, text string) er
 	select {
 	case <-ctx.Done():
 		return afterPaste(ctx.Err())
-	case <-time.After(orcaPasteGap(text)):
+	case <-time.After(screen.PasteGap(text)):
 	}
 	if err := h.front(ctx, sid, pane); err != nil {
 		return afterPaste(err)

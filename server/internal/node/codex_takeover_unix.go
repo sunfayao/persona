@@ -54,7 +54,7 @@ func prepareCodexWriterQuit(ctx context.Context, writer codexWriter) (func() err
 	pane := ""
 	for key, ps := range procs {
 		for _, p := range ps {
-			if p.pid == writer.PID {
+			if p.PID == writer.PID {
 				pane = key
 			}
 		}

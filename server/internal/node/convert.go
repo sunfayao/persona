@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -62,7 +63,7 @@ func (n *Node) convertFile(ctx context.Context, p proto.FileConvertRequest) (*pr
 	if p.To != "" && p.To != "pdf" {
 		return nil, fmt.Errorf("can only convert to pdf")
 	}
-	path, f, st, err := n.openRegular(p.Path, p.Cwd)
+	path, f, st, err := n.fileService().OpenRegular(p.Path, p.Cwd)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (n *Node) convertFile(ctx context.Context, p proto.FileConvertRequest) (*pr
 	if err != nil {
 		return nil, fmt.Errorf("conversion cache: %w", err)
 	}
-	sum := sha256.Sum256([]byte(path + "\x00" + fileRevision(st)))
+	sum := sha256.Sum256([]byte(path + "\x00" + filemeta.Revision(st)))
 	out := filepath.Join(dir, hex.EncodeToString(sum[:12])+".pdf")
 	cached := func() *proto.FileConverted {
 		info, err := os.Stat(out)

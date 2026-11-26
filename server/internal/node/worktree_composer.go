@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -45,7 +45,7 @@ func (n *Node) orcaWorkspace(ctx context.Context, kind, id string) (*orcaHost, o
 	}
 	trees, err := composerCatalog(ctx, o)
 	if err != nil {
-		return nil, orcart.Worktree{}, nil, orcaErr(err)
+		return nil, orcart.Worktree{}, nil, orca.RuntimeError(err)
 	}
 	var selected *orcart.Worktree
 	for _, w := range trees {
@@ -72,7 +72,7 @@ func composerCatalog(ctx context.Context, o *orcaHost) ([]orcart.Worktree, error
 		Truncated bool              `json:"truncated"`
 		Unchanged bool              `json:"unchanged"`
 	}
-	if err := o.c.Call(ctx, orcart.ListTimeout, "worktree.ps", map[string]any{"limit": 100000, "afterSnapshotId": nil}, &res); err != nil {
+	if err := o.Runtime().Call(ctx, orcart.ListTimeout, "worktree.ps", map[string]any{"limit": 100000, "afterSnapshotId": nil}, &res); err != nil {
 		return nil, err
 	}
 	if res.Truncated || res.Unchanged || res.Total > len(res.Worktrees) {
@@ -98,8 +98,8 @@ func classifyComposerWorkspace(ctx context.Context, o *orcaHost, w orcart.Worktr
 			Kind string `json:"kind"`
 		} `json:"repo"`
 	}
-	if err = o.c.Call(ctx, orcart.CallTimeout, "repo.show", map[string]any{"repo": selector, "repoHostId": "local"}, &info); err != nil {
-		return w, orcaErr(err)
+	if err = o.Runtime().Call(ctx, orcart.CallTimeout, "repo.show", map[string]any{"repo": selector, "repoHostId": "local"}, &info); err != nil {
+		return w, orca.RuntimeError(err)
 	}
 	if info.Repo.Kind == "folder" {
 		w.WorkspaceKind = "folder"
@@ -125,9 +125,9 @@ func rejectComposerFields(ctx context.Context, raw json.RawMessage) error {
 }
 
 func composerCapabilities(ctx context.Context, o *orcaHost) ([]string, error) {
-	st, err := o.c.Probe(ctx)
+	st, err := o.Runtime().Probe(ctx)
 	if err != nil {
-		return nil, orcaErr(err)
+		return nil, orca.RuntimeError(err)
 	}
 	// V2's request capability proves that explicit branch intent survives directory-name collisions.
 	if !slices.Contains(st.Capabilities, "worktree.open-existing-branch.v2-request.v1") {
@@ -183,14 +183,14 @@ func (n *Node) worktreeComposerPrepare(ctx context.Context, kind, id string) (pr
 			BaseRef     string `json:"worktreeBaseRef"`
 		} `json:"repo"`
 	}
-	if err = o.c.Call(ctx, orcart.CallTimeout, "repo.show", map[string]any{"repo": selector, "repoHostId": "local"}, &info); err != nil {
-		return proto.WorktreePrepare{}, orcaErr(err)
+	if err = o.Runtime().Call(ctx, orcart.CallTimeout, "repo.show", map[string]any{"repo": selector, "repoHostId": "local"}, &info); err != nil {
+		return proto.WorktreePrepare{}, orca.RuntimeError(err)
 	}
 	var presets struct {
 		Presets []proto.WorktreePreset `json:"presets"`
 	}
-	if err = o.c.Call(ctx, orcart.CallTimeout, "repo.sparsePresets", map[string]any{"repo": selector}, &presets); err != nil {
-		return proto.WorktreePrepare{}, orcaErr(err)
+	if err = o.Runtime().Call(ctx, orcart.CallTimeout, "repo.sparsePresets", map[string]any{"repo": selector}, &presets); err != nil {
+		return proto.WorktreePrepare{}, orca.RuntimeError(err)
 	}
 	refs, err := git(ctx, repo.root, "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes", "refs/tags")
 	if err != nil {
@@ -316,11 +316,10 @@ func (n *Node) worktreeCompose(ctx context.Context, kind, id string, raw json.Ra
 	name := strings.TrimSpace(in.Name)
 	generated := name == ""
 	if name == "" {
-		var seed [1]byte
-		if _, err = rand.Read(seed[:]); err != nil {
+		name, err = orca.GeneratedWorktreeName()
+		if err != nil {
 			return res, err
 		}
-		name = orcaGeneratedNames[int(seed[0])%len(orcaGeneratedNames)]
 	}
 	if len(name) > maxBranch || strings.ContainsAny(name, "/\\\r\n\x00") || name == "." || name == ".." {
 		return res, composerError(ctx, "name_invalid")
@@ -368,7 +367,7 @@ func (n *Node) worktreeCompose(ctx context.Context, kind, id string, raw json.Ra
 			return res, composerError(ctx, "source_invalid")
 		}
 		var item *worktreeSource
-		if e = o.c.Call(ctx, 30*time.Second, "github.workItem", map[string]any{"repo": selector, "number": num, "type": typ}, &item); e != nil {
+		if e = o.Runtime().Call(ctx, 30*time.Second, "github.workItem", map[string]any{"repo": selector, "number": num, "type": typ}, &item); e != nil {
 			return res, e
 		}
 		if item == nil || item.Number != num || item.Type != typ {
@@ -396,7 +395,7 @@ func (n *Node) worktreeCompose(ctx context.Context, kind, id string, raw json.Ra
 				Push    json.RawMessage `json:"pushTarget"`
 				Error   string          `json:"error"`
 			}
-			if e = o.c.Call(ctx, orcart.WorktreeTimeout, "worktree.resolvePrBase", map[string]any{"repo": selector, "prNumber": num, "headRefName": item.Branch,
+			if e = o.Runtime().Call(ctx, orcart.WorktreeTimeout, "worktree.resolvePrBase", map[string]any{"repo": selector, "prNumber": num, "headRefName": item.Branch,
 				"baseRefName": item.Base, "isCrossRepository": item.Cross}, &resolved); e != nil {
 				return res, e
 			}
@@ -421,8 +420,8 @@ func (n *Node) worktreeCompose(ctx context.Context, kind, id string, raw json.Ra
 	var result struct {
 		Worktree orcart.CreatedWorktree `json:"worktree"`
 	}
-	if err = o.c.Call(ctx, orcart.WorktreeTimeout, "worktree.create", p, &result); err != nil {
-		return res, orcaErr(err)
+	if err = o.Runtime().Call(ctx, orcart.WorktreeTimeout, "worktree.create", p, &result); err != nil {
+		return res, orca.RuntimeError(err)
 	}
 	if result.Worktree.ID == "" || result.Worktree.Path == "" {
 		return res, composerError(ctx, "create_unconfirmed")
@@ -491,7 +490,7 @@ func (n *Node) worktreeSources(ctx context.Context, kind, id string, raw json.Ra
 			p["type"] = typ
 		}
 		var item *worktreeSource
-		if err = o.c.Call(ctx, 30*time.Second, "github.workItem", p, &item); err != nil {
+		if err = o.Runtime().Call(ctx, 30*time.Second, "github.workItem", p, &item); err != nil {
 			return nil, err
 		}
 		if item == nil {
@@ -503,7 +502,7 @@ func (n *Node) worktreeSources(ctx context.Context, kind, id string, raw json.Ra
 		return map[string]any{"items": []worktreeSource{*item}}, nil
 	}
 	var result json.RawMessage
-	err = o.c.Call(ctx, 30*time.Second, "github.listWorkItems", map[string]any{"repo": selector, "query": query, "limit": 30}, &result)
+	err = o.Runtime().Call(ctx, 30*time.Second, "github.listWorkItems", map[string]any{"repo": selector, "query": query, "limit": 30}, &result)
 	if err == nil {
 		var response map[string]any
 		if json.Unmarshal(result, &response) == nil {
@@ -551,6 +550,6 @@ func (n *Node) worktreeSavePreset(ctx context.Context, kind, id string, raw json
 		return nil, composerError(ctx, "preset_empty")
 	}
 	var result json.RawMessage
-	err = o.c.Call(ctx, orcart.CallTimeout, "repo.saveSparsePreset", map[string]any{"repo": selector, "name": strings.TrimSpace(in.Name), "directories": dirs}, &result)
+	err = o.Runtime().Call(ctx, orcart.CallTimeout, "repo.saveSparsePreset", map[string]any{"repo": selector, "name": strings.TrimSpace(in.Name), "directories": dirs}, &result)
 	return result, err
 }

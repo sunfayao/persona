@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
 	"maps"
 	"os"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
+	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -22,7 +23,7 @@ func init() { claudeVersionOf = func(context.Context) string { return "" } }
 func TestVersionAtLeast(t *testing.T) {
 	for v, want := range map[string]bool{"2.1.0": true, "2.1.318": true, "2.2.0-beta": true, "3.0.0": true, "2.0.99": false, "1.9.9": false,
 		"": false, "2.1": false, "x.1.0": false} {
-		if got := versionAtLeast(v, pluginMinVersion); got != want {
+		if got := claudeplugin.VersionAtLeast(v, pluginMinVersion); got != want {
 			t.Errorf("%q: %v", v, got)
 		}
 	}

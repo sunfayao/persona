@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/files"
 )
 
 // Linux's /proc and /sys (#4172): every process's own folder and the kernel's secrets are refused, by any spelling
@@ -49,7 +51,7 @@ func TestPathGuardLinkIntoProc(t *testing.T) {
 		t.Skip("symlinks:", err)
 	}
 	for _, p := range []string{"~/env", "~/me/environ", "~/me/root/etc/hostname"} {
-		_, err := n.readFile(p, "", 0, false)
+		_, err := n.fileService().Read(p, "", 0, false)
 		if err == nil || runtime.GOOS == "linux" && !strings.Contains(err.Error(), "secrets") {
 			t.Errorf("%s: %v, want refused", p, err)
 		}
@@ -60,10 +62,10 @@ func TestPathGuardLinkIntoProc(t *testing.T) {
 func TestReadFileDeviceIsNotRead(t *testing.T) {
 	n := &Node{home: t.TempDir()}
 	done := make(chan error, 1)
-	var fc *FileContent
+	var fc *files.FileContent
 	go func() {
 		var err error
-		fc, err = n.readFile("/dev/zero", "", 0, false)
+		fc, err = n.fileService().Read("/dev/zero", "", 0, false)
 		done <- err
 	}()
 	select {
@@ -86,14 +88,14 @@ func TestReadFileProcOnLinux(t *testing.T) {
 		t.Skip("/proc is Linux's")
 	}
 	n := &Node{home: t.TempDir()}
-	fc, err := n.readFile("/proc/version", "", 0, false)
+	fc, err := n.fileService().Read("/proc/version", "", 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(fc.Text, "Linux version") || fc.Size != int64(len(fc.Text)) || fc.Truncated {
 		t.Fatalf("/proc/version: size %d, truncated %v, %q", fc.Size, fc.Truncated, fc.Text)
 	}
-	if _, err := n.readFile("/proc/self/environ", "", 0, false); err == nil {
+	if _, err := n.fileService().Read("/proc/self/environ", "", 0, false); err == nil {
 		t.Fatal("/proc/self/environ was read")
 	}
 }

@@ -8,9 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/modelhttp"
 	"io"
 	"log"
 	"os"
@@ -25,11 +22,18 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantskills"
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/nwverse/persona/server/internal/modelhttp"
 	"github.com/nwverse/persona/server/internal/node/clipshare"
+	"github.com/nwverse/persona/server/internal/node/doctor"
+	"github.com/nwverse/persona/server/internal/node/files"
 	"github.com/nwverse/persona/server/internal/node/machdiag"
+	"github.com/nwverse/persona/server/internal/node/ports"
+	"github.com/nwverse/persona/server/internal/node/preview"
 	"github.com/nwverse/persona/server/internal/nodeproto"
 	"github.com/nwverse/persona/server/internal/nodeupdate"
 	"github.com/nwverse/persona/server/internal/prompts"
@@ -38,6 +42,7 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 	"github.com/nwverse/persona/server/internal/screen"
 	"github.com/nwverse/persona/server/internal/screenlink"
+	"github.com/nwverse/persona/server/internal/shellcmd"
 	"github.com/nwverse/persona/server/internal/streams"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -102,15 +107,16 @@ type Node struct {
 	firstPromptParent context.Context
 
 	// doctorAt replaces the places node.doctor looks at (tests; doctor_rpc.go).
-	doctorAt func() DoctorOptions
+	doctorChecks *doctor.Doctor
+	doctorAt     func() DoctorOptions
 	// machineProcs replaces OS process/port hooks in tests (machine_procs.go).
 	machineProcs *machineProcsOps
 	// serviceRunner replaces OS command execution for machine.services* RPCs in tests.
 	serviceRunner *machineServiceRunner
 	// networkDiagAt replaces machine.network dependencies in tests (machine_network.go).
 	networkDiagAt func() machineNetworkOptions
-	// fileReadDeps replaces file.read's filesystem operations in tests.
-	fileReadDeps *fileReadDependencies
+	fileOnce      sync.Once
+	fileBrowser   *files.Service
 
 	home         string
 	sessionScope *nodeSessionScope
@@ -351,10 +357,11 @@ type Node struct {
 	ctxTools map[string][]string
 
 	// ports: the agents' listening ports (ports.go); streams: the forwarded connections to them (streams.Mux).
-	ports   portState
-	streams *streams.Mux
+	portsOnce sync.Once
+	ports     *ports.Service
+	streams   *streams.Mux
 	// preview: the headless browser of dev server previews (preview_browser.go), made on first use.
-	preview     *previewHost
+	preview     *preview.Host
 	previewOnce sync.Once
 
 	// hostAgents: each host's agents in its last answer (refreshHosts), kept for a host that does not answer.
@@ -460,31 +467,32 @@ func New(version string) (*Node, error) {
 		return nil, err
 	}
 	n := &Node{
-		Version:  version,
-		bootAt:   time.Now().UTC(), // sessions started before this were the previous herdr server's (interrupted.go)
-		home:     home,
-		dir:      dir,
-		exe:      exe,
-		bin:      bin,
-		logger:   log.New(os.Stderr, "node: ", log.LstdFlags|log.Lmsgprefix),
-		files:    map[string]*transcript.File{},
-		paths:    map[string]string{},
-		watches:  map[string]*watch{},
-		agents:   map[string]host.Agent{},
-		panes:    map[string]string{},
-		procs:    map[string]*assistantProc{},
-		akeys:    map[string]*assistantProc{},
-		metas:    map[string]quickMeta{},
-		bgScans:  map[string]*bgScan{},
-		panePIDs: map[string]panePID{},
-		modes:    map[string]sessionModes{},
-		driving:  map[string]bool{},
-		events:   newHerdrEvents(),
-		cdirs:    newClaudeDirs(),
-		hooks:    &hookTurns{},
-		codices:  newCodexRegistry(),
-		runtimes: newRuntimeRegistry(),
-		screens:  newScreenLogins(),
+		doctorChecks: newDoctor(),
+		Version:      version,
+		bootAt:       time.Now().UTC(), // sessions started before this were the previous herdr server's (interrupted.go)
+		home:         home,
+		dir:          dir,
+		exe:          exe,
+		bin:          bin,
+		logger:       log.New(os.Stderr, "node: ", log.LstdFlags|log.Lmsgprefix),
+		files:        map[string]*transcript.File{},
+		paths:        map[string]string{},
+		watches:      map[string]*watch{},
+		agents:       map[string]host.Agent{},
+		panes:        map[string]string{},
+		procs:        map[string]*assistantProc{},
+		akeys:        map[string]*assistantProc{},
+		metas:        map[string]quickMeta{},
+		bgScans:      map[string]*bgScan{},
+		panePIDs:     map[string]panePID{},
+		modes:        map[string]sessionModes{},
+		driving:      map[string]bool{},
+		events:       newHerdrEvents(),
+		cdirs:        newClaudeDirs(),
+		hooks:        &hookTurns{},
+		codices:      newCodexRegistry(),
+		runtimes:     newRuntimeRegistry(),
+		screens:      newScreenLogins(),
 	}
 	n.sessionScope = scope
 	if n.external, err = loadExternalAdapterRegistry(); err != nil {
@@ -512,7 +520,6 @@ func New(version string) (*Node, error) {
 	n.hosts = host.NewRegistry(nodeHosts(proto.EngineHerdr, false, n.logger.Printf)...) // herdr until engine.use, botmux until the hub says
 	n.resetSignals()
 	n.state = newState()
-	n.ports.kick = make(chan struct{}, 1)
 	go sweepTerminalUploads(dir, time.Now()) // pasted files older than a week (upload_sweep.go)
 	return n, nil
 }
@@ -627,7 +634,7 @@ func (n *Node) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	go n.backfillUsage(ctx, n.stateReady) // the days before the hub's history, once (usage_backfill.go)
 	go n.runUsageWindows(ctx)
 	go n.sampleMetrics(ctx)
-	go n.watchPorts(ctx)
+	go n.portService().Watch(ctx)
 	go n.modelRecoveryLoop(ctx)
 	go n.closeFinishedLoop(ctx) // finished Agents' terminals after their grace period (finished_close.go)
 	go n.keepProbesFresh(ctx)   // a message after a quiet spell finds its launcher's probe fresh (#9097)
@@ -2599,7 +2606,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if err := json.Unmarshal(params, &chunk); err != nil {
 			return nil, err
 		}
-		return n.readFileChunk(chunk)
+		return n.fileService().ReadChunk(chunk)
 	case proto.MethodMachineFilesRoots, proto.MethodMachineFilesList, proto.MethodMachineFilesPreview,
 		proto.MethodMachineFilesTail, proto.MethodMachineFilesChunk,
 		proto.MethodMachineFilesWrite, proto.MethodMachineFilesCreate,
@@ -2630,7 +2637,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if err := json.Unmarshal(params, &in); err != nil {
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
-		return n.readFile(in.Path, in.Cwd, in.Offset, in.Stream)
+		return n.fileService().Read(in.Path, in.Cwd, in.Offset, in.Stream)
 	case "port.dial":
 		return n.portDial(ctx, params)
 	case "screen.dial": // live-screen video channel (#3954): start the capture helper for a signed-in pair (screen.go)
@@ -2638,13 +2645,13 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 	case "screen.phone": // Phone Screen (#9314): the virtual display and its window, for a signed-in pair (phonescreen.go)
 		return n.screenPhone(ctx, params)
 	case "port.probe":
-		return n.portProbeRPC(ctx, params)
+		return n.portService().ProbeRPC(ctx, params)
 	case methodPreviewServers: // a session folder's dev servers, from its .claude/launch.json (preview_launch.go)
 		return n.previewServersRPC(ctx, params)
 	case methodPreviewStart: // run one of them in a new terminal tab, after the user confirmed its command
 		return n.previewStartRPC(ctx, params)
 	case methodPreviewOpen: // a headless browser tab on a port of this computer, on a stream (preview.go)
-		return n.previewOpenRPC(ctx, params)
+		return n.previewHost().Open(ctx, params)
 	// The built-in programs cua and ego by their old names, for a hub from before builtin_programs (builtin.go).
 	case "computer.status", "computer.call", "computer.install", "computer.grant", "computer.cancel", "computer.clipboard",
 		"computer.cursor", "computer.nolock", "computer.lock",
@@ -2656,7 +2663,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		if err := json.Unmarshal(params, &in); err != nil {
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
-		return map[string]any{"stats": n.statPaths(in.Paths, in.Cwd, in.Detail)}, nil
+		return map[string]any{"stats": n.fileService().Stat(in.Paths, in.Cwd, in.Detail)}, nil
 	case "space.rename":
 		name, err := n.renameSpace(ctx, p.WorkspaceID, p.Name)
 		if err != nil {
@@ -2690,15 +2697,15 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
 		if method == methodFsTaskList {
-			return n.listTaskDir(in.Path, in.Cwd)
+			return n.fileService().ListTask(in.Path, in.Cwd)
 		}
-		return n.listDir(in.Path, in.Cwd)
+		return n.fileService().List(in.Path, in.Cwd)
 	case methodFsFind: // every file under cwd, for the web palette's file search (files_find.go)
 		var in fsFindParams
 		if err := json.Unmarshal(params, &in); err != nil {
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
-		return n.findFiles(ctx, in.Cwd, in.Limit)
+		return n.fileService().Find(ctx, in.Cwd, in.Limit)
 	case methodFsWatch: // the folders and Git directories the web panels have open (fswatch.go)
 		return n.fsWatch(params)
 	case methodGitStatus:
@@ -3159,24 +3166,7 @@ func writeAtomic(path string, r io.Reader) error {
 	return err
 }
 
-// shellQuote makes s one word that reads back as s in the shells a node runs commands in or types them into: the sh
-// family and fish. Safe characters stay bare; anything else is single-quoted, with each quote and each backslash put
-// outside the quotes, backslash-escaped. Inside single quotes fish still takes \' and \\ as escapes, so a backslash
-// before a quote used to keep the quotes open there and run the rest of a first message as commands (#2867); outside
-// quotes every one of these shells reads \' and \\ alike.
-func shellQuote(s string) string {
-	if s != "" && strings.IndexFunc(s, func(r rune) bool {
-		return !(r == '/' || r == '.' || r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z')
-	}) < 0 {
-		return s
-	}
-	return "'" + shellQuoteEscapes.Replace(s) + "'"
-}
-
-// shellQuoteEscapes closes shellQuote's quotes around each quote and backslash in the text (one pass, so the
-// replacements are not escaped again): anyShellQuote's scheme (devices/deploy.go) for the sh family and fish, with
-// csh's `!` left as it is.
-var shellQuoteEscapes = strings.NewReplacer(`'`, `'\''`, `\`, `'\\'`)
+func shellQuote(s string) string { return shellcmd.Quote(s) }
 
 // herdrVersion is the herdr host's version ("" without one): node.info's herdr_version.
 func (n *Node) herdrVersion(ctx context.Context) string {

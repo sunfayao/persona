@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -63,7 +64,7 @@ func (n *Node) claudeAuthStatusCommand(ctx context.Context, name, command string
 	// The login shell's claude, as the self-check reads it (cached). An older known CLI is not asked because it
 	// would reject `claude auth`.
 	version := n.claudeV.get(ctx)
-	if version != "" && !versionAtLeast(version, claudeAuthMinVersion) {
+	if version != "" && !claudeplugin.VersionAtLeast(version, claudeAuthMinVersion) {
 		st := unknown(proto.ClaudeAuthOld)
 		st.Version = version
 		return st, nil

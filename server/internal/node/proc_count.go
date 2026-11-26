@@ -1,6 +1,10 @@
 package node
 
-import "runtime"
+import (
+	"runtime"
+
+	"github.com/nwverse/persona/server/internal/osproc"
+)
 
 // claudeProcessCount counts the node user's running claude processes for the hub's admission gate. Linux reuses the
 // cached /proc walk (userProcesses); other platforms cannot answer from the shared walk yet, so they report unknown
@@ -20,7 +24,7 @@ func claudeProcessCount() (n int, ok bool) {
 func countClaudeArgv(procs map[int][]string) int {
 	n := 0
 	for _, argv := range procs {
-		if isClaudeCmd(argv) {
+		if osproc.IsClaudeCommand(argv) {
 			n++
 		}
 	}

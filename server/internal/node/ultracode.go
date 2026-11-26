@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -112,7 +113,7 @@ func ultracodeVersionNote(version string) string {
 	if !ultracodeVersion.MatchString(version) {
 		return ""
 	} // unknown: try the command
-	if versionAtLeast(strings.TrimPrefix(strings.SplitN(version, "+", 2)[0], "v"), [3]int{2, 1, 284}) {
+	if claudeplugin.VersionAtLeast(strings.TrimPrefix(strings.SplitN(version, "+", 2)[0], "v"), [3]int{2, 1, 284}) {
 		return ""
 	}
 	return "请升级到 Claude Code 2.1.284 或更新版本，旧版不支持独立的 ultracode 开关"

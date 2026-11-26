@@ -15,6 +15,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -156,7 +157,7 @@ func TestThumbnailProcessingVersionInvalidatesOldETags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oldETag := fmt.Sprintf("%s-%d", fileRevision(st), 128)
+	oldETag := fmt.Sprintf("%s-%d", filemeta.Revision(st), 128)
 	old := &proto.FileThumb{ETag: oldETag, Mime: "image/jpeg", Data: []byte("old sideways thumbnail")}
 	thumbCache.put(path+"\x00"+oldETag, old)
 	request := proto.FileThumbRequest{Path: path, Size: 128, ETag: oldETag}
@@ -217,7 +218,7 @@ func TestThumbnailJPEGFailureCanBeRetried(t *testing.T) {
 		t.Fatal(err)
 	}
 	after, err := os.Stat(path)
-	if err != nil || fileRevision(after) != fileRevision(before) {
+	if err != nil || filemeta.Revision(after) != filemeta.Revision(before) {
 		t.Fatalf("retry requires the same source revision: %v", err)
 	}
 	th, err := n.fileThumb(context.Background(), request)
@@ -239,7 +240,7 @@ func TestThumbnailJPEGFailureCanBeRetried(t *testing.T) {
 		t.Fatal(err)
 	}
 	otherStat, err := os.Stat(otherPath)
-	if err != nil || fileRevision(otherStat) != fileRevision(st) {
+	if err != nil || filemeta.Revision(otherStat) != filemeta.Revision(st) {
 		t.Fatalf("test requires equal source revisions: %v", err)
 	}
 	var wg sync.WaitGroup

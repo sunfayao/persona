@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/herdr"
+	"github.com/nwverse/persona/server/internal/node/doctor"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 )
 
@@ -35,7 +36,7 @@ func newDoctorEnv(t *testing.T) *doctorEnv {
 	}
 	dir := mkdir(t, filepath.Join(root, "node"))
 	return &doctorEnv{
-		n: &Node{home: root, dir: dir, bin: bin},
+		n: &Node{home: root, dir: dir, bin: bin, doctorChecks: newDoctor()},
 		opts: DoctorOptions{
 			Dir: dir, Bin: bin,
 			NodeSock: filepath.Join(root, "n.sock"), RuntimeSock: filepath.Join(root, "r.sock"), HerdrSock: filepath.Join(root, "h.sock"),
@@ -124,7 +125,7 @@ func TestDoctorHealthyNode(t *testing.T) {
 		wantStatus(t, rep, name, DoctorOK, "")
 	}
 	// What the node wrote at startup is what the doctor expects: the two share the generator.
-	for _, name := range append(slices.Clone(generatedGroups), agentPluginGroup) {
+	for _, name := range append(slices.Clone(doctor.GeneratedGroups()), agentPluginGroup) {
 		wantStatus(t, rep, name, DoctorOK, "current")
 	}
 }
@@ -144,7 +145,7 @@ func TestDoctorStaleAndMissingFiles(t *testing.T) {
 	if !rep.OK {
 		t.Errorf("stale files alone must not fail: %+v", rep.Checks)
 	}
-	for _, name := range generatedGroups {
+	for _, name := range doctor.GeneratedGroups() {
 		wantStatus(t, rep, name, DoctorWarn, "stale")
 	}
 	wantStatus(t, rep, agentPluginGroup, DoctorOK, "current") // does not name the program
@@ -198,7 +199,7 @@ func TestDoctorFixRewritesOnlyGeneratedFiles(t *testing.T) {
 	if !slices.Equal(rep.Fixed, []string{"claude-hooks", "mcp.json"}) {
 		t.Errorf("fixed %v", rep.Fixed)
 	}
-	for _, name := range generatedGroups {
+	for _, name := range doctor.GeneratedGroups() {
 		wantStatus(t, rep, name, DoctorOK, "current")
 	}
 	if sha256.Sum256(mustRead(t, global)) != before {
@@ -307,52 +308,6 @@ func TestDoctorCommandPaths(t *testing.T) {
 	// Nothing generated yet: nothing to check, said so.
 	empty := newDoctorEnv(t)
 	wantStatus(t, RunDoctor(context.Background(), empty.opts), "command-paths", DoctorWarn, "")
-}
-
-func TestShellFirstWord(t *testing.T) {
-	for in, want := range map[string]string{
-		"/usr/bin/personad hook":       "/usr/bin/personad",
-		"'/opt/my dir/personad' hook":  "/opt/my dir/personad",
-		`'/opt/it'\''s/personad' hook`: "/opt/it's/personad",
-		"  /bin/x":                     "/bin/x",
-		"":                             "",
-		"'/unterminated hook":          "",
-		// The node's directory in front (rootAssign) is not the program.
-		"PERSONA_HOME=/h/.persona /usr/bin/personad hook":          "/usr/bin/personad",
-		"PERSONA_HOME='/h/my dir' A=1 '/opt/my dir/personad' hook": "/opt/my dir/personad",
-		"PERSONA_HOME=/h/.persona":                                 "",
-		"'/opt/a=b/personad' hook":                                 "/opt/a=b/personad",
-		"/opt/a=b/personad hook":                                   "/opt/a=b/personad",
-		`PERSONA_HOME='/it'\''s' '/opt/it'\''s/personad' hook`:     "/opt/it's/personad",
-	} {
-		if got := shellFirstWord(in); got != want {
-			t.Errorf("shellFirstWord(%q) = %q, want %q", in, got, want)
-		}
-	}
-	// Whatever shellQuote writes reads back the same, with or without a directory in front.
-	for _, p := range []string{"/a/b", "/a b/c", "/it's/x", "/q\"x/y", `/back\slash/x`, `/it\'s/x`} {
-		if got := shellFirstWord(shellQuote(p) + " hook"); got != p {
-			t.Errorf("round trip of %q: %q", p, got)
-		}
-		if got := shellFirstWord(rootAssign(p+"/.persona", shellQuote) + shellQuote(p) + " hook"); got != p {
-			t.Errorf("round trip of %q after its directory: %q", p, got)
-		}
-	}
-}
-
-// A shell-form hook's program is its command line's first word; an exec-form one's ("args" given) is its command as it
-// is, spaces included.
-func TestConfigCommandsBothForms(t *testing.T) {
-	b := []byte(`{"hooks": {
-		"Stop": [{"hooks": [{"type": "command", "command": "'/opt/my dir/personad' hook"}]}],
-		"MessageDisplay": [{"hooks": [{"type": "command", "command": "/opt/my dir/persona-node", "args": ["hook"]}]}],
-		"Notification": [{"hooks": [{"type": "command", "command": "/opt/no args", "args": []}]}]
-	}}`)
-	got := configCommands(b)
-	slices.Sort(got)
-	if want := []string{"/opt/my dir/persona-node", "/opt/my dir/personad", "/opt/no args"}; !slices.Equal(got, want) {
-		t.Fatalf("configCommands = %q, want %q", got, want)
-	}
 }
 
 func TestDoctorClaudeVersion(t *testing.T) {
@@ -485,3 +440,59 @@ func TestPrintDoctorOneLinePerCheck(t *testing.T) {
 		}
 	}
 }
+
+// The doctor says whether the sandbox is on, whether this machine can run it, and why a start was not wrapped.
+func TestCheckAgentSandbox(t *testing.T) {
+	cases := []struct {
+		name   string
+		sup    sandbox.Support
+		on     bool
+		record *sandbox.AgentStatus
+		status string
+		words  []string
+	}{
+		{"off", macSandbox, false, nil, DoctorOK, []string{"未开启", "本机可以开启"}},
+		{"off on linux without bwrap", sandbox.Support{OS: "linux", Why: "机器上没有 bwrap"}, false, nil, DoctorOK, []string{"未开启", "工具不可用", "bwrap"}},
+		{"on", macSandbox, true, &sandbox.AgentStatus{State: sandbox.AgentActive}, DoctorOK, []string{"已开启", "已在沙箱里", "docker", "sudo", "herdr", "personad launch"}},
+		{"on on linux without bwrap", sandbox.Support{OS: "linux", Why: "机器上没有 bwrap"}, true, nil, DoctorWarn, []string{"工具不可用", "bwrap"}},
+		{"on without sandbox-exec", sandbox.Support{OS: "darwin", Why: "机器上没有 sandbox-exec"}, true, nil, DoctorWarn, []string{"工具不可用", "sandbox-exec"}},
+		{"a start skipped", macSandbox, true, &sandbox.AgentStatus{State: sandbox.AgentSkipped, Why: "Claude 开了自带 sandbox"}, DoctorWarn, []string{"跳过", "Claude 开了自带 sandbox"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			agentSandboxFakes(t, c.sup)
+			n := agentNode(t, c.on)
+			if c.record != nil {
+				recordAgentSandbox(n.dir, "launch claude", *c.record)
+			}
+			got := checkAgentSandbox(n.dir)
+			if got.Name != "agent-sandbox" || got.Status != c.status {
+				t.Errorf("%+v", got)
+			}
+			for _, w := range c.words {
+				if !strings.Contains(got.Detail, w) {
+					t.Errorf("%q not in %q", w, got.Detail)
+				}
+			}
+		})
+	}
+	t.Run("active on linux", func(t *testing.T) {
+		agentSandboxFakes(t, sandbox.Support{OS: "linux", Bwrap: "/usr/bin/bwrap"})
+		n := agentNode(t, true)
+		recordAgentSandbox(n.dir, "launch claude", sandbox.AgentStatus{State: sandbox.AgentActive})
+		got := checkAgentSandbox(n.dir)
+		if got.Status != DoctorOK {
+			t.Fatalf("%+v", got)
+		}
+		for _, want := range []string{"已开启", "已在沙箱里", "node 重启", "一并重启", "node.sock"} {
+			if !strings.Contains(got.Detail, want) {
+				t.Errorf("%q not in %q", want, got.Detail)
+			}
+		}
+		if strings.Contains(got.Detail, "ps、top、sudo") {
+			t.Errorf("Linux shows the macOS setuid limitation: %q", got.Detail)
+		}
+	})
+}
+
+func checkGenerated(opts DoctorOptions) []DoctorCheck { return newDoctor().CheckGenerated(opts) }

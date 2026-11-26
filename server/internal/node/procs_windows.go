@@ -57,10 +57,6 @@ func listWinProcs(want func(name string) bool, keys ...string) (procs []winProc,
 	return procs, parents, nil
 }
 
-// progName is a command line's program as the scans compare it (isClaudeCmd, agentOfCmd): base name, lower case,
-// without ".exe".
-func progName(argv0 string) string { return imageName(argv0) }
-
 // imageName is an executable's name as the scans compare it: base name, lower case, without ".exe".
 func imageName(path string) string {
 	return strings.TrimSuffix(strings.ToLower(filepath.Base(path)), ".exe")

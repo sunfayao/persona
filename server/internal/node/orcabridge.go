@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
@@ -285,9 +286,9 @@ func orcaRow(w orcart.Worktree, a orcart.AgentRow, h *orcaHead) map[string]any {
 		updated = time.UnixMilli(a.UpdatedAt).UTC()
 	}
 	row := map[string]any{"session_id": h.provider, "title": title, "cwd": w.Path, "status": orcaChatStatus(a),
-		"updated_at": updated, "rev": a.UpdatedAt, "space_id": w.WorktreeID, "space_name": orcaSpaceLabel(w.Branch, w.Path),
+		"updated_at": updated, "rev": a.UpdatedAt, "space_id": w.WorktreeID, "space_name": orca.SpaceLabel(w.Branch, w.Path),
 		"agent": "claude", "transcript": h.provider}
-	if parent := orcaParent(w.WorktreeID, w.ParentWorktreeID); parent != "" {
+	if parent := orca.ParentWorkspace(w.WorktreeID, w.ParentWorktreeID); parent != "" {
 		row["parent_space_id"] = parent // folds under its parent worktree like the terminals' sessions (#2073)
 	}
 	if a.LastAssistantMessage != "" {

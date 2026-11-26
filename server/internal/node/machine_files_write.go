@@ -17,6 +17,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
@@ -36,7 +38,7 @@ func machineFileChangedError(st os.FileInfo, sha string) error {
 	data, _ := json.Marshal(map[string]any{
 		"mtime":    st.ModTime().UTC(),
 		"sha256":   sha,
-		"revision": fileRevision(st),
+		"revision": filemeta.Revision(st),
 		"size":     st.Size(),
 	})
 	return &rpc.Error{
@@ -123,7 +125,7 @@ func (n *Node) resolveMachineEntryNoFollow(asked, boundaryRoot string) (*machine
 	if err != nil {
 		return nil, err
 	}
-	absDisplay := absPath(display)
+	absDisplay := pathutil.Abs(display)
 	parentDisplay := filepath.Dir(absDisplay)
 	if parentDisplay == absDisplay {
 		return nil, machineBoundaryError("cannot modify or delete filesystem root")
@@ -272,7 +274,7 @@ func (n *Node) machineFileWrite(req proto.MachineFileWriteRequest) (*proto.Machi
 	if !curMtime.Equal(req.ExpectedMtime.UTC()) || !strings.EqualFold(curSHA, strings.TrimSpace(req.ExpectedSHA256)) {
 		return nil, machineFileChangedError(st, curSHA)
 	}
-	if req.ExpectedRevision != "" && fileRevision(st) != req.ExpectedRevision {
+	if req.ExpectedRevision != "" && filemeta.Revision(st) != req.ExpectedRevision {
 		return nil, machineFileChangedError(st, curSHA)
 	}
 
@@ -310,7 +312,7 @@ func (n *Node) machineFileWrite(req proto.MachineFileWriteRequest) (*proto.Machi
 	}
 
 	// Re-verify target resolves to the exact same canonical path and inode before atomic rename.
-	rechecked, err := n.realPath(absPath(res.DisplayPath))
+	rechecked, err := n.realPath(pathutil.Abs(res.DisplayPath))
 	if err != nil {
 		if errors.Is(err, errOffLimits) || errors.Is(err, errICloud) || errors.Is(err, errTooManyLinks) {
 			return nil, machineBoundaryError(err.Error())
@@ -328,7 +330,7 @@ func (n *Node) machineFileWrite(req proto.MachineFileWriteRequest) (*proto.Machi
 	if err != nil {
 		return nil, explainDenied(res.DisplayPath, n.home, err)
 	}
-	if !now.Mode().IsRegular() || !sameFileRead(st, now) || !now.ModTime().UTC().Equal(curMtime) || now.Size() != st.Size() {
+	if !now.Mode().IsRegular() || !filemeta.SameFile(st, now) || !now.ModTime().UTC().Equal(curMtime) || now.Size() != st.Size() {
 		return nil, machineFileChangedError(now, "")
 	}
 
@@ -350,7 +352,7 @@ func (n *Node) machineFileWrite(req proto.MachineFileWriteRequest) (*proto.Machi
 		Mode:            finalSt.Mode().String(),
 		Perm:            uint32(finalSt.Mode().Perm()),
 		ModTime:         finalSt.ModTime().UTC(),
-		Revision:        fileRevision(finalSt),
+		Revision:        filemeta.Revision(finalSt),
 		SHA256:          sha256HexBytes(newBytes),
 		Sensitive:       res.Sensitive,
 		SensitiveReason: res.SensitiveReason,
@@ -457,7 +459,7 @@ func (n *Node) machineFileCreate(req proto.MachineFileCreateRequest) (*proto.Mac
 	return &proto.MachineFileCreateResponse{
 		Entry:         n.buildMachineEntry(targetRes.DisplayPath, targetRes.CanonicalPath, targetRes.RootPath, st),
 		CanonicalPath: targetRes.CanonicalPath,
-		Revision:      fileRevision(st),
+		Revision:      filemeta.Revision(st),
 		SHA256:        sha256HexBytes(data),
 	}, nil
 }

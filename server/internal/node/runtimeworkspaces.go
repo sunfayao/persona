@@ -26,6 +26,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/pathutil"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -213,7 +214,7 @@ func (n *Node) catalogRuntimes() (list []*runtimeConn, enabled bool) {
 // catalogDir is a workspace's folder as the catalog names it: its physical directory (symbolic links resolved), as
 // the node names a session's working tree; as written when it cannot be resolved (gone, or in iCloud Drive).
 func (n *Node) catalogDir(cwd string) string {
-	if path := n.resolvePath(cwd, ""); path != "" && !inICloud(path) {
+	if path := pathutil.Resolve(cwd, "", n.home); path != "" && !inICloud(path) {
 		if real, err := filepath.EvalSymlinks(path); err == nil && !inICloud(real) {
 			return real
 		}

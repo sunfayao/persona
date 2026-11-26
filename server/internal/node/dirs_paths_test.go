@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/nwverse/persona/server/internal/pathutil"
 )
 
 func TestDirectoryParentRoots(t *testing.T) {
@@ -51,18 +53,18 @@ func TestDirsAndResolveHomePaths(t *testing.T) {
 		if listed.Path != project || listed.Parent != home {
 			t.Errorf("dirs(%q) = %+v, want %q under %q", path, listed, project, home)
 		}
-		if got := n.resolvePath(path, ""); got != project {
+		if got := pathutil.Resolve(path, "", n.home); got != project {
 			t.Errorf("resolvePath(%q) = %q, want %q", path, got, project)
 		}
 	}
-	if got := n.resolvePath("~", ""); got != home {
+	if got := pathutil.Resolve("~", "", n.home); got != home {
 		t.Errorf("home = %q, want %q", got, home)
 	}
-	if got := n.resolvePath("project", ""); got != "" {
+	if got := pathutil.Resolve("project", "", n.home); got != "" {
 		t.Errorf("a relative path without cwd resolved to %q", got)
 	}
 	if filepath.Separator != '\\' {
-		if got := n.resolvePath(`~\project`, home); got != filepath.Join(home, `~\project`) {
+		if got := pathutil.Resolve(`~\project`, home, n.home); got != filepath.Join(home, `~\project`) {
 			t.Errorf("POSIX backslash path changed: %q", got)
 		}
 	}

@@ -2,14 +2,14 @@ package node
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/compat"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/claudeplugin"
+	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/identity"
 )
 
@@ -65,7 +65,7 @@ func (n *Node) assistantOfficeScript() string {
 
 // claudeLoadsPlugins says whether this machine's claude takes --plugin-dir; not when its version is not known.
 func (n *Node) claudeLoadsPlugins(ctx context.Context) bool {
-	return versionAtLeast(n.claudeV.get(ctx), pluginMinVersion)
+	return claudeplugin.VersionAtLeast(n.claudeV.get(ctx), pluginMinVersion)
 }
 
 // claudeVersionCache is claude's version as last asked: at each hello, and at a start when it is older than
@@ -95,22 +95,4 @@ func (c *claudeVersionCache) get(ctx context.Context) string {
 		c.v, c.at = claudeVersionOf(ctx), time.Now()
 	}
 	return c.v
-}
-
-// versionAtLeast says whether version v ("2.1.318", "2.1.0-beta") is min or later; false when it is not one.
-func versionAtLeast(v string, min [3]int) bool {
-	parts := strings.SplitN(strings.SplitN(v, "-", 2)[0], ".", 3)
-	if len(parts) != 3 {
-		return false
-	}
-	for i, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return false
-		}
-		if n != min[i] {
-			return n > min[i]
-		}
-	}
-	return true
 }

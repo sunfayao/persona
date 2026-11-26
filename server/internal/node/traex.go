@@ -171,13 +171,7 @@ func (n *Node) traexOwnerThreads(threads map[string]codexAppThread) map[int][]st
 // another user that still writes into this user's home (`sudo claude`, sudo keeping HOME on macOS) counts as gone.
 func alive(pid int) bool { return osproc.AliveMine(pid) }
 
-// paneEnvRe finds a host's pane variable (host.PaneEnv) in a process's environment, NUL- (Linux) or space-separated
-// (ps -E).
-func paneEnvRe(name string) *regexp.Regexp {
-	return regexp.MustCompile(`(?:^|[\x00\s])` + regexp.QuoteMeta(name) + `=([^\x00\s]+)`)
-}
-
-var herdrPaneEnvRe = paneEnvRe(herdrPaneEnv)
+var herdrPaneEnvRe = osproc.PaneEnvRE(herdrPaneEnv)
 
 // paneEnvRes caches paneEnvRe per variable.
 var paneEnvRes sync.Map // name -> *regexp.Regexp
@@ -205,7 +199,7 @@ func (n *Node) paneOfPID(pid int) string {
 	for _, h := range n.hosts.All() {
 		re, ok := paneEnvRes.Load(h.PaneEnv())
 		if !ok {
-			re, _ = paneEnvRes.LoadOrStore(h.PaneEnv(), paneEnvRe(h.PaneEnv()))
+			re, _ = paneEnvRes.LoadOrStore(h.PaneEnv(), osproc.PaneEnvRE(h.PaneEnv()))
 		}
 		if m := re.(*regexp.Regexp).FindSubmatch(env); m != nil {
 			p = host.PaneRef{Kind: h.Kind(), ID: string(m[1])}.String()

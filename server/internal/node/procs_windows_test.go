@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
+	"github.com/nwverse/persona/server/internal/osproc"
 )
 
 // TestProcHelper is the child TestListWinProcsReadsTheChild reads: it waits until killed.
@@ -102,8 +105,8 @@ func TestPickEnvAndNames(t *testing.T) {
 	if len(env) != 2 || env["ORCA_PANE_KEY"] != "t:l" || env["HERDR_PANE_ID"] != "w1:p1" {
 		t.Errorf("env %q", env)
 	}
-	if orcaPaneOf(envListing(map[string]string{"ORCA_PANE_KEY": "t:l"})) != "t:l" ||
-		orcaPaneOf(envListing(env)) != "" { // inside a herdr nested in Orca's terminal
+	if orca.PaneOfEnvironment(envListing(map[string]string{"ORCA_PANE_KEY": "t:l"})) != "t:l" ||
+		orca.PaneOfEnvironment(envListing(env)) != "" { // inside a herdr nested in Orca's terminal
 		t.Error("orcaPaneOf on a picked environment")
 	}
 	for in, want := range map[string]string{`C:\work\`: `C:\work`, `C:\`: `C:\`, `C:\work`: `C:\work`} {
@@ -122,8 +125,8 @@ func TestPickEnvAndNames(t *testing.T) {
 		{[]string{`C:\tools\codex.exe`}, "codex"},
 		{[]string{`C:\Program Files\nodejs\node.exe`, `server.js`}, ""},
 	} {
-		if got := agentOfCmd(c.argv); got != c.want {
-			t.Errorf("agentOfCmd(%q) = %q, want %q", c.argv, got, c.want)
+		if got := osproc.AgentOfCommand(c.argv); got != c.want {
+			t.Errorf("osproc.AgentOfCommand(%q) = %q, want %q", c.argv, got, c.want)
 		}
 	}
 }

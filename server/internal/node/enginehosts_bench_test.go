@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
+	"github.com/nwverse/persona/server/internal/node/engine/orca"
 	"github.com/nwverse/persona/server/internal/orcart"
 	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -46,7 +47,7 @@ const (
 // runs two claudes whose sessions files name their sessions; a claude outside every pane runs another session, so the
 // node also asks the herdr panes what they run (sessionFromProcess), as on a machine with a claude in a plain terminal.
 // Orca's process scan sleeps benchOrcaScan.
-func benchNode(t *testing.T, claudes int) (*Node, *fakeHerdr, host.Host, *orcaHost) {
+func benchNode(t *testing.T, claudes int) (*Node, *fakeHerdr, host.Host, host.Host, *orcaTestClock) {
 	t.Helper()
 	n, f, home := herdrNode(t)
 	var agents, panes, tabs []any
@@ -75,8 +76,9 @@ func benchNode(t *testing.T, claudes int) (*Node, *fakeHerdr, host.Host, *orcaHo
 
 	o := orcarttest.New(t)
 	procs := &fakeProcs{}
-	oh := newOrcaHost(&orcart.Client{MetaPath: o.MetaPath})
-	oh.scan = func() (map[string][]orcaProc, error) {
+	cfg := orcaConfig(&orcart.Client{MetaPath: o.MetaPath})
+	cfg.Clock = &procs.clock
+	cfg.Scan = func() (map[string][]orcaProc, error) {
 		time.Sleep(benchOrcaScan)
 		return procs.scan()
 	}
@@ -85,7 +87,7 @@ func benchNode(t *testing.T, claudes int) (*Node, *fakeHerdr, host.Host, *orcaHo
 		handle, tab, pid := fmt.Sprintf("term_%d", i+1), fmt.Sprintf("tab%d", i+1), 4201+i
 		terms = append(terms, orcaTerm(handle, tab, "leaf1", "claude"))
 		rows = append(rows, orcarttest.Agent(tab+":leaf1", "claude", "done"))
-		procs.set(tab+":leaf1", orcaProc{pid: pid, agent: "claude"})
+		procs.set(tab+":leaf1", orcaProc{PID: pid, Agent: "claude"})
 		writeClaudePID(t, home, pid, sid)
 		writeTranscript(t, home, orcaCwd, sid, time.Now().Add(-time.Minute), `{"type":"custom-title","customTitle":"x"}`)
 	}
@@ -93,10 +95,11 @@ func benchNode(t *testing.T, claudes int) (*Node, *fakeHerdr, host.Host, *orcaHo
 	o.SetWorktrees(orcarttest.Worktree("repo::"+orcaCwd, orcaCwd, "refs/heads/feature-x", rows...))
 
 	hh := n.hosts.Get(host.Herdr)
+	oh := orca.New(cfg)
 	n.hosts = host.NewRegistry(hh, oh)
 	c := proto.EngineChoice{Hosts: []string{"herdr", "orca"}, Default: "herdr"}
 	n.eng.name, n.eng.set = proto.LegacyEngine(c), &c
-	return n, f, hh, oh
+	return n, f, hh, oh, &procs.clock
 }
 
 // dueLooks makes the process lookups of kind's panes due (their pids were looked up over a minute ago).
@@ -112,11 +115,7 @@ func dueLooks(n *Node, kind string) {
 }
 
 // staleScan makes Orca's last process scan older than orcaProcsMaxAge: the next lookup scans.
-func staleScan(oh *orcaHost) {
-	oh.mu.Lock()
-	oh.procsAt = time.Now().Add(-time.Minute)
-	oh.mu.Unlock()
-}
+func staleScan(clock *orcaTestClock) { clock.advance(time.Minute) }
 
 // PERSONA_BENCH_ENGINEHOSTS=1 measures what enabling Orca beside herdr costs herdr (#5816), on fakes: first the live
 // measurement's rounds (a herdr refresh, a refresh of every host, a send into a herdr pane; Orca refreshed every second
@@ -129,7 +128,7 @@ func TestEngineHostsLatencyOnFakes(t *testing.T) {
 	}
 	ctx := context.Background()
 	measure := func(name string, withOrca bool) {
-		n, _, hh, oh := benchNode(t, 8)
+		n, _, hh, oh, _ := benchNode(t, 8)
 		if !withOrca {
 			n.hosts = host.NewRegistry(hh)
 		}
@@ -183,12 +182,12 @@ func TestEngineHostsLatencyOnFakes(t *testing.T) {
 	measure("herdr + Orca", true)
 
 	const trials = 40
-	n, f, hh, oh := benchNode(t, 8)
+	n, f, hh, oh, clock := benchNode(t, 8)
 	_ = n.refreshHosts(ctx)
 	var herdrRefresh latencies
 	for range trials {
 		dueLooks(n, host.Orca)
-		staleScan(oh)
+		staleScan(clock)
 		t0 := time.Now()
 		if err := n.refreshHosts(ctx, hh); err != nil {
 			t.Fatal(err)

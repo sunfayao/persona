@@ -35,7 +35,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 		t.Skip("no FIFOs here:", err)
 	}
 	done := make(chan error, 1)
-	go func() { _, err := n.readFile(filepath.Join(certs, "dev.pem"), "", 0, false); done <- err }()
+	go func() { _, err := n.fileService().Read(filepath.Join(certs, "dev.pem"), "", 0, false); done <- err }()
 	select {
 	case err := <-done:
 		if err != nil {
@@ -50,7 +50,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	write(filepath.Join(stray, "dev.pem"), "pem")
 	for _, body := range []string{"", "[1]", "// notes"} {
 		write(filepath.Join(stray, "manager.json"), body)
-		if _, err := n.readFile(filepath.Join(stray, "dev.pem"), "", 0, false); err != nil {
+		if _, err := n.fileService().Read(filepath.Join(stray, "dev.pem"), "", 0, false); err != nil {
 			t.Errorf("%q: a project's key beside a stray manager.json: %v", body, err)
 		}
 		if err := n.writable(stray); err != nil {
@@ -62,7 +62,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	write(filepath.Join(broken, "manager.json"), `{"id":"m-1","hub":"https://hub.example.com","token":"jb_secret",`)
 	write(filepath.Join(broken, "secret.key"), "k")
 	for _, p := range []string{filepath.Join(broken, "secret.key"), filepath.Join(broken, "manager.json")} {
-		if _, err := n.readFile(p, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read(p, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read %s: %v, want it refused", p, err)
 		}
 	}
@@ -71,7 +71,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	big := filepath.Join(home, "mgr-big")
 	write(filepath.Join(big, "manager.json"), `{"extensions":[{"config":{"x":"`+strings.Repeat("a", 1<<20)+`"}}],"hub":"h","token":"t"}`)
 	write(filepath.Join(big, "secret.key"), "k")
-	if _, err := n.readFile(filepath.Join(big, "secret.key"), "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read(filepath.Join(big, "secret.key"), "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("a big manager.json's folder: %v", err)
 	}
 
@@ -81,7 +81,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	if err := os.Symlink(mgr, filepath.Join(home, "mgr-link")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile("~/mgr-link/secret.key", "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read("~/mgr-link/secret.key", "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("read through a link into a manager's folder: %v", err)
 	}
 	// Its tls/ a link elsewhere: not followed.
@@ -90,7 +90,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	if err := os.Symlink(certs2, filepath.Join(mgr, "tls")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile(filepath.Join(mgr, "tls", "hub.pem"), "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read(filepath.Join(mgr, "tls", "hub.pem"), "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("a manager's tls/ that is a link: %v", err)
 	}
 	if err := os.Remove(filepath.Join(mgr, "tls")); err != nil {
@@ -114,7 +114,7 @@ func TestPathGuardManagerDirEdges(t *testing.T) {
 	if err := os.Symlink(cloud, filepath.Join(home, "code", "notes")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile("~/code/notes/dev.pem", "", 0, false); !errors.Is(err, errICloud) {
+	if _, err := n.fileService().Read("~/code/notes/dev.pem", "", 0, false); !errors.Is(err, errICloud) {
 		t.Errorf("read through a link into iCloud Drive: %v", err)
 	}
 
@@ -183,16 +183,16 @@ func TestPathGuardExtensionsData(t *testing.T) {
 	}
 	for _, p := range refused {
 		write(p)
-		if _, err := n.readFile(p, "", 0, false); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().Read(p, "", 0, false); !errors.Is(err, errOffLimits) {
 			t.Errorf("read %s: %v, want it refused", p, err)
 		}
 	}
 	for _, d := range []string{filepath.Join(state, "extensions", "data"), filepath.Join(mgr, "extensions", "data")} {
-		if _, err := n.listDir(d, ""); !errors.Is(err, errOffLimits) {
+		if _, err := n.fileService().List(d, ""); !errors.Is(err, errOffLimits) {
 			t.Errorf("list %s: %v, want it refused", d, err)
 		}
 	}
-	if _, err := n.listDir(filepath.Join(state, "extensions"), ""); err != nil {
+	if _, err := n.fileService().List(filepath.Join(state, "extensions"), ""); err != nil {
 		t.Errorf("list the extensions folder: %v", err)
 	}
 	// Links standing where extensions/ or extensions/data/ are named, in the data folder and in a manager's.
@@ -202,7 +202,7 @@ func TestPathGuardExtensionsData(t *testing.T) {
 	if err := os.Symlink(elsewhere, filepath.Join(mgr, "extensions")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile(filepath.Join(mgr, "extensions", "data", "notes", "token.json"), "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read(filepath.Join(mgr, "extensions", "data", "notes", "token.json"), "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("read through a manager's extensions link: %v", err)
 	}
 	if err := os.RemoveAll(filepath.Join(state, "extensions", "data")); err != nil {
@@ -211,19 +211,19 @@ func TestPathGuardExtensionsData(t *testing.T) {
 	if err := os.Symlink(filepath.Join(elsewhere, "data"), filepath.Join(state, "extensions", "data")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile(filepath.Join(state, "extensions", "data", "notes", "token.json"), "", 0, false); !errors.Is(err, errOffLimits) {
+	if _, err := n.fileService().Read(filepath.Join(state, "extensions", "data", "notes", "token.json"), "", 0, false); !errors.Is(err, errOffLimits) {
 		t.Errorf("read through the data folder's extensions/data link: %v", err)
 	}
 	// A project's own folders of these names, and a link named data elsewhere, stay readable.
 	project := filepath.Join(home, "code", "app")
 	write(filepath.Join(project, "extensions", "data", "fixture.json"))
-	if _, err := n.readFile(filepath.Join(project, "extensions", "data", "fixture.json"), "", 0, false); err != nil {
+	if _, err := n.fileService().Read(filepath.Join(project, "extensions", "data", "fixture.json"), "", 0, false); err != nil {
 		t.Errorf("a project's extensions/data: %v", err)
 	}
 	if err := os.Symlink(filepath.Join(elsewhere, "data"), filepath.Join(project, "data")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := n.readFile(filepath.Join(project, "data", "notes", "token.json"), "", 0, false); err != nil {
+	if _, err := n.fileService().Read(filepath.Join(project, "data", "notes", "token.json"), "", 0, false); err != nil {
 		t.Errorf("a project's link named data: %v", err)
 	}
 }

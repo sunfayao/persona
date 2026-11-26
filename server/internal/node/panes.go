@@ -172,7 +172,7 @@ func (n *Node) newShell(ctx context.Context, kind, ws, dir string) (proto.NewShe
 	kind = spaceHostKind(kind)
 	start := ""
 	if strings.TrimSpace(dir) != "" {
-		_, real, err := n.resolveDir(dir, "")
+		_, real, err := n.fileService().ResolveDir(dir, "")
 		if err != nil {
 			return proto.NewShellResult{}, err
 		}
