@@ -16,8 +16,8 @@ import { SESSIONS_CATALOG_FEATURE } from "../lib/session-groups";
 import { listPair } from "../lib/session-list";
 import { connect, reset, upsertSession } from "../lib/store";
 import type { Session } from "../lib/types";
-import { Sidebar } from "./Sidebar";
-import { CURRENT_ROW, useActiveKey } from "./SidebarParts";
+import { SESSION_ACTIVE_ROW, Sidebar } from "./Sidebar";
+import { useActiveKey } from "./SidebarParts";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,7 +149,7 @@ describe("sidebar selection for /t/ routes outside sessionSummaries (#13708)", (
     const claude = rowLink("claude-1");
     expect(agy).not.toBeNull();
     expect(agy!.getAttribute("aria-current")).toBe("page");
-    expect(agy!.className).toContain(CURRENT_ROW);
+    expect(agy!.className).toContain(SESSION_ACTIVE_ROW);
     expect(claude?.getAttribute("aria-current")).toBeNull();
   });
 
@@ -161,7 +161,7 @@ describe("sidebar selection for /t/ routes outside sessionSummaries (#13708)", (
     const agy = rowLink("agy-w2-p1");
     expect(agy).not.toBeNull();
     expect(agy!.getAttribute("aria-current")).toBe("page");
-    expect(agy!.className).toContain(CURRENT_ROW);
+    expect(agy!.className).toContain(SESSION_ACTIVE_ROW);
   });
 
   it("resolves bare /t/ routes from cached machine sessions, falls back for stale pane IDs, and keeps drill-down/work routes intact", async () => {

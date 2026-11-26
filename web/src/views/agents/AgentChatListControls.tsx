@@ -16,7 +16,7 @@ import {
   type SearchPlan,
   type SearchScope,
 } from "../../lib/agent-chatlist-filter";
-import { awaitsReply, justFinished, sessionSource, sourceName, type AgentMutes } from "../../lib/agent-groups";
+import { awaitsReply, finishedUnopened, justFinished, sessionSource, sourceName, type AgentMutes } from "../../lib/agent-groups";
 import { ago, backgroundWaiting, sessionPreview, sessionTitle, stateOf, tabLabel } from "../../lib/format";
 import { sessionCard } from "../../lib/folded-rows";
 import { machineWithHub } from "../../lib/mesh";
@@ -25,16 +25,19 @@ import { openPaletteWith } from "../../lib/palette";
 import { href, type Route } from "../../lib/router";
 import { draftLine, rowLine } from "../../lib/row-line";
 import { useLeftDraft } from "../../lib/drafts";
+import { stateName } from "../../lib/state-labels";
 import { rememberSessionRow, useStore } from "../../lib/store";
 import type { Session } from "../../lib/types";
 import { ultracodeMarkShown } from "../../lib/ultracode";
+import { usageLimitLabel } from "../../lib/usage-limit";
 import { SessionMark } from "../../ui/AgentMark";
 import { cx, Menu, useMenu, useNow, type MenuItem } from "../../ui/atoms";
 import { contextMenuProps } from "../../ui/context-menu";
 import { Icon } from "../../ui/icons";
 import { StatusMark } from "../../ui/StatusMark";
 import { UltraMark } from "../chat/Ultracode";
-import { CURRENT_ROW, type GoFn, type RegFn, type RowMenuFn } from "../SidebarParts";
+import type { GoFn, RegFn, RowMenuFn } from "../SidebarParts";
+import { SESSION_ACTIVE_ROW } from "../SidebarRows";
 
 type FilterPage = "root" | "scope" | "harnesses" | "projects" | "models" | "machines";
 type FacetKey = Exclude<FilterPage, "root" | "scope">;
@@ -346,16 +349,26 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   onMenu?: RowMenuFn;
 }) {
   const st = stateOf(s);
+  const bgWait = backgroundWaiting(s);
+  const usageLimited = Boolean(usageLimitLabel(s));
+  const markState = usageLimited && st === "unread" ? "idle" : st;
   const awaiting = awaitsReply(s, mutes);
+  const unopened = finishedUnopened(s, mutes);
   const finished = justFinished(s, mutes);
+  const quietMark = (markState === "idle" && !awaiting && !finished && !unopened) || markState === "offline";
   const ix = useStore((state) => sessionCard(state.interactions, s.machine_id, s.session_id));
   const draft = draftLine(useLeftDraft(`${s.machine_id}/${s.session_id}`));
-  const line: { lead?: string; text: string; tone?: "needs" | "reply" } | undefined = draft ?? rowLine(s, ix, awaiting, finished);
+  const line: { lead?: string; text: string; tone?: "needs" | "reply" } | undefined = draft ?? rowLine(s, ix, awaiting, finished || unopened);
   const previewText = line?.text || plainMarkdown(sessionPreview(s)) || s.activity || "";
   const now = useNow(60_000, Boolean(s.updated_at));
   const timeLabel = s.updated_at ? ago(s.updated_at, now) : "";
   const ultra = ultracodeMarkShown(s);
   const hasErr = sessionHasError(s, ctx.interactions);
+  const statePill = st === "working"
+    ? bgWait
+      ? { label: stateName("bg_waiting"), cls: "bg-inset text-ink-3 ring-1 ring-inset ring-line-strong/75" }
+      : { label: stateName("working"), cls: "bg-orange-tint text-orange ring-1 ring-inset ring-orange/25" }
+    : undefined;
 
   const evidence = useMemo(
     () => (filters.query.trim() || filters.scope === "errors" ? buildEvidenceSnippet(s, filters.query, filters.scope, ctx) : null),
@@ -371,16 +384,24 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const modelLabel = sessionModelId(s);
   const source = sessionSource(s);
   const regRow = useMemo(() => reg(k), [reg, k]);
+  const cardTone = active
+    ? SESSION_ACTIVE_ROW
+    : st === "needs_you"
+      ? "bg-red/[0.055] ring-1 ring-inset ring-red/20 hover:bg-red/[0.09]"
+      : st === "working" && !bgWait
+        ? "bg-orange-tint/30 ring-1 ring-inset ring-orange/18 hover:bg-orange-tint/50"
+        : st === "unread" && !usageLimited
+          ? "bg-green-tint/25 ring-1 ring-inset ring-green/18 hover:bg-green-tint/45"
+          : pinned
+            ? "bg-inset/50 ring-1 ring-inset ring-line/65 hover:bg-hover"
+            : "hover:bg-hover";
 
   return (
     <div
       data-testid="agent-chatlist-row"
       data-session-id={s.session_id}
       data-pinned={pinned ? "true" : "false"}
-      className={cx(
-        "group/row relative rounded-[10px] transition-colors",
-        pinned && !active && "bg-inset/45 ring-1 ring-line/60",
-      )}
+      className="group/row relative rounded-[10px]"
     >
       <a
         ref={regRow}
@@ -395,21 +416,39 @@ export const AgentChatListRow = memo(function AgentChatListRow({
         onBlur={() => hover(null)}
         aria-current={active ? "page" : undefined}
         className={cx(
-          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-colors",
-          active ? CURRENT_ROW : "hover:bg-hover",
+          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-[background-color,box-shadow] duration-150",
+          cardTone,
         )}
       >
-        {/* Left: Harness Avatar + corner live StatusMark badge */}
-        <span className="relative mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-inset shadow-hairline">
-          <SessionMark s={s} size={17} />
-          <span className="absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full bg-canvas ring-1 ring-canvas">
-            <StatusMark state={st} size="sm" awaiting={awaiting} finished={finished} waiting={backgroundWaiting(s)} />
+        {/* Left: Squircle Harness Avatar Tile + corner live StatusMark badge */}
+        <span
+          className={cx(
+            "relative mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[8px] ring-1 ring-inset transition-colors",
+            active
+              ? "bg-surface text-ink shadow-2xs ring-line-strong"
+              : st === "needs_you"
+                ? "bg-surface/90 text-ink ring-red/25"
+                : st === "working" && !bgWait
+                  ? "bg-surface/90 text-ink ring-orange/30"
+                  : "bg-inset/85 text-ink-2 ring-line/65",
+            st === "offline" && "opacity-55",
+          )}
+        >
+          <SessionMark s={s} size={15} className="text-current" />
+          <span
+            className={cx(
+              "pointer-events-none absolute -right-1 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-1",
+              active ? "bg-surface ring-surface" : "bg-canvas ring-canvas",
+              quietMark && "scale-75 opacity-35",
+            )}
+          >
+            <StatusMark state={markState} size="sm" awaiting={awaiting} finished={finished} unopened={unopened} waiting={bgWait} />
           </span>
         </span>
 
         {/* Center column: Title + Time, Second line (Evidence snippet or Last message), Metadata chips */}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* Line 1: Session Title + Ultracode + Pinned badge + Relative Activity Time */}
+          {/* Line 1: Session Title + Ultracode + Pinned badge + State Pill + Relative Activity Time */}
           <span className="flex min-w-0 items-center gap-1.5">
             {pinned && (
               <span className="shrink-0 text-accent" title={t("sidebar.pinned")}>
@@ -418,13 +457,22 @@ export const AgentChatListRow = memo(function AgentChatListRow({
             )}
             <span
               className={cx(
-                "min-w-0 flex-1 truncate text-[13px] leading-tight",
-                active || st === "unread" || st === "needs_you" ? "font-semibold text-ink" : st === "offline" ? "text-ink-3" : "font-medium text-ink-2",
+                "min-w-0 flex-1 truncate text-[13px] leading-tight tracking-[-0.006em]",
+                active || st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited)
+                  ? "font-semibold text-ink"
+                  : st === "offline"
+                    ? "text-ink-3/75"
+                    : "font-medium text-ink-2",
               )}
             >
               {sessionTitle(s)}
             </span>
             {ultra && <UltraMark size={10} />}
+            {statePill && (
+              <span aria-hidden className={cx("shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium leading-3.5 whitespace-nowrap group-hover/row:invisible", statePill.cls)}>
+                {statePill.label}
+              </span>
+            )}
             {timeLabel && (
               <span className="shrink-0 text-[11px] text-ink-3 tabular-nums group-hover/row:invisible">
                 {timeLabel}
@@ -467,39 +515,39 @@ export const AgentChatListRow = memo(function AgentChatListRow({
           {/* Line 3: Compact metadata capsules (Machine · Project · Tab · Harness · Model) */}
           <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10.5px] leading-4 text-ink-3" data-testid="agent-chatlist-chips">
             {machineLabel && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded bg-inset px-1.5 py-px">
+              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
                 <Icon name="machine" size={9} stroke={2} />
                 <span className="truncate">{machineLabel}</span>
               </span>
             )}
             {projectLabel && (
-              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded bg-inset px-1.5 py-px">
+              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
                 <Icon name="folder" size={9} stroke={2} />
                 <span className="truncate">{projectLabel}</span>
               </span>
             )}
             {tabIdentity && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded bg-inset px-1.5 py-px" title={tabIdentity}>
+              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45" title={tabIdentity}>
                 <span className="truncate">{tabIdentity}</span>
               </span>
             )}
             {harnessLabel && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded bg-inset px-1.5 py-px">
+              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
                 <span className="truncate">{harnessLabel}</span>
               </span>
             )}
             {modelLabel && (
-              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded bg-inset px-1.5 py-px font-mono text-[10px]">
+              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px font-mono text-[10px] ring-1 ring-inset ring-line/45">
                 <span className="truncate">{modelLabel}</span>
               </span>
             )}
             {source && (
-              <span className="inline-flex items-center rounded bg-inset px-1 py-px" title={sourceName(source)}>
+              <span className="inline-flex items-center rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45" title={sourceName(source)}>
                 {sourceName(source)}
               </span>
             )}
             {hasErr && st !== "needs_you" && (
-              <span className="inline-flex items-center gap-0.5 rounded bg-red/10 px-1.5 py-px font-medium text-red">
+              <span className="inline-flex items-center gap-0.5 rounded-[5px] bg-red/10 px-1.5 py-px font-medium text-red ring-1 ring-inset ring-red/20">
                 <Icon name="warning" size={9} stroke={2.2} />
               </span>
             )}

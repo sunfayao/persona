@@ -491,6 +491,9 @@ func echoFits(r *echoRecord, line []proto.Item) bool {
 	if !user {
 		return notice && string(sent) == "/compact"
 	}
+	if first == "/plan" && !strings.HasPrefix(strings.TrimSpace(r.Text), "/") && len(words) >= len("/plan") && string(words[:len("/plan")]) == "/plan" {
+		words = words[len("/plan"):]
+	}
 	if len(sent) == 0 {
 		return r.Images > 0 && len(words) == 0
 	}
@@ -514,6 +517,9 @@ type echoAfter struct {
 // echoBase is where the session's transcript ends before a send is typed (what it has so far is read, and pushed to
 // a watching hub, first); seq 0 when there is none yet (a session still starting).
 func (n *Node) echoBase(id string) echoAfter {
+	if a, ok := n.agent(id); ok && a.Agent == agyAgent && a.PaneID != "" {
+		return n.agyEchoBase(id, a.PaneID)
+	}
 	f, err := n.file(id)
 	if err != nil {
 		return echoAfter{in: echoInTranscript}
@@ -627,6 +633,13 @@ func (n *Node) readEcho(ctx context.Context, id, clientMsgID string) echoCheck {
 	if r.In != echoInTranscript || time.Since(r.SentAt) > echoWithin {
 		return unknown
 	}
+	if a, live := n.agent(id); live && a.Agent == agyAgent && a.PaneID != "" {
+		n.agyEchoBase(id, a.PaneID)
+		if current, ok := n.echoes.record(id, clientMsgID); ok && current.SentAt.Equal(r.SentAt) && current.Line != "" {
+			return echoCheck{state: proto.EchoSeen}
+		}
+		return unknown
+	}
 	f, err := n.file(id)
 	if err != nil || n.refresh(id, f) != nil {
 		return unknown
@@ -722,6 +735,20 @@ func (l *echoLog) known(id string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return len(l.recs[id]) > 0
+}
+
+// syncAgyConversation resets AfterSeq on still-expected records of an agy pane when the pane switched to another native
+// conversation (such as after /clear), since AfterSeq counted steps in the previous conversation.
+func (l *echoLog) syncAgyConversation(id, conversation, token string) {
+	prefix := "agy-pane:" + conversation + ":"
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, r := range l.recs[id] {
+		if r.Line == "" && r.In == echoInTranscript && strings.HasPrefix(r.History, "agy-pane:") &&
+			!strings.HasPrefix(r.History, prefix) && time.Since(r.SentAt) <= echoWithin {
+			r.AfterSeq, r.scanned, r.History = 0, 0, token
+		}
+	}
 }
 
 // A runtime's session (runtimes.go) has no transcript here: its items are tied as they pass, a batch (a push or a

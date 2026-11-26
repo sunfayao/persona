@@ -1,4 +1,5 @@
-import { conversationKeyDeleted, onConversationDeleted } from "./conversation-deleted";
+import { credentialOwner, onCredentialChange } from "./api";
+import { conversationDeletionScope, conversationKeyDeleted, onConversationDeleted } from "./conversation-deleted";
 import { canonicalStorageKey, storedKeyAlias, storedValue, storeValue, removeStoredValue } from "./compatibility";
 // Changes to a composer's draft from outside it: the message menu's "Quote" / "Edit", a queued message pulled back, an
 // edited image put in for the next message (iOS: ChatView.bindMenu, AppModel.editQueued, ImageViewer's attach).
@@ -18,6 +19,12 @@ export interface DraftImage {
   name: string;
   mime: string;
   data: string; // base64
+}
+
+export interface StoredDraftImage extends DraftImage {
+  id?: string;
+  edited?: EditedImage;
+  editedSource?: { mime: string; data: string };
 }
 
 /** What "Quote" holds above the input: the quoted words, who said them, when; for a task's card, which task. */
@@ -307,15 +314,351 @@ export function draftListenerKeysForTests() {
 export function storeDraft(key: string, text: string) {
   if (conversationKeyDeleted(key)) text = "";
   const stored = `${DRAFT_PREFIX}${key}`;
-  if (text) safeDraftWrite(stored, () => storeValue(stored, text));
-  else safeDraftRemove(stored);
+  const id = canonicalDraftId(key);
+  if (text) {
+    if (safeDraftWrite(stored, () => storeValue(stored, text))) memoryDrafts.delete(id);
+    else setMemoryDraft(id, key, text);
+  } else {
+    safeDraftRemove(stored);
+    if (safeRawDraftValue(key) !== null && !conversationKeyDeleted(key)) setMemoryDraft(id, key, "");
+    else memoryDrafts.delete(id);
+  }
   tellRows();
 }
 
 // Storage pressure: a full or blocked localStorage must never break typing or throw out of the save timer. A failed
 // write drops the oldest other conversations' drafts and quotes first — the mounted composers' keys are protected —
-// and is retried; what still cannot be written is swallowed.
+// and is retried; what still cannot be written falls back to a bounded in-memory map for the current session/owner.
 const KEY_PREFIXES = [DRAFT_PREFIX, QUOTE_PREFIX] as const;
+
+/** Maximum unmounted conversations and base64 character budget retained in memory for attached draft images. */
+export const MAX_STORED_DRAFT_IMAGE_CONVERSATIONS = 20;
+export const MAX_STORED_DRAFT_IMAGE_CHARS = 64 * 1024 * 1024;
+export const MAX_SESSION_DRAFT_IMAGE_CHARS = 2 * 1024 * 1024;
+
+const DRAFT_IMAGES_PREFIX = "draft-images:";
+const DRAFT_IMAGES_EPOCH_KEY = "draft-images:epoch";
+
+interface MemoryDraftEntry {
+  scope: string;
+  text: string;
+  diskSnapshot: string | null;
+}
+
+interface DraftImageEntry {
+  scope: string;
+  chars: number;
+  images: StoredDraftImage[];
+}
+
+const memoryDrafts = new Map<string, MemoryDraftEntry>();
+const draftImageStore = new Map<string, DraftImageEntry>();
+let imageStoreEpoch: string | null = null;
+let imageStoreEpochPersisted = false;
+
+function draftOwnerScope(): string {
+  let owner = "";
+  try {
+    if (typeof localStorage !== "undefined") owner = credentialOwner();
+  } catch {
+    // Storage can be absent or blocked in non-DOM tests or restricted frames.
+  }
+  return `${owner}:${conversationDeletionScope()}`;
+}
+
+function canonicalDraftId(key: string): string {
+  const canonical = canonicalStorageKey(`${DRAFT_PREFIX}${key}`);
+  return canonical.startsWith(DRAFT_PREFIX) ? canonical.slice(DRAFT_PREFIX.length) : key;
+}
+
+function isConversationMounted(id: string): boolean {
+  for (const [key, set] of listeners) {
+    if (set.size > 0 && canonicalDraftId(key) === id) return true;
+  }
+  return false;
+}
+
+function safeRawDraftValue(key: string): string | null {
+  if (!draftStorage()) return null;
+  try {
+    return storedValue(`${DRAFT_PREFIX}${key}`);
+  } catch {
+    return null;
+  }
+}
+
+function setMemoryDraft(id: string, key: string, text: string) {
+  const scope = draftOwnerScope();
+  for (const [k, entry] of memoryDrafts) {
+    if (entry.scope !== scope) memoryDrafts.delete(k);
+  }
+  memoryDrafts.delete(id);
+  memoryDrafts.set(id, { scope, text, diskSnapshot: safeRawDraftValue(key) });
+  if (memoryDrafts.size <= MAX_STORED_DRAFTS) return;
+  for (const candidate of memoryDrafts.keys()) {
+    if (memoryDrafts.size <= MAX_STORED_DRAFTS) break;
+    if (candidate !== id && !isConversationMounted(candidate)) memoryDrafts.delete(candidate);
+  }
+}
+
+/** Reads the unsent text for `key` from localStorage, falling back to the in-memory copy if storage quota was full. */
+export function storedDraft(key: string): string {
+  if (conversationKeyDeleted(key)) return "";
+  const id = canonicalDraftId(key);
+  const disk = safeRawDraftValue(key);
+  const mem = memoryDrafts.get(id);
+  if (mem) {
+    if (mem.scope === draftOwnerScope() && disk === mem.diskSnapshot) return mem.text;
+    memoryDrafts.delete(id);
+  }
+  return disk ?? "";
+}
+
+function sessionDraftStorage(): Storage | null {
+  try {
+    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function clearSessionDraftImages() {
+  const ss = sessionDraftStorage();
+  if (!ss) return;
+  try {
+    for (let i = ss.length - 1; i >= 0; i--) {
+      const k = ss.key(i);
+      if (k && k.startsWith(DRAFT_IMAGES_PREFIX)) ss.removeItem(k);
+    }
+  } catch {
+    // Blocked sessionStorage: nothing to clear.
+  }
+}
+
+function syncImageStoreEpoch() {
+  if (!imageStoreEpoch || !imageStoreEpochPersisted) return;
+  const ls = draftStorage();
+  let current: string | null = null;
+  try {
+    current = ls?.getItem(DRAFT_IMAGES_EPOCH_KEY) ?? null;
+  } catch {
+    return;
+  }
+  if (current !== imageStoreEpoch) {
+    draftImageStore.clear();
+    imageStoreEpoch = null;
+    imageStoreEpochPersisted = false;
+    clearSessionDraftImages();
+  }
+}
+
+function ensureImageStoreEpoch() {
+  syncImageStoreEpoch();
+  const ls = draftStorage();
+  if (!imageStoreEpoch) {
+    try {
+      imageStoreEpoch = ls?.getItem(DRAFT_IMAGES_EPOCH_KEY) || uuid();
+    } catch {
+      imageStoreEpoch = uuid();
+    }
+  }
+  if (!imageStoreEpochPersisted && ls) {
+    try {
+      ls.setItem(DRAFT_IMAGES_EPOCH_KEY, imageStoreEpoch);
+      imageStoreEpochPersisted = ls.getItem(DRAFT_IMAGES_EPOCH_KEY) === imageStoreEpoch;
+    } catch {
+      imageStoreEpochPersisted = false;
+    }
+  }
+}
+
+function validStoredDraftImage(x: unknown): x is StoredDraftImage {
+  const img = x as StoredDraftImage | null;
+  return Boolean(
+    img &&
+    typeof img === "object" &&
+    typeof img.name === "string" &&
+    typeof img.mime === "string" &&
+    typeof img.data === "string" &&
+    img.data.length > 0,
+  );
+}
+
+function draftImageChars(images: readonly StoredDraftImage[]): number {
+  return images.reduce((n, img) => n + img.data.length + (img.editedSource?.data.length ?? 0), 0);
+}
+
+function totalDraftImageChars(): number {
+  let total = 0;
+  draftImageStore.forEach((entry) => { total += entry.chars; });
+  return total;
+}
+
+function readSessionDraftImages(id: string): StoredDraftImage[] {
+  const ss = sessionDraftStorage();
+  if (!ss) return [];
+  const storageKey = `${DRAFT_IMAGES_PREFIX}${id}`;
+  try {
+    const raw = ss.getItem(storageKey);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    const envelope = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as { epoch?: unknown; images?: unknown })
+      : { epoch: undefined, images: parsed };
+    if (typeof envelope.epoch === "string") {
+      const ls = draftStorage();
+      if ((ls?.getItem(DRAFT_IMAGES_EPOCH_KEY) ?? null) !== envelope.epoch) {
+        ss.removeItem(storageKey);
+        return [];
+      }
+      if (!imageStoreEpoch) {
+        imageStoreEpoch = envelope.epoch;
+        imageStoreEpochPersisted = true;
+      }
+    }
+    const list = (Array.isArray(envelope.images) ? envelope.images : []).filter(validStoredDraftImage);
+    return list.map(({ id: imgId, name, mime, data }) => ({ ...(imgId ? { id: imgId } : {}), name, mime, data }));
+  } catch {
+    return [];
+  }
+}
+
+function writeSessionDraftImages(id: string, images: readonly StoredDraftImage[]) {
+  const ss = sessionDraftStorage();
+  if (!ss) return;
+  const storageKey = `${DRAFT_IMAGES_PREFIX}${id}`;
+  if (!images.length) {
+    try { ss.removeItem(storageKey); } catch { /* Blocked sessionStorage. */ }
+    return;
+  }
+  const chars = images.reduce((n, img) => n + img.data.length, 0);
+  if (chars > MAX_SESSION_DRAFT_IMAGE_CHARS) {
+    try { ss.removeItem(storageKey); } catch { /* Blocked sessionStorage. */ }
+    return;
+  }
+  const payload = JSON.stringify({
+    epoch: imageStoreEpochPersisted ? imageStoreEpoch : null,
+    images: images.map(({ id: imgId, name, mime, data }) => ({ ...(imgId ? { id: imgId } : {}), name, mime, data })),
+  });
+  try {
+    ss.setItem(storageKey, payload);
+    return;
+  } catch {
+    // Evict older unmounted session image entries and retry once.
+  }
+  try {
+    const victims: string[] = [];
+    for (let i = 0; i < ss.length; i++) {
+      const k = ss.key(i);
+      if (!k || !k.startsWith(DRAFT_IMAGES_PREFIX) || k === DRAFT_IMAGES_EPOCH_KEY || k === storageKey) continue;
+      const cid = k.slice(DRAFT_IMAGES_PREFIX.length);
+      if (!isConversationMounted(cid)) victims.push(k);
+    }
+    for (const victim of victims) {
+      ss.removeItem(victim);
+      try {
+        ss.setItem(storageKey, payload);
+        return;
+      } catch {
+        // Continue freeing older entries.
+      }
+    }
+  } catch {
+    // In-memory LRU still preserves attached images across conversation switches.
+  }
+}
+
+export function storeDraftImages(key: string, images: readonly StoredDraftImage[]) {
+  if (conversationKeyDeleted(key)) images = [];
+  syncImageStoreEpoch();
+  const id = canonicalDraftId(key);
+  const valid = images.filter(validStoredDraftImage).map((img) => ({
+    ...(img.id ? { id: img.id } : {}),
+    name: img.name,
+    mime: img.mime,
+    data: img.data,
+    ...(img.edited ? { edited: img.edited } : {}),
+    ...(img.editedSource ? { editedSource: img.editedSource } : {}),
+  }));
+  if (!valid.length) {
+    const hadMem = draftImageStore.delete(id);
+    const ss = sessionDraftStorage();
+    let hadSession = false;
+    if (ss) {
+      try {
+        const sk = `${DRAFT_IMAGES_PREFIX}${id}`;
+        hadSession = ss.getItem(sk) !== null;
+        if (hadSession) ss.removeItem(sk);
+      } catch {
+        // Blocked sessionStorage.
+      }
+    }
+    if (hadMem || hadSession) tellRows();
+    return;
+  }
+  ensureImageStoreEpoch();
+  const scope = draftOwnerScope();
+  for (const [k, entry] of draftImageStore) {
+    if (entry.scope !== scope) {
+      draftImageStore.delete(k);
+      writeSessionDraftImages(k, []);
+    }
+  }
+  draftImageStore.delete(id);
+  draftImageStore.set(id, { scope, chars: draftImageChars(valid), images: valid });
+  while (draftImageStore.size > MAX_STORED_DRAFT_IMAGE_CONVERSATIONS || totalDraftImageChars() > MAX_STORED_DRAFT_IMAGE_CHARS) {
+    let evicted = false;
+    for (const candidate of draftImageStore.keys()) {
+      if (candidate === id || isConversationMounted(candidate)) continue;
+      draftImageStore.delete(candidate);
+      writeSessionDraftImages(candidate, []);
+      evicted = true;
+      break;
+    }
+    if (!evicted) break;
+  }
+  writeSessionDraftImages(id, valid);
+  tellRows();
+}
+
+export function storedDraftImages(key: string): StoredDraftImage[] {
+  if (conversationKeyDeleted(key)) return [];
+  syncImageStoreEpoch();
+  const id = canonicalDraftId(key);
+  const scope = draftOwnerScope();
+  const mem = draftImageStore.get(id);
+  if (mem) {
+    if (mem.scope !== scope) {
+      draftImageStore.delete(id);
+      writeSessionDraftImages(id, []);
+      return [];
+    }
+    draftImageStore.delete(id);
+    draftImageStore.set(id, mem);
+    return mem.images.map((img) => ({ ...img }));
+  }
+  const restored = readSessionDraftImages(id);
+  if (restored.length) {
+    draftImageStore.set(id, { scope, chars: draftImageChars(restored), images: restored });
+  }
+  return restored.map((img) => ({ ...img }));
+}
+
+export function hasDraftImages(key: string): boolean {
+  if (conversationKeyDeleted(key)) return false;
+  syncImageStoreEpoch();
+  const id = canonicalDraftId(key);
+  const mem = draftImageStore.get(id);
+  if (mem) {
+    if (mem.scope !== draftOwnerScope()) {
+      draftImageStore.delete(id);
+      writeSessionDraftImages(id, []);
+      return false;
+    }
+    return mem.images.length > 0;
+  }
+  return readSessionDraftImages(id).length > 0;
+}
 
 function draftStorage(): Storage | null {
   try {
@@ -374,6 +717,8 @@ function dropConversation(store: Storage, id: string) {
       }
     }
   }
+  const mem = memoryDrafts.get(id);
+  if (mem) mem.diskSnapshot = safeRawDraftValue(id);
 }
 
 /** Keep the retained drafts of unmounted conversations within MAX_STORED_DRAFTS, oldest first. */
@@ -388,13 +733,13 @@ function enforceDraftBound(store: Storage, targetKey: string) {
 /** Write a draft or quote entry, evicting older unmounted conversations' entries and retrying when storage is full.
  *  The target key itself and every mounted composer's keys survive; a write that still fails stays quiet. Other draft
  *  writers (page-level prompt boxes) route their raw localStorage writes through this so a full quota never throws. */
-export function safeDraftWrite(targetKey: string, write: () => void) {
+export function safeDraftWrite(targetKey: string, write: () => void): boolean {
   const store = draftStorage();
-  if (!store) return;
+  if (!store) return false;
   try {
     write();
     enforceDraftBound(store, targetKey);
-    return;
+    return true;
   } catch {
     // quota exceeded or storage blocked: make room below and retry
   }
@@ -404,11 +749,12 @@ export function safeDraftWrite(targetKey: string, write: () => void) {
     dropConversation(store, id);
     try {
       write();
-      return;
+      return true;
     } catch {
       // still full: drop the next oldest conversation
     }
   }
+  return false;
 }
 
 /** Remove a draft or quote entry without throwing when storage is blocked (drafts keep their alias write path). */
@@ -425,24 +771,32 @@ export function safeDraftRemove(storedKey: string) {
 /** Words of a composer that belongs to no conversation row (the Agents page box): kept under a key the sidebar
  *  never asks useLeftDraft for, so a half-written instruction never marks a row, but a reload still restores it. */
 export function storedPageDraft(key: string): string {
-  return storedValue(`draft:${key}`) ?? "";
+  return storedDraft(key);
 }
 
 export function storePageDraft(key: string, text: string) {
+  if (conversationKeyDeleted(key)) text = "";
   const stored = `draft:${key}`;
+  const id = canonicalDraftId(key);
   // route through the quota-safe path so a full localStorage cannot throw inside the composer
-  if (text) safeDraftWrite(stored, () => storeValue(stored, text));
-  else safeDraftRemove(stored);
+  if (text) {
+    if (safeDraftWrite(stored, () => storeValue(stored, text))) memoryDrafts.delete(id);
+    else setMemoryDraft(id, key, text);
+  } else {
+    safeDraftRemove(stored);
+    if (safeRawDraftValue(key) !== null && !conversationKeyDeleted(key)) setMemoryDraft(id, key, "");
+    else memoryDrafts.delete(id);
+  }
 }
 
-/** What waits unsent for a conversation whose box is not on screen: its stored words, and whether quotes wait on its
- *  bar. Nothing while its box is mounted (you are in it; typing there does not re-render the list), or for `null`. */
+/** What waits unsent for a conversation whose box is not on screen: its stored words, and whether quotes or pictures
+ *  wait in its tray. Nothing while its box is mounted (you are in it; typing there does not re-render the list), or for `null`. */
 export function useLeftDraft(key: string | null): { text: string; quoted: boolean } {
   const away = () => key !== null && !listeners.get(key)?.size;
-  const read = () => (away() ? (storedValue(`draft:${key}`) ?? "") : "");
-  const hasQuotes = () => away() && getQuotes(key!).list.length > 0;
+  const read = () => (away() ? storedDraft(key!) : "");
+  const hasAttachmentOrQuote = () => away() && (getQuotes(key!).list.length > 0 || hasDraftImages(key!));
   const text = useSyncExternalStore(subscribeRows, read, read);
-  const quoted = useSyncExternalStore(subscribeRows, hasQuotes, hasQuotes);
+  const quoted = useSyncExternalStore(subscribeRows, hasAttachmentOrQuote, hasAttachmentOrQuote);
   return { text: splitComposerDraft(text).text, quoted };
 }
 
@@ -461,7 +815,7 @@ export function sendDraft(key: string, e: DraftEvent): boolean {
   }
   // "Edit" / "Rewind" a message sent with a quote while its box is away: as the composer would, the quotes go back to the bar
   // above the input (any it had are replaced) and only the words into the draft.
-  const current = storedValue(`draft:${key}`) ?? "";
+  const current = storedDraft(key);
   let next: string;
   if (e.type === "replace") {
     const selected = splitComposerDraft(e.text);
@@ -478,5 +832,15 @@ export function sendDraft(key: string, e: DraftEvent): boolean {
 onConversationDeleted((mid, sid) => {
   const key = `${mid}/${sid}`;
   try { storeDraft(key, ""); } catch { /* Storage can be unavailable. */ }
+  try { storeDraftImages(key, []); } catch { /* Storage can be unavailable. */ }
   try { setQuotes(key, []); } catch { /* Its memory copy was already cleared. */ }
+});
+
+onCredentialChange(() => {
+  memoryDrafts.clear();
+  draftImageStore.clear();
+  imageStoreEpoch = null;
+  imageStoreEpochPersisted = false;
+  clearSessionDraftImages();
+  tellRows();
 });

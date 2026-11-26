@@ -1384,3 +1384,169 @@ func TestAgyPaneUpdatedAtAndOrdering(t *testing.T) {
 		t.Fatalf("unresolved pane = UpdatedAt=%v Rev=%d, want zero", paneRow.UpdatedAt, paneRow.Rev)
 	}
 }
+
+func TestAgyPaneSendSavesImagesAndTagsClientMsgID(t *testing.T) {
+	n, f, home := herdrNode(t)
+	t.Setenv("ANTIGRAVITY_CLI_CONFIG_DIR", "")
+	// Start as an unbound fresh agy pane (matching deliverLaunch: POST /sessions then POST /messages).
+	seedAgents(t, n, f, agyTestAgent(agyTestPane, home, ""))
+	f.reply("agent.prompt", map[string]any{})
+	f.reply("session.snapshot", snapshot(nil, nil, []any{agyTestAgent(agyTestPane, home, "")}, nil))
+	watchHub := withHub(t, n)
+
+	_, initialPage := agyTestItems(t, n, agyTestRow, nil)
+	agyTestCall(t, n, "session.watch", agyTestRow, map[string]any{"since_seq": initialPage["to_seq"]})
+	t.Cleanup(func() { n.unwatch(agyTestRow) })
+
+	const png1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9sAAAAASUVORK5CYII="
+	const png2 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+	var prompted []string
+	var transcriptPath string
+	nextStep := 0
+	currentConv := agyTestID
+	appendNativeMedia := false
+	f.after(func(c herdrCall) {
+		if c.Method != "agent.prompt" {
+			return
+		}
+		text := str(c.Params["text"])
+		prompted = append(prompted, text)
+		contentJSON, _ := json.Marshal("<USER_REQUEST>\n" + text + "\n</USER_REQUEST>")
+		mediaField := `"media":null`
+		if appendNativeMedia {
+			mediaField = fmt.Sprintf(`"media":[{"mime_type":"image/png","data":%q}]`, png1)
+		}
+		line := fmt.Sprintf(`{"step_index":%d,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":%q,"content":%s,%s}`+"\n",
+			nextStep, time.Now().UTC().Format(time.RFC3339Nano), contentJSON, mediaField)
+		nextStep++
+		if transcriptPath == "" {
+			transcriptPath = agyTestFile(t, n.agyDataRoot(), currentConv, line)
+			f.reply("session.snapshot", snapshot(nil, nil, []any{agyTestAgent(agyTestPane, home, currentConv)}, nil))
+		} else {
+			agyTestAppend(t, transcriptPath, line)
+		}
+	})
+
+	// 1. Initial launch send with text + 2 images + client_msg_id (plus idempotent retry of the same client_msg_id).
+	sendParams := map[string]any{
+		"text":          "Inspect these two screenshots",
+		"client_msg_id": "launch-msg-1",
+		"images": []proto.Image{
+			{Mime: "image/png", Data: png1},
+			{Mime: "image/png", Data: png2},
+		},
+	}
+	agyTestCall(t, n, "session.send", agyTestRow, maps.Clone(sendParams))
+	agyTestCall(t, n, "session.send", agyTestRow, maps.Clone(sendParams))
+	if len(prompted) != 1 {
+		t.Fatalf("prompted %d times for duplicate client_msg_id, want 1", len(prompted))
+	}
+	paths := agyAttachedImagePaths(prompted[0])
+	if len(paths) != 2 {
+		t.Fatalf("prompt missing 2 saved <attached_images> paths: %q", prompted[0])
+	}
+	for path := range paths {
+		if st, err := os.Stat(path); err != nil || st.Size() == 0 {
+			t.Fatalf("saved upload %q missing or empty: %v", path, err)
+		}
+	}
+
+	items, _ := agyTestItems(t, n, agyTestRow, nil)
+	if len(items) != 1 || items[0].Role != "user" || items[0].ClientMsgID != "launch-msg-1" || len(agyAttachedImagePaths(items[0].Text)) != 2 {
+		t.Fatalf("session.items did not preserve images and client_msg_id: %+v", items)
+	}
+	full := agyTestCall(t, n, "session.item", agyTestRow, map[string]any{"item_id": items[0].ID}).(proto.Item)
+	if full.ClientMsgID != "launch-msg-1" || len(agyAttachedImagePaths(full.Text)) != 2 {
+		t.Fatalf("session.item lost client_msg_id or images: %+v", full)
+	}
+	waitFor(t, "watcher push carries client_msg_id and images", func() bool {
+		for _, it := range watchHub.got() {
+			if it.ID == items[0].ID && it.ClientMsgID == "launch-msg-1" && len(agyAttachedImagePaths(it.Text)) == 2 {
+				return true
+			}
+		}
+		return false
+	})
+	rec1, ok := n.echoes.record(agyTestRow, "launch-msg-1")
+	if !ok || rec1.Line != echoLineKey(items[0].ID) {
+		t.Fatalf("echo record not matched: %+v (ok=%v)", rec1, ok)
+	}
+	echoStatus := agyTestCall(t, n, proto.MethodSessionEchoStatus, agyTestRow, map[string]any{"client_msg_id": "launch-msg-1"}).(proto.SessionEchoStatus)
+	if echoStatus.State != proto.EchoSeen {
+		t.Fatalf("echo status = %s, want %s", echoStatus.State, proto.EchoSeen)
+	}
+
+	// 2. Mid-session image-only send where native media also carries an extra thumbnail: every item on the step gets ClientMsgID.
+	agyTestAppend(t, transcriptPath, fmt.Sprintf(`{"step_index":%d,"type":"PLANNER_RESPONSE","status":"DONE","created_at":%q,"content":"Checked both."}`+"\n",
+		nextStep, time.Now().UTC().Format(time.RFC3339Nano)))
+	nextStep++
+	appendNativeMedia = true
+	agyTestCall(t, n, "session.send", agyTestRow, map[string]any{
+		"text":          "",
+		"client_msg_id": "mid-photo-only",
+		"images":        []proto.Image{{Mime: "image/png", Data: png1}},
+	})
+	appendNativeMedia = false
+	items, _ = agyTestItems(t, n, agyTestRow, nil)
+	var midItems []proto.Item
+	for _, it := range items {
+		if it.Seq == 3 {
+			midItems = append(midItems, it)
+		}
+	}
+	if len(midItems) != 2 || midItems[0].Kind != proto.KindText || midItems[1].Kind != proto.KindImage ||
+		midItems[0].ClientMsgID != "mid-photo-only" || midItems[1].ClientMsgID != "mid-photo-only" {
+		t.Fatalf("mid-session image-only items did not tag both text and media: %+v", midItems)
+	}
+	rec2, ok := n.echoes.record(agyTestRow, "mid-photo-only")
+	if !ok || rec2.Line != echoLineKey(midItems[0].ID) {
+		t.Fatalf("second echo record not matched: %+v (ok=%v)", rec2, ok)
+	}
+
+	// 3. Restarted node restores session.echoes, re-tags agy pane items, and notifies hub on new agy sends.
+	n2, f2, _ := herdrNode(t)
+	n2.home = home
+	echoEvents := withEchoHub(t, n2)
+	seedAgents(t, n2, f2, agyTestAgent(agyTestPane, home, agyTestID))
+	f2.reply("agent.prompt", map[string]any{})
+	if _, err := request(t, n2, "session.echoes", map[string]any{"echoes": []echoRecord{rec1, rec2}}); err != nil {
+		t.Fatal(err)
+	}
+	restoredItems, _ := agyTestItems(t, n2, agyTestRow, nil)
+	if restoredItems[0].ClientMsgID != "launch-msg-1" || restoredItems[len(restoredItems)-1].ClientMsgID != "mid-photo-only" {
+		t.Fatalf("restarted node did not re-tag agy pane items: %+v", restoredItems)
+	}
+	f2.after(func(c herdrCall) {
+		if c.Method == "agent.prompt" {
+			line := fmt.Sprintf(`{"step_index":%d,"type":"USER_INPUT","source":"USER_EXPLICIT","status":"DONE","created_at":%q,"content":"Follow-up on n2"}`+"\n",
+				nextStep, time.Now().UTC().Format(time.RFC3339Nano))
+			nextStep++
+			agyTestAppend(t, transcriptPath, line)
+		}
+	})
+	agyTestCall(t, n2, "session.send", agyTestRow, map[string]any{"text": "Follow-up on n2", "client_msg_id": "n2-msg"})
+	_, _ = agyTestItems(t, n2, agyTestRow, nil)
+	waitFor(t, "hub hears matched session.echo from agy pane", func() bool {
+		for _, r := range echoEvents.got() {
+			if r.ClientMsgID == "n2-msg" && r.Line != "" && r.AfterSeq == 3 {
+				return true
+			}
+		}
+		return false
+	})
+
+	// 4. Pane switches conversations (/clear -> agyOtherTestID at step 0) while a send's AfterSeq was recorded on agyTestID.
+	currentConv = agyOtherTestID
+	transcriptPath = ""
+	nextStep = 0
+	f.reply("session.snapshot", snapshot(nil, nil, []any{agyTestAgent(agyTestPane, home, agyOtherTestID)}, nil))
+	listSessions(t, n)
+	agyTestCall(t, n, "session.send", agyTestRow, map[string]any{
+		"text":          "Fresh conversation after clear",
+		"client_msg_id": "after-clear-msg",
+	})
+	switchedItems, _ := agyTestItems(t, n, agyTestRow, nil)
+	if len(switchedItems) != 1 || switchedItems[0].Text != "Fresh conversation after clear" || switchedItems[0].ClientMsgID != "after-clear-msg" {
+		t.Fatalf("send across /clear conversation switch lost client_msg_id: %+v", switchedItems)
+	}
+}

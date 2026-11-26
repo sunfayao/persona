@@ -27,7 +27,7 @@ AGENTS = {
     "给导出脚本加上进度条": ("pi", "pi"),
     "Gemini CLI": ("gemini", "Gemini CLI"),
     "补全设置页的单元测试": ("cursor", "Cursor"),
-    "TRAE CLI 的一个会话": ("letter", "TRAE CLI"),
+    "TRAE CLI 的一个会话": ("trae", "TRAE CLI"),
     "amp 的一个会话": ("letter", "amp"),
     "TRAE 的一个会话": ("trae", "TRAE（命令行版）"),
     "Grok": ("grok", "Grok"),
@@ -36,7 +36,7 @@ AGENTS = {
     "Kimi CLI": ("kimi", "Kimi"),
     "GitHub Copilot": ("copilot", "GitHub Copilot"),
 }
-TEMPLATES = ("codex", "opencode", "pi", "gemini", "cursor", "trae", "grok", "agy", "dsh", "kimi", "copilot")
+TEMPLATES = ("codex", "opencode", "pi", "gemini", "cursor", "grok", "agy", "dsh", "kimi", "copilot")
 CLI = ("整理发布说明", "TRAE 的一个会话")  # the ones the mock runs from the command line (#6390)
 
 
@@ -50,8 +50,7 @@ def rows_of(page):
 
 
 def check_sidebar(page, theme, where):
-    """Every row has its mark, named, in a 14 px box, centred on its dot, before it and at the same x as the others; the
-    command line's carry the </> badge inside the row, the others none."""
+    """Every row has its mark inside the avatar tile with its corner status badge, named, in a 14 px box, at the same x as the others."""
     rows = rows_of(page)
     xs, shades = [], {}
     for title, (kind, name) in AGENTS.items():
@@ -63,13 +62,9 @@ def check_sidebar(page, theme, where):
         assert mark.get_attribute("role") == "img" and mark.get_attribute("aria-label") == name, (title, name)
         box, dot = mark.bounding_box(), row.locator('[role="img"]:not([data-agent-mark])').first.bounding_box()
         assert round(box["width"]) == 14 and round(box["height"]) == 14, (title, box)
-        assert abs((box["y"] + box["height"] / 2) - (dot["y"] + dot["height"] / 2)) <= 1.5, (title, box, dot)
-        assert box["x"] + box["width"] < dot["x"], (title, "the mark sits before the state dot, not on it")
+        assert dot["x"] >= box["x"] and dot["y"] >= box["y"], (title, "the corner status badge anchors at the bottom-right of the avatar tile", box, dot)
         badge = mark.locator("[data-agent-badge=cli]")
         expect(badge).to_have_count(1 if title in CLI else 0)
-        if title in CLI:
-            b, r = badge.bounding_box(), row.bounding_box()
-            assert b["x"] + b["width"] < dot["x"] and b["y"] >= r["y"] and b["y"] + b["height"] <= r["y"] + r["height"], (title, b, dot, r)
         xs.append(round(box["x"], 1))
         if kind in TEMPLATES:
             shades[kind] = mark.locator("span").first.evaluate("e => getComputedStyle(e).backgroundColor")
@@ -79,9 +74,9 @@ def check_sidebar(page, theme, where):
         r, g, b = [int(v) for v in rgb[rgb.index("(") + 1:rgb.index(")")].split(",")[:3]]
         lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
         assert (lum < 0.5) == (theme == "light"), (kind, rgb, theme)
-    letters = rows["TRAE CLI 的一个会话"].locator("[data-agent-mark=letter]").inner_text()
-    assert letters == "T", letters
-    ok(f"{where} {theme}: {len(AGENTS)} rows, each mark named, 14 px, before its dot, one color follows the theme, letters for TRAE CLI and amp, </> on the command line's")
+    letters = rows["amp 的一个会话"].locator("[data-agent-mark=letter]").inner_text()
+    assert letters == "A", letters
+    ok(f"{where} {theme}: {len(AGENTS)} rows, each mark named, 14 px inside avatar tile, one color follows the theme, TRAE brand mark for traex, letter for amp")
 
 
 def settle(page):
@@ -123,7 +118,7 @@ def run(browser, base, token, shots, session_marks_only):
                 page.screenshot(path=os.path.join(shots, f"header-{where}-{theme}.png"), clip={"x": 0, "y": 0, "width": width, "height": 70})
 
             page.goto(base + "/s/server/marks-traex")
-            expect(header.locator("[data-agent-mark=letter]")).to_be_visible()
+            expect(header.locator("[data-agent-mark=trae]")).to_be_visible()
             expect(header.locator("[data-agent-device]")).to_have_attribute("aria-label", re.compile(r"^TRAE CLI\b"))
             if shots:
                 page.screenshot(path=os.path.join(shots, f"traecli-{where}-{theme}.png"), clip={"x": 0, "y": 0, "width": width, "height": 70})

@@ -9,7 +9,7 @@ const sidebar = ["./Sidebar.tsx", "./SidebarParts.tsx", "./SidebarRows.tsx", "./
 const css = source("../styles.css");
 
 // A sidebar row: a full-width rounded row with the sidebar's horizontal inset.
-const rowClasses = [...sidebar.matchAll(/"([^"]*\brounded-\[7px\] px-2\b[^"]*)"/g)].map((m) => m[1]);
+const rowClasses = [...sidebar.matchAll(/"([^"]*\brounded-\[(?:7|9)px\] px-2\b[^"]*)"/g)].map((m) => m[1]);
 
 describe("sidebar row tokens", () => {
   it("the row height token is the desktop sidebar's 32px", () => {

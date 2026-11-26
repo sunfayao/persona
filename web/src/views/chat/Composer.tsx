@@ -1,5 +1,4 @@
 import { conversationDeletionScope, conversationKeyDeleted } from "../../lib/conversation-deleted";
-import { storedValue } from "../../lib/compatibility";
 import { useBusySend } from "../../lib/busy-send";
 // Beautiful UI's Prompt Bar, wired to a session: multi-line input, / commands, @ files and sessions, image attachments
 // (paste, drop, pick; click one to mark it up), files uploaded to the session's machine, send — and stop while the
@@ -27,7 +26,7 @@ import { imageLimitsFor, MAX_PICTURE_SOURCE, pictureRoom, type ImageLimits } fro
 import { addFiles as addComposerFiles, filesBusy, MAX_FILES, readyFiles, restoreFiles, splitFileTags, takeLocalFiles, takeReadyFiles, useComposerFiles, withFiles } from "../../lib/composer-files";
 import { activateComposer, addContext, getContexts, newContext, registerComposer, removeContext, replaceContexts, useContexts, withContexts, type ContextRef, type ComposerHandle } from "../../lib/links";
 import { editInlineMentions, inlineMention, isInlineMention, messageMentionRefs, shiftInlineMentions } from "../../lib/inline-mentions";
-import { addQuote, applyDraft, getQuotes, onDraftEvent, parseQuotes, removeQuote, replaceNeedsConfirm, sendDraft, setQuotes, splitQuotes, storeDraft, useQuotes, withQuoteBlock, type DraftImage } from "../../lib/drafts";
+import { addQuote, applyDraft, getQuotes, onDraftEvent, parseQuotes, removeQuote, replaceNeedsConfirm, sendDraft, setQuotes, splitQuotes, storeDraft, storeDraftImages, storedDraft, storedDraftImages, useQuotes, withQuoteBlock, type DraftImage, type StoredDraftImage } from "../../lib/drafts";
 import type { EditedImage } from "../../lib/image-edit";
 import { mentionAt, replaceToken, sessionQuote, workspaceContext, type MentionToken } from "../../lib/mentions";
 import { machineWithHub } from "../../lib/mesh";
@@ -74,6 +73,8 @@ export interface Attachment {
   /** Set once the picture has been through the image editor: its source, edits and history (lib/image-edit.ts), so
    *  its tile opens it where the editor stopped; freed with the picture (releaseAttachments). */
   edited?: EditedImage;
+  /** Base64 bytes of an edited picture's unedited blob source, used to mint a fresh source URL on remount. */
+  editedSource?: { mime: string; data: string };
 }
 
 export interface Outgoing {
@@ -132,11 +133,44 @@ async function readImage(file: File, limits: ImageLimits): Promise<Attachment | 
   return fit && { ...fit, id: uuid(), name: file.name || "image.png", url: URL.createObjectURL(file) };
 }
 
-function fromDraftImage(img: DraftImage, id = uuid(), edited?: EditedImage): Attachment {
-  const bin = atob(img.data);
+function blobUrlFromBase64(data: string, mime: string): string {
+  const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { ...img, id, url: URL.createObjectURL(new Blob([bytes], { type: img.mime })), ...(edited ? { edited } : {}) };
+  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+}
+
+function fromDraftImage(
+  img: DraftImage,
+  id = uuid(),
+  edited?: EditedImage,
+  editedSource?: { mime: string; data: string },
+  rehydrateEditedSource = false,
+): Attachment {
+  const url = blobUrlFromBase64(img.data, img.mime);
+  const resolvedEdited = rehydrateEditedSource && edited && edited.source.startsWith("blob:") && editedSource
+    ? { ...edited, source: blobUrlFromBase64(editedSource.data, editedSource.mime) }
+    : edited;
+  return {
+    name: img.name,
+    mime: img.mime,
+    data: img.data,
+    id,
+    url,
+    ...(resolvedEdited ? { edited: resolvedEdited } : {}),
+    ...(editedSource ? { editedSource } : {}),
+  };
+}
+
+function toStoredDraftImages(list: readonly Attachment[]): StoredDraftImage[] {
+  return list.map(({ id, name, mime, data, edited, editedSource }) => ({
+    id,
+    name,
+    mime,
+    data,
+    ...(edited ? { edited } : {}),
+    ...(editedSource ? { editedSource } : {}),
+  }));
 }
 
 // memo: a chat renders again for each transcript item, and this box takes none of them (ChatView keeps its props stable)
@@ -241,12 +275,41 @@ export const Composer = memo(function Composer({
     const owner = credentialOwner(), scope = conversationDeletionScope();
     return () => owner === credentialOwner() && scope === conversationDeletionScope() && !conversationKeyDeleted(draftKey);
   }, [draftKey]);
-  const [chatDraft, setDraft] = useState(() => editor ? "" : splitComposerDraft(storedValue(`draft:${draftKey}`) ?? "").text);
+  const canWriteNow = useRef(canWriteDraft);
+  canWriteNow.current = canWriteDraft;
+  const [chatDraft, setDraft] = useState(() => editor ? "" : splitComposerDraft(storedDraft(draftKey)).text);
   const draft = editor?.text ?? chatDraft;
   const editingPrompt = Boolean(editor);
   const [atts, setAtts] = useState<Attachment[]>([]);
+  const draftNow = useRef(draft);
+  draftNow.current = draft;
+  const unsaved = useRef<{ key: string; text: string; current: () => boolean } | null>(null);
+  const saveDraft = useCallback(() => {
+    const u = unsaved.current;
+    if (!u) return;
+    unsaved.current = null;
+    if (u.current()) storeDraft(u.key, composerDraft(getContexts(u.key), u.text));
+  }, []);
+  const queueDraftSave = (text: string) => {
+    draftNow.current = text;
+    if (!editingPrompt) unsaved.current = { key: draftKey, text, current: canWriteDraft };
+  };
+  const deferredRef = useRef(deferredAttachments);
+  deferredRef.current = deferredAttachments;
   // Take the saved snapshot before effects. Replaying mount effects must not replace it with the empty initial tray.
-  const savedDraftImages = useRef(deferredAttachments?.images);
+  const seededDeferred = useRef(
+    deferredAttachments?.images.length ? { key: draftKey, images: [...deferredAttachments.images] } : null,
+  );
+  const persistAttachments = useCallback((key: string, list: readonly Attachment[]) => {
+    if (editingPrompt || !canWriteNow.current()) return;
+    if (deferredRef.current) {
+      deferredRef.current.images = list.map(({ mime, data, name }) => ({ mime, data, name }));
+    }
+    if (seededDeferred.current?.key === key) {
+      seededDeferred.current = list.length ? { key, images: list.map(({ mime, data, name }) => ({ mime, data, name })) } : null;
+    }
+    storeDraftImages(key, toStoredDraftImages(list));
+  }, [editingPrompt]);
   // The suggestion just sent with its arrow: it stays on the hub until the agent starts, and each tap would be a new message.
   const [sentPill, setSentPill] = useState<string | null>(null);
   useEffect(() => {
@@ -307,6 +370,7 @@ export const Composer = memo(function Composer({
     else {
       replaceContexts(draftKey, isInlineMention, next.filter(isInlineMention));
       if (inserted && !isInlineMention(inserted)) addContext(draftKey, inserted);
+      queueDraftSave(text);
       setDraft(text);
     }
   };
@@ -345,8 +409,10 @@ export const Composer = memo(function Composer({
   const roomForImage = (size: number) => pictureRoom([...attsNow.current.map((a) => a.data.length), ...Array<number>(reading.current).fill(0)], size, limits());
   // appends at once to the ref as well, so a second paste or draft image in the same tick sees it
   const appendImage = (a: Attachment) => {
-    attsNow.current = [...attsNow.current, a];
-    setAtts((cur) => [...cur, a]);
+    const next = [...attsNow.current, a];
+    attsNow.current = next;
+    setAtts(next);
+    persistAttachments(keyNow.current, next);
   };
   // Pictures past what a message holds are not dropped (#12973): they go to the session's computer as files, as the share
   // sheet sends them, with one word on which limit it was; with no computer to send them to they are turned away.
@@ -382,46 +448,72 @@ export const Composer = memo(function Composer({
     mounted.current = true;
     return () => {
       mounted.current = false;
-      if (deferredAttachments) {
-        deferredAttachments.images = attsNow.current.map(({ mime, data, name }) => ({ mime, data, name }));
+      if (deferredRef.current && canWriteNow.current()) {
+        deferredRef.current.images = attsNow.current.map(({ mime, data, name }) => ({ mime, data, name }));
       }
       releaseAttachments(attsNow.current);
     };
   }, []);
 
-  // a different conversation: its own draft
-  const shownKey = useRef(draftKey);
+  // a different conversation: its own draft and attachments
+  const shownKey = useRef<string | null>(null);
   useEffect(() => {
-    if (editingPrompt) return;
-    const from = shownKey.current;
-    shownKey.current = draftKey;
-    const held = input.current?.value ?? "";
-    if (carryDraft && from !== draftKey && (held || attsNow.current.length)) {
-      // the same conversation re-addressed: what is being typed stays, saved under its new key only
-      const carried = composerDraft(getContexts(from), held);
-      storeDraft(draftKey, carried);
-      restoreSelections(carried);
-      replaceContexts(from, composerSelection, []);
-      storeDraft(from, "");
+    if (editingPrompt) {
+      shownKey.current = null;
       return;
     }
-    setDraft(restoreSelections(storedValue(`draft:${draftKey}`) ?? ""));
-    setPlusOpen(false);
+    const from = shownKey.current;
+    shownKey.current = draftKey;
+    if (from !== null && from !== draftKey) {
+      const held = input.current?.value ?? "";
+      if (carryDraft && (held || attsNow.current.length)) {
+        // the same conversation re-addressed: what is being typed and attached stays, saved under its new key only
+        if (unsaved.current?.key === from) unsaved.current = null;
+        const carried = composerDraft(getContexts(from), held);
+        storeDraft(draftKey, carried);
+        restoreSelections(carried);
+        replaceContexts(from, composerSelection, []);
+        storeDraft(from, "");
+        if (attsNow.current.length) {
+          storeDraftImages(draftKey, toStoredDraftImages(attsNow.current));
+          storeDraftImages(from, []);
+        }
+        return;
+      }
+      if (unsaved.current?.key === from) saveDraft();
+      setPlusOpen(false);
+    }
+    const nextDraft = restoreSelections(storedDraft(draftKey));
+    draftNow.current = nextDraft;
+    setDraft((cur) => (cur === nextDraft ? cur : nextDraft));
     releaseAttachments(attsNow.current);
-    setAtts(savedDraftImages.current?.map((image) => fromDraftImage(image)) ?? []);
+    const storedImgs = storedDraftImages(draftKey);
+    const deferredImgs = deferredRef.current?.images.length
+      ? deferredRef.current.images
+      : seededDeferred.current?.key === draftKey
+        ? seededDeferred.current.images
+        : [];
+    const sourceImgs: StoredDraftImage[] = storedImgs.length ? storedImgs : deferredImgs;
+    const restored = sourceImgs.map((img) => fromDraftImage(img, img.id, img.edited, img.editedSource, true));
+    attsNow.current = restored;
+    setAtts((cur) => (cur.length === 0 && restored.length === 0 ? cur : restored));
+    if (!storedImgs.length && restored.length && canWriteNow.current()) {
+      storeDraftImages(draftKey, toStoredDraftImages(restored));
+    }
+  }, [draftKey, editingPrompt]);
+
+  useEffect(() => {
     // not on a touch screen alone: there the focus brings the keyboard up over the conversation just opened. Nor when
     // the person already went to another field or a dialog by then.
-    if (!autoFocus || !hasFinePointer()) return;
+    if (editingPrompt || !autoFocus || !hasFinePointer()) return;
     const timer = setTimeout(() => {
       const el = input.current;
       if (el && !focusTaken(document.activeElement, el)) el.focus({ preventScroll: true });
     }, 0);
     return () => clearTimeout(timer);
-  }, [draftKey, autoFocus]);
+  }, [draftKey, autoFocus, editingPrompt]);
 
   // "Quote" / "Edit" / a queued message pulled back / an edited picture, from the chat (lib/drafts.ts)
-  const draftNow = useRef(draft);
-  draftNow.current = draft;
   useEffect(
     () =>
       editingPrompt ? undefined : onDraftEvent(draftKey, (e) => {
@@ -430,7 +522,7 @@ export const Composer = memo(function Composer({
         if (e.type === "unsent") {
           const current = composerDraft(getContexts(draftKey), draftNow.current);
           const next = restoreSelections(joinComposerDrafts(e.text, current));
-          draftNow.current = next;
+          queueDraftSave(next);
           setDraft(next);
           return;
         }
@@ -486,6 +578,7 @@ export const Composer = memo(function Composer({
                 storeDraft(draftKey, kept.selections);
                 return;
               }
+              queueDraftSave(kept.text);
               setDraft(kept.text);
               setDismissed(false);
               requestAnimationFrame(() => {
@@ -503,7 +596,7 @@ export const Composer = memo(function Composer({
           const offset = split ? selected.text.lastIndexOf(split.rest) : 0;
           restoreSelections(composerDraft(shiftInlineMentions(selected.refs, -offset), next));
         } else if (joined) restoreSelections(joined);
-        draftNow.current = next;
+        queueDraftSave(next);
         setDraft(next);
         setDismissed(false);
         requestAnimationFrame(() => {
@@ -521,13 +614,6 @@ export const Composer = memo(function Composer({
   // once when the box goes away or moves to another conversation, and when the page is hidden (closed, reloaded,
   // backgrounded or the screen locked — mobile WebViews often skip pagehide there), so the last words typed before
   // switching are not lost (#4591).
-  const unsaved = useRef<{ key: string; text: string; current: () => boolean } | null>(null);
-  const saveDraft = useCallback(() => {
-    const u = unsaved.current;
-    if (!u) return;
-    unsaved.current = null;
-    if (u.current()) storeDraft(u.key, composerDraft(getContexts(u.key), u.text));
-  }, []);
   // The render that moves the box to another conversation still holds the old words: they are not that one's draft
   // (the box reads its own next, and this runs again if it differs).
   const savedFor = useRef(draftKey);
@@ -654,7 +740,9 @@ export const Composer = memo(function Composer({
     draft: composerDraft(contexts, draft),
     setDraft: (text) => {
       leaveEdit();
-      setDraft(restoreSelections(text));
+      const next = restoreSelections(text);
+      queueDraftSave(next);
+      setDraft(next);
     },
     setCaret,
     input,
@@ -674,6 +762,7 @@ export const Composer = memo(function Composer({
     releaseAttachments(attsNow.current);
     attsNow.current = [];
     setAtts([]);
+    persistAttachments(draftKey, []);
     edit.cancel();
     requestAnimationFrame(() => input.current?.focus({ preventScroll: true }));
   };
@@ -735,6 +824,7 @@ export const Composer = memo(function Composer({
         editor.onChange(draft, [...refs, ref]);
       } else {
         addContext(draftKey, ref);
+        queueDraftSave(draft);
       }
       if (out) setCaret(out.caret);
       requestAnimationFrame(() => {
@@ -859,6 +949,7 @@ export const Composer = memo(function Composer({
   // in, "Send now" sends it as it is (the node drops it once the agent works again)
   const pill = suggestion && suggestion !== sentPill && !editingLast && !blocked && !draft && !atts.length && !contexts.length && !quote && !working && !needsYou && !disabled ? suggestion : null;
   const fillSuggestion = (text: string) => {
+    queueDraftSave(text);
     setDraft(text);
     setDismissed(true);
     setCaret(text.length);
@@ -916,14 +1007,16 @@ export const Composer = memo(function Composer({
     // The message shows in the chat at once (a sending bubble), so the box empties at once too: waiting for the hub to
     // hand it to the agent (seconds when it starts up) left the same words in both places. A send that never went
     // (onSend false) puts them back; one that failed stays in the chat as a failed bubble.
-    const sent = atts;
+    const sent = attsNow.current;
     const sentFiles = takeReadyFiles(draftKey);
     const localFiles = deferredAttachments ? takeLocalFiles(draftKey) : [];
     setDraft("");
     draftNow.current = "";
     unsaved.current = null;
     storeDraft(draftKey, "");
+    attsNow.current = [];
     setAtts([]);
+    persistAttachments(draftKey, []);
     selected.forEach((r) => removeContext(draftKey, r.id));
     setQuotes(draftKey, []);
     // Ready for the next message now, not when the hub answers (the chat sends them in order). Back to the box only with
@@ -957,7 +1050,10 @@ export const Composer = memo(function Composer({
       const unsent = composerDraft(refs, text);
       if (unsent) sendDraft(draftKey, { type: "unsent", text: unsent });
       if (mounted.current && keyNow.current === draftKey) {
-        setAtts((cur) => [...sent, ...cur]);
+        const next = [...sent, ...attsNow.current];
+        attsNow.current = next;
+        setAtts(next);
+        persistAttachments(draftKey, next);
       } else {
         releaseAttachments(sent);
       }
@@ -985,6 +1081,7 @@ export const Composer = memo(function Composer({
     if (c.confirm && !confirm(c.confirm)) return;
     // `/permissions` opens the permission menu at once; where the chat has no picker it goes in the box as any command
     if (c.text === PERMISSIONS_COMMAND && requestPermissionPicker(draftKey)) {
+      queueDraftSave("");
       setDraft("");
       setDismissed(true);
       return;
@@ -1091,10 +1188,13 @@ export const Composer = memo(function Composer({
         {atts.length > 0 && (
           <div className="px-0.5 pt-0.5">
             <AttachmentTray attachments={atts} onOpen={(id) => setEditing(atts.find((a) => a.id === id) ?? null)} onRemove={(id) => {
-              const att = atts.find((a) => a.id === id);
+              const att = attsNow.current.find((a) => a.id === id);
               // an edited picture's source and edits go with it
               if (att) releaseAttachments([att]);
-              setAtts((cur) => cur.filter((a) => a.id !== id));
+              const next = attsNow.current.filter((a) => a.id !== id);
+              attsNow.current = next;
+              setAtts(next);
+              persistAttachments(draftKey, next);
             }} />
           </div>
         )}
@@ -1392,7 +1492,12 @@ export const Composer = memo(function Composer({
               setEditing(null);
               // the picture as it came stays the source (the first edit's tile URL, kept); the earlier result goes
               const source = old.edited?.source ?? old.url;
-              setAtts((cur) => cur.map((a) => (a.id === old.id ? fromDraftImage(img, a.id, { source, ...state }) : a)));
+              const editedSource = old.editedSource ?? (source.startsWith("blob:") ? { mime: old.mime, data: old.data } : undefined);
+              const updated = fromDraftImage(img, old.id, { source, ...state }, editedSource);
+              const next = attsNow.current.map((a) => (a.id === old.id ? updated : a));
+              attsNow.current = next;
+              setAtts(next);
+              persistAttachments(draftKey, next);
               if (old.url !== source) URL.revokeObjectURL(old.url);
             }}
           />

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MARKED_AGENTS } from "../lib/agent-kind";
+import { agentId, isMarked, MARKED_AGENTS, markId } from "../lib/agent-kind";
 import { AgentMark, SessionMark } from "./AgentMark";
+import { ProviderMark } from "./model-panel/ProviderMark";
 
 const draw = (agent: string | undefined, props: Partial<Parameters<typeof AgentMark>[0]> = {}) => renderToStaticMarkup(<AgentMark agent={agent} size={14} {...props} />);
 // the image's address: an <img src> or a mask's url() (Vite inlines files this small as data URIs, so it is the whole file)
@@ -16,16 +17,35 @@ describe("AgentMark", () => {
     expect(draw("gemini-cli")).toBe(draw("gemini"));
   });
 
-  it("draws the one-color marks as templates in the text color and Claude in its own color", () => {
-    for (const a of MARKED_AGENTS.filter((x) => x !== "claude")) {
+  it("draws the one-color marks as templates in the text color and Claude and TRAE in their own brand colors", () => {
+    for (const a of MARKED_AGENTS.filter((x) => x !== "claude" && x !== "trae")) {
       const html = draw(a);
       expect(html).toContain("bg-current");
       expect(html).toContain("mask");
       expect(html).not.toContain("<img");
     }
     expect(draw("claude")).toContain("<img");
+    expect(draw("trae")).toContain("<img");
+    expect(draw("traex")).toContain("<img");
     expect(draw("codex")).toContain("text-ink-2"); // read in light and dark: the text color, not a fixed one
     expect(draw("codex", { className: "text-current" })).not.toContain("text-ink-2");
+  });
+
+  it("gives TRAE CLI (traex) the first-class TRAE brand mark everywhere while keeping its own engine id and label", () => {
+    expect(agentId("traex")).toBe("traex");
+    expect(isMarked("traex")).toBe(false);
+    expect(["traex", "trae-cli", "TRAE CLI"].map((a) => markId(a))).toEqual(["trae", "trae", "trae"]);
+    for (const alias of ["traex", "trae-cli", "TRAE CLI"]) {
+      const html = draw(alias);
+      expect(html).toContain('data-agent-mark="trae"');
+      expect(html).toContain('aria-label="TRAE CLI"');
+      expect(src(html)).toBe(src(draw("trae")));
+    }
+    expect(draw("trae")).toContain('aria-label="TRAE"');
+    const provider = renderToStaticMarkup(<ProviderMark engine="traex" />);
+    expect(provider).toContain('data-agent-mark="trae"');
+    expect(provider).not.toContain('data-agent-mark="generic"');
+    expect(renderToStaticMarkup(<ProviderMark engine="omp" />)).toContain('data-agent-mark="generic"');
   });
 
   it("says which agent it is, in the interface language", () => {
@@ -42,20 +62,20 @@ describe("AgentMark", () => {
     expect(html).not.toContain("role=");
   });
 
-  it("draws a letter for an agent with no mark, in the same box", () => {
-    for (const [agent, label, letter] of [["traex", undefined, "T"], ["omp", "Oh My Pi", "O"], ["amp", undefined, "A"]] as const) {
+  it("draws a crisp inset letter tile for an agent with no mark, in the same box", () => {
+    for (const [agent, label, letter] of [["omp", "Oh My Pi", "O"], ["amp", undefined, "A"]] as const) {
       const html = draw(agent, { label });
       expect(html).toContain('data-agent-mark="letter"');
+      expect(html).toContain("ring-line/60");
       expect(html).toContain(`>${letter}</span>`);
       expect(html).not.toContain("<img");
       expect(html).toContain("width:14px;height:14px");
     }
     expect(draw("omp")).toContain('aria-label="Oh My Pi"');
-    expect(draw("traex")).toContain('aria-label="TRAE CLI"');
   });
 
   it("keeps every mark in a box of the size asked, centred, whatever its shape", () => {
-    for (const a of [...MARKED_AGENTS, "traex"]) {
+    for (const a of [...MARKED_AGENTS, "traex", "omp"]) {
       const html = draw(a, { size: 18 });
       expect(html).toMatch(/^<span [^>]*class="relative inline-flex shrink-0 items-center justify-center/);
       expect(html).toContain("width:18px;height:18px");
@@ -64,7 +84,8 @@ describe("AgentMark", () => {
 
   it("pulls a square or tall mark in so it does not look bigger than a round one", () => {
     const inner = (a: string) => Number(/width:(\d+)px/.exec(draw(a, { size: 32 }).replace("width:32px;height:32px", ""))?.[1]);
-    expect(MARKED_AGENTS.map((a) => inner(a === "claude" ? "codex" : a))).toEqual([32, 32, 28, 28, 32, 29, 29, 32, 32, 32, 28, 32]);
+    expect(MARKED_AGENTS.map(inner)).toEqual([32, 32, 28, 28, 32, 29, 29, 32, 32, 32, 28, 32]);
+    expect(inner("traex")).toBe(29);
   });
 });
 
@@ -85,10 +106,11 @@ describe("AgentMark's client (#6390)", () => {
     expect(draw("codex")).toContain('aria-label="Codex"');
   });
 
-  it("keeps the badge inside a readable size on the smallest marks", () => {
+  it("keeps the badge compact and readable on the smallest marks without covering the glyph", () => {
     const side = (size: number) => Number(/data-agent-badge="cli"[^>]*width:(\d+)px/.exec(draw("codex", { surface: "cli", size }))?.[1]);
-    expect(side(13)).toBe(8);
-    expect(side(16)).toBe(10);
+    expect(side(13)).toBe(7);
+    expect(side(14)).toBe(8);
+    expect(side(16)).toBe(9);
   });
 });
 

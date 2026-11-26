@@ -48,6 +48,8 @@ export interface UsageAccount {
 const SAMPLE_MAX_AGE_MS = 3 * 24 * 3600_000;
 /** From this used percentage a bar turns to the caution colour. */
 const WARN_PERCENT = 80;
+/** From this used percentage a bar and percentage turn to the critical colour. */
+const CRITICAL_PERCENT = 90;
 /** The pace is not judged in the first part of a window: a few minutes in, any use is "ahead". */
 const PACE_QUIET_FRACTION = 0.05;
 /** How far (percentage points) the actual use may be from the expected before it is over / under. */
@@ -294,7 +296,8 @@ export function usePinnedUsageAccounts(): readonly string[] {
 
 /** Choose which live accounts appear in the collapsed sidebar strip:
  *  when pinned IDs match at least one live account, show those matched accounts in pinned order;
- *  otherwise show the two most-used providers, plus live balance accounts. */
+ *  otherwise rank distinct providers first (fresh before stale, highest fullest first), followed by any remaining
+ *  non-balance accounts so wide sidebars fill cleanly without a hardcoded 2-item cap, plus live balance accounts. */
 export function selectSidebarUsageAccounts(
   live: UsageAccount[],
   pinnedIds: readonly string[],
@@ -314,15 +317,21 @@ export function selectSidebarUsageAccounts(
       };
     }
   }
+  const ranked = topAccounts(live, live.length);
   const seen = new Set<string>();
-  const providers = topAccounts(live, live.length).filter((account) => {
+  const primary: UsageAccount[] = [];
+  const secondary: UsageAccount[] = [];
+  for (const account of ranked) {
     const provider = usageProvider(account.provider);
-    if (seen.has(provider)) return false;
-    seen.add(provider);
-    return true;
-  });
+    if (!seen.has(provider)) {
+      seen.add(provider);
+      primary.push(account);
+    } else {
+      secondary.push(account);
+    }
+  }
   return {
-    bars: providers.slice(0, 2),
+    bars: [...primary, ...secondary],
     balances: live.filter(isBalanceAccount),
     custom: false,
   };
@@ -377,6 +386,240 @@ export function groupByProvider(accounts: UsageAccount[]): ProviderGroup[] {
     const newest = list.reduce((m, a) => Math.max(m, Date.parse(a.sampled_at) || -Infinity), -Infinity);
     return { provider, accounts: sortForCard(list), sampledAt: Number.isFinite(newest) ? new Date(newest).toISOString() : "" };
   });
+}
+
+export interface UsageMachineHint {
+  id: string;
+  name?: string;
+  hostname?: string;
+  online?: boolean;
+}
+
+export type DeviceGroupKind = "machine" | "inferred" | "local" | "global";
+
+export interface DeviceGroup {
+  key: string;
+  kind: DeviceGroupKind;
+  /** Primary display title; empty for "global" so the lazy popover renders its localized label. */
+  title: string;
+  /** Secondary identifier when distinct from `title` (for example machine ID under a friendly name, or an inferred host tag). */
+  subtitle?: string;
+  online?: boolean;
+  /** Lowercased device identifiers used to suppress redundant per-account source labels. */
+  aliases: readonly string[];
+  /** Provider blocks on this device, ordered by tightest live usage first. */
+  providers: ProviderGroup[];
+  accounts: UsageAccount[];
+  sampledAt: string;
+}
+
+function extractSourceHostTags(sources: readonly string[] | undefined): string[] {
+  if (!sources?.length) return [];
+  const out: string[] = [];
+  for (const src of sources) {
+    for (const match of src.matchAll(/\(([^()]+)\)/g)) {
+      const tag = match[1]?.trim();
+      if (tag && !out.some((x) => x.toLowerCase() === tag.toLowerCase())) out.push(tag);
+    }
+  }
+  return out;
+}
+
+function findKnownMachine(raw: string, machines: readonly UsageMachineHint[]): UsageMachineHint | undefined {
+  const q = raw.trim().toLowerCase();
+  if (!q) return undefined;
+  return machines.find(
+    (m) =>
+      m.id.trim().toLowerCase() === q ||
+      Boolean(m.name && m.name.trim().toLowerCase() === q) ||
+      Boolean(m.hostname && m.hostname.trim().toLowerCase() === q),
+  );
+}
+
+export function providerGroupOrder(group: ProviderGroup): number {
+  const primary = topAccounts(group.accounts, 1)[0];
+  if (primary) return fullest(primary) + (primary.stale ? 0 : 101);
+  return group.accounts.some((a) => !a.stale) ? 0.5 : 0;
+}
+
+/** Group live accounts into a device-first hierarchy:
+ *  1) Explicit `a.machines[0]` matched against known `machines` (`id`, `name`, `hostname`, case-insensitive).
+ *  2) Parenthesized host hints in `a.sources` (such as `"Claude (devbox)"` / `"agy (devbox)"`): merged into the exact
+ *     explicit machine that shares the same `(tag)` when present, or into a matching known machine, else an inferred host bucket.
+ *  3) `"local"` (`usage.source_local`) when `a.local` is true with no machine name, else `"global"` for cloud/gateway accounts. */
+export function groupByDevice(accounts: UsageAccount[], machines: readonly UsageMachineHint[] = []): DeviceGroup[] {
+  interface Bucket {
+    normKey: string;
+    key: string;
+    kind: DeviceGroupKind;
+    title: string;
+    subtitle?: string;
+    online?: boolean;
+    aliases: Set<string>;
+    list: UsageAccount[];
+    order: number;
+  }
+
+  const buckets = new Map<string, Bucket>();
+  const tagToNormKey = new Map<string, string>();
+  let seq = 0;
+
+  const ensureMachineBucket = (raw: string): Bucket => {
+    const m = findKnownMachine(raw, machines);
+    const key = m ? m.id.trim() : raw.trim();
+    const normKey = `machine:${key.toLowerCase()}`;
+    const existing = buckets.get(normKey);
+    if (existing) {
+      existing.aliases.add(raw.trim().toLowerCase());
+      return existing;
+    }
+    const title = m?.name?.trim() || key;
+    let subtitle: string | undefined;
+    if (m) {
+      if (m.id.trim().toLowerCase() !== title.toLowerCase()) subtitle = m.id.trim();
+      else if (m.hostname && m.hostname.trim().toLowerCase() !== title.toLowerCase()) subtitle = m.hostname.trim();
+    } else if (raw.trim().toLowerCase() !== title.toLowerCase()) {
+      subtitle = raw.trim();
+    }
+    const aliases = new Set<string>([raw.trim().toLowerCase(), key.toLowerCase(), title.toLowerCase()]);
+    if (m?.name?.trim()) aliases.add(m.name.trim().toLowerCase());
+    if (m?.hostname?.trim()) aliases.add(m.hostname.trim().toLowerCase());
+    if (subtitle) aliases.add(subtitle.toLowerCase());
+    const created: Bucket = {
+      normKey,
+      key,
+      kind: "machine",
+      title,
+      subtitle,
+      online: m?.online,
+      aliases,
+      list: [],
+      order: seq++,
+    };
+    buckets.set(normKey, created);
+    return created;
+  };
+
+  // Pass 1: discover explicit machine buckets and link any `(host)` tags carried by their sources.
+  for (const a of accounts) {
+    const primaryMachine = a.machines?.[0]?.trim();
+    if (!primaryMachine) continue;
+    const b = ensureMachineBucket(primaryMachine);
+    for (const tag of extractSourceHostTags(a.sources)) {
+      const lower = tag.toLowerCase();
+      if (!tagToNormKey.has(lower)) tagToNormKey.set(lower, b.normKey);
+      b.aliases.add(lower);
+      if (!b.subtitle && lower !== b.title.toLowerCase()) b.subtitle = tag;
+    }
+  }
+
+  // Pass 2: assign every account to its resolved device bucket.
+  for (const a of accounts) {
+    const primaryMachine = a.machines?.[0]?.trim();
+    if (primaryMachine) {
+      ensureMachineBucket(primaryMachine).list.push(a);
+      continue;
+    }
+    const tags = extractSourceHostTags(a.sources);
+    if (tags.length > 0) {
+      const linkedKey = tags.map((t) => tagToNormKey.get(t.toLowerCase())).find(Boolean);
+      if (linkedKey) {
+        buckets.get(linkedKey)!.list.push(a);
+        continue;
+      }
+      const matchedTag = tags.find((t) => findKnownMachine(t, machines));
+      if (matchedTag) {
+        const b = ensureMachineBucket(matchedTag);
+        for (const tag of tags) {
+          const lower = tag.toLowerCase();
+          tagToNormKey.set(lower, b.normKey);
+          b.aliases.add(lower);
+        }
+        b.list.push(a);
+        continue;
+      }
+      const host = tags[0];
+      const normKey = `inferred:${host.toLowerCase()}`;
+      let b = buckets.get(normKey);
+      if (!b) {
+        b = {
+          normKey,
+          key: host,
+          kind: "inferred",
+          title: host,
+          aliases: new Set([host.toLowerCase()]),
+          list: [],
+          order: seq++,
+        };
+        buckets.set(normKey, b);
+      }
+      for (const tag of tags) b.aliases.add(tag.toLowerCase());
+      b.list.push(a);
+      continue;
+    }
+    if (a.local) {
+      let b = buckets.get("local");
+      if (!b) {
+        const localTitle = tr("usage.source_local");
+        b = {
+          normKey: "local",
+          key: "local",
+          kind: "local",
+          title: localTitle,
+          aliases: new Set([localTitle.toLowerCase()]),
+          list: [],
+          order: seq++,
+        };
+        buckets.set("local", b);
+      }
+      b.list.push(a);
+      continue;
+    }
+    let b = buckets.get("global");
+    if (!b) {
+      b = {
+        normKey: "global",
+        key: "global",
+        kind: "global",
+        title: "",
+        aliases: new Set(),
+        list: [],
+        order: seq++,
+      };
+      buckets.set("global", b);
+    }
+    b.list.push(a);
+  }
+
+  return [...buckets.values()]
+    .map((b) => {
+      const providers = groupByProvider(b.list).sort((x, y) => providerGroupOrder(y) - providerGroupOrder(x));
+      const newest = b.list.reduce((m, a) => Math.max(m, Date.parse(a.sampled_at) || -Infinity), -Infinity);
+      const topScore = providers.length ? providerGroupOrder(providers[0]) : -1;
+      return {
+        bucket: b,
+        topScore,
+        group: {
+          key: b.key,
+          kind: b.kind,
+          title: b.title,
+          ...(b.subtitle ? { subtitle: b.subtitle } : {}),
+          ...(b.online !== undefined ? { online: b.online } : {}),
+          aliases: [...b.aliases],
+          providers,
+          accounts: providers.flatMap((p) => p.accounts),
+          sampledAt: Number.isFinite(newest) ? new Date(newest).toISOString() : "",
+        } satisfies DeviceGroup,
+      };
+    })
+    .sort((x, y) => {
+      const xGlobal = x.group.kind === "global" ? 1 : 0;
+      const yGlobal = y.group.kind === "global" ? 1 : 0;
+      if (xGlobal !== yGlobal) return xGlobal - yGlobal;
+      if (y.topScore !== x.topScore) return y.topScore - x.topScore;
+      return x.bucket.order - y.bucket.order;
+    })
+    .map((x) => x.group);
 }
 
 /** Nodes and external sources can use either spelling for the same usage provider. Account IDs remain separate. */
@@ -439,6 +682,7 @@ export function remainingText(ms: number): string {
 }
 
 export const isWarn = (percent: number) => percent >= WARN_PERCENT;
+export const isCritical = (percent: number) => percent >= CRITICAL_PERCENT;
 
 export interface UnconnectedProvider {
   id: string;

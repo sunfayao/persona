@@ -7,14 +7,14 @@ import { AgentMark } from "../AgentMark";
 import { cx } from "../atoms";
 import { Icon } from "../icons";
 
-/** Decorative: the provider's name is said by what it stands beside. `engine` is the launcher's (AgentMark ids), `label`
- * the runtime's own name for an engine the app has no id for (Paseo's Grok, #8142). */
+/** Decorative: the provider's name is said by what it stands beside. `engine` is the launcher's (`claude`, `codex`,
+ * `traex`, `agy`… resolved via `markId`), `label` the runtime's own name for an engine the app has no id for (Paseo's Grok, #8142). */
 export function ProviderMark({ engine, label, size = 15, className }: { engine: string; label?: string; size?: number; className?: string }) {
-  // a runtime that names itself (Paseo's Grok, #8142) gets what the Agents list draws for it: its mark, or its name's letter
+  // a marked engine (including CLI aliases like traex → trae) or a runtime that names itself gets AgentMark
   if (isMarked(markId(engine, label)) || label?.trim()) return <AgentMark agent={engine} label={label} size={size} decorative className={cx("shrink-0", className)} />;
   return (
     <span aria-hidden data-agent-mark="generic" className={cx("inline-flex shrink-0 items-center justify-center", className)} style={{ width: size, height: size }}>
-      <Icon name="agent" size={size} />
+      <Icon name="agent" size={Math.round(size * 0.93)} stroke={1.85} />
     </span>
   );
 }

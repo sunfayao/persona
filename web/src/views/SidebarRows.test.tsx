@@ -7,7 +7,7 @@ import { Icon } from "../ui/icons";
 import type { AgentSession } from "../lib/agents";
 import type { Session } from "../lib/types";
 import { setAgentDetails } from "../lib/context-usage";
-import { AgentRow, PersonaRow, SessionRow } from "./Sidebar";
+import { AgentRow, PersonaRow, SESSION_ACTIVE_ROW, SessionRow } from "./Sidebar";
 
 // the sidebar's modules read the colour scheme and this browser's settings when they load
 vi.hoisted(() => {
@@ -26,19 +26,34 @@ const link = (html: string) => html.match(/<a [^>]*>/)![0];
 const more = (html: string) => html.match(/<button [^>]*aria-label="Agent 的操作"[^>]*>/)![0];
 
 describe("an agent's row", () => {
-  it("is aria-current with the open row's fill when it is open", () => {
+  it("is aria-current with the open row's elevated card fill when it is open", () => {
     const html = renderToStaticMarkup(<SessionRow {...rowProps} active />);
     expect(link(html)).toContain('aria-current="page"');
-    expect(link(html)).toMatch(/class="[^"]*\bbg-hover-2\b/);
+    expect(link(html)).toContain(SESSION_ACTIVE_ROW);
   });
   it("is neither when it is not", () => {
     const html = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
     expect(link(html)).not.toContain("aria-current");
-    expect(link(html)).not.toContain("bg-hover-2");
+    expect(link(html)).not.toContain(SESSION_ACTIVE_ROW);
   });
   it("keeps its ⋯ shown when open, on hover only otherwise", () => {
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active />))).toMatch(/class="[^"]*\bflex\b/);
     expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active={false} />))).toMatch(/class="[^"]*\bhidden\b/);
+  });
+  it("distinguishes working, background-waiting, needs-you, and quiet idle states visually", () => {
+    const workingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working" }} active={false} />);
+    expect(workingHtml).toContain(`>${stateName("working")}<`);
+    expect(link(workingHtml)).toContain("bg-orange-tint/35");
+
+    const waitingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working", background_waiting: true }} active={false} />);
+    expect(waitingHtml).toContain(`>${stateName("bg_waiting")}<`);
+    expect(link(waitingHtml)).not.toContain("bg-orange-tint/35");
+
+    const needsHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, state: "needs_you" }} active={false} />);
+    expect(link(needsHtml)).toContain("ring-red/20");
+
+    const idleHtml = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
+    expect(idleHtml).toContain("opacity-35");
   });
 });
 

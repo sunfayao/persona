@@ -69,14 +69,15 @@ export function isEcho(sent: Sent, user: Seen): boolean {
   const at = user.ts ? Date.parse(user.ts) : NaN;
   if (!Number.isNaN(at) && at < sent.at - (sent.inDoubt ? 5_000 : CLOCK_SLACK_MS)) return false;
   if (user.images.length + (user.photos?.length ?? 0) < sent.images.length) return false;
-  const cut = user.text.lastIndexOf(CUT_MARK);
+  const seenText = !sent.text.trimStart().startsWith("/") ? user.text.trimStart().replace(/^\/plan(?:\s+|$)/, "") : user.text;
+  const cut = seenText.lastIndexOf(CUT_MARK);
   if (cut >= 0) {
-    const start = normalizeWords(user.text.slice(0, cut));
+    const start = normalizeWords(seenText.slice(0, cut));
     return [...start].length >= 8 && normalizeWords(sent.text).startsWith(start);
   }
   // only pictures: the transcript's copy has no words either
-  if (!normalizeWords(sent.text)) return sent.images.length > 0 && !normalizeWords(user.text);
-  return sameWords(user.text, sent.text);
+  if (!normalizeWords(sent.text)) return sent.images.length > 0 && !normalizeWords(seenText);
+  return sameWords(seenText, sent.text);
 }
 
 /** Which of `sent` the transcript's `users` hold: each user message answers one, and one already taken (`claimed`, by

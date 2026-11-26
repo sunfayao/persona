@@ -68,7 +68,7 @@ import { sidebarPending } from "./sidebar-pending";
 import { usePendingWorkSessions } from "./sidebar-pending-sessions";
 // Declared in the files split out of this one; re-exported so the files that import them from here stay as they are.
 export { useNavPages, type NavPage } from "./SidebarParts";
-export { AgentRow, PersonaRow, SessionRow } from "./SidebarRows";
+export { AgentRow, PersonaRow, SESSION_ACTIVE_ROW, SessionRow } from "./SidebarRows";
 export { SidebarRail } from "./SidebarRail";
 
 // Skip parent pushes with unchanged props; each leaf still receives its own state and subscription updates.
@@ -154,13 +154,21 @@ function useGlide(activeKey: string) {
     // the box rests under the open row when the pointer is away, so it glides from there; that row's fill covers it
     const el = rows.current.get(hovered.current ?? active.current);
     let next: GlideBox | null = null;
+    let left: number | undefined;
+    let width: number | undefined;
     if (n && el?.isConnected) {
       const clips: Span[] = [];
       for (let p = el.parentElement; p && p !== n; p = p.parentElement) if (clipsOverflow(getComputedStyle(p).overflowY)) clips.push(p.getBoundingClientRect());
-      next = glideBox(el.getBoundingClientRect(), clips, n.getBoundingClientRect(), n.scrollTop);
+      const r = el.getBoundingClientRect();
+      const nb = n.getBoundingClientRect();
+      next = glideBox(r, clips, nb, n.scrollTop);
+      if (r.width > 0) {
+        left = r.left - nb.left;
+        width = r.width;
+      }
     }
     // only a real move updates
-    box.set((b) => (next ? (b.on && sameBox(b.at, next) ? b : { at: next, on: true }) : b.on ? { at: b.at, on: false } : b));
+    box.set((b) => (next ? (b.on && sameBox(b.at, next) && b.left === left && b.width === width ? b : { at: next, on: true, left, width }) : b.on ? { ...b, on: false } : b));
   };
   useEffect(() => {
     const n = nav.current;
@@ -246,8 +254,8 @@ function useGlide(activeKey: string) {
 }
 
 /** Where the box is: `at` is the last place it was on show; a box that goes away (`on` false) fades out there, and
- *  glides from there back. */
-type GlideState = { at: GlideBox | null; on: boolean };
+ *  glides from there back. `left` / `width` follow indented rows inside project rails so the box never overhangs. */
+type GlideState = { at: GlideBox | null; on: boolean; left?: number; width?: number };
 
 /** The box's place outside React state, so moving it re-renders only GlideHighlight. */
 function glideStore() {
@@ -270,8 +278,9 @@ function glideStore() {
 
 function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
   // box.get is the server snapshot too: the shell views are also rendered to a string (shell-views.test)
-  const { at, on } = useSyncExternalStore(box.subscribe, box.get, box.get);
-  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[7px] bg-hover" style={glideStyle(at, on, EASE)} />;
+  const { at, on, left, width } = useSyncExternalStore(box.subscribe, box.get, box.get);
+  const style = width !== undefined && left !== undefined ? { ...glideStyle(at, on, EASE), left, right: "auto", width } : glideStyle(at, on, EASE);
+  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[9px] bg-hover" style={style} />;
 }
 
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
@@ -465,7 +474,7 @@ function MorePages({ more, reg, hover, activeKey, go }: { more: NavPage[]; reg: 
         onClick={toggle}
         aria-expanded={!folded}
         title={counted.map(pageLabel).join(t("sidebar.list_separator")) || undefined}
-        className="touch-hit relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row text-left transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11"
+        className="touch-hit relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11"
       >
         <span className="text-ink-3"><Icon name="more" size={14} stroke={1.8} /></span>
         <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">{t("sidebar.more_pages")}</span>
@@ -874,7 +883,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
       {!folded && <HerdrNotices />}
 
       {unreadShown.length > 0 && (
-        <button type="button" onClick={() => setConfirmSeen(unreadShown)} className="relative z-10 mt-1 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11">
+        <button type="button" onClick={() => setConfirmSeen(unreadShown)} className="relative z-10 mt-1 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11">
           <span className="flex size-3.5 shrink-0 items-center justify-center text-green"><Icon name="check" size={13} stroke={2.4} /></span>
           <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{markAllSeenLabel()}</span>
           <span className="shrink-0 text-[11px] whitespace-nowrap text-ink-3 tabular-nums">{stateCount("unread", unreadShown.length)}</span>
@@ -970,17 +979,64 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
   );
 }
 
+const FILTER_CHIP_TONE: Record<AgentFilter, { on: string; active: string; countOn: string; countOff: string }> = {
+  all: {
+    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
+    active: "bg-inset/60 text-ink-2 ring-1 ring-inset ring-line/55 hover:bg-hover hover:text-ink",
+    countOn: "bg-hover-2 text-ink",
+    countOff: "bg-hover text-ink-3",
+  },
+  needs: {
+    on: "bg-red/[0.11] font-medium text-red shadow-2xs ring-1 ring-inset ring-red/35",
+    active: "bg-red/[0.06] font-medium text-red ring-1 ring-inset ring-red/22 hover:bg-red/[0.11]",
+    countOn: "bg-red/15 text-red",
+    countOff: "bg-red/12 text-red",
+  },
+  working: {
+    on: "bg-orange-tint font-medium text-ink shadow-2xs ring-1 ring-inset ring-orange/40",
+    active: "bg-orange-tint/65 font-medium text-ink ring-1 ring-inset ring-orange/25 hover:bg-orange-tint",
+    countOn: "bg-orange/15 text-orange",
+    countOff: "bg-orange/12 text-orange",
+  },
+  bg_waiting: {
+    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
+    active: "bg-surface/75 text-ink-2 ring-1 ring-inset ring-line-strong/75 hover:bg-surface hover:text-ink",
+    countOn: "bg-hover-2 text-ink-2",
+    countOff: "bg-hover text-ink-2",
+  },
+  unread: {
+    on: "bg-green-tint font-medium text-ink shadow-2xs ring-1 ring-inset ring-green/40",
+    active: "bg-green-tint/65 font-medium text-ink ring-1 ring-inset ring-green/25 hover:bg-green-tint",
+    countOn: "bg-green/15 text-green",
+    countOff: "bg-green/12 text-green",
+  },
+  feishu: {
+    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
+    active: "bg-inset/65 text-ink-2 ring-1 ring-inset ring-line/60 hover:bg-hover hover:text-ink",
+    countOn: "bg-hover-2 text-ink-2",
+    countOff: "bg-hover text-ink-3",
+  },
+  terminal: {
+    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
+    active: "bg-inset/65 text-ink-2 ring-1 ring-inset ring-line/60 hover:bg-hover hover:text-ink",
+    countOn: "bg-hover-2 text-ink-2",
+    countOff: "bg-hover text-ink-3",
+  },
+};
+
 /** Quick filters describe the visible inventory; an empty Lark filter is never offered. */
 const FilterBar = memo(function FilterBar({ selection, counts, onChoose }: { selection: AgentFilter; counts: FilterCounts; onChoose: (f: AgentFilter) => void }) {
   const keys = shownFilters(selection, counts);
   if (keys.length < 2) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap gap-0.5 px-1">
+    <div className="mt-1.5 flex flex-wrap items-center gap-1 px-1.5 py-0.5">
       <div role="radiogroup" aria-label={t("sidebar.quick_filters")} className="contents">
       {keys.map((k) => {
         const f = AGENT_FILTERS.find((x) => x.key === k)!;
         const on = k === selection;
         const n = k === "all" ? undefined : counts[k];
+        const tone = FILTER_CHIP_TONE[k];
+        const hasActiveCount = n !== undefined && n > 0;
         return (
           <button
             key={k}
@@ -990,13 +1046,18 @@ const FilterBar = memo(function FilterBar({ selection, counts, onChoose }: { sel
             aria-label={n === undefined ? f.label : `${f.label} ${n}`}
             onClick={() => onChoose(k)}
             className={cx(
-              "touch-hit relative z-10 flex h-6 items-center gap-1 whitespace-nowrap rounded-full px-[7px] text-[11.5px] transition-[background-color,color,box-shadow] duration-150",
-              on ? "bg-surface font-medium text-ink shadow-btn" : "text-ink-2 hover:bg-hover hover:text-ink",
+              "touch-hit relative z-10 inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full text-[11.5px] leading-none transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97]",
+              n !== undefined ? "pr-1 pl-2" : "px-2.5",
+              on ? tone.on : hasActiveCount ? tone.active : "bg-inset/55 text-ink-2 ring-1 ring-inset ring-line/45 hover:bg-hover hover:text-ink",
             )}
           >
             {f.state && <StatusMark state={f.state} size="sm" waiting={k === "bg_waiting"} />}
-            {f.label}
-            {n !== undefined && <span className={cx("tabular-nums", on ? "text-ink-2" : "text-ink-3")}>{n}</span>}
+            <span>{f.label}</span>
+            {n !== undefined && (
+              <span className={cx("inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums", on ? tone.countOn : hasActiveCount ? tone.countOff : "bg-hover text-ink-3")}>
+                {n}
+              </span>
+            )}
           </button>
         );
       })}

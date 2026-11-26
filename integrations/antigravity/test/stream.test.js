@@ -1159,6 +1159,32 @@ for (const prompt of ['', 'Check the photo.']) {
   })
 }
 
+for (const prompt of ['', 'Inspect the screenshot.']) {
+  test(`runtime keeps ${prompt ? 'text and images' : 'image-only input'} and client_msg_id when native export omits media`, async (t) => {
+    const data = PNG.toString('base64')
+    const client_msg_id = 'client-omitted-media'
+    const { node, directory, update, promptCount, runtime } = await fixture(t, {}, {
+      prompt, client_msg_id, images: [{ mime: 'image/png', data }, { mime: 'image/png', data }],
+    })
+    await promptCount(1)
+    const steps = [
+      { ...userStep(0, prompt), media: null },
+      replyStep(1, 'Reviewed.'),
+    ]
+    transcripts(directory, steps, steps)
+    nativeState(directory, 'IDLE', steps.length)
+    update({ end: true })
+    await until('native export without media settles', () => runtime.idle() && sessionStatus(node) === 'done')
+    const native = await node.peer.call('session.items', { session_id: SESSION, turns: 1 })
+    const user = native.items.filter((item) => item.role === 'user')
+    assert.deepEqual(user.map((item) => item.kind), [...(prompt ? ['text'] : []), 'image', 'image'])
+    assert.ok(user.every((item) => item.client_msg_id === client_msg_id && item.seq === 1))
+    for (const imageItem of user.filter((item) => item.kind === 'image')) {
+      assert.deepEqual(await node.peer.call('session.image', { session_id: SESSION, item_id: imageItem.id }), { mime: 'image/png', data })
+    }
+  })
+}
+
 test('runtime pages and pushes lazy tool media, keeping Read metadata and turn pagination', async (t) => {
   const { node, directory } = await fixture(t)
   const brain = join(directory, 'config/brain', RAW)

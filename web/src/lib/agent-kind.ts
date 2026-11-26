@@ -20,8 +20,9 @@ const ALIASES: Record<string, string> = {
   traecli: "trae",
 };
 
-// Alternate product names for the artwork. Provider IDs still key filters and launchers.
+// Alternate product and CLI ids for the artwork. Engine and provider IDs still key filters and launchers.
 const MARK_ALIASES: Record<string, MarkedAgent> = {
+  traex: "trae",
   grokbuild: "grok",
   grokchat: "grok",
   grokcli: "grok",

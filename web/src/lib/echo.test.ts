@@ -71,4 +71,10 @@ describe("finding a sent message in the transcript", () => {
     expect(isEcho({ text: "你好呀", images: [], at }, { ...user("你好呀", 1), client_msg_id: "hub-made" })).toBe(true);
     expect([...echoed([{ at }], [{ ...user("你好呀", 1), client_msg_id: "hub-made" }], (s) => ({ text: "你好呀", images: [], at: s.at }), new Set())]).toHaveLength(1);
   });
+
+  it("matches untagged Antigravity plan-prefixed user messages and photo attachments without conflating slash commands", () => {
+    expect(isEcho({ text: "check", images: [{}], at }, { ...user("/plan check", 1), photos: ["/tmp/persona/a.png"] })).toBe(true);
+    expect(isEcho({ text: "", images: [{}], at }, { ...user("/plan", 1), photos: ["/tmp/persona/a.png"] })).toBe(true);
+    expect(isEcho({ text: "/model", images: [], at }, user("/plan", 1))).toBe(false);
+  });
 });

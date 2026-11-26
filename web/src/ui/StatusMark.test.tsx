@@ -25,10 +25,11 @@ describe("state → mark", () => {
     expect(new Set(shapes).size).toBe(shapes.length);
   });
 
-  it("draws only the working mark as a turning arc, with Moshi's dash (28 of 100)", () => {
+  it("draws only the working mark as a precision ring track with a turning arc (30 of 100)", () => {
     const arc = renderToStaticMarkup(<StatusMark state="working" />);
     expect(arc).toContain("<svg");
-    expect(arc).toContain('stroke-dasharray="28 72"');
+    expect(arc).toContain('stroke-opacity="0.2"');
+    expect(arc).toContain('stroke-dasharray="30 70"');
     expect(arc).toContain('pathLength="100"');
     for (const st of ALL.filter((s) => s !== "working")) expect(renderToStaticMarkup(<StatusMark state={st} />)).not.toContain("<svg");
   });
@@ -83,18 +84,21 @@ describe("folded counts", () => {
     const counts = foldedCounts(list);
     expect(counts).toEqual({ needs_you: 0, working: 1, bg_waiting: 1, unread: 0 });
     const html = renderToStaticMarkup(<StateTally counts={counts} />);
-    expect([...html.matchAll(/<span aria-hidden="true" data-state="(\w+)">/g)].map((m) => m[1])).toEqual(["working", "bg_waiting"]);
+    expect([...html.matchAll(/<span aria-hidden="true" data-state="(\w+)"[^>]*>/g)].map((m) => m[1])).toEqual(["working", "bg_waiting"]);
+    expect(html).toContain('data-testid="state-tally"');
     expect(html).toContain('data-shape="wait"');
     expect(html).toContain('d="M12 7v5l3 2"'); // the clock, as the chat's running bar has it
+    expect(html).toContain('width="11"');
     const mark = renderToStaticMarkup(<StatusMark state="working" waiting />);
     expect(mark).toContain('aria-label="后台等待中"');
+    expect(mark).toContain('width="12"');
     expect(mark).not.toContain("busy");
     expect(renderToStaticMarkup(<StatusMark state="idle" waiting />)).toContain('data-shape="dot"'); // only a working state waits
   });
 
   it("shows needs you first, then working, then done, a monospace count beside each mark", () => {
     const html = renderToStaticMarkup(<StateTally counts={foldedCounts([sess("unread", 1), sess("working", 2), sess("needs_you", 3), sess("needs_you", 4)])} />);
-    const order = [...html.matchAll(/<span aria-hidden="true" data-state="(\w+)">/g)].map((m) => m[1]);
+    const order = [...html.matchAll(/<span aria-hidden="true" data-state="(\w+)"[^>]*>/g)].map((m) => m[1]);
     expect(order).toEqual(["needs_you", "working", "unread"]);
     expect(html).toMatch(/data-state="needs_you"[^>]*>.*?<\/span>2</);
     expect(html).toContain('class="state-tally"');

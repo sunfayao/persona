@@ -45,7 +45,11 @@ import { useHeldSides } from "../lib/use-child-sessions";
 import { backgroundWork } from "../lib/background-work";
 import { SESSIONS_LIST_FEATURE } from "../lib/session-list";
 import { personalHideDeps, personalOrder, personalSessions, removeAgentSession, useGoingIds } from "../lib/agents";
+import { stateName } from "../lib/state-labels";
 import { BADGE_CLASS, CURRENT_ROW, type GoFn, GroupCount, type RegFn, ROW_TITLE_MIN, type RowMenuFn, Section } from "./SidebarParts";
+
+/** Elevated card fill for the selected Agent conversation row in the sidebar. */
+export const SESSION_ACTIVE_ROW = "bg-surface shadow-hairline ring-1 ring-inset ring-line-strong/80";
 
 // Long prompt-derived names can fill a drawer. Give them a bounded preview with a touch/keyboard disclosure.
 function SidebarTitleDisclosure({ title, expanded, onToggle }: { title: string; expanded: boolean; onToggle: () => void }) {
@@ -96,7 +100,7 @@ export const PersonaRow = memo(function PersonaRow({ reg, hover, active, go, mai
       aria-keyshortcuts={chord ? ariaKeyshortcuts(chord) : undefined}
       title={t("sidebar.persona_main")}
       // pinned over the list (#5581), its own hover fill: the gliding highlight passes under the pinned box
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-[background-color,transform] duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-[background-color,transform] duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active ? CURRENT_ROW : "hover:bg-hover focus-visible:bg-hover")}
     >
       <Icon name="home" size={14} stroke={1.8} className="shrink-0 text-ink" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -134,7 +138,7 @@ export const NavRow = memo(function NavRow({ k, reg, hover, active, to, go, icon
       onFocus={() => hover(k)}
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
+      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW)}
     >
       <span className={active ? "text-ink" : "text-ink-3"}>
         {agent ? <AgentMark agent={agent} size={14} decorative /> : <Icon name={icon} size={14} stroke={1.8} />}
@@ -321,6 +325,26 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   // ultracode on (#3428): the workflow mark in the AI colour right after the title; a row without it is drawn as before.
   // Not on an offline row: the node keeps the last value it saw after the process is gone, and a resume starts it off.
   const ultra = ultracodeMarkShown(s);
+  const bgWait = backgroundWaiting(s);
+  const usageLimited = Boolean(usageLimitLabel(s));
+  const markState = usageLimited && st === "unread" ? "idle" : st;
+  const quietMark = (markState === "idle" && !awaiting && !finished && !unopened) || markState === "offline";
+  const prominent = active || st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited);
+  const titleTone = prominent ? "font-medium text-ink" : st === "offline" ? "text-ink-3/75" : "text-ink-2";
+  const rowTone = active
+    ? SESSION_ACTIVE_ROW
+    : st === "needs_you"
+      ? "bg-red/[0.055] ring-1 ring-inset ring-red/20 hover:bg-red/[0.09]"
+      : st === "working" && !bgWait
+        ? "bg-orange-tint/35 ring-1 ring-inset ring-orange/18 hover:bg-orange-tint/55"
+        : st === "unread" && !usageLimited
+          ? "bg-green-tint/30 ring-1 ring-inset ring-green/18 hover:bg-green-tint/50"
+          : undefined;
+  const statePill = !s.assistant && st === "working"
+    ? bgWait
+      ? { label: stateName("bg_waiting"), cls: "bg-inset text-ink-3 ring-1 ring-inset ring-line-strong/75" }
+      : { label: stateName("working"), cls: "bg-orange-tint text-orange ring-1 ring-inset ring-orange/25" }
+    : undefined;
   const link = (
     <a
       ref={regRow}
@@ -339,28 +363,48 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       data-sidebar-context={tailShown || undefined}
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
       // keeps its ⋯ too, so it has room for it
-      className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
+      className={cx("relative z-10 flex w-full items-center gap-2.5 rounded-[9px] px-2 sidebar-row transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", rowTone, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)
         endRoom && "lg:pointer-fine:pr-[108px]", onMenu && active && "pr-8", onMenu && "[@media(hover:none)]:pr-11")}
     >
-      {/* the agent's mark before its state (#6390): what runs there, then how it is doing */}
-      <span className="sidebar-session-marks">
-        {!s.assistant && <SessionMark s={s} size={14} />}
-        <span className="flex size-3.5 shrink-0 items-center justify-center"><StatusMark state={usageLimitLabel(s) && st === "unread" ? "idle" : st} awaiting={awaiting} finished={finished} unopened={unopened} waiting={backgroundWaiting(s)} /></span>
+      {/* Harness avatar tile with corner live StatusMark badge (#6390) */}
+      <span
+        className={cx(
+          "sidebar-session-marks relative inline-flex size-6 shrink-0 items-center justify-center rounded-[7px] ring-1 ring-inset transition-colors",
+          active
+            ? "bg-surface text-ink shadow-2xs ring-line-strong"
+            : st === "needs_you"
+              ? "bg-surface/90 text-ink ring-red/25"
+              : st === "working" && !bgWait
+                ? "bg-surface/90 text-ink ring-orange/30"
+                : "bg-inset/85 text-ink-2 ring-line/65",
+          st === "offline" && "opacity-55",
+        )}
+      >
+        {!s.assistant && <SessionMark s={s} size={14} className="text-current" />}
+        <span
+          className={cx(
+            "pointer-events-none absolute -right-1 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-1",
+            active ? "bg-surface ring-surface" : "bg-canvas ring-canvas",
+            quietMark && "scale-75 opacity-35",
+          )}
+        >
+          <StatusMark state={markState} size="sm" awaiting={awaiting} finished={finished} unopened={unopened} waiting={bgWait} />
+        </span>
       </span>
       {prefix && <span className={cx("sidebar-session-prefix", prefixClass)}>{prefix}</span>}
       {/* with the mark, the title sits in the column whether a second line shows or not: the same element through a
           workflow's start and end, so the mark does not fade in again */}
       {ultra || detail.length > 0 || workflow || line || childLine || plan ? (
-        <span className={cx("sidebar-session-copy flex min-w-0 flex-1 flex-col", titleMin, titleFirst)}>
+        <span className={cx("sidebar-session-copy flex min-w-0 flex-1 flex-col gap-0.5", titleMin, titleFirst)}>
           {ultra ? (
             <span className="flex min-w-0 items-center gap-1">
-              <span className={cx("sidebar-session-title min-w-0 truncate text-[13px]", active ? "font-medium text-ink" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
+              <span className={cx("sidebar-session-title min-w-0 truncate text-[13px] leading-[18px] tracking-[-0.006em]", titleTone)}>
                 {label ?? title}
               </span>
               <UltraMark size={10} />
             </span>
           ) : (
-            <span className={cx("sidebar-session-title truncate text-[13px]", active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && !usageLimitLabel(s) && "font-medium text-ink")}>
+            <span className={cx("sidebar-session-title truncate text-[13px] leading-[18px] tracking-[-0.006em]", titleTone)}>
               {label ?? title}
             </span>
           )}
@@ -395,11 +439,16 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
           </span>}
         </span>
       ) : (
-        <span className={cx("flex-1 truncate text-meta sidebar-session-copy sidebar-session-title", titleMin, titleFirst, active ? "font-medium text-ink" : st === "offline" ? "text-ink-3" : "text-ink-2", st === "unread" && !active && "font-medium text-ink")}>
+        <span className={cx("flex-1 truncate text-[13px] leading-[18px] tracking-[-0.006em] sidebar-session-copy sidebar-session-title", titleMin, titleFirst, titleTone)}>
           {label ?? title}
         </span>
       )}
-      {(host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
+      {(statePill || host || (showTodoTag && s.todo) || source || origin || tailShown || ageAtEnd || pendingCount > 0) && <span className="sidebar-session-meta">
+        {statePill && (
+          <span aria-hidden className={cx("shrink-0 rounded-full px-1.5 py-px text-[10px] font-medium leading-3.5 whitespace-nowrap", statePill.cls, aside)}>
+            {statePill.label}
+          </span>
+        )}
         {host && <span className={cx("shrink-0 rounded bg-hover px-1 text-[10px] leading-4 text-ink-3", aside)}>{host}</span>}
         {showTodoTag && s.todo && (
           <span
@@ -414,8 +463,8 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
         {origin && <OriginMark origin={origin} size={16} className={aside} session={s} onName={setOpenerName} />}
         {/* the row's ⋯ takes the end on hover: what is there steps aside instead of showing half under it */}
         {tailShown && <span className={cx("max-w-[72px] min-w-6 shrink-[20] truncate text-[11px] text-ink-3", aside)}>{tail}</span>}
-        {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
-        {pendingCount > 0 && <span className={cx("flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
+        {ageAtEnd && <span data-row-age className={cx("shrink-0 text-[11px] text-ink-3 tabular-nums", aside)}>{ago(s.updated_at, Date.now(), "narrow")}</span>}
+        {pendingCount > 0 && <span className={cx("flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-orange-tint px-1.5 ring-1 ring-inset ring-orange/30 text-[10px] font-semibold text-attention tabular-nums", aside)}>{pendingCount}</span>}
       </span>}
     </a>
   );
@@ -431,7 +480,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
         title={t("sidebar.more")}
         tabIndex={-1}
         onClick={(e) => onMenu(s, e.currentTarget.parentElement ?? e.currentTarget)}
-        className={cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-hover hover:bg-hover-2")}
+        className={cx("absolute top-1/2 right-1 z-20 size-6 -translate-y-1/2 items-center justify-center rounded-[6px] text-ink-3 hover:text-ink group-hover/row:flex [@media(hover:none)]:right-0 [@media(hover:none)]:flex [@media(hover:none)]:size-11 [@media(hover:none)]:bg-transparent", active ? "flex hover:bg-hover" : "hidden bg-surface/90 shadow-2xs ring-1 ring-inset ring-line/60 hover:bg-hover-2")}
       >
         <Icon name="more" size={14} />
       </button>}
@@ -656,7 +705,7 @@ export const AgentRow = memo(function AgentRow({ s, reg, hover, active, go, pinn
         onBlur={() => hover(null)}
         aria-current={active ? "page" : undefined}
         title={`${s.title || t("lib-format.untitled_session")} · ${providerLabel(s.provider)}`}
-        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
+        className={cx("relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(hover:none)]:pr-11 [@media(pointer:coarse)]:min-h-11", active && cx(CURRENT_ROW, "pr-7"))}
       >
         <AgentAvatar s={s} size={16} />
         <span className={cx("sidebar-session-copy sidebar-session-title min-w-0 flex-1 truncate text-[13px]", active || unread ? "font-medium text-ink" : "text-ink-2")}>{s.title || t("lib-format.untitled_session")}</span>

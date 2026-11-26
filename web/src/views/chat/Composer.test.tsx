@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadPages } from "../../lib/lazy-page";
-import { addQuote, getQuotes, sendDraft, setQuotes } from "../../lib/drafts";
+import { addQuote, getQuotes, sendDraft, setQuotes, storeDraft, storeDraftImages } from "../../lib/drafts";
 import { toast } from "../../ui/atoms";
 import { Composer, type Outgoing } from "./Composer";
 import { onPermissionPicker } from "../../lib/permissions-command";
@@ -610,6 +610,126 @@ describe("Composer draft typed just before leaving (#4591)", () => {
     act(() => root.unmount());
     root = createRoot(host);
     expect(localStorage.getItem("draft:a")).toBeNull();
+  });
+
+  it("preserves both typed text and attached/pasted images across conversation unmount/remount switches", async () => {
+    // Mount Agent conversation A (with key="conv-a" so switching unmounts Composer, matching ChatView in App.tsx).
+    act(() => root.render(<Composer key="conv-a" draftKey="mac/conv-a" placeholder="" onSend={async () => true} />));
+    typeInto("investigate this screenshot");
+    await pickFile(new File(["png-a"], "screen-a.png", { type: "image/png" }));
+    await settle(0, { mime: "image/png", data: btoa("screen-a-bytes") });
+    putImage("mac/conv-a");
+    expect(host.querySelector("textarea")!.value).toBe("investigate this screenshot");
+    expect(trayImages()).toBe(2);
+
+    // Immediately switch to Agent conversation B (unmounts A within the 250ms debounce window, mounts B).
+    act(() => root.render(<Composer key="conv-b" draftKey="mac/conv-b" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("");
+    expect(trayImages()).toBe(0);
+    typeInto("other agent note");
+
+    // Switch back to Agent conversation A: both typed text AND both attached images are restored!
+    act(() => root.render(<Composer key="conv-a" draftKey="mac/conv-a" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("investigate this screenshot");
+    expect(trayImages()).toBe(2);
+
+    // Switch back to B: B's text is also intact without A's images.
+    act(() => root.render(<Composer key="conv-b" draftKey="mac/conv-b" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("other agent note");
+    expect(trayImages()).toBe(0);
+  });
+
+  it("never wipes typed text or attached images when autoFocus toggles within the 250ms debounce", () => {
+    act(() => root.render(<Composer draftKey="mac/focus-race" autoFocus={false} placeholder="" onSend={async () => true} />));
+    typeInto("typed before autoFocus flips");
+    putImage("mac/focus-race");
+    expect(localStorage.getItem("draft:mac/focus-race")).toBeNull(); // still inside the 250ms debounce
+    expect(trayImages()).toBe(1);
+
+    // Toggle autoFocus false -> true -> false before the 250ms debounce fires.
+    act(() => root.render(<Composer draftKey="mac/focus-race" autoFocus={true} placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("typed before autoFocus flips");
+    expect(trayImages()).toBe(1);
+
+    act(() => root.render(<Composer draftKey="mac/focus-race" autoFocus={false} placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("typed before autoFocus flips");
+    expect(trayImages()).toBe(1);
+  });
+
+  it("clears both text and stored draft images on send so switching away and back shows an empty box", async () => {
+    const sent: Outgoing[] = [];
+    act(() => root.render(
+      <Composer
+        key="send-a"
+        draftKey="mac/send-a"
+        placeholder=""
+        onSend={async (m) => {
+          sent.push(m);
+          return true;
+        }}
+      />,
+    ));
+    typeInto("ship this fix");
+    putImage("mac/send-a");
+    expect(trayImages()).toBe(1);
+
+    await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="发送"]')!.click());
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toEqual({ text: "ship this fix", images: [{ mime: "image/png", data: btoa("png") }] });
+    expect(host.querySelector("textarea")!.value).toBe("");
+    expect(trayImages()).toBe(0);
+
+    // Switch to conversation B and back to conversation A: remains completely empty.
+    act(() => root.render(<Composer key="send-b" draftKey="mac/send-b" placeholder="" onSend={async () => true} />));
+    act(() => root.render(<Composer key="send-a" draftKey="mac/send-a" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("");
+    expect(trayImages()).toBe(0);
+  });
+
+  it("preserves typed drafts and attached images across switches when localStorage throws QuotaExceededError", () => {
+    const quotaErr = Object.assign(new Error("QuotaExceededError"), { name: "QuotaExceededError" });
+    const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw quotaErr;
+    });
+    try {
+      act(() => root.render(<Composer key="quota-a" draftKey="quota/a" placeholder="" onSend={async () => true} />));
+      typeInto("draft under full localStorage");
+      putImage("quota/a");
+
+      // Switch to conversation B (unmounts A) and back to conversation A (remounts A).
+      act(() => root.render(<Composer key="quota-b" draftKey="quota/b" placeholder="" onSend={async () => true} />));
+      expect(host.querySelector("textarea")!.value).toBe("");
+      expect(trayImages()).toBe(0);
+
+      act(() => root.render(<Composer key="quota-a" draftKey="quota/a" placeholder="" onSend={async () => true} />));
+      expect(host.querySelector("textarea")!.value).toBe("draft under full localStorage");
+      expect(trayImages()).toBe(1);
+    } finally {
+      spy.mockRestore();
+      storeDraft("quota/a", "");
+      storeDraft("quota/b", "");
+      storeDraftImages("quota/a", []);
+    }
+  });
+
+  it("carries attached images along with typed text when carryDraft re-addresses a conversation", () => {
+    act(() => root.render(<Composer draftKey="cached-hub/main" carryDraft placeholder="" onSend={async () => true} />));
+    typeInto("assistant draft");
+    putImage("cached-hub/main");
+    expect(trayImages()).toBe(1);
+
+    act(() => root.render(<Composer draftKey="hub/main" carryDraft placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("assistant draft");
+    expect(trayImages()).toBe(1);
+
+    // Unmounting and remounting under the new address keeps both text and image, while the old key is cleared.
+    act(() => root.render(<Composer key="old" draftKey="cached-hub/main" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("");
+    expect(trayImages()).toBe(0);
+
+    act(() => root.render(<Composer key="new" draftKey="hub/main" placeholder="" onSend={async () => true} />));
+    expect(host.querySelector("textarea")!.value).toBe("assistant draft");
+    expect(trayImages()).toBe(1);
   });
 });
 

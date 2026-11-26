@@ -41,15 +41,16 @@ export function StatusMark({ state, size = "md", label = true, awaiting = false,
   if (shape === "wait") {
     return (
       <span {...a11y} className="status-mark" data-shape={shape} data-state="bg_waiting" data-size={size} style={style}>
-        <Icon name="clock" stroke={2.2} />
+        <Icon name="clock" size={size === "sm" ? 11 : 12} stroke={2.25} className="m-auto block shrink-0" />
       </span>
     );
   }
   if (shape === "arc") {
-    // Moshi's loader: a circle drawn as 28 of 100 units, round caps, turning once in 0.9 s.
+    // Precision ring loader: a faint full-circle track behind a 30 of 100 arc, round caps, turning once in 0.9 s.
     return (
       <svg {...a11y} className={`status-mark ${BUSY_MOTION}`} data-shape={shape} data-state={state} data-size={size} style={style} viewBox="0 0 18 18">
-        <circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" pathLength={100} strokeDasharray="28 72" />
+        <circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2.6" />
+        <circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" pathLength={100} strokeDasharray="30 70" />
       </svg>
     );
   }
@@ -65,10 +66,10 @@ export function StateTally({ counts, className, chats = false }: { counts: Folde
   const list = shown.map((k) => stateCount(k.key, counts[k.key])).join(t("sidebar.list_separator"));
   const label = chats ? t("sidebar.folded_chats", { list }) : t("sidebar.folded_states", { list });
   return (
-    <span title={label} className={className ? `state-tally ${className}` : "state-tally"} data-testid="state-tally">
+    <span title={label} className={className ? `state-tally ${className}` : "state-tally"} data-testid="state-tally" style={{ gap: 7, lineHeight: 1 }}>
       <span className="sr-only">{label}</span>
       {shown.map((k) => (
-        <span key={k.key} aria-hidden data-state={"waiting" in k && k.waiting ? "bg_waiting" : k.state}>
+        <span key={k.key} aria-hidden data-state={"waiting" in k && k.waiting ? "bg_waiting" : k.state} style={{ gap: 3.5, lineHeight: 1 }}>
           <StatusMark state={k.state} size="sm" label={false} waiting={"waiting" in k && k.waiting} />
           {counts[k.key]}
         </span>

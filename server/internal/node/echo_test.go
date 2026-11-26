@@ -243,6 +243,8 @@ func TestEchoFits(t *testing.T) {
 		{"controls pasted inert", "go\x1b[201~\x1b[Z", "go<ESC>[201~<ESC>[Z", t0, true},
 		{"controls a runtime kept", "看看\x03构建", "看看\x03构建", t0, true},
 		{"inert controls are not other words", "go\x1b[201~", "go<ESC>[202~", t0, false},
+		{"agy plan prefix on text", "Check this", "/plan Check this", t0, true},
+		{"agy plan prefix does not match another command", "/mod", "/plan", t0, false},
 	}
 	for _, c := range cases {
 		var l echoLog
@@ -251,6 +253,16 @@ func TestEchoFits(t *testing.T) {
 		if got := len(found) == 1; got != c.want {
 			t.Errorf("%s: tied %v, want %v", c.name, got, c.want)
 		}
+	}
+
+	var imgLog echoLog
+	imgLog.expect(echoRecord{SessionID: "s", ClientMsgID: "img-plan", Images: 1, SentAt: t0})
+	planImageOnly := []proto.Item{{
+		ID: "1@agy#0", Seq: 1, Role: "user", Kind: proto.KindText, TS: t0,
+		Text: "/plan\n\n<attached_images>\n/tmp/upload.png\n</attached_images>",
+	}}
+	if found := imgLog.match("s", echoInTranscript, planImageOnly); len(found) != 1 || found[0].Line != "1@agy" {
+		t.Fatalf("image-only with /plan prefix did not match: %+v", found)
 	}
 }
 

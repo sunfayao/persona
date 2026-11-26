@@ -107,29 +107,45 @@ export function SidebarGroup({ heading, children, className }: { heading: React.
 /** A sidebar group: its heading folds it. The heading selects no text, so a press-and-drag over the list paints no
  *  selection behind it (#6458).
  *  `top`: one of the sidebar's top-level headings (Pages, Persona chats, Personal Agents), whose row is the Agents
- *  title row's box, `sidebar-heading` (#10637), whatever `right` carries; a group's heading inside a list keeps its own. */
-export function Section({ title, children, folded, onToggle, right, onMenu, first, top }: { title: React.ReactNode; children: React.ReactNode; folded: boolean; onToggle: () => void; right?: React.ReactNode; onMenu?: (at: MenuAt, el: HTMLElement) => void; first?: boolean; top?: boolean }) {
+ *  title row's box, `sidebar-heading` (#10637), whatever `right` carries; a group's heading inside a list keeps its own.
+ *  `tree`: draws a subtle vertical guide rail under an open project/space folder so its sessions visually nest. */
+export function Section({ title, children, folded, onToggle, right, onMenu, first, top, tree }: { title: React.ReactNode; children: React.ReactNode; folded: boolean; onToggle: () => void; right?: React.ReactNode; onMenu?: (at: MenuAt, el: HTMLElement) => void; first?: boolean; top?: boolean; tree?: boolean }) {
   return (
     <SidebarGroup className={first ? "mt-1" : "mt-3"} heading={
       <div className={cx("group/sec relative flex select-none items-center gap-1 px-2 pb-1", top && "sidebar-heading")} {...(onMenu ? contextMenuProps(onMenu) : {})}>
-        <button type="button" aria-expanded={!folded} onClick={onToggle} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left text-[11px] font-semibold text-ink-3 hover:text-ink-2">
+        <button
+          type="button"
+          aria-expanded={!folded}
+          onClick={onToggle}
+          className={cx(
+            "touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left font-semibold transition-colors",
+            top ? "text-[11px] text-ink-3 hover:text-ink-2" : "text-[11.5px] text-ink-2 hover:text-ink",
+          )}
+        >
           <span className="min-w-0 truncate">{title}</span>
-          <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+          <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3/80 transition-transform group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
         </button>
         {right}
       </div>
     }>
       <Collapse open={!folded} sidebarFold unclipped>
-        <div className="flex flex-col gap-px" inert={folded || undefined}>{children}</div>
+        <div className={cx("flex flex-col gap-0.5", tree && "ml-2.5 border-l border-line/60 pl-1.5")} inert={folded || undefined}>{children}</div>
       </Collapse>
     </SidebarGroup>
   );
 }
 
 /** A group title's count with what it counts: a tooltip, and the same words for a screen reader. */
-export function GroupCount({ n, label, className }: { n: number; label: string; className?: string }) {
+export function GroupCount({ n, label, className, pill }: { n: number; label: string; className?: string; pill?: boolean }) {
   return (
-    <span title={label} className={cx("text-[10.5px] text-ink-3 tabular-nums", className)}>
+    <span
+      title={label}
+      className={cx(
+        "text-[10.5px] text-ink-3 tabular-nums",
+        pill && "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-inset px-1.5 font-medium ring-1 ring-inset ring-line/60",
+        className,
+      )}
+    >
       <span aria-hidden>{n}</span>
       <span className="sr-only">{label}</span>
     </span>
@@ -137,11 +153,11 @@ export function GroupCount({ n, label, className }: { n: number; label: string; 
 }
 
 /** On a folded group's heading, how many of its sessions need the user (DESIGN_SYSTEM 3.4): the number in the
- *  attention tone, with the words for its tooltip and for a screen reader. Nothing when none do. */
+ *  attention/red tone, with the words for its tooltip and for a screen reader. Nothing when none do. */
 export function NeedsCount({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
-    <span title={stateCount("needs_you", n)} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1 text-[10.5px] font-semibold text-attention tabular-nums">
+    <span title={stateCount("needs_you", n)} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-red/12 px-1.5 text-[10.5px] font-semibold text-red ring-1 ring-inset ring-red/25 tabular-nums">
       {n}<span className="sr-only"> {t("sidebar.needs_you_suffix", { count: n })}</span>
     </span>
   );
@@ -151,7 +167,7 @@ export function NeedsCount({ n }: { n: number }) {
  *  rows), never a button's pill: the paged list's "Load more" looked like no other row (#6662, the owner). */
 export function ShowMoreRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="relative z-10 w-full whitespace-nowrap rounded-[7px] px-2 py-1 text-left text-label text-ink-3 hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
+    <button type="button" onClick={onClick} className="relative z-10 w-full whitespace-nowrap rounded-[9px] px-2 py-1 text-left text-label text-ink-3 transition-colors hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
       {label}
     </button>
   );

@@ -733,6 +733,9 @@ func (n *Node) agyPaneCall(ctx context.Context, method, id, pane string, raw jso
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("read Antigravity transcript: %w", err), true
 		}
+		if err == nil && n.agyConversation(id, pane) == conversation {
+			h = n.agyEchoed(id, conversation, h)
+		}
 		if method == "session.image" {
 			media, found := h.media[p.ItemID]
 			if found && n.agyConversation(id, pane) == conversation {
@@ -875,6 +878,7 @@ func (n *Node) pollAgyPane(w *watch) {
 		if h.token == "" || n.agyConversation(w.id, a.pane) != conversation {
 			return
 		}
+		h = n.agyEchoed(w.id, conversation, h)
 	}
 	since := a.since
 	reset := a.history != "" && a.history != h.token || since > h.seq
@@ -944,4 +948,54 @@ func (n *Node) pollAgyPane(w *watch) {
 		a.stepHashes = nil
 	}
 	a.history, a.file, a.conversation = h.token, info, conversation
+}
+
+func (n *Node) agyEchoed(id, conversation string, h agyHistory) agyHistory {
+	if !n.echoes.known(id) || len(h.items) == 0 {
+		return h
+	}
+	if conversation != "" {
+		n.echoes.syncAgyConversation(id, conversation, h.token)
+	}
+	if from, ok := n.echoes.waitingFrom(id, echoInTranscript); ok {
+		if idx := agyAfter(h.items, from); idx < len(h.items) {
+			for _, r := range n.echoes.match(id, echoInTranscript, h.items[idx:]) {
+				n.notifyEcho(r)
+			}
+		}
+	}
+	h.items = n.echoes.tag(id, echoInTranscript, h.items)
+	return h
+}
+
+func (n *Node) pollWatchedAgyPane(id string) {
+	n.mu.Lock()
+	w := n.watches[id]
+	n.mu.Unlock()
+	if w != nil && w.agy != nil {
+		n.pollAgyPane(w)
+	}
+}
+
+func (n *Node) agyEchoBase(id, pane string) echoAfter {
+	n.pollWatchedAgyPane(id)
+	mu := n.pushLock(id)
+	mu.Lock()
+	defer mu.Unlock()
+	conversation := n.agyConversation(id, pane)
+	if conversation == "" {
+		return echoAfter{in: echoInTranscript}
+	}
+	dir := n.agyDataRoot()
+	root, err := agyBrain(dir, conversation)
+	if err != nil {
+		return echoAfter{in: echoInTranscript}
+	}
+	defer root.Close()
+	h, _, err := n.agyRead(root, filepath.Join(dir, conversation), conversation, nil)
+	if err != nil || n.agyConversation(id, pane) != conversation {
+		return echoAfter{in: echoInTranscript}
+	}
+	h = n.agyEchoed(id, conversation, h)
+	return echoAfter{seq: h.seq, in: echoInTranscript, history: h.token}
 }

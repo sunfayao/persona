@@ -357,41 +357,57 @@ body {
 @utility sidebar-indent { padding-inline-start: var(--sidebar-indent); }
 @utility sidebar-row { min-height: var(--sidebar-row); padding-block: var(--sidebar-row-pad); line-height: 18px; }
 /* A contextual row keeps provenance, tab and time below the conversation. On desktop
-   a simple row with just a mark or time can still fit on one line. */
+   a simple row with an avatar tile, title, and status/time fits cleanly on one horizontal line. */
 [data-sidebar-session] {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-content: center;
-  align-items: start;
-  column-gap: calc(var(--spacing) * 2);
+  align-items: center;
+  column-gap: calc(var(--spacing) * 2.5);
   row-gap: 0;
 }
 .sidebar-session-marks {
   grid-column: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing);
-  min-height: 1lh;
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+[data-sidebar-session][data-sidebar-context] .sidebar-session-marks,
+[data-sidebar-session]:has(.sidebar-session-copy > :nth-child(2)) .sidebar-session-marks {
+  align-self: start;
+  margin-top: 1px;
+}
+.sidebar-session-marks [data-agent-badge="cli"],
+[data-testid="agent-chatlist-row"] [data-agent-badge="cli"] {
+  display: none;
 }
 .sidebar-session-copy, .sidebar-session-prefix { grid-column: 2; min-width: 0; }
-.sidebar-session-title { white-space: normal; overflow-wrap: anywhere; text-overflow: clip; }
+.sidebar-session-title { white-space: normal; overflow-wrap: break-word; }
 .sidebar-session-meta, .sidebar-personal-meta {
   display: flex;
   grid-column: 2;
   align-items: center;
   flex-wrap: wrap;
   gap: calc(var(--spacing) * 1.5);
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
 }
 .sidebar-session-meta:empty, .sidebar-personal-meta:empty { display: none; }
 .sidebar-session-meta > .truncate { max-width: 65%; }
 .sidebar-title-disclosure { display: none; }
 @media (width >= 64rem) and (hover: hover) {
   [data-sidebar-session]:not([data-sidebar-context]) { display: flex; align-items: center; }
-  [data-sidebar-session]:not([data-sidebar-context]) :is(.sidebar-session-marks, .sidebar-session-meta) { display: contents; }
+  [data-sidebar-session]:not([data-sidebar-context]):has(.sidebar-session-copy > :nth-child(2)) .sidebar-session-marks { align-self: flex-start; margin-top: 2px; }
+  [data-sidebar-session]:not([data-sidebar-context]) :is(.sidebar-session-meta, .sidebar-personal-meta) {
+    margin-top: 0;
+    margin-inline-start: auto;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+  }
   [data-sidebar-session] .sidebar-session-title {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 @media (width < 64rem), (hover: none) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { initI18n } from "../i18n";
 import { balanceAccounts, balanceEmpty, balanceText } from "./usage-balance";
-import { accountPace, countdown, fullest, groupByProvider, isBalanceAccount, liveAccounts, pace, parsePinnedUsageAccounts, planNote, providerTimeline, providerTitle, remainingText, resetLabel, sampleAge, selectSidebarUsageAccounts, sortedWindows, sortForCard, sourceNames, timelinePosition, topAccounts, windowKey, windowMinutes, type UsageAccount, type UsageWindow } from "./usage-windows";
+import { accountPace, countdown, fullest, groupByDevice, groupByProvider, isBalanceAccount, isCritical, isWarn, liveAccounts, pace, parsePinnedUsageAccounts, planNote, providerTimeline, providerTitle, remainingText, resetLabel, sampleAge, selectSidebarUsageAccounts, sortedWindows, sortForCard, sourceNames, timelinePosition, topAccounts, windowKey, windowMinutes, type UsageAccount, type UsageWindow } from "./usage-windows";
 
 const NOW = new Date(2026, 10, 5, 10, 0, 0).getTime(); // local time, so same-day checks do not depend on the zone
 const at = (ms: number) => new Date(NOW + ms).toISOString();
@@ -215,16 +215,19 @@ describe("pinned sidebar usage accounts (#12418)", () => {
     expect(parsePinnedUsageAccounts('["agy", "codex", "agy", "", "  ", 42, " ds "]')).toEqual(["agy", "codex", "ds"]);
   });
 
-  it("keeps automatic top-2 + balance behavior when nothing is pinned", () => {
+  it("orders distinct providers first, then remaining non-balance accounts without slicing at 2", () => {
     const picked = selectSidebarUsageAccounts(live(), []);
     expect(picked.custom).toBe(false);
-    expect(picked.bars.map((a) => a.id)).toEqual(["codex", "claude"]);
+    expect(picked.bars.map((a) => a.id)).toEqual(["codex", "claude", "agy"]);
     expect(picked.balances.map((a) => a.id)).toEqual(["ds"]);
+    expect(isWarn(80)).toBe(true);
+    expect(isCritical(89)).toBe(false);
+    expect(isCritical(90)).toBe(true);
   });
 
   it("groups Antigravity source spellings while keeping separate account rows and pins", () => {
     const accounts = [...live(), account("another-agy", 95, { provider: "antigravity", name: "Antigravity 2" })];
-    expect(selectSidebarUsageAccounts(accounts, []).bars.map((a) => a.id)).toEqual(["another-agy", "codex"]);
+    expect(selectSidebarUsageAccounts(accounts, []).bars.map((a) => a.id)).toEqual(["another-agy", "codex", "claude", "agy"]);
     expect(selectSidebarUsageAccounts(accounts, ["agy", "another-agy"]).bars.map((a) => a.id)).toEqual(["agy", "another-agy"]);
     const antigravity = groupByProvider(accounts).filter((g) => g.provider === "agy" || g.provider === "antigravity");
     expect(antigravity).toHaveLength(1);
@@ -256,8 +259,76 @@ describe("pinned sidebar usage accounts (#12418)", () => {
 
     const fallback = selectSidebarUsageAccounts(live(), ["gone-1", "gone-2"]);
     expect(fallback.custom).toBe(false);
-    expect(fallback.bars.map((a) => a.id)).toEqual(["codex", "claude"]);
+    expect(fallback.bars.map((a) => a.id)).toEqual(["codex", "claude", "agy"]);
     expect(fallback.balances.map((a) => a.id)).toEqual(["ds"]);
+  });
+});
+
+describe("device-first grouping", () => {
+  it("merges parenthesized host hints into the matching machine bucket and separates distinct computers", () => {
+    const accounts: UsageAccount[] = [
+      account("devbox-claude", 72, {
+        provider: "claude",
+        name: "Claude (devbox)",
+        machines: ["n37-114-156"],
+        sources: ["Claude (devbox)"],
+      }),
+      account("devbox-agy-claude", 45, {
+        provider: "agy",
+        name: "Claude and GPT",
+        sources: ["agy (devbox)"],
+      }),
+      account("devbox-agy-gemini", 20, {
+        provider: "antigravity",
+        name: "Gemini",
+        sources: ["agy (devbox)"],
+      }),
+      account("mac-agy", 35, {
+        provider: "agy",
+        name: "Antigravity",
+        machines: ["JVX94RC61Y"],
+        local: true,
+      }),
+      account("relay", 10, {
+        provider: "codex",
+        name: "Team Relay",
+        sources: ["Relay"],
+      }),
+      account("legacy-local", 5, {
+        provider: "codex",
+        name: "Local Codex",
+        local: true,
+      }),
+    ];
+    const machines = [
+      { id: "n37-114-156", name: "n37-114-156", online: true },
+      { id: "JVX94RC61Y", name: "MacBook Pro", online: true },
+    ];
+    const groups = groupByDevice(accounts, machines);
+    expect(groups.map((g) => [g.key, g.kind, g.title, g.subtitle ?? ""])).toEqual([
+      ["n37-114-156", "machine", "n37-114-156", "devbox"],
+      ["JVX94RC61Y", "machine", "MacBook Pro", "JVX94RC61Y"],
+      ["local", "local", "电脑", ""],
+      ["global", "global", "", ""],
+    ]);
+    expect(groups[0].online).toBe(true);
+    expect(groups[0].providers.map((p) => [p.provider, p.accounts.map((a) => a.id)])).toEqual([
+      ["claude", ["devbox-claude"]],
+      ["agy", ["devbox-agy-claude", "devbox-agy-gemini"]],
+    ]);
+    expect(groups[1].providers.map((p) => [p.provider, p.accounts.map((a) => a.id)])).toEqual([
+      ["agy", ["mac-agy"]],
+    ]);
+  });
+
+  it("creates an inferred host bucket when no explicit machine shares the parenthesized hint", () => {
+    const groups = groupByDevice([
+      account("a", 40, { provider: "agy", name: "Claude and GPT", sources: ["agy (studio-box)"] }),
+      account("b", 25, { provider: "claude", name: "Claude", sources: ["Claude (studio-box)"] }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ key: "studio-box", kind: "inferred", title: "studio-box" });
+    expect(groups[0].providers.map((p) => p.provider)).toEqual(["agy", "claude"]);
   });
 });
 

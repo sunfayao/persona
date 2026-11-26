@@ -129,16 +129,16 @@ function ComputerGroup<T>({ section, first, machine, ...p }: SectionProps<T> & {
   return (
     <div data-session-computer={section.machine} data-group-open={!folded}>
       <SidebarGroup className={first ? "mt-1" : "mt-3"} heading={
-        <div className="group/sec relative flex select-none items-center gap-1 px-2 pb-1">
-          <button type="button" aria-expanded={!folded} onClick={toggle} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap text-left">
-            <span aria-hidden className={cx("size-1.5 shrink-0 rounded-full", online ? "bg-green" : "bg-line-strong")} />
-            <span className={cx("min-w-0 truncate text-label font-semibold", online ? "text-ink" : "text-ink-3")}>{p.machineName(section.machine)}</span>
+        <div className="group/sec relative flex select-none items-center gap-1.5 rounded-[7px] px-2 py-1 transition-colors hover:bg-hover/60">
+          <button type="button" aria-expanded={!folded} onClick={toggle} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-left">
+            <span aria-hidden className={cx("size-2 shrink-0 rounded-full transition-shadow", online ? "bg-green ring-2 ring-green/20" : "bg-line-strong")} />
+            <span className={cx("min-w-0 truncate text-label font-semibold tracking-[-0.005em]", online ? "text-ink" : "text-ink-3")}>{p.machineName(section.machine)}</span>
             <span className="sr-only">{state}</span>
-            <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+            <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3/80 transition-transform group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
           </button>
-          {!online && <span aria-hidden className="shrink-0 whitespace-nowrap text-submeta text-ink-3">{state}</span>}
+          {!online && <span aria-hidden className="shrink-0 whitespace-nowrap rounded-full bg-inset px-1.5 py-px text-[10.5px] text-ink-3 ring-1 ring-inset ring-line/60">{state}</span>}
           <NeedsCount n={section.needs} />
-          <GroupCount n={count} label={t("paged-agents.count", { count })} />
+          <GroupCount n={count} label={t("paged-agents.count", { count })} pill />
         </div>
       }>
         <Collapse open={!folded} sidebarFold unclipped>
@@ -180,8 +180,8 @@ function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, sou
   // a space whose name another of its computer's spaces has says where it is (#13522)
   return (
     <div data-session-group={group.key} data-group-open={!folded}>
-      <Section first={first} folded={folded} onToggle={toggle}
-        title={<>{name}{group.qualifier && <span className="font-normal"> · {group.qualifier}</span>}</>}
+      <Section first={first} tree folded={folded} onToggle={toggle}
+        title={<>{name}{group.qualifier && <span className="font-normal text-ink-3"> · {group.qualifier}</span>}</>}
         right={<>
           {/* the numbers step aside for the + where it shows: under the pointer, on keyboard focus, always on a touch screen */}
           <span className={cx("flex shrink-0 items-center gap-1", start && STEP_ASIDE)}>
@@ -189,7 +189,7 @@ function GroupSection<T>({ group, first, startsOpen, dimension, kind, scope, sou
             <GroupCount n={shownCount} label={t("paged-agents.count", { count: shownCount })} />
           </span>
           {start && <span data-space-add className="absolute top-0 right-2 bottom-1 z-10 flex items-center">
-            <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: group.qualifier ? `${name} · ${group.qualifier}` : name })} onClick={start} className={REVEALED} />
+            <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: group.qualifier ? `${name} · ${group.qualifier}` : name })} onClick={start} className={cx("rounded-[6px] hover:bg-hover-2", REVEALED)} />
           </span>}
         </>}>
         {!folded && <>

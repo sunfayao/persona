@@ -1,8 +1,8 @@
 // The mark of the agent that runs in a row, a header, a pane or a launcher (#3391): drawn as the owner publishes it, like
 // BrandMark (CLAUDE.md: brand marks are not redrawn), in a fixed box so a column of rows lines up, centred, at the share
 // of the box its shape takes. Next to the state dot, never in its place. The one-color marks are templates drawn in
-// the text color, so they read in light and dark and in a selected button; Claude keeps its coral (Anthropic's mark is
-// coral on neutral). An agent with no mark of its own (a compatible CLI, a runtime, whatever else herdr reports) draws its first
+// the text color, so they read in light and dark and in a selected button; Claude keeps its coral and TRAE its emerald.
+// An agent with no mark of its own (a compatible CLI, a runtime, whatever else herdr reports) draws its first
 // letter on a plain tile of the same box.
 //
 // Where each mark comes from (also in THIRD_PARTY_NOTICES.md). Simple Icons (SI) releases the files under CC0; the
@@ -13,10 +13,10 @@
 //   cursor    SI `cursor.svg`; source cursor.com/brand
 //   gemini    SI `googlegemini.svg`; source gemini.google.com (no brand kit found)
 //   pi        SI `pi.svg`; source pi.dev/favicon.svg (no licence text found)
-//   trae      SI `trae.svg`; source trae.ai (TRAE artwork; the built-in TRAE CLI kind keeps its letter)
+//   trae      SI `trae.svg`; source trae.ai, emerald #10B981 (shared by TRAE and TRAE CLI `traex`)
 //   grok, agy  Lobe Icons 1.104.0 Grok and Antigravity monochrome marks
 //   dsh, kimi, copilot  SI 16.36.0 DeepSeek, Kimi and GitHub Copilot marks
-// viewBoxes of opencode, cursor and trae are cropped to the glyph (CLAUDE.md: assets carry no padding); nothing else is changed.
+// viewBoxes of opencode and cursor are cropped to the glyph (CLAUDE.md: assets carry no padding); nothing else is changed.
 import { t } from "../i18n";
 import { agentLetter, agentName, isMarked, markId, sessionAgent, type AgentSurface, type MarkedAgent } from "../lib/agent-kind";
 import { cx } from "./atoms";
@@ -42,7 +42,7 @@ const MARKS: Record<MarkedAgent, { src: string; template?: boolean; fit: number 
   pi: { src: piMark, template: true, fit: 0.88 },
   gemini: { src: geminiMark, template: true, fit: 1 },
   cursor: { src: cursorMark, template: true, fit: 0.92 },
-  trae: { src: traeMark, template: true, fit: 0.92 },
+  trae: { src: traeMark, fit: 0.92 },
   grok: { src: grokMark, template: true, fit: 1 },
   agy: { src: agyMark, template: true, fit: 1 },
   dsh: { src: dshMark, template: true, fit: 1 },
@@ -74,8 +74,8 @@ export function AgentMark({ agent, label, surface, size = 14, decorative, classN
       <span {...a11y} data-agent-mark="letter" data-agent-surface={surface} className={box} style={{ width: size, height: size }}>
         <span
           aria-hidden
-          className="flex items-center justify-center bg-inset font-semibold leading-none"
-          style={{ width: Math.round(size * 0.92), height: Math.round(size * 0.92), borderRadius: Math.max(3, Math.round(size * 0.28)), fontSize: Math.max(8, Math.round(size * 0.6)) }}
+          className="flex items-center justify-center bg-inset font-semibold leading-none ring-1 ring-inset ring-line/60"
+          style={{ width: Math.round(size * 0.92), height: Math.round(size * 0.92), borderRadius: Math.max(3, Math.round(size * 0.28)), fontSize: Math.max(8, Math.round(size * 0.58)) }}
         >
           {agentLetter(agentNamed)}
         </span>
@@ -99,21 +99,20 @@ export function AgentMark({ agent, label, surface, size = 14, decorative, classN
 }
 
 /**
- * The command line's badge (#6390): </> on a small tile at the mark's lower right, the page's colour around it so it
- * reads on any row (selected, hovered). The tile is about 60% of the mark, the glyph drawn as strokes so it stays sharp
- * down to the 13 px launcher marks.
+ * The command line's badge (#6390): </> on a compact keycap tile at the mark's lower right, crisp surface and border
+ * so it reads cleanly in light and dark without obscuring the brand glyph down to 13 px launcher marks.
  */
 function CliBadge({ size }: { size: number }) {
-  const side = Math.max(8, Math.round(size * 0.62));
+  const side = Math.max(7, Math.round(size * 0.54));
   return (
     <span
       aria-hidden
       data-agent-badge="cli"
-      className="absolute flex items-center justify-center rounded-[3px] bg-ink text-page ring-1 ring-page"
-      style={{ width: side, height: side, right: -Math.round(side * 0.35), bottom: -Math.round(side * 0.3) }}
+      className="pointer-events-none absolute flex items-center justify-center rounded-[2.5px] bg-surface text-ink ring-1 ring-line-strong"
+      style={{ width: side, height: side, right: -Math.round(side * 0.32), bottom: -Math.round(side * 0.28) }}
     >
-      <svg viewBox="0 0 12 12" width={side - 2} height={side - 2} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3.6 3.6 1.4 6l2.2 2.4M8.4 3.6 10.6 6 8.4 8.4M6.9 2.6 5.1 9.4" />
+      <svg viewBox="0 0 12 12" width={side - 1} height={side - 1} fill="none" stroke="currentColor" strokeWidth={1.65} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3.8 3.7 1.6 6l2.2 2.3M8.2 3.7 10.4 6 8.2 8.3M6.8 2.8 5.2 9.2" />
       </svg>
     </span>
   );

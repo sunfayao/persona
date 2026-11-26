@@ -432,40 +432,65 @@ func (n *Node) workAgentCalls(ctx context.Context, method, id string, a host.Age
 		return okResult(nil), nil, true
 	case "session.send":
 		var p struct {
-			Text string `json:"text"`
+			Text          string               `json:"text"`
+			Images        []proto.Image        `json:"images"`
+			ClientMsgID   string               `json:"client_msg_id"`
+			MessageSource *proto.MessageSource `json:"message_source"`
 		}
 		if err := json.Unmarshal(params, &p); err != nil {
 			return nil, err, true
 		}
-		// After the check of a start's first message (workAgentFirst): a message typed meanwhile could meet the first
-		// one typed again.
-		unlock := n.typing.lock(id)
-		defer unlock()
-		typedAt := time.Now()
-		var delivery *agySendWatch
-		beforeQueued := -1
-		if a.Agent == agyAgent {
-			delivery = n.watchAgySend(id, a.PaneID, p.Text, typedAt)
-			if a.AgentStatus == proto.StatusWorking || a.AgentStatus == proto.StatusBlocked || n.workSent.recent(a.PaneID, typedAt) {
-				if screen, err := n.readPane(ctx, a.PaneID, "visible", 80); err == nil {
-					beforeQueued = len(parseAgyQueuedLines(screen))
+		err := n.sends.once(p.ClientMsgID, func() error {
+			// After the check of a start's first message (workAgentFirst): a message typed meanwhile could meet the first
+			// one typed again.
+			unlock := n.typing.lock(id)
+			defer unlock()
+			var after echoAfter
+			if p.ClientMsgID != "" && a.Agent == agyAgent {
+				after = n.agyEchoBase(id, a.PaneID)
+			}
+			send := func() error {
+				text := p.Text
+				paths, err := n.saveImages(p.Images)
+				if err != nil {
+					return err
 				}
+				if len(paths) > 0 {
+					text = withAttachedImages(text, paths)
+				}
+				typedAt := time.Now()
+				var delivery *agySendWatch
+				beforeQueued := -1
+				if a.Agent == agyAgent {
+					delivery = n.watchAgySend(id, a.PaneID, text, typedAt)
+					if a.AgentStatus == proto.StatusWorking || a.AgentStatus == proto.StatusBlocked || n.workSent.recent(a.PaneID, typedAt) {
+						if screen, err := n.readPane(ctx, a.PaneID, "visible", 80); err == nil {
+							beforeQueued = len(parseAgyQueuedLines(screen))
+						}
+					}
+				}
+				if err := n.hostPrompt(ctx, a.PaneID, text); err != nil {
+					return fmt.Errorf("send: %w", err)
+				}
+				if a.Agent == agyAgent {
+					if err := n.confirmAgySend(ctx, id, a.PaneID, text, typedAt, delivery, beforeQueued); err != nil {
+						return err
+					}
+					n.pollWatchedAgyPane(id)
+				}
+				n.lostFirst.clear(id) // the message the start could not deliver went in now, or another one
+				// Working until herdr shows the turn, so an interrupt right after the send stops it (worksent.go, #11437).
+				n.workSent.mark(a.PaneID, time.Now())
+				n.notifySessionsSoon()
+				time.AfterFunc(workSentGrace+100*time.Millisecond, func() { n.notifySessionsSoon() })
+				return nil
 			}
-		}
-		if err := n.hostPrompt(ctx, a.PaneID, p.Text); err != nil {
-			return nil, fmt.Errorf("send: %w", err), true
-		}
-		if a.Agent == agyAgent {
-			if err := n.confirmAgySend(ctx, id, a.PaneID, p.Text, typedAt, delivery, beforeQueued); err != nil {
-				return nil, err, true
+			if a.Agent == agyAgent {
+				return n.sendWithEcho(id, p.ClientMsgID, p.Text, len(p.Images), after, p.MessageSource, nil, send)
 			}
-		}
-		n.lostFirst.clear(id) // the message the start could not deliver went in now, or another one
-		// Working until herdr shows the turn, so an interrupt right after the send stops it (worksent.go, #11437).
-		n.workSent.mark(a.PaneID, time.Now())
-		n.notifySessionsSoon()
-		time.AfterFunc(workSentGrace+100*time.Millisecond, func() { n.notifySessionsSoon() })
-		return okResult(nil), nil, true
+			return send()
+		})
+		return okResult(err), err, true
 	case "session.interrupt":
 		return okResult(n.sendKeys(ctx, a.PaneID, "escape")), nil, true
 	case "session.modes":

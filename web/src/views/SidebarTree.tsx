@@ -63,7 +63,7 @@ const TreeAgentRows = memo(function TreeAgentRows({ a, depth, machineLabel, show
       </div>
       {a.children.length > 0 && (
         <Collapse open={!folded} sidebarFold>
-          <div className="flex flex-col gap-px border-l border-line ml-2" inert={folded || undefined}>
+          <div className="flex flex-col gap-0.5 border-l border-line/60 ml-2.5 pl-1.5" inert={folded || undefined}>
             {a.children.map((c) => <SpawnedAgentRows key={c.key} a={c} depth={depth + 1} machineLabel={machineLabel} showHost={showHost} noContext={noContext} keyPrefix={keyPrefix} reg={reg} hover={hover} activeKey={withinAgent(c, activeKey)} go={go} onRowMenu={onRowMenu} />)}
           </div>
         </Collapse>
@@ -84,24 +84,26 @@ export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinne
 
   return (
     <Section
+      tree
       folded={folded}
       onToggle={toggle}
       onMenu={(at, el) => onMenu(sp, el, at, { folded, toggle })}
       title={
         <span className="flex items-center gap-x-1.5 max-lg:flex-wrap">
-          <span className="truncate max-lg:whitespace-normal max-lg:wrap-anywhere normal-case tracking-normal text-[11.5px] text-ink-2">{sp.name}</span>
+          <Icon name="folder" size={11} stroke={1.9} className="shrink-0 text-ink-3/80" />
+          <span className="truncate max-lg:whitespace-normal max-lg:wrap-anywhere normal-case tracking-normal text-[11.5px] font-semibold text-ink-2 group-hover/sec:text-ink">{sp.name}</span>
           <SpaceMarks pinned={pinned} muted={muted} />
           {machineName && <span className="truncate max-lg:basis-full normal-case tracking-normal text-[11px] font-normal text-ink-3">{machineName}</span>}
         </span>
       }
       right={
         <>
-          <span className={cx("flex items-center gap-1", MENU_STEP_ASIDE, MENU_TOUCH_ROOM)}>
+          <span className={cx("flex items-center gap-1 transition-transform duration-150", MENU_STEP_ASIDE, MENU_TOUCH_ROOM)}>
             <SpaceTodoTag sp={sp} onNavigate={onNavigate} />
             <span className={MENU_HIDES}><SessionTally sessions={sp.sessions} folded={folded} /></span>
             {online && place && cwd && <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: sp.name })}
               onClick={() => openNewAgent({ machineId: sp.machineId, cwd, host: place.host, spaceId: place.workspace_id ?? place.space_id })}
-              className="[@media(pointer:coarse)]:size-9" />}
+              className="rounded-[6px] hover:bg-hover-2 [@media(pointer:coarse)]:size-9" />}
           </span>
           <SpaceMenuButton sp={sp} onMenu={onMenu} />
         </>
@@ -169,7 +171,7 @@ function HeadingMenuButton({ label, title = label, onOpen }: { label: string; ti
         aria-haspopup="menu"
         title={title}
         onClick={(e) => onOpen(e.currentTarget)}
-        className="touch-hit relative flex size-5 items-center justify-center rounded-[5px] text-ink-3 opacity-0 transition-opacity duration-150 group-hover/sec:opacity-100 hover:bg-hover-2 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:size-8 [@media(hover:none)]:opacity-100"
+        className="touch-hit relative flex size-5 items-center justify-center rounded-[6px] text-ink-3 opacity-0 transition-[opacity,background-color,color] duration-150 group-hover/sec:opacity-100 hover:bg-hover-2 hover:text-ink focus-visible:opacity-100 [@media(hover:none)]:size-8 [@media(hover:none)]:opacity-100"
       >
         <Icon name="more" size={12} />
       </button>

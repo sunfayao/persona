@@ -153,8 +153,10 @@ func (n *Node) confirmAgySend(ctx context.Context, id, pane, text string, typedA
 	defer timer.Stop()
 	for {
 		if watch == nil {
-			// A follow-up can be the input that makes agy create and report its first conversation. Bind that report
+			// A follow-up can be the input that makes agy create and report its first conversation. Refresh host state so
+			// herdr's new agent_session report is visible without waiting on an unrelated session list poll, then bind it
 			// late and scan the new file from its start; only timestamped input at or after this send can count.
+			_ = n.refreshHosts(ctx)
 			watch = n.watchAgySend(id, pane, text, typedAt)
 			if watch != nil {
 				watch.off, watch.info, watch.rest = 0, nil, nil

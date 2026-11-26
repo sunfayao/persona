@@ -98,7 +98,7 @@ def check_marks(page, where, theme):
     page.wait_for_timeout(200)
     a2 = angle(arc)
     assert abs(a1 - a2) > 5, ("the working mark turns", a1, a2)
-    assert arc.first.locator("circle").get_attribute("stroke-dasharray") == "28 72"
+    assert arc.first.locator("circle[stroke-dasharray]").get_attribute("stroke-dasharray") == "30 70"
     needs = side.locator('span.status-mark[data-state="needs_you"]').first
     n = style(needs, ["box-shadow", "outline-style", "outline-width"])
     assert n["box-shadow"] != "none" and "6px" in n["box-shadow"] and n["outline-style"] == "solid", n

@@ -40,16 +40,75 @@ describe("the sidebar's usage strip", () => {
     // all samples older than three days
     expect(renderToStaticMarkup(<UsageBars accounts={[account("a", 10, 10, { sampled_at: iso(-80 * H) })]} now={NOW} />)).toBe("");
   });
-  it("shows the tightest two distinct providers, the caution colour from 80%", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[account("a", 82, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
-    expect(html.match(/role="progressbar"/g)).toHaveLength(2);
-    expect(html).toContain("账号 b");
-    expect(html).toContain("账号 c");
-    expect(html).not.toContain("账号 a");
+  it("prioritizes distinct providers first, fills available slots, and marks 80%+ caution and 90%+ critical", () => {
+    const html = renderToStaticMarkup(
+      <UsageBars
+        accounts={[
+          account("a", 82, 20),
+          account("b", 92, 30),
+          account("c", 50, 60, { provider: "claude" }),
+          account("d", 40, 45, { provider: "agy" }),
+          account("e", 15, 25),
+        ]}
+        now={NOW}
+      />,
+    );
+    expect(html.match(/role="progressbar"/g)).toHaveLength(4);
+    expect(html.indexOf("账号 b")).toBeLessThan(html.indexOf("账号 c"));
+    expect(html.indexOf("账号 c")).toBeLessThan(html.indexOf("账号 d"));
+    expect(html.indexOf("账号 d")).toBeLessThan(html.indexOf("账号 a"));
+    expect(html).not.toContain("账号 e");
     expect(html).toContain("详情中还有 1 项");
-    expect(html).toMatch(/bg-orange[^>]*style="width:85%/);
+    expect(html).toMatch(/bg-red[^>]*style="width:92%/);
+    expect(html).toMatch(/bg-orange[^>]*style="width:82%/);
     expect(html).toMatch(/bg-accent[^>]*style="width:60%/);
+    expect(html).toContain("text-red");
     expect(html).toContain('aria-expanded="false"');
+  });
+  it("adapts visible pill count dynamically to measured container width via ResizeObserver", async () => {
+    const OriginalRO = globalThis.ResizeObserver;
+    let observerCallback: ResizeObserverCallback | undefined;
+    globalThis.ResizeObserver = class MockResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        observerCallback = cb;
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const many = [
+      account("codex-1", 85, 20, { provider: "codex" }),
+      account("claude-1", 75, 20, { provider: "claude" }),
+      account("agy-1", 65, 20, { provider: "agy" }),
+      account("codex-2", 55, 20, { provider: "codex" }),
+      account("claude-2", 45, 20, { provider: "claude" }),
+      account("agy-2", 35, 20, { provider: "agy" }),
+    ];
+    try {
+      await act(async () => root.render(<UsageBars accounts={many} now={NOW} />));
+      expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(4);
+      expect(host.querySelector("[data-usage-overflow]")?.textContent).toContain("+2");
+
+      await act(async () => {
+        observerCallback?.([{ contentRect: { width: 190 } } as ResizeObserverEntry], {} as ResizeObserver);
+      });
+      expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(2);
+      expect(host.querySelector("[data-usage-overflow]")?.textContent).toContain("+4");
+
+      await act(async () => {
+        observerCallback?.([{ contentRect: { width: 480 } } as ResizeObserverEntry], {} as ResizeObserver);
+      });
+      expect(host.querySelectorAll("[data-usage-summary]")).toHaveLength(6);
+      expect(host.querySelector("[data-usage-overflow]")).toBeNull();
+    } finally {
+      globalThis.ResizeObserver = OriginalRO;
+      await act(async () => root.unmount());
+      host.remove();
+    }
   });
   it("opens its details on intent, including the gateway's retained-number warning", async () => {
     const host = document.createElement("div");
@@ -90,13 +149,26 @@ describe("the sidebar's usage strip", () => {
 });
 
 describe("a prepaid balance in the sidebar (#11825)", () => {
-  it("shows the amount and currency beside the two fullest window accounts", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "12.34"), account("a", 10, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
+  it("shows the amount and currency ahead of duplicate-provider window accounts", () => {
+    const html = renderToStaticMarkup(
+      <UsageBars
+        accounts={[
+          balanceAccount("ds", "12.34"),
+          account("a", 10, 20),
+          account("b", 85, 30),
+          account("c", 50, 60, { provider: "claude" }),
+          account("d", 35, 40),
+        ]}
+        now={NOW}
+      />,
+    );
     expect(html).toContain("CNY 12.34");
-    expect(html.match(/role="progressbar"/g)).toHaveLength(2); // the balance takes no bar
+    expect(html.match(/role="progressbar"/g)).toHaveLength(3); // the balance takes no bar
     expect(html).toContain("账号 b");
     expect(html).toContain("账号 c");
+    expect(html).toContain("账号 d");
     expect(html).not.toContain("账号 a");
+    expect(html.indexOf("CNY 12.34")).toBeLessThan(html.indexOf("账号 d"));
   });
   it("shows a genuine zero as an amount, not as no data", () => {
     const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "0.00")]} now={NOW} />);
@@ -167,6 +239,71 @@ describe("the popover", () => {
   });
   it("is a labelled dialog", () => {
     expect(renderToStaticMarkup(<UsagePopover accounts={[account("a", 1, 1)]} now={NOW} />)).toContain('role="dialog" aria-label="订阅额度"');
+  });
+  it("groups accounts device-first, merges parenthesized host tags, and filters by device", async () => {
+    const multiDeviceAccounts: UsageAccount[] = [
+      account("devbox-claude", 78, 45, {
+        provider: "claude",
+        name: "Claude (devbox)",
+        plan: "Max",
+        machines: ["n37-114-156"],
+        sources: ["Claude (devbox)"],
+      }),
+      account("devbox-agy-1", 40, 20, {
+        provider: "agy",
+        name: "Claude and GPT",
+        sources: ["agy (devbox)"],
+      }),
+      account("devbox-agy-2", 15, 10, {
+        provider: "agy",
+        name: "Gemini",
+        sources: ["agy (devbox)"],
+      }),
+      {
+        id: "mac-agy",
+        provider: "agy",
+        name: "Antigravity",
+        sampled_at: iso(-8_000),
+        machines: ["JVX94RC61Y"],
+        local: true,
+        windows: [
+          { label: "5h", window_minutes: 300, used_percent: 32, resets_at: iso(2 * H), model: "Claude and GPT" },
+          { label: "5h", window_minutes: 300, used_percent: 12, resets_at: iso(2 * H), model: "Gemini Models" },
+        ],
+      },
+    ];
+    const machines = [
+      { id: "n37-114-156", name: "n37-114-156", online: true },
+      { id: "JVX94RC61Y", name: "MacBook Pro", online: true },
+    ];
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(<UsagePopover accounts={multiDeviceAccounts} machines={machines} now={NOW} />));
+      expect(host.querySelectorAll("[data-usage-device]")).toHaveLength(2);
+      const devboxCard = host.querySelector<HTMLElement>('[data-usage-device="n37-114-156"]')!;
+      const macCard = host.querySelector<HTMLElement>('[data-usage-device="JVX94RC61Y"]')!;
+      expect(devboxCard.textContent).toContain("n37-114-156");
+      expect(devboxCard.textContent).toContain("devbox");
+      expect(devboxCard.textContent).toContain("Claude and GPT");
+      expect(devboxCard.textContent).toContain("Gemini");
+      expect(devboxCard.querySelectorAll("[data-usage-provider]")).toHaveLength(2);
+      expect(macCard.textContent).toContain("MacBook Pro");
+      expect(macCard.textContent).toContain("JVX94RC61Y");
+      expect(macCard.textContent).toContain("Gemini Models");
+
+      // Filter to MacBook only, then back to All
+      await act(async () => host.querySelector<HTMLButtonElement>('[data-usage-filter="JVX94RC61Y"]')!.click());
+      expect(host.querySelectorAll("[data-usage-device]")).toHaveLength(1);
+      expect(host.querySelector('[data-usage-device="JVX94RC61Y"]')).not.toBeNull();
+      await act(async () => host.querySelector<HTMLButtonElement>('[data-usage-filter="all"]')!.click());
+      expect(host.querySelectorAll("[data-usage-device]")).toHaveLength(2);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
   });
 });
 
@@ -336,12 +473,12 @@ describe("user-selected pinned usage accounts (#12418)", () => {
       await act(async () => root.render(<UsageBars accounts={sampleAccounts()} unconnected={sampleUnconnected} now={NOW} />));
       const stripBtn = () => host.querySelector<HTMLButtonElement>("[data-usage-bars] > button")!;
 
-      // Default: top 2 window accounts (Codex Pro, Claude Max) + DeepSeek balance + unconnected row
+      // Default (4 SSR slots): all 3 distinct window providers + DeepSeek balance, with Kimi in +1 overflow
       expect(stripBtn().textContent).toContain("Codex Pro");
       expect(stripBtn().textContent).toContain("Claude Max");
-      expect(stripBtn().textContent).not.toContain("Antigravity");
+      expect(stripBtn().textContent).toContain("Antigravity");
       expect(stripBtn().textContent).toContain("CNY 12.34");
-      expect(stripBtn().textContent).toContain("Kimi");
+      expect(stripBtn().textContent).toContain("+1");
 
       // Open popover: all 4 accounts listed, none pinned, no reset bar
       await act(async () => stripBtn().click());
@@ -384,8 +521,8 @@ describe("user-selected pinned usage accounts (#12418)", () => {
       expect(host.querySelector("[data-usage-reset-pins]")).toBeNull();
       expect(stripBtn().textContent).toContain("Codex Pro");
       expect(stripBtn().textContent).toContain("Claude Max");
+      expect(stripBtn().textContent).toContain("Antigravity");
       expect(stripBtn().textContent).toContain("CNY 12.34");
-      expect(stripBtn().textContent).not.toContain("Antigravity");
     } finally {
       await act(async () => root.unmount());
       host.remove();
@@ -397,7 +534,7 @@ describe("user-selected pinned usage accounts (#12418)", () => {
     const corruptHtml = renderToStaticMarkup(<UsageBars accounts={sampleAccounts()} now={NOW} />);
     expect(corruptHtml).toContain("Codex Pro");
     expect(corruptHtml).toContain("Claude Max");
-    expect(corruptHtml).not.toContain("Antigravity");
+    expect(corruptHtml).toContain("Antigravity");
 
     const host = document.createElement("div");
     document.body.appendChild(host);
@@ -427,8 +564,8 @@ describe("user-selected pinned usage accounts (#12418)", () => {
     const strip = renderToStaticMarkup(<UsageBars accounts={sampleAccounts()} now={NOW} />);
     expect(strip).toContain("Codex Pro");
     expect(strip).toContain("Claude Max");
+    expect(strip).toContain("Antigravity");
     expect(strip).toContain("CNY 12.34");
-    expect(strip).not.toContain("Antigravity");
 
     const popover = renderToStaticMarkup(<UsagePopover accounts={sampleAccounts()} now={NOW} />);
     expect(popover).toContain("固定账号暂不可用");
