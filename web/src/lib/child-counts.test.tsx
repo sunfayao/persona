@@ -131,6 +131,17 @@ describe("child sessions counted once, under their parent (#5120)", () => {
     expect(backgroundWork(plain)).toBeUndefined();
   });
 
+  it("keeps inactive Codex Desktop workers out of the sidebar even without a parent row", () => {
+    const desktopWorker = row("finished-worker", {
+      title: "project", agent: "codex", agent_surface: "desktop", source_kind: "codex_history",
+      is_subagent: true, parent_session_id: "missing", status: "idle", state: "idle",
+    });
+    const independent = row("independent", { title: "project", agent: "codex" });
+    const pending = { ...desktopWorker, session_id: "pending", state: "needs_you" as const, pending_interactions: 1 };
+    const working = { ...desktopWorker, session_id: "working", state: "working" as const, status: "working" as const };
+    expect(foldRows([desktopWorker, independent, pending, working]).map(s => s.session_id)).toEqual(["independent", "pending", "working"]);
+  });
+
   it("notifies the parent's transition and the child's card for the parent, never the child", () => {
     const before = foldRows([row("lead", { state: "idle" }), row("child-b", { state: "working", folded_under: "lead" }), orphan, plain]);
     const prev = detectTransitions(new Map(), before, mutes).next;

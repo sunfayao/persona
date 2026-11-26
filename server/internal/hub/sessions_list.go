@@ -2,6 +2,7 @@ package hub
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"encoding/json/jsontext"
@@ -179,11 +180,19 @@ func (h *Hub) indexStampedLocked(mid string, list []proto.Session, stamp bool, m
 		items = make([]sessionlist.Item, len(ids))
 	}
 	for k, i := range rows {
-		root := list[i].FoldedUnder() // the paged list folds it only under a row it lists (roots, parent_session_id)
+		row := &list[i]
+		root := row.FoldedUnder()
 		if !seen[root] {
 			root = ""
+			if inactiveCodexDesktopSubagent(row) {
+				// A desktop worker can outlive its parent's catalog entry. Keep its native
+				// hierarchy for child lookups without counting it as an independent chat.
+				if parent := cmp.Or(row.FoldedUnder(), row.RootSessionID, row.ParentSessionID); parent != row.SessionID {
+					root = parent
+				}
+			}
 		}
-		items[k] = indexedRow(mid, ids[k], &list[i], stamp, manager, root, full[list[i].SessionID], items[k])
+		items[k] = indexedRow(mid, ids[k], row, stamp, manager, root, full[row.SessionID], items[k])
 	}
 	// The machine's manager goes with its batch (?manager=<id>, sessionsManager): the one a kept list is stamped with,
 	// else the one its rows came stamped with (stamped: every row of a machine carries its manager).
@@ -193,6 +202,12 @@ func (h *Hub) indexStampedLocked(mid string, list []proto.Session, stamp bool, m
 	}
 	h.listCache.index.ReplaceOwned(mid, manager, items)
 	h.listCache.machines[mid] = true
+}
+
+func inactiveCodexDesktopSubagent(row *proto.Session) bool {
+	return row.IsSubagent && row.Agent == "codex" && row.AgentSurface == "desktop" && row.SourceKind == "codex_history" &&
+		(row.Status == proto.StatusIdle || row.Status == proto.StatusDone || row.Status == proto.StatusOffline) &&
+		row.State != proto.StateNeedsYou && row.PendingInteractions == 0 && row.Children().NeedsYou == 0
 }
 
 // indexedRow is row's item in the paged index (row stamped with manager when stamp), folded under root ("" for none: a

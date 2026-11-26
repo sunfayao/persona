@@ -29,7 +29,6 @@ vi.mock("../lib/new-agent", async (original) => ({ ...(await original<typeof imp
 
 import { NewAgent } from "./NewAgent";
 import { t } from "../i18n";
-import type { PickerTier } from "../lib/launcher-models";
 import { resetModelListsForTests } from "../lib/session-models";
 import { refreshWorkspaceCatalog, type HostWorkspace } from "../lib/workspace-catalog";
 
@@ -60,7 +59,6 @@ let effective = PURPOSE.purpose.effective;
 let failList = "";
 let failLaunchersOf = "";
 let workspaceRows: HostWorkspace[] = [];
-let tiers: PickerTier[] = [];
 const asked: string[] = [];
 
 let host: HTMLDivElement;
@@ -94,7 +92,6 @@ beforeEach(() => {
   failList = "";
   failLaunchersOf = "";
   workspaceRows = [];
-  tiers = [];
   asked.length = 0;
   localStorage.clear();
   localStorage.setItem("new.machine", "mac");
@@ -116,7 +113,7 @@ beforeEach(() => {
     if (list) return decodeURIComponent(list[2]) === failList ? json({ error: "节点没有回应" }, 500) : json(LISTS[decodeURIComponent(list[2])] ?? { models: [] });
     const ls = /\/machines\/([^/]+)\/launchers/.exec(url);
     if (ls && decodeURIComponent(ls[1]) === failLaunchersOf) return json({ error: "节点没有回应" }, 500);
-    if (ls) return json({ launchers: LAUNCHERS[decodeURIComponent(ls[1])] ?? [], default: { provider: "claude", model: "opus", effort: "high" }, tiers });
+    if (ls) return json({ launchers: LAUNCHERS[decodeURIComponent(ls[1])] ?? [], default: { provider: "claude", model: "opus", effort: "high" } });
     return json({ path: "/code", entries: [] });
   }));
   host = document.createElement("div");
@@ -334,11 +331,10 @@ describe("New agent's model panel (#5104)", () => {
     expect(launched[0]).toMatchObject({ launcher: "agy", host: "herdr", model: "local-high" });
   });
 
-  it.each(["selecting", "clearing"])("clears the AGY model, effort and preset when %s a workspace changes hosts", async (action) => {
+  it.each(["selecting", "clearing"])("clears the AGY model and effort when %s a workspace changes hosts", async (action) => {
     state.machines[0] = { ...state.machines[0], engine_hosts: ["herdr", "orca"], engine_default: "herdr" };
     workspaceRows = [{ id: "mac/orca/project", machine_id: "mac", source: "orca", source_id: "project", cwd: "/code/app", title: "Project" }];
     const clearing = action === "clearing";
-    tiers = [{ name: "deep", launcher: "agy", model: clearing ? "orca-high" : "example-high", effort: "xhigh" }];
     await open();
     await act(async () => { await refreshWorkspaceCatalog(); });
     const selectWorkspace = async () => {
@@ -346,8 +342,12 @@ describe("New agent's model panel (#5104)", () => {
       expect(q('[data-testid="new-agent-workspace"]')).not.toBeNull();
     };
     if (clearing) await selectWorkspace();
-    await pick("preset:deep");
-    expect(q('[data-testid="new-agent-preset-hint"]')).not.toBeNull();
+    const agyRow = clearing ? "model:agy\norca-high" : "model:agy\nexample-high";
+    await pick(agyRow);
+    await openPanel();
+    await customize(agyRow);
+    key(flyout()!.querySelector('[role="slider"]')!, "ArrowRight");
+    await flush();
     expect(pill().title).toContain(clearing ? "Orca High" : "Example High");
 
     if (clearing) {
@@ -357,7 +357,6 @@ describe("New agent's model panel (#5104)", () => {
       await selectWorkspace();
     }
     await flush();
-    expect(q('[data-testid="new-agent-preset-hint"]')).toBeNull();
     start();
     expect(launched).toHaveLength(1);
     expect(launched[0]).toMatchObject({ launcher: "agy", launcherDefaultEffort: true });

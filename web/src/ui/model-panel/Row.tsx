@@ -68,9 +68,9 @@ interface RowProps {
 export function Row({ row, second, describes, keepSecond, asButton, dense, blocked, customizable, flyoutOpen, starred, starRemoves, frozen, onPick, onStar, onCustomize, onCustomizeKey, onForget }: RowProps) {
   const { model, provider } = row;
   const saved = row.kind === "favorite" || row.kind === "recent";
-  const name = row.kind === "typed" ? t("ui-modelpanel.use_typed", { id: model.id }) : row.preset ? row.preset.name : row.kind === "favorite" || row.kind === "recent" ? `${provider.name} · ${model.name}` : model.name;
-  // a typed ID's "Use “…”" and a preset (a setup of the profile's, not a copy of one's own) have no star
-  const stars = row.kind !== "typed" && row.kind !== "preset";
+  const name = row.kind === "typed" ? t("ui-modelpanel.use_typed", { id: model.id }) : saved ? `${provider.name} · ${model.name}` : model.name;
+  // a typed ID's "Use “…”" has no star
+  const stars = row.kind !== "typed";
   const effort = shownEffort(row.setup, model);
   const tier = priceTier(model.price);
   // what the right side says, in words: "Claude Code · High · Fast"
@@ -96,8 +96,8 @@ export function Row({ row, second, describes, keepSecond, asButton, dense, block
     ro.observe(el);
     return () => ro.disconnect();
   }, [name]);
-  // a typed ID's row is its ID already; a preset's second line describes it
-  const hasId = row.kind !== "typed" && row.kind !== "preset";
+  // a typed ID's row is its ID already
+  const hasId = row.kind !== "typed";
   const idLine = hasId && cut ? "always" : hasId && !describes && model.id !== name ? "touch" : null;
   const idContext = describes ? provider.name : second || provider.name;
   const key = (e: KeyboardEvent<HTMLDivElement>) => {

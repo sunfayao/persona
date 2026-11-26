@@ -121,7 +121,7 @@ export function ModelPill({
       </span>
       {(launcher || pending) && (
         <>
-          <span data-pill-target title={target} className={cx("max-w-[96px] truncate text-ink-3", launcher ? "min-w-[3ch] shrink" : "shrink-0 @max-[600px]/composer:hidden", repeatsEngine && ULTRA_HIDDEN)}>{target}</span>
+          <span data-pill-target title={target} className={cx("max-w-[180px] truncate text-ink-3 @max-[600px]/composer:max-w-[112px]", launcher ? "min-w-[3ch] shrink" : "shrink-0 @max-[600px]/composer:hidden", repeatsEngine && ULTRA_HIDDEN)}>{target}</span>
           <span aria-hidden className={cx("shrink-0 text-ink-3", !launcher && "@max-[600px]/composer:hidden", repeatsEngine && ULTRA_HIDDEN)}>·</span>
         </>
       )}
@@ -147,7 +147,7 @@ export function ModelPill({
   );
   const shell = cx(
     // Cindy's bare toolbar pill: no frame at rest, the capsule shows on hover and while its panel is open
-    "flex h-[30px] max-w-[min(320px,100%)] min-w-[72px] shrink items-center rounded-full border border-transparent px-2.5 text-[13px] leading-normal whitespace-nowrap transition-colors duration-150",
+    "flex h-[30px] max-w-[min(560px,100%)] min-w-[72px] shrink items-center rounded-full border border-transparent px-2.5 text-[13px] leading-normal whitespace-nowrap transition-colors duration-150",
     // narrow, it still takes the width its words need (a fixed width cut "Opus 5.5" to "Opus …" beside free room) and
     // shrinks, the name first, only when the row is short of room
     "@max-[520px]/composer:text-[12px] @max-[420px]/composer:min-w-[64px]",

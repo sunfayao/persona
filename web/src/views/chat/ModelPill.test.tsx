@@ -62,7 +62,7 @@ describe("the pill's states", () => {
   it("takes the composer card's widths: its words' width under 600, a step smaller under 520, the mark and chevron alone under 420", () => {
     const html = markup(<ModelPill current={opus} onOpen={() => {}} />);
     const root = /^<button[^>]*class="([^"]*)"/.exec(html)![1];
-    expect(root).toContain("max-w-[min(320px,100%)]");
+    expect(root).toContain("max-w-[min(560px,100%)]");
     expect(root).toContain("min-w-[72px]");
     // no fixed width while narrow: a fixed 148 px cut "Opus 5.5" to "Opus …" beside free room (audit item 50)
     expect(root).not.toMatch(/@max-\[600px\]\/composer:w-\[/);
@@ -77,6 +77,21 @@ describe("the pill's states", () => {
     expect(classOf(html, 'data-pill-engine="claude"')).not.toContain("@max-[420px]/composer:hidden");
     // narrow, the effort may truncate (the engine and effort stay; the name gives way first)
     expect(classOf(html, "data-pill-effort")).toContain("@max-[600px]/composer:truncate");
+  });
+
+  it("gives long explicit launcher and model names room on wide composers while keeping compact narrow caps", () => {
+    const html = markup(
+      <ModelPill
+        current={{ engine: "trae", provider: "trae-relay", launcherName: "TRAE CLI (Relay)", model: "Relay GPT-6.2-Sol Max 1M" }}
+        onOpen={() => {}}
+      />,
+    );
+    const root = /^<button[^>]*class="([^"]*)"/.exec(html)![1];
+    expect(root).toContain("max-w-[min(560px,100%)]");
+    const target = classOf(html, "data-pill-target");
+    expect(target).toContain("max-w-[180px]");
+    expect(target).toContain("@max-[600px]/composer:max-w-[112px]");
+    expect(target).toContain("min-w-[3ch]");
   });
 
   it("narrow, a name drops its bracketed qualifier instead of being cut; the tooltip keeps it all (audit item 50)", () => {

@@ -12,7 +12,7 @@ import { cx } from "../atoms";
 import { Icon } from "../icons";
 import { ProviderMark } from "./ProviderMark";
 
-/** The left column's entry for the saved setups (favorites, then recent) and the presets. */
+/** The left column's entry for the saved setups (favorites, then recent). */
 export const SAVED_SIDE = "\nsaved";
 
 const ENTRY =
@@ -24,13 +24,13 @@ export function LauncherColumn({ providers, state, quotas, side, saved, frozen, 
   quotas?: Readonly<Record<string, LauncherQuotaAnswer>>;
   /** The entry chosen: a provider's id or SAVED_SIDE. */
   side: string;
-  /** There are saved setups or presets to list. */
+  /** There are saved setups to list. */
   saved: boolean;
   frozen: boolean;
   onSide: (side: string) => void;
 }) {
   return (
-    <div role="group" aria-label={t("ui-modelpanel.launchers")} data-panel-launchers className="flex w-[160px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-r border-line p-1.5">
+    <div role="group" aria-label={t("ui-modelpanel.launchers")} data-panel-launchers className="flex w-[180px] min-[900px]:w-[200px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-r border-line p-1.5">
       {saved && (
         <button type="button" data-panel-side={SAVED_SIDE} aria-pressed={side === SAVED_SIDE} disabled={frozen} onClick={() => onSide(SAVED_SIDE)} className={cx(ENTRY, side === SAVED_SIDE && "bg-hover-2 font-medium")}>
           <span className="flex size-4 shrink-0 items-center justify-center text-favorite-star">
@@ -53,7 +53,7 @@ export function LauncherColumn({ providers, state, quotas, side, saved, frozen, 
             data-panel-side={p.id}
             aria-pressed={chosen}
             aria-description={why || undefined}
-            title={why ? `${named}: ${why}` : p.idNote ? named : undefined}
+            title={why ? `${named}: ${why}` : named}
             disabled={frozen}
             onClick={() => onSide(p.id)}
             className={cx(ENTRY, chosen && "bg-hover-2 font-medium", why && !chosen && "text-ink-3")}
@@ -81,10 +81,10 @@ export function LevelColumn({ row, disabled, onLevel }: {
   const now = row && model ? shownEffort(row.setup, model) : "";
   const note = model?.effortUnavailable || model?.effortNote;
   return (
-    <div role="group" aria-label={t("ui-modelpanel.effort")} data-panel-levels className="flex w-[156px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-l border-line p-1.5">
-      <div className="flex min-w-0 items-baseline gap-2 px-2.5 pt-1 pb-1.5 text-submeta text-ink-3">
+    <div role="group" aria-label={t("ui-modelpanel.effort")} data-panel-levels className="flex w-[176px] min-[900px]:w-[196px] shrink-0 flex-col gap-px overflow-y-auto overscroll-contain border-l border-line p-1.5">
+      <div className="flex min-w-0 flex-col gap-0.5 px-2.5 pt-1 pb-1.5 text-submeta text-ink-3">
         <span className="shrink-0">{t("ui-modelpanel.effort")}</span>
-        {model && <span className="ml-auto min-w-0 truncate">{model.name}</span>}
+        {model && <span data-panel-level-model title={model.name} className="line-clamp-2 min-w-0 leading-[1.35] break-words text-ink-2">{model.name}</span>}
       </div>
       {model && levels.length > 0 &&
         levels.map((e) => (

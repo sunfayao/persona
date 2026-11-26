@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 // What the unified model panel gained for New Agent (#5104), as a person uses it: the follow row on top (checked while
-// followed, applied on a click), presets as a group of their own (picked through `onPreset`, no star, no flyout), no
-// Recommended group for an Agent not started yet, the engines a model runs with in its flyout (another one picked on a
-// click), "How to fix" under a launcher that failed its check, "Configure models" handed to the caller, and the effort
-// slider with no level set.
+// followed, applied on a click), no Recommended group for an Agent not started yet, the engines a model runs with in its
+// flyout (another one picked on a click), "How to fix" under a launcher that failed its check, "Configure models" handed
+// to the caller, and the effort slider with no level set.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PanelPreset, PanelProvider, PanelState } from "../../lib/model-panel";
+import type { PanelProvider, PanelState } from "../../lib/model-panel";
 
 vi.hoisted(() => {
   const g = globalThis as Record<string, unknown>;
@@ -40,7 +39,6 @@ const claude: PanelProvider = {
 const codex: PanelProvider = { id: "codex", name: "Codex", engine: "codex", models: [{ id: "gpt-5.5", name: "5.5", efforts: [] }, { id: "gateway/glm-5.3", name: "glm-5.3", efforts: [] }] };
 const blocked: PanelProvider = { id: "work_gw", name: "work_gw", engine: "claude", models: [{ id: "default", name: "默认", efforts: [], providerDefault: true }], unavailable: "这台电脑的终端里用不了" };
 const state: PanelState = { current: { provider: "claude", model: "default" }, recommended: [], starting: true };
-const presets: PanelPreset[] = [{ key: "review", name: "review", description: "Code review", setup: { provider: "claude", model: "opus", effort: "high" } }];
 
 let host: HTMLDivElement;
 let root: Root;
@@ -67,7 +65,6 @@ async function open(o: { follow?: boolean; active?: boolean; onConfigure?: () =>
   const onPick = vi.fn(async () => true);
   const onApplyCurrent = vi.fn(async () => true);
   const onFollow = vi.fn(() => true);
-  const onPreset = vi.fn(() => true);
   const onHelp = vi.fn();
   act(() =>
     root.render(
@@ -80,8 +77,6 @@ async function open(o: { follow?: boolean; active?: boolean; onConfigure?: () =>
         onPick={onPick}
         onApplyCurrent={onApplyCurrent}
         follow={o.follow === false ? undefined : { active: o.active ?? true, label: "跟随模型配置", detail: "Claude · Opus 5.5", onFollow }}
-        presets={presets}
-        onPreset={onPreset}
         engines
         onHelp={onHelp}
         onConfigure={o.onConfigure}
@@ -89,7 +84,7 @@ async function open(o: { follow?: boolean; active?: boolean; onConfigure?: () =>
     ),
   );
   await flush();
-  return { onClose, onPick, onApplyCurrent, onFollow, onPreset, onHelp };
+  return { onClose, onPick, onApplyCurrent, onFollow, onHelp };
 }
 
 const rows = () => [...document.body.querySelectorAll<HTMLElement>("[data-panel-row]")];
@@ -101,7 +96,7 @@ const flyout = () => document.body.querySelector<HTMLElement>("[data-model-flyou
 const stored = (kind: "recent") => JSON.parse(localStorage.getItem(panelStoreKey("agent", kind)) ?? "null");
 
 describe("the model panel for a new Agent", () => {
-  it("a follow row on top, checked while followed; Presets after the favorites; no Recommended group", async () => {
+  it("a follow row on top, checked while followed; no Presets or Recommended group", async () => {
     await open();
     const follow = document.body.querySelector<HTMLElement>("[data-follow-row]")!;
     expect(follow.textContent).toContain("跟随模型配置");
@@ -109,7 +104,7 @@ describe("the model panel for a new Agent", () => {
     expect(follow.getAttribute("aria-pressed")).toBe("true");
     // the list opens at its top, on the follow row (the panel scrolls to the first row marked current)
     expect(document.body.querySelector("[data-current]")).toBe(follow);
-    expect(groups()).toEqual(["预设", "Claude", "work_gw", "Codex"]);
+    expect(groups()).toEqual(["Claude", "work_gw", "Codex"]);
     // the model that runs stays lit in its own group
     expect(row("默认：Opus 5.5", "Claude").getAttribute("aria-pressed")).toBe("true");
   });
@@ -123,18 +118,6 @@ describe("the model panel for a new Agent", () => {
     expect(onFollow).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
     expect(stored("recent")).toBeNull();
-  });
-
-  it("a preset is picked through onPreset, with no star or Customize, and its setup goes into Recent", async () => {
-    const { onPreset, onPick } = await open();
-    const preset = row("review", "预设");
-    expect(preset.textContent).toContain("Claude · Code review");
-    expect(preset.querySelector('button[aria-label="收藏"], [data-row-customize]')).toBeNull();
-    act(() => preset.click());
-    await flush();
-    expect(onPreset).toHaveBeenCalledWith("review");
-    expect(onPick).not.toHaveBeenCalled();
-    expect(stored("recent")).toEqual([{ provider: "claude", model: "opus", effort: "high" }]);
   });
 
   it("a launcher that failed its check: rows off, its reason once, How to fix handed to the caller", async () => {

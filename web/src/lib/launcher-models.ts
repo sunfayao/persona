@@ -66,27 +66,10 @@ export interface LauncherDefault {
   runtime?: string;
 }
 
-/** One of "New agent"'s presets (#2225, docs/assistant/model-config.md "Agent presets"): a tier of the model profile in use
- *  whose launcher this computer starts. Picking it fills launcher, model, effort and permission mode as picking them by hand would. */
-export interface PickerTier {
-  name: string;
-  launcher: string;
-  /** "" or absent: the launcher's default (the model settings' when the launcher is theirs). */
-  model?: string;
-  effort?: string;
-  permission_mode?: string;
-  /** When to use it. */
-  description?: string;
-}
-
 export interface MachineLaunchers {
   launchers: Launcher[];
   /** Absent from an older hub; null when the purpose is not a launcher use. */
   default?: LauncherDefault | null;
-  /** "New agent" only: absent from an older hub, with no profile in use, or none whose launcher this computer has. */
-  tiers?: PickerTier[];
-  /** The profile the presets come from (they follow its switches). */
-  tiers_profile?: { id: string; name: string };
   /** `?purpose=assistant` on a hub with `assistant_model_pick` (#5033): what can't run the main chat on this computer, with
    *  why in the request's language (shown off, not hidden). For "New agent" (#8109): the Persona-managed providers its
    *  own-service rule leaves out on this computer, with why; absent when there are none, or from an older hub. */
@@ -347,17 +330,5 @@ export function startPicks(o: StartModelOptions & { model: string; effort: strin
   }
   const rule = effortRule(o.agent, o.launcher, o.list);
   if (o.effort && rule !== "none" && effortChoices(o.list, out.model ?? "", o.followed, rule).includes(o.effort)) out.effort = o.effort;
-  return out;
-}
-
-/** What of a preset a start with this launcher's list would not pass on: its model when the launcher fixes its own --model
- *  or takes no typed ID, its effort when the model doesn't take it. Empty: all of it (or the list is not in yet). */
-export function tierLeftOut(tier: PickerTier, o: StartModelOptions): string[] {
-  const picks = startPicks({ ...o, model: tier.model ?? "", effort: tier.effort ?? "" });
-  const out: string[] = [];
-  // the list's default is what runs with no model sent (startPicks sends it when the model settings would run another)
-  const implicitDefault = !terminalOmp(o.agent, o.launcher) && !o.list?.locked && o.list?.models.some((m) => m.id === tier.model && m.default);
-  if (tier.model && picks.model !== tier.model && !implicitDefault) out.push(tier.model);
-  if (tier.effort && picks.effort !== tier.effort) out.push(tier.effort);
   return out;
 }

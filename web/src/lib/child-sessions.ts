@@ -25,12 +25,17 @@ export function listedKeys(rows: readonly Session[]): Set<string> {
   return new Set(rows.map((s) => rowKey(s.machine_id, s.session_id)));
 }
 
-/** s folds under a session the list holds (on its own machine): it is never a row or a count of its own there. A child
- *  whose parent the list does not hold (another filter, another page) stays a row. A side session folds only while the
- *  hub folds sides (lib/side-fold.ts). */
+/** s folds under a session the list holds on its own machine. An inactive Codex Desktop worker keeps that hierarchy
+ *  even when its parent is absent from the list. A side session follows the hub's side-fold policy. */
 export function isFoldedIn(s: Session, listed: ReadonlySet<string>): boolean {
   const under = foldsUnder(s);
-  return Boolean(under) && listed.has(rowKey(s.machine_id, under!));
+  if (under && listed.has(rowKey(s.machine_id, under))) return true;
+
+  const parent = under || s.root_session_id || s.parent_session_id;
+  return Boolean(parent && parent !== s.session_id && s.is_subagent && s.agent === "codex" &&
+    s.agent_surface === "desktop" && s.source_kind === "codex_history" &&
+    (s.status === "idle" || s.status === "done" || s.status === "offline") &&
+    s.state !== "needs_you" && !s.pending_interactions && !s.children?.needs_you);
 }
 
 /** The sessions folded into mid/sid's chat, oldest first (by when they started, else were last updated): what folds
