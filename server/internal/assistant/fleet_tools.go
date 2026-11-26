@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/connector"
 	"github.com/nwverse/persona/server/internal/i18n"
@@ -92,10 +93,7 @@ func (s *Service) sessionMCPToolsChecked(ctx context.Context, machine, session s
 			tools = append(tools, s.leaderTools(ctx, machine, session)...)
 			tools = append(tools, s.spawnTools(ctx, machine, session)...)
 		}
-		cfg := s.a2aConfig(ctx)
-		_, hasA2A := s.a2aStore()
-		if hasA2A == nil && (session == "" && s.a2aMachineAllowed(ctx, cfg, s.canonical(machine)) ||
-			s.a2aAllowed(ctx, cfg, a2aRef{s.canonical(machine), session})) {
+		if s.agents.Discoverable(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}) {
 			tools = append(tools, toolsNamed(assistantwire.A2AToolNames)...)
 		}
 		if assistant && toolSetOf(ctx) == toolSetSupervise {
@@ -154,7 +152,7 @@ func (s *Service) mcpCallWithOrigin(ctx context.Context, machine, session, name 
 		return s.toolSecretStore(ctx, machine, session, args)
 	}
 	if assistantwire.IsA2ATool(name) {
-		return s.a2aTool(ctx, a2aRef{s.canonical(machine), session}, name, args)
+		return s.agents.Tool(ctx, agents.Ref{Machine: s.canonical(machine), Session: session}, name, args)
 	}
 	if s.ext != nil { // the connectors', Cua's, ego's: ctx is the node's call (its caller going away withdraws a card)
 		if s.ext.ConnectorTool(name) { // a connector is told where the call comes from (connector_context.go)

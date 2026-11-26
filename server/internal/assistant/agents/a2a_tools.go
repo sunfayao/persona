@@ -1,9 +1,8 @@
-package assistant
+package agents
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -12,23 +11,23 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-func a2aSessionCaller(ref a2aRef) a2aCaller {
-	return a2aCaller{Ref: ref, Owner: "session:" + ref.Machine + "/" + ref.Session}
+func SessionCaller(ref Ref) Caller {
+	return Caller{Ref: ref, Owner: "session:" + ref.Machine + "/" + ref.Session}
 }
 
-func (s *Service) a2aTool(ctx context.Context, ref a2aRef, name string, args json.RawMessage) proto.ToolResult {
-	cfg := s.a2aConfig(ctx)
+func (s *Domain) Tool(ctx context.Context, ref Ref, name string, args json.RawMessage) proto.ToolResult {
+	cfg := s.config(ctx)
 	if !s.a2aAllowed(ctx, cfg, ref) {
 		return proto.TextResult(errA2AUnavailable.Error(), true)
 	}
-	st, err := s.a2aStore()
+	st, err := s.store()
 	if err != nil {
 		return proto.TextResult(err.Error(), true)
 	}
 	if len(args) == 0 {
 		args = json.RawMessage("{}")
 	}
-	out, err := s.a2aToolCall(ctx, st, cfg, a2aSessionCaller(ref), name, args)
+	out, err := s.a2aToolCall(ctx, st, cfg, SessionCaller(ref), name, args)
 	if err != nil {
 		return proto.TextResult(err.Error(), true)
 	}
@@ -36,7 +35,7 @@ func (s *Service) a2aTool(ctx context.Context, ref a2aRef, name string, args jso
 		// a2a_read: a conversation to read, as agent_read gives it; it changes no task, so nothing to deliver.
 		return proto.TextResult(text, false)
 	}
-	s.a2aSignal()
+	s.Wake()
 	data, err := json.Marshal(out)
 	if err != nil {
 		return proto.TextResult(err.Error(), true)
@@ -45,7 +44,7 @@ func (s *Service) a2aTool(ctx context.Context, ref a2aRef, name string, args jso
 }
 
 type a2aToolArgs struct {
-	a2aRef
+	Ref
 	Task     string `json:"task_id"`
 	ID       string `json:"message_id"`
 	Context  string `json:"context_id"`
@@ -61,27 +60,27 @@ type a2aToolArgs struct {
 }
 
 type a2aTaskView struct {
-	ID           string     `json:"task_id"`
-	Context      string     `json:"context_id"`
-	Source       a2aRef     `json:"source"`
-	Target       a2aRef     `json:"target"`
-	State        string     `json:"state"`
-	Queued       bool       `json:"queued,omitempty"`
-	Events       []a2aEvent `json:"events"`
-	Disconnected bool       `json:"target_disconnected,omitempty"`
+	ID           string  `json:"task_id"`
+	Context      string  `json:"context_id"`
+	Source       Ref     `json:"source"`
+	Target       Ref     `json:"target"`
+	State        string  `json:"state"`
+	Queued       bool    `json:"queued,omitempty"`
+	Events       []Event `json:"events"`
+	Disconnected bool    `json:"target_disconnected,omitempty"`
 }
 
-func (t *a2aTask) view() a2aTaskView {
+func (t *Task) view() a2aTaskView {
 	return a2aTaskView{ID: t.ID, Context: t.Context, Source: t.source(), Target: t.target(), State: t.State, Queued: t.State == a2aQueued, Events: t.Events, Disconnected: t.Disconnected}
 }
 
-func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, name string, args json.RawMessage) (any, error) {
+func (s *Domain) a2aToolCall(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, name string, args json.RawMessage) (any, error) {
 	var a a2aToolArgs
 	if err := json.Unmarshal(args, &a); err != nil {
 		return nil, errA2AInvalid
 	}
-	a.a2aRef = s.a2aResolve(ctx, cfg, a.a2aRef) // an id the session's conversation went by: its row now (a2a_resolve.go)
-	var t *a2aTask
+	a.Ref = s.a2aResolve(ctx, cfg, a.Ref) // an id the session's conversation went by: its row now (a2a_resolve.go)
+	var t *Task
 	var err error
 	switch name {
 	case "a2a_sessions":
@@ -90,7 +89,7 @@ func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwir
 		}
 		return s.a2aDiscover(ctx, cfg, c.Ref, a.Machine), nil
 	case "a2a_read":
-		return s.a2aRead(ctx, cfg, c.Ref, a.a2aRef, a.Turns)
+		return s.a2aRead(ctx, cfg, c.Ref, a.Ref, a.Turns)
 	case "a2a_get":
 		if a.Task == "" {
 			return s.a2aInbox(ctx, st, cfg, c, a.Before)
@@ -98,23 +97,17 @@ func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwir
 		t, err = s.a2aGet(ctx, st, cfg, c, a.Task)
 	case "a2a_send":
 		if a.Task == "" {
-			var launch *a2aLaunch
+			var launch *Launch
 			if a.CWD != "" {
-				if err := s.guardRefusal(ctx, c.Ref.Machine, c.Ref.Session, "agent_start"); err != nil {
+				if err := s.outbound.AllowLaunch(ctx, c.Ref); err != nil {
 					return nil, err
 				}
-				if err := s.dispatchToolGuard(ctx, c.Ref.Machine, c.Ref.Session, "agent_start"); err != nil {
-					return nil, err
-				}
-				if err := s.workerRefusal(ctx, c.Ref.Machine, c.Ref.Session); err != nil {
-					return nil, err
-				}
-				launch = &a2aLaunch{CWD: a.CWD, Launcher: a.Launcher, Tier: strings.TrimSpace(a.Tier), Pending: true}
-			} else if err := s.a2aCanSendMessage(ctx, c.Ref, a.a2aRef, a.Text); err != nil {
+				launch = &Launch{CWD: a.CWD, Launcher: a.Launcher, Tier: strings.TrimSpace(a.Tier), Pending: true}
+			} else if err := s.outbound.AllowSend(ctx, c.Ref, a.Ref, a.Text); err != nil {
 				return nil, err
 			}
-			if old, err := decodeA2A(st.A2ARequest(ctx, c.Owner, a.ID)); err == nil && old == nil && a2aValidID(a.ID) && a2aValidText(a.Text) &&
-				a.a2aRef != c.Ref && (launch != nil || s.a2aAllowed(ctx, cfg, a.a2aRef)) {
+			if old, err := DecodeTask(st.A2ARequest(ctx, c.Owner, a.ID)); err == nil && old == nil && a2aValidID(a.ID) && a2aValidText(a.Text) &&
+				a.Ref != c.Ref && (launch != nil || s.a2aAllowed(ctx, cfg, a.Ref)) {
 				// A new hand-off, not a retry of one already made (a2aStart answers those).
 				where := a.CWD
 				if launch != nil {
@@ -123,47 +116,47 @@ func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwir
 					if err := s.a2aLaunchTier(ctx, cfg, a.Machine, launch); err != nil {
 						return nil, err
 					}
-					if err := s.a2aLaunchCheck(ctx, cfg, a.a2aRef, a.Context, launch); err != nil {
+					if err := s.a2aLaunchCheck(ctx, cfg, a.Ref, a.Context, launch); err != nil {
 						return nil, err
 					}
-					where = s.a2aLaunchWhere(ctx, launch)
+					where = s.launches.DescribeTier(ctx, launch)
 				}
-				if err := s.a2aConfirm(ctx, c.Ref, a.a2aRef, where, a.Text, args); err != nil {
+				if err := s.a2aConfirm(ctx, c.Ref, a.Ref, where, a.Text, args); err != nil {
 					return nil, err
 				}
 			}
-			t, err = s.a2aStart(ctx, st, cfg, c, a.a2aRef, a.ID, a.Context, a.Text, a.Wake == nil || *a.Wake, launch)
+			t, err = s.a2aStart(ctx, st, cfg, c, a.Ref, a.ID, a.Context, a.Text, a.Wake == nil || *a.Wake, launch)
 			break
 		}
 		if t, err := s.a2aGet(ctx, st, cfg, c, a.Task); err == nil && t.Owner == c.Owner && t.State == a2aInput &&
-			a2aValidID(a.ID) && a2aValidText(a.Text) && !slices.ContainsFunc(t.Events, func(e a2aEvent) bool { return e.ID == a.ID }) {
+			a2aValidID(a.ID) && a2aValidText(a.Text) && !slices.ContainsFunc(t.Events, func(e Event) bool { return e.ID == a.ID }) {
 			// An answer that would be sent, not a retry of one already sent (a2aContinue).
-			if err := s.a2aCanSendMessage(ctx, c.Ref, t.target(), a.Text); err != nil {
+			if err := s.outbound.AllowSend(ctx, c.Ref, t.target(), a.Text); err != nil {
 				return nil, err
 			}
 			if err := s.a2aConfirm(ctx, c.Ref, t.target(), "", a.Text, args); err != nil {
 				return nil, err
 			}
 		}
-		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *a2aTask) (bool, error) {
+		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *Task) (bool, error) {
 			if t.Owner != c.Owner {
 				return false, errA2ANotFound
 			}
-			if err := s.a2aCanSendMessage(ctx, c.Ref, t.target(), a.Text); err != nil {
+			if err := s.outbound.AllowSend(ctx, c.Ref, t.target(), a.Text); err != nil {
 				return false, err
 			}
-			return a2aContinue(t, a.ID, a.Text)
+			return s.a2aContinue(t, a.ID, a.Text)
 		})
 	case "a2a_report":
-		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *a2aTask) (bool, error) {
-			return a2aReport(t, c.Ref, a.ID, a.State, a.Text)
+		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *Task) (bool, error) {
+			return s.a2aReport(t, c.Ref, a.ID, a.State, a.Text)
 		})
 	case "a2a_cancel":
-		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *a2aTask) (bool, error) {
+		t, err = s.a2aMutate(ctx, st, cfg, c, a.Task, func(t *Task) (bool, error) {
 			if t.Owner != c.Owner {
 				return false, errA2ANotFound
 			}
-			return a2aCancel(t)
+			return s.a2aCancel(t)
 		})
 	default:
 		return nil, errA2AInvalid
@@ -175,23 +168,23 @@ func (s *Service) a2aToolCall(ctx context.Context, st a2aStore, cfg assistantwir
 }
 
 // errA2ADeclined: the user declined a hand-off on the phone.
-var errA2ADeclined = errors.New("the user declined on the phone: nothing was sent")
+const errA2ADeclined a2aError = "the user declined on the phone: nothing was sent"
 
 // a2aConfirm asks the phone before an assistant conversation hands text to another session, or to a new one in
 // folder where, through A2A (health.go confirmOutbound: at once when the text needs no confirming). Other senders are
 // not asked.
-func (s *Service) a2aConfirm(ctx context.Context, from, to a2aRef, where, text string, args json.RawMessage) error {
-	if !s.isAssistantConversation(ctx, from.Machine, from.Session) {
+func (s *Domain) a2aConfirm(ctx context.Context, from, to Ref, where, text string, args json.RawMessage) error {
+	if !s.outbound.NeedsConfirmation(ctx, from) {
 		return nil
 	}
 	label := to.Machine
-	if m, ok := s.device(ctx, to.Machine); ok && m.Name != "" {
+	if m, ok := s.machines.Lookup(ctx, to.Machine); ok && m.Name != "" {
 		label = m.Name
 	}
 	if where != "" {
 		label += " · " + where
 	}
-	ok, err := s.confirmOutbound(ctx, from.Machine, from.Session, "a2a_send", text, label+"\n\n"+text, args)
+	ok, err := s.outbound.Confirm(ctx, from, text, label+"\n\n"+text, args)
 	if err != nil {
 		return err
 	}
@@ -201,14 +194,7 @@ func (s *Service) a2aConfirm(ctx context.Context, from, to a2aRef, where, text s
 	return nil
 }
 
-func (s *Service) a2aCanSendMessage(ctx context.Context, from, to a2aRef, text string) error {
-	if err := s.guardRefusal(ctx, from.Machine, from.Session, "conversation_send"); err != nil {
-		return err
-	}
-	return s.dispatchSendGuard(withToolCaller(ctx, from.Machine, from.Session), from.Session, to.Machine, to.Session, text)
-}
-
-func a2aReport(t *a2aTask, sender a2aRef, id, state, text string) (bool, error) {
+func (s *Domain) a2aReport(t *Task, sender Ref, id, state, text string) (bool, error) {
 	if sender != t.target() {
 		return false, errA2ANotFound
 	}
@@ -223,8 +209,8 @@ func a2aReport(t *a2aTask, sender a2aRef, id, state, text string) (bool, error) 
 	default:
 		return false, fmt.Errorf("%w: state must be progress, input_required, completed or failed", errA2AInvalid)
 	}
-	ev := a2aReturn(t, a2aEvent{ID: id, Kind: kind, State: state, Text: text})
-	if !slices.ContainsFunc(t.Events, func(e a2aEvent) bool { return e.ID == id }) {
+	ev := a2aReturn(t, Event{ID: id, Kind: kind, State: state, Text: text})
+	if !slices.ContainsFunc(t.Events, func(e Event) bool { return e.ID == id }) {
 		for i := len(t.Events) - 1; i >= 0; i-- {
 			e := &t.Events[i]
 			if e.Kind != "message" {
@@ -238,15 +224,15 @@ func a2aReport(t *a2aTask, sender a2aRef, id, state, text string) (bool, error) 
 				return false, errA2AConflict
 			}
 			if t.State == a2aSubmitted && kind == "progress" {
-				t.append(a2aEvent{ID: randomHex(16), Kind: "status", State: a2aWorking})
+				s.appendEvent(t, Event{ID: s.newID(), Kind: "status", State: a2aWorking})
 			}
 			break
 		}
 	}
-	return a2aAppendOnce(t, ev)
+	return s.a2aAppendOnce(t, ev)
 }
 
-func (s *Service) a2aInbox(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, before string) (any, error) {
+func (s *Domain) a2aInbox(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, before string) (any, error) {
 	out := []a2aTaskView{}
 	all, err := st.A2AList(ctx, c.Owner, c.Ref.Machine, c.Ref.Session, "", "", before, true, nil, 21)
 	if err != nil {
@@ -258,7 +244,7 @@ func (s *Service) a2aInbox(ctx context.Context, st a2aStore, cfg assistantwire.A
 			next = all[i-1].ID
 			break
 		}
-		t, err := decodeA2A(&row, nil)
+		t, err := DecodeTask(&row, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -272,9 +258,9 @@ func (s *Service) a2aInbox(ctx context.Context, st a2aStore, cfg assistantwire.A
 	return map[string]any{"tasks": out, "next": next}, nil
 }
 
-func (s *Service) a2aDiscover(ctx context.Context, cfg assistantwire.A2AConfig, self a2aRef, machine string) any {
+func (s *Domain) a2aDiscover(ctx context.Context, cfg assistantwire.A2AConfig, self Ref, machine string) any {
 	type peer struct {
-		a2aRef
+		Ref
 		Title  string `json:"title"`
 		Agent  string `json:"agent,omitempty"`
 		Status string `json:"status"`
@@ -282,7 +268,7 @@ func (s *Service) a2aDiscover(ctx context.Context, cfg assistantwire.A2AConfig, 
 	out := []peer{}
 	machines := cfg.Machines
 	if machines == nil {
-		for _, d := range s.devices(ctx) {
+		for _, d := range s.machines.List(ctx) {
 			machines = append(machines, d.ID)
 		}
 	}
@@ -291,8 +277,8 @@ func (s *Service) a2aDiscover(ctx context.Context, cfg assistantwire.A2AConfig, 
 			continue
 		}
 		for _, sess := range s.a2aSessionsOn(ctx, mid) {
-			ref := a2aRef{mid, sess.SessionID}
-			if ref != self && a2aSendable(sess) && s.a2aAllowed(ctx, cfg, ref) {
+			ref := Ref{mid, sess.SessionID}
+			if ref != self && s.a2aSendable(sess) && s.a2aAllowed(ctx, cfg, ref) {
 				out = append(out, peer{ref, sess.Title, sess.Agent, sess.Status})
 			}
 		}

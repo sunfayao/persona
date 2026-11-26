@@ -1,4 +1,4 @@
-package assistant
+package agents
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/nwverse/persona/server/internal/textfmt"
 )
 
 const (
@@ -34,16 +34,16 @@ const (
 	a2aMaxEvents = 96
 )
 
-var (
-	errA2AUnavailable = errors.New("A2A is unavailable for this session")
-	errA2ANotFound    = errors.New("A2A task not found")
-	errA2AConflict    = errors.New("A2A task changed, retry with the same message_id")
-	errA2ACancel      = errors.New("the A2A task cannot be canceled while its turn may be running")
-	errA2AInvalid     = errors.New("invalid A2A request")
-	errA2ADuplicate   = errors.New("message_id already identifies a different A2A message")
+const (
+	errA2AUnavailable a2aError = "A2A is unavailable for this session"
+	errA2ANotFound    a2aError = "A2A task not found"
+	errA2AConflict    a2aError = "A2A task changed, retry with the same message_id"
+	errA2ACancel      a2aError = "the A2A task cannot be canceled while its turn may be running"
+	errA2AInvalid     a2aError = "invalid A2A request"
+	errA2ADuplicate   a2aError = "message_id already identifies a different A2A message"
 )
 
-type a2aStore interface {
+type Store interface {
 	A2ACreate(context.Context, db.A2ARow) (*db.A2ARow, error)
 	A2ARequest(context.Context, string, string) (*db.A2ARow, error)
 	A2AGet(context.Context, string) (*db.A2ARow, error)
@@ -54,17 +54,17 @@ type a2aStore interface {
 	A2ADispatches(context.Context, string, string, string, time.Time) ([]db.A2ARow, error)
 }
 
-type a2aRef struct {
+type Ref struct {
 	Machine string `json:"machine_id"`
 	Session string `json:"session_id"`
 }
 
-type a2aCaller struct {
-	Ref   a2aRef
+type Caller struct {
+	Ref   Ref
 	Owner string
 }
 
-type a2aEvent struct {
+type Event struct {
 	// Seq is the position in the task's append-only conversation.
 	Seq       int       `json:"seq"`
 	ID        string    `json:"message_id"`
@@ -76,20 +76,20 @@ type a2aEvent struct {
 	Attempted time.Time `json:"attempted,omitzero"`
 }
 
-type a2aBody struct {
-	Wake         bool       `json:"wake"`
-	Events       []a2aEvent `json:"events"`
-	Launch       *a2aLaunch `json:"launch,omitempty"`
-	Disconnected bool       `json:"disconnected,omitempty"`
-	TargetClosed bool       `json:"target_closed,omitempty"`
+type taskBody struct {
+	Wake         bool    `json:"wake"`
+	Events       []Event `json:"events"`
+	Launch       *Launch `json:"launch,omitempty"`
+	Disconnected bool    `json:"disconnected,omitempty"`
+	TargetClosed bool    `json:"target_closed,omitempty"`
 }
 
-type a2aLaunch struct {
+type Launch struct {
 	CWD        string `json:"cwd"`
 	Worktree   string `json:"worktree,omitempty"`
 	Launcher   string `json:"launcher,omitempty"`
 	Tier       string `json:"tier,omitempty"` // the Agent preset the caller named; a retry by message_id names it too
-	Run        a2aRun `json:"run,omitzero"`   // what Tier resolved to when the launch was accepted (agent_presets.go)
+	Run        Run    `json:"run,omitzero"`   // what Tier resolved to when the launch was accepted (agent_presets.go)
 	Pending    bool   `json:"pending"`
 	Dispatch   bool   `json:"dispatch,omitempty"`
 	Branch     string `json:"branch,omitempty"`
@@ -97,24 +97,24 @@ type a2aLaunch struct {
 	PromptHash string `json:"prompt_hash,omitempty"`
 }
 
-type a2aTask struct {
+type Task struct {
 	db.A2ARow
-	a2aBody
+	taskBody
 }
 
-func (t a2aTask) target() a2aRef { return a2aRef{t.TargetMachine, t.TargetSession} }
-func (t a2aTask) source() a2aRef { return a2aRef{t.SourceMachine, t.SourceSession} }
+func (t Task) target() Ref { return Ref{t.TargetMachine, t.TargetSession} }
+func (t Task) source() Ref { return Ref{t.SourceMachine, t.SourceSession} }
 
-func (t a2aTask) participant(c a2aCaller) bool {
-	return t.Owner == c.Owner || c.Ref != (a2aRef{}) && t.target() == c.Ref
+func (t Task) participant(c Caller) bool {
+	return t.Owner == c.Owner || c.Ref != (Ref{}) && t.target() == c.Ref
 }
 
 func a2aTerminal(state string) bool {
 	return state == a2aComplete || state == a2aFailed || state == a2aCanceled
 }
 
-func (t *a2aTask) append(e a2aEvent) {
-	e.Seq, e.At = len(t.Events)+1, time.Now().UTC()
+func (s *Domain) appendEvent(t *Task, e Event) {
+	e.Seq, e.At = len(t.Events)+1, s.clock.Now().UTC()
 	if a2aTerminal(e.State) {
 		for i := range t.Events {
 			old := &t.Events[i]
@@ -129,89 +129,64 @@ func (t *a2aTask) append(e a2aEvent) {
 	}
 }
 
-func decodeA2A(row *db.A2ARow, err error) (*a2aTask, error) {
+// MarshalBody encodes the persisted A2A event history and launch.
+func (t *Task) MarshalBody() ([]byte, error) { return json.Marshal(t.taskBody) }
+
+// DecodeTask decodes a persisted A2A row and its body.
+func DecodeTask(row *db.A2ARow, err error) (*Task, error) {
 	if row == nil || err != nil {
 		return nil, err
 	}
-	t := &a2aTask{A2ARow: *row}
-	if err := json.Unmarshal(row.Body, &t.a2aBody); err != nil {
+	t := &Task{A2ARow: *row}
+	if err := json.Unmarshal(row.Body, &t.taskBody); err != nil {
 		return nil, err
 	}
 	return t, nil
 }
 
-func (s *Service) a2aConfig(ctx context.Context) assistantwire.A2AConfig {
-	cfg := s.hello(ctx)
-	if cfg.Assistant.Standby {
-		return assistantwire.A2AConfig{Machines: []string{}}
-	}
-	return cfg.Agents.A2A
-}
-
-func (s *Service) a2aStore() (a2aStore, error) {
-	st, ok := s.store().(a2aStore)
-	if !ok || st == nil {
-		return nil, errA2AUnavailable
-	}
-	return st, nil
-}
-
-func (s *Service) a2aMachineAllowed(ctx context.Context, cfg assistantwire.A2AConfig, machine string) bool {
-	if machine == "" || cfg.Machines != nil && !slices.Contains(cfg.Machines, machine) ||
-		s.isWorkMachine(machine) || s.machinePending(ctx, machine) {
-		return false
-	}
-	if s.devs != nil {
-		return s.devs.Has(machine)
-	}
-	dev, ok := s.machineByName(ctx, machine)
-	return ok && dev.ID == machine
+func (s *Domain) a2aMachineAllowed(ctx context.Context, cfg assistantwire.A2AConfig, machine string) bool {
+	return machine != "" && (cfg.Machines == nil || slices.Contains(cfg.Machines, machine)) && s.machines.Trusted(ctx, machine)
 }
 
 // Persona binds callers to Node-attested sessions and keeps discovery and delivery
 // within the owning manager's confirmed computers.
-func (s *Service) a2aAllowed(ctx context.Context, cfg assistantwire.A2AConfig, ref a2aRef) bool {
-	if ref.Session == "" || !s.a2aMachineAllowed(ctx, cfg, ref.Machine) || s.conversationAvailable(ctx, ref.Machine, ref.Session) != nil {
+func (s *Domain) a2aAllowed(ctx context.Context, cfg assistantwire.A2AConfig, ref Ref) bool {
+	if ref.Session == "" || !s.a2aMachineAllowed(ctx, cfg, ref.Machine) || !s.visibility.Available(ctx, ref) {
 		return false
 	}
-	if machine := s.logicalExecutionMachine(ctx, ref.Machine, ref.Session); machine != ref.Machine && !s.a2aMachineAllowed(ctx, cfg, machine) {
+	if machine := s.nodes.ExecutionMachine(ctx, ref); machine != ref.Machine && !s.a2aMachineAllowed(ctx, cfg, machine) {
 		return false
 	}
-	if row, ok := s.nodeSession(ref.Machine, ref.Session); ok && (!a2aVisible(row) || s.hiddenByDirectory(ref.Machine, row)) {
+	if row, ok := s.nodes.Listed(ref); ok && (!s.a2aVisible(row) || s.visibility.HiddenByDirectory(ref.Machine, row)) {
 		return false
 	}
-	if row, ok, _ := s.archivedRow(ctx, ref.Machine, ref.Session); ok && row.Archived {
-		return false
-	}
-	_, guest, err := s.guestOf(ctx, ref.Machine, ref.Session)
-	return err == nil && !guest && !s.selfPolicy(ctx, ref.Session).HideFromExtensions
+	return !s.visibility.Private(ctx, ref)
 }
 
-func a2aVisible(session proto.Session) bool {
+func (s *Domain) a2aVisible(session proto.Session) bool {
 	return !session.Archived && !session.IsDeleted() && !session.HiddenByDirectory() && !session.IsSubagent &&
-		runSpace(session) == "" // any space: a2aVisible has no registry, so it fails closed
+		!s.visibility.InTrack(session)
 }
 
-func a2aSendable(session proto.Session) bool {
-	return a2aVisible(session) &&
+func (s *Domain) a2aSendable(session proto.Session) bool {
+	return s.a2aVisible(session) &&
 		(session.Capabilities == nil && session.SourceKind == "" || session.Capabilities != nil && session.Capabilities.Send)
 }
 
-func (s *Service) a2aSession(ctx context.Context, cfg assistantwire.A2AConfig, ref a2aRef) (proto.Session, error) {
+func (s *Domain) a2aSession(ctx context.Context, cfg assistantwire.A2AConfig, ref Ref) (proto.Session, error) {
 	if !s.a2aAllowed(ctx, cfg, ref) {
 		return proto.Session{}, errA2AUnavailable
 	}
 	for _, sess := range s.a2aSessionsOn(ctx, ref.Machine) {
-		if sess.SessionID == ref.Session && a2aSendable(sess) {
+		if sess.SessionID == ref.Session && s.a2aSendable(sess) {
 			return sess, nil
 		}
 	}
 	return proto.Session{}, errA2ANotFound
 }
 
-func (s *Service) a2aSessionsOn(ctx context.Context, machine string) []proto.Session {
-	list, _ := s.sessions(ctx, machine)
-	return list
+func (s *Domain) a2aSessionsOn(ctx context.Context, machine string) []proto.Session {
+	return s.nodes.Sessions(ctx, machine)
 }
 
 func a2aValidID(id string) bool {
@@ -233,18 +208,18 @@ func a2aCleanText(text string) string {
 		}
 		return r
 	}, text)
-	return clip(strings.TrimSpace(text), 2800)
+	return textfmt.Clip(strings.TrimSpace(text), 2800)
 }
 
-func (s *Service) a2aSave(ctx context.Context, st a2aStore, t *a2aTask) error {
-	raw, err := json.Marshal(t.a2aBody)
+func (s *Domain) a2aSave(ctx context.Context, st Store, t *Task) error {
+	raw, err := t.MarshalBody()
 	if err != nil {
 		return err
 	}
 	t.Body = raw
 	var next *time.Time
 	if t.State != a2aQueued && (!a2aTerminal(t.State) || slices.ContainsFunc(t.Events, a2aActiveDelivery)) {
-		now := time.Now().Add(time.Second)
+		now := s.clock.Now().Add(time.Second)
 		next = &now
 	}
 	status := t.Created
@@ -263,31 +238,31 @@ func (s *Service) a2aSave(ctx context.Context, st a2aStore, t *a2aTask) error {
 	}
 	t.Revision++
 	if a2aTerminal(t.State) {
-		s.a2aSignal()
+		s.Wake()
 	}
 	return nil
 }
 
-func a2aActiveDelivery(e a2aEvent) bool {
+func a2aActiveDelivery(e Event) bool {
 	return e.Delivery == a2aQueued || e.Delivery == a2aSending || e.Delivery == a2aUncertain
 }
 
-func (s *Service) a2aStart(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, to a2aRef, id, contextID, text string, wake bool, launch *a2aLaunch) (*a2aTask, error) {
+func (s *Domain) a2aStart(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, to Ref, id, contextID, text string, wake bool, launch *Launch) (*Task, error) {
 	if launch != nil {
 		if c.Ref.Session == "" || to.Session != "" || contextID != "" {
 			return nil, errA2AInvalid
 		}
-		if cfg.Machines == nil && !s.hello(ctx).Agents.Dispatch.On() {
+		if cfg.Machines == nil && !s.admission.Enabled(ctx) {
 			return nil, fmt.Errorf("%w: starting a remote session requires Agent dispatch to be enabled", errA2AUnavailable)
 		}
-		dev, ok := s.machineByName(ctx, to.Machine)
-		if !ok || dev.ID != to.Machine || !a2aValidText(launch.CWD) || s.trackPolicy(ctx, identity.SpaceAt(launch.CWD)).HideFromExtensions {
+		dev, ok := s.machines.Resolve(ctx, to.Machine)
+		if !ok || dev.ID != to.Machine || !a2aValidText(launch.CWD) || s.visibility.PrivateLaunchPath(ctx, launch.CWD) {
 			return nil, errA2AUnavailable
 		}
 		launch.CWD = proto.ExpandHome(launch.CWD, dev.Home)
-		to.Session = newStartSessionID()
-		s.dispatch.admit.Lock()
-		defer s.dispatch.admit.Unlock()
+		to.Session = s.newSessionID()
+		unlock := s.admission.Lock()
+		defer unlock()
 	}
 	if !a2aValidID(id) || !a2aValidText(text) || contextID != "" && !a2aValidID(contextID) || to == c.Ref {
 		return nil, errA2AInvalid
@@ -295,18 +270,18 @@ func (s *Service) a2aStart(ctx context.Context, st a2aStore, cfg assistantwire.A
 	if !s.a2aAllowed(ctx, cfg, to) {
 		return nil, errA2AUnavailable
 	}
-	if old, err := decodeA2A(st.A2ARequest(ctx, c.Owner, id)); old != nil || err != nil {
+	if old, err := DecodeTask(st.A2ARequest(ctx, c.Owner, id)); old != nil || err != nil {
 		return a2aCheckRetry(old, err, to, contextID, text, wake, launch)
 	}
 	if launch == nil {
 		if _, err := s.a2aSession(ctx, cfg, to); err != nil {
 			return nil, err
 		}
-	} else if err := s.checkDispatchCapacity(ctx, c.Ref, time.Now()); err != nil {
+	} else if err := s.admission.CheckCapacity(ctx, c.Ref, s.clock.Now()); err != nil {
 		return nil, err
 	}
 	if contextID == "" {
-		contextID = randomHex(16)
+		contextID = s.newID()
 	} else {
 		rows, err := st.A2AList(ctx, c.Owner, to.Machine, to.Session, contextID, "", "", false, nil, 1)
 		if err != nil {
@@ -316,16 +291,16 @@ func (s *Service) a2aStart(ctx context.Context, st a2aStore, cfg assistantwire.A
 			return nil, errA2ANotFound
 		}
 	}
-	t := a2aTask{A2ARow: db.A2ARow{ID: randomHex(16), Owner: c.Owner, Request: id, Context: contextID,
+	t := Task{A2ARow: db.A2ARow{ID: s.newID(), Owner: c.Owner, Request: id, Context: contextID,
 		TargetMachine: to.Machine, TargetSession: to.Session, SourceMachine: c.Ref.Machine, SourceSession: c.Ref.Session},
-		a2aBody: a2aBody{Wake: wake, Launch: launch}}
-	t.append(a2aEvent{ID: id, Kind: "message", Text: text, State: a2aSubmitted, Delivery: a2aQueued})
-	t.Body, _ = json.Marshal(t.a2aBody)
-	created, err := decodeA2A(st.A2ACreate(ctx, t.A2ARow))
+		taskBody: taskBody{Wake: wake, Launch: launch}}
+	s.appendEvent(&t, Event{ID: id, Kind: "message", Text: text, State: a2aSubmitted, Delivery: a2aQueued})
+	t.Body, _ = t.MarshalBody()
+	created, err := DecodeTask(st.A2ACreate(ctx, t.A2ARow))
 	return a2aCheckRetry(created, err, to, contextID, text, wake, launch)
 }
 
-func a2aCheckRetry(t *a2aTask, err error, to a2aRef, contextID, text string, wake bool, launch *a2aLaunch) (*a2aTask, error) {
+func a2aCheckRetry(t *Task, err error, to Ref, contextID, text string, wake bool, launch *Launch) (*Task, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -348,8 +323,8 @@ func a2aCheckRetry(t *a2aTask, err error, to a2aRef, contextID, text string, wak
 	return t, nil
 }
 
-func (s *Service) a2aGet(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, id string) (*a2aTask, error) {
-	t, err := decodeA2A(st.A2AGet(ctx, id))
+func (s *Domain) a2aGet(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, id string) (*Task, error) {
+	t, err := DecodeTask(st.A2AGet(ctx, id))
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +334,7 @@ func (s *Service) a2aGet(ctx context.Context, st a2aStore, cfg assistantwire.A2A
 	return t, nil
 }
 
-func (s *Service) a2aTaskVisible(ctx context.Context, cfg assistantwire.A2AConfig, c a2aCaller, t *a2aTask) bool {
+func (s *Domain) a2aTaskVisible(ctx context.Context, cfg assistantwire.A2AConfig, c Caller, t *Task) bool {
 	if t.SourceSession != "" && !s.a2aAllowed(ctx, cfg, t.source()) {
 		return false
 	}
@@ -368,7 +343,7 @@ func (s *Service) a2aTaskVisible(ctx context.Context, cfg assistantwire.A2AConfi
 			(t.TargetClosed || a2aTerminal(t.State) && s.a2aEndpointClosed(ctx, cfg, t.target()))
 }
 
-func (s *Service) a2aMutate(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, id string, change func(*a2aTask) (bool, error)) (*a2aTask, error) {
+func (s *Domain) a2aMutate(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, id string, change func(*Task) (bool, error)) (*Task, error) {
 	for range 5 {
 		t, err := s.a2aGet(ctx, st, cfg, c, id)
 		if err != nil {
@@ -385,7 +360,7 @@ func (s *Service) a2aMutate(ctx context.Context, st a2aStore, cfg assistantwire.
 	return nil, errA2AConflict
 }
 
-func a2aAppendOnce(t *a2aTask, ev a2aEvent) (bool, error) {
+func (s *Domain) a2aAppendOnce(t *Task, ev Event) (bool, error) {
 	for _, old := range t.Events {
 		if old.ID == ev.ID {
 			if old.Kind != ev.Kind || old.Text != ev.Text || old.State != ev.State {
@@ -401,29 +376,29 @@ func a2aAppendOnce(t *a2aTask, ev a2aEvent) (bool, error) {
 	if a2aTerminal(t.State) || len(t.Events) >= limit {
 		return false, fmt.Errorf("%w: task is closed or its history is full", errA2AInvalid)
 	}
-	t.append(ev)
+	s.appendEvent(t, ev)
 	return true, nil
 }
 
-func a2aReturn(t *a2aTask, ev a2aEvent) a2aEvent {
+func a2aReturn(t *Task, ev Event) Event {
 	if t.SourceSession != "" && t.Wake && ev.Kind == "status" {
 		ev.Delivery = a2aQueued
 	}
 	return ev
 }
 
-func a2aContinue(t *a2aTask, id, text string) (bool, error) {
+func (s *Domain) a2aContinue(t *Task, id, text string) (bool, error) {
 	if !a2aValidID(id) || !a2aValidText(text) {
 		return false, errA2AInvalid
 	}
-	ev := a2aEvent{ID: id, Kind: "message", Text: text, State: a2aSubmitted, Delivery: a2aQueued}
-	if slices.ContainsFunc(t.Events, func(e a2aEvent) bool { return e.ID == id }) {
-		return a2aAppendOnce(t, ev)
+	ev := Event{ID: id, Kind: "message", Text: text, State: a2aSubmitted, Delivery: a2aQueued}
+	if slices.ContainsFunc(t.Events, func(e Event) bool { return e.ID == id }) {
+		return s.a2aAppendOnce(t, ev)
 	}
 	if t.State != a2aInput {
 		return false, fmt.Errorf("%w: task is not waiting for an answer", errA2AInvalid)
 	}
-	changed, err := a2aAppendOnce(t, ev)
+	changed, err := s.a2aAppendOnce(t, ev)
 	if changed {
 		for i := len(t.Events) - 2; i >= 0; i-- {
 			if t.Events[i].State == a2aInput {
@@ -437,12 +412,12 @@ func a2aContinue(t *a2aTask, id, text string) (bool, error) {
 	return changed, err
 }
 
-func a2aCancel(t *a2aTask) (bool, error) {
+func (s *Domain) a2aCancel(t *Task) (bool, error) {
 	if t.State == a2aCanceled {
 		return false, nil
 	}
 	if t.State == a2aInput {
-		t.append(a2aEvent{ID: randomHex(16), Kind: "status", State: a2aCanceled})
+		s.appendEvent(t, Event{ID: s.newID(), Kind: "status", State: a2aCanceled})
 		return true, nil
 	}
 	if t.State != a2aSubmitted && t.State != a2aQueued {
@@ -457,7 +432,7 @@ func a2aCancel(t *a2aTask) (bool, error) {
 			break
 		}
 		e.Delivery = a2aDiscarded
-		t.append(a2aEvent{ID: randomHex(16), Kind: "status", State: a2aCanceled})
+		s.appendEvent(t, Event{ID: s.newID(), Kind: "status", State: a2aCanceled})
 		return true, nil
 	}
 	return false, errA2ACancel

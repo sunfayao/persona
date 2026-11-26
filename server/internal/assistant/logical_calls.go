@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/conversationlog"
 	"github.com/nwverse/persona/server/internal/db"
@@ -150,9 +151,9 @@ func (s *Service) logicalCall(ctx context.Context, machine, method string, raw j
 	var out json.RawMessage
 	withEpoch := st.WithConversationEpoch
 	var a2aMachine string
-	if a2aDeliveryMethod(method) {
+	if agents.DeliveryMethod(method) {
 		a2aMachine = active.MachineID
-		if !s.a2aMachineAllowed(ctx, s.a2aConfig(ctx), a2aMachine) {
+		if !s.agents.MachineAllowed(ctx, a2aMachine) {
 			return nil, true, logicalRefusal(ctx, "unavailable")
 		}
 		// The epoch lock holds a database connection across the node call.

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -31,13 +32,13 @@ func TestAgentStartTierResolvesAsAgentStart(t *testing.T) {
 	if _, err := s.agentStartTier(ctx, box, "nope", ""); !errors.As(err, &m) || m.Key != "assistant-model_profiles.err_tier_not_found" {
 		t.Fatalf("an unknown tier: %v", err)
 	}
-	if run, err := s.agentStartTier(ctx, box, " review ", ""); err != nil || run != (a2aRun{Launcher: "gateway", Model: "gw-big", Effort: "max", Speed: "fast"}) {
+	if run, err := s.agentStartTier(ctx, box, " review ", ""); err != nil || run != (agents.Run{Launcher: "gateway", Model: "gw-big", Effort: "max", Speed: "fast"}) {
 		t.Fatalf("review on box: %+v %v", run, err)
 	}
-	if run, err := s.agentStartTier(ctx, box, "review", "codex"); err != nil || run != (a2aRun{}) {
+	if run, err := s.agentStartTier(ctx, box, "review", "codex"); err != nil || run != (agents.Run{}) {
 		t.Fatalf("a launcher of the caller's own took from the tier: %+v %v", run, err)
 	}
-	if run, err := s.agentStartTier(ctx, box, "light", ""); err != nil || run != (a2aRun{Launcher: "worker"}) {
+	if run, err := s.agentStartTier(ctx, box, "light", ""); err != nil || run != (agents.Run{Launcher: "worker"}) {
 		t.Fatalf("an agent that takes no effort: %+v %v", run, err)
 	}
 	h.mu.Lock()
@@ -57,14 +58,14 @@ func TestA2ALaunchRowsWithoutATierStillWork(t *testing.T) {
 		`"at":"2026-11-20T00:00:00Z","delivery":"queued"}],"launch":{"cwd":"/code/app","launcher":"codex","pending":true}}`
 	if _, err := st.A2ACreate(ctx, db.A2ARow{ID: "t-old", Owner: parent.Owner, Request: "old-1", Context: "c-old",
 		TargetMachine: "box", TargetSession: newStartSessionID(), SourceMachine: parent.Ref.Machine, SourceSession: parent.Ref.Session,
-		State: a2aSubmitted, Body: json.RawMessage(body)}); err != nil {
+		State: "submitted", Body: json.RawMessage(body)}); err != nil {
 		t.Fatal(err)
 	}
-	task, err := decodeA2A(st.A2AGet(ctx, "t-old"))
-	if err != nil || task == nil || task.Launch == nil || task.Launch.Launcher != "codex" || task.Launch.Tier != "" || task.Launch.Run != (a2aRun{}) {
+	task, err := agents.DecodeTask(st.A2AGet(ctx, "t-old"))
+	if err != nil || task == nil || task.Launch == nil || task.Launch.Launcher != "codex" || task.Launch.Tier != "" || task.Launch.Run != (agents.Run{}) {
 		t.Fatalf("an old launch row: %+v %v", task, err)
 	}
-	raw, err := json.Marshal(task.a2aBody)
+	raw, err := task.MarshalBody()
 	if err != nil || strings.Contains(string(raw), `"tier"`) || strings.Contains(string(raw), `"run"`) {
 		t.Fatalf("a launch without a tier is written differently: %s %v", raw, err)
 	}
@@ -72,7 +73,7 @@ func TestA2ALaunchRowsWithoutATierStillWork(t *testing.T) {
 	if id := presetsTaskID(t, retry); id != "t-old" {
 		t.Fatalf("the old launch's retry made task %s", id)
 	}
-	a2aProcessOne(t, s, st, s.a2aConfig(ctx), "t-old")
+	a2aProcessOne(t, s, st, "t-old")
 	waitFor(t, "the old launch", func() bool { return len(startsOf(h.fakeHub)) == 1 })
 	if got := startsOf(h.fakeHub)[0]; got["launcher"] != "codex" || !unset(got["model"]) || !unset(got["speed"]) || got["permission_mode"] != "plan" {
 		t.Fatalf("an old launch row started %v", got)

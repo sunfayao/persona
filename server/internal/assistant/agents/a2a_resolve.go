@@ -1,4 +1,4 @@
-package assistant
+package agents
 
 import (
 	"context"
@@ -14,11 +14,11 @@ import (
 // took from a quote or from a2a_sessions while one was listed still names the conversation once the other is. ref is
 // left as it is when no row names it, when two rows do, and on a computer out of A2A scope: the checks that follow
 // answer for it as before.
-func (s *Service) a2aResolve(ctx context.Context, cfg assistantwire.A2AConfig, ref a2aRef) a2aRef {
+func (s *Domain) a2aResolve(ctx context.Context, cfg assistantwire.A2AConfig, ref Ref) Ref {
 	if ref.Session == "" || !s.a2aMachineAllowed(ctx, cfg, ref.Machine) {
 		return ref
 	}
-	if _, listed := s.nodeSession(ref.Machine, ref.Session); listed {
+	if _, listed := s.nodes.Listed(ref); listed {
 		return ref // the usual case, without copying the machine's list
 	}
 	found, twice := "", false
@@ -35,5 +35,5 @@ func (s *Service) a2aResolve(ctx context.Context, cfg assistantwire.A2AConfig, r
 		return ref
 	}
 	s.logf("a2a: %s on %s is listed as %s now", ref.Session, ref.Machine, found)
-	return a2aRef{Machine: ref.Machine, Session: found}
+	return Ref{Machine: ref.Machine, Session: found}
 }

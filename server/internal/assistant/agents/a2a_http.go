@@ -1,4 +1,4 @@
-package assistant
+package agents
 
 import (
 	"cmp"
@@ -64,7 +64,7 @@ func a2aWireState(state string) string {
 	return "TASK_STATE_" + strings.ToUpper(state)
 }
 
-func (t *a2aTask) wire(history *int, artifacts bool) a2aWireTask {
+func (t *Task) wire(history *int, artifacts bool) a2aWireTask {
 	meta := map[string]any{"personaRevision": t.Revision, "personaTargetDisconnected": t.Disconnected}
 	if t.State == a2aQueued {
 		meta["personaQueued"] = true
@@ -103,14 +103,14 @@ func a2aBase(cfg assistantwire.A2AConfig) *url.URL {
 
 func a2aHTTPAllowed(r *http.Request) bool {
 	role := r.Header.Get(extwire.HeaderRole)
-	return role == roleFull || role == "scoped" &&
+	return role == "full" || role == "scoped" &&
 		slices.Contains(strings.Split(r.Header.Get(extwire.HeaderScopes), ","), assistantwire.ScopeA2A)
 }
 
-func (s *Service) a2aCard(w http.ResponseWriter, r *http.Request) {
-	cfg := s.a2aConfig(r.Context())
+func (s *Domain) ServeCard(w http.ResponseWriter, r *http.Request) {
+	cfg := s.config(r.Context())
 	base := a2aBase(cfg)
-	ref := a2aRef{r.PathValue("mid"), r.PathValue("sid")}
+	ref := Ref{r.PathValue("mid"), r.PathValue("sid")}
 	if base == nil || !a2aHTTPAllowed(r) {
 		http.NotFound(w, r)
 		return
@@ -170,10 +170,10 @@ type a2aRPCResponse struct {
 	Error   *a2aRPCError    `json:"error,omitempty"`
 }
 
-var (
-	errA2AUnsupported = errors.New("operation is not supported for this A2A task")
-	errA2AContent     = errors.New("only text/plain parts are supported")
-	errA2APush        = errors.New("push notification configuration is unsupported")
+const (
+	errA2AUnsupported a2aError = "operation is not supported for this A2A task"
+	errA2AContent     a2aError = "only text/plain parts are supported"
+	errA2APush        a2aError = "push notification configuration is unsupported"
 )
 
 func a2aRPCFailure(err error) *a2aRPCError {
@@ -204,10 +204,10 @@ func a2aJSON(w http.ResponseWriter, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 
-func (s *Service) a2aRPC(w http.ResponseWriter, r *http.Request) {
+func (s *Domain) ServeRPC(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	cfg := s.a2aConfig(ctx)
-	to := a2aRef{r.PathValue("mid"), r.PathValue("sid")}
+	cfg := s.config(ctx)
+	to := Ref{r.PathValue("mid"), r.PathValue("sid")}
 	device := r.Header.Get(extwire.HeaderDevice)
 	if !a2aHTTPAllowed(r) || device == "" {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
@@ -249,17 +249,17 @@ func (s *Service) a2aRPC(w http.ResponseWriter, r *http.Request) {
 		fail(-32602, "Invalid parameters")
 		return
 	}
-	st, err := s.a2aStore()
+	st, err := s.store()
 	if err != nil {
 		fail(-32603, "Task storage is unavailable")
 		return
 	}
-	c := a2aCaller{Owner: "device:" + device}
+	c := Caller{Owner: "device:" + device}
 	switch req.Method {
 	case "SendMessage", "SendStreamingMessage":
 		t, err := s.a2aSendRPC(ctx, st, cfg, c, to, p)
 		if err == nil {
-			s.a2aSignal()
+			s.Wake()
 			if req.Method == "SendStreamingMessage" {
 				s.a2aStream(w, r, st, cfg, c, t, resp, p.Configuration.HistoryLength)
 				return
@@ -279,7 +279,7 @@ func (s *Service) a2aRPC(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case err != nil:
 		case req.Method == "CancelTask":
-			t, err = s.a2aMutate(ctx, st, cfg, c, t.ID, a2aCancel)
+			t, err = s.a2aMutate(ctx, st, cfg, c, t.ID, s.a2aCancel)
 		case req.Method == "SubscribeToTask":
 			if a2aTerminal(t.State) {
 				err = errA2AUnsupported
@@ -309,7 +309,7 @@ func (s *Service) a2aRPC(w http.ResponseWriter, r *http.Request) {
 	a2aJSON(w, resp)
 }
 
-func (s *Service) a2aHTTPTask(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, to a2aRef, id string) (*a2aTask, error) {
+func (s *Domain) a2aHTTPTask(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, to Ref, id string) (*Task, error) {
 	if !a2aValidID(id) {
 		return nil, errA2AInvalid
 	}
@@ -320,7 +320,7 @@ func (s *Service) a2aHTTPTask(ctx context.Context, st a2aStore, cfg assistantwir
 	return t, err
 }
 
-func (s *Service) a2aSendRPC(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, to a2aRef, p a2aRPCParams) (*a2aTask, error) {
+func (s *Domain) a2aSendRPC(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, to Ref, p a2aRPCParams) (*Task, error) {
 	if len(p.Configuration.Push) > 0 && string(p.Configuration.Push) != "null" {
 		return nil, errA2APush
 	}
@@ -349,10 +349,10 @@ func (s *Service) a2aSendRPC(ctx context.Context, st a2aStore, cfg assistantwire
 	if m.ContextID != "" && m.ContextID != t.Context {
 		return nil, errA2AInvalid
 	}
-	return s.a2aMutate(ctx, st, cfg, c, t.ID, func(t *a2aTask) (bool, error) { return a2aContinue(t, m.ID, text) })
+	return s.a2aMutate(ctx, st, cfg, c, t.ID, func(t *Task) (bool, error) { return s.a2aContinue(t, m.ID, text) })
 }
 
-func (s *Service) a2aListRPC(ctx context.Context, st a2aStore, c a2aCaller, to a2aRef, p a2aRPCParams) (any, error) {
+func (s *Domain) a2aListRPC(ctx context.Context, st Store, c Caller, to Ref, p a2aRPCParams) (any, error) {
 	limit := p.PageSize
 	if limit == 0 {
 		limit = 50
@@ -377,7 +377,7 @@ func (s *Service) a2aListRPC(ctx context.Context, st a2aStore, c a2aCaller, to a
 			next = rows[i-1].ID
 			break
 		}
-		t, err := decodeA2A(&row, nil)
+		t, err := DecodeTask(&row, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -392,14 +392,14 @@ func a2aSettled(state string) bool {
 	return a2aTerminal(state) || state == a2aInput || state == a2aAuth
 }
 
-func (s *Service) a2aWait(ctx context.Context, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, t *a2aTask) (*a2aTask, error) {
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+func (s *Domain) a2aWait(ctx context.Context, st Store, cfg assistantwire.A2AConfig, c Caller, t *Task) (*Task, error) {
+	tick, stop := s.clock.Ticker(time.Second)
+	defer stop()
 	for !a2aSettled(t.State) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-tick.C:
+		case <-tick:
 			var err error
 			t, err = s.a2aGet(ctx, st, cfg, c, t.ID)
 			if err != nil {
@@ -410,7 +410,7 @@ func (s *Service) a2aWait(ctx context.Context, st a2aStore, cfg assistantwire.A2
 	return t, nil
 }
 
-func (s *Service) a2aStream(w http.ResponseWriter, r *http.Request, st a2aStore, cfg assistantwire.A2AConfig, c a2aCaller, t *a2aTask, resp a2aRPCResponse, history *int) {
+func (s *Domain) a2aStream(w http.ResponseWriter, r *http.Request, st Store, cfg assistantwire.A2AConfig, c Caller, t *Task, resp a2aRPCResponse, history *int) {
 	ctx := r.Context()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
@@ -425,18 +425,18 @@ func (s *Service) a2aStream(w http.ResponseWriter, r *http.Request, st a2aStore,
 		_, err = fmt.Fprintf(w, "data: %s\n\n", raw)
 		return err == nil && control.Flush() == nil
 	}
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
+	tick, stop := s.clock.Ticker(time.Second)
+	defer stop()
 	if !write(map[string]any{"task": t.wire(history, true)}) {
 		return
 	}
 	seq := len(t.Events)
-	heartbeat := time.Now()
+	heartbeat := s.clock.Now()
 	for !a2aTerminal(t.State) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-tick.C:
+		case <-tick:
 			var err error
 			t, err = s.a2aGet(ctx, st, cfg, c, t.ID)
 			if err != nil {
@@ -465,11 +465,11 @@ func (s *Service) a2aStream(w http.ResponseWriter, r *http.Request, st a2aStore,
 			}
 		}
 		seq = len(t.Events)
-		if time.Since(heartbeat) >= 15*time.Second {
+		if s.clock.Now().Sub(heartbeat) >= 15*time.Second {
 			if _, err := fmt.Fprint(w, ": keepalive\n\n"); err != nil || control.Flush() != nil {
 				return
 			}
-			heartbeat = time.Now()
+			heartbeat = s.clock.Now()
 		}
 	}
 }

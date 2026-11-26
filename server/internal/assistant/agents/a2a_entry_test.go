@@ -1,4 +1,4 @@
-package assistant
+package agents
 
 import (
 	"encoding/json"
@@ -18,10 +18,10 @@ const a2aTestProgram = "/opt/persona tools/personad"
 // a2aAnswerNodeInfo has the nodes name a2aTestProgram and counts how often they are asked.
 func a2aAnswerNodeInfo(h *a2aTestHub) *atomic.Int32 {
 	var asked atomic.Int32
-	h.answerNode("node.info", func(string, json.RawMessage) (any, error) {
+	h.executable = func() string {
 		asked.Add(1)
-		return proto.NodeInfo{OS: "linux", Executable: a2aTestProgram}, nil
-	})
+		return a2aTestExecutable()
+	}
 	return &asked
 }
 
@@ -34,11 +34,12 @@ func a2aTestExecutable() string {
 // with the Persona MCP tools, for one that runs its node's executable from a terminal (#13893), and for one whose
 // entry is not known.
 func TestGoldenA2AMessage(t *testing.T) {
-	task := &a2aTask{A2ARow: db.A2ARow{ID: "task-0001", State: a2aSubmitted}}
-	request := &a2aEvent{Seq: 1, Kind: "message", State: a2aSubmitted, Text: "Run the integration checks and return the failing cases."}
-	question := &a2aEvent{Seq: 3, Kind: "status", State: a2aInput, Text: "Which target should I use?"}
-	done := &a2aEvent{Seq: 4, Kind: "status", State: a2aComplete, Text: "Two cases fail; details below."}
-	from := a2aRef{"mac", "caller-0001"}
+	t.Parallel()
+	task := &Task{A2ARow: db.A2ARow{ID: "task-0001", State: a2aSubmitted}}
+	request := &Event{Seq: 1, Kind: "message", State: a2aSubmitted, Text: "Run the integration checks and return the failing cases."}
+	question := &Event{Seq: 3, Kind: "status", State: a2aInput, Text: "Which target should I use?"}
+	done := &Event{Seq: 4, Kind: "status", State: a2aComplete, Text: "Two cases fail; details below."}
+	from := Ref{"mac", "caller-0001"}
 	terminal := a2aEntry{executable: a2aTestExecutable()}
 	for _, lang := range []string{"en", "zh-Hans", "ja"} {
 		golden(t, "a2a_message.request."+lang, a2aPrompt(task, request, from, lang, a2aEntry{}))
@@ -54,6 +55,7 @@ func TestGoldenA2AMessage(t *testing.T) {
 // tools (a Codex pane). One with the MCP tools (a Claude Code pane) is told the tool alone, a runtime's the tool and
 // the reply line that stands in for it, and their node is not asked.
 func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, runtime := a2aFixture(t)
 	asked := a2aAnswerNodeInfo(h)
 	h.mu.Lock()
@@ -66,7 +68,7 @@ func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
 		names   bool // the executable
 		line    bool // the reply line that stands in for the tool
 	}{{"codex-pane-0001", true, true}, {"claude-pane-0001", false, false}, {runtime.Session, false, true}} {
-		tk, err := s.a2aStart(t.Context(), st, cfg, parent, a2aRef{"box", tc.session}, fmt.Sprintf("request-%d", i), "", "Run the checks.", true, nil)
+		tk, err := s.a2aStart(t.Context(), st, cfg, parent, Ref{"box", tc.session}, fmt.Sprintf("request-%d", i), "", "Run the checks.", true, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,25 +97,22 @@ func TestA2AMessageNamesTheExecutableOnlyForATerminalWithoutMCP(t *testing.T) {
 // The first message of an Agent an A2A task launches names the executable, unless its launcher runs Claude Code, which
 // Persona starts with its MCP tools.
 func TestA2ALaunchNamesTheExecutableUnlessClaudeCode(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		launcher string
 		names    bool
 	}{{"codex", true}, {"claude", false}} {
 		t.Run(tc.launcher, func(t *testing.T) {
+			t.Parallel()
 			s, h, st, cfg, parent, _ := a2aFixture(t)
-			h.fakeModel(t)
 			a2aAnswerNodeInfo(h)
-			h.startReply = func(args map[string]any, sess *proto.Session) *proto.StartInstead {
-				sess.SessionID = args["session_id"].(string)
-				return nil
-			}
-			tk, err := s.a2aStart(t.Context(), st, cfg, parent, a2aRef{Machine: "box"}, "launch", "", "Inspect the build.", true,
-				&a2aLaunch{CWD: "/code/project", Launcher: tc.launcher, Pending: true})
+			tk, err := s.a2aStart(t.Context(), st, cfg, parent, Ref{Machine: "box"}, "launch", "", "Inspect the build.", true,
+				&Launch{CWD: "/code/project", Launcher: tc.launcher, Pending: true})
 			if err != nil {
 				t.Fatal(err)
 			}
 			a2aProcessOne(t, s, st, cfg, tk.ID)
-			waitFor(t, "the A2A launch", func() bool { return len(h.started()) == 1 })
+			st.waitForUpdate(t, "the A2A launch", func() bool { return len(h.started()) == 1 })
 			start := h.started()[0]
 			prompt, _ := start["prompt"].(string)
 			if start["launcher"] != tc.launcher || strings.Contains(prompt, a2aTestExecutable()) != tc.names ||

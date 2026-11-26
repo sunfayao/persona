@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/compat"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -32,19 +33,8 @@ func (s *Service) taskEntry(ctx context.Context, machine string, fit startAgent)
 
 // adoptedTaskEntry uses the running session's provenance (sessionEntry).
 func (s *Service) adoptedTaskEntry(ctx context.Context, machine string, c proto.Session) prompts.TaskHandoff {
-	mcp, terminal := sessionEntry(c)
+	mcp, terminal := agents.SessionEntry(c)
 	return s.taskEntryFor(ctx, machine, c.Agent, mcp, terminal)
-}
-
-// sessionEntry is how running session c reaches its own Persona tools: whether it has the Persona MCP tools, and
-// whether it calls them from a terminal the node verifies. A Codex app-server thread can identify its caller through
-// CODEX_THREAD_ID even when it has no terminal pane. Paseo injects the Persona MCP server into its Claude and Codex.
-func sessionEntry(c proto.Session) (mcp, terminal bool) {
-	paseo := c.Host == proto.EnginePaseo
-	terminal = !paseo && (c.SourceKind == "" || c.SourceKind == proto.SourceClaudeTerminal ||
-		c.Agent == "codex" && c.SourceThreadID != "" && (c.SourceKind == "codex_app_server" || c.SourceKind == "codex_history"))
-	mcp = terminal && c.Agent == "claude" || paseo && (c.Agent == "claude" || c.Agent == "codex")
-	return mcp, terminal
 }
 
 func (s *Service) taskEntryFor(ctx context.Context, machine, agent string, mcp, terminal bool) prompts.TaskHandoff {

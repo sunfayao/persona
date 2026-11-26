@@ -1,4 +1,4 @@
-package assistant
+package agents
 
 import (
 	"bufio"
@@ -14,75 +14,22 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/extwire"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-type a2aTestHub struct {
-	*fakeHub
-	sends   []DeviceCall
-	sendErr error
-	wakes   chan DeviceCall
-}
-
-func (h *a2aTestHub) DeviceCall(ctx context.Context, call DeviceCall) (json.RawMessage, error) {
-	if call.Method == "session.a2a.send" {
-		h.mu.Lock()
-		h.sends = append(h.sends, call)
-		sendErr := h.sendErr
-		h.mu.Unlock()
-		return json.RawMessage(`{}`), sendErr
-	}
-	if call.Method == "session.a2a.wake" && h.wakes != nil {
-		h.wakes <- call
-		var p struct {
-			SessionID string `json:"session_id"`
-		}
-		_ = json.Unmarshal(call.Params, &p)
-		return json.Marshal(map[string]any{"session": proto.Session{SessionID: p.SessionID}})
-	}
-	return h.fakeHub.DeviceCall(ctx, call)
-}
-
-func (h *a2aTestHub) sentCalls() []DeviceCall {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	out := make([]DeviceCall, len(h.sends))
-	copy(out, h.sends)
-	return out
-}
-
-func a2aFixture(t *testing.T) (*Service, *a2aTestHub, *db.DB, assistantwire.A2AConfig, a2aCaller, a2aRef) {
-	t.Helper()
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	f := newFakeHub()
-	h := &a2aTestHub{fakeHub: f}
-	cfg := assistantwire.A2AConfig{Machines: []string{"mac", "box"}, PublicURL: "https://persona.example.com"}
-	f.hello.Agents.A2A = cfg
-	from, to := a2aRef{"mac", "caller-0001"}, a2aRef{"box", "runtime.worker-0001"}
-	f.sessions[from.Machine] = []proto.Session{{SessionID: from.Session, Status: proto.StatusWorking, Agent: "codex"}}
-	f.sessions[to.Machine] = []proto.Session{{SessionID: to.Session, Status: proto.StatusIdle, Agent: "pi",
-		SourceKind: "runtime", Capabilities: &proto.SessionCapabilities{Send: true, Read: true}}}
-	return New(Options{Hub: h, Store: func() Store { return database }, Logf: testLogf(t)}), h, database, cfg, a2aSessionCaller(from), to
-}
-
-func a2aProcessOne(t *testing.T, s *Service, st *db.DB, cfg assistantwire.A2AConfig, id string) *a2aTask {
+func a2aProcessOne(t *testing.T, s *Domain, st *testStore, cfg assistantwire.A2AConfig, id string) *Task {
 	t.Helper()
 	ctx := t.Context()
-	task, err := decodeA2A(st.A2AGet(ctx, id))
+	task, err := DecodeTask(st.A2AGet(ctx, id))
 	if err != nil || task == nil {
 		t.Fatalf("get task: %v %v", task, err)
 	}
-	if err := s.a2aProcess(ctx, st, cfg, task); err != nil {
+	if err := s.process(ctx, st, cfg, task); err != nil {
 		t.Fatal(err)
 	}
-	task, err = decodeA2A(st.A2AGet(ctx, id))
+	task, err = DecodeTask(st.A2AGet(ctx, id))
 	if err != nil || task == nil {
 		t.Fatalf("get processed task: %v %v", task, err)
 	}
@@ -90,6 +37,7 @@ func a2aProcessOne(t *testing.T, s *Service, st *db.DB, cfg assistantwire.A2ACon
 }
 
 func TestA2ACrossHarnessTaskAndWakeAfterRestart(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()
 	tk, err := s.a2aStart(ctx, st, cfg, parent, child, "task-request", "", "Check this build.", true, nil)
@@ -107,26 +55,26 @@ func TestA2ACrossHarnessTaskAndWakeAfterRestart(t *testing.T) {
 	if err != nil || queued.State != a2aQueued {
 		t.Fatalf("concurrent task to same target should be queued: %+v %v", queued, err)
 	}
-	if _, err := s.a2aMutate(ctx, st, cfg, parent, queued.ID, a2aCancel); err != nil {
+	if _, err := s.a2aMutate(ctx, st, cfg, parent, queued.ID, s.a2aCancel); err != nil {
 		t.Fatalf("cancel queued task: %v", err)
 	}
 	tk = a2aProcessOne(t, s, st, cfg, tk.ID)
 	if tk.State != a2aWorking || len(h.sends) != 1 || h.sends[0].Device != child.Machine {
 		t.Fatalf("child delivery state %s sends %+v", tk.State, h.sends)
 	}
-	worker := a2aSessionCaller(child)
-	tk, err = s.a2aMutate(ctx, st, cfg, worker, tk.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, child, "blocked-report", a2aInput, "Which target should I use?")
+	worker := SessionCaller(child)
+	tk, err = s.a2aMutate(ctx, st, cfg, worker, tk.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, child, "blocked-report", a2aInput, "Which target should I use?")
 	})
 	if err != nil || tk.State != a2aInput {
 		t.Fatalf("blocked report: %v %v", tk, err)
 	}
-	restarted := New(Options{Hub: h, Store: func() Store { return st }})
+	restarted := h.domain(t, st)
 	a2aProcessOne(t, restarted, st, cfg, tk.ID)
 	if len(h.sends) != 1 {
 		t.Fatal("busy parent was interrupted")
 	}
-	setStatus(h.fakeHub, parent.Ref.Machine, parent.Ref.Session, proto.StatusDone)
+	setStatus(h, parent.Ref.Machine, parent.Ref.Session, proto.StatusDone)
 	tk = a2aProcessOne(t, restarted, st, cfg, tk.ID)
 	if len(h.sends) != 2 || h.sends[1].Device != parent.Ref.Machine ||
 		!strings.Contains(string(h.sends[1].Params), "Which target should I use?") {
@@ -136,8 +84,8 @@ func TestA2ACrossHarnessTaskAndWakeAfterRestart(t *testing.T) {
 	if len(h.sends) != 2 {
 		t.Fatal("a delivered blocker replayed")
 	}
-	tk, err = restarted.a2aMutate(ctx, st, cfg, parent, tk.ID, func(tk *a2aTask) (bool, error) {
-		return a2aContinue(tk, "answer", "Use the integration target.")
+	tk, err = restarted.a2aMutate(ctx, st, cfg, parent, tk.ID, func(tk *Task) (bool, error) {
+		return restarted.a2aContinue(tk, "answer", "Use the integration target.")
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -145,7 +93,7 @@ func TestA2ACrossHarnessTaskAndWakeAfterRestart(t *testing.T) {
 	tk = a2aProcessOne(t, restarted, st, cfg, tk.ID)
 	seq := tk.Events[len(tk.Events)-2].Seq
 	h.setItems(proto.Item{Role: "user", ClientMsgID: a2aDeliveryID(tk.ID, seq)}, proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Integration target passed."})
-	setStatus(h.fakeHub, child.Machine, child.Session, proto.StatusDone)
+	setStatus(h, child.Machine, child.Session, proto.StatusDone)
 	tk = a2aProcessOne(t, restarted, st, cfg, tk.ID)
 	if tk.State != a2aComplete || len(tk.wire(nil, true).Artifacts) != 1 {
 		t.Fatalf("outcome: state=%s events=%+v", tk.State, tk.Events)
@@ -154,12 +102,13 @@ func TestA2ACrossHarnessTaskAndWakeAfterRestart(t *testing.T) {
 	if len(h.sends) != 4 || h.sends[3].Device != parent.Ref.Machine || !strings.Contains(string(h.sends[3].Params), "Integration target passed.") {
 		t.Fatalf("parent did not receive final artifact: %+v", h.sends)
 	}
-	if _, err := restarted.a2aGet(ctx, st, cfg, a2aSessionCaller(a2aRef{"mac", "unrelated"}), tk.ID); !errors.Is(err, errA2ANotFound) {
+	if _, err := restarted.a2aGet(ctx, st, cfg, SessionCaller(Ref{"mac", "unrelated"}), tk.ID); !errors.Is(err, errA2ANotFound) {
 		t.Fatalf("unrelated session read a task: %v", err)
 	}
 }
 
 func TestA2AAmbiguousSendIsReconciledWithoutReplay(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	tk, err := s.a2aStart(t.Context(), st, cfg, parent, child, "task-request", "", "Check this build.", true, nil)
 	if err != nil {
@@ -171,10 +120,7 @@ func TestA2AAmbiguousSendIsReconciledWithoutReplay(t *testing.T) {
 	if len(h.sends) != 1 || tk.Events[0].Delivery != a2aUncertain {
 		t.Fatalf("uncertain send retried: %+v", tk.Events)
 	}
-	tk.Events[0].Attempted = time.Now().Add(-a2aConfirmFor)
-	if err := s.a2aSave(t.Context(), st, tk); err != nil {
-		t.Fatal(err)
-	}
+	h.clock.now = h.clock.Now().Add(a2aConfirmFor + time.Second)
 	marked := prompts.RelayMessageText("A2A request", nil, a2aDeliveryID(tk.ID, 1))
 	h.setItems(proto.Item{Role: "user", Text: marked}, proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Result."},
 		proto.Item{Role: "user", Text: "An unrelated new prompt."}, proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Unrelated."})
@@ -189,19 +135,14 @@ func TestA2AAmbiguousSendIsReconciledWithoutReplay(t *testing.T) {
 }
 
 func TestA2ADeletedRecipientReleasesTask(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()
 	task, err := s.a2aStart(ctx, st, cfg, parent, child, "request", "", "Check the build.", true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tombstone, err := json.Marshal(deletedConversation{Machine: child.Machine, ID: child.Session, At: time.Now()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := st.PutConversationDeletion(ctx, child.Machine, child.Session, tombstone); err != nil {
-		t.Fatal(err)
-	}
+	h.deleted = child
 	if _, err := s.a2aSession(ctx, cfg, child); !errors.Is(err, errA2AUnavailable) {
 		t.Fatalf("deleted recipient remained eligible: %v", err)
 	}
@@ -212,6 +153,7 @@ func TestA2ADeletedRecipientReleasesTask(t *testing.T) {
 }
 
 func TestA2AUnconfirmedInputReleasesTheTarget(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()
 	task, err := s.a2aStart(ctx, st, cfg, parent, child, "initial", "", "Inspect the build.", true, nil)
@@ -223,10 +165,7 @@ func TestA2AUnconfirmedInputReleasesTheTarget(t *testing.T) {
 	if task.Events[0].Delivery != a2aUncertain {
 		t.Fatalf("delivery should remain uncertain: %+v", task.Events[0])
 	}
-	task.Events[0].Attempted = time.Now().Add(-a2aConfirmFor)
-	if err := s.a2aSave(ctx, st, task); err != nil {
-		t.Fatal(err)
-	}
+	h.clock.now = h.clock.Now().Add(a2aConfirmFor + time.Second)
 	task = a2aProcessOne(t, s, st, cfg, task.ID)
 	if task.State != a2aFailed || task.Events[0].Delivery != a2aExpired || len(h.sends) != 1 {
 		t.Fatalf("expired task was replayed or still holds the target: %+v (%d sends)", task.Events, len(h.sends))
@@ -236,60 +175,8 @@ func TestA2AUnconfirmedInputReleasesTheTarget(t *testing.T) {
 	}
 }
 
-func TestA2AArchiveClosesTheTaskAndTellsTheSender(t *testing.T) {
-	s, h, st, cfg, parent, child := a2aFixture(t)
-	ctx := t.Context()
-	task, err := s.a2aStart(ctx, st, cfg, parent, child, "initial", "", "Inspect the build.", true, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a2aProcessOne(t, s, st, cfg, task.ID)
-	row := h.sessions[child.Machine][0]
-	row.MachineID = child.Machine
-	if err := s.noteAgentArchive(ctx, row, true); err != nil {
-		t.Fatal(err)
-	}
-	setStatus(h.fakeHub, parent.Ref.Machine, parent.Ref.Session, proto.StatusIdle)
-	task = a2aProcessOne(t, s, st, cfg, task.ID)
-	if !task.TargetClosed || task.State != a2aFailed {
-		t.Fatalf("archive did not close task: %+v", task)
-	}
-	a2aProcessOne(t, s, st, cfg, task.ID)
-	if len(h.sends) != 2 || h.sends[1].Device != parent.Ref.Machine || !strings.Contains(string(h.sends[1].Params), "receiving session was closed") {
-		t.Fatalf("archive result did not reach the parent: %+v", h.sends)
-	}
-	if _, err := s.a2aGet(ctx, st, cfg, parent, task.ID); err != nil {
-		t.Fatalf("sender could not read the closed task: %v", err)
-	}
-	if _, err := s.a2aGet(ctx, st, cfg, a2aSessionCaller(child), task.ID); !errors.Is(err, errA2ANotFound) {
-		t.Fatalf("archived session could still read task: %v", err)
-	}
-}
-
-func TestA2ALaunchesShareTheDispatchLimitAndDepth(t *testing.T) {
-	s, h, st, cfg, parent, _ := a2aFixture(t)
-	ctx := t.Context()
-	h.hello.Agents.Dispatch.MaxActive = 1
-	start := func(c a2aCaller, machine, id string) (*a2aTask, error) {
-		return s.a2aStart(ctx, st, cfg, c, a2aRef{Machine: machine}, id, "", "Inspect the build.", true,
-			&a2aLaunch{CWD: "/code/app", Pending: true})
-	}
-	task, err := start(parent, "box", "launch")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if again, err := start(parent, "box", "launch"); err != nil || again.ID != task.ID {
-		t.Fatalf("an idempotent retry consumed capacity: %+v %v", again, err)
-	}
-	if _, err := start(parent, "box", "second-launch"); err == nil || !strings.Contains(err.Error(), "the limit is 1") {
-		t.Fatalf("a second launch exceeded the dispatch limit: %v", err)
-	}
-	if _, err := start(a2aSessionCaller(task.target()), "mac", "child-launch"); err == nil || !strings.Contains(err.Error(), "does not dispatch") {
-		t.Fatalf("a child could dispatch another child: %v", err)
-	}
-}
-
 func TestA2ATextOnlyHarnessReturnsQuestionAndContinues(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()
 	task, err := s.a2aStart(ctx, st, cfg, parent, child, "text-task", "", "Check the build.", true, nil)
@@ -329,10 +216,7 @@ func TestA2ATextOnlyHarnessReturnsQuestionAndContinues(t *testing.T) {
 	}
 	h.setItems(proto.Item{Role: "user", ClientMsgID: a2aDeliveryID(task.ID, questionSeq)},
 		proto.Item{Role: "assistant", Kind: proto.KindText, Text: "A2A " + task.ID + " answer\nUse the integration target."})
-	guard := DispatchGuard{Enabled: true, Targets: []DispatchGuardTarget{{MachineID: parent.Ref.Machine, SessionID: parent.Ref.Session, Deny: []string{"conversation_send"}}}}
-	if err := s.saveDispatchGuard(ctx, guard); err != nil {
-		t.Fatal(err)
-	}
+	h.sendRefusal = errors.New("dispatch guard refused conversation_send")
 	if task = a2aProcessOne(t, s, st, cfg, task.ID); task.State != a2aInput {
 		t.Fatalf("a text reply bypassed the dispatch guard: %s", task.State)
 	}
@@ -340,9 +224,7 @@ func TestA2ATextOnlyHarnessReturnsQuestionAndContinues(t *testing.T) {
 	if _, err := s.a2aToolCall(ctx, st, cfg, parent, "a2a_send", args); err == nil {
 		t.Fatal("a follow-up tool call bypassed the dispatch guard")
 	}
-	if err := s.saveDispatchGuard(ctx, DispatchGuard{}); err != nil {
-		t.Fatal(err)
-	}
+	h.sendRefusal = nil
 	if task = a2aProcessOne(t, s, st, cfg, task.ID); task.State != a2aSubmitted {
 		t.Fatalf("text answer was not accepted: %s", task.State)
 	}
@@ -355,56 +237,8 @@ func TestA2ATextOnlyHarnessReturnsQuestionAndContinues(t *testing.T) {
 	}
 }
 
-func TestA2AJSONRPCTaskOwnershipAndCancel(t *testing.T) {
-	s, h, _, _, _, child := a2aFixture(t)
-	path := "/api/v1/a2a/" + child.Machine + "/" + child.Session + "/rpc"
-	call := func(device, method, params string) a2aRPCResponse {
-		t.Helper()
-		r := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"`+method+`","params":`+params+`}`))
-		r.Header.Set("A2A-Version", "1.0")
-		r.Header.Set(extwire.HeaderDevice, device)
-		r.Header.Set(extwire.HeaderRole, "scoped")
-		r.Header.Set(extwire.HeaderScopes, assistantwire.ScopeA2A)
-		w := httptest.NewRecorder()
-		s.ServeSocket(w, r)
-		var answer a2aRPCResponse
-		if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &answer) != nil {
-			t.Fatalf("HTTP %d: %s", w.Code, w.Body.String())
-		}
-		return answer
-	}
-	reply := call("first", "SendMessage", `{"configuration":{"returnImmediately":true},"message":{"messageId":"remote-message","role":"ROLE_USER","parts":[{"text":"Hello."}]}}`)
-	if reply.Error != nil {
-		t.Fatal(reply.Error)
-	}
-	id := reply.Result.(map[string]any)["task"].(map[string]any)["id"].(string)
-	params := `{"id":"` + id + `"}`
-	if e := call("second", "GetTask", params).Error; e == nil || e.Code != -32001 {
-		t.Fatalf("task available to different client: %+v", e)
-	}
-	page := call("first", "ListTasks", `{"historyLength":0,"statusTimestampAfter":"2020-01-01T00:00:00Z"}`)
-	if page.Error != nil || page.Result.(map[string]any)["totalSize"] != float64(1) {
-		t.Fatalf("list result: %+v", page)
-	}
-	cancel := call("first", "CancelTask", params)
-	if cancel.Error != nil || cancel.Result.(map[string]any)["status"].(map[string]any)["state"] != "TASK_STATE_CANCELED" {
-		t.Fatalf("cancel result: %+v", cancel)
-	}
-	row := h.sessions[child.Machine][0]
-	row.MachineID = child.Machine
-	if err := s.noteAgentArchive(t.Context(), row, true); err != nil {
-		t.Fatal(err)
-	}
-	got := call("first", "GetTask", params)
-	if got.Error != nil || got.Result.(map[string]any)["status"].(map[string]any)["state"] != "TASK_STATE_CANCELED" {
-		t.Fatalf("owner could not read the final state after archive: %+v", got)
-	}
-	if e := call("second", "GetTask", params).Error; e == nil || e.Code != -32001 {
-		t.Fatalf("archived task available to different client: %+v", e)
-	}
-}
-
 func TestA2AStoreClaimsPersist(t *testing.T) {
+	t.Parallel()
 	s, _, st, cfg, parent, child := a2aFixture(t)
 	tk, err := s.a2aStart(t.Context(), st, cfg, parent, child, "task-request", "", "Work.", false, nil)
 	if err != nil {
@@ -420,119 +254,8 @@ func TestA2AStoreClaimsPersist(t *testing.T) {
 	}
 }
 
-func TestA2AEnrolledSessionGetsTools(t *testing.T) {
-	s, _, _, _, parent, child := a2aFixture(t)
-	ctx := t.Context()
-	tools, err := s.sessionMCPToolsChecked(ctx, parent.Ref.Machine, parent.Ref.Session, false, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, name := range assistantwire.A2AToolNames {
-		if !toolListed(tools, name) {
-			t.Fatalf("MCP tool %q missing", name)
-		}
-	}
-	r := s.mcpCall(ctx, parent.Ref.Machine, parent.Ref.Session, "a2a_sessions", json.RawMessage(`{}`), false)
-	if r.IsError || !strings.Contains(resultText(r), child.Session) {
-		t.Fatalf("discovery: %s", resultText(r))
-	}
-	if r := s.mcpCall(ctx, "unenrolled", parent.Ref.Session, "a2a_sessions", json.RawMessage(`{}`), false); !r.IsError {
-		t.Fatal("an unenrolled machine could discover sessions")
-	}
-}
-
-func TestA2AIsDefaultForTrustedSessionsAndDispatch(t *testing.T) {
-	s, h, st, _, parent, _ := a2aFixture(t)
-	ctx := t.Context()
-	h.fakeModel(t)
-	h.hello.Agents.A2A = assistantwire.A2AConfig{}
-	on := true
-	h.hello.Agents.Dispatch.Enabled = &on
-	h.hello.Agents.Dispatch.MaxActive = 1
-	h.startReply = func(args map[string]any, row *proto.Session) *proto.StartInstead {
-		row.SessionID = args["session_id"].(string)
-		return nil
-	}
-	h.onStart = func(f *fakeHub, args map[string]any) {
-		f.sessions["box"] = append(f.sessions["box"], proto.Session{
-			SessionID: args["session_id"].(string), Status: proto.StatusWorking, Agent: "codex",
-		})
-	}
-	if tools := s.sessionMCPTools(ctx, parent.Ref.Machine, parent.Ref.Session, false, false); !toolListed(tools, "a2a_send") {
-		t.Fatal("trusted session without an A2A stanza did not get the A2A tool")
-	}
-	// Some runtime plugins declare their tool catalog before they have a session.
-	if tools := s.sessionMCPTools(ctx, parent.Ref.Machine, "", false, false); !toolListed(tools, "a2a_report") {
-		t.Fatal("the runtime's machine-scoped catalog lacks A2A declarations")
-	}
-	if result := s.mcpCall(ctx, parent.Ref.Machine, "", "a2a_sessions", json.RawMessage(`{}`), false); !result.IsError {
-		t.Fatal("a runtime without a bound session could invoke A2A")
-	}
-	fullPrompt := "Run the integration checks.\n" + strings.Repeat("Check a test case.\n", 800) + "Final instruction."
-	request := map[string]any{"machine": "box", "cwd": "/code/app", "prompt": fullPrompt, "message_id": "dispatch-receipt",
-		"worktree": map[string]string{"branch": "fix/linux"}}
-	args, _ := json.Marshal(request)
-	result := dispatchCall(s, parent.Ref.Machine, parent.Ref.Session, "dispatch_start", string(args))
-	if result.IsError || !strings.Contains(resultText(result), "A2A task") {
-		t.Fatalf("default dispatch: %s", resultText(result))
-	}
-	task, err := decodeA2A(st.A2ARequest(ctx, parent.Owner, "dispatch-receipt"))
-	if err != nil || task == nil || task.Launch.Pending || !task.Wake || !task.Launch.Dispatch {
-		t.Fatalf("durable dispatch: %+v %v", task, err)
-	}
-	if task.Launch.CWD != "/code/app" || task.Launch.Worktree != "/wt/app/fix-linux" {
-		t.Fatalf("dispatch lost the original directory or the actual worktree: %+v", task.Launch)
-	}
-	if len(h.starts) != 1 || len(s.dispatched(ctx)) != 0 {
-		t.Fatalf("unexpected start or legacy record: %+v", h.starts)
-	}
-	prompt := h.starts[0]["prompt"].(string)
-	if prompts.RelayMessageID(prompt) != a2aDeliveryID(task.ID, 1) || !strings.Contains(prompt, fullPrompt) {
-		t.Fatal("dispatch prompt lost its A2A identity or original content")
-	}
-	again := dispatchCall(s, parent.Ref.Machine, parent.Ref.Session, "dispatch_start", string(args))
-	if again.IsError || !strings.Contains(resultText(again), task.ID) || len(h.starts) != 1 {
-		t.Fatalf("retry at the capacity limit: %s, starts %d", resultText(again), len(h.starts))
-	}
-	request["prompt"] = fullPrompt + " Different ending."
-	conflictArgs, _ := json.Marshal(request)
-	conflict := dispatchCall(s, parent.Ref.Machine, parent.Ref.Session, "dispatch_start", string(conflictArgs))
-	if !conflict.IsError || !strings.Contains(resultText(conflict), "message_id") || len(h.starts) != 1 {
-		t.Fatalf("changed prompt was accepted on retry: %s", resultText(conflict))
-	}
-	cfg := s.a2aConfig(ctx)
-	h.setItems(proto.Item{Role: "user", Text: prompt})
-	task = a2aProcessOne(t, s, st, cfg, task.ID)
-	if task.State != a2aWorking {
-		t.Fatalf("first prompt was not recognized: %+v", task.Events)
-	}
-	setStatus(h.fakeHub, task.TargetMachine, task.TargetSession, proto.StatusBlocked)
-	task = a2aProcessOne(t, s, st, cfg, task.ID)
-	if task.State != a2aAuth {
-		t.Fatalf("native blocker status: %s", task.State)
-	}
-	parentSession := parent.Ref.Session
-	setStatus(h.fakeHub, parent.Ref.Machine, parentSession, proto.StatusDone)
-	restarted := New(Options{Hub: h, Store: func() Store { return st }})
-	a2aProcessOne(t, restarted, st, cfg, task.ID)
-	if len(h.sends) != 1 || h.sends[0].Device != parent.Ref.Machine {
-		t.Fatalf("default dispatch did not wake its parent: %+v", h.sends)
-	}
-	read := dispatchCall(restarted, parent.Ref.Machine, parentSession, "dispatch_read", `{"session_id":"`+task.ID+`"}`)
-	if read.IsError || !strings.Contains(resultText(read), "waiting for the user") {
-		t.Fatalf("compatibility read: %s", resultText(read))
-	}
-	setStatus(h.fakeHub, task.TargetMachine, task.TargetSession, proto.StatusWorking)
-	if task = a2aProcessOne(t, restarted, st, cfg, task.ID); task.State != a2aWorking {
-		t.Fatalf("task did not resume after approval: %s", task.State)
-	}
-	a2aProcessOne(t, restarted, st, cfg, task.ID)
-	if len(h.sends) != 2 || h.sends[1].Device != parent.Ref.Machine || !strings.Contains(string(h.sends[1].Params), "resumed work") {
-		t.Fatalf("resumed status was not sent to the parent: %+v", h.sends)
-	}
-}
-
 func TestA2AExplicitEmptyScopeSurvivesJSON(t *testing.T) {
+	t.Parallel()
 	cfg := assistantwire.A2AConfig{Machines: []string{}}
 	raw, err := json.Marshal(cfg)
 	if err != nil {
@@ -545,8 +268,9 @@ func TestA2AExplicitEmptyScopeSurvivesJSON(t *testing.T) {
 }
 
 func TestA2ARevokedCredentialCannotDeliverQueuedInput(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, _, child := a2aFixture(t)
-	task, err := s.a2aStart(t.Context(), st, cfg, a2aCaller{Owner: "device:remote"}, child, "request", "", "Queued work.", false, nil)
+	task, err := s.a2aStart(t.Context(), st, cfg, Caller{Owner: "device:remote"}, child, "request", "", "Queued work.", false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,16 +284,17 @@ func TestA2ARevokedCredentialCannotDeliverQueuedInput(t *testing.T) {
 }
 
 func TestA2AWakesAnIdleStoppedParentAndLeavesAUserStopAlone(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
-	h.wakes = make(chan DeviceCall, 1)
+	h.wakes = make(chan assistantwire.DeviceCall, 1)
 	ctx := t.Context()
 	task, err := s.a2aStart(ctx, st, cfg, parent, child, "wake-task", "", "Check the integration.", true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a2aProcessOne(t, s, st, cfg, task.ID)
-	task, err = s.a2aMutate(ctx, st, cfg, a2aSessionCaller(child), task.ID, func(task *a2aTask) (bool, error) {
-		return a2aReport(task, child, "done", a2aComplete, "Integration passed.")
+	task, err = s.a2aMutate(ctx, st, cfg, SessionCaller(child), task.ID, func(task *Task) (bool, error) {
+		return s.a2aReport(task, child, "done", a2aComplete, "Integration passed.")
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -597,8 +322,8 @@ func TestA2AWakesAnIdleStoppedParentAndLeavesAUserStopAlone(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("parent was not resumed")
 	}
-	waitFor(t, "the durable A2A wake receipt", func() bool {
-		task, err := decodeA2A(st.A2AGet(ctx, task.ID))
+	st.waitForUpdate(t, "the durable A2A wake receipt", func() bool {
+		task, err := DecodeTask(st.A2AGet(ctx, task.ID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -607,8 +332,9 @@ func TestA2AWakesAnIdleStoppedParentAndLeavesAUserStopAlone(t *testing.T) {
 }
 
 func TestA2AStandardStreamCarriesTaskAndArtifact(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, _, child := a2aFixture(t)
-	srv := httptest.NewServer(http.HandlerFunc(s.ServeSocket))
+	srv := httptest.NewServer(http.HandlerFunc(rpcHandler(s).ServeHTTP))
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 8*time.Second)
 	defer cancel()
@@ -654,6 +380,7 @@ func TestA2AStandardStreamCarriesTaskAndArtifact(t *testing.T) {
 			a2aProcessOne(t, s, st, cfg, id)
 			h.setItems(proto.Item{Role: "user", ClientMsgID: a2aDeliveryID(id, 1)}, proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Done."})
 			a2aProcessOne(t, s, st, cfg, id)
+			h.clock.ticks <- h.clock.Now()
 		}
 		if a := frame.Result.ArtifactUpdate; a != nil {
 			artifact = len(a.Artifact.Parts) == 1 && *a.Artifact.Parts[0].Text == "Done."
@@ -668,23 +395,19 @@ func TestA2AStandardStreamCarriesTaskAndArtifact(t *testing.T) {
 }
 
 func TestA2AAcceptsOneLaunchPerMessageID(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, _ := a2aFixture(t)
-	h.fakeModel(t)
-	h.startReply = func(args map[string]any, sess *proto.Session) *proto.StartInstead {
-		sess.SessionID = args["session_id"].(string)
-		return nil
-	}
-	start := func() (*a2aTask, error) {
-		return s.a2aStart(t.Context(), st, cfg, parent, a2aRef{Machine: "box"}, "launch", "", "Inspect the build.", true,
-			&a2aLaunch{CWD: "/code/project", Pending: true})
+	start := func() (*Task, error) {
+		return s.a2aStart(t.Context(), st, cfg, parent, Ref{Machine: "box"}, "launch", "", "Inspect the build.", true,
+			&Launch{CWD: "/code/project", Pending: true})
 	}
 	task, err := start()
 	if err != nil {
 		t.Fatal(err)
 	}
 	a2aProcessOne(t, s, st, cfg, task.ID)
-	waitFor(t, "the A2A launch result", func() bool {
-		task, err = decodeA2A(st.A2AGet(t.Context(), task.ID))
+	st.waitForUpdate(t, "the A2A launch result", func() bool {
+		task, err = DecodeTask(st.A2AGet(t.Context(), task.ID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -701,12 +424,13 @@ func TestA2AAcceptsOneLaunchPerMessageID(t *testing.T) {
 }
 
 func TestA2AQueuedSendsToBusySupervisorDrainInFIFOOrder(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, _, _ := a2aFixture(t)
 	ctx := t.Context()
-	supervisor := a2aRef{Machine: "mac", Session: "supervisor-0001"}
-	w0 := a2aRef{Machine: "box", Session: "runtime.worker-0"}
-	w1 := a2aRef{Machine: "box", Session: "runtime.worker-1"}
-	w2 := a2aRef{Machine: "box", Session: "runtime.worker-2"}
+	supervisor := Ref{Machine: "mac", Session: "supervisor-0001"}
+	w0 := Ref{Machine: "box", Session: "runtime.worker-0"}
+	w1 := Ref{Machine: "box", Session: "runtime.worker-1"}
+	w2 := Ref{Machine: "box", Session: "runtime.worker-2"}
 	h.mu.Lock()
 	h.sessions["mac"] = []proto.Session{{SessionID: supervisor.Session, Status: proto.StatusIdle, Agent: "codex"}}
 	h.sessions["box"] = []proto.Session{
@@ -716,13 +440,13 @@ func TestA2AQueuedSendsToBusySupervisorDrainInFIFOOrder(t *testing.T) {
 	}
 	h.mu.Unlock()
 
-	callSend := func(from a2aRef, msgID, text string) a2aTaskView {
+	callSend := func(from Ref, msgID, text string) a2aTaskView {
 		t.Helper()
 		raw, _ := json.Marshal(map[string]any{
 			"machine_id": supervisor.Machine, "session_id": supervisor.Session,
 			"message_id": msgID, "text": text, "wake": false,
 		})
-		res := s.mcpCall(ctx, from.Machine, from.Session, "a2a_send", raw, false)
+		res := s.Tool(ctx, from, "a2a_send", raw)
 		if res.IsError {
 			t.Fatalf("a2a_send(%s) refused: %s", msgID, resultText(res))
 		}
@@ -763,16 +487,16 @@ func TestA2AQueuedSendsToBusySupervisorDrainInFIFOOrder(t *testing.T) {
 	}
 
 	// Completing t0 promotes t1 (not t2) and delivers worker 1's report first.
-	if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(supervisor), t0.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, supervisor, "t0-done", a2aComplete, "Ack 0.")
+	if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(supervisor), t0.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, supervisor, "t0-done", a2aComplete, "Ack 0.")
 	}); err != nil {
 		t.Fatal(err)
 	}
-	got1, err := decodeA2A(st.A2AGet(ctx, t1.ID))
+	got1, err := DecodeTask(st.A2AGet(ctx, t1.ID))
 	if err != nil || got1.State != a2aSubmitted {
 		t.Fatalf("t1 should be promoted to submitted after t0 completes: %+v %v", got1, err)
 	}
-	got2, err := decodeA2A(st.A2AGet(ctx, t2.ID))
+	got2, err := DecodeTask(st.A2AGet(ctx, t2.ID))
 	if err != nil || got2.State != a2aQueued {
 		t.Fatalf("t2 should remain queued while t1 is active: %+v %v", got2, err)
 	}
@@ -783,12 +507,12 @@ func TestA2AQueuedSendsToBusySupervisorDrainInFIFOOrder(t *testing.T) {
 	}
 
 	// Completing t1 promotes t2 and delivers worker 2's report second (FIFO).
-	if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(supervisor), t1.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, supervisor, "t1-done", a2aComplete, "Ack 1.")
+	if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(supervisor), t1.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, supervisor, "t1-done", a2aComplete, "Ack 1.")
 	}); err != nil {
 		t.Fatal(err)
 	}
-	got2, err = decodeA2A(st.A2AGet(ctx, t2.ID))
+	got2, err = DecodeTask(st.A2AGet(ctx, t2.ID))
 	if err != nil || got2.State != a2aSubmitted {
 		t.Fatalf("t2 should be promoted to submitted after t1 completes: %+v %v", got2, err)
 	}
@@ -800,6 +524,7 @@ func TestA2AQueuedSendsToBusySupervisorDrainInFIFOOrder(t *testing.T) {
 }
 
 func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, parent, child := a2aFixture(t)
 	ctx := t.Context()
 
@@ -819,22 +544,22 @@ func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
 	a2aProcessOne(t, s, st, cfg, t1.ID)
 
 	// Cancel the middle queued task (t2) while t1 is still working.
-	if _, err := s.a2aMutate(ctx, st, cfg, parent, t2.ID, a2aCancel); err != nil {
+	if _, err := s.a2aMutate(ctx, st, cfg, parent, t2.ID, s.a2aCancel); err != nil {
 		t.Fatalf("cancel queued t2: %v", err)
 	}
 	// t3 must remain queued because t1 is still active.
-	check3, err := decodeA2A(st.A2AGet(ctx, t3.ID))
+	check3, err := DecodeTask(st.A2AGet(ctx, t3.ID))
 	if err != nil || check3.State != a2aQueued {
 		t.Fatalf("canceling queued t2 promoted t3 prematurely: %+v %v", check3, err)
 	}
 
 	// Failing t1 skips canceled t2 and promotes t3.
-	if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(child), t1.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, child, "t1-fail", a2aFailed, "build broke")
+	if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(child), t1.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, child, "t1-fail", a2aFailed, "build broke")
 	}); err != nil {
 		t.Fatal(err)
 	}
-	check3, err = decodeA2A(st.A2AGet(ctx, t3.ID))
+	check3, err = DecodeTask(st.A2AGet(ctx, t3.ID))
 	if err != nil || check3.State != a2aSubmitted {
 		t.Fatalf("failing t1 did not promote t3: %+v %v", check3, err)
 	}
@@ -844,10 +569,10 @@ func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
 	if err != nil || t4.State != a2aQueued {
 		t.Fatalf("t4 state: %+v %v", t4, err)
 	}
-	if _, err := s.a2aMutate(ctx, st, cfg, parent, t3.ID, a2aCancel); err != nil {
+	if _, err := s.a2aMutate(ctx, st, cfg, parent, t3.ID, s.a2aCancel); err != nil {
 		t.Fatalf("cancel active submitted t3: %v", err)
 	}
-	check4, err := decodeA2A(st.A2AGet(ctx, t4.ID))
+	check4, err := DecodeTask(st.A2AGet(ctx, t4.ID))
 	if err != nil || check4.State != a2aSubmitted {
 		t.Fatalf("canceling active t3 did not promote t4: %+v %v", check4, err)
 	}
@@ -860,11 +585,8 @@ func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
 	h.mu.Lock()
 	h.sendErr = errors.New("lost send reply")
 	h.mu.Unlock()
-	check4 = a2aProcessOne(t, s, st, cfg, t4.ID)
-	check4.Events[0].Attempted = time.Now().Add(-a2aConfirmFor)
-	if err := s.a2aSave(ctx, st, check4); err != nil {
-		t.Fatal(err)
-	}
+	a2aProcessOne(t, s, st, cfg, t4.ID)
+	h.clock.now = h.clock.Now().Add(a2aConfirmFor + time.Second)
 	check4 = a2aProcessOne(t, s, st, cfg, t4.ID)
 	if check4.State != a2aFailed {
 		t.Fatalf("expected t4 to expire as failed: %+v", check4)
@@ -872,7 +594,7 @@ func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
 	h.mu.Lock()
 	h.sendErr = nil
 	h.mu.Unlock()
-	check5, err := decodeA2A(st.A2AGet(ctx, t5.ID))
+	check5, err := DecodeTask(st.A2AGet(ctx, t5.ID))
 	if err != nil || check5.State != a2aSubmitted {
 		t.Fatalf("expiring t4 did not promote t5: %+v %v", check5, err)
 	}
@@ -884,12 +606,13 @@ func TestA2AQueuedDrainOnFailureCancelAndQueuedCancel(t *testing.T) {
 }
 
 func TestA2ALoopDrainsBusySupervisorQueueWithoutLeaks(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, _, _ := a2aFixture(t)
 	ctx := t.Context()
-	supervisor := a2aRef{Machine: "mac", Session: "supervisor-loop"}
-	w0 := a2aRef{Machine: "box", Session: "runtime.loop-0"}
-	w1 := a2aRef{Machine: "box", Session: "runtime.loop-1"}
-	w2 := a2aRef{Machine: "box", Session: "runtime.loop-2"}
+	supervisor := Ref{Machine: "mac", Session: "supervisor-loop"}
+	w0 := Ref{Machine: "box", Session: "runtime.loop-0"}
+	w1 := Ref{Machine: "box", Session: "runtime.loop-1"}
+	w2 := Ref{Machine: "box", Session: "runtime.loop-2"}
 	h.mu.Lock()
 	h.sessions["mac"] = []proto.Session{{SessionID: supervisor.Session, Status: proto.StatusIdle, Agent: "codex"}}
 	h.sessions["box"] = []proto.Session{
@@ -903,55 +626,49 @@ func TestA2ALoopDrainsBusySupervisorQueueWithoutLeaks(t *testing.T) {
 	loopDone := make(chan struct{})
 	go func() {
 		defer close(loopDone)
-		s.a2aLoop(loopCtx)
+		s.RunDelivery(loopCtx)
 	}()
 	t.Cleanup(func() {
 		stopLoop()
 		select {
 		case <-loopDone:
 		case <-time.After(5 * time.Second):
-			t.Error("a2aLoop did not exit after context cancellation")
+			t.Error("RunDelivery did not exit after context cancellation")
 		}
 	})
 
-	t0, err := s.a2aStart(ctx, st, cfg, a2aSessionCaller(w0), supervisor, "loop-0", "", "Active task 0", false, nil)
+	t0, err := s.a2aStart(ctx, st, cfg, SessionCaller(w0), supervisor, "loop-0", "", "Active task 0", false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.a2aSignal()
-	waitFor(t, "active task 0 delivered", func() bool {
-		return len(h.sentCalls()) == 1
-	})
+	s.Wake()
+	h.waitForSend(t, "active task 0 delivered", 1)
 
 	// Two workers send reports back to back while task 0 is active.
-	t1, err := s.a2aStart(ctx, st, cfg, a2aSessionCaller(w1), supervisor, "loop-1", "", "Queued report 1", false, nil)
+	t1, err := s.a2aStart(ctx, st, cfg, SessionCaller(w1), supervisor, "loop-1", "", "Queued report 1", false, nil)
 	if err != nil || t1.State != a2aQueued {
 		t.Fatalf("t1: %+v %v", t1, err)
 	}
-	t2, err := s.a2aStart(ctx, st, cfg, a2aSessionCaller(w2), supervisor, "loop-2", "", "Queued report 2", false, nil)
+	t2, err := s.a2aStart(ctx, st, cfg, SessionCaller(w2), supervisor, "loop-2", "", "Queued report 2", false, nil)
 	if err != nil || t2.State != a2aQueued {
 		t.Fatalf("t2: %+v %v", t2, err)
 	}
 
-	// Complete task 0 -> a2aLoop automatically drains queued report 1.
-	if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(supervisor), t0.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, supervisor, "done-0", a2aComplete, "Done 0")
+	// Complete task 0 -> RunDelivery automatically drains queued report 1.
+	if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(supervisor), t0.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, supervisor, "done-0", a2aComplete, "Done 0")
 	}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "queued report 1 delivered by a2aLoop", func() bool {
-		return len(h.sentCalls()) == 2
-	})
+	h.waitForSend(t, "queued report 1 delivered by RunDelivery", 2)
 
-	// Fail task 1 -> a2aLoop automatically drains queued report 2.
-	if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(supervisor), t1.ID, func(tk *a2aTask) (bool, error) {
-		return a2aReport(tk, supervisor, "fail-1", a2aFailed, "Failed 1")
+	// Fail task 1 -> RunDelivery automatically drains queued report 2.
+	if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(supervisor), t1.ID, func(tk *Task) (bool, error) {
+		return s.a2aReport(tk, supervisor, "fail-1", a2aFailed, "Failed 1")
 	}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, "queued report 2 delivered by a2aLoop", func() bool {
-		return len(h.sentCalls()) == 3
-	})
+	h.waitForSend(t, "queued report 2 delivered by RunDelivery", 3)
 
 	sends := h.sentCalls()
 	if !strings.Contains(string(sends[0].Params), "Active task 0") ||
@@ -962,6 +679,7 @@ func TestA2ALoopDrainsBusySupervisorQueueWithoutLeaks(t *testing.T) {
 }
 
 func TestA2AJSONRPCQueuesWhenTargetBusy(t *testing.T) {
+	t.Parallel()
 	s, _, st, _, _, child := a2aFixture(t)
 	path := "/api/v1/a2a/" + child.Machine + "/" + child.Session + "/rpc"
 	call := func(device, method, params string) a2aRPCResponse {
@@ -972,7 +690,7 @@ func TestA2AJSONRPCQueuesWhenTargetBusy(t *testing.T) {
 		r.Header.Set(extwire.HeaderRole, "scoped")
 		r.Header.Set(extwire.HeaderScopes, assistantwire.ScopeA2A)
 		w := httptest.NewRecorder()
-		s.ServeSocket(w, r)
+		rpcHandler(s).ServeHTTP(w, r)
 		var answer a2aRPCResponse
 		if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &answer) != nil {
 			t.Fatalf("HTTP %d: %s", w.Code, w.Body.String())
@@ -1008,37 +726,38 @@ func TestA2AJSONRPCQueuesWhenTargetBusy(t *testing.T) {
 	if cancel := call("client-a", "CancelTask", `{"id":"`+firstID+`"}`); cancel.Error != nil {
 		t.Fatal(cancel.Error)
 	}
-	got, err := decodeA2A(st.A2AGet(t.Context(), secondID))
+	got, err := DecodeTask(st.A2AGet(t.Context(), secondID))
 	if err != nil || got.State != a2aSubmitted {
 		t.Fatalf("second task not promoted after first canceled: %+v %v", got, err)
 	}
 }
 
 func TestA2AConcurrentSendsToSameTargetSerializeCleanly(t *testing.T) {
+	t.Parallel()
 	s, h, st, cfg, _, child := a2aFixture(t)
 	ctx := t.Context()
 	const n = 5
-	workers := make([]a2aRef, n)
+	workers := make([]Ref, n)
 	h.mu.Lock()
 	h.sessions["mac"] = nil
 	for i := range n {
-		workers[i] = a2aRef{Machine: "mac", Session: fmt.Sprintf("concurrent-worker-%d", i)}
+		workers[i] = Ref{Machine: "mac", Session: fmt.Sprintf("concurrent-worker-%d", i)}
 		h.sessions["mac"] = append(h.sessions["mac"], proto.Session{SessionID: workers[i].Session, Status: proto.StatusWorking, Agent: "codex"})
 	}
 	h.mu.Unlock()
 
-	tasks := make([]*a2aTask, n)
+	tasks := make([]*Task, n)
 	errs := make([]error, n)
 	var wg sync.WaitGroup
 	for i := range n {
 		wg.Go(func() {
-			tasks[i], errs[i] = s.a2aStart(ctx, st, cfg, a2aSessionCaller(workers[i]), child, fmt.Sprintf("concurrent-%d", i), "", fmt.Sprintf("Report %d", i), false, nil)
+			tasks[i], errs[i] = s.a2aStart(ctx, st, cfg, SessionCaller(workers[i]), child, fmt.Sprintf("concurrent-%d", i), "", fmt.Sprintf("Report %d", i), false, nil)
 		})
 	}
 	wg.Wait()
 
 	submitted, queued := 0, 0
-	var active *a2aTask
+	var active *Task
 	for i := range n {
 		if errs[i] != nil {
 			t.Fatalf("worker %d refused: %v", i, errs[i])
@@ -1062,14 +781,14 @@ func TestA2AConcurrentSendsToSameTargetSerializeCleanly(t *testing.T) {
 	for range n {
 		a2aProcessOne(t, s, st, cfg, active.ID)
 		delivered = append(delivered, active.Created)
-		if _, err := s.a2aMutate(ctx, st, cfg, a2aSessionCaller(child), active.ID, func(tk *a2aTask) (bool, error) {
-			return a2aReport(tk, child, "done-"+active.ID, a2aComplete, "ok")
+		if _, err := s.a2aMutate(ctx, st, cfg, SessionCaller(child), active.ID, func(tk *Task) (bool, error) {
+			return s.a2aReport(tk, child, "done-"+active.ID, a2aComplete, "ok")
 		}); err != nil {
 			t.Fatal(err)
 		}
-		var nextActive *a2aTask
+		var nextActive *Task
 		for _, candidate := range tasks {
-			cur, err := decodeA2A(st.A2AGet(ctx, candidate.ID))
+			cur, err := DecodeTask(st.A2AGet(ctx, candidate.ID))
 			if err != nil {
 				t.Fatal(err)
 			}

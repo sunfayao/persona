@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -20,7 +21,7 @@ import (
 
 // startedHostFixture is a2aFixture (an Agent on mac, A2A on mac and box) with Agent dispatch on, answers in English
 // and the starts answered with the session id the launch reserved. Every computer lists launchers.
-func startedHostFixture(t *testing.T, launchers []proto.Launcher) (*Service, *a2aTestHub, *db.DB, a2aCaller) {
+func startedHostFixture(t *testing.T, launchers []proto.Launcher) (*Service, *a2aTestHub, *db.DB, agents.Caller) {
 	t.Helper()
 	s, h, st, _, parent, _ := a2aFixture(t)
 	h.fakeModel(t)
@@ -40,13 +41,13 @@ func startedHostFixture(t *testing.T, launchers []proto.Launcher) (*Service, *a2
 }
 
 // startedCall is the Agent's call of one of its tools.
-func startedCall(ctx context.Context, s *Service, parent a2aCaller, tool, args string) proto.ToolResult {
+func startedCall(ctx context.Context, s *Service, parent agents.Caller, tool, args string) proto.ToolResult {
 	return s.mcpCall(ctx, parent.Ref.Machine, parent.Ref.Session, tool, json.RawMessage(args), false)
 }
 
 // startedLaunch makes a new a2a_send launch with args and runs it until its start has an outcome: the task as it ended
 // up.
-func startedLaunch(t *testing.T, ctx context.Context, s *Service, st *db.DB, parent a2aCaller, args string) *a2aTask {
+func startedLaunch(t *testing.T, ctx context.Context, s *Service, st *db.DB, parent agents.Caller, args string) *agents.Task {
 	t.Helper()
 	res := startedCall(ctx, s, parent, "a2a_send", args)
 	var view a2aTaskView
@@ -58,15 +59,15 @@ func startedLaunch(t *testing.T, ctx context.Context, s *Service, st *db.DB, par
 
 // startedOutcome runs launch id once through the delivery loop and waits for what its start came to: started or failed
 // (no longer pending), or in doubt.
-func startedOutcome(t *testing.T, s *Service, st *db.DB, id string) *a2aTask {
+func startedOutcome(t *testing.T, s *Service, st *db.DB, id string) *agents.Task {
 	t.Helper()
 	ctx := t.Context()
-	a2aProcessOne(t, s, st, s.a2aConfig(ctx), id)
-	var task *a2aTask
+	a2aProcessOne(t, s, st, id)
+	var task *agents.Task
 	waitFor(t, "the launch's outcome", func() bool {
 		var err error
-		task, err = decodeA2A(st.A2AGet(ctx, id))
-		return err == nil && task != nil && (!task.Launch.Pending || task.Events[0].Delivery == a2aUncertain)
+		task, err = agents.DecodeTask(st.A2AGet(ctx, id))
+		return err == nil && task != nil && (!task.Launch.Pending || task.Events[0].Delivery == "uncertain")
 	})
 	return task
 }
@@ -82,9 +83,9 @@ func startedHosts(f *fakeHub) []string {
 }
 
 // failedWith is the text of task's failed status, "" while it has none.
-func failedWith(task *a2aTask) string {
+func failedWith(task *agents.Task) string {
 	for i := len(task.Events) - 1; i >= 0; i-- {
-		if e := task.Events[i]; e.Kind == "status" && e.State == a2aFailed {
+		if e := task.Events[i]; e.Kind == "status" && e.State == "failed" {
 			return e.Text
 		}
 	}
@@ -178,7 +179,7 @@ func TestA2ALaunchSaysWhyItDidNotStart(t *testing.T) {
 		h.failStart = rpc.ErrClosed // the answer is lost: the start is in doubt
 		h.mu.Unlock()
 		task := startedLaunch(t, t.Context(), s, st, parent, launch("m-stopped"))
-		if !task.Launch.Pending || task.Events[0].Delivery != a2aUncertain {
+		if !task.Launch.Pending || task.Events[0].Delivery != "uncertain" {
 			t.Fatalf("a lost answer = %+v", task)
 		}
 		h.mu.Lock()
@@ -197,8 +198,13 @@ func TestA2ALaunchSaysWhyItDidNotStart(t *testing.T) {
 		h.mu.Unlock()
 		task := startedLaunch(t, t.Context(), s, st, parent, launch("m-unknown"))
 		task.Events[0].Attempted = task.Events[0].Attempted.Add(-agentStartTimeout - 2*time.Minute) // no session since
-		if err := s.a2aSave(t.Context(), st, task); err != nil {
+		body, err := task.MarshalBody()
+		if err != nil {
 			t.Fatal(err)
+		}
+		task.Body = body
+		if ok, err := st.A2AUpdate(t.Context(), task.A2ARow, task.Events[0].At, nil); err != nil || !ok {
+			t.Fatalf("age A2A attempt: %t, %v", ok, err)
 		}
 		task = startedOutcome(t, s, st, task.ID)
 		if got := failedWith(task); got != "Persona could not confirm the Agent started." {
@@ -285,7 +291,7 @@ func TestDispatchStartTakesTheAgentStartHost(t *testing.T) {
 					t.Fatalf("dispatch_start lost its own mode: %v", start)
 				}
 			}
-			if task, err := decodeA2A(st.A2ARequest(ctx, parent.Owner, "d-agy")); err != nil || task == nil || task.Launch.Pending || failedWith(task) != "" {
+			if task, err := agents.DecodeTask(st.A2ARequest(ctx, parent.Owner, "d-agy")); err != nil || task == nil || task.Launch.Pending || failedWith(task) != "" {
 				t.Fatalf("dispatch task = %+v, %v", task, err)
 			}
 		})
@@ -318,7 +324,7 @@ func TestDispatchStartTakesTheAgentStartHost(t *testing.T) {
 		if !res.IsError || !strings.Contains(resultText(res), companionAwayErr.Message) {
 			t.Fatalf("read-only dispatch whose companion went away: %s", resultText(res))
 		}
-		task, err := decodeA2A(st.A2ARequest(ctx, parent.Owner, "d-away"))
+		task, err := agents.DecodeTask(st.A2ARequest(ctx, parent.Owner, "d-away"))
 		if err != nil || task == nil || failedWith(task) != "The Agent did not start: "+companionAwayErr.Message {
 			t.Fatalf("dispatch task = %+v, %v", task, err)
 		}

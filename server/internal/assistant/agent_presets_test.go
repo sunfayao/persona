@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -16,7 +17,7 @@ import (
 // presetsA2AFixture is a2aFixture (an Agent on mac, A2A on mac and box) with Agent dispatch on and the starts
 // answered: mac has Claude Code and box a Codex wrapper, gateway. The profile in use has review, which runs gateway
 // and asks for Allow all, and plain, which runs claude.
-func presetsA2AFixture(t *testing.T) (*Service, *a2aTestHub, *db.DB, a2aCaller) {
+func presetsA2AFixture(t *testing.T) (*Service, *a2aTestHub, *db.DB, agents.Caller) {
 	t.Helper()
 	s, h, st, _, parent, _ := a2aFixture(t)
 	h.fakeModel(t)
@@ -44,7 +45,7 @@ func presetsA2AFixture(t *testing.T) (*Service, *a2aTestHub, *db.DB, a2aCaller) 
 }
 
 // presetsCall is the Agent's call of an Agent tool (A2A or dispatch).
-func presetsCall(ctx context.Context, s *Service, parent a2aCaller, tool, args string) proto.ToolResult {
+func presetsCall(ctx context.Context, s *Service, parent agents.Caller, tool, args string) proto.ToolResult {
 	return s.mcpCall(ctx, parent.Ref.Machine, parent.Ref.Session, tool, json.RawMessage(args), false)
 }
 
@@ -66,7 +67,7 @@ func TestAgentStartsAnotherOnATier(t *testing.T) {
 	ctx := t.Context()
 	id := presetsTaskID(t, presetsCall(ctx, s, parent, "a2a_send",
 		`{"machine_id":"box","cwd":"/code/app","tier":"review","message_id":"m-review","text":"Review the change."}`))
-	a2aProcessOne(t, s, st, s.a2aConfig(ctx), id)
+	a2aProcessOne(t, s, st, id)
 	waitFor(t, "the launch on the tier", func() bool { return len(startsOf(h.fakeHub)) == 1 })
 	if got := startsOf(h.fakeHub)[0]; got["launcher"] != "gateway" || got["model"] != "gw-big" || got["effort"] != "max" ||
 		got["speed"] != "fast" || got["permission_mode"] != "plan" {
@@ -75,7 +76,7 @@ func TestAgentStartsAnotherOnATier(t *testing.T) {
 
 	id = presetsTaskID(t, presetsCall(ctx, s, parent, "a2a_send",
 		`{"machine_id":"box","cwd":"/code/app","launcher":"codex","tier":"review","message_id":"m-own","text":"Review it with Codex."}`))
-	a2aProcessOne(t, s, st, s.a2aConfig(ctx), id)
+	a2aProcessOne(t, s, st, id)
 	waitFor(t, "the launch on its own launcher", func() bool { return len(startsOf(h.fakeHub)) == 2 })
 	if got := startsOf(h.fakeHub)[1]; got["launcher"] != "codex" || !unset(got["model"]) || !unset(got["speed"]) || got["permission_mode"] != "plan" {
 		t.Fatalf("a launcher of the caller's own took from the tier: %v", got)

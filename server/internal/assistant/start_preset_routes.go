@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nwverse/persona/server/internal/apierr"
+	"github.com/nwverse/persona/server/internal/assistant/agents"
 )
 
 // startPresetRoutes: GET /api/v1/assistant/worker-presets?machine=<id> lists the Agent presets (the active model
@@ -57,14 +58,4 @@ func (s *Service) machinePresets(ctx context.Context, machine, host string) ([]w
 }
 
 // workerPreset is one row of GET /api/v1/assistant/worker-presets.
-type workerPreset struct {
-	Name        string `json:"name"`
-	Launcher    string `json:"launcher"`
-	Model       string `json:"model,omitempty"`
-	Effort      string `json:"effort,omitempty"`
-	Speed       string `json:"speed,omitempty"`
-	Description string `json:"description,omitempty"`
-	// Unavailable: the launcher's latest check says it does not work right now (for example a usage limit with a
-	// reset still ahead); absent check results leave it false, so an unchecked preset is offered.
-	Unavailable bool `json:"unavailable,omitempty"`
-}
+type workerPreset = agents.Preset

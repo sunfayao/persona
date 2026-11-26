@@ -1,9 +1,10 @@
-package assistant
+package agents
 
 import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -13,7 +14,7 @@ func itemReadTurns(h *a2aTestHub) []float64 {
 	defer h.mu.Unlock()
 	var out []float64
 	for _, c := range h.calls {
-		if c.Method != DeviceSessionItems {
+		if c.Method != assistantwire.DeviceSessionItems {
 			continue
 		}
 		var p struct {
@@ -28,8 +29,9 @@ func itemReadTurns(h *a2aTestHub) []float64 {
 // a2a_read (#13831): a session in scope reads another Agent's recent conversation as text, two turns unless it asks
 // for more, never more than ten.
 func TestA2AReadReturnsAnAgentsRecentConversation(t *testing.T) {
-	s, h, _, _, parent, child := a2aFixture(t)
 	ctx := t.Context()
+	t.Parallel()
+	s, h, _, _, parent, child := a2aFixture(t)
 	h.mu.Lock()
 	h.sessions[child.Machine][0].Title, h.sessions[child.Machine][0].Cwd = "Login fix", "/code/app"
 	h.mu.Unlock()
@@ -39,7 +41,7 @@ func TestA2AReadReturnsAnAgentsRecentConversation(t *testing.T) {
 		proto.Item{Role: "assistant", Kind: proto.KindText, Text: "The test waited on a fixed sleep; it now waits for the server."},
 	)
 	read := func(args string) proto.ToolResult {
-		return s.mcpCall(ctx, parent.Ref.Machine, parent.Ref.Session, "a2a_read", json.RawMessage(args), false)
+		return s.Tool(ctx, parent.Ref, "a2a_read", json.RawMessage(args))
 	}
 	r := read(`{"machine_id":"box","session_id":"runtime.worker-0001"}`)
 	want := "Login fix · pi on box (idle, /code/app)\n\nUser: Fix the flaky login test.\n\n→ Bash go test ./login\n" +
@@ -58,12 +60,13 @@ func TestA2AReadReturnsAnAgentsRecentConversation(t *testing.T) {
 // What a2a_send may not address a2a_read may not read, nor the assistant's own conversations; a read-only session in
 // scope can be read, though it takes no messages.
 func TestA2AReadKeepsToTheA2AScope(t *testing.T) {
+	t.Parallel()
 	s, h, _, _, parent, child := a2aFixture(t)
 	ctx := t.Context()
 	h.mu.Lock()
 	h.sessions[child.Machine] = append(h.sessions[child.Machine],
 		proto.Session{SessionID: "assistant-0001", Status: proto.StatusIdle, Assistant: true},
-		proto.Session{SessionID: "health-0001", Status: proto.StatusIdle, Agent: "claude", Space: testSpace},
+		proto.Session{SessionID: "health-0001", Status: proto.StatusIdle, Agent: "claude", Space: "health"},
 		proto.Session{SessionID: "archived-0001", Status: proto.StatusIdle, Agent: "claude", Archived: true},
 		proto.Session{SessionID: "subagent-0001", Status: proto.StatusIdle, Agent: "claude", IsSubagent: true},
 		proto.Session{SessionID: "history-0001", Status: proto.StatusIdle, Agent: "codex", SourceKind: "codex_history",
@@ -72,7 +75,7 @@ func TestA2AReadKeepsToTheA2AScope(t *testing.T) {
 	h.mu.Unlock()
 	h.setItems(proto.Item{Role: "assistant", Kind: proto.KindText, Text: "Done."})
 	call := func(machine, session, args string) proto.ToolResult {
-		return s.mcpCall(ctx, machine, session, "a2a_read", json.RawMessage(args), false)
+		return s.Tool(ctx, Ref{machine, session}, "a2a_read", json.RawMessage(args))
 	}
 	for args, want := range map[string]error{
 		`{"machine_id":"mac","session_id":"caller-0001"}`:    errA2AInvalid,     // itself
@@ -100,7 +103,7 @@ func TestA2AReadKeepsToTheA2AScope(t *testing.T) {
 		resultText(r) != "history-0001 · codex on box (idle)\n\nAgent: Done.\n\n" {
 		t.Fatalf("read-only session: %q", resultText(r))
 	}
-	if _, err := s.a2aSession(ctx, s.a2aConfig(ctx), a2aRef{"box", "history-0001"}); err == nil {
+	if _, err := s.a2aSession(ctx, s.config(ctx), Ref{"box", "history-0001"}); err == nil {
 		t.Fatal("a read-only session became a send target")
 	}
 }

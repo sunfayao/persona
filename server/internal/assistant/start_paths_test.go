@@ -61,7 +61,7 @@ var startOptOuts = map[string]string{
 	"startSessionReview":         "an explicit independent reviewer: its source session's owner asked for it and answers its result card",
 	"deliverSessionReview":       "the owner chose Send on a finished review card: an explicit message or resume of the source session",
 	"startRepairAgent":           "a launcher repair Agent: the launcher health checks follow it (launcher_repair.go)",
-	"a2aLaunch":                  "the persisted A2A task follows its Agent and returns questions, failures and results to the session that started it",
+	"deliverLaunch":              "the persisted A2A task follows its Agent and returns questions, failures and results to the session that started it",
 }
 
 // supervisionCalls make or keep a ledger.
@@ -69,7 +69,12 @@ var supervisionCalls = []string{"superviseTodo", "supervisePlanTask", "updateSup
 
 func TestEveryStartPathIsSupervisedOrOptedOut(t *testing.T) {
 	funcs := parsePackageFuncs(t, ".")
+	agentFuncs := parsePackageFuncs(t, "agents")
 	entries := startEntries(funcs)
+	for _, entry := range startEntries(agentFuncs) {
+		funcs[entry] = agentFuncs[entry]
+		entries = append(entries, entry)
+	}
 	var missing []string
 	for _, name := range entries {
 		if _, ok := supervisedStarts[name]; ok {
