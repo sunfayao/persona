@@ -1,13 +1,8 @@
 package assistant
 
 import (
-	"context"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // undoAutoLink takes back only what the automatic link itself made (#2704).
@@ -54,27 +49,6 @@ func TestUndoAutoLink(t *testing.T) {
 			}
 		})
 	}
-}
-
-// slowAutoLink is the database with its automatic links held until release, so a test can act while one is on its
-// way to the store.
-type slowAutoLink struct {
-	*db.DB
-	started  chan struct{}
-	release  chan struct{}
-	finished chan bool // whether the held link was inserted
-}
-
-func (s *slowAutoLink) AutoLinkUnlinkedTodoAgent(ctx context.Context, todoID, machineID, sessionID, title, cwd, agent, startError, source, via string, linkedAt time.Time) (bool, []string, error) {
-	s.started <- struct{}{}
-	select {
-	case <-s.release:
-	case <-ctx.Done():
-		return false, nil, ctx.Err()
-	}
-	inserted, released, err := s.DB.AutoLinkUnlinkedTodoAgent(ctx, todoID, machineID, sessionID, title, cwd, agent, startError, source, via, linkedAt)
-	s.finished <- inserted
-	return inserted, released, err
 }
 
 // An automatic link the store did not keep gives back the done todo's link it released, unless the agent was linked
