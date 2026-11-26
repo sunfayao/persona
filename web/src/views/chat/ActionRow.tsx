@@ -28,10 +28,10 @@ const StepTelemetry = lazy(() => import("./StepTelemetry").then((m) => ({ defaul
 
 /** The row's chrome, shared with the thought rows (ThinkingRow.tsx) so a mixed list reads as one (cindy's
  *  activityRowChrome): radius, padding, the hover lift. On a touch screen a row is a finger tall (40). */
-export const ROW_CHROME = "flex w-full min-w-0 gap-1.5 rounded-[8px] px-2 py-[3px] [@media(pointer:coarse)]:min-h-10 text-left";
+export const ROW_CHROME = "flex w-full min-w-0 gap-1.5 rounded-[10px] px-2 py-[3px] [@media(pointer:coarse)]:min-h-10 text-left";
 export const ROW_HOVER = "group select-none transition-colors duration-150 hover:bg-tool-hover motion-reduce:transition-none";
 const ROW = `${ROW_CHROME} items-center ${ROW_HOVER}`;
-export const CHEVRON_SLOT = "ml-auto flex size-[18px] shrink-0 items-center justify-center rounded-[8px] text-tool-ink transition-colors duration-150 group-hover:bg-hover-2 motion-reduce:transition-none";
+export const CHEVRON_SLOT = "ml-auto flex size-[18px] shrink-0 items-center justify-center rounded-[7px] text-tool-ink transition-colors duration-150 group-hover:bg-hover-2 motion-reduce:transition-none";
 export const STATUS_SLOT = "inline-flex h-[18px] w-4 shrink-0 items-center justify-center text-tool-ink";
 
 const COMMAND_TOOLS = new Set(["Bash", "exec_command", "shell", "PowerShell"]);
@@ -268,7 +268,7 @@ export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trac
         {p.verb && <span className="shrink-0 text-[length:var(--chat-secondary)] whitespace-nowrap text-tool-ink">{p.verb}</span>}
         {p.param &&
           (p.file ? (
-            <span className="inline-flex max-w-full min-w-0 items-center gap-[3px] rounded-[4px] border border-line bg-field px-[5px] py-[0.5px] font-mono text-meta leading-[1.385] whitespace-nowrap text-ink-2 transition-colors group-hover:bg-hover-2" data-file-chip>
+            <span className="inline-flex max-w-full min-w-0 items-center gap-[3px] rounded-[6px] border border-line/80 bg-field px-1.5 py-[0.5px] font-mono text-meta leading-[1.385] whitespace-nowrap text-ink-2 transition-colors group-hover:bg-hover-2" data-file-chip>
               <Icon name="read" size={12} className="shrink-0 text-ink-3" />
               <span className="truncate">{p.param.text}</span>
             </span>
@@ -289,7 +289,7 @@ export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trac
         )}
         {bg && <span className={cx("shrink-0 rounded-[4px] px-1 text-submeta font-medium whitespace-nowrap", bg.failed ? "bg-red-tint text-red" : "bg-field text-ink-2")}>{bg.text}</span>}
         <span aria-hidden className={CHEVRON_SLOT}>
-          <Icon name={inPlace && open ? "chevron" : "chevronRight"} size={13} stroke={2.2} />
+          <Icon name="chevronRight" size={13} stroke={2.2} className="transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" style={inPlace ? { transform: open ? "rotate(90deg)" : "none" } : undefined} />
         </span>
       </button>
       {inlineDiff && !trace && diffs && !error && (
@@ -303,7 +303,7 @@ export const ActionRow = memo(function ActionRow({ step, running, mid, sid, trac
         </div>
       )}
       {open && (
-        <div className="mx-2 mt-1 mb-1 cursor-text rounded-[6px] border border-line bg-neutral-bubble px-[10px] py-2 font-mono text-label leading-[17px] text-ink select-text" data-inline-detail>
+        <div className="mx-2 mt-1 mb-1 cursor-text rounded-[10px] border border-line/80 bg-neutral-bubble px-3 py-2.5 font-mono text-label leading-[17px] text-ink select-text" data-inline-detail>
           {hasTelemetry && (
             <Suspense fallback={null}>
               <StepTelemetry items={stepItems} durationMs={rawDurationMs} className="mb-2 border-b border-line pb-1.5" />

@@ -54,7 +54,8 @@ import { StatusMark } from "../../ui/StatusMark";
 import { Icon } from "../../ui/icons";
 import { StoppedAgentLine } from "./StoppedAgentLine";
 const TakeoverAction = lazy(() => import("./TakeoverAction"));
-import { scrollBehavior } from "../../ui/stream/motion";
+import { prefersReducedMotion, scrollBehavior } from "../../ui/stream/motion";
+import { useFlash } from "../../ui/motion";
 import { segmentChanges, shiftAbove } from "./offscreen";
 import { glide } from "./glide";
 import { AGENT_COMMANDS, Composer, type Outgoing } from "./Composer";
@@ -274,6 +275,9 @@ async function rewindTo(mid: string, sid: string, draftKey: string, items: Item[
   if (res.input_cleared) sendDraft(draftKey, { type: "replace", text });
   else if (!declared) toast(tr("rewind.input_kept"), "info");
 }
+
+// Last conversation key shown in this tab, so switching to another remounted ChatView plays a subtle settle entrance.
+let lastOpenedChat: string | null = null;
 
 /** In a side panel (TaskPanel, AgentPanel; #3333, iOS #3255; opened while Agents open in the side panel, #5424): the
  *  chat's one-line header is the panel's only one. It closes the panel (× at its end), may stand for the task (its title,
@@ -552,6 +556,18 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const items = useRef(tr.items);
   items.current = tr.items;
   const draftKey = `${mid}/${sid}`;
+  const chatFlash = useFlash(draftKey, 200);
+  const [mountEnter, setMountEnter] = useState(
+    () => typeof window !== "undefined" && Boolean(lastOpenedChat && lastOpenedChat !== draftKey && !prefersReducedMotion()),
+  );
+  useEffect(() => {
+    lastOpenedChat = draftKey;
+  }, [draftKey]);
+  const chatEnterStyle = chatFlash > 0
+    ? { animation: "view-enter 200ms var(--ease-out-strong) both" }
+    : mountEnter
+      ? { animation: "view-enter 200ms var(--ease-out-strong) backwards" }
+      : undefined;
   const canCompose = sessionCan(session, "send");
   // a stopped Agent (#4754): a read-only line with Terminal and Resume where the composer goes
   const stoppedLine = composerSlot(session, { assistant: Boolean(assistant), offline: Boolean(offlineLine) }) === "stopped";
@@ -2340,7 +2356,12 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         {(tr.notLive || refreshFailed) && <NotLivePill error={refreshFailed} onReload={() => { tr.reload(); onRefresh?.(); }} lower={Boolean(picked && !search.open)} />}
         <div ref={scrollRef} onScroll={onScroll} data-chat-scroll className="relative h-full overflow-y-auto [overflow-anchor:none]">
           <ChatActionsContext.Provider value={actions}>
-          <div data-chat-content className="mx-auto flex w-full max-w-[880px] flex-col gap-3.5 px-4 pt-4 pb-5 sm:px-8 sm:pt-6">
+          <div
+            data-chat-content
+            className="mx-auto flex w-full max-w-[820px] flex-col gap-5 px-5 pt-5 pb-6 sm:px-8 sm:pt-7"
+            style={chatEnterStyle}
+            onAnimationEnd={mountEnter ? (e) => { if (e.target === e.currentTarget && e.animationName === "view-enter") setMountEnter(false); } : undefined}
+          >
             {session?.start_error && (session.start_error_code ? (
               // a refusal with a code (#1642): the hub's whole sentence in the user's language, its remedy last, under a title
               <div role="alert" data-testid="start-error-coded" className="rounded-control bg-inset px-3 py-2 text-[13px]">
@@ -2465,6 +2486,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           <CommentMarks scroller={scroller} jump={landRow} />
           </ChatActionsContext.Provider>
         </div>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-linear-to-t from-page via-page/75 to-transparent" />
         {/* A transient edge overlay; native scrolling and the centered text column keep their existing layout. */}
         {railSource.ticks.length > 0 && (
           <Suspense fallback={null}>
@@ -2480,7 +2502,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         // at most DOCK_MAX on every width (#5375): what sits over the composer gives up its height first and scrolls in
         // its own box, the chat above shrinks by what the dock takes and is never drawn over. Should the composer alone
         // need more (a keyboard leaving little room), it grows up over the chat (justify-end) instead of down off the screen.
-        className="mx-auto flex max-h-(--dock-max) w-full max-w-[880px] flex-col justify-end gap-1.5 px-3 pb-2 sm:px-7 sm:pb-3 [@media(max-height:500px)]:pb-2"
+        className="mx-auto flex max-h-(--dock-max) w-full max-w-[820px] flex-col justify-end gap-1.5 px-4 pb-3 sm:px-8 sm:pb-4 [@media(max-height:500px)]:pb-2"
         style={{ "--dock-max": DOCK_MAX } as React.CSSProperties}
         onInput={pendingRecap ? dismissRecap : undefined}
         onFocus={onDockFocus}
@@ -3103,7 +3125,7 @@ export const Header = memo(function Header({
   return (
     <>
       {menu.anchor && <SessionReviewMenuItem onItem={setSessionReviewItems} session={assistant ? undefined : session} busy={starting} ix={interactions} />}
-      <header className="@container flex min-h-12 shrink-0 items-center gap-1.5 border-b border-line bg-page px-3 sm:gap-2 sm:px-4">
+      <header className="@container flex min-h-12 shrink-0 items-center gap-1.5 border-b border-line/70 bg-page px-3 sm:gap-2 sm:px-4">
       <div className={headerSlot(Boolean(topCenter), "start")}>
         {onToggleSidebar && <ChatSidebarButton session={session} counted={!topCenter} onClick={onToggleSidebar} />}
       </div>

@@ -37,23 +37,28 @@ describe("an agent's row", () => {
     expect(link(html)).not.toContain(SESSION_ACTIVE_ROW);
   });
   it("keeps its ⋯ shown when open, on hover only otherwise", () => {
-    expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active />))).toMatch(/class="[^"]*\bflex\b/);
-    expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active={false} />))).toMatch(/class="[^"]*\bhidden\b/);
+    expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active />))).toMatch(/class="[^"]*\bopacity-100\b/);
+    expect(more(renderToStaticMarkup(<SessionRow {...rowProps} active={false} />))).toMatch(/class="[^"]*\bopacity-0\b/);
   });
-  it("distinguishes working, background-waiting, needs-you, and quiet idle states visually", () => {
+  it("distinguishes working, background-waiting, needs-you, and quiet idle states cleanly without inactive row borders", () => {
     const workingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working" }} active={false} />);
     expect(workingHtml).toContain(`>${stateName("working")}<`);
-    expect(link(workingHtml)).toContain("bg-orange-tint/35");
+    expect(workingHtml).toContain("bg-orange-tint/80");
+    expect(link(workingHtml)).not.toContain("ring-1");
 
     const waitingHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, status: "working", state: "working", background_waiting: true }} active={false} />);
     expect(waitingHtml).toContain(`>${stateName("bg_waiting")}<`);
-    expect(link(waitingHtml)).not.toContain("bg-orange-tint/35");
+    expect(waitingHtml).not.toContain("bg-orange-tint/80");
+    expect(link(waitingHtml)).not.toContain("ring-1");
 
     const needsHtml = renderToStaticMarkup(<SessionRow {...rowProps} s={{ ...session, state: "needs_you" }} active={false} />);
-    expect(link(needsHtml)).toContain("ring-red/20");
+    expect(needsHtml).toContain('data-state="needs_you"');
+    expect(needsHtml).toContain("font-medium text-ink");
+    expect(link(needsHtml)).not.toContain("ring-1");
 
     const idleHtml = renderToStaticMarkup(<SessionRow {...rowProps} active={false} />);
     expect(idleHtml).toContain("opacity-35");
+    expect(idleHtml).toContain("font-normal text-ink-2");
   });
 });
 

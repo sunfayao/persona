@@ -64,7 +64,7 @@ describe("ActionRow", () => {
     expect(p).toEqual({ param: { text: "npm test", title: "跑单测" } });
     const html = renderToStaticMarkup(<ActionRow step={tool("t1", "Bash", { command: "npm test", description: "跑单测" })} mid="m" sid="s" />);
     expect(html).toContain("py-[3px]");
-    expect(html).toContain("rounded-[8px]");
+    expect(html).toContain("rounded-[10px]");
     expect(html).not.toContain("运行命令");
   });
 
@@ -185,7 +185,7 @@ describe("thought rows (cindy's ThinkingActivityRow, #5155)", () => {
     expect(html).toContain("text-thinking-ink italic");
     expect(html).toContain("text-[length:var(--chat-secondary)]");
     // the tool rows' chrome: the same radius, padding and chevron slot
-    expect(html).toContain("rounded-[8px] px-2 py-[3px]");
+    expect(html).toContain("rounded-[10px] px-2 py-[3px]");
     expect(html).toContain("size-[18px]");
     // it fits: nothing to open (measured once drawn), so no chevron and no toggle
     expect(html).not.toContain('role="button"');
@@ -238,11 +238,11 @@ describe("the user's bubble and the answer", () => {
     expect(html).toContain("Manual attachment");
   });
 
-  it("on the right, fits its column up to 488 wide, 12 px corners", () => {
+  it("on the right, fits its column up to 488 wide, 18 px corners", () => {
     const html = renderToStaticMarkup(<UserBubble msg={msg("你好")} mid="m" sid="s" />);
     expect(html).toContain("ml-auto");
     expect(html).toContain("max-w-[min(100%,488px)]");
-    expect(html).toContain("rounded-[12px]");
+    expect(html).toContain("rounded-[18px]");
     expect(html).not.toContain("展开");
     expect(html).not.toContain("data-fold-scroll");
   });

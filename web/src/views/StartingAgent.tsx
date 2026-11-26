@@ -43,13 +43,13 @@ export function StartingAgent({ launch, onToggleSidebar }: { launch: AgentLaunch
         <div className="min-w-0 flex-1"><h1 className="truncate text-[14px] font-semibold text-ink">{t("startingagent.title")}</h1><p className="truncate text-[11.5px] text-ink-3" title={providerIdNote(runsOn) ? subtitle(providerLabel(runsOn)) : undefined}>{subtitle(providerTitle(runsOn))}</p></div>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-[760px] flex-col gap-7 px-5 pt-6 pb-10 sm:px-8">
+        <div className="mx-auto flex w-full max-w-[820px] flex-col gap-7 px-5 pt-6 pb-10 sm:px-8">
           {(launch.text || launch.attachments.length > 0) && <div className="flex flex-col items-end gap-1.5 pl-[12%]">
             <AttachmentTray attachments={launch.attachments} onRemove={editable ? (id) => {
               releaseAttachments(launch.attachments.filter((a) => a.id === id));
               putLaunch({ ...launch, attachments: launch.attachments.filter((a) => a.id !== id), outgoing: undefined });
             } : undefined} />
-            {launch.text && <div className="max-w-full rounded-[14px] bg-user-bubble px-3.5 py-2 text-[14px] leading-[1.55] whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">{launch.text}</div>}
+            {launch.text && <div className="max-w-full rounded-[18px] bg-user-bubble px-4 py-2.5 font-sans text-[length:var(--chat-body)] leading-[1.6] whitespace-pre-wrap text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80 [overflow-wrap:anywhere]">{launch.text}</div>}
           </div>}
           {launch.phase === "failed" ? <div role="alert" className="flex flex-col items-start gap-3">
             <p className="text-[13px] text-red">{launch.error}</p>

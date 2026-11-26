@@ -118,18 +118,18 @@ export function Section({ title, children, folded, onToggle, right, onMenu, firs
           aria-expanded={!folded}
           onClick={onToggle}
           className={cx(
-            "touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left font-semibold transition-colors",
-            top ? "text-[11px] text-ink-3 hover:text-ink-2" : "text-[11.5px] text-ink-2 hover:text-ink",
+            "touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left font-medium transition-colors",
+            top ? "text-[11.5px] text-ink-3 hover:text-ink-2" : "text-[12px] text-ink-2 hover:text-ink",
           )}
         >
           <span className="min-w-0 truncate">{title}</span>
-          <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3/80 transition-transform group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+          <Icon name="chevron" size={10} stroke={2.2} className="shrink-0 text-ink-3/70 transition-[transform,color] group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
         </button>
         {right}
       </div>
     }>
       <Collapse open={!folded} sidebarFold unclipped>
-        <div className={cx("flex flex-col gap-0.5", tree && "ml-2.5 border-l border-line/60 pl-1.5")} inert={folded || undefined}>{children}</div>
+        <div className={cx("flex flex-col gap-0.5", tree && "ml-2.5 border-l border-line/55 pl-1.5")} inert={folded || undefined}>{children}</div>
       </Collapse>
     </SidebarGroup>
   );
@@ -142,7 +142,7 @@ export function GroupCount({ n, label, className, pill }: { n: number; label: st
       title={label}
       className={cx(
         "text-[10.5px] text-ink-3 tabular-nums",
-        pill && "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-inset px-1.5 font-medium ring-1 ring-inset ring-line/60",
+        pill && "shrink-0 font-medium",
         className,
       )}
     >
@@ -153,11 +153,11 @@ export function GroupCount({ n, label, className, pill }: { n: number; label: st
 }
 
 /** On a folded group's heading, how many of its sessions need the user (DESIGN_SYSTEM 3.4): the number in the
- *  attention/red tone, with the words for its tooltip and for a screen reader. Nothing when none do. */
+ *  attention tone, with the words for its tooltip and for a screen reader. Nothing when none do. */
 export function NeedsCount({ n }: { n: number }) {
   if (n <= 0) return null;
   return (
-    <span title={stateCount("needs_you", n)} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-red/12 px-1.5 text-[10.5px] font-semibold text-red ring-1 ring-inset ring-red/25 tabular-nums">
+    <span title={stateCount("needs_you", n)} className="flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-field px-1.5 text-[10.5px] font-semibold text-attention tabular-nums">
       {n}<span className="sr-only"> {t("sidebar.needs_you_suffix", { count: n })}</span>
     </span>
   );
@@ -167,7 +167,7 @@ export function NeedsCount({ n }: { n: number }) {
  *  rows), never a button's pill: the paged list's "Load more" looked like no other row (#6662, the owner). */
 export function ShowMoreRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="relative z-10 w-full whitespace-nowrap rounded-[9px] px-2 py-1 text-left text-label text-ink-3 transition-colors hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
+    <button type="button" onClick={onClick} className="relative z-10 w-full whitespace-nowrap rounded-[9px] px-2 py-1 text-left text-label text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
       {label}
     </button>
   );

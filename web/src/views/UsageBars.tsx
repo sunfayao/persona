@@ -17,7 +17,7 @@ const shown = (p: number) => `${Math.round(p)}%`;
 const fill = (p: number) => (isCritical(p) ? "bg-red" : isWarn(p) ? "bg-orange" : "bg-accent");
 const valueTone = (p: number) => (isCritical(p) ? "text-red" : isWarn(p) ? "text-orange" : "text-ink");
 const VALUE = "shrink-0 text-submeta font-medium tabular-nums";
-const PILL = "inline-flex shrink-0 items-center gap-1.5 rounded-md bg-inset/70 px-2 py-0.5 ring-1 ring-inset ring-line/55";
+const PILL = "inline-flex shrink-0 items-center gap-1.5 rounded-control bg-page/75 px-2 py-0.5 ring-1 ring-inset ring-line/65";
 
 /** A bar: the track, the used part (caution colour from 80%, critical from 90%) and, with `expected`, a hairline tick where an even pace would be. */
 export function Meter({ used, expected, protect, label, tall }: { used: number; expected?: number; protect?: number; label: string; tall?: boolean }) {
@@ -29,7 +29,7 @@ export function Meter({ used, expected, protect, label, tall }: { used: number; 
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(percent(used))}
-      className={cx("relative block w-full rounded-full bg-line-strong/80", tall ? "h-1.5" : "h-1", hasProtect && "mt-3.5")}
+      className={cx("relative block w-full rounded-full bg-line-strong/75", tall ? "h-1.5" : "h-1", hasProtect && "mt-3.5")}
     >
       <span className={cx("block h-full rounded-full motion-safe:transition-[width] motion-safe:duration-300", fill(used))} style={{ width: `${percent(used)}%` }} />
       {hasProtect && (
@@ -166,7 +166,7 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
   const extra = totalItems - shownAccounts.length - shownUnconnected.length;
 
   return (
-    <div ref={root} className="@container/usage relative shrink-0 border-t border-line/80 bg-canvas px-2 py-1" data-usage-bars>
+    <div ref={root} className="@container/usage relative shrink-0 border-t border-line/75 bg-canvas px-2 py-1.5" data-usage-bars>
       <button
         ref={trigger}
         type="button"
@@ -175,7 +175,7 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         title={tr("usage.title")}
-        className={cx("touch-hit flex min-h-9 w-full items-center gap-1.5 rounded-lg px-2 text-left transition-colors hover:bg-hover", open && "bg-hover")}
+        className={cx("touch-hit flex min-h-9 w-full items-center gap-1.5 rounded-control px-2 text-left transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.99]", open && "bg-hover-2")}
       >
         <span className="shrink-0 text-submeta font-medium text-ink-3 @max-[17rem]/usage:sr-only">{tr("usage.short_title")}</span>
         <span ref={rowRef} className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden py-1">
@@ -195,14 +195,14 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
             );
           })}
           {shownUnconnected.map((p) => (
-            <span key={p.id} data-usage-unconnected={p.id} className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-inset/45 px-2 py-0.5 text-ink-3 ring-1 ring-inset ring-line/45" title={`${p.title} · ${tr("usage.not_connected")}`}>
+            <span key={p.id} data-usage-unconnected={p.id} className="inline-flex shrink-0 items-center gap-1.5 rounded-control bg-page/45 px-2 py-0.5 text-ink-3 ring-1 ring-inset ring-line/50" title={`${p.title} · ${tr("usage.not_connected")}`}>
               <AgentMark agent={p.agent} label={p.title} decorative size={13} />
               <span className="sr-only">{p.title} · {tr("usage.not_connected")}</span>
               <span aria-hidden className={VALUE}>—</span>
             </span>
           ))}
           {extra > 0 && (
-            <span data-usage-overflow className="ml-auto shrink-0 rounded-md bg-inset/80 px-1.5 py-0.5 text-submeta font-medium tabular-nums text-ink-3 ring-1 ring-inset ring-line/55">
+            <span data-usage-overflow className="ml-auto shrink-0 rounded-control bg-page/75 px-1.5 py-0.5 text-submeta font-medium tabular-nums text-ink-3 ring-1 ring-inset ring-line/65">
               <span className="sr-only">{tr("usage.more", { count: extra })}</span>
               <span aria-hidden>+{extra}</span>
             </span>
@@ -219,7 +219,7 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
  *  caution-coloured, but only the first shows an amount. */
 function BalanceSummary({ a }: { a: UsageAccount }) {
   return (
-    <span data-usage-summary={a.id} className={cx("inline-flex min-w-0 max-w-full shrink-0 items-center gap-1.5 rounded-md bg-inset/70 px-2 py-0.5 ring-1 ring-inset ring-line/55", a.stale && "opacity-60")} title={a.balance ? `${a.name} · ${a.balance.currency} ${a.balance.amount}` : a.name}>
+    <span data-usage-summary={a.id} className={cx("min-w-0 max-w-full", PILL, a.stale && "opacity-60")} title={a.balance ? `${a.name} · ${a.balance.currency} ${a.balance.amount}` : a.name}>
       <AgentMark agent={usageProvider(a.provider)} label={a.name} decorative size={13} />
       <span className="sr-only">{a.name}</span>
       <span className={cx("truncate text-submeta font-medium tabular-nums", !a.balance || Number(a.balance.amount) === 0 ? "text-orange" : "text-ink")}>

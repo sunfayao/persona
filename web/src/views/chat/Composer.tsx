@@ -1149,12 +1149,14 @@ export const Composer = memo(function Composer({
       <div
         className={cx(
           // a container: what sits in its bottom row (the model pill) takes its width modes from the card's own width
-          "@container/composer relative flex flex-col gap-1 rounded-card border bg-surface p-1.5 transition-[border-color,box-shadow] duration-150 focus-within:border-line-strong",
-          dragging ? "border-accent shadow-[0_0_0_3px_var(--accent-tint)]" : "border-line",
+          "@container/composer relative flex flex-col gap-1 rounded-[20px] border bg-surface px-3 pt-2.5 pb-2 transition-[border-color,box-shadow] duration-200",
+          dragging
+            ? "border-accent shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
+            : "border-line-strong/80 shadow-[0_2px_12px_rgb(20_20_19/0.06)] dark:shadow-[0_4px_20px_rgb(0_0_0/0.28)] focus-within:border-line-strong focus-within:shadow-[0_4px_20px_rgb(20_20_19/0.09),0_0_0_1px_var(--line-strong)] dark:focus-within:shadow-[0_6px_26px_rgb(0_0_0/0.4),0_0_0_1px_var(--line-strong)]",
         )}
       >
         {/* out to the card's border over its padding; nothing drawn yet (its chunk on the way), no gap either */}
-        {top && <div data-composer-top className="-mx-1.5 -mt-1.5 empty:hidden">{top}</div>}
+        {top && <div data-composer-top className="-mx-3 -mt-2.5 overflow-clip rounded-t-[19px] empty:hidden">{top}</div>}
         {editingLast && (
           <div role="status" data-testid="composer-editing" className="flex min-w-0 items-center gap-1.5 pt-0.5 pr-0.5 pl-2 text-[11.5px] whitespace-nowrap" style={{ animation: "fade-in 160ms ease-out both" }}>
             <Icon name="pencil" size={12} stroke={2.2} className="shrink-0 text-accent-ink" />
@@ -1344,7 +1346,7 @@ export const Composer = memo(function Composer({
           aria-label={editor?.label ?? t("chat-composer.message")}
           title={!editor && hasFinePointer() ? (onEditLastMessage ? t("composer.history_hint_edit") : t("composer.history_hint")) : undefined}
           style={{ maxHeight: grow.cap ? `min(${grow.cap}px, ${INPUT_MAX})` : INPUT_MAX }}
-          className={cx("min-h-[calc(1lh+var(--spacing)*1.5)] w-full resize-none overflow-y-auto bg-transparent px-2 pt-1.5 text-[14px] leading-[21px] text-ink outline-none [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[24px] [overflow-wrap:anywhere] placeholder:text-ink-3 disabled:opacity-50", showExpand && "pr-8")}
+          className={cx("min-h-[calc(1lh+var(--spacing)*0.5)] w-full resize-none overflow-y-auto bg-transparent px-1 pt-0.5 text-[15px] leading-[22px] text-ink outline-none [@media(pointer:coarse)]:text-[16px] [@media(pointer:coarse)]:leading-[24px] [overflow-wrap:anywhere] placeholder:text-ink-3 disabled:opacity-50", showExpand && "pr-8")}
         />
         {showExpand && (
           <button
@@ -1416,7 +1418,7 @@ export const Composer = memo(function Composer({
               title={voice!.label}
               onClick={voice!.onClick}
               className={ROUND}
-              style={{ animation: `pop-in 200ms ${EASE} both` }}
+              style={{ animation: `pop-in 180ms ${EASE} both` }}
             >
               <Icon name="voice" size={15} stroke={2.2} />
             </button>
@@ -1429,8 +1431,8 @@ export const Composer = memo(function Composer({
               data-testid="composer-blocked"
               onClick={blocked.onClick}
               disabled={!blocked.onClick}
-              className="touch-hit flex h-7 max-w-[60%] shrink-0 items-center gap-1 rounded-full bg-ink px-3 text-[12px] font-medium whitespace-nowrap text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.96] disabled:opacity-40"
-              style={{ animation: nudge ? `nudge-x 420ms ease-out both` : `pop-in 200ms ${EASE} both` }}
+              className="touch-hit flex h-8 max-w-[60%] shrink-0 items-center gap-1 rounded-[10px] bg-ink px-3 text-[12px] font-medium whitespace-nowrap text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.96] disabled:opacity-40"
+              style={{ animation: nudge ? `nudge-x 420ms ease-out both` : `pop-in 180ms ${EASE} both` }}
             >
               <span className="truncate">{blocked.label}</span>
               <Icon name="chevronRight" size={11} stroke={2.4} className="shrink-0" />
@@ -1447,9 +1449,9 @@ export const Composer = memo(function Composer({
               }) : queues ? t("chat-composer.queue_hint") : t("chat-composer.send_hint")}
               disabled={!canSend}
               onClick={() => void submit()}
-              className={ROUND}
+              className={SEND}
             >
-              <Icon name="send" size={14} stroke={2} className="-translate-x-px translate-y-px fill-current" />
+              <Icon name="arrowUp" size={16} stroke={2.4} />
             </button>
           )}
         </div>
@@ -1507,12 +1509,12 @@ export const Composer = memo(function Composer({
   );
 });
 
-// The toolbar's two looks (#5324, cindy's): bare 30 px round tools that show the model pill's frame on hover or while open,
-// and the one dark 28 px round action (Send, Queue, Stop, round voice), faded when it can't be pressed.
-const TOOL = "touch-hit flex size-[30px] shrink-0 items-center justify-center rounded-full border border-transparent transition-colors duration-150 hover:border-line-strong hover:bg-hover aria-expanded:border-line-strong aria-expanded:bg-hover";
-const ROUND = "touch-hit flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-40";
+// Toolbar buttons: quiet borderless 32 px soft-squircle icons at rest, warm terracotta primary Send, and dark ink Stop / voice.
+const TOOL = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[9px] border border-transparent transition-[background-color,color,transform] duration-150 hover:border-transparent hover:bg-hover hover:text-ink active:scale-[0.94] aria-expanded:border-transparent aria-expanded:bg-hover-2 aria-expanded:text-ink";
+const SEND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-accent text-[#faf9f5] shadow-2xs transition-[background-color,opacity,transform] duration-150 enabled:hover:brightness-105 enabled:active:scale-[0.94] disabled:bg-ink/12 disabled:text-ink-3 disabled:opacity-100";
+const ROUND = "touch-hit flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-ink text-surface transition-[opacity,transform] duration-150 enabled:hover:opacity-90 enabled:active:scale-[0.94] disabled:opacity-40";
 
-/** Stop in the round button's shell: a small square, a spinner while the stop is on its way. */
+/** Stop in the action button's shell: a small square, a spinner while the stop is on its way. */
 function StopButton({ stopping, onStop }: { stopping?: boolean; onStop: () => void }) {
   return (
     <button
@@ -1523,7 +1525,7 @@ function StopButton({ stopping, onStop }: { stopping?: boolean; onStop: () => vo
       onClick={onStop}
       disabled={stopping}
       className={ROUND}
-      style={{ animation: `pop-in 200ms ${EASE} both` }}
+      style={{ animation: `pop-in 180ms ${EASE} both` }}
     >
       {stopping ? <Spinner size={12} /> : <span aria-hidden className="size-2.5 rounded-[1.5px] bg-current" />}
     </button>

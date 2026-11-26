@@ -129,16 +129,16 @@ function ComputerGroup<T>({ section, first, machine, ...p }: SectionProps<T> & {
   return (
     <div data-session-computer={section.machine} data-group-open={!folded}>
       <SidebarGroup className={first ? "mt-1" : "mt-3"} heading={
-        <div className="group/sec relative flex select-none items-center gap-1.5 rounded-[7px] px-2 py-1 transition-colors hover:bg-hover/60">
+        <div className="group/sec relative flex select-none items-center gap-1.5 rounded-[8px] px-2 py-1 transition-colors duration-150 hover:bg-hover/60">
           <button type="button" aria-expanded={!folded} onClick={toggle} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-left">
-            <span aria-hidden className={cx("size-2 shrink-0 rounded-full transition-shadow", online ? "bg-green ring-2 ring-green/20" : "bg-line-strong")} />
-            <span className={cx("min-w-0 truncate text-label font-semibold tracking-[-0.005em]", online ? "text-ink" : "text-ink-3")}>{p.machineName(section.machine)}</span>
+            <span aria-hidden className={cx("size-1.5 shrink-0 rounded-full", online ? "bg-green" : "bg-line-strong")} />
+            <span className={cx("min-w-0 truncate text-label font-medium tracking-[-0.005em] transition-colors", online ? "text-ink-2 group-hover/sec:text-ink" : "text-ink-3")}>{p.machineName(section.machine)}</span>
             <span className="sr-only">{state}</span>
-            <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3/80 transition-transform group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+            <Icon name="chevron" size={10} stroke={2.2} className="shrink-0 text-ink-3/70 transition-[transform,color] group-hover/sec:text-ink-2" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
           </button>
-          {!online && <span aria-hidden className="shrink-0 whitespace-nowrap rounded-full bg-inset px-1.5 py-px text-[10.5px] text-ink-3 ring-1 ring-inset ring-line/60">{state}</span>}
+          {!online && <span aria-hidden className="shrink-0 whitespace-nowrap text-[10.5px] text-ink-3">{state}</span>}
           <NeedsCount n={section.needs} />
-          <GroupCount n={count} label={t("paged-agents.count", { count })} pill />
+          <GroupCount n={count} label={t("paged-agents.count", { count })} />
         </div>
       }>
         <Collapse open={!folded} sidebarFold unclipped>

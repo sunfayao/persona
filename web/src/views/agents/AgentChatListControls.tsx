@@ -165,8 +165,8 @@ export function AgentFilterButton({
         title={filterLabel}
         data-testid="agent-filter-button"
         className={cx(
-          "touch-hit relative z-10 flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-[5px] px-0.5 text-[11px] hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-w-11",
-          lit ? "font-semibold text-accent" : "text-ink-3",
+          "touch-hit relative z-10 flex h-5 min-w-5 shrink-0 items-center justify-center gap-0.5 rounded-[6px] px-0.5 text-[11px] transition-[background-color,color] duration-150 hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:min-w-11",
+          lit ? "font-medium text-accent-ink" : "text-ink-3",
           filterMenu.anchor && "bg-hover",
         )}
       >
@@ -236,7 +236,7 @@ export function AgentFilterChips({
             <span
               key={chip.key}
               data-chip={chip.key}
-              className="inline-flex max-w-full items-center gap-1 rounded-full bg-inset py-0.5 pr-1 pl-2 font-medium text-ink shadow-hairline"
+              className="inline-flex max-w-full items-center gap-1 rounded-full bg-hover py-0.5 pr-1 pl-2 font-medium text-ink"
             >
               {chip.onEdit ? (
                 <button type="button" onClick={chip.onEdit} title={t("sidebar.search_sessions")} className="min-w-0 truncate text-left hover:text-accent-ink">
@@ -249,7 +249,7 @@ export function AgentFilterChips({
                 type="button"
                 aria-label={t("lib-agent-filter.remove_filter", { name: chip.label })}
                 onClick={chip.onRemove}
-                className="flex size-4 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-hover hover:text-ink"
+                className="flex size-4 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-hover-2 hover:text-ink"
               >
                 <Icon name="x" size={9} stroke={2.4} />
               </button>
@@ -259,7 +259,7 @@ export function AgentFilterChips({
             type="button"
             data-testid="scoped-filter-reset"
             onClick={() => onChange(resetOf(filters))}
-            className="ml-auto shrink-0 whitespace-nowrap rounded-control px-1.5 py-0.5 font-medium text-accent-ink hover:bg-hover"
+            className="ml-auto shrink-0 whitespace-nowrap rounded-control px-1.5 py-0.5 font-medium text-accent-ink transition-colors hover:bg-hover"
           >
             {t("lib-agent-filter.reset_filters")}
           </button>
@@ -269,7 +269,7 @@ export function AgentFilterChips({
       {filters.searchAsCode && plan && (
         <div
           data-testid="search-as-code-plan"
-          className="flex items-center gap-1.5 rounded-control bg-inset px-2 py-1 text-[11px] shadow-hairline ring-1 ring-accent/25"
+          className="flex items-center gap-1.5 rounded-[9px] border border-line/80 bg-inset/75 px-2 py-1 text-[11px]"
         >
           <Icon name="code" size={12} stroke={2} className="shrink-0 text-accent-ink" />
           {editingPlan ? (
@@ -366,8 +366,8 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const hasErr = sessionHasError(s, ctx.interactions);
   const statePill = st === "working"
     ? bgWait
-      ? { label: stateName("bg_waiting"), cls: "bg-inset text-ink-3 ring-1 ring-inset ring-line-strong/75" }
-      : { label: stateName("working"), cls: "bg-orange-tint text-orange ring-1 ring-inset ring-orange/25" }
+      ? { label: stateName("bg_waiting"), cls: "bg-hover text-ink-3" }
+      : { label: stateName("working"), cls: "bg-orange-tint/80 text-orange" }
     : undefined;
 
   const evidence = useMemo(
@@ -384,17 +384,8 @@ export const AgentChatListRow = memo(function AgentChatListRow({
   const modelLabel = sessionModelId(s);
   const source = sessionSource(s);
   const regRow = useMemo(() => reg(k), [reg, k]);
-  const cardTone = active
-    ? SESSION_ACTIVE_ROW
-    : st === "needs_you"
-      ? "bg-red/[0.055] ring-1 ring-inset ring-red/20 hover:bg-red/[0.09]"
-      : st === "working" && !bgWait
-        ? "bg-orange-tint/30 ring-1 ring-inset ring-orange/18 hover:bg-orange-tint/50"
-        : st === "unread" && !usageLimited
-          ? "bg-green-tint/25 ring-1 ring-inset ring-green/18 hover:bg-green-tint/45"
-          : pinned
-            ? "bg-inset/50 ring-1 ring-inset ring-line/65 hover:bg-hover"
-            : "hover:bg-hover";
+  const cardTone = active ? SESSION_ACTIVE_ROW : "hover:bg-hover";
+  const metaChip = active ? "bg-canvas/65" : "bg-hover/80";
 
   return (
     <div
@@ -416,29 +407,23 @@ export const AgentChatListRow = memo(function AgentChatListRow({
         onBlur={() => hover(null)}
         aria-current={active ? "page" : undefined}
         className={cx(
-          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-[background-color,box-shadow] duration-150",
+          "relative z-10 flex w-full items-start gap-2.5 rounded-[10px] px-2.5 py-2 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.99]",
           cardTone,
         )}
       >
-        {/* Left: Squircle Harness Avatar Tile + corner live StatusMark badge */}
+        {/* Left: Borderless harness icon + corner live StatusMark badge */}
         <span
           className={cx(
-            "relative mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-[8px] ring-1 ring-inset transition-colors",
-            active
-              ? "bg-surface text-ink shadow-2xs ring-line-strong"
-              : st === "needs_you"
-                ? "bg-surface/90 text-ink ring-red/25"
-                : st === "working" && !bgWait
-                  ? "bg-surface/90 text-ink ring-orange/30"
-                  : "bg-inset/85 text-ink-2 ring-line/65",
-            st === "offline" && "opacity-55",
+            "relative mt-0.5 flex size-6 shrink-0 items-center justify-center bg-transparent transition-colors",
+            active || st === "needs_you" || (st === "working" && !bgWait) ? "text-ink" : "text-ink-2",
+            st === "offline" && "opacity-50",
           )}
         >
-          <SessionMark s={s} size={15} className="text-current" />
+          <SessionMark s={s} size={16} className="text-current" />
           <span
             className={cx(
-              "pointer-events-none absolute -right-1 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-1",
-              active ? "bg-surface ring-surface" : "bg-canvas ring-canvas",
+              "pointer-events-none absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-1 transition-colors",
+              active ? "bg-hover-2 ring-hover-2" : "bg-canvas ring-canvas group-hover/row:bg-hover group-hover/row:ring-hover",
               quietMark && "scale-75 opacity-35",
             )}
           >
@@ -459,10 +444,10 @@ export const AgentChatListRow = memo(function AgentChatListRow({
               className={cx(
                 "min-w-0 flex-1 truncate text-[13px] leading-tight tracking-[-0.006em]",
                 active || st === "needs_you" || (st === "working" && !bgWait) || (st === "unread" && !usageLimited)
-                  ? "font-semibold text-ink"
+                  ? "font-medium text-ink"
                   : st === "offline"
-                    ? "text-ink-3/75"
-                    : "font-medium text-ink-2",
+                    ? "font-normal text-ink-3"
+                    : "font-normal text-ink-2",
               )}
             >
               {sessionTitle(s)}
@@ -515,39 +500,39 @@ export const AgentChatListRow = memo(function AgentChatListRow({
           {/* Line 3: Compact metadata capsules (Machine · Project · Tab · Harness · Model) */}
           <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10.5px] leading-4 text-ink-3" data-testid="agent-chatlist-chips">
             {machineLabel && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
+              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
                 <Icon name="machine" size={9} stroke={2} />
                 <span className="truncate">{machineLabel}</span>
               </span>
             )}
             {projectLabel && (
-              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
+              <span className={cx("inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
                 <Icon name="folder" size={9} stroke={2} />
                 <span className="truncate">{projectLabel}</span>
               </span>
             )}
             {tabIdentity && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45" title={tabIdentity}>
+              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)} title={tabIdentity}>
                 <span className="truncate">{tabIdentity}</span>
               </span>
             )}
             {harnessLabel && (
-              <span className="inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45">
+              <span className={cx("inline-flex max-w-[96px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px", metaChip)}>
                 <span className="truncate">{harnessLabel}</span>
               </span>
             )}
             {modelLabel && (
-              <span className="inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] bg-inset/80 px-1.5 py-px font-mono text-[10px] ring-1 ring-inset ring-line/45">
+              <span className={cx("inline-flex max-w-[110px] items-center gap-0.5 truncate rounded-[5px] px-1.5 py-px font-mono text-[10px]", metaChip)}>
                 <span className="truncate">{modelLabel}</span>
               </span>
             )}
             {source && (
-              <span className="inline-flex items-center rounded-[5px] bg-inset/80 px-1.5 py-px ring-1 ring-inset ring-line/45" title={sourceName(source)}>
+              <span className={cx("inline-flex items-center rounded-[5px] px-1.5 py-px", metaChip)} title={sourceName(source)}>
                 {sourceName(source)}
               </span>
             )}
             {hasErr && st !== "needs_you" && (
-              <span className="inline-flex items-center gap-0.5 rounded-[5px] bg-red/10 px-1.5 py-px font-medium text-red ring-1 ring-inset ring-red/20">
+              <span className="inline-flex items-center gap-0.5 rounded-[5px] bg-red/10 px-1.5 py-px font-medium text-red">
                 <Icon name="warning" size={9} stroke={2.2} />
               </span>
             )}
@@ -556,7 +541,7 @@ export const AgentChatListRow = memo(function AgentChatListRow({
       </a>
 
       {/* Hover / right actions: One-click Pin/Unpin button + More menu button */}
-      <div className="absolute top-1.5 right-1.5 z-20 hidden items-center gap-0.5 group-hover/row:flex [@media(hover:none)]:flex">
+      <div className="pointer-events-none absolute top-1.5 right-1.5 z-20 flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/row:pointer-events-auto group-hover/row:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">
         <button
           type="button"
           data-testid="agent-row-pin-button"
@@ -568,7 +553,8 @@ export const AgentChatListRow = memo(function AgentChatListRow({
             void flipPin(s);
           }}
           className={cx(
-            "flex size-6 items-center justify-center rounded-[6px] bg-hover transition-colors hover:bg-hover-2",
+            "flex size-6 items-center justify-center rounded-[6px] transition-[background-color,color] duration-150",
+            active ? "hover:bg-hover" : "hover:bg-hover-2",
             pinned ? "text-accent" : "text-ink-3 hover:text-ink",
           )}
         >
@@ -585,7 +571,7 @@ export const AgentChatListRow = memo(function AgentChatListRow({
               e.stopPropagation();
               onMenu(s, e.currentTarget.parentElement ?? e.currentTarget);
             }}
-            className="flex size-6 items-center justify-center rounded-[6px] bg-hover text-ink-3 hover:bg-hover-2 hover:text-ink"
+            className={cx("flex size-6 items-center justify-center rounded-[6px] text-ink-3 transition-[background-color,color] duration-150 hover:text-ink", active ? "hover:bg-hover" : "hover:bg-hover-2")}
           >
             <Icon name="more" size={13} />
           </button>

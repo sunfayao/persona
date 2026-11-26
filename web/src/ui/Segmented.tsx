@@ -62,9 +62,11 @@ export function SegmentedTrack({ role, label, className, thumbClassName, childre
     return () => cancelAnimationFrame(id);
   }, [box, ready]);
 
+  const thumbRadius = /\brounded(?:-|$)/.test(thumbClassName) ? undefined : "rounded-[7px]";
+
   return (
-    <div ref={ref} role={role} aria-label={label} className={cx("relative bg-seg-track", className)} {...rest}>
-      {box && <span aria-hidden data-testid="seg-thumb" data-ready={ready} className={cx("seg-thumb", thumbClassName)} style={{ width: box.w, height: box.h, transform: `translate(${box.x}px, ${box.y}px)` }} />}
+    <div ref={ref} role={role} aria-label={label} className={cx("relative bg-seg-track ring-1 ring-inset ring-line/60", className)} {...rest}>
+      {box && <span aria-hidden data-testid="seg-thumb" data-ready={ready} className={cx("seg-thumb will-change-[transform,width]", thumbRadius, thumbClassName)} style={{ width: box.w, height: box.h, transform: `translate(${box.x}px, ${box.y}px)` }} />}
       {children}
     </div>
   );

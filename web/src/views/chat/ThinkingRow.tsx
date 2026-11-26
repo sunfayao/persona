@@ -77,7 +77,7 @@ export function ThinkingRow({ item, scope = "" }: { item: Item; scope?: string }
           <ThinkingText tokens={tokens} />
         </span>
         <span aria-hidden className={CHEVRON_SLOT}>
-          {opens && <Icon name="chevronRight" size={13} stroke={2.2} className="transition-transform duration-150 motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
+          {opens && <Icon name="chevronRight" size={13} stroke={2.2} className="transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
         </span>
       </div>
       {open && hasTelemetry && <StepTelemetry items={stepItems} className="mt-1 mb-1 pl-7" />}

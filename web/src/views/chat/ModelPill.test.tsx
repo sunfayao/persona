@@ -53,10 +53,10 @@ describe("the pill's states", () => {
     expect(html.indexOf('data-agent-mark="claude"')).toBeLessThan(html.indexOf('<span title="Opus 5.5"'));
     expect(html.indexOf("data-pill-effort")).toBeGreaterThan(html.indexOf('<span title="Opus 5.5"'));
     expect(html).not.toContain("·</span>");
-    // bare at rest, a capsule on hover and while open
+    // bare at rest, a soft warm pill on hover and while open
     expect(html).toContain("border-transparent");
-    expect(html).toContain("hover:border-line-strong");
-    expect(html).toContain("aria-expanded:bg-hover");
+    expect(html).toContain("hover:bg-hover");
+    expect(html).toContain("aria-expanded:bg-hover-2");
   });
 
   it("takes the composer card's widths: its words' width under 600, a step smaller under 520, the mark and chevron alone under 420", () => {

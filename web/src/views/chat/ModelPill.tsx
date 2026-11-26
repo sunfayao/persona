@@ -127,14 +127,14 @@ export function ModelPill({
       )}
       {/* the name gives way first (a far larger shrink than the effort's): narrow, the effort truncates only once the
           name has no room left */}
-      <span title={name} className={cx("shrink-[1000] truncate text-ink @max-[600px]/composer:max-w-[108px]", launcher ? "min-w-[3ch]" : "min-w-0", short !== name && "@max-[600px]/composer:hidden", !launcher && ULTRA_HIDDEN)}>{name}</span>
+      <span title={name} className={cx("shrink-[1000] truncate @max-[600px]/composer:max-w-[108px]", launcher ? "min-w-[3ch]" : "min-w-0", short !== name && "@max-[600px]/composer:hidden", !launcher && ULTRA_HIDDEN)}>{name}</span>
       {/* narrow, the name without its bracketed qualifier, a context size kept short (the tooltip keeps all of it): the
           108 px would cut it there */}
       {short !== name && (
-        <span title={name} data-pill-short className={cx("hidden shrink-[1000] truncate text-ink @max-[600px]/composer:block @max-[600px]/composer:max-w-[108px]", launcher ? "min-w-[3ch]" : "min-w-0", !launcher && ULTRA_HIDDEN)}>{short}</span>
+        <span title={name} data-pill-short className={cx("hidden shrink-[1000] truncate @max-[600px]/composer:block @max-[600px]/composer:max-w-[108px]", launcher ? "min-w-[3ch]" : "min-w-0", !launcher && ULTRA_HIDDEN)}>{short}</span>
       )}
       {shown.effort && (
-        <span title={effort} data-pill-effort className={cx("ml-1 shrink-0 whitespace-nowrap text-ink @max-[600px]/composer:min-w-0 @max-[600px]/composer:shrink @max-[600px]/composer:truncate", ULTRA_HIDDEN)}>
+        <span title={effort} data-pill-effort className={cx("ml-1 shrink-0 whitespace-nowrap @max-[600px]/composer:min-w-0 @max-[600px]/composer:shrink @max-[600px]/composer:truncate", ULTRA_HIDDEN)}>
           {pillEffort(shown.effort)}
         </span>
       )}
@@ -142,19 +142,19 @@ export function ModelPill({
       {workflow && !pending && <UltraMark size={12} label={workflow.label} title={workflow.title} className={cx("ml-0.5", ULTRA_HIDDEN)} />}
       {!unknown && loading && <span className="ml-0.5 flex shrink-0"><Spinner size={12} /></span>}
       {!unknown && failed && !loading && <Icon name="warning" stroke={2} className="ml-0.5 size-[12px] shrink-0 text-red @max-[520px]/composer:size-[11px]" />}
-      {onOpen && <Icon name="chevron" stroke={2} className="size-[14px] shrink-0 text-ink-2 @max-[520px]/composer:size-[13px]" />}
+      {onOpen && <Icon name="chevron" stroke={2} className="size-[14px] shrink-0 text-ink-3 @max-[520px]/composer:size-[13px]" />}
     </>
   );
   const shell = cx(
-    // Cindy's bare toolbar pill: no frame at rest, the capsule shows on hover and while its panel is open
-    "flex h-[30px] max-w-[min(560px,100%)] min-w-[72px] shrink items-center rounded-full border border-transparent px-2.5 text-[13px] leading-normal whitespace-nowrap transition-colors duration-150",
+    // Calm bottom-bar model pill: borderless at rest, soft warm squircle wash on hover and while its panel is open
+    "flex h-8 max-w-[min(560px,100%)] min-w-[72px] shrink items-center rounded-[9px] border border-transparent px-2.5 text-[13px] leading-normal whitespace-nowrap text-ink-2 transition-[background-color,color] duration-150",
     // narrow, it still takes the width its words need (a fixed width cut "Opus 5.5" to "Opus …" beside free room) and
     // shrinks, the name first, only when the row is short of room
     "@max-[520px]/composer:text-[12px] @max-[420px]/composer:min-w-[64px]",
     // Under 420 px an explicit launcher keeps its model label; other pills keep only the mark and the chevron (64 px).
     (pending || launcher) ? "@max-[420px]/composer:w-auto" : "@max-[420px]/composer:w-[64px]",
   );
-  // the clip is inside, so the touch target (touch-hit) can reach past the pill's 30 px
+  // the clip is inside, so the touch target (touch-hit) can reach past the pill's 32 px
   const inner = "flex min-w-0 flex-1 items-center gap-1 overflow-hidden";
   if (!onOpen) {
     return (
@@ -179,7 +179,7 @@ export function ModelPill({
       onClick={(e) => onOpen(e.currentTarget)}
       className={cx(
         shell,
-        "touch-hit hover:border-line-strong hover:bg-hover focus-visible:rounded-full! aria-expanded:border-line-strong aria-expanded:bg-hover",
+        "touch-hit hover:bg-hover hover:text-ink focus-visible:rounded-[9px]! aria-expanded:bg-hover-2 aria-expanded:text-ink",
         disabled && "pointer-events-none opacity-50",
       )}
     >

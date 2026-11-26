@@ -30,7 +30,7 @@ export function CollapseButton({ collapsed, chord }: { collapsed: boolean; chord
       aria-label={label}
       aria-expanded={!collapsed}
       title={chord ? `${label} (${formatChord(chord)})` : label}
-      className="touch-hit relative z-10 flex size-8 shrink-0 items-center justify-center rounded-control text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover hover:text-ink active:scale-[0.94]"
+      className="touch-hit relative z-10 flex size-8 shrink-0 items-center justify-center rounded-[8px] text-ink-3 transition-[background-color,color,transform] duration-150 ease-out hover:bg-hover hover:text-ink active:scale-[0.94]"
     >
       <Icon name="sidebar" size={15} stroke={1.8} />
     </button>
@@ -51,7 +51,7 @@ export function PagesTally({ pages }: { pages: NavPage[] }) {
   );
 }
 
-const RAIL_ITEM = "touch-hit relative flex size-9 shrink-0 items-center justify-center rounded-[9px] transition-[background-color,color,transform] duration-150 active:scale-[0.94]";
+const RAIL_ITEM = "touch-hit relative flex size-9 shrink-0 items-center justify-center rounded-[9px] transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.95]";
 
 /**
  * The sidebar folded on a wide screen: one column of icons, the open page filled, a page's count turned into a dot on
@@ -91,7 +91,7 @@ export function SidebarRail({ route, onSearch, onNewAgent }: { route: Route; onS
       <button type="button" onClick={onSearch} aria-label={t("sidebar.search_sessions")} title={`${t("sidebar.search_sessions")} (${JUMP_HINT})`} className={cx(RAIL_ITEM, "mt-1 text-ink-3 hover:bg-hover hover:text-ink")}>
         <Icon name="search" size={15} stroke={1.8} />
       </button>
-      <span aria-hidden className="my-2 h-px w-6 shrink-0 bg-line" />
+      <span aria-hidden className="my-2 h-px w-6 shrink-0 bg-line/70" />
       <nav aria-label={t("sidebar.pages")} className="flex min-h-0 w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overscroll-contain">
         {link(
           "persona",

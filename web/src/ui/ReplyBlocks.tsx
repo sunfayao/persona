@@ -11,13 +11,13 @@ export const ReplyStreaming = createContext(false);
  *  none), Copy on the right, which takes the whole block. Copy is 24 px drawn, 44 px to the finger (`touch-hit`). */
 export function CodeBar({ lang, onCopy }: { lang: string; onCopy: () => void }) {
   return (
-    <div className="flex h-8 items-center gap-2 bg-ink/[0.05] pr-1.5 pl-3 text-[12px] text-ink-3" data-code-bar>
-      {lang && <span className="min-w-0 truncate font-medium">{lang}</span>}
+    <div className="flex h-8 items-center gap-2 border-b border-line/70 bg-ink/[0.03] pr-1.5 pl-3 text-label text-ink-3" data-code-bar>
+      {lang && <span className="min-w-0 truncate font-mono text-submeta font-medium">{lang}</span>}
       <button
         type="button"
         aria-label={t("ui-markdown.copy_code")}
         onClick={onCopy}
-        className="ml-auto flex h-6 touch-hit items-center gap-1 rounded-[6px] px-1.5 whitespace-nowrap transition-colors hover:bg-hover-2 hover:text-ink focus-visible:text-ink"
+        className="ml-auto flex h-6 touch-hit items-center gap-1 rounded-chip px-1.5 whitespace-nowrap transition-[background-color,color,transform] duration-150 hover:bg-hover-2 hover:text-ink focus-visible:text-ink active:scale-[0.97]"
       >
         <Icon name="copy" size={13} />
         {t("ui-markdown.copy")}
@@ -71,10 +71,10 @@ export function ReplyQuote({ children }: { children?: ReactNode }) {
           aria-expanded={open}
           aria-label={open ? t("ui-markdown.quote_less") : t("ui-markdown.quote_more")}
           onClick={() => setOpen((o) => !o)}
-          className="absolute right-1 bottom-1 flex size-6 touch-hit items-center justify-center rounded-[6px] text-accent-ink transition-colors hover:bg-hover-2"
+          className="absolute right-1 bottom-1 flex size-6 touch-hit items-center justify-center rounded-chip text-accent-ink transition-colors duration-150 hover:bg-hover-2"
           data-quote-fold
         >
-          <Icon name="chevron" size={14} className={cx(open && "rotate-180")} />
+          <Icon name="chevron" size={14} className={cx("transition-transform duration-150", open && "rotate-180")} />
         </button>
       )}
     </blockquote>

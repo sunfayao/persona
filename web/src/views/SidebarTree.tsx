@@ -54,7 +54,7 @@ const TreeAgentRows = memo(function TreeAgentRows({ a, depth, machineLabel, show
       <div className="flex items-center">
         {a.children.length > 0 && (
           <button type="button" aria-expanded={!folded} aria-label={t("lib-todo-tree.spawned_agents", { count: a.children.length })} onClick={toggle} className="touch-hit relative z-10 -mr-1 flex size-4 shrink-0 items-center justify-center text-ink-3">
-            <Icon name="chevron" size={9} stroke={2.4} className="opacity-60 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+            <Icon name="chevron" size={9} stroke={2.2} className="opacity-65 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
           </button>
         )}
         <div className="min-w-0 flex-1">
@@ -63,7 +63,7 @@ const TreeAgentRows = memo(function TreeAgentRows({ a, depth, machineLabel, show
       </div>
       {a.children.length > 0 && (
         <Collapse open={!folded} sidebarFold>
-          <div className="flex flex-col gap-0.5 border-l border-line/60 ml-2.5 pl-1.5" inert={folded || undefined}>
+          <div className="ml-2.5 flex flex-col gap-0.5 border-l border-line/55 pl-1.5" inert={folded || undefined}>
             {a.children.map((c) => <SpawnedAgentRows key={c.key} a={c} depth={depth + 1} machineLabel={machineLabel} showHost={showHost} noContext={noContext} keyPrefix={keyPrefix} reg={reg} hover={hover} activeKey={withinAgent(c, activeKey)} go={go} onRowMenu={onRowMenu} />)}
           </div>
         </Collapse>
@@ -90,8 +90,8 @@ export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinne
       onMenu={(at, el) => onMenu(sp, el, at, { folded, toggle })}
       title={
         <span className="flex items-center gap-x-1.5 max-lg:flex-wrap">
-          <Icon name="folder" size={11} stroke={1.9} className="shrink-0 text-ink-3/80" />
-          <span className="truncate max-lg:whitespace-normal max-lg:wrap-anywhere normal-case tracking-normal text-[11.5px] font-semibold text-ink-2 group-hover/sec:text-ink">{sp.name}</span>
+          <Icon name="folder" size={11} stroke={1.8} className="shrink-0 text-ink-3/75" />
+          <span className="truncate max-lg:whitespace-normal max-lg:wrap-anywhere normal-case tracking-normal text-[12px] font-medium text-ink-2 transition-colors group-hover/sec:text-ink">{sp.name}</span>
           <SpaceMarks pinned={pinned} muted={muted} />
           {machineName && <span className="truncate max-lg:basis-full normal-case tracking-normal text-[11px] font-normal text-ink-3">{machineName}</span>}
         </span>

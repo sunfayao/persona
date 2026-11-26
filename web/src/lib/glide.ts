@@ -38,13 +38,29 @@ export function clipsOverflow(overflowY: string): boolean {
   return overflowY === "hidden" || overflowY === "clip";
 }
 
+/** Horizontal span in the list's coordinates, so indented rows glide smoothly in X and width too. */
+export type GlideSpanX = { left: number; width: number };
+
 /** How long the highlight takes to glide to its next row. */
-const GLIDE_MS = 220;
+const GLIDE_MS = 175;
 
 /** The highlight's inline style over `at` (shown when `on`), for the sidebar and the admin page's nav. It moves by
  *  transform, which the compositor animates without laying the list out each frame (animating `top` / `height` did:
  *  5x the layouts on a sweep over the rows). The height is set straight away: the rows are near-uniform, and scaling
  *  the box instead would stretch its rounded corners. */
-export function glideStyle(at: GlideBox | null, on: boolean, ease: string): CSSProperties {
-  return { top: 0, height: at?.height ?? 0, transform: `translateY(${at?.top ?? 0}px)`, opacity: on ? 1 : 0, transition: `transform ${GLIDE_MS}ms ${ease}, opacity 150ms ease` };
+export function glideStyle(at: GlideBox | null, on: boolean, ease: string, horiz?: GlideSpanX): CSSProperties {
+  const y = at?.top ?? 0;
+  if (horiz) {
+    return {
+      top: 0,
+      left: 0,
+      right: "auto",
+      width: horiz.width,
+      height: at?.height ?? 0,
+      transform: `translate(${horiz.left}px, ${y}px)`,
+      opacity: on ? 1 : 0,
+      transition: `transform ${GLIDE_MS}ms ${ease}, width ${GLIDE_MS}ms ${ease}, opacity 140ms ease`,
+    };
+  }
+  return { top: 0, height: at?.height ?? 0, transform: `translateY(${y}px)`, opacity: on ? 1 : 0, transition: `transform ${GLIDE_MS}ms ${ease}, opacity 140ms ease` };
 }

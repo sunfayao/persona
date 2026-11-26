@@ -92,7 +92,7 @@ describe("the + (#5324)", () => {
     render();
     expect(plus().getAttribute("aria-label")).toBe(t("chat-composer.add_more"));
     expect(plus().title).toBe(t("chat-composer.more_actions"));
-    expect(plus().className).toContain("rounded-full");
+    expect(plus().className).toContain("rounded-[9px]");
     expect(plus().className).toContain("border-transparent");
     const labels = [...host.querySelectorAll("button")].map((b) => b.textContent);
     expect(labels).not.toContain("/");
@@ -400,7 +400,7 @@ describe("the round button (#5324)", () => {
     localStorage.setItem(`draft:${KEY}`, "hello");
     render({ onStop: () => {} });
     expect(send()!.getAttribute("aria-label")).toBe(t("chat-composer.send"));
-    expect(send()!.className).toContain("rounded-full");
+    expect(send()!.className).toContain("rounded-[10px]");
     expect(stops()).toHaveLength(0);
   });
 

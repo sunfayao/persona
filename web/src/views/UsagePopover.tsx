@@ -209,17 +209,18 @@ export function UsagePopover({
       aria-label={tr("usage.title")}
       data-usage-popover
       className={cx(
-        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-card border border-line bg-surface shadow-overlay lg:right-auto",
+        "absolute bottom-full left-2 right-2 z-20 mb-2 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl border border-line/90 bg-surface shadow-overlay lg:right-auto",
         selectedCompact ? "lg:w-184" : "lg:w-[26rem]",
       )}
+      style={{ animation: "pop-in 180ms var(--ease-out-strong) both" }}
     >
-      <header className="shrink-0 border-b border-line/80 bg-surface px-3.5 py-2.5">
+      <header className="shrink-0 border-b border-line/75 bg-surface px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon name="gauge" size={14} className="shrink-0 text-ink-3" />
           <h2 className="text-meta font-semibold tracking-[-0.01em] text-ink">{tr("usage.short_title")}</h2>
           <span className="min-w-0 flex-1 truncate text-submeta text-ink-3">{tr("usage.used")}</span>
           {deviceGroups.length > 0 && (
-            <div role="group" aria-label={tr("usage.display")} className="inline-flex shrink-0 items-center rounded-lg bg-inset p-0.5 ring-1 ring-inset ring-line/60">
+            <div role="group" aria-label={tr("usage.display")} className="inline-flex shrink-0 items-center rounded-control bg-inset p-0.5 ring-1 ring-inset ring-line/70">
               {(["detailed", "compact"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -227,7 +228,7 @@ export function UsagePopover({
                   aria-pressed={view === mode}
                   onClick={() => setView(mode)}
                   className={cx(
-                    "min-h-7 rounded-md px-2.5 text-submeta font-medium transition-colors",
+                    "min-h-7 rounded-chip px-2.5 text-submeta font-medium transition-[background-color,color,box-shadow] duration-150",
                     view === mode ? "bg-surface text-ink shadow-hairline" : "text-ink-3 hover:text-ink",
                   )}
                 >
@@ -243,7 +244,7 @@ export function UsagePopover({
             disabled={refreshing}
             aria-busy={refreshing || undefined}
             onClick={refreshAccounts}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-hover hover:text-ink disabled:opacity-60"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-ink-3 transition-[background-color,color,transform] duration-150 hover:bg-hover hover:text-ink active:scale-[0.94] disabled:opacity-60"
           >
             <Icon name="retry" size={14} className={refreshing ? BUSY_MOTION : undefined} style={refreshing ? spinStyle(900) : undefined} />
           </button>
@@ -254,15 +255,15 @@ export function UsagePopover({
       </header>
 
       {view === "detailed" && deviceGroups.length >= 2 && (
-        <div role="group" aria-label={tr("usage.devices")} data-usage-device-filter className="scrollbar-none flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-line/70 bg-inset/30 px-3 py-2">
+        <div role="group" aria-label={tr("usage.devices")} data-usage-device-filter className="scrollbar-none flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-line/70 bg-inset/35 px-3.5 py-2">
           <button
             type="button"
             data-usage-filter="all"
             aria-pressed={activeDevice === "all"}
             onClick={() => setDeviceFilter("all")}
             className={cx(
-              "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-colors",
-              activeDevice === "all" ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/80" : "bg-inset/60 text-ink-3 hover:bg-hover hover:text-ink",
+              "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-[background-color,color] duration-150",
+              activeDevice === "all" ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/85" : "bg-inset/70 text-ink-3 hover:bg-hover hover:text-ink",
             )}
           >
             <span>{tr("usage.all_devices")}</span>
@@ -279,8 +280,8 @@ export function UsagePopover({
                 aria-pressed={on}
                 onClick={() => setDeviceFilter(on ? "all" : dev.key)}
                 className={cx(
-                  "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-colors",
-                  on ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/80" : "bg-inset/60 text-ink-2 hover:bg-hover hover:text-ink",
+                  "inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-submeta font-medium transition-[background-color,color] duration-150",
+                  on ? "bg-surface text-ink shadow-hairline ring-1 ring-inset ring-line/85" : "bg-inset/70 text-ink-2 hover:bg-hover hover:text-ink",
                 )}
               >
                 {dev.online !== undefined ? (
@@ -385,6 +386,7 @@ export function UsagePopover({
           </div>
         )}
       </div>
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-6 bg-linear-to-t from-surface via-surface/70 to-transparent" />
     </div>
   );
 }
@@ -393,13 +395,13 @@ function DeviceCard({ device, now, pinned }: { device: DeviceGroup; now: number;
   const title = deviceTitle(device);
   const onlineLabel = device.online !== undefined ? (device.online ? tr("usage.device_online") : tr("usage.device_offline")) : "";
   return (
-    <section data-usage-device={device.key} aria-label={title} className="overflow-hidden rounded-xl border border-line/80 bg-inset/35">
-      <header className="flex items-center justify-between gap-2 border-b border-line/60 bg-inset/55 px-3.5 py-2">
+    <section data-usage-device={device.key} aria-label={title} className="overflow-hidden rounded-xl border border-line/80 bg-page/60">
+      <header className="flex items-center justify-between gap-2 border-b border-line/65 bg-inset/60 px-3.5 py-2">
         <div className="flex min-w-0 items-center gap-1.5">
           <Icon name={device.kind === "global" ? "cloud" : "machine"} size={13} className="shrink-0 text-ink-3" />
           <h3 className="min-w-0 truncate text-label font-semibold text-ink">{title}</h3>
           {device.subtitle && (
-            <span className="shrink-0 rounded-chip bg-surface/85 px-1.5 py-px font-mono text-submeta text-ink-3 ring-1 ring-inset ring-line/60">
+            <span className="shrink-0 rounded-chip bg-surface/85 px-1.5 py-px font-mono text-submeta text-ink-3 ring-1 ring-inset ring-line/65">
               {device.subtitle}
             </span>
           )}
@@ -412,7 +414,7 @@ function DeviceCard({ device, now, pinned }: { device: DeviceGroup; now: number;
         </div>
         {device.sampledAt && <span className="shrink-0 text-submeta tabular-nums text-ink-3">{sampleAge(device.sampledAt, now)}</span>}
       </header>
-      <div className="divide-y divide-line/60 bg-surface/75">
+      <div className="divide-y divide-line/60 bg-surface/85">
         {device.providers.map((g) => (
           <ProviderSection key={g.provider} group={g} device={device} now={now} pinned={pinned} />
         ))}
@@ -437,7 +439,7 @@ function ProviderSummary({ group, selected, detailsId, now, onClick }: { group: 
       aria-expanded={selected}
       aria-controls={selected ? detailsId : undefined}
       onClick={onClick}
-      className={cx("flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-hover", selected && "bg-hover")}
+      className={cx("flex min-h-10 items-center gap-2.5 rounded-control px-2.5 py-2 text-left transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.99]", selected && "bg-hover-2")}
     >
       <AgentMark agent={group.provider} label={name} decorative size={15} />
       <span className="min-w-0 flex-1">
@@ -502,7 +504,7 @@ function ProviderSection({ group, device, now, pinned }: { group: ProviderGroup;
           const subLabel = distinctAccountLabel(a.name, providerName, group.provider, device) || a.name;
           const ageText = a.stale ? tr("usage.stale_age", { age: sampleAge(a.sampled_at, now) }) : sampleAge(a.sampled_at, now);
           return (
-            <section key={a.id} aria-label={a.name} className={cx("flex flex-col gap-2.5 rounded-lg bg-inset/45 px-3 py-2.5 ring-1 ring-inset ring-line/50", a.stale && "opacity-70")}>
+            <section key={a.id} aria-label={a.name} className={cx("flex flex-col gap-2.5 rounded-control bg-inset/50 px-3 py-2.5 ring-1 ring-inset ring-line/55", a.stale && "opacity-70")}>
               <header className="flex flex-col gap-0.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -536,8 +538,8 @@ function PinButton({ a, pinned }: { a: UsageAccount; pinned: boolean }) {
       title={pinned ? tr("usage.unpin_title") : tr("usage.pin_title")}
       onClick={() => togglePinnedUsageAccount(a.id)}
       className={cx(
-        "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors",
-        pinned ? "bg-hover text-accent-ink" : "text-ink-3/75 hover:bg-hover hover:text-ink",
+        "inline-flex size-6 shrink-0 items-center justify-center rounded-chip transition-[background-color,color,transform] duration-150 active:scale-[0.94]",
+        pinned ? "bg-hover-2 text-accent-ink" : "text-ink-3/75 hover:bg-hover hover:text-ink",
       )}
     >
       <Icon name="pin" size={12} />
@@ -576,7 +578,7 @@ function AccountBody({ a, now }: { a: UsageAccount; now: number }) {
   return (
     <>
       {a.balance && (
-        <div data-usage-balance className="flex items-baseline justify-between gap-2 rounded-lg bg-inset/60 px-3 py-2 ring-1 ring-inset ring-line/60">
+        <div data-usage-balance className="flex items-baseline justify-between gap-2 rounded-control bg-inset/60 px-3 py-2 ring-1 ring-inset ring-line/60">
           <span className="text-label text-ink-3">{tr("usage.balance_label")}</span>
           <span className={cx("text-meta font-semibold tabular-nums", balanceEmpty(a.balance) ? "text-orange" : "text-ink")}>{balanceText(a.balance)}</span>
         </div>
@@ -602,7 +604,7 @@ function ProviderTimeline({ accounts, now }: { accounts: UsageAccount[]; now: nu
   if (!rows.length) return null;
   const tickLabel = (h: number) => (h < 24 ? tr("usage.hours", { h }) : tr("usage.days", { d: h / 24 }));
   return (
-    <details data-usage-timeline className="group/timeline @container/usage-timeline rounded-lg bg-inset/40 ring-1 ring-inset ring-line/50">
+    <details data-usage-timeline className="group/timeline @container/usage-timeline rounded-control bg-inset/45 ring-1 ring-inset ring-line/55">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-submeta font-medium text-ink-3 select-none hover:text-ink [&::-webkit-details-marker]:hidden">
         <span className="inline-flex items-center gap-1.5">
           <Icon name="clock" size={12} className="shrink-0 text-ink-3" />
@@ -711,7 +713,7 @@ function WindowRow({ name, w, stale, now }: { name: string; w: UsageWindow; stal
           {w.label}
         </span>
         {w.model && (
-          <span data-usage-model className="max-w-[11.5rem] shrink-0 truncate rounded-chip bg-inset px-2 py-0.5 text-submeta font-medium text-ink-2 ring-1 ring-inset ring-line/60" title={w.model}>
+          <span data-usage-model className="max-w-[11.5rem] shrink-0 truncate rounded-chip bg-inset/80 px-2 py-0.5 text-submeta font-medium text-ink-2 ring-1 ring-inset ring-line/65" title={w.model}>
             {w.model}
           </span>
         )}

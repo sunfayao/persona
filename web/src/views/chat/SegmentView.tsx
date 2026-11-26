@@ -111,7 +111,7 @@ export function UserBubble({ msg, mid, sid, pending, sendState, starting, onDele
   const forwards = msg.contexts.filter((c) => c.kind === "forward");
   const contexts = msg.contexts.filter((c) => c.kind !== "forward" && !inlineMentionAt(c, msg.text));
   return (
-    <div className="ml-auto flex max-w-[min(100%,488px)] min-w-0 flex-col items-end gap-1.5 pl-4 sm:pl-8" style={pending ? { animation: `fade-up 300ms ${EASE} both` } : undefined} data-user-bubble data-send-state={sendState} data-items={pending || starting ? undefined : [msg.id, ...msg.images.map((i) => i.id)].join(" ")}>
+    <div className="ml-auto flex max-w-[min(100%,488px)] min-w-0 flex-col items-end gap-1.5 pl-4 sm:pl-8" style={pending ? { animation: `fade-up 220ms ${EASE} both` } : undefined} data-user-bubble data-send-state={sendState} data-items={pending || starting ? undefined : [msg.id, ...msg.images.map((i) => i.id)].join(" ")}>
       {msg.images.length > 0 && (
         <div className="flex flex-wrap justify-end gap-1.5">
           {msg.images.map((im) => (
@@ -190,13 +190,13 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
         </span>
       )}
       {split || forwards?.length ? (
-        <div className={`flex max-w-full flex-col gap-1.5 rounded-[12px] ${fill} px-4 py-2.5 text-ink ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
+        <div className={`flex max-w-full flex-col gap-1.5 rounded-[18px] ${fill} px-4 py-2.5 font-sans text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80 ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
           {forwards.length > 1 ? <ForwardCards blocks={blocks} count={forwards.length} /> : forwards.map((c, i) => <ForwardBlock key={i} c={c} />)}
           {split && <QuoteStack blocks={split.quotes} mid={mid} sid={sid} />}
           {words}
         </div>
       ) : (
-        <div className={`max-w-full rounded-[12px] ${fill} px-4 py-2.5 text-ink ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
+        <div className={`max-w-full rounded-[18px] ${fill} px-4 py-2.5 font-sans text-ink ring-1 ring-inset ring-line/55 dark:ring-line/80 ${pending ? "opacity-60" : ""}`} title={clock(ts)} data-hit-target>
           {words}
         </div>
       )}
@@ -234,9 +234,9 @@ function ChannelSource({ clientMsgId, openedBy }: { clientMsgId?: string; opened
   );
 }
 
-/** An answer's prose at the chat's body size, 1.6 lines. Important: styles.css's `.prose-j` (14 / 1.7) is outside
- *  Tailwind's layers, so it would win over a plain utility. */
-const ANSWER = "[&_.prose-j]:text-[length:var(--chat-body)]! [&_.prose-j]:leading-[1.6]!";
+/** An answer's prose at the chat's body size with airy editorial leading (1.72). Important: styles.css's `.prose-j`
+ *  (14 / 1.7) is outside Tailwind's layers, so it would win over a plain utility. */
+const ANSWER = "[&_.prose-j]:text-[length:var(--chat-body)]! [&_.prose-j]:leading-[1.72]!";
 
 /** What the agent said, without a bubble, the chat's body size (15, 16 on a phone) / 1.6. `fade`: it just came in, its
  *  words fade in once. Still streaming, it has the same right-click / long-press menu (copy what is there so far, quote

@@ -279,8 +279,8 @@ function glideStore() {
 function GlideHighlight({ box }: { box: ReturnType<typeof glideStore> }) {
   // box.get is the server snapshot too: the shell views are also rendered to a string (shell-views.test)
   const { at, on, left, width } = useSyncExternalStore(box.subscribe, box.get, box.get);
-  const style = width !== undefined && left !== undefined ? { ...glideStyle(at, on, EASE), left, right: "auto", width } : glideStyle(at, on, EASE);
-  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[9px] bg-hover" style={style} />;
+  const horiz = width !== undefined && left !== undefined ? { left, width } : undefined;
+  return <span aria-hidden data-glide className="pointer-events-none absolute inset-x-2.5 rounded-[9px] bg-hover" style={glideStyle(at, on, EASE, horiz)} />;
 }
 
 export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Route; onSearch: () => void; onNewAgent: () => void; onNavigate?: () => void }) {
@@ -302,7 +302,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
           {/* folds the column to the rail of icons (a wide screen; the drawer closes by its scrim) */}
           {!narrow && <CollapseButton collapsed={false} chord={BINDINGS["left-sidebar"]} />}
         </div>
-        <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-control bg-inset px-2.5 text-left shadow-hairline transition-colors hover:bg-hover">
+        <button type="button" onClick={onSearch} className="touch-hit mb-1 flex h-8 w-full items-center gap-2 rounded-[10px] border border-line/80 bg-inset/75 px-2.5 text-left transition-[background-color,border-color] duration-150 hover:border-line-strong hover:bg-hover/70">
           <Icon name="search" size={12} stroke={2} className="text-ink-3" />
           <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-3">{t("sidebar.search_sessions")}</span>
           <span className="hidden sm:inline-flex [@media(hover:none)]:hidden"><Kbd>{searchHint}</Kbd></span>
@@ -319,7 +319,7 @@ export function Sidebar({ route, onSearch, onNewAgent, onNavigate }: { route: Ro
             stays at the top while the rest scrolls (#5581), with a solid divider above the sticky groups */}
         <div data-sidebar-sticky className="sticky top-0 z-30 flex flex-col gap-px bg-canvas pt-1">
           <PersonaRow reg={reg} hover={hover} active={activeKey === "persona"} go={go} main={mainConversation} chord={BINDINGS.persona} />
-          <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line" />
+          <span aria-hidden data-persona-divider className="mx-2 my-1 h-px shrink-0 bg-line/70" />
         </div>
         {/* a phone's drawer has Pages as its grid of icons; every other group (#9071) is a section, as on a wide screen */}
         {narrow && <NavGrid pages={sections.find((g) => !g.id)?.pages ?? []} more={more} activeKey={activeKey} go={go} onNavigate={onNavigate} />}
@@ -426,7 +426,7 @@ export function NavGrid({ pages, more = [], activeKey, go, onNavigate }: { pages
             title={p.title ?? p.label}
             aria-label={pageLabel(p)}
             aria-current={active ? "page" : undefined}
-            className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,transform] duration-150 active:scale-[0.96]", active ? "bg-hover" : "hover:bg-hover")}
+            className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]", active ? "bg-hover-2" : "hover:bg-hover")}
           >
             <span className={cx("relative", active ? "text-ink" : "text-ink-3")}>
               <Icon name={p.icon} size={17} stroke={1.8} />
@@ -445,7 +445,7 @@ export function NavGrid({ pages, more = [], activeKey, go, onNavigate }: { pages
           aria-haspopup="menu"
           aria-expanded={!!menu}
           aria-label={t("sidebar.more_pages_count", { count: more.length })}
-          className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,transform] duration-150 active:scale-[0.96]", moreActive || menu ? "bg-hover" : "hover:bg-hover")}
+          className={cx("relative z-10 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-[9px] px-0.5 py-1.5 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]", moreActive || menu ? "bg-hover-2" : "hover:bg-hover")}
         >
           <span className={cx("relative", moreActive ? "text-ink" : "text-ink-3")}>
             <Icon name="more" size={17} stroke={1.8} />
@@ -474,13 +474,13 @@ function MorePages({ more, reg, hover, activeKey, go }: { more: NavPage[]; reg: 
         onClick={toggle}
         aria-expanded={!folded}
         title={counted.map(pageLabel).join(t("sidebar.list_separator")) || undefined}
-        className="touch-hit relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,transform] duration-150 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11"
+        className="touch-hit relative z-10 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,color,transform] duration-150 ease-out hover:bg-hover active:scale-[0.985] [@media(pointer:coarse)]:min-h-11"
       >
         <span className="text-ink-3"><Icon name="more" size={14} stroke={1.8} /></span>
-        <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">{t("sidebar.more_pages")}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-normal text-ink-2">{t("sidebar.more_pages")}</span>
         {folded && counted.length > 0 && <span aria-hidden className={cx("size-1.5 rounded-full", DOT_CLASS[counted[0].badgeTone ?? "accent"])} />}
         <span className="text-[11px] text-ink-3 tabular-nums">{more.length}</span>
-        <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 text-ink-3 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+        <Icon name="chevron" size={10} stroke={2.2} className="shrink-0 text-ink-3 transition-transform" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
       </button>
       <Collapse open={!folded} sidebarFold>
         <div className="flex flex-col gap-px sidebar-indent" inert={folded || undefined}>
@@ -511,7 +511,7 @@ function AgentsBlock(props: AgentsBlockProps) {
 }
 
 /** The Agents block's title, the paged list's as the complete list's (#6662): unpinning changes nothing above the list. */
-const AGENTS_TITLE = "min-w-0 flex-1 text-[11px] font-semibold text-ink-3";
+const AGENTS_TITLE = "min-w-0 flex-1 text-[11.5px] font-medium text-ink-3";
 /** The title row's icon buttons (Filter, ⋯, +) sit 4 px apart: a touch screen gives each a real 44 px box, as the fold-all
  *  button has, since centred touch-hit squares would overlap and the later button would take the earlier one's taps. */
 const TITLE_ICON_TOUCH = "[@media(pointer:coarse)]:size-11";
@@ -522,7 +522,7 @@ const TITLE_ROW_TOUCH = "[@media(pointer:coarse)]:pr-0";
 function ListMenuButton({ open, onClick }: { open: boolean; onClick: React.MouseEventHandler<HTMLButtonElement> }) {
   const label = t("sidebar.list_menu");
   return (
-    <button type="button" title={label} aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={onClick} className={cx("touch-hit relative z-10 flex size-5 shrink-0 items-center justify-center rounded-[5px] text-ink-3 hover:bg-hover hover:text-ink-2", TITLE_ICON_TOUCH, open && "bg-hover")}>
+    <button type="button" title={label} aria-label={label} aria-haspopup="menu" aria-expanded={open} onClick={onClick} className={cx("touch-hit relative z-10 flex size-5 shrink-0 items-center justify-center rounded-[6px] text-ink-3 transition-[background-color,color] duration-150 hover:bg-hover hover:text-ink-2", TITLE_ICON_TOUCH, open && "bg-hover text-ink-2")}>
       <Icon name="more" size={12} stroke={2} />
     </button>
   );
@@ -800,7 +800,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
         <SessionRow key={s.session_id} s={s} k={`s:${s.machine_id}/${s.session_id}`} reg={reg} hover={hover} active={activeKey === `s:${s.machine_id}/${s.session_id}`} to={{ name: "session", mid: s.machine_id, sid: s.session_id }} go={go} onMenu={onRowMenu} />
       )} />
       {recent.length > 8 && (
-        <button type="button" onClick={() => setShowAllRecent((x) => !x)} className="relative z-10 w-full rounded-[7px] px-2 py-1 text-left text-[12px] text-ink-3 hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
+        <button type="button" onClick={() => setShowAllRecent((x) => !x)} className="relative z-10 w-full rounded-[9px] px-2 py-1 text-left text-[12px] text-ink-3 transition-colors duration-150 hover:bg-hover hover:text-ink-2 [@media(pointer:coarse)]:min-h-11">
           {showAllRecent ? t("sidebar.show_less") : t("sidebar.show_more", { count: recent.length - recentShown.length })}
         </button>
       )}
@@ -849,9 +849,9 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
       {/* the sidebar's top-level heading box (#10637): its controls never make it taller than Pages' or Persona chats' */}
       <div className={cx("group/sec relative flex sidebar-heading items-center gap-1 px-2", TITLE_ROW_TOUCH)}>
         {foldable ? (
-          <button type="button" aria-expanded={!folded} onClick={toggleBlock} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left text-[11px] font-semibold text-ink-3 hover:text-ink-2">
+          <button type="button" aria-expanded={!folded} onClick={toggleBlock} className="touch-hit relative z-10 flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap text-left text-[11.5px] font-medium text-ink-3 transition-colors hover:text-ink-2">
             <span className="min-w-0 truncate">Agents</span>
-            <Icon name="chevron" size={10} stroke={2.4} className="shrink-0 opacity-0 transition-[opacity,transform] group-hover/sec:opacity-100 [@media(hover:none)]:opacity-100" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
+            <Icon name="chevron" size={10} stroke={2.2} className="shrink-0 opacity-0 transition-[opacity,transform] group-hover/sec:opacity-100 [@media(hover:none)]:opacity-100" style={{ ...sidebarFoldMotion(!folded), transform: folded ? "rotate(-90deg)" : "none" }} />
           </button>
         ) : (
           <span className={AGENTS_TITLE}>Agents</span>
@@ -883,7 +883,7 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
       {!folded && <HerdrNotices />}
 
       {unreadShown.length > 0 && (
-        <button type="button" onClick={() => setConfirmSeen(unreadShown)} className="relative z-10 mt-1 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,transform] duration-100 hover:bg-hover active:scale-[0.98] [@media(pointer:coarse)]:min-h-11">
+        <button type="button" onClick={() => setConfirmSeen(unreadShown)} className="relative z-10 mt-1 flex w-full items-center gap-2 rounded-[9px] px-2 sidebar-row text-left transition-[background-color,color,transform] duration-150 ease-out hover:bg-hover active:scale-[0.985] [@media(pointer:coarse)]:min-h-11">
           <span className="flex size-3.5 shrink-0 items-center justify-center text-green"><Icon name="check" size={13} stroke={2.4} /></span>
           <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{markAllSeenLabel()}</span>
           <span className="shrink-0 text-[11px] whitespace-nowrap text-ink-3 tabular-nums">{stateCount("unread", unreadShown.length)}</span>
@@ -979,63 +979,17 @@ function LegacyAgentsBlock({ reg, hover, activeKey, go, onNewAgent, onNavigate, 
   );
 }
 
-const FILTER_CHIP_TONE: Record<AgentFilter, { on: string; active: string; countOn: string; countOff: string }> = {
-  all: {
-    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
-    active: "bg-inset/60 text-ink-2 ring-1 ring-inset ring-line/55 hover:bg-hover hover:text-ink",
-    countOn: "bg-hover-2 text-ink",
-    countOff: "bg-hover text-ink-3",
-  },
-  needs: {
-    on: "bg-red/[0.11] font-medium text-red shadow-2xs ring-1 ring-inset ring-red/35",
-    active: "bg-red/[0.06] font-medium text-red ring-1 ring-inset ring-red/22 hover:bg-red/[0.11]",
-    countOn: "bg-red/15 text-red",
-    countOff: "bg-red/12 text-red",
-  },
-  working: {
-    on: "bg-orange-tint font-medium text-ink shadow-2xs ring-1 ring-inset ring-orange/40",
-    active: "bg-orange-tint/65 font-medium text-ink ring-1 ring-inset ring-orange/25 hover:bg-orange-tint",
-    countOn: "bg-orange/15 text-orange",
-    countOff: "bg-orange/12 text-orange",
-  },
-  bg_waiting: {
-    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
-    active: "bg-surface/75 text-ink-2 ring-1 ring-inset ring-line-strong/75 hover:bg-surface hover:text-ink",
-    countOn: "bg-hover-2 text-ink-2",
-    countOff: "bg-hover text-ink-2",
-  },
-  unread: {
-    on: "bg-green-tint font-medium text-ink shadow-2xs ring-1 ring-inset ring-green/40",
-    active: "bg-green-tint/65 font-medium text-ink ring-1 ring-inset ring-green/25 hover:bg-green-tint",
-    countOn: "bg-green/15 text-green",
-    countOff: "bg-green/12 text-green",
-  },
-  feishu: {
-    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
-    active: "bg-inset/65 text-ink-2 ring-1 ring-inset ring-line/60 hover:bg-hover hover:text-ink",
-    countOn: "bg-hover-2 text-ink-2",
-    countOff: "bg-hover text-ink-3",
-  },
-  terminal: {
-    on: "bg-surface font-medium text-ink shadow-2xs ring-1 ring-inset ring-line-strong",
-    active: "bg-inset/65 text-ink-2 ring-1 ring-inset ring-line/60 hover:bg-hover hover:text-ink",
-    countOn: "bg-hover-2 text-ink-2",
-    countOff: "bg-hover text-ink-3",
-  },
-};
-
 /** Quick filters describe the visible inventory; an empty Lark filter is never offered. */
 const FilterBar = memo(function FilterBar({ selection, counts, onChoose }: { selection: AgentFilter; counts: FilterCounts; onChoose: (f: AgentFilter) => void }) {
   const keys = shownFilters(selection, counts);
   if (keys.length < 2) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1 px-1.5 py-0.5">
+    <div className="mt-1 flex flex-wrap items-center gap-0.5 px-1.5 py-0.5">
       <div role="radiogroup" aria-label={t("sidebar.quick_filters")} className="contents">
       {keys.map((k) => {
         const f = AGENT_FILTERS.find((x) => x.key === k)!;
         const on = k === selection;
         const n = k === "all" ? undefined : counts[k];
-        const tone = FILTER_CHIP_TONE[k];
         const hasActiveCount = n !== undefined && n > 0;
         return (
           <button
@@ -1046,15 +1000,18 @@ const FilterBar = memo(function FilterBar({ selection, counts, onChoose }: { sel
             aria-label={n === undefined ? f.label : `${f.label} ${n}`}
             onClick={() => onChoose(k)}
             className={cx(
-              "touch-hit relative z-10 inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full text-[11.5px] leading-none transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.97]",
-              n !== undefined ? "pr-1 pl-2" : "px-2.5",
-              on ? tone.on : hasActiveCount ? tone.active : "bg-inset/55 text-ink-2 ring-1 ring-inset ring-line/45 hover:bg-hover hover:text-ink",
+              "touch-hit relative z-10 inline-flex h-[25px] items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11.5px] leading-none transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.97]",
+              on
+                ? "bg-hover-2 font-medium text-ink"
+                : hasActiveCount
+                  ? "bg-transparent text-ink-2 hover:bg-hover hover:text-ink"
+                  : "bg-transparent text-ink-3 hover:bg-hover hover:text-ink-2",
             )}
           >
             {f.state && <StatusMark state={f.state} size="sm" waiting={k === "bg_waiting"} />}
             <span>{f.label}</span>
             {n !== undefined && (
-              <span className={cx("inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums", on ? tone.countOn : hasActiveCount ? tone.countOff : "bg-hover text-ink-3")}>
+              <span className={cx("text-[10.5px] font-medium tabular-nums", on ? "text-ink-2" : "text-ink-3")}>
                 {n}
               </span>
             )}

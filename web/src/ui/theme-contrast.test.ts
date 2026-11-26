@@ -37,8 +37,8 @@ describe("default palette contrast", () => {
     });
     it(`${scheme}: semantic tints are pale while error and selection fills stay neutral`, () => {
       const expected = scheme === "light"
-        ? { green: "#e8f5ed", orange: "#fdf1e5", ai: "#efedfb" }
-        : { green: "#3dbb7224", orange: "#f68f3c24", ai: "#9c94ff24" };
+        ? { green: "#e8f3ec", orange: "#fbf0e6", ai: "#f2effb" }
+        : { green: "#3dbb7224", orange: "#d9775724", ai: "#9c94ff24" };
       for (const [role, value] of Object.entries(expected)) expect(t[`${role}-tint`]).toBe(value);
       expect(t["red-tint"]).toBe(t.inset);
       expect(t["accent-tint"]).toBe(t["hover-2"]);
@@ -49,7 +49,7 @@ describe("default palette contrast", () => {
       for (const token of ["neutral-bubble", "user-bubble"]) {
         const bubble = [...css.matchAll(new RegExp(`--${token}:\\s*(#[0-9a-f]{6})`, "gi"))][scheme === "light" ? 0 : 1]?.[1] ?? "";
         expect(bubble).toMatch(/^#[0-9a-f]{6}$/i);
-        if (token === "user-bubble") expect(bubble).toBe(scheme === "light" ? "#dceaff" : "#1d3557");
+        if (token === "user-bubble") expect(bubble).toBe(scheme === "light" ? "#f0eee6" : "#30302e");
         for (const role of ["ink", "ink-2", "ink-3"]) {
           // The dark blue bubble locally strengthens muted labels without changing page text.
           const fg = token === "user-bubble" && scheme === "dark" && role === "ink-3" ? t["ink-2"] : t[role];

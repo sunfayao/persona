@@ -17,7 +17,7 @@ import { accelLabel, activation, edge, enabled, keyIntent, renameCommit, rowLabe
 import { focusables, NARROW_QUERY, placeMenu, placeSubmenu, SHEET_QUERY, useEscapeClose, useMedia, useModalFocus, type MenuPlace } from "./overlay";
 import { STATE_LABEL, stateName } from "../lib/state-labels";
 
-export const EASE = "cubic-bezier(0.23, 1, 0.32, 1)";
+export const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 /** One sidebar group's content and chevron take the same direction-specific timing from the web motion tokens. */
 export function sidebarFoldMotion(open: boolean) {
@@ -41,9 +41,9 @@ export function Shimmer({ children, className = "" }: { children: React.ReactNod
     <span
       className={`bg-clip-text text-transparent ${BUSY_MOTION} ${className}`}
       style={{
-        backgroundImage: "linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%)",
+        backgroundImage: "linear-gradient(90deg, var(--ink-3) 28%, color-mix(in srgb, var(--ink) 85%, var(--accent)) 50%, var(--ink-3) 72%)",
         backgroundSize: "200% 100%",
-        animation: "shimmer-text 1.4s linear infinite",
+        animation: "shimmer-text 1.65s linear infinite",
       }}
     >
       {children}
@@ -101,7 +101,7 @@ export function StatePill({ state, awaiting = false, waiting = false, dot = true
   const reply = awaiting && state === "idle";
   const bg = waiting && state === "working";
   return (
-    <span className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11px] font-medium ${reply ? "bg-field text-green" : bg ? "bg-field text-ink-2" : tone[state]}`} data-bg-waiting={bg || undefined} data-state-pill="">
+    <span className={`inline-flex h-5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11px] font-medium tracking-[-0.005em] transition-colors duration-150 ${reply ? "bg-field text-green" : bg ? "bg-field text-ink-2" : tone[state]}`} data-bg-waiting={bg || undefined} data-state-pill="">
       {dot && (state === "working" || state === "needs_you") && <StatusMark state={state} size="sm" label={false} waiting={bg} />}
       {reply ? stateName("awaits_reply") : bg ? stateName("bg_waiting") : STATE_LABEL[state]}
     </span>
@@ -146,7 +146,7 @@ export function IconButton({
       onClick={onClick}
       onKeyDown={onKeyDown}
       className={cx(
-        "touch-hit flex shrink-0 items-center justify-center rounded-control transition-[background-color,color,scale] duration-150 ease-out-strong motion-safe:enabled:active:scale-95 disabled:opacity-40",
+        "touch-hit flex shrink-0 items-center justify-center rounded-control transition-[background-color,color,scale,transform] duration-150 ease-out-strong motion-safe:enabled:active:scale-[0.94] disabled:opacity-40",
         active || pressed ? "bg-hover text-ink" : "text-ink-3 enabled:hover:bg-hover enabled:hover:text-ink",
         className,
       )}
@@ -201,15 +201,15 @@ export function Button({
   /** The button, for a page that hands the focus back to it (not the link's: `href` draws an <a>). */
   ref?: React.Ref<HTMLButtonElement>;
 }) {
-  const base = cx("touch-hit inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-control px-3 text-meta font-medium transition-[background-color,color,scale,opacity,filter] duration-150 ease-out-strong", size === "sm" ? "h-7" : "h-8");
+  const base = cx("touch-hit inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] px-3 text-meta font-medium transition-[background-color,color,box-shadow,scale,transform,opacity,filter] duration-150 ease-out-strong", size === "sm" ? "h-7" : "h-8");
   if (href && !disabled && !busy) {
     // an <a> is never :enabled, so the link has its own hover / press
     const links: Record<BtnTone, string> = {
-      primary: "bg-ink text-surface hover:opacity-90",
-      accent: "bg-accent-ink text-surface hover:brightness-105",
-      secondary: "bg-field text-ink hover:bg-hover-2",
+      primary: "bg-ink text-page shadow-2xs hover:opacity-90",
+      accent: "bg-accent-ink text-page shadow-2xs hover:brightness-105",
+      secondary: "bg-field text-ink shadow-[inset_0_0_0_1px_var(--line)] hover:bg-hover-2 hover:shadow-[inset_0_0_0_1px_var(--line-strong)]",
       quiet: "text-ink-2 hover:bg-hover hover:text-ink",
-      danger: "bg-danger-fill text-white hover:brightness-105",
+      danger: "bg-danger-fill text-white shadow-2xs hover:brightness-105",
     };
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" title={title} data-testid={testId} onClick={onClick} className={cx(base, "motion-safe:active:scale-[0.98]", links[tone], className)}>
@@ -219,11 +219,11 @@ export function Button({
     );
   }
   const tones: Record<BtnTone, string> = {
-    primary: "bg-ink text-surface enabled:hover:opacity-90",
-    accent: "bg-accent-ink text-surface enabled:hover:brightness-105",
-    secondary: "bg-field text-ink enabled:hover:bg-hover-2 dark:disabled:bg-transparent dark:disabled:text-ink-3",
+    primary: "bg-ink text-page shadow-2xs enabled:hover:opacity-90",
+    accent: "bg-accent-ink text-page shadow-2xs enabled:hover:brightness-105",
+    secondary: "bg-field text-ink shadow-[inset_0_0_0_1px_var(--line)] enabled:hover:bg-hover-2 enabled:hover:shadow-[inset_0_0_0_1px_var(--line-strong)] dark:disabled:bg-transparent dark:disabled:text-ink-3 dark:disabled:shadow-none",
     quiet: "text-ink-2 enabled:hover:bg-hover enabled:hover:text-ink",
-    danger: "bg-danger-fill text-white enabled:hover:brightness-105",
+    danger: "bg-danger-fill text-white shadow-2xs enabled:hover:brightness-105",
   };
   return (
     <button
@@ -276,9 +276,9 @@ export function Switch({ on, onChange, disabled, label, className, describedBy, 
       title={title}
       disabled={disabled}
       onClick={() => onChange(!on)}
-      className={cx("switch touch-hit relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors duration-200 disabled:opacity-50", on ? "bg-switch-on" : "bg-switch-off", className)}
+      className={cx("switch touch-hit relative inline-flex h-[22px] w-[38px] shrink-0 items-center rounded-full transition-colors duration-200 ease-out-strong disabled:opacity-50", on ? "bg-switch-on" : "bg-switch-off", className)}
     >
-      <span aria-hidden className="absolute left-[2px] size-[18px] rounded-full bg-white shadow-knob transition-transform duration-200" style={{ transform: on ? "translateX(16px)" : "none", transitionTimingFunction: EASE }} />
+      <span aria-hidden className="absolute left-[2px] size-[18px] rounded-full bg-white shadow-knob transition-transform duration-[220ms]" style={{ transform: on ? "translateX(16px)" : "translateX(0)", transitionTimingFunction: "cubic-bezier(0.34, 1.32, 0.64, 1)" }} />
     </button>
   );
 }
@@ -782,30 +782,30 @@ function MenuPanel({
       role={reading ? "dialog" : "menu"}
       aria-label={reading ? (header ?? items[0].label) : undefined}
       data-menu={id}
-      className="fixed z-50 max-h-[calc(100dvh-(--spacing(4)))] overflow-y-auto rounded-[10px] bg-surface p-1 shadow-overlay"
-      style={{ ...pos, animation: `pop-in 160ms ${EASE} both`, transformOrigin: origin }}
+      className="fixed z-50 max-h-[calc(100dvh-(--spacing(4)))] overflow-y-auto rounded-[12px] bg-surface p-1.5 shadow-overlay"
+      style={{ ...pos, animation: "pop-in 160ms var(--ease-out-strong) both", transformOrigin: origin }}
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
       onScroll={measureMore}
     >
       {more.up && <div aria-hidden data-menu-more="up" className="pointer-events-none sticky top-0 z-20 -mb-6 h-6 bg-linear-to-b from-surface to-transparent" />}
-      {header && <div className={cx("px-2 pt-1.5 pb-1 text-[10.5px] font-medium tracking-[0.06em] text-ink-3", !headerAsWritten && "uppercase")}>{header}</div>}
+      {header && <div className={cx("px-2.5 pt-1.5 pb-1 text-[11px] font-medium text-ink-3", !headerAsWritten && "tracking-[0.01em]")}>{header}</div>}
       <div className="relative">
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 rounded-[6px] bg-hover"
-          style={{ top: 0, transform: `translateY(${box?.top ?? 0}px)`, height: box?.height ?? 0, opacity: box ? 1 : 0, transition: `transform 140ms ${EASE}, height 140ms ${EASE}, opacity 100ms ease` }}
+          className="pointer-events-none absolute inset-x-0 rounded-[8px] bg-hover"
+          style={{ top: 0, transform: `translateY(${box?.top ?? 0}px)`, height: box?.height ?? 0, opacity: box ? 1 : 0, transition: `transform 150ms ${EASE}, height 150ms ${EASE}, opacity 110ms ease` }}
         />
         {loading && (
-          <div className="relative z-10 flex h-8 items-center gap-2 px-2 text-[12.5px] text-ink-3 pointer-coarse:min-h-11">
+          <div className="relative z-10 flex h-8 items-center gap-2 px-2.5 text-[12.5px] text-ink-3 pointer-coarse:min-h-11">
             <Spinner size={12} />
             {t("ui-atoms.menu_loading")}
           </div>
         )}
-        {loadError && <div role="alert" className="relative z-10 px-2 py-1.5 text-[12px] break-words whitespace-pre-wrap text-red">{loadError}</div>}
-        {!loading && !loadError && depth > 0 && items.length === 0 && <div className="relative z-10 flex h-8 items-center px-2 text-[12.5px] text-ink-3 pointer-coarse:min-h-11">{t("ui-atoms.menu_empty")}</div>}
+        {loadError && <div role="alert" className="relative z-10 px-2.5 py-1.5 text-[12px] break-words whitespace-pre-wrap text-red">{loadError}</div>}
+        {!loading && !loadError && depth > 0 && items.length === 0 && <div className="relative z-10 flex h-8 items-center px-2.5 text-[12.5px] text-ink-3 pointer-coarse:min-h-11">{t("ui-atoms.menu_empty")}</div>}
         {items.map((it, i) => [
-          it.divider && i > 0 && <div key={`${it.key}-sep`} role="separator" className="mx-1 my-1 h-px bg-line" />,
+          it.divider && i > 0 && <div key={`${it.key}-sep`} role="separator" className="mx-1.5 my-1 h-px bg-line/80" />,
           it.heading ? (
             <div
               key={it.key}
@@ -813,7 +813,7 @@ function MenuPanel({
                 els.current[i] = el;
               }}
               role="presentation"
-              className="relative z-10 px-2 pt-1.5 pb-1 text-[10.5px] font-medium tracking-[0.06em] text-ink-3 uppercase"
+              className="relative z-10 px-2.5 pt-2 pb-1 text-[11px] font-medium text-ink-3"
             >
               {it.label}
             </div>
@@ -881,7 +881,7 @@ function MenuRow({ item: it, asking, working, refCb, onHover, onChoose }: { item
       onMouseEnter={onHover}
       onClick={onChoose}
       className={cx(
-        "relative z-10 flex w-full items-center gap-2 rounded-[6px] px-2 pointer-coarse:min-h-11 text-left text-[12.5px] disabled:opacity-40",
+        "relative z-10 flex w-full items-center gap-2 rounded-[8px] px-2.5 pointer-coarse:min-h-11 text-left text-[13px] transition-colors duration-100 disabled:opacity-40",
         it.wrap || detail ? "min-h-8 py-1.5" : "h-8 pointer-coarse:h-auto pointer-coarse:py-1.5",
         it.danger ? "text-red" : "text-ink",
         asking && "bg-red-tint font-medium",
@@ -958,7 +958,7 @@ function RenameRow({ item, busy, onCommit, onCancel, refCb }: { item: MenuItem; 
         } else e.stopPropagation();
       }}
       className={cx(
-        "h-7 min-w-0 flex-1 rounded-[6px] bg-inset px-2 text-[12.5px] text-ink outline-none placeholder:text-ink-3 pointer-coarse:h-9",
+        "h-7 min-w-0 flex-1 rounded-[8px] bg-inset px-2 text-[12.5px] text-ink outline-none placeholder:text-ink-3 pointer-coarse:h-9",
         rename.validate && "font-mono placeholder:font-sans",
         // one ring or the other: both set the same shadow, and the hairline would win
         problem ? "shadow-[0_0_0_1px_var(--red)]" : "shadow-hairline",
@@ -1003,13 +1003,13 @@ export function useMenu() {
 
 // ── overlay exits ───────────────────────────────────────
 
-/** How long an overlay takes to leave: a little quicker than the enter it undoes (the card's slide-up 220 ms, the
- *  sheet's 300 ms, a toast's 220 ms). `glide`: a toast moving to its new place in the stack, as long as its slide-up. */
-export const EXIT_MS = { card: 160, sheet: 220, toast: 160, glide: 220 } as const;
+/** How long an overlay takes to leave: a little quicker than the enter it undoes (the card's slide-up 210 ms, the
+ *  sheet's 300 ms, a toast's 210 ms). `glide`: a toast moving to its new place in the stack. */
+export const EXIT_MS = { card: 150, sheet: 210, toast: 150, glide: 200 } as const;
 /** The card goes back the way it came in (slide-up's first frame, styles.css); the sheet back down. */
-export const CARD_OUT: Keyframe[] = [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(12px) scale(0.985)" }];
+export const CARD_OUT: Keyframe[] = [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(8px) scale(0.985)" }];
 const SHEET_OUT: Keyframe[] = [{ transform: "none" }, { transform: "translateY(100%)" }];
-const TOAST_OUT: Keyframe[] = [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(6px) scale(0.985)" }];
+const TOAST_OUT: Keyframe[] = [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(8px) scale(0.985)" }];
 
 /** Whether an exit plays: the browser has the Web Animations API (jsdom has none) and reduced motion is not asked
  *  for. Otherwise an overlay goes at once, as it always did. */
@@ -1146,8 +1146,8 @@ export function Dialog({
       ref={backdrop}
       data-closing={exit.leaving || undefined}
       inert={exit.leaving || undefined}
-      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/25 px-4 pt-[12vh] pb-8 dark:bg-black/45 max-sm:top-(--kb-top) max-sm:bottom-auto max-sm:h-(--kb-h) max-sm:items-end max-sm:overflow-hidden max-sm:p-0"
-      style={{ animation: "fade-in 140ms ease-out both" }}
+      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-[#141413]/30 px-4 pt-[12vh] pb-8 backdrop-blur-[2px] dark:bg-black/55 max-sm:top-(--kb-top) max-sm:bottom-auto max-sm:h-(--kb-h) max-sm:items-end max-sm:overflow-hidden max-sm:p-0"
+      style={{ animation: "fade-in 150ms ease-out both" }}
       onMouseDown={(e) => {
         if (e.target !== e.currentTarget) return;
         // The default mousedown focus change would blur the opener just after closing restores focus.
@@ -1164,18 +1164,18 @@ export function Dialog({
         aria-labelledby={shown.title ? titleId : labelledBy}
         aria-describedby={describedBy}
         tabIndex={-1}
-        className="flex max-h-[calc(88vh-(--spacing(8)))] w-full max-w-(--dialog-w) animate-[slide-up_220ms_var(--ease-out-strong)_both] flex-col overflow-hidden rounded-nav-preview bg-surface shadow-overlay outline-none max-sm:max-h-[calc(var(--kb-h)*0.9)] max-sm:max-w-none max-sm:animate-none max-sm:rounded-b-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-(--ease-out-strong) max-sm:starting:translate-y-full"
+        className="flex max-h-[calc(88vh-(--spacing(8)))] w-full max-w-(--dialog-w) animate-[slide-up_210ms_var(--ease-out-strong)_both] flex-col overflow-hidden rounded-[16px] bg-surface shadow-overlay outline-none max-sm:max-h-[calc(var(--kb-h)*0.9)] max-sm:max-w-none max-sm:animate-none max-sm:rounded-b-none max-sm:transition-transform max-sm:duration-300 max-sm:ease-(--ease-out-strong) max-sm:starting:translate-y-full"
         style={{ "--dialog-w": `${width}px` } as React.CSSProperties}
       >
         {shown.title && (
-          <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-3.5 pb-1">
-            <h2 id={titleId} className="min-w-0 text-card-title leading-snug font-semibold break-words text-ink">{shown.title}</h2>
-            <IconButton icon="x" label={t("ui-atoms.close")} onClick={onClose} size={26} iconSize={14} />
+          <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 pb-1.5">
+            <h2 id={titleId} className="min-w-0 font-serif text-[16px] leading-snug font-semibold tracking-[-0.012em] break-words text-ink">{shown.title}</h2>
+            <IconButton icon="x" label={t("ui-atoms.close")} onClick={onClose} size={28} iconSize={14} />
           </div>
         )}
-        <div ref={body} data-dialog-body className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-2 pb-4 [overflow-anchor:none]", !shown.footer && "max-sm:pb-[calc(16px+env(safe-area-inset-bottom))]")}>{shown.children}</div>
+        <div ref={body} data-dialog-body className={cx("min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2.5 pb-4 [overflow-anchor:none]", !shown.footer && "max-sm:pb-[calc(16px+env(safe-area-inset-bottom))]")}>{shown.children}</div>
         {/* data-dialog-footer: what a toast on a phone keeps clear of (Toasts) */}
-        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line bg-surface px-4 py-2.5 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
+        {shown.footer && <div data-dialog-footer className="flex shrink-0 items-center justify-end gap-2 border-t border-line/80 bg-surface px-5 py-3 max-sm:pb-[calc(10px+env(safe-area-inset-bottom))]">{shown.footer}</div>}
       </div>
     </div>,
     document.body,
@@ -1326,8 +1326,8 @@ export function Toasts({ lift: Lift }: { lift?: ComponentType<ToastLiftProps> })
           onPointerLeave={(e) => e.pointerType === "mouse" && setHovered((h) => (h === item.id ? null : h))}
           onFocus={() => setFocused(item.id)}
           onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setFocused((f) => (f === item.id ? null : f))}
-          className="pointer-events-auto flex max-w-md items-center gap-2 rounded-[10px] border border-tooltip-border bg-tooltip-bg px-3 py-2 text-[12.5px] text-tooltip-fg shadow-overlay"
-          style={{ animation: `slide-up 220ms ${EASE} both` }}
+          className="pointer-events-auto flex max-w-md items-center gap-2.5 rounded-[12px] border border-tooltip-border/80 bg-tooltip-bg px-3.5 py-2.5 text-[13px] leading-snug text-tooltip-fg shadow-overlay"
+          style={{ animation: `slide-up 210ms ${EASE} both` }}
         >
           {item.tone === "error" && <Icon name="warning" size={13} stroke={2.2} className="shrink-0 text-red" />}
           {item.tone === "ok" && <Icon name="check" size={13} stroke={2.6} className="text-green" />}
@@ -1346,7 +1346,7 @@ export function Toasts({ lift: Lift }: { lift?: ComponentType<ToastLiftProps> })
             aria-label={t("ui-atoms.close")}
             title={t("ui-atoms.close")}
             onClick={() => dropToast(item.id)}
-            className={cx("touch-hit -mr-1.5 ml-0.5 flex size-5 shrink-0 items-center justify-center rounded-[5px] text-tooltip-muted transition-colors duration-150 hover:bg-tooltip-border hover:text-tooltip-fg", item.action && "[@media(pointer:coarse)]:ml-3")}
+            className={cx("touch-hit -mr-1.5 ml-0.5 flex size-5 shrink-0 items-center justify-center rounded-[6px] text-tooltip-muted transition-[background-color,color,scale] duration-150 ease-out-strong hover:bg-tooltip-border hover:text-tooltip-fg motion-safe:active:scale-90", item.action && "[@media(pointer:coarse)]:ml-3")}
           >
             <Icon name="x" size={12} stroke={2.2} />
           </button>
