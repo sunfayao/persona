@@ -1,4 +1,6 @@
 {
+  "expand_title": "展开完整标题",
+  "collapse_title": "收起标题",
   "nav_home": "总览",
   "nav_home_short": "总览",
   "nav_inbox": "收件箱",

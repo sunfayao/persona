@@ -1,4 +1,6 @@
 {
+  "expand_title": "Show full title",
+  "collapse_title": "Collapse title",
   "nav_home": "Overview",
   "nav_home_short": "Home",
   "nav_inbox": "Inbox",

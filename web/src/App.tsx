@@ -581,7 +581,7 @@ function Shell() {
         aria-label={a11y.modal ? SIDEBAR_LABEL : undefined}
         inert={a11y.inert || undefined}
         className={cx(
-          "fixed inset-y-0 left-0 z-30 w-[284px] border-r border-line transition-transform duration-300 max-lg:w-[calc(284px+env(safe-area-inset-left))] max-lg:bg-canvas max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pl-[env(safe-area-inset-left)] lg:relative lg:z-auto lg:translate-x-0 lg:shadow-none",
+          "fixed inset-y-0 left-0 z-30 w-[284px] border-r border-line transition-transform duration-300 max-lg:w-[min(calc(100%_-_2.75rem_-_env(safe-area-inset-right)),calc(25rem_+_env(safe-area-inset-left)))] max-lg:bg-canvas max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pl-[env(safe-area-inset-left)] lg:relative lg:z-auto lg:translate-x-0 lg:shadow-none",
           // The usage details extend past the sidebar into the main pane on desktop.
           "lg:has-[[data-usage-popover]]:z-40",
           drawer ? "translate-x-0 shadow-overlay" : "-translate-x-full",
