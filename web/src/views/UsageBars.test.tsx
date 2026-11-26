@@ -40,12 +40,13 @@ describe("the sidebar's usage strip", () => {
     // all samples older than three days
     expect(renderToStaticMarkup(<UsageBars accounts={[account("a", 10, 10, { sampled_at: iso(-80 * H) })]} now={NOW} />)).toBe("");
   });
-  it("shows the two fullest accounts as bars, the caution colour from 80%", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[account("a", 10, 20), account("b", 85, 30), account("c", 50, 60)]} now={NOW} />);
+  it("shows the tightest two distinct providers, the caution colour from 80%", () => {
+    const html = renderToStaticMarkup(<UsageBars accounts={[account("a", 82, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
     expect(html.match(/role="progressbar"/g)).toHaveLength(2);
     expect(html).toContain("账号 b");
     expect(html).toContain("账号 c");
     expect(html).not.toContain("账号 a");
+    expect(html).toContain("详情中还有 1 项");
     expect(html).toMatch(/bg-orange[^>]*style="width:85%/);
     expect(html).toMatch(/bg-accent[^>]*style="width:60%/);
     expect(html).toContain('aria-expanded="false"');
@@ -90,7 +91,7 @@ describe("the sidebar's usage strip", () => {
 
 describe("a prepaid balance in the sidebar (#11825)", () => {
   it("shows the amount and currency beside the two fullest window accounts", () => {
-    const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "12.34"), account("a", 10, 20), account("b", 85, 30), account("c", 50, 60)]} now={NOW} />);
+    const html = renderToStaticMarkup(<UsageBars accounts={[balanceAccount("ds", "12.34"), account("a", 10, 20), account("b", 85, 30), account("c", 50, 60, { provider: "claude" })]} now={NOW} />);
     expect(html).toContain("CNY 12.34");
     expect(html.match(/role="progressbar"/g)).toHaveLength(2); // the balance takes no bar
     expect(html).toContain("账号 b");

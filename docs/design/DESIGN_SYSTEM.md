@@ -1115,7 +1115,7 @@ Drawn as Telegram draws them (#2984). Inline code has no gray box (#9477). There
 
 ### 3.15.2 Subscription usage (Web and Desktop)
 
-The sidebar footer uses the existing Agent marks, secondary text size and thin meters to show usage at a glance. A percentage always accompanies a meter, with the warning color starting at 80%. Prepaid amounts retain their currency and are separate from quota percentages. The footer opens an anchored, keyboard-dismissable popover. Detailed shows all accounts; Compact gives one summary per provider and discloses the selected provider's details beside the list on wide screens or below it on narrow ones. Both use the same account cards and the same quota and reset rules. See [Subscription usage](../web/web.md#subscription-usage-bottom-of-the-sidebar-2432).
+The sidebar footer uses the existing Agent marks, secondary text size and thin meters to show usage on one line. The percentages stay visible when the mini meters collapse, with the warning color starting at 80%. Prepaid amounts retain their currency. A count opens the full list when the footer cannot show every account. The anchored, keyboard-dismissable popover orders providers by their highest current quota use and has an in-place refresh with feedback. Detailed shows all accounts. Compact gives one summary per provider and discloses the selected provider's details beside the list on wide screens or below it on narrow ones. Both use the same account cards and the same quota and reset rules. See [Subscription usage](../web/web.md#subscription-usage-bottom-of-the-sidebar-2432).
 
 ## 4. Interaction patterns
 

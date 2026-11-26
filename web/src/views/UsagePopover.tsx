@@ -6,7 +6,7 @@ import { sendDraft } from "../lib/drafts";
 import { navigate } from "../lib/router";
 import { getState } from "../lib/store";
 import { balanceEmpty, balanceText } from "../lib/usage-balance";
-import { accountPace, fullest, groupByProvider, isBalanceAccount, isWarn, planNote, providerTimeline, providerTitle, remainingText, resetLabel, resetPinnedUsageAccounts, sampleAge, sortedWindows, sourceNames, TIMELINE_TICKS_HOURS, timelinePosition, togglePinnedUsageAccount, usePinnedUsageAccounts, windowKey, type PaceState, type ProviderGroup, type UnconnectedProvider, type UsageAccount, type UsageWindow } from "../lib/usage-windows";
+import { accountPace, fullest, groupByProvider, isBalanceAccount, isWarn, planNote, providerTimeline, providerTitle, refreshUsageWindows, remainingText, resetLabel, resetPinnedUsageAccounts, sampleAge, sortedWindows, sourceNames, TIMELINE_TICKS_HOURS, timelinePosition, togglePinnedUsageAccount, topAccounts, usePinnedUsageAccounts, windowKey, type PaceState, type ProviderGroup, type UnconnectedProvider, type UsageAccount, type UsageWindow } from "../lib/usage-windows";
 import { AgentMark } from "../ui/AgentMark";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
@@ -15,6 +15,11 @@ import { Meter } from "./UsageBars";
 const PACE_TEXT: Record<PaceState, string> = { over: "text-orange", under: "text-green", on: "text-ink-3" };
 const paceLabel = (s: PaceState) => (s === "over" ? tr("usage.pace_over") : s === "under" ? tr("usage.pace_under") : tr("usage.pace_on"));
 const shown = (p: number) => `${Math.round(p)}%`;
+
+function groupUsageOrder(group: ProviderGroup): number {
+  const primary = topAccounts(group.accounts, 1)[0];
+  return primary ? fullest(primary) + (primary.stale ? 0 : 101) : -1;
+}
 
 function problemText(a: UsageAccount): string {
   switch (a.problem) {
@@ -69,20 +74,23 @@ export function UsagePopover({
   unconnected = [],
   now: fixed,
   onClose,
+  onRefresh = refreshUsageWindows,
 }: {
   id?: string;
   accounts: UsageAccount[];
   unconnected?: readonly UnconnectedProvider[];
   now?: number;
   onClose?: () => void;
+  onRefresh?: () => Promise<boolean>;
 }) {
   const pinnedIds = usePinnedUsageAccounts();
   const pinnedSet = new Set(pinnedIds);
   const livePinnedCount = accounts.reduce((n, a) => n + (pinnedSet.has(a.id) ? 1 : 0), 0);
   const [view, setView] = useState<"detailed" | "compact">("detailed");
   const [provider, selectProvider] = useState<string>();
+  const [refresh, setRefresh] = useState<"idle" | "loading" | "done" | "failed">("idle");
   const detailsId = useId();
-  const groups = groupByProvider(accounts);
+  const groups = groupByProvider(accounts).sort((a, b) => groupUsageOrder(b) - groupUsageOrder(a));
   const selected = view === "compact" ? groups.find((g) => g.provider === provider) : undefined;
   const [tick, setTick] = useState(() => Date.now());
   useEffect(() => {
@@ -91,6 +99,10 @@ export function UsagePopover({
     return () => clearInterval(t);
   }, [fixed]);
   const now = fixed ?? tick;
+  const refreshAccounts = async () => {
+    setRefresh("loading");
+    setRefresh(await onRefresh() ? "done" : "failed");
+  };
   const askAssistant = (p: UnconnectedProvider) => {
     sendDraft("persona-new", { type: "replace", text: connectPrompt(p) });
     onClose?.();
@@ -113,6 +125,19 @@ export function UsagePopover({
           <Icon name="gauge" size={16} className="text-ink-3" />
           <h2 className="min-w-0 flex-1 text-label font-semibold text-ink">{tr("usage.short_title")}</h2>
           <span className="text-submeta text-ink-3">{tr("usage.used")}</span>
+          <button
+            type="button"
+            aria-label={tr("usage.refresh")}
+            title={tr("usage.refresh")}
+            disabled={refresh === "loading"}
+            onClick={refreshAccounts}
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-ink-3 hover:bg-hover hover:text-ink disabled:opacity-60 lg:min-h-8 lg:min-w-8"
+          >
+            <Icon name="retry" size={16} className={cx(refresh === "loading" && "motion-safe:animate-spin")} />
+          </button>
+        </div>
+        <div role="status" className={refresh === "failed" ? "pb-2 text-submeta text-orange" : "sr-only"}>
+          {refresh === "loading" ? tr("usage.refreshing") : refresh === "done" ? tr("usage.refreshed") : refresh === "failed" ? tr("usage.refresh_failed") : ""}
         </div>
         {groups.length > 0 && (
           <div role="group" aria-label={tr("usage.display")} className="grid grid-cols-2 gap-1 rounded-control bg-inset p-1">
@@ -155,6 +180,7 @@ export function UsagePopover({
               group={g}
               selected={selected === g}
               detailsId={detailsId}
+              now={now}
               onClick={() => selectProvider(selected === g ? undefined : g.provider)}
             />
           ))}
@@ -181,8 +207,16 @@ export function UsagePopover({
   );
 }
 
-function ProviderSummary({ group, selected, detailsId, onClick }: { group: ProviderGroup; selected: boolean; detailsId: string; onClick: () => void }) {
+function ProviderSummary({ group, selected, detailsId, now, onClick }: { group: ProviderGroup; selected: boolean; detailsId: string; now: number; onClick: () => void }) {
   const name = providerTitle(group.provider);
+  const primary = topAccounts(group.accounts, 1)[0] ?? group.accounts.find((a) => !a.stale) ?? group.accounts[0];
+  const nextReset = primary.windows.reduce((soonest, window) => {
+    const reset = window.resets_at ? Date.parse(window.resets_at) : NaN;
+    return reset > now ? Math.min(soonest, reset) : soonest;
+  }, Infinity);
+  const reset = Number.isFinite(nextReset) ? resetLabel(new Date(nextReset).toISOString(), now) : "";
+  const hasQuota = primary.windows.length > 0 && !isBalanceAccount(primary);
+  const used = fullest(primary);
   return (
     <button
       type="button"
@@ -192,13 +226,12 @@ function ProviderSummary({ group, selected, detailsId, onClick }: { group: Provi
       className={cx("flex min-h-11 items-center gap-2 rounded-control px-2.5 py-2 text-left hover:bg-hover", selected && "bg-hover")}
     >
       <AgentMark agent={group.provider} label={name} decorative size={16} />
-      <span className="min-w-0 flex-1 truncate text-meta font-medium text-ink">{name}</span>
-      <span className="flex max-w-1/2 flex-wrap justify-end gap-1 text-submeta font-medium tabular-nums text-ink-2">
-        {group.accounts.map((a) => (
-          <span key={a.id} title={a.name} className={cx("min-w-0 truncate rounded-control bg-inset px-1.5 py-0.5", a.stale && "opacity-60", !isBalanceAccount(a) && isWarn(fullest(a)) && "text-orange")}>
-            {isBalanceAccount(a) ? (a.balance ? balanceText(a.balance) : "—") : shown(fullest(a))}
-          </span>
-        ))}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-meta font-medium text-ink">{name}</span>
+        <span className="block truncate text-submeta text-ink-3">{[group.accounts.length > 1 ? tr("usage.provider_accounts", { count: group.accounts.length }) : primary.plan, reset].filter(Boolean).join(" · ")}</span>
+      </span>
+      <span title={primary.name} className={cx("min-w-0 max-w-1/2 truncate rounded-control bg-inset px-1.5 py-0.5 text-submeta font-medium tabular-nums text-ink-2", primary.stale && "opacity-60", hasQuota && isWarn(used) && "text-orange")}>
+        {hasQuota ? shown(used) : primary.balance ? balanceText(primary.balance) : "—"}
       </span>
       <Icon name={selected ? "chevron" : "chevronRight"} size={12} className="shrink-0 text-ink-3" />
     </button>

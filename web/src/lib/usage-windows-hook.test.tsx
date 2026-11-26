@@ -19,7 +19,7 @@ vi.mock("./api", async (original) => ({
     }),
 }));
 
-import { useHiddenUsageProviders, useUsageWindows, useUsageWindowsReady } from "./usage-windows";
+import { refreshUsageWindows, useHiddenUsageProviders, useUsageWindows, useUsageWindowsReady } from "./usage-windows";
 import { ApiError } from "./api";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -125,5 +125,21 @@ describe("useUsageWindows", () => {
     visibility = "hidden";
     backToFront();
     expect(calls).toHaveLength(1);
+  });
+
+  it("coalesces manual refreshes, retains the last sample on failure, then replaces it on retry", async () => {
+    await settle(() => calls[0].resolve({ accounts: [account("A")] }));
+    const refresh = refreshUsageWindows();
+    expect(refreshUsageWindows()).toBe(refresh);
+    backToFront();
+    expect(calls).toHaveLength(2);
+    await settle(() => calls[1].reject(new TypeError("flaky link")));
+    expect(await refresh).toBe(false);
+    expect(host.textContent).toBe("A");
+
+    const retry = refreshUsageWindows();
+    await settle(() => calls[2].resolve({ accounts: [account("B")] }));
+    expect(await retry).toBe(true);
+    expect(host.textContent).toBe("B");
   });
 });

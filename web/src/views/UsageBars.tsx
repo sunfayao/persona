@@ -1,9 +1,9 @@
 // The sidebar's bottom (#2432, docs/server/usage-windows.md): compact quota meters; a click opens
 // a popover with every window of every account, its reset countdown, when it was sampled and whether use is ahead of or
-// behind an even pace. Hidden entirely while the hub has no data.
+// behind an even pace. Hidden when there are no readings or unconnected providers.
 import { type ComponentType, useEffect, useId, useRef, useState } from "react";
 import { t as tr } from "../i18n";
-import { fullest, isWarn, liveAccounts, selectSidebarUsageAccounts, sourceNames, usePinnedUsageAccounts, useUsageWindows, type UnconnectedProvider, type UsageAccount } from "../lib/usage-windows";
+import { fullest, isBalanceAccount, isWarn, liveAccounts, selectSidebarUsageAccounts, sourceNames, usageProvider, usePinnedUsageAccounts, useUsageWindows, type UnconnectedProvider, type UsageAccount } from "../lib/usage-windows";
 import { AgentMark } from "../ui/AgentMark";
 import { cx } from "../ui/atoms";
 import { Icon } from "../ui/icons";
@@ -38,6 +38,7 @@ export function Meter({ used, expected, protect, label, tall }: { used: number; 
 }
 
 const EMPTY_UNCONNECTED: readonly UnconnectedProvider[] = [];
+const VISIBLE_USAGE_ITEMS = 4;
 
 /** The sidebar's strip. `accounts` as the hub gave them; `unconnected` lists active providers without usage data yet. */
 export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { accounts: UsageAccount[]; unconnected?: readonly UnconnectedProvider[]; now?: number }) {
@@ -48,6 +49,9 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
   const pinnedIds = usePinnedUsageAccounts();
   const live = liveAccounts(accounts, now);
   const { bars: top, balances } = selectSidebarUsageAccounts(live, pinnedIds);
+  const shownAccounts = [...top, ...balances].slice(0, VISIBLE_USAGE_ITEMS);
+  const shownUnconnected = unconnected.slice(0, VISIBLE_USAGE_ITEMS - shownAccounts.length);
+  const extra = live.length + unconnected.length - shownAccounts.length - shownUnconnected.length;
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +74,7 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
 
   if (!top.length && !balances.length && !unconnected.length) return null;
   return (
-    <div ref={root} className="relative shrink-0 border-t border-line bg-canvas px-2.5" data-usage-bars>
+    <div ref={root} className="@container/usage relative shrink-0 border-t border-line bg-canvas px-2.5" data-usage-bars>
       <button
         ref={trigger}
         type="button"
@@ -81,30 +85,36 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
         title={tr("usage.title")}
         className={cx("touch-hit flex min-h-11 w-full items-center gap-2 rounded-control px-1 text-left transition-colors hover:bg-hover", open && "bg-hover")}
       >
-        <span className="shrink-0 text-submeta font-semibold text-ink-2">{tr("usage.short_title")}</span>
-        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5">
-          {top.map((a) => {
+        <span className="shrink-0 text-submeta font-semibold text-ink-2 @max-[17rem]/usage:sr-only">{tr("usage.short_title")}</span>
+        <span className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5">
+          {shownAccounts.map((a) => {
+            if (isBalanceAccount(a)) return <BalanceSummary key={a.id} a={a} />;
             const used = fullest(a);
             const from = sourceNames(a);
             const label = tr("usage.used_label", { name: a.name, percent: shown(used) });
             const hint = [label, from.length ? tr("usage.sources_title", { sources: from.join(" · ") }) : "", a.stale ? tr("usage.stale_title") : ""].filter(Boolean).join(" · ");
             return (
-              <span key={a.id} className={cx("inline-flex shrink-0 items-center gap-1", a.stale && "opacity-60")} title={hint}>
-                <AgentMark agent={a.provider} label={a.name} decorative size={12} />
+              <span key={a.id} data-usage-summary={a.id} className={cx("inline-flex shrink-0 items-center gap-1 rounded-control bg-inset px-1.5 py-1", a.stale && "opacity-60")} title={hint}>
+                <AgentMark agent={usageProvider(a.provider)} label={a.name} decorative size={12} />
                 <span className="sr-only">{a.name}</span>
-                <span className="w-4"><Meter used={used} label={label} /></span>
+                <span className="w-4 @max-[20rem]/usage:hidden"><Meter used={used} label={label} /></span>
                 <span className={cx(VALUE, isWarn(used) ? "text-orange" : "text-ink-2")}>{shown(used)}</span>
               </span>
             );
           })}
-          {balances.map((a) => <BalanceSummary key={a.id} a={a} />)}
-          {unconnected.slice(0, Math.max(1, 4 - top.length)).map((p) => (
-            <span key={p.id} data-usage-unconnected={p.id} className="inline-flex items-center gap-1 text-ink-3" title={`${p.title} · ${tr("usage.not_connected")}`}>
+          {shownUnconnected.map((p) => (
+            <span key={p.id} data-usage-unconnected={p.id} className="inline-flex shrink-0 items-center gap-1 rounded-control bg-inset px-1.5 py-1 text-ink-3" title={`${p.title} · ${tr("usage.not_connected")}`}>
               <AgentMark agent={p.agent} label={p.title} decorative size={12} />
               <span className="sr-only">{p.title} · {tr("usage.not_connected")}</span>
               <span aria-hidden className={VALUE}>—</span>
             </span>
           ))}
+          {extra > 0 && (
+            <span data-usage-overflow className="shrink-0 rounded-control bg-inset px-1.5 py-1 text-submeta font-medium tabular-nums text-ink-2">
+              <span className="sr-only">{tr("usage.more", { count: extra })}</span>
+              <span aria-hidden>+{extra}</span>
+            </span>
+          )}
         </span>
         <Icon name="chevron" size={12} className={cx("shrink-0 text-ink-3", !open && "rotate-180")} />
       </button>
@@ -118,8 +128,8 @@ export function UsageBars({ accounts, unconnected = EMPTY_UNCONNECTED, now }: { 
 function BalanceSummary({ a }: { a: UsageAccount }) {
   // Why a balance is missing or old is the popover's detail (progressive disclosure); the strip only fades a stale one.
   return (
-    <span className={cx("inline-flex min-w-0 max-w-full items-center gap-1", a.stale && "opacity-60")} title={a.name}>
-      <AgentMark agent={a.provider} label={a.name} decorative size={12} />
+    <span className={cx("inline-flex min-w-0 max-w-full items-center gap-1 rounded-control bg-inset px-1.5 py-1", a.stale && "opacity-60")} title={a.balance ? `${a.name} · ${a.balance.currency} ${a.balance.amount}` : a.name}>
+      <AgentMark agent={usageProvider(a.provider)} label={a.name} decorative size={12} />
       <span className="sr-only">{a.name}</span>
       <span className={cx("truncate text-submeta font-medium tabular-nums", !a.balance || Number(a.balance.amount) === 0 ? "text-orange" : "text-ink-2")}>
         {a.balance ? `${a.balance.currency} ${a.balance.amount}`.trim() : "—"}
@@ -138,10 +148,12 @@ function SidebarUsageInner({ accounts }: { accounts: UsageAccount[] }) {
   const [unconnected, setUnconnected] = useState(EMPTY_UNCONNECTED);
   useEffect(() => {
     if (LoadedUnconnected) return;
+    let active = true;
     void import("./UsageUnconnected").then((m) => {
       LoadedUnconnected = m.UsageUnconnected;
-      setLoaded(true);
+      if (active) setLoaded(true);
     });
+    return () => { active = false; };
   }, []);
   return (
     <>

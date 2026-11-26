@@ -1,4 +1,9 @@
 {
+  "more": "详情中还有 {count} 项",
+  "refresh": "刷新用量",
+  "refreshing": "正在刷新用量…",
+  "refreshed": "用量已刷新",
+  "refresh_failed": "刷新失败，正在显示上次取得的用量数据。",
   "title": "订阅额度",
   "short_title": "用量",
   "used": "已用",

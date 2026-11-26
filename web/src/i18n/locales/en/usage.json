@@ -1,4 +1,9 @@
 {
+  "more": "{count} more in usage details",
+  "refresh": "Refresh usage",
+  "refreshing": "Refreshing usage…",
+  "refreshed": "Usage refreshed",
+  "refresh_failed": "Couldn't refresh usage. Showing the last available numbers.",
   "title": "Subscription limits",
   "short_title": "Usage",
   "used": "Used",
