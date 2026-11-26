@@ -280,7 +280,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
   const tabIdentity = associatedTab ? t("sidebar.tab_named", { label: associatedTab }) : "";
   // A structural tab row keeps its old plain-text fallback, but only a real association earns the localized identity.
   const structuralTabHint = tab && !tabIdentity && !primaryTab ? tabLabel(s) : "";
-  const tail = [sameAsMarks ? "" : subtitle, hint ?? structuralTabHint, tabIdentity].filter(Boolean).join(" · ");
+  const tail = [sameAsMarks ? "" : subtitle, hint ?? structuralTabHint, source === "terminal" ? associatedTab : tabIdentity].filter(Boolean).join(" · ");
   const preview = sessionPreview(s);
   // Settings › Appearance › show details on agent rows (#2430): a second line under an agent's title — folder · model · context · age
   const details = useAgentDetails();
@@ -335,6 +335,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       // its mark's name is in the row's tooltip too: the mark steps aside while the row is hovered
       title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${subtitle ? `\n${subtitle}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
       data-sidebar-session=""
+      data-sidebar-context={tailShown || undefined}
       // a touch screen: rows a finger can hit (44), and room at the end for the ⋯ that is always there; the open row
       // keeps its ⋯ too, so it has room for it
       className={cx("relative z-10 flex w-full items-center gap-2 rounded-[7px] px-2 sidebar-row transition-transform duration-150 active:scale-[0.98] [@media(pointer:coarse)]:min-h-11", active && CURRENT_ROW, // room for "N agents" and the ⋯ beside it (instead of the ⋯'s own)

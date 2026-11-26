@@ -57,6 +57,7 @@ try {
       const before = await measure(name);
       const drawerWidth = Math.round((await drawer.boundingBox()).width);
       console.log(JSON.stringify({ mode: baseline ? "before" : "after", width, drawerWidth, title: before }));
+      if (!baseline && !phone) assert.ok(before.width >= 160, "desktop title gets the context column width");
       if (!baseline && phone) {
         assert.ok(drawerWidth <= width - 43 && drawerWidth <= 401, "leave a dismissal target");
         assert.ok(!before.clipped && before.lines > 1, "ordinary CJK title fully visible");
