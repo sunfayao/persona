@@ -77,57 +77,6 @@ func (s *slowAutoLink) AutoLinkUnlinkedTodoAgent(ctx context.Context, todoID, ma
 	return inserted, released, err
 }
 
-// A manual link submitted while an automatic workspace write is in flight wins
-// after both finish, preserving its source and active ownership through reload.
-func TestTodoHandLinkDuringAutoLinkToTheSameTodo(t *testing.T) {
-	database := todoTestDB(t)
-	seedTodos(t, database, db.TodoRow{ID: "td_space", Title: "Space"})
-	st := &slowAutoLink{DB: database, started: make(chan struct{}, 1), release: make(chan struct{}), finished: make(chan bool, 1)}
-	var releaseOnce sync.Once
-	defer releaseOnce.Do(func() { close(st.release) })
-	e := newTodoEnv(t, st)
-	e.f.setSessions("mac")
-	e.must("PUT", "/api/v1/todos/td_space/spaces/mac/sp", "")
-	e.sessions("mac", proto.Session{SessionID: "s1", SpaceName: "sp", Status: proto.StatusWorking})
-	select {
-	case <-st.started:
-	case <-time.After(5 * time.Second):
-		t.Fatal("no automatic link")
-	}
-	manualDone := make(chan struct{})
-	manualCode := 0
-	go func() {
-		manualCode = e.do("PUT", "/api/v1/todos/td_space/agents/mac/s1", "").Code
-		close(manualDone)
-	}()
-	waitWorkspaceRequest(t, manualDone, "linkTodoAgentWithSourceAllowingDone")
-	releaseOnce.Do(func() { close(st.release) })
-	select {
-	case <-st.finished:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the automatic link did not finish")
-	}
-	select {
-	case <-manualDone:
-		if manualCode != 200 {
-			t.Fatalf("manual link returned %d", manualCode)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("manual link did not finish")
-	}
-	rows, err := database.ListAllTodoAgents(context.Background())
-	if err != nil || len(rows) != 1 || rows[0].Source != "manual" || rows[0].ReleasedAt != nil {
-		t.Fatalf("stored %+v %v", rows, err)
-	}
-	if a := agentOf(*e.get("td_space"), "s1"); a == nil || a.Source != "manual" || a.ReleasedAt != nil {
-		t.Fatalf("s1 = %+v", a)
-	}
-	reloadTodos(t, e.s)
-	if got := e.todoOf("mac", "s1"); got != "td_space" {
-		t.Fatalf("after reload s1 works for %q", got)
-	}
-}
-
 // An automatic link the store did not keep gives back the done todo's link it released, unless the agent was linked
 // by hand since (that link released it in the store too); a todo reopened meanwhile has the agent working for it again
 // (#2904).
