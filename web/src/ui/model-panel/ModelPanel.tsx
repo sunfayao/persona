@@ -677,8 +677,8 @@ export function ModelPanel({ anchor, onClose, providers, state, scope, onPick, o
   const style: CSSProperties & Record<string, string | number | undefined> = {
     left: geo?.left ?? 0,
     top: geo?.top ?? 0,
-    // three columns: as wide as they need, whatever the list holds; one column: as wide as it has been
-    ...(columns ? { width: `min(640px, ${room})` } : { minWidth: width ? `max(300px, min(${width}px, ${room}))` : undefined, maxWidth: `min(460px, ${room})` }),
+    // three columns: wide enough for long launcher + model names without clipping; one column: as wide as it has been
+    ...(columns ? { width: `min(860px, ${room})` } : { minWidth: width ? `max(300px, min(${width}px, ${room}))` : undefined, maxWidth: `min(520px, ${room})` }),
     visibility: geo ? undefined : "hidden",
     "--model-panel-from": geo?.from,
     "--model-panel-shift": geo?.shift === undefined ? undefined : `${geo.shift}px`,

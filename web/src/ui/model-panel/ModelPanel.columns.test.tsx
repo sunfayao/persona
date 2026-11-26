@@ -202,4 +202,36 @@ describe("the model panel's columns", () => {
     expect(rows().map((r) => r.dataset.panelRow)).toEqual(["recent:0"]);
     expect(document.body.querySelector('[data-panel-section="presets"]')).toBeNull();
   });
+
+  it("gives long launcher and model names wider columns and a two-line effort header", async () => {
+    const longLauncher: PanelProvider = {
+      id: "trae-relay",
+      name: "TRAE CLI (Relay)",
+      engine: "trae",
+      models: [{ id: "relay-gpt-6-astra-max", name: "Relay GPT-6-Astra Max 1M Rank229", efforts: [] }],
+    };
+    act(() =>
+      root.render(
+        <ModelPanel
+          anchor={anchor}
+          onClose={vi.fn()}
+          providers={[longLauncher]}
+          state={{ current: { provider: "trae-relay", model: "relay-gpt-6-astra-max" }, recommended: [] }}
+          scope="agent"
+          onPick={vi.fn(async () => true)}
+        />,
+      ),
+    );
+    await flush();
+    const launchersCol = document.body.querySelector<HTMLElement>("[data-panel-launchers]")!;
+    const levelsCol = document.body.querySelector<HTMLElement>("[data-panel-levels]")!;
+    expect(launchersCol.className).toContain("min-[900px]:w-[200px]");
+    expect(levelsCol.className).toContain("min-[900px]:w-[196px]");
+    expect(side("trae-relay").title).toBe("TRAE CLI (Relay)");
+    const levelModel = document.body.querySelector<HTMLElement>("[data-panel-level-model]")!;
+    expect(levelModel.textContent).toBe("Relay GPT-6-Astra Max 1M Rank229");
+    expect(levelModel.title).toBe("Relay GPT-6-Astra Max 1M Rank229");
+    expect(levelModel.className).toContain("line-clamp-2");
+    expect(levelModel.className).not.toContain("truncate");
+  });
 });
