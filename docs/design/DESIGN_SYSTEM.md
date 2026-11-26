@@ -382,7 +382,7 @@ Background work and model retry messages have their own information in that bar.
   last state. Left out: cindy's **Stop all** for background subtasks (#5044) and its host-measured speed (Persona measures
   from the status line's count instead, `web/src/lib/token-rate.ts`). New mark: `activity` (Lucide's activity, as cindy's).
 
-On the web, a short, single-line draft in a composer at least 40 rem wide shares a row with its actions. Longer drafts, edit and blocked states, and narrow composers put the controls below the full-width input. The send, model and attachment controls stay available in both arrangements.
+On the web, the composer always stacks the full-width input above the bottom toolbar row (`+` and the permission picker on the left; the model pill, voice and send/stop controls on the right) across all widths and draft lengths, so the permission picker and other controls stay anchored as text is typed or wrapped.
 
 ### 3.2 Message bubbles
 

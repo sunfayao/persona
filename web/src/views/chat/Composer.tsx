@@ -1000,7 +1000,6 @@ export const Composer = memo(function Composer({
     query, source: mention, machineId, within: box, memory: catalogMemory, ime: ime.tracker,
   };
   const commandPalette = () => <SlashPalette {...slashProps} active={Math.min(active, Math.max(rows.length - 1, 0))} />;
-  const inlineFields = !editor && !loop && !blocked && !draft.includes("\n") && draft.length <= 48;
 
   return (
     <div
@@ -1106,8 +1105,8 @@ export const Composer = memo(function Composer({
         )}
         {/* a field that turns disabled loses focus with no blur event: the keyboard is down, say so */}
         <DisabledBlur disabled={Boolean(disabled)} focused={focused} onBlur={() => { setFocused(false); onFocusChange?.(false); }} />
-        <div data-composer-fields className={cx("relative flex min-w-0 flex-col gap-1", inlineFields && "@min-[40rem]/composer:flex-row @min-[40rem]/composer:items-center")}>
-        <div className={cx("relative min-w-0", inlineFields && "@min-[40rem]/composer:flex-1 @min-[40rem]/composer:pl-8")}>
+        <div data-composer-fields className="relative flex min-w-0 flex-col gap-1">
+        <div className="relative min-w-0">
         <textarea
           ref={input}
           data-composer-input
@@ -1274,7 +1273,7 @@ export const Composer = memo(function Composer({
             <span className="min-w-0 truncate">{t("chat-composer.blocked_hint", { label: blocked.label })}</span>
           </div>
         )}
-        <div className={cx("flex min-w-0 items-center gap-1 [@media(pointer:coarse)]:gap-2", inlineFields && "@min-[40rem]/composer:max-w-[54%]")}>
+        <div data-composer-toolbar className="flex min-w-0 items-center gap-1 [@media(pointer:coarse)]:gap-2">
           <input ref={fileInput} type="file" multiple hidden onChange={(e) => e.target.files && void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
           {/* cindy's +: bare until hover, as the model pill; it opens the + / @ panel (files, Plan mode, sessions…) */}
           <button
@@ -1287,7 +1286,7 @@ export const Composer = memo(function Composer({
             disabled={disabled || Boolean(editor && !mention)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={togglePlus}
-            className={cx(TOOL, "text-ink-2 disabled:opacity-50", inlineFields && "@min-[40rem]/composer:absolute @min-[40rem]/composer:left-0")}
+            className={cx(TOOL, "text-ink-2 disabled:opacity-50")}
           >
             {uploading ? <Spinner /> : <Icon name="plus" size={15} stroke={2} />}
           </button>

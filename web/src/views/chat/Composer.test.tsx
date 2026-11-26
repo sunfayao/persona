@@ -810,6 +810,42 @@ describe("the trailing slot", () => {
     expect(order.slice(at + 1)).toEqual(["composer-voice", "composer-send"]);
     expect(row.closest("[class*='@container/composer']")).not.toBeNull();
   });
+
+  it("keeps the leading permission picker anchored right after + in the bottom toolbar across draft lengths", () => {
+    act(() => root.render(
+      <Composer
+        draftKey="anchored-toolbar"
+        placeholder=""
+        onSend={async () => true}
+        leading={<button type="button" data-testid="permission-picker">Full access</button>}
+        trailing={<span data-pill />}
+      />,
+    ));
+    const input = host.querySelector<HTMLTextAreaElement>("textarea[data-composer-input]")!;
+    const setDraft = (text: string) => act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, text);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const assertAnchored = () => {
+      const fields = host.querySelector("[data-composer-fields]")!;
+      const toolbar = host.querySelector("[data-composer-toolbar]")!;
+      const plus = toolbar.querySelector("[data-composer-plus]")!;
+      const picker = toolbar.querySelector("[data-testid=permission-picker]")!;
+      expect(fields.className).toContain("flex-col");
+      expect(fields.className).not.toContain("flex-row");
+      expect(plus.className).not.toContain("absolute");
+      expect(toolbar.className).not.toContain("max-w-[54%]");
+      const children = [...toolbar.children];
+      expect(children.indexOf(picker)).toBe(children.indexOf(plus) + 1);
+    };
+    assertAnchored();
+    setDraft("short");
+    assertAnchored();
+    setDraft("你把这个修复合并到deploy分支吧，但是这个分支有很多的修改，如果遇到冲突需要你自己处理一下。");
+    assertAnchored();
+    setDraft("line 1\nline 2");
+    assertAnchored();
+  });
 });
 
 // #5325: the "/" palette (cindy's): ranked rows, the keys staying in the box, "No matching commands", and where it is offered
