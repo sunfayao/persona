@@ -272,8 +272,8 @@ describe("the user's bubble and the answer", () => {
     expect(html).not.toContain(">发送中…<");
   });
 
-  it("leaves 12% on its left like a merged bubble, so it never runs the whole width (#1996)", () => {
-    expect(renderToStaticMarkup(<UserBubble msg={msg("你好")} mid="m" sid="s" />)).toContain("pl-[12%]");
+  it("keeps a small sender inset on phones and a wider inset on desktop", () => {
+    expect(renderToStaticMarkup(<UserBubble msg={msg("你好")} mid="m" sid="s" />)).toContain("pl-4 sm:pl-8");
   });
 
   it("a streaming answer has the message menu too, at the chat's body size (#1996)", () => {

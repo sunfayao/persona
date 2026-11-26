@@ -97,7 +97,7 @@ export const PermissionPicker = memo(function PermissionPicker({ session, assist
         )}
       >
         <Icon name={own && mode === "default" ? LISTED_DEFAULT_ICON : pickerIcon(mode)} size={14} stroke={2} className="shrink-0" />
-        <span className="min-w-0 truncate @max-[300px]/composer:hidden">{label}</span>
+        <span className={cx("min-w-0 truncate @max-[300px]/composer:hidden", mode === "default" && "@max-[420px]/composer:hidden")}>{label}</span>
         <Icon name="chevron" size={14} stroke={2} className="shrink-0 @max-[300px]/composer:hidden" />
       </button>
       {menu.anchor && <Menu anchor={menu.anchor} onClose={menu.close} side="top" width={300} items={pickerItems(session, (m) => void set({ permission_mode: m }), assistant, all)} />}
