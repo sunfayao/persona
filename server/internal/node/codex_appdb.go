@@ -211,6 +211,10 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAp
 	q := func(settings string) string {
 		// Native threads can store the whole opening prompt in title. Project unnamed titles before caching or sending them.
 		return `SELECT id, rollout_path AS rolloutPath, COALESCE(NULLIF(name, ''), substr(title, 1, 256)) AS title, cwd, source, ` +
+			// A native CLI may put the first 36 characters of its opening prompt in name, even when the title
+			// contains the complete request. Only recover that clipped opening tag. Keep user-chosen names.
+			`CASE WHEN length(name) = 36 AND instr(name, '<persona-context kind="') = 1 AND instr(name, '>') = 0 ` +
+			`AND name = substr(title, 1, 36) THEN substr(title, 1, 8192) END AS contextPrompt, ` +
 			`COALESCE(updated_at_ms, updated_at * 1000) AS updatedAtMs` + settings + ` FROM threads WHERE ` + where
 	}
 	target := codexDBTarget(db)
@@ -234,12 +238,20 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAp
 	if len(bytes.TrimSpace(out)) == 0 { // no row: none of the sidebar's chats is in the database
 		return byID, nil
 	}
-	var rows []codexAppThread
+	var rows []struct {
+		codexAppThread
+		ContextPrompt string `json:"contextPrompt"`
+	}
 	if err := json.Unmarshal(out, &rows); err != nil {
 		return nil, err
 	}
 	for _, r := range rows {
-		byID[r.ID] = r
+		if r.ContextPrompt != "" {
+			if caption := promptTitle(r.ContextPrompt); caption != "" {
+				r.Title = caption
+			}
+		}
+		byID[r.ID] = r.codexAppThread
 	}
 	return byID, nil
 }
