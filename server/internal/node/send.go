@@ -182,6 +182,18 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 				return err
 			}
 		}
+		if kind == "codex" && host.ParsePane(pane).Kind == host.Herdr && codexTerminalCommand(text, len(images)) {
+			// These commands belong to the TUI even when Persona has joined its thread over app-server.
+			// A native panel may replace the input after Enter, so the normal prompt echo check does not apply.
+			if err := n.codexReady(ctx, pane, false); err != nil {
+				return err
+			}
+			err := n.hostPrompt(ctx, pane, strings.TrimSpace(text))
+			if r := deliveryRefusal(err); r != nil {
+				return r
+			}
+			return uncertain(err)
+		}
 		if kind == "codex" && n.codexJoined(id) {
 			// On its app-server (codex_daemon.go): a turn or a steer, nothing typed — a draft in its box stays as it is.
 			return n.sendCodex(ctx, id, text, images)
@@ -354,6 +366,21 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 		}
 	}
 	return uncertain(err)
+}
+
+// Keep in step with the Codex rows in web/src/lib/composer-commands.ts.
+// Compact keeps its existing app-server implementation.
+func codexTerminalCommand(text string, images int) bool {
+	text = strings.TrimSpace(text)
+	if text == "" || images != 0 || strings.ContainsAny(text, "\r\n") {
+		return false
+	}
+	switch strings.Fields(text)[0] {
+	case "/status", "/diff", "/review", "/mcp", "/skills", "/resume", "/statusline":
+		return true
+	default:
+		return false
+	}
 }
 
 // prompt submits text to the agent in a pane. A host only prompts agents it detects (herdr); for the others (a compatible CLI)

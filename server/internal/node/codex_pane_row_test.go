@@ -61,8 +61,8 @@ func TestCodexPaneKeepsItsRowUnderATitleTheIndexDoesNotName(t *testing.T) {
 				t.Errorf("the pane's thread is listed with pane %q, tab %q, source %q, route %q; want its pane's row on the app-server route",
 					s.PaneID, s.TabID, s.SourceKind, s.CodexRoute)
 			}
-			if s.Capabilities == nil || !s.Capabilities.Terminal || !s.Capabilities.Send || !s.Capabilities.Approve {
-				t.Errorf("capabilities %+v, want terminal, send and approve", s.Capabilities)
+			if s.Capabilities == nil || !s.Capabilities.Terminal || !s.Capabilities.Send || !s.Capabilities.Approve || !s.Capabilities.NativeSlashCommands {
+				t.Errorf("capabilities %+v, want terminal, send, approve and native slash commands", s.Capabilities)
 			}
 
 			// A thread no pane shows stays its app-server's row.
@@ -70,7 +70,7 @@ func TestCodexPaneKeepsItsRowUnderATitleTheIndexDoesNotName(t *testing.T) {
 			if len(rows) != 1 {
 				t.Fatalf("%d rows for the thread with no pane, want 1: %+v", len(rows), rows)
 			}
-			if s := rows[0]; s.SourceKind != "codex_app_server" || s.PaneID != "" || s.Capabilities == nil || s.Capabilities.Terminal {
+			if s := rows[0]; s.SourceKind != "codex_app_server" || s.PaneID != "" || s.Capabilities == nil || s.Capabilities.Terminal || s.Capabilities.NativeSlashCommands {
 				t.Errorf("the thread with no pane: source %q, pane %q, capabilities %+v", s.SourceKind, s.PaneID, s.Capabilities)
 			}
 

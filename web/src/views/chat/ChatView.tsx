@@ -58,7 +58,7 @@ import { scrollBehavior } from "../../ui/stream/motion";
 import { segmentChanges, shiftAbove } from "./offscreen";
 import { glide } from "./glide";
 import { AGENT_COMMANDS, Composer, type Outgoing } from "./Composer";
-import { agentCommands, openPickerCommand } from "../../lib/composer-commands";
+import { agentCommands, isNativeTerminalCommand, nativeCommandRows, openPickerCommand } from "../../lib/composer-commands";
 import { IMAGE_LIMIT_CODE } from "../../lib/api-errors";
 import { COMPACT_FEATURE, compactBody, compactPath } from "../../lib/compaction";
 import { canResendFailedTurn, compactResendSupport, failedTurnToResend, isImageLimitError, resolveFailedTurnPayload, snapshotTerminalCompaction, waitForAssistantCompaction, watchTerminalCompaction, type OutgoingPayload } from "../../lib/compact-resend";
@@ -1210,6 +1210,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         toast(isStoppedAgent(row) ? t("chat-chatview.stopped_line") : sourceSubtitle(session) || t("chat-chatview.session_unavailable"), "error");
         return false;
       }
+      const showNativeOutput = switchable && !out.edit && isNativeTerminalCommand(row, out.text, out.images.length);
+      const sendingPage = showNativeOutput ? location.href : undefined;
       if (!internalCompactIds.current.has(id)) {
         const recent = deliveredPayloads.current;
         if (recent.size >= 20) recent.delete(recent.keys().next().value!);
@@ -1263,6 +1265,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         if (began?.session_id && began.session_id !== sid) {
           upsertSession({ ...began, machine_id: mid });
           if (inPage) navigate({ name: "session", mid, sid: began.session_id }, true);
+        } else if (sendingPage && location.href === sendingPage && !reply?.waits_on_computer) {
+          setView("term");
         }
         return true;
       } catch (e) {
@@ -1299,7 +1303,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `failed` reads only stable setters and these
-    [mid, sid, session, assistant, follow, inPage],
+    [mid, sid, session, assistant, follow, inPage, switchable, setView],
   );
 
   /** Keeps a message that did not go as a failed bubble where it was sent, with why, "Retry" and "Delete", the box empty
@@ -2116,7 +2120,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // the main conversation's /clear (#5095, lib/main-clear.ts) and every Persona conversation's /permissions (#6476)
   // /workflows opens this page's side panel: a chat drawn inside a panel (the Team panel's worker) does not offer it (#5421)
   const commands = useMemo(
-    () => (assistant ? [...(clears ? mainCommands() : []), ...(session ? [permissionsCommand()] : [])] : agentCommands(AGENT_COMMANDS, session).filter((c) => !(embedded && c.text === WORKFLOWS_COMMAND))),
+    () => {
+      if (assistant) return [...(clears ? mainCommands() : []), ...(session ? [permissionsCommand()] : [])];
+      const actions = agentCommands(AGENT_COMMANDS, session).filter((c) => !(embedded && c.text === WORKFLOWS_COMMAND));
+      return [...actions, ...nativeCommandRows(session, actions)];
+    },
     [assistant, clears, session, embedded],
   );
   // the permission picker after the + (#5324), where the mode can be switched: a Persona conversation whatever its state

@@ -24,6 +24,8 @@ type SessionCapabilities struct {
 	Approve   bool `json:"approve"`
 	Terminal  bool `json:"terminal"`
 	Attach    bool `json:"attach"`
+	// NativeSlashCommands marks a Codex pane whose native commands bypass the app-server prompt route.
+	NativeSlashCommands bool `json:"native_slash_commands,omitempty"`
 	// PluginInput: a Claude outside Persona's terminals whose Persona plugin polls the node: the owner's own messages
 	// go in as their input while it rests, not as another session's through its inbox (docs/integrations/
 	// claude-integration.md "Owner input through the Persona plugin"). Absent from older nodes and everywhere else.

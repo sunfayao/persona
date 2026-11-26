@@ -1,6 +1,8 @@
 // What an agent's composer offers and refuses, by what the session can do (iOS ChatView canPickModel / canClear,
 // Android canTypeClaudeCommands): the "/" list. The pictures a message takes are the hub's (lib/image-limits.ts).
-import { agentName, sessionAgent } from "./agent-kind";
+import { agentName, markId, sessionAgent } from "./agent-kind";
+import { t } from "../i18n";
+import type { ComposerCommand } from "./extension-prompts";
 import { WORKFLOWS_COMMAND } from "./background-panel";
 import { canSwitchModel, isModelCommand, requestModelPicker } from "./model-switch";
 import { hasLoop, LOOP_TEXT } from "./loop-command";
@@ -17,6 +19,41 @@ export function openPickerCommand(draftKey: string, text: string, images = 0): b
 
 /** Rows the "/" palette lists at most (cindy's filterSlashCommands). */
 export const SLASH_LIMIT = 25;
+
+// These commands have terminal output or interaction. The CLI owns their arguments
+// and the availability of additional commands from the user's installation.
+const terminalCommands: Readonly<Record<string, readonly string[]>> = {
+  claude: ["/help", "/status", "/usage", "/diff", "/tasks", "/mcp", "/config", "/effort", "/resume"],
+  codex: ["/status", "/diff", "/review", "/mcp", "/skills", "/resume", "/statusline"],
+  agy: ["/help", "/context", "/usage", "/diff", "/tasks", "/agents", "/mcp", "/config", "/effort", "/resume"],
+};
+
+function terminalCommandList(s: Session | undefined) {
+  if (!s?.pane_id || s.assistant || s.starting || s.awaiting_first_message || s.pending_switch ||
+      s.agent_surface === "desktop" || s.source_kind === "runtime" || s.space_kind === "botmux" ||
+      !sessionCan(s, "send") || !sessionCan(s, "terminal") || stateOf(s) === "offline") return;
+  const who = sessionAgent(s);
+  const agent = markId(who.agent);
+  if (agent === "codex" && !s.capabilities?.native_slash_commands) return;
+  const names = terminalCommands[agent];
+  if (names) return { names, source: agentName(who.agent, who.label) };
+}
+
+export function nativeCommandRows(s: Session | undefined, existing: readonly ComposerCommand[]): ComposerCommand[] {
+  const list = terminalCommandList(s);
+  if (!list) return [];
+  const occupied = new Set(existing.map((command) => command.word));
+  return list.names.filter((word) => !occupied.has(word)).map((word) => ({
+    word, text: word, source: list.source, desc: t("chat-composer.cmd_native_terminal_desc"),
+  }));
+}
+
+/** A single native command, possibly with arguments, as opposed to a prompt containing attachments or context. */
+export function isNativeTerminalCommand(s: Session | undefined, text: string, images: number): boolean {
+  const trimmed = text.trim();
+  if (images || /[\r\n]/.test(trimmed)) return false;
+  return terminalCommandList(s)?.names.includes(trimmed.split(/\s/, 1)[0]) ?? false;
+}
 
 /** Claude Code in a herdr pane: it takes `/model` and `/clear` typed into its terminal (Codex, a compatible CLI, the assistant
  *  and the read-only sources have no such commands here). */

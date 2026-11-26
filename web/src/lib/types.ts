@@ -153,6 +153,7 @@ export interface EngineLeg {
 }
 
 export interface SessionCapabilities {
+  native_slash_commands?: boolean;
   takeover?: { running: boolean; can_resume: boolean; reason?: string; released_desktop?: boolean };
   read?: boolean;
   send?: boolean;

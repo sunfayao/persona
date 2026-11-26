@@ -33,7 +33,8 @@ import { FileCards, ReplyFiles } from "./FileCards";
 import { ReplyPorts } from "./PortChips";
 import { MessageActions } from "./MessageActions";
 import { composerEditText } from "../../lib/skill-mentions";
-import { inlineMentionAt } from "../../lib/inline-mentions";
+import { inlineMentionAt, sessionMentionRanges } from "../../lib/inline-mentions";
+import { clickLink, linkHref } from "../../lib/links";
 import { useIsLatestMessage } from "./latest-message-time";
 import { QuoteStack } from "./Quote";
 import { PathText } from "../../ui/PathLinks";
@@ -153,6 +154,8 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
   const whole = fromCard ? fromCard.text : full;
   const split = useMemo(() => splitQuotes(whole), [whole]);
   const text = split ? split.rest : whole;
+  const mentions = useMemo(() => sessionMentionRanges(blocks, text, full.length - text.length), [blocks, text, full]);
+  const cwd = getSession(mid, sid)?.cwd;
   const ref = useRef<HTMLDivElement>(null);
   const [long, setLong] = useState(() => bubbleLines(text) > BUBBLE_MAX_LINES);
   const [open, setOpen] = useState(false);
@@ -178,7 +181,16 @@ function BubbleText({ text: full, blocks, ts, mid, sid, own, pending }: { text: 
       data-folded={folded || undefined}
       data-bubble-text
     >
-      <PathText text={text} mid={mid} cwd={getSession(mid, sid)?.cwd} />
+      {mentions.map(({ start, end, url }, i) => (
+        <Fragment key={start}>
+          <PathText text={text.slice(mentions[i - 1]?.end ?? 0, start)} mid={mid} cwd={cwd} />
+          <a href={linkHref(url)} onClick={(event) => clickLink(event, url)} data-session-mention
+            className="rounded-chip bg-accent-tint px-1 font-medium text-accent-ink [box-decoration-break:clone] hover:underline">
+            {text.slice(start, end)}
+          </a>
+        </Fragment>
+      ))}
+      <PathText text={text.slice(mentions.at(-1)?.end ?? 0)} mid={mid} cwd={cwd} />
     </div>
   );
   return (
