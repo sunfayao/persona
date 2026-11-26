@@ -601,7 +601,7 @@ func (ps *extensions) changed(c extension.Change) {
 		if err := ps.h.callAssistant(ctx, assistantwire.MethodExtensionTrustForget, assistantwire.ExtensionTrustForget{Extension: c.ID}, nil); err != nil {
 			ps.logf("plugin %s removed: its trust was not forgotten: %v", c.ID, err)
 		}
-		if n, err := ps.h.removeHandoffRules(ctx, c.ID, ""); err != nil {
+		if n, err := ps.h.removeHandoffRules(ctx, c.ID); err != nil {
 			ps.logf("plugin %s removed: its hand-off rules were not: %v", c.ID, err)
 		} else if n > 0 {
 			ps.logf("plugin %s removed: %d hand-off rules with it", c.ID, n)

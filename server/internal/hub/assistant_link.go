@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/bus"
@@ -64,10 +65,6 @@ func (h *Hub) assistantRoutesRelayed(api *http.ServeMux) {
 	for _, pattern := range assistantwire.Routes {
 		if pattern == "GET /api/v1/sessions/archived" || pattern == "POST /api/v1/sessions/{mid}/{sid}/archive" || pattern == "POST /api/v1/sessions/{mid}/{sid}/unarchive" {
 			api.HandleFunc(pattern, h.forwardAgentArchives)
-			continue
-		}
-		if pattern == "POST /api/v1/sessions/{mid}/{sid}/autoname" { // a full device, a capable owner (agent_autoname.go)
-			api.HandleFunc(pattern, h.forwardAgentAutoname)
 			continue
 		}
 		if key, ok := mergedLists[pattern]; ok { // the todos: every manager's

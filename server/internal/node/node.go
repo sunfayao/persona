@@ -1289,7 +1289,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		running, known := n.herdrRunning(ctx)
 		installing, installErr := n.herdrInstalling() // herdrinstall.go
 		return map[string]any{"running": running, "known": known, "installing": installing, "install_error": installErr}, nil
-	case "connector.list", "connector.chats", "connector.older", "connector.changes", "connector.search": // this Mac's own data (connectors.go)
+	case "connector.list", "connector.chats", "connector.older", "connector.search": // this Mac's own data (connectors.go)
 		return localConnector(ctx, method, params)
 	case "credential.gh_token": // the GitHub connector's token from this machine's gh login (credential.go)
 		var c struct {

@@ -5,12 +5,12 @@
   },
   "sizes": {
     "internal/assistant": {
-      "files": 610,
-      "lines": 201999
+      "files": 608,
+      "lines": 200148
     },
     "internal/devices": {
       "files": 68,
-      "lines": 21625
+      "lines": 21572
     },
     "internal/extension": {
       "files": 74,
@@ -18,11 +18,11 @@
     },
     "internal/extmgr": {
       "files": 180,
-      "lines": 43897
+      "lines": 43881
     },
     "internal/hub": {
-      "files": 248,
-      "lines": 63138
+      "files": 247,
+      "lines": 63016
     },
     "internal/node": {
       "files": 611,

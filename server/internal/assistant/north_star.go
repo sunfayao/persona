@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"os"
 	"path"
 	"slices"
@@ -287,7 +286,7 @@ type northStarStore interface {
 	WorkEventsBetween(context.Context, time.Time, time.Time, []string) ([]db.WorkEvent, error)
 }
 
-// NorthStar is GET /api/v1/assistant/north-star's answer (docs/assistant/north-star.md "HTTP contract").
+// NorthStar is the daily metrics shared by the briefing and command.
 type NorthStar struct {
 	Date     string    `json:"date"`
 	TimeZone string    `json:"time_zone"`
@@ -648,7 +647,7 @@ func availability(q northStarQuery, roles convRoles, attempts []nsAttempt, recor
 	return av
 }
 
-// ---- the route and the briefing ----
+// ---- the briefing ----
 
 // northStarAt reads the day of now in loc up to now, split at split (zero: none).
 func (s *Service) northStarAt(ctx context.Context, since, until, split time.Time, loc *time.Location) (NorthStar, error) {
@@ -660,38 +659,6 @@ func (s *Service) northStarAt(ctx context.Context, since, until, split time.Time
 }
 
 var errNoNorthStar = errors.New("no database to read the north star from")
-
-// northStarRoutes: GET /api/v1/assistant/north-star[?date=YYYY-MM-DD][&split=RFC3339][&tz=Area/City] (full access).
-// date is a day in the owner's time zone (default today, up to now); split cuts availability before and from a time.
-func (s *Service) northStarRoutes() {
-	s.handle("GET /api/v1/assistant/north-star", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, i18n.Err("http-status.forbidden"))
-			return
-		}
-		loc := s.location(r.Context())
-		if tz := r.URL.Query().Get("tz"); tz != "" {
-			l, err := time.LoadLocation(tz)
-			if err != nil {
-				apierr.Write(w, http.StatusBadRequest, i18n.Err("assistant-north_star.bad_query"))
-				return
-			}
-			loc = l
-		}
-		since, until, split, err := northStarWindow(r.URL.Query().Get("date"), r.URL.Query().Get("split"), time.Now(), loc)
-		if err != nil {
-			apierr.Write(w, http.StatusBadRequest, i18n.Err("assistant-north_star.bad_query"))
-			return
-		}
-		ns, err := s.northStarAt(r.Context(), since, until, split, loc)
-		if err != nil {
-			s.logf("north star: %v", err)
-			apierr.Write(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		apierr.WriteJSON(w, ns)
-	})
-}
 
 // northStarWindow is the day date ("" today) in loc, up to now when it is today, and the split time ("" none).
 func northStarWindow(date, split string, now time.Time, loc *time.Location) (time.Time, time.Time, time.Time, error) {

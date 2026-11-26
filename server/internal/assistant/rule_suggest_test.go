@@ -298,8 +298,8 @@ func TestPlanStartSuggestionAndAlways(t *testing.T) {
 		t.Fatal("still suggested after Always")
 	}
 	// Removing the rule where it is listed does not bring the line straight back.
-	if ok, err := s.forgetTrust(ctx, key); err != nil || !ok {
-		t.Fatalf("forget: %v %v", ok, err)
+	if err := s.store().PutSetting(ctx, trustSetting, []string{}); err != nil {
+		t.Fatal(err)
 	}
 	s.rules.forget()
 	if s.planWithSuggestion(ctx, open, i18n.En).Suggestion != nil {

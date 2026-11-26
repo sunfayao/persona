@@ -841,18 +841,10 @@ func (s *Service) trustKinds(ctx context.Context, tasks []PlanTask) {
 // ---- HTTP ----
 
 func (s *Service) taskRoutes() {
+	s.taskTerminalRoute()
 	s.draftDecisionRoutes()
 	s.doneCheckRoute()
-	s.taskTerminalRoute()
 	s.handle("POST /api/v1/task-plans/{id}/workspace-preview", s.previewPlanWorkspaces)
-	s.handle("GET /api/v1/task-plans/{id}", func(w http.ResponseWriter, r *http.Request) {
-		p, err := s.loadPlan(r.Context(), r.PathValue("id"))
-		if err != nil {
-			planErr(w, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"plan": s.planWithSuggestion(r.Context(), p, s.requestLang(r))})
-	})
 	s.handle("POST /api/v1/task-plans/{id}/start", func(w http.ResponseWriter, r *http.Request) {
 		if !fullRole(r) {
 			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot start tasks"))

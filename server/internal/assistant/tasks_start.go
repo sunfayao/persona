@@ -387,13 +387,6 @@ func (s *Service) taskTodoForConversation(conversation, id string) (Todo, error)
 // holds them).
 func (s *Service) reusableTodo(ctx context.Context, conversation, id string, taking bool) (stopped []TodoAgent, err error) {
 	t, err := s.taskTodoForConversation(conversation, id)
-	if err != nil && ownerStarts(ctx) && ctx.Value(ownerBackendTodoKey{}) == id {
-		// An owner's manual to-do has no originating conversation. The owner
-		// route binds this one exact to-do; all ordinary takeover checks follow.
-		if manual, ok := s.todoNow(id); ok && manual.Origin == "" && supervisorOf(manual) == "" {
-			t, err = manual, nil
-		}
-	}
 	if err != nil {
 		return nil, err
 	}

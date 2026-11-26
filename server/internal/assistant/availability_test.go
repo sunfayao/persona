@@ -1,13 +1,10 @@
 package assistant
 
 import (
-	"encoding/json"
-	"net/http"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -358,11 +355,6 @@ func TestAvailabilityQueueWait(t *testing.T) {
 	if got := s.relays.st.Queue["receiver"][1]; got.Text != "A later one." || !got.QueuedAt.Equal(queued.QueuedAt) || got.Depth != 2 {
 		t.Fatalf("the replacement lost when the first was queued: %+v", got)
 	}
-	now := s.availabilityQueued(t.Context(), time.Now())
-	if len(now) != 1 || now[0].Conversation != "receiver" || now[0].Depth != 2 {
-		t.Fatalf("queued now %+v", now)
-	}
-
 	idle := []proto.Session{{SessionID: "receiver", Status: proto.StatusIdle}}
 	s.drainRelays("server", idle)
 	waitUntil(t, func() bool { return len(availEvents(s, queueWaitEvent)) == 1 })
@@ -376,163 +368,20 @@ func TestAvailabilityQueueWait(t *testing.T) {
 	}
 }
 
-// A card's end records who ended it; the read tells the assistant's answers apart by the events that already say
-// whose they were, and counts a card whose answer was changed later once.
+// Only a resolved or dismissed card produces an outcome event.
 func TestAvailabilityAskOutcome(t *testing.T) {
 	s := newStorelessService(t, newFakeHub().withMachine())
-	asked := time.Now().Add(-time.Minute)
-	ix := func(id, kind, tool string) proto.Interaction {
-		return proto.Interaction{ID: id, MachineID: "mac", SessionID: "s1", Kind: kind, ToolName: tool, CreatedAt: asked}
-	}
 	now := time.Now()
-	s.availAskEnded(InteractionResolved{Interaction: ix("q1", proto.IxQuestion, ""), Status: "resolved"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("q1", proto.IxQuestion, ""), Status: "resolved"}, now) // re-answered
-	by := proto.Resolution{AnsweredBy: proto.AnsweredByAssistant}
-	s.availAskEnded(InteractionResolved{Interaction: ix("q2", proto.IxQuestion, ""), Resolution: by, Status: "resolved"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("q3", proto.IxQuestion, ""), Resolution: by, Status: "resolved"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("p1", proto.IxPermission, ""), Resolution: by, Status: "resolved"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("p2", proto.IxPermission, ""), Resolution: proto.Resolution{Remembered: true}, Status: "resolved"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("a1", proto.IxQuestion, "ask_user"), Status: "dismissed"}, now)
-	s.availAskEnded(InteractionResolved{Interaction: ix("f1", proto.IxQuestion, ""), Status: "failed"}, now) // still open
-	s.availAskEnded(InteractionResolved{Interaction: ix("a2", proto.IxQuestion, "ask_user"),
-		Resolution: proto.Resolution{Dismiss: true, Reason: proto.DismissedExpired}, Status: "dismissed"}, now)
-	s.delegateMark(ix("q2", proto.IxQuestion, ""), "delegate_start")
-	s.workEvent("mac", "s1", "standing_authorized", map[string]any{"interaction": "p1"})
+	card := proto.Interaction{ID: "q1", MachineID: "mac", SessionID: "s1", Kind: proto.IxQuestion, CreatedAt: now.Add(-time.Minute)}
+	s.availAskEnded(InteractionResolved{Interaction: card, Status: "failed"}, now)
+	s.availAskEnded(InteractionResolved{Interaction: card, Status: "resolved"}, now)
+	card.ID = "a1"
+	card.ToolName = "ask_user"
+	s.availAskEnded(InteractionResolved{Interaction: card, Resolution: proto.Resolution{Dismiss: true, Reason: proto.DismissedExpired}, Status: "dismissed"}, now)
 
-	asks := []taskAsk{{kind: "decision", who: askWhoDefault, after: 86400}, {kind: "decision", who: askByOwner, after: 60}}
-	got := summarizeAvailability(1, time.Time{}, testEvents(s), time.UTC, asks, nil).AskOutcome
-	want := map[string]map[string]int{
-		proto.IxQuestion:   {askByOwner: 1, askWhoDelegate: 1, askWhoSupervisor: 1},
-		proto.IxPermission: {askWhoStanding: 1, askByRemembered: 1},
-		"ask_user":         {askWhoDismissed: 1, askWhoExpired: 1},
-		"decision":         {askWhoDefault: 1, askByOwner: 1},
-	}
-	if len(got) != len(want) {
-		t.Fatalf("ask outcome %+v", got)
-	}
-	for kind, who := range want {
-		if len(got[kind]) != len(who) {
-			t.Fatalf("%s: %+v", kind, got[kind])
-		}
-		for w, n := range who {
-			if got[kind][w].N != n {
-				t.Fatalf("%s by %s: %+v, want %d", kind, w, got[kind][w], n)
-			}
-		}
-	}
-	if st := got[proto.IxQuestion][askByOwner]; st.Median < 59 || st.Median > 61 {
-		t.Fatalf("answered after %+v, want about a minute", st)
-	}
-	// The delegate took the card up before the window the read covers: its answer is still the delegate's, and the
-	// outcomes from before the window are not counted.
-	events := testEvents(s)
-	for i := range events {
-		events[i].At = now
-		if events[i].Kind == "delegate_start" || events[i].Detail["interaction"] == "q1" {
-			events[i].At = now.Add(-2 * time.Hour)
-		}
-	}
-	got = summarizeAvailability(1, now.Add(-time.Hour), events, time.UTC, nil, nil).AskOutcome
-	if q := got[proto.IxQuestion]; q[askWhoDelegate].N != 1 || q[askWhoSupervisor].N != 1 || q[askByOwner].N != 0 {
-		t.Fatalf("a shorter window: %+v", q)
-	}
-}
-
-// The read: waits by what the conversation was doing, the main conversation's per day, round time by what started
-// the round with the share the owner did not start, and queue waits by kind.
-func TestSummarizeAvailability(t *testing.T) {
-	day := time.Date(2026, 3, 2, 10, 0, 0, 0, time.UTC)
-	ev := func(at time.Time, session, kind string, detail map[string]any) db.WorkEvent {
-		b, _ := json.Marshal(detail) // as the store returns them
-		var d map[string]any
-		_ = json.Unmarshal(b, &d)
-		return db.WorkEvent{At: at, MachineID: "server", SessionID: session, Kind: kind, Detail: d}
-	}
-	events := []db.WorkEvent{
-		ev(day, "main", replyWaitEvent, map[string]any{"state": waitIdle, "wait": 2.0, "main": true, "open_tasks": 3}),
-		ev(day, "main", replyWaitEvent, map[string]any{"state": waitIdle, "wait": 4.0, "main": true, "open_tasks": 12}),
-		ev(day, "main", replyWaitEvent, map[string]any{"state": waitBackground, "wait": 90.0, "main": true}),
-		ev(day.Add(24*time.Hour), "main", replyWaitEvent, map[string]any{"state": waitIdle, "wait": 1800.0, "main": true, "unanswered": true}),
-		ev(day, "side", replyWaitEvent, map[string]any{"state": waitOwnerRound, "wait": 7.0, "main": false}),
-		ev(day, "main", roundEvent, map[string]any{"source": roundOwner, "seconds": 30.0, "main": true}),
-		ev(day, "main", roundEvent, map[string]any{"source": proto.SourceSupervision, "seconds": 60.0, "main": true}),
-		ev(day, "main", roundEvent, map[string]any{"source": proto.SourceSupervision, "seconds": 30.0, "main": true}),
-		ev(day, "main", roundEvent, map[string]any{"source": roundOther, "seconds": 600.0, "main": true}),
-		ev(day, "side", roundEvent, map[string]any{"source": roundOwner, "seconds": 5.0, "main": false}),
-		ev(day, "main", queueWaitEvent, map[string]any{"kind": proto.SourceSupervision, "wait": 600.0, "depth": 3, "main": true}),
-		ev(day, "side", queueWaitEvent, map[string]any{"kind": proto.SourceSupervision, "wait": 900.0, "depth": 4, "main": false}),
-		ev(day, "main", queueWaitEvent, map[string]any{"kind": roundNotice, "wait": 20.0, "depth": 1, "main": true}),
-	}
-	got := summarizeAvailability(48, day.Add(-time.Hour), events, time.UTC, nil, []queuedNow{{Conversation: "main", Main: true, Depth: 1, OldestSeconds: 5}})
-	if w := got.ReplyWait.Main[waitIdle]; w.N != 3 || w.Median != 4 || w.P90 != 1800 || w.Unanswered != 1 {
-		t.Fatalf("main idle %+v", w)
-	}
-	if w := got.ReplyWait.Main[waitBackground]; w.N != 1 || w.P90 != 90 {
-		t.Fatalf("main background %+v", w)
-	}
-	if _, ok := got.ReplyWait.Main[waitOwnerRound]; ok || got.ReplyWait.All[waitOwnerRound].N != 1 {
-		t.Fatalf("another conversation's wait: %+v", got.ReplyWait)
-	}
-	if d := got.ReplyWait.MainDays; len(d) != 2 || d[0].Day != "2026-03-03" || d[0].Unanswered != 1 || d[1].N != 3 || d[1].P90 != 90 ||
-		d[0].OpenTasks != nil || d[1].OpenTasks == nil || *d[1].OpenTasks != 12 {
-		t.Fatalf("main days %+v", d)
-	}
-	if len(got.BackgroundShare) != 2 {
-		t.Fatalf("background share %+v", got.BackgroundShare)
-	}
-	main, side := got.BackgroundShare[0], got.BackgroundShare[1]
-	if main.Conversation != "main" || !main.Main || main.Seconds[proto.SourceSupervision] != 90 || main.Rounds[proto.SourceSupervision] != 2 ||
-		main.Rounds[roundOwner] != 1 || main.Seconds[roundOther] != 600 || main.BackgroundShare != 0.75 { // "other" is on neither side
-
-		t.Fatalf("main rounds %+v", main)
-	}
-	if side.Conversation != "side" || side.Main || side.BackgroundShare != 0 {
-		t.Fatalf("side rounds %+v", side)
-	}
-	if q := got.QueueWait.ByKind[proto.SourceSupervision]; q.N != 2 || q.MaxSeconds != 900 || q.MaxDepth != 4 {
-		t.Fatalf("queue wait %+v", q)
-	}
-	if q := got.QueueWait.MainByKind[proto.SourceSupervision]; q.N != 1 || q.P90 != 600 || q.MaxSeconds != 600 || q.MaxDepth != 3 {
-		t.Fatalf("the main conversation's queue wait %+v", q)
-	}
-	if len(got.QueueWait.QueuedNow) != 1 || got.QueueWait.ByKind[roundNotice].MaxDepth != 1 {
-		t.Fatalf("queue %+v", got.QueueWait)
-	}
-	empty, err := json.Marshal(summarizeAvailability(24, time.Time{}, nil, time.UTC, nil, nil))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := `{"hours":24,"reply_wait":{"all":{},"main":{},"main_days":[]},"background_share":[],"queue_wait":{"by_kind":{},"main_by_kind":{},"queued_now":[]},"ask_outcome":{},"supervision":{"by_model":[],"days":[]}}`; string(empty) != want {
-		t.Fatalf("no events:\n%s\nwant\n%s", empty, want)
-	}
-}
-
-// The route is a full device's, reads a week unless asked otherwise, and says so when there is no database.
-func TestAvailabilityRoute(t *testing.T) {
-	f := newFakeHub().withMachine()
-	st := &workMemStore{}
-	s := newServiceOn(t, f, st)
-	s.workEvent("server", "main", roundEvent, map[string]any{"source": roundOwner, "seconds": 12.5, "main": true})
-	s.waitWorkEvents()
-	if w := serveAs(s, roleAnswer, "GET", "/api/v1/assistant/availability", ""); w.Code != http.StatusForbidden {
-		t.Fatalf("answer-only device: %d %s", w.Code, w.Body)
-	}
-	w := serve(s, "GET", "/api/v1/assistant/availability", "")
-	if w.Code != http.StatusOK {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	var got availabilityStats
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Hours != 24*7 || len(got.BackgroundShare) != 1 || got.BackgroundShare[0].Seconds[roundOwner] != 12.5 {
-		t.Fatalf("read %+v", got)
-	}
-	if w := serve(s, "GET", "/api/v1/assistant/availability?hours=24", ""); w.Code != http.StatusOK {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	none := newTestService(t, newFakeHub().withMachine())
-	if w := serve(none, "GET", "/api/v1/assistant/availability", ""); w.Code != http.StatusServiceUnavailable {
-		t.Fatalf("no database: %d %s", w.Code, w.Body)
+	events := availEvents(s, askOutcomeEvent)
+	if len(events) != 2 || events[0]["interaction"] != "q1" || events[0]["by"] != askByOwner || events[0]["after"] != 60.0 ||
+		events[1]["interaction"] != "a1" || events[1]["kind"] != "ask_user" || events[1]["expired"] != true {
+		t.Fatalf("ask outcomes %v", events)
 	}
 }

@@ -11,19 +11,7 @@ vi.mock("./store", async (original) => ({
     return () => hub.listeners.delete(type);
   },
 }));
-const calls = vi.hoisted(() => [] as { path: string; init?: unknown }[]);
-vi.mock("./api", async (original) => ({
-  ...(await original<typeof import("./api")>()),
-  api: vi.fn(async (path: string, init?: unknown) => {
-    calls.push({ path, init });
-    return {};
-  }),
-}));
-
-import {
-  askSignIn, authLogout, authStateText, authStep, authStepView, authTone, canSignOut, isPolled, listAuthNote, needsSignIn, onAuthChange, pollAuth,
-  pollDelay, safeLink, shownPages, signInAsked, signInLabel, takeSignIn, toolText, withAuth, type AuthPrompt, type ExtensionAuth,
-} from "./extension-auth";
+import { askSignIn, authStateText, authStepView, authTone, canSignOut, isPolled, listAuthNote, needsSignIn, onAuthChange, pollAuth, pollDelay, safeLink, shownPages, signInAsked, signInLabel, takeSignIn, toolText, withAuth, type AuthPrompt, type ExtensionAuth } from "./extension-auth";
 
 const auth = (state: ExtensionAuth["state"], over: Partial<ExtensionAuth> = {}): ExtensionAuth => ({ title: "飞书登录", state, ...over });
 
@@ -166,14 +154,6 @@ describe("pollAuth", () => {
 });
 
 describe("extension sign-in with the hub", () => {
-  it("asks the extension's routes", async () => {
-    calls.length = 0;
-    await authStep("cis", "", {});
-    await authStep("cis", "wait");
-    await authLogout("cis");
-    expect(calls.map((c) => c.path)).toEqual(["/extensions/cis/-/auth/step", "/extensions/cis/-/auth/step", "/extensions/cis/-/auth/logout"]);
-    expect(calls[1].init).toEqual({ method: "POST", json: { step: "wait", values: {} } });
-  });
 
   it("takes the pushed state into what holds the extension", () => {
     const got: [string, ExtensionAuth][] = [];

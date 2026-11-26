@@ -136,10 +136,7 @@ func TestConversationHistoryPartialEmptyAndBoundedUpgrade(t *testing.T) {
 	if err != nil || h == nil || h.TailSeq == nil || *h.TailSeq != 0 {
 		t.Fatalf("empty versus missing lost: %+v %v", h, err)
 	}
-	stats, err := d.ConversationHistoryStats(ctx)
-	if err != nil || stats.Conversations != 2 || stats.Items != 2 || stats.Incomplete != 1 || stats.PayloadBytes <= 0 {
-		t.Fatalf("aggregate growth evidence %+v %v", stats, err)
-	}
+
 }
 
 func TestConversationHistoryTailInvalidationAndStaleRevision(t *testing.T) {

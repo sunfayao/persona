@@ -172,27 +172,6 @@ func (s *Service) logicalSwitchRoutes() {
 		}
 		apierr.WriteJSON(w, op)
 	})
-	s.handle("GET /api/v1/assistant/conversations/{id}/switch/{operation}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, 403, i18n.Err("assistant-model_pick.err_role"))
-			return
-		}
-		st, ok := s.store().(logicalSwitchStore)
-		if !ok {
-			apierr.Call(w, logicalRefusal(r.Context(), "unavailable"))
-			return
-		}
-		op, err := st.ConversationSwitch(r.Context(), r.URL.Query().Get("machine_id"), r.PathValue("id"), r.PathValue("operation"))
-		if err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		if op == nil {
-			http.NotFound(w, r)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"operation_id": op.OperationID, "phase": op.Phase, "expected_epoch": op.ExpectedEpoch, "error": op.Error})
-	})
 }
 
 func (s *Service) logicalRoleRequired(ctx context.Context, machine, id string) (bool, error) {

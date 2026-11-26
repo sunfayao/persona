@@ -1,9 +1,7 @@
 package assistant
 
 import (
-	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"slices"
@@ -23,7 +21,6 @@ import (
 // extensionTrustStore keeps the trusts and grants (assistant_extension_trust, assistant_extension_grants).
 type extensionTrustStore interface {
 	ExtensionTrusts(ctx context.Context) (map[string]db.ExtensionTrust, error)
-	SetExtensionTrust(ctx context.Context, extension, trust string, cats []string, by string) error
 	ForgetExtensionTrust(ctx context.Context, extension string) error
 }
 
@@ -67,7 +64,7 @@ func (s *Service) extensionGrantOf(ctx context.Context, ext string) extensionGra
 }
 
 // extensionOwnerCache keeps extensionOwners between writes: the profile is built on every publish, and the owners
-// change only when the user sets trust or an extension is forgotten (extensionOwnersChanged).
+// change when an extension is forgotten (extensionOwnersChanged).
 type extensionOwnerCache struct {
 	mu     sync.Mutex
 	loaded bool
@@ -112,7 +109,7 @@ func (s *Service) extensionOwners(ctx context.Context) []string {
 	return out
 }
 
-// extensionOwnersChanged: a trust was written or forgotten; the next profile reads the owners again.
+// extensionOwnersChanged: a trust was forgotten; the next profile reads the owners again.
 func (s *Service) extensionOwnersChanged() {
 	c := &s.extOwners
 	c.mu.Lock()
@@ -167,13 +164,6 @@ func (s *Service) extensionReaderRequest(r *http.Request) *http.Request {
 	return r.WithContext(s.withExtensionReader(r.Context(), r.Header.Get(ExtensionHeader)))
 }
 
-func (s *Service) infoAccessRoutes() {
-	s.handle("GET /api/v1/assistant/extension-trust", s.extensionTrustList)
-	s.handle("PUT /api/v1/assistant/extension-trust/{id}", s.extensionTrustSet)
-	s.handle("GET /api/v1/assistant/conversations/{id}/categories", s.conversationCategoriesGet)
-	s.handle("PUT /api/v1/assistant/conversations/{id}/categories", s.conversationCategoriesSet)
-}
-
 // userOnly answers 403 unless r is the user's own (a full-access client): an extension's token, a scoped device or
 // an agent never changes who reads what (#13246).
 func userOnly(w http.ResponseWriter, r *http.Request) bool {
@@ -182,167 +172,4 @@ func userOnly(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	return true
-}
-
-func (s *Service) extensionTrustList(w http.ResponseWriter, r *http.Request) {
-	if !userOnly(w, r) {
-		return
-	}
-	st, ok := s.store().(extensionTrustStore)
-	if !ok {
-		apierr.Write(w, http.StatusServiceUnavailable, errors.New("extension trust store unavailable"))
-		return
-	}
-	all, err := st.ExtensionTrusts(r.Context())
-	if err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	out := []assistantwire.ExtensionTrust{}
-	for _, t := range all {
-		trust := t.Trust
-		if trust != assistantwire.ExtensionTrustOwner {
-			trust = assistantwire.ExtensionTrustThirdParty
-		}
-		cats, _ := normalCategories(t.Categories)
-		if cats == nil {
-			cats = []string{}
-		}
-		out = append(out, assistantwire.ExtensionTrust{Extension: t.Extension, Trust: trust, Categories: cats})
-	}
-	slices.SortFunc(out, func(a, b assistantwire.ExtensionTrust) int { return cmp.Compare(a.Extension, b.Extension) })
-	apierr.WriteJSON(w, map[string]any{"items": out})
-}
-
-func (s *Service) extensionTrustSet(w http.ResponseWriter, r *http.Request) {
-	if !userOnly(w, r) {
-		return
-	}
-	id := r.PathValue("id")
-	if id == "" || len(id) > 200 {
-		apierr.Write(w, http.StatusBadRequest, errors.New("invalid extension id"))
-		return
-	}
-	var in assistantwire.ExtensionTrust
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
-		apierr.Write(w, http.StatusBadRequest, err)
-		return
-	}
-	if in.Trust != assistantwire.ExtensionTrustOwner && in.Trust != assistantwire.ExtensionTrustThirdParty {
-		apierr.Write(w, http.StatusBadRequest, errors.New("trust must be owner or third_party"))
-		return
-	}
-	cats, known := normalCategories(in.Categories)
-	if !known {
-		apierr.Write(w, http.StatusBadRequest, errors.New("unknown category"))
-		return
-	}
-	st, ok := s.store().(extensionTrustStore)
-	if !ok {
-		apierr.Write(w, http.StatusServiceUnavailable, errors.New("extension trust store unavailable"))
-		return
-	}
-	err := st.SetExtensionTrust(r.Context(), id, in.Trust, cats, infoTaggedByUser)
-	s.extensionOwnersChanged() // a failed write may still have changed rows: read again
-	if err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	s.publish(context.WithoutCancel(r.Context())) // the hub learns the owners (Profile.ExtensionOwners)
-	if cats == nil {
-		cats = []string{}
-	}
-	apierr.WriteJSON(w, assistantwire.ExtensionTrust{Extension: id, Trust: in.Trust, Categories: cats})
-}
-
-func (s *Service) conversationCategoriesGet(w http.ResponseWriter, r *http.Request) {
-	if !userOnly(w, r) {
-		return
-	}
-	id := r.PathValue("id")
-	if !validSessionID(id) {
-		apierr.Write(w, http.StatusBadRequest, errors.New("invalid conversation id"))
-		return
-	}
-	out, err := s.conversationCategoryView(r.Context(), id)
-	if err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	apierr.WriteJSON(w, out)
-}
-
-func (s *Service) conversationCategoriesSet(w http.ResponseWriter, r *http.Request) {
-	if !userOnly(w, r) {
-		return
-	}
-	id := r.PathValue("id")
-	if !validSessionID(id) {
-		apierr.Write(w, http.StatusBadRequest, errors.New("invalid conversation id"))
-		return
-	}
-	var in assistantwire.ConversationCategoriesChange
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
-		apierr.Write(w, http.StatusBadRequest, err)
-		return
-	}
-	add, okAdd := normalCategories(in.Add)
-	remove, okRemove := normalCategories(in.Remove)
-	if !okAdd || !okRemove {
-		apierr.Write(w, http.StatusBadRequest, errors.New("unknown category"))
-		return
-	}
-	space, _ := s.conversationSpace(r.Context(), id)
-	if floor, _ := s.trackFloor(r.Context(), space); slices.ContainsFunc(remove, func(c string) bool { return slices.Contains(floor, c) }) {
-		apierr.Write(w, http.StatusConflict, errors.New("a track's own categories cannot be taken away"))
-		return
-	}
-	st, ok := s.store().(infoCategoryStore)
-	if !ok {
-		apierr.Write(w, http.StatusServiceUnavailable, errors.New("category store unavailable"))
-		return
-	}
-	if err := st.AddInfoCategories(r.Context(), db.InfoCategoryConversation, id, add, infoTaggedByUser, ""); err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	if err := st.RemoveInfoCategories(r.Context(), db.InfoCategoryConversation, id, remove); err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	out, err := s.conversationCategoryView(r.Context(), id)
-	if err != nil {
-		apierr.Write(w, http.StatusInternalServerError, err)
-		return
-	}
-	apierr.WriteJSON(w, out)
-}
-
-// conversationCategoryView is conversation sid's categories as the app shows them.
-func (s *Service) conversationCategoryView(ctx context.Context, sid string) (assistantwire.ConversationCategories, error) {
-	out := assistantwire.ConversationCategories{Categories: []string{}, Floor: []string{}, Removed: []string{}}
-	space, _ := s.conversationSpace(ctx, sid)
-	floor, _ := s.trackFloor(ctx, space)
-	out.Floor = append(out.Floor, floor...)
-	cats := slices.Clone(floor)
-	if st, ok := s.store().(infoCategoryStore); ok {
-		rows, err := st.InfoCategories(ctx, db.InfoCategoryConversation, []string{sid})
-		if err != nil {
-			return out, err
-		}
-		for _, r := range rows[sid] {
-			if r.RemovedByUser {
-				out.Removed = append(out.Removed, r.Category)
-			} else {
-				cats = append(cats, r.Category)
-			}
-		}
-	}
-	cats, _ = normalCategories(cats)
-	out.Categories = append(out.Categories, cats...)
-	out.Removed, _ = normalCategories(out.Removed)
-	if out.Removed == nil {
-		out.Removed = []string{}
-	}
-	return out, nil
 }

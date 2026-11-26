@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
@@ -15,17 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
-type entriesHub struct {
-	*fakeHub
-	events []assistantwire.AssistantEntriesChanged
-}
-
-func (h *entriesHub) EntriesEvent(_ string, p any) error {
-	h.events = append(h.events, p.(assistantwire.AssistantEntriesChanged))
-	return nil
-}
-
-func TestEntriesHTTPRPCAndWrongEvent(t *testing.T) {
+func TestEntriesHTTPAndRPC(t *testing.T) {
 	database := todoTestDB(t)
 	e := newTodoEnv(t, database)
 	ctx := context.Background()
@@ -54,30 +43,12 @@ func TestEntriesHTTPRPCAndWrongEvent(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &httpOut); err != nil || w.Code != 200 || !reflect.DeepEqual(rpcOut, httpOut) {
 		t.Fatalf("HTTP != RPC: %d %s / %+v %v", w.Code, w.Body.String(), rpcOut, err)
 	}
-	h := &entriesHub{fakeHub: e.f}
-	e.s.hub = h
-	status, _ := serveJSON(t, e.s, "POST", "/api/v1/assistant/entries/entry-example/wrong", "", "")
-	if status != 200 || len(h.events) != 1 || h.events[0].ID != fixture.ID || h.events[0].Status != "wrong" {
-		t.Fatalf("wrong: %d %+v", status, h.events)
-	}
-	before := h.events[0].RecordID
-	status, _ = serveJSON(t, e.s, "POST", "/api/v1/assistant/entries/entry-example/wrong", "", "")
-	if status != 200 || h.events[len(h.events)-1].RecordID != before {
-		t.Fatal("wrong retry appended twice")
-	}
 	for _, query := range []string{"cursor=x", "created_at=x", "by=robot", "limit=no", "limit=201", "scope=%7B%22unknown%22%3Atrue%7D", "by=user&by=agent"} {
 		w := httptest.NewRecorder()
 		e.s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/assistant/entries?"+query, nil))
 		if w.Code != 400 {
 			t.Errorf("%s: %d %s", query, w.Code, w.Body.String())
 		}
-	}
-	denied := httptest.NewRequest("POST", "/api/v1/assistant/entries/entry-example/wrong", nil)
-	denied.Header.Set(RoleHeader, roleExtension)
-	w = httptest.NewRecorder()
-	e.s.ServeHTTP(w, denied)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("extension marked wrong: %d", w.Code)
 	}
 	for _, method := range []string{"assistant.entries.write", "assistant.entries.withdraw"} {
 		if _, ok, _ := e.s.conversationsRequest(ctx, method, json.RawMessage(`{}`)); ok {

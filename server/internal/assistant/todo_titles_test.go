@@ -2,9 +2,7 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -125,55 +123,5 @@ func TestPlanTaskTodoTitle(t *testing.T) {
 	got, retitle := s.taskTitle(ctx, "秘书派活（主人授权过）：把周报发到群里", "秘书派活（主人授权过）：把周报发到群里，先给我看一眼")
 	if got != "把周报发到群里" || !retitle {
 		t.Fatalf("%q %v", got, retitle)
-	}
-}
-
-// POST /api/v1/todos/retitle renames the tasks' todos titled with their prompt, and only those; ?dry_run=1 lists them.
-func TestTodosRetitle(t *testing.T) {
-	e := newTodoEnv(t, nil)
-	ctx := context.Background()
-	prompt := "ultrathink ultracode 主人 11-05 19:47 的反馈，已授权直接开工：收件箱的已读同步到飞书"
-	old := clip(oneLine(prompt), 40)
-	fromPrompt, _ := e.s.createTodo(ctx, old, prompt, "conv1", "")
-	good, _ := e.s.createTodo(ctx, "已读同步到飞书", prompt, "conv1", "")
-	byHand, _ := e.s.createTodo(ctx, old, prompt, "", "")
-	renamed, _ := e.s.createTodo(ctx, "这是我改过的一个特别特别特别长的待办标题哦", prompt, "conv1", "")
-	// Typed by the user, only looking like a prompt: a bracket, a date, or the prompt's opening but short.
-	looks, _ := e.s.createTodo(ctx, "【紧急】修登录", prompt, "conv1", "")
-	dated, _ := e.s.createTodo(ctx, "11/05 反馈：修登录", prompt, "conv1", "")
-	short, _ := e.s.createTodo(ctx, "ultrathink ultracode", prompt, "conv1", "")
-	e.f.mu.Lock()
-	e.f.todoTitleReply = "收件箱已读同步飞书"
-	e.f.mu.Unlock()
-
-	if w := e.doAs("watch", "POST", "/api/v1/todos/retitle", ""); w.Code != http.StatusForbidden {
-		t.Fatalf("watch: %d", w.Code)
-	}
-	var res struct {
-		DryRun bool          `json:"dry_run"`
-		Todos  []TodoRetitle `json:"todos"`
-	}
-	_ = json.Unmarshal(e.must("POST", "/api/v1/todos/retitle?dry_run=1", "").Body.Bytes(), &res)
-	if !res.DryRun || len(res.Todos) != 1 || res.Todos[0] != (TodoRetitle{fromPrompt.ID, old, "收件箱已读同步飞书"}) {
-		t.Fatalf("dry run = %+v", res)
-	}
-	if got := e.get(fromPrompt.ID).Title; got != old {
-		t.Fatalf("a dry run renamed it: %q", got)
-	}
-
-	_ = json.Unmarshal(e.must("POST", "/api/v1/todos/retitle", "").Body.Bytes(), &res)
-	if res.DryRun || len(res.Todos) != 1 || e.get(fromPrompt.ID).Title != "收件箱已读同步飞书" {
-		t.Fatalf("retitle = %+v, title %q", res, e.get(fromPrompt.ID).Title)
-	}
-	for _, id := range []string{good.ID, byHand.ID, renamed.ID, looks.ID, dated.ID, short.ID} {
-		if before, after := map[string]string{good.ID: "已读同步到飞书", byHand.ID: old, renamed.ID: "这是我改过的一个特别特别特别长的待办标题哦",
-			looks.ID: "【紧急】修登录", dated.ID: "11/05 反馈：修登录", short.ID: "ultrathink ultracode"}[id], e.get(id).Title; before != after {
-			t.Errorf("%s renamed to %q", id, after)
-		}
-	}
-	// Again: nothing left to do.
-	_ = json.Unmarshal(e.must("POST", "/api/v1/todos/retitle", "").Body.Bytes(), &res)
-	if len(res.Todos) != 0 {
-		t.Fatalf("second run = %+v", res)
 	}
 }

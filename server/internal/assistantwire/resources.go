@@ -4,7 +4,6 @@ package assistantwire
 func init() {
 	Routes = append(Routes,
 		"GET /api/v1/resources",
-		"POST /api/v1/resources/{action}",
 		"PUT /api/v1/resources",
 	)
 }

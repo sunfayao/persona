@@ -340,7 +340,7 @@ func (s *Service) workOn(ctx context.Context) bool { return s.triageSwitches(ctx
 func (s *Service) workActive(ctx context.Context) bool { return s.triageSwitches(ctx).active() }
 
 // putTriageSwitches saves the switches. What they turn off stops at once: the cards are withdrawn, due retries and
-// wakes dropped; the apps hear of it ({"type":"agents.triage"}) and the lists follow the next snapshot.
+// wakes dropped. The lists follow the next snapshot.
 func (s *Service) putTriageSwitches(ctx context.Context, sw TriageSwitches) error {
 	s.work.switchMu.Lock()
 	defer s.work.switchMu.Unlock()
@@ -442,7 +442,6 @@ func (s *Service) putTriageSwitches(ctx context.Context, sw TriageSwitches) erro
 	for _, e := range stale {
 		s.saveWork(e)
 	}
-	s.event(ctx, map[string]any{"type": "agents.triage", "triage": sw})
 	s.publish(ctx)
 	return nil
 }

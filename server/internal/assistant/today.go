@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -229,67 +228,6 @@ type todayDone struct {
 
 // ---- kinds that start without asking ----
 
-// trustKind is a remembered kind of task (trustKey), as the settings page lists it.
-type trustKind struct {
-	Key       string `json:"key"`
-	Machine   string `json:"machine"`
-	Cwd       string `json:"cwd"`
-	Readonly  bool   `json:"readonly"`
-	Ambiguous bool   `json:"ambiguous,omitempty"`
-}
-
-func (s *Service) trustList(ctx context.Context) ([]trustKind, error) {
-	have, err := s.trustedKindsErr(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := []trustKind{}
-	for k := range have {
-		parts := strings.Split(k, "|")
-		if len(parts) < 3 {
-			continue
-		}
-		if len(parts) == 3 {
-			out = append(out, trustKind{Key: k, Machine: parts[0], Cwd: parts[1], Readonly: parts[2] == "read"})
-			continue
-		}
-		// A legacy machine ID or a directory can contain '|'. Neither side of the separator is recoverable from the
-		// key alone. A path-escaped identifier retains the whole key in older clients' lastPathComponent titles;
-		// it is not a resolved directory.
-		mode := parts[len(parts)-1]
-		if mode == "read" || mode == "edit" {
-			out = append(out, trustKind{Key: k, Cwd: url.PathEscape(k), Readonly: mode == "read", Ambiguous: true})
-		}
-	}
-	slices.SortFunc(out, func(a, b trustKind) int { return strings.Compare(a.Key, b.Key) })
-	return out, nil
-}
-
-// forgetTrust stops a kind from starting without asking; false when it was not remembered. A failed read is an
-// error, never an empty list written back.
-func (s *Service) forgetTrust(ctx context.Context, key string) (bool, error) {
-	st := s.store()
-	if st == nil {
-		return false, errors.New("no store")
-	}
-	s.tasks.trustMu.Lock()
-	defer s.tasks.trustMu.Unlock()
-	have, err := s.trustedKindsErr(ctx)
-	if err != nil {
-		return false, err
-	}
-	if !have[key] {
-		return false, nil
-	}
-	delete(have, key)
-	keys := make([]string, 0, len(have))
-	for k := range have {
-		keys = append(keys, k)
-	}
-	slices.Sort(keys)
-	return true, st.PutSetting(ctx, trustSetting, keys)
-}
-
 func (s *Service) todayRoutes() {
 	s.handle("POST /api/v1/assistant/conversations/{id}/today", func(w http.ResponseWriter, r *http.Request) {
 		if !fullRole(r) {
@@ -302,29 +240,5 @@ func (s *Service) todayRoutes() {
 			return
 		}
 		apierr.WriteJSON(w, map[string]any{"item": it, "new": made})
-	})
-	s.handle("GET /api/v1/task-trust", func(w http.ResponseWriter, r *http.Request) {
-		kinds, err := s.trustList(r.Context())
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"kinds": kinds})
-	})
-	s.handle("DELETE /api/v1/task-trust", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot change settings"))
-			return
-		}
-		ok, err := s.forgetTrust(r.Context(), r.URL.Query().Get("key"))
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		if !ok {
-			apierr.Write(w, http.StatusNotFound, errors.New("not remembered"))
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
 	})
 }

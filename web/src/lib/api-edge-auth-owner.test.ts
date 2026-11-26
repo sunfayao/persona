@@ -12,7 +12,7 @@ import { chooseManager, onDefaultManager, onManagerChoice, resetManagerChoice, s
 let managerGeneration = 0;
 onManagerChoice(() => { managerGeneration++; });
 onDefaultManager(() => { managerGeneration++; });
-const taskTrustContext = () => JSON.stringify([credentialOwner(), shownManager(), managerGeneration]);
+const requestContext = () => JSON.stringify([credentialOwner(), shownManager(), managerGeneration]);
 
 let answer: (response: Response) => void;
 let request: RequestInit | undefined;
@@ -32,9 +32,9 @@ beforeEach(() => {
 afterEach(() => { handleUnauthorized(() => {}); vi.unstubAllGlobals(); setToken(""); resetManagerChoice(); });
 
 function ownedDelete(isCurrent?: () => boolean) {
-  const context = taskTrustContext(), owner = credentialOwner(), token = getToken();
-  return api("/task-trust?key=synthetic", {
-    method: "DELETE", token, tokenOwner: owner, isAuthContextCurrent: isCurrent ?? (() => context === taskTrustContext()),
+  const context = requestContext(), owner = credentialOwner(), token = getToken();
+  return api("/assistant/tasks/synthetic", {
+    method: "DELETE", token, tokenOwner: owner, isAuthContextCurrent: isCurrent ?? (() => context === requestContext()),
   }).catch((error: Error) => error);
 }
 

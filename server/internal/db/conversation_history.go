@@ -152,24 +152,6 @@ func (d *DB) PutConversationPage(ctx context.Context, p ConversationPage) error 
 	})
 }
 
-// ConversationHistoryStats exposes aggregate capacity evidence, never message text or session IDs.
-type ConversationHistoryStats struct {
-	Conversations int64 `json:"conversations"`
-	Items         int64 `json:"items"`
-	PayloadBytes  int64 `json:"payload_bytes"`
-	Incomplete    int64 `json:"incomplete"`
-	SummaryBytes  int64 `json:"summary_bytes"`
-}
-
-func (d *DB) ConversationHistoryStats(ctx context.Context) (ConversationHistoryStats, error) {
-	var out ConversationHistoryStats
-	err := d.pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM conversation_histories),count(*),
-		coalesce(sum(octet_length(payload)),0),count(*) FILTER (WHERE NOT complete),
-		(SELECT coalesce(sum(octet_length(summary)),0) FROM conversation_histories) FROM conversation_items`).
-		Scan(&out.Conversations, &out.Items, &out.PayloadBytes, &out.Incomplete, &out.SummaryBytes)
-	return out, err
-}
-
 // ConversationItems returns bounded ordered rows of the expected generation.
 // A changed generation is an error, never a mixture of old and new items.
 func (d *DB) ConversationItems(ctx context.Context, machine, session, history string, after, through, limit int, newest bool) ([]conversationlog.Item, error) {

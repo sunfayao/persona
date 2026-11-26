@@ -9,7 +9,7 @@ import (
 )
 
 // Always rules for hand-offs: one per reference × launcher × computer, for the provider that claims the reference; the
-// provider's details list them, one can be removed there, and they go with the provider's uninstall.
+// provider's details list them, and they go with the provider's uninstall.
 func TestHandoffRules(t *testing.T) {
 	h, _ := extensionTestHub(t)
 	mux := h.routes()
@@ -42,15 +42,6 @@ func TestHandoffRules(t *testing.T) {
 	rule := rules[0].(map[string]any)
 	if rule["reference"] != ref || rule["launcher"] != "claude" || rule["machine"] != "box" || rule["by"] != "device:d1" {
 		t.Fatalf("rule %v", rule)
-	}
-	if code, _ := call(t, mux, "DELETE", "/api/v1/extensions/example-vault/-/handoff-rules/0123456789abcdef", master, ""); code != 404 {
-		t.Fatalf("removing no such rule: %d", code)
-	}
-	if code, out := call(t, mux, "DELETE", "/api/v1/extensions/example-vault/-/handoff-rules/"+rule["id"].(string), master, ""); code != 200 || out["handoff_rules"] != nil {
-		t.Fatalf("removing the rule: %d %v", code, out["handoff_rules"])
-	}
-	if h.HandoffRuleCovers(ctx, ref, "claude", "box") {
-		t.Fatal("a removed rule still covers")
 	}
 	// A rule older than the provider's install (one a removal left behind, an id taken again) covers nothing.
 	if err := h.AddHandoffRules(ctx, []HandoffRule{{Reference: ref, Launcher: "claude", Machine: "box", Provider: "example-vault",

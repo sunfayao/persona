@@ -218,7 +218,6 @@ func (h *Hub) features() []string {
 	out := append(slices.Clone(proto.Features), featureSessionsList, featureSessionsLookup, featureSessionsPaneSource, featureSessionsManager, featureSessionsPageCounts,
 		featureSessionsSearch, featureAgentsPageCounts, featureAgentsProviderOR, featureSessionsHierarchy, featureSessionsCatalog, featureSessionsTodo, featureSessionsQuickFilters, featureSessionsJustFinished, featureSessionsAgentsOnly, featureMachineRename, featureDesktopUnregister, nodeproto.MCPWait)
 	out = append(out, h.agentSessionArchiveFeatures()...)
-	out = append(out, h.agentAutonameFeatures()...)
 	out = append(out, h.sessionsSideFoldFeatures()...)
 	if h.defaultManagerNames(assistantwire.CapabilityAssistantSegments) {
 		out = append(out, assistantwire.CapabilityAssistantSegments)
@@ -238,9 +237,9 @@ func (h *Hub) features() []string {
 	out = append(out, "assistant_views", "assistant_html_bridge")
 	for _, f := range h.extReport().Features {
 		switch f {
-		case assistantwire.CapabilityAssistantSegments, featureAgentSessionArchives, featureAgentSessionArchiveClose, featureAgentAutoname,
+		case assistantwire.CapabilityAssistantSegments, featureAgentSessionArchives, featureAgentSessionArchiveClose,
 			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, featureTodoPlaces, featureTodoAsks, featureTodoTimeline:
-			continue // only manager hello can promise fleet archives, requested names, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
+			continue // only manager hello can promise fleet archives, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
 		}
 		if !slices.Contains(out, f) {
 			out = append(out, f)

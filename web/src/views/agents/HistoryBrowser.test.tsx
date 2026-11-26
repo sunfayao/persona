@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "../../i18n";
-import { refreshAgentsDisplay, resetAgentsDisplay, saveAgentsDisplay } from "../../lib/agents-display";
+import { refreshAgentsDisplay, resetAgentsDisplay } from "../../lib/agents-display";
 import type { Session } from "../../lib/types";
 import { HistoryBrowser } from "./HistoryBrowser";
 import { resumeInTerminal } from "../../lib/agent-resume";
@@ -49,15 +49,14 @@ describe("HistoryBrowser", () => {
   });
   it("follows the acknowledged hub preference while History stays open", async () => {
     env.rows = [row("bot", { pane_id: "botmux:example/topic" }), row("ordinary")];
-    vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
-      const showBotmux = init?.method === "PUT" ? JSON.parse(String(init.body)).show_botmux : true;
-      return Response.json({ show_botmux: showBotmux, configured: true });
-    }));
+    let showBotmux = true;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ show_botmux: showBotmux, configured: true })));
     await render();
     expect(ids()).toEqual(["ordinary"]);
     await act(async () => { await refreshAgentsDisplay(); });
     expect(ids()).toHaveLength(2);
-    await act(async () => { await saveAgentsDisplay(false); });
+    showBotmux = false;
+    await act(async () => { await refreshAgentsDisplay(); });
     expect(ids()).toEqual(["ordinary"]);
   });
   it("drops removed identities from an older search window", async () => {

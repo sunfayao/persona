@@ -4,14 +4,13 @@
 import { api, ApiError, enc } from "./api";
 import type { Machine } from "./types";
 import { placeOf, type UIPlace } from "./extension-ui";
-import { extRoot, listOf } from "./extension-api";
+import { extRoot } from "./extension-api";
 import { refreshExtensionPlaces } from "./extension-slots";
 import { EXTENSIONS_CHANGED } from "./extension-prompts";
 import type { Contribution, DependencyState, PackMember } from "./extension-model";
 import type { ExtensionAuth, ExtensionTool } from "./extension-auth";
 import { clock } from "./format";
 import type { SecretReference } from "./secret-reference";
-import { itemHeaders } from "./manager-choice";
 import { t } from "../i18n";
 
 export type Json = string | number | boolean | null | Json[] | { [k: string]: Json };
@@ -305,12 +304,9 @@ const base = (id: string) => `${extRoot()}/${enc(id)}/-`;
 // editor immediately after a save or lifecycle operation.
 const withEntryLists = (path: string) => `${path}${path.includes("?") ? "&" : "?"}entry_lists=1`;
 
-type ListAnswer = { extensions?: HubExtension[]; plugins?: HubExtension[]; can_install?: boolean; markets?: boolean };
 
-export const listExtensions = () => api<ListAnswer>(extRoot()).then((r) => listOf(r));
 /** A detail as either kind of hub sends it, its pages' places read with the new keys. */
 const detailOf = (d: HubExtensionDetail): HubExtensionDetail => (d.ui ? { ...d, ui: d.ui.map(placeOf) } : d);
-export const extensionDetail = (id: string) => api<HubExtensionDetail>(withEntryLists(`${base(id)}/`)).then(detailOf);
 /** After a change that can start, stop or reconfigure an extension: its entries, cards and sections are asked for again. */
 export const changed = <T>(r: T): T => {
   refreshExtensionPlaces();
@@ -319,25 +315,6 @@ export const changed = <T>(r: T): T => {
 };
 export const setExtensionEnabled = (id: string, enabled: boolean, cascade = false) =>
   api<HubExtensionDetail>(withEntryLists(`${base(id)}/enabled`), { method: "PUT", json: { enabled, ...(cascade ? { cascade } : {}) } }).then(detailOf).then(changed);
-export const setExtensionAutoUpgrade = (id: string, auto: boolean) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/auto-upgrade`), { method: "PUT", json: { auto } }).then(detailOf);
-/** The auto-upgrade switch for all market extensions; a hub from before it has no route (null). */
-export const extensionUpgrades = (manager?: string) =>
-  api<{ auto: boolean; upgrades?: ExtensionUpgrade[] }>(`${extRoot()}/-/upgrades`, { headers: itemHeaders(manager) }).then((r) => r.auto, () => null);
-export const setExtensionUpgrades = (auto: boolean) => api<{ auto: boolean }>(`${extRoot()}/-/upgrades`, { method: "PUT", json: { auto } }).then((r) => r.auto);
-export const setExtensionConfig = (id: string, config: JsonObject) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/config`), { method: "PUT", json: { config } }).then(detailOf).then(changed);
-/** An immediate fixed-field save, not an entry-list edit: the hub keeps its current arrays and answers with the capable form. */
-export const setExtensionConfigPreservingEntries = (id: string, config: JsonObject) =>
-  api<HubExtensionDetail>(`${withEntryLists(`${base(id)}/config`)}&preserve_entries=1`, { method: "PUT", json: { config } }).then(detailOf).then(changed);
-export const setExtensionSecret = (id: string, name: string, value: string) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/secrets/${enc(name)}`), { method: "PUT", json: { value } }).then(detailOf).then(changed);
-export const setExtensionSecretReference = (id: string, name: string, reference: string) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/secrets/${enc(name)}`), { method: "PUT", json: { reference } }).then(detailOf).then(changed);
-export const removeHandoffRule = (id: string, rule: string) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/handoff-rules/${enc(rule)}`), { method: "DELETE" }).then(detailOf).then(changed);
-export const clearExtensionSecret = (id: string, name: string) =>
-  api<HubExtensionDetail>(withEntryLists(`${base(id)}/secrets/${enc(name)}`), { method: "DELETE" }).then(detailOf).then(changed);
 
 /** A 400 invalid_config: the field the hub refused (its dotted path, "" when it names none) and why. */
 export function configError(e: unknown): { field: string; message: string } | null {

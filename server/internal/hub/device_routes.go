@@ -12,9 +12,8 @@ import (
 // pushRegistrationRequired: a device's prefs write names a device the hub retired (its credential was revoked).
 const pushRegistrationRequired = "push_registration_required"
 
-// deviceRoutes are a device's own: its sessions, and which notifications it wants.
+// deviceRoutes serves a device's notification preferences.
 func (h *Hub) deviceRoutes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/devices/{id}/sessions", h.serveDeviceSessions)
 	// Which pushes this device wants (notify.go NotifyPrefs); the app's Settings › Notifications.
 	api.HandleFunc("GET /api/v1/devices/{id}/prefs", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, h.prefsView(h.push.prefs(r.PathValue("id"))))

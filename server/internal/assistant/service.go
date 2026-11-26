@@ -349,14 +349,10 @@ func New(o Options) *Service {
 	s.logicalSwitchRoutes()
 	s.modelPickRoutes()
 	s.agentArchiveRoutes()
-	s.agentNamingRoutes() // agent_naming_request.go
 	s.alwaysRoutes()
-	s.infoAccessRoutes()
 	s.captureRoutes() // captures.go: quick capture
 	s.undeliveredRoutes()
-	s.standingAuthorizationRoutes()
 	s.ruleSuggestionRoutes()
-	s.northStarRoutes()
 	s.reporterRoutes()
 	s.dispatchPolicyRoutes() // dispatch_policy_routes.go
 	s.dispatchGuardRoutes()  // dispatch_guard.go
@@ -364,9 +360,7 @@ func New(o Options) *Service {
 	s.startDefaultsRoutes() // start_defaults_routes.go
 	s.profileRoutes()
 	s.entriesRoutes()
-	s.skillImportRoutes()
 	s.readinessRoutes()
-	s.availabilityRoutes()
 	s.startRoutes()
 	s.skillRoutes()
 	s.scheduleRoutes()
@@ -387,7 +381,6 @@ func New(o Options) *Service {
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
 	s.companionRoutes()
-	s.historyRoutes()
 	s.inboxRoutes()
 	s.modelConfigRoutes()
 	s.launcherRoutes()

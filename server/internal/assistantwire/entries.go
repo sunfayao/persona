@@ -23,7 +23,7 @@ type AssistantEntriesChanged struct {
 }
 
 func init() {
-	Routes = append(Routes, "GET /api/v1/assistant/entries", "POST /api/v1/assistant/entries/{id}/wrong")
+	Routes = append(Routes, "GET /api/v1/assistant/entries")
 }
 
 type extensionReaderKey struct{}

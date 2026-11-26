@@ -334,11 +334,6 @@ export function githubInboxFooter(o: GitHubInboxOptions): string {
   return t("lib-connectors.inbox_footer", { ci, auto });
 }
 
-/** A repository to mute: owner/name, not one already muted. */
-export function mutableRepo(input: string, muted: string[]): string | null {
-  const repo = input.trim();
-  return /^[^/\s]+\/[^/\s]+$/.test(repo) && !muted.includes(repo) ? repo : null;
-}
 
 // ── requests ─────────────────────────────────────────────
 
@@ -346,44 +341,6 @@ export function mutableRepo(input: string, muted: string[]): string | null {
 export async function listConnectors(all = false): Promise<HubConnector[]> {
   const r = await api<{ connectors?: HubConnector[] }>(`/connectors${all ? "?all=1" : ""}`);
   return r.connectors ?? [];
-}
-
-
-
-
-
-// ── Messages (iMessage): "Hand to Persona" and deleting what the hub kept (iOS MessagesConnectorView) ──
-
-/** GET /api/v1/imessage: the Mac's status; `ai` is "Hand to Persona" (absent from a hub before it). */
-export interface IMessageStatus {
-  machine: string;
-  status: string;
-  error?: string;
-  guide?: string[];
-  via?: string;
-  ai?: boolean;
-}
-
-
-/** "Hand to Persona" on or off: off stops at once, what the hub kept stays until deleteIMessageData. */
-export function setIMessageAI(on: boolean): Promise<IMessageStatus> {
-  return api<IMessageStatus>("/imessage/settings", { method: "PUT", json: { ai: on } });
-}
-
-/** What the hub kept of iMessage (chats and people, inbox items); the hub refuses while "Hand to Persona" is on. */
-export function deleteIMessageData(): Promise<ConnectorDeleted> {
-  return api<ConnectorDeleted>("/imessage/data", { method: "DELETE" });
-}
-
-/** The words under the "Hand to Persona" switch, as iOS says them. */
-export function imessageAIFooter(on: boolean): string {
-  return on ? t("lib-connectors.imessage_ai_on") : t("lib-connectors.imessage_ai_off");
-}
-
-
-/** Where GitHub's token comes from: a machine's gh login, or the device flow (machine null). */
-export function setGitHubAuth(machine: string | null): Promise<GitHubAuth> {
-  return api<GitHubAuth>("/connectors/github/auth", { method: "PUT", json: machine ? { source: "machine", machine } : { source: "device" } });
 }
 
 // ── threads (an inbox item opened) ───────────────────────

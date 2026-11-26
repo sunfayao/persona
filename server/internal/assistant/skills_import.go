@@ -4,10 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -45,46 +42,6 @@ func (s *Service) skillImportTarget(ctx context.Context) (skillImportTarget, err
 	scope := id + "\x00" + machine
 	sum := sha256.Sum256([]byte(scope + "\x00" + s.assistantCwd(d)))
 	return skillImportTarget{machine, d.Name, s.assistantRel(), scope, hex.EncodeToString(sum[:])}, nil
-}
-
-func (s *Service) skillImportRoutes() {
-	s.handle("POST /api/v1/skills/import", s.importSkill)
-}
-
-func (s *Service) importSkill(w http.ResponseWriter, r *http.Request) {
-	if !fullRole(r) {
-		apierr.Write(w, http.StatusForbidden, errors.New(http.StatusText(http.StatusForbidden)))
-		return
-	}
-	before, err := s.skillImportTarget(r.Context())
-	if err != nil {
-		apierr.Call(w, err)
-		return
-	}
-	var in skillImportInput
-	// Base64 plus JSON framing fits below 6 MiB. Unknown fields reject browser-selected machines or paths.
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 6<<20))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&in); err != nil {
-		status := http.StatusBadRequest
-		var large *http.MaxBytesError
-		if errors.As(err, &large) {
-			status = http.StatusRequestEntityTooLarge
-		}
-		apierr.WriteCode(w, status, "skill_import_request", errors.New("skill_import_request"))
-		return
-	}
-	if decoder.Decode(new(any)) != io.EOF || len(in.Archive) > assistantskills.MaxImportZIP ||
-		!validSkillImport(in) {
-		apierr.WriteCode(w, http.StatusBadRequest, "skill_import_request", errors.New("skill_import_request"))
-		return
-	}
-	out, err := s.runSkillImport(r.Context(), before, in)
-	if err != nil {
-		writeSkillImportError(w, err)
-		return
-	}
-	apierr.WriteJSON(w, out)
 }
 
 func validSkillImport(in skillImportInput) bool {
@@ -131,26 +88,4 @@ func cleanSkillImportError(err error) error {
 		return err
 	}
 	return &rpc.Error{Code: apierr.NodeCode(err), Message: apierr.NodeCode(err)}
-}
-
-func writeSkillImportError(w http.ResponseWriter, err error) {
-	var coded *rpc.Error
-	if errors.As(err, &coded) && coded.Code == "node_outdated" {
-		apierr.WriteCode(w, http.StatusConflict, coded.Code, errors.New(coded.Code))
-	} else if errors.As(err, &coded) && strings.HasPrefix(coded.Code, "skill_") {
-		status := http.StatusUnprocessableEntity
-		switch coded.Code {
-		case "skill_conflict", "skill_import_expired", "skill_import_changed", "skill_environment_changed", "skill_undo_changed":
-			status = http.StatusConflict
-		case "skill_import_busy":
-			status = http.StatusTooManyRequests
-		case "skill_import_io":
-			status = http.StatusInternalServerError
-		case "skill_import_request":
-			status = http.StatusBadRequest
-		}
-		apierr.WriteCode(w, status, coded.Code, errors.New(coded.Code))
-	} else {
-		apierr.Call(w, err)
-	}
 }

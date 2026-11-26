@@ -71,7 +71,7 @@ export interface SendResult {
 
 export const agentPath = (id: string) => `/agents/sessions/${encodeURIComponent(id)}`;
 
-export function fetchSessions() {
+function fetchSessions() {
   return api<{ sessions: AgentSession[] | null }>("/agents/sessions").then((r) => r.sessions ?? []);
 }
 
@@ -93,7 +93,7 @@ const SETUP_HINTS: Record<string, string> = {
 /** What to do so the sources list agents, or why one can't: one line per source that is not set up or is failing. */
 export const setupHints = (sources: AgentSourceStatus[]) => sources.flatMap((x) => (x.setup && SETUP_HINTS[x.setup] ? [SETUP_HINTS[x.setup]] : x.error ? [x.error] : []));
 
-export function fetchSources() {
+function fetchSources() {
   return api<{ sources: AgentSourceStatus[] | null }>("/agents").then((r) => r.sources ?? []);
 }
 
@@ -118,10 +118,10 @@ export function markRead(id: string) {
 
 // "Remove from list" (POST …/hide): the conversation stays in its source and comes back by itself when it gets a new
 // message; …/unhide brings it back by hand. Hidden ones are left out of the list and its counts by the hub.
-export function hideSession(id: string) {
+function hideSession(id: string) {
   return api(`${agentPath(id)}/hide`, { method: "POST" });
 }
-export function unhideSession(id: string) {
+function unhideSession(id: string) {
   return api(`${agentPath(id)}/unhide`, { method: "POST" });
 }
 export function fetchHiddenSessions() {

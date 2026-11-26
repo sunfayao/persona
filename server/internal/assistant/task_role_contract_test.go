@@ -224,9 +224,6 @@ func TestTaskPlanRoleContractLegacyStoredPlanStartAndRetry(t *testing.T) {
 	if err != nil || len(loaded.Tasks) != 1 || loaded.Tasks[0].Role != "" {
 		t.Fatalf("legacy stored plan is not readable with an empty role: %+v, %v", loaded, err)
 	}
-	if w := request(s, http.MethodGet, "/api/v1/task-plans/plan_legacy_without_role", ""); w.Code != http.StatusOK {
-		t.Fatalf("reading legacy stored plan: %d %s", w.Code, w.Body.String())
-	}
 	w := request(s, http.MethodPost, "/api/v1/task-plans/plan_legacy_without_role/start", `{}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("starting legacy stored plan: %d %s", w.Code, w.Body.String())

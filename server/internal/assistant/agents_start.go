@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/ai"
@@ -207,93 +206,3 @@ func tabSlug(s string) string {
 
 // defaultTabName: a name nobody chose — the old fixed "persona", herdr's numbers, the agent-<n> fallback.
 var defaultTabName = lazyre.New(`^(persona(-\d+)?|\d+|agent-\d+)?$`)
-
-// TabRename is one tab of POST /api/v1/tabs/autoname: renamed, or (dry run) what it would be called.
-type TabRename struct {
-	MachineID string `json:"machine_id"`
-	SessionID string `json:"session_id"`
-	Space     string `json:"space"`
-	Title     string `json:"title"`
-	From      string `json:"from"`
-	To        string `json:"to,omitempty"`
-	Error     string `json:"error,omitempty"`
-}
-
-// autonameTabs renames the herdr tabs of running agents whose names nobody chose (all of them with all) after
-// their session's title, the way new tabs are named. One tab per agent; agents without a title keep theirs.
-func (s *Service) autonameTabs(ctx context.Context, dryRun, all bool) []TabRename {
-	type tab struct {
-		machine string
-		c       proto.Session
-	}
-	var todo []tab
-	taken := map[string]map[string]bool{} // machine/workspace → names in use
-	for _, d := range s.devices(ctx) {
-		list, _ := s.sessions(ctx, d.ID)
-		seen := map[string]bool{}
-		for _, c := range list {
-			if c.Assistant || c.SpaceKind != "herdr" || c.TabID == "" || c.Status == proto.StatusOffline || seen[c.TabID] {
-				continue
-			}
-			seen[c.TabID] = true
-			ws := d.ID + "/" + c.SpaceID
-			if taken[ws] == nil {
-				taken[ws] = map[string]bool{}
-			}
-			taken[ws][c.SlotName] = true
-			if (all || defaultTabName.MatchString(c.SlotName)) && strings.TrimSpace(c.Title) != "" {
-				todo = append(todo, tab{d.ID, c})
-			}
-		}
-	}
-	// Names first (the model, a few at a time), then pick unique ones per space in a fixed order.
-	names := make([]string, len(todo))
-	sem := make(chan struct{}, 4)
-	var wg sync.WaitGroup
-	for i, t := range todo {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			if names[i] = s.tabName(ctx, t.c.Title); names[i] == "" { // the small model comes back empty now and then
-				names[i] = s.tabName(ctx, t.c.Title)
-			}
-		}()
-	}
-	wg.Wait()
-	out := make([]TabRename, 0, len(todo))
-	for i, t := range todo {
-		r := TabRename{MachineID: t.machine, SessionID: t.c.SessionID, Space: t.c.SpaceName, Title: t.c.Title, From: t.c.SlotName}
-		if names[i] == "" {
-			r.Error = "no name from the model"
-			out = append(out, r)
-			continue
-		}
-		ws := taken[t.machine+"/"+t.c.SpaceID]
-		delete(ws, t.c.SlotName) // its own old name is free again
-		r.To = uniqueName(names[i], ws)
-		ws[r.To] = true
-		if !dryRun && r.To != r.From {
-			cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-			if err := s.call(cctx, t.machine, DeviceSessionRename, map[string]any{"session_id": t.c.SessionID, "tab_name": r.To}, nil); err != nil {
-				r.Error = err.Error()
-			}
-			cancel()
-		}
-		out = append(out, r)
-	}
-	return out
-}
-
-// uniqueName is name, or name-2, name-3… when taken.
-func uniqueName(name string, taken map[string]bool) string {
-	if !taken[name] {
-		return name
-	}
-	for i := 2; ; i++ {
-		if n := fmt.Sprintf("%s-%d", name, i); !taken[n] {
-			return n
-		}
-	}
-}

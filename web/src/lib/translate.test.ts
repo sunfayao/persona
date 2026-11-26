@@ -9,11 +9,7 @@ vi.mock("./api", () => ({
   enc: encodeURIComponent,
 }));
 
-import {
-  detectLanguage, family, getTranslatePrefs, hubTranslation, isForeign, languageName, larkChatChoices, MAILS_KEPT, parseChats, requestTranslation,
-  resetTranslateForTests, setTranslatePrefs, strippedHTML, TEXTS_KEPT, translateCacheSizesForTests, translateMail, translatesChat,
-  translatesMail, translationOf,
-} from "./translate";
+import { detectLanguage, family, getTranslatePrefs, hubTranslation, isForeign, languageName, MAILS_KEPT, parseChats, requestTranslation, resetTranslateForTests, setTranslatePrefs, strippedHTML, TEXTS_KEPT, translateCacheSizesForTests, translateMail, translatesChat, translatesMail, translationOf } from "./translate";
 
 function memoryStorage() {
   const m = new Map<string, string>();
@@ -83,12 +79,6 @@ describe("isForeign", () => {
 });
 
 describe("prefs", () => {
-  it("keeps each Feishu chat's photo when choosing chats to translate", async () => {
-    const group = { id: "g", name: "Review", avatar: "/agent/v1/media/group", avatar_url: "/api/v1/avatars/lark/Zw?lark_account=2", is_group: true };
-    const person = { id: "p", name: "Alex", avatar: "/agent/v1/media/alex" };
-    calls.reply = (path) => ({ conversations: path === "/lark/pinned" ? [group] : [group, person] });
-    expect(await larkChatChoices("paired")).toEqual([group, person]);
-  });
 
   it("defaults to off, Simplified Chinese, mail on, no chats", () => {
     expect(getTranslatePrefs()).toEqual({ enabled: false, target: "zh-Hans", mail: true, chats: [] });

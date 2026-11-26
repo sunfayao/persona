@@ -459,20 +459,6 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 		}
 		writeExtensionJSON(w, r, detailOut(r, ps().detail(r.Context(), ps().reg.Get(p.Record.ID))))
 	}))
-	// An Always rule of a hand-off of the provider's values (secret_handoff_rules.go): removed, the next hand-off asks.
-	api.HandleFunc("DELETE /api/v1/extensions/{id}/-/handoff-rules/{rule}", full(func(w http.ResponseWriter, r *http.Request, p *extension.Extension) {
-		n, err := h.removeHandoffRules(r.Context(), p.Record.ID, r.PathValue("rule"))
-		if err != nil {
-			writeExtensionResponseError(w, r, http.StatusServiceUnavailable, "rules_unavailable", err)
-			return
-		}
-		if n == 0 {
-			writeExtensionResponseError(w, r, http.StatusNotFound, "no_rule", i18n.Err("hub-extension_routes.no_handoff_rule"))
-			return
-		}
-		h.logf("plugin %s: hand-off rule %s removed by %s", p.Record.ID, r.PathValue("rule"), actor(r)) // a rule's id: hex
-		writeExtensionJSON(w, r, detailOut(r, ps().detail(r.Context(), ps().reg.Get(p.Record.ID))))
-	}))
 	api.HandleFunc("DELETE /api/v1/extensions/{id}/-/secrets/{name}", full(func(w http.ResponseWriter, r *http.Request, p *extension.Extension) {
 		if err := ps().reg.DeleteSecret(r.Context(), p.Record.ID, r.PathValue("name"), actor(r)); err != nil {
 			writeExtensionResponseError(w, r, http.StatusBadRequest, "invalid_secret", err)

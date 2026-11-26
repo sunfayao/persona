@@ -75,10 +75,10 @@ type TodoRow struct {
 	After                []string `json:"after"`
 	RequireAcceptedAfter bool     `json:"require_accepted_after"`
 	// RestoredAt is when the owner last brought it back from Inactive (#10226): activity for its status only, never an
-	// edit (updated_at stays). Nil when never. Only RestoreTodo writes it.
+	// edit (updated_at stays). Nil when never.
 	RestoredAt *time.Time `json:"restored_at"`
 	// SomedayUntil is when a to-do the owner put off to Someday comes back (#10226), SomedayNoDate for Someday with no
-	// date; nil while it is not put off. SetTodoSomeday writes it; reopening (TodoEdit.Apply) and RetryTodo clear it.
+	// date; nil while it is not put off. Reopening (TodoEdit.Apply) and RetryTodo clear it.
 	SomedayUntil *time.Time `json:"someday_until"`
 	// Responsible is an external responsible party that is not a Persona-started agent (#12712): a long-running
 	// external session or a person, with optional machine_id / session_id hints; nil while none is set.
@@ -508,41 +508,6 @@ func (d *DB) SeeTodo(ctx context.Context, id string, at *time.Time) (*TodoRow, e
 		Scan(todoDest(&r)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrTodoNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
-}
-
-// RestoreTodo records that the owner brought todo id back from Inactive at at (#10226). Like SeeTodo it is not an edit:
-// updated_at stays; restored_at is activity for the to-do's status only.
-func (d *DB) RestoreTodo(ctx context.Context, id string, at time.Time) (*TodoRow, error) {
-	var r TodoRow
-	err := d.pool.QueryRow(ctx, `UPDATE todos SET restored_at = $2 WHERE id = $1 RETURNING `+todoColumns, id, at).
-		Scan(todoDest(&r)...)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, ErrTodoNotFound
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &r, nil
-}
-
-// SetTodoSomeday puts todo id off to Someday until until (SomedayNoDate: no date), or with nil takes it out of Someday
-// (#10226). Only an open to-do is put off: ErrTodoCompleted when it is closed, though not for a failed start, which
-// waits on the owner to retry or close it. Taking it out applies to any. Not an edit: updated_at stays.
-func (d *DB) SetTodoSomeday(ctx context.Context, id string, until *time.Time) (*TodoRow, error) {
-	var r TodoRow
-	err := d.pool.QueryRow(ctx, `UPDATE todos SET someday_until = $2
-		WHERE id = $1 AND ($2::timestamptz IS NULL OR done_at IS NULL OR start_error <> '') RETURNING `+todoColumns, id, until).
-		Scan(todoDest(&r)...)
-	if errors.Is(err, pgx.ErrNoRows) {
-		if _, gerr := d.GetTodo(ctx, id); gerr != nil {
-			return nil, gerr
-		}
-		return nil, ErrTodoCompleted
 	}
 	if err != nil {
 		return nil, err

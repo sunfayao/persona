@@ -2,9 +2,8 @@
 // program (auth.status / auth.step / auth.logout) and keeps its state; the page draws a "Sign in" group on the extension's
 // detail, a sign-in dialog of steps (fields, a device code, a QR code), and lists the tools in "About". Only with a hub
 // that has `extension_auth`; the hub pushes `extension_auth` whenever a sign-in state changes.
-import { api, enc } from "./api";
 import type { PromptQR } from "./connectors";
-import { extIdOf, extRoot } from "./extension-api";
+import { extIdOf } from "./extension-api";
 import type { AuthPrompt as WireAuthPrompt, AuthState } from "./extension-wire";
 import { messageManager } from "./manager-choice";
 import { onHubEvent } from "./store";
@@ -33,15 +32,6 @@ export interface ExtensionTool {
 
 /** A sign-in step as the hub answers it: the extension's, with url's QR code drawn by the hub. */
 export type AuthPrompt = WireAuthPrompt & { qr?: PromptQR };
-
-// ── the hub ─────────────────────────────────────────────
-
-const base = (id: string) => `${extRoot()}/${enc(id)}/-/auth`;
-
-/** One step: "" starts over; a device code / QR step is asked again with no values. */
-export const authStep = (id: string, step: string, values: Record<string, string> = {}) =>
-  api<AuthPrompt>(`${base(id)}/step`, { method: "POST", json: { step, values } });
-export const authLogout = (id: string) => api<ExtensionAuth>(`${base(id)}/logout`, { method: "POST", json: {} });
 
 /** Calls l with each extension_auth the hub pushes (extension id, its new state, and the manager whose extension it is:
  *  the same id may be installed under several managers, docs/assistant/managers.md "Clients"). */

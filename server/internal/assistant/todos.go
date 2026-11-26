@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/compat"
 	"net/http"
 	"slices"
 	"sort"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistant/repository"
@@ -158,8 +159,6 @@ type todoStore interface {
 	UpdateTodo(ctx context.Context, id string, title *string, notes *string, done *bool, updatedAt time.Time) (*db.TodoRow, error)
 	EditTodo(ctx context.Context, id string, e db.TodoEdit, updatedAt time.Time) (*db.TodoRow, error)
 	SeeTodo(ctx context.Context, id string, at *time.Time) (*db.TodoRow, error)
-	RestoreTodo(ctx context.Context, id string, at time.Time) (*db.TodoRow, error)
-	SetTodoSomeday(ctx context.Context, id string, until *time.Time) (*db.TodoRow, error)
 	ClaimTodoReminder(ctx context.Context, id string, remindAt, now time.Time) (bool, error)
 	RetitleTodo(ctx context.Context, id, from, to string, at time.Time) (*db.TodoRow, bool, error)
 	FailTodo(ctx context.Context, id, startError string, at time.Time) (*db.TodoRow, error)
@@ -234,11 +233,6 @@ type todoBook struct {
 	// reportWaits are the longest answer waits found for todos still waiting (todo_source_answer.go).
 	reportWaits map[string]time.Duration
 	runMu       sync.Mutex // one report step at a time (sourceReportNow)
-
-	// importing is held across a batch of imported reminders, and imports are their links when there is no store
-	// (todo_imports.go).
-	importing sync.Mutex
-	imports   map[[2]string]db.TodoImport
 
 	// remindWake wakes remindLoop when the todos change (todo_plan.go).
 	remindOnce sync.Once
@@ -984,15 +978,11 @@ func (s *Service) todoRoutes() {
 	s.todoImageRoutes()
 	s.todoRepositoryRoutes()
 	s.workspaceNamingRoutes()
-	s.taskWorkspaceRoutes()
 	s.taskReviewDismissalRoutes()
 	s.todoDecisionRoutes()
 	s.outsideDecisionRoutes()
 	s.todoThreadRoutes()
 	s.todoSeenRoutes()
-	s.todoMarkRoutes()
-	s.todoRetitleRoute()
-	s.todoImportRoutes()
 	s.todoViewRoutes()
 	s.todoAskRoutes()
 	s.todoTimelineRoutes()

@@ -365,40 +365,26 @@ func TestTodayCardListsWhatFailed(t *testing.T) {
 	}
 }
 
-// Kinds remembered with "Start these right away from now on" are listed and can be forgotten (Postgres: on the hub machine).
+// A remembered plan kind still starts immediately when loaded from Postgres.
 func TestTaskTrust(t *testing.T) {
 	url := os.Getenv("PERSONA_TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("PERSONA_TEST_DATABASE_URL not set (use scripts/test/server_test_env.py)")
 	}
-	database, err := db.Open(context.Background(), url, db.ManagerSet)
+	ctx := context.Background()
+	database, err := db.Open(ctx, url, db.ManagerSet)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(database.Close)
-	if err := database.PutSetting(context.Background(), trustSetting, nil); err != nil {
+	if err := database.PutSetting(ctx, trustSetting, nil); err != nil {
 		t.Fatal(err)
 	}
 	h := newServiceOn(t, newFakeHub(), database)
-	h.trustKinds(context.Background(), []PlanTask{{Machine: "box", Cwd: "/code/app"}, {Machine: "box", Cwd: "/code/docs", Readonly: true}})
-	list, err := h.trustList(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(list) != 2 || list[0].Key != "box|/code/app|edit" || list[1].Readonly != true {
-		t.Fatalf("list = %+v", list)
-	}
-	if !h.planStartsAtOnce(context.Background(), []PlanTask{{Machine: "box", Cwd: "/code/app"}}) {
+	plan := []PlanTask{{Machine: "box", Cwd: "/code/app"}}
+	h.trustKinds(ctx, plan)
+	if !h.planStartsAtOnce(ctx, plan) {
 		t.Fatal("a trusted kind should start at once")
-	}
-	if ok, err := h.forgetTrust(context.Background(), "box|/code/app|edit"); !ok || err != nil {
-		t.Fatalf("forget: %v %v", ok, err)
-	}
-	if h.planStartsAtOnce(context.Background(), []PlanTask{{Machine: "box", Cwd: "/code/app"}}) {
-		t.Fatal("a forgotten kind still starts at once")
-	}
-	if ok, _ := h.forgetTrust(context.Background(), "nope"); ok {
-		t.Fatal("forgot a kind that was never remembered")
 	}
 }
 
@@ -438,32 +424,22 @@ func TestTrustFailedReadKeepsRememberedKinds(t *testing.T) {
 	}
 }
 
-// Plans remembered at the same time, and a forget racing them, keep every kind the others remembered.
+// Plans remembered at the same time keep every kind the others remembered.
 func TestTrustConcurrentChangesKeepEveryKind(t *testing.T) {
 	ctx := context.Background()
 	st := &memStore{}
 	s := newServiceOn(t, newFakeHub(), st)
-	s.trustKinds(ctx, []PlanTask{{Machine: "box", Cwd: "/gone"}})
 
 	const n = 16
-	done := make(chan error, n+1)
+	done := make(chan struct{}, n)
 	for i := range n {
 		go func() {
 			s.trustKinds(ctx, []PlanTask{{Machine: "box", Cwd: fmt.Sprintf("/p%02d", i)}})
-			done <- nil
+			done <- struct{}{}
 		}()
 	}
-	go func() {
-		ok, err := s.forgetTrust(ctx, "box|/gone|edit")
-		if err == nil && !ok {
-			err = errors.New("not remembered")
-		}
-		done <- err
-	}()
-	for range n + 1 {
-		if err := <-done; err != nil {
-			t.Fatalf("forget: %v", err)
-		}
+	for range n {
+		<-done
 	}
 
 	want := make([]string, n)
@@ -472,31 +448,6 @@ func TestTrustConcurrentChangesKeepEveryKind(t *testing.T) {
 	}
 	if got := storedTrust(t, st); !reflect.DeepEqual(got, want) {
 		t.Fatalf("kept %d kinds: %q, want %q", len(got), got, want)
-	}
-}
-
-// Forgetting a kind while tasks.trust cannot be read is an error (the route answers 503) and keeps every kind.
-func TestTrustForgetWithFailedReadKeepsTheList(t *testing.T) {
-	ctx := context.Background()
-	st := &memStore{}
-	s := newServiceOn(t, newFakeHub(), st)
-	s.trustKinds(ctx, []PlanTask{{Machine: "box", Cwd: "/a"}, {Machine: "box", Cwd: "/b"}})
-
-	st.failKey(trustSetting, errors.New("db blip"))
-	if ok, err := s.forgetTrust(ctx, "box|/a|edit"); err == nil || ok {
-		t.Fatalf("forget on a failed read: %v %v, want an error", ok, err)
-	}
-	st.failKey(trustSetting, nil)
-
-	want := []string{"box|/a|edit", "box|/b|edit"}
-	if got := storedTrust(t, st); !reflect.DeepEqual(got, want) {
-		t.Fatalf("after a failed forget: %q, want %q", got, want)
-	}
-	if ok, err := s.forgetTrust(ctx, "box|/a|edit"); !ok || err != nil {
-		t.Fatalf("forget: %v %v", ok, err)
-	}
-	if got, want := storedTrust(t, st), []string{"box|/b|edit"}; !reflect.DeepEqual(got, want) {
-		t.Fatalf("after the forget: %q, want %q", got, want)
 	}
 }
 

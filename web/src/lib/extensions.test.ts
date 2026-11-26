@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
-import { EXTENSIONS_CHANGED } from "./extension-prompts";
-import {
-  checkError, clearedSecrets, clearExtensionSecret, compact, configError, fieldTitle, isDirty, listItems, listExtensions, listSummary, numberProblems, placeholder, extensionDetail,
-  machineStatus, extensionState, extensionTone, readNumber, rebaseDraft, runNote, same, secretState, setupSecret, setAt, setExtensionConfig, setExtensionConfigPreservingEntries, setExtensionEnabled, setExtensionSecret, sourceText,
-  stateLine, valueAt, morePermissions, extensionUpgrades, setExtensionAutoUpgrade, setExtensionUpgrades, upgradeAction, upgradeDetail, upgradeNote,
-  type HubExtension, type ExtensionField, type ExtensionUpgrade, type JsonObject, nodeProgramStatus, exitText, saveFooter, channelOf, sandboxState,
-  entryID, entryItems, entryKey, fieldPath, isEntryList,
-} from "./extensions";
+import { checkError, clearedSecrets, compact, configError, fieldTitle, isDirty, listItems, listSummary, numberProblems, placeholder, machineStatus, extensionState, extensionTone, readNumber, rebaseDraft, runNote, same, secretState, setupSecret, setAt, setExtensionEnabled, sourceText, stateLine, valueAt, morePermissions, upgradeAction, upgradeDetail, upgradeNote, type HubExtension, type ExtensionField, type ExtensionUpgrade, type JsonObject, nodeProgramStatus, exitText, saveFooter, channelOf, sandboxState, entryID, entryItems, entryKey, fieldPath, isEntryList } from "./extensions";
 
 const extension = (status: string, extra: Partial<HubExtension> = {}): HubExtension => ({ id: `p-${status}`, name: status, kind: "connectors", status, ...extra });
 
@@ -222,65 +215,17 @@ describe("草稿", () => {
 });
 
 describe("扩展的接口", () => {
-  it("calls the hub's reserved paths", async () => {
+  it("changes extension enablement through the reserved route", async () => {
     const calls: { url: string; method: string; body?: string }[] = [];
     vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       calls.push({ url, method: init.method ?? "GET", body: init.body as string | undefined });
       return new Response(JSON.stringify(url.endsWith("/extensions") ? { extensions: [extension("running")] } : { id: "a b", name: "x", kind: "k", status: "running" }));
     });
-    expect((await listExtensions()).map((p) => p.status)).toEqual(["running"]);
-    await extensionDetail("a b");
     await setExtensionEnabled("a b", false);
-    await setExtensionConfig("a b", { x: 1 });
-    await setExtensionConfigPreservingEntries("a b", { x: 2 });
-    await setExtensionSecret("a b", "api_key", "v");
-    await clearExtensionSecret("a b", "api_key");
     expect(calls.map((c) => `${c.method} ${c.url} ${c.body ?? ""}`.trim())).toEqual([
-      "GET /api/v1/extensions",
-      "GET /api/v1/extensions/a%20b/-/?entry_lists=1",
       'PUT /api/v1/extensions/a%20b/-/enabled?entry_lists=1 {"enabled":false}',
-      'PUT /api/v1/extensions/a%20b/-/config?entry_lists=1 {"config":{"x":1}}',
-      'PUT /api/v1/extensions/a%20b/-/config?entry_lists=1&preserve_entries=1 {"config":{"x":2}}',
-      'PUT /api/v1/extensions/a%20b/-/secrets/api_key?entry_lists=1 {"value":"v"}',
-      "DELETE /api/v1/extensions/a%20b/-/secrets/api_key?entry_lists=1",
     ]);
-  });
-  it("calls a hub from before #1844 on its old routes, and reads its old keys", async () => {
-    hub.features = ["plugins", "plugin_manager"];
-    const calls: string[] = [];
-    vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      calls.push(`${init.method ?? "GET"} ${url}`);
-      if (url.endsWith("/plugins")) return new Response(JSON.stringify({ plugins: [extension("running")], can_install: true }));
-      return new Response(JSON.stringify({ id: "a", name: "x", kind: "k", status: "running", ui: [{ plugin: "a", plugin_name: "A", id: "usage", title: "用量", placement: "plugin_page" }] }));
-    });
-    expect((await listExtensions()).map((p) => p.status)).toEqual(["running"]);
-    const d = await extensionDetail("a");
-    expect(d.ui).toEqual([{ extension: "a", extension_name: "A", id: "usage", title: "用量", placement: "plugin_page" }]);
-    expect(calls).toEqual(["GET /api/v1/plugins", "GET /api/v1/plugins/a/-/?entry_lists=1"]);
-  });
-  it("refreshes the extension's places after a secret is set or cleared, not after a refused one", async () => {
-    // A secret change restarts the extension (registry SetSecret / DeleteSecret), so its sidebar entries, cards and
-    // quick prompts can appear or go away.
-    const events = new EventTarget();
-    let fired = 0;
-    events.addEventListener(EXTENSIONS_CHANGED, () => fired++);
-    vi.stubGlobal("window", events);
-    vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
-    let fail = false;
-    vi.stubGlobal("fetch", async () =>
-      fail
-        ? new Response(JSON.stringify({ code: "invalid_secret", message: "bad" }), { status: 400 })
-        : new Response(JSON.stringify({ id: "a", name: "x", kind: "k", status: "running" })));
-    await setExtensionSecret("a", "api_key", "v");
-    expect([slots.refresh.mock.calls.length, fired]).toEqual([1, 1]);
-    await clearExtensionSecret("a", "api_key");
-    expect([slots.refresh.mock.calls.length, fired]).toEqual([2, 2]);
-    fail = true;
-    await expect(setExtensionSecret("a", "api_key", "v")).rejects.toBeInstanceOf(ApiError);
-    await expect(clearExtensionSecret("a", "api_key")).rejects.toBeInstanceOf(ApiError);
-    expect([slots.refresh.mock.calls.length, fired]).toEqual([2, 2]);
   });
   it("reads the field the hub refused", () => {
     expect(configError(new ApiError(400, "base_url: 要是一个网址", { code: "invalid_config", field: "base_url", message: "要是一个网址" }))).toEqual({
@@ -339,28 +284,6 @@ describe("auto-upgrade (docs/extensions/extensions.md「Auto-upgrade」)", () =>
     expect(upgradeNote({ kind: "needs_permission", from: "1.0.0", to: "1.1.0", at })).toBeNull();
   });
 
-  it("puts the switches to the hub; a hub without the route has no global switch", async () => {
-    const calls: { url: string; init?: RequestInit }[] = [];
-    let has = false;
-    vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      calls.push({ url, init });
-      if (url.endsWith("/extensions/-/upgrades")) {
-        if (!has) return new Response(JSON.stringify({ error: "no such extension", code: "not_found" }), { status: 404, headers: { "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ auto: init?.method === "PUT" ? JSON.parse(String(init.body)).auto : true, upgrades: [] }), { headers: { "Content-Type": "application/json" } });
-      }
-      return new Response(JSON.stringify({ id: "p", name: "P", kind: "ui", status: "running", auto_upgrade: false }), { headers: { "Content-Type": "application/json" } });
-    }));
-    expect(await extensionUpgrades()).toBeNull();
-    has = true;
-    expect(await extensionUpgrades()).toBe(true);
-    expect(await setExtensionUpgrades(false)).toBe(false);
-    expect((await setExtensionAutoUpgrade("p", false)).auto_upgrade).toBe(false);
-    const last = calls[calls.length - 1];
-    expect(last.url).toContain("/extensions/p/-/auto-upgrade");
-    expect(last.init?.method).toBe("PUT");
-    expect(JSON.parse(String(last.init?.body))).toEqual({ auto: false });
-  });
 });
 
 describe("saveFooter", () => {
