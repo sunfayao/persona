@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -96,16 +95,6 @@ func (s *Service) agentRoutes() {
 		apierr.WriteJSON(w, summarizeWork(hours, events))
 	})
 	// {"dry_run": true, "all": false}: rename the tabs of running agents nobody named after their task.
-	s.handle("POST /api/v1/tabs/autoname", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			DryRun bool `json:"dry_run"`
-			All    bool `json:"all"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&in)
-		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
-		defer cancel()
-		apierr.WriteJSON(w, map[string]any{"tabs": s.autonameTabs(ctx, in.DryRun, in.All)})
-	})
 }
 
 // workStats is GET /api/v1/agents/work/stats: how the triage did over the last hours (docs/assistant/agent-work.md "Evaluation").

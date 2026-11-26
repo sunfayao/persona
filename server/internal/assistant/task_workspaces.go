@@ -3,16 +3,12 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"net/http"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistant/repository"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/taskworkspace"
 	"github.com/nwverse/persona/server/internal/workspacenaming"
 )
@@ -351,98 +347,6 @@ func (s *Service) ensureBackendWorkspacePlan(ctx context.Context, id string, in 
 	}
 	_, err = st.SaveWorkspaceNamingPlan(ctx, id, in.OperationID, revision, *preview.Plan)
 	return err
-}
-func backendWorkspaceError(w http.ResponseWriter, err error) {
-	var p *taskworkspace.Problem
-	if errors.As(err, &p) {
-		status := 400
-		switch p.Code {
-		case "not_found":
-			status = 404
-		case "node_unavailable", "store_unavailable":
-			status = 503
-		case "operation_conflict", "revision_conflict", "not_ready", "worktree_in_use":
-			status = 409
-		}
-		body := apierr.LocalizedBody(status, "task_workspace_"+p.Code, i18n.Err("task-workspaces.invalid"), i18n.OfWriter(w))
-		body["problem"] = p
-		apierr.WriteBody(w, status, body)
-		return
-	}
-	if errors.Is(err, db.ErrTodoCompleted) {
-		backendWorkspaceError(w, taskworkspace.Failure("not_ready", "manager", "", "", ""))
-		return
-	}
-	namingError(w, err)
-}
-func (s *Service) taskWorkspaceRoutes() {
-	s.handle("POST /api/v1/todos/{id}/backend-workspace/start", s.startOwnerBackendPlan)
-	s.handle("GET /api/v1/todos/{id}/backend-workspace", func(w http.ResponseWriter, r *http.Request) {
-		st, err := s.backendWorkspaceStore()
-		if err != nil {
-			backendWorkspaceError(w, err)
-			return
-		}
-		record, err := st.TaskWorkspace(r.Context(), r.PathValue("id"), "")
-		if err != nil {
-			backendWorkspaceError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"workspace": record})
-	})
-	s.handle("GET /api/v1/todos/{id}/backend-workspace/operations/{operation_id}", func(w http.ResponseWriter, r *http.Request) {
-		view, err := s.InspectBackendWorkspace(r.Context(), r.PathValue("id"), r.PathValue("operation_id"))
-		if err != nil {
-			backendWorkspaceError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, view)
-	})
-	s.handle("POST /api/v1/todos/{id}/backend-workspace/prepare", func(w http.ResponseWriter, r *http.Request) {
-		var in namingRequest
-		if !namingBody(w, r, &in) {
-			return
-		}
-		id := r.PathValue("id")
-		if err := s.ensureBackendWorkspacePlan(r.Context(), id, in); err != nil {
-			backendWorkspaceError(w, err)
-			return
-		}
-		record, err := s.PrepareBackendWorkspace(r.Context(), id, in.OperationID)
-		if err != nil {
-			backendWorkspaceError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, record)
-	})
-	for _, action := range []string{"cancel", "cleanup"} {
-		s.handle("POST /api/v1/todos/{id}/backend-workspace/"+action, func(w http.ResponseWriter, r *http.Request) {
-			var in struct {
-				OperationID  string `json:"operation_id"`
-				Force        bool   `json:"force,omitempty"`
-				DeleteBranch bool   `json:"delete_branch,omitempty"`
-			}
-			if !namingBody(w, r, &in) {
-				return
-			}
-			if !workspacenaming.ValidOperationID(in.OperationID) {
-				backendWorkspaceError(w, taskworkspace.Failure("invalid_input", action, in.OperationID, "", ""))
-				return
-			}
-			var record *taskworkspace.Record
-			var err error
-			if action == "cancel" {
-				record, err = s.CancelBackendWorkspace(r.Context(), r.PathValue("id"), in.OperationID)
-			} else {
-				record, err = s.CleanupBackendWorkspace(r.Context(), r.PathValue("id"), in.OperationID, in.Force, in.DeleteBranch)
-			}
-			if err != nil {
-				backendWorkspaceError(w, err)
-				return
-			}
-			apierr.WriteJSON(w, record)
-		})
-	}
 }
 
 func backendSortedIDs(ids []string) []string {

@@ -17,32 +17,6 @@ const deviceSessionRetention = 14 * 24 * time.Hour
 
 var errDeviceSessionPongTimeout = fmt.Errorf("pong timeout: %w", context.DeadlineExceeded)
 
-func (h *Hub) serveDeviceSessions(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	since := now.Add(-24 * time.Hour)
-	if raw := r.URL.Query().Get("since"); raw != "" {
-		var err error
-		since, err = time.Parse(time.RFC3339, raw)
-		if err != nil || since.After(now) {
-			writeErr(w, http.StatusBadRequest, errors.New("since must be an RFC3339 timestamp no later than now"))
-			return
-		}
-	}
-	if since.Before(now.Add(-deviceSessionRetention)) {
-		since = now.Add(-deviceSessionRetention)
-	}
-	if h.store == nil {
-		writeJSON(w, db.DeviceSessionHistory{Sessions: []db.DeviceSession{}})
-		return
-	}
-	history, err := h.store.DeviceSessions(r.Context(), r.PathValue("id"), since, now)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSON(w, history)
-}
-
 // startDeviceSessions runs before serving requests and finishes before the database closes.
 func (h *Hub) startDeviceSessions(ctx context.Context) (func(), error) {
 	if h.store == nil {

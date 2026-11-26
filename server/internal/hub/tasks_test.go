@@ -133,11 +133,10 @@ func feed(h *Hub, conv string) ([]assistant.FeedItem, map[string]*assistant.Task
 	return got.Items, got.Plans
 }
 
-// loadPlan is a plan as the app reads it (nil: none).
+// loadPlan reads a plan from the test conversation's feed.
 func loadPlan(h *Hub, id string) *assistant.TaskPlan {
-	var got struct{ Plan *assistant.TaskPlan }
-	assistantGet(h, "/api/v1/task-plans/"+id, &got)
-	return got.Plan
+	_, plans := feed(h, "conv1")
+	return plans[id]
 }
 
 // taskLine is the task's line in the live context a message to conv1 starts with: "title (id): state…" (in English).
@@ -209,7 +208,7 @@ func TestTaskPlanReadOnlyStartsAtOnce(t *testing.T) {
 		t.Fatalf("feed = %s", got)
 	}
 	p := loadPlan(h, todo.PlanID)
-	if p.State != "started" || p.Tasks[0].TodoID != todo.ID || p.Tasks[0].Permission != "bypassPermissions" {
+	if p == nil || p.State != "started" || p.Tasks[0].TodoID != todo.ID || p.Tasks[0].Permission != "bypassPermissions" {
 		t.Fatalf("plan = %+v", p)
 	}
 }
@@ -591,7 +590,7 @@ func TestTaskPlanWaitsForTheUser(t *testing.T) {
 	if dismissed.Plan == nil || dismissed.Plan.ID != id || dismissed.Plan.State != "started" {
 		t.Fatalf("dismiss after start must return the started plan: %+v", dismissed.Plan)
 	}
-	if p := loadPlan(h, id); p.State != "started" {
+	if p := loadPlan(h, id); p == nil || p.State != "started" {
 		t.Fatalf("dismiss changed the started plan: %+v", p)
 	}
 }

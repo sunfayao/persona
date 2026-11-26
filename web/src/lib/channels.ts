@@ -60,7 +60,7 @@ export interface Channel {
 }
 
 /** `manager`: whose channels (another manager's, docs/assistant/managers.md "Clients"); none: the default's. */
-export async function listChannels(manager?: string): Promise<Channel[]> {
+async function listChannels(manager?: string): Promise<Channel[]> {
   const r = await api<{ channels?: Channel[] }>("/channels", { headers: itemHeaders(manager) });
   return r.channels ?? [];
 }

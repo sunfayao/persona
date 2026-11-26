@@ -2,57 +2,47 @@ package assistant
 
 import (
 	"context"
-	"errors"
-	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// A requested name (#7432): the user asks for one Agent session's automatic name now, from the Agent's menu
-// (POST /api/v1/sessions/{mid}/{sid}/autoname, relayed by the hub). It is the background naming's own model call
-// (agentNameFromModel: the same dialogue, prompt and validity check) without the background's guards. The user asked,
-// so the per-session change limit, "placeholder names only", the automatic-naming switch and a custom title do not
-// hold it back. The result is an automatic name in the same ledger: nothing is typed into the Agent, its tab keeps
-// its name, and a later native or hand-written rename still wins. The assistant's own conversations are refused: they
-// are named by their own rules (titles.go).
+// Requested names use the background naming model and write to the same ledger. The owner
+// confirms the tool request, so automatic naming preferences and placeholder checks do not apply.
 
-// agentNameRefusal is a requested name the manager did not give: the HTTP status, the stable code the apps read and
-// the sentence in the request's language. retry says whether asking again as it is can work.
+// agentNameRefusal carries the tool response code, localized error and whether the caller can retry.
 type agentNameRefusal struct {
-	status int
-	code   string
-	retry  bool
-	err    error
+	code  string
+	retry bool
+	err   error
 }
 
 func (e *agentNameRefusal) Error() string { return e.err.Error() }
 func (e *agentNameRefusal) Unwrap() error { return e.err }
 
-// agentNameRefusals are the naming call's static reasons (agentNameFromModel) as the apps get them. A truncated
+// agentNameRefusals are the naming call's static reasons (agentNameFromModel) as the tool reports them. A truncated
 // answer is an invalid name to the user; a canceled call can only be the manager stopping. A call held back because
 // the Sorting model's launcher answers slower than naming waits was never sent, and asking again soon is held back
 // the same way, so it is not retryable and says what to change.
 var agentNameRefusals = map[string]agentNameRefusal{
-	"model_not_configured":   {status: http.StatusConflict, code: "model_not_configured", err: i18n.Err("assistant-agent_naming.model_not_configured")},
-	agentNameHeldBack:        {status: http.StatusConflict, code: "launcher_too_slow", err: i18n.Err("assistant-agent_naming.launcher_too_slow")},
-	"no_dialogue":            {status: http.StatusConflict, code: "no_dialogue", err: i18n.Err("assistant-agent_naming.no_dialogue")},
-	"invalid_name":           {status: http.StatusBadGateway, code: "invalid_name", retry: true, err: i18n.Err("assistant-agent_naming.invalid_name")},
-	"model_output_truncated": {status: http.StatusBadGateway, code: "invalid_name", retry: true, err: i18n.Err("assistant-agent_naming.invalid_name")},
-	"model_call_failed":      {status: http.StatusBadGateway, code: "model_failed", retry: true, err: i18n.Err("assistant-agent_naming.model_failed")},
-	"dialogue_unavailable":   {status: http.StatusBadGateway, code: "dialogue_unavailable", retry: true, err: i18n.Err("assistant-agent_naming.dialogue_unavailable")},
-	"naming_timeout":         {status: http.StatusGatewayTimeout, code: "timeout", retry: true, err: i18n.Err("assistant-agent_naming.timeout")},
-	"naming_canceled":        {status: http.StatusServiceUnavailable, code: "canceled", retry: true, err: i18n.Err("assistant-agent_naming.timeout")},
+	"model_not_configured":   {code: "model_not_configured", err: i18n.Err("assistant-agent_naming.model_not_configured")},
+	agentNameHeldBack:        {code: "launcher_too_slow", err: i18n.Err("assistant-agent_naming.launcher_too_slow")},
+	"no_dialogue":            {code: "no_dialogue", err: i18n.Err("assistant-agent_naming.no_dialogue")},
+	"invalid_name":           {code: "invalid_name", retry: true, err: i18n.Err("assistant-agent_naming.invalid_name")},
+	"model_output_truncated": {code: "invalid_name", retry: true, err: i18n.Err("assistant-agent_naming.invalid_name")},
+	"model_call_failed":      {code: "model_failed", retry: true, err: i18n.Err("assistant-agent_naming.model_failed")},
+	"dialogue_unavailable":   {code: "dialogue_unavailable", retry: true, err: i18n.Err("assistant-agent_naming.dialogue_unavailable")},
+	"naming_timeout":         {code: "timeout", retry: true, err: i18n.Err("assistant-agent_naming.timeout")},
+	"naming_canceled":        {code: "canceled", retry: true, err: i18n.Err("assistant-agent_naming.timeout")},
 }
 
 var (
-	errAgentNameNoMachine = &agentNameRefusal{status: http.StatusNotFound, err: i18n.Err("devices-api.unknown_machine")}
-	errAgentNameNoSession = &agentNameRefusal{status: http.StatusNotFound, err: i18n.Err("hub-deleted_sessions.unknown")}
-	errAgentNameAssistant = &agentNameRefusal{status: http.StatusBadRequest, code: "assistant_session", err: i18n.Err("assistant-agent_naming.assistant_session")}
-	errAgentNameLedger    = &agentNameRefusal{status: http.StatusServiceUnavailable, code: "names_unavailable", retry: true, err: i18n.Err("assistant-profile.agent_names_unavailable")}
-	errAgentNameSave      = &agentNameRefusal{status: http.StatusInternalServerError, code: "save_failed", retry: true, err: i18n.Err("assistant-agent_naming.save_failed")}
-	errAgentNameRenamed   = &agentNameRefusal{status: http.StatusConflict, code: "renamed_meanwhile", err: i18n.Err("assistant-agent_naming.renamed_meanwhile")}
+	errAgentNameNoMachine = &agentNameRefusal{err: i18n.Err("devices-api.unknown_machine")}
+	errAgentNameNoSession = &agentNameRefusal{err: i18n.Err("hub-deleted_sessions.unknown")}
+	errAgentNameAssistant = &agentNameRefusal{code: "assistant_session", err: i18n.Err("assistant-agent_naming.assistant_session")}
+	errAgentNameLedger    = &agentNameRefusal{code: "names_unavailable", retry: true, err: i18n.Err("assistant-profile.agent_names_unavailable")}
+	errAgentNameSave      = &agentNameRefusal{code: "save_failed", retry: true, err: i18n.Err("assistant-agent_naming.save_failed")}
+	errAgentNameRenamed   = &agentNameRefusal{code: "renamed_meanwhile", err: i18n.Err("assistant-agent_naming.renamed_meanwhile")}
 )
 
 // agentNameResult is a requested name as given: the title the lists show now, and whether it differs from the one
@@ -60,25 +50,6 @@ var (
 type agentNameResult struct {
 	Title   string
 	Changed bool
-}
-
-func (s *Service) agentNamingRoutes() {
-	s.handle("POST /api/v1/sessions/{mid}/{sid}/autoname", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, i18n.Err("assistant-agent_naming.forbidden"))
-			return
-		}
-		res, err := s.requestAgentName(r.Context(), r.PathValue("mid"), r.PathValue("sid"))
-		if err != nil {
-			refusal := errAgentNameSave
-			errors.As(err, &refusal)
-			body := apierr.LocalizedBody(refusal.status, refusal.code, refusal.err, i18n.OfWriter(w))
-			body["retryable"] = refusal.retry
-			apierr.WriteBody(w, refusal.status, body)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true, "title": res.Title, "title_source": "auto", "changed": res.Changed})
-	})
 }
 
 // requestAgentName names machine's session sid with the model now, as the user asked. Requests for one session that

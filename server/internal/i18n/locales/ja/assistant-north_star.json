@@ -1,6 +1,5 @@
 {
   "heading": "ノーススター指標",
-  "bad_query": "date は YYYY-MM-DD（今日以前）、split は RFC 3339 の時刻、tz はタイムゾーン名で指定してください。",
   "unknown": "ノーススター指標：今日の数値を読み込めませんでした。不明です。",
   "not_recorded": "不明（まだ記録していません）",
   "count": "{n} 件（質問 {ask} · 対応が必要なカード {cards} · 通知 {notify} · 承認カード {auth}）",

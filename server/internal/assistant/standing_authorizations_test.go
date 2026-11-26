@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ func standingJSON(t *testing.T, v any) json.RawMessage {
 	return raw
 }
 
-func TestStandingAuthorizationRegistryDatabaseAndRoutes(t *testing.T) {
+func TestStandingAuthorizationRegistryDatabase(t *testing.T) {
 	ctx := context.Background()
 	database := taskRecoveryDatabase(t)
 	s := newServiceOn(t, newFakeHub().withMachine(), database)
@@ -84,35 +83,6 @@ func TestStandingAuthorizationRegistryDatabaseAndRoutes(t *testing.T) {
 			t.Errorf("match %s %s: %+v %v", c.machine, c.cwd, got, err)
 		}
 	}
-	base := "/api/v1/assistant/standing-authorizations"
-	if w := serve(s2, "GET", base, ""); w.Code != 200 || !strings.Contains(w.Body.String(), stored.ID) {
-		t.Fatalf("list: %d %s", w.Code, w.Body)
-	}
-	for _, method := range []string{"GET", "DELETE"} {
-		uri := base
-		if method == "DELETE" {
-			uri += "/" + stored.ID
-		}
-		r := httptest.NewRequest(method, uri, nil)
-		r.Header.Set(RoleHeader, "answer")
-		w := httptest.NewRecorder()
-		s2.ServeHTTP(w, r)
-		if w.Code != 403 {
-			t.Fatalf("limited role %s: %d %s", method, w.Code, w.Body)
-		}
-	}
-	for range 2 {
-		if w := serve(s2, "DELETE", base+"/"+stored.ID, ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"revision":2`) {
-			t.Fatalf("revoke/retry: %d %s", w.Code, w.Body)
-		}
-	}
-	if got, _ := s.standingForDirectory(ctx, "box", "/code/example"); len(got) != 0 {
-		t.Fatal("old manager cached revoked grant")
-	}
-	if w := serve(s, "GET", base, ""); !strings.Contains(w.Body.String(), `"authorizations":[]`) {
-		t.Fatalf("empty list: %s", w.Body)
-	}
-	t.Log("server-assigned identity/time, restart, exact scopes, full-role HTTP and idempotent revocation: PASS")
 }
 
 func TestStandingAuthorizationSettingRequiresUserApproval(t *testing.T) {
@@ -185,8 +155,8 @@ func TestStandingAuthorizationStaleApprovalCannotRestoreRevocation(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := serve(s, "DELETE", "/api/v1/assistant/standing-authorizations/"+before.Authorizations[0].ID, ""); w.Code != 200 {
-		t.Fatalf("revoke: %d %s", w.Code, w.Body)
+	if err := s.saveStandingAuthorizations(ctx, before.Revision, StandingAuthorizations{Revision: before.Revision + 1}); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := change.apply(ctx); !errors.Is(err, errStandingConflict) {
 		t.Fatalf("stale phone approval: %v", err)
@@ -236,8 +206,8 @@ func TestStandingAuthorizationConflictReportsDefinitelyNotApplied(t *testing.T) 
 	if !ok {
 		t.Fatal("the standing authorization change did not wait for approval")
 	}
-	if w := serve(s, "DELETE", "/api/v1/assistant/standing-authorizations/"+before.Authorizations[0].ID, ""); w.Code != 200 {
-		t.Fatalf("revoke while the card waits: %d %s", w.Code, w.Body)
+	if err := s.saveStandingAuthorizations(ctx, before.Revision, StandingAuthorizations{Revision: before.Revision + 1}); err != nil {
+		t.Fatal(err)
 	}
 	allow := true
 	if _, err := s.Action(ctx, Action{Op: "answer", InteractionID: card.ID, Answer: standingJSON(t, proto.Resolution{Allow: &allow})}); err != nil {
@@ -308,10 +278,5 @@ func TestStandingAuthorizationReadFailureIsNotEmptyRegistry(t *testing.T) {
 	s := newServiceOn(t, newFakeHub().withMachine(), unavailableStandingStore{Store: database})
 	if _, err := s.standingForDirectory(context.Background(), "box", "/code/example"); err == nil {
 		t.Fatal("failed registry read treated as no grants")
-	}
-	for _, request := range []struct{ method, path string }{{"GET", "/api/v1/assistant/standing-authorizations"}, {"DELETE", "/api/v1/assistant/standing-authorizations/sa_example"}} {
-		if w := serve(s, request.method, request.path, ""); w.Code != 503 {
-			t.Fatalf("%s failed read: %d %s", request.method, w.Code, w.Body)
-		}
 	}
 }

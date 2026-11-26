@@ -5,8 +5,7 @@ screenshot lines up with the V1 frame it draws.
 
 MOCK_TODO_VIEW=1      features todo_view and todo_places. GET /api/v1/todos: every row with `view`, the list's
                       `counts`, ETag W/"t1-…" and 304 for it; GET /api/v1/todos/{id} → {"todo": row + view}; GET
-                      /api/v1/todos/places → the places and the counts; PUT / DELETE …/someday and PUT …/restored as
-                      the hub answers them. Today's answers work on these to-dos as the hub takes them, whatever
+                      /api/v1/todos/places → the places and the counts. Today's answers work on these to-dos, whatever
                       MOCK_TASKS says: POST …/accept (T01's decision: an option, the plain press or a fixed answer),
                       …/decision-dismiss and …/decision-undo-dismiss (its review round), …/retry (T03's failed start
                       starts again on the MacBook). PATCH, DELETE and …/seen stay mock_hub.py's; once a PATCH is taken,
@@ -15,8 +14,7 @@ MOCK_TODO_VIEW=1      features todo_view and todo_places. GET /api/v1/todos: eve
                       sets the run working. The views follow every write.
 MOCK_TODO_VIEW=old    a hub from before the view: the same to-dos with neither `view` nor `counts` (nor
                       `someday_until` or `restored_at`), 405 for the item and places routes (PATCH and DELETE
-                      /api/v1/todos/{id} match their path, as docs/protocol/protocol.md says), 404 for someday and
-                      restored.
+                      /api/v1/todos/{id} match their path, as docs/protocol/protocol.md says).
 MOCK_TODO_VIEW=late   as 1, except the hello names todo_view and todo_places only from the second connection on, as a
                       hub whose manager reconnects after it: once an app has connected, the mock closes every socket
                       three times, MOCK_TODO_VIEW_LATE_SECONDS (default 5) apart, as a restarting hub does, so the
@@ -766,33 +764,6 @@ def plan_answered(approve):
     return then
 
 
-def mark(h, tid, what):
-    """PUT / DELETE …/someday and PUT …/restored (server/internal/assistant/todo_marks.go): {"todo": Todo}; neither
-    is an edit, so updated_at stays."""
-    if refused(h, tid):
-        return True
-    t = find(tid)
-    now = datetime.now(timezone.utc)
-    if what == "restored":
-        t["restored_at"] = stamp(now)
-    elif h.command == "DELETE":
-        t.pop("someday_until", None)
-    else:
-        body = body_of(h)
-        if body is None:
-            return h.send_json({"error": "invalid body"}, 400)
-        raw = body.get("until")
-        until = parse(raw) if raw else NO_DATE
-        if until is None or until.tzinfo is None or until <= now or until > NO_DATE:
-            return h.send_json({"error": "Pick a time ahead, no later than the year 9999",
-                                "code": "someday_until"}, 400)
-        if closed(t):
-            return h.send_json({"error": "Only an open to-do can be put off to Someday", "code": "todo_closed"}, 409)
-        t["someday_until"] = stamp(until)
-    _hub["push_todos"]()
-    return h.send_json({"todo": _hub["format_todo"](t)})
-
-
 def accept(h, tid):
     """POST …/accept {asked_at[, option | response]} (briefing_feed.go): today's answer to T01's decision. The round
     listed now or 409; an option (one of its labels) or the plain press takes it: Persona books the choice and Pick a
@@ -1085,10 +1056,6 @@ def route(h, method, path):
     if len(parts) != 6:
         return False
     what = parts[5]
-    if (what, method) in (("someday", "PUT"), ("someday", "DELETE"), ("restored", "PUT")):
-        if MODE == "old":
-            return h.send_json({"error": "not found"}, 404) or True
-        return mark(h, tid, what) or True
     if method != "POST":
         return False
     if what == "accept":

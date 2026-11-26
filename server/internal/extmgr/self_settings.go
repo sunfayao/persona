@@ -239,7 +239,6 @@ func (h *Manager) addMailAccount(_ context.Context, v json.RawMessage) (*selfCha
 			if err != nil {
 				return "", fmt.Errorf("could not add %s: %w (nothing saved; a login error usually means the provider wants an app password / 授权码)", req.Email, err)
 			}
-			h.broadcast(map[string]any{"type": "mail_accounts"})
 			return fmt.Sprintf("Added %s (account id %s, provider %s): the inbox reads it from its next collection; mail_* can use it now.",
 				a.Email, a.ID, a.Provider), nil
 		}}, nil
@@ -315,7 +314,6 @@ func (h *Manager) removeMailAccount(_ context.Context, id string) (*selfChange, 
 					if err := h.mail.DeleteAccount(acct.ID); err != nil {
 						return "", err
 					}
-					h.broadcast(map[string]any{"type": "mail_accounts"})
 					return "Removed " + acct.Email + ".", nil
 				}}, nil
 		}

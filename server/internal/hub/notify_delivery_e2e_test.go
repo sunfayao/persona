@@ -3,8 +3,6 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"net/http"
 	"slices"
 	"testing"
 	"time"
@@ -16,8 +14,7 @@ import (
 
 // notify_user over the real hub stack (#8138): the hub's HTTP and WebSocket, the assistant manager over the bus with
 // its state in Postgres, a fake node for the assistant's machine. With no device that takes notifications the tool
-// says the user was not alerted, and the north star does not count it as an interruption; with an app connected it
-// says it was sent to that device, and that one counts.
+// says the user was not alerted and records why. With an app connected it reports delivery and records that outcome.
 func TestNotifyUserSaysWhetherADeviceGotItOverTheBus(t *testing.T) {
 	h, srv, _ := newBusHub(t)
 	store := managerDB(t, h)
@@ -41,38 +38,30 @@ func TestNotifyUserSaysWhetherADeviceGotItOverTheBus(t *testing.T) {
 	}
 	dialAssistant(t, h, srv.URL, false)
 
-	do := func(path string) (int, []byte) {
+	type reading struct {
+		delivered int
+		noDevice  int
+	}
+	since := time.Now()
+	delivery := func() reading {
 		t.Helper()
-		req, _ := http.NewRequest(http.MethodGet, srv.URL+path, nil)
-		req.Header.Set("Authorization", "Bearer "+h.cfg.Token)
-		res, err := http.DefaultClient.Do(req)
+		events, err := store.WorkEventsBetween(ctx, since, time.Now(), []string{"notify_user"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
-		b, _ := io.ReadAll(res.Body)
-		return res.StatusCode, b
-	}
-	type reading struct {
-		notify int
-		missed map[string]int
-	}
-	// The day's readout (shared database: the test reads what it added, not the totals).
-	northStar := func() reading {
-		t.Helper()
-		code, body := do("/api/v1/assistant/north-star?tz=UTC")
-		if code != http.StatusOK {
-			t.Fatalf("north-star: %d %s", code, body)
+		var result reading
+		for _, event := range events {
+			if event.SessionID != "main-1" {
+				continue
+			}
+			switch event.Detail["missed"] {
+			case "no_device":
+				result.noDevice++
+			case nil, "":
+				result.delivered++
+			}
 		}
-		var ns assistant.NorthStar
-		if err := json.Unmarshal(body, &ns); err != nil {
-			t.Fatal(err)
-		}
-		r := reading{missed: ns.Interruptions.Excluded.NotifyMissed}
-		if c := ns.Interruptions.Categories["notify_user"]; c != nil {
-			r.notify = c.Count
-		}
-		return r
+		return result
 	}
 	notify := func(title string) string {
 		t.Helper()
@@ -96,8 +85,6 @@ func TestNotifyUserSaysWhetherADeviceGotItOverTheBus(t *testing.T) {
 		return out
 	}
 
-	before := northStar()
-
 	// No phone, computer or browser: not "Notification sent.", and the model is told the user was not alerted.
 	got := notify("Nobody gets this")
 	if want := inAnyLanguage("assistant-notify.no_device_notice"); !slices.Contains(want, got) {
@@ -114,16 +101,12 @@ func TestNotifyUserSaysWhetherADeviceGotItOverTheBus(t *testing.T) {
 		return m["type"] == "notify" && m["title"] == "The app gets this"
 	})
 
-	// The north star counts only the one a device took; the other is listed apart, as no device.
 	var after reading
-	eventually(t, 10*time.Second, "the north star reading both", func() bool {
-		after = northStar()
-		return after.notify-before.notify >= 1 && after.missed["no_device"]-before.missed["no_device"] >= 1
+	eventually(t, 10*time.Second, "both notification outcomes recorded", func() bool {
+		after = delivery()
+		return after.delivered >= 1 && after.noDevice >= 1
 	})
-	if d := after.notify - before.notify; d != 1 {
-		t.Fatalf("interruptions from notify_user grew by %d, want 1 (only the delivered one)", d)
-	}
-	if d := after.missed["no_device"] - before.missed["no_device"]; d != 1 {
-		t.Fatalf("notify_missed no_device grew by %d, want 1 (%v → %v)", d, before.missed, after.missed)
+	if after.delivered != 1 || after.noDevice != 1 {
+		t.Fatalf("notification outcomes: %+v, want one delivered and one with no device", after)
 	}
 }

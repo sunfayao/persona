@@ -11,9 +11,7 @@ import (
 // msgRow is one message as the queries select it.
 type msgRow struct {
 	Conv        int     `json:"conv"`
-	ChatRow     int64   `json:"chat"`         // the chat's ROWID (Changes, Search)
-	ChatPresent int     `json:"chat_present"` // the chat existed in the Changes snapshot
-	HasMore     int     `json:"has_more"`     // another distinct message exists (Changes)
+	ChatRow     int64   `json:"chat"` // the chat's ROWID (Changes, Search)
 	RowID       int64   `json:"rowid"`
 	GUID        string  `json:"guid"`
 	Date        int64   `json:"date"`

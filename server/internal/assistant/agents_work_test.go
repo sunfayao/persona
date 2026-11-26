@@ -666,9 +666,6 @@ func TestTriageSwitches(t *testing.T) {
 	if got := f.sentToAgents(); len(got) != 0 {
 		t.Fatalf("sent %v", got)
 	}
-	if !strings.Contains(f.eventTypes(), "agents.triage") {
-		t.Fatalf("the apps were not told: %s", f.eventTypes())
-	}
 	if snap := f.lastSnapshot(); snap.Work == nil || !snap.Work.On || len(snap.Interactions) != 0 {
 		t.Fatalf("the hub was not told: %+v", snap.Work)
 	}

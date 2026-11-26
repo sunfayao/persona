@@ -6,8 +6,8 @@
 import { api, enc, pastHub } from "./api";
 import { itemHeaders } from "./manager-choice";
 import { extRoot, listOf } from "./extension-api";
-import { changed, type HubExtension, type HubExtensionDetail, type ExtensionPermission } from "./extensions";
-import { previewConsent, type DependencyState, type PackMember } from "./extension-model";
+import { changed, type HubExtension, type ExtensionPermission } from "./extensions";
+import { type DependencyState, type PackMember } from "./extension-model";
 import { t } from "../i18n";
 
 /** One market the hub reads (its token, if any, is never sent back). */
@@ -110,7 +110,6 @@ export const marketView = (m: Market & { plugins?: number }): Market => {
 /** The official market is Official extensions in the page's language (#5017), whatever its index (or an older hub) calls it. */
 const officialMarketName = () => t("lib-extension-market.official_name");
 
-export const listMarkets = () => api<{ markets?: Market[] }>(`${M()}/markets`).then((r) => (r.markets ?? []).map(marketView));
 export const addMarket = (spec: string, token?: string) => api<Market>(`${M()}/markets`, { method: "POST", json: token ? { spec, token } : { spec } }).then(marketView);
 export const removeMarket = (id: string) => api<{ ok: boolean }>(`${M()}/markets/${enc(id)}`, { method: "DELETE" });
 export const refreshMarket = (id: string) => api<Market>(`${M()}/markets/${enc(id)}/refresh`, { method: "POST" }).then(marketView);
@@ -140,10 +139,6 @@ export const catalogOf = (c: Catalog & { plugins?: CatalogItem[] }): Catalog => 
 /** Both keys: a hub from before #1844 reads `plugin`, a newer one `extension` (or `plugin`). */
 export const previewFromMarket = (market: string, extension: string, manager?: string) =>
   api<MarketPreview>(`${M()}/catalog/preview`, { method: "POST", json: { market, extension, plugin: extension }, headers: itemHeaders(manager) });
-export const installPreview = (pv: MarketPreview, manager?: string) =>
-  api<HubExtensionDetail>(`${M()}/install`, { method: "POST", json: previewConsent(pv), headers: itemHeaders(manager) }).then(changed);
-export const upgradePreview = (id: string, pv: MarketPreview, manager?: string) =>
-  api<HubExtensionDetail>(`${extRoot()}/${enc(pv.rename_from || id)}/-/upgrade`, { method: "POST", json: previewConsent(pv), headers: itemHeaders(manager) }).then(changed);
 export interface ExtensionRemovalResult {
   ok: boolean;
   /** The extension is gone, but these files need manual cleanup. Older hubs omit this. */

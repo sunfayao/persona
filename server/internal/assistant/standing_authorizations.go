@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"path"
 	"reflect"
 	"slices"
@@ -13,7 +12,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	approvalops "github.com/nwverse/persona/server/internal/approval"
 	"github.com/nwverse/persona/server/internal/i18n"
 )
@@ -223,53 +221,4 @@ func (s *Service) setStandingAuthorizations(ctx context.Context, value json.RawM
 		}
 		return s.getStandingAuthorizations(ctx)
 	}}, nil
-}
-
-func (s *Service) standingAuthorizationRoutes() {
-	s.handle("GET /api/v1/assistant/standing-authorizations", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, i18n.Err("assistant-standing_authorizations.full_access"))
-			return
-		}
-		if s.store() == nil {
-			apierr.Write(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		list, err := s.standingAuthorizations(r.Context())
-		if err != nil {
-			s.logf("standing authorizations: list: %v", err)
-			apierr.Write(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		apierr.WriteJSON(w, list)
-	})
-	s.handle("DELETE /api/v1/assistant/standing-authorizations/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, i18n.Err("assistant-standing_authorizations.full_access"))
-			return
-		}
-		s.standingMu.Lock()
-		defer s.standingMu.Unlock()
-		before, err := s.standingAuthorizations(r.Context())
-		if err != nil || s.store() == nil {
-			s.logf("standing authorizations: read before revocation: %v", err)
-			apierr.Write(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		i := slices.IndexFunc(before.Authorizations, func(grant StandingAuthorization) bool { return grant.ID == r.PathValue("id") })
-		if i >= 0 {
-			after := StandingAuthorizations{Revision: before.Revision + 1, Authorizations: slices.Delete(slices.Clone(before.Authorizations), i, i+1)}
-			if err := s.saveStandingAuthorizations(r.Context(), before.Revision, after); err != nil {
-				s.logf("standing authorizations: revoke: %v", err)
-				status, key := http.StatusServiceUnavailable, "http-status.unavailable"
-				if errors.Is(err, errStandingConflict) {
-					status, key = http.StatusConflict, "assistant-standing_authorizations.conflict"
-				}
-				apierr.Write(w, status, i18n.Err(key))
-				return
-			}
-			before = after
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true, "revision": before.Revision})
-	})
 }

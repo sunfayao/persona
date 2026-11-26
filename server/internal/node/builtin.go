@@ -124,7 +124,7 @@ func builtinCall(ctx context.Context, id, method string, params json.RawMessage,
 		}
 	case "imessage":
 		switch method {
-		case "connector.list", "connector.chats", "connector.older", "connector.changes", "connector.search": // connectors.go
+		case "connector.list", "connector.chats", "connector.older", "connector.search": // connectors.go
 			return localConnector(ctx, method, params)
 		}
 	}

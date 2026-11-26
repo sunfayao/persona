@@ -17,10 +17,6 @@ const (
 	CapabilityAgentSessionArchives = "agent_session_archives"
 	// CapabilityAgentNaming: ordinary full-user renames record manual intent before node dispatch.
 	CapabilityAgentNaming = "agent_naming.v1"
-	// CapabilityAgentAutoname: the manager names one Agent session with the model when the user asks
-	// (POST /api/v1/sessions/{mid}/{sid}/autoname; docs/protocol/protocol.md "Naming an Agent on request"). The hub
-	// lists the agent_autoname feature only while every manager that carries Agents names it.
-	CapabilityAgentAutoname = "agent_autoname"
 	// CapabilitySessionsSideFold: the manager folds a Claude desktop app's side sessions (parent_agent_id) under the
 	// session they were started from, folded_as "side", with folded_side and the children's sides rollup
 	// (docs/protocol/protocol.md "Session hierarchy", #7944). The hub lists the sessions_side_fold feature only while
@@ -205,15 +201,10 @@ type HTTPResponse struct {
 // Routes are the routes the assistant answers (net/http patterns): the hub relays the apps' requests on them as
 // http.request. The assistant registers exactly these (assistant.TestRoutesAreTheWireOnes).
 var Routes = []string{
-	"POST /api/v1/skills/import",
 	"GET /api/v1/sessions/archived",
 	"POST /api/v1/sessions/{mid}/{sid}/archive",
 	"POST /api/v1/sessions/{mid}/{sid}/unarchive",
-	"POST /api/v1/sessions/{mid}/{sid}/autoname",
 	"GET /api/v1/assistant/conversations/{id}/always",
-	"GET /api/v1/assistant/standing-authorizations",
-	"GET /api/v1/assistant/north-star",
-	"DELETE /api/v1/assistant/standing-authorizations/{id}",
 	"POST /api/v1/assistant/rule-suggestions/{id}/always",
 	"POST /api/v1/assistant/rule-suggestions/{id}/not-now",
 	"DELETE /api/v1/assistant/conversations/{id}/always/{hash}",
@@ -228,7 +219,6 @@ var Routes = []string{
 	"GET /api/v1/assistant/worker-presets",
 	"GET /api/v1/assistant/start-defaults",
 	"PUT /api/v1/assistant/start-defaults",
-	"GET /api/v1/assistant/availability",
 	"GET /api/v1/assistant/conversations/{id}/feed",
 	"POST /api/v1/assistant/feed/{id}/dismiss",
 	"POST /api/v1/assistant/feed/{id}/undo-dismiss",
@@ -263,25 +253,16 @@ var Routes = []string{
 	"GET /api/v1/assistant/followups",
 	"POST /api/v1/assistant/followups/{id}/run",
 	"DELETE /api/v1/assistant/followups/{id}",
-	"GET /api/v1/task-plans/{id}",
 	"POST /api/v1/task-plans/{id}/start",
 	"POST /api/v1/task-plans/{id}/workspace-preview",
 	"POST /api/v1/task-plans/{id}/dismiss",
 	"DELETE /api/v1/todos/{id}/terminal-cleanup",
-	"GET /api/v1/task-trust",
-	"DELETE /api/v1/task-trust",
 	// The todos (the assistant's todos.go, docs/assistant/todos.md).
 	"GET /api/v1/todos",
 	"GET /api/v1/todos/places",              // the To-dos places and counts (todo_view_routes.go, #10226); the literal wins over {id}
 	"GET /api/v1/todos/{id}",                // one to-do as the list has it, with its view
 	"GET /api/v1/todos/{id}/images/{image}", // one attached picture's exact bytes (todo_images.go, #11084)
 	"GET /api/v1/todos/{id}/repositories",
-	"GET /api/v1/todos/{id}/backend-workspace",
-	"GET /api/v1/todos/{id}/backend-workspace/operations/{operation_id}",
-	"POST /api/v1/todos/{id}/backend-workspace/prepare",
-	"POST /api/v1/todos/{id}/backend-workspace/start",
-	"POST /api/v1/todos/{id}/backend-workspace/cancel",
-	"POST /api/v1/todos/{id}/backend-workspace/cleanup",
 	"GET /api/v1/todos/{id}/workspace-rules",
 	"PUT /api/v1/todos/{id}/workspace-rules",
 	"POST /api/v1/todos/{id}/workspace-naming/preview",
@@ -309,9 +290,6 @@ var Routes = []string{
 	"DELETE /api/v1/todos/{id}/thread",
 	"PUT /api/v1/todos/{id}/seen", // Got it on a Just finished to-do, and its Undo (todo_seen.go, #5707)
 	"DELETE /api/v1/todos/{id}/seen",
-	"PUT /api/v1/todos/{id}/restored", // Restore on an inactive to-do, and Someday and back (todo_marks.go, #10226)
-	"PUT /api/v1/todos/{id}/someday",
-	"DELETE /api/v1/todos/{id}/someday",
 	"POST /api/v1/todos/{id}/accept",
 	"POST /api/v1/todos/{id}/decision-dismiss",
 	"POST /api/v1/todos/{id}/decision-undo-dismiss",
@@ -321,8 +299,6 @@ var Routes = []string{
 	"POST /api/v1/todos/{id}/done-check",
 	"POST /api/v1/todos/{id}/retry",
 	"POST /api/v1/todos/{id}/start/answer", // the startup question a task's start stopped on, answered (start_answer.go, #10365)
-	"POST /api/v1/todos/retitle",
-	"POST /api/v1/todos/import/reminders",
 	// Its settings and its main conversation (profile.go, start.go).
 	"GET /api/v1/assistant",
 	"PUT /api/v1/assistant",
@@ -342,8 +318,6 @@ var Routes = []string{
 	"POST /api/v1/assistant/main/clear",
 	// The channels (channels.go there, docs/extensions/channels.md "API").
 	"GET /api/v1/channels",
-	"PUT /api/v1/channels/{id}",
-	"DELETE /api/v1/channels/{id}/binding",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/actions",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/html-actions",
 	// The Lark bot's workbench: companion bots and their notices (feishu_companions.go there, docs/extensions/bots.md
@@ -352,13 +326,10 @@ var Routes = []string{
 	"GET /api/v1/assistant/feishu/notices",
 	"POST /api/v1/assistant/feishu/notices/action",
 	"POST /api/v1/assistant/feishu/workbench",
-	"GET /api/v1/assistant/history",
-	"PUT /api/v1/assistant/history",
 	"GET /api/v1/assistant/segments",
 	"PUT /api/v1/assistant/segments",
 	"GET /api/v1/assistant/conversations/{id}/segments",
 	"POST /api/v1/assistant/conversations/{id}/switch",
-	"GET /api/v1/assistant/conversations/{id}/switch/{operation}",
 }
 
 // SocketRoutes are the assistant's routes that upgrade to a WebSocket. The hub relays them over a relay stream

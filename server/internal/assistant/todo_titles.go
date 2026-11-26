@@ -2,17 +2,12 @@ package assistant
 
 import (
 	"context"
-	"errors"
-	"net/http"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/lazyre"
@@ -215,82 +210,4 @@ func (s *Service) retitleTodo(ctx context.Context, id, from, to string) (Todo, b
 		s.todoRowSet(ctx, doneKeys)
 	}
 	return t, ok, nil
-}
-
-// TodoRetitle is one todo POST /api/v1/todos/retitle renamed (or would rename).
-type TodoRetitle struct {
-	ID       string `json:"id"`
-	OldTitle string `json:"old_title"`
-	NewTitle string `json:"new_title"`
-}
-
-// retitleable: a todo's title is still the one a task gave it before #2775, its prompt's first line cut: longer
-// than max characters and how its notes (the prompt) start. A todo keeps no record of who titled it, so a title that only
-// looks like a prompt ("[urgent] fix login", "11/05 feedback: fix login", in Chinese) is taken as the user's and left.
-func retitleable(title, notes string, max int) bool {
-	return utf8.RuneCountInString(strings.TrimSuffix(strings.TrimSpace(title), "…")) > max && openedFromPrompt(title, notes)
-}
-
-// todoRetitleRoute: POST /api/v1/todos/retitle (?dry_run=1 lists only) renames the todos tasks opened before #2775
-// with their prompt's first line: a todo from a conversation (origin set) whose title is retitleable. Any other
-// title is taken as the assistant's or the user's and left.
-func (s *Service) todoRetitleRoute() {
-	s.handle("POST /api/v1/todos/retitle", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot modify todos"))
-			return
-		}
-		if err := s.ensureTodosLoaded(r.Context()); err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, errTodosUnavailable)
-			return
-		}
-		dry := r.URL.Query().Get("dry_run")
-		dryRun := dry != "" && dry != "0" && dry != "false"
-		ctx := r.Context()
-		max := todoTitleMax(s.hello(ctx).Locale)
-
-		var todo []Todo
-		s.todos.mu.RLock()
-		for _, t := range s.todos.todos {
-			if t.Origin != "" && retitleable(t.Title, t.Notes, max) {
-				todo = append(todo, copyTodoLocked(t))
-			}
-		}
-		s.todos.mu.RUnlock()
-		sort.Slice(todo, func(i, j int) bool { return todo[i].CreatedAt.After(todo[j].CreatedAt) })
-
-		// The model, a few at a time; the cleaned title when it has none.
-		names := make([]string, len(todo))
-		sem := make(chan struct{}, 4)
-		var wg sync.WaitGroup
-		for i, t := range todo {
-			wg.Go(func() {
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				if names[i] = s.todoTitleFromModel(ctx, t.Notes); names[i] == "" {
-					names[i] = cleanTodoTitle(t.Notes, max)
-				}
-			})
-		}
-		wg.Wait()
-
-		out := make([]TodoRetitle, 0, len(todo))
-		for i, t := range todo {
-			if names[i] == "" || names[i] == t.Title {
-				continue
-			}
-			if !dryRun {
-				_, ok, err := s.retitleTodo(ctx, t.ID, t.Title, names[i])
-				if err != nil {
-					apierr.Write(w, http.StatusInternalServerError, err)
-					return
-				}
-				if !ok { // renamed or deleted meanwhile
-					continue
-				}
-			}
-			out = append(out, TodoRetitle{ID: t.ID, OldTitle: t.Title, NewTitle: names[i]})
-		}
-		apierr.WriteJSON(w, map[string]any{"dry_run": dryRun, "todos": out})
-	})
 }

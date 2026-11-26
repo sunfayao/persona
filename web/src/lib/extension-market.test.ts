@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  addMarket, agreeLabel, canUninstall, catalogOf, catalogQuery, getCatalog, installPreview, isGitMarket, itemLine, itemState, listMarkets, MARKET_SPEC_HINT, marketView, marketKind, marketLine, marketOf,
-  extensionsRoute, previewFromMarket, previewVersion, renameConsent, refreshMarket, removeMarket, routeSub, setMarketToken, specLabel, uninstallExtension, upgradePreview, upgradingFrom, wantsGitHubToken,
+  addMarket, agreeLabel, canUninstall, catalogOf, catalogQuery, getCatalog, isGitMarket, itemLine, itemState, MARKET_SPEC_HINT, marketView, marketKind, marketLine, marketOf,
+  extensionsRoute, previewFromMarket, previewVersion, renameConsent, refreshMarket, removeMarket, routeSub, setMarketToken, specLabel, uninstallExtension, upgradingFrom, wantsGitHubToken,
   type CatalogItem, type Market, type MarketPreview, type ExtensionsRoute,
 } from "./extension-market";
 
@@ -95,33 +95,22 @@ describe("市场的接口", () => {
     vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ ok: true, warnings })));
     expect(await uninstallExtension("example")).toEqual({ ok: true, warnings });
   });
-  it("requires identity consent and upgrades the installed predecessor", async () => {
+  it("requires identity consent when the extension is renamed", () => {
     const pv: MarketPreview = { preview_id: "rename-pv", manifest: { id: "new-name", name: "Example", version: "2.0.0" },
       upgrade: true, rename_from: "old-name", from: "1.0.0", permissions: [], permissions_digest: "confirmed-digest", expires_at: "" };
     expect(agreeLabel(pv)).toBe("确认更名");
     expect(renameConsent(pv)).toContain("old-name");
     expect(renameConsent(pv)).toContain("new-name");
     expect(renameConsent({ ...pv, rename_from: undefined })).toBe("");
-    const calls: { url: string; body: unknown; manager: string | null }[] = [];
-    vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      calls.push({ url, body: JSON.parse(String(init.body)), manager: new Headers(init.headers).get("X-Persona-Manager") });
-      return new Response(JSON.stringify({ id: "new-name", name: "Example" }));
-    });
-    await upgradePreview("new-name", pv, "manager-two");
-    expect(calls).toEqual([{ url: "/api/v1/extensions/old-name/-/upgrade", body: {
-      preview_id: "rename-pv", permissions_digest: "confirmed-digest" }, manager: "manager-two" }]);
   });
   it("calls the hub's market routes", async () => {
     const calls: string[] = [];
     vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       calls.push(`${init.method ?? "GET"} ${url} ${(init.body as string) ?? ""}`.trim());
-      if (url.endsWith("/markets") && !init.method) return new Response(JSON.stringify({ markets: [{ id: "m1" }] }));
       if (url.includes("/catalog?") || url.endsWith("/catalog")) return new Response(JSON.stringify({ extensions: [item()] }));
       return new Response(JSON.stringify({ id: "x", name: "X", version: "1" }));
     });
-    expect((await listMarkets()).map((m) => m.id)).toEqual(["m1"]);
     await addMarket("github:example/x");
     await addMarket("github:example/y", "tok");
     await removeMarket("m 1");
@@ -131,14 +120,10 @@ describe("市场的接口", () => {
     expect(c.markets).toEqual([]);
     expect(c.extensions).toHaveLength(1);
     await getCatalog();
-    const pv: MarketPreview = { preview_id: "pv1", manifest: { id: "x", name: "X", version: "1" }, permissions: [], permissions_digest: "d1", expires_at: "" };
     await previewFromMarket("m1", "x");
-    await installPreview(pv);
-    await upgradePreview("x", pv);
     await uninstallExtension("x");
     await uninstallExtension("x", true);
     expect(calls).toEqual([
-      "GET /api/v1/extensions/-/markets",
       'POST /api/v1/extensions/-/markets {"spec":"github:example/x"}',
       'POST /api/v1/extensions/-/markets {"spec":"github:example/y","token":"tok"}',
       "DELETE /api/v1/extensions/-/markets/m%201",
@@ -147,8 +132,6 @@ describe("市场的接口", () => {
       "GET /api/v1/extensions/-/catalog?q=%E6%97%A5%E5%8E%86&market=m1&refresh=1",
       "GET /api/v1/extensions/-/catalog",
       'POST /api/v1/extensions/-/catalog/preview {"market":"m1","extension":"x","plugin":"x"}',
-      'POST /api/v1/extensions/-/install {"preview_id":"pv1","permissions_digest":"d1"}',
-      'POST /api/v1/extensions/x/-/upgrade {"preview_id":"pv1","permissions_digest":"d1"}',
       "DELETE /api/v1/extensions/x/-/",
       "DELETE /api/v1/extensions/x/-/?keep_data=1",
     ]);
@@ -160,14 +143,12 @@ describe("市场的接口", () => {
     vi.stubGlobal("localStorage", { getItem: () => "t", setItem: () => {}, removeItem: () => {} });
     vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
       calls.push(`${init.method ?? "GET"} ${url}`);
-      if (url.endsWith("/markets")) return new Response(JSON.stringify({ markets: [{ id: "m1", plugins: 3 }] }));
       return new Response(JSON.stringify({ markets: [{ id: "m1", plugins: 3 }], plugins: [item()] }));
     });
-    expect((await listMarkets()).map((m) => m.extensions)).toEqual([3]);
     const c = await getCatalog();
     expect(c.extensions).toHaveLength(1);
     expect(c.markets[0].extensions).toBe(3);
-    expect(calls).toEqual(["GET /api/v1/plugins/-/markets", "GET /api/v1/plugins/-/catalog"]);
+    expect(calls).toEqual(["GET /api/v1/plugins/-/catalog"]);
   });
 });
 

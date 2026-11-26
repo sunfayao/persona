@@ -18,8 +18,7 @@ import (
 // has already passed mcpCall's assistant-only source check; tool arguments cannot make it an assistant or choose a
 // credential, URL or arbitrary request. A full machine id and exact session id prevent a prefix from naming another
 // session. Like archive-and-close, replacing a hand-written title is confirmed on the phone on every call. There is
-// no standing permission: declining or not answering changes nothing and makes no model call. The iOS app calls the
-// HTTP endpoint instead; it does not depend on this tool.
+// no standing permission: declining or not answering changes nothing and makes no model call.
 func (s *Service) toolAgentAutoname(ctx context.Context, machine, self string, args json.RawMessage) (string, error) {
 	var a struct {
 		Machine   string `json:"machine"`
@@ -71,7 +70,7 @@ func (s *Service) toolAgentAutoname(ctx context.Context, machine, self string, a
 				code = "not_found"
 			}
 			out, _ := json.Marshal(map[string]any{"ok": false, "code": code, "retryable": refusal.retry, "error": i18n.Localize(refusal.err, l)})
-			return string(out), nil // the same coded refusal as the HTTP response, without a provider error
+			return string(out), nil
 		}
 		return "", errors.New("agent_autoname failed without changing the title; no error details are available")
 	}

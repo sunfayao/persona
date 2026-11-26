@@ -176,8 +176,8 @@ func TestBusForwardsTheAssistantRoutes(t *testing.T) {
 		t.Fatalf("the assistant's error: %d %s", resp.StatusCode, body)
 	}
 	<-got
-	for _, c := range [][2]string{{"POST", "/api/v1/task-plans/p1/start"}, {"GET", "/api/v1/task-trust"},
-		{"DELETE", "/api/v1/task-trust"}, {"POST", "/api/v1/todos/t1/done-check"}, {"GET", "/api/v1/todos"},
+	for _, c := range [][2]string{{"POST", "/api/v1/task-plans/p1/start"},
+		{"POST", "/api/v1/todos/t1/done-check"}, {"GET", "/api/v1/todos"},
 		{"PUT", "/api/v1/todos/t1/spaces/m1/group/alpha"}, {"GET", "/api/v1/assistant"}, {"PUT", "/api/v1/assistant"},
 		{"POST", "/api/v1/assistant/conversations"}, {"POST", "/api/v1/assistant/main/new"}, {"POST", "/api/v1/assistant/main/clear"},
 		{"DELETE", "/api/v1/assistant/memory/note.md"}} {

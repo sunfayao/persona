@@ -124,9 +124,6 @@ func (h *Hub) registerPeerAdmin(mux *http.ServeMux) {
 		}
 		writeJSON(w, map[string]any{"ok": true})
 	})
-	mux.HandleFunc("GET /api/v1/admin/routes", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, h.meshRoutes())
-	})
 	mux.HandleFunc("GET /api/v1/admin/mesh", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, h.meshSummary())
 	})
@@ -256,54 +253,6 @@ func (h *Hub) peerItems() []peerItem {
 	if out == nil {
 		out = []peerItem{}
 	}
-	return out
-}
-
-// meshRoutes is GET /api/v1/admin/routes: how every hub of the group is reached, and every computer with its paths.
-func (h *Hub) meshRoutes() map[string]any {
-	v := h.meshView()
-	type hubRoute struct {
-		HubID     string `json:"hub_id"`
-		Name      string `json:"name"`
-		Reachable bool   `json:"reachable"`
-		Hops      int    `json:"hops"`
-		RTTMS     *int   `json:"rtt_ms,omitempty"`
-		Next      string `json:"next,omitempty"`
-		Self      bool   `json:"self,omitempty"`
-		Center    bool   `json:"center,omitempty"`
-	}
-	type machineRoute struct {
-		ID    string     `json:"id"`
-		UID   string     `json:"machine_uid,omitempty"`
-		Name  string     `json:"name"`
-		Paths []pathInfo `json:"paths"`
-	}
-	out := map[string]any{"hubs": []hubRoute{}, "machines": []machineRoute{}}
-	if v == nil {
-		return out
-	}
-	center := h.centerID()
-	var hubs []hubRoute
-	for id, vh := range v.hubs {
-		hr := hubRoute{HubID: id, Name: vh.rec.Name, Reachable: vh.reachable, Hops: vh.hops, Next: vh.next, Self: id == v.self, Center: id == center}
-		if vh.rtt >= 0 {
-			rtt := vh.rtt
-			hr.RTTMS = &rtt
-		}
-		hubs = append(hubs, hr)
-	}
-	sort.Slice(hubs, func(i, j int) bool {
-		return hubs[i].Hops < hubs[j].Hops || hubs[i].Hops == hubs[j].Hops && hubs[i].HubID < hubs[j].HubID
-	})
-	machines := []machineRoute{}
-	for _, m := range h.machineList() {
-		mm := h.localMachine(m.ID)
-		if mm == nil {
-			continue
-		}
-		machines = append(machines, machineRoute{ID: m.ID, UID: m.MachineUID, Name: m.Name, Paths: h.pathInfos(mm)})
-	}
-	out["hubs"], out["machines"] = hubs, machines
 	return out
 }
 

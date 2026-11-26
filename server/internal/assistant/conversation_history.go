@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/conversationlog"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -28,7 +26,6 @@ type conversationHistoryStore interface {
 	ConversationItems(context.Context, string, string, string, int, int, int, bool) ([]conversationlog.Item, error)
 	ConversationItem(context.Context, string, string, string, string) (*conversationlog.Item, error)
 	PutConversationSummary(context.Context, string, string, string, int64, string) error
-	ConversationHistoryStats(context.Context) (db.ConversationHistoryStats, error)
 }
 
 type conversationHistoryBook struct {
@@ -861,57 +858,4 @@ func (s *Service) historySync(ctx context.Context, st conversationHistoryStore, 
 	}
 	s.historyWake() // more legacy pages remain; continue in the next bounded sweep
 	return nil
-}
-
-func (s *Service) historyRoutes() {
-	s.handle("GET /api/v1/assistant/history", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		st, ok := s.store().(conversationHistoryStore)
-		if !ok {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		stats, err := st.ConversationHistoryStats(r.Context())
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"enabled": s.historyDB(r.Context()) != nil, "stats": stats})
-	})
-	s.handle("PUT /api/v1/assistant/history", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		var p struct {
-			Enabled *bool `json:"enabled"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&p); err != nil {
-			writeBodyErr(w, err, err)
-			return
-		}
-		if p.Enabled == nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if s.store() == nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		if err := s.store().PutSetting(r.Context(), conversationHistoryKey, p); err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, err)
-			return
-		}
-		if *p.Enabled {
-			s.history.mu.Lock()
-			s.history.retry = nil
-			s.history.probed = nil
-			s.history.mu.Unlock()
-		}
-		s.historyWake()
-		apierr.WriteJSON(w, p)
-	})
 }

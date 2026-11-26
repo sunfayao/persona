@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -138,86 +137,5 @@ func TestExtensionTrustDecidesReads(t *testing.T) {
 	}
 	if _, kept := st.trusts["qa-memory"]; kept || !s.extensionHides(s.withExtensionReader(ctx, "qa-memory"), testSpace) {
 		t.Fatal("a removed extension is still the user's own")
-	}
-}
-
-// Only the user changes who reads what or what a conversation carries (#13246, acceptance 14): an extension's token
-// or a scoped device gets 403; the user's own changes are kept, and a track's own categories cannot be taken away.
-func TestInfoAccessRoutesAreTheUsers(t *testing.T) {
-	s, st := trustService(t)
-	for _, role := range []string{roleExtension, "scoped"} {
-		if w := serveAs(s, role, http.MethodPut, "/api/v1/assistant/extension-trust/qa-memory", `{"trust":"owner","categories":[]}`); w.Code != http.StatusForbidden {
-			t.Errorf("%s set trust: %d", role, w.Code)
-		}
-		if w := serveAs(s, role, http.MethodPut, "/api/v1/assistant/conversations/main-0000-0000/categories", `{"remove":["finance"]}`); w.Code != http.StatusForbidden {
-			t.Errorf("%s change categories: %d", role, w.Code)
-		}
-		if w := serveAs(s, role, http.MethodGet, "/api/v1/assistant/extension-trust", ""); w.Code != http.StatusForbidden {
-			t.Errorf("%s list trusts: %d", role, w.Code)
-		}
-	}
-	if len(st.trusts) != 0 {
-		t.Fatalf("kept %v", st.trusts)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/extension-trust/qa-memory", `{"trust":"admin"}`); w.Code != http.StatusBadRequest {
-		t.Errorf("an unknown trust: %d", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/extension-trust/qa-memory", `{"trust":"third_party","categories":["passwords"]}`); w.Code != http.StatusBadRequest {
-		t.Errorf("an unknown category: %d", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/extension-trust/qa-memory", `{"trust":"third_party","categories":["health"]}`); w.Code != http.StatusOK {
-		t.Fatalf("the user grants health: %d %s", w.Code, w.Body)
-	}
-	w := serve(s, http.MethodGet, "/api/v1/assistant/extension-trust", "")
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `{"extension":"qa-memory","trust":"third_party","categories":["health"]}`) {
-		t.Fatalf("list: %d %s", w.Code, w.Body)
-	}
-
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/conversations/slee-0000-0000/categories", `{"remove":["health"]}`); w.Code != http.StatusConflict {
-		t.Errorf("taking the health space's own category away: %d", w.Code)
-	}
-	w = serve(s, http.MethodPut, "/api/v1/assistant/conversations/main-0000-0000/categories", `{"add":["finance"]}`)
-	var got assistantwire.ConversationCategories
-	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &got) != nil || !slices.Equal(got.Categories, []string{categoryFinance}) {
-		t.Fatalf("add finance: %d %s", w.Code, w.Body)
-	}
-	w = serve(s, http.MethodPut, "/api/v1/assistant/conversations/main-0000-0000/categories", `{"remove":["finance"]}`)
-	if w.Code != http.StatusOK || json.Unmarshal(w.Body.Bytes(), &got) != nil || len(got.Categories) != 0 || !slices.Equal(got.Removed, []string{categoryFinance}) {
-		t.Fatalf("remove finance: %d %s", w.Code, w.Body)
-	}
-	// A model's tag does not bring back what the user took away.
-	if err := s.tagConversation(context.Background(), "main-0000-0000", []string{categoryFinance}, infoTaggedByModel, ""); err != nil {
-		t.Fatal(err)
-	}
-	if cats, _ := s.conversationCategories(context.Background(), "main-0000-0000"); len(cats) != 0 {
-		t.Fatalf("after a model tag: %v", cats)
-	}
-}
-
-// The profile's owners (Profile.ExtensionOwners) are read once and kept until the user sets trust or an extension is
-// forgotten: a publish does not read the store each time.
-func TestExtensionOwnersAreKeptBetweenTrustChanges(t *testing.T) {
-	ctx := context.Background()
-	s, st := trustService(t)
-	if got := s.extensionOwners(ctx); len(got) != 0 {
-		t.Fatalf("no trust set: %v", got)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/extension-trust/qa-memory", `{"trust":"owner"}`); w.Code != http.StatusOK {
-		t.Fatalf("set owner: %d %s", w.Code, w.Body)
-	}
-	if got := s.extensionOwners(ctx); !slices.Equal(got, []string{"qa-memory"}) {
-		t.Fatalf("after the user's change: %v", got)
-	}
-	// A row written behind the assistant's back is not read on the next publish: the owners are kept.
-	_ = st.SetExtensionTrust(ctx, "qa-other", assistantwire.ExtensionTrustOwner, nil, "test")
-	if got := s.extensionOwners(ctx); !slices.Equal(got, []string{"qa-memory"}) {
-		t.Fatalf("kept owners: %v", got)
-	}
-	var none map[string]any
-	if err := askConversations(t, s, assistantwire.MethodExtensionTrustForget, `{"extension":"qa-memory"}`, &none); err != nil {
-		t.Fatal(err)
-	}
-	if got := s.extensionOwners(ctx); !slices.Equal(got, []string{"qa-other"}) {
-		t.Fatalf("after a forget, read again: %v", got)
 	}
 }

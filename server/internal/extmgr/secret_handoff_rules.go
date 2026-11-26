@@ -180,8 +180,8 @@ func (h *Manager) moveHandoffRules(ctx context.Context, from, to string) error {
 	return h.store.PutSetting(ctx, handoffRulesKey, list)
 }
 
-// removeHandoffRules drops provider's rules with id ("" for all of them, as its uninstall does), and says how many went.
-func (h *Manager) removeHandoffRules(ctx context.Context, provider, id string) (int, error) {
+// removeHandoffRules drops all rules belonging to an uninstalled provider, and says how many went.
+func (h *Manager) removeHandoffRules(ctx context.Context, provider string) (int, error) {
 	h.handoffRulesMu.Lock()
 	defer h.handoffRulesMu.Unlock()
 	list, err := h.handoffRules(ctx)
@@ -192,7 +192,7 @@ func (h *Manager) removeHandoffRules(ctx context.Context, provider, id string) (
 		return 0, err
 	}
 	kept := slices.DeleteFunc(slices.Clone(list), func(r HandoffRule) bool {
-		return r.Provider == provider && (id == "" || r.ID() == id)
+		return r.Provider == provider
 	})
 	if len(kept) == len(list) {
 		return 0, nil

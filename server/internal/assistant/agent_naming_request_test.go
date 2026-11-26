@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,26 +14,10 @@ import (
 
 	"github.com/nwverse/persona/server/internal/ai"
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
-// autoname is the app's POST …/autoname as the hub relays it (role "" is a test's own full request).
-func autoname(t *testing.T, s *Service, role, machine, sid string) (int, map[string]any) {
-	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions/"+machine+"/"+sid+"/autoname", nil)
-	req.Header.Set("Accept-Language", "en")
-	if role != "" {
-		req.Header.Set(RoleHeader, role)
-	}
-	rec := httptest.NewRecorder()
-	s.ServeHTTP(rec, req)
-	var body map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("answer is not JSON: %d %s", rec.Code, rec.Body.String())
-	}
-	return rec.Code, body
-}
 
 func agentNameRecordOf(s *Service, machine, sid string) agentNameRecord {
 	s.agentNames.mu.Lock()
@@ -83,9 +68,9 @@ func TestRequestedAgentNameIgnoresBackgroundLimits(t *testing.T) {
 	if s.tryAgentName(context.Background(), "server", c, time.Now()) || calls.Load() != 0 {
 		t.Fatal("the fixture's background naming is not exhausted")
 	}
-	status, body := autoname(t, s, roleFull, "server", "s1")
-	if status != http.StatusOK || body["ok"] != true || body["title"] != "修复 PDF 导出图片" || body["title_source"] != "auto" || body["changed"] != true {
-		t.Fatalf("answer: %d %v", status, body)
+	result, err := s.requestAgentName(t.Context(), "server", "s1")
+	if err != nil || result.Title != "修复 PDF 导出图片" || !result.Changed {
+		t.Fatalf("answer: %+v, %v", result, err)
 	}
 	if got := s.agentDisplayName("server", c); got != "修复 PDF 导出图片" || calls.Load() != 1 {
 		t.Fatalf("shared title %q after %d calls", got, calls.Load())
@@ -95,8 +80,8 @@ func TestRequestedAgentNameIgnoresBackgroundLimits(t *testing.T) {
 		t.Fatalf("ledger: %+v", rec)
 	}
 	// The same answer again is no change, and the background still does not spend another call on it.
-	if status, body = autoname(t, s, roleFull, "server", "s1"); status != http.StatusOK || body["changed"] != false || calls.Load() != 2 {
-		t.Fatalf("second request: %d %v after %d calls", status, body, calls.Load())
+	if result, err = s.requestAgentName(t.Context(), "server", "s1"); err != nil || result.Changed || calls.Load() != 2 {
+		t.Fatalf("second request: %+v, %v after %d calls", result, err, calls.Load())
 	}
 	if s.tryAgentName(context.Background(), "server", c, time.Now()) || calls.Load() != 2 {
 		t.Fatal("the background renamed a session the user just named")
@@ -123,8 +108,8 @@ func TestRequestedAgentNameReplacesAManualName(t *testing.T) {
 	if got := s.agentDisplayName("server", manual); got != "" {
 		t.Fatalf("a native custom title was decorated before the request: %q", got)
 	}
-	if status, body := autoname(t, s, roleFull, "server", "s1"); status != http.StatusOK || body["title"] != "修复 PDF 导出图片" || body["changed"] != true {
-		t.Fatalf("answer: %d %v", status, body)
+	if result, err := s.requestAgentName(t.Context(), "server", "s1"); err != nil || result.Title != "修复 PDF 导出图片" || !result.Changed {
+		t.Fatalf("answer: %+v, %v", result, err)
 	}
 	row := manual
 	s.nameAgentRow("server", &row)
@@ -152,8 +137,8 @@ func TestRequestedAgentNameReplacesAManualName(t *testing.T) {
 		t.Fatalf("native rename not recorded as the user's: %+v", rec)
 	}
 	// Asked again, then renamed in the app: the hand-written name is the user's again.
-	if status, _ := autoname(t, s, roleFull, "server", "s1"); status != http.StatusOK || s.agentDisplayName("server", renamed) != "修复 PDF 导出图片" {
-		t.Fatalf("second request: %d", status)
+	if _, err := s.requestAgentName(t.Context(), "server", "s1"); err != nil || s.agentDisplayName("server", renamed) != "修复 PDF 导出图片" {
+		t.Fatalf("second request: %v", err)
 	}
 	if _, err := s.Rename(context.Background(), RenameParams{MachineID: "server", SessionID: "s1", Params: map[string]any{"title": "又改回手写"}}); err != nil {
 		t.Fatal(err)
@@ -178,14 +163,10 @@ func TestRequestedAgentNameYieldsToARenameDuringTheCall(t *testing.T) {
 			var once sync.Once
 			letGo := func() { once.Do(func() { close(release) }) }
 			t.Cleanup(letGo)
-			type answer struct {
-				status int
-				body   map[string]any
-			}
-			done := make(chan answer, 1)
+			done := make(chan error, 1)
 			go func() {
-				status, body := autoname(t, s, roleFull, "server", "s1")
-				done <- answer{status, body}
+				_, err := s.requestAgentName(t.Context(), "server", "s1")
+				done <- err
 			}()
 			select {
 			case <-started:
@@ -203,9 +184,9 @@ func TestRequestedAgentNameYieldsToARenameDuringTheCall(t *testing.T) {
 			}
 			letGo()
 			select {
-			case a := <-done:
-				if a.status != http.StatusConflict || a.body["code"] != "renamed_meanwhile" || a.body["retryable"] != false {
-					t.Fatalf("answer: %d %v", a.status, a.body)
+			case err := <-done:
+				if !errors.Is(err, errAgentNameRenamed) {
+					t.Fatalf("answer: %v", err)
 				}
 			case <-time.After(5 * time.Second):
 				t.Fatal("the request never answered")
@@ -230,8 +211,8 @@ func TestRequestedAgentNameWithoutProvenance(t *testing.T) {
 	if s.tryAgentName(context.Background(), "server", c, time.Now()) || calls.Load() != 0 {
 		t.Fatal("the background named a title of unknown provenance")
 	}
-	if status, body := autoname(t, s, roleFull, "server", "s1"); status != http.StatusOK || body["title"] != "Fix PDF export images" {
-		t.Fatalf("answer: %d %v", status, body)
+	if result, err := s.requestAgentName(t.Context(), "server", "s1"); err != nil || result.Title != "Fix PDF export images" {
+		t.Fatalf("answer: %+v, %v", result, err)
 	}
 	row := c
 	s.nameAgentRow("server", &row)
@@ -247,55 +228,52 @@ func TestRequestedAgentNameWithoutProvenance(t *testing.T) {
 func TestRequestedAgentNameRefusals(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
-		role, sid string
+		sid       string
 		prepare   func(t *testing.T, s *Service, f *fakeHub)
 		answer    func(http.ResponseWriter, *http.Request)
-		status    int
 		code      string
 		retryable bool
 		reason    string // the static reason logged ("" for a refusal that is not a failure)
 		modelRuns int32
 	}{
-		{name: "read-only device", role: "readonly", sid: "s1", status: http.StatusForbidden, code: "forbidden"},
-		{name: "extension", role: roleExtension, sid: "s1", status: http.StatusForbidden, code: "forbidden"},
-		{name: "unknown session", role: roleFull, sid: "gone", status: http.StatusNotFound, code: "not_found"},
-		{name: "assistant conversation", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
+		{name: "unknown session", sid: "gone"},
+		{name: "assistant conversation", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
 			c := f.sessions["server"][0]
 			c.Assistant = true
 			f.setSessions("server", c)
-		}, status: http.StatusBadRequest, code: "assistant_session"},
-		{name: "main conversation", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
+		}, code: "assistant_session"},
+		{name: "main conversation", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
 			setSettings(t, s, func(v *Settings) { v.Main = "s1" })
-		}, status: http.StatusBadRequest, code: "assistant_session"},
-		{name: "no model", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
+		}, code: "assistant_session"},
+		{name: "no model", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
 			f.mu.Lock()
 			f.hello.Models.AI, f.hello.Models.TriageAI = ai.Config{}, nil
 			f.mu.Unlock()
 			s.settingsChanged(context.Background())
-		}, status: http.StatusConflict, code: "model_not_configured", reason: "model_not_configured"},
+		}, code: "model_not_configured", reason: "model_not_configured"},
 		// Never sent: asking again soon is held back the same way, so it says what to change instead of "try again".
-		{name: "launcher too slow", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) { holdBackSorting(t, s) },
-			status: http.StatusConflict, code: "launcher_too_slow", reason: "launcher_too_slow"},
-		{name: "no dialogue", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) { f.setItems() },
-			status: http.StatusConflict, code: "no_dialogue", reason: "no_dialogue"},
-		{name: "invalid name", role: roleFull, sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) { namingReply(w, "<private-instruction>") },
-			status: http.StatusBadGateway, code: "invalid_name", retryable: true, reason: "invalid_name", modelRuns: 1},
-		{name: "truncated", role: roleFull, sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) {
+		{name: "launcher too slow", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) { holdBackSorting(t, s) },
+			code: "launcher_too_slow", reason: "launcher_too_slow"},
+		{name: "no dialogue", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) { f.setItems() },
+			code: "no_dialogue", reason: "no_dialogue"},
+		{name: "invalid name", sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) { namingReply(w, "<private-instruction>") },
+			code: "invalid_name", retryable: true, reason: "invalid_name", modelRuns: 1},
+		{name: "truncated", sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"private-instruction"}],"stop_reason":"max_tokens"}`))
-		}, status: http.StatusBadGateway, code: "invalid_name", retryable: true, reason: "model_output_truncated", modelRuns: 1},
-		{name: "provider error", role: roleFull, sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) {
+		}, code: "invalid_name", retryable: true, reason: "model_output_truncated", modelRuns: 1},
+		{name: "provider error", sid: "s1", answer: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = w.Write([]byte("private-provider-token private-instruction"))
-		}, status: http.StatusBadGateway, code: "model_failed", retryable: true, reason: "model_call_failed", modelRuns: 1},
-		{name: "items unreadable", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
+		}, code: "model_failed", retryable: true, reason: "model_call_failed", modelRuns: 1},
+		{name: "items unreadable", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
 			f.mu.Lock()
 			f.itemsFail = 2
 			f.mu.Unlock()
-		}, status: http.StatusBadGateway, code: "dialogue_unavailable", retryable: true, reason: "dialogue_unavailable"},
-		{name: "ledger write", role: roleFull, sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
+		}, code: "dialogue_unavailable", retryable: true, reason: "dialogue_unavailable"},
+		{name: "ledger write", sid: "s1", prepare: func(t *testing.T, s *Service, f *fakeHub) {
 			base := s.store()
 			s.store = func() Store { return failingAgentNameStore{base} }
-		}, status: http.StatusInternalServerError, code: "save_failed", retryable: true, reason: "result_write_failed", modelRuns: 1},
+		}, code: "save_failed", retryable: true, reason: "result_write_failed", modelRuns: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			answer := tc.answer
@@ -313,11 +291,12 @@ func TestRequestedAgentNameRefusals(t *testing.T) {
 			if tc.prepare != nil {
 				tc.prepare(t, s, f)
 			}
-			status, body := autoname(t, s, tc.role, "server", tc.sid)
-			if status != tc.status || body["code"] != tc.code || body["retryable"] != tc.retryable || body["error"] == "" || body["title"] != nil {
-				t.Fatalf("answer: %d %v, want %d %s retryable=%v", status, body, tc.status, tc.code, tc.retryable)
+			result, err := s.requestAgentName(t.Context(), "server", tc.sid)
+			var refusal *agentNameRefusal
+			if !errors.As(err, &refusal) || refusal.code != tc.code || refusal.retry != tc.retryable || result.Title != "" {
+				t.Fatalf("answer: %+v, %v, want %q retryable=%v", result, err, tc.code, tc.retryable)
 			}
-			if text, _ := body["error"].(string); strings.Contains(text, "private-") || strings.Contains(text, "assistant-agent_naming.") {
+			if text := i18n.Localize(refusal.err, "en"); text == "" || strings.Contains(text, "private-") || strings.Contains(text, "assistant-agent_naming.") {
 				t.Fatalf("error text leaks or is not localized: %q", text)
 			}
 			if calls.Load() != tc.modelRuns {
@@ -335,9 +314,6 @@ func TestRequestedAgentNameRefusals(t *testing.T) {
 			}
 			if got := s.agentDisplayName("server", f.sessions["server"][0]); got != "" {
 				t.Fatalf("a refused request changed the name: %q", got)
-			}
-			if tc.code == "forbidden" && strings.Contains(strings.Join(lines, "\n"), "assistant-agent_naming.") {
-				t.Fatalf("error text is not localized: %v", body)
 			}
 		})
 	}
@@ -362,9 +338,10 @@ func TestRequestedAgentNameTimesOut(t *testing.T) {
 		defer mu.Unlock()
 		lines = append(lines, fmt.Sprintf(format, args...))
 	}
-	status, body := autoname(t, s, roleFull, "server", "s1")
-	if status != http.StatusGatewayTimeout || body["code"] != "timeout" || body["retryable"] != true {
-		t.Fatalf("answer: %d %v", status, body)
+	_, err := s.requestAgentName(t.Context(), "server", "s1")
+	var refusal *agentNameRefusal
+	if !errors.As(err, &refusal) || refusal.code != "timeout" || !refusal.retry {
+		t.Fatalf("answer: %v", err)
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -389,13 +366,13 @@ func TestRequestedAgentNameRunsOncePerSession(t *testing.T) {
 	f.setSessions("server", f.sessions["server"][0], other)
 	const waiting = 6
 	type answer struct {
-		status int
-		body   map[string]any
+		result agentNameResult
+		err    error
 	}
 	answers := make(chan answer, waiting+1)
 	ask := func(sid string) {
-		status, body := autoname(t, s, roleFull, "server", sid)
-		answers <- answer{status, body}
+		result, err := s.requestAgentName(t.Context(), "server", sid)
+		answers <- answer{result, err}
 	}
 	// Every caller has reached the singleflight gate, so all six share the call already held by the model.
 	admitted := make(chan struct{}, waiting)
@@ -428,8 +405,8 @@ func TestRequestedAgentNameRunsOncePerSession(t *testing.T) {
 	for range waiting + 1 {
 		select {
 		case a := <-answers:
-			if a.status != http.StatusOK || a.body["title"] != "修复 PDF 导出图片" {
-				t.Fatalf("answer: %d %v", a.status, a.body)
+			if a.err != nil || a.result.Title != "修复 PDF 导出图片" {
+				t.Fatalf("answer: %+v, %v", a.result, a.err)
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("a request never answered")
@@ -473,14 +450,14 @@ func TestRequestedAgentNameUpdatesTheSessionList(t *testing.T) {
 	if c, ok := titleOf("custom"); !ok || c.Title != "我选的名字" || c.TitleSource != proto.TitleSourceManual {
 		t.Fatalf("list before: %+v %v", c, ok)
 	}
-	if status, body := autoname(t, ft.s, roleFull, "mac", "own"); status != http.StatusBadRequest || body["code"] != "assistant_session" {
-		t.Fatalf("assistant conversation: %d %v", status, body)
+	if _, err := ft.s.requestAgentName(t.Context(), "mac", "own"); !errors.Is(err, errAgentNameAssistant) {
+		t.Fatalf("assistant conversation: %v", err)
 	}
-	if status, body := autoname(t, ft.s, roleFull, "nowhere", "custom"); status != http.StatusNotFound || body["code"] != "not_found" {
-		t.Fatalf("unknown machine: %d %v", status, body)
+	if _, err := ft.s.requestAgentName(t.Context(), "nowhere", "custom"); !errors.Is(err, errAgentNameNoMachine) {
+		t.Fatalf("unknown machine: %v", err)
 	}
-	if status, body := autoname(t, ft.s, roleFull, "mac", "custom"); status != http.StatusOK || body["title"] != "修复 PDF 导出图片" || body["changed"] != true {
-		t.Fatalf("answer: %d %v", status, body)
+	if result, err := ft.s.requestAgentName(t.Context(), "mac", "custom"); err != nil || result.Title != "修复 PDF 导出图片" || !result.Changed {
+		t.Fatalf("answer: %+v, %v", result, err)
 	}
 	// No waiting: the list was told before the answer.
 	c, ok := titleOf("custom")

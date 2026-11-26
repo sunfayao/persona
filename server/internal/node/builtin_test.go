@@ -31,7 +31,6 @@ func TestBuiltinProgramsAnswerLikeTheirOldNames(t *testing.T) {
 		// imessage keeps the connector protocol's names (#1830 step 6); not a Mac here: the same list and refusals.
 		{"connector.list", "imessage", "connector.list", map[string]any{}},
 		{"connector.chats", "imessage", "connector.chats", map[string]any{"id": "imessage", "limit": 5}},
-		{"connector.changes", "imessage", "connector.changes", map[string]any{"id": "imessage"}},
 	} {
 		oldOut, oldErr := pluginCall(t, n, c.old, c.params)
 		raw, _ := json.Marshal(c.params)

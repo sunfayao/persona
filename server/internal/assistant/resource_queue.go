@@ -303,30 +303,6 @@ func (s *Service) resourceStatus(ctx context.Context, id string) ([]rq.Status, e
 	return out, nil
 }
 func (s *Service) resourceRoutes() {
-	s.handle("POST /api/v1/resources/{action}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, 403, errors.New("full role required"))
-			return
-		}
-		var in rq.Request
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
-			apierr.Write(w, 400, err)
-			return
-		}
-		in.Action = r.PathValue("action")
-		switch in.Action {
-		case "acquire", "get", "renew", "release", "cancel":
-		default:
-			apierr.Write(w, 400, errors.New("unknown resource action"))
-			return
-		}
-		out, err := s.resourceRequest(r.Context(), in)
-		if err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		apierr.WriteJSON(w, out)
-	})
 	s.handle("GET /api/v1/resources", func(w http.ResponseWriter, r *http.Request) {
 		out, err := s.resourceStatus(r.Context(), r.URL.Query().Get("resource"))
 		if err != nil {

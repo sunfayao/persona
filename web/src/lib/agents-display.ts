@@ -6,14 +6,12 @@ import { api, credentialOwner, onCredentialChange } from "./api";
 const LEGACY = "persona.agentHideBotmux";
 const PATH = "/agents/display-settings";
 interface AgentsDisplay { show_botmux: boolean; configured: boolean; use_herdr_tab_name?: boolean }
-type DisplayChange = { show_botmux: boolean } | { use_herdr_tab_name: boolean };
-interface State { value: AgentsDisplay | null; saving: boolean; error?: unknown; change?: DisplayChange }
-let state: State = { value: null, saving: false };
+let value: AgentsDisplay | null = null;
 let revision = 0;
 let reading: Promise<void> | undefined;
 const listeners = new Set<() => void>();
 const subscribe = (f: () => void) => { listeners.add(f); return () => { listeners.delete(f); }; };
-const set = (next: State) => { state = next; listeners.forEach((f) => f()); };
+const set = (next: AgentsDisplay | null) => { value = next; listeners.forEach((f) => f()); };
 function checked(value: AgentsDisplay): AgentsDisplay {
   if (typeof value.show_botmux !== "boolean" || typeof value.configured !== "boolean" ||
     (value.use_herdr_tab_name !== undefined && typeof value.use_herdr_tab_name !== "boolean")) throw new Error("Invalid Agents display settings");
@@ -22,10 +20,9 @@ function checked(value: AgentsDisplay): AgentsDisplay {
 function legacyHidden() { try { return localStorage.getItem(LEGACY) === "1"; } catch { return false; } }
 function forgetLegacy() { try { localStorage.removeItem(LEGACY); } catch { /* a later read may retry */ } }
 
-/** Called on hello and each Agents list refresh. Stale reads cannot undo a save or a new credential. */
+/** Called on hello and each Agents list refresh. Stale reads cannot overwrite the value for a new credential. */
 export function refreshAgentsDisplay(): Promise<void> {
   credentialOwner();
-  if (state.saving) return Promise.resolve();
   if (reading) return reading;
   const mine = revision;
   const work = (async () => {
@@ -37,9 +34,9 @@ export function refreshAgentsDisplay(): Promise<void> {
       }
       if (mine !== revision) return;
       if (value.configured) forgetLegacy();
-      set(state.change === undefined ? { value, saving: false } : { ...state, value });
-    } catch (error) {
-      if (mine === revision && state.change === undefined) set({ ...state, error });
+      set(value);
+    } catch {
+      // Keep the last acknowledged value when a refresh fails.
     }
   })();
   reading = work;
@@ -47,26 +44,10 @@ export function refreshAgentsDisplay(): Promise<void> {
   return work;
 }
 
-export async function saveAgentsDisplay(input: boolean | DisplayChange): Promise<void> {
-  credentialOwner();
-  if (state.saving) return;
-  const mine = ++revision;
-  const change = typeof input === "boolean" ? { show_botmux: input } : input;
-  set({ value: state.value, saving: true, change });
-  try {
-    const value = checked(await api<AgentsDisplay>(PATH, { method: "PUT", json: change }));
-    if (mine !== revision) return;
-    if (value.configured) forgetLegacy();
-    set({ value, saving: false });
-  } catch (error) {
-    if (mine === revision) set({ ...state, saving: false, error });
-  }
-}
-
 export function resetAgentsDisplay() {
   revision++;
   reading = undefined;
-  set({ value: null, saving: false });
+  set(null);
 }
 onCredentialChange(resetAgentsDisplay);
 
@@ -74,8 +55,8 @@ onCredentialChange(resetAgentsDisplay);
 // A session-list refresh also refreshes display settings. Rows subscribe to
 // the choice they use so a fresh answer or error with the same choice does not
 // redraw them.
-const botmuxHidden = () => state.value?.show_botmux !== true;
-const herdrTabName = () => state.value?.use_herdr_tab_name === true;
+const botmuxHidden = () => value?.show_botmux !== true;
+const herdrTabName = () => value?.use_herdr_tab_name === true;
 
 export function useBotmuxHidden(): boolean {
   // An unavailable preference might hide these sessions. Keep the last acknowledged choice.

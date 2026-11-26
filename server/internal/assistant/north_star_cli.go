@@ -19,7 +19,7 @@ import (
 // NorthStarCommand is `personad assistant north-star [--date YYYY-MM-DD] [--split RFC3339] [--tz Area/City] [--brief lang] [--weekly]`: the
 // north-star readout (north_star.go) against the built-in manager's database, read-only, without a running manager and
 // without migrating anything: a baseline from a build that never recorded it. Both databases are opened with read-only
-// transactions. On top of what GET /api/v1/assistant/north-star reads, it counts the app messages the hub's client_ops
+// transactions. Alongside the manager metrics, it counts the app messages the hub's client_ops
 // kept from before recording began.
 func NorthStarCommand(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("assistant north-star", flag.ContinueOnError)

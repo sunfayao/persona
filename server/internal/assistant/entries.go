@@ -88,26 +88,6 @@ func (s *Service) entriesRoutes() {
 		}
 		apierr.WriteJSON(w, out)
 	})
-	s.handle("POST /api/v1/assistant/entries/{id}/wrong", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("only the owner can mark an entry wrong"))
-			return
-		}
-		e, err := s.markEntryWrong(r.Context(), r.PathValue("id"))
-		if errors.Is(err, db.ErrEntryNotFound) {
-			apierr.Write(w, http.StatusNotFound, err)
-			return
-		}
-		if errors.Is(err, db.ErrEntrySuperseded) {
-			apierr.Write(w, http.StatusConflict, err)
-			return
-		}
-		if err != nil {
-			apierr.Write(w, http.StatusInternalServerError, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"entry": e})
-	})
 }
 
 func entriesQuery(r *http.Request) (proto.AssistantEntriesParams, error) {
@@ -146,33 +126,6 @@ func entriesQuery(r *http.Request) (proto.AssistantEntriesParams, error) {
 		}
 	}
 	return p, db.ValidateAssistantEntriesParams(&p)
-}
-
-// A wrong mark is an immutable copy pointing to its predecessor. The event names
-// the rejected predecessor as well as the new record so consumers retain both.
-func (s *Service) markEntryWrong(ctx context.Context, id string) (proto.AssistantEntry, error) {
-	st := s.entriesDB()
-	if st == nil {
-		return proto.AssistantEntry{}, errors.New("entries require the manager database")
-	}
-	e, err := st.AssistantEntry(ctx, id)
-	if err != nil {
-		return e, err
-	}
-	e.ID = "entry_wrong_" + id
-	e.Supersedes = id
-	e.Status = "wrong"
-	e.At = time.Time{}
-	e, err = st.AppendAssistantEntry(ctx, e)
-	if err != nil {
-		return e, err
-	}
-	if publisher, ok := s.hub.(entriesEventPublisher); ok {
-		if err := publisher.EntriesEvent(assistantwire.EventAssistantEntriesChanged, assistantwire.AssistantEntriesChanged{ID: id, RecordID: e.ID, Status: "wrong", Personal: e.Scope.Personal}); err != nil {
-			s.logf("entries: change notification could not be delivered")
-		}
-	}
-	return e, nil
 }
 
 type entriesEventPublisher interface{ EntriesEvent(string, any) error }

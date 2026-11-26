@@ -108,14 +108,6 @@ func TestLocalConnectorReadsMessages(t *testing.T) {
 		t.Errorf("unknown chat = %v", err)
 	}
 
-	// What goes to Persona: changes after a cursor (the first from days back), and a search.
-	res, err = serveLocalConnector(ctx, r, true, "connector.changes", json.RawMessage(`{"id":"imessage","days":4000,"limit":100}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if changes := res.(imessage.ChangesPage); len(changes.Batches) != 4 || changes.Next != "22" {
-		t.Errorf("changes = %d batches, next %q", len(changes.Batches), changes.Next)
-	}
 	res, err = serveLocalConnector(ctx, r, true, "connector.search", json.RawMessage(`{"id":"imessage","query":"周五","days":4000}`))
 	if err != nil {
 		t.Fatal(err)

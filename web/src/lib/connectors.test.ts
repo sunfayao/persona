@@ -1,10 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  canSendStep, chatHeadline, connectorBrand, connectorOpenTitle, connectorState, connectorSummary, connectorTone, deletedLine, feedsFooter, fieldInput, githubInboxFooter, githubMachineLine,
-  githubOptions, githubScopeAdvice, deleteIMessageData, imessageAIFooter, setIMessageAI, isPolledStep, isStarting, labelColor, listConnectors, logoutMessage, mediaLine, mergeNewest, mergeOlder, mutableRepo,
-  otherConnectors, reachMessage, setGitHubAuth, signInFooter, signsInHere, startsGroup, stepView, storesData, switchFooter, switchLabel, undescribed,
-  type HubConnector, type ThreadMessage, type ThreadPage,
-} from "./connectors";
+import { canSendStep, chatHeadline, connectorBrand, connectorOpenTitle, connectorState, connectorSummary, connectorTone, deletedLine, feedsFooter, fieldInput, githubInboxFooter, githubMachineLine, githubOptions, githubScopeAdvice, isPolledStep, isStarting, labelColor, listConnectors, logoutMessage, mediaLine, mergeNewest, mergeOlder, otherConnectors, reachMessage, signInFooter, signsInHere, startsGroup, stepView, storesData, switchFooter, switchLabel, undescribed, type HubConnector, type ThreadMessage, type ThreadPage } from "./connectors";
 
 const conn = (status: string, extra: Partial<HubConnector> = {}): HubConnector => ({ id: "github", name: "GitHub", status, ...extra });
 
@@ -162,17 +157,14 @@ describe("GitHub", () => {
     expect(githubScopeAdvice({ source: "device", machines: [] }, missing)).toContain("设备码登录少了");
   });
 
-  it("reads its inbox options and checks a repository to mute", () => {
+  it("reads its inbox options", () => {
     expect(githubOptions({ ci: "mine", muted_repos: ["a/b", 3] })).toEqual({ ci: "mine", muted_repos: ["a/b"], ignore_branches: undefined });
     expect(githubOptions({ muted_repos: [] })).toBeNull();
     expect(githubOptions(null)).toBeNull();
-    expect(mutableRepo(" owner/name ", [])).toBe("owner/name");
-    expect(mutableRepo("owner/name", ["owner/name"])).toBeNull();
-    expect(mutableRepo("owner", [])).toBeNull();
     expect(githubInboxFooter({ ci: "off", muted_repos: [] })).toMatch(/^CI 失败不进收件箱。.*自动分支（train\/\*）不提醒/);
   });
 
-  it("asks the hub with the right bodies", async () => {
+  it("lists all connectors", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
     vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit) => {
@@ -180,10 +172,7 @@ describe("GitHub", () => {
       return new Response(JSON.stringify({ connectors: [conn("ok")], source: "device", machines: [] }), { status: 200 });
     }));
     expect((await listConnectors(true)).map((c) => c.id)).toEqual(["github"]);
-    await setGitHubAuth(null);
-    await setGitHubAuth("mbp");
-    expect(calls.map((c) => c.url)).toEqual(["/api/v1/connectors?all=1", "/api/v1/connectors/github/auth", "/api/v1/connectors/github/auth"]);
-    expect(calls.slice(1).map((c) => c.init.body)).toEqual(['{"source":"device"}', '{"source":"machine","machine":"mbp"}']);
+    expect(calls.map((c) => c.url)).toEqual(["/api/v1/connectors?all=1"]);
   });
 });
 
@@ -244,28 +233,5 @@ describe("会话页", () => {
     expect((await reachMessage(page(["5", "6"], "5"), "x", older, 2)).found).toBe(false);
     expect(older).toHaveBeenCalledTimes(2); // gives up after its pages
     expect((await reachMessage(page(["5"]), "x", older)).found).toBe(false); // the thread's start: nothing to read
-  });
-});
-
-describe("信息 (iMessage)", () => {
-  it("says what 交给 Persona does on and off", () => {
-    expect(imessageAIFooter(true)).toContain("关掉立刻停止");
-    expect(imessageAIFooter(false)).toContain("hub 上之前存下的还在");
-  });
-
-  it("puts the switch and deletes the data on the hub's iMessage API", async () => {
-    const calls: [string, string, string | null][] = [];
-    vi.stubGlobal("localStorage", { getItem: () => "jd_test" });
-    vi.stubGlobal("fetch", async (url: string, init: RequestInit) => {
-      calls.push([String(url), init.method ?? "GET", (init.body as string) ?? null]);
-      const body = init.method === "DELETE" ? { chats: 2, people: 1, inbox: 3 } : { machine: "mac", status: "ok", ai: false };
-      return new Response(JSON.stringify(body), { status: 200 });
-    });
-    expect((await setIMessageAI(false)).ai).toBe(false);
-    expect(await deleteIMessageData()).toEqual({ chats: 2, people: 1, inbox: 3 });
-    expect(calls.map(([u, m, b]) => [u.replace(/^.*\/api\/v1/, ""), m, b])).toEqual([
-      ["/imessage/settings", "PUT", '{"ai":false}'],
-      ["/imessage/data", "DELETE", null],
-    ]);
   });
 });

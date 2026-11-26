@@ -39,9 +39,6 @@ func TestDefaultTabName(t *testing.T) {
 			t.Errorf("%q was chosen by someone", n)
 		}
 	}
-	if got := uniqueName("fix-login", map[string]bool{"fix-login": true, "fix-login-2": true}); got != "fix-login-3" {
-		t.Errorf("uniqueName = %q", got)
-	}
 }
 
 func TestGoldenTabName(t *testing.T) {
@@ -174,29 +171,6 @@ func TestAgentStartClaudeBypassesPermissions(t *testing.T) {
 				t.Fatalf("permission_mode = %q, want %q; start = %v", got, tc.want, f.starts[0])
 			}
 		})
-	}
-}
-
-// POST /api/v1/tabs/autoname renames the tabs nobody named after their sessions' titles, one name per space.
-func TestAutonameTabs(t *testing.T) {
-	f := newFakeHub()
-	f.tabReply = "fix-login"
-	f.setSessions("box",
-		proto.Session{SessionID: "a", Title: "修登录", SpaceKind: "herdr", SpaceID: "w1", TabID: "t1", SlotName: "2", Status: proto.StatusIdle},
-		proto.Session{SessionID: "b", Title: "修登录页", SpaceKind: "herdr", SpaceID: "w1", TabID: "t2", SlotName: "agent-3", Status: proto.StatusIdle},
-		proto.Session{SessionID: "c", Title: "named", SpaceKind: "herdr", SpaceID: "w1", TabID: "t3", SlotName: "leader", Status: proto.StatusIdle},
-		proto.Session{SessionID: "d", Title: "gone", SpaceKind: "herdr", SpaceID: "w1", TabID: "t4", SlotName: "4", Status: proto.StatusOffline})
-	s := newTestService(t, f)
-	w := serve(s, "POST", "/api/v1/tabs/autoname", `{"dry_run":true}`)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"to":"fix-login"`) || !strings.Contains(w.Body.String(), `"to":"fix-login-2"`) ||
-		strings.Contains(w.Body.String(), `"leader"`) {
-		t.Fatalf("dry run: %d %s", w.Code, w.Body)
-	}
-	if f.sent() != 0 {
-		t.Fatal("a dry run renamed")
-	}
-	if w := serve(s, "POST", "/api/v1/tabs/autoname", `{}`); w.Code != 200 || f.sent() != 2 {
-		t.Fatalf("renamed %d: %s", f.sent(), w.Body)
 	}
 }
 
