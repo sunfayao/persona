@@ -1,11 +1,5 @@
 package node
 
-// The assistant on an agent runtime (docs/integrations/runtimes.md "Assistant"; DSH first): a runtime that declares
-// the assistant capability runs the conversation, driven with the runtime protocol's own session calls. What is the
-// assistant's stays here, as for Claude and Codex: the conversation's state (launcher, directory), the live snapshot
-// each message starts with, the permission mode, the shared memory, and the gated skill commands Feishu goes through
-// (larkgate.go; their credentials never leave the node). Nothing in this file is any one runtime's.
-
 import (
 	"context"
 	"encoding/json"
@@ -19,16 +13,22 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-
 	"github.com/nwverse/persona/server/internal/assistantskills"
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
+
+// The assistant on an agent runtime (docs/integrations/runtimes.md "Assistant"; DSH first): a runtime that declares
+// the assistant capability runs the conversation, driven with the runtime protocol's own session calls. What is the
+// assistant's stays here, as for Claude and Codex: the conversation's state (launcher, directory), the live snapshot
+// each message starts with, the permission mode, the shared memory, and the gated skill commands Feishu goes through
+// (larkgate.go; their credentials never leave the node). Nothing in this file is any one runtime's.
 
 // assistantOnRuntime is assistantAgent's answer for a launcher a runtime offers as an assistant launcher.
 const assistantOnRuntime = "runtime"
@@ -533,7 +533,4 @@ func (b *cappedBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func fileExists(p string) bool {
-	st, err := os.Stat(p)
-	return err == nil && !st.IsDir()
-}
+func fileExists(p string) bool { return filemeta.Exists(p) }

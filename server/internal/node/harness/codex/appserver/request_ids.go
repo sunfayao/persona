@@ -1,4 +1,4 @@
-package node
+package appserver
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func codexRequestKey(raw json.RawMessage) string {
+func RequestKey(raw json.RawMessage) string {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.UseNumber()
 	var id any

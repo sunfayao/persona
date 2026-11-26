@@ -6,16 +6,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
 func TestOldCodexOpaqueTranscriptArchiveInvalidatesMiss(t *testing.T) {
 	n := remoteTestNode(t)
 	base := t.TempDir()
-	home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home)
+	home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home)
 	n.configureCodex(proto.CodexConfig{Homes: []string{home}})
 	const raw = "aaaaaaaa-0000-4000-8000-000000000001"
-	id := codexSourceID(home, raw, n.codexInventory().LegacyHome)
+	id := codex.SourceID(home, raw, n.codexInventory().LegacyHome)
 	if got := n.oldCodexTranscript(id); got != "" {
 		t.Fatalf("missing lookup = %q", got)
 	}
@@ -39,12 +40,12 @@ func TestOldCodexOpaqueTranscriptArchiveInvalidatesMiss(t *testing.T) {
 func TestOldCodexOpaqueTranscriptHitCacheBoundsRepeatedScans(t *testing.T) {
 	n := remoteTestNode(t)
 	base := t.TempDir()
-	home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home)
+	home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home)
 	n.configureCodex(proto.CodexConfig{Homes: []string{home}})
 	old := time.Now().AddDate(0, 0, -30)
 	writeRollout(t, base, remoteRaw, "/wanted", old, old)
 	path := rolloutPath(home, remoteRaw)
-	id := codexSourceID(home, remoteRaw, n.codexInventory().LegacyHome)
+	id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 
 	calls := 0
 	glob := codexTranscriptGlob
@@ -83,9 +84,9 @@ func TestOldCodexOpaqueTranscriptHitCacheBoundsRepeatedScans(t *testing.T) {
 func TestOldCodexOpaqueTranscriptMissCacheBoundsRepeatedScans(t *testing.T) {
 	n := remoteTestNode(t)
 	base := t.TempDir()
-	home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home)
+	home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home)
 	n.configureCodex(proto.CodexConfig{Homes: []string{home}})
-	id := codexSourceID(home, remoteRaw, n.codexInventory().LegacyHome)
+	id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 
 	calls := 0
 	glob := codexTranscriptGlob
@@ -134,7 +135,7 @@ func TestOldCodexOpaqueTranscriptMissCacheBoundsRepeatedScans(t *testing.T) {
 	}
 
 	// The one-minute bound also expires a miss whose directory stamps stayed identical.
-	missing := codexSourceID(home, "aaaaaaaa-0000-4000-8000-000000000000", n.codexInventory().LegacyHome)
+	missing := codex.SourceID(home, "aaaaaaaa-0000-4000-8000-000000000000", n.codexInventory().LegacyHome)
 	_ = n.oldCodexTranscript(missing)
 	before := calls
 	_ = n.oldCodexTranscript(missing)

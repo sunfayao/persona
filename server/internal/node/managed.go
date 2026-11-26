@@ -22,6 +22,7 @@ import (
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -546,7 +547,7 @@ func Launch(ctx context.Context, name string, args []string, ticket string) erro
 	catalog := resp.CodexCatalogURL
 	// The node checked another codex than this one (another PATH): this one is asked, within codexVersionTimeout. That
 	// is after the node answered (not part of LaunchNodeWait), and a fresh process has no version kept.
-	if catalog != "" && !sameFile(exe, resp.CodexCatalogCodex) && !codexReadsCatalog(codexVersionAt(context.Background(), exe)) {
+	if catalog != "" && !sameFile(exe, resp.CodexCatalogCodex) && !codex.ReadsCatalog(codexVersionAt(context.Background(), exe)) {
 		catalog = ""
 	}
 	argv := launchArgv(agent, args, resp.Args, launchEffort(resp.Effort, resp.NoEffort, sessionModel(args, resp.Args, resp.Env)), resp.Model, resp.Env, catalog)

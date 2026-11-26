@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"encoding/json"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"os"
 	"slices"
 	"sort"
@@ -105,7 +106,7 @@ func readCodexAppUsage(ctx context.Context, cli, home string) codexUsageProbe {
 	if err != nil {
 		return codexUsageProbe{}
 	}
-	defer app.close()
+	defer app.Close()
 	type window struct {
 		UsedPercent        *float64 `json:"usedPercent"`
 		WindowDurationMins *int     `json:"windowDurationMins"`
@@ -123,7 +124,7 @@ func readCodexAppUsage(ctx context.Context, cli, home string) codexUsageProbe {
 		RateLimitsByLimitID map[string]*limits `json:"rateLimitsByLimitId"`
 	}
 	params := map[string]bool{"excludeResetCreditDetails": true}
-	if err := app.call(ctx, "account/rateLimits/read", params, &result); err != nil {
+	if err := app.Call(ctx, "account/rateLimits/read", params, &result); err != nil {
 		return codexUsageProbe{unavailable: codexUsageUnavailable(ctx, app)}
 	}
 	bucket := result.RateLimitsByLimitID["codex"]
@@ -188,13 +189,13 @@ func canonicalCodexUsageDuration(minutes int) int {
 
 // Use an explicit account response to distinguish an account with no applicable quota from a transient read failure.
 // Do not refresh the login, consume reset credits, or read the email or credentials.
-func codexUsageUnavailable(ctx context.Context, app *codexStdio) bool {
+func codexUsageUnavailable(ctx context.Context, app *appserver.Stdio) bool {
 	var state struct {
 		Account            json.RawMessage `json:"account"`
 		RequiresOpenAIAuth *bool           `json:"requiresOpenaiAuth"`
 	}
 	params := map[string]bool{"refreshToken": false}
-	if app.call(ctx, "account/read", params, &state) != nil || state.RequiresOpenAIAuth == nil {
+	if app.Call(ctx, "account/read", params, &state) != nil || state.RequiresOpenAIAuth == nil {
 		return false
 	}
 	var account *struct {

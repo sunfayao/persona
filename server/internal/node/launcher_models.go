@@ -17,11 +17,11 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/sync/singleflight"
-
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/osproc"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/shellcmd"
+	"golang.org/x/sync/singleflight"
 )
 
 // The models a launcher's agent offers, for "New Agent"'s model picker: the
@@ -142,7 +142,7 @@ func (n *Node) launcherModels(ctx context.Context, name, agentType string, refre
 			return nil, listErr
 		}
 		if agent == "codex" && name == "codex" && len(models) == 0 {
-			models = readCodexHomeModels(n.codexHome())
+			models = codex.ReadHomeModels(n.codexHome())
 		}
 		res.Models = withGatewayModels(models, gateway)
 		if agent == "codex" && res.Locked == "" {

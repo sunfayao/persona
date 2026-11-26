@@ -223,10 +223,10 @@ func (n *Node) codexCwd(id string) string {
 		return st.Cwd
 	}
 	if src, ok := n.codexSource(id); ok && src.path != "" {
-		return metaOf(src.home, src.path).cwd
+		return metaOf(src.home, src.path).Cwd
 	}
 	if p := n.codexPath(id); p != "" {
-		return metaOf(n.codexHome(), p).cwd
+		return metaOf(n.codexHome(), p).Cwd
 	}
 	return ""
 }

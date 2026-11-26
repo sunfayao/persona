@@ -17,6 +17,7 @@ import (
 
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
@@ -70,7 +71,7 @@ func (n *Node) takeoverSource(id string) (codexSource, bool) {
 		return codexSource{}, false
 	}
 	o := readCodexOrigin(src.path)
-	if !o.cli || o.desktop || o.exec || o.sub || o.parent != "" {
+	if !o.CLI || o.Desktop || o.Exec || o.Subagent || o.Parent != "" {
 		return codexSource{}, false
 	}
 	if _, _, err := n.codexOwner(id); !errors.Is(err, errCodexNoOwner) {
@@ -96,7 +97,7 @@ func (n *Node) takeoverHost(ctx context.Context) (context.Context, error) {
 // The listing is advisory. Preparation and commit both inspect the actual writer again.
 func (n *Node) codexTakeoverRow(id string, src codexSource, m quickMeta, running bool) *proto.CodexTakeover {
 	o := readCodexOrigin(src.path)
-	if src.thread != id || src.path == "" || !o.cli || o.desktop || o.exec || o.sub || o.parent != "" {
+	if src.thread != id || src.path == "" || !o.CLI || o.Desktop || o.Exec || o.Subagent || o.Parent != "" {
 		return nil
 	}
 	if _, err := n.takeoverHost(context.Background()); err != nil {
@@ -376,10 +377,10 @@ func (n *Node) takeoverWriters(src codexSource) ([]codexWriter, error) {
 
 func (n *Node) sharedTakeoverCodex(ctx context.Context, src codexSource) ([]string, error) {
 	socket := filepath.Join(src.home, "app-server-control", "app-server-control.sock")
-	if _, _, err := validateCodexEndpoint("unix://" + socket); err != nil {
+	if _, _, err := n.codexClient().Endpoint("unix://" + socket); err != nil {
 		// A missing control socket is normal before the first shared launch. Refuse
 		// unknown socket aliases instead of invoking the daemon against them.
-		resolved, pathErr := codexSocketPath(socket)
+		resolved, pathErr := appserver.SocketPath(socket)
 		if pathErr != nil {
 			return nil, takeoverRefusal("shared_unavailable")
 		}
@@ -395,7 +396,7 @@ func (n *Node) sharedTakeoverCodex(ctx context.Context, src codexSource) ([]stri
 			return nil, takeoverRefusal("shared_unavailable")
 		}
 	}
-	if _, _, err := validateCodexEndpoint("unix://" + socket); err != nil {
+	if _, _, err := n.codexClient().Endpoint("unix://" + socket); err != nil {
 		return nil, takeoverRefusal("shared_unavailable")
 	}
 	n.discoverCodex()

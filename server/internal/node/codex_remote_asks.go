@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -17,7 +18,7 @@ func (c *codexRemote) request(m codexMessage) {
 	if json.Unmarshal(m.Params, &r) != nil {
 		return
 	}
-	key := codexRequestKey(m.ID)
+	key := appserver.RequestKey(m.ID)
 	if key == "" {
 		return
 	}
@@ -173,7 +174,7 @@ func (c *codexRemote) request(m codexMessage) {
 		c.mu.Lock()
 		c.finished[key] = true
 		c.mu.Unlock()
-		c.wire.reply(m.ID, result)
+		c.wire.Reply(m.ID, result)
 		// A refusal with the user's words: Codex's decline carries none, so they go into the turn after it (as the
 		// assistant's tellModel does).
 		if ix.Kind == proto.IxPermission && res.Allow != nil && !*res.Allow && strings.TrimSpace(res.Message) != "" {

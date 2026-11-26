@@ -3,11 +3,12 @@ package node
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 )
 
 // The assistant on a Codex launcher runs `codex app-server` (Codex's JSON-RPC server for IDEs, newline-delimited JSON
@@ -30,112 +31,30 @@ const codexToolTimeout = 86400
 // codexStartTimeout bounds the app-server's startup handshake (initialize, thread/start or thread/resume).
 const codexStartTimeout = 90 * time.Second
 
+type codexMessage = appserver.Message
+type codexError = appserver.RPCError
+
 type codexConn struct {
-	n            *Node
-	p            *assistantProc
-	key          string // what the persona MCP server reports as its session until the thread exists (resolveAssistantKey)
-	memDir       string // the assistant's memory, shared with Claude (codexMemoryPrompt)
-	nextID       int64
-	writeMessage func([]byte) error
-	ended        <-chan struct{}
-	onMessage    func(codexMessage)
+	n      *Node
+	p      *assistantProc
+	key    string // what the persona MCP server reports as its session until the thread exists (resolveAssistantKey)
+	memDir string // the assistant's memory, shared with Claude (codexMemoryPrompt)
 	// nameGates tells the gate proxy the thread's id once there is one: the process's addresses were opened before it
 	// (assistantLarkEnvNamed). nil when the id was known at the start.
-	nameGates func(id string)
+	nameGates     func(id string)
+	transport     *appserver.Wire
+	transportOnce sync.Once
 
 	mu                  sync.Mutex
-	pending             map[int64]chan codexReply
 	asks                map[string]context.CancelFunc // server request id → the phone question waiting for it
 	turnID              string                        // the turn running, "" when idle
 	files               map[string][]string           // fileChange item id → paths, for the approval card
-	closed              bool
 	threadID            string
 	speedModel          string
 	serviceTier         string
 	serviceTierRevision uint64
-	models              map[string]codexModelEfforts
+	models              map[string]codex.ModelEfforts
 	loop                codexCompactionLoop // the running turn's compactions that made no room (#10278)
-}
-
-type codexReply struct {
-	Result json.RawMessage
-	Err    *codexError
-}
-
-type codexError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e *codexError) Error() string { return fmt.Sprintf("codex: %s (%d)", e.Message, e.Code) }
-
-// codexMessage is any line from the app-server: a response (id + result / error), a notification (method + params)
-// or a request to us (id + method + params).
-type codexMessage struct {
-	ID     json.RawMessage `json:"id"`
-	Method string          `json:"method"`
-	Params json.RawMessage `json:"params"`
-	Result json.RawMessage `json:"result"`
-	Error  *codexError     `json:"error"`
-}
-
-func (c *codexConn) send(v any) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	if c.writeMessage != nil {
-		return c.writeMessage(b)
-	}
-	return c.p.write(b)
-}
-
-// call sends a request and waits for its response (or the process ending, or ctx).
-func (c *codexConn) call(ctx context.Context, method string, params any, out any) error {
-	c.mu.Lock()
-	if c.closed {
-		c.mu.Unlock()
-		return errors.New("codex app-server exited")
-	}
-	c.nextID++
-	id := c.nextID
-	ch := make(chan codexReply, 1)
-	c.pending[id] = ch
-	c.mu.Unlock()
-	defer func() {
-		c.mu.Lock()
-		delete(c.pending, id)
-		c.mu.Unlock()
-	}()
-	if err := c.send(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params}); err != nil {
-		return err
-	}
-	ended := c.ended
-	if ended == nil {
-		ended = c.p.exited
-	}
-	select {
-	case r := <-ch:
-		if r.Err != nil {
-			return r.Err
-		}
-		if out != nil && len(r.Result) > 0 {
-			return json.Unmarshal(r.Result, out)
-		}
-		return nil
-	case <-ended:
-		return errors.New("codex app-server exited")
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-func (c *codexConn) reply(id json.RawMessage, result any) {
-	_ = c.send(map[string]any{"jsonrpc": "2.0", "id": id, "result": result})
-}
-
-func (c *codexConn) replyError(id json.RawMessage, code int, msg string) {
-	_ = c.send(map[string]any{"jsonrpc": "2.0", "id": id, "error": map[string]any{"code": code, "message": msg}})
 }
 
 func (c *codexConn) turn() string {
@@ -163,4 +82,30 @@ func (n *Node) resolveAssistantKey(id string) string {
 		return p.id
 	}
 	return id
+}
+
+func (c *codexConn) rpcWire() *appserver.Wire {
+	c.transportOnce.Do(func() {
+		if c.transport == nil {
+			c.transport = c.n.codexClient().Bind(c.p.write, c.p.exited, func(m codexMessage) {
+				if m.Method != "" && len(m.ID) > 0 {
+					go c.serve(m)
+				} else if m.Method != "" {
+					c.notification(m.Method, m.Params)
+				}
+			})
+		}
+	})
+	return c.transport
+}
+
+func (c *codexConn) send(v any) error { return c.rpcWire().Send(v) }
+
+func (c *codexConn) call(ctx context.Context, method string, params any, out any) error {
+	return c.rpcWire().Call(ctx, method, params, out)
+}
+
+func (c *codexConn) reply(id json.RawMessage, result any) { c.rpcWire().Reply(id, result) }
+func (c *codexConn) replyError(id json.RawMessage, code int, msg string) {
+	c.rpcWire().ReplyError(id, code, msg)
 }

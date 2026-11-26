@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,7 +43,7 @@ func scanOpenRollouts(processes []codexProcess) (map[int][]string, bool) {
 			}
 			for _, e := range entries {
 				path, err := os.Readlink("/proc/" + pid + "/fd/" + e.Name())
-				if err == nil && rolloutIDRe.MatchString(path) {
+				if err == nil && codex.RolloutID(path) != "" {
 					id, _ := strconv.Atoi(pid)
 					out[id] = append(out[id], path)
 				}
@@ -63,7 +64,7 @@ func scanOpenRollouts(processes []codexProcess) (map[int][]string, bool) {
 		}
 		if pid > 0 && strings.HasPrefix(line, "n") {
 			path := line[1:]
-			if filepath.IsAbs(path) && rolloutIDRe.MatchString(path) {
+			if filepath.IsAbs(path) && codex.RolloutID(path) != "" {
 				out[pid] = append(out[pid], path)
 			}
 		}

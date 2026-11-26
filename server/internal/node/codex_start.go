@@ -425,7 +425,7 @@ func (n *Node) waitCodexThread(ctx context.Context, pane, cwd, prompt string, be
 		}
 		for _, home := range homes {
 			for _, r := range rollouts(home) {
-				if (r.cwd != cwd && r.cwd != resolved) || r.mtime.Before(began.Add(-time.Second)) {
+				if (r.Cwd != cwd && r.Cwd != resolved) || r.mtime.Before(began.Add(-time.Second)) {
 					continue
 				}
 				// A thread begun by this launch (not one resumed in the same directory) whose first message is ours.

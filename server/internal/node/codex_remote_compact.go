@@ -36,7 +36,7 @@ func (n *Node) compactCodex(ctx context.Context, id string) error {
 		var reply struct {
 			Thread remoteThreadData `json:"thread"`
 		}
-		if err := c.wire.call(ctx, "thread/read", map[string]any{"threadId": t.id, "includeTurns": false}, &reply); err != nil {
+		if err := c.wire.Call(ctx, "thread/read", map[string]any{"threadId": t.id, "includeTurns": false}, &reply); err != nil {
 			return refusal("codex_read_only", "没能读到会话在 app-server 上的状态，没有压缩："+err.Error(), nil)
 		}
 		busy = reply.Thread.Status.Type == "active"
@@ -44,7 +44,7 @@ func (n *Node) compactCodex(ctx context.Context, id string) error {
 	if busy {
 		return refusal("codex_compact_busy", "Codex 正在运行这一轮，等它结束再压缩；这次什么都没发", nil)
 	}
-	err = c.wire.call(ctx, "thread/compact/start", map[string]any{"threadId": t.id}, nil)
+	err = c.wire.Call(ctx, "thread/compact/start", map[string]any{"threadId": t.id}, nil)
 	var re *codexError
 	if errors.As(err, &re) {
 		if re.Code == -32601 || re.Code == -32602 { // an app-server without it, or that does not take it for this thread

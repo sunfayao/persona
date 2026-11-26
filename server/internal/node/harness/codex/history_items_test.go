@@ -1,10 +1,11 @@
-package node
+package codex
 
 import "testing"
 
 // The App's command line loses the login shell around it as a rollout's argv does, the command unquoted as a POSIX shell
 // would; a command line that is not one shell word after the flag is kept whole.
 func TestCodexShellArgv(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string]string{
 		`/bin/bash -lc 'git status'`:              `git status`,
 		`/bin/zsh -lc 'echo '\''hi'\'''`:          `echo 'hi'`,
@@ -21,7 +22,7 @@ func TestCodexShellArgv(t *testing.T) {
 		`ssh -c aes256-ctr`:                  `ssh -c aes256-ctr`,
 		`/opt/homebrew/bin/fish -c 'ls'`:     `ls`,
 	} {
-		argv := codexShellArgv(in)
+		argv := shellArgv(in)
 		if got := argv[len(argv)-1]; got != want {
 			t.Errorf("codexShellArgv(%q) = %q, want last %q", in, argv, want)
 		}

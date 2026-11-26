@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -26,7 +27,7 @@ func TestCodexAppChatModelAndEffortFromTheAppsDatabase(t *testing.T) {
 			writeCodexApp(t, home, project, c.schema+codexAppRow(appChat, "", project, "Alpha chat", time.Now(), 0)+c.set)
 			n := remoteTestNode(t)
 			n.configureCodex(proto.CodexConfig{Homes: []string{home}})
-			withCodexAppModels(t, canonicalCodexHome(home, n.home), map[string]codexModelEfforts{"gpt-x": {levels: []string{"low", "ultra"}}})
+			withCodexAppModels(t, codex.CanonicalHome(home, n.home), map[string]codex.ModelEfforts{"gpt-x": {Levels: []string{"low", "ultra"}}})
 			var chat proto.Session
 			for _, s := range n.codexSessions(map[string]bool{}) {
 				if s.SourceThreadID == appChat {
@@ -48,7 +49,7 @@ func TestCodexAppChatEffortOrder(t *testing.T) {
 	n, id, _, _ := appEffortChat(t) // its last turn: gpt-x at high
 	src, _ := n.codexSource(id)
 	codexAppDBs.Lock()
-	db := &codexAppDB{at: time.Now(), byID: map[string]codexAppThread{appChat: {ID: appChat, Model: "gpt-db", Effort: "low"}}}
+	db := &codexAppDB{at: time.Now(), byID: map[string]codex.AppThread{appChat: {ID: appChat, Model: "gpt-db", Effort: "low"}}}
 	codexAppDBs.byHome[src.home] = db
 	codexAppDBs.Unlock()
 	t.Cleanup(func() {

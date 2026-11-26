@@ -1,8 +1,6 @@
 package node
 
 import (
-	"bufio"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,8 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/filemeta"
 	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 )
 
 // Codex support: herdr reports Codex panes as agent "codex"; their conversations are rollouts under
@@ -32,15 +31,7 @@ type codexRollout struct {
 	id    string
 	path  string
 	mtime time.Time
-	rolloutMeta
-}
-
-// rolloutMeta is what a rollout's first line (session_meta) says about its thread.
-type rolloutMeta struct {
-	threadID string
-	cwd      string
-	sub      bool   // a subagent: thread_source "subagent", or a source of {"subagent": …}
-	root     string // the conversation a subagent belongs to (session_id, else parent_thread_id); "" when not given
+	codex.RolloutMeta
 }
 
 // rolloutCache is one rollout home's scan (Codex: ~/.codex, a compatible CLI: the CLI-specific data directory — the same layout).
@@ -63,8 +54,8 @@ type rolloutCache struct {
 	// again only when a directory changes.
 	recentNames string
 	recentStamp []int64
-	relistedAt  time.Time              // when the look of the last relistMisses was taken
-	metas       map[string]rolloutMeta // path → its session_meta (never changes once written); gone paths leave it once a minute
+	relistedAt  time.Time                    // when the look of the last relistMisses was taken
+	metas       map[string]codex.RolloutMeta // path → its session_meta (never changes once written); gone paths leave it once a minute
 	titles      map[string]string
 	former      map[string][]string // id → the names session_index.jsonl gave the thread before its latest (a rename)
 	titlesAt    time.Time
@@ -75,52 +66,10 @@ var rolloutCaches = struct {
 	byHome map[string]*rolloutCache
 }{byHome: map[string]*rolloutCache{}}
 
-var rolloutIDRe = lazyre.New(`([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})*\.jsonl$`)
-
 // rolloutFile is a rollout's path and the thread id its name ends in.
 type rolloutFile struct {
 	path string
 	id   string
-}
-
-// rolloutID is a rollout filename's thread UUID, before any _<segment UUID> suffix, or empty when absent:
-// what rolloutIDRe captures, without a regular expression. rollouts reads it for every rollout on disk once a minute,
-// where rolloutIDRe took most of each refresh's CPU time.
-func rolloutID(path string) string {
-	const ext, idLen = ".jsonl", 36
-	if len(path) < idLen+len(ext) || !strings.HasSuffix(path, ext) {
-		return ""
-	}
-	end := len(path) - len(ext)
-	start := end - idLen
-	if !rolloutUUID(path[start:end]) {
-		return ""
-	}
-	for start >= idLen+1 && path[start-1] == '_' && rolloutUUID(path[start-idLen-1:start-1]) {
-		end, start = start-1, start-idLen-1
-	}
-	return path[start:end]
-}
-
-func rolloutUUID(id string) bool {
-	const idLen = 36
-	if len(id) != idLen {
-		return false
-	}
-	for i := range idLen {
-		c := id[i]
-		switch i {
-		case 8, 13, 18, 23:
-			if c != '-' {
-				return false
-			}
-		default:
-			if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F') {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 func (n *Node) codexHome() string {
@@ -146,7 +95,7 @@ func (n *Node) codexTitle(id string) string {
 func cacheFor(home string) *rolloutCache {
 	c := rolloutCaches.byHome[home]
 	if c == nil {
-		c = &rolloutCache{metas: map[string]rolloutMeta{}}
+		c = &rolloutCache{metas: map[string]codex.RolloutMeta{}}
 		rolloutCaches.byHome[home] = c
 	}
 	return c
@@ -173,7 +122,7 @@ func rollouts(home string) []codexRollout {
 		recent[dir] = true
 		paths, _ := filepath.Glob(filepath.Join(dir, "rollout-*.jsonl"))
 		for _, p := range paths {
-			if id := rolloutID(p); id != "" {
+			if id := codex.RolloutID(p); id != "" {
 				files = append(files, rolloutFile{path: p, id: id})
 			}
 		}
@@ -185,7 +134,7 @@ func rollouts(home string) []codexRollout {
 		all = append(all, archived...)
 		c.older = c.older[:0]
 		for _, p := range all {
-			if id := rolloutID(p); id != "" && !recent[filepath.Dir(p)] {
+			if id := codex.RolloutID(p); id != "" && !recent[filepath.Dir(p)] {
 				c.older = append(c.older, rolloutFile{path: p, id: id})
 			}
 		}
@@ -202,17 +151,17 @@ func rollouts(home string) []codexRollout {
 			continue
 		}
 		meta, ok := c.metas[f.path]
-		if !ok || meta.threadID == "" { // a first line still being written must not stay cached as missing
+		if !ok || meta.ThreadID == "" { // a first line still being written must not stay cached as missing
 			var whole bool
-			if meta, whole = readRolloutMeta(f.path); whole {
+			if meta, whole = codex.ReadRolloutMeta(f.path); whole {
 				c.metas[f.path] = meta
 			}
 		}
-		id := firstNonEmpty(meta.threadID, f.id)
-		if meta.threadID == "" && !strings.HasSuffix(f.path, f.id+".jsonl") {
+		id := firstNonEmpty(meta.ThreadID, f.id)
+		if meta.ThreadID == "" && !strings.HasSuffix(f.path, f.id+".jsonl") {
 			continue // an ambiguous continuation header is still being written
 		}
-		out = append(out, codexRollout{id: id, path: f.path, mtime: st.ModTime(), rolloutMeta: meta})
+		out = append(out, codexRollout{id: id, path: f.path, mtime: st.ModTime(), RolloutMeta: meta})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].mtime.Equal(out[j].mtime) {
@@ -246,18 +195,10 @@ func rolloutSegments(home string) []codexRollout {
 	return slices.Clone(cacheFor(home).segments)
 }
 
-// allRolloutPaths is every rollout file of a home on disk, whenever it was written, archived ones too: what a token
-// usage backfill reaching further back than rollouts' two weeks reads.
-func allRolloutPaths(home string) []string {
-	paths, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
-	archived, _ := filepath.Glob(filepath.Join(home, "archived_sessions", "rollout-*.jsonl"))
-	return append(paths, archived...)
-}
-
 // pruneMetas keeps the session_meta of the rollouts just listed (recent and older), so a deleted or moved rollout
 // does not stay for the life of the node. Into a new map: deleting from a map never gives its memory back.
 func (c *rolloutCache) pruneMetas(recent []rolloutFile) {
-	metas := make(map[string]rolloutMeta, min(len(c.metas), len(recent)+len(c.older)))
+	metas := make(map[string]codex.RolloutMeta, min(len(c.metas), len(recent)+len(c.older)))
 	for _, list := range [][]rolloutFile{recent, c.older} {
 		for _, f := range list {
 			if m, ok := c.metas[f.path]; ok {
@@ -268,61 +209,16 @@ func (c *rolloutCache) pruneMetas(recent []rolloutFile) {
 	c.metas = metas
 }
 
-// readRolloutMeta reads a rollout's first line (session_meta, tens of KB of instructions); whole says that line was all
-// written, and only then is what it says worth keeping. Codex 0.167 creates the file empty and writes the line 8–19 ms
-// later: a meta read in between and kept left the thread without a directory for good, and a start in that directory
-// never found its thread (#2351).
-func readRolloutMeta(path string) (m rolloutMeta, whole bool) {
-	f, err := os.Open(path)
-	if err != nil {
-		return rolloutMeta{}, false
-	}
-	defer f.Close()
-	r := bufio.NewReaderSize(f, 256<<10)
-	line, err := r.ReadBytes('\n')
-	whole = err == nil
-	var l struct {
-		Type    string `json:"type"`
-		Payload struct {
-			ID           string          `json:"id"`
-			Cwd          string          `json:"cwd"`
-			SessionID    string          `json:"session_id"`
-			ParentThread string          `json:"parent_thread_id"`
-			ThreadSource string          `json:"thread_source"`
-			Source       json.RawMessage `json:"source"`
-		} `json:"payload"`
-	}
-	if json.Unmarshal(line, &l) != nil || l.Type != "session_meta" {
-		return rolloutMeta{}, whole
-	}
-	p := l.Payload
-	m = rolloutMeta{cwd: p.Cwd}
-	if rolloutUUID(p.ID) {
-		m.threadID = p.ID
-	}
-	var source map[string]json.RawMessage
-	m.sub = p.ThreadSource == "subagent" || (json.Unmarshal(p.Source, &source) == nil && source["subagent"] != nil)
-	if m.sub {
-		for _, id := range []string{p.SessionID, p.ParentThread} {
-			if id != "" && id != p.ID {
-				m.root = id
-				break
-			}
-		}
-	}
-	return m, whole
-}
-
 // metaOf is a rollout's session_meta, read once it is all written (rollouts older than the scan window are read on
 // demand).
-func metaOf(home, path string) rolloutMeta {
+func metaOf(home, path string) codex.RolloutMeta {
 	rolloutCaches.Lock()
 	m, ok := cacheFor(home).metas[path]
 	rolloutCaches.Unlock()
-	if ok && m.threadID != "" {
+	if ok && m.ThreadID != "" {
 		return m
 	}
-	m, whole := readRolloutMeta(path)
+	m, whole := codex.ReadRolloutMeta(path)
 	if whole {
 		rolloutCaches.Lock()
 		cacheFor(home).metas[path] = m
@@ -333,10 +229,10 @@ func metaOf(home, path string) rolloutMeta {
 
 // rolloutThreadID uses the header as the authority; the filename is a fallback while a header is incomplete.
 func rolloutThreadID(home, path string) string {
-	if id := metaOf(home, path).threadID; id != "" {
+	if id := metaOf(home, path).ThreadID; id != "" {
 		return id
 	}
-	if id := rolloutID(path); id != "" && strings.HasSuffix(path, id+".jsonl") {
+	if id := codex.RolloutID(path); id != "" && strings.HasSuffix(path, id+".jsonl") {
 		return id
 	}
 	return ""
@@ -348,8 +244,8 @@ func mainThread(home, id string) string {
 	if p == "" {
 		return id
 	}
-	if m := metaOf(home, p); m.sub && m.root != "" && rolloutPath(home, m.root) != "" {
-		return m.root
+	if m := metaOf(home, p); m.Subagent && m.Root != "" && rolloutPath(home, m.Root) != "" {
+		return m.Root
 	}
 	return id
 }
@@ -388,13 +284,13 @@ func rolloutPathIn(home, id string, pass *codexListPass) string {
 		}
 		if len(matches) > 0 {
 			if slices.Equal(hit.stamp, look.stamp) {
-				return newestFirst(matches)[0]
+				return filemeta.NewestFirst(matches)[0]
 			}
 			// Another thread's recent rollout does not invalidate this one. A name for this thread may be its move or
 			// continuation: look across history again, as the original lookup did.
 			if !strings.Contains(look.recentNames(), "-"+id) {
 				look.keepHit(id, matches)
-				return newestFirst(matches)[0]
+				return filemeta.NewestFirst(matches)[0]
 			}
 		}
 	}
@@ -422,7 +318,7 @@ func rolloutPathIn(home, id string, pass *codexListPass) string {
 		return ""
 	}
 	look.keepHit(id, matches)
-	return newestFirst(matches)[0]
+	return filemeta.NewestFirst(matches)[0]
 }
 
 // rolloutMatches revalidates cached paths without holding rolloutCaches' lock: rolloutThreadID's metadata cache takes
@@ -656,7 +552,7 @@ func (n *Node) codexSession(a host.Agent, taken map[string]host.Agent) string {
 	home := n.codexPaneHome(a.PaneID)
 	for _, r := range rollouts(home) {
 		id := n.codexPublicID(home, r.id)
-		if _, used := taken[id]; !used && !r.sub && r.cwd != "" && (r.cwd == cwd || r.cwd == a.Cwd) {
+		if _, used := taken[id]; !used && !r.Subagent && r.Cwd != "" && (r.Cwd == cwd || r.Cwd == a.Cwd) {
 			return id
 		}
 	}
@@ -692,7 +588,7 @@ func (n *Node) codexByTitle(a host.Agent, prefer string, taken map[string]host.A
 	matches := 0
 	for _, id := range threadsNamed(home, match) {
 		p := rolloutPath(home, id)
-		if p != "" && metaOf(home, p).sub {
+		if p != "" && metaOf(home, p).Subagent {
 			continue // a pane shows its conversation, never a subagent's thread
 		}
 		matches++
@@ -763,26 +659,8 @@ func threadTitles(home string) map[string]string {
 	}
 	c := cacheFor(home)
 	if c.titles == nil || st.ModTime().After(c.titlesAt) {
-		titles, former := map[string]string{}, map[string][]string{}
-		if f, err := os.Open(path); err == nil {
-			sc := bufio.NewScanner(f)
-			sc.Buffer(make([]byte, 64<<10), 1<<20)
-			for sc.Scan() {
-				var e struct {
-					ID   string `json:"id"`
-					Name string `json:"thread_name"`
-				}
-				if json.Unmarshal(sc.Bytes(), &e) == nil && e.ID != "" && strings.TrimSpace(e.Name) != "" {
-					name := strings.TrimSpace(e.Name)
-					if last, ok := titles[e.ID]; ok && last != name {
-						former[e.ID] = append(former[e.ID], last)
-					}
-					titles[e.ID] = name
-				}
-			}
-			f.Close()
-		}
-		c.titles, c.former, c.titlesAt = titles, former, st.ModTime()
+		c.titles, c.former = codex.ReadThreadTitles(path)
+		c.titlesAt = st.ModTime()
 	}
 	return c.titles
 }

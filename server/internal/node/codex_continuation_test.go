@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -36,7 +37,7 @@ func TestCodexContinuationHasOneIdentityAndCurrentTranscript(t *testing.T) {
 	n := remoteTestNode(t)
 	now := time.Now()
 	writeRollout(t, n.home, remoteRaw, "/project", now, now.Add(-time.Hour))
-	home := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home) // the default home, as the node spells it
+	home := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home) // the default home, as the node spells it
 	original := rolloutPath(home, remoteRaw)
 	old, err := os.ReadFile(original)
 	if err != nil {
@@ -135,7 +136,7 @@ func TestCodexContinuationWaitsForHeaderAndKeepsRealSubagents(t *testing.T) {
 		t.Fatalf("real subagent collapsed: %+v", got)
 	}
 	for _, r := range got {
-		if r.id == remoteOther && (!r.sub || r.root != remoteRaw) {
+		if r.id == remoteOther && (!r.Subagent || r.Root != remoteRaw) {
 			t.Fatalf("subagent metadata lost: %+v", r)
 		}
 	}
@@ -147,7 +148,7 @@ func TestOldCodexContinuationLookup(t *testing.T) {
 		base := t.TempDir()
 		old := time.Now().Add(-2 * codexWindow)
 		writeRollout(t, base, remoteRaw, "/project", old, old)
-		home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home) // as the node spells it
+		home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home) // as the node spells it
 		original := rolloutPath(home, remoteRaw)
 		path := strings.TrimSuffix(original, ".jsonl") + "_" + continuationSegment + ".jsonl"
 		if archived {
@@ -166,7 +167,7 @@ func TestOldCodexContinuationLookup(t *testing.T) {
 		}
 		expireRollouts(home, true)
 		n.configureCodex(proto.CodexConfig{Homes: []string{home}})
-		id := codexSourceID(home, remoteRaw, n.codexInventory().LegacyHome)
+		id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 		if got := n.oldCodexTranscript(id); got != path {
 			t.Fatalf("old continuation lookup: %q, want %q", got, path)
 		}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -62,7 +63,7 @@ func (c *codexRemote) observeUpdateThreads(ctx context.Context) (updateCodexObse
 		var response struct {
 			Thread remoteThreadData `json:"thread"`
 		}
-		if err := c.wire.call(ctx, "thread/read", map[string]any{"threadId": id, "includeTurns": true}, &response); err != nil {
+		if err := c.wire.Call(ctx, "thread/read", map[string]any{"threadId": id, "includeTurns": true}, &response); err != nil {
 			return out, fmt.Errorf("loaded thread activity unavailable: %w", err)
 		}
 		d := response.Thread
@@ -130,7 +131,7 @@ func (c *codexRemote) observeUpdateThreads(ctx context.Context) (updateCodexObse
 
 // Both a Node-owned stdio connection and a shared app-server use this same
 // read-only RPC. A nil cache or omitted data is never an empty terminal list.
-func observeUpdateBackground(ctx context.Context, wire *codexConn, thread string) (int, string, error) {
+func observeUpdateBackground(ctx context.Context, wire *appserver.Wire, thread string) (int, string, error) {
 	items := []json.RawMessage{}
 	processes, cursors := map[string]bool{}, map[string]bool{}
 	cursor := ""
@@ -143,7 +144,7 @@ func observeUpdateBackground(ctx context.Context, wire *codexConn, thread string
 		if cursor != "" {
 			args["cursor"] = cursor
 		}
-		if err := wire.call(ctx, "thread/backgroundTerminals/list", args, &response); err != nil {
+		if err := wire.Call(ctx, "thread/backgroundTerminals/list", args, &response); err != nil {
 			return 0, "", fmt.Errorf("fresh background terminal inventory unavailable: %w", err)
 		}
 		if response.Data == nil {
@@ -191,7 +192,7 @@ func (c *codexRemote) loadedForUpdate(ctx context.Context) ([]string, error) {
 		if cursor != "" {
 			args["cursor"] = cursor
 		}
-		if err := c.wire.call(ctx, "thread/loaded/list", args, &page); err != nil {
+		if err := c.wire.Call(ctx, "thread/loaded/list", args, &page); err != nil {
 			return nil, err
 		}
 		if page.Data == nil {

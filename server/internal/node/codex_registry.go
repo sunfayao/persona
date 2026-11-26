@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
-
 	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/nwverse/persona/server/internal/node/harness/codex"
+	"github.com/nwverse/persona/server/internal/node/harness/codex/appserver"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -48,26 +48,6 @@ func newCodexRegistry() *codexRegistry {
 	return &codexRegistry{threads: map[string]codexSource{}, remotes: map[string]*codexRemote{}, scan: scanCodexProcesses, checked: scanCodexProcessesChecked, kick: make(chan struct{}, 1)}
 }
 
-// canonicalCodexHome is home absolute, with its links resolved as far as it exists: a home that does not exist yet
-// (Codex not used yet when the node starts) canonicalizes the same as it will once it does, so LegacyHome, fixed on
-// the first configure, still equals that home in Homes later under a linked ancestor (macOS's /var, a linked /home).
-func canonicalCodexHome(home, base string) string {
-	p := proto.ExpandHome(home, base)
-	if !filepath.IsAbs(p) {
-		return ""
-	}
-	return realPath(filepath.Clean(p))
-}
-
-func codexSourceID(home, raw, legacy string) string {
-	if home == legacy {
-		return raw
-	}
-	h := sha256.Sum256([]byte(compat.CodexHashPrefix() + home + "\x00" + raw))
-	// The reserved shape cannot collide with a raw UUID and still satisfies validID.
-	return "c0de-" + hex.EncodeToString(h[:16])
-}
-
 func (n *Node) configureCodex(c proto.CodexConfig) {
 	if n.sessionScope != nil {
 		discovery := false
@@ -89,19 +69,19 @@ func (n *Node) configureCodex(c proto.CodexConfig) {
 		r.config.Discovery = &v
 	}
 	if c.LegacyHome != "" && len(r.threads) == 0 {
-		r.config.LegacyHome = canonicalCodexHome(c.LegacyHome, n.home)
+		r.config.LegacyHome = codex.CanonicalHome(c.LegacyHome, n.home)
 	}
 	if r.config.LegacyHome == "" {
-		r.config.LegacyHome = canonicalCodexHome(firstNonEmpty(c.LegacyHome, n.codexHome()), n.home)
+		r.config.LegacyHome = codex.CanonicalHome(firstNonEmpty(c.LegacyHome, n.codexHome()), n.home)
 	}
 	for _, home := range append(c.Homes, n.codexHome()) {
-		p := canonicalCodexHome(home, n.home)
+		p := codex.CanonicalHome(home, n.home)
 		if p != "" && !slices.Contains(r.config.Homes, p) {
 			r.config.Homes = append(r.config.Homes, p)
 		}
 	}
 	for _, s := range c.Servers {
-		s.Home = canonicalCodexHome(s.Home, n.home)
+		s.Home = codex.CanonicalHome(s.Home, n.home)
 		if s.ID == "" || s.Home == "" || s.Endpoint == "" {
 			continue
 		}
@@ -186,7 +166,7 @@ func (n *Node) registerCodex(home, thread, path string) string {
 	if n.codices == nil || !validID(thread) {
 		return ""
 	}
-	return n.registerCanonicalCodex(canonicalCodexHome(home, n.home), thread, path)
+	return n.registerCanonicalCodex(codex.CanonicalHome(home, n.home), thread, path)
 }
 
 // registerCanonicalCodex is registerCodex for a home canonicalCodexHome already resolved: the loops that register every
@@ -204,7 +184,7 @@ func (n *Node) registerCanonicalCodex(home, thread, path string) string {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	id := codexSourceID(home, thread, r.config.LegacyHome)
+	id := codex.SourceID(home, thread, r.config.LegacyHome)
 	old := r.threads[id]
 	if path == "" {
 		path = old.path
@@ -282,7 +262,7 @@ func (n *Node) discoverCodex() {
 			if p.endpoint != "" {
 				holder = codexHolderAppServer
 			}
-			home := canonicalCodexHome(firstNonEmpty(p.home, n.codexHome()), n.home)
+			home := codex.CanonicalHome(firstNonEmpty(p.home, n.codexHome()), n.home)
 			for _, path := range paths {
 				if !pathWithin(path, home) { // Windows paths do not tell case apart (codex_desktop.go)
 					continue
@@ -299,7 +279,7 @@ func (n *Node) discoverCodex() {
 	r.mu.Unlock()
 	byPane := map[string]string{}
 	for _, p := range found {
-		home := canonicalCodexHome(firstNonEmpty(p.home, n.codexHome()), n.home)
+		home := codex.CanonicalHome(firstNonEmpty(p.home, n.codexHome()), n.home)
 		if home == "" {
 			continue
 		}
@@ -333,7 +313,7 @@ func (n *Node) discoverCodex() {
 	for _, home := range cfg.Homes {
 		socket := filepath.Join(home, "app-server-control", "app-server-control.sock")
 		// 0.163's socket is an alias to one in a shared private directory (codexSocketPath).
-		if p, err := codexSocketPath(socket); err != nil {
+		if p, err := appserver.SocketPath(socket); err != nil {
 			continue
 		} else if st, err := os.Lstat(p); err == nil && st.Mode()&os.ModeSocket != 0 {
 			endpoint := "unix://" + socket
@@ -397,7 +377,7 @@ func (n *Node) registerRollouts(home string) {
 	if len(list) == 0 {
 		return
 	}
-	canonical := canonicalCodexHome(home, n.home)
+	canonical := codex.CanonicalHome(home, n.home)
 	for _, f := range list {
 		n.registerCanonicalCodex(canonical, f.id, f.path)
 	}
@@ -453,7 +433,7 @@ type codexListPass struct {
 	runtimes map[string]codexClaim
 	// paginated is codexPaginatedThreads by Codex home: each call globs the home for the App's databases and stats
 	// them, which every row's codexAppHistoryPath did (#5970).
-	paginated map[string]map[string]codexAppThread
+	paginated map[string]map[string]codex.AppThread
 	// apps is loadCodexAppState by Codex home: every App row asked for it twice, and each ask globbed the home for the
 	// App's state database first, 1,100 globs a second with 550 rows.
 	apps map[string]*codexAppState
@@ -476,7 +456,7 @@ type codexStat struct {
 
 func newCodexListPass() *codexListPass {
 	return &codexListPass{real: map[string]string{}, stats: map[string]codexStat{}, desktop: map[string]bool{},
-		paginated: map[string]map[string]codexAppThread{}, apps: map[string]*codexAppState{}, looks: map[string]*missLook{}}
+		paginated: map[string]map[string]codex.AppThread{}, apps: map[string]*codexAppState{}, looks: map[string]*missLook{}}
 }
 
 func (p *codexListPass) realPath(dir string) string {
@@ -544,7 +524,7 @@ func (p *codexListPass) missLook(home string) *missLook {
 }
 
 // paginatedThreadOf is codexPaginatedThreadOf with each home's paginated threads looked up once per pass.
-func (p *codexListPass) paginatedThreadOf(src codexSource) (codexAppThread, bool) {
+func (p *codexListPass) paginatedThreadOf(src codexSource) (codex.AppThread, bool) {
 	if p == nil {
 		return codexPaginatedThreadOf(src)
 	}
@@ -614,7 +594,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 		if n.programRun(id, src, pass) {
 			continue
 		}
-		if codexThreadOrigin(src).guardian { // an approval review of a tool call, not an Agent (#5486), its rollout gone too (#8191)
+		if codexThreadOrigin(src).Guardian { // an approval review of a tool call, not an Agent (#5486), its rollout gone too (#8191)
 			continue
 		}
 		if n.agentFiltered("codex", src.path) && !n.keptSessions()[id] { // another platform's runs (agentfilters.go)
@@ -652,7 +632,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 			if !n.sessionScopeAllows(t.Cwd) || identity.IsAssistantDir(t.Cwd) {
 				continue
 			}
-			s.Cwd, s.Title, s.UpdatedAt, s.Rev = t.Cwd, t.Title, t.updated(), t.UpdatedAtMs
+			s.Cwd, s.Title, s.UpdatedAt, s.Rev = t.Cwd, t.Title, t.Updated(), t.UpdatedAtMs
 		}
 		s.AgentName = filepath.Base(src.home)
 		if holder := liveRollouts[id]; holder != "" && heldRecently(m, src.path, pass) {
@@ -683,7 +663,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 				s.AgentName, s.AgentSurface = "Codex App", transcript.SurfaceDesktop
 				n.placeCodexDesktopIn(&s, src, src.thread, false, pass)
 			}
-			s.ParentThreadID = firstNonEmpty(t.parent, readCodexOrigin(src.path).parent)
+			s.ParentThreadID = firstNonEmpty(t.parent, readCodexOrigin(src.path).Parent)
 			if t.title != "" {
 				s.Title = t.title
 			}
@@ -722,13 +702,13 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 				s.ReadOnlyReason = ""
 				n.codexDesktopEffortRow(&s, src, m) // codex_desktop_effort.go
 			}
-		} else if o := codexThreadOrigin(src); o.desktop { // a subagent whose rollout is gone too: its database row (#8191)
-			if o.parent != "" {
-				s.AgentName, s.ParentThreadID, s.AgentSurface = "Codex App", o.parent, transcript.SurfaceDesktop
+		} else if o := codexThreadOrigin(src); o.Desktop { // a subagent whose rollout is gone too: its database row (#8191)
+			if o.Parent != "" {
+				s.AgentName, s.ParentThreadID, s.AgentSurface = "Codex App", o.Parent, transcript.SurfaceDesktop
 				s.ReadOnlyReason = "仅查看：这个子 Agent 由父 Agent 驱动"
-				n.placeCodexDesktopIn(&s, src, o.parent, true, pass)
+				n.placeCodexDesktopIn(&s, src, o.Parent, true, pass)
 			}
-		} else if o.cli {
+		} else if o.CLI {
 			s.AgentName, s.AgentSurface = "Codex CLI", transcript.SurfaceCLI
 		}
 		if claim.session != "" {
@@ -739,7 +719,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 		}
 		n.decorateCodexSessionIn(&s, src, cfg.LegacyHome, projects, pass)
 		if s.IsSubagent && pass != nil && len(pass.runtimes) > 0 {
-			if root := codexThreadOrigin(src).root; pass.runtimeOf(s.ParentThreadID).session != "" || pass.runtimeOf(root).session != "" {
+			if root := codexThreadOrigin(src).Root; pass.runtimeOf(s.ParentThreadID).session != "" || pass.runtimeOf(root).session != "" {
 				adopted = append(adopted, adoption{len(out), s.ParentThreadID, root})
 			}
 		}
@@ -785,7 +765,7 @@ func (n *Node) codexSessionsIn(seen map[string]bool, pass *codexListPass) []prot
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].SessionID < out[j].SessionID })
-	resolveCodexHierarchy(out)
+	codex.ResolveHierarchy(out)
 	slotCodexDesktop(out)
 	return out
 }

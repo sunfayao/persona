@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/nwverse/persona/server/internal/tomltext"
 )
 
 const sampleGrokConfig = `# my grok
@@ -35,7 +37,7 @@ url = "https://example.com/two"
 `
 
 func TestTomlValuesReadsTables(t *testing.T) {
-	v := tomlValues(sampleGrokConfig)
+	v := tomltext.Values(sampleGrokConfig)
 	if v["theme"] != "dark" || v["models.default"] != "grok-old" || v["ui.yolo"] != false {
 		t.Fatalf("%v", v)
 	}
@@ -44,13 +46,13 @@ func TestTomlValuesReadsTables(t *testing.T) {
 			t.Fatalf("%s is not a key of the file's tables: %v", k, v)
 		}
 	}
-	if got := tomlValues("ui.compact_mode = true\n")["ui.compact_mode"]; got != true {
+	if got := tomltext.Values("ui.compact_mode = true\n")["ui.compact_mode"]; got != true {
 		t.Fatalf("a top-level dotted key reads as its table's: %v", got)
 	}
 }
 
 func TestTomlSetDottedReplacesInPlace(t *testing.T) {
-	got, err := tomlSetDotted(sampleGrokConfig, "models.default", "grok-new")
+	got, err := tomltext.SetDotted(sampleGrokConfig, "models.default", "grok-new")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +63,7 @@ func TestTomlSetDottedReplacesInPlace(t *testing.T) {
 }
 
 func TestTomlSetDottedAddsToExistingTable(t *testing.T) {
-	got, err := tomlSetDotted(sampleGrokConfig, "ui.permission_mode", "ask")
+	got, err := tomltext.SetDotted(sampleGrokConfig, "ui.permission_mode", "ask")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,14 +71,14 @@ func TestTomlSetDottedAddsToExistingTable(t *testing.T) {
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
-	if v := tomlValues(got); v["ui.permission_mode"] != "ask" || v["ui.yolo"] != false {
+	if v := tomltext.Values(got); v["ui.permission_mode"] != "ask" || v["ui.yolo"] != false {
 		t.Fatalf("%v", v)
 	}
 }
 
 func TestTomlSetDottedCreatesMissingTable(t *testing.T) {
 	text := "theme = \"dark\"\n\n[[marketplace.sources]]\nurl = \"x\"\n"
-	got, err := tomlSetDotted(text, "ui.compact_mode", true)
+	got, err := tomltext.SetDotted(text, "ui.compact_mode", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +86,7 @@ func TestTomlSetDottedCreatesMissingTable(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 	// A missing file (empty text) gets just the table.
-	got, err = tomlSetDotted("", "models.default", "m")
+	got, err = tomltext.SetDotted("", "models.default", "m")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +97,7 @@ func TestTomlSetDottedCreatesMissingTable(t *testing.T) {
 
 func TestTomlSetDottedRemoves(t *testing.T) {
 	for _, value := range []any{nil, ""} {
-		got, err := tomlSetDotted(sampleGrokConfig, "models.default", value)
+		got, err := tomltext.SetDotted(sampleGrokConfig, "models.default", value)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,22 +106,22 @@ func TestTomlSetDottedRemoves(t *testing.T) {
 			t.Fatalf("got\n%s", got)
 		}
 	}
-	got, err := tomlSetDotted(sampleGrokConfig, "ui.compact_mode", nil)
+	got, err := tomltext.SetDotted(sampleGrokConfig, "ui.compact_mode", nil)
 	if err != nil || got != sampleGrokConfig {
 		t.Fatalf("removing a key that is not there changes nothing: %v\n%s", err, got)
 	}
 }
 
 func TestTomlSetDottedTopLevelAndInline(t *testing.T) {
-	got, err := tomlSetDotted(sampleCodexConfig, "model", "gpt-5.5")
-	if err != nil || got != tomlSet(sampleCodexConfig, "model", "gpt-5.5") {
+	got, err := tomltext.SetDotted(sampleCodexConfig, "model", "gpt-5.5")
+	if err != nil || got != tomltext.Set(sampleCodexConfig, "model", "gpt-5.5") {
 		t.Fatalf("a top-level key goes through tomlSet: %v\n%s", err, got)
 	}
-	got, err = tomlSetDotted("ui.yolo = true\n", "ui.yolo", false)
+	got, err = tomltext.SetDotted("ui.yolo = true\n", "ui.yolo", false)
 	if err != nil || got != "ui.yolo = false\n" {
 		t.Fatalf("a top-level dotted key is replaced in place: %v %q", err, got)
 	}
-	if _, err := tomlSetDotted("ui = { yolo = true }\n", "ui.compact_mode", true); err == nil {
+	if _, err := tomltext.SetDotted("ui = { yolo = true }\n", "ui.compact_mode", true); err == nil {
 		t.Fatal("an inline table must not get a second [ui]")
 	}
 }
@@ -226,14 +228,14 @@ func TestGrokPermissionDetailsSayTheyApproveEverything(t *testing.T) {
 
 func TestTomlQuotedHeaderEndsTheTable(t *testing.T) {
 	in := "[ui]\nyolo = true\n\n[projects.\"/home/me/repo\"]\ntrust_level = \"trusted\"\ncompact_mode = true\n"
-	v := tomlValues(in)
+	v := tomltext.Values(in)
 	if _, ok := v["ui.compact_mode"]; ok {
 		t.Fatalf("a key under a quoted header is not the previous table's: %v", v)
 	}
 	if v["ui.yolo"] != true {
 		t.Fatalf("%v", v)
 	}
-	got, err := tomlSetDotted(in, "ui.compact_mode", false)
+	got, err := tomltext.SetDotted(in, "ui.compact_mode", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,14 +243,14 @@ func TestTomlQuotedHeaderEndsTheTable(t *testing.T) {
 	if got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
-	if got := tomlValues(got)["ui.compact_mode"]; got != false {
+	if got := tomltext.Values(got)["ui.compact_mode"]; got != false {
 		t.Fatalf("read back %v", got)
 	}
 }
 
 func TestTomlSetDottedKeepsDottedKeyTables(t *testing.T) {
 	in := "theme = \"dark\"\nui.yolo = true\nui.note = \"\"\"\nx\n\"\"\"\n\n[models]\ndefault = \"a\"\n"
-	got, err := tomlSetDotted(in, "ui.compact_mode", true)
+	got, err := tomltext.SetDotted(in, "ui.compact_mode", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +260,7 @@ func TestTomlSetDottedKeepsDottedKeyTables(t *testing.T) {
 	}
 
 	in = "[tui]\nui.yolo = true\n"
-	got, err = tomlSetDotted(in, "tui.ui.compact_mode", true)
+	got, err = tomltext.SetDotted(in, "tui.ui.compact_mode", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +307,7 @@ func TestAgentSettingsSavedTogetherKeepEachOther(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		v := tomlValues(string(b))
+		v := tomltext.Values(string(b))
 		for _, k := range keys {
 			if v[k] != want {
 				t.Fatalf("round %d: two saves at once lost %s:\n%s", round, k, b)
