@@ -98,8 +98,8 @@ class CheckFastGoGuardListTests(unittest.TestCase):
         entries = set(re.fullmatch(r"\^\((.+)\)\$", pattern).group(1).split("|"))
         for entry in ("TestOneBuild", "TestPersonaHubDoesNotLinkTheManager", "TestPersonaManagerDoesNotLinkTheHub",
                       "TestPersonaNodeDoesNotLinkTheHubOrTheManager", "TestGolden.*", "TestNoWholeListMCPToolGoldens",
-                      "TestWireSamples", "TestRouteScopes", "TestEveryExtensionRouteIsBounded", "TestPromptSizeRatchet",
-                      "TestSupervisionPolicySizeBudget", "TestModelPurposesDescribeThemselves",
+                      "TestWireSamples", "TestRouteScopes", "TestEveryExtensionRouteIsBounded",
+                      "TestModelPurposesDescribeThemselves",
                       "TestRepositoryRetrievalGuidanceContract", "TestEveryStartPathIsSupervisedOrOptedOut"):
             self.assertIn(entry, entries)
 

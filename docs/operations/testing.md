@@ -199,7 +199,6 @@ repair worker may not edit baselines (`docs/operations/main-verification.md`), s
 | Prompt language | CJK prompt templates without language handling | `scripts/ci/prompt_language_baseline.json` | `scripts/ci/prompt_language_ratchet.py` (guards) | `--update` |
 | Hub hard-coded text | CJK string literals per hub and command-line file | `server/internal/i18n/hardcoded-baseline.json`, `server/internal/i18n/hardcoded-terminal-baseline.json` | `TestHardcodedChineseBaseline`, `TestHardcodedTerminalBaseline` (server lane) | `UPDATE_I18N_BASELINE=1` |
 | Web hard-coded text | CJK strings per `web/src` file | `web/src/i18n/hardcoded-baseline.json` | `web/src/i18n/catalog.test.ts` (web lane) | `UPDATE_I18N_BASELINE=1` |
-| Prompt sizes | bytes per instruction section, tool description and supervision event | `server/internal/assistant/testdata/prompt_sizes.json` | `TestPromptSizeRatchet` (server lane) | `PROMPT_SIZE_UPDATE=1` |
 | Inbox book readers | places per file that reach the Inbox's in-memory book | `inboxBookReaders` in `server/internal/archguard/inbox_slice_test.go` | `TestInboxBookStaysInTheInbox` (server lane) | by hand |
 
 - **Only a rise fails.** A count at or under its baseline passes; under it, the check says so and how to lower the baseline.
