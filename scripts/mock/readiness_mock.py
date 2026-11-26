@@ -127,7 +127,6 @@ def suggestions(lang, mode):
     if mode != "full":
         return out + [{"id": "how_to_connect_model", "title": s("how_to_connect_model"), "local": True}]
     return out + [{"id": "largest_folders", "title": s("largest_folders"), "prompt": s("largest_folders_prompt")},
-                  {"id": "today", "title": s("today"), "prompt": s("today_prompt"), "needs": ["phone_calendar"]},
                   {"id": "connect_mail", "title": s("connect_mail"), "prompt": s("connect_mail_prompt")}]
 
 
