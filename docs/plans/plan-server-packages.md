@@ -106,7 +106,7 @@ Extract leaves before trunks: a domain that nothing else in the root calls into 
 | A4 | `assistant/todo`, then `assistant/inbox` with `feishu` and `channels` | About 45,000 lines |
 | A5 | `assistant/tasks`, `assistant/supervision`, `assistant/conversation` | The core; last, when the smaller domains have left |
 | N1 | `node/engine/orca`, `node/doctor`, `node/preview`, `node/ports` and `node/files` | Done for these five domains. The node wires RPC, workspace policy, and stream transport at the existing entry points. |
-| N2 | Remaining `node/engine/*` and `node/harness/*`, then `node/gates` and the rest of `node/machine` | Extract the shared Screen Sharing and approval or installer seams before moving `node/computeruse`. Keep file writes and watches with the node path policy until their shared mutation workflow has a boundary. |
+| N2 | Remaining `node/engine/*` and `node/harness/*`, then `node/gates` and the rest of `node/machine` | Codex parsing (`node/harness/codex`) and its app-server transport (`node/harness/codex/appserver`, with `tomltext` and `gitworktree`) are done. Codex session start, send, inventory, approvals, modes and stop stay in the root: split the pane, session, writer and notification seams (`newTab`, `bindPane`, `runAgentCommand`, `putAgentState`, `notifyCodex`) before moving them or starting Antigravity. Extract the shared Screen Sharing and approval or installer seams before moving `node/computeruse`. Keep file writes and watches with the node path policy until their shared mutation workflow has a boundary. |
 | N3 | `node/assistantrt`, `node/sessions` | The node's core; last |
 
 Stages of the two roots are independent and can run side by side. After each stage the baseline in `archguard` is
