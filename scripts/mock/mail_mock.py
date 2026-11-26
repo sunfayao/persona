@@ -66,7 +66,6 @@ def load(hub):
         }
 
 
-
 def mail_area(h, method, p, q):
     """The mail paths above (True when it answered)."""
     if p == "/mock/mail" and method == "GET":

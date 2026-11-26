@@ -38,8 +38,6 @@ func (e userError) Unwrap() error { return e.cause }
 
 func userErr(msg string) error { return userError{msg: msg} }
 
-// SetMicrosoftRedirect configures the redirect URI used in Outlook error messages.
-func (s *Service) SetMicrosoftRedirect(redirect string) {
 func (s *Service) microsoftToken(ctx context.Context, form url.Values) (*tokenResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, microsoftTokenURL, strings.NewReader(form.Encode()))
 	if err != nil {

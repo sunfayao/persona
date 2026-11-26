@@ -590,9 +590,12 @@ func TestTaskRoutes(t *testing.T) {
 	if rec.Code != 200 || created.Task.ID == "" || created.Task.SessionID != "" || created.Task.MachineID == "" && h.hello(context.Background()).Assistant.MachineID != "" {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
-	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 200 {
 	if n := len(h.tasksView(context.Background())); n != 3 {
 		t.Fatalf("updating one task leaves the other tasks alone, have %d", n)
+	}
+	if p, _ := taskByID(h, "fu_1"); p.PermissionMode != "acceptEdits" {
+		t.Fatal("and their settings")
+	}
 	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}

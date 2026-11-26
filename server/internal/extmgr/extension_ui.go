@@ -98,7 +98,6 @@ func (ps *extensions) uiPlaces(placement, base string) []UIPlace {
 				continue
 			case placement == "" && u.Placement == "launcher_section":
 				continue // launcher sections are requested by launcher
-				continue // launcher sections are requested with the launcher
 			case placement != "" && u.Placement != placement && !(extension.PageSlot(placement) && extension.PageSlot(u.Placement)):
 				continue
 			case u.Placement == "launcher_section" && (host == "" || (len(u.Hosts) > 0 && !hostMatches(host, u.Hosts)) || !p.Record.Granted.LauncherKeys):

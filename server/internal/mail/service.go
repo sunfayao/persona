@@ -52,7 +52,6 @@ type Service struct {
 	now func() time.Time
 	// imapDial and sendMail are swappable in tests; nil means the real network.
 	imapDial    func(a *MailAccount) (*imapclient.Client, error)
-	msRedirect  string
 	googleProxy *url.URL                // hub.json google.proxy for Gmail traffic (proxy.go), nil = direct
 	googleHTTP  *http.Client            // talks to Google's OAuth and Gmail API endpoints
 	access      map[string]*accessCache // access tokens, by refresh token

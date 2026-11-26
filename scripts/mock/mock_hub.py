@@ -2459,8 +2459,6 @@ RUNS = sorted([
 if os.environ.get("MOCK_SCHEDULE") == "empty":
     SCHEDULE[:], RUNS[:] = [], []
 SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})
-
-
 def task_label(t):
     """What the history calls a task (the hub's Task.label)."""
     if t.get("title"):
@@ -18917,7 +18915,6 @@ if MOCK_BROWSER:
         if _m.get("os") == "darwin":
             _m["browser"] = browser_of(_m["id"], _m["id"] == "macbook")
 
-# The install job's step is in MOCK_LANG (en, ja, zh-Hans). GET /mock/iphone shows pairing state.
 # Every fixture, including machines added by optional modes, follows the engine contract.
 for _m in MACHINES:
     _m["engine"] = "herdr"

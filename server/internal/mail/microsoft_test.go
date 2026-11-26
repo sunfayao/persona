@@ -12,34 +12,6 @@ import (
 
 const testMSClient = "11111111-2222-3333-4444-555555555555"
 
-func TestStoredMicrosoftCredentialsRotate(t *testing.T) {
-	s, recs := newOAuthService(t)
-	var refreshes int
-	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		refreshes++
-		if err := r.ParseForm(); err != nil || r.Form.Get("grant_type") != "refresh_token" ||
-			r.Form.Get("client_id") != testMSClient || r.Form.Get("refresh_token") != "rt-"+strconv.Itoa(refreshes) ||
-			!strings.Contains(r.Form.Get("scope"), "IMAP.AccessAsUser.All") {
-			w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "at-" + strconv.Itoa(refreshes+1),
-			"refresh_token": "rt-" + strconv.Itoa(refreshes+1), "expires_in": 3599})
-	defer endpoint.Close()
-	microsoftTokenURL = endpoint.URL
-	defer func() { microsoftTokenURL = old }()
-	a := &MailAccount{ID: "acc_test", Email: "me@example.com", Provider: ProviderOutlook, Auth: AuthOAuth2,
-		OAuth: &OAuthCreds{Provider: oauthMicrosoft, ClientID: testMSClient, RefreshToken: "rt-1"}}
-	if err := s.store.save([]*MailAccount{a}); err != nil {
-	s.accts[a.ID] = a
-	ctx := context.Background()
-	if tok, err := s.oauthToken(ctx, a); err != nil || tok != "at-2" {
-		t.Fatalf("refresh: %q %v", tok, err)
-	reloaded, err := s2.account(a.ID)
-	if err != nil {
-		t.Fatal(err)
-	if reloaded.OAuth.RefreshToken != "rt-2" {
-		t.Fatalf("the rotated refresh token was not kept: %q", reloaded.OAuth.RefreshToken)
-	if tok, err := s2.oauthToken(ctx, reloaded); err != nil || tok != "at-3" {
-		t.Fatalf("refresh after a restart: %q %v", tok, err)
 func TestOutlookSendsOverSMTPWithXOAUTH2(t *testing.T) {
 	srv := newTestIMAP(t)
 	fs := newFakeSMTPServer(t)

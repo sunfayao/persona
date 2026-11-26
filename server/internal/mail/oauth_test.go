@@ -31,24 +31,53 @@ func TestStoredGoogleCredentialsRefresh(t *testing.T) {
 			r.Form.Get("client_id") != testClientID || r.Form.Get("refresh_token") != "rt-secret" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
-func TestStoredGoogleCredentialRevocation(t *testing.T) {
-	s, _ := newOAuthService(t)
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"invalid_grant"}`))
+		}
 		_, _ = w.Write([]byte(`{"access_token":"at-2","expires_in":3600}`))
 	}))
 	defer endpoint.Close()
-	defer srv.Close()
 	old := googleTokenURL
 	googleTokenURL = endpoint.URL
 	defer func() { googleTokenURL = old }()
 	a := &MailAccount{ID: "acc_test", Email: "me@gmail.com", Provider: ProviderGmail, Auth: AuthOAuth2,
 		OAuth: &OAuthCreds{ClientID: testClientID, RefreshToken: "rt-secret"}}
 	if err := s.store.save([]*MailAccount{a}); err != nil {
-	defer func() { googleTokenURL = old }()
 		t.Fatal(err)
+	}
+	if strings.Contains(recs.dump(), "rt-secret") {
+		t.Fatal("refresh token stored in plain text")
+	}
+	s2, err := New(s.dir, recs)
 	if err != nil {
 		t.Fatal(err)
+	}
+	defer s2.Close()
+	got, err := s2.account(a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tok, err := s2.oauthToken(context.Background(), got); err != nil || tok != "at-2" {
+		t.Fatalf("refreshed token = %q, %v", tok, err)
+	}
+}
+
+func TestStoredGoogleCredentialRevocation(t *testing.T) {
+	s, _ := newOAuthService(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"invalid_grant"}`))
+	}))
+	defer srv.Close()
+	old := googleTokenURL
+	googleTokenURL = srv.URL
+	defer func() { googleTokenURL = old }()
+	// A revoked refresh token asks for a new sign-in.
+	_, err := s.accessToken(context.Background(), "", &OAuthCreds{ClientID: testClientID, RefreshToken: "revoked"})
+	if err == nil || !strings.Contains(err.Error(), "sign in with Google again") {
+		t.Fatalf("revoked: %v", err)
+	}
+	// OAuth accounts cannot be added through the password endpoint.
+	if _, err := s.AddAccount(AddAccountRequest{Email: "me@gmail.com", Auth: AuthOAuth2}); err == nil || statusFor(err) != http.StatusBadRequest {
+		t.Fatalf("add oauth2: %v", err)
 	}
 }
 

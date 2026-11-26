@@ -258,7 +258,6 @@ func (h *Manager) subscriptionRoutes(mux *http.ServeMux) {
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(s)
 	}))
-
 }
 
 // subscriptionChange lets only full-access devices through; the others can read but not change (or dry-run, which

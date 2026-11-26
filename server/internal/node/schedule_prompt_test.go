@@ -169,18 +169,9 @@ func TestScheduledPromptDeliveryThroughNode(t *testing.T) {
 	request(http.MethodGet, "/api/v1/assistant/tasks", nil, &list)
 	index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review example" })
 	if index < 0 || list.Tasks[index].Prompt != followupPrompt || list.Tasks[index].PromptSelections {
-	var followup assistant.Task
-	for _, scheduled := range list.Tasks {
-		if scheduled.Prompt == followupPrompt {
-			followup = scheduled
-			break
-		}
-	}
-	if followup.ID == "" || followup.PromptSelections {
 		t.Fatalf("tool did not save a literal follow-up: %+v", list)
 	}
 	if continued := run(list.Tasks[index].ID); continued != sid {
-	if continued := run(followup.ID); continued != sid {
 		t.Fatalf("follow-up started a new conversation: %q, want %q", continued, sid)
 	}
 	if text := input(3); !strings.Contains(text, followupPrompt) || strings.Contains(text, "file-instructions") {
@@ -406,20 +397,13 @@ func TestScheduledInboxSourceRefusesSelectedFilesWithoutChangingTask(t *testing.
 		rec := call(http.MethodGet, "/api/v1/assistant/tasks", nil)
 		var list struct{ Tasks []assistant.Task }
 		if err := json.Unmarshal(rec.Body.Bytes(), &list); rec.Code != http.StatusOK || err != nil {
-			t.Fatalf("tasks: %d %s (%v)", rec.Code, rec.Body, err)
-		}
-		for _, task := range list.Tasks {
-			if task.SessionID == source.SessionID {
-				return task
-			}
+			t.Fatalf("follow-ups: %d %s (%v)", rec.Code, rec.Body, err)
 		}
 		index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review the fixture" })
 		if index < 0 {
 			t.Fatal("saved follow-up missing")
 		}
 		return list.Tasks[index]
-		t.Fatal("fixture task missing from the schedule")
-		return assistant.Task{}
 	}
 	task := getTask()
 	route := "/api/v1/assistant/tasks/" + task.ID
@@ -543,20 +527,13 @@ func TestScheduledRuntimeSourceRejectsFileSelection(t *testing.T) {
 		w := request(http.MethodGet, "/api/v1/assistant/tasks", nil)
 		var list struct{ Tasks []assistant.Task }
 		if err := json.Unmarshal(w.Body.Bytes(), &list); w.Code != 200 || err != nil {
-			t.Fatalf("tasks: %d %s (%v)", w.Code, w.Body, err)
-		}
-		for _, task := range list.Tasks {
-			if task.SessionID == id {
-				return task
-			}
+			t.Fatalf("follow-ups: %d %s (%v)", w.Code, w.Body, err)
 		}
 		index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review" })
 		if index < 0 {
 			t.Fatal("saved follow-up missing")
 		}
 		return list.Tasks[index]
-		t.Fatal("runtime task missing from the schedule")
-		return assistant.Task{}
 	}
 	task := getTask()
 
