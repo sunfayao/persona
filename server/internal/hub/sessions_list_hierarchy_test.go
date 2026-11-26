@@ -112,9 +112,9 @@ func TestRuntimeListHierarchy(t *testing.T) {
 
 func TestAgentsRootsOmitInactiveCodexDesktopWorkersWithoutTheirParent(t *testing.T) {
 	h, m := hierarchyHub(t)
-	root := proto.Session{SessionID: "independent", Title: "project", Agent: "codex", Status: proto.StatusIdle, State: proto.StateIdle}
+	root := proto.Session{MachineID: "demo", SessionID: "independent", Title: "project", Agent: "codex", Status: proto.StatusIdle, State: proto.StateIdle}
 	worker := proto.Session{
-		SessionID: "worker", Title: "project", Agent: "codex", AgentSurface: "desktop", SourceKind: "codex_history",
+		MachineID: "demo", SessionID: "worker", Title: "project", Agent: "codex", AgentSurface: "desktop", SourceKind: "codex_history",
 		IsSubagent: true, ParentSessionID: "missing", Status: proto.StatusIdle, State: proto.StateIdle,
 	}
 	worker.SetFold("missing", "", "", nil)
