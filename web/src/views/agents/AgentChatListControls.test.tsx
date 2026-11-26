@@ -339,7 +339,9 @@ describe("an associated tab name in the complete Agents list (#7595)", () => {
     expect(plainRow.textContent).toContain("demo › Workspace only");
     expect(plainRow.textContent).not.toContain(t("sidebar.tab_named", { label: "Workspace only" }));
     const associatedRow = host.querySelector<HTMLElement>('a[href="/s/mac/associated"]')!;
-    expect(associatedRow.textContent).toContain(t("sidebar.tab_named", { label: "Release Review" }));
+    expect(associatedRow.textContent?.match(/Release Review/g)).toHaveLength(1);
+    expect(associatedRow.getAttribute("aria-description")).toBe(t("sidebar.tab_named", { label: "Release Review" }));
+    expect(plainRow.hasAttribute("aria-description")).toBe(false);
     expect(associatedRow.textContent).not.toContain("demo › Release Review");
   });
 });

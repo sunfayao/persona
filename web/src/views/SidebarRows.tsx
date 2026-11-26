@@ -332,6 +332,7 @@ export const SessionRow = memo(function SessionRow({ s: row, k, reg, hover, acti
       onFocus={() => hover(k)}
       onBlur={() => hover(null)}
       aria-current={active ? "page" : undefined}
+      aria-description={source === "terminal" && tabIdentity ? tabIdentity : undefined}
       // its mark's name is in the row's tooltip too: the mark steps aside while the row is hovered
       title={`${title}${titleDetail ? `\n${titleDetail}` : ""}${source ? `\n${sourceName(source)}` : ""}${origin ? `\n${openerFrom(origin, openerName)}` : ""}${subtitle ? `\n${subtitle}` : ""}${hint ? `\n${hint}` : ""}${tabIdentity ? `\n${tabIdentity}` : ""}${s.todo ? `\n${t("sidebar.todo_tag", { title: s.todo.title })}` : ""}${preview ? `\n${preview}` : ""}`}
       data-sidebar-session=""
