@@ -826,6 +826,8 @@ A list row found by what is inside it, not by its own name (a Persona chat found
 
 Web secondary actions use a neutral fill and quiet actions pick up their fill on hover. Text and icon buttons give a small press response when motion is enabled. In a touch menu long action names wrap and each row grows to fit. Menus show one state mark per item. Keyboard focus stays visible on every action.
 
+The Machines toolbar chooses its view control by available pane width. A wide pane shows the view segments. Compact panes show the same options in a labeled native picker, with a named plus action on phones.
+
 ### 3.7.1 Switches (web)
 
 - One component: `Switch` in `web/src/ui/atoms.tsx`; the assistant pages' `Switch` (`web/src/views/assistant/parts.tsx`) wraps it and only stops the click from reaching the row under it. Pages never draw their own knob and track.
