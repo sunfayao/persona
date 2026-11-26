@@ -53,15 +53,16 @@ func TestPackageRules(t *testing.T) {
 		}
 	}
 	for pkg, size := range sizes {
-		limit, recorded := baseline.Sizes[pkg]
-		if !recorded {
-			limit = packageSize{Files: maxPackageFiles, Lines: maxPackageLines}
-		}
+		recorded, known := baseline.Sizes[pkg]
+		limit := packageSize{Files: sizeLimit(recorded.Files, maxPackageFiles), Lines: sizeLimit(recorded.Lines, maxPackageLines)}
 		if size.Files > limit.Files || size.Lines > limit.Lines {
-			t.Errorf("%s has %d non-test Go files and %d lines (limit %d files and %d lines); move code out of the package. After a reduction, %s",
+			t.Errorf("%s has %d non-test Go files and %d lines (limit %d files and %d lines); put new code in a package of its own (docs/plans/plan-server-packages.md). After a reduction, %s",
 				pkg, size.Files, size.Lines, limit.Files, limit.Lines, lowerBaseline)
 		}
 		if size.Files > maxPackageFiles || size.Lines > maxPackageLines {
+			if known { // an update only lowers what is recorded
+				size = packageSize{Files: min(size.Files, max(recorded.Files, maxPackageFiles)), Lines: min(size.Lines, max(recorded.Lines, maxPackageLines))}
+			}
 			next.Sizes[pkg] = size
 		}
 	}
@@ -83,6 +84,15 @@ func TestPackageRules(t *testing.T) {
 			t.Errorf("obsolete import exception %s; %s", edge, lowerBaseline)
 		}
 	}
+}
+
+// sizeLimit is how far one measure of a package may go: the limit, or for a package recorded above it the recorded
+// number and one percent more, so a fix in place passes while a feature has to go to a package of its own.
+func sizeLimit(recorded, limit int) int {
+	if recorded <= limit {
+		return limit
+	}
+	return recorded + recorded/100
 }
 
 func scanInternalPackages(t *testing.T, dir string) (map[string]packageSize, map[string]bool) {

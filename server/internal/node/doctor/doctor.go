@@ -17,8 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-
 	"github.com/nwverse/persona/server/internal/assistantskills"
 	"github.com/nwverse/persona/server/internal/claudeplugin"
 	"github.com/nwverse/persona/server/internal/herdr"

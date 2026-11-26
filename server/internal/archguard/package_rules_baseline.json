@@ -5,16 +5,16 @@
   },
   "sizes": {
     "internal/assistant": {
-      "files": 619,
-      "lines": 206194
+      "files": 613,
+      "lines": 203390
     },
     "internal/db": {
       "files": 81,
-      "lines": 14255
+      "lines": 14282
     },
     "internal/devices": {
       "files": 70,
-      "lines": 22194
+      "lines": 22152
     },
     "internal/extension": {
       "files": 74,
@@ -22,19 +22,19 @@
     },
     "internal/extmgr": {
       "files": 180,
-      "lines": 43950
+      "lines": 43919
     },
     "internal/hub": {
       "files": 248,
-      "lines": 63346
+      "lines": 63197
     },
     "internal/node": {
       "files": 611,
-      "lines": 160494
+      "lines": 160358
     },
     "internal/proto": {
       "files": 92,
-      "lines": 10417
+      "lines": 10408
     }
   }
 }

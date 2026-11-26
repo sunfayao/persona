@@ -69,7 +69,8 @@ server/
    outside the constructor. State lives on the domain's struct, so two tests can run two instances side by side.
 4. **Time is injected.** A domain takes a clock; its tests use a fake one and never `time.Sleep`.
 5. **Size limits** for every package under `internal/`: at most 15,000 non-test lines and 80 non-test files.
-   Packages already above either limit have a baseline, and each recorded number may only go down.
+   Packages already above either limit have a baseline. A recorded number may grow by at most one percent, so a
+   fix in place passes while a feature goes to a package of its own; an update of the baseline only lowers it.
 6. **The root keeps the names the outside sees.** RPC method names, tool names, HTTP routes, table names and wire types
    do not change in a move. A move is a move: no behaviour change, no prompt change, goldens stay byte-identical.
 
@@ -81,12 +82,15 @@ From `server/`, run `UPDATE_GOLDEN=1 go test ./internal/archguard -run '^TestPac
 ## How a domain moves
 
 1. List the domain's files (they share a filename prefix today, for example `a2a_*.go`) and what they use from the
-   root: fields of `Service`, other methods, package variables.
+   root: fields of `Service`, other methods, package variables. Take the list from the compiler (move the files and
+   read what no longer resolves), not from filenames: a helper without the prefix can belong to the domain, and one
+   that several domains use and that holds no state of the root becomes a platform package.
 2. Declare that as the domain's dependency interfaces and its own struct; move the files into the package, turning
    `func (s *Service) x(...)` into `func (d *Domain) x(...)`.
 3. The root holds the domain (`s.a2a`) and keeps only thin forwards for the entry points other code calls; callers
    inside the root are changed to call the domain.
-4. Tests move with their files and use the domain's constructor with fakes, a fake clock and `t.Parallel()`.
+4. Tests of the domain's behaviour move with their files and use the domain's constructor with fakes, a fake clock
+   and `t.Parallel()`. Tests of registration, authorization and the path through the whole root stay in the root.
 5. Build, vet, the whole server test run and the goldens show no change in behaviour.
 
 Extract leaves before trunks: a domain that nothing else in the root calls into moves first.
@@ -96,7 +100,7 @@ Extract leaves before trunks: a domain that nothing else in the root calls into 
 | Stage | Moves | Notes |
 | --- | --- | --- |
 | 0 | Import and size rules in `archguard` | Done. The baseline records existing import exceptions with reasons and oversized packages with both counts. |
-| A1 | `assistant/agents`: A2A (`a2a_*`), dispatch between computers (`dispatch*`) | About 3,000 lines; proves the pattern on a domain with a store, node calls and a delivery loop |
+| A1 | `assistant/agents`: A2A (`a2a_*`) and dispatch's A2A-backed tracking | Done. Dispatch's orchestration stays in the root until A3 and A5: it calls model and launcher resolution, settings, task placement and supervision. |
 | A2 | `assistant/schedule`: follow-ups, routines, briefing | About 9,000 lines; timers, so the fake clock pays most here |
 | A3 | `assistant/models` and `assistant/settings` | About 20,000 lines; few callers into the rest |
 | A4 | `assistant/todo`, then `assistant/inbox` with `feishu` and `channels` | About 45,000 lines |
@@ -108,6 +112,21 @@ Extract leaves before trunks: a domain that nothing else in the root calls into 
 Stages of the two roots are independent and can run side by side. After each stage the baseline in `archguard` is
 lowered and the partition counts in `scripts/test/go_partitions.py` are revisited: a root whose serial run fits in a
 minute no longer needs partitions.
+
+### Stage A1 measurements
+
+| Package | Product files | Product lines | Methods on `Service` | Test time |
+| --- | ---: | ---: | ---: | ---: |
+| `internal/assistant` before | 619 | 206,187 | 3,897 | 8 partitions, about 90 s |
+| `internal/assistant` after | 613 | 203,894 | 3,847 | 8 partitions, about 90 s |
+| `internal/assistant/agents` | 10 | 2,574 | | 1 s, in parallel |
+
+`agents.New` takes eight dependencies, each an interface the package declares and the root implements in
+`assistant/agents_domain.go`: `Store` (task rows, claims, revisions), `Nodes` (session lookup and node calls),
+`Machines` (computers, trust, connectivity), `Visibility` (which conversations and directories A2A may see),
+`Outbound` (send and launch guards, confirmation), `Launches` (presets, model and host choice), `Admission` (the
+launch lock and capacity shared with dispatch) and `Clock`. `Launches` and `Admission` shrink when A3 and A5 move
+what they forward to.
 
 ### Stage N1 measurements
 
