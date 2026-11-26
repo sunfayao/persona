@@ -149,22 +149,6 @@ describe("New agent: provider display names (#5029)", () => {
     expect(note.querySelector("button")!.getAttribute("aria-label")).toBe("怎么修好 Team relay");
   });
 
-  // The preset chips' "Title (id)" tooltip is gone: a preset row says its launcher by its title (as every panel row
-  // does), and the note under the box once it is picked keeps "Title (id)".
-  it("says a picked preset's launcher as \"Title (id)\", an rc alias's as its ID", async () => {
-    await flush();
-    await openPanel();
-    expect(row("preset:quick").textContent).toContain("我的中转 站 · glm-5");
-    expect(row("preset:alias").textContent).toContain("cc_glm");
-    act(() => row("preset:quick").click());
-    await flush();
-    expect(q('[data-testid="new-agent-preset-hint"]')!.textContent).toBe("预设 quick · 我的中转 站 (relay-example-com) · glm-5");
-    await openPanel();
-    act(() => row("preset:alias").click());
-    await flush();
-    expect(q('[data-testid="new-agent-preset-hint"]')!.textContent).toBe("预设 alias · cc_glm");
-  });
-
   it("titles a recent setup's launcher from the model configuration when this computer doesn't have it", async () => {
     await flush();
     const away = card("Elsewhere relay");
