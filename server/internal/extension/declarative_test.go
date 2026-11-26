@@ -16,18 +16,12 @@ func TestDeclarativeContributions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Skills()) != 1 || len(m.Prompts()) != 2 || len(m.Themes()) != 1 || len(m.TriageTemplates()) != 1 {
+	if len(m.Skills()) != 1 || len(m.Prompts()) != 2 || len(m.TriageTemplates()) != 1 {
 		t.Fatalf("%+v", m.Contributions())
 	}
 	parts := m.AssistantParts()
 	if len(parts) != 2 || parts[0].Skills[0] != "skills/weekly-review" || parts[1].Instructions != "assistant/tone.md" {
 		t.Fatalf("%+v", parts)
-	}
-	if got := ThemeProblems(m.Themes()[0]); len(got) != 0 {
-		t.Fatal(got)
-	}
-	if got := ThemeProblems(ThemeItem{Light: map[string]string{"accent": "#FFEB3B"}, Dark: map[string]string{"accent": "#1A1A1A"}}); len(got) != 2 {
-		t.Fatal("pale yellow on white, near-black on black:", got)
 	}
 
 	bad := map[string]string{

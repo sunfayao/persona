@@ -18,7 +18,7 @@ vi.mock("../lib/api", async (original) => ({
     if (path === "/managers") return Promise.reject(new ApiError(404, "not found", {}));
     // The hub page's download mirrors load on their own; answer them so only the updater is under test.
     if (path.startsWith("/extensions/-/market-settings")) return Promise.resolve({ registry_mirror: "", catalog_mirror: "" });
-    return Promise.resolve(path === "/looks" ? { looks: [], current: {} } : path === "/model-profiles" ? { profiles: [] } : {});
+    return Promise.resolve({});
   },
 }));
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/ai"
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/prompts"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -124,9 +122,16 @@ func TestModelProfilesSeedAndCaptureCurrentConfiguration(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	r := request(s, "PUT", "/api/v1/model-profiles/performance", `{"revision":2,"name":"Captured","capture":true}`)
-	if r.Code != http.StatusOK {
-		t.Fatalf("capture: %d %s", r.Code, r.Body.String())
+	revision := int64(2)
+	if _, err := s.saveModelProfile(ctx, &revision, "performance", ProfileActor{Kind: "hub"}, func(p *ModelProfile, _ bool) error {
+		purposes, launchers, _, err := s.captureModels(ctx)
+		if err != nil {
+			return err
+		}
+		p.Name, p.Purposes, p.Launchers = "Captured", purposes, launchers
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	v = profilesOf(t, s)
 	if v.Profiles[0].Purposes["assistant"].Model != "test-later" ||
@@ -436,61 +441,6 @@ func TestModelProfileMissingLauncherRejectedBeforeTransaction(t *testing.T) {
 	}
 }
 
-func TestModelProfilesRoutesRolesRevisionsAndLocales(t *testing.T) {
-	s, _, st := modelService(t)
-	profilesOf(t, s)
-	for _, path := range []string{"GET /api/v1/model-profiles", "PUT /api/v1/model-profiles/{id}", "DELETE /api/v1/model-profiles/{id}",
-		"POST /api/v1/model-profiles/{id}/apply", "POST /api/v1/model-profiles/rollback"} {
-		if !slices.Contains(s.Routes(), path) {
-			t.Fatalf("unregistered route: %s", path)
-		}
-	}
-	for _, tt := range []struct {
-		method, path, body string
-		status             int
-	}{
-		{"PUT", "/api/v1/model-profiles/custom", `{"name":"Custom"}`, 400},
-		{"PUT", "/api/v1/model-profiles/custom", `{"revision":0,"name":"Custom"}`, 409},
-		{"PUT", "/api/v1/model-profiles/custom", `{"revision":1,"name":"Custom","api_key":"secret"}`, 400},
-		{"PUT", "/api/v1/model-profiles/rollback", `{"revision":1,"name":"Invalid"}`, 400},
-		{"POST", "/api/v1/model-profiles/missing/apply", "", 404},
-		{"POST", "/api/v1/model-profiles/rollback", "", 409},
-	} {
-		before, puts := profileStoreSnapshot(st.memStore)
-		r := request(s, tt.method, tt.path, tt.body)
-		if r.Code != tt.status {
-			t.Fatalf("%s %s: %d %s", tt.method, tt.path, r.Code, r.Body.String())
-		}
-		requireProfileStoreUnchanged(t, st.memStore, before, puts)
-	}
-	for _, lang := range i18n.Langs {
-		for _, method := range []string{"PUT", "DELETE", "POST"} {
-			path := "/api/v1/model-profiles/performance"
-			if method == "POST" {
-				path += "/apply"
-			}
-			res, err := serveHTTP(context.Background(), s, assistantwire.HTTPRequest{Method: method, Path: path,
-				Header: map[string][]string{RoleHeader: {"answer"}, "Accept-Language": {string(lang)}},
-				Body:   json.RawMessage(`{"revision":1,"name":"Edited"}`)}, s.lang)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if res.Status != http.StatusForbidden || !strings.Contains(string(res.Body), i18n.T(lang, "assistant-model_profiles.err_role")) {
-				t.Fatalf("role or locale %s: %d %s", lang, res.Status, res.Body)
-			}
-		}
-	}
-	if r := request(s, "PUT", "/api/v1/model-profiles/custom", `{"revision":1,"name":"Custom","purposes":{"agent.new":{"model":"test-inherited"}}}`); r.Code != 200 {
-		t.Fatalf("saving inherited model-only override: %d %s", r.Code, r.Body.String())
-	}
-	if r := request(s, "DELETE", "/api/v1/model-profiles/custom?revision=1", ""); r.Code != 409 {
-		t.Fatalf("stale delete: %d %s", r.Code, r.Body.String())
-	}
-	if r := request(s, "DELETE", "/api/v1/model-profiles/custom?revision=2", ""); r.Code != 200 {
-		t.Fatalf("delete: %d %s", r.Code, r.Body.String())
-	}
-}
-
 func TestModelProfileInitialFailureDoesNotSeedTemplates(t *testing.T) {
 	s, _, st := modelService(t)
 	before, puts := profileStoreSnapshot(st.memStore)
@@ -786,7 +736,7 @@ func TestModelProfilesViewReadsEachRecordOnce(t *testing.T) {
 	}
 }
 
-// BenchmarkModelProfilesView is GET /api/v1/model-profiles' view on memStore with P stored profiles that each name
+// BenchmarkModelProfilesView measures the model profile view on memStore with P stored profiles that each name
 // every category; record-reads/op is the category record reads it makes.
 func BenchmarkModelProfilesView(b *testing.B) {
 	for _, n := range []int{2, 4, 8} {

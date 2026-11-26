@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -303,98 +302,6 @@ func TestClientOps(t *testing.T) {
 	}
 }
 
-func TestPhoneToolsReplace(t *testing.T) {
-	d, ctx := open(t), context.Background()
-	_ = d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "legacy", Tools: []proto.Tool{{Name: "b"}, {Name: "a", InputSchema: json.RawMessage(`{"type":"object"}`)}}})
-	_ = d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "legacy", Tools: []proto.Tool{{Name: "z"}, {Name: "a"}}})
-	tools, err := d.PhoneTools(ctx)
-	if err != nil || len(tools) != 1 || len(tools[0].Tools) != 2 || tools[0].Tools[0].Name != "z" || tools[0].Tools[1].Name != "a" {
-		t.Fatalf("tools = %+v, %v", tools, err)
-	}
-}
-
-// phoneToolList returns n tools named like an app's phone_* announcement, every other one with a schema.
-func phoneToolList(n int) []proto.Tool {
-	tools := make([]proto.Tool, n)
-	for i := range tools {
-		tools[i] = proto.Tool{Name: fmt.Sprintf("phone_tool_%02d", i), Description: fmt.Sprintf("tool %d", i)}
-		if i%2 == 0 {
-			tools[i].InputSchema = json.RawMessage(fmt.Sprintf(`{"type":"object","x":%d}`, i))
-		}
-	}
-	return tools
-}
-
-func TestPhoneToolsReplaceReorderedSubset(t *testing.T) {
-	d, ctx := open(t), context.Background()
-	full := phoneToolList(26)
-	if err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "ios-device", Platform: "ios", Tools: full}); err != nil {
-		t.Fatal(err)
-	}
-	// Reversed every third tool: the rest must be gone, the order must follow the new list.
-	var subset []proto.Tool
-	for i := len(full) - 1; i >= 0; i -= 3 {
-		subset = append(subset, full[i])
-	}
-	subset[1].InputSchema = nil
-	if err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "ios-device", Platform: "ios", Tools: subset}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := d.PhoneTools(ctx)
-	if err != nil || len(got) != 1 || len(got[0].Tools) != len(subset) {
-		t.Fatalf("registrations = %+v, %v", got, err)
-	}
-	for i, tool := range got[0].Tools {
-		want := subset[i]
-		schema := string(want.InputSchema)
-		if schema == "" {
-			schema = `{}`
-		}
-		if tool.Name != want.Name || tool.Description != want.Description || !jsonEqual(t, string(tool.InputSchema), schema) {
-			t.Fatalf("tool %d = %+v, want %+v (schema %s)", i, tool, want, schema)
-		}
-	}
-	var positions []int
-	if err := d.pool.QueryRow(ctx, `SELECT array_agg(position ORDER BY position) FROM phone_tools WHERE device_id = 'ios-device'`).Scan(&positions); err != nil {
-		t.Fatal(err)
-	}
-	for i, p := range positions {
-		if p != i {
-			t.Fatalf("positions = %v", positions)
-		}
-	}
-}
-
-func TestPhoneToolsRevokedCredentialKeepsPreviousTools(t *testing.T) {
-	d, ctx := open(t), context.Background()
-	if err := d.CreateDeviceToken(ctx, DeviceToken{ID: "credential-ios", Name: "Device", Kind: "phone", Role: "full"}, "hash-ios"); err != nil {
-		t.Fatal(err)
-	}
-	if err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "other-device", Platform: "ios", Tools: phoneToolList(3)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "other-device", Platform: "ios", CredentialID: "credential-ios", Tools: phoneToolList(26)[:2]}); err != nil {
-		t.Fatal(err)
-	}
-	if ok, err := d.RevokeDeviceToken(ctx, "credential-ios"); err != nil || !ok {
-		t.Fatalf("revoke = %v, %v", ok, err)
-	}
-	// Revoking deleted this credential's rows; put an unrelated row back on the same device to see it survive.
-	if err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "other-device", Platform: "ios", Tools: phoneToolList(3)}); err != nil {
-		t.Fatal(err)
-	}
-	for _, credential := range []string{"credential-ios", "credential-missing"} {
-		err := d.ReplacePhoneTools(ctx, PhoneToolRegistration{DeviceID: "other-device", Platform: "ios", CredentialID: credential, Tools: phoneToolList(26)})
-		if !errors.Is(err, pgx.ErrNoRows) {
-			t.Fatalf("%s: err = %v, want pgx.ErrNoRows", credential, err)
-		}
-	}
-	got, err := d.PhoneTools(ctx)
-	if err != nil || len(got) != 1 || len(got[0].Tools) != 3 || got[0].CredentialID != "" {
-		t.Fatalf("registrations after rejected writes = %+v, %v", got, err)
-	}
-}
-
 func jsonEqual(t *testing.T, a, b string) bool {
 	t.Helper()
 	var x, y any
@@ -405,21 +312,6 @@ func jsonEqual(t *testing.T, a, b string) bool {
 		t.Fatalf("unmarshal %s: %v", b, err)
 	}
 	return fmt.Sprint(x) == fmt.Sprint(y)
-}
-
-// BenchmarkReplacePhoneTools replaces one phone's 26-tool announcement, the write the hub makes on every connect.
-func BenchmarkReplacePhoneTools(b *testing.B) {
-	d, ctx := open(b), context.Background()
-	if err := d.CreateDeviceToken(ctx, DeviceToken{ID: "credential-bench", Name: "Device", Kind: "phone", Role: "full"}, "hash-bench"); err != nil {
-		b.Fatal(err)
-	}
-	registration := PhoneToolRegistration{DeviceID: "bench-device", Platform: "ios", CredentialID: "credential-bench", Tools: phoneToolList(26)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := d.ReplacePhoneTools(ctx, registration); err != nil {
-			b.Fatal(err)
-		}
-	}
 }
 
 func TestNodeSessions(t *testing.T) {

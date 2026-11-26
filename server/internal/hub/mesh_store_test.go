@@ -58,10 +58,8 @@ func (s *meshStore) ClientOp(context.Context, string) (*db.ClientOp, error) { re
 func (s *meshStore) FinishClientOp(context.Context, string, string, json.RawMessage) error {
 	return nil
 }
-func (s *meshStore) RecoverClientOps(context.Context) error                            { return nil }
-func (s *meshStore) CleanupClientOps(context.Context, time.Time) error                 { return nil }
-func (s *meshStore) ReplacePhoneTools(context.Context, db.PhoneToolRegistration) error { return nil }
-func (s *meshStore) PhoneTools(context.Context) ([]db.PhoneToolRegistration, error)    { return nil, nil }
+func (s *meshStore) RecoverClientOps(context.Context) error            { return nil }
+func (s *meshStore) CleanupClientOps(context.Context, time.Time) error { return nil }
 func (s *meshStore) ClaimSend(context.Context, string, string, string) (string, error) {
 	return "new", nil
 }
@@ -573,23 +571,3 @@ func (s *meshStore) InsertTodoDecision(context.Context, db.TodoDecisionRow) (boo
 func (s *meshStore) SetTodoDecisionSupersedes(context.Context, string, string, string, time.Time) (*db.TodoDecisionRow, error) {
 	return nil, db.ErrDecisionNotFound
 }
-
-// Queue tests use Postgres; this unrelated fixture has no durable phone delivery store.
-func (s *meshStore) EnqueuePhoneWrite(context.Context, string, string, json.RawMessage) (*db.PhoneWrite, error) {
-	return nil, errors.New("phone write queue unavailable")
-}
-func (s *meshStore) PhoneWrites(context.Context) ([]db.PhoneWrite, error)  { return nil, nil }
-func (s *meshStore) ClaimPhoneWrite(context.Context, string) (bool, error) { return false, nil }
-func (s *meshStore) FinishPhoneWrite(context.Context, string, string, json.RawMessage) error {
-	return nil
-}
-func (s *meshStore) CancelPhoneWrite(context.Context, string) (*db.PhoneWrite, error) {
-	return nil, nil
-}
-func (s *meshStore) RecoverPhoneWrites(context.Context) error { return nil }
-
-func (s *meshStore) FindQueuedPhoneWrite(context.Context, string, json.RawMessage) (*db.PhoneWrite, error) {
-	return nil, nil
-}
-
-func (s *meshStore) QueuedPhoneWrites(context.Context) ([]db.PhoneWrite, error) { return nil, nil }

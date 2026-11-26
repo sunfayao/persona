@@ -17,6 +17,9 @@ import (
 // spaceContextMax bounds a track conversation's context, in characters.
 const spaceContextMax = 600
 
+// trackTitleMax bounds a track title in the conversation context.
+const trackTitleMax = 80
+
 // spaceOwnerMax bounds the owner's name in it, in characters (a track's title is bounded by trackTitleMax).
 const spaceOwnerMax = 40
 

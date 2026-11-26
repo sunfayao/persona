@@ -55,12 +55,7 @@ func spaceCall(t *testing.T, dir string, c assistantwire.SpaceMDCall) assistantw
 // in .space/history/, and an oversized state or one holding a marker is refused.
 func TestSpaceMDPutStateChangesOnlyTheBlock(t *testing.T) {
 	dir, initial := spaceMDDir(t)
-	got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet})
-	if got.Content != initial || got.Digest != digestOf(initial) || got.State != "" || got.Refused != "" {
-		t.Fatalf("get: %+v", got)
-	}
-
-	got = spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, State: "Budget: drafted.\nNext: review.\n\n"})
+	got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, State: "Budget: drafted.\nNext: review.\n\n"})
 	want := strings.Replace(initial, spaceStateBegin+"\n", spaceStateBegin+"\nBudget: drafted.\nNext: review.\n", 1)
 	b, _ := os.ReadFile(filepath.Join(dir, "SPACE.md"))
 	if string(b) != want || got.Content != want || got.State != "Budget: drafted.\nNext: review." || got.Refused != "" {
@@ -117,52 +112,6 @@ func TestSpaceMDPutStateChangesOnlyTheBlock(t *testing.T) {
 	}
 }
 
-// The user's write from the apps (#13472): made against the file it was read at, and refused when it touches a managed
-// block or its markers in any way.
-func TestSpaceMDPutHuman(t *testing.T) {
-	dir, initial := spaceMDDir(t)
-	spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, State: "Kept by Persona."})
-	cur := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet})
-	block := cur.Content[strings.Index(cur.Content, spaceStateBegin) : strings.Index(cur.Content, spaceStateEnd)+len(spaceStateEnd)]
-
-	for name, content := range map[string]string{
-		"block text changed":   strings.Replace(cur.Content, "Kept by Persona.", "Kept by me.", 1),
-		"block removed":        strings.Replace(cur.Content, block, "", 1),
-		"begin marker removed": strings.Replace(cur.Content, spaceStateBegin, "", 1),
-		"end marker changed":   strings.Replace(cur.Content, spaceStateEnd, "<!-- persona:managed:state:end  -->", 1),
-		"block doubled":        cur.Content + "\n" + block + "\n",
-		"marker added":         cur.Content + "\n<!-- persona:managed:notes:begin -->\n",
-		"space added in block": strings.Replace(cur.Content, "Kept by Persona.", "Kept by Persona. ", 1),
-	} {
-		got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutHuman, Content: content, BaseDigest: cur.Digest})
-		if got.Refused != assistantwire.SpaceMDManaged || got.Content != cur.Content {
-			t.Errorf("%s: refused %q", name, got.Refused)
-		}
-	}
-	if b, _ := os.ReadFile(filepath.Join(dir, "SPACE.md")); string(b) != cur.Content {
-		t.Fatal("a refused write changed SPACE.md")
-	}
-
-	edited := strings.Replace(cur.Content, "Briefly.", "Briefly, with sources.", 1) + "One more rule.\n"
-	got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutHuman, Content: edited, BaseDigest: cur.Digest})
-	if got.Refused != "" || got.Content != edited || got.Digest != digestOf(edited) || got.State != "Kept by Persona." {
-		t.Fatalf("human edit: %+v", got)
-	}
-	if b, _ := os.ReadFile(filepath.Join(dir, "SPACE.md")); string(b) != edited {
-		t.Errorf("SPACE.md = %q", b)
-	}
-	// Two backups now: the first SPACE.md (before the state) and the one before this edit.
-	if hist := spaceHistory(t, dir); len(hist) != 2 {
-		t.Errorf("history: %v", hist)
-	}
-	if got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutHuman, Content: initial, BaseDigest: cur.Digest}); got.Refused != assistantwire.SpaceMDStale || got.Content != edited {
-		t.Errorf("a stale base: %+v", got)
-	}
-	if got := spaceCall(t, dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutHuman, Content: strings.Repeat("x", spaceMDLimit+1), BaseDigest: got.Digest}); got.Refused != assistantwire.SpaceMDTooLarge {
-		t.Errorf("a long SPACE.md: %+v", got.Refused)
-	}
-}
-
 // The history keeps the latest 20 files; the method only works in a track's own directory, on a plain SPACE.md.
 func TestSpaceMDHistoryAndPlace(t *testing.T) {
 	dir, _ := spaceMDDir(t)
@@ -181,18 +130,18 @@ func TestSpaceMDHistoryAndPlace(t *testing.T) {
 	if nodeMethods.handlers[assistantwire.DeviceAssistantSpaceMD] == nil {
 		t.Error("assistant.space_md is not in the method table")
 	}
-	if _, err := spaceMDCall(dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet, Slug: "qa-other"}); err == nil {
+	if _, err := spaceMDCall(dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, Slug: "qa-other"}); err == nil {
 		t.Error("another track's slug: answered")
 	}
 	assistant := filepath.Join(filepath.Dir(filepath.Dir(dir)), "assistant")
-	if _, err := spaceMDCall(assistant, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet, Slug: "assistant"}); err == nil {
+	if _, err := spaceMDCall(assistant, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, Slug: "assistant"}); err == nil {
 		t.Error("the assistant's directory: answered")
 	}
 	if _, err := spaceMDCall(dir, assistantwire.SpaceMDCall{Op: "delete", Slug: "qa-plain"}); err == nil {
 		t.Error("an unknown op: answered")
 	}
 	missing := filepath.Join(filepath.Dir(dir), "qa-missing")
-	if got, err := spaceMDCall(missing, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet, Slug: "qa-missing"}); err != nil || got.Refused != assistantwire.SpaceMDMissing {
+	if got, err := spaceMDCall(missing, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, Slug: "qa-missing"}); err != nil || got.Refused != assistantwire.SpaceMDMissing {
 		t.Errorf("no directory: %+v %v", got, err)
 	}
 
@@ -207,7 +156,7 @@ func TestSpaceMDHistoryAndPlace(t *testing.T) {
 	if err := os.Symlink(elsewhere, md); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := spaceMDCall(dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet, Slug: "qa-plain"}); err == nil && got.Content == "secret" {
+	if got, err := spaceMDCall(dir, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutState, Slug: "qa-plain"}); err == nil && got.Content == "secret" {
 		t.Error("a SPACE.md that is a link: read through it")
 	}
 }

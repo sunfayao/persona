@@ -64,7 +64,7 @@ func TestBusForwardsTrustedDeviceActor(t *testing.T) {
 	routes := h.routes()
 	for _, tt := range []struct{ name, forged string }{{"device name", ""}, {"forged header", "Forged device"}} {
 		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodPost, "/api/v1/model-profiles/economy/apply", strings.NewReader(`{}`))
+			r := httptest.NewRequest(http.MethodPost, "/api/v1/assistant/conversations", strings.NewReader(`{}`))
 			r.RemoteAddr = "127.0.0.1:12345"
 			r.Header.Set("Authorization", "Bearer "+token)
 			r.Header.Set("Cookie", "test-cookie=private")

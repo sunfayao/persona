@@ -24,8 +24,6 @@
   "title_agents_triage_reply_reminder": "提醒我还有待回答的问题",
   "title_agents_triage_transient_retry": "模型出现临时错误后自动重试",
   "title_agents_triage_reply_reminder_minutes": "提醒前等待（分钟）",
-  "title_navigation_start_page": "启动页",
-  "title_navigation_sidebar_pages": "侧边栏页面",
   "title_assistant_saved_prompts": "常用提示词",
   "on": "开",
   "off": "关",

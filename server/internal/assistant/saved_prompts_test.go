@@ -30,7 +30,7 @@ func addedSavedPrompt(t *testing.T, s *Service, body string) saved.Prompt {
 	return out.Prompt
 }
 
-// The user adds, changes and deletes saved prompts from the app: one-word names unique ignoring case, a "/" typed before
+// The user adds and changes saved prompts from the app: one-word names unique ignoring case, a "/" typed before
 // the name dropped, the text's line ends made "\n", and each change told to the apps.
 func TestSavedPromptRoutes(t *testing.T) {
 	hub := newFakeHub()
@@ -45,7 +45,7 @@ func TestSavedPromptRoutes(t *testing.T) {
 	if got := hub.eventTypes(); !strings.Contains(got, "assistant_saved_prompts") {
 		t.Fatalf("a change is told to the apps: %q", got)
 	}
-	notes := addedSavedPrompt(t, s, `{"name":"发布说明","text":"Write the release notes\tfor the commits since the last tag."}`)
+	addedSavedPrompt(t, s, `{"name":"发布说明","text":"Write the release notes\tfor the commits since the last tag."}`)
 	addedSavedPrompt(t, s, `{"name":"pr-check_v2.1","text":"Run the PR checklist."}`)
 
 	for _, bad := range []struct{ body, why string }{
@@ -94,59 +94,13 @@ func TestSavedPromptRoutes(t *testing.T) {
 	}
 
 	for _, req := range [][3]string{{"POST", savedPromptsPath, `{"name":"x","text":"x"}`},
-		{"PUT", savedPromptsPath + "/" + review.ID, `{"name":"x","text":"x"}`}, {"DELETE", savedPromptsPath + "/" + review.ID, ""},
-		{"PUT", savedPromptsPath + "/order", `{"ids":[]}`}} {
+		{"PUT", savedPromptsPath + "/" + review.ID, `{"name":"x","text":"x"}`}} {
 		if rec := placeDo(s, "read", req[0], req[1], req[2]); rec.Code != 403 {
 			t.Errorf("a read-only device cannot %s %s: %d", req[0], req[1], rec.Code)
 		}
 	}
 	if rec := placeDo(s, "read", "GET", savedPromptsPath, ""); rec.Code != 200 {
 		t.Fatalf("a read-only device sees them: %d", rec.Code)
-	}
-
-	if rec := placeDo(s, "", "DELETE", savedPromptsPath+"/"+notes.ID, ""); rec.Code != 200 {
-		t.Fatalf("delete: %d %s", rec.Code, rec.Body)
-	}
-	if rec := placeDo(s, "", "DELETE", savedPromptsPath+"/"+notes.ID, ""); rec.Code != 200 {
-		t.Fatalf("deleting twice is fine: %d", rec.Code)
-	}
-	if got := listedSavedPromptsOf(t, s); len(got) != 3 || got[1].Name != "pr-check_v2.1" {
-		t.Fatalf("after delete: %+v", got)
-	}
-}
-
-// The settings page moves a prompt up or down by sending the whole order; one that no longer matches the list (a prompt
-// added or deleted on another device since, or one named twice) is refused, so nothing is lost or doubled.
-func TestSavedPromptOrder(t *testing.T) {
-	s := newTestService(t, newFakeHub())
-	a := addedSavedPrompt(t, s, `{"name":"a","text":"A"}`)
-	b := addedSavedPrompt(t, s, `{"name":"b","text":"B"}`)
-	c := addedSavedPrompt(t, s, `{"name":"c","text":"C"}`)
-	order := func(ids ...string) int {
-		body, _ := json.Marshal(map[string]any{"ids": ids})
-		return placeDo(s, "", "PUT", savedPromptsPath+"/order", string(body)).Code
-	}
-	if code := order(c.ID, a.ID, b.ID); code != 200 {
-		t.Fatalf("reorder: %d", code)
-	}
-	if got := listedSavedPromptsOf(t, s); len(got) != 3 || got[0].ID != c.ID || got[1].ID != a.ID || got[2].ID != b.ID {
-		t.Fatalf("in the order sent: %+v", got)
-	}
-	for _, bad := range []struct {
-		ids []string
-		why string
-	}{
-		{[]string{c.ID, a.ID}, "one left out"},
-		{[]string{c.ID, a.ID, b.ID, "sp1"}, "one more than there are"},
-		{[]string{c.ID, a.ID, a.ID}, "one named twice"},
-		{[]string{c.ID, a.ID, "sp1"}, "one that is not there"},
-	} {
-		if code := order(bad.ids...); code != 409 {
-			t.Errorf("%s is a conflict: %d", bad.why, code)
-		}
-	}
-	if got := listedSavedPromptsOf(t, s); got[0].ID != c.ID || got[2].ID != b.ID {
-		t.Fatalf("a refused order changes nothing: %+v", got)
 	}
 }
 

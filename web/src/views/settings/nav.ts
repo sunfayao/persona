@@ -3,7 +3,6 @@
 // /settings?tab=… pushed over it, and Back goes back to the list. A link to a category that no longer exists opens the
 // Settings root.
 import { t } from "../../i18n";
-import { settingsTab } from "../../lib/channels";
 import type { IconName } from "../../ui/icons";
 import { SUB } from "./href";
 
@@ -34,7 +33,7 @@ export const ASSISTANT_TABS: ReadonlySet<Tab> = new Set<Tab>(["models"]);
 /** The category and item a URL's query names; `tab` is null when it names none (the phone's list). */
 export function settingsAt(search: string, hash = ""): { tab: Tab | null; sub: string | null; section: SettingsSection | null } {
   const q = new URLSearchParams(search);
-  const old = settingsTab(q.get("tab"));
+  const old = q.get("tab");
   const legacy = old ? LEGACY_TABS[old] : undefined;
   const t = (legacy?.tab ?? old) as Tab;
   if (!TABS.includes(t)) return { tab: null, sub: null, section: null };
@@ -47,7 +46,7 @@ export function settingsAt(search: string, hash = ""): { tab: Tab | null; sub: s
 /** Replace a legacy category URL in place, retaining provider parameters. */
 export function redirectLegacySettings(search: string, hash: string): string | null {
   const q = new URLSearchParams(search);
-  const old = settingsTab(q.get("tab"));
+  const old = q.get("tab");
   if (!old || !LEGACY_TABS[old]) return null;
   const at = settingsAt(q.toString(), hash);
   if (!at.tab) return null;

@@ -59,77 +59,6 @@ def registry(namespace=None):
 
 
 class RegistryTests(unittest.TestCase):
-    def test_starred_backup_preview_tracks_legacy_saves_and_reimport_is_idempotent(self):
-        import starred_mock
-
-        timestamp = "2026-11-20T00:00:00Z"
-        events = []
-        r, d = registry({
-            "MANAGERS": {"default": "assistant"},
-            "other_manager": lambda h: ("m-work", None) if "manager=m-work" in h.path else None,
-            "is_read_only": lambda _h: False,
-            "broadcast": events.append,
-            "ago": lambda: timestamp,
-        })
-        with patch.dict(os.environ, {"MOCK_STARRED": "1", "MOCK_STARRED_BACKUP": "1"}):
-            starred_mock.register(d)
-
-        def send(method, suffix="", body=None, status=200):
-            h = FakeHandler(starred_mock.BASE + suffix)
-            payload = b"" if body is None else json.dumps(body).encode()
-            self.assertTrue(r.http(h, method, h.path.partition("?")[0], payload))
-            got, result = h.sent.pop()
-            self.assertEqual(got, status, result)
-            return result
-
-        message = {"key": "sm" + "a" * 32, "conversation": "agent", "role": "assistant",
-                   "title": "Old conversation", "speaker": "Agent", "text": "Saved words", "starred_at": timestamp}
-        bundle = {"format": "persona.starred", "version": 1, "messages": [message]}
-        self.assertEqual(send("GET", "/import"), {"can_import": True})
-        first = send("POST", "/import/preview", bundle)
-        self.assertEqual(first, {"revision": 0, "total": 1, "to_add": 1, "already_saved": 0, "available": 300})
-        old_message = dict(message, title="a" * 199 + " ", text=" " * 4000,
-                           omitted_chars=1, written_at="0001-01-01T00:00:00Z")
-        self.assertEqual(send("POST", "/import/preview", dict(bundle, messages=[old_message])), first)
-        self.assertEqual(send("GET")["stars"], [])
-        self.assertEqual(events, [])
-        send("POST", "/import/preview", dict(bundle, messages=[message, message]), status=400)
-        item = {"machine_id": "box", "session_id": "example", "item_id": "example-message",
-                "conversation": "agent", "role": "user", "text": "Newer saved words"}
-        send("POST", body=item)
-        send("POST", "/import", dict(bundle, revision=first["revision"]), status=409)
-
-        fresh = send("POST", "/import/preview", bundle)
-        imported = send("POST", "/import", dict(bundle, revision=fresh["revision"]))
-        self.assertEqual(imported, {"revision": 2, "added": 1, "already_saved": 0})
-        archive = next(star for star in send("GET")["stars"] if star["machine_id"] == starred_mock.BACKUP_MACHINE)
-        self.assertEqual(archive["text"], message["text"])
-        self.assertEqual(archive["starred_at"], timestamp)
-        self.assertEqual(archive["session_id"], "backup." + message["key"])
-        self.assertEqual(archive["item_id"], "line0#0")
-        self.assertNotIn("source_fingerprint", archive)
-        self.assertNotIn("source_manager", archive)
-        retry = send("POST", "/import", dict(bundle, revision=imported["revision"]))
-        self.assertEqual(retry, {"revision": 2, "added": 0, "already_saved": 1})
-        other = send("POST", "/import/preview?manager=m-work", bundle)
-        self.assertEqual(other, first)
-        self.assertEqual(events, [{"type": "assistant_starred"}] * 2)
-
-    def test_starred_backup_discovery_preserves_the_old_snapshot_routes(self):
-        import starred_mock
-
-        r, d = registry({"MANAGERS": {"default": "assistant"}, "other_manager": lambda _h: None})
-        with patch.dict(os.environ, {"MOCK_STARRED": "1", "MOCK_STARRED_BACKUP": "old"}):
-            starred_mock.register(d)
-        for method, path, want in (
-            ("GET", starred_mock.BASE, 200), ("GET", starred_mock.BACKUP, 405),
-            ("POST", starred_mock.BACKUP, 405), ("POST", starred_mock.BACKUP + "/preview", 404),
-        ):
-            h = FakeHandler(path)
-            self.assertTrue(r.http(h, method, path))
-            self.assertEqual(h.sent[0][0], want)
-            self.assertEqual(h.response_headers.get("Allow"), "DELETE" if want == 405 else None)
-
     def test_route_matches_method_and_whole_path(self):
         r, d = registry()
         seen = []
@@ -285,8 +214,6 @@ MOVED = {
     "github_mock": ("#11543", ("GITHUB_DEVICE", "GH_FULL", "GH_MISSING", "GH_NARROW", "GH_MACHINES", "GITHUB_AUTH",
                                "github_auth_view", "set_github_auth", "GH_AVATAR_COLORS", "GH_SENT", "gh_thread_page",
                                "github_thread_area", "github_area")),
-    "kb_selection_mock": ("#11543", ("KB_SELECTION_MESSAGES", "KB_SELECTION_DOCS", "KB_SELECTION", "kb_selection_defaults",
-                                     "kb_selection_problem", "kb_selection_route")),
     "mail_mock": ("#11543", ("MAIL_ACCOUNTS", "MAIL_LOG", "MAIL_FULL", "MS_CONFIG", "mail_area")),
     "hub_update_mock": ("#11649", ("HUB_UPDATE_MODE", "HUB_UPDATE", "hub_update_state", "HELD_REASON", "hub_update_history",
                                    "set_hub_update_mode", "HUB_UPDATE_HISTORY")),
@@ -352,7 +279,7 @@ class MovedBlocksTests(unittest.TestCase):
             self.fail("\n" + moved_back_report(found))
 
     def test_an_old_block_is_found_with_its_module(self):
-        # desktop registration as mock_hub.py had it before #11053, and Knowledge selection's help line and call site.
+        # Desktop registration as mock_hub.py had it before #11053.
         old = textwrap.dedent('''
             DESKTOPS = {}  # socket -> device_name
             DESKTOP_LOCK = threading.Lock()
@@ -362,25 +289,14 @@ class MovedBlocksTests(unittest.TestCase):
                 with DESKTOP_LOCK:
                     DESKTOPS[connection] = msg
 
-
-            MOCK_HELP = [
-                "MOCK_KB_SELECTION=missing|future|fail  Settings › Knowledge selection: a hub from before it (404)",
-            ]
-
-
-            def do_GET(self, p):
-                if kb_selection_route(self, "GET", p, b""): return
         ''')
         found = moved_back(old)
         self.assertEqual([(line, what, module) for line, what, module, _ in found], [
             (2, "DESKTOPS", "desktops_mock"), (3, "DESKTOP_LOCK", "desktops_mock"),
-            (6, "desktop_registration", "desktops_mock"),
-            (12, "the MOCK_KB_SELECTION help line", "kb_selection_mock"),
-            (17, "kb_selection_route", "kb_selection_mock")])
+            (6, "desktop_registration", "desktops_mock")])
         report = moved_back_report(found)
         self.assertIn("mock_hub.py:6 has desktop_registration again, which moved to scripts/mock/desktops_mock.py (#11053)",
                       report)
-        self.assertIn("make the change in scripts/mock/kb_selection_mock.py instead", report)
         self.assertEqual(moved_back("DESKTOP_APPS = []\ndef desktops(): return DESKTOP_APPS\nx = 'MOCK_DESKTOPS'\n"), [])
 
 
@@ -604,13 +520,11 @@ class EndToEndTests(unittest.TestCase):
         out = subprocess.run(self.command("--help"), env=env, capture_output=True, text=True, timeout=120).stdout
         self.assertIn("MOCK_PROBE=1  the test's probe domain", out)
         self.assertIn("MOCK_DESKTOPS=1  features list desktops", out)
-        self.assertIn("MOCK_KB_SELECTION=missing|future|fail  Settings › Knowledge selection", out)
-        self.assertIn("MOCK_SAVED_PROMPTS=1|old  Settings › Saved Prompts", out)
+        self.assertIn("MOCK_SAVED_PROMPTS=1|old", out)
 
     def test_the_moved_domains_answer(self):
         # Every module in DOMAINS registered on mock_hub.py's own globals (the mock would not have started otherwise),
         # and these routes are the modules' now (#11543, #11649).
-        self.assertEqual(self.get("/api/v1/kb/selection")["version"], 1)
         self.assertEqual(sorted(self.get("/mock/mail")), ["accounts_added", "deleted", "flags", "sent", "tested"])
         self.assertEqual([a["id"] for a in self.get("/api/v1/mail/accounts")["accounts"]], ["acc1"])
         # Without MOCK_HUB_UPDATE a hub from before the update page: no state, its history all the same.

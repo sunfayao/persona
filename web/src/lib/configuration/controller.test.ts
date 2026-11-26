@@ -8,7 +8,6 @@ import shared from "../../../../schema/configuration/all-types.json";
 import type { ChangeRule, ConfigurationGuidance } from "./guidance";
 import { ConfigurationController } from "./controller";
 import { ConfigurationError, type ConfigurationSource, type ConfigurationUpdate } from "./contract";
-import { httpConfigurationSource, type ConfigurationRequest } from "./http";
 
 interface Field {
   id: string;
@@ -635,118 +634,6 @@ describe("a read that raced a write", () => {
     await flush();
     expect(ctl.snapshot().blocked).toEqual({ code: "unconfirmed" });
     expect(ctl.snapshot().doc?.revision).toBe("revision-1");
-  });
-});
-
-describe("the HTTP source", () => {
-  function http(answer: (r: ConfigurationRequest) => { status: number; body: unknown }) {
-    const calls: [string, ConfigurationRequest][] = [];
-    const source = httpConfigurationSource({
-      endpoint: "/api/v1/example/settings",
-      transport: async (endpoint, request) => {
-        calls.push([endpoint, request]);
-        return answer(request);
-      },
-    });
-    return { source, calls };
-  }
-
-  it("GETs the endpoint for the document and PATCHes it with the update; its key is the endpoint", async () => {
-    const { source, calls } = http((r) => ({ status: 200, body: r.method === "GET" ? example : commit(example, JSON.parse(r.body!)) }));
-    expect(source.key).toBe("/api/v1/example/settings");
-    await expect(source.read()).resolves.toEqual(example);
-    const update = { schema_version: 1, id: "example-preferences", revision: "revision-1", changes: { layout: "dense" } };
-    const doc = (await source.update(update)) as Doc;
-    expect(doc.values.layout).toBe("dense");
-    expect(calls.map(([e, r]) => [e, r.method, r.body ? JSON.parse(r.body) : undefined])).toEqual([
-      ["/api/v1/example/settings", "GET", undefined],
-      ["/api/v1/example/settings", "PATCH", update],
-    ]);
-  });
-
-  it("turns an error answer into a ConfigurationError (409 is a conflict, 503 unavailable, even without a code)", async () => {
-    const { source } = http((r) => (r.method === "GET" ? { status: 403, body: { error: "No", code: "configuration_forbidden" } } : { status: 409, body: undefined }));
-    await expect(source.read()).rejects.toMatchObject({ code: "configuration_forbidden", message: "No" });
-    await expect(source.update({ schema_version: 1, id: "example-preferences", revision: "revision-1" })).rejects.toMatchObject({ code: "configuration_conflict" });
-    const unavailable = http(() => ({ status: 503, body: undefined })).source;
-    await expect(unavailable.update({ schema_version: 1, id: "example-preferences", revision: "revision-1" })).rejects.toMatchObject({ code: "configuration_unavailable" });
-  });
-
-  it("a 502 with no body is an unavailable outcome: a second PATCH waits for Reload", async () => {
-    let gateway = true;
-    const calls: ConfigurationRequest[] = [];
-    const source = httpConfigurationSource({
-      endpoint: "/api/v1/example/settings",
-      transport: async (_endpoint, request) => {
-        calls.push(request);
-        if (request.method === "GET") return { status: 200, body: example };
-        return gateway ? { status: 502, body: undefined } : { status: 200, body: commit(example, JSON.parse(request.body!)) };
-      },
-    });
-    const ctl = new ConfigurationController(source);
-    ctl.start();
-    await flush();
-    ctl.setDraft("label", "Mine");
-    ctl.saveDraft("label");
-    await flush();
-    expect(ctl.snapshot().blocked).toEqual({ code: "configuration_unavailable" });
-    ctl.saveDraft("label");
-    await flush();
-    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(1);
-    gateway = false;
-    ctl.reload();
-    await flush();
-    expect(ctl.snapshot().blocked).toBeNull();
-    expect(ctl.snapshot().fields.label).toEqual({ draft: "Mine" });
-    ctl.saveDraft("label");
-    await flush();
-    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(2);
-  });
-
-  it("a 200 with an unreadable body is unconfirmed: no second PATCH until Reload", async () => {
-    let malformed = true;
-    const calls: ConfigurationRequest[] = [];
-    const source = httpConfigurationSource({
-      endpoint: "/api/v1/example/settings",
-      transport: async (_endpoint, request) => {
-        calls.push(request);
-        if (request.method === "GET") return { status: 200, body: example };
-        return { status: 200, body: malformed ? null : commit(example, JSON.parse(request.body!)) };
-      },
-    });
-    const ctl = new ConfigurationController(source);
-    ctl.start();
-    await flush();
-    ctl.setDraft("label", "Mine");
-    ctl.saveDraft("label");
-    await flush();
-    expect(ctl.snapshot().blocked).toEqual({ code: "unconfirmed" });
-    ctl.saveDraft("label");
-    await flush();
-    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(1);
-    malformed = false;
-    ctl.reload();
-    await flush();
-    expect(ctl.snapshot().blocked).toBeNull();
-    ctl.saveDraft("label");
-    await flush();
-    expect(calls.filter((c) => c.method === "PATCH")).toHaveLength(2);
-  });
-
-  it("a transport that throws passes its exception through", async () => {
-    const source = httpConfigurationSource({ endpoint: "/x", transport: async () => { throw new TypeError("Failed to fetch"); } });
-    await expect(source.read()).rejects.toBeInstanceOf(TypeError);
-  });
-
-  it("a form over it treats an answer for another resource as unknown, not as that resource's document", async () => {
-    const { source } = http((r) => ({ status: 200, body: r.method === "GET" ? example : { ...example, id: "other" } }));
-    const ctl = new ConfigurationController(source);
-    ctl.start();
-    await flush();
-    ctl.choose("layout", "dense");
-    await flush();
-    expect(ctl.snapshot().blocked).toEqual({ code: "unconfirmed" });
-    expect(ctl.snapshot().doc?.id).toBe("example-preferences");
   });
 });
 

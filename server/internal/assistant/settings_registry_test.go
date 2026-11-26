@@ -59,7 +59,7 @@ func TestRegistrySettingsListNamesEveryKeyWithItsValue(t *testing.T) {
 	if isErr {
 		t.Fatal(out)
 	}
-	for _, f := range append(append(s.profileFields(), s.triageFields()...), s.navigationFields()...) {
+	for _, f := range append(s.profileFields(), s.triageFields()...) {
 		line := ""
 		for _, l := range strings.Split(out, "\n") {
 			if strings.HasPrefix(l, "- "+f.key+" (") {
@@ -69,7 +69,7 @@ func TestRegistrySettingsListNamesEveryKeyWithItsValue(t *testing.T) {
 		if line == "" || !strings.Contains(line, f.about) {
 			t.Errorf("list has no line with the description of %s", f.key)
 		}
-		if !f.slow && !strings.Contains(line, " Now: ") && f.key != "navigation.start_page" {
+		if !f.slow && !strings.Contains(line, " Now: ") {
 			t.Errorf("list shows no current value for %s: %s", f.key, line)
 		}
 	}
@@ -104,7 +104,6 @@ func TestRegistrySettingsSet(t *testing.T) {
 		{"agents.triage.closeout", "true", "true", "false", []string{`"on"`}},
 		{"agents.triage.transient_retry", "false", "false", "true", nil},
 		{"agents.triage.reply_reminder_minutes", "45", "45", "30", []string{"-1", "10081"}},
-		{"navigation.start_page", `"inbox"`, "inbox", "（无）", []string{`"a b"`, `"p:x"`, "5"}},
 	}
 	for _, c := range cases {
 		t.Run(c.key, func(t *testing.T) {
@@ -187,22 +186,5 @@ func TestRegistrySavedPrompts(t *testing.T) {
 	}
 	if got := r.get("assistant.saved_prompts"); got != "（无）" {
 		t.Fatalf("after remove: %q", got)
-	}
-}
-
-func TestRegistrySidebarPages(t *testing.T) {
-	s := newTestService(t, newFakeHub().withMachine())
-	r := &registryTool{t: t, s: s}
-	if out, isErr := r.call(`{"action":"set","key":"navigation.sidebar_pages","value":{"order":["bad key"],"shown":[],"hidden":[]}}`); !isErr {
-		t.Fatalf("a bad page key was accepted: %q", out)
-	}
-	if out, isErr := r.call(`{"action":"set","key":"navigation.sidebar_pages","value":{"order":["inbox","todos"],"shown":["inbox"],"hidden":["todos"],"extra":1}}`); !isErr {
-		t.Fatalf("an unknown field was accepted: %q", out)
-	}
-	if out, isErr := r.call(`{"action":"set","key":"navigation.sidebar_pages","value":{"order":["inbox","todos"],"shown":["inbox"],"hidden":["todos"]}}`, true); isErr {
-		t.Fatalf("set: %q", out)
-	}
-	if got := r.get("navigation.sidebar_pages"); !strings.Contains(got, `"hidden":["todos"]`) {
-		t.Fatalf("after set: %q", got)
 	}
 }

@@ -22,7 +22,6 @@ var allowed = map[string]string{
 	"internal/assistant/zone.go":            "location: the hub's zone only while the user's is unknown (as userLocation)",
 	"internal/devices/metrics.go":           "Usage: the machine's zone only without Options.Location (the manager passes the user's, assistant/main.go)",
 	"internal/connector/larkcli/clizone.go": "cliLocation: lark-cli prints wall-clock times in the zone of the machine running it, the hub's",
-	"internal/fleetsoak/":                   "a developer's soak command: its log clock and output directory name are for the person at that terminal",
 }
 
 var (

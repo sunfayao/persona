@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistantwire"
@@ -28,17 +26,6 @@ func (s *Service) channelRoutes() {
 			return
 		}
 		apierr.WriteJSON(w, map[string]any{"channels": list})
-	})
-	handle("GET /api/v1/channels/{id}", func(w http.ResponseWriter, r *http.Request) {
-		d, ok, err := s.channelDetail(r.Context(), r.PathValue("id"))
-		switch {
-		case err != nil:
-			apierr.Write(w, http.StatusBadGateway, err)
-		case !ok:
-			apierr.WriteCode(w, http.StatusNotFound, "not_found", errors.New("no such channel"))
-		default:
-			apierr.WriteJSON(w, d)
-		}
 	})
 	full := func(f func(w http.ResponseWriter, r *http.Request, v channel.View)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -102,28 +89,7 @@ func (s *Service) channelRoutes() {
 		}
 		detail(w, r, v.ID)
 	}))
-	handle("POST /api/v1/channels/{id}/test", full(func(w http.ResponseWriter, r *http.Request, v channel.View) {
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-		res, err := s.testChannel(ctx, v)
-		if err != nil {
-			var nc notConnectedError
-			if errors.As(err, &nc) {
-				apierr.WriteCode(w, http.StatusConflict, "not_connected", errors.New(nc.Error()))
-				return
-			}
-			if msg, ok := cannotSendMessage(err); ok {
-				if msg == "" {
-					msg = i18n.T(s.botLang(r.Context()), "assistant-channels.cannot_send", i18n.Args{"name": v.Name})
-				}
-				apierr.WriteCode(w, http.StatusConflict, channel.CodeCannotSend, errors.New(msg))
-				return
-			}
-			apierr.Write(w, http.StatusBadGateway, err)
-			return
-		}
-		apierr.WriteJSON(w, res)
-	}))
+
 }
 
 // updateChannel applies the app's changes: only what is given.
@@ -177,12 +143,6 @@ func (s *Service) updateChannel(ctx context.Context, v channel.View, enabled *bo
 	return nil
 }
 
-type channelTestResult struct {
-	OK        bool   `json:"ok"`
-	ReplyOnly bool   `json:"reply_only,omitempty"`
-	Note      string `json:"note,omitempty"`
-}
-
 type cannotSendError struct {
 	msg string
 }
@@ -195,61 +155,3 @@ func (e cannotSendError) Error() string {
 }
 
 func (e cannotSendError) Unwrap() error { return errCannotSend }
-
-type notConnectedError struct {
-	msg string
-}
-
-func (e notConnectedError) Error() string { return e.msg }
-
-func cannotSendMessage(err error) (string, bool) {
-	var cs cannotSendError
-	if errors.As(err, &cs) {
-		return sanitizeCannotSendReason(cs.msg), true
-	}
-	if errors.Is(err, errCannotSend) || errors.Is(err, channel.ErrCannotSend) {
-		return sanitizeCannotSendReason(err.Error()), true
-	}
-	var re *rpc.Error
-	if errors.As(err, &re) && (re.Code == CodeCannotSend || re.Code == channel.CodeCannotSend) {
-		return sanitizeCannotSendReason(re.Message), true
-	}
-	return "", false
-}
-
-func sanitizeCannotSendReason(msg string) string {
-	msg = strings.TrimSpace(msg)
-	if msg == "" || msg == errCannotSend.Error() || msg == channel.ErrCannotSend.Error() {
-		return ""
-	}
-	return msg
-}
-
-// testChannel sends the owner (only them) a line, to see the channel reaches them; for reply-only channels, it verifies
-// connectivity/readiness without invoking proactive channel.send.
-func (s *Service) testChannel(ctx context.Context, v channel.View) (channelTestResult, error) {
-	l := s.botLang(ctx)
-	if !v.Enabled || v.State != channel.StateConnected {
-		if v.State == channel.StateError && strings.TrimSpace(v.Error) != "" {
-			return channelTestResult{}, notConnectedError{msg: strings.TrimSpace(v.Error)}
-		}
-		return channelTestResult{}, notConnectedError{msg: i18n.T(l, "assistant-channels.not_connected", i18n.Args{"name": v.Name})}
-	}
-	if v.Capabilities.ReplyOnly {
-		return channelTestResult{
-			OK:        true,
-			ReplyOnly: true,
-			Note:      i18n.T(l, "assistant-channels.reply_only_test_ok", i18n.Args{"name": v.Name}),
-		}, nil
-	}
-	if v.ID == channel.Feishu {
-		if err := s.appCall(ctx, AppFeishu, FeishuTest, map[string]any{}, nil); err != nil {
-			return channelTestResult{}, err
-		}
-		return channelTestResult{OK: true}, nil
-	}
-	if err := s.channelTell(ctx, v.ID, "", i18n.T(l, "assistant-channels.test_message"), channel.OutNote); err != nil {
-		return channelTestResult{}, err
-	}
-	return channelTestResult{OK: true}, nil
-}

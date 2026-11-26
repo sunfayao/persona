@@ -138,12 +138,6 @@ export function withUsesAfterCategories(catalog: ModelConfigurationBody): ModelC
   return purposes.every((p, i) => p === catalog.purposes[i]) ? catalog : { ...catalog, purposes };
 }
 
-/** The In-meeting conversation runs only on Claude Code (#7980): its line in the editor says so. A fact about that
- *  purpose, so this page knows it by the id; the hub sends no field for it (its `provider_ids` hold only Claude Code
- *  launchers and Messages connections, without saying why). */
-const MEETING_ROOM_PURPOSE = "meeting.room";
-export const claudeCodeOnly = (p: Pick<ModelPurpose, "id">): boolean => p.id === MEETING_ROOM_PURPOSE;
-
 // What only Model settings does with a purpose (its editor's draft, what it sends, the catalog): here, so the first
 // screen's lib/model-config carries none of it (startup-preload's budget).
 

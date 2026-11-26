@@ -98,8 +98,7 @@ func dropDeviceRegistrations(ctx context.Context, tx pgx.Tx, id string) error {
 			}
 		}
 	}
-	_, err = tx.Exec(ctx, `DELETE FROM phone_tools WHERE credential_id = $1 OR device_id = $1`, id)
-	return err
+	return nil
 }
 
 func (d *DB) TouchDeviceToken(ctx context.Context, id string) error {

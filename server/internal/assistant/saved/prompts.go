@@ -68,7 +68,6 @@ var (
 	errSavedPromptName   = i18n.Err("assistant-saved-prompts.err_name", i18n.Args{"max": PromptNameMax})
 	errSavedPromptText   = i18n.Err("assistant-saved-prompts.err_text", i18n.Args{"max": PromptTextMax})
 	errSavedPromptsFull  = i18n.Err("assistant-saved-prompts.err_too_many", i18n.Args{"max": PromptsMax})
-	errSavedPromptOrder  = i18n.Err("assistant-saved-prompts.err_order")
 )
 
 // savedPromptNameTaken is the error for a name another prompt has.
@@ -187,36 +186,12 @@ func (b *promptBook) update(ctx context.Context, id string, p Prompt) (Prompt, e
 	return p, err
 }
 
-// deleteSavedPrompt removes prompt id; one that is not there is not an error (deleting twice is fine).
+// delete removes a saved prompt if it is present.
 func (b *promptBook) delete(ctx context.Context, id string) error {
 	_, err := b.change(ctx, func(prompts []Prompt) ([]Prompt, error) {
 		return slices.DeleteFunc(prompts, func(x Prompt) bool { return x.ID == id }), nil
 	})
 	return err
-}
-
-// orderSavedPrompts puts the prompts in the order of ids, which must name each saved prompt once: a list that changed
-// since the page read it (one added, deleted, or named twice) is refused, and the page reads it again.
-func (b *promptBook) order(ctx context.Context, ids []string) ([]Prompt, error) {
-	return b.change(ctx, func(prompts []Prompt) ([]Prompt, error) {
-		if len(ids) != len(prompts) {
-			return nil, errSavedPromptOrder
-		}
-		at := make(map[string]int, len(prompts))
-		for i, p := range prompts {
-			at[p.ID] = i
-		}
-		out := make([]Prompt, 0, len(prompts))
-		for _, id := range ids {
-			i, ok := at[id]
-			if !ok {
-				return nil, errSavedPromptOrder
-			}
-			delete(at, id) // named twice: the second is not found
-			out = append(out, prompts[i])
-		}
-		return out, nil
-	})
 }
 
 // writeSavedPromptError answers a failed read or change of the prompts with its status.
@@ -227,7 +202,7 @@ func writeSavedPromptError(w http.ResponseWriter, err error) {
 		apierr.Write(w, http.StatusServiceUnavailable, err)
 	case errors.Is(err, errSavedPromptGone):
 		apierr.Write(w, http.StatusNotFound, err)
-	case errors.Is(err, errSavedPromptOrder), errors.As(err, &msg) && msg.Key == "assistant-saved-prompts.err_name_taken":
+	case errors.As(err, &msg) && msg.Key == "assistant-saved-prompts.err_name_taken":
 		apierr.Write(w, http.StatusConflict, err)
 	case errors.As(err, &msg):
 		apierr.Write(w, http.StatusBadRequest, err)
@@ -290,24 +265,6 @@ func (b *promptBook) routes() {
 		}
 		apierr.WriteJSON(w, map[string]any{"prompt": p})
 	})
-	b.h.Handle("PUT /api/v1/assistant/saved-prompts/order", func(w http.ResponseWriter, r *http.Request) {
-		if !writable(w, r) {
-			return
-		}
-		var in struct {
-			IDs []string `json:"ids"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<16)).Decode(&in); err != nil {
-			apierr.Write(w, http.StatusBadRequest, err)
-			return
-		}
-		prompts, err := b.order(r.Context(), in.IDs)
-		if err != nil {
-			writeSavedPromptError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, listedSavedPrompts(prompts))
-	})
 	b.h.Handle("PUT /api/v1/assistant/saved-prompts/{id}", func(w http.ResponseWriter, r *http.Request) {
 		p, ok := readPrompt(w, r)
 		if !ok {
@@ -319,15 +276,5 @@ func (b *promptBook) routes() {
 			return
 		}
 		apierr.WriteJSON(w, map[string]any{"prompt": p})
-	})
-	b.h.Handle("DELETE /api/v1/assistant/saved-prompts/{id}", func(w http.ResponseWriter, r *http.Request) {
-		if !writable(w, r) {
-			return
-		}
-		if err := b.delete(r.Context(), r.PathValue("id")); err != nil {
-			writeSavedPromptError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
 	})
 }

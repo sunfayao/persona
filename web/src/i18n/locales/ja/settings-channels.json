@@ -1,5 +1,3 @@
 {
-  "retry": "再試行",
-  "summary": "{count}件接続済み",
-  "summary_with_errors": "{on}件接続済み · {bad}件エラー"
+  "retry": "再試行"
 }

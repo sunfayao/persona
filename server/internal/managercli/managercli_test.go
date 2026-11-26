@@ -44,17 +44,6 @@ func TestManagerExit(t *testing.T) {
 	}
 }
 
-// assistant search-reindex is a command of the built-in manager's (#6340), not a usage mistake: an argument it does
-// not take is its own error.
-func TestAssistantSearchReindexIsACommand(t *testing.T) {
-	t.Setenv("PERSONA_HOME", t.TempDir())
-	err := Assistant(context.Background(), update.Build{}, []string{"search-reindex", "extra"}, nil)
-	var ue clitext.UsageError
-	if err == nil || errors.As(err, &ue) || !strings.Contains(err.Error(), "search-reindex takes no arguments") {
-		t.Fatalf("assistant search-reindex extra: %v", err)
-	}
-}
-
 func TestManagerExitSpeaksTheTerminalLanguage(t *testing.T) {
 	for _, tc := range []struct {
 		name, setting, language, noDatabase string

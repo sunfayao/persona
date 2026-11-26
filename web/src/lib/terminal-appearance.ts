@@ -1,8 +1,6 @@
-// "Appearance" in Terminal settings (docs/integrations/terminal.md "Appearance"): the terminal's light / dark of its own,
-// as iOS's terminal has colors apart from the app's (TerminalTheme.swift). "Match page", the default, stores nothing and
-// is the page's scheme, as the terminal always was; "Light" / "Dark" are the page's own tokens of that scheme, scoped on
-// an element with SCHEME_ATTR (styles.css, ui/look.ts, ui/extension-theme.ts), never a palette of their own. One
-// setting for both surfaces, kept in this browser. Full view also tells herdr the scheme (terminal/full.ts).
+// "Match page" is the default and stores no preference. "Light" and "Dark" use the page's theme tokens, scoped
+// to the terminal by SCHEME_ATTR (styles.css). Both terminal views use the same browser preference.
+// Full view also tells herdr the scheme (terminal/full.ts).
 import { useSyncExternalStore } from "react";
 
 export type TerminalAppearance = "page" | "light" | "dark";

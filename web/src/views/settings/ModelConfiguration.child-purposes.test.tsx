@@ -1,10 +1,5 @@
 // @vitest-environment jsdom
-// Model settings lists the two meeting uses set apart from their categories (#7980, docs/assistant/model-config.md
-// "Meeting minutes and the in-meeting conversation"): the In-meeting conversation right after Main chat and the
-// background supervisor, Meeting minutes right after Information processing, each saying it follows its category by the
-// category's name or that it is separately configured, with a reset to follow it. The room's editor offers only the
-// hub's providers, no runtime, and says it runs on Claude Code only. A hub before #7980 lists neither and is asked
-// nothing for them; every other row stays as it was.
+// Model settings for editable child purposes that inherit their category.
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,15 +25,15 @@ const providers: ModelProvider[] = [
 ];
 /** The catalog's names in the hub's language: the page's words take the category's name from there. */
 const NAMES: Record<string, Record<string, string>> = {
-  en: { assistant: "Main chat", kb: "Information processing", room: "In-meeting conversation", minutes: "Meeting minutes" },
-  "zh-Hans": { assistant: "主对话", kb: "信息处理", room: "会中对话", minutes: "会议纪要" },
-  ja: { assistant: "メインチャット", kb: "情報処理", room: "会議中の会話", minutes: "議事録" },
+  en: { assistant: "Main chat", kb: "Information processing", room: "Conversation helper", minutes: "Summary helper" },
+  "zh-Hans": { assistant: "主对话", kb: "信息处理", room: "对话助手", minutes: "摘要助手" },
+  ja: { assistant: "メインチャット", kb: "情報処理", room: "会話アシスタント", minutes: "要約アシスタント" },
 };
-const ROOM_DESCRIPTION = "Persona in a recorded meeting: answers the questions asked there. Runs only on Claude Code.";
+const ROOM_DESCRIPTION = "Helps answer questions in conversations.";
 /** What the two categories run on: what each use follows while its record is empty. */
 const MAIN: ModelBinding = { provider: "launcher.claude", model: "claude-model" };
 const KB: ModelBinding = { provider: "api.messages", model: "kb-model" };
-const categoryBinding = (id: string) => id === "meeting.room" ? MAIN : KB;
+const categoryBinding = (id: string) => id === "synthetic.chat" ? MAIN : KB;
 /** Claude Code's /model list on the launcher (#943), with its own default. */
 const CLAUDE_MODELS = { agent: "claude", models: [
   { id: "default", name: "Default", default: true, resolved: "launcher-default-model", efforts: ["low", "medium", "high"] },
@@ -64,26 +59,26 @@ const catalog = (): ModelPurpose[] => {
   const supervise = use("assistant.supervise", main, { name: "Background supervisor", description: "Follows up the tasks Persona hands out." });
   const extension = use("extension.notes", kb, { name: "Notes extension", fields: ["provider", "model"], ...stored["extension.notes"] });
   const hubs = [main, agents, kb, triage, lark, supervise];
-  if (meeting) {
+  if (showChildren) {
     hubs.push(
-      use("meeting.room", main, {
-        name: name("room"), description: ROOM_DESCRIPTION, group: "Main chat's other uses", ...stored["meeting.room"], provider_ids: ["launcher.claude", "api.messages"],
+      use("synthetic.chat", main, {
+        name: name("room"), description: ROOM_DESCRIPTION, group: "Main chat's other uses", ...stored["synthetic.chat"], provider_ids: ["launcher.claude", "api.messages"],
       }),
-      use("meeting.minutes", kb, { name: name("minutes"), description: "Writes a recorded meeting's minutes.", group: "Information processing's other uses", ...stored["meeting.minutes"] }),
+      use("synthetic.processing", kb, { name: name("minutes"), description: "Summarizes text.", group: "Information processing's other uses", ...stored["synthetic.processing"] }),
     );
   }
   return [...hubs, extension];
 };
-/** What the hub holds for each meeting use (and the extension's purpose, once set): its own record and revision. */
+/** What the hub holds for each child purpose (and the extension's purpose, once set): its own record and revision. */
 let stored: Record<string, Pick<ModelPurpose, "override" | "effective" | "revision" | "inherited_from" | "fields">>;
 const follows = (id: string, effective: ModelBinding, revision = 0): void => {
-  stored[id] = { override: {}, effective, revision, inherited_from: name(id === "meeting.room" ? "assistant" : "kb"), fields };
+  stored[id] = { override: {}, effective, revision, inherited_from: name(id === "synthetic.chat" ? "assistant" : "kb"), fields };
 };
 /** What runs with a record of its own: a provider of its own with what it was given, else the category's with that. */
 const setApart = (id: string, override: ModelBinding, revision: number, own: string[] = fields): void => {
   stored[id] = { override, effective: override.provider ? override : { ...categoryBinding(id), ...override }, revision, inherited_from: undefined, fields: own };
 };
-let meeting: boolean;
+let showChildren: boolean;
 let conflict: boolean;
 /** The hub lists Claude Code's models on its launcher; off, the editor has the plain field (a list it could not read). */
 let lists: boolean;
@@ -185,7 +180,7 @@ async function useLanguage(next: string) {
 }
 beforeEach(async () => {
   await useLanguage("en");
-  meeting = true;
+  showChildren = true;
   conflict = false;
   lists = false;
   catalogFails = false;
@@ -202,8 +197,8 @@ beforeEach(async () => {
   providers[3].models = undefined;
   providers[3].model_aliases = undefined;
   stored = {};
-  follows("meeting.room", MAIN);
-  follows("meeting.minutes", KB);
+  follows("synthetic.chat", MAIN);
+  follows("synthetic.processing", KB);
   vi.stubGlobal("fetch", vi.fn(hub));
   host = document.createElement("div");
   document.body.append(host);
@@ -216,17 +211,17 @@ afterEach(async () => {
   await initI18n("zh-Hans");
 });
 
-describe("the meeting uses' models (#7980)", () => {
+describe("the editable child purposes' models ", () => {
   it("lists the room after Main chat and the background supervisor, the minutes after Information processing, each in its category's group", async () => {
     await render();
     expect(rows().map((r) => r.dataset.modelPurpose)).toEqual([
-      "assistant", "assistant.supervise", "meeting.room", "lark.agent", "agent.new", "kb", "meeting.minutes", "inbox.triage", "extension.notes",
+      "assistant", "assistant.supervise", "synthetic.chat", "lark.agent", "agent.new", "kb", "synthetic.processing", "inbox.triage", "extension.notes",
     ]);
-    expect(row("meeting.room").closest("section")).toBe(row("assistant").closest("section"));
-    expect(row("meeting.minutes").closest("section")).toBe(row("kb").closest("section"));
-    expect(row("meeting.room").querySelector('[data-testid="purpose-description"]')?.textContent).toBe(ROOM_DESCRIPTION);
-    expect(row("meeting.room").textContent).toContain("Background process · claude -p");
-    expect(row("meeting.minutes").textContent).toContain("Direct API · Messages");
+    expect(row("synthetic.chat").closest("section")).toBe(row("assistant").closest("section"));
+    expect(row("synthetic.processing").closest("section")).toBe(row("kb").closest("section"));
+    expect(row("synthetic.chat").querySelector('[data-testid="purpose-description"]')?.textContent).toBe(ROOM_DESCRIPTION);
+    expect(row("synthetic.chat").textContent).toContain("Background process · claude -p");
+    expect(row("synthetic.processing").textContent).toContain("Direct API · Messages");
     // nothing asked by their ids: the catalog has them
     expect(requested().filter((p) => p.includes("/purposes/"))).toEqual([]);
   });
@@ -239,33 +234,29 @@ describe("the meeting uses' models (#7980)", () => {
   ])("says what each follows by the category's name, or that it is set apart, in %s", async (language, room, minutes, separate, reset) => {
     await useLanguage(language);
     await render();
-    expect(row("meeting.room").textContent).toContain(room);
-    expect(row("meeting.minutes").textContent).toContain(minutes);
-    expect(row("meeting.room").textContent).not.toContain(separate);
-    setApart("meeting.room", { model: "claude-small" }, 3); // a model of its own is enough
-    setApart("meeting.minutes", { effort: "low" }, 2);
+    expect(row("synthetic.chat").textContent).toContain(room);
+    expect(row("synthetic.processing").textContent).toContain(minutes);
+    expect(row("synthetic.chat").textContent).not.toContain(separate);
+    setApart("synthetic.chat", { model: "claude-small" }, 3); // a model of its own is enough
+    setApart("synthetic.processing", { effort: "low" }, 2);
     await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("settings-modelconfiguration.refresh")}"]`)!.click());
     await flush();
-    expect(row("meeting.room").textContent).toContain(separate);
-    expect(row("meeting.room").textContent).not.toContain(room);
-    expect(row("meeting.minutes").textContent).toContain(separate);
-    await open("meeting.room");
+    expect(row("synthetic.chat").textContent).toContain(separate);
+    expect(row("synthetic.chat").textContent).not.toContain(room);
+    expect(row("synthetic.processing").textContent).toContain(separate);
+    await open("synthetic.chat");
     expect(dialog().textContent).toContain(separate);
     expect(button(reset, dialog())).toBeDefined();
-    expect(dialog().querySelector('[data-testid="claude-code-only"]')?.textContent).toBe(t("settings-modelconfiguration.claude_code_only"));
   });
 
-  it("the room's editor offers only the hub's providers, no runtime, and says it runs on Claude Code only", async () => {
+  it("the chat helper offers the providers and fields listed by the hub", async () => {
     await render();
-    await open("meeting.room");
-    expect(dialog().textContent).toContain("In-meeting conversation");
+    await open("synthetic.chat");
+    expect(dialog().textContent).toContain("Conversation helper");
     expect(dialog().textContent).toContain("Follows Main chat");
     const options = [...dialog().querySelectorAll<HTMLOptionElement>("select option")];
     expect(options.map((o) => o.value)).toEqual(["", "launcher.claude", "api.messages"]);
     expect(options[0].textContent).toBe("Follow Main chat");
-    const only = dialog().querySelector<HTMLElement>('[data-testid="claude-code-only"]')!;
-    expect(only.textContent).toBe("Runs on Claude Code only: pick a Claude Code launcher or a Messages API connection.");
-    expect(dialog().querySelector("select")!.getAttribute("aria-describedby")).toBe(only.id);
     expect(dialog().textContent).not.toContain(t("settings-modelconfiguration.runtime"));
     expect(dialog().querySelector('[role="radiogroup"]')).toBeNull();
     expect(effort()).not.toBeNull();
@@ -274,16 +265,15 @@ describe("the meeting uses' models (#7980)", () => {
     type(effort()!, "high");
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.room", body: { revision: 0, provider: "api.messages", model: "api-model", effort: "high" } }]);
-    expect(row("meeting.room").textContent).toContain("Separately configured");
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.chat", body: { revision: 0, provider: "api.messages", model: "api-model", effort: "high" } }]);
+    expect(row("synthetic.chat").textContent).toContain("Separately configured");
     // its category is left as it was
     expect(row("assistant").textContent).toContain("claude-model");
   });
 
-  it("the minutes' editor shows effort only where the provider takes one, and no Claude Code line", async () => {
+  it("the summary helper shows effort only where the provider takes one", async () => {
     await render();
-    await open("meeting.minutes");
-    expect(dialog().querySelector('[data-testid="claude-code-only"]')).toBeNull();
+    await open("synthetic.processing");
     expect([...dialog().querySelectorAll<HTMLOptionElement>("select option")][0].textContent).toBe("Follow Information processing");
     expect(effort()).not.toBeNull();
     await choose("api.chat");
@@ -300,9 +290,9 @@ describe("the meeting uses' models (#7980)", () => {
       { id: "chat-exact", efforts: ["low"], all_efforts: ["none", "low"] },
       { id: "chat-none", efforts: [], no_effort: true },
     ];
-    setApart("meeting.minutes", { provider: "api.chat", model: "chat-exact" }, 4);
+    setApart("synthetic.processing", { provider: "api.chat", model: "chat-exact" }, 4);
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     expect([...effortSelect()!.options].map((option) => option.value)).toEqual(["", "off", "low"]);
     expect(effortSelect()!.disabled).toBe(false);
     type(modelField()!, "chat-none");
@@ -317,7 +307,7 @@ describe("the meeting uses' models (#7980)", () => {
     });
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 4, provider: "api.chat", model: "chat-exact", effort: "low" } }]);
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 4, provider: "api.chat", model: "chat-exact", effort: "low" } }]);
   });
 
   it("uses the parent model and effort when an own record keeps the same Chat provider", async () => {
@@ -326,13 +316,13 @@ describe("the meeting uses' models (#7980)", () => {
       { id: "parent-model", efforts: ["low"], all_efforts: ["none", "low"] },
       { id: "chat-default", efforts: ["high"], all_efforts: ["none", "high"] },
     ];
-    stored["meeting.minutes"] = {
+    stored["synthetic.processing"] = {
       override: { provider: "api.chat", effort: "low" },
       effective: { provider: "api.chat", model: "parent-model", effort: "low" },
       revision: 4, fields,
     };
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     expect([...effortSelect()!.options].map((option) => option.value)).toEqual(["", "off", "low"]);
     await act(async () => {
       effortSelect()!.value = "";
@@ -348,12 +338,12 @@ describe("the meeting uses' models (#7980)", () => {
       { id: "parent-model", efforts: ["low"], all_efforts: ["none", "low"] },
       { id: "chat-default", efforts: ["high"], all_efforts: ["none", "high"] },
     ];
-    stored["meeting.minutes"] = {
+    stored["synthetic.processing"] = {
       override: { provider: "api.chat" },
       effective: { provider: "api.chat", model: "parent-model", effort: "high" },
       revision: 4, fields,
     };
-    await render("meeting.minutes");
+    await render("synthetic.processing");
     expect([...effortSelect()!.options].map((option) => option.value)).toEqual(["", "off", "low"]);
     expect(effortSelect()!.options[0].textContent).toBe(t("settings-modelconfiguration.api_effort_inherit", { effort: effortTitle("high") }));
     await act(async () => {
@@ -362,7 +352,7 @@ describe("the meeting uses' models (#7980)", () => {
     });
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 4, provider: "api.chat", model: null, effort: "low" } }]);
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 4, provider: "api.chat", model: null, effort: "low" } }]);
   });
 
   it("uses the linked parent after clearing a model override without the catalog", async () => {
@@ -373,8 +363,8 @@ describe("the meeting uses' models (#7980)", () => {
       { id: "child-model", efforts: ["high"], all_efforts: ["none", "high"] },
       { id: "chat-default", efforts: ["high"], all_efforts: ["none", "high"] },
     ];
-    setApart("meeting.minutes", { model: "child-model" }, 4);
-    await render("meeting.minutes");
+    setApart("synthetic.processing", { model: "child-model" }, 4);
+    await render("synthetic.processing");
     expect(requested()).toContain("/api/v1/model-config/purposes/kb");
     type(modelField()!, "");
     await flush();
@@ -385,7 +375,7 @@ describe("the meeting uses' models (#7980)", () => {
     });
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 4, provider: null, model: null, effort: "low" } }]);
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 4, provider: null, model: null, effort: "low" } }]);
   });
 
   it("ignores an older retry after the newest linked parent loads", async () => {
@@ -399,8 +389,8 @@ describe("the meeting uses' models (#7980)", () => {
       { id: "child-model", efforts: ["high"], all_efforts: ["none", "high"] },
       { id: "chat-default", efforts: ["high"], all_efforts: ["none", "high"] },
     ];
-    setApart("meeting.minutes", { model: "child-model" }, 4);
-    await render("meeting.minutes");
+    setApart("synthetic.processing", { model: "child-model" }, 4);
+    await render("synthetic.processing");
     expect(button("Retry", dialog())).toBeDefined();
     await act(async () => button("Retry", dialog())!.click());
     await flush();
@@ -422,49 +412,49 @@ describe("the meeting uses' models (#7980)", () => {
     });
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 4, provider: null, model: null, effort: "medium" } }]);
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 4, provider: null, model: null, effort: "medium" } }]);
   });
 
   it("keeps Chat effort when an older hub's explicit Chat binding switches to another Chat provider", async () => {
     delete providers[3].chat_effort;
     providers.push({ id: "api.chat-b", name: "Chat B", kind: "api", api: "chat", model: "chat-b-default", has_key: true });
-    setApart("meeting.minutes", { provider: "api.chat", model: "chat-a", effort: "low" }, 4);
+    setApart("synthetic.processing", { provider: "api.chat", model: "chat-a", effort: "low" }, 4);
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     await choose("api.chat-b");
     expect(effortSelect()).toBeDefined();
   });
 
   it("restores Messages effort from another provider's current-hub mark when the effective provider is missing", async () => {
-    stored["meeting.minutes"] = {
+    stored["synthetic.processing"] = {
       override: {}, effective: { provider: "api.missing" }, revision: 4, fields: ["provider", "model"],
     };
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     await choose("api.messages");
     expect(effort()).not.toBeNull();
   });
 
   it("the minutes' editor hides and omits Chat effort after a Messages switch on an older hub", async () => {
     delete providers[3].chat_effort;
-    setApart("meeting.minutes", { provider: "api.messages", model: "api-model" }, 4);
+    setApart("synthetic.processing", { provider: "api.messages", model: "api-model" }, 4);
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     expect(effort()).not.toBeNull();
     await choose("api.chat");
     expect(effort()).toBeNull();
     type(modelField()!, "chat-model");
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 4, provider: "api.chat", model: "chat-model" } }]);
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 4, provider: "api.chat", model: "chat-model" } }]);
   });
 
   it.each([
-    ["meeting.room", "Follow Main chat", "Follows Main chat"],
-    ["meeting.minutes", "Follow Information processing", "Follows Information processing"],
+    ["synthetic.chat", "Follow Main chat", "Follows Main chat"],
+    ["synthetic.processing", "Follow Information processing", "Follows Information processing"],
   ])("%s goes back to following with explicit nulls and its own revision", async (id, reset, following) => {
     // on a Chat Completions connection the minutes take no effort, and the reset still clears one
-    setApart(id, { provider: id === "meeting.room" ? "launcher.claude" : "api.chat", model: "own-model" }, 5, id === "meeting.room" ? fields : ["provider", "model"]);
+    setApart(id, { provider: id === "synthetic.chat" ? "launcher.claude" : "api.chat", model: "own-model" }, 5, id === "synthetic.chat" ? fields : ["provider", "model"]);
     await render();
     await open(id);
     // its reset is longer than "Inherit": a line of its own above Cancel and Save where the three do not fit, which
@@ -482,10 +472,10 @@ describe("the meeting uses' models (#7980)", () => {
 
   it("keeps the draft and blocks saving and the reset after a conflict, until reloaded", async () => {
     await render();
-    await open("meeting.room");
+    await open("synthetic.chat");
     const model = () => modelField()!;
     type(model(), "draft-model");
-    setApart("meeting.room", { model: "elsewhere" }, 1); // saved on another device meanwhile
+    setApart("synthetic.chat", { model: "elsewhere" }, 1); // saved on another device meanwhile
     await act(async () => button("Save", dialog())!.click());
     await flush();
     expect(patches.map((p) => p.body.revision)).toEqual([0]);
@@ -506,9 +496,9 @@ describe("the meeting uses' models (#7980)", () => {
 
   it("the room, set back to following, previews Main chat's launcher and its list, with Main chat's model as Default", async () => {
     lists = true;
-    setApart("meeting.room", { provider: "api.messages", model: "api-model" }, 2);
+    setApart("synthetic.chat", { provider: "api.messages", model: "api-model" }, 2);
     await render();
-    await open("meeting.room");
+    await open("synthetic.chat");
     // on its own Messages connection: the plain field, and no launcher's list asked for
     expect(picker()).toBeNull();
     expect(modelField()!.value).toBe("api-model");
@@ -523,9 +513,9 @@ describe("the meeting uses' models (#7980)", () => {
 
   it("the room with a model of its own: the list's Default is Main chat's model, and picking it follows Main chat", async () => {
     lists = true;
-    setApart("meeting.room", { model: "claude-small" }, 2);
+    setApart("synthetic.chat", { model: "claude-small" }, 2);
     await render();
-    await open("meeting.room");
+    await open("synthetic.chat");
     expect(picker()!.textContent).toContain("Claude small");
     await act(async () => picker()!.click());
     await flush();
@@ -537,15 +527,15 @@ describe("the meeting uses' models (#7980)", () => {
     await act(async () => button("Save", dialog())!.click());
     await flush();
     expect(patches.map((p) => p.body)).toEqual([{ revision: 2, provider: null, model: null, effort: null }]);
-    expect(row("meeting.room").textContent).toContain("Follows Main chat");
+    expect(row("synthetic.chat").textContent).toContain("Follows Main chat");
   });
 
   it("the minutes on an older hub's Chat Completions connection offer effort again once the draft runs on one that takes it", async () => {
     // an older hub lists no effort while they run on a Chat Completions connection
     delete providers[3].chat_effort;
-    setApart("meeting.minutes", { provider: "api.chat", model: "chat-model" }, 4, ["provider", "model"]);
+    setApart("synthetic.processing", { provider: "api.chat", model: "chat-model" }, 4, ["provider", "model"]);
     await render();
-    await open("meeting.minutes");
+    await open("synthetic.processing");
     expect(effort()).toBeNull();
     expect(dialog().querySelector("[data-execution-preview]")!.textContent).toBe("Direct API · Chat");
     // following Information processing again: its Messages connection, which takes one
@@ -564,14 +554,14 @@ describe("the meeting uses' models (#7980)", () => {
 
   it("resets all three by the purpose's own data, also when the page's catalog did not load", async () => {
     catalogFails = true;
-    setApart("meeting.minutes", { model: "own-model", effort: "low" }, 3, ["provider", "model"]);
-    await render("meeting.minutes"); // opened by its link
+    setApart("synthetic.processing", { model: "own-model", effort: "low" }, 3, ["provider", "model"]);
+    await render("synthetic.processing"); // opened by its link
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("hub busy");
     // without the catalog the editor cannot name the category: the plain reset, which still clears the effort
     await act(async () => button(t("settings-modelconfiguration.restore"), dialog())!.click());
     await flush();
-    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/meeting.minutes", body: { revision: 3, provider: null, model: null, effort: null } }]);
-    expect(stored["meeting.minutes"].override).toEqual({});
+    expect(patches).toEqual([{ path: "/api/v1/model-config/purposes/synthetic.processing", body: { revision: 3, provider: null, model: null, effort: null } }]);
+    expect(stored["synthetic.processing"].override).toEqual({});
   });
 
   it("an extension's purpose resets all three too", async () => {
@@ -588,7 +578,7 @@ describe("the meeting uses' models (#7980)", () => {
     let release!: () => void;
     patchGate = new Promise((done) => { release = done; });
     await render();
-    await open("meeting.room");
+    await open("synthetic.chat");
     expect(picker()!.parentElement!.hasAttribute("inert")).toBe(false);
     await act(async () => button("Save", dialog())!.click());
     await flush();
@@ -602,16 +592,16 @@ describe("the meeting uses' models (#7980)", () => {
   it("an older catalog answer does not put back what a save's reload replaced", async () => {
     let release!: () => void;
     catalogGate = new Promise((done) => { release = done; }); // the page's first GET answers late
-    await render("meeting.room");
+    await render("synthetic.chat");
     expect(rows()).toEqual([]);
     type(modelField()!, "own-model");
     await act(async () => button("Save", dialog())!.click());
     await flush();
-    expect(row("meeting.room").textContent).toContain("Separately configured");
+    expect(row("synthetic.chat").textContent).toContain("Separately configured");
     release(); // the GET from before the save, at last
     await flush();
-    expect(row("meeting.room").textContent).toContain("Separately configured");
-    expect(row("meeting.room").textContent).not.toContain("Follows Main chat");
+    expect(row("synthetic.chat").textContent).toContain("Separately configured");
+    expect(row("synthetic.chat").textContent).not.toContain("Follows Main chat");
   });
 
   it("leaves the background supervisor, Lark /agent and the extension's purpose as they were", async () => {
@@ -623,15 +613,14 @@ describe("the meeting uses' models (#7980)", () => {
     expect(button(t("settings-modelconfiguration.restore"), dialog())).toBeDefined();
     expect(button("Follow Main chat", dialog())).toBeUndefined();
     expect([...dialog().querySelectorAll<HTMLOptionElement>("select option")][0].textContent).toBe(t("settings-modelconfiguration.follow_default"));
-    expect(dialog().querySelector('[data-testid="claude-code-only"]')).toBeNull();
     expect(dialog().querySelector("[data-editor-footer]")).toBeNull();
   });
 
-  it("against a hub before #7980: no rows, no requests by their ids, the rest as before", async () => {
-    meeting = false;
+  it("against a hub without these child purposes: no rows, no requests by their ids, the rest as before", async () => {
+    showChildren = false;
     await render();
     expect(rows().map((r) => r.dataset.modelPurpose)).toEqual(["assistant", "assistant.supervise", "lark.agent", "agent.new", "kb", "inbox.triage", "extension.notes"]);
-    expect(requested().filter((p) => p.includes("meeting."))).toEqual([]);
+    expect(requested().filter((p) => p.includes("synthetic."))).toEqual([]);
     expect(requested()).toEqual(["/api/v1/model-config"]);
     expect(host.querySelector('[role="alert"]')).toBeNull();
   });

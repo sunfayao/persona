@@ -1,7 +1,6 @@
 package devices
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -85,7 +84,9 @@ func TestFileTransferSwitchDefaultsOffAndIsStored(t *testing.T) {
 // Settings that cannot be read are off.
 func TestFileTransferSwitchFailsClosed(t *testing.T) {
 	d := newTestDevices(t)
-	switchOn(t, d, "box")
+	if err := d.setFileTransferOn(t.Context(), "box", true); err != nil {
+		t.Fatal(err)
+	}
 	store := d.opts.Store.(*memStore)
 	store.mu.Lock()
 	store.fail = errors.New("database down")
@@ -95,53 +96,6 @@ func TestFileTransferSwitchFailsClosed(t *testing.T) {
 	d.fileTransfer.mu.Unlock()
 	if d.fileTransferOn("box") {
 		t.Fatal("on while the settings cannot be read")
-	}
-}
-
-// A transfer needs the switch on at both ends: either one off is 403 file_transfer_disabled naming it, and neither
-// node is asked anything.
-func TestTransferNeedsTheSwitchAtBothEnds(t *testing.T) {
-	for _, off := range []string{"a", "b"} {
-		src, dst := &sourceNode{data: []byte("x")}, &targetNode{}
-		d, _, _, _, mux := transferDevices(t, src, dst)
-		if err := d.setFileTransferOn(t.Context(), off, false); err != nil {
-			t.Fatal(err)
-		}
-		rec := postTransfer(t, mux, transferBody)
-		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), `"code":"`+proto.CodeFileTransferDisabled+`"`) ||
-			!strings.Contains(rec.Body.String(), `"machine":"`+off+`"`) {
-			t.Fatalf("%s off: %d %s", off, rec.Code, rec.Body)
-		}
-		src.mu.Lock()
-		asked := len(src.requests)
-		src.mu.Unlock()
-		if calls, _, _ := dst.state(); asked != 0 || len(calls) != 0 {
-			t.Fatalf("%s off: the nodes were asked: %d %v", off, asked, calls)
-		}
-	}
-}
-
-// Turning the switch off while a transfer runs stops it at the next chunk, and the target's upload is aborted.
-func TestTransferStopsWhenTheSwitchTurnsOff(t *testing.T) {
-	data := bytes.Repeat([]byte{3}, proto.FileDownloadChunkBytes*4)
-	src := &sourceNode{data: data}
-	dst := &targetNode{}
-	var d *Devices
-	dst.onChunk = func(n int) error {
-		if n == 0 {
-			if err := d.setFileTransferOn(t.Context(), "b", false); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	d, _, _, _, mux := transferDevices(t, src, dst)
-	end := waitTransfer(t, d, mux, started(t, postTransfer(t, mux, transferBody)).ID)
-	if end.State != proto.TransferFailed || end.Code != proto.CodeFileTransferDisabled {
-		t.Fatalf("end %+v", end)
-	}
-	if calls, _, aborted := dst.state(); !aborted || slices.Contains(calls, "file.upload.end") {
-		t.Fatalf("aborted %v, calls %v", aborted, calls)
 	}
 }
 

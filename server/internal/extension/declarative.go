@@ -3,8 +3,6 @@ package extension
 import (
 	"encoding/json"
 	"fmt"
-	"math"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -225,13 +223,6 @@ func (m *Manifest) Prompts() []PromptItem {
 	return out
 }
 
-// Themes are the manifest's contributions to themes.
-func (m *Manifest) Themes() []ThemeItem {
-	var out []ThemeItem
-	_ = json.Unmarshal(m.Contributes["themes"], &out)
-	return out
-}
-
 // TriageTemplates are the manifest's contributions to triage_templates.
 func (m *Manifest) TriageTemplates() []TriageTemplateItem {
 	var out []TriageTemplateItem
@@ -293,45 +284,4 @@ func (m *Manifest) HasDataContent() bool {
 		}
 	}
 	return false
-}
-
-// ThemeProblems are the roles of th whose color does not stand out enough on the background of its scheme (WCAG
-// contrast below 3:1 against white in light, black in dark): the apps do not offer a theme with problems.
-func ThemeProblems(th ThemeItem) []string {
-	var out []string
-	for _, scheme := range []struct {
-		name   string
-		colors map[string]string
-		bg     float64
-	}{{"light", th.Light, 1}, {"dark", th.Dark, 0}} {
-		for _, role := range ThemeRoles {
-			c, ok := scheme.colors[role]
-			if !ok {
-				continue
-			}
-			if r := contrast(luminance(c), scheme.bg); r < 3 {
-				out = append(out, fmt.Sprintf("%s.%s %s 对比度 %.1f，低于 3", scheme.name, role, c, r))
-			}
-		}
-	}
-	return out
-}
-
-func luminance(hex string) float64 {
-	ch := func(i int) float64 {
-		v, _ := strconv.ParseUint(hex[i:i+2], 16, 8)
-		c := float64(v) / 255
-		if c <= 0.03928 {
-			return c / 12.92
-		}
-		return math.Pow((c+0.055)/1.055, 2.4)
-	}
-	return 0.2126*ch(1) + 0.7152*ch(3) + 0.0722*ch(5)
-}
-
-func contrast(a, b float64) float64 {
-	if a < b {
-		a, b = b, a
-	}
-	return (a + 0.05) / (b + 0.05)
 }

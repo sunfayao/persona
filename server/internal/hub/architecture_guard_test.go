@@ -144,7 +144,7 @@ func relayedHubRoutes() []string {
 	return slices.Concat(
 		assistantwire.Routes, assistantwire.InboxRoutes, assistantwire.SocketRoutes,
 		devicewire.Routes, devicewire.ShareRoutes, devicewire.MetricsRoutes,
-		devicewire.TransferRoutes, devicewire.UsageRoutes, devicewire.AdminUsageRoutes,
+		devicewire.UsageRoutes, devicewire.AdminUsageRoutes,
 		extwire.Routes)
 }
 
@@ -193,7 +193,7 @@ func noteRangedRoutes(file string, f *ast.File, relayed []string, own map[string
 func rangeHint(file, what string) string {
 	return fmt.Sprintf("%s registers a route by ranging over %s, which is not a relayed wire table "+
 		"(assistantwire.Routes / InboxRoutes / SocketRoutes, devicewire.Routes / ShareRoutes / MetricsRoutes / "+
-		"TransferRoutes / UsageRoutes / AdminUsageRoutes, extwire.Routes). Range one of those, or register the route "+
+		"UsageRoutes / AdminUsageRoutes, extwire.Routes). Range one of those, or register the route "+
 		"with a string literal; %s", file, what, guardDoc)
 }
 
@@ -265,7 +265,7 @@ func relayedRangeSelector(e ast.Expr) bool {
 	switch pkg.Name + "." + sel.Sel.Name {
 	case "assistantwire.Routes", "assistantwire.InboxRoutes", "assistantwire.SocketRoutes",
 		"devicewire.Routes", "devicewire.ShareRoutes", "devicewire.MetricsRoutes",
-		"devicewire.TransferRoutes", "devicewire.UsageRoutes", "devicewire.AdminUsageRoutes",
+		"devicewire.UsageRoutes", "devicewire.AdminUsageRoutes",
 		"extwire.Routes":
 		return true
 	default:

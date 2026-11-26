@@ -1,8 +1,4 @@
-"""Saved prompts in the mock hub (Settings › Saved Prompts, #7329; server/internal/assistant/saved/prompts.go), a domain
-of scripts/mock/mock_domains.py that moved out of mock_hub.py (#11649): GET and POST /api/v1/assistant/saved-prompts, PUT
-…/order, PUT and DELETE …/{id}, each change pushed to every socket as assistant_saved_prompts. web/e2e/saved-prompts.mjs
-and SavedPromptsUITests drive it.
-"""
+"""Saved prompts for the chat command palette, with changes sent as assistant_saved_prompts."""
 import json
 import os
 import unicodedata
@@ -10,7 +6,7 @@ import uuid
 
 import mock_domains
 
-HELP = ("MOCK_SAVED_PROMPTS=1|old  Settings › Saved Prompts and every chat's / list: three saved prompts (1), or an "
+HELP = ("MOCK_SAVED_PROMPTS=1|old  Every chat's / list: three saved prompts (1), or an "
         "assistant from before them, its routes answering 404 (old) (#7329)")
 HUB = None  # mock_hub.py's globals (mock_domains.Hub), from register
 
@@ -76,21 +72,8 @@ def saved_prompts_route(h, p, method):
         h.send_json({"prompts": SAVED_PROMPTS})
     elif p == base and method == "POST":
         h.send_json(*save_saved_prompt(json.loads(h.last_body or b"{}"), None))
-    elif p == base + "/order" and method == "PUT":
-        ids = json.loads(h.last_body or b"{}").get("ids") or []
-        if sorted(ids) != sorted(x["id"] for x in SAVED_PROMPTS) or len(set(ids)) != len(ids):
-            h.send_json({"error": "The saved prompts changed on another device. Reload the list and try again."}, 409)
-        else:
-            SAVED_PROMPTS[:] = [next(x for x in SAVED_PROMPTS if x["id"] == i) for i in ids]
-            push_saved_prompts()
-            h.send_json({"prompts": SAVED_PROMPTS})
     elif method == "PUT":
         h.send_json(*save_saved_prompt(json.loads(h.last_body or b"{}"), p.rsplit("/", 1)[1]))
-    elif method == "DELETE":
-        pid = p.rsplit("/", 1)[1]
-        SAVED_PROMPTS[:] = [x for x in SAVED_PROMPTS if x["id"] != pid]
-        push_saved_prompts()
-        h.send_json({"ok": True})
     else:
         h.send_json({"error": "method not allowed"}, 405)
     return True

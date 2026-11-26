@@ -2,10 +2,7 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"slices"
 	"strings"
 	"sync"
@@ -13,7 +10,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/compat"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/identity"
 	"github.com/nwverse/persona/server/internal/lazyre"
 	"github.com/nwverse/persona/server/internal/proto"
@@ -497,35 +493,4 @@ func (s *Service) originsChanged(machine string, list []proto.Session) {
 			s.logf("conversation origins: backfill on %s: %v", machine, err)
 		}
 	}()
-}
-
-// originRoutes: POST /api/v1/assistant/origins/backfill runs the backfill over the assistant's machines' lists now.
-func (s *Service) originRoutes() {
-	s.handle("POST /api/v1/assistant/origins/backfill", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("only a full device can run the backfill"))
-			return
-		}
-		var in struct {
-			Redo bool `json:"redo"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<12)).Decode(&in); err != nil && !errors.Is(err, io.EOF) {
-			apierr.Write(w, http.StatusBadRequest, err)
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-		defer cancel()
-		machine := s.settings(ctx).MachineID
-		list, err := s.sessions(ctx, machine)
-		if err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		res, err := s.backfillOrigins(ctx, machine, list, in.Redo)
-		if err != nil {
-			apierr.Write(w, http.StatusInternalServerError, err)
-			return
-		}
-		apierr.WriteJSON(w, res)
-	})
 }

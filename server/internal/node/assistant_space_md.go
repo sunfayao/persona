@@ -7,21 +7,15 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/lazyre"
 )
 
-// A track's SPACE.md, read and written for the manager (#13472, nodeproto.TrackSpaceMD, docs/assistant/tracks.md
-// "Tracks and kinds"): the whole file the user edits in the apps, refused when it changes a block Persona manages or
-// its markers (byte for byte) or when the file changed since it was read; and the state block alone, which the track's
-// conversations replace (space_state_update), leaving every other byte as it was. Every write first keeps the file it
-// replaces in .space/history/, the latest spaceHistoryKeep of them. The file is read without following a link and
-// written atomically.
+// The space_state_update tool replaces a track's state block. Each atomic write keeps the previous file in
+// .space/history/. The node reads the file without following a symlink.
 
 func init() { nodeRPC(assistantwire.DeviceAssistantSpaceMD, (*Node).assistantSpaceMD) }
 
@@ -32,8 +26,6 @@ const (
 	spaceStateEnd   = "<!-- persona:managed:state:end -->"
 	managedMarker   = "<!-- persona:managed:"
 )
-
-var managedMarkerRe = lazyre.New(`<!-- persona:managed:([A-Za-z0-9_.-]+):(begin|end) -->`)
 
 // spaceHistoryKeep is how many earlier SPACE.md files .space/history/ keeps.
 const spaceHistoryKeep = 20
@@ -91,18 +83,6 @@ func spaceMDCall(dir string, c assistantwire.SpaceMDCall) (assistantwire.SpaceMD
 	}
 	var next string
 	switch c.Op {
-	case assistantwire.SpaceMDGet:
-		return cur, nil
-	case assistantwire.SpaceMDPutHuman:
-		switch {
-		case len(c.Content) > spaceMDLimit:
-			return refused(assistantwire.SpaceMDTooLarge)
-		case c.BaseDigest != cur.Digest:
-			return refused(assistantwire.SpaceMDStale)
-		case !slices.Equal(managedParts(old), managedParts(c.Content)):
-			return refused(assistantwire.SpaceMDManaged)
-		}
-		next = c.Content
 	case assistantwire.SpaceMDPutState:
 		state := strings.TrimRight(c.State, "\r\n")
 		switch {
@@ -176,33 +156,6 @@ func stateBlock(s string) (inner, end int, ok bool) {
 	inner = strings.Index(s, spaceStateBegin) + len(spaceStateBegin)
 	end = strings.Index(s, spaceStateEnd)
 	return inner, end, end >= inner
-}
-
-// managedParts are what of s Persona manages, in order: each block whole, from its begin marker to the first end
-// marker of the same name after it, and each marker outside such a block. A write of the user's keeps them all, byte
-// for byte.
-func managedParts(s string) []string {
-	locs := managedMarkerRe.FindAllStringSubmatchIndex(s, -1)
-	var parts []string
-	for i := 0; i < len(locs); i++ {
-		l := locs[i]
-		name, kind := s[l[2]:l[3]], s[l[4]:l[5]]
-		if kind == "begin" {
-			j := i + 1
-			for ; j < len(locs); j++ {
-				if m := locs[j]; s[m[2]:m[3]] == name && s[m[4]:m[5]] == "end" {
-					break
-				}
-			}
-			if j < len(locs) {
-				parts = append(parts, s[l[0]:locs[j][1]])
-				i = j
-				continue
-			}
-		}
-		parts = append(parts, s[l[0]:l[1]])
-	}
-	return parts
 }
 
 // backupSpaceMD keeps old in dir's .space/history/ as SPACE-<UTC time>.md, then the latest spaceHistoryKeep only.

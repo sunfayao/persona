@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"path"
 	"strings"
 	"testing"
@@ -49,101 +48,12 @@ func spaceMDService(t *testing.T) (*Service, *fakeHub, *spaceMDNode) {
 		}
 		cur := assistantwire.SpaceMD{Content: n.content, Digest: digest(n.content)}
 		switch c.Op {
-		case assistantwire.SpaceMDPutHuman:
-			switch {
-			case c.BaseDigest != cur.Digest:
-				cur.Refused = assistantwire.SpaceMDStale
-			case !strings.Contains(c.Content, spaceStateBegin+"\n"+spaceStateEnd):
-				cur.Refused = assistantwire.SpaceMDManaged
-			default:
-				n.content = c.Content
-				cur = assistantwire.SpaceMD{Content: n.content, Digest: digest(n.content)}
-			}
 		case assistantwire.SpaceMDPutState:
 			cur.State = c.State
 		}
 		return cur, nil
 	})
 	return s, f, n
-}
-
-// The SPACE.md routes (#13472): reads for full-access clients, writes for the user only, each on the assistant's
-// machine in the track's own directory; a refusal of the node's is the route's status, and a write prepares the track
-// again so its instructions end with the new SPACE.md.
-func TestTrackSpaceMDRoutes(t *testing.T) {
-	s, f, n := spaceMDService(t)
-	trackDir := path.Join(compat.StateDir, "tracks/qa-plain")
-
-	w := serve(s, http.MethodGet, "/api/v1/assistant/tracks/qa-plain/space-md", "")
-	got := decodeTrackJSON[assistantwire.SpaceMD](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || got.Content != n.content || got.Digest == "" || strings.Contains(w.Body.String(), "refused") {
-		t.Fatalf("get: %d %s", w.Code, w.Body)
-	}
-	if c := n.calls[0]; c.Op != assistantwire.SpaceMDGet || c.Dir != trackDir || c.Slug != "qa-plain" {
-		t.Errorf("node call: %+v", c)
-	}
-	for _, slug := range []string{"qa-unknown", "qa-elsewhere", "qa-gone", "qa-health-like", testSpace} {
-		if w := serve(s, http.MethodGet, "/api/v1/assistant/tracks/"+slug+"/space-md", ""); w.Code != http.StatusNotFound {
-			t.Errorf("%s: %d, want 404", slug, w.Code)
-		}
-	}
-
-	calls := len(n.calls)
-	body := func(content, base string) string {
-		b, _ := json.Marshal(assistantwire.SpaceMDPut{Content: content, BaseDigest: base})
-		return string(b)
-	}
-	edited := strings.Replace(n.content, "# QA plain\n", "# QA plain\n\nAnswer with sources.\n", 1)
-	for _, role := range []string{roleExtension, "scoped"} {
-		if w := serveAs(s, role, http.MethodPut, "/api/v1/assistant/tracks/qa-plain/space-md", body(edited, got.Digest)); w.Code != http.StatusForbidden {
-			t.Errorf("%s: %d, want 403", role, w.Code)
-		}
-	}
-	for name, b := range map[string]string{
-		"no base digest": body(edited, ""),
-		"unknown field":  `{"content":"x","base_digest":"1","extra":true}`,
-		"not JSON":       `{`,
-	} {
-		if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain/space-md", b); w.Code != http.StatusBadRequest {
-			t.Errorf("%s: %d, want 400", name, w.Code)
-		}
-	}
-	if len(n.calls) != calls {
-		t.Fatalf("refused writes reached the node: %+v", n.calls[calls:])
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain/space-md", body(edited, "stale")); w.Code != http.StatusConflict {
-		t.Errorf("stale: %d, want 409", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain/space-md", body("# Mine\n", got.Digest)); w.Code != http.StatusBadRequest {
-		t.Errorf("a managed block dropped: %d, want 400", w.Code)
-	}
-	if len(f.prepared) != 0 {
-		t.Fatalf("a refused write prepared the track: %d", len(f.prepared))
-	}
-
-	w = serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain/space-md", body(edited, got.Digest))
-	put := decodeTrackJSON[assistantwire.SpaceMD](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || put.Content != edited || n.content != edited {
-		t.Fatalf("put: %d %s", w.Code, w.Body)
-	}
-	if c := n.calls[len(n.calls)-1]; c.Op != assistantwire.SpaceMDPutHuman || c.Dir != trackDir || c.BaseDigest != got.Digest {
-		t.Errorf("node call: %+v", c)
-	}
-	if len(f.prepared) != 1 || f.prepared[0]["dir"] != trackDir {
-		t.Errorf("after the write: prepared %v, want the track", f.prepared)
-	}
-
-	// The computer away, or its node without the method: 503, nothing asked of an older node.
-	n.offline = true
-	if w := serve(s, http.MethodGet, "/api/v1/assistant/tracks/qa-plain/space-md", ""); w.Code != http.StatusServiceUnavailable {
-		t.Errorf("offline: %d, want 503", w.Code)
-	}
-	n.offline = false
-	s.devs = spaceDevs{fleetDevs: newFleetDevs(), noSpaceMD: true}
-	calls = len(n.calls)
-	if w := serve(s, http.MethodGet, "/api/v1/assistant/tracks/qa-plain/space-md", ""); w.Code != http.StatusServiceUnavailable || len(n.calls) != calls {
-		t.Errorf("an older node: %d, %d calls", w.Code, len(n.calls)-calls)
-	}
 }
 
 // space_state_update (#13472) is offered to a space track's conversations only, routed to its handler, which refuses

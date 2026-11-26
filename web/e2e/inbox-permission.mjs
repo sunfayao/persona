@@ -58,7 +58,6 @@ async function run(theme, width, textSize) {
     const url = new URL(route.request().url());
     const path = url.pathname;
     const json = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/model-profiles") return json({ error: "not found" }, 404);
     if (path === "/api/v1/model-config") return json({ purposes: [state.parent, state.inbox], providers: state.providers });
     if (path.endsWith("/models")) return json({ agent: "claude", models: [{ id: "default", name: "Default", default: true }] });
     if (path === "/api/v1/model-config/purposes/inbox.agent") {

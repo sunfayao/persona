@@ -198,13 +198,7 @@ func TestModelProfilesIgnoreARuntime(t *testing.T) {
 	if r := modelRecordOf(t, s, "assistant"); r.Binding != (ModelBinding{Provider: "launcher.claude", Model: "test-chat"}) {
 		t.Fatalf("rolled back to %+v", r)
 	}
-	body := fmt.Sprintf(`{"revision":%d,"name":"Custom","purposes":{"assistant":{"model":"test-custom","runtime":"agentsdk"}}}`, profilesOf(t, s).Revision)
-	if w := request(s, http.MethodPut, "/api/v1/model-profiles/custom", body); w.Code != http.StatusOK {
-		t.Fatalf("PUT: %d %s", w.Code, w.Body.String())
-	}
-	if raw := rawSetting(t, s, modelProfilesKey); strings.Contains(raw, "runtime") || !strings.Contains(raw, "test-custom") {
-		t.Fatalf("stored profiles: %s", raw)
-	}
+
 }
 
 func TestModelMessagesAPIProviderRunsAsLauncher(t *testing.T) {

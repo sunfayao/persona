@@ -181,12 +181,6 @@ var modelRoutes = []string{
 	"GET /api/v1/machines/{mid}/launchers/{name}/models",
 	"GET /api/v1/machines/{mid}/launchers/{name}/start-options",
 	"DELETE /api/v1/machines/{mid}/launchers/{name}/models/custom", // ?model=: forget a typed id (#1644)
-	// Model profiles (model_profiles.go there, docs/assistant/model-profiles.md).
-	"GET /api/v1/model-profiles",
-	"PUT /api/v1/model-profiles/{id}",
-	"DELETE /api/v1/model-profiles/{id}",
-	"POST /api/v1/model-profiles/{id}/apply",
-	"POST /api/v1/model-profiles/rollback",
 }
 
 func init() { Routes = append(Routes, modelRoutes...) }
