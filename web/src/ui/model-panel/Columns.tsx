@@ -102,7 +102,16 @@ export function LevelColumn({ row, disabled, onLevel }: {
             {e === now && <Icon name="check" size={13} stroke={2.5} className="shrink-0 text-ink" />}
           </button>
         ))}
-      {model && !levels.length && !note && <p className="px-2.5 text-label leading-[1.4] text-ink-3">{t("ui-modelpanel.no_levels")}</p>}
+      {model && !levels.length && now && (
+        <div
+          data-panel-level-current={now}
+          className="flex min-h-8 items-center gap-2 rounded-control bg-hover/70 px-2.5 py-1 text-meta font-medium text-ink"
+        >
+          <span className="min-w-0 flex-1 truncate">{effortTitle(now)}</span>
+          <Icon name="check" size={13} stroke={2.5} className="shrink-0 text-ink-2" />
+        </div>
+      )}
+      {model && !levels.length && !note && !now && <p className="px-2.5 text-label leading-[1.4] text-ink-3">{t("ui-modelpanel.no_levels")}</p>}
       {note && <p className="px-2.5 pt-2 text-label leading-[1.4] text-ink-3">{note}</p>}
     </div>
   );

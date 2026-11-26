@@ -32,9 +32,10 @@ func (c CodexCounts) Tokens() Tokens {
 
 // CodexInfo is a token_count's info.
 type CodexInfo struct {
-	Total              CodexCounts `json:"total_token_usage"`
-	Last               CodexCounts `json:"last_token_usage"`
-	ModelContextWindow int         `json:"model_context_window"`
+	Total                 CodexCounts `json:"total_token_usage"`
+	Last                  CodexCounts `json:"last_token_usage"`
+	ModelContextWindow    int         `json:"model_context_window"`
+	AutoCompactTokenLimit int         `json:"auto_compact_token_limit"`
 }
 
 // CodexTotal keeps a rollout's running total: Grew says whether a token_count's total is a new request's.

@@ -76,6 +76,7 @@ type quickMeta struct {
 	// (transcript.Meta; Session.ContextTokens / ContextWindow, #2430). Carried over from the last read when the tail
 	// holds no reply (one huge line can fill it).
 	contextTokens, contextWindow int
+	autoCompactThreshold         int
 	contextStats                 transcript.ContextStats
 	contextFullWindow            bool
 	contextRestartRecommended    bool
@@ -443,12 +444,14 @@ func readQuickMetaSince(path string, st os.FileInfo, prev quickMeta) quickMeta {
 		}
 	}
 	m.version, m.versionAt, m.ultracode, m.ultracodeAt = tm.Version, tm.VersionAt, tm.Ultracode, tm.UltracodeAt
-	m.contextTokens, m.contextWindow = tm.ContextTokens, tm.ContextWindow
+	m.contextTokens, m.contextWindow, m.autoCompactThreshold = tm.ContextTokens, tm.ContextWindow, tm.AutoCompactThreshold
 	m.contextStats = tm.ContextStats
 	m.contextFullWindow = off == 0 || tm.ContextStats.CompactedInWindow
 	if m.contextTokens == 0 && !tm.ContextCompacted && prev.size > 0 && prev.size <= st.Size() {
 		// No reply in the tail: the last read's stands, unless the tail compacted it away (unknown until a reply, #9207).
-		m.contextTokens, m.contextWindow = prev.contextTokens, prev.contextWindow
+		m.contextTokens, m.contextWindow, m.autoCompactThreshold = prev.contextTokens, prev.contextWindow, prev.autoCompactThreshold
+	} else if m.autoCompactThreshold == 0 && prev.autoCompactThreshold > 0 && prev.size > 0 && prev.size <= st.Size() {
+		m.autoCompactThreshold = prev.autoCompactThreshold
 	}
 	if m.contextTokens > 0 && m.contextStats.Empty() && !tm.ContextCompacted && prev.size > 0 && prev.size <= st.Size() {
 		m.contextStats, m.contextFullWindow = prev.contextStats, prev.contextFullWindow
@@ -482,6 +485,9 @@ func (n *Node) mergeNamingMetadata(path string, m *quickMeta) {
 	if m.codex && sc.meta.EffortAt.After(m.effortAt) {
 		// A long tool result can push the latest turn_context out of the quick tail.
 		m.effort, m.effortAt = sc.meta.Effort, sc.meta.EffortAt
+	}
+	if m.autoCompactThreshold == 0 && sc.meta.AutoCompactThreshold > 0 {
+		m.autoCompactThreshold = sc.meta.AutoCompactThreshold
 	}
 	if sc.meta.TitleManual {
 		m.title, m.titleManual, m.titleSource = sc.meta.Title, true, "manual"

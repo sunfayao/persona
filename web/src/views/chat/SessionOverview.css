@@ -12,7 +12,7 @@
   .session-overview {
     order: 0;
     max-block-size: none;
-    inline-size: calc(var(--spacing) * 84);
+    inline-size: calc(var(--spacing) * 86);
     border-block-end: 0;
     border-inline-start: 1px solid var(--line);
   }

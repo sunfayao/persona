@@ -17,6 +17,7 @@
   "effort_read_only": "这个会话是只读的，请在运行它的应用中修改思考档位。",
   "effort_model_fixed": "这个模型不提供可调的思考档位。",
   "effort_terminal": "这个 Codex 会话没有共享控制连接，请在它的终端中修改思考档位。",
+  "effort_traex_terminal": "运行中的 TRAE CLI 会话不支持直接修改思考强度，请在终端或新建会话时指定。",
   "switch_title": "切换此对话的连接？",
   "switch_explanation": "使用最近的消息和摘要，在 {name} 上继续。对话及其任务仍留在这里，部分细节会被概括。新连接将在你发送下一条消息时接手。",
   "switch_confirm": "切换连接",

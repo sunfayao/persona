@@ -50,6 +50,10 @@ function panelModel(m: AgentModel, engine: string, current: boolean, s: Session,
     else if (s.capabilities?.send === false) out.effortUnavailable = t("chat-modelpanel.effort_read_only");
     else if (s.source_kind === "codex_app_server" || s.space_kind === "codex_app") out.effortUnavailable = t("chat-modelpanel.effort_model_fixed");
     else out.effortUnavailable = t("chat-modelpanel.effort_terminal");
+  } else if (isTraeCli(s.agent) && (current || Boolean(m.efforts?.length))) {
+    if (s.state === "offline" || s.status === "offline") out.effortUnavailable = t("chat-modelpanel.effort_offline");
+    else if (s.capabilities?.send === false) out.effortUnavailable = t("chat-modelpanel.effort_read_only");
+    else out.effortUnavailable = t("chat-modelpanel.effort_traex_terminal");
   }
   return out;
 }

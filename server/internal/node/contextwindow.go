@@ -29,14 +29,16 @@ func contextWindowOf(model string, recorded, used int) int {
 	if strings.Contains(id, "[1m]") {
 		return claudeWindow1M
 	}
-	id = claudeModelAfterRoute(id)
-	if id == "" {
-		return 0
+	if claudeID := claudeModelAfterRoute(id); claudeID != "" {
+		if used > claudeWindow || claudeNative1M(claudeID) {
+			return claudeWindow1M
+		}
+		return claudeWindow
 	}
-	if used > claudeWindow || claudeNative1M(id) {
+	if geminiID := geminiModelAfterRoute(id); geminiID != "" && geminiNative1M(geminiID) {
 		return claudeWindow1M
 	}
-	return claudeWindow
+	return 0
 }
 
 // lookupProviderModel finds model in l.Models, matching exact base IDs first, then "/" route suffixes from longest to
@@ -135,6 +137,54 @@ func claudeModelAfterRoute(id string) string {
 		}
 	}
 	return ""
+}
+
+// geminiModelAfterRoute is id or, for a gateway's routed name ("google-antigravity/gemini-4-neon"), the Gemini model
+// after its last "/"; "" when neither names a Gemini model. id is lower case.
+func geminiModelAfterRoute(id string) string {
+	if strings.HasPrefix(id, "gemini-") {
+		return id
+	}
+	if i := strings.LastIndexByte(id, '/'); i >= 0 {
+		if tail := id[i+1:]; strings.HasPrefix(tail, "gemini-") {
+			return tail
+		}
+	}
+	return ""
+}
+
+// geminiNative1M reports Gemini models with a native 1M-token context window (Gemini 2.5+, 3.x, 4.x, and Antigravity's
+// gemini-pro-orchestrator variants). Unknown/opaque model IDs return false so callers still degrade honestly to 0.
+func geminiNative1M(id string) bool {
+	id, _, _ = strings.Cut(id, "@")
+	if strings.HasPrefix(id, "gemini-pro-orchestrator") {
+		return true
+	}
+	rest := strings.TrimPrefix(id, "gemini-")
+	if rest == id || rest == "" {
+		return false
+	}
+	sep := strings.IndexAny(rest, "-.")
+	ver := rest
+	if sep >= 0 {
+		ver = rest[:sep]
+	}
+	major, ok := modelVersionPart(ver)
+	if !ok {
+		return false
+	}
+	if major >= 3 {
+		return true
+	}
+	if major == 2 && sep >= 0 && rest[sep] == '.' {
+		tail := rest[sep+1:]
+		if end := strings.IndexAny(tail, "-."); end >= 0 {
+			tail = tail[:end]
+		}
+		minor, ok := modelVersionPart(tail)
+		return ok && minor >= 5
+	}
+	return false
 }
 
 // claudeNative1M reports a Claude model whose window is 1M without the "[1m]" opt-in, as Claude Code's own model list
@@ -384,6 +434,12 @@ func (n *Node) setSessionContext(s *proto.Session, m quickMeta) {
 		s.ContextWindow = proto.Tokens32(n.sessionContextWindow(s.SessionID, s.Launcher, s, m))
 	}
 	autoCompact := n.sessionAutoCompactThreshold(s.SessionID, s.Launcher, int(s.ContextWindow))
+	if m.autoCompactThreshold > 0 && (autoCompact == 0 || m.autoCompactThreshold < autoCompact) {
+		autoCompact = m.autoCompactThreshold
+	}
+	if s.ContextWindow > 0 && autoCompact > int(s.ContextWindow) {
+		autoCompact = int(s.ContextWindow)
+	}
 	if native != nil && m.contextStats.Native == nil {
 		fillBreakdownDerived(s, native, autoCompact)
 		return
@@ -422,6 +478,12 @@ func (n *Node) setRuntimeSessionContext(s *proto.Session, m quickMeta) {
 		}
 	}
 	autoCompact := n.sessionAutoCompactThreshold(s.SessionID, s.Launcher, int(s.ContextWindow))
+	if m.autoCompactThreshold > 0 && (autoCompact == 0 || m.autoCompactThreshold < autoCompact) {
+		autoCompact = m.autoCompactThreshold
+	}
+	if s.ContextWindow > 0 && autoCompact > int(s.ContextWindow) {
+		autoCompact = int(s.ContextWindow)
+	}
 	if native != nil && m.contextStats.Native == nil {
 		fillBreakdownDerived(s, native, autoCompact)
 		return

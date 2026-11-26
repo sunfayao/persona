@@ -71,6 +71,16 @@ describe("TRAE CLI's live model panel", () => {
     expect(pickPlan(live, { provider: launcher, model: "unlisted" }, () => catalog)).toBeNull();
     expect(pickPlan(live, { provider: "claude", model: "opus" }, () => claudeList)).toBeNull();
   });
+
+  it("preserves active thinking effort and explains terminal-only effort switching for TRAE CLI", () => {
+    const active = session({ ...live, model: "fixture-b", effort: "xhigh" });
+    const { providers, state } = sessionPanel(active, launchers, list);
+    expect(state.current).toEqual({ provider: launcher, model: "fixture-b", effort: "xhigh" });
+    const row = providers[0].models!.find((m) => m.id === "fixture-b")!;
+    expect(row.efforts).toEqual([]);
+    expect(row.effortUnavailable).toBe(t("chat-modelpanel.effort_traex_terminal"));
+    expect(shownEffort(rowSetup(providers[0], row, state), row)).toBe("xhigh");
+  });
 });
 
 describe("actual Codex session effort and control availability", () => {
