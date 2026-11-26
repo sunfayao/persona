@@ -46,9 +46,11 @@ async function verifyDesktopProjectFolder(theme, selected) {
     const draft = page.getByTestId("folder-agent-draft");
     await draft.locator("button[data-model-pill=ready]").click();
     const picker = page.locator("[data-model-panel]");
-    for (const { name } of launchers) await picker.locator(`[data-panel-launcher="${name}"]`).waitFor({ timeout: 3000 });
+    const provider = (name) => picker.locator(`[data-panel-side="${name}"]`);
+    await provider("claude-desktop").waitFor();
+    for (const { name } of launchers) await provider(name).waitFor({ timeout: 3000 });
     await page.screenshot({ path: join(captures, `desktop-folder-${theme}.png`) });
-    await picker.locator(`[data-panel-launcher="${selected}"]`).click();
+    await provider(selected).click();
     await picker.getByText(`Fixture ${selected}`, { exact: true }).click();
     await draft.locator("textarea").fill(firstText);
     const request = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === "/api/v1/sessions");
