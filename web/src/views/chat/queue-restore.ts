@@ -5,6 +5,8 @@ import { imagePayload, MAX_IMAGE, quotePath } from "../../lib/attachments";
 import { restoreFiles } from "../../lib/composer-files";
 import { sendDraft, type DraftImage } from "../../lib/drafts";
 import { addContext, newContext, type ContextRef } from "../../lib/links";
+import { isInlineMention } from "../../lib/inline-mentions";
+import { composerDraft } from "../../lib/skill-mentions";
 import { queuedDraft, type QueuedParts } from "../../lib/queue";
 import type { Session } from "../../lib/types";
 import { toast } from "../../ui/atoms";
@@ -34,9 +36,10 @@ export interface QueuedImage {
 export async function restoreQueued(draftKey: string, session: Session, p: QueuedParts, images: QueuedImage[] = []) {
   // its files back to their tiles over the box (#8361); only ones past the limit go in as paths
   const text = queuedDraft({ text: p.text, files: restoreFiles(draftKey, p.files) });
-  if (text) sendDraft(draftKey, { type: "append", text });
+  const contexts = p.contexts.map((c) => ({ ...newContext(c.kind as ContextRef["kind"], c.title, c.url, c.text), ...(c.attrs ? { attrs: c.attrs } : {}) }));
+  if (text) sendDraft(draftKey, { type: "append", text: composerDraft(contexts.filter(isInlineMention), text) });
   // a kind this composer has no chip of its own for is shown as a quote and sent back as it came
-  for (const c of p.contexts) addContext(draftKey, { ...newContext(c.kind as ContextRef["kind"], c.title, c.url, c.text), ...(c.attrs ? { attrs: c.attrs } : {}) });
+  for (const context of contexts) if (!isInlineMention(context)) addContext(draftKey, context);
   images.forEach((img, i) => sendDraft(draftKey, { type: "image", image: { name: `photo-${i + 1}.${img.mime.split("/")[1] || "png"}`, ...img } }));
   if (!p.photos.length) return;
   const read = await Promise.all(p.photos.map((path) => readPhoto(session.machine_id, path, session.cwd)));

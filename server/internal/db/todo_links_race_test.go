@@ -221,3 +221,38 @@ func TestAutoLinkReleasesADoneTodo(t *testing.T) {
 		t.Fatalf("late link: active %v", got)
 	}
 }
+
+func TestAttachUnassignedTodoAgentRaces(t *testing.T) {
+	d, ctx := open(t), context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	for _, id := range []string{"t_a", "t_b"} {
+		if err := d.CreateTodo(ctx, TodoRow{ID: id, Title: id, CreatedAt: now, UpdatedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 10; i++ {
+		session := fmt.Sprintf("safe_%d", i)
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		var added [2]bool
+		var errs [2]error
+		for j, id := range []string{"t_a", "t_b"} {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				added[j], errs[j] = d.AttachUnassignedTodoAgent(ctx, id, "m", session, "", "", "", now)
+			}()
+		}
+		close(start)
+		wg.Wait()
+		if added[0] == added[1] || len(activeTodosOf(t, d, "m", session)) != 1 {
+			t.Fatalf("round %d: successful writes %v, errors %v", i, added, errs)
+		}
+		for j := range added {
+			if added[j] && errs[j] != nil || !added[j] && errs[j] != ErrTodoAgentAssigned {
+				t.Fatalf("round %d: unexpected result %v / %v", i, added, errs)
+			}
+		}
+	}
+}

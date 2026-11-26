@@ -43,6 +43,7 @@ import { NewWorktreeHost } from "./views/NewWorktreeHost";
 import { CloseAgentHost } from "./views/CloseAgentHost";
 import { ForwardHost } from "./views/chat/ForwardHost";
 import { onOpenNewAgent, type NewAgentPreset } from "./lib/new-agent";
+import { folderAgentDraft, openFolderAgentDraft } from "./lib/folder-agent-draft";
 import { closeHelp, useHelpOpen } from "./lib/shortcut-help";
 import { closePalette, openPalette, usePalette } from "./lib/palette";
 import { sidebarRail, sidebarShown, useLayout } from "./lib/layout";
@@ -92,6 +93,7 @@ function PhoneToasts(props: ToastLiftProps) {
     </OverlayBoundary>
   );
 }
+const FolderAgentDraft = lazyPage(() => import("./views/FolderAgentDraft").then((m) => m.FolderAgentDraft), { routes: ["agent-draft"] });
 const NewAgent = lazyPage(() => import("./views/NewAgent").then((m) => m.NewAgent));
 const StartingAgent = lazyPage(() => import("./views/StartingAgent").then((m) => m.StartingAgent));
 const ShortcutHelpDialog = lazyDialog(() => import("./views/ShortcutHelp").then((m) => m.ShortcutHelp));
@@ -363,6 +365,11 @@ function Shell() {
   useEffect(() => preloadPages(), []);
   useEffect(() => preloadCloseout(), []);
   useEffect(() => onOpenNewAgent((p) => {
+    if (openFolderAgentDraft(p)) {
+      setNewAgent(false);
+      setPreset(null);
+      return;
+    }
     setPreset(p);
     setNewAgent(true);
   }), []);
@@ -471,18 +478,23 @@ function Shell() {
   const at = pane ? `${pane.mid}/${pane.sid}` : chat !== undefined ? `persona/${chat}` : route.name;
   useSessionPanels(at, pane, chat);
 
+  const draft = route.name === "agent-draft" ? folderAgentDraft(route.id) : undefined;
   const extensionTitle = useExtensionPlace(route.name === "extension" ? route.extension : "", route.name === "extension" ? route.ui : "")?.title;
   const title =
     inWorkView(route) || route.name === "terminal" ? t("work-entry.title") : pane ? agentTitle || "Agent" : route.name === "persona" ? "Persona" : route.name === "profile" ? t("app.title_profile") : route.name === "inbox" ? t("app.title_inbox") : route.name === "messages" ? t("app.title_messages")
       : route.name === "request" ? t("app.title_request") : route.name === "routines" ? t("app.title_routines") : route.name === "todos" ? t("app.title_todos") : route.name === "machines" || route.name === "machine" ? t("app.title_machines") : route.name === "space" ? route.space : route.name === "settings" ? t("app.title_settings")
-      : route.name === "agents" ? t("app.title_agents") : route.name === "agent-list" ? "Agents" : route.name === "agent-archives" ? t("app.title_agent_archives") : route.name === "compare" ? t("app.title_compare_runs") : route.name === "extension" ? extensionTitle || t("app.title_extension") : route.name === "subscriptions" ? t("app.title_subscriptions") : route.name === "not-found" ? t("app.title_not_found") : t("app.title_home");
+      : route.name === "agents" ? t("app.title_agents") : route.name === "agent-draft" ? draft?.label || "Agent" : route.name === "agent-list" ? "Agents" : route.name === "agent-archives" ? t("app.title_agent_archives") : route.name === "compare" ? t("app.title_compare_runs") : route.name === "extension" ? extensionTitle || t("app.title_extension") : route.name === "subscriptions" ? t("app.title_subscriptions") : route.name === "not-found" ? t("app.title_not_found") : t("app.title_home");
 
   // never reached the hub: say so with a way to try again, instead of pages loading forever (kept through a retry); the
   // Agents list reads the same flag, so the two always agree
   const offline = useHubUnreachable();
   let main: React.ReactNode;
-  if (offline) main = <Offline onToggleSidebar={toggle} trying={conn === "connecting"} />;
+  if (offline && !draft) main = <Offline onToggleSidebar={toggle} trying={conn === "connecting"} />;
   else switch (route.name) {
+    case "agent-draft":
+      main = draft ? <FolderAgentDraft key={draft.id} draft={draft} onToggleSidebar={toggle} />
+        : <NotFound onToggleSidebar={toggle} />;
+      break;
     case "request":
       main = <RequestPage id={route.id} onToggleSidebar={toggle} />;
       break;
@@ -570,6 +582,8 @@ function Shell() {
         inert={a11y.inert || undefined}
         className={cx(
           "fixed inset-y-0 left-0 z-30 w-[284px] border-r border-line transition-transform duration-300 max-lg:w-[calc(284px+env(safe-area-inset-left))] max-lg:bg-canvas max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pl-[env(safe-area-inset-left)] lg:relative lg:z-auto lg:translate-x-0 lg:shadow-none",
+          // The usage details extend past the sidebar into the main pane on desktop.
+          "lg:has-[[data-usage-popover]]:z-40",
           drawer ? "translate-x-0 shadow-overlay" : "-translate-x-full",
           // ⌘⌥B folds it to the rail, ⌘⇧↵ hides it, on a wide screen; unfolded, its right edge drags (SidebarResize)
           rail ? "lg:w-14" : "lg:w-[var(--sidebar-w,284px)]",

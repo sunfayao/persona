@@ -210,6 +210,9 @@ func (n *Node) sendCreatedCodexApp(ctx context.Context, id, text string, images 
 	if n.sessionScope != nil || n.codexBlocked(id) {
 		return true, refusal("codex_read_only", "The desktop session is outside this node's scope or has an identity conflict.", nil)
 	}
+	if _, writer, err := n.codexOwner(id); err == nil && writer.releasedDesktop {
+		return false, nil // an explicit continuation resumed this original thread on the shared app-server
+	}
 	refs, err := assistantskills.References(text)
 	if err != nil {
 		return true, skillSelectionError(err)
@@ -355,14 +358,14 @@ type codexStdio struct {
 	next   int
 }
 
-func startCodexStdio(ctx context.Context, cli, home, dir string) (*codexStdio, error) {
+func startCodexStdio(ctx context.Context, cli, home, dir string, args ...string) (*codexStdio, error) {
 	ctx, cancel := context.WithTimeout(ctx, codexAppSeedWait)
 	program, env, err := codexStartProgram(cli, true, append(desktopSeedEnv(os.Environ()), "CODEX_HOME="+home))
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, program, "app-server")
+	cmd := exec.CommandContext(ctx, program, append([]string{"app-server"}, args...)...)
 	cmd.Dir, cmd.Env = dir, env
 	if bin := codexAppNodeBin(cli); bin != "" {
 		path := withDirsAfter(envValue(cmd.Env, "PATH"), []string{bin})

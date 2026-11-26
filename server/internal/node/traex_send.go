@@ -12,9 +12,9 @@ import (
 )
 
 type traeComposer struct {
-	open, busy, canQueue bool
-	draft                string
-	queued               []string
+	open, busy, canQueue, dialog bool
+	draft                        string
+	queued                       []string
 }
 
 // TRAE draws its composer between two rules. Its busy queues above the box use
@@ -26,6 +26,16 @@ func parseTraeComposer(text string) traeComposer {
 		plain[i] = strings.TrimSpace(screen.Plain(line))
 	}
 	var box traeComposer
+	if screen.ReadTraeQuestion(text) != nil {
+		box.dialog = true
+		return box
+	}
+	for _, line := range plain {
+		if line == "Select Model and Effort" || traexChoiceRe.MatchString(line) {
+			box.dialog = true
+			break
+		}
+	}
 	for i := len(plain) - 2; i > 0; i-- {
 		if !strings.HasPrefix(plain[i], "❯") || !strings.HasPrefix(plain[i-1], "────") {
 			continue
@@ -109,7 +119,7 @@ func (n *Node) sendTraeTerminal(ctx context.Context, pane, text string, queue bo
 		return refusal(notRunning, "TRAE CLI is no longer in the foreground. Nothing was sent.", nil)
 	}
 	box, err := n.readTraeComposer(ctx, pane)
-	if err != nil || !box.open {
+	if err != nil || !box.open || box.dialog {
 		return refusal(screen.DialogOpen, "TRAE CLI’s message box is not available. Nothing was sent.", nil)
 	}
 	if box.draft != "" {

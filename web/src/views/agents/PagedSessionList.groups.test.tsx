@@ -721,7 +721,7 @@ describe("the list by space", () => {
       expect(spacesIn(computer("lab")).map((s) => Boolean(s.querySelector(`[data-space-add]`)))).toEqual([false]);
       expect(pluses()).toHaveLength(3);
       await act(async () => plus("Space w2")!.click());
-      expect(hub.opened).toEqual([{ machineId: "pc", cwd: "D:\\Notes" }]);
+      expect(hub.opened).toEqual([{ machineId: "pc", cwd: "D:\\Notes", spaceId: "w2" }]);
       // it starts nothing and folds nothing: the section stays as it was
       expect(heading(spacesIn(computer("pc"))[1]).getAttribute("aria-expanded")).toBe("true");
       // shown under the pointer, on keyboard focus and always on a touch screen; the numbers step aside for it
@@ -755,7 +755,7 @@ describe("the list by space", () => {
         await show();
         await browseBy("group");
         await act(async () => plus("app · ~/code")!.click());
-        expect(hub.opened).toEqual([{ machineId: "mac", cwd: "/Users/me/code/app" }]);
+        expect(hub.opened).toEqual([{ machineId: "mac", cwd: "/Users/me/code/app", spaceId: "w-app" }]);
       } finally {
         ROWS.splice(-2);
       }

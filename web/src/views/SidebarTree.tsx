@@ -5,6 +5,7 @@ import { t } from "../i18n";
 import { isQuiet, sessionHost, type Space } from "../lib/agent-groups";
 import { baseName } from "../lib/format";
 import { navigate } from "../lib/router";
+import { openNewAgent } from "../lib/new-agent";
 import { useStore } from "../lib/store";
 import { type TreeAgent } from "../lib/todo-tree";
 import { findTodoForSpace, openTodoFromTag } from "../lib/todos";
@@ -18,6 +19,7 @@ import type { MenuAt } from "../ui/menu-model";
 import { useFolded } from "../lib/use-folded";
 import { type GoFn, GroupCount, holdsRow, type RegFn, rowKey, type RowMenuFn, Section } from "./SidebarParts";
 import { SessionRow } from "./SidebarRows";
+import { SectionAdd } from "./SectionAdd";
 import { WindowedRows } from "./WindowedRows";
 
 type TreeRowProps = { machineLabel: MachineLabel; showHost?: boolean; /** No space · computer at a row's end (the sidebar's 常驻 rows, nested deep, #4352). */ noContext?: boolean; /** Before each agent row's glide key and its children's fold key: a second copy of a row (the sidebar's 常驻 tree) keeps its own, apart from the Agents list's. */ keyPrefix?: string; reg: RegFn; hover: (k: string | null) => void; activeKey: string; go: GoFn; onRowMenu?: RowMenuFn; onNavigate?: () => void };
@@ -74,6 +76,9 @@ const SpawnedAgentRows = TreeAgentRows;
 
 export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinned, muted, onMenu, onRowMenu, onNavigate }: { sp: Space; machineName?: string; reg: RegFn; hover: (k: string | null) => void; activeKey: string; go: GoFn; pinned: boolean; muted: boolean; onMenu: SpaceMenuFn; onRowMenu: RowMenuFn; onNavigate?: () => void }) {
   const mutes = useStore((st) => st.mutes);
+  const online = useStore((st) => Boolean(st.machines.find((machine) => machine.id === sp.machineId)?.online));
+  const place = sp.sessions.find((session) => session.workspace_cwd || session.cwd);
+  const cwd = place?.workspace_cwd || place?.cwd;
   const allIdle = sp.sessions.every((s) => isQuiet(s, mutes));
   const [folded, toggle] = useFolded(`space:${sp.key}`, allIdle && sp.sessions.length > 3, { holds: holdsRow(sp.sessions, activeKey) });
 
@@ -94,6 +99,9 @@ export function SpaceSection({ sp, machineName, reg, hover, activeKey, go, pinne
           <span className={cx("flex items-center gap-1", MENU_STEP_ASIDE, MENU_TOUCH_ROOM)}>
             <SpaceTodoTag sp={sp} onNavigate={onNavigate} />
             <span className={MENU_HIDES}><SessionTally sessions={sp.sessions} folded={folded} /></span>
+            {online && place && cwd && <SectionAdd label={t("agents-groupedsessions.new_agent_in", { name: sp.name })}
+              onClick={() => openNewAgent({ machineId: sp.machineId, cwd, host: place.host, spaceId: place.workspace_id ?? place.space_id })}
+              className="[@media(pointer:coarse)]:size-9" />}
           </span>
           <SpaceMenuButton sp={sp} onMenu={onMenu} />
         </>

@@ -36,6 +36,7 @@ import (
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/quota"
 	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/nwverse/persona/server/internal/screen"
 	"github.com/nwverse/persona/server/internal/screenlink"
 	"github.com/nwverse/persona/server/internal/streams"
 	"github.com/nwverse/persona/server/internal/transcript"
@@ -2132,6 +2133,9 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			FreeText string   `json:"free_text"`
 		}
 		_ = json.Unmarshal(params, &dl)
+		if strings.HasPrefix(dl.Rev, screen.TraeQuestionRev) {
+			return ok(n.answerTraeQuestion(ctx, p.SessionID, dl.Rev, dl.Option, p.Text))
+		}
 		if dl.Multi {
 			return ok(n.dialogMulti(ctx, p.SessionID, dl.Rev, dl.Options, dl.FreeText))
 		}
@@ -2212,6 +2216,15 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 	case "session.screen":
 		text, status, err := n.screen(ctx, p.SessionID, p.Lines, p.Source, p.Format == "ansi")
 		res := map[string]any{"text": text, "status": status}
+		var card struct {
+			TraeQuestion bool `json:"trae_question"`
+		}
+		_ = json.Unmarshal(params, &card)
+		if card.TraeQuestion && err == nil && p.Lines == screen.DialogLines && (p.Source == "" || p.Source == "visible") && p.Format != "ansi" {
+			if d := n.traeQuestionDialog(p.SessionID, text); d != nil {
+				return map[string]any{"text": "", "status": status, "trae_question": d}, nil
+			}
+		}
 		if rev := dialogRev(text, p.Lines, p.Source, p.Format); rev != "" {
 			res["dialog_rev"] = rev
 		}

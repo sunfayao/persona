@@ -13,7 +13,7 @@
 // follows the default.
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { t } from "../../i18n";
-import { agentName } from "../../lib/agent-kind";
+import { agentName, isTraeCli } from "../../lib/agent-kind";
 import { onModelPicker, requestModelPicker, sessionLauncher } from "../../lib/model-switch";
 import { modelSupportsFast } from "../../lib/launcher-models";
 import { effortTitle } from "../../lib/session-actions";
@@ -69,6 +69,7 @@ export function ModelPill({
   onOpen,
   workflow,
   buttonRef,
+  unknownModel,
 }: {
   current: PillSetup;
   /** A switch accepted for the next message (#5035): a clock first, the launcher it moves to named (the engine, when
@@ -86,11 +87,12 @@ export function ModelPill({
   /** The workflow mark after the effort (ultracode on, a Codex thread on its "ultra" effort; #3428). */
   workflow?: { label?: string; title?: string };
   buttonRef?: Ref<HTMLButtonElement>;
+  unknownModel?: boolean;
 }) {
   const shown = pending ?? current;
   const launcher = shown.launcherName;
   const unknown = !shown.model;
-  const name = shown.model ?? (loading ? t("chat-modelpill.loading") : failed ? t("chat-modelpill.failed") : t("chat-modelpill.default_model"));
+  const name = shown.model ?? (loading ? t("chat-modelpill.loading") : failed ? t("chat-modelpill.failed") : unknownModel ? t("chat-modelpill.unknown_model") : t("chat-modelpill.default_model"));
   const describe = (x: PillSetup) =>
     [agentName(x.engine, x.engineLabel), x.model ?? name, x.launcherName || x.provider, x.effort && effortTitle(x.effort), x.fast && t("chat-sessiondialogs.speed_fast")].filter(Boolean).join(" · ");
   const title = pending
@@ -191,6 +193,7 @@ export const AgentModelPill = memo(function AgentModelPill({ session }: { sessio
   useModelLists();
   const scope = agentCatalogScope();
   const mid = session.machine_id;
+  const trae = isTraeCli(session.agent);
   const own = sessionLauncher(session);
   const ownHost = sessionModelHost(session);
   const launchModel = useStore((s) => launchModelForSession(s.launches, session));
@@ -213,8 +216,10 @@ export const AgentModelPill = memo(function AgentModelPill({ session }: { sessio
   const shown = Boolean(anchor) && opens;
   // every list again behind the one shown, once per opening (while the panel's code loads, the first time)
   useEffect(() => {
-    if (shown) readForPanel(mid, own, ownHost);
-  }, [shown, mid, own, ownHost, scope]);
+    if (!shown) return;
+    if (trae) void readModels(mid, own, { again: true, first: true, host: ownHost });
+    else readForPanel(mid, own, ownHost);
+  }, [shown, mid, own, ownHost, scope, trae]);
 
   // a switch to another launcher that the next message carries out (#5035): its list names the model picked
   const target = session.pending_switch?.launcher;
@@ -242,6 +247,7 @@ export const AgentModelPill = memo(function AgentModelPill({ session }: { sessio
         onOpen={opens ? (el) => setAnchor((a) => (a ? null : el)) : undefined}
         workflow={workflow}
         buttonRef={button}
+        unknownModel={trae}
       />
       {shown && anchor && <SessionModelPanel session={session} displayModel={launchModel} anchor={anchor} onClose={close} />}
     </>

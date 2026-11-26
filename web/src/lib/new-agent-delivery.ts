@@ -3,6 +3,8 @@ import { t } from "../i18n";
 import { agentId } from "./agent-kind";
 import { ApiError, errorText, isAbort, isTransient, sessionPath } from "./api";
 import { quotePath, releaseAttachments, sendFile } from "./attachments";
+import { withFiles } from "./composer-files";
+import type { AttachedFile } from "./turns";
 import { imageLimitsFor, MAX_PICTURE_SOURCE, pictureRoom } from "./image-limits";
 import { uuid } from "./format";
 import { toast } from "../ui/atoms";
@@ -58,6 +60,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
       if (launch.outgoing) return launch.outgoing;
       update({ phase: "uploading" });
       const paths: string[] = [];
+      const files: AttachedFile[] = [];
       const images: { mime: string; data: string }[] = [];
       // the pictures go scaled down as in a chat's box, held to the hub's limits (#12973); the ones past them, and any
       // the page cannot read, go to the computer as files with the others
@@ -67,8 +70,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
         let image: { mime: string; data: string } | null = null;
         if (att.mime.startsWith("image/") && images.length >= limits.per_message) spilled.count++;
         else if (att.mime.startsWith("image/") && att.file.size <= MAX_PICTURE_SOURCE) {
-          const { fitPicture } = await import("./image-scale");
-          image = await fitPicture(att.file, limits);
+          image = att.image ?? await (await import("./image-scale")).fitPicture(att.file, limits);
           if (image && pictureRoom(images.map((i) => i.data.length), image.data.length, limits) !== "ok") {
             image = null;
             spilled.bytes++;
@@ -82,12 +84,13 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
             path = await sendFile(launch.machineId, att.file, { name: att.name, signal: controller.signal });
             update({ uploaded: { ...launch.uploaded, [att.id]: path } });
           }
-          paths.push(quotePath(path));
+          if (att.fileTag) files.push({ kind: "file", path, name: att.name, size: att.file.size });
+          else paths.push(quotePath(path));
         }
       }
       if (spilled.count) toast(t("chat-composer.images_as_files", { max: limits.per_message, count: spilled.count }));
       if (spilled.bytes) toast(t("chat-composer.images_bytes_as_files", { count: spilled.bytes }));
-      const outgoing = { text: [launch.text, ...paths].filter(Boolean).join("\n"), images };
+      const outgoing = { text: withFiles([launch.text, ...paths].filter(Boolean).join("\n"), files), images };
       update({ outgoing });
       return outgoing;
     };

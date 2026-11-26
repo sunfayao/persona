@@ -5,5 +5,7 @@
   "takeover_confirm": "确认接管",
   "takeover_running_confirm": "会结束终端里正在跑的这一轮",
   "reason_encrypted_context": "加密的对话上下文无法在此会话中恢复，请另开新会话继续。",
-  "reason_unavailable": "此对话无法在当前会话中恢复，请另开新会话继续。"
+  "reason_unavailable": "此对话无法在当前会话中恢复，请另开新会话继续。",
+  "desktop_resume": "在 Persona 中继续",
+  "desktop_resume_unavailable": "此会话还无法在 Persona 中继续，请刷新后重试。"
 }

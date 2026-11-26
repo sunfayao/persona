@@ -61,9 +61,6 @@ export interface WorkProps {
   /** The step that draws the exchange's plan card (work-groups.ts planCardStep; "" for none): its other plan updates are
    *  rows. Unset: every plan update draws a card. */
   plan?: string;
-  /** The dock RunningStatusBar already shows this foreground turn's elapsed clock, so the stream header keeps its
-   *  expandable summary without rendering a second competing timer (#12380). */
-  hideClock?: boolean;
 }
 
 /** A Workflow call that draws its run's card (the hub lists the run); one that does not is the row it always was. */
@@ -174,7 +171,7 @@ export const WorkGroup = memo(function WorkGroup({ g, p, limit }: { g: WorkGroup
         <span className="min-w-0 translate-y-[1px] truncate text-[length:var(--chat-secondary)] text-tool-ink">{heading}</span>
         <span className="flex-1" />
         {loading && <Spinner size={11} />}
-        {!p.nested && g.live && g.startedAt !== undefined && (p.hideClock ? <LiveClockPresence /> : <Elapsed since={g.startedAt} />)}
+        {!p.nested && g.live && g.startedAt !== undefined && <Elapsed since={g.startedAt} />}
         {opens && <Icon name="chevronRight" size={14} stroke={2.2} className="shrink-0 text-tool-ink transition-transform duration-150 motion-reduce:transition-none" style={{ transform: open ? "rotate(90deg)" : "none" }} />}
       </button>
       {open && failed && !loading && (
@@ -272,18 +269,7 @@ export const StepView = memo(function StepView({ step, p, live, fade }: { step: 
   }
 });
 
-/** Reports a live group's presence to LiveClockContext without rendering a duplicate elapsed clock (#12380). */
-function LiveClockPresence() {
-  const count = useContext(LiveClockContext);
-  useLayoutEffect(() => {
-    count?.(1);
-    return () => count?.(-1);
-  }, [count]);
-  return null;
-}
-
-/** A live group's clock, every 500 ms; its own leaf, so the ticking redraws nothing else. While it shows, the running
- *  bar shows no time of its own (#3534). */
+/** A live group's clock. Its own leaf redraws while the rest of the work summary stays still. */
 function Elapsed({ since }: { since: number }) {
   // stands still with the hub out of reach (the running bar says so): nothing can be known to go on
   const now = useNow(500, useStore((s) => s.conn === "online"));

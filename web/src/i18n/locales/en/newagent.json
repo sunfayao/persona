@@ -9,6 +9,7 @@
   "parent_folder": "Up one level",
   "home_folder": "Home folder",
   "follow_model_settings": "Model settings",
+  "draft_destination_changed": "Reopen the draft from its project to use the current destination.",
   "models_failed": "Couldn't load the model list. You can still start with the default model.",
   "launchers_failed": "Couldn't read this computer's models. You can still start with its default model.",
   "retry": "Retry",

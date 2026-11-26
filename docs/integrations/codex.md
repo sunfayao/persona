@@ -275,7 +275,13 @@ the gateway's models from it (`server/internal/node/codex_catalog.go`).
 
 The node checks whether the legacy bus accepts connections, rather than relying on the socket file left by an older App. On Unix the probe connects and closes without sending a bus request, with a 250 ms budget, once per Codex home in a session-list pass. This detects missing and stale sockets without hard-coding App versions. A connected app-server that already owns the thread still takes priority; otherwise a live legacy bus retains the behavior below.
 
-Without a bus listener, App chats retain their history, App identity, project grouping and observed turn status, but advertise no send, interrupt or model / effort controls. The App launcher is unavailable too. The web transcript has a continuation notice and an **Open in Codex** link with the native thread ID. The link opens the chat in the Codex App on the device handling it. Requests from an older session list receive `codex_read_only` with `delivered: none`, without a raw socket path or dial error. Sends are refused before saving attachments or accepting a held message, including while the App is working. App chats are not offered a terminal resume / takeover as a substitute. A listener appearing again restores controls on the next list. A failure after a turn request was sent retains the existing uncertain-delivery behavior; it is never retried as a new send.
+Without a bus listener, App chats retain their history, App identity, project grouping and observed turn status, but advertise no send, interrupt or model / effort controls. The App launcher is unavailable too. The web transcript has a continuation notice and an **Open in Codex** link with the native thread ID. The link opens the chat in the Codex App on the device handling it. Requests from an older session list receive `codex_read_only` with `delivered: none`, without a raw socket path or dial error. Sends are refused before saving attachments or accepting a held message, including while the App is working. App chats do not use the terminal takeover path. A listener appearing again restores controls on the next list. A failure after a turn request was sent retains the existing uncertain-delivery behavior; it is never retried as a new send.
+
+### Continue a released Desktop conversation
+
+On macOS and Linux, the web transcript offers **Continue in Persona** when the native thread writer is released. Persona checks Codex's same-home writer locks. A migrated Desktop chat with an indexed rollout can continue without legacy sidebar keys when its native index and rollout both identify it as a Desktop conversation. Incomplete checks, active writers, archived threads and non-owner sessions leave the conversation read-only. If Desktop unloads the thread while its transcript is open, refresh to pick up the new capability.
+
+The full-device takeover endpoint sends a separate `released_desktop: true` plan with a one-use token and no continuation prompt. Commit rechecks the original home, thread, project directory, archive state and writer. It asks the same-home local Codex app-server to resume the original thread by ID with `excludeTurns: true` and no model or provider override. Rolloutless paginated threads keep their native database history. The action sends no turn and never stops another process or creates a replacement thread. A subsequent message verifies that the same app-server still has the original thread loaded. Codex itself arbitrates a race for the writer lock.
 
 In builds that expose the legacy bus, the desktop App's own app-server uses stdio, so external clients cannot join it. Starting another app-server to resume the same session is rejected (active writer already exists).
 But the App's main process exposes a local message bus at `<CODEX_HOME>/ipc/ipc.sock` (on Windows the named pipe `\\.\pipe\codex-ipc`, see "Windows" below); App windows use it to request "run a turn in the session you own."
@@ -517,9 +523,9 @@ Code: `node/codex_resume.go`, `node/retire.go` (`resumeOther`, `resumeCodex`); #
 - **Started elsewhere** (`codex` in a terminal, since closed; listed as a "Codex history" row): the directory from its rollout's `session_meta`,
   the launcher the start gave (or the hub's "New Agent" one for a message) when it runs Codex, otherwise plain `codex`. From then on it is Persona's:
   what it was resumed with is kept, and it is retired and resumed like one Persona started.
-- **Only when nothing has it open**, else the row stays view only (`codex_read_only`): no app-server owns it (sends go there), no process holds its rollout
+- **Only when nothing has it open**, else the CLI history row stays view only (`codex_read_only`): no app-server owns it (sends go there), no process holds its rollout
   (a Codex CLI still running, the desktop App's own app-server: a second writer would fork the thread), not the Codex App's chat, not a subagent or a program's run (`codex exec`, SDKs),
-  and the engine can open tabs (not a runtime engine, not Orca). Only the default `~/.codex` home: a thread of another home is listed under an opaque key, not its thread id.
+  and the engine can open tabs (not a runtime engine, not Orca). This terminal path uses the default `~/.codex` home. Desktop uses [Continue a released Desktop conversation](#continue-a-released-desktop-conversation).
 - The history row of such a thread is sendable (`capabilities.send`), so the apps show the input box; no client change is needed to resume by sending.
 - **Switching an Agent between the engines** (#5054, [claude-integration.md](claude-integration.md) "Switching a running Agent to another engine"): a Codex Agent Persona started (or resumed) in a terminal can move to Claude Code like a Claude Code Agent moves to Codex.
   It is quit with Ctrl+C in its pane; once only a shell is in front and no Codex CLI holds its rollout (an app-server that keeps the thread loaded does not count: nothing of the other engine writes it), Claude Code starts in that shell.
@@ -651,6 +657,15 @@ The node integration (`server/internal/node/traex.go`) shares rollout parsing wi
 
 - **Model selection**: New Agent lists the models with selectable configuration names from the computer's `traex models --json`.
   An explicit choice is passed as `--model` on a fresh start; Default leaves the CLI's own model preference in effect.
+  The composer of a live herdr session can switch among models already available in that TRAE CLI process. Persona
+  uses the session's recorded launcher catalog, omits launch-time thinking variants, and requires an idle, empty
+  prompt owned by that conversation. The node submits TRAE's `/model <id>` command and confirms the new setting from
+  the same native thread in SQLite. The next turn continues in the same terminal and conversation.
+- **Terminal questions**: A blocking TRAE CLI question appears in the chat as a terminal card with the current
+  page, its choices, and its free-text option. Answering advances the native page or submits the last remaining
+  answer. Persona checks the active page and terminal owner before sending keys, and waits for the next page or
+  the normal prompt in herdr. Multi-select pages and pages that cannot be checked safely offer **Open terminal**.
+  A follow-up remains separate.
 - **herdr does not recognize it**: TRAE CLI panes are ordinary herdr panes (`agent_status: unknown`, absent from `agent list`); herdr has no custom-Agent configuration either.
   The node finds them itself: `~/.trae/cli/thread-writer-locks/<session id>.owner.json` records the pid writing the session. That pid's environment contains herdr's
   `HERDR_PANE_ID` (Linux reads `/proc/<pid>/environ`, macOS uses `ps -E`), giving an exact pane → pid → session mapping without directory guessing. Pane information comes from

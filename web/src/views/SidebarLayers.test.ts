@@ -9,6 +9,6 @@ describe("sidebar layers", () => {
   it("the rows' column is its own stacking context, under the usage popover", () => {
     const rows = source("./Sidebar.tsx").match(/<div ref=\{nav\} data-sidebar-rows[^\n]*?className="([^"]*)"/);
     expect(rows?.[1].split(/\s+/)).toContain("isolate");
-    expect(source("./UsagePopover.tsx")).toMatch(/role="dialog"[^\n]*?className="[^"]*\babsolute bottom-full\b[^"]*\bz-\d+/);
+    expect(source("./UsagePopover.tsx")).toMatch(/data-usage-popover\s+className=\{cx\(\s*"[^"]*\babsolute bottom-full\b[^"]*\bz-\d+/);
   });
 });

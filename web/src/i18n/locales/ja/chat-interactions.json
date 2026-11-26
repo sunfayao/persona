@@ -62,6 +62,8 @@
   "screen_kicker": "ターミナルで対応が必要です",
   "screen_title": "コンピューター上のエージェントがダイアログで止まっています",
   "screen_hint": "1つ選んでください。押すキーは、選んだ時点のコンピューターの画面に合わせて決まります。",
+  "screen_answer_in_terminal": "このチャットのターミナルを開いて回答を完了してください。",
+  "screen_open_terminal": "ターミナルを開く",
   "password": "パスワード",
   "type_and_enter": "入力してEnter",
   "send": "送信",

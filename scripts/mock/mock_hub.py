@@ -27930,6 +27930,17 @@ class H(BaseHTTPRequestHandler):
                 if not t: return self.send_json({"error": "待办不存在"}, 404)
                 if self.command == "PUT":
                     if t.get("done_at"): return self.send_json({"error": "待办已完成"}, 409)
+                    if len(parts) == 9 and parts[8] == "attach":
+                        session = next((x for x in SESSIONS if x["machine_id"] == mid and x["session_id"] == sid), None)
+                        if not session:
+                            return self.send_json({"error": "This agent isn't listed yet.", "code": "agent_not_listed"}, 409)
+                        if any(session.get(k) for k in ("assistant", "archived", "hidden_by_directory", "folded_under")):
+                            return self.send_json({"error": "Agent not found"}, 404)
+                        for other in TODOS:
+                            if any(a["machine_id"] == mid and a["session_id"] == sid and not a.get("released_at") for a in other.get("agents", [])):
+                                if other["id"] == tid:
+                                    return self.send_json({"ok": True})
+                                return self.send_json({"error": "Agent is already linked to another to-do", "code": "todo_agent_link_conflict"}, 409)
                     now_str = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
                     for other in TODOS:
                         if other["id"] != tid:

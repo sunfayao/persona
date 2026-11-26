@@ -11,6 +11,10 @@ export interface LocalAttachment {
   mime: string;
   file: File;
   url?: string;
+  /** A picture the composer already scaled for this message. */
+  image?: { mime: string; data: string };
+  /** Serialize this file as an attachment rather than a path in the first message. */
+  fileTag?: boolean;
 }
 
 /** `file` as an attachment, refused over MAX_IMAGE for a picture (`imageLimit`: New Agent scales them down, lib/image-scale.ts)

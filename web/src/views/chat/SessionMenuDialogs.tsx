@@ -12,6 +12,7 @@ import { dropSession, getSession, refresh, refreshAssistant, upsertSession } fro
 import type { Session } from "../../lib/types";
 import { Button, Dialog, toast } from "../../ui/atoms";
 import { t } from "../../i18n";
+import { prepareSidebarAgentRemoval } from "../sidebar-agent-removal";
 import { cleanupReady, KEEP, runCleanup, useAgentWorktree, WorktreeCleanup, type Cleanup } from "./SessionWorktreeCleanup";
 
 // "Rename": the herdr tab and the session's name (Claude's /rename), each only when changed (iOS RenameSessionAlert).
@@ -164,8 +165,10 @@ export function DeleteSessionDialog({ session, machineName, open, onClose }: { s
   }, [open]);
   const go = async () => {
     setBusy(true);
+    const playRemoval = prepareSidebarAgentRemoval(session.machine_id, session.session_id);
     try {
       await api(sessionPath(session.machine_id, session.session_id), { method: "DELETE" });
+      playRemoval();
       dropSession(session.machine_id, session.session_id);
       if (location.pathname === href({ name: "session", mid: session.machine_id, sid: session.session_id })) navigate({ name: "home" }, true);
       toast(t("chat-sessiondialogs.deleted"), "ok");

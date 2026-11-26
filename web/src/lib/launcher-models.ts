@@ -5,6 +5,7 @@
 import { MANAGER_HEADER } from "./manager-choice";
 import { t } from "../i18n";
 import { api, ApiError, enc, pastHub } from "./api";
+import { startsInDesktopApp } from "./desktop-start";
 import { cleanModelId, validModelId } from "./model-id";
 import type { ModelBinding } from "./model-config";
 import type { PanelPrice } from "./model-panel";
@@ -182,8 +183,10 @@ export function nativeOmpStart(agent: string, launcher: Pick<Launcher, "name" | 
 }
 
 /** omp's start capability belongs to the terminal host, including when another launcher's destination is a desktop app. */
-export const startCatalogHost = (launcher: Pick<Launcher, "name" | "source"> | undefined, host: string | undefined, terminalHost: string) =>
-  launcher?.name === "omp" && terminalOmp("omp", launcher) ? terminalHost || undefined : host;
+export const startCatalogHost = (launcher: Pick<Launcher, "name" | "source"> | undefined, host: string | undefined, terminalHost: string) => {
+  if (startsInDesktopApp(launcher)) return undefined;
+  return launcher?.name === "omp" && terminalOmp("omp", launcher) ? terminalHost || undefined : host;
+};
 
 /** A fixed launcher keeps its model. Live pickers do not opt into the native omp start capability. */
 export const typedModelOffered = (agent: string, list: LauncherModels | null | undefined, nativeOmp = false) =>

@@ -119,14 +119,14 @@ describe("@ other sessions on a paging hub (#12983)", () => {
     await type("@weath");
     key("Enter");
     expect(options()).toHaveLength(0); // the panel closed
-    expect(box().value).toBe("");
-    await type("What changed?");
+    expect(box().value).toBe("@Weather app redesign ");
+    await type("@Weather app redesign What changed?");
     await act(async () => host.querySelector<HTMLButtonElement>(`button[aria-label="${t("chat-composer.send")}"]`)!.click());
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
     expect(text).toContain('url="persona://session/laptop/weather"');
     expect(text).toContain("/home/me/code/weather");
     expect(text).toContain("The new icons are in.");
-    expect(text.endsWith("</persona-context>\n\nWhat changed?")).toBe(true);
+    expect(text.endsWith("</persona-context>\n\n@Weather app redesign What changed?")).toBe(true);
   });
 });

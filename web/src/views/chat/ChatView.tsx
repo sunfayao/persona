@@ -1508,9 +1508,12 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   // AssistantInfo has not arrived but the cached main id has: keep the main chat folded (the absent switch means on).
   const foldBackground = useStore((s) =>
     foldsBackgroundRounds(sid, s.assistant ?? (mainCache ? { main: mainCache.scope } : undefined)));
+  // An Agent without any transcript input or streamed text uses the progress fallback. A Persona chat owns its
+  // early feedback in the transcript even before its first actual row.
+  const liveInTranscript = lastLive && !outgoing && Boolean(assistant || session?.assistant || earlier.liveItems.length || streaming);
   const lines = useMemo(
-    () => stabilizeLines(lastLines.current, chatLines(earlier.liveItems, { live: lastLive && !outgoing, background: foldBackground, main: isMain })),
-    [earlier.liveItems, lastLive, outgoing, foldBackground, isMain],
+    () => stabilizeLines(lastLines.current, chatLines(earlier.liveItems, { live: liveInTranscript, background: foldBackground, main: isMain })),
+    [earlier.liveItems, liveInTranscript, foldBackground, isMain],
   );
   lastLines.current = lines;
   // a DayLine over the first line of each new calendar day (#8160); day-only keys keep them stable as pages and
@@ -1774,19 +1777,10 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const wait = streaming && !outgoing && !awaiting ? backgroundWaitLine(session) : backgroundState?.kind === "waiting" ? backgroundState.line : null;
   const subtasks = streaming ? waitingOnSubagents(session, subagents) && !outgoing && !awaiting : backgroundState?.kind === "subtasks";
   const command = backgroundState?.kind === "command" ? backgroundState.line : null;
-  // In a Persona conversation the message stream already carries the turn's state for its whole life — the sending /
-  // preparing feedback while the message is on its way, then the live work line ("Working…", spinner and clock) once the
-  // hub accepts it — so the dock never repeats the foreground turn (#6230). The dock bar stays only for work that outlives
-  // the turn (a background workflow, subagent, wait or working command: `backgroundOnly`, where the stream shows only
-  // quiet fold rows) and, unchanged, for Agent chats, whose dock keeps the full cindy status bar. Gating on the foreground/background
-  // phase (not on the live line being mounted) keeps the bar out even while a transcript loads or a state push is in flight.
-  // A Persona chat on either route — the Persona tab's prop, or on the generic /s route the session's own assistant
-  // flag — so the dock never repeats its foreground turn (#6230). Background work keeps the bar either way.
+  // Persona chats already announce sending and foreground work in the transcript, including on the generic route (#6230).
+  // Agent chats can use the dock while that progress has not appeared yet. Background work keeps the bar either way.
   const dockBarShown = !(assistant || session?.assistant) || backgroundOnly;
   const runningWorking = state === "working" || awaiting || streaming;
-  // When the dock bar renders this foreground turn's own status and elapsed timer, suppress the duplicate in-stream
-  // elapsed timer (and empty non-expandable live row) so only one Working… timer ticks on screen (#12380).
-  const dockTurnClock = Boolean(session && dockBarShown && runningWorking && !backgroundOnly && !wait && !subtasks && !command);
   const ctx = useMemo<ChatContextValue>(
     () => ({ tasks, subagents: assistant ? NO_SUBAGENTS : (subagents ?? NO_SUBAGENTS), scope: `${mid}/${sid}:`, jumpToCall: jump, workflowCalls: wfCalls, lineStyle, harness, opening: openingId && openingOrigin ? { id: openingId, origin: openingOrigin, opened_by: openingBy, manager: openingManager } : undefined, closeoutSegment: closeoutSegment?.id, children: places, embedded }),
     [tasks, subagents, assistant, mid, sid, jump, wfCalls, lineStyle, harness, openingId, openingOrigin, openingBy, openingManager, closeoutSegment, places, embedded],
@@ -2085,6 +2079,8 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   }, [lines]);
   const processing = !sendFeedback && Boolean(assistant || session?.assistant) && state === "working" && !backgroundOnly &&
     !liveSeg && (tr.loading || (opening && !tr.streaming));
+  const showMessageFeedback = shownPending.some((p) => p.waits) || processing ||
+    (sendFeedback !== undefined ? Boolean(sendFeedback) : shownPending.length > 0 || outbox.some((e) => e.state === "sending") || (starting && outgoing > 0));
   const runStart = (liveSeg ? turnStart(liveSeg) : undefined) ?? stateSince;
   // what the turn is doing, for the bar's words (cindy's status): kept as it was while it says the same
   const lastStep = useRef<RunStep | undefined>(undefined);
@@ -2100,7 +2096,14 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
   const background = useMemo(() => backgroundLine(session), [session]);
   // ✓ Done only for a turn that finished: one waiting on you, stopped or cut off by an error keeps its last words
   const done = turnDone(state, session, lastLine, tr.items);
-  const running = session && dockBarShown ? <RunningStatusBar mid={mid} sid={sid} working={runningWorking} done={done} startedAt={runStart} clock={barClock.current} plain={assistant} step={step} background={!backgroundState || backgroundState.kind === "workflow" ? background : null} wait={wait} subtasks={subtasks} command={command} /> : null;
+  const running = session && dockBarShown ? (
+    <RunningStatusBar
+      mid={mid} sid={sid} working={runningWorking} done={done} startedAt={runStart} clock={barClock.current}
+      plain={assistant} step={step} background={!backgroundState || backgroundState.kind === "workflow" ? background : null}
+      wait={wait} subtasks={subtasks} command={command}
+      transcriptProgress={!backgroundOnly && Boolean(liveSeg || showMessageFeedback)}
+    />
+  ) : null;
   // at the top of the composer's card, as cindy's pending queue (#5327); a phone on its side keeps it to one line beside
   // the run's status. The same element while nothing in it changes: the composer is memoized.
   const hasQueue = queued.length > 0;
@@ -2425,7 +2428,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
                         assistant={assistant}
                         offscreen={offscreen(d.line)}
                         busy={d.line.id === busySegment || undefined}
-                        dockTurnClock={("live" in d.line && d.line.live && dockTurnClock) || undefined}
                       />
                     ),
                   ])
@@ -2450,7 +2452,6 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
                   assistant={assistant}
                   offscreen={offscreen(row.line)}
                   busy={row.line.id === busySegment || undefined}
-                  dockTurnClock={("live" in row.line && row.line.live && dockTurnClock) || undefined}
                 />
               )])}
               </CardConversation.Provider>
@@ -2472,7 +2473,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
               ) }))]
               .sort((a, b) => a.at - b.at)
               .map((x) => x.el)}
-            {(shownPending.some((p) => p.waits) || processing || (sendFeedback !== undefined ? Boolean(sendFeedback) : shownPending.length > 0 || outbox.some((e) => e.state === "sending") || (starting && outgoing > 0))) && (
+            {showMessageFeedback && (
               <div className="flex items-center gap-2.5" data-message-feedback={sendFeedback || (processing ? "processing" : "sending")}>
                 {sendFeedback === "unknown" ? <span role="status" className="text-ink-3">{t("lib-outbox.delivery_unknown")}</span> : <Loading label={shownPending.some((p) => p.waits) ? t("ultracode.send_waits") : sendFeedback === "processing" || processing ? t("chat-segmentview.processing") : starting ? t("chat-chatview.preparing") : online ? t("chat-segmentview.sending") : t("chat-chatview.waiting_for_hub")} />}
               </div>
@@ -2594,8 +2595,11 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
         <div ref={composerBox} className="shrink-0" hidden={voiceState === "live" || Boolean(picker)}>
         {transcriptHost && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-control bg-inset px-3 py-2 text-sm text-ink-2">
-            <p>{t(transcriptHost === "agy" ? "chat-chatview.agy_external_terminal" : "chat-chatview.codex_desktop_transcript")}</p>
-            {desktopLink && <a href={desktopLink} className="shrink-0 whitespace-nowrap text-accent hover:underline">{t("chat-chatview.open_in_codex")}</a>}
+            <p>{t(transcriptHost === "agy" ? "chat-chatview.agy_external_terminal"
+              : session?.capabilities?.takeover?.released_desktop ? "chat-chatview.codex_desktop_released" : "chat-chatview.codex_desktop_transcript")}</p>
+            {transcriptHost === "codex" && session?.capabilities?.takeover?.released_desktop
+              ? <Suspense fallback={null}><TakeoverAction key={draftKey} session={session} /></Suspense>
+              : desktopLink && <a href={desktopLink} className="shrink-0 whitespace-nowrap text-accent hover:underline">{t("chat-chatview.open_in_codex")}</a>}
           </div>
         )}
         {stoppedLine ? (
@@ -2617,7 +2621,7 @@ export function ChatView({ mid, sid, assistant, starting: launching, onToggleSid
           editingLast={editProp}
           loadingDraft={editingLast}
           // Persona's conversations too, the main one included (#1467): the node stops their turn like an agent's
-          onStop={sessionCan(session, "interrupt") ? interrupt : undefined}
+          onStop={!backgroundOnly && sessionCan(session, "interrupt") ? interrupt : undefined}
           stopping={stopping}
           commands={commands}
           suggestion={session?.suggestion}
@@ -3217,7 +3221,8 @@ export const Header = memo(function Header({
       )}
       {tasks && <IconButton icon="todo" label={t("sidepanel.conversation_tasks")} active={tasks.open} onClick={tasks.onToggle} className="hidden sm:flex" />}
       {!chrome && actions}
-      {!assistant && session && (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
+      {!assistant && session && !session.capabilities?.takeover?.released_desktop &&
+        (session.agent === "codex" || session.source_kind === "codex_history" || session.source_kind === "codex_app_server") &&
         <Suspense fallback={null}><TakeoverAction key={`${session.machine_id}:${session.session_id}`} session={session} /></Suspense>}
       {Boolean(topCenter) && more("end")}
       {chrome?.page && <IconButton icon="chat" label={t("chat-chatview.open_agent_page")} onClick={openAgentPage} />}

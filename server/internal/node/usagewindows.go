@@ -49,6 +49,7 @@ type usageWindowsState struct {
 	cancel   context.CancelFunc
 	at       time.Time
 	accounts map[string]proto.UsageNodeAccount // by source ("codex:<source digest>", "claude:<file>")
+	codex    map[string]codexUsagePollState
 }
 
 // setUsageWindows is the hub's word (node.configure usage_windows): whether the node reads the windows at all. Off
@@ -63,6 +64,7 @@ func (n *Node) setUsageWindows(on bool) {
 			st.cancel()
 		}
 		st.at, st.accounts = time.Time{}, nil
+		st.codex = nil
 	}
 }
 
@@ -76,28 +78,29 @@ func (n *Node) runUsageWindows(ctx context.Context) {
 			return
 		case <-t.C:
 		}
-		n.refreshUsageWindows(ctx)
+		n.refreshUsageWindows(ctx, time.Now())
 		t.Reset(usageWindowsEvery)
 	}
 }
 
 // refreshUsageWindows keeps app-server calls outside the lock, so an RPC can still read local files or return the
 // last sample while Codex checks the account. Disabling polling also cancels and discards an in-flight round.
-func (n *Node) refreshUsageWindows(ctx context.Context) {
+func (n *Node) refreshUsageWindows(ctx context.Context, now time.Time) {
 	st := &n.usageWin
 	st.mu.Lock()
-	if st.off || ctx.Err() != nil {
+	if st.off || st.cancel != nil || ctx.Err() != nil {
 		st.mu.Unlock()
 		return
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	st.cancel = cancel
+	previous := st.codex
 	st.mu.Unlock()
 	defer cancel()
 
 	homes := n.usageWindowCodexHomes()
-	found := n.collectUsageWindows(time.Now(), homes)
-	collectCodexAppUsage(ctx, homes, found)
+	found := n.collectUsageWindows(now, homes)
+	codex := collectCodexAppUsage(ctx, homes, found, previous, now)
 
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -105,6 +108,14 @@ func (n *Node) refreshUsageWindows(ctx context.Context) {
 	if ctx.Err() == nil {
 		st.at = time.Now()
 		st.accounts = mergeUsage(st.accounts, found, st.at)
+		st.codex = codex
+		for key := range st.accounts {
+			if strings.HasPrefix(key, "codex:") {
+				if state, exists := codex[key]; !exists || state.unavailable {
+					delete(st.accounts, key)
+				}
+			}
+		}
 	}
 }
 
@@ -142,7 +153,9 @@ func mergeUsage(kept, found map[string]proto.UsageNodeAccount, now time.Time) ma
 		}
 	}
 	for k, a := range found {
-		if previous := out[k]; previous.AccountKey != "" && a.AccountKey == "" && !a.SampledAt.After(previous.SampledAt) {
+		previous := out[k]
+		if a.SampledAt.Before(previous.SampledAt) ||
+			(a.SampledAt.Equal(previous.SampledAt) && previous.AccountKey != "" && a.AccountKey == "") {
 			continue
 		}
 		out[k] = a

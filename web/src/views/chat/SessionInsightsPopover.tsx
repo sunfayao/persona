@@ -74,7 +74,7 @@ async function requestAssistantCompaction(session: Session): Promise<boolean> {
   }
 }
 
-function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown }) {
+export function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown }) {
   const markerShare = breakdown.autoCompactShare !== null ? Math.min(99, Math.max(1, breakdown.autoCompactShare)) : null;
   const markerLabel =
     breakdown.autoCompactThreshold !== null && breakdown.autoCompactShare !== null
@@ -118,7 +118,7 @@ function StackedBreakdownBar({ breakdown }: { breakdown: SessionContextBreakdown
   );
 }
 
-function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdown }) {
+export function BreakdownCard({ breakdown }: { breakdown: SessionContextBreakdown }) {
   const estimated = breakdown.source === "estimated";
   const formatCatTokens = (n: number) =>
     estimated ? t("chat-sessioninsights.breakdown_estimated_tokens", { tokens: compactTokens(n) }) : compactTokens(n);

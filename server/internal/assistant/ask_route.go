@@ -100,6 +100,7 @@ const escalatedKeep = 48 * time.Hour
 func terminalQuestion(ix proto.Interaction) bool {
 	d := ix.Dialog
 	if ix.Kind != proto.IxScreen || ix.Private || ix.Secret || len(ix.Fields) > 0 || d == nil || strings.TrimSpace(d.Question) == "" ||
+		strings.HasPrefix(d.Rev, screen.TraeQuestionRev) ||
 		d.Command != "" || d.Warning != "" || d.Risk != "" || d.Deadline != "" || d.DeadlineAction != "" {
 		return false
 	}

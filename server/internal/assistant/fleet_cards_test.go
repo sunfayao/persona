@@ -44,6 +44,7 @@ type cardNode struct {
 	err       error
 	screen    string
 	dialogRev *string
+	trae      *screen.Dialog
 	keysErr   error // what session.keys answers
 }
 
@@ -72,6 +73,9 @@ func newCardFleet(t *testing.T, store bool) (*fleetTest, *cardNode) {
 			if c.screen == "node-error" {
 				return nil, errNode
 			}
+			if c.trae != nil && p["trae_question"] == true {
+				return map[string]any{"text": "", "trae_question": c.trae}, nil
+			}
 			res := map[string]any{"text": c.screen}
 			if c.dialogRev != nil {
 				if *c.dialogRev != "" {
@@ -96,6 +100,24 @@ func newCardFleet(t *testing.T, store bool) (*fleetTest, *cardNode) {
 	}
 	ft.d.mu.Unlock()
 	return ft, c
+}
+
+func TestTraeQuestionCardUsesNativeRevisionAndStaysWithTheUser(t *testing.T) {
+	ft, node := newCardFleet(t, false)
+	d := &screen.Dialog{Question: "Which fixture color?", Rev: screen.TraeQuestionRev + "fixture",
+		Options: []screen.Option{{Key: "1", Label: "Blue"}, {Key: "2", Label: "Type your answer", Kind: screen.KindTypeSomething}}}
+	node.trae = d
+	raw, got, err := ft.s.screenDialog(context.Background(), "mac", "synthetic")
+	if err != nil || raw != "" || got == nil || got.Rev != d.Rev || len(got.Options) != 2 {
+		t.Fatalf("native question projection: %q %+v %v", raw, got, err)
+	}
+	if terminalQuestion(proto.Interaction{Kind: proto.IxScreen, Dialog: got}) {
+		t.Fatal("a native question was routed for automatic answers")
+	}
+	p, err := screenAnswer("synthetic", got, proto.Resolution{Option: "2", Text: "Teal"})
+	if err != nil || p["rev"] != d.Rev || p["option"] != "2" || p["text"] != "Teal" {
+		t.Fatalf("native answer parameters: %+v %v", p, err)
+	}
 }
 
 func pendingIDs(s *Service) map[string]string {

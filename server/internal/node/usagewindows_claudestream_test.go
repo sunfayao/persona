@@ -103,7 +103,7 @@ func TestClaudeStreamUsageKeepsTheNewestSamplePerLauncher(t *testing.T) {
 	}
 	// A poll finds nothing of its own here (no Codex, no status line file) and keeps the readings, as it keeps any
 	// quiet source.
-	n.refreshUsageWindows(t.Context())
+	n.refreshUsageWindows(t.Context(), time.Now())
 	if got := used("claude", ""); got != 14 {
 		t.Errorf("after a poll: %v%%, want 14%%", got)
 	}

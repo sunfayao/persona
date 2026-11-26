@@ -24,7 +24,7 @@ export interface ComposerFile {
   name: string;
   size: number;
   sent: number;
-  state: "waiting" | "uploading" | "ready" | "failed";
+  state: "local" | "waiting" | "uploading" | "ready" | "failed";
   /** Why it did not get there (failed). */
   error?: string;
   /** Set once it is on the machine: what the message carries. */
@@ -99,7 +99,7 @@ export function fileDestination(features: readonly string[]): string | undefined
 
 /** Files picked for the composer `key` of a conversation on machine `mid`. Returns what was refused and why, for the
  *  composer to say: over the count, or too big. */
-export function addFiles(key: string, mid: string, picked: File[]): { tooMany: number; tooBig: string[] } {
+export function addFiles(key: string, mid: string, picked: File[], deferred = false): { tooMany: number; tooBig: string[] } {
   if (conversationKeyDeleted(key)) return { tooMany: 0, tooBig: [] };
   const room = Math.max(0, MAX_FILES - getComposerFiles(key).length);
   const tooBig = picked.slice(0, room).filter((f) => f.size > MAX_FILE_BYTES).map((f) => f.name);
@@ -108,11 +108,26 @@ export function addFiles(key: string, mid: string, picked: File[]): { tooMany: n
   const added = taken.map((blob) => {
     const id = `f${++seq}`;
     jobs.set(id, { key, mid, blob, dest: where, owner: currentOwner() });
-    return { id, name: blob.name, size: blob.size, sent: 0, state: "waiting" as const };
+    return { id, name: blob.name, size: blob.size, sent: 0, state: deferred ? "local" as const : "waiting" as const };
   });
   if (added.length) set(key, [...getComposerFiles(key), ...added]);
   pump(key);
   return { tooMany: Math.max(0, picked.length - room), tooBig };
+}
+
+/** Sends the files with a new Agent's first input. They had no conversation to upload into before that. */
+export function takeLocalFiles(key: string): File[] {
+  const list = getComposerFiles(key);
+  const files: File[] = [];
+  const remaining = list.filter((f) => {
+    if (f.state !== "local") return true;
+    const job = jobs.get(f.id);
+    if (job) files.push(job.blob);
+    jobs.delete(f.id);
+    return false;
+  });
+  if (remaining.length !== list.length) set(key, remaining);
+  return files;
 }
 
 /** Cancels one on its way, or takes it off the message. */

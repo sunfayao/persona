@@ -30,7 +30,7 @@ export function StartingAgent({ launch, onToggleSidebar }: { launch: AgentLaunch
     if (launch.uncertain && !confirm(launch.session ? t("startingagent.resend_confirm") : t("startingagent.restart_confirm"))) return;
     // the model and effort were picked for the launcher it had: another launcher starts with its own
     const other = launcher.trim() !== launch.launcher;
-    const retireTextStart = launch.agentType === "traex" && launch.inlinePrompt && (other || !text.trim());
+    const retireTextStart = launch.agentType === "traex" && launch.inlinePrompt && (other || !text.trim() && !launch.attachments.length);
     if (editable) putLaunch({ ...launch, text: text.trim(), launcher: launcher.trim(), outgoing: undefined,
       ...(other && { model: undefined, effort: undefined, displayLauncher: undefined, displayEngine: undefined, displayModel: undefined }), ...(retireTextStart && { agentType: undefined, inlinePrompt: undefined }) });
     void deliverLaunch(launch.id, launch.clearable);

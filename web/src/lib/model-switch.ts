@@ -4,7 +4,7 @@
 // (lib/session-panel.ts pickPlan), and the node types `/model <id>` into Claude Code through the same guards as a
 // message (server/internal/node/model_switch.go).
 import { t } from "../i18n";
-import { agentId, sessionAgent } from "./agent-kind";
+import { agentId, isTraeCli, sessionAgent } from "./agent-kind";
 import { sessionCan, stateOf } from "./format";
 import type { AgentModel } from "./launcher-models";
 import type { Session } from "./types";
@@ -26,7 +26,7 @@ export function modelBusy(s: Session): string {
   if (agentId(sessionAgent(s).agent) === "codex") return "";
   if (s.capabilities?.model && !s.pane_id && (s.source_kind === "claude_desktop" || s.capabilities.plugin_input)) return "";
   const st = stateOf(s);
-  return (st === "working" && !s.background_working) || st === "needs_you" ? t("composer.busy") : "";
+  return (st === "working" && (isTraeCli(s.agent) || !s.background_working)) || st === "needs_you" ? t("composer.busy") : "";
 }
 
 /** The node's name for the Codex App's launcher (#5726, server/internal/node/codexapp_new.go). */
@@ -42,6 +42,7 @@ export const sessionLauncher = (s: Partial<Pick<Session, "launcher" | "agent" | 
   if (s.launcher) return s.launcher;
   const engine = agentId(sessionAgent(s).agent);
   if (engine === "agy") return "agy";
+  if (isTraeCli(s.agent) || engine === "trae") return "traex";
   if (engine !== "codex") {
     return s.source_kind === "claude_desktop" || s.space_kind === "claude_desktop" || s.agent_surface === "desktop"
       ? CLAUDE_DESKTOP_LAUNCHER

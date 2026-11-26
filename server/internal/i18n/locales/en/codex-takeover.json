@@ -9,5 +9,6 @@
   "shared_unavailable": "A shared Codex app-server could not be started. The original process was left untouched.",
   "user_only": "Only a signed-in device can confirm a Codex takeover.",
   "token_required": "A takeover confirmation token is required.",
-  "not_ready": "Codex opened in the new terminal, but its shared connection is not ready. Check that terminal before sending."
+  "not_ready": "Codex opened in the new terminal, but its shared connection is not ready. Check that terminal before sending.",
+  "desktop_resume_unavailable": "Codex could not reopen this original conversation in Persona. You can still read it here or open it in Codex Desktop."
 }

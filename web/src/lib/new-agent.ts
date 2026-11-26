@@ -75,10 +75,14 @@ export interface AgentLaunch {
 }
 
 /** `open: false` starts it without opening its conversation (Compare runs starts several and opens their page, #8916). */
-export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "workSession" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "host" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean } = {}) {
+export function launchAgent(input: Pick<AgentLaunch, "machineId" | "cwd" | "workspaceId" | "desktopProjectId" | "launcher" | "agentType" | "displayLauncher" | "displayEngine" | "displayModel" | "workSession" | "inlinePrompt" | "model" | "effort" | "launcherDefaultEffort" | "permissionMode" | "host" | "ultracode" | "text" | "nameHint" | "attachments" | "todoId">, options: { open?: boolean; replace?: boolean } = {}) {
   const launch: AgentLaunch = { ...input, id: `local-${uuid()}`, phase: "creating", uploaded: {}, ...launchOpIds() };
   putLaunch(launch);
-  if (options.open !== false) navigate({ name: "session", mid: launch.machineId, sid: launch.id });
+  if (options.open !== false) {
+    const route = { name: "session" as const, mid: launch.machineId, sid: launch.id };
+    if (options.replace) navigate(route, true);
+    else navigate(route);
+  }
   // Let the local conversation paint before serialization, uploads and remote startup.
   setTimeout(() => void deliverLaunch(launch.id), 0);
   return launch.id;
@@ -158,6 +162,10 @@ export interface NewAgentPreset {
   /** The exact desktop launcher and native project selected by the source page. */
   launcher?: string;
   desktopProjectId?: string;
+  /** Terminal catalog space to resolve for a project heading whose source has yet to be read. */
+  spaceId?: string;
+  /** Explicit terminal host when the folder comes from a session or terminal. */
+  host?: string;
   /** Messages forwarded to a new Agent (#3899; several at once, #3838): their card over the first message, which carries
    *  them in front; and the pictures they had, attached. */
   forwards?: ContextRef[];

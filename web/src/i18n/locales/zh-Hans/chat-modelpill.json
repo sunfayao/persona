@@ -7,6 +7,7 @@
   "loading": "正在读取模型…",
   "failed": "模型读取失败",
   "default_model": "默认模型",
+  "unknown_model": "当前模型未知",
   "effort_xhigh_short": "很高",
   "header_default": "跟随默认 · {setup}",
   "header_own": "沿用这个对话开始时的模型 · {setup}",

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { hasFinePointer } from "../../lib/viewport";
 import { canRecall, opensSearch, readHistory, recallIndexOf, recallStep, recordSent } from "../../lib/send-history";
-import { splitSkillDraft } from "../../lib/skill-mentions";
+import { splitComposerDraft } from "../../lib/skill-mentions";
 
 export interface SendHistory {
   /** The search panel is open. */
@@ -42,7 +42,7 @@ export function useSendHistory(o: {
 
   const putCaretAtEnd = useCallback(
     (text: string) => {
-      const length = splitSkillDraft(text).text.length;
+      const length = splitComposerDraft(text).text.length;
       setCaret(length);
       requestAnimationFrame(() => {
         input.current?.focus();

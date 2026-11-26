@@ -8,7 +8,8 @@ import { t } from "../i18n";
 import { ApiError } from "./api";
 import type { LauncherModels } from "./launcher-models";
 import { rowSetup, shownEffort } from "./model-panel";
-import { pendingView, switchRefused, type ModelList } from "./session-models";
+import { sessionLauncher } from "./model-switch";
+import { pendingView, sessionModelHost, switchRefused, type ModelList } from "./session-models";
 import { pickPlan, sessionPanel, type PanelOptions } from "./session-panel";
 import type { Launcher, Session } from "./types";
 
@@ -39,6 +40,38 @@ const session = (x: Partial<Session> = {}): Session =>
   ({ machine_id: "mac", session_id: "s1", title: "t", cwd: "/code", status: "idle", state: "idle", agent: "claude", launcher: "claude", model: "claude-opus-5-5", effort: "high", ...x }) as Session;
 const on: PanelOptions = { switching: true };
 const provider = (s: Session, id: string, o: PanelOptions = on) => sessionPanel(s, launchers, listOf, o).providers.find((p) => p.id === id)!;
+
+describe("TRAE CLI's live model panel", () => {
+  const launcher = "trae-custom";
+  const catalog: LauncherModels = { agent: "traex", models: [
+    { id: "fixture-a", name: "Fixture A", default: true },
+    { id: "fixture-b", name: "Fixture B", efforts: ["high"] },
+    { id: "fixture-b@high", name: "Fixture B High" },
+  ] };
+  const list = (name: string) => name === launcher ? { list: catalog } : listOf(name);
+  const live = session({ agent: "traex", launcher, host: "herdr", model: undefined, effort: undefined,
+    capabilities: { send: true, model: true, modes: false } });
+
+  it("opens with no inferred current model and only the recorded launcher's compatible models", () => {
+    expect(sessionLauncher({ ...live, launcher: undefined })).toBe("traex");
+    expect(sessionModelHost(live)).toBe("herdr");
+    const { providers, state } = sessionPanel(live, launchers, list, { switching: true, engineSwitch: true });
+    expect(state.current).toBeNull();
+    expect(providers.map((p) => p.id)).toEqual([launcher]);
+    expect(providers[0].models?.map((m) => [m.id, m.efforts])).toEqual([["fixture-a", []], ["fixture-b", []]]);
+    expect(providers[0].typable).toBeUndefined();
+    expect(pickPlan(live, { provider: launcher, model: "fixture-a" }, () => catalog)).toEqual([{ model: "fixture-a" }]);
+  });
+
+  it("does not send busy picks, another provider, or startup-only IDs", () => {
+    const busy = session({ ...live, state: "working", status: "working", background_working: true });
+    expect(sessionPanel(busy, launchers, list).state.busy).toBeTruthy();
+    expect(pickPlan(busy, { provider: launcher, model: "fixture-b" }, () => catalog)).toBeNull();
+    expect(pickPlan(live, { provider: launcher, model: "fixture-b@high" }, () => catalog)).toBeNull();
+    expect(pickPlan(live, { provider: launcher, model: "unlisted" }, () => catalog)).toBeNull();
+    expect(pickPlan(live, { provider: "claude", model: "opus" }, () => claudeList)).toBeNull();
+  });
+});
 
 describe("actual Codex session effort and control availability", () => {
   const live = session({ agent: "codex", source_kind: "codex_app_server", launcher: "cx", model: "gpt-5.5",

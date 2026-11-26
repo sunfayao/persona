@@ -126,6 +126,19 @@ func encryptedCodexFailure(text string) bool {
 }
 
 func (n *Node) prepareCodexTakeover(ctx context.Context, id string) (*codexTakeoverPlan, error) {
+	if src, ok := n.codexSource(id); ok {
+		src = withoutGoneRollout(src, nil)
+		if codexDesktopContinuationChat(src, nil) {
+			cwd, err := n.checkReleasedCodexDesktop(ctx, id, src)
+			if err != nil {
+				return nil, err
+			}
+			return n.rememberCodexTakeover(codexTakeoverPlan{
+				CodexTakeover: proto.CodexTakeover{CanResume: true, ReleasedDesktop: true},
+				Cwd:           cwd, id: id, source: src,
+			}), nil
+		}
+	}
 	src, ok := n.takeoverSource(id)
 	if !ok {
 		return nil, takeoverRefusal("unsupported")
@@ -159,21 +172,25 @@ func (n *Node) prepareCodexTakeover(ctx context.Context, id string) (*codexTakeo
 	if err != nil {
 		return nil, err
 	}
-	p := codexTakeoverPlan{CodexTakeover: *state, Token: newUUID(), Cwd: m.cwd, TranscriptPath: src.path,
+	return n.rememberCodexTakeover(codexTakeoverPlan{CodexTakeover: *state, Cwd: m.cwd, TranscriptPath: src.path,
 		ContinuationPrompt: prompts.RenderCodexContinuation(prompts.CodexContinuation{Path: src.path, Messages: recent}),
-		id:                 id, source: src, writers: writers, expires: time.Now().Add(takeoverPlanTTL)}
+		id:                 id, source: src, writers: writers}), nil
+}
+
+func (n *Node) rememberCodexTakeover(p codexTakeoverPlan) *codexTakeoverPlan {
+	p.Token, p.expires = newUUID(), time.Now().Add(takeoverPlanTTL)
 	n.takeovers.mu.Lock()
 	defer n.takeovers.mu.Unlock()
 	if n.takeovers.plans == nil {
 		n.takeovers.plans = map[string]codexTakeoverPlan{}
 	}
 	for token, old := range n.takeovers.plans {
-		if time.Now().After(old.expires) || old.id == id {
+		if time.Now().After(old.expires) || old.id == p.id {
 			delete(n.takeovers.plans, token)
 		}
 	}
 	n.takeovers.plans[p.Token] = p
-	return &p, nil
+	return &p
 }
 
 func (n *Node) commitCodexTakeover(ctx context.Context, id, token string, confirm bool) (session *proto.Session, err error) {
@@ -197,6 +214,9 @@ func (n *Node) commitCodexTakeover(ctx context.Context, id, token string, confir
 	n.takeovers.mu.Unlock()
 	if !ok || p.id != id || time.Now().After(p.expires) {
 		return nil, takeoverRefusal("expired")
+	}
+	if p.ReleasedDesktop {
+		return n.continueReleasedCodexDesktop(ctx, id, p)
 	}
 	if !p.CanResume {
 		return nil, takeoverRefusal("continue_only")
@@ -356,7 +376,16 @@ func (n *Node) takeoverWriters(src codexSource) ([]codexWriter, error) {
 
 func (n *Node) sharedTakeoverCodex(ctx context.Context, src codexSource) ([]string, error) {
 	socket := filepath.Join(src.home, "app-server-control", "app-server-control.sock")
-	if _, err := codexSocketPath(socket); err != nil {
+	if _, _, err := validateCodexEndpoint("unix://" + socket); err != nil {
+		// A missing control socket is normal before the first shared launch. Refuse
+		// unknown socket aliases instead of invoking the daemon against them.
+		resolved, pathErr := codexSocketPath(socket)
+		if pathErr != nil {
+			return nil, takeoverRefusal("shared_unavailable")
+		}
+		if _, statErr := os.Lstat(resolved); !errors.Is(statErr, os.ErrNotExist) {
+			return nil, takeoverRefusal("shared_unavailable")
+		}
 		start, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		cmd := exec.CommandContext(start, "codex", "app-server", "daemon", "start")

@@ -224,6 +224,20 @@ describe("thought rows (cindy's ThinkingActivityRow, #5155)", () => {
 describe("the user's bubble and the answer", () => {
   const msg = (text: string) => ({ id: "u#0", text, images: [], contexts: [] });
 
+  it("renders an inline mention in its sentence and keeps a deliberate detached context", () => {
+    const message = {
+      ...msg("See @Review today"),
+      contexts: [
+        { kind: "context", title: "Review metadata", text: "Other session", attrs: { inline_label: "@Review", inline_start: "4" } },
+        { kind: "context", title: "Manual attachment", text: "Attached excerpt" },
+      ],
+    };
+    const html = renderToStaticMarkup(<UserBubble msg={message} mid="m" sid="s" pending />);
+    expect(html).toContain("See @Review today");
+    expect(html).not.toContain("Review metadata");
+    expect(html).toContain("Manual attachment");
+  });
+
   it("on the right, fits its column up to 488 wide, 12 px corners", () => {
     const html = renderToStaticMarkup(<UserBubble msg={msg("你好")} mid="m" sid="s" />);
     expect(html).toContain("ml-auto");

@@ -1548,6 +1548,43 @@ describe("SectionList: a section that holds all its rows passes over hints about
     expect(ids(list)).toEqual(["c", "a", "b"]);
   });
 
+  it("updates a complete grouped preview when an existing session replaces a waiting row at the same count", async () => {
+    pages.mockResolvedValueOnce(page([row("waiting", 2), row("peer", 1)], { revision: "r1", total: 2 }))
+      .mockResolvedValueOnce(page([row("native", 3)], { revision: "r2", total: 2, remove: ["waiting"], added: [] }));
+    const list = new SectionList<Row>("/sessions?agents_only=1", (r) => r.id, compare, undefined, tupleId, {
+      counts: false, presentation: { compare },
+    });
+    await list.setFilters({ space: [listPair("demo", "project")] });
+    expect(ids(list)).toEqual(["waiting", "peer"]);
+
+    list.invalidate(hint("r1", "r2", "waiting", "native"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(requestParams()).toEqual([
+      { agents_only: "1", space: '["demo","project"]', summary: "1", limit: "50" },
+      { agents_only: "1", space: '["demo","project"]', summary: "1", limit: "50", since: "r1" },
+    ]);
+    expect(ids(list)).toEqual(["native", "peer"]);
+    expect(list.getSnapshot()).toMatchObject({ hasMore: false, total: 2 });
+  });
+
+  it("keeps the existing presentation when an entrant appears while the group still has more pages", async () => {
+    const firstPage = rows(PAGE_SIZE);
+    pages.mockResolvedValueOnce(page(firstPage, { revision: "r1", total: PAGE_SIZE + 1, has_more: true, next_cursor: "cursor" }))
+      .mockResolvedValueOnce(page([row("entrant", 20_000)], { revision: "r2", total: PAGE_SIZE + 1, remove: ["unloaded"], added: [] }));
+    const list = new SectionList<Row>("/sessions?agents_only=1", (r) => r.id, compare, undefined, tupleId, {
+      counts: false, presentation: { compare },
+    });
+    await list.setFilters({ space: [listPair("demo", "project")] });
+
+    list.invalidate(hint("r1", "r2", "unloaded", "entrant"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(requestParams().at(-1)?.since).toBe("r1");
+    expect(ids(list)).toEqual(firstPage.map((r) => r.id));
+    expect(list.getSnapshot().hasMore).toBe(true);
+  });
+
   it("reads for a gap, for a hint that cannot say what changed, and while a read is out", async () => {
     const list = section();
     await list.load();

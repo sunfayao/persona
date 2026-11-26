@@ -14,6 +14,10 @@ func TestFileReferencesOnlyUseLeadingTypedSelections(t *testing.T) {
 	if prefix, body := Split(block + "\nRead it"); prefix != block || body != "\nRead it" {
 		t.Fatal("changed envelope")
 	}
+	inline := strings.Replace(block, `runtime=""`, `runtime="" inline_label="@notes" inline_start="5"`, 1)
+	if got, err := Files(inline + "\n\nRead @notes"); err != nil || len(got) != 1 || got[0] != refs[0] {
+		t.Fatalf("inline presentation changed the scoped file: %+v %v", got, err)
+	}
 	for _, text := range []string{"Literal @notes", "Quoted: " + block} {
 		refs, err := Files(text)
 		if err != nil || len(refs) != 0 {

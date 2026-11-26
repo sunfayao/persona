@@ -14,6 +14,7 @@ export default function TakeoverAction({ session }: { session: Session }) {
   const [busy, setBusy] = useState(false);
   const path = `/machines/${enc(session.machine_id)}/codex/${enc(session.session_id)}/takeover`;
   const takeoverAvailable = Boolean(session.capabilities?.takeover);
+  const releasedDesktop = session.capabilities?.takeover?.released_desktop === true;
 
   const commit = async (p: CodexTakeoverPlan, confirm: boolean) => {
     const body = takeoverBody(p, confirm);
@@ -24,7 +25,7 @@ export default function TakeoverAction({ session }: { session: Session }) {
       upsertSession({ ...result.session, machine_id: session.machine_id });
       setPlan(null); setConfirmStop(false);
     } catch (e) {
-      if (e instanceof ApiError && e.code === "codex_takeover_continue_only") {
+      if (!releasedDesktop && e instanceof ApiError && e.code === "codex_takeover_continue_only") {
         setPlan({ ...p, can_resume: false, reason: "encrypted_context" });
         setConfirmStop(false);
       } else {
@@ -40,6 +41,14 @@ export default function TakeoverAction({ session }: { session: Session }) {
     setLoading(true);
     try {
       const result = await api<CodexTakeoverPlan>(path);
+      if (releasedDesktop) {
+        if (!result.released_desktop || result.running || !result.can_resume) {
+          toast(t("chat-takeover.desktop_resume_unavailable"), "error");
+          return;
+        }
+        await commit(result, false);
+        return;
+      }
       setPlan(result);
       if (!result.can_resume) return;
       if (result.running) { setConfirmStop(true); return; }
@@ -65,6 +74,7 @@ export default function TakeoverAction({ session }: { session: Session }) {
   };
 
   if (!takeoverAvailable && !plan) return null;
+  if (releasedDesktop) return <Button size="sm" busy={loading} disabled={loading} onClick={() => void prepare()}>{t("chat-takeover.desktop_resume")}</Button>;
 
   return <>
     {session.capabilities?.takeover?.can_resume && <Button size="sm" busy={loading} disabled={loading} onClick={() => void prepare()}>{t("chat-takeover.takeover")}</Button>}

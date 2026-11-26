@@ -13,6 +13,7 @@ function status(f: ComposerFile): string {
       return t("chat-composer.file_waiting");
     case "uploading":
       return f.size ? `${bytes(f.sent)} / ${bytes(f.size)}` : bytes(f.sent);
+    case "local":
     case "ready":
       return bytes(f.size);
     case "failed":

@@ -17,6 +17,10 @@ func TestSelectedReferencesOnlyParseLeadingExplicitContexts(t *testing.T) {
 	if err != nil || len(refs) != 1 || refs[0] != "opaque" {
 		t.Fatalf("selected reference lost: %v %v", refs, err)
 	}
+	inline := strings.Replace(block, `ref="opaque"`, `ref="opaque" inline_label="@Review" inline_start="4"`, 1)
+	if refs, err := References(inline + "\n\nUse @Review"); err != nil || len(refs) != 1 || refs[0] != "opaque" {
+		t.Fatalf("inline presentation changed the skill identity: %v %v", refs, err)
+	}
 	for _, attrs := range []string{`ref=""`, `ref="one" ref="two"`, `ref="one" path="/secret"`, `kind="context" ref="one"`} {
 		text := `<persona-context kind="skill" ` + attrs + `>Review</persona-context>`
 		if _, err := References(text); err == nil {
