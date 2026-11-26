@@ -1,9 +1,11 @@
 # Persona
 
-Persona is a self-hosted personal assistant and Agent workspace. The Go hub serves the web app and stores state in Postgres. Persona Link connects computers that run Agents.
+Persona is a self-hosted personal assistant and Agent workspace. A Go hub serves the web app and stores state in
+Postgres; a node on each computer runs the coding agents; Persona Link keeps computers reachable.
 
-`deploy` is the trunk. Make changes on `task/*` branches and build and test on the Linux devbox. See [local testing](docs/operations/testing.md) for the build, vet, partitioned Go suite and web checks.
+`deploy` is the trunk. Changes are made on `task/*` branches and built and tested on the Linux build machine.
 
-Set up the Linux hub and Mac using [the deployment config](docs/operations/config.md) and [Persona Link](docs/operations/link.md). To deploy a verified build, run `scripts/deploy/deploy.sh` from the repository root.
-
-[Agent guide](CLAUDE.md) · [Architecture](docs/server/architecture.md) · [Web app](docs/web/web.md) · [License](LICENSE)
+- [AGENTS.md](AGENTS.md): the rules for working in this repository, with the detailed files under [AGENTS/](AGENTS/).
+- [docs/operations/config.md](docs/operations/config.md): the deployment and run-time configuration.
+- [docs/protocol/protocol.md](docs/protocol/protocol.md): the contract between the hub, the web app and nodes.
+- [LICENSE](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES.md)
