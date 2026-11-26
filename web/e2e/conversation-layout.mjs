@@ -13,8 +13,8 @@ try {
   if (shots) await mkdir(shots, { recursive: true });
   for (const width of [1280, 390, 320]) for (const theme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width, height: width === 1280 ? 850 : 740 }, hasTouch: width < 500, isMobile: width < 500, locale: "zh-CN", colorScheme: theme, serviceWorkers: "block" });
+    const page = await ctx.newPage();
     try {
-      const page = await ctx.newPage();
       await page.addInitScript((theme) => {
         localStorage.setItem("persona.theme", theme);
         localStorage.setItem("persona.language", "zh-Hans");
@@ -49,6 +49,9 @@ try {
       assert.equal(await fields.evaluate((el) => getComputedStyle(el).flexDirection), "column");
       assert.ok(await fields.locator("[data-testid=composer-send]").isEnabled());
       console.log(`PASS ${width} ${theme}: readable title, adaptive input, visible controls, multiline draft`);
-    } finally { await ctx.close(); }
+    } finally {
+      await page.unrouteAll({ behavior: "wait" });
+      await ctx.close();
+    }
   }
 } finally { await browser.close(); }
