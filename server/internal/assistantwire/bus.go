@@ -311,6 +311,7 @@ var Routes = []string{
 	"PUT /api/v1/todos/{id}/spaces/{mid}/{space...}",
 	"DELETE /api/v1/todos/{id}/spaces/{mid}/{space...}",
 	"PUT /api/v1/todos/{id}/agents/{mid}/{sid}",
+	"PUT /api/v1/todos/{id}/agents/{mid}/{sid}/attach",
 	"DELETE /api/v1/todos/{id}/agents/{mid}/{sid}",
 	"GET /api/v1/todos/{id}/decisions",
 	"POST /api/v1/decisions",

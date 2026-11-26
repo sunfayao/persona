@@ -175,7 +175,7 @@ func (s *Service) linkDelayedDoneCreation(machine string, c proto.Session, creat
 func (s *Service) writeDelayedDoneCreation(ctx context.Context, todoID, machine string, c proto.Session, startError string, linkedAt time.Time) (bool, error) {
 	st := s.todoDB()
 	if st == nil {
-		if err := s.writeTodoAgentLink(ctx, todoID, machine, c.SessionID, c.Title, c.Cwd, c.Agent, startError, "assistant_start", todoID, true); err != nil {
+		if _, err := s.writeTodoAgentLink(ctx, todoID, machine, c.SessionID, c.Title, c.Cwd, c.Agent, startError, "assistant_start", todoID, linkAgentToFinishedTodo); err != nil {
 			return false, err
 		}
 		return true, nil
