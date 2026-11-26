@@ -1,5 +1,3 @@
 {
-  "retry": "Retry",
-  "summary": "{count} connected",
-  "summary_with_errors": "{on} connected · {bad} with errors"
+  "retry": "Retry"
 }

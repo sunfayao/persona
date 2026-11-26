@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -15,7 +14,7 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// trackKindMemStore is a trackRegistryStore that also keeps the user's kinds and takes registry writes.
+// trackKindMemStore is a trackRegistryStore that also keeps the user's kinds.
 type trackKindMemStore struct {
 	*trackRegistryStore
 	kmu   sync.Mutex
@@ -26,67 +25,6 @@ func (st *trackKindMemStore) TrackKinds(context.Context) ([]db.TrackKind, error)
 	st.kmu.Lock()
 	defer st.kmu.Unlock()
 	return slices.Clone(st.kinds), nil
-}
-
-func (st *trackKindMemStore) InsertTrack(_ context.Context, t db.Track) error {
-	st.kmu.Lock()
-	defer st.kmu.Unlock()
-	for _, r := range st.rows {
-		if r.Slug == t.Slug {
-			return db.ErrTrackExists
-		}
-	}
-	t.Revision = 1
-	st.rows = append(st.rows, t)
-	return nil
-}
-
-func (st *trackKindMemStore) UpdateTrack(_ context.Context, t db.Track, revision int64) (int64, error) {
-	st.kmu.Lock()
-	defer st.kmu.Unlock()
-	for i, r := range st.rows {
-		if r.Slug != t.Slug {
-			continue
-		}
-		if r.Revision != revision {
-			return 0, db.ErrTrackRevision
-		}
-		r.Title, r.Icon, r.Description, r.DefaultCategories, r.Template = t.Title, t.Icon, t.Description, t.DefaultCategories, t.Template
-		r.ConfigOverride, r.ArchivedAt, r.Revision = t.ConfigOverride, t.ArchivedAt, r.Revision+1
-		st.rows[i] = r
-		return r.Revision, nil
-	}
-	return 0, db.ErrTrackNotFound
-}
-
-func (st *trackKindMemStore) InsertTrackKind(_ context.Context, k db.TrackKind) error {
-	st.kmu.Lock()
-	defer st.kmu.Unlock()
-	for _, r := range st.kinds {
-		if r.Slug == k.Slug {
-			return db.ErrTrackExists
-		}
-	}
-	k.Revision = 1
-	st.kinds = append(st.kinds, k)
-	return nil
-}
-
-func (st *trackKindMemStore) UpdateTrackKind(_ context.Context, k db.TrackKind, revision int64) (int64, error) {
-	st.kmu.Lock()
-	defer st.kmu.Unlock()
-	for i, r := range st.kinds {
-		if r.Slug != k.Slug {
-			continue
-		}
-		if r.Revision != revision {
-			return 0, db.ErrTrackRevision
-		}
-		r.Title, r.Config, r.Revision = k.Title, k.Config, r.Revision+1
-		st.kinds[i] = r
-		return r.Revision, nil
-	}
-	return 0, db.ErrTrackNotFound
 }
 
 // validKind is a valid kind config to change field by field.
@@ -148,9 +86,6 @@ func TestKindConfigValidation(t *testing.T) {
 	}
 	if got, err := parseKindConfig(raw); err != nil || !reflect.DeepEqual(got, validKind()) {
 		t.Errorf("a stored config reads back: %v", err)
-	}
-	if w := kindWarnings(builtinKindConfigs()[trackKindOrchestration]); !slices.Equal(w, []string{trackWarnSupervisionLeaders}) {
-		t.Errorf("leaders' supervision warns: %v", w)
 	}
 }
 
@@ -215,169 +150,5 @@ func TestTrackOverride(t *testing.T) {
 	}
 	if _, err := effectiveTrackConfig(kind, "odd", nil, nil); err == nil {
 		t.Error("an unknown template: accepted")
-	}
-}
-
-// trackKindService is an assistant on a store with a registry it can write.
-func trackKindService(t *testing.T) (*Service, *trackKindMemStore) {
-	t.Helper()
-	st := &trackKindMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}}}
-	return newServiceOn(t, newFakeHub(), st), st
-}
-
-func decodeTrackJSON[T any](t *testing.T, b []byte) T {
-	t.Helper()
-	var v T
-	if err := json.Unmarshal(b, &v); err != nil {
-		t.Fatalf("%s: %v", b, err)
-	}
-	return v
-}
-
-// The tracks and kinds API (#13472): only the user writes; a built-in kind is never changed; a change is made
-// against its revision; a kind defined in config gives a track the same as a built-in kind would; a kind newer than
-// this manager is listed as disabled and its tracks are left out.
-func TestTracksAPI(t *testing.T) {
-	ctx := context.Background()
-	s, st := trackKindService(t)
-
-	w := serve(s, http.MethodGet, "/api/v1/assistant/track-kinds", "")
-	kinds := decodeTrackJSON[assistantwire.TrackKinds](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || len(kinds.Kinds) != 2 || kinds.Kinds[0].Slug != trackKindOrchestration || kinds.Kinds[1].Slug != trackKindSpace ||
-		!kinds.Kinds[0].Builtin || !slices.Equal(kinds.Kinds[0].Warnings, []string{trackWarnSupervisionLeaders}) {
-		t.Fatalf("built-in kinds: %d %s", w.Code, w.Body)
-	}
-	w = serve(s, http.MethodGet, "/api/v1/assistant/tracks", "")
-	tracks := decodeTrackJSON[assistantwire.Tracks](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || len(tracks.Tracks) != 0 {
-		t.Fatalf("tracks: %d %s", w.Code, w.Body)
-	}
-
-	// Only the user writes.
-	for _, role := range []string{roleExtension, "scoped"} {
-		for _, req := range [][3]string{
-			{http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-plain","kind":"space","title":"QA plain"}`},
-			{http.MethodPut, "/api/v1/assistant/tracks/qa-plain", `{"revision":1,"title":"x"}`},
-			{http.MethodPost, "/api/v1/assistant/track-kinds", `{"slug":"qa-kind","title":"QA","config":{}}`},
-			{http.MethodPut, "/api/v1/assistant/track-kinds/qa-kind", `{"revision":1}`},
-		} {
-			if w := serveAs(s, role, req[0], req[1], req[2]); w.Code != http.StatusForbidden {
-				t.Errorf("%s %s %s: %d, want 403", role, req[0], req[1], w.Code)
-			}
-		}
-	}
-
-	// A track of a built-in kind takes the kind's template and categories.
-	w = serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-plain","kind":"space","title":"QA plain","icon":"leaf"}`)
-	plain := decodeTrackJSON[assistantwire.Track](t, w.Body.Bytes())
-	if w.Code != http.StatusCreated || plain.Template != trackTemplateSpace || len(plain.DefaultCategories) != 0 || plain.Revision != 1 ||
-		plain.Config.UserInstructions != "space_md" || !plain.Config.CaptureTarget {
-		t.Fatalf("create qa-plain: %d %s", w.Code, w.Body)
-	}
-	if e, _ := s.trackEntryOf(ctx, "qa-plain"); e.DirName != "tracks/qa-plain" {
-		t.Errorf("qa-plain's directory = %q", e.DirName)
-	}
-	for _, body := range []string{
-		`{"slug":"qa-plain","kind":"space","title":"Again"}`,
-	} {
-		if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", body); w.Code != http.StatusConflict {
-			t.Errorf("%s: %d, want 409", body, w.Code)
-		}
-	}
-	for _, body := range []string{
-		`{"slug":"tracks","kind":"space","title":"Reserved"}`,
-		`{"slug":"Bad Slug","kind":"space","title":"x"}`,
-		`{"slug":"qa-x","kind":"nowhere","title":"x"}`,
-		`{"slug":"qa-x","kind":"space","title":""}`,
-		`{"slug":"qa-x","kind":"space","title":"x","icon":"heart.fill"}`,
-		`{"slug":"qa-x","kind":"space","title":"x","default_categories":["passwords"]}`,
-		`{"slug":"qa-x","kind":"space","title":"x","config_override":{"supervision":"leaders"}}`,
-		`{"slug":"qa-x","kind":"space","title":"x","config_override":{"usage":[{"scene":"elsewhere","category":"*","rule":"allow"}]}}`,
-		`{"slug":"qa-x","kind":"space","title":"x","later":true}`,
-	} {
-		if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", body); w.Code != http.StatusBadRequest {
-			t.Errorf("%s: %d, want 400", body, w.Code)
-		}
-	}
-
-	// Changes go against the revision.
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-none", `{"revision":1,"title":"x"}`); w.Code != http.StatusNotFound {
-		t.Errorf("change an unknown track: %d, want 404", w.Code)
-	}
-	w = serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain", `{"revision":1,"title":"QA plain renamed","archived":true}`)
-	plain = decodeTrackJSON[assistantwire.Track](t, w.Body.Bytes())
-	if w.Code != http.StatusOK || plain.Title != "QA plain renamed" || !plain.Archived || plain.Revision != 2 {
-		t.Fatalf("change qa-plain: %d %s", w.Code, w.Body)
-	}
-	if s.trackKnown(ctx, "qa-plain") {
-		t.Error("an archived track is no longer one to name")
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain", `{"revision":1,"title":"Stale"}`); w.Code != http.StatusConflict {
-		t.Errorf("a stale change: %d, want 409", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/tracks/qa-plain", `{"revision":2,"archived":false}`); w.Code != http.StatusOK || !s.trackKnown(ctx, "qa-plain") {
-		t.Errorf("unarchive: %d %s", w.Code, w.Body)
-	}
-
-	// A kind in config: a finance space with a weekly rhythm and a stricter lock screen.
-	cfg := validKind()
-	cfg.DefaultCategories = []string{categoryFinance}
-	cfg.Rhythms = []assistantwire.TrackRhythm{{Title: "Weekly review", Cron: "0 9 * * 1", Prompt: "Review the week's spending", TopicPolicy: "continue", Enabled: true}}
-	cfg.Usage = []assistantwire.TrackUsageRule{{Scene: "lock_screen", Category: "*", Rule: "redact"}}
-	body, _ := json.Marshal(assistantwire.TrackKindCreate{Slug: "qa-kind", Title: "QA finance kind", Config: cfg})
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/track-kinds", string(body)); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-kind: %d %s", w.Code, w.Body)
-	}
-	for _, bad := range []assistantwire.TrackKindCreate{
-		{Slug: "space", Title: "Mine", Config: validKind()},
-		{Slug: "qa-kind", Title: "Again", Config: validKind()},
-		{Slug: "qa-loose", Title: "Loose", Config: func() assistantwire.TrackKindConfig {
-			c := validKind()
-			c.Usage = []assistantwire.TrackUsageRule{{Scene: "kb_write", Category: "finance", Rule: "allow"}}
-			return c
-		}()},
-	} {
-		b, _ := json.Marshal(bad)
-		if w := serve(s, http.MethodPost, "/api/v1/assistant/track-kinds", string(b)); w.Code != http.StatusBadRequest && w.Code != http.StatusConflict {
-			t.Errorf("kind %s: %d, want 400 or 409", bad.Slug, w.Code)
-		}
-	}
-	w = serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-finance","kind":"qa-kind","title":"QA finance"}`)
-	fin := decodeTrackJSON[assistantwire.Track](t, w.Body.Bytes())
-	if w.Code != http.StatusCreated || !slices.Equal(fin.DefaultCategories, []string{categoryFinance}) || len(fin.Config.Rhythms) != 1 ||
-		fin.Template != trackTemplateSpace {
-		t.Fatalf("create qa-finance: %d %s", w.Code, w.Body)
-	}
-	if s.trackPolicy(ctx, "qa-finance") != strictPolicy || s.trackPolicy(ctx, "qa-plain") != (TrackPolicy{}) {
-		t.Error("a track's policy follows its categories, whatever its kind")
-	}
-
-	// Kind changes go against the revision; a built-in kind is never changed; a change may not leave a track invalid.
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/track-kinds/space", `{"revision":1,"title":"Mine"}`); w.Code != http.StatusForbidden {
-		t.Errorf("change a built-in kind: %d, want 403", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/track-kinds/qa-kind", `{"revision":2,"title":"Stale"}`); w.Code != http.StatusConflict {
-		t.Errorf("a stale kind change: %d, want 409", w.Code)
-	}
-	if w := serve(s, http.MethodPut, "/api/v1/assistant/track-kinds/qa-kind", `{"revision":1,"title":"QA finance kind 2"}`); w.Code != http.StatusOK {
-		t.Errorf("rename qa-kind: %d %s", w.Code, w.Body)
-	}
-
-	// A kind whose config is newer than this manager is disabled; its tracks are left out (and strict).
-	st.kmu.Lock()
-	st.kinds = append(st.kinds, db.TrackKind{Slug: "qa-later", Title: "Later", Config: []byte(`{"schema": 2, "future": true}`), Revision: 1})
-	st.rows = append(st.rows, db.Track{Slug: "qa-later-track", Kind: "qa-later", Template: trackTemplateSpace, Revision: 1})
-	st.kmu.Unlock()
-	s.tracksChanged()
-	w = serve(s, http.MethodGet, "/api/v1/assistant/track-kinds", "")
-	kinds = decodeTrackJSON[assistantwire.TrackKinds](t, w.Body.Bytes())
-	if k := kinds.Kinds[len(kinds.Kinds)-1]; k.Slug != "qa-later" || k.Disabled != kindDisabledSchema {
-		t.Errorf("the newer kind: %+v", k)
-	}
-	if s.trackKnown(ctx, "qa-later-track") || s.trackPolicy(ctx, "qa-later-track") != strictPolicy {
-		t.Error("a track of a disabled kind is left out, and strict")
-	}
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-y","kind":"qa-later","title":"y"}`); w.Code != http.StatusBadRequest {
-		t.Errorf("a track of a disabled kind: %d, want 400", w.Code)
 	}
 }

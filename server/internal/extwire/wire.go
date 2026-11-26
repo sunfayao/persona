@@ -60,7 +60,6 @@ var Routes = []string{
 var KeptRoutes = []string{
 	"/api/v1/extensions",
 	"/api/v1/extensions/-/ui",
-	"/api/v1/extensions/-/themes",
 	"/api/v1/extensions/-/prompts",
 	"/api/v1/extensions/-/widgets",
 	"/api/v1/extensions/-/shortcuts",

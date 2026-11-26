@@ -169,8 +169,7 @@ func (h *Manager) feishuCall(ctx context.Context, method string, params json.Raw
 		return st, nil
 	case assistantwire.FeishuConfigure:
 		return map[string]any{}, h.configureFeishu(ctx, a.Enabled, a.Features)
-	case assistantwire.FeishuTest:
-		return map[string]any{}, h.testFeishuBot(ctx)
+
 	}
 	api, set := h.botAPI()
 	if binding := a.TodoReminderPairing; binding != nil {

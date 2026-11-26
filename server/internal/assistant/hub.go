@@ -136,7 +136,6 @@ const (
 	FeishuSave            = assistantwire.FeishuSave
 	FeishuUserName        = assistantwire.FeishuUserName
 	FeishuConfigure       = assistantwire.FeishuConfigure
-	FeishuTest            = assistantwire.FeishuTest
 	AppChannels           = assistantwire.AppChannels
 	ChannelsList          = assistantwire.ChannelsList
 	ChannelsSend          = assistantwire.ChannelsSend

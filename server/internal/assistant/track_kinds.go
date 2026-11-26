@@ -46,9 +46,6 @@ var (
 // trackKindAll is a usage rule's category for every category, general and unknown information included.
 const trackKindAll = "*"
 
-// Kind warnings: what a kind asks that this manager does not do yet.
-const trackWarnSupervisionLeaders = "supervision_leaders" // leaders review the main chat only (a later step)
-
 // builtinKindConfigs are the built-in kinds' configs: the main chat's way (orchestration) and a domain space's.
 func builtinKindConfigs() map[string]assistantwire.TrackKindConfig {
 	attention := assistantwire.TrackAttention{PushCap: assistantwire.LevelP0, DeepDefault: "quick", EnterMode: "none"}
@@ -245,14 +242,6 @@ func tightensUsage(u assistantwire.TrackUsageRule) error {
 	}
 	if rule < floor {
 		return errUsageLooser
-	}
-	return nil
-}
-
-// kindWarnings are what config c asks that this manager does not do yet, for a kind's tracks (never the main chat).
-func kindWarnings(c assistantwire.TrackKindConfig) []string {
-	if c.Supervision == "leaders" {
-		return []string{trackWarnSupervisionLeaders}
 	}
 	return nil
 }

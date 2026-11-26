@@ -205,7 +205,7 @@ func (s *Service) fromSettings(read func(v Settings) any) func(context.Context) 
 // registrySettings are the registry's settings as the tool offers them.
 func (s *Service) registrySettings() []ownSetting {
 	var out []ownSetting
-	for _, fields := range [][]settingField{s.profileFields(), s.triageFields(), s.navigationFields()} {
+	for _, fields := range [][]settingField{s.profileFields(), s.triageFields()} {
 		for _, f := range fields {
 			out = append(out, s.ownSetting(f))
 		}
@@ -378,59 +378,6 @@ func (s *Service) triageFields() []settingField {
 		}, func(sw *TriageSwitches, v any) { sw.ReplyReminderMinutes = v.(int) })
 	n.min = 0
 	return append(out, n)
-}
-
-// navigationFields are the start page and the sidebar's arrangement (GET / PUT /api/v1/navigation).
-func (s *Service) navigationFields() []settingField {
-	return []settingField{
-		{key: "navigation.start_page", kind: kindString, about: "the page every app of the user opens on: \"\" for the main conversation (the default), else a page's key " +
-			"(home, inbox, todos, agents, …) or p:<extension>/<page> for an extension's page; one value for all devices",
-			value: "a page key, or \"\" for the main conversation",
-			check: func(_ context.Context, val any) error {
-				if !validStartPage(val.(string)) {
-					return errors.New("start page must be empty, a page's key or p:<extension>/<page>")
-				}
-				return nil
-			},
-			get: func(ctx context.Context) (any, error) {
-				n, err := s.navigationNow(ctx)
-				if err != nil || n.Start == nil {
-					return "", err
-				}
-				return *n.Start, nil
-			},
-			write: func(ctx context.Context, val any) error {
-				_, err := s.saveNavigation(ctx, navigation{Start: refOf(val.(string))})
-				return err
-			}},
-		{key: "navigation.sidebar_pages", kind: kindJSON, about: "how the sidebar's pages are arranged: order (page keys), shown, hidden (put under More), groups [{id, title}], " +
-			"assign (page key → group id) and removed (extension groups); one value for all devices. Get first and send the whole object",
-			value: `{"order": [keys], "shown": [keys], "hidden": [keys], "groups"?: [{"id", "title"?}], "assign"?: {key: group id}, "removed"?: [group ids]}`,
-			decode: func(raw json.RawMessage) (any, error) {
-				var p sidebarPages
-				dec := json.NewDecoder(bytes.NewReader(raw))
-				dec.DisallowUnknownFields()
-				if err := dec.Decode(&p); err != nil {
-					return nil, err
-				}
-				if err := p.check(); err != nil {
-					return nil, err
-				}
-				return p, nil
-			},
-			get: func(ctx context.Context) (any, error) {
-				n, err := s.navigationNow(ctx)
-				if err != nil || n.Pages == nil {
-					return sidebarPages{Order: []string{}, Shown: []string{}, Hidden: []string{}}, err
-				}
-				return *n.Pages, nil
-			},
-			write: func(ctx context.Context, val any) error {
-				p := val.(sidebarPages)
-				_, err := s.saveNavigation(ctx, navigation{Pages: &p})
-				return err
-			}},
-	}
 }
 
 // savedPromptsSetting is the user's own "/" prompts (Settings › Saved Prompts used to edit them): get lists them, add

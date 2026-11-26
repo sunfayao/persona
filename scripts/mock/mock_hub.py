@@ -2236,40 +2236,6 @@ if os.environ.get("MOCK_RECENT") == "1":
         c["origin"] = "user"
         ASSISTANT.append(c)
 
-
-
-# The health space (docs/assistant/tracks.md): its conversations run in a directory of their own and carry space "health"; they
-# are listed by GET /api/v1/assistant?space=health only, and its memory is its own (?space=health).
-def health_sess(sid, title, minutes, last):
-    return {**assistant_sess(sid, title, minutes, last), "cwd": "/home/me/.persona/health", "space": "health"}
-
-
-# MOCK_HEALTH_EMPTY=1: the health space has no conversations yet (entering Health opens its new conversation page, #4329).
-ASSISTANT += [] if os.environ.get("MOCK_HEALTH_EMPTY") else [
-    health_sess("hlth0001-0000-4000-8000-000000000001", "这周的睡眠", 40, "这周平均每晚睡 6 小时 42 分，比上周少 18 分钟。"),
-    health_sess("hlth0002-0000-4000-8000-000000000002", "体检报告：血脂", 60 * 26, "LDL 3.6 mmol/L，略高于参考范围，建议三个月后复查。"),
-    health_sess("hlth0003-0000-4000-8000-000000000003", "步数目标", 60 * 70, "最近 7 天平均 7,860 步，离每天 8,000 步差一点。"),
-    health_sess("hlth0004-0000-4000-8000-000000000004", "今天吃了什么", 15, "今天吃了 1,830 kcal，还能吃 420 kcal。"),
-]
-# The health space's reports/ (docs/assistant/tracks.md"Health reports"): originals with their records, an original not summarized yet,
-# a record alone (a photo sent in a conversation).
-HEALTH_REPORT_RECORD = "报告日期：2026-10-28\n机构：示例体检中心\n类型：年度体检\n\n| 项目 | 结果 | 单位 | 参考范围 | 异常 |\n| --- | --- | --- | --- | --- |\n| 总胆固醇 | 5.8 | mmol/L | < 5.2 | 偏高 |\n| 低密度脂蛋白 | 3.6 | mmol/L | < 3.4 | 偏高 |\n| 空腹血糖 | 5.1 | mmol/L | 3.9–6.1 | |\n\n结论：血脂略高，建议三个月后复查。\n"
-HEALTH_REPORTS_DIR = "/home/me/.persona/health/reports/"
-HEALTH_REPORTS = [
-    {"name": "2026 年度体检-20261106-093000.pdf", "title": "2026 年度体检", "path": HEALTH_REPORTS_DIR + "2026 年度体检-20261106-093000.pdf",
-     "record_path": HEALTH_REPORTS_DIR + "2026 年度体检-20261106-093000.md", "size": 2_481_000, "modified_at": ago(days=1)},
-    {"name": "血常规复查-20261020-181500.png", "title": "血常规复查", "path": HEALTH_REPORTS_DIR + "血常规复查-20261020-181500.png",
-     "size": 864_000, "modified_at": ago(days=17)},
-    {"name": "2025 年度体检.md", "title": "2025 年度体检", "record_path": HEALTH_REPORTS_DIR + "2025 年度体检.md", "size": 1_204, "modified_at": ago(days=370)},
-]
-HEALTH_MEMORY = [
-    {"name": "MEMORY.md", "content": "- [步数目标](step-goal.md) — 每天 8000 步", "updated_at": ago(days=2)},
-    {"name": "step-goal.md", "content": "---\nname: step-goal\ndescription: 每天 8000 步\nmetadata:\n  type: user\n---\n\n用户的目标是每天 8000 步。",
-     "updated_at": ago(days=2)},
-    {"name": "allergy.md", "content": "---\nname: allergy\ndescription: 对青霉素过敏\nmetadata:\n  type: user\n---\n\n用户对青霉素过敏。",
-     "updated_at": ago(days=6)},
-]
-
 # ---------- the assistant's schedule (Settings › Assistant › Act proactively; Persona › Info › Scheduled tasks) ----------
 # One list, like the hub's (assistant_schedule.go): every day at a time, every N minutes, or once. GET
 # /api/v1/assistant/tasks serves it whole; the routines (the daily tasks) and follow-ups (the enabled once / interval
@@ -2548,8 +2514,6 @@ def put_routines(body):
     return schedule_routines(), None
 
 
-
-
 # Saved prompts (Settings › Saved Prompts, /api/v1/assistant/saved-prompts…, MOCK_SAVED_PROMPTS) are
 # scripts/mock/saved_prompts_mock.py's, a domain (#11649).
 
@@ -2573,6 +2537,7 @@ ASSISTANT_CONFIG = {"machine_id": "server", "launcher": "claude", "timezone": "A
                     "agent_tasks": False, "inbox_signals": False, "archive_closed_days": 3,
                     # Close an Agent's terminal when its session ends (#10355), off by default.
                     "close_ended_terminals": False,
+                    # Learn from finished tasks, off by default.
                     "task_lessons": False,
                     # The manager's next-message suggestions (#4644), off by default; MOCK_NEXT_SUGGESTIONS=1 starts on.
                     "next_suggestions": os.environ.get("MOCK_NEXT_SUGGESTIONS") == "1",
@@ -2592,11 +2557,9 @@ ASSISTANT_CONFIG = {"machine_id": "server", "launcher": "claude", "timezone": "A
                     # The sidebar's Recent lists the scheduled tasks' chats too (#8324), off by default;
                     # MOCK_RECENT_TASK_CHATS=1 starts on; =absent is a hub from before it. Left out with MOCK_LEGACY_HUB.
                     "recent_task_chats": os.environ.get("MOCK_RECENT_TASK_CHATS") == "1"}
-
-
 def assistant_state(space="", archived=False):
     """GET /api/v1/assistant: the conversations are the ones on the machine the assistant runs on, of one space
-    ("" the assistant's own, "health" the health space's)."""
+    (empty for the assistant's own conversations)."""
     cfg = ASSISTANT_CONFIG
     home = next((m.get("home") for m in MACHINES if m["id"] == cfg["machine_id"]), None)
     notes = cfg["notes"] if cfg["notes"] is not None else ASSISTANT_HUB_NOTES
@@ -3177,8 +3140,6 @@ if os.environ.get("MOCK_STAGE_DONE") == "1":
     ])
 TODOS = copy.deepcopy(TODOS_INIT)
 
-
-
 def active_todo_for_session(mid, sid):
     for t in TODOS:
         if t.get("done_at"):
@@ -3626,8 +3587,6 @@ def is_read_only(h):
     return False
 
 
-
-
 # The managers' roster (docs/assistant/managers.md): the hub's own assistant (the default), one on another computer, one offline,
 # one still installing. MOCK_MANAGER_COMMANDS=1 adds the install commands to a new code's answer; MOCK_MANAGERS=0 is a
 # hub from before the roster (404); MOCK_MANAGERS=1 only the hub's own (one manager: a one-row switcher without Default, no grouping).
@@ -3988,7 +3947,6 @@ def managers_route(h, method, p):
     return h.send_json({"error": "method"}, 405) or True
 
 
-
 LARK_UPLOADS = {}
 LARK_UPLOAD_REPLIES = {}
 LARK_UPLOAD_BYTES = {}
@@ -4006,9 +3964,6 @@ def lark_send_seconds():
 def set_lark_send_delay(s):
     LARK_SEND_DELAY["seconds"] = float(s) if s else None
     return {"seconds": lark_send_seconds()}
-
-# The archived messages of a chat (chats/<id>/messages/<day>.md), for search and its day page.
-
 
 # ---------- items ----------
 _seq = [0]
@@ -6110,36 +6065,6 @@ if os.environ.get("MOCK_QUESTION_CANCEL") == "1":
         copy.deepcopy(ix) for ix in INTERACTIONS
         if ix["id"] in ("ix_tests", "ix_ask_long") and ix["id"] not in ask_long_ids
     ]
-# Urgent calls (docs/assistant/urgent-call.md): the settings Settings › Urgent Calls reads, and with MOCK_URGENT_CALL=1
-# urgent calls on and the call `call_mock` about a pending card in Persona's main conversation, for the call page's
-# screenshots (`-showUrgentCallSample YES`).
-URGENT = {"settings": {"enabled": os.environ.get("MOCK_URGENT_CALL") == "1", "rules": [
-    {"id": "money_loss", "builtin": True}, {"id": "harm", "builtin": True}, {"id": "agent_disaster", "builtin": True},
-    {"id": "r_kids", "text": "接孩子相关的事"}], "daily_cap": 3, "quiet": None, "retry_minutes": 3}, "today": 1}
-URGENT_CALL = {"id": "call_mock", "title": "云账单扣费失控", "body": "要不要现在停掉这批实例？", "why": "rule",
-               "happening": "训练任务起的 8 台 GPU 实例近 1 小时扣了 2300 元，还在涨",
-               "rule": {"id": "money_loss", "text": "资金或资源正在损失：扣费失控还在涨、云资源被删、账号被盗刷或出现陌生扣款。"},
-               "machine_id": "server", "conversation_id": ASK1, "interaction_id": "", "state": "answered", "attempt": 1,
-               "seconds": 0, "outcome": "", "transcript": ""}
-# The calls GET /api/v1/assistant/calls?conversation=… lists with MOCK_URGENT_CALL=1: one answered with its transcript and
-# one missed twice, in Persona's main conversation (the web's call rows).
-URGENT_CALLS = []
-if os.environ.get("MOCK_URGENT_CALL") == "1":
-    URGENT_CALLS = [
-        dict(URGENT_CALL, id="call_done", state="ended", created_at=ago(minutes=50), rang_at=ago(minutes=50), seconds=125,
-             outcome="现在停掉", transcript="Persona：训练任务起的 8 台 GPU 实例近 1 小时扣了 2300 元，还在涨。要不要现在停掉？\n你：现在停掉\nPersona：你选的是：现在停掉。说“确认”就照这样做。\n你：确认"),
-        dict(URGENT_CALL, id="call_missed", title="学校提前放学", why="rule", rule={"id": "r_kids", "text": "接孩子相关的事"},
-             happening="学校群说 15:00 提前放学，还没人去接", body="", interaction_id="", state="missed", attempt=2,
-             created_at=ago(minutes=20), rang_at=ago(minutes=20), seconds=0, outcome="", transcript=""),
-    ]
-if os.environ.get("MOCK_URGENT_CALL") == "1":
-    INTERACTIONS.append({
-        "id": "ix_urgent", "machine_id": "server", "session_id": ASK1, "session_title": "Persona",
-        "kind": "question", "created_at": ago(minutes=1), "expires_at": later(minutes=29), "tool_name": "ask_user",
-        "questions": [{"question": "要不要现在停掉这批 GPU 实例？", "header": "云账单", "multi_select": False, "options": [
-            {"label": "现在停掉 (Recommended)"}, {"label": "再等 10 分钟"}, {"label": "我自己处理"}]}]})
-    URGENT_CALL["interaction_id"] = "ix_urgent"
-
 # A very long `python3 -c …` script for a Feishu permission card (MOCK_ASK_LONG=perm|agent): taller than the dock on
 # every width, so its buttons have to stay reachable.
 def _long_lark_cmd(verb):
@@ -8007,44 +7932,6 @@ TOKEN_PUSH = {
     "dev_phone": {"route": "relay"},
     "dev_work": {"route": "none", "reason": "relay_failed", "detail": "403 topic not served"},
 }
-# Settings › Devices › Primary Device (PUT /api/v1/phone/primary, the `phone` object of GET /api/v1/auth/tokens;
-# docs/apple/phone-tools.md). The devices that can be chosen are the active phone credentials, sorted by id.
-# MOCK_PHONE_PRIMARY=dev_phone: that device is chosen from the start (default: none, Automatic).
-# MOCK_PHONE=none: a hub before it (no `phone` object, the route 404s) | single: only one candidate | refuse: every choice
-# is refused with 409 not_a_phone (the page puts the old value back and shows the error).
-MOCK_PHONE = os.environ.get("MOCK_PHONE", "")
-PHONE_PRIMARY = [os.environ.get("MOCK_PHONE_PRIMARY", "")]
-
-
-def phone_candidates():
-    ids = sorted(t["id"] for t in TOKENS if t.get("kind") == "phone" and not t.get("revoked_at"))
-    return ids[:1] if MOCK_PHONE == "single" else ids
-
-
-def phone_view():
-    candidates = phone_candidates()
-    active = {t["id"] for t in TOKENS if not t.get("revoked_at")}
-    return {"primary": PHONE_PRIMARY[0] if PHONE_PRIMARY[0] in active else "", "candidates": candidates}
-
-
-def phone_primary_forbidden(h):  # a watch (answer-only) credential cannot change settings
-    token = h.headers.get("Authorization", "").removeprefix("Bearer ").strip()
-    tok = next((t for t in TOKENS if token in (t.get("token"), t.get("id"))), {})
-    return tok.get("role") in ("answer", "watch", "readonly") or h.headers.get("X-Mock-Role") in ("answer", "watch", "readonly")
-
-
-def phone_primary_put(h, body):
-    if MOCK_PHONE == "none": return h.send_json({"error": "not found"}, 404)
-    if phone_primary_forbidden(h): return h.send_json({"error": "this device can only view and answer"}, 403)
-    if not isinstance(body, dict) or not isinstance(body.get("credential_id"), str):
-        return h.send_json({"error": "credential_id is required"}, 400)
-    want = body["credential_id"]
-    if MOCK_PHONE == "refuse" or (want and want not in phone_candidates()):
-        return h.send_json({"code": "not_a_phone", "error": "这台设备现在不能处理手机请求。在它上面打开 Persona，至少开启一项手机数据后再试。"}, 409)  # the hub's zh-Hans text (hub-phone_primary.not_candidate)
-    PHONE_PRIMARY[0] = want
-    return h.send_json(phone_view())
-
-
 def _claude_settings():  # Settings › Claude Code Settings: the node's whitelist (server/internal/node/claudeconfig.go)
     return [
         {"key": "awaySummaryEnabled", "title": "回来时先说进展", "detail": "离开 5 分钟以上再回来时，Claude 先简单说说这段时间做了什么",
@@ -8908,8 +8795,6 @@ def wechat_connector():
     else:
         c.update(status="not_signed_in", error="还没绑定微信")
     return c
-
-
 
 
 def triage_route(h, method, p, raw):
@@ -10847,44 +10732,8 @@ SUPERVISE_PURPOSE = "assistant.supervise"
 # lists the background supervisor's use in the catalog, as its last built-in purpose, and sends each built-in purpose's
 # one-sentence `description` (#5086). Without it the catalog is a hub's from before: the use is answered by its id only.
 SUPERVISE_LISTED = os.environ.get("MOCK_SUPERVISE_LISTED") == "1"
-# MOCK_MEETING_MODELS=1: the two editable meeting uses (#7980); without it both ids are unknown, as on an older hub.
-MEETING_MODELS = os.environ.get("MOCK_MEETING_MODELS") == "1"
 # MOCK_CHAT_EFFORT=1 adds a Chat Completions connection with exact model capabilities for browser screenshots.
 CHAT_EFFORT = os.environ.get("MOCK_CHAT_EFFORT") == "1"
-MEETING_PURPOSES = {"meeting.room": "assistant", "meeting.minutes": "kb"}
-# The hub's group of each (group_assistant, group_processing), and the uses the categories gain: in the mock's Chinese,
-# like the rest of the categories' rows, so the flag adds the uses without changing those rows' language.
-MEETING_GROUPS = {"meeting.room": "group_assistant", "meeting.minutes": "group_processing"}
-MEETING_USES = {"assistant": ["会中对话"], "kb": ["会议纪要", "会中对话不可用时的会议问答"]}
-MEETING_MODEL_TEXT = {
-    "en": {
-        "assistant": "Main chat", "kb": "Processing", "group_assistant": "Main chat", "group_processing": "Processing",
-        "meeting.room": "In-meeting conversation", "meeting.minutes": "Meeting minutes",
-        "desc_room": "Persona in a recorded meeting: answers the questions asked there, keeps the topics and highlights, and describes photos. Runs only on Claude Code.",
-        "desc_minutes": "Writes a recorded meeting's minutes: a short meeting in one pass, a long one part by part and then merged into the minutes and summary card.",
-        "claude_only": "The in-meeting conversation runs only on Claude Code. Choose a Claude Code launcher or a Messages API connection.",
-        "not_claude": "{launcher} isn't Claude Code, so Persona can't join meetings. Choose a Claude Code launcher here.",
-        "no_runtime": "This purpose does not support runtime.",
-    },
-    "zh-Hans": {
-        "assistant": "主对话", "kb": "信息处理", "group_assistant": "主对话", "group_processing": "信息处理",
-        "meeting.room": "会中对话", "meeting.minutes": "会议纪要",
-        "desc_room": "录音会议里的 Persona：回答会上的提问，整理议题和要点，描述照片。只能用 Claude Code。",
-        "desc_minutes": "生成录音会议的纪要：短会一次写完，长会先分段整理，再合并成纪要和摘要卡片。",
-        "claude_only": "会中对话只能用 Claude Code。请选择 Claude Code 启动器或 Messages API 连接。",
-        "not_claude": "{launcher} 不是 Claude Code，Persona 无法参加会议。请在这里选择 Claude Code 启动器。",
-        "no_runtime": "此用途不支持 runtime。",
-    },
-    "ja": {
-        "assistant": "メインチャット", "kb": "情報処理", "group_assistant": "メインチャット", "group_processing": "情報処理",
-        "meeting.room": "会議中の会話", "meeting.minutes": "議事録",
-        "desc_room": "録音中の会議での Persona：会議での質問に答え、議題と要点をまとめ、写真を説明します。Claude Code でのみ動きます。",
-        "desc_minutes": "録音した会議の議事録を作ります。短い会議は一度に、長い会議は部分ごとにまとめてから議事録とサマリーカードに統合します。",
-        "claude_only": "会議中の会話は Claude Code でのみ動きます。Claude Code のランチャーか Messages API の接続を選んでください。",
-        "not_claude": "{launcher} は Claude Code ではないため、Persona は会議に参加できません。ここで Claude Code のランチャーを選んでください。",
-        "no_runtime": "この用途は runtime に対応していません。",
-    },
-}
 MODEL_DESCRIPTIONS = {
     "assistant": "Talks with you, splits work and hands it out.",
     "agent.new": "The Agents Persona starts on your computers.",
@@ -10918,68 +10767,12 @@ def supervise_model_purpose():
     return {"purpose": purpose, "providers": catalog["providers"]}
 
 
-def meeting_room_provider(provider):
-    """The room runs a Claude Code CLI launcher, including one backed by a Messages API connection. A hub.json
-    connection is not a launcher (models_room.go). A launcher with no agent is Claude Code (claudeCodeProvider)."""
-    if not provider.get("id", "").startswith("launcher."):
-        return False
-    if provider.get("kind") == "api":
-        return provider.get("api") == "messages"
-    return provider.get("kind") == "launcher" and provider.get("agent", "") in ("", "claude")
-
-
-def meeting_model_purpose(pid, lang="zh-Hans", catalog=None):
-    if not MEETING_MODELS or pid not in MEETING_PURPOSES:
-        return None
-    if catalog is None:
-        catalog = model_configuration()
-    category = MEETING_PURPOSES[pid]
-    parent = next(x for x in catalog["purposes"] if x["id"] == category)
-    text = MEETING_MODEL_TEXT[lang]
-    with MODEL_CONFIG_LOCK:
-        stored = MODEL_BINDINGS.get(pid, {"revision": 0, "override": {}})
-        binding = dict(stored["override"])
-    effective = {k: v for k, v in parent["effective"].items() if k != "runtime"}
-    if binding.get("provider") and binding["provider"] != parent["effective"].get("provider"):
-        provider = next((x for x in catalog["providers"] if x["id"] == binding["provider"]), {})
-        effective = {"provider": binding["provider"], "model": provider.get("model", "")}
-    effective.update(binding)
-    room = pid == "meeting.room"
-    provider = next((x for x in catalog["providers"] if x["id"] == effective["provider"]), {})
-    fields = ["provider", "model"]
-    if room or (provider and (provider.get("api", "") in ("messages", "responses", "") or provider.get("chat_effort"))):
-        fields.append("effort")
-    # Like every API purpose, the minutes name the main chat's computer, where a launcher picked for them runs.
-    purpose = dict(id=pid, category_id=category, parent=category, name=text[pid], group=text[MEETING_GROUPS[pid]],
-                   description=text["desc_room" if room else "desc_minutes"], kind="launcher" if room else "api",
-                   machine_id=ASSISTANT_CONFIG["machine_id"], override=binding, effective=effective, revision=stored["revision"],
-                   fields=fields, provider_ids=parent["provider_ids"], status="未验证")
-    if not binding.get("provider"):  # the hub's inheritedLabel: none once a provider of its own is set
-        purpose["inherited_from"] = text[category]
-    if effective["provider"] == parent["effective"]["provider"]:
-        purpose["status"] = parent["status"]
-        if "limit" in parent:
-            purpose["limit"] = dict(parent["limit"])
-    if os.environ.get("MOCK_MODEL_LIMIT") and effective["provider"] == "legacy.ai":
-        purpose["limit"] = {"reason": "quota", "until": later(minutes=23)}
-        purpose["status"] = "额度用完，23 分钟后重试"
-    if room:
-        purpose.update(launch="headless",
-                       provider_ids=[p["id"] for p in catalog["providers"] if meeting_room_provider(p)
-                                     and (not p.get("machines") or ASSISTANT_CONFIG["machine_id"] in p["machines"])])
-        if not meeting_room_provider(provider) and "limit" not in purpose:
-            purpose["status"] = text["not_claude"].format(launcher=provider.get("name") or effective["provider"])
-    return {"purpose": purpose, "providers": catalog["providers"]}
-
-
 def listed_model_configuration(lang="zh-Hans"):
     """GET /api/v1/model-config: opt-in built-in uses follow the categories, before extensions and plugins."""
     catalog = model_configuration()
     own = []
     if SUPERVISE_LISTED and (supervise := supervise_model_purpose()):
         own.append(supervise["purpose"])
-    if MEETING_MODELS:
-        own += [meeting_model_purpose(pid, lang, catalog)["purpose"] for pid in MEETING_PURPOSES]
     at = next((n for n, x in enumerate(catalog["purposes"]) if x["id"].startswith(("extension.", "plugin."))), len(catalog["purposes"]))
     catalog["purposes"][at:at] = own
     # MOCK_MODEL_USAGE=1 (#10498, docs/assistant/model-config.md "Counting"): the last 7 days' calls of two purposes,
@@ -11000,7 +10793,7 @@ def model_configuration(include_uses=False):
                       model=l.get("model"), hidden=l.get("hidden", False)) for l in LAUNCHERS if l["source"] != "builtin"]
     providers += [{"id": "launcher.claude", "name": "claude", "kind": "launcher", "model": "model-chat"},
                   {"id": "legacy.ai", "name": "轻量 API", "kind": "api", "api": "messages", "model": "model-fast"}]
-    if MEETING_MODELS and CHAT_EFFORT:
+    if CHAT_EFFORT:
         providers.append({"id": "api.chat", "name": "Chat Completions", "kind": "api", "api": "chat",
                           "model": "chat-default", "chat_effort": True, "effort": "medium",
                           "models": [{"id": "chat-default", "efforts": ["low", "medium", "high"],
@@ -11008,16 +10801,6 @@ def model_configuration(include_uses=False):
     if os.environ.get("MOCK_MODEL_PICK") == "otherkind":
         # The current main chat runs Codex while Main chat still defaults to Claude (#4662).
         next(p for p in providers if p["id"] == "launcher.codex").update(agent="codex", agent_type="codex")
-    if MEETING_MODELS:
-        for provider in providers:
-            launcher = next((l for l in LAUNCHERS if provider["id"] == "launcher." + l["name"]), None)
-            if launcher:
-                provider.update({k: launcher[k] for k in ("api", "machines") if k in launcher})
-            if provider["kind"] == "launcher":  # the hub's viewAgent; its plain claude says claude
-                name = provider["id"][len("launcher."):]
-                agent = (launcher or {}).get("agent") or (name if name in ("codex", "traex", "agy", "omp", "claude") else "")
-                if agent:
-                    provider["agent"] = agent
     definitions = list(MODEL_DEFINITIONS if include_uses else MODEL_DEFINITIONS[:4])
     if include_uses:
         definitions += [("task." + t["id"], t.get("title") or "跟进任务", "主对话", "launcher") for t in SCHEDULE]
@@ -11038,7 +10821,7 @@ def model_configuration(include_uses=False):
                            fields=(["provider", "model"] if kind == "api" else ["provider", "model", "effort"]) if pid == category else [],
                            provider_ids=[p["id"] for p in providers if p["kind"] == kind], status="未验证")
             if pid in MODEL_SCOPES:
-                purpose["uses"] = [{"name": use} for use in MODEL_SCOPES[pid] + (MEETING_USES.get(pid, []) if MEETING_MODELS else [])]
+                purpose["uses"] = [{"name": use} for use in MODEL_SCOPES[pid]]
             if SUPERVISE_LISTED and pid in MODEL_DESCRIPTIONS:
                 purpose["description"] = MODEL_DESCRIPTIONS[pid]
             # MOCK_MODEL_LIMIT=1: the default API connection is out of quota for 23 more minutes (docs/assistant/model-config.md "Upstream rate limits").
@@ -13788,44 +13571,6 @@ if os.environ.get("MOCK_CARDS") == "1":
             "```persona-card\n{\"type\": \"stat\", \"title\": \"步\n```",
         ])),
     ]
-# The health space's conversations (#3140): the numbers in each answer come with the charts its
-# CLAUDE.md asks for: sleep and steps by day as lines, a stat for today's steps, each meal's calories as bars, how the
-# day's calories split as a stacked bar, the details as a table. Made-up numbers.
-_hcard = lambda d: "```persona-card\n" + json.dumps(d, ensure_ascii=False) + "\n```"
-_hdays = ["10/30", "10/31", "11/1", "11/2", "11/3", "11/4", "11/5"]
-ITEMS["hlth0001-0000-4000-8000-000000000001"] = (
-    [it("user", "text", 41, text="这周我睡得怎么样？")]
-    + tool("mcp__persona__phone_health_summary", {"metrics": ["sleep"], "days": 7}, "7 天的睡眠：6.9、6.4、7.1、6.2、6.8、6.5、7.0 小时", 41)
-    + [it("assistant", "text", 40, text="\n\n".join([
-        "这周平均每晚睡 **6 小时 42 分**，比上周少 18 分钟；10/31 最少，只睡了 6 小时 12 分。",
-        _hcard({"type": "line", "title": "近 7 天睡眠", "unit": "小时", "note": "平均 6.7 小时 · 上周 7.0 小时",
-                "points": [{"label": d, "value": v} for d, v in zip(_hdays, [6.9, 6.4, 7.1, 6.2, 6.8, 6.5, 7.0])]}),
-        "差得不多，但连着几天少于 7 小时白天容易犯困。可以先试两件事：每天同一时间起床（周末也是），睡前一小时把手机放远一点。"]))]
-)
-ITEMS["hlth0003-0000-4000-8000-000000000003"] = (
-    [it("user", "text", 71, text="最近 7 天步数和上周比怎么样")]
-    + tool("mcp__persona__phone_health_summary", {"metrics": ["steps"], "days": 14}, "14 天的步数（按天）", 71)
-    + [it("assistant", "text", 70, text="\n\n".join([
-        "最近 7 天平均每天 **7,860 步**，比上周多 410 步，离每天 8,000 步的目标差一点；7 天里有 4 天达标。",
-        _hcard({"type": "line", "title": "近 7 天步数", "unit": "步", "note": "平均 7,860 步 · 上周 7,450 步",
-                "points": [{"label": d, "value": v} for d, v in zip(_hdays, [6420, 9105, 8230, 7310, 8890, 5980, 9085])]}),
-        "今天已经比昨天多走了一半：",
-        _hcard({"type": "stat", "title": "今天步数", "value": 9085, "unit": "步", "note": "比昨天 +52%"}),
-        "少的两天（10/30、11/4）都是工作日，午饭后散步 20 分钟（约 2,000 步）就能补上。"]))]
-)
-ITEMS["hlth0004-0000-4000-8000-000000000004"] = (
-    [it("user", "text", 16, text="帮我算算今天吃了多少热量，晚上还能吃多少")]
-    + [it("assistant", "text", 15, text="\n\n".join([
-        "今天一共吃了 **1,830 kcal**，按推荐的全天 2,250 kcal 算，**还能吃 420 kcal**；午餐最多，将近一半。",
-        _hcard({"type": "bar", "title": "今天每餐热量", "unit": "kcal",
-                "points": [{"label": "早餐", "value": 480}, {"label": "午餐", "value": 870}, {"label": "晚餐", "value": 480}]}),
-        _hcard({"type": "stacked_bar", "title": "今天的热量分配", "subtitle": "推荐全天摄入", "total": {"value": 2250, "unit": "kcal"},
-                "segments": [{"label": "早餐", "value": 480}, {"label": "午餐", "value": 870}, {"label": "晚餐", "value": 480, "note": "到现在"}],
-                "rest": {"label": "还能吃", "value": 420}}),
-        "| 餐 | 吃了什么 | 热量 |\n| --- | --- | --- |\n| 早餐 | 燕麦牛奶一碗、水煮蛋两个、苹果半个 | 480 kcal |\n"
-        "| 午餐 | 米饭一碗、宫保鸡丁一份、清炒西兰花 | 870 kcal |\n| 晚餐 | 荞麦面一碗、无糖酸奶一杯 | 480 kcal |",
-        "剩下的 420 kcal 够一份水果加一杯牛奶；宫保鸡丁油多，下次可以换成清蒸鱼，能少 200 kcal 左右。"]))]
-)
 # Assistant screenshots with the shared renderer: a read-only persona-view and a legacy persona-card, leaving other mock modes unchanged.
 if os.environ.get("MOCK_EXTENSION_CARDS") == "1":
     # A card needs its `fallback` (the words a client that can't draw it shows): without one it is drawn as text.
@@ -14492,7 +14237,7 @@ if os.environ.get("MOCK_LINKS") == "1":
                      "title": "评审材料", "sender": "Lucy Wang", "preview": "材料在 https://example.org/ ，评审前看一下",
                      "count": 1, "started_at": ago(minutes=8), "updated_at": ago(minutes=8), "tier": "action",
                      "summary": "评审材料的链接：https://example.org/", "read": False})
-    # A web page from a mail (the HTML mail about the talk) and from the knowledge base (the weather app's profile): both open
+    # The mail links to an agenda that can be opened in the app.
     MAIL_MESSAGES[501]["html"] += '<p>议程放在 <a href="https://example.org/agenda">example.org/agenda</a>。</p>'
 
 
@@ -16540,320 +16285,6 @@ if os.environ.get("MOCK_CHAT_SEARCH") == "1":
     mock_chat_search()
 
 
-# GET /api/v1/assistant/search (#6282, docs/protocol/protocol.md): the assistant's conversations
-# found by their title, the user's words or the replies, the way the manager answers (search_routes.go there), over the
-# whole of ITEMS at once (no index to wait for). What a message counts as is spec/fixtures/chat-search's "index"
-#. MOCK_ASSISTANT_SEARCH=0 is a hub from before it: no feature, 404.
-ASSISTANT_SEARCH = os.environ.get("MOCK_ASSISTANT_SEARCH") != "0"
-_features_without_assistant_search = features
-
-
-def features():
-    return _features_without_assistant_search() + (["assistant_search"] if ASSISTANT_SEARCH else [])
-
-
-_SEARCH_DROP = [re.compile(r"(?s)<persona-view-errors\b[^>]*>.*?</persona-view-errors>\s*"),
-                re.compile(r"(?s)<" + CONTEXT_TAG_PATTERN + r"\b[^>]*>.*?</" + CONTEXT_TAG_PATTERN + r">\s*"),
-                re.compile(r"<" + FILE_TAG_PATTERN + r"\b[^>]*?/?>(?:\s*</" + FILE_TAG_PATTERN + r">)?")]
-_SEARCH_PASTED = re.compile(r"(?s)<pasted_content\b[^>]*>(.*?)</pasted_content>")
-_SEARCH_IMAGES = [re.compile(r"(?s)<attached_images>.*?</attached_images>"), re.compile(r"\[Image #\d+\]\s?")]
-_SEARCH_ACTION = re.compile(r'\n<persona-action view="[^"<>]*" action="[^"<>]*">\{[^<>]*\}</persona-action>$')
-_SEARCH_CARD = re.compile(r"```(persona-view|persona-card)[^\n]*\n(.*?)\n```[^\n]*(?:\n|$)", re.S)
-
-
-def search_card_text(text):
-    """A reply with each card as its fallback (an old persona-card: its title), as AssistantCardText."""
-    def one(m):
-        try:
-            raw = json.loads(m.group(2))
-        except ValueError:
-            raw = {}
-        title = raw.get("title", "").strip() if m.group(1) == "persona-card" and isinstance(raw, dict) and isinstance(raw.get("title"), str) else ""
-        fallback = raw.get("fallback", "").strip() if isinstance(raw, dict) and isinstance(raw.get("fallback"), str) else ""
-        return (title or fallback) + "\n"
-    return _SEARCH_CARD.sub(one, text)
-
-
-def search_index_text(item):
-    """What the manager's index keeps of an item (spec/fixtures/chat-search "index"); None for nothing."""
-    if item.get("kind") != "text":
-        return None
-    text = item.get("text") or ""
-    if item.get("role") == "assistant":
-        text = search_plain(search_card_text(text))
-    elif item.get("role") == "user":
-        if item.get("from") or item.get("injected"):
-            return None
-        for r in _SEARCH_DROP:
-            text = r.sub("", text)
-        text = _SEARCH_PASTED.sub(r"\1", text)
-        for r in _SEARCH_IMAGES:
-            text = r.sub("", text)
-        text = _SEARCH_ACTION.sub("", text.strip()).strip()
-    else:
-        return None
-    return text if text.strip() else None
-
-
-# A reply's Markdown as the chat shows it (#7072): the manager's searchPlain (server/internal/assistant/chatsearch/text.go),
-# pattern for pattern; spec/fixtures/chat-search checks both.
-_PLAIN_FENCE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
-_PLAIN_RULE = re.compile(r"^[ \t]{0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$")
-_PLAIN_TABLE_SEP = re.compile(r"^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$")
-_PLAIN_HEADING = re.compile(r"^[ \t]{0,3}#{1,6}[ \t]+")
-_PLAIN_QUOTE = re.compile(r"^[ \t]{0,3}>[ \t]?")
-_PLAIN_LIST = re.compile(r"^[ \t]*(?:[-*+]|[0-9]{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?")
-_PLAIN_ESCAPE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!|>~<])")
-_PLAIN_LINKS = [
-    (re.compile(r"!\[([^\]\n]*)\]\([^)\n]*\)"), r"\1"),
-    (re.compile(r"\[([^\]\n]+)\]\([^)\n]*\)"), r"\1"),
-    (re.compile(r"\[([^\]\n]+)\]\[[^\]\n]*\]"), r"\1"),
-    (re.compile(r"<((?:https?|mailto):[^> \t\n]+)>"), r"\1"),
-]
-_PLAIN_EMPHASIS = [
-    (re.compile(r"(^|[^0-9A-Za-z_])__([^ \t\n_]|[^ \t\n_][^\n]*?[^ \t\n_])__($|[^0-9A-Za-z_])"), r"\1\2\3"),
-    (re.compile(r"~~([^~\n]+?)~~"), r"\1"),
-    (re.compile(r"\*([^ \t\n*]|[^ \t\n*][^*\n]*?[^ \t\n*])\*"), r"\1"),
-    (re.compile(r"(^|[^0-9A-Za-z_])_([^ \t\n_]|[^ \t\n_][^_\n]*?[^ \t\n_])_($|[^0-9A-Za-z_])"), r"\1\2\3"),
-]
-_PLAIN_ESCAPED = 0xE000
-_PLAIN_CODE = 0xF0000  # a line's i-th code span while the markup around it goes (searchCode, #7195)
-
-
-def search_plain(md):
-    """A reply's Markdown as the chat shows it, without the markup (searchPlain)."""
-    if not any(c in md for c in "*_`#>[~|-+!<\\0123456789"):
-        return md
-    out, fence = [], ""
-    for line in md.split("\n"):
-        if fence:
-            t = line.strip()
-            if t.startswith(fence) and t.strip(fence[0]) == "":
-                fence = ""
-            else:
-                out.append(line)
-            continue
-        m = _PLAIN_FENCE.match(line)
-        if m:
-            fence = m.group(1)
-            continue
-        if _PLAIN_RULE.match(line) or _PLAIN_TABLE_SEP.match(line):
-            continue
-        line = _PLAIN_HEADING.sub("", line, count=1)
-        while _PLAIN_QUOTE.match(line):
-            line = _PLAIN_QUOTE.sub("", line, count=1)
-        line = _PLAIN_LIST.sub("", line, count=1)
-        t = line.strip()
-        if t.startswith("|"):
-            line = " ".join(c.strip() for c in t.strip("|").split("|"))
-        out.append(search_inline(line))
-    return "\n".join(out).strip()
-
-
-def search_code_span(s):
-    """The first code span: (where its backticks start, how many, where the closing run starts), or None."""
-    frm = 0
-    while True:
-        at = s.find("`", frm)
-        if at < 0:
-            return None
-        n = 0
-        while at + n < len(s) and s[at + n] == "`":
-            n += 1
-        j = at + n
-        while j < len(s):
-            k = s.find("`", j)
-            if k < 0:
-                break
-            m = 0
-            while k + m < len(s) and s[k + m] == "`":
-                m += 1
-            if m == n:
-                return at, n, k
-            j = k + m
-        frm = at + n
-
-
-def search_marks(s):
-    for r, w in _PLAIN_LINKS:
-        s = r.sub(w, s)
-    s = search_strong(s)
-    for r, w in _PLAIN_EMPHASIS:
-        s = r.sub(w, s)
-        if w.endswith("\\3"):
-            s = r.sub(w, s)
-    return s
-
-
-def _plain_space(c):
-    return c in " \t"
-
-
-def _plain_operand(c):
-    return c.isascii() and c.isalnum()
-
-
-def search_strong(s):
-    """A line without `**` (searchStrong, #7195): a run not after a space closes the nearest open one, one not before a
-    space opens; a pair loses two stars on its inner side each; a run left alone goes, unless it reads as `2 ** 3` or
-    `a**b`."""
-    if "**" not in s:
-        return s
-    runs, i = [], 0  # [at, end, cut_from, cut_to, paired]
-    while i < len(s):
-        if s[i] != "*":
-            i += 1
-            continue
-        j = i
-        while j < len(s) and s[j] == "*":
-            j += 1
-        if j - i >= 2:
-            runs.append([i, j, i, j, False])
-        i = j
-    opened = []
-    for k, r in enumerate(runs):
-        before = r[0] > 0 and not _plain_space(s[r[0] - 1])
-        after = r[1] < len(s) and not _plain_space(s[r[1]])
-        if before and opened:
-            o = runs[opened.pop()]
-            o[2], o[3], o[4] = o[1] - 2, o[1], True
-            r[2], r[3], r[4] = r[0], r[0] + 2, True
-            continue
-        if after:
-            opened.append(k)
-    out, frm = [], 0
-    for at, end, cut_from, cut_to, paired in runs:
-        if not paired and at > 0 and end < len(s) and (
-                _plain_space(s[at - 1]) and _plain_space(s[end]) or _plain_operand(s[at - 1]) and _plain_operand(s[end])):
-            continue  # an expression: it stays
-        out.append(s[frm:cut_from])
-        frm = cut_to
-    out.append(s[frm:])
-    return "".join(out)
-
-
-def search_inline(line):
-    line = _PLAIN_ESCAPE.sub(lambda m: chr(_PLAIN_ESCAPED + ord(m.group(1))), line)
-    code, out = [], []
-    while line:
-        span = search_code_span(line)
-        if not span:
-            out.append(line)
-            break
-        at, n, end = span
-        out.append(line[:at])
-        c = line[at + n:end]
-        if len(c) >= 2 and c[0] == " " and c[-1] == " " and c.strip(" "):
-            c = c[1:-1]
-        out.append(chr(_PLAIN_CODE + len(code)))
-        code.append(c)
-        line = line[end + n:]
-
-    def unescape(s):
-        return "".join(chr(ord(c) - _PLAIN_ESCAPED) if _PLAIN_ESCAPED <= ord(c) < _PLAIN_ESCAPED + 128 else c for c in s)
-
-    return "".join(unescape(code[ord(c) - _PLAIN_CODE]) if 0 <= ord(c) - _PLAIN_CODE < len(code) else unescape(c)
-                   for c in search_marks("".join(out)))
-
-
-def search_fold(s):
-    return unicodedata.normalize("NFKC", s).lower()
-
-
-def search_fold_map(s):
-    """`s` folded a character at a time (`search_fold`), and for each folded character the index of the one it came
-    from: NFKC makes "…" three dots, so a cut snippet's folded text is longer than it (the manager's searchFoldRunes)."""
-    out, src = [], []
-    for i, ch in enumerate(s):
-        f = search_fold(ch)
-        out.append(f)
-        src.extend([i] * len(f))
-    return "".join(out), src
-
-
-def search_snippet(body, words):
-    """The text around the first match on one line, "…" where cut, and every match's UTF-16 [start, end)."""
-    start, end = 0, min(len(body), 120)
-    low, src = search_fold_map(body)
-    for w in words:
-        at = low.find(w)
-        if at >= 0:
-            first, last = src[at], src[at + len(w) - 1]
-            start, end = max(0, first - 40), min(len(body), last + 1 + 80)
-            break
-    snippet = ("…" if start else "") + " ".join(x.strip() for x in body[start:end].splitlines() if x.strip()) + ("…" if end < len(body) else "")
-    marked = [False] * len(snippet)
-    low, src = search_fold_map(snippet)
-    for w in words:
-        i = low.find(w)
-        while i >= 0:
-            for j in range(i, i + len(w)):
-                marked[src[j]] = True
-            i = low.find(w, i + len(w))
-    utf16 = [0]
-    for ch in snippet:
-        utf16.append(utf16[-1] + (2 if ord(ch) > 0xFFFF else 1))
-    ranges, i = [], 0
-    while i < len(snippet):
-        if not marked[i]:
-            i += 1
-            continue
-        j = i
-        while j < len(snippet) and marked[j]:
-            j += 1
-        ranges.append([utf16[i], utf16[j]])
-        i = j
-    return snippet, ranges
-
-
-def assistant_search(q, limit=30):
-    words = []
-    for w in search_fold(q.strip()[:200]).split():
-        if w not in words and len(words) < 8:
-            words.append(w)
-    main = ASSISTANT_CONFIG.get("main")
-    convs = [c for c in ASSISTANT if c.get("space") != "health" and "/health" not in (c.get("cwd") or "")]
-    out = {"results": [], "partial": False, "indexed": {"done": len(convs), "total": len(convs)}}
-    if not words:
-        return out
-    whole = " ".join(words)
-    results = []
-    for c in convs:
-        sid = c["session_id"]
-        title = (c.get("title") or "").strip()
-        shown = "" if sid == main or title in ("", "Claude Code", "assistant") else title
-        rank = 0
-        if shown and all(w in search_fold(shown) for w in words):
-            rank = 2 if search_fold(shown).startswith(whole) else 1
-        hits = []
-        for it in sorted(ITEMS.get(sid, []), key=lambda x: x["seq"], reverse=True):
-            body = search_index_text(it)
-            if body is not None and all(w in search_fold(body) for w in words):
-                hits.append((it, body))
-        if not rank and not hits:
-            continue
-        shown_hits = []
-        for it, body in hits[:3]:
-            snippet, ranges = search_snippet(body, words)
-            shown_hits.append({"item_id": it["id"], "seq": it["seq"], "role": it["role"], "ts": it.get("ts"), "snippet": snippet, "ranges": ranges})
-        r = {"session_id": sid, "machine_id": c.get("machine_id", "server"), "title": c.get("title", ""), "updated_at": c.get("updated_at"),
-             "hits": shown_hits}
-        if sid == main:
-            r["main"] = True
-        if c.get("archived"):
-            r["archived"] = True
-        if c.get("origin"):
-            r["origin"] = c["origin"]
-        if rank:
-            r["title_match"] = True
-        if len(hits) > 3:
-            r["more_hits"] = len(hits) - 3
-        results.append((rank, c.get("updated_at") or "", shown_hits[0]["ts"] if shown_hits else "", sid, r))
-    titled = sorted([x for x in results if x[0]], key=lambda x: x[1], reverse=True)  # the latest updated first,
-    titled.sort(key=lambda x: -x[0])  # then a title starting with the query above one holding it
-    others = sorted([x for x in results if not x[0]], key=lambda x: x[2] or "", reverse=True)
-    out["results"] = [x[4] for x in titled + others][:max(1, min(int(limit or 30), 50))]
-    return out
 SOCKETS = set()
 
 
@@ -21851,7 +21282,6 @@ MOCK_HELP = [
     "MOCK_HISTORY=1  很长的 Persona 对话历史（最近 30 个 + 查看全部）、一段交接对话、一个置顶，置顶写入会保存",
     "MOCK_MODELS_SECONDS=<秒>  新建 Agent 里列一个启动器的模型要多久（默认 0.8，CLI 起来回答的时间）",
     "MOCK_REPLY_CUT=1|error  The review chat's last turn stopped right after its first words (interrupted; =error: a model API error): its reply says it did not complete (#5314)",
-    "MOCK_URGENT_CALL=1  Urgent calls on, and the call call_mock (GET /api/v1/assistant/calls/call_mock) about a pending ask_user card in Persona's main conversation, for the call page (-showUrgentCallSample YES; docs/assistant/urgent-call.md)",
     "MOCK_LN=1  Low-distraction mode on (#7782); GET /mock/ln?on=0|1 or the apps' PUT /api/v1/push/ln-mode (#8157) switches it until /mock/reset. Either way /api/v1/push/intercepts has two P1 pushes and one P2 push held today, the first linking the /orders investigation to-do (todo_id), and one of yesterday that clients leave out",
 ]
 
@@ -22064,20 +21494,8 @@ def model_configuration(include_uses=False):
     return catalog
 
 
-# The model profiles (GET /api/v1/model-profiles, docs/assistant/model-config.md) with the Agent presets of #2225: performance
-# in use, as the templates are when first made.
 MOCK_PRESETS = {"quick": {"launcher": "sonnetcc", "description": "Small, quick fixes"},
                 "review": {"launcher": "claude", "model": "opus", "effort": "high", "description": "Code review and design"}}
-
-
-def model_defaults_profiles(h, p):
-    """GET /api/v1/model-profiles under MOCK_MODEL_DEFAULTS. False otherwise."""
-    if not MODEL_DEFAULTS or p != "/api/v1/model-profiles":
-        return False
-    h.send_json({"revision": 1, "active": "performance", "events": [], "profiles": [
-        {"id": "performance", "name": "Performance", "active": True, "changes": [], "tiers": MOCK_PRESETS},
-        {"id": "economy", "name": "Economy", "changes": ["agent.new"], "tiers": {"quick": MOCK_PRESETS["quick"]}}]})
-    return True
 
 
 def model_defaults_launchers(h, p, q):
@@ -22322,12 +21740,6 @@ class H(BaseHTTPRequestHandler):
         if p == "/mock/ln":
             if "on" in q: LN["on"] = q["on"][0] == "1"
             return self.send_json(LN)
-        if p == "/api/v1/assistant/urgent-call":  # Settings › Urgent Calls (docs/assistant/urgent-call.md)
-            return self.send_json(dict(URGENT, can_write=True))
-        if p == "/api/v1/assistant/calls":
-            return self.send_json({"calls": [c for c in URGENT_CALLS if c["conversation_id"] == q.get("conversation", [""])[0]]})
-        if p.startswith("/api/v1/assistant/calls/"):
-            return self.send_json(URGENT_CALL)
         if p == "/api/v1/push/ln-mode":
             return self.send_json({"enabled": LN["on"]})
         if p == "/api/v1/push/intercepts":  # kept whether the mode is on or off, as the hub keeps them
@@ -22486,7 +21898,6 @@ class H(BaseHTTPRequestHandler):
         if plugins_route(self, p, None): return
         if voice_route(self, p, q): return
         if model_defaults_launchers(self, p, q): return  # area: model defaults
-        if model_defaults_profiles(self, p): return  # area: model defaults
         if pins_route(self, p): return
         if chat_pins_route(self, p, parse_qs(urlparse(self.path).query)): return
         if history_route(self, p, parse_qs(urlparse(self.path).query)): return
@@ -22667,8 +22078,7 @@ class H(BaseHTTPRequestHandler):
         if p == "/mock/notify_user": return self.send_json(*mock_notify_user(q))
         if p == "/mock/renew": return self.send_json(*renew_requests(int(q.get("minutes", ["30"])[0] or 30)))
         if p == "/api/v1/auth/tokens":
-            return self.send_json({"tokens": TOKENS, "current": "dev_phone", "push": TOKEN_PUSH,
-                                   **({} if MOCK_PHONE == "none" else {"phone": phone_view()})})
+            return self.send_json({"tokens": TOKENS, "current": "dev_phone", "push": TOKEN_PUSH})
         if p == "/mock/sent": return self.send_json({"sent": SENT})
         if p == "/mock/picture.png":  # a picture for replies to show (MOCK_EXPORT): ?w=&h=, a blue-to-violet gradient
             data = _fs_png(min(int(q.get("w", ["600"])[0] or 600), 2000), min(int(q.get("h", ["400"])[0] or 400), 2000), (110, 160, 255), (190, 140, 255))
@@ -22852,9 +22262,6 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/v1/remote-image":
             if not REMOTE_IMAGES: return self.send_json({"error": "not found"}, 404)
             return mock_remote_image(self, urlparse(self.path).query)
-        if p == "/api/v1/assistant/search":
-            if not ASSISTANT_SEARCH: return self.send_json({"error": "not found"}, 404)
-            return self.send_json(assistant_search(q.get("q", [""])[0], q.get("limit", ["30"])[0]))
         if p == "/api/v1/assistant":
             q = parse_qs(urlparse(self.path).query)
             if q.get("view", [""])[0] == "main-runtime" and os.environ.get("MOCK_CLAUDE_INTERACTIVE"):
@@ -22872,8 +22279,6 @@ class H(BaseHTTPRequestHandler):
             return self.send_json(own)
         if p.startswith("/api/v1/model-config/purposes/"):
             pid, lang = unquote(p.rsplit("/", 1)[1]), cron_lang(self.headers.get("Accept-Language"))
-            if own := meeting_model_purpose(pid, lang):
-                return self.send_json(own)
             catalog = model_configuration(include_uses=True)
             purpose = next((x for x in catalog["purposes"] if x["id"] == pid), None)
             if not purpose: return self.send_json({"error": "模型用途不存在"}, 404)
@@ -23024,13 +22429,7 @@ class H(BaseHTTPRequestHandler):
             ref = parse_qs(urlparse(self.path).query).get("ref", [""])[0]
             return self.send_json({"runs": [r for r in RUNS if not ref or r["ref_id"] == ref]})
         if p == "/api/v1/assistant/memory":
-            if parse_qs(urlparse(self.path).query).get("space", [""])[0] == "health":
-                return self.send_json({"files": HEALTH_MEMORY, "dir": "/home/me/.persona/health/memory"})
             return self.send_json({"files": MEMORY, "dir": "/home/me/.persona/assistant/memory"})
-        if p.startswith("/api/v1/machines/") and p.endswith("/health/reports"): return self.send_json({"reports": HEALTH_REPORTS})
-        if p.startswith("/api/v1/machines/") and p.endswith("/file") and q.get("path", [""])[0].startswith(HEALTH_REPORTS_DIR):
-            path = q["path"][0]
-            return self.send_json({"path": path, "name": path.rsplit("/", 1)[1], "size": len(HEALTH_REPORT_RECORD.encode()), "text": HEALTH_REPORT_RECORD, "truncated": False, "is_dir": False})
         if p == "/mock/schedule": return self.send_json({"ran": SCHEDULE_RAN})
         if p == "/mock/schedule/reset":  # back to the starting schedule (captures that ran or cancelled something)
             start = copy.deepcopy(SCHEDULE_START)
@@ -23920,34 +23319,6 @@ class H(BaseHTTPRequestHandler):
                 return self.send_json({"ok": True})
         if self.command == "POST" and p.startswith("/api/v1/inbox/") and p.endswith("/draft"):
             return self.send_json(*inbox_draft(unquote(p[len("/api/v1/inbox/"):-len("/draft")]), json.loads(self.last_body or b"{}")))
-        if (p.startswith("/api/v1/model-config/purposes/") and unquote(p.rsplit("/", 1)[1]) in MEETING_PURPOSES
-                and self.command in ("PATCH", "PUT")):
-            pid, body = unquote(p.rsplit("/", 1)[1]), json.loads(self.last_body or b"{}")
-            lang = cron_lang(self.headers.get("Accept-Language"))
-            with MODEL_CONFIG_LOCK:
-                own = meeting_model_purpose(pid, lang)
-                if own is None: return self.send_json({"error": "模型用途不存在"}, 404)
-                purpose = own["purpose"]
-                if os.environ.get("MOCK_MODEL_CONFLICT") or body.get("revision") != purpose["revision"]:
-                    return self.send_json({"error": "配置已在别处修改"}, 409)
-                if "runtime" in body:  # an older hub's answer; a current hub accepts and ignores runtime (#9799)
-                    return self.send_json({"error": MEETING_MODEL_TEXT[lang]["no_runtime"]}, 400)
-                binding = dict(purpose["override"])
-                if "provider" in body and body["provider"] != binding.get("provider"):
-                    binding.pop("model", None)
-                    binding.pop("effort", None)
-                for field in ("provider", "model", "effort"):
-                    if field not in body: continue
-                    if body[field] is None: binding.pop(field, None)
-                    else: binding[field] = body[field]
-                if binding.get("provider"):
-                    provider = next((x for x in own["providers"] if x["id"] == binding["provider"]), {})
-                    if pid == "meeting.room" and not meeting_room_provider(provider):
-                        return self.send_json({"error": MEETING_MODEL_TEXT[lang]["claude_only"]}, 400)
-                    if binding["provider"] not in purpose["provider_ids"]:
-                        return self.send_json({"error": "此用途无法使用这个提供方"}, 400)
-                MODEL_BINDINGS[pid] = {"revision": purpose["revision"] + 1, "override": binding}
-                return self.send_json(meeting_model_purpose(pid, lang))
         if p == "/api/v1/model-config/purposes/" + SUPERVISE_PURPOSE and self.command == "PATCH" and (own := supervise_model_purpose()):
             body, purpose = json.loads(self.last_body or b"{}"), own["purpose"]
             with MODEL_CONFIG_LOCK:
@@ -24722,6 +24093,8 @@ class H(BaseHTTPRequestHandler):
         if p.startswith("/api/v1/sessions/") and p.endswith("/seen"):
             mark_seen(p.split("/")[5])
             return self.send_json({"ok": True})
+        if p == "/api/v1/pins" and self.command == "PUT":  # the hub keeps them (the reply is what it kept)
+            body = json.loads(self.last_body or b"{}")
             PINS.update(spaces=list(body.get("spaces") or []), sessions=list(body.get("sessions") or []))
             return self.send_json(PINS)
         if p == "/api/v1/assistant" and self.command == "PUT" and not os.environ.get("MOCK_LEGACY_HUB"):
@@ -24805,13 +24178,9 @@ class H(BaseHTTPRequestHandler):
                     and os.environ.get("MOCK_RECENT_TASK_CHATS") != "absent":
                 ASSISTANT_CONFIG["recent_task_chats"] = body["recent_task_chats"]
             return self.send_json(assistant_state())
-        if "/health/reports/" in p and p.startswith("/api/v1/machines/") and self.command == "DELETE":
-            name = unquote(p.rsplit("/", 1)[1])
-            HEALTH_REPORTS[:] = [r for r in HEALTH_REPORTS if r["name"] != name]
-            return self.send_json({"ok": True})
         if p.startswith("/api/v1/assistant/memory/") and self.command in ("PUT", "DELETE"):
             name = unquote(p.rsplit("/", 1)[1])
-            files = HEALTH_MEMORY if parse_qs(urlparse(self.path).query).get("space", [""])[0] == "health" else MEMORY
+            files = MEMORY
             if self.command == "PUT":
                 content = json.loads(self.last_body or b"{}").get("content", "")
                 files[:] = [f for f in files if f["name"] != name] + [{"name": name, "content": content, "updated_at": ago()}]
@@ -24935,8 +24304,6 @@ class H(BaseHTTPRequestHandler):
                     push_machine(s["machine_id"])
                     push_todos()
             return self.send_json({"session": with_fold(decorated_session(s))})
-        if p == "/api/v1/phone/primary" and self.command == "PUT":
-            return phone_primary_put(self, json.loads(self.last_body or b"{}"))
         if p.startswith("/api/v1/auth/tokens/") and self.command == "DELETE":
             for t in TOKENS:
                 if t["id"] == p.split("/")[-1]:
@@ -25010,13 +24377,6 @@ class H(BaseHTTPRequestHandler):
                 if st["key"] == body.get("key"):
                     st["value"] = body.get("value")
             return self.send_json({"settings": store[mid]})
-        if p == "/api/v1/assistant/urgent-call" and self.command == "PUT":
-            URGENT["settings"] = json.loads(self.last_body or b"{}")
-            return self.send_json(dict(URGENT, can_write=True))
-        if p == "/api/v1/assistant/urgent-call/test" and self.command == "POST":
-            return self.send_json({"devices": 1, "call": URGENT_CALL})
-        if p.startswith("/api/v1/assistant/calls/") and p.endswith("/state") and self.command == "POST":
-            return self.send_json(dict(URGENT_CALL, state=json.loads(self.last_body or b"{}").get("state", "")))
         if p == "/api/v1/push/ln-mode" and self.command == "PUT":  # Settings › Notifications › Low-distraction mode (#8157)
             LN["on"] = json.loads(self.last_body or b"{}").get("enabled") is True
             return self.send_json({"enabled": LN["on"]})
@@ -25868,7 +25228,6 @@ MOCK_HELP.append("MOCK_CLAUDE_DESKTOP_ASK=1  The Claude in the desktop app on th
 MOCK_HELP.append("MOCK_ASK_HELD=1  With MOCK_TODO_ASKS=1: the PR check's decision is held for the next briefing (for_briefing, #5803)")
 MOCK_HELP.append("MOCK_BRIEF_SETUP=1  With MOCK_TASKS=1: the morning briefing carries the week's recommended setup lines (#5804)")
 MOCK_HELP.append("MOCK_SUPERVISE_LISTED=1  The model catalog lists assistant.supervise itself and every built-in purpose has a description (#5806)")
-MOCK_HELP.append("MOCK_MEETING_MODELS=1  The model catalog lists editable meeting.room and meeting.minutes after the supervisor (or categories), with Claude Code-only room providers (#7980)")
 MOCK_HELP.append("MOCK_BACKGROUND_SUPERVISOR=1  The hub's built-in background supervisor conversation exists (#4927): origin task with no origin_ref, "
                  "named by GET /api/v1/assistant as background_supervisor, and archiving it is refused. Without it the setting "
                  "main_supervises_own_tasks and the model use assistant.supervise (answered by its own id, not in the catalog) are still there; MOCK_LEGACY_HUB has none of them")

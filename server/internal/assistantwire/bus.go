@@ -202,12 +202,6 @@ type HTTPResponse struct {
 	Body           []byte                     `json:"body,omitempty"`
 }
 
-const (
-	StarredImportPath        = "/api/v1/assistant/starred/import"
-	StarredImportPreviewPath = StarredImportPath + "/preview"
-	StarredImportBodyMax     = 8 << 20
-)
-
 // Routes are the routes the assistant answers (net/http patterns): the hub relays the apps' requests on them as
 // http.request. The assistant registers exactly these (assistant.TestRoutesAreTheWireOnes).
 var Routes = []string{
@@ -234,7 +228,6 @@ var Routes = []string{
 	"GET /api/v1/assistant/worker-presets",
 	"GET /api/v1/assistant/start-defaults",
 	"PUT /api/v1/assistant/start-defaults",
-	"POST /api/v1/assistant/start-defaults/preview",
 	"GET /api/v1/assistant/availability",
 	"GET /api/v1/assistant/conversations/{id}/feed",
 	"POST /api/v1/assistant/feed/{id}/dismiss",
@@ -262,15 +255,7 @@ var Routes = []string{
 	"POST /api/v1/assistant/repositories/{id}/restore",
 	"GET /api/v1/assistant/saved-prompts",
 	"POST /api/v1/assistant/saved-prompts",
-	"PUT /api/v1/assistant/saved-prompts/order",
 	"PUT /api/v1/assistant/saved-prompts/{id}",
-	"DELETE /api/v1/assistant/saved-prompts/{id}",
-	"GET /api/v1/assistant/starred",
-	"POST /api/v1/assistant/starred",
-	"DELETE /api/v1/assistant/starred/{id}",
-	"GET " + StarredImportPath,
-	"POST " + StarredImportPreviewPath,
-	"POST " + StarredImportPath,
 	"GET /api/v1/assistant/runs",
 	"GET /api/v1/assistant/routines",
 	"PUT /api/v1/assistant/routines",
@@ -355,15 +340,12 @@ var Routes = []string{
 	"DELETE /api/v1/assistant/conversations/{id}/model",
 	"POST /api/v1/assistant/main/new",
 	"POST /api/v1/assistant/main/clear",
-	"POST /api/v1/assistant/origins/backfill",
 	// The channels (channels.go there, docs/extensions/channels.md "API").
 	"GET /api/v1/channels",
-	"GET /api/v1/channels/{id}",
 	"PUT /api/v1/channels/{id}",
 	"DELETE /api/v1/channels/{id}/binding",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/actions",
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/html-actions",
-	"POST /api/v1/channels/{id}/test",
 	// The Lark bot's workbench: companion bots and their notices (feishu_companions.go there, docs/extensions/bots.md
 	// "Companion bots").
 	"PUT /api/v1/assistant/feishu/companions",

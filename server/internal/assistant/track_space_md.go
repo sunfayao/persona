@@ -17,26 +17,11 @@ import (
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// A track's SPACE.md, read and written on the assistant's machine (#13472, docs/assistant/tracks.md "Tracks and
-// kinds"): the apps read it and the user writes the part that is theirs (GET / PUT
-// /api/v1/assistant/tracks/{slug}/space-md); the track's own conversations replace the state block Persona keeps
-// (space_state_update, offered to them only). The node does both (assistant.space_md, nodeproto.TrackSpaceMD): it
-// keeps every managed block's bytes on the user's write and every other byte on the state's, and backs the file up
-// first.
-
 // spaceStateTool is the MCP tool a space track's conversations replace their SPACE.md's state block with.
 const spaceStateTool = "space_state_update"
 
-// spaceMDBodyMax bounds a PUT's body: a 64 KB SPACE.md, escaped.
-const spaceMDBodyMax = 512 << 10
-
 // errSpaceMDNode: the call did not reach a node that keeps SPACE.md (offline, or not announcing it).
 var errSpaceMDNode = errors.New("the assistant's computer cannot be reached for SPACE.md")
-
-func (s *Service) trackSpaceMDRoutes() {
-	s.handle("GET /api/v1/assistant/tracks/{slug}/space-md", s.trackSpaceMDGet)
-	s.handle("PUT /api/v1/assistant/tracks/{slug}/space-md", s.trackSpaceMDPut)
-}
 
 // trackSpaceMDNode: machine's node reads and writes a track's SPACE.md (nodeproto.TrackSpaceMD).
 func (s *Service) trackSpaceMDNode(machine string) bool {
@@ -61,13 +46,6 @@ func (s *Service) spaceMD(ctx context.Context, slug string, c assistantwire.Spac
 	c.Dir, c.Slug = trackRel(e), e.Slug
 	var out assistantwire.SpaceMD
 	err := s.call(ctx, machine, assistantwire.DeviceAssistantSpaceMD, c, &out)
-	if err == nil && out.Refused == assistantwire.SpaceMDMissing && c.Op == assistantwire.SpaceMDGet {
-		// A track made while its computer was away has no directory yet: make it, then read again.
-		if _, perr := s.prepareSpace(ctx, machine, e.Slug); perr == nil {
-			out = assistantwire.SpaceMD{}
-			err = s.call(ctx, machine, assistantwire.DeviceAssistantSpaceMD, c, &out)
-		}
-	}
 	if err != nil {
 		var re *rpc.Error
 		if errors.Is(err, apierr.ErrOffline) || errors.Is(err, rpc.ErrClosed) || errors.Is(err, ErrNoDevice) ||
@@ -82,8 +60,6 @@ func (s *Service) spaceMD(ctx context.Context, slug string, c assistantwire.Spac
 // spaceMDRefusal is the HTTP status and the words of a node's refusal (assistantwire.SpaceMD.Refused).
 func spaceMDRefusal(why string) (int, error) {
 	switch why {
-	case assistantwire.SpaceMDStale:
-		return http.StatusConflict, errors.New("SPACE.md changed since it was read: read it again")
 	case assistantwire.SpaceMDManaged:
 		return http.StatusBadRequest, errors.New("the blocks Persona keeps in SPACE.md (between persona:managed markers) and their markers stay as they are")
 	case assistantwire.SpaceMDTooLarge:
@@ -94,64 +70,6 @@ func spaceMDRefusal(why string) (int, error) {
 		return http.StatusNotFound, errors.New("the track's directory or its SPACE.md is not there")
 	}
 	return http.StatusBadGateway, fmt.Errorf("SPACE.md: the computer refused (%s)", why)
-}
-
-// answerSpaceMD answers out (Refused never goes out).
-func answerSpaceMD(w http.ResponseWriter, out assistantwire.SpaceMD) {
-	out.Refused = ""
-	apierr.WriteJSON(w, out)
-}
-
-func (s *Service) trackSpaceMDGet(w http.ResponseWriter, r *http.Request) {
-	out, _, status, err := s.spaceMD(r.Context(), r.PathValue("slug"), assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDGet})
-	if err != nil {
-		apierr.Write(w, status, err)
-		return
-	}
-	if out.Refused != "" {
-		status, err := spaceMDRefusal(out.Refused)
-		apierr.Write(w, status, err)
-		return
-	}
-	answerSpaceMD(w, out)
-}
-
-func (s *Service) trackSpaceMDPut(w http.ResponseWriter, r *http.Request) {
-	if !userOnly(w, r) {
-		return
-	}
-	var in assistantwire.SpaceMDPut
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, spaceMDBodyMax))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&in); err != nil {
-		apierr.Write(w, http.StatusBadRequest, err)
-		return
-	}
-	switch {
-	case strings.TrimSpace(in.BaseDigest) == "":
-		apierr.Write(w, http.StatusBadRequest, errors.New("base_digest: the digest of the SPACE.md this edit was made on"))
-		return
-	case !utf8.ValidString(in.Content):
-		apierr.Write(w, http.StatusBadRequest, errors.New("content: not UTF-8 text"))
-		return
-	}
-	ctx := r.Context()
-	slug := r.PathValue("slug")
-	out, machine, status, err := s.spaceMD(ctx, slug, assistantwire.SpaceMDCall{Op: assistantwire.SpaceMDPutHuman, Content: in.Content, BaseDigest: in.BaseDigest})
-	if err != nil {
-		apierr.Write(w, status, err)
-		return
-	}
-	if out.Refused != "" {
-		status, err := spaceMDRefusal(out.Refused)
-		apierr.Write(w, status, err)
-		return
-	}
-	// The track's instructions end with its SPACE.md: written again now rather than at the next refresh.
-	if _, err := s.prepareSpace(ctx, machine, slug); err != nil {
-		s.logf("tracks: prepare %q on %s after its SPACE.md changed: %v", slug, machine, err)
-	}
-	answerSpaceMD(w, out)
 }
 
 // spaceTools are the tools conversation session on machine gets for being in a space track (spaceTrack): the one

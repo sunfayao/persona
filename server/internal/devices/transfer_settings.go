@@ -2,8 +2,7 @@ package devices
 
 // The file transfer switch (#3065, docs/protocol/file-transfer.md): each machine has one, off until the user turns it
 // on. While it is off nothing is sent to the machine to keep (dest=inbox, which the hub checks against this switch as
-// the manager reports it on the machine) and no transfer starts from it or to it. Chat attachments and file previews /
-// downloads never depend on it. The manager keeps the switches in settings (machine_file_transfer) and answers
+// the manager reports it on the machine). The manager keeps the switches in settings (machine_file_transfer) and answers
 // GET / PUT /api/v1/machines/{mid}/file-transfer/settings.
 
 import (
@@ -14,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -102,15 +102,6 @@ func (m *Machine) fileTransferState(enabled bool) *proto.MachineFileTransfer {
 	return st
 }
 
-// writeFileTransferOff answers 403 file_transfer_disabled for machine m.
-func writeFileTransferOff(w http.ResponseWriter, r *http.Request, m *Machine) {
-	body := map[string]any{"error": i18n.T(i18n.FromRequest(r), "devices-file_transfer.disabled", i18n.Args{"name": m.cfg.Name}),
-		"code": proto.CodeFileTransferDisabled, "machine": m.cfg.ID, "retryable": false}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusForbidden)
-	_ = json.NewEncoder(w).Encode(body)
-}
-
 // getFileTransferSettings: GET /api/v1/machines/{mid}/file-transfer/settings → {enabled, inbox?}.
 func (d *Devices) getFileTransferSettings(w http.ResponseWriter, r *http.Request, m *Machine) {
 	writeJSON(w, m.fileTransferState(d.fileTransferOn(m.cfg.ID)))
@@ -119,7 +110,7 @@ func (d *Devices) getFileTransferSettings(w http.ResponseWriter, r *http.Request
 // putFileTransferSettings: PUT /api/v1/machines/{mid}/file-transfer/settings {"enabled": bool} → {enabled, inbox?}.
 // Only a full device turns it on or off; stored while the machine is offline too.
 func (d *Devices) putFileTransferSettings(w http.ResponseWriter, r *http.Request, m *Machine) {
-	if !fullRole(r) {
+	if role := r.Header.Get(assistantwire.RoleHeader); role != "" && role != "full" {
 		writeErrCode(w, http.StatusForbidden, proto.CodeReadOnly, i18n.Err("devices-file_transfer.read_only"))
 		return
 	}

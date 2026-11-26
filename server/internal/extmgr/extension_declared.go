@@ -7,7 +7,7 @@ import (
 )
 
 // What the extensions that are on declare for the apps (docs/extensions/extensions.md "Purely declarative contributions", #1854):
-// quick prompts for the message box, themes (theme colors), and templates of an inbox source's triage rules. Skills and
+// quick prompts for the message box, and templates of an inbox source's triage rules. Skills and
 // instructions go to the assistant with the assistant contributions' (extension_assistant.go).
 
 // QuickPromptView is a quick prompt as the apps list it.
@@ -17,17 +17,6 @@ type QuickPromptView struct {
 	ID            string `json:"id"`
 	Title         string `json:"title"`
 	Text          string `json:"text"`
-}
-
-// ThemeView is a theme as the apps list it; Problems (contrast) non-empty: the apps do not offer it.
-type ThemeView struct {
-	Extension     string            `json:"extension"`
-	ExtensionName string            `json:"extension_name"`
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
-	Light         map[string]string `json:"light"`
-	Dark          map[string]string `json:"dark"`
-	Problems      []string          `json:"problems,omitempty"`
 }
 
 // TriageTemplateView is a template of triage rules as the apps list it.
@@ -62,16 +51,6 @@ func (h *Manager) declaredRoutes(api *http.ServeMux) {
 			}
 		})
 		writeJSON(w, map[string]any{"prompts": out})
-	})
-	api.HandleFunc("GET /api/v1/extensions/-/themes", func(w http.ResponseWriter, r *http.Request) {
-		out := []ThemeView{}
-		h.extensions.declared(func(p *extension.Extension) {
-			for _, it := range p.Manifest.Themes() {
-				out = append(out, ThemeView{Extension: p.Record.ID, ExtensionName: p.Full.Name, ID: it.ID, Name: it.Name,
-					Light: it.Light, Dark: it.Dark, Problems: extension.ThemeProblems(it)})
-			}
-		})
-		writeJSON(w, map[string]any{"themes": out})
 	})
 	api.HandleFunc("GET /api/v1/extensions/-/triage-templates", func(w http.ResponseWriter, r *http.Request) {
 		out := []TriageTemplateView{}

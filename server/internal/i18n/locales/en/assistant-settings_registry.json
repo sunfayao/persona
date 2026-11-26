@@ -24,8 +24,6 @@
   "title_agents_triage_reply_reminder": "Remind me of a pending answer",
   "title_agents_triage_transient_retry": "Retry after transient model errors",
   "title_agents_triage_reply_reminder_minutes": "Reminder delay (minutes)",
-  "title_navigation_start_page": "Start page",
-  "title_navigation_sidebar_pages": "Sidebar pages",
   "title_assistant_saved_prompts": "Saved prompts",
   "on": "on",
   "off": "off",

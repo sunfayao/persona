@@ -38,21 +38,11 @@ vi.mock("./api", async (original) => {
         hub.prompts.set(manager, [...list, p]);
         return { prompt: p };
       }
-      if (method === "PUT" && path.endsWith("/order")) {
-        const ids = (init?.json as { ids: string[] }).ids;
-        const next = ids.map((id) => list.find((p) => p.id === id)!);
-        hub.prompts.set(manager, next);
-        return { prompts: next };
-      }
       if (method === "PUT") {
         const id = path.split("/").pop()!;
         const next = list.map((p) => (p.id === id ? { id, ...(init?.json as { name: string; text: string }) } : p));
         hub.prompts.set(manager, next);
         return { prompt: next.find((p) => p.id === id) };
-      }
-      if (method === "DELETE") {
-        hub.prompts.set(manager, list.filter((p) => !path.endsWith(`/${p.id}`)));
-        return { ok: true };
       }
       throw new Error(`unexpected ${method} ${path}`);
     }),
@@ -69,8 +59,6 @@ vi.mock("./store", async (original) => ({
 import { api, handleUnauthorized, setPairedToken, setToken } from "./api";
 import { chooseManager, resetManagerChoice, setRosterDefault, settleRosterDefault } from "./manager-choice";
 import {
-  deleteSavedPrompt,
-  moveSavedPrompt,
   resetSavedPrompts,
   saveSavedPrompt,
   savedPromptCommands,
@@ -192,41 +180,21 @@ describe("the list the page follows", () => {
     expect(rows().map((r) => r.word)).toEqual(["/review"]);
   });
 
-  it("shows a change at once: added, changed in place, moved, deleted", async () => {
+  it("shows an addition and changes it in place", async () => {
     startSavedPrompts();
     await settle();
     const a = await saveSavedPrompt(null, { name: " /review ", text: "  Review it.  " });
     expect(hub.calls.find((c) => c.method === "POST")?.json).toEqual({ name: "review", text: "Review it." });
     expect(rows().map((r) => r.word)).toEqual(["/review"]);
-    const b = await saveSavedPrompt(null, { name: "notes", text: "Notes." });
+    await saveSavedPrompt(null, { name: "notes", text: "Notes." });
     await saveSavedPrompt(a.id, { name: "Review", text: "Review it again." });
     await settle();
     expect(rows().map((r) => `${r.word}:${r.text}`)).toEqual(["/Review:Review it again.", "/notes:Notes."]);
-    await moveSavedPrompt(b.id, -1);
-    expect(rows().map((r) => r.word)).toEqual(["/notes", "/Review"]);
-    expect(hub.calls.find((c) => c.path.endsWith("/order"))?.json).toEqual({ ids: [b.id, a.id] });
-    await moveSavedPrompt(b.id, -1); // already first: nothing asked
-    expect(hub.calls.filter((c) => c.path.endsWith("/order"))).toHaveLength(1);
-    await deleteSavedPrompt(a.id);
-    await settle();
-    expect(rows().map((r) => r.word)).toEqual(["/notes"]);
-  });
-
-  it("reads the list again when the hub refuses an order made from an old one", async () => {
-    hub.prompts.set("assistant", [prompt("sp1", "a"), prompt("sp2", "b")]);
-    startSavedPrompts();
-    await settle();
-    const gets = hub.calls.filter((c) => c.method === "GET").length;
-    hub.failNext = new Error("changed on another device");
-    await expect(moveSavedPrompt("sp2", -1)).rejects.toThrow("changed on another device");
-    await settle();
-    expect(hub.calls.filter((c) => c.method === "GET")).toHaveLength(gets + 1);
   });
 });
 
-
 describe("pending requests belong to their original assistant and sign-in", () => {
-  const methods = ["create", "edit", "delete", "order"] as const;
+  const methods = ["create", "edit"] as const;
   it.each(methods.flatMap((method) => ["switch", "switch-back", "sign-in"].map((change) => ({ method, change }))))(
     "ignores a late $method after $change without reloading the new list",
     async ({ method, change }) => {
@@ -239,8 +207,7 @@ describe("pending requests belong to their original assistant and sign-in", () =
       let finish!: (value: unknown) => void;
       vi.mocked(api).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
       const pending = method === "create" ? saveSavedPrompt(null, { name: "old-new", text: "Old owner's text" })
-        : method === "edit" ? saveSavedPrompt("sp1", { name: "old-edited", text: "Old owner's edit" })
-        : method === "delete" ? deleteSavedPrompt("sp1") : moveSavedPrompt("sp2", -1);
+        : saveSavedPrompt("sp1", { name: "old-edited", text: "Old owner's edit" });
       if (change === "sign-in") {
         hub.prompts.set("assistant", fresh);
         setPairedToken("synthetic-replacement-token");
@@ -256,29 +223,13 @@ describe("pending requests belong to their original assistant and sign-in", () =
       if (change === "sign-in") { emit("hello"); await settle(); }
       expect(rows().map((r) => r.word)).toEqual(["/fresh-one", "/fresh-two"]);
       const calls = hub.calls.length;
-      finish(method === "order" ? { prompts: [...old].reverse() } : { prompt: prompt("sp1", "old-result") });
+      finish({ prompt: prompt("sp1", "old-result") });
       await pending;
       await settle();
       expect(rows().map((r) => r.word)).toEqual(["/fresh-one", "/fresh-two"]);
       expect(hub.calls).toHaveLength(calls);
     },
   );
-
-  it("does not reload the replacement owner after an old order refusal", async () => {
-    hub.prompts.set("assistant", [prompt("sp1", "old-one"), prompt("sp2", "old-two")]);
-    hub.prompts.set("m-other", [prompt("sp1", "fresh")]);
-    startSavedPrompts(); await settle();
-    let fail!: (reason: Error) => void;
-    vi.mocked(api).mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
-    const pending = moveSavedPrompt("sp2", -1).catch((e: Error) => e);
-    chooseManager("m-other"); await settle();
-    const calls = hub.calls.length;
-    fail(new Error("old order refused"));
-    expect((await pending as Error).message).toBe("old order refused");
-    await settle();
-    expect(hub.calls).toHaveLength(calls);
-    expect(rows().map((r) => r.word)).toEqual(["/fresh"]);
-  });
 
   it("clears the old credential's rows and fences its pending read on same-token pairing", async () => {
     hub.prompts.set("assistant", [prompt("sp1", "old")]);
@@ -383,8 +334,6 @@ it.each(["cold", "known", "old hub"])("preserves omitted-header default negotiat
 it.each([
   { method: "create", defaultManager: "m-real-default" },
   { method: "edit", defaultManager: "m-real-default" },
-  { method: "delete", defaultManager: "m-real-default" },
-  { method: "order", defaultManager: "m-real-default" },
   { method: "create", defaultManager: "assistant" },
 ])("canonically refreshes a pending cold $method after discovering default $defaultManager", async ({ method, defaultManager }) => {
   const real = await vi.importActual<typeof import("./api")>("./api");
@@ -402,18 +351,14 @@ it.each([
   try {
     startSavedPrompts(); await settle();
     const pending = method === "create" ? saveSavedPrompt(null, { name: "after", text: "Saved" })
-      : method === "edit" ? saveSavedPrompt("sp1", { name: "after", text: "Edited" })
-      : method === "delete" ? deleteSavedPrompt("sp1") : moveSavedPrompt("sp2", -1);
+      : saveSavedPrompt("sp1", { name: "after", text: "Edited" });
     setRosterDefault(defaultManager);
     await settle(); // discovery read completes before the write; it cannot include that write yet
     expect(rows().map((row) => row.word)).toEqual(["/before", "/second"]);
     const reads = fetcher.mock.calls.filter(([, init]) => (init?.method ?? "GET") === "GET").length;
-    serverRows = method === "create" ? [...serverRows, prompt("sp3", "after")]
-      : method === "edit" ? [prompt("sp1", "after"), serverRows[1]]
-      : method === "delete" ? [serverRows[1]] : [...serverRows].reverse();
+    serverRows = method === "create" ? [...serverRows, prompt("sp3", "after")] : [prompt("sp1", "after"), serverRows[1]];
     // The original default was not identified at admission: only a new canonical GET may publish its result.
-    finish(json(method === "order" ? { prompts: [prompt("sp9", "unproven")] }
-      : { prompt: prompt(method === "create" ? "sp3" : "sp1", "unproven") }));
+    finish(json({ prompt: prompt(method === "create" ? "sp3" : "sp1", "unproven") }));
     await pending; await settle();
     expect(rows().map((row) => row.word)).toEqual(serverRows.map((row) => `/${row.name}`));
     expect(hub.published.some((list) => list.includes("/unproven"))).toBe(false);

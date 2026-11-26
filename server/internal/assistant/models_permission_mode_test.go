@@ -636,38 +636,44 @@ func TestModelProfilePermissionModeValidationAndCapture(t *testing.T) {
 	f.mu.Unlock()
 	putLaunchers(t, s, apiProvider(t, s, "direct", "messages"))
 
-	// HTTP PUT /api/v1/model-profiles/{id} returns 400 Bad Request (not 500) for launcher-only and unsupported permission modes.
 	for _, tc := range []struct {
-		name string
-		body string
+		name     string
+		purposes map[string]ModelBinding
+		tiers    map[string]ModelTier
 	}{
 		{
-			name: "api purpose with permission_mode",
-			body: `{"revision":1,"name":"Bad API","purposes":{"kb":{"provider":"launcher.direct","permission_mode":"acceptEdits"}}}`,
+			name:     "API purpose with permission_mode",
+			purposes: map[string]ModelBinding{"kb": {Provider: "launcher.direct", PermissionMode: "acceptEdits"}},
 		},
 		{
-			name: "purpose with runtime-unsupported permission_mode",
-			body: `{"revision":1,"name":"Bad Grok","purposes":{"agent.new":{"provider":"launcher.grok","permission_mode":"plan"}}}`,
+			name:     "purpose with runtime-unsupported permission_mode",
+			purposes: map[string]ModelBinding{"agent.new": {Provider: "launcher.grok", PermissionMode: "plan"}},
 		},
 		{
-			name: "purpose with discovered omp alias",
-			body: `{"revision":1,"name":"Bad OMP Alias","purposes":{"agent.new":{"provider":"launcher.alias-omp","permission_mode":"acceptEdits"}}}`,
+			name:     "purpose with discovered omp alias",
+			purposes: map[string]ModelBinding{"agent.new": {Provider: "launcher.alias-omp", PermissionMode: "acceptEdits"}},
 		},
 		{
-			name: "tier with runtime-unsupported permission_mode",
-			body: `{"revision":1,"name":"Bad Grok Tier","tiers":{"fast":{"launcher":"grok","permission_mode":"plan"}}}`,
+			name:  "tier with runtime-unsupported permission_mode",
+			tiers: map[string]ModelTier{"fast": {Launcher: "grok", PermissionMode: "plan"}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if w := request(s, http.MethodPut, "/api/v1/model-profiles/custom", tc.body); w.Code != http.StatusBadRequest {
-				t.Fatalf("%s: status = %d, want 400; body = %s", tc.name, w.Code, w.Body.String())
+			_, err := s.saveModelProfile(ctx, nil, "custom", ProfileActor{Kind: "hub"}, func(p *ModelProfile, _ bool) error {
+				p.Name, p.Purposes, p.Tiers = tc.name, tc.purposes, tc.tiers
+				return nil
+			})
+			if err == nil {
+				t.Fatal("unsupported permission mode accepted")
 			}
 		})
 	}
-
-	// Supported mode on discovered runtime succeeds.
-	if w := request(s, http.MethodPut, "/api/v1/model-profiles/custom", `{"revision":1,"name":"Good Grok","purposes":{"agent.new":{"provider":"launcher.grok","permission_mode":"bypassPermissions"}}}`); w.Code != http.StatusOK {
-		t.Fatalf("supported runtime permission_mode rejected: %d %s", w.Code, w.Body.String())
+	if _, err := s.saveModelProfile(ctx, nil, "custom", ProfileActor{Kind: "hub"}, func(p *ModelProfile, _ bool) error {
+		p.Name = "Good Grok"
+		p.Purposes = map[string]ModelBinding{"agent.new": {Provider: "launcher.grok", PermissionMode: "bypassPermissions"}}
+		return nil
+	}); err != nil {
+		t.Fatalf("supported permission mode rejected: %v", err)
 	}
 
 	// captureModels preserves purpose permission_mode but never copies assistant/agent.new permission_mode into seeded tiers.

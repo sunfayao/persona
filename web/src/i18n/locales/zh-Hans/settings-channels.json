@@ -1,5 +1,3 @@
 {
-  "retry": "重试",
-  "summary": "{count} 个已连接",
-  "summary_with_errors": "{on} 个已连接 · {bad} 个出错"
+  "retry": "重试"
 }

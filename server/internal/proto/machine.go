@@ -81,8 +81,8 @@ type Machine struct {
 	// Clipboard: sharing its clipboard with the phone (#3064, docs/operations/clipboard.md). Always set by a manager that
 	// knows the feature; nil from an older one.
 	Clipboard *MachineClipboard `json:"clipboard,omitempty"`
-	// FileTransfer: whether files may be sent to this computer to keep and between it and others (#3065,
-	// docs/protocol/file-transfer.md). Always set by a manager that knows the feature; nil (from an older one) is off.
+	// FileTransfer controls uploads to this computer's receive folder (docs/protocol/file-transfer.md).
+	// A nil value means the switch is off.
 	FileTransfer *MachineFileTransfer `json:"file_transfer,omitempty"`
 	// ClaudePlugin: the Persona plugin for Claude Code on it, as its node last said (docs/operations/link.md "Claude
 	// Code plugin"); nil from an older node or one that has not checked.

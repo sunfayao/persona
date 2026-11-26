@@ -16,7 +16,6 @@ import (
 // policy it writes must expire within startDefaultsMaxExpiry, so a stopped or uninstalled extension leaves nothing in
 // force. Empty rules clear it.
 func (s *Service) startDefaultsRoutes() {
-	s.startDefaultsPreviewRoutes() // start_defaults_preview.go
 	s.handle("GET /api/v1/assistant/start-defaults", func(w http.ResponseWriter, r *http.Request) {
 		policy := s.activeStartDefaults(r.Context())
 		if policy == nil {

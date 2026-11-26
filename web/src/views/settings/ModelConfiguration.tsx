@@ -6,7 +6,7 @@ import {
   type ModelBinding, type ModelConfigurationBody, type ModelDraft, type ModelProvider, type ModelPurpose, type ModelPurposeBody,
 } from "../../lib/model-config";
 import {
-  agentsOverride, catalogLists, chooseProvider, claudeCodeOnly, configDirChoices, configDirLabel, draftFor, effortOffered, executionForm, followedCategory, isModelRunLauncher, modelConfiguration, modelPatch, overridden,
+  agentsOverride, catalogLists, chooseProvider, configDirChoices, configDirLabel, draftFor, effortOffered, executionForm, followedCategory, isModelRunLauncher, modelConfiguration, modelPatch, overridden,
   ownRecord, parentCategory, permissionModesForProvider, providersFor, purposeDescription, purposeGroups, purposeLaunch, resetPatch, runtimeChoices, saveModelPurpose, supportsField, withPurposeAfter,
   withUsesAfterCategories,
 } from "../../lib/model-config-execution";
@@ -270,7 +270,6 @@ function PurposeEditor({ manager, id, sourceName, catalog, onClose, onSaved }: {
   // a use set apart from its category (#7980): follows it by name, and goes back to it
   const category = p && !followsAgents && catalog ? followedCategory(p, catalog) : undefined;
   const follow = followsAgents ? t("settings-modelconfiguration.follow_agents") : category ? t("settings-modelconfiguration.follow_category", { name: category.name }) : "";
-  const onlyClaudeID = useId();
   const writable = p && (["provider", "model", "effort", "permission_mode"] as const).some((field) => supportsField(p, field));
   // The Direct API editor (model discovery, efforts by model, draft test: #6887) is for a direct API category's own
   // binding. A use with a record of its own under a category (ownRecord: Meeting minutes, an extension's purpose) keeps
@@ -402,14 +401,13 @@ function PurposeEditor({ manager, id, sourceName, catalog, onClose, onSaved }: {
         {supportsField(p, "provider") && <div>
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink-2">{t("settings-modelconfiguration.model_provider")}</span>
-            <select className={inputClass} value={draft.provider} disabled={busy} onChange={(e) => setDraft((d) => chooseProvider(d, e.target.value))} aria-describedby={claudeCodeOnly(p) ? onlyClaudeID : undefined}>
+            <select className={inputClass} value={draft.provider} disabled={busy} onChange={(e) => setDraft((d) => chooseProvider(d, e.target.value))}>
               <option value="">{follow || t("settings-modelconfiguration.follow_default")}</option>
               {draft.provider && !candidates.some((v) => v.id === draft.provider) && <option value={draft.provider}>{draft.provider.startsWith("legacy.") ? t("settings-modelconfiguration.not_configured") : t("settings-modelconfiguration.provider_unavailable", { id: providerName(draft.provider, data?.providers) ?? draft.provider })}</option>}
               {candidates.map((v) => <option key={v.id} value={v.id}>{v.hidden ? t("settings-modelconfiguration.provider_hidden", { name: modelProviderTitle(v) }) : modelProviderTitle(v)}</option>)}
             </select>
           </label>
           {/* the In-meeting conversation: why only these providers are offered (#7980) */}
-          {claudeCodeOnly(p) && <span id={onlyClaudeID} data-testid="claude-code-only" className="mt-1 block text-submeta text-ink-3">{t("settings-modelconfiguration.claude_code_only")}</span>}
         </div>}
         {previewForm && <div data-execution-preview><Pill wrap>{previewForm.label} · {previewForm.backend}</Pill></div>}
         {directAPI && <DirectAPIEditor key={`${manager}:${chosen.id}:${draft.provider}`} manager={manager} purpose={p} provider={chosen} draft={draft}

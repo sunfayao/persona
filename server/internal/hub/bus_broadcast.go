@@ -38,7 +38,7 @@ import (
 // Manager.broadcast and broadcastExtension, internal/devices Devices.broadcast).
 var managerMessageTypes = map[string]bool{
 	// the assistant
-	"saved_agent_searches": true, "assistant_feed": true, "assistant_saved_prompts": true, "assistant_starred": true, "assistant_schedule": true, "assistant_view": true, "assistant_view_action": true,
+	"saved_agent_searches": true, "assistant_feed": true, "assistant_saved_prompts": true, "assistant_schedule": true, "assistant_view": true, "assistant_view_action": true,
 	"assistant_view_block": true, "agents.triage": true, "interaction_reanswered": true, "launcher_health": true,
 	"model_profile": true, "navigation": true, "task_plan": true, "todos": true,
 	"resources": true,
@@ -47,7 +47,6 @@ var managerMessageTypes = map[string]bool{
 	"extension_auth": true, "extension_operation": true, "extension_ui": true, "plugin_ui": true,
 	"extension_upgrade": true, "plugin_upgrade": true, "subscription": true,
 	// its devices
-	"file_transfer": true,
 }
 
 // hubMessageTypes are the messages the hub sends the apps from its own state (cards, machines, sessions and their
@@ -111,10 +110,6 @@ func (h *Hub) relayBroadcastFrom(from string, message json.RawMessage) error {
 	out := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
 	if typ == extensionOperationEvent {
 		h.toWanting(extensionOperationsFeature, out)
-		return nil
-	}
-	if typ == proto.FileTransferEvent {
-		h.toFullWanting(proto.FileTransferEvent, out)
 		return nil
 	}
 	if typ == "inbox" { // before the apps hear it: the list they ask for then is fetched afresh (inbox_answers.go)

@@ -170,12 +170,6 @@ func (s *Service) tracks(ctx context.Context) []trackEntry {
 	return list
 }
 
-// trackKinds are the kinds: the built-in ones, then the user's (disabled ones included, saying why).
-func (s *Service) trackKinds(ctx context.Context) []kindEntry {
-	_, kinds := s.registry(ctx)
-	return kinds
-}
-
 // registry reads (or gives what it read within the TTL of) the tracks and the kinds.
 func (s *Service) registry(ctx context.Context) ([]trackEntry, []kindEntry) {
 	r := &s.trackReg

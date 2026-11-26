@@ -16,11 +16,9 @@ class ExtensionManagementMock:
                 'config': {'title': '初始标题', 'triage_rules': '原有规则'},
                 'form': {'fields': [{'name': 'title', 'type': 'string', 'title': '标题'},
                                     {'name': 'triage_rules', 'type': 'string', 'title': '分拣规则'}]},
-                'contributes': {'ui': ['home'], 'themes': ['blue', 'bad'], 'prompts': ['weekly'], 'triage_templates': ['focus']},
+                'contributes': {'ui': ['home'], 'prompts': ['weekly'], 'triage_templates': ['focus']},
                 'depends': [{'id': 'example-notes', 'name': '基础笔记扩展', 'state': 'ok', 'installed': '1.2.0'}],
                 'contributions': [{'point': 'ui', 'id': 'home', 'title': '概况页面', 'enabled': True, 'can_disable': True},
-                    {'point': 'themes', 'id': 'blue', 'title': '示例蓝', 'enabled': True, 'can_disable': True},
-                    {'point': 'themes', 'id': 'bad', 'title': '低对比度主题', 'enabled': True, 'can_disable': True},
                     {'point': 'connectors', 'id': 'source', 'title': '连接器来源', 'enabled': True, 'can_disable': False, 'via': 'connector'}]},
             'sample-extra': {'id': 'sample-extra', 'name': '示例补充工具', 'kind': 'ui', 'status': 'running', 'enabled': True,
                 'source': 'installed', 'version': '1.0.0', 'origin': 'market:' + market + '/sample-extra', 'config': {}, 'permissions': []},
@@ -44,7 +42,6 @@ class ExtensionManagementMock:
             for eid in ['sample-pack', 'sample-kit', 'sample-extra']:
                 self.plugins.pop(eid, None)
         self.writes = []
-        self.theme_reads = 0
         self.detail_reads = 0
         self.previews = {}
         self.options = options
@@ -80,7 +77,7 @@ class ExtensionManagementMock:
             if method == 'POST':
                 self.reset(request)
             self.sync_pack()
-            handler.send_json({'writes': self.writes, 'theme_reads': self.theme_reads, 'detail_reads': self.detail_reads,
+            handler.send_json({'writes': self.writes, 'detail_reads': self.detail_reads,
                 'kit': self.plugins.get('sample-kit'), 'pack': self.plugins.get('sample-pack'),
                 'extra': self.plugins.get('sample-extra'), 'child': self.plugins.get('sample-child')})
             return True
@@ -94,15 +91,6 @@ class ExtensionManagementMock:
             item = {'extension': 'sample-kit', 'extension_name': '示例工具包', 'id': 'focus' if template else 'weekly',
                 'title': '重要事项优先' if template else '整理示例周报', 'text': '只保留需要行动的重要事项' if template else '整理本周的进展，先列需要我决定的事项。'}
             handler.send_json({'templates' if template else 'prompts': [item] if active else []})
-            return True
-        if path == '/api/v1/extensions/-/themes':
-            self.theme_reads += 1
-            themes = []
-            for cid, name, light, dark in [('blue', '示例蓝', '#2359B6', '#4477CC'), ('bad', '低对比度主题', '#FFF59D', '#FFF59D')]:
-                if self.active('themes', cid):
-                    themes.append({'extension': 'sample-kit', 'extension_name': '示例工具包', 'id': cid, 'name': name,
-                        'light': {'accent': light}, 'dark': {'accent': dark}})
-            handler.send_json({'themes': themes})
             return True
         parts = path.split('/')
         eid = parts[4] if len(parts) > 4 else ''

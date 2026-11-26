@@ -540,7 +540,7 @@ def counts(rows, views):
 
 
 def places(rows, views, total):
-    titles = {p.get("id"): p.get("name") for p in _hub["KB"].get("projects", [])}
+    titles = {"kyoto": "Kyoto trip", "weather": "Weather App", "home": "Home"}
     out = [{"id": "all", "kind": "all", "title": "", "needs_you": total["needs_you"]},
            {"id": "today", "kind": "today", "title": "", "needs_you": 0},
            {"id": "upcoming", "kind": "upcoming", "title": "", "needs_you": 0}]
@@ -1194,12 +1194,6 @@ def install(hub):
         hub["SESSIONS"].append(s)
         _state["sessions"][run] = copy.deepcopy(s)
     hub["INTERACTIONS"].append(copy.deepcopy(card))
-    hub["KB"].setdefault("projects", []).extend(
-        {"kind": "projects", "id": pid, "name": name, "one_line": line_, "importance": "P2", "relevance": 50,
-         "updated": c.at(0, 9, 0), "extra": "short · active"}
-        for pid, name, line_ in (("kyoto", "Kyoto trip", "Apr 3–9, two of us, a ryokan near Gion"),
-                                 ("weather", "Weather App", "1.3 ships Friday with the new forecast view"),
-                                 ("home", "Home", "The house, the car and the school")))
     by_id = {t["id"]: t for t in rows}
     _state.update(order=[t["id"] for t in rows], legacy=legacy, settles=settles, card=card,
                   owners={t["id"]: t.get("project") for t in rows if not t.get("part_of")},

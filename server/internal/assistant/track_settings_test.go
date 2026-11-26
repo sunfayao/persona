@@ -3,11 +3,11 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"slices"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -24,64 +24,32 @@ func qaKindConfig() assistantwire.TrackKindConfig {
 	return c
 }
 
-// trackSettingsService is the health hub's assistant on a registry it can write, with qa-kind and a track of it
-// (qa-k) made through the API, and a conversation of that track (qa-k-chat).
-func trackSettingsService(t *testing.T) (*Service, *fakeHub) {
+func trackConfigService(t *testing.T, f *fakeHub, slug string, cfg assistantwire.TrackKindConfig) *Service {
 	t.Helper()
-	f := spaceHub()
-	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "qa-k-chat", Cwd: "/home/me/.persona/tracks/qa-k",
-		Assistant: true, Space: "qa-k", Title: "QA chat"})
-	st := &trackKindMemStore{trackRegistryStore: &trackRegistryStore{memStore: &memStore{}}}
-	s := newServiceOn(t, f, st)
-	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
-	body, _ := json.Marshal(assistantwire.TrackKindCreate{Slug: "qa-kind", Title: "QA kind", Config: qaKindConfig()})
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/track-kinds", string(body)); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-kind: %d %s", w.Code, w.Body)
-	}
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-k","kind":"qa-kind","title":"QA track"}`); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-k: %d %s", w.Code, w.Body)
-	}
-	return s, f
-}
-
-// scheduledTasks are the assistant's scheduled tasks as it keeps them.
-func scheduledTasks(t *testing.T, s *Service) []Task {
-	t.Helper()
-	sc, err := s.lockedSchedule(context.Background())
+	raw, err := json.Marshal(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer sc.mu.Unlock()
-	return slices.Clone(sc.tasks)
+	st := &trackKindMemStore{
+		trackRegistryStore: &trackRegistryStore{
+			memStore: &memStore{},
+			rows: []db.Track{{Slug: slug, Kind: "qa-kind", Title: "QA track", Template: trackTemplateSpace,
+				DefaultCategories: cfg.DefaultCategories, Revision: 1}},
+		},
+		kinds: []db.TrackKind{{Slug: "qa-kind", Title: "QA kind", Config: raw, Revision: 1}},
+	}
+	s := newServiceOn(t, f, st)
+	setSettings(t, s, func(v *Settings) { v.MachineID, v.Main = "server", "main-0000-0000" })
+	return s
 }
 
-// A kind made of config alone takes effect (#13472, acceptance item 23): a new track of it gets its rhythm as a
-// scheduled task in the track; its conversations carry its default categories; its tagging looks for its focus and
-// categories; a push of its conversations that is no card is held to its push cap; its processes are told its kind.
-// The health space keeps all it had.
+// A stored track kind determines categories, tagging focus and notification limits.
 func TestTrackKindSettingsTakeEffect(t *testing.T) {
 	ctx := context.Background()
-	s, f := trackSettingsService(t)
-
-	// The rhythm: one cron task in the track, a new conversation each run, on.
-	var made []Task
-	for _, task := range scheduledTasks(t, s) {
-		if task.Space == "qa-k" {
-			made = append(made, task)
-		}
-	}
-	if len(made) != 1 || made[0].Repeat != repeatCron || made[0].Cron != "0 21 * * *" || !made[0].Enabled || !made[0].FreshEachRun ||
-		made[0].Title != "Daily check-in" || made[0].Prompt != "Ask how the day went" || made[0].CreatedBy != trackRhythmCreatedBy {
-		t.Fatalf("the rhythm's tasks: %+v", made)
-	}
-	// A track of a kind without rhythms gets none.
-	before := len(scheduledTasks(t, s))
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-plain","kind":"space","title":"QA plain"}`); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-plain: %d %s", w.Code, w.Body)
-	}
-	if got := len(scheduledTasks(t, s)); got != before {
-		t.Errorf("a track without rhythms: %d tasks, want %d", got, before)
-	}
+	f := spaceHub()
+	f.sessions["server"] = append(f.sessions["server"], proto.Session{SessionID: "qa-k-chat",
+		Cwd: "/home/me/.persona/tracks/qa-k", Assistant: true, Space: "qa-k", Title: "QA chat"})
+	s := trackConfigService(t, f, "qa-k", qaKindConfig())
 
 	// Its conversations carry emotion; its tagging looks for relationships and emotion.
 	if cats, _, _ := s.categoryStateIn(ctx, "", "qa-k", true); !slices.Equal(cats, []string{categoryEmotion}) {
@@ -214,16 +182,9 @@ func TestTrackUsageRulesTighten(t *testing.T) {
 // everything redacts its pushes, without a sensitive category; the health space and the main space are unchanged.
 func TestTrackUsageRulesReachPolicy(t *testing.T) {
 	ctx := context.Background()
-	s, _ := trackKindService(t)
 	cfg := validKind()
 	cfg.Usage = []assistantwire.TrackUsageRule{{Scene: "lock_screen", Category: "*", Rule: "redact"}}
-	body, _ := json.Marshal(assistantwire.TrackKindCreate{Slug: "qa-quiet", Title: "QA quiet", Config: cfg})
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/track-kinds", string(body)); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-quiet: %d %s", w.Code, w.Body)
-	}
-	if w := serve(s, http.MethodPost, "/api/v1/assistant/tracks", `{"slug":"qa-q","kind":"qa-quiet","title":"QA q"}`); w.Code != http.StatusCreated {
-		t.Fatalf("create qa-q: %d %s", w.Code, w.Body)
-	}
+	s := trackConfigService(t, spaceHub(), "qa-q", cfg)
 	if p := s.trackPolicy(ctx, "qa-q"); p != (TrackPolicy{Redact: true}) {
 		t.Errorf("qa-q's policy = %+v, want redact only", p)
 	}

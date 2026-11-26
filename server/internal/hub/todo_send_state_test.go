@@ -506,9 +506,6 @@ func TestTodoSendStateIsTheHubs(t *testing.T) {
 			t.Fatalf("hello's todo_send_state: %s", raw)
 		}
 	}
-	if slices.Contains(iosEnvelopeKeys, proto.FeatureTodoSendState) {
-		t.Fatal("the hello's todo_send_state is a key the iOS Envelope reads")
-	}
 }
 
 // The conversation route keeps a todo_route receipt; one that reached no manager is asked again under its op id. How

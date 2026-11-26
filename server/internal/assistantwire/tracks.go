@@ -1,20 +1,5 @@
 package assistantwire
 
-import "encoding/json"
-
-// trackRoutes are the assistant's tracks and track kinds (#13472, docs/assistant/tracks.md "Tracks and kinds"): only
-// a full-access client (the user in the app) creates or changes either.
-var trackRoutes = []string{
-	"GET /api/v1/assistant/tracks",
-	"POST /api/v1/assistant/tracks",
-	"PUT /api/v1/assistant/tracks/{slug}",
-	"GET /api/v1/assistant/track-kinds",
-	"POST /api/v1/assistant/track-kinds",
-	"PUT /api/v1/assistant/track-kinds/{slug}",
-}
-
-func init() { Routes = append(Routes, trackRoutes...) }
-
 // TrackKindSchema is the version of TrackKindConfig this assistant knows. A kind whose config says a higher one is
 // not enabled: its tracks are left out until the assistant is updated.
 const TrackKindSchema = 1
@@ -96,84 +81,4 @@ type TrackSidebar struct {
 	Group string `json:"group,omitempty"`
 	Order int    `json:"order,omitempty"`
 	Icon  string `json:"icon,omitempty"`
-}
-
-// Track is one track as the user's apps see it: its kind and its effective config (the kind's, with what the track
-// sets).
-type Track struct {
-	Slug              string          `json:"slug"`
-	Kind              string          `json:"kind"`
-	Title             string          `json:"title"`
-	Icon              string          `json:"icon"`
-	Description       string          `json:"description"`
-	DefaultCategories []string        `json:"default_categories"`
-	Template          string          `json:"template"`
-	Config            TrackKindConfig `json:"config"`
-	Archived          bool            `json:"archived"`
-	Revision          int64           `json:"revision"`
-}
-
-// Tracks is GET /api/v1/assistant/tracks: every track, the built-in ones and archived ones included.
-type Tracks struct {
-	Tracks []Track `json:"tracks"`
-}
-
-// TrackCreate is POST /api/v1/assistant/tracks. DefaultCategories and Template default to the kind's; ConfigOverride
-// is what the track sets apart from its kind (only the fields a track may set).
-type TrackCreate struct {
-	Slug              string          `json:"slug"`
-	Kind              string          `json:"kind"`
-	Title             string          `json:"title"`
-	Icon              string          `json:"icon"`
-	Description       string          `json:"description"`
-	DefaultCategories []string        `json:"default_categories,omitempty"`
-	Template          string          `json:"template,omitempty"`
-	ConfigOverride    json.RawMessage `json:"config_override,omitempty"`
-}
-
-// TrackChange is PUT /api/v1/assistant/tracks/{slug}: the fields given change; Revision is the one the change was
-// made against (409 when another came first). Archived hides the track and keeps its directory.
-type TrackChange struct {
-	Revision          int64           `json:"revision"`
-	Title             *string         `json:"title,omitempty"`
-	Icon              *string         `json:"icon,omitempty"`
-	Description       *string         `json:"description,omitempty"`
-	DefaultCategories *[]string       `json:"default_categories,omitempty"`
-	Template          *string         `json:"template,omitempty"`
-	ConfigOverride    json.RawMessage `json:"config_override,omitempty"`
-	Archived          *bool           `json:"archived,omitempty"`
-}
-
-// TrackKind is one kind as the user's apps see it. Disabled says why a kind is not enabled ("schema": its config is
-// newer than this assistant); its tracks are left out.
-type TrackKind struct {
-	Slug     string          `json:"slug"`
-	Title    string          `json:"title"`
-	Config   TrackKindConfig `json:"config"`
-	Builtin  bool            `json:"builtin"`
-	Revision int64           `json:"revision"`
-	Disabled string          `json:"disabled,omitempty"`
-	// Warnings are what the kind asks that this assistant does not do yet ("supervision_leaders": leaders review the
-	// main chat only).
-	Warnings []string `json:"warnings,omitempty"`
-}
-
-// TrackKinds is GET /api/v1/assistant/track-kinds: the built-in kinds, then the user's.
-type TrackKinds struct {
-	Kinds []TrackKind `json:"kinds"`
-}
-
-// TrackKindCreate is POST /api/v1/assistant/track-kinds.
-type TrackKindCreate struct {
-	Slug   string          `json:"slug"`
-	Title  string          `json:"title"`
-	Config TrackKindConfig `json:"config"`
-}
-
-// TrackKindChange is PUT /api/v1/assistant/track-kinds/{slug}. A change applies to the kind's tracks from then on;
-// rhythms only to tracks created after it.
-type TrackKindChange struct {
-	Revision int64            `json:"revision"`
-	Title    *string          `json:"title,omitempty"`
-	Config   *TrackKindConfig `json:"config,omitempty"`
 }

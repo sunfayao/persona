@@ -24,8 +24,6 @@
   "title_agents_triage_reply_reminder": "未回答の質問をリマインド",
   "title_agents_triage_transient_retry": "一時的なモデルエラー後に自動で再試行",
   "title_agents_triage_reply_reminder_minutes": "リマインドまでの時間（分）",
-  "title_navigation_start_page": "開始ページ",
-  "title_navigation_sidebar_pages": "サイドバーのページ",
   "title_assistant_saved_prompts": "保存済みプロンプト",
   "on": "オン",
   "off": "オフ",

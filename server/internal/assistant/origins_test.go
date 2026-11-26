@@ -194,35 +194,6 @@ func TestBackfillOrigins(t *testing.T) {
 	}
 }
 
-// The route runs the backfill on the assistant's machine's list, for a full device only.
-func TestBackfillRoute(t *testing.T) {
-	f := newFakeHub().withMachine()
-	f.settings = &Settings{MachineID: "server"}
-	f.sessions["server"] = []proto.Session{{SessionID: "old", Cwd: "/home/me/.persona/assistant", Title: "⏰ 早报"}}
-	s := newTestService(t, f)
-	call := func(role string) *httptest.ResponseRecorder {
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/assistant/origins/backfill", strings.NewReader(`{}`))
-		if role != "" {
-			r.Header.Set(RoleHeader, role)
-		}
-		w := httptest.NewRecorder()
-		s.ServeHTTP(w, r)
-		return w
-	}
-	if w := call("extension"); w.Code != http.StatusForbidden {
-		t.Fatalf("an extension ran it: %d", w.Code)
-	}
-	w := call("")
-	var res BackfillResult
-	_ = json.Unmarshal(w.Body.Bytes(), &res)
-	if w.Code != http.StatusOK || res.Filled[OriginTask] != 1 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if o, _ := originOf(f, "old"); o != OriginTask {
-		t.Fatalf("origin %q", o)
-	}
-}
-
 // The lists the manager decorates for the apps carry the origin of the assistant's conversations (fleet_sessions.go),
 // and a new origin is a change of the machine's list.
 func TestFleetListsOrigins(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"testing"
 
@@ -114,18 +113,20 @@ func TestModelValidationOnlineMachine(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					var r *httptest.ResponseRecorder
 					if profile {
-						r = request(s, "POST", "/api/v1/model-profiles/selected/apply", "")
+						_, err := s.applyModelProfile(t.Context(), "selected", ProfileActor{Kind: "hub"})
+						if (err != nil) != tt.wantError {
+							t.Errorf("profile apply error %v, want error %t", err, tt.wantError)
+						}
 					} else {
-						r = modelRequest(s, "PATCH", purpose, string(body))
-					}
-					wantStatus := http.StatusOK
-					if tt.wantError {
-						wantStatus = http.StatusBadRequest
-					}
-					if r.Code != wantStatus {
-						t.Errorf("save status %d, want %d: %s", r.Code, wantStatus, r.Body.String())
+						r := modelRequest(s, "PATCH", purpose, string(body))
+						wantStatus := http.StatusOK
+						if tt.wantError {
+							wantStatus = http.StatusBadRequest
+						}
+						if r.Code != wantStatus {
+							t.Errorf("save status %d, want %d: %s", r.Code, wantStatus, r.Body.String())
+						}
 					}
 					f.mu.Lock()
 					var checked []string

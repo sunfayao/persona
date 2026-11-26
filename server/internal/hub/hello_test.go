@@ -53,10 +53,6 @@ func TestHealthSourceDisclosure(t *testing.T) {
 	}
 }
 
-// iosEnvelopeKeys are the keys the iOS app's socket Envelope (apple/Shared/LiveConnection.swift) already types: a new
-// top-level hello key must not be one of them.
-var iosEnvelopeKeys = strings.Fields("type machine_id session_id machines sessions items backlog has_more more_after history from_seq to_seq text status interaction id call_id name args event message last_assistant_message error revs feed_ids fleet features epoch seq full cols rows data unsupported state")
-
 func TestHelloCompatibility(t *testing.T) {
 	h := newPublicTestHub(t)
 	h.public.port, h.public.fp = 19443, "test-pin"
@@ -85,12 +81,6 @@ func TestHelloCompatibility(t *testing.T) {
 	h.cfg.PublicURL = ""
 	if _, ok := h.hello()["public_url"]; ok {
 		t.Fatal("public_url without one configured")
-	}
-	// The existing iOS Envelope must not see a new value under an already typed key.
-	for _, key := range []string{"hub_id", "endpoints", "tls_port", "fp", "public_url", "push_grading", proto.FeatureMessageSendState} {
-		if slices.Contains(iosEnvelopeKeys, key) {
-			t.Fatalf("new hello field collides with iOS Envelope: %s", key)
-		}
 	}
 	b, err := json.Marshal(hello)
 	if err != nil {

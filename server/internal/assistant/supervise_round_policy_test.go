@@ -175,8 +175,8 @@ func roundMessage(lang string) string {
 }
 
 // roundScanTools are the tools the scans below look for: the assistant's own, the extensions' that Persona's own text
-// names (lark_search, the Lark chats of the snapshot), and urgent_call.
-var roundScanTools = append(slices.Clone(toolNames), "lark_search", "larkcli_search", "urgent_call", "lark_chats", "lark_messages")
+// names (lark_search, and the Lark chats in the snapshot).
+var roundScanTools = append(slices.Clone(toolNames), "lark_search", "larkcli_search", "lark_chats", "lark_messages")
 
 // namedTools are the tools of roundScanTools text names, quoted or bare, each once in the order it first names them.
 func namedTools(text string) []string {

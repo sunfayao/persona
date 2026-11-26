@@ -4,7 +4,7 @@ import {
   type ModelProvider, type ModelPurpose,
 } from "./model-config";
 import {
-  agentsOverride, catalogLists, chooseProvider, claudeCodeOnly, configDirChoices, draftFor, effortOffered, executionForm, followedCategory, modelConfiguration, modelPatch, overridden,
+  agentsOverride, catalogLists, chooseProvider, configDirChoices, draftFor, effortOffered, executionForm, followedCategory, modelConfiguration, modelPatch, overridden,
   ownRecord, parentCategory, permissionModesForProvider, providersFor, purposeDescription, purposeGroups, resetPatch, runtimeChoices, saveModelPurpose, setApartFrom, withPurposeAfter,
   withUsesAfterCategories,
 } from "./model-config-execution";
@@ -279,8 +279,8 @@ describe("the two meeting uses (#7980)", () => {
   const twin = use("inbox.agent", agents, { launch: "headless" });
   const lark = use("lark.agent", agents, { launch: "headless" });
   const supervise = use("assistant.supervise", main, { inherited_from: "主对话" });
-  const room = use("meeting.room", main, { inherited_from: "主对话", provider_ids: ["strong", "api"] });
-  const minutes = use("meeting.minutes", kb, { inherited_from: "信息处理" });
+  const room = use("synthetic.chat", main, { inherited_from: "主对话", provider_ids: ["strong", "api"] });
+  const minutes = use("synthetic.processing", kb, { inherited_from: "信息处理" });
   const extension = use("extension.notes", kb);
   // the hub's order since #7980: the categories, the uses of Agents, the background supervisor, then the two meeting uses
   const hub = { purposes: [main, agents, kb, triage, delegate, twin, lark, supervise, room, minutes, extension], providers };
@@ -298,7 +298,7 @@ describe("the two meeting uses (#7980)", () => {
     expect(setApartFrom({ ...minutes, fields: [] }, all)).toBeUndefined();
     expect(setApartFrom({ ...minutes, fields: undefined }, all)).toBeUndefined();
     expect(setApartFrom({ ...minutes, uses: [{ name: "x" }] }, all)).toBeUndefined();
-    expect(setApartFrom({ ...minutes, category_id: "meeting.minutes" }, all)).toBeUndefined();
+    expect(setApartFrom({ ...minutes, category_id: "synthetic.processing" }, all)).toBeUndefined();
     expect(setApartFrom(minutes, [main, { ...kb, category_id: "assistant" }])).toBeUndefined();
     expect(setApartFrom(room, [agents, kb])).toBeUndefined();
     // the uses of Agents run in another group than Agents, an extension's purpose is under Extensions: theirs stay as they were
@@ -307,7 +307,7 @@ describe("the two meeting uses (#7980)", () => {
     expect(setApartFrom(extension, all)).toBeUndefined();
   });
 
-  it("says Follows <the category> for the meeting uses, and leaves the background supervisor its own words", () => {
+  it("says Follows <the category> for the editable child purposes, and leaves the background supervisor its own words", () => {
     expect(followedCategory(room, all)).toBe(main);
     expect(followedCategory(minutes, all)).toBe(kb);
     expect(followedCategory(supervise, all)).toBeUndefined();
@@ -320,26 +320,26 @@ describe("the two meeting uses (#7980)", () => {
   it("puts each right after its category, behind the background supervisor for Main chat", () => {
     const placed = withUsesAfterCategories(withPurposeAfter(hub, "assistant.supervise", "assistant"));
     expect(ids(placed)).toEqual([
-      "assistant", "assistant.supervise", "meeting.room", "agent.new", "kb", "meeting.minutes", "inbox.triage", "agent.delegate",
+      "assistant", "assistant.supervise", "synthetic.chat", "agent.new", "kb", "synthetic.processing", "inbox.triage", "agent.delegate",
       "inbox.agent", "lark.agent", "extension.notes",
     ]);
     expect(placed.purposes[2]).toBe(room); // the hub's rows, as sent
-    expect(ids(hub)[8]).toBe("meeting.room"); // the hub's answer is left as it was
+    expect(ids(hub)[8]).toBe("synthetic.chat"); // the hub's answer is left as it was
     expect(purposeGroups(placed.purposes, "").map(([group, rows]) => [group, rows.map((p) => p.id)])).toEqual([
-      ["Persona 对话 · 后台进程", ["assistant", "assistant.supervise", "meeting.room", "inbox.agent", "lark.agent"]],
+      ["Persona 对话 · 后台进程", ["assistant", "assistant.supervise", "synthetic.chat", "inbox.agent", "lark.agent"]],
       ["Agents · 交互式", ["agent.new"]],
-      ["后台处理 · 直接 API", ["kb", "meeting.minutes", "inbox.triage", "agent.delegate"]],
+      ["后台处理 · 直接 API", ["kb", "synthetic.processing", "inbox.triage", "agent.delegate"]],
       ["扩展", ["extension.notes"]],
     ]);
     // without the background supervisor: right after Main chat; listed before it: still behind it
-    expect(ids(withUsesAfterCategories({ purposes: [main, kb, room, minutes], providers }))).toEqual(["assistant", "meeting.room", "kb", "meeting.minutes"]);
+    expect(ids(withUsesAfterCategories({ purposes: [main, kb, room, minutes], providers }))).toEqual(["assistant", "synthetic.chat", "kb", "synthetic.processing"]);
     expect(ids(withUsesAfterCategories(withPurposeAfter({ purposes: [main, agents, room, supervise], providers }, "assistant.supervise", "assistant"))))
-      .toEqual(["assistant", "assistant.supervise", "meeting.room", "agent.new"]);
+      .toEqual(["assistant", "assistant.supervise", "synthetic.chat", "agent.new"]);
     // in place already: the catalog itself
     expect(withUsesAfterCategories(placed)).toBe(placed);
   });
 
-  it("changes nothing against a hub before #7980", () => {
+  it("changes nothing against a hub without these child purposes", () => {
     const older = withPurposeAfter({ purposes: [main, agents, kb, triage, delegate, twin, lark, supervise, extension], providers }, "assistant.supervise", "assistant");
     expect(withUsesAfterCategories(older)).toBe(older);
     const beforeSupervisor = { purposes: [main, agents, kb, twin, lark, extension], providers };
@@ -405,11 +405,6 @@ describe("the two meeting uses (#7980)", () => {
     expect(modelPatch(onChat, draft, true)).toEqual({ revision: 3, provider: "messages", model: null, effort: "high" });
   });
 
-  it("only the In-meeting conversation runs on Claude Code only", () => {
-    expect(claudeCodeOnly(room)).toBe(true);
-    expect(claudeCodeOnly(minutes)).toBe(false);
-    expect(claudeCodeOnly(supervise)).toBe(false);
-  });
 });
 
 describe("退回 CLI", () => {

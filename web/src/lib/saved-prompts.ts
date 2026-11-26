@@ -193,35 +193,6 @@ export async function saveSavedPrompt(id: string | null, input: { name: string; 
   return r.prompt;
 }
 
-/** Deletes a prompt; one already gone is fine. */
-export async function deleteSavedPrompt(id: string): Promise<void> {
-  const owner = requestOwner();
-  await api(`${PATH}/${encodeURIComponent(id)}`, { ...owner.options, method: "DELETE" });
-  if (owner.current() && owner.identified) {
-    keep(owner.key, (prompts) => prompts.filter((p) => p.id !== id));
-  }
-  if (owner.current() || owner.recoverable()) void reloadSavedPrompts();
-}
-
-/** Moves a prompt one place up (-1) or down (1) in the "/" list. The hub refuses an order made from a list that changed
- *  since (another device added or deleted one): the list is read again and the error goes up. */
-export async function moveSavedPrompt(id: string, by: -1 | 1): Promise<void> {
-  const ids = view.prompts.map((p) => p.id);
-  const i = ids.indexOf(id);
-  const j = i + by;
-  if (i < 0 || j < 0 || j >= ids.length) return;
-  [ids[i], ids[j]] = [ids[j], ids[i]];
-  const owner = requestOwner();
-  try {
-    const r = await api<{ prompts?: unknown }>(`${PATH}/order`, { ...owner.options, method: "PUT", json: { ids } });
-    if (owner.current() && owner.identified && Array.isArray(r.prompts)) keep(owner.key, () => (r.prompts as unknown[]).filter(isPrompt));
-    else if (owner.recoverable()) void reloadSavedPrompts();
-  } catch (e) {
-    if (owner.current() || owner.recoverable()) void reloadSavedPrompts();
-    throw e;
-  }
-}
-
 /** Tests: a fresh page. */
 export function resetSavedPrompts() {
   view = { manager: "", prompts: [], status: "loading", error: "" };

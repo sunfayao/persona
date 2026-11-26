@@ -66,10 +66,7 @@ var errSendInDoubt = i18n.Err("hub-bus_forward.send_in_doubt")
 // into one buffer of that size, where io.ReadAll grows buffers and copies them into one more (49 MB for a 22 MB
 // upload). Bytes past the Content-Length are read on as io.ReadAll reads them; a body that ends early is what it was.
 func readRelayed(w http.ResponseWriter, r *http.Request) ([]byte, error) {
-	limit := int64(busHTTPLimit)
-	if r.Method == http.MethodPost && (r.URL.Path == assistantwire.StarredImportPath || r.URL.Path == assistantwire.StarredImportPreviewPath) {
-		limit = assistantwire.StarredImportBodyMax
-	}
+	const limit = int64(busHTTPLimit)
 	body := http.MaxBytesReader(w, r.Body, limit)
 	size := r.ContentLength
 	if size < 0 || size > limit {
@@ -301,8 +298,7 @@ func localizedOnce(forms map[i18n.Lang][]byte, l i18n.Lang, b []byte, localize f
 	return form
 }
 
-// toFullWanting is toWanting for the full devices only: a computer to computer transfer's progress (file_transfer,
-// docs/protocol/file-transfer.md) names files, which an answer-only device (the watch) has no business with.
+// toFullWanting sends a feature event to subscribed full devices.
 func (h *Hub) toFullWanting(feature string, b []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

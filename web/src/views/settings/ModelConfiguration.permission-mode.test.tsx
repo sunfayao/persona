@@ -73,7 +73,6 @@ function makeTriage(): ModelPurpose {
 
 async function hub(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const path = String(input).split("?")[0];
-  if (path === "/api/v1/model-profiles") return json({ error: "not found" }, 404);
   if (path === "/api/v1/model-config") return json({ purposes: [agents, lark, inbox, triage], providers: PROVIDERS });
   if (path.endsWith("/models")) {
     const providerId = decodeURIComponent(path.split("/").slice(-2)[0] ?? "");

@@ -135,8 +135,6 @@ const (
 	// FeishuConfigure: {enabled?, features?: {id: on}} → {}: the bot switched, its feature switches changed (only
 	// those given).
 	FeishuConfigure = "feishu.configure"
-	// FeishuTest: {} → {}: the test card to the owner.
-	FeishuTest = "feishu.test"
 
 	// AppChannels is the plugins' channel programs, and the list of every channel as the transport has it.
 	AppChannels = "channels"
