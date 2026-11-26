@@ -40,10 +40,12 @@ try {
       const model = fields.locator("[data-model-pill]");
       assert.ok(await add.isVisible());
       assert.ok(await model.isVisible());
-      const inputBox = await input.boundingBox();
-      const addBox = await add.boundingBox();
-      if (width === 1280) assert.ok(addBox.x + addBox.width <= inputBox.x + 1);
-      else assert.ok(inputBox.y + inputBox.height <= addBox.y + 1);
+      await page.waitForFunction((wide) => {
+        const row = document.querySelector("main [data-composer-fields]");
+        const input = row?.querySelector("[data-composer-input]")?.getBoundingClientRect();
+        const add = row?.querySelector("[data-composer-plus]")?.getBoundingClientRect();
+        return input?.width && add?.height && (wide ? add.right <= input.left + 1 : input.bottom <= add.top + 1);
+      }, width === 1280);
       if (shots) await page.screenshot({ path: join(shots, `chat-${width}-${theme}.png`), animations: "disabled" });
       await input.fill("One short line\nA second line");
       assert.equal(await fields.evaluate((el) => getComputedStyle(el).flexDirection), "column");
