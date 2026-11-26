@@ -62,6 +62,9 @@ func TestRetiredAgentRowUsesSessionHost(t *testing.T) {
 				}
 				row := byID(listSessions(t, n))[sidA]
 				want := &proto.SessionCapabilities{Read: true, Terminal: true}
+				if remembered == "state" {
+					want.StopCause = proto.StopUser
+				}
 				if row.SessionID != sidA || row.Status != proto.StatusOffline || !reflect.DeepEqual(row.Capabilities, want) || row.ReadOnlyReason != stoppedReason {
 					t.Fatalf("retired row: status=%q capabilities=%+v reason=%q", row.Status, row.Capabilities, row.ReadOnlyReason)
 				}

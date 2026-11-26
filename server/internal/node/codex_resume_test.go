@@ -119,9 +119,10 @@ func TestCodexHistoryResumesOnAStart(t *testing.T) {
 func TestOwnerSendResumesRecordedCodexTerminalExit(t *testing.T) {
 	withCodexLaunchers(t, map[string][]string{"cx": {"codex", "-m", "gpt-6"}})
 	n, f, cwd := codexHistoryNode(t)
+	listSessions(t, n) // load the initial state and Codex index before recording the launch
 	n.state.put(startThread, sessionState{Pane: "w1:p1", Launcher: "cx", Cwd: cwd})
 	s := byID(listSessions(t, n))[startThread]
-	if !s.Capabilities.Send || s.ReadOnlyReason != "" {
+	if s.Capabilities == nil || !s.Capabilities.Send || s.ReadOnlyReason != "" {
 		t.Fatalf("the exited session has no composer: %+v", s)
 	}
 	f.reset()
