@@ -19,8 +19,8 @@ type startCandidate struct {
 }
 
 // startCandidateSource lists the presets a rule can pick from on a machine. The built-in source reads the active
-// model profile with the machine's launcher list and health, the same data GET /api/v1/assistant/worker-presets
-// serves. A dynamic candidates source implements this one interface and is set on the Service at construction:
+// model profile with the machine's launcher list and health. A dynamic candidates source implements this
+// interface and is set on the Service at construction:
 // rule matching, priority/weight selection and the per-try retry reset in start_defaults.go stay unchanged.
 type startCandidateSource interface {
 	candidates(ctx context.Context, machine string, names []string) (map[string]startCandidate, error)

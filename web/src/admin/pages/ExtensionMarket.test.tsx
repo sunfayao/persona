@@ -8,7 +8,7 @@ vi.hoisted(() => {
   globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
   window.matchMedia ??= ((query: string) => ({ matches: false, media: query, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent: () => false })) as typeof window.matchMedia;
 });
-import { resetExtensionRoot, setCsrf, setTransport } from "../api";
+import { setCsrf, setTransport } from "../api";
 import type { Market } from "../../lib/extension-market";
 import { ExtensionMarkets } from "./ExtensionMarket";
 
@@ -26,7 +26,6 @@ const flush = async () => {
 const text = () => host.textContent ?? "";
 
 beforeEach(() => {
-  resetExtensionRoot();
   setCsrf("tok");
   setTransport(async (url) => {
     const path = url.replace("/api/v1/admin", "").replace(/\?.*$/, "");
@@ -47,7 +46,6 @@ afterEach(() => {
   document.body.innerHTML = "";
   setTransport((url, init) => fetch(url, init));
   setCsrf("");
-  resetExtensionRoot();
 });
 
 const open = async () => {

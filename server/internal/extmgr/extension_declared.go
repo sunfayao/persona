@@ -19,15 +19,6 @@ type QuickPromptView struct {
 	Text          string `json:"text"`
 }
 
-// TriageTemplateView is a template of triage rules as the apps list it.
-type TriageTemplateView struct {
-	Extension     string `json:"extension"`
-	ExtensionName string `json:"extension_name"`
-	ID            string `json:"id"`
-	Title         string `json:"title"`
-	Text          string `json:"text"`
-}
-
 // declared calls f with each extension that is on and runs here (its contributions as they take effect).
 func (ps *extensions) declared(f func(p *extension.Extension)) {
 	if ps == nil {
@@ -51,14 +42,5 @@ func (h *Manager) declaredRoutes(api *http.ServeMux) {
 			}
 		})
 		writeJSON(w, map[string]any{"prompts": out})
-	})
-	api.HandleFunc("GET /api/v1/extensions/-/triage-templates", func(w http.ResponseWriter, r *http.Request) {
-		out := []TriageTemplateView{}
-		h.extensions.declared(func(p *extension.Extension) {
-			for _, it := range p.Manifest.TriageTemplates() {
-				out = append(out, TriageTemplateView{Extension: p.Record.ID, ExtensionName: p.Full.Name, ID: it.ID, Title: it.Title, Text: it.Text})
-			}
-		})
-		writeJSON(w, map[string]any{"templates": out})
 	})
 }

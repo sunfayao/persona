@@ -245,11 +245,8 @@ func tierCardText(l i18n.Lang, t *ModelTier) string {
 // what the card said: templates never saved are made again from the configuration, at the same revision.
 func (s *Service) saveTierEdit(ctx context.Context, revision int64, e tierEdit, card []tierChange) (string, error) {
 	s.models.mu.Lock()
-	text, active, err := s.saveTierEditLocked(ctx, revision, e, card)
+	text, _, err := s.saveTierEditLocked(ctx, revision, e, card)
 	s.models.mu.Unlock()
-	if err == nil {
-		s.profileEvent(ctx, active)
-	}
 	return text, err
 }
 

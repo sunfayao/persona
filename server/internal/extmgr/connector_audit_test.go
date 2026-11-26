@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"sync"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
 )
 
 // auditRow is one plugin_audit row as auditingStore keeps it.
@@ -71,153 +69,6 @@ func sameActions(rows []auditRow, want ...string) bool {
 		}
 	}
 	return true
-}
-
-// Signing in and out of a connector is recorded like an extension's own sign-in: the start, the account once it is
-// done, and the sign-out, with who did it; nothing the user typed (phone number, code, password) or the session
-// itself ends up in the record, a mistyped code included (#5281).
-func TestConnectorSignInIsAudited(t *testing.T) {
-	h := newTestManager(t)
-	st := newAuditingStore()
-	h.store = st
-	h.connectors = connector.NewRegistry(nil)
-	if err := h.addConnector(&signInConnector{secrets: h.secretsFor("example")}); err != nil {
-		t.Fatal(err)
-	}
-	mux := h.routes()
-	for _, body := range []string{
-		`{"step":""}`,
-		`{"step":"phone","values":{"phone":"+1 555 0100"}}`,
-		`{"step":"code","values":{"code":"00000"}}`,
-		`{"step":"code","values":{"code":"12345"}}`,
-		`{"step":"password","values":{"password":"example-password"}}`,
-	} {
-		if code, out := call(t, mux, "POST", "/api/v1/connectors/example/login", h.cfg.Token, body); code != 200 {
-			t.Fatalf("%s: %d %v", body, code, out)
-		}
-	}
-	if code, _ := call(t, mux, "POST", "/api/v1/connectors/example/logout", h.cfg.Token, ""); code != 200 {
-		t.Fatalf("logout %d", code)
-	}
-	rows := st.take()
-	if !sameActions(rows, auditConnectorLoginStart, auditConnectorSignedIn, auditConnectorLogout) {
-		t.Fatalf("recorded %v", actions(rows))
-	}
-	for _, r := range rows {
-		if r.ID != "example" || r.Actor != "hub token" {
-			t.Fatalf("%s: id %q actor %q", r.Action, r.ID, r.Actor)
-		}
-	}
-	if rows[1].Detail["account"] != "示例用户" {
-		t.Fatalf("the account is not in the record: %v", rows[1].Detail)
-	}
-	raw, _ := json.Marshal(rows)
-	for _, typed := range []string{"555", "00000", "12345", "example-password", "session"} {
-		if strings.Contains(string(raw), typed) {
-			t.Fatalf("%q is in the audit: %s", typed, raw)
-		}
-	}
-
-	// A step that fails (the program is away) records nothing; nor does an unknown connector.
-	if code, _ := call(t, mux, "POST", "/api/v1/connectors/nobody/login", h.cfg.Token, `{}`); code != 404 {
-		t.Fatalf("unknown connector: %d", code)
-	}
-	if rows := st.take(); len(rows) != 0 {
-		t.Fatalf("recorded %v", actions(rows))
-	}
-}
-
-// The switch and the feeds are recorded when they change, not when the app sends what they already are; the
-// connector's own settings are recorded when they change, without their values.
-func TestConnectorSwitchesAreAudited(t *testing.T) {
-	h := newTestManager(t)
-	st := newAuditingStore()
-	h.store = st
-	h.connectors = connector.NewRegistry(nil)
-	_ = h.addConnector(&optionsConnector{})
-	mux := h.routes()
-	put := func(body string) {
-		t.Helper()
-		if code, out := call(t, mux, "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, body); code != 200 {
-			t.Fatalf("%s: %d %v", body, code, out)
-		}
-	}
-	put(`{"enabled":true,"inbox":true}`) // what they are already
-	if rows := st.take(); len(rows) != 0 {
-		t.Fatalf("nothing changed, recorded %v", actions(rows))
-	}
-	put(`{"enabled":false}`)
-	put(`{"inbox":false}`)
-	put(`{"enabled":false,"inbox":false}`) // again: no change
-	put(`{"options":{"muted":["example-org/private-notes"]}}`)
-	put(`{"options":{"muted":["example-org/private-notes"]}}`) // the same settings again
-	rows := st.take()
-	if !sameActions(rows, auditConnectorEnabled, auditConnectorFeed, auditConnectorOptions) {
-		t.Fatalf("recorded %v", actions(rows))
-	}
-	if rows[0].Detail["enabled"] != false || rows[1].Detail["feed"] != string(connector.FeedInbox) || rows[1].Detail["on"] != false {
-		t.Fatalf("details %v %v", rows[0].Detail, rows[1].Detail)
-	}
-	if len(rows[2].Detail) != 0 {
-		t.Fatalf("the settings' values are in the audit: %v", rows[2].Detail)
-	}
-}
-
-// Deleting a connector's data is recorded with what went (and switching it off, which comes first); a deletion that
-// only partly happened says so.
-func TestConnectorDeletionsAreAudited(t *testing.T) {
-	h := newTestManager(t)
-	st := newAuditingStore()
-	h.store = st
-	h.connectors = connector.NewRegistry(nil)
-	_ = h.addConnector(&feedConnector{})
-	mux := h.routes()
-	forgettingAssistant(h)
-
-	if code, out := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 200 {
-		t.Fatalf("data: %d %v", code, out)
-	}
-	rows := st.take()
-	if !sameActions(rows, auditConnectorEnabled, auditConnectorDataDeleted) || rows[1].Detail["inbox"] != 1.0 {
-		t.Fatalf("data recorded %v %v", actions(rows), rows)
-	}
-
-	// The assistant away: nothing went, and the record says the deletion did not finish.
-	h.opts.Assistant = nil
-	if code, _ := call(t, mux, "DELETE", "/api/v1/connectors/example/data", h.cfg.Token, ""); code != 503 {
-		t.Fatalf("with the assistant away: %d", code)
-	}
-	rows = st.take()
-	if !sameActions(rows, auditConnectorDataDeleted) || rows[0].Detail["incomplete"] != true {
-		t.Fatalf("an unfinished deletion recorded %v %v", actions(rows), rows)
-	}
-}
-
-// Choosing where GitHub's token comes from is recorded with the choice.
-func TestGitHubSourceIsAudited(t *testing.T) {
-	h := newTestManager(t)
-	st := newAuditingStore()
-	h.store = st
-	h.connectors = connector.NewRegistry(nil)
-	gh := github.New(github.Config{Auth: github.AuthConfig{FromMachine: "mac"}}, "Example Mac", func(context.Context, string) (string, error) {
-		return "", github.ErrOffline
-	})
-	gh.UseSecrets(h.secretsFor("github"))
-	if err := h.addConnector(gh); err != nil {
-		t.Fatal(err)
-	}
-	mux := h.routes()
-	if code, _ := call(t, mux, "PUT", "/api/v1/connectors/github/auth", h.cfg.Token, `{"source":"machine","machine":"nope"}`); code != 400 {
-		t.Fatalf("an unknown machine: %d", code)
-	}
-	if code, _ := call(t, mux, "PUT", "/api/v1/connectors/github/auth", h.cfg.Token, `{"source":"device"}`); code != 200 {
-		t.Fatalf("device: %d", code)
-	}
-	rows := st.take()
-	if !sameActions(rows, auditConnectorAuthSource) || rows[0].ID != "github" || rows[0].Detail["source"] != "device" ||
-		rows[0].Detail["machine"] != nil {
-		t.Fatalf("recorded %v", rows)
-	}
 }
 
 // The record names the device that asked; a record that cannot be written does not undo or refuse the action.

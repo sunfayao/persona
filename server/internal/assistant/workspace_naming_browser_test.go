@@ -44,7 +44,7 @@ func TestWorkspaceNamingBrowserHarness(t *testing.T) {
 	}
 	for _, name := range []string{"web", "api"} {
 		identity, _ := repository.Parse("https://github.com/example/"+name, "")
-		if _, err = s.saveRepository(t.Context(), "", RepositoryBinding{Identity: identity, Name: "Example " + name}); err != nil {
+		if _, err = s.saveRepository(t.Context(), RepositoryBinding{Identity: identity, Name: "Example " + name}); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -608,7 +608,6 @@ func (h *Hub) fleetRoutesRelayed(api *http.ServeMux) {
 		h.forwardOwned(w, r, h.byInteraction)
 	})))
 	// Body client_id uses the same durable operation receipts as resolve.
-	api.HandleFunc("POST /api/v1/interactions/{id}/choose", h.withReplyReceipt("choose", h.serveChoose))
 	// "Change answer": a question the assistant answered gets the user's answer (assistant/fleet_delegate.go).
 	api.HandleFunc("POST /api/v1/interactions/{id}/reanswer", h.withoutTerminalControls(func(w http.ResponseWriter, r *http.Request) {
 		h.forwardOwned(w, r, h.byRequest) // answered already: no longer pending, the request names its manager

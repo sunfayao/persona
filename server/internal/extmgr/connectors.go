@@ -1,7 +1,6 @@
 package extmgr
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -84,119 +83,9 @@ func (h *Manager) callConnector(ctx context.Context, by asker, name string, args
 }
 
 func (h *Manager) connectorRoutes(api *http.ServeMux) {
-	h.githubAuthRoutes(api)
 	h.connectorThreadRoutes(api)
-	h.sentRoutes(api)
-	h.sentRecallRoutes(api)
-	h.chatRuleRoutes(api)
 	api.HandleFunc("GET /api/v1/connectors", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"connectors": h.listedConnectors(r.Context(), r.URL.Query().Get("all") == "1")})
-	})
-	// Signing in, a step at a time (connector.Login): the app shows each Prompt's fields and sends them back. The
-	// values (a phone number, a code, a password) go to the connector only: never into a log or a response.
-	api.HandleFunc("POST /api/v1/connectors/{id}/login", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		l, ok := h.connectorLogin(w, id)
-		if !ok {
-			return
-		}
-		var body struct {
-			Step   string            `json:"step"`
-			Values map[string]string `json:"values"`
-		}
-		if err := decodeJSONBody(w, r, &body, 16<<10); err != nil {
-			writeBodyErr(w, err, err)
-			return
-		}
-		p, err := h.connectorLoginStep(r.Context(), id, l, body.Step, body.Values)
-		if err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		if err := withQR(&p); err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		writeJSON(w, p)
-	})
-	api.HandleFunc("POST /api/v1/connectors/{id}/logout", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		l, ok := h.connectorLogin(w, id)
-		if !ok {
-			return
-		}
-		if err := h.connectorLogout(r.Context(), id, l); err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true})
-	})
-	// Settings › Connectors' switch: off, the connector stops and brings nothing in (Registry.SetEnabled); kept in
-	// settings. An extension's connector restarts the extension (setConnectorEnabled).
-	api.HandleFunc("PUT /api/v1/connectors/{id}/settings", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if h.connectors.Get(id) == nil {
-			writeErr(w, http.StatusNotFound, fmt.Errorf("no connector %q", id))
-			return
-		}
-		var body struct {
-			Enabled *bool           `json:"enabled"`
-			Options json.RawMessage `json:"options"` // the connector's own settings (connector.Options)
-			Inbox   *bool           `json:"inbox"`   // "Add to Inbox"
-		}
-		if err := decodeJSONBody(w, r, &body, 64<<10); err != nil {
-			writeBodyErr(w, err, err)
-			return
-		}
-		if len(body.Options) > 0 && string(body.Options) != "null" {
-			before := h.optionsOf(id)
-			if err := h.setConnectorOptions(r.Context(), id, body.Options); err != nil {
-				writeErr(w, http.StatusBadRequest, err)
-				return
-			}
-			if !bytes.Equal(before, h.optionsOf(id)) {
-				h.auditConnector(r.Context(), id, auditConnectorOptions, nil)
-			}
-		}
-		if body.Inbox != nil {
-			if err := h.setConnectorFeed(r.Context(), id, connector.FeedInbox, *body.Inbox); err != nil {
-				writeErr(w, http.StatusBadRequest, err)
-				return
-			}
-		}
-		if body.Enabled != nil {
-			if err := h.setConnectorEnabled(r.Context(), id, *body.Enabled); err != nil {
-				writeErr(w, http.StatusInternalServerError, err)
-				return
-			}
-		}
-		for _, info := range h.listedConnectors(r.Context(), true) {
-			if info.ID == id {
-				writeJSON(w, info)
-				return
-			}
-		}
-	})
-	// "Delete saved data" for any connector: switched off first (and kept off: on, the next sync would bring it back),
-	// then what the hub kept of it goes (forgetSource, as for iMessage). Signing out is apart (/logout).
-	api.HandleFunc("DELETE /api/v1/connectors/{id}/data", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if h.connectors.Get(id) == nil {
-			writeErr(w, http.StatusNotFound, fmt.Errorf("no connector %q", id))
-			return
-		}
-		if err := h.setConnectorEnabled(r.Context(), id, false); err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
-		}
-		res, err := h.forgetSource(r.Context(), id)
-		if err != nil {
-			h.logf("connector %s: delete: %v", id, err)
-			writeForgetErr(w, err)
-			return
-		}
-		h.logf("connector %s: deleted %d inbox item(s)", id, res.Inbox)
-		writeJSON(w, res)
 	})
 	h.imessageRoutes(api)
 }
@@ -227,53 +116,6 @@ func writeForgetErr(w http.ResponseWriter, err error) {
 	default:
 		writeErr(w, http.StatusInternalServerError, err)
 	}
-}
-
-// withQR draws a QR step's code for the app (whatever the connector sent as QR is replaced: the code is always URL's).
-// A device-code step whose URL already carries its code (`user_code=` in the query, as Lark's does) gets one too, so
-// the phone can scan it instead of the code being typed (#5818); one whose page asks for the code (GitHub's) does not.
-func withQR(p *connector.Prompt) error {
-	p.QR = nil
-	if p.Kind == connector.PromptDeviceCode {
-		if !urlCarriesCode(p.URL, p.UserCode) {
-			return nil
-		}
-	} else if p.Kind != connector.PromptQRCode {
-		return nil
-	}
-	if p.URL == "" {
-		return errors.New("a QR sign-in step without a URL")
-	}
-	rows, size, err := qrRows(p.URL)
-	if err != nil {
-		return err
-	}
-	p.QR = &connector.QRCode{Size: size, Rows: rows}
-	return nil
-}
-
-// urlCarriesCode: raw is an https URL whose query's user_code is code, so opening it needs nothing typed.
-func urlCarriesCode(raw, code string) bool {
-	if code == "" {
-		return false
-	}
-	u, err := url.Parse(raw)
-	return err == nil && u.Scheme == "https" && u.Host != "" && u.Query().Get("user_code") == code
-}
-
-// connectorLogin is connector id's sign-in, or writes why there is none.
-func (h *Manager) connectorLogin(w http.ResponseWriter, id string) (connector.Login, bool) {
-	c := h.connectors.Get(id)
-	if c == nil {
-		writeErr(w, http.StatusNotFound, fmt.Errorf("no connector %q", id))
-		return nil, false
-	}
-	l, ok := connector.As[connector.Login](c)
-	if !ok {
-		writeErr(w, http.StatusConflict, fmt.Errorf("%s has no sign-in", c.Name()))
-		return nil, false
-	}
-	return l, true
 }
 
 // connectorSettingsKey holds the user's switch per connector, their own settings and the feeds turned off:
@@ -675,4 +517,31 @@ func (h *Manager) ghToken(machine string) github.TokenSource {
 		}
 		return out.Token, nil
 	}
+}
+
+func withQR(p *connector.Prompt) error {
+	p.QR = nil
+	if p.Kind == connector.PromptDeviceCode {
+		if !urlCarriesCode(p.URL, p.UserCode) {
+			return nil
+		}
+	} else if p.Kind != connector.PromptQRCode {
+		return nil
+	}
+	if p.URL == "" {
+		return errors.New("a QR sign-in step without a URL")
+	}
+	rows, size, err := qrRows(p.URL)
+	if err != nil {
+		return err
+	}
+	p.QR = &connector.QRCode{Size: size, Rows: rows}
+	return nil
+}
+func urlCarriesCode(raw, code string) bool {
+	if code == "" {
+		return false
+	}
+	u, err := url.Parse(raw)
+	return err == nil && u.Scheme == "https" && u.Host != "" && u.Query().Get("user_code") == code
 }

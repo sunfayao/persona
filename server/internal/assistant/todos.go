@@ -980,12 +980,9 @@ func (s *Service) todoRoutes() {
 	s.workspaceNamingRoutes()
 	s.taskReviewDismissalRoutes()
 	s.todoDecisionRoutes()
-	s.outsideDecisionRoutes()
 	s.todoThreadRoutes()
 	s.todoSeenRoutes()
 	s.todoViewRoutes()
-	s.todoAskRoutes()
-	s.todoTimelineRoutes()
 	// GET /api/v1/todos: list all todos (newest created_at first), agents sorted (active first, then released); a todo
 	// waiting for the owner carries its ask (todo_ask.go), an open one nobody works on why (tasks_orphan.go); each its
 	// view, and the list its counts (todo_view_routes.go); to an extension's token without the to-dos it is not shown

@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/nwverse/persona/server/internal/assistant/repository"
 	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
 )
 
 // startingAcme is Acme Code right after a restart, as the extensions' manager answers then: no provider is listed
@@ -70,13 +68,10 @@ func shorten[T any](t *testing.T, v *T, short T) {
 // starting (409), never that the provider is missing or the address is no repository's.
 func TestRepositoryCatalogWaitsForTheProviders(t *testing.T) {
 	s, f, _ := acmeService(t, ruleStore{&memStore{}})
-	saved := savedRepository(t, s, `{"url":"https://code.acme.test/team/app"}`)
 	f.asked()
 	for _, req := range []struct{ method, path, body string }{
-		{"POST", repoBase + "/preview", `{"url":"https://code.acme.test/team/web"}`},
 		{"POST", repoBase, `{"url":"https://code.acme.test/team/web","provider":"` + acmeProviderID + `"}`},
 		{"POST", repoBase, `{"url":"https://code.acme.test/team/api"}`},
-		{"PUT", repoBase + "/" + saved.ID, `{"url":"https://code.acme.test/team/app","clone_url":"https://code.acme.test/team/app.git"}`},
 	} {
 		started := providersRestarting(s, f)
 		time.AfterFunc(50*time.Millisecond, func() { close(started) })
@@ -84,22 +79,12 @@ func TestRepositoryCatalogWaitsForTheProviders(t *testing.T) {
 			t.Fatalf("%s %s: %d %s", req.method, req.body, w.Code, w.Body)
 		}
 	}
-	started := providersRestarting(s, f)
-	time.AfterFunc(50*time.Millisecond, func() { close(started) })
-	w := placeDo(s, "read", "GET", repoBase+"/providers", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"`+acmeProviderID+`"`) {
-		t.Fatalf("providers after the start: %d %s", w.Code, w.Body)
-	}
-
 	shorten(t, &providerBudget, 100*time.Millisecond)
-	shorten(t, &providersListWait, 50*time.Millisecond)
 	providersRestarting(s, f)
 	f.asked()
 	for _, req := range []struct{ method, path, body string }{
-		{"POST", repoBase + "/preview", `{"url":"https://code.acme.test/team/new"}`},
 		{"POST", repoBase, `{"url":"https://code.acme.test/team/new"}`},
 		{"POST", repoBase, `{"url":"https://code.acme.test/team/new","provider":"` + acmeProviderID + `"}`},
-		{"PUT", repoBase + "/" + saved.ID, `{"url":"https://code.acme.test/team/app","clone_url":"git@ssh.acme.test:team/app.git"}`},
 	} {
 		w := placeDo(s, "", req.method, req.path, req.body)
 		if w.Code != 409 || !strings.Contains(w.Body.String(), `"repository_providers_starting"`) || !strings.Contains(w.Body.String(), "扩展还在启动中") {
@@ -110,66 +95,11 @@ func TestRepositoryCatalogWaitsForTheProviders(t *testing.T) {
 		!strings.HasPrefix(err.Error(), "repository_providers_starting: ") {
 		t.Fatal("tool:", err)
 	}
-	// A saved repository's details, and the built-ins, need no provider: they don't wait.
-	if w := placeDo(s, "", "PUT", repoBase+"/"+saved.ID, `{"url":"https://code.acme.test/team/app","name":"Kept"}`); w.Code != 200 {
-		t.Fatalf("metadata edit while starting: %d %s", w.Code, w.Body)
-	}
 	if w := placeDo(s, "", "POST", repoBase, `{"url":"https://github.com/example/web"}`); w.Code != 200 {
 		t.Fatalf("built-in while starting: %d %s", w.Code, w.Body)
 	}
-	// The providers list answers what it has after a moment.
-	w = placeDo(s, "read", "GET", repoBase+"/providers", "")
-	var out struct{ Providers []repository.ProviderInfo }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || len(out.Providers) != 2 {
-		t.Fatalf("providers while starting: %d %s", w.Code, w.Body)
-	}
 	if got := f.asked(); len(got) != 0 {
 		t.Fatal("asked while starting", got)
-	}
-}
-
-// A to-do link that can't be placed yet says, in the asker's language, that the extensions are still starting.
-func TestTodoRepositoryLinksSayTheProvidersAreStarting(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	s, f, _ := acmeService(t, database)
-	repo := savedRepository(t, s, `{"url":"https://code.acme.test/team/app"}`)
-	w := placeDo(s, "", "POST", "/api/v1/todos", fmt.Sprintf(`{"title":"Provider work","repository_bindings":{"catalog_revision":1,"repositories":[{"repo_id":%q,"links":[]}]}}`, repo.ID))
-	var created struct{ Todo Todo }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &created) != nil {
-		t.Fatal(w.Code, w.Body)
-	}
-	plain, err := s.createPlainTodo(t.Context(), "Other work", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	shorten(t, &providerBudget, 100*time.Millisecond)
-	providersRestarting(s, f)
-	f.asked()
-	w = placeDo(s, "", "PUT", "/api/v1/todos/"+created.Todo.ID+"/repositories/"+repo.ID+"/links", `{"expected_revision":1,"links":[{"kind":"pull_request","number":"4"}]}`)
-	if w.Code != 409 || !strings.Contains(w.Body.String(), `"task_repositories_providers_starting"`) || !strings.Contains(w.Body.String(), "扩展还在启动中") {
-		t.Fatalf("links: %d %s", w.Code, w.Body)
-	}
-	args, _ := json.Marshal(map[string]any{"id": plain.ID, "urls": []string{"https://code.acme.test/team/app/reviews/5"}})
-	if _, err := s.toolTodoRepositoryLinksAdd(t.Context(), "", "", "todo_repository_links_add", args); err == nil ||
-		!strings.HasPrefix(err.Error(), "task_repositories_providers_starting: ") || strings.Contains(err.Error(), "try again") {
-		t.Fatal("links_add:", err)
-	}
-	if got := f.asked(); len(got) != 0 {
-		t.Fatal("asked while starting", got)
-	}
-	// Its own text in every language, with nothing of the manager's English in it.
-	pe := providerProblem(providersStarting, "", "code.acme.test")
-	for _, l := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		for _, ns := range []string{"task-repositories", "assistant-repositories"} {
-			if got := i18n.T(l, ns+"."+providerCode(pe), providerArgs(pe)); got == ns+".providers_starting" || strings.Contains(got, "{") ||
-				l != i18n.En && strings.ContainsAny(got, "abcdefghijklmnopqrstuvwxyz") {
-				t.Errorf("%s %s: %q", l, ns, got)
-			}
-		}
 	}
 }
 

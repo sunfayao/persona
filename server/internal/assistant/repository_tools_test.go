@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -52,7 +53,10 @@ func TestRepositoryToolsSearchPaginationAndIsolation(t *testing.T) {
 		t.Fatalf("reads re-probed %d times", *calls)
 	}
 	// Removed bindings never leak through list, search or details.
-	if _, err := s.unbindRepository(context.Background(), id); err != nil {
+	if err := s.changeRepositories(t.Context(), func(doc *repositoryDocument) error {
+		doc.Repositories = slices.DeleteFunc(doc.Repositories, func(binding RepositoryBinding) bool { return binding.ID == id })
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.toolRepositories(context.Background(), "repository_get", json.RawMessage(`{"id":"`+id+`"}`)); err == nil {

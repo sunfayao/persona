@@ -2317,18 +2317,15 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			return n.worktreeCreateAutomatic(withAgentWorktree(worktreeComposerContext(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd, in.ParentWorkspaceID)
 		}
 		return n.worktreeCreate(withAgentWorktree(worktreeComposerContext(ctx, params), in.ForAgent), in.Kind, in.WorkspaceID, in.Cwd, in.Branch, in.Path, in.ParentWorkspaceID, in.OpenWorkspace)
-	case methodWorktreeSource, methodWorktreePreset, methodWorktreeDelete:
+	case methodWorktreeSource, methodWorktreePreset:
 		var in worktreeSourceParams
 		if err := json.Unmarshal(params, &in); err != nil {
 			return nil, fmt.Errorf("bad params: %w", err)
 		}
-		switch method {
-		case methodWorktreeSource:
+		if method == methodWorktreeSource {
 			return n.worktreeSources(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
-		case methodWorktreePreset:
-			return n.worktreeSavePreset(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
 		}
-		return n.worktreeDelete(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
+		return n.worktreeSavePreset(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, params)
 	case methodWorktreeAdd, methodWorktreeStatus, methodWorktreeRemove: // a new agent's own worktree (agentworktree.go, #6115)
 		ctx = worktreeComposerContext(ctx, params) // its refusals in the request's language (the hub sends it)
 		switch method {
@@ -2670,12 +2667,6 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 			return nil, err
 		}
 		return map[string]any{"ok": true, "name": name}, nil
-	case methodWorktreeRename: // its refusals in the request's language (the hub sends it)
-		var in worktreeRenameParams
-		if err := json.Unmarshal(params, &in); err != nil {
-			return nil, fmt.Errorf("bad params: %w", err)
-		}
-		return ok(n.renameWorktree(worktreeComposerContext(ctx, params), in.Kind, in.WorkspaceID, in.Name))
 	case "session.rename":
 		return ok(n.renameSession(ctx, p.SessionID, p.TabName, p.Title))
 	case assistantwire.DeviceSessionRenameTabIfCurrent:
@@ -2748,7 +2739,7 @@ func (n *Node) handleMethod(ctx context.Context, method string, params json.RawM
 		}
 		list, err := n.gitLog(ctx, in.Cwd, in.Skip, in.Limit)
 		return map[string]any{"commits": list}, err
-	case methodGitStage, methodGitCommit, methodGitPush, methodGitBranches, methodGitSwitch, methodGitStash, methodGitPR, methodGitPRCreate, methodGitPRMerge:
+	case methodGitStage, methodGitCommit, methodGitPush, methodGitBranches, methodGitSwitch, methodGitStash, methodGitPR, methodGitPRCreate:
 		return n.gitWrite(ctx, method, params) // the Git panel's writes and pull request (gitwrite.go, gitpr.go)
 	case "skills.import":
 		return n.importSkill(ctx, params)

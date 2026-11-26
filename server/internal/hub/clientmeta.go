@@ -2,8 +2,9 @@ package hub
 
 import (
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
 	"math/rand/v2"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/server/internal/i18n"
 )
@@ -66,7 +67,6 @@ func (h *Hub) onClientHello(c *client, data []byte) {
 		return
 	}
 	wasElicitation := c.has("elicitation")
-	wasDesktopsLink := c.wants(featureDesktopsLink)
 	wasLang := c.lang()
 	c.mu.Lock()
 	hb := c.meta.heartbeat
@@ -109,10 +109,6 @@ func (h *Hub) onClientHello(c *client, data []byte) {
 	}
 	if !wasElicitation && c.has("elicitation") {
 		defer h.sendPendingInteractions(c, true)
-	}
-	if wasDesktopsLink != c.wants(featureDesktopsLink) {
-		// The list it has left the Persona Link desktops out, or holds ones it will not hear end.
-		defer h.sendDesktops(c)
 	}
 	if updates == nil {
 		c.helloAck(hb)

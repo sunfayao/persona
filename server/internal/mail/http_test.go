@@ -62,82 +62,13 @@ func TestHTTPAccountsEndpoints(t *testing.T) {
 	}
 }
 
-func TestHTTPMailboxes(t *testing.T) {
-	srv := newTestIMAP(t)
-	s := newServiceWithAccount(t, srv)
-	srv.appendMessage(t, "INBOX", rawMessage("hi", "a@example.com", "body"))
-
-	code, body := doJSON(t, s, http.MethodGet, "/api/v1/mail/accounts/acc_test/mailboxes", "")
-	if code != http.StatusOK {
-		t.Fatalf("status = %d, body %v", code, body)
-	}
-	var boxes []map[string]any
-	if err := json.Unmarshal(body["mailboxes"], &boxes); err != nil {
-		t.Fatalf("mailboxes is not an array: %v", err)
-	}
-	if len(boxes) == 0 {
-		t.Fatal("no mailboxes")
-	}
-	for _, key := range []string{"name", "role", "unseen", "total"} {
-		if _, ok := boxes[0][key]; !ok {
-			t.Errorf("mailbox is missing %q: %v", key, boxes[0])
-		}
-	}
-	// Counters must be numbers, not strings.
-	if _, ok := boxes[0]["unseen"].(float64); !ok {
-		t.Errorf("unseen is not a number: %v (%T)", boxes[0]["unseen"], boxes[0]["unseen"])
-	}
-
-	code, body = doJSON(t, s, http.MethodGet, "/api/v1/mail/accounts/acc_nope/mailboxes", "")
-	if code != http.StatusNotFound {
-		t.Errorf("unknown account status = %d, want 404", code)
-	}
-	if _, ok := body["error"]; !ok {
-		t.Errorf("error response = %v", body)
-	}
-}
-
 func TestHTTPMessagesShape(t *testing.T) {
 	srv := newTestIMAP(t)
 	s := newServiceWithAccount(t, srv)
 	uid := srv.appendMessage(t, "INBOX", rawMessage("Hello", "张三 <z@example.com>", "the body text"))
 
-	code, body := doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?account_id=acc_test&mailbox=INBOX&limit=10", "")
-	if code != http.StatusOK {
-		t.Fatalf("status = %d, body %v", code, body)
-	}
-	if _, ok := body["has_more"]; !ok {
-		t.Errorf("response is missing has_more: %v", body)
-	}
-	var msgs []map[string]any
-	if err := json.Unmarshal(body["messages"], &msgs); err != nil {
-		t.Fatalf("messages is not an array: %v", err)
-	}
-	if len(msgs) != 1 {
-		t.Fatalf("messages = %v", msgs)
-	}
-	for _, key := range []string{"account_id", "mailbox", "uid", "message_id", "subject", "from", "to", "date", "snippet", "seen", "flagged", "has_attachments"} {
-		if _, ok := msgs[0][key]; !ok {
-			t.Errorf("summary is missing %q: %v", key, msgs[0])
-		}
-	}
-	from, ok := msgs[0]["from"].(map[string]any)
-	if !ok {
-		t.Fatalf("from is not an object: %v", msgs[0]["from"])
-	}
-	if from["email"] != "z@example.com" || from["name"] != "张三" {
-		t.Errorf("from = %v", from)
-	}
-	if _, ok := msgs[0]["to"].([]any); !ok {
-		t.Errorf("to is not an array: %v", msgs[0]["to"])
-	}
-	if msgs[0]["snippet"] != "the body text" {
-		t.Errorf("snippet = %v", msgs[0]["snippet"])
-	}
-
-	// Detail endpoint.
 	path := "/api/v1/mail/messages/acc_test/" + itoa(uint32(uid)) + "?mailbox=INBOX"
-	code, body = doJSON(t, s, http.MethodGet, path, "")
+	code, body := doJSON(t, s, http.MethodGet, path, "")
 	if code != http.StatusOK {
 		t.Fatalf("detail status = %d, body %v", code, body)
 	}

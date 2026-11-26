@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -178,53 +177,6 @@ func TestDispatchGuardInvalidEnabledPolicyFailsClosed(t *testing.T) {
 	}
 }
 
-func TestDispatchGuardRouteValidationAndFallback(t *testing.T) {
-	f := newGuardFakeHub()
-	s := newTestService(t, f)
-	expiry := time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339Nano)
-	body := `{"dispatch_guard":{"enabled":true,"expires_at":"` + expiry + `","targets":[{"machine_id":"server","session_id":"session-1","deny":["task_plan"]}]}}`
-
-	_, listChanged := s.mcpChanges.snapshot()
-	if w := serveAs(s, roleExtension, http.MethodPut, "/api/v1/assistant/dispatch-guard", body); w.Code != http.StatusOK {
-		t.Fatalf("extension write: %d %s", w.Code, w.Body.String())
-	}
-	select {
-	case <-listChanged:
-	default:
-		t.Fatal("the policy write did not invalidate existing MCP tool lists")
-	}
-	if s.guardRefusal(context.Background(), "server", "session-1", "task_plan") == nil {
-		t.Fatal("the route did not activate the guard")
-	}
-
-	noExpiry := `{"dispatch_guard":{"enabled":true,"targets":[{"machine_id":"server","session_id":"session-1","deny":["task_plan"]}]}}`
-	if w := serveAs(s, roleExtension, http.MethodPut, "/api/v1/assistant/dispatch-guard", noExpiry); w.Code != http.StatusBadRequest {
-		t.Fatalf("extension policy without expiry: %d %s", w.Code, w.Body.String())
-	}
-	far := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339Nano)
-	overHour := `{"dispatch_guard":{"enabled":true,"expires_at":"` + far + `","targets":[{"machine_id":"server","session_id":"session-1","deny":["task_plan"]}]}}`
-	if w := serveAs(s, roleExtension, http.MethodPut, "/api/v1/assistant/dispatch-guard", overHour); w.Code != http.StatusBadRequest {
-		t.Fatalf("extension expiry over the hour: %d %s", w.Code, w.Body.String())
-	}
-	if w := serveAs(s, "answer", http.MethodPut, "/api/v1/assistant/dispatch-guard", body); w.Code != http.StatusForbidden {
-		t.Fatalf("answer role: %d %s", w.Code, w.Body.String())
-	}
-	if w := serveAs(s, roleFull, http.MethodPut, "/api/v1/assistant/dispatch-guard", noExpiry); w.Code != http.StatusOK {
-		t.Fatalf("full credential without expiry: %d %s", w.Code, w.Body.String())
-	}
-	bad := `{"dispatch_guard":{"enabled":true,"targets":[{"machine_id":"server","session_id":"session-1","deny":["unknown_tool"]}]}}`
-	if w := serveAs(s, roleFull, http.MethodPut, "/api/v1/assistant/dispatch-guard", bad); w.Code != http.StatusBadRequest {
-		t.Fatalf("unknown denied tool: %d %s", w.Code, w.Body.String())
-	}
-	clear := `{"dispatch_guard":{"enabled":false,"targets":[]}}`
-	if w := serveAs(s, roleExtension, http.MethodPut, "/api/v1/assistant/dispatch-guard", clear); w.Code != http.StatusOK {
-		t.Fatalf("extension clear: %d %s", w.Code, w.Body.String())
-	}
-	if w := serveAs(s, roleFull, http.MethodGet, "/api/v1/assistant/dispatch-guard", ""); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"targets":[]`) {
-		t.Fatalf("GET after clear: %d %s", w.Code, w.Body.String())
-	}
-}
-
 func TestDispatchGuardNarrowsSessionMCPListOnlyForTarget(t *testing.T) {
 	f := newGuardFakeHub()
 	s := newTestService(t, f)
@@ -247,28 +199,6 @@ func TestDispatchGuardNarrowsSessionMCPListOnlyForTarget(t *testing.T) {
 	res := s.mcpCall(ctx, guardMachine, guardSession, "task_plan", json.RawMessage(`{}`), true)
 	if !res.IsError || !strings.Contains(res.Content[0].Text, dispatchGuardRefusalText) {
 		t.Fatalf("hidden tool was callable through mcpCall: %+v", res)
-	}
-}
-
-func TestDispatchGuardUnauthorizedWriteLeavesStartUnchanged(t *testing.T) {
-	f := newGuardFakeHub()
-	s := newTestService(t, f)
-	start := func() string {
-		t.Helper()
-		if _, err := s.Start(context.Background(), StartParams{Text: "hello"}); err != nil {
-			t.Fatal(err)
-		}
-		raw, _ := json.Marshal(f.lastSend(t))
-		return string(raw)
-	}
-	before := start()
-	body := `{"dispatch_guard":{"enabled":true,"targets":[{"machine_id":"server","session_id":"guarded","deny":["task_plan"]}]}}`
-	if w := serveAs(s, "answer", http.MethodPut, "/api/v1/assistant/dispatch-guard", body); w.Code != http.StatusForbidden {
-		t.Fatalf("unauthorized write: %d %s", w.Code, w.Body.String())
-	}
-	after := start()
-	if before != after {
-		t.Fatalf("start params changed:\nbefore %s\nafter  %s", before, after)
 	}
 }
 

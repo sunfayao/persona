@@ -530,47 +530,6 @@ func TestTriageWorkSanitizes(t *testing.T) {
 	}
 }
 
-func TestSummarizeWork(t *testing.T) {
-	at := turnEnd
-	ev := func(kind, sid string, after float64, d map[string]any) db.WorkEvent {
-		if d == nil {
-			d = map[string]any{}
-		}
-		if after > 0 {
-			d["after"] = after
-		}
-		return db.WorkEvent{At: at.Add(time.Duration(after) * time.Second), MachineID: "box", SessionID: sid, Kind: kind, Detail: d}
-	}
-	s := summarizeWork(24, []db.WorkEvent{
-		ev("triaged", "s1", 0, map[string]any{"phase": "done", "by": "model"}),
-		ev("triaged", "s2", 0, map[string]any{"phase": "blocked", "on": "user", "by": "model"}),
-		ev("triaged", "s3", 0, map[string]any{"phase": "", "by": "model"}),
-		ev("failed", "s4", 0, nil),
-		ev("continued", "s5", 0, nil),
-		ev("seen", "s1", 60, map[string]any{"phase": "done"}),
-		ev("seen", "s1", 120, map[string]any{"phase": "done"}), // the same turn: no second wait
-		ev("seen", "s2", 30, map[string]any{"phase": "blocked", "on": "user"}),
-		ev("resumed", "s5", 40, map[string]any{"phase": "blocked", "on": "transient", "by": "hub"}),
-		ev("sample", "", 0, map[string]any{"unread": 4.0, "needs_you": 1.0}),
-		ev("sample", "", 0, map[string]any{"unread": 2.0}),
-	})
-	if s.Triaged["done"] != 1 || s.Triaged["blocked/user"] != 1 || s.Triaged["unsure"] != 1 || s.Triaged["failed"] != 1 {
-		t.Fatalf("triaged %v", s.Triaged)
-	}
-	if s.Actions["continued"] != 1 || s.Resumed["hub"] != 1 {
-		t.Fatalf("actions %v resumed %v", s.Actions, s.Resumed)
-	}
-	if s.Unread.Samples != 2 || s.Unread.Avg != 3 || s.Unread.Max != 4 || s.Unread.Last != 2 {
-		t.Fatalf("unread %+v", s.Unread)
-	}
-	if w := s.Waits["done"]; w.N != 1 || w.Median != 60 {
-		t.Fatalf("waits %+v", s.Waits)
-	}
-	if _, ok := s.Waits["blocked/transient"]; ok {
-		t.Fatal("a wait the manager ended is no wait for the user")
-	}
-}
-
 func TestTriageOff(t *testing.T) {
 	s, f := workService(t)
 	s.work.switches = &TriageSwitches{TransientRetry: new(false)}
@@ -815,9 +774,14 @@ func TestWorkComesBackAfterARestart(t *testing.T) {
 	if got := f.sentToAgents(); len(got) != 1 || !strings.Contains(got[0], "A 还是 B？ → A") {
 		t.Fatalf("sent %v", got)
 	}
-	s.waitWorkEvents()
-	if w := serve(s, "GET", "/api/v1/agents/work/stats?hours=1", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"blocked/user":2`) {
-		t.Fatalf("stats %d %s", w.Code, w.Body)
+	count := 0
+	for _, event := range recentStoredWorkEvents(t, s) {
+		if event.Kind == "triaged" && event.Detail["phase"] == "blocked" && event.Detail["on"] == "user" {
+			count++
+		}
+	}
+	if count != 2 {
+		t.Fatalf("triaged blocked on user: %d events", count)
 	}
 }
 

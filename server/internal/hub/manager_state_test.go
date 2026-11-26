@@ -143,7 +143,7 @@ func (f *stateManager) has(source string) bool {
 // A machine of hub.json moves to another manager: the hub keeps it, hands each manager its machines again, sends
 // what concerns the machine to the new one; its credential goes only to it; removing that manager gives it back.
 // A source moves the same way: exported by the old one, imported by the new one, released by the old one.
-func TestMoveMachineAndSource(t *testing.T) {
+func TestMoveMachine(t *testing.T) {
 	h, srv, store := newBusHub(t)
 	h.cfg.Machines = []MachineConfig{{ID: "ma", Name: "ma", Kind: "local"}, {ID: "mc", Name: "mc", Kind: "local"}}
 	a := connectStateManager(t, h, srv, assistantwire.AssistantID, "mail:acct-1")
@@ -225,26 +225,6 @@ func TestMoveMachineAndSource(t *testing.T) {
 		t.Fatalf("the old manager asked for its credential: %v", err)
 	}
 
-	// A source: from the assistant (the default) to the second manager.
-	if code, out := post("/api/v1/managers/m-0c0c0c/sources", `{"source":"mail:acct-9"}`); code != http.StatusNotFound || out["code"] != extwire.CodeNoSource {
-		t.Fatalf("unknown source: %d %v", code, out)
-	}
-	if code, out := post("/api/v1/managers/m-0c0c0c/sources", `{"source":"mail:acct-1"}`); code != http.StatusOK || out["from"] != assistantwire.AssistantID {
-		t.Fatalf("move the source: %d %v", code, out)
-	}
-	if a.has("mail:acct-1") || !b.has("mail:acct-1") {
-		t.Fatal("the source did not move")
-	}
-	b.mu.Lock()
-	imported := strings.Join(b.calls, "\n")
-	b.mu.Unlock()
-	if !strings.Contains(imported, extwire.MethodSourceImport) || !strings.Contains(imported, `"password":"pw"`) {
-		t.Fatalf("the new manager got: %s", imported)
-	}
-	if code, out := post("/api/v1/managers/m-0c0c0c/sources", `{"source":"mail:acct-1","from":"m-0c0c0c"}`); code != http.StatusOK {
-		t.Fatalf("to where it is: %d %v", code, out)
-	}
-
 	// Removing the manager gives its machines back to the carrier.
 	if code, _ := ownershipGet(t, h, srv, http.MethodDelete, "/api/v1/managers/m-0c0c0c", nil); code != http.StatusOK {
 		t.Fatalf("delete: %d", code)
@@ -256,8 +236,5 @@ func TestMoveMachineAndSource(t *testing.T) {
 		ai, _ := a.lastConfig()
 		return strings.Join(ai, ",") == "ma,mc"
 	})
-	// The source with an offline manager: 503.
-	if code, out := post("/api/v1/managers/assistant/sources", `{"source":"mail:acct-1","from":"m-0c0c0c"}`); code != http.StatusNotFound {
-		t.Fatalf("from a removed manager: %d %v", code, out)
-	}
+
 }

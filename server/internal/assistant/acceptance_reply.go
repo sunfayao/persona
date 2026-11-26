@@ -507,3 +507,5 @@ func (s *Service) updateAskCards(ctx context.Context, id string, a acceptAsk) {
 		}
 	}
 }
+
+var errAskNotFound = i18n.ErrEnglish("assistant-tasks.ask_not_found")

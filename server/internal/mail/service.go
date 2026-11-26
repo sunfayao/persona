@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -52,18 +51,11 @@ type Service struct {
 	// now is swappable in tests.
 	now func() time.Time
 	// imapDial and sendMail are swappable in tests; nil means the real network.
-	imapDial func(a *MailAccount) (*imapclient.Client, error)
-	// googleClientID is the iOS OAuth client used for "Sign in with Google" (hub.json google.client_id).
-	googleClientID string
-	// Outlook sign-in (microsoft.go): hub.json's default client ID and redirect, and the one the user entered
-	// (loaded from the settings once).
-	msDefaultClientID, msRedirect string
-	msClientID                    string
-	msClientLoaded                bool
-	usedStates                    map[string]time.Time    // OAuth states already finished, against replays
-	googleProxy                   *url.URL                // hub.json google.proxy for Gmail traffic (proxy.go), nil = direct
-	googleHTTP                    *http.Client            // talks to Google's OAuth and Gmail API endpoints
-	access                        map[string]*accessCache // access tokens, by refresh token
+	imapDial    func(a *MailAccount) (*imapclient.Client, error)
+	msRedirect  string
+	googleProxy *url.URL                // hub.json google.proxy for Gmail traffic (proxy.go), nil = direct
+	googleHTTP  *http.Client            // talks to Google's OAuth and Gmail API endpoints
+	access      map[string]*accessCache // access tokens, by refresh token
 	// verify replaces the IMAP + SMTP login check of new accounts in tests.
 	verify func(ctx context.Context, a *MailAccount) error
 	// scan bounds one page of a local header search, fetch a page's summary fetch; tests shrink them.
@@ -108,7 +100,6 @@ func NewWithKey(dataDir, keyPath string, recs Records) (*Service, error) {
 		accts:      make(map[string]*MailAccount),
 		conns:      make(map[string]*conn),
 		loginErr:   make(map[string]string),
-		usedStates: make(map[string]time.Time),
 		googleHTTP: httpClient,
 		access:     make(map[string]*accessCache),
 		stop:       make(chan struct{}),
@@ -128,9 +119,6 @@ func NewWithKey(dataDir, keyPath string, recs Records) (*Service, error) {
 	go s.sweep()
 	return s, nil
 }
-
-// SetGoogleClientID enables "Sign in with Google" for Gmail with an iOS OAuth client ID.
-func (s *Service) SetGoogleClientID(id string) { s.googleClientID = strings.TrimSpace(id) }
 
 // Close closes every cached connection and stops the idle sweeper.
 func (s *Service) Close() error {

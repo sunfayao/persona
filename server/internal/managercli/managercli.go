@@ -23,8 +23,7 @@ import (
 )
 
 // Assistant is `assistant [drop-shared-tables … | north-star …]`: the built-in manager on the hub's
-// bus (the hub starts it, token on stdin), the cleanup of its old tables in the hub's database (docs/server/server.md
-// "The default manager's own database"), or its north-star readout.
+// bus (the hub starts it, token on stdin), the cleanup of its old tables in the hub's database, or its north-star readout.
 func Assistant(ctx context.Context, build update.Build, args []string, stdin io.Reader) error {
 	if len(args) > 0 && args[0] == "drop-shared-tables" {
 		return assistant.DropSharedCommand(ctx, args[1:], os.Stdout, os.Stderr)

@@ -10,20 +10,6 @@ import uuid
 
 SOURCE = "lark"
 EXTENSION = "larkext"
-CAPABILITIES = ["accounts", "pinned", "mentions", "attachments", "attachment_replies", "threads", "topics", "reactions",
-                "read_receipts", "chat_pins", "profiles", "url_previews", "posts", "edit_history", "translation"]
-MODES = [{'id': 'sealed', 'title': '加密消息', 'icon': 'lock', 'description': '只有拥有密钥的成员能读到正文', 'attachments': False, 'mentions': False, 'prepare': True}]
-
-
-
-
-
-
-def source():
-    return {"extension": EXTENSION, "id": SOURCE, "name": "飞书", "icon": "chat", "capabilities": CAPABILITIES,
-            "composer_modes": MODES, "settings_ui": "display",
-            "links": [{"hosts": ["applink.feishu.cn"], "paths": ["/client/moments/detail"], "opens": "post"}]}
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -428,16 +414,6 @@ def page(p, display, account):
     return out
 
 
-def event_of(ev):
-    """The WebSocket {type: lark} the mock pushes, as the extension's messaging.changed would reach the apps."""
-    out = {"type": "messaging", "source": SOURCE, "conversations": list(ev.get("feed_ids") or [])}
-    if ev.get("ol_account"):
-        out["account"] = str(ev["ol_account"])
-    if ev.get("settings_changed"):
-        out["settings_changed"] = True
-    return out
-
-
 # ---------------------------------------------------------------------------------------------------------------------
 # The routes.
 
@@ -498,9 +474,7 @@ SEALED = {}  # token → {"account_id", "feed", "chunks", "reply_to"}
 
 
 def route(handler, method, path, query, body):
-    """Serve /api/v1/messaging[/lark/…]; False when the path is not the protocol's."""
-    if path == "/api/v1/messaging" and method == "GET":
-        return handler.send_json({"sources": [source()]}) or True
+    """Serve Lark messaging and the extension display settings page."""
     # The hub serves an extension's pages under both /api/v1/extensions and the older /api/v1/plugins (extension_compat).
     if any(path.startswith("/api/v1/%s/%s/-/ui/display" % (p, EXTENSION)) for p in ("extensions", "plugins")) and method == "POST":
         return settings_page(handler, body) or True

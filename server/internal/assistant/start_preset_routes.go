@@ -2,44 +2,13 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistant/agents"
 )
 
-// startPresetRoutes: GET /api/v1/assistant/worker-presets?machine=<id> lists the Agent presets (the active model
-// profile's tiers) a task can start with on that computer: the presets whose launcher the machine has, each with its
-// launcher, model, effort, description and whether its launcher is unavailable now. An extension granted the
-// assistant.start_defaults hub scope reads it to name the presets of its start defaults; the list is read-only and never
-// carries credentials.
-func (s *Service) startPresetRoutes() {
-	s.handle("GET /api/v1/assistant/worker-presets", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-		defer cancel()
-		machine := r.URL.Query().Get("machine")
-		m, ok := s.machineByName(ctx, machine)
-		if !ok {
-			apierr.Write(w, http.StatusNotFound, errUnknownMachine)
-			return
-		}
-		out, err := s.machinePresets(ctx, m.ID, "") // by id: the rest of the manager addresses machines so, not by name or ssh alias
-		if err != nil {
-			apierr.Write(w, http.StatusBadGateway, err)
-			return
-		}
-		raw, _ := json.Marshal(map[string]any{"presets": out})
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = w.Write(raw)
-	})
-}
-
 // machinePresets are the Agent presets machine (an id) can start in host ("": its own launcher list): the profile in
 // use's tiers whose launcher it has (pickerTiers), each marked unavailable while its launcher's latest check says it
-// does not work. GET /api/v1/assistant/worker-presets lists them, and Agents read them before starting one
-// (presetsOn: dispatch_read's overview, a2a_sessions).
+// does not work. Agents read them through dispatch_read and a2a_sessions before starting one.
 func (s *Service) machinePresets(ctx context.Context, machine, host string) ([]workerPreset, error) {
 	launchers, err := s.pickerLaunchersOn(ctx, machine, host)
 	if err != nil {
@@ -57,5 +26,5 @@ func (s *Service) machinePresets(ctx context.Context, machine, host string) ([]w
 	return out, nil
 }
 
-// workerPreset is one row of GET /api/v1/assistant/worker-presets.
+// workerPreset is one preset offered to an agent.
 type workerPreset = agents.Preset

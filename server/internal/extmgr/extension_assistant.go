@@ -183,33 +183,6 @@ func (ps *extensions) assistantGates(ctx context.Context, userRules func(connect
 	return out
 }
 
-// gateCommands are the commands of the enabled extensions' command gates that are for connector id (their gate files'
-// connector field), as assistantGates hands them over.
-func (ps *extensions) gateCommands(connectorID string) []string {
-	var out []string
-	if ps == nil {
-		return out
-	}
-	for _, p := range ps.reg.List() {
-		if !p.Record.Enabled || p.Problem != "" || p.Dir == "" {
-			continue
-		}
-		for _, a := range p.Manifest.Assistants() {
-			if a.Gate == "" {
-				continue
-			}
-			raw, err := os.ReadFile(filepath.Join(p.Dir, filepath.FromSlash(a.Gate)))
-			if err != nil {
-				continue
-			}
-			if gf, err := extension.ParseGate(raw); err == nil && gf.Connector == connectorID {
-				out = append(out, gf.Command)
-			}
-		}
-	}
-	return out
-}
-
 // assistantCredentials asks a plugin for its gate's credentials (assistant.credentials → {env}), keeping only the
 // names its gate file declares; nothing when it cannot answer (the command then says its API is not reachable).
 func (ps *extensions) assistantCredentials(ctx context.Context, id, contribution string, names []string) map[string]string {

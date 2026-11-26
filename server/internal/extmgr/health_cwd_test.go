@@ -1,8 +1,9 @@
 package extmgr
 
 import (
-	"context"
 	"testing"
+
+	"github.com/nwverse/persona/server/internal/connector"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -11,11 +12,7 @@ import (
 // directory is a folder inside the health space (an older node lists where a `cd` left it, #2368). A directory that
 // only starts the same is not the space.
 func TestHealthConversationsWritesFromItsFoldersAreConfirmed(t *testing.T) {
-	st := &memRuleStore{}
-	h, gh := chatRuleManager(t, nil, st)
-	if _, _, err := h.addChatRule(context.Background(), githubRowOf("github_comment", chatIssue12)); err != nil {
-		t.Fatal(err)
-	}
+	h, gh := chatRuleManager(t, nil, []connector.UserRule{ghUserRule(12)})
 	box := h.machineByID("box")
 	for cwd, asked := range map[string]bool{
 		"/home/u/.persona/assistant":                 false, // the rule lets the chat through

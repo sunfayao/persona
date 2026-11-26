@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -23,21 +24,35 @@ func outsideFixture() assistantwire.OutsideDecisionRequest {
 	}
 }
 
-func outsideCall(t *testing.T, e *todoEnv, ext, method, path string, in any) (int, assistantwire.OutsideDecisionReply) {
-	t.Helper()
-	var raw []byte
-	if in != nil {
-		raw, _ = json.Marshal(in)
+func outsideTestReply(rec *outsideDecision, inserted bool, err error) (int, assistantwire.OutsideDecisionReply) {
+	if err == nil {
+		return http.StatusOK, outsideReply(rec, inserted)
 	}
-	w := e.doExt(ext, method, path, string(raw))
-	var out assistantwire.OutsideDecisionReply
-	_ = json.Unmarshal(w.Body.Bytes(), &out)
-	return w.Code, out
+	var failure *outsideFailure
+	if errors.As(err, &failure) {
+		return failure.status, outsideErrorReply(err)
+	}
+	return http.StatusInternalServerError, outsideErrorReply(err)
+}
+
+func requestOutside(e *todoEnv, ext string, in assistantwire.OutsideDecisionRequest) (int, assistantwire.OutsideDecisionReply) {
+	caller := &outsideCaller{key: "extension:" + ext, kind: "extension", name: ext}
+	return outsideTestReply(e.s.raiseOutsideDecision(context.Background(), caller, in))
+}
+
+func readOutside(e *todoEnv, ext, id string) (int, assistantwire.OutsideDecisionReply) {
+	rec, err := e.s.outsideForCaller(context.Background(), &outsideCaller{key: "extension:" + ext}, id)
+	return outsideTestReply(rec, false, err)
+}
+
+func withdrawOutside(e *todoEnv, ext, id string) (int, assistantwire.OutsideDecisionReply) {
+	rec, err := e.s.withdrawOutsideDecision(context.Background(), &outsideCaller{key: "extension:" + ext}, id)
+	return outsideTestReply(rec, false, err)
 }
 
 func raiseOutside(t *testing.T, e *todoEnv, ext string, in assistantwire.OutsideDecisionRequest) assistantwire.OutsideDecision {
 	t.Helper()
-	code, out := outsideCall(t, e, ext, "POST", "/api/v1/decisions", in)
+	code, out := requestOutside(e, ext, in)
 	if code != http.StatusOK || out.Decision == nil {
 		t.Fatalf("raise: %d %+v", code, out)
 	}
@@ -46,7 +61,7 @@ func raiseOutside(t *testing.T, e *todoEnv, ext string, in assistantwire.Outside
 
 func pollOutside(t *testing.T, e *todoEnv, ext, id string) assistantwire.OutsideDecision {
 	t.Helper()
-	code, out := outsideCall(t, e, ext, "GET", "/api/v1/decisions/"+id, nil)
+	code, out := readOutside(e, ext, id)
 	if code != http.StatusOK || out.Decision == nil {
 		t.Fatalf("poll: %d %+v", code, out)
 	}
@@ -66,23 +81,20 @@ func TestOutsideDecisionRaiseAnswerAndPush(t *testing.T) {
 	}
 	// A replay with the same authenticated caller, ref and payload returns the
 	// original durable id and neither duplicates the card nor the push.
-	code, replay := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions", in)
+	code, replay := requestOutside(e, "nightly", in)
 	if code != http.StatusOK || replay.Inserted || replay.Decision == nil || replay.Decision.ID != d.ID {
 		t.Fatalf("replay: %d %+v", code, replay)
 	}
 	changed := in
 	changed.Title = "A different question"
-	if code, _ := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions", changed); code != http.StatusConflict {
+	if code, _ := requestOutside(e, "nightly", changed); code != http.StatusConflict {
 		t.Fatalf("same ref, another payload: %d, want 409", code)
 	}
-	for _, method := range []string{"GET", "POST"} {
-		path := "/api/v1/decisions/" + d.ID
-		if method == "POST" {
-			path += "/withdraw"
-		}
-		if code, _ := outsideCall(t, e, "other", method, path, nil); code != http.StatusNotFound {
-			t.Errorf("another caller %s: %d, want 404", method, code)
-		}
+	if code, _ := readOutside(e, "other", d.ID); code != http.StatusNotFound {
+		t.Errorf("another caller read: %d, want 404", code)
+	}
+	if code, _ := withdrawOutside(e, "other", d.ID); code != http.StatusNotFound {
+		t.Errorf("another caller withdraw: %d, want 404", code)
 	}
 
 	ask := listedAsk(t, e.s, d.AskTodoID)
@@ -198,13 +210,13 @@ func TestOutsideDecisionReplayAfterParentClosed(t *testing.T) {
 	in.TodoID = parent.ID
 	d := raiseOutside(t, e, "release-script", in)
 	e.must("PATCH", "/api/v1/todos/"+parent.ID, `{"done":true}`)
-	code, replay := outsideCall(t, e, "release-script", "POST", "/api/v1/decisions", in)
+	code, replay := requestOutside(e, "release-script", in)
 	if code != http.StatusOK || replay.Inserted || replay.Decision == nil || replay.Decision.ID != d.ID {
 		t.Fatalf("replay after the parent closed: %d %+v", code, replay)
 	}
 	changed := in
 	changed.Title = "A different question"
-	if code, _ := outsideCall(t, e, "release-script", "POST", "/api/v1/decisions", changed); code != http.StatusConflict {
+	if code, _ := requestOutside(e, "release-script", changed); code != http.StatusConflict {
 		t.Fatalf("changed replay after the parent closed: %d, want 409", code)
 	}
 }
@@ -221,7 +233,7 @@ func TestOutsideDecisionPendingBackingCannotEnd(t *testing.T) {
 	if got := pollOutside(t, e, "nightly", d.ID); got.State != assistantwire.OutsideDecisionPending || listedAsk(t, e.s, d.AskTodoID) == nil {
 		t.Fatalf("pending decision after refused close/delete: %+v", got)
 	}
-	code, withdrawn := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions/"+d.ID+"/withdraw", nil)
+	code, withdrawn := withdrawOutside(e, "nightly", d.ID)
 	if code != http.StatusOK || withdrawn.Decision == nil || withdrawn.Decision.State != assistantwire.OutsideDecisionWithdrawn {
 		t.Fatalf("withdraw: %d %+v", code, withdrawn)
 	}
@@ -333,7 +345,7 @@ func TestOutsideDecisionFeishuReply(t *testing.T) {
 func TestOutsideDecisionWithdrawFencesAnswers(t *testing.T) {
 	e := newTodoEnv(t, nil)
 	d := raiseOutside(t, e, "nightly", outsideFixture())
-	code, out := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions/"+d.ID+"/withdraw", nil)
+	code, out := withdrawOutside(e, "nightly", d.ID)
 	if code != http.StatusOK || out.Decision == nil || out.Decision.State != assistantwire.OutsideDecisionWithdrawn || out.Decision.WithdrawnAt == nil {
 		t.Fatalf("withdraw: %d %+v", code, out)
 	}
@@ -343,7 +355,7 @@ func TestOutsideDecisionWithdrawFencesAnswers(t *testing.T) {
 	if rec := answerAsk(e.s, d.AskTodoID, map[string]string{"option": "Hold"}); rec.Code != http.StatusConflict {
 		t.Fatalf("answer after withdrawal: %d %s", rec.Code, rec.Body)
 	}
-	if code, again := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions/"+d.ID+"/withdraw", nil); code != http.StatusOK || again.Decision.State != "withdrawn" {
+	if code, again := withdrawOutside(e, "nightly", d.ID); code != http.StatusOK || again.Decision.State != "withdrawn" {
 		t.Fatalf("repeat withdrawal: %d %+v", code, again)
 	}
 	if got := pollOutside(t, e, "nightly", d.ID); got.State != "withdrawn" || got.Answer != nil {
@@ -408,7 +420,7 @@ func TestOutsideDecisionAnswerSurvivesManagerRestart(t *testing.T) {
 		t.Fatalf("answer: %d %s", rec.Code, rec.Body)
 	}
 	restarted := newServiceOn(t, e.f, st)
-	code, out := outsideCall(t, &todoEnv{t: t, s: restarted, f: e.f}, "nightly", "GET", "/api/v1/decisions/"+d.ID, nil)
+	code, out := readOutside(&todoEnv{t: t, s: restarted, f: e.f}, "nightly", d.ID)
 	if code != http.StatusOK || out.Decision == nil || out.Decision.Answer == nil || out.Decision.Answer.AnsweredBy != "owner" {
 		t.Fatalf("answer after restart: %d %+v", code, out)
 	}
@@ -514,31 +526,16 @@ func TestOutsideDecisionValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in := outsideFixture()
 			edit(&in)
-			if code, _ := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions", in); code != http.StatusBadRequest {
+			if code, _ := requestOutside(e, "nightly", in); code != http.StatusBadRequest {
 				t.Fatalf("invalid decision: %d, want 400", code)
 			}
 		})
 	}
-	raw, err := json.Marshal(outsideFixture())
-	if err != nil {
-		t.Fatal(err)
-	}
-	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
-		t.Fatal(err)
-	}
-	delete(document, "reversible")
-	if code, _ := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions", document); code != http.StatusBadRequest {
-		t.Fatalf("omitted reversible: %d, want 400", code)
-	}
-	if code, _ := outsideCall(t, e, "nightly", "POST", "/api/v1/decisions", func() assistantwire.OutsideDecisionRequest {
+	if code, _ := requestOutside(e, "nightly", func() assistantwire.OutsideDecisionRequest {
 		in := outsideFixture()
 		in.TodoID = "todo_missing"
 		return in
 	}()); code != http.StatusNotFound {
 		t.Fatalf("unknown to-do: %d, want 404", code)
-	}
-	if w := e.doAs("answer", "POST", "/api/v1/decisions", `{}`); w.Code != http.StatusForbidden {
-		t.Fatalf("read-only role: %d, want 403", w.Code)
 	}
 }

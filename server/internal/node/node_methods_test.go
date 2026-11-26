@@ -120,7 +120,7 @@ func TestNodeRPCPanicsOnARefusedName(t *testing.T) {
 		defer func() {
 			msg, _ := recover().(string)
 			if !strings.Contains(msg, `"session.planted"`) || !strings.Contains(msg, errSessionBound.Error()) ||
-				!strings.Contains(msg, `docs/server/architecture.md "The node's method table"`) {
+				!strings.Contains(msg, `AGENTS/03-server-entry-points.md`) {
 				t.Fatalf("nodeRPC(%q) panicked with %q, want the refusal and the doc", planted, msg)
 			}
 		}()

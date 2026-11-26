@@ -628,38 +628,6 @@ func TestWebPushDispatchRetainsDifferentAndUntaggedAlerts(t *testing.T) {
 	f.none(t)
 }
 
-// The test route pushes now, page open or not, and says what the push service answered.
-func TestWebPushTestRouteSaysWhatThePushServiceAnswered(t *testing.T) {
-	f := newFakePushService(t)
-	h := webPushHub(t, f)
-	mux := h.routes()
-	if code, out := call(t, mux, "POST", "/api/v1/push/web/web-none/test", h.cfg.Token, ""); code != 404 || out["code"] != "not_subscribed" {
-		t.Fatalf("no subscription: %d %v", code, out)
-	}
-	b := f.browser(t, "/push/test")
-	subscribe(t, h, mux, "web-test", b, "")
-	code, out := call(t, mux, "POST", "/api/v1/push/web/web-test/test", h.cfg.Token, "")
-	if code != 200 || out["push_status"] != float64(201) {
-		t.Fatalf("test: %d %v", code, out)
-	}
-	r := f.next(t)
-	if msg := webOpened(t, b, r); msg["kind"] != "test" || msg["title"] != i18n.T(i18n.En, "hub-webpush.test_title") {
-		t.Fatalf("test push %v", msg)
-	}
-	if r.header.Get("TTL") != "300" || r.header.Get("Urgency") != "high" {
-		t.Fatalf("test headers %v", r.header)
-	}
-	f.answer(http.StatusForbidden)
-	code, out = call(t, mux, "POST", "/api/v1/push/web/web-test/test", h.cfg.Token, "")
-	if code != 502 || out["code"] != "push_failed" || out["push_status"] != float64(403) || !strings.Contains(out["error"].(string), "403") {
-		t.Fatalf("refused test: %d %v", code, out)
-	}
-	_, st := call(t, mux, "GET", "/api/v1/push/web/web-test", h.cfg.Token, "")
-	if st["failed_at"] == nil || st["status"] != float64(403) {
-		t.Fatalf("status after a refused push %v", st)
-	}
-}
-
 // What a page may subscribe: a known push service's https endpoint, keys that parse, and the hub's key; a key the
 // hub no longer has is answered with the one to subscribe with.
 func TestWebPushSubscribeChecksWhatItIsGiven(t *testing.T) {

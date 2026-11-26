@@ -849,13 +849,14 @@ func TestYouDecideHandsADecisionBackToTheSupervisor(t *testing.T) {
 	if _, err := reviewErr(s, todo.ID, rolloutDecision()); err == nil || !strings.Contains(err.Error(), "don't ask them the same thing again") {
 		t.Fatalf("the same decision again: %v", err)
 	}
-	// Counted: a work event, summed by the conversation that asked.
-	s.work.mu.Lock()
-	events := append([]db.WorkEvent(nil), s.work.testEvents...)
-	s.work.mu.Unlock()
-	st := summarizeWork(24, events)
-	if got := st.OwnerCannotAnswer["conv1"]["decide_yourself"]; got != 1 || len(st.OwnerCannotAnswer) != 1 {
-		t.Fatalf("stats %v", st.OwnerCannotAnswer)
+	var answers []map[string]any
+	for _, event := range testEvents(s) {
+		if event.Kind == workOwnerCannot {
+			answers = append(answers, event.Detail)
+		}
+	}
+	if len(answers) != 1 || answers[0]["supervisor"] != "conv1" || answers[0]["response"] != "decide_yourself" {
+		t.Fatalf("owner cannot answer events: %v", answers)
 	}
 }
 

@@ -13,24 +13,10 @@ import (
 	"github.com/nwverse/persona/server/internal/jsonsubset"
 )
 
-// mergedPlaces is a TodoPlaces as the hub answers it after merging several managers' places: the only writer of
-// TodoPlace.manager, which no fixture carries (they hold one manager's answer).
-const mergedPlaces = `{"places":[{"id":"all","kind":"all","title":"","needs_you":1},` +
-	`{"id":"today","kind":"today","title":"","needs_you":0},{"id":"upcoming","kind":"upcoming","title":"","needs_you":0},` +
-	`{"id":"project:garden","kind":"project","title":"Garden","project":"garden","needs_you":1,"manager":"work"}],` +
-	`"counts":{"open":2,"needs_you":1,"in_progress":0,"sections":{"needs_you":1,"can_wait":0,"working":0,` +
-	`"waiting":0,"todo":1,"just_finished":0,"someday":0,"done":0}}}`
-
-// The views, counts and places the shared to-do cases expect (spec/fixtures/todo-view and todo-counts, #10226), the
-// timelines, results and recaps (spec/fixtures/todo-rounds, #10465) with what the item route carries of them, the
-// answers and replies of spec/fixtures/todo-asks (#10465) and the decision pushes' todo (spec/fixtures/todo-push,
-// #10465) read into the generated types (todo_view_gen.go) and write back as the same JSON:
-// no field lost, renamed or added, and no time written another way. What Go writes also holds to the schema
-// (checkTodoView), so a required list or map is never null, which a nil slice or map would be.
+// The shared to-do fixtures round-trip through the generated types and satisfy the schema.
 func TestTodoViewSamplesRoundTrip(t *testing.T) {
 	root := todoViewSchema(t)
-	samples := append(todoViewSamples(t),
-		todoViewSample{def: "TodoPlaces", where: "merged places", raw: json.RawMessage(mergedPlaces)})
+	samples := todoViewSamples(t)
 	seen := map[string]bool{}
 	for _, s := range samples {
 		v := todoViewDefs[s.def]()
@@ -58,29 +44,24 @@ func TestTodoViewSamplesRoundTrip(t *testing.T) {
 		}
 		seen[s.def] = true
 	}
-	for _, def := range []string{"TodoSummary", "TodoCounts", "TodoPlaces", "TodoTimeline", "TodoResult", "TodoRecap",
-		"TodoItemDetail", "TodoAskAnswer", "TodoAskAnswered", "TodoDecidePush"} {
+	for _, def := range []string{"TodoSummary", "TodoCounts", "TodoTimeline", "TodoResult", "TodoRecap",
+		"TodoItemDetail", "TodoDecidePush"} {
 		if !seen[def] {
 			t.Errorf("no %s sample", def)
 		}
 	}
 }
 
-// A nil slice or map writes null, which the schema refuses for the required places and sections: whoever builds one
-// (the projection, the hub's merge) allocates them, and checks what it writes the same way.
+// The schema requires a sections map with each section present.
 func TestTodoViewNilListsAreCaught(t *testing.T) {
 	root := todoViewSchema(t)
-	sections := map[string]int{}
-	for _, s := range TodoListSections {
-		sections[s] = 0
-	}
 	for _, c := range []struct {
 		def  string
 		v    any
 		want string
 	}{
 		{"TodoCounts", TodoCounts{}, "$.sections: should be object, is null"},
-		{"TodoPlaces", TodoPlaces{Counts: TodoCounts{Sections: sections}}, "$.places: should be array, is null"},
+
 		{"TodoCounts", TodoCounts{Sections: map[string]int{"needs_you": 0}}, `$.sections: missing required "can_wait"`},
 	} {
 		out, err := json.Marshal(c.v)
@@ -114,12 +95,11 @@ type todoViewSample struct {
 }
 
 // todoViewSamples are the expected values of every todo-view, todo-counts, todo-rounds and todo-push case, what the
-// item route carries of each todo-rounds case, and the answers and replies of every todo-asks case, with the
-// definition each holds to.
+// item route carries of each todo-rounds case, with the definition each holds to.
 func todoViewSamples(t *testing.T) []todoViewSample {
 	t.Helper()
 	var out []todoViewSample
-	for _, domain := range []string{"todo-view", "todo-counts", "todo-rounds", "todo-asks", "todo-push"} {
+	for _, domain := range []string{"todo-view", "todo-counts", "todo-rounds", "todo-push"} {
 		files, err := filepath.Glob(filepath.Join("..", "..", "..", "spec", "fixtures", domain, "*.json"))
 		if err != nil || len(files) == 0 {
 			t.Fatalf("spec/fixtures/%s: %v", domain, err)
@@ -131,20 +111,17 @@ func todoViewSamples(t *testing.T) []todoViewSample {
 			}
 			var doc struct {
 				Cases []struct {
-					Name  string
-					Input struct {
-						Answer json.RawMessage `json:"answer"`
-					}
+					Name string
+
 					Expected struct {
-						View     json.RawMessage   `json:"view"`
-						Counts   json.RawMessage   `json:"counts"`
-						Places   json.RawMessage   `json:"places"`
+						View   json.RawMessage `json:"view"`
+						Counts json.RawMessage `json:"counts"`
+
 						Timeline json.RawMessage   `json:"timeline"`
 						Results  []json.RawMessage `json:"results"`
 						Recap    json.RawMessage   `json:"recap"`
 						Latest   []string          `json:"latest"`
 						Todo     json.RawMessage   `json:"todo"`
-						Answered json.RawMessage   `json:"answered"`
 					}
 				}
 			}
@@ -154,9 +131,9 @@ func todoViewSamples(t *testing.T) []todoViewSample {
 			for _, c := range doc.Cases {
 				where := fmt.Sprintf("%s/%s %s", domain, filepath.Base(f), c.Name)
 				for def, raw := range map[string]json.RawMessage{"TodoSummary": c.Expected.View,
-					"TodoCounts": c.Expected.Counts, "TodoPlaces": c.Expected.Places,
+					"TodoCounts":   c.Expected.Counts,
 					"TodoTimeline": c.Expected.Timeline, "TodoRecap": c.Expected.Recap,
-					"TodoAskAnswer": c.Input.Answer, "TodoAskAnswered": c.Expected.Answered, "TodoDecidePush": c.Expected.Todo} {
+					"TodoDecidePush": c.Expected.Todo} {
 					if raw != nil {
 						out = append(out, todoViewSample{def: def, where: where + " " + def, raw: raw})
 					}

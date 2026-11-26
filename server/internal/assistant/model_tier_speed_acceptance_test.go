@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"slices"
 	"strings"
 	"testing"
@@ -83,41 +82,6 @@ func newSpeedPresetService11141(t *testing.T, speed string) *Service {
 		"plain": {Launcher: "claude"},
 	})
 	return s
-}
-
-func TestSpeedInPresetRoutes11141(t *testing.T) {
-	s := newSpeedPresetService11141(t, "ultrafast")
-	for _, path := range []string{"/api/v1/machines/box/launchers", "/api/v1/assistant/worker-presets?machine=box"} {
-		t.Run(path, func(t *testing.T) {
-			w := request(s, http.MethodGet, path, "")
-			if w.Code != http.StatusOK {
-				t.Fatalf("GET: %d %s", w.Code, w.Body)
-			}
-			var body struct {
-				Tiers []struct {
-					Name  string `json:"name"`
-					Speed string `json:"speed"`
-				} `json:"tiers"`
-				Presets []struct {
-					Name  string `json:"name"`
-					Speed string `json:"speed"`
-				} `json:"presets"`
-			}
-			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-				t.Fatal(err)
-			}
-			rows := body.Tiers
-			if rows == nil {
-				rows = body.Presets
-			}
-			for _, row := range rows {
-				if row.Name == "deep" && row.Speed == "ultrafast" {
-					return
-				}
-			}
-			t.Fatalf("deep preset has no ultrafast speed: %s", w.Body)
-		})
-	}
 }
 
 func TestSpeedInSnapshotPresetLine11141(t *testing.T) {

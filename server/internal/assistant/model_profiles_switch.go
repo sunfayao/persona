@@ -27,7 +27,7 @@ func (s *Service) applyModelProfile(ctx context.Context, id string, by ProfileAc
 	sw, pushed, err := s.applyModelProfileLocked(ctx, id, by)
 	s.models.mu.Unlock()
 	if err == nil && (sw.From != sw.To || len(sw.Changed) > 0) {
-		s.modelProfileSwitched(ctx, sw, pushed)
+		s.modelProfileSwitched(ctx, pushed)
 	}
 	return sw, err
 }
@@ -160,7 +160,7 @@ func (s *Service) rollbackModelProfile(ctx context.Context, by ProfileActor) (mo
 	sw, pushed, err := s.rollbackModelProfileLocked(ctx, by)
 	s.models.mu.Unlock()
 	if err == nil && (sw.From != sw.To || len(sw.Changed) > 0) {
-		s.modelProfileSwitched(ctx, sw, pushed)
+		s.modelProfileSwitched(ctx, pushed)
 	}
 	return sw, err
 }
@@ -255,16 +255,10 @@ func (s *Service) rollbackModelProfileLocked(ctx context.Context, by ProfileActo
 }
 
 // modelProfileSwitched tells everyone after a switch or rollback: the nodes get the launchers (when their fields
-// changed), the next message to the assistant a new snapshot, the apps an event.
-func (s *Service) modelProfileSwitched(ctx context.Context, sw modelProfileSwitch, launchers bool) {
+// changed), and the next message to the assistant gets a new snapshot.
+func (s *Service) modelProfileSwitched(ctx context.Context, launchers bool) {
 	if launchers {
 		s.pushManaged(context.WithoutCancel(ctx), "")
 	}
 	s.ProfileChanged(ctx)
-	s.profileEvent(ctx, sw.To)
-}
-
-// profileEvent tells the apps the profiles changed (a switch, a rollback, an edit): they read them again.
-func (s *Service) profileEvent(ctx context.Context, active string) {
-	s.event(ctx, map[string]any{"type": "model_profile", "active": active})
 }

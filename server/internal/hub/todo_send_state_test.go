@@ -106,7 +106,6 @@ func TestTodoSendStateProcessingThenDelivered(t *testing.T) {
 		post             func(*testing.T, context.Context, *Hub, http.Handler, string, string) (int, string)
 	}{
 		{"conversation route", todoRoutePath, todoRouteBody, postTodoRoute},
-		{"asks route", todoAnswerPath, `{"option":"Kaede"}`, postTodoAnswer},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newTestHub(t)
@@ -224,14 +223,6 @@ func TestTodoSendStateFinalStates(t *testing.T) {
 	}{
 		{"a send the manager is not sure of", "00000000-0000-4000-8000-0000000c0465", todoRoutePath, todoRouteBody, http.StatusConflict,
 			`{"error":"context deadline exceeded","code":"conflict"}`, proto.MessageSendUnknown, "unknown"},
-		{"an answer not taken, as far as the manager says", "00000000-0000-4000-8000-0000000c1465", todoAnswerPath, `{"text":"Hanami"}`,
-			http.StatusBadGateway, `{"error":"Not taken: the computer dropped","code":"accept_not_taken"}`, proto.MessageSendUnknown, "unknown"},
-		{"a node's refusal", "00000000-0000-4000-8000-0000000d0465", todoAnswerPath, `{"text":"Hanami"}`, http.StatusLocked,
-			`{"error":"A dialog is open","code":"dialog_open","delivered":"none"}`, proto.MessageSendFailed, "failed"},
-		{"refused before anything ran", "00000000-0000-4000-8000-0000000d1465", todoAnswerPath, `{"option":"Kaede"}`, http.StatusNotFound,
-			`{"error":"todo not found","code":"todo_not_found"}`, proto.MessageSendFailed, "failed"},
-		{"recorded for the supervisor", "00000000-0000-4000-8000-0000000e0465", todoAnswerPath, `{"option":"Kaede"}`, http.StatusOK,
-			`{"ask":"todo:decision@2026-11-10T09:00:00Z","outcome":"answered","delivered":"none"}`, proto.MessageSendDelivered, "done"},
 	} {
 		manager.mu.Lock()
 		answer = assistantwire.HTTPResponse{Status: tc.status, Header: map[string][]string{"Content-Type": {"application/json"}}, Body: []byte(tc.body)}
@@ -633,11 +624,6 @@ func TestTodoWriteOutcomeFixtures(t *testing.T) {
 		body := map[string]any{"error": "the manager's words"}
 		path, sent := todoRoutePath, todoRouteBody
 		switch {
-		case c.Input.Route == "answer":
-			path, sent = todoAnswerPath, `{"text":"Ryokan Hanami, please"}`
-			if want.Status/100 == 2 {
-				body = map[string]any{"ask": "todo:decision@2026-11-10T09:00:00Z", "outcome": "answered"}
-			}
 		case want.Status/100 == 2:
 			body = map[string]any{"item": map[string]string{"id": "f1"}}
 		}

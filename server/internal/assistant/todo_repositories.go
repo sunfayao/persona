@@ -229,18 +229,6 @@ func (s *Service) todoRepositoryRoutes() {
 		}
 		apierr.WriteJSON(w, set)
 	})
-	s.handle("PUT /api/v1/todos/{id}/repositories/{repo_id}/links", func(w http.ResponseWriter, r *http.Request) {
-		var in repository.LinksInput
-		if !taskRepositoryBody(w, r, &in) {
-			return
-		}
-		set, err := s.setTodoRepositoryLinks(r.Context(), r.PathValue("id"), r.PathValue("repo_id"), in)
-		if err != nil {
-			taskRepositoriesError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, set)
-	})
 }
 
 func (s *Service) toolTodoRepositories(ctx context.Context, machine, self, name string, args json.RawMessage) (string, error) {

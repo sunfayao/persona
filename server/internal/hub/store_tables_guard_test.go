@@ -287,7 +287,7 @@ func TestStoresTouchTheirOwnTables(t *testing.T) {
 					if !slices.Contains(side.tables, tb) {
 						t.Errorf("internal/%s asks its store for %s, which touches %s: not a table of the %s set "+
 							"(internal/db/migrations/%s). Get it over the bus from the side that owns it, or move the "+
-							"table; docs/server/server.md \"Migrations\"", strings.TrimPrefix(filepath.Clean(filepath.Join("hub", dir)), "hub/"),
+							"table; AGENTS/04-database.md", strings.TrimPrefix(filepath.Clean(filepath.Join("hub", dir)), "hub/"),
 							m, tb, side.set, side.set)
 					}
 				}
@@ -373,7 +373,7 @@ func TestSettingsKeysAreOneSidesOwn(t *testing.T) {
 		for k, where := range settingKeys(t, dir) {
 			if at, ok := hub[k]; ok {
 				t.Errorf("setting %q is used by the hub (%s) and by internal/%s (%s): a key is one side's; hand the value "+
-					"over the bus instead; docs/server/server.md \"Migrations\"", k, at, filepath.Base(dir), where)
+					"over the bus instead; AGENTS/04-database.md", k, at, filepath.Base(dir), where)
 			}
 		}
 	}

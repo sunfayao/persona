@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
@@ -23,10 +22,6 @@ import (
 // (#2039, so now): the apps show their entry rows only then, so a subscription the user turns on does what its switch
 // says.
 const subscriptionsFeature = "source_subscriptions"
-
-// subscriptionPushFeature says a device can hand in its own items (POST /api/v1/subscriptions/-/push, #3848): the iOS
-// Shortcuts action tells an older hub apart by it.
-const subscriptionPushFeature = "subscription_push"
 
 // inboxSourcesFeature says the pages are Inbox Sources (#5278): the built-in sources beside the subscriptions, the
 // recommended ones, Set Up with the assistant (persona://ask) and the preview. The apps show Settings' Inbox Sources
@@ -246,55 +241,9 @@ func (h *Manager) subscriptionRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, map[string]any{"subscriptions": list, "features": features})
 	})
-	api.HandleFunc("GET /api/v1/subscriptions/summary", func(w http.ResponseWriter, r *http.Request) {
-		lines, err := h.subs.Summary(r.Context())
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, map[string]any{"connectors": lines})
-	})
-	api.HandleFunc("GET /api/v1/subscriptions/catalog", func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("connector")
-		if id == "" { // every connector's, from what was read before: never a call to a connector
-			list, err := h.subs.Catalogs(r.Context())
-			if err != nil {
-				writeSubscriptionErr(w, err)
-				return
-			}
-			writeJSON(w, map[string]any{"catalogs": list})
-			return
-		}
-		c, err := h.subs.Catalog(r.Context(), id)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, c)
-	})
-	api.HandleFunc("GET /api/v1/subscriptions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		s, runs, err := h.subs.Get(r.Context(), r.PathValue("id"))
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, map[string]any{"subscription": s, "runs": runs})
-	})
 	// The pages (#2041): every device may draw them; the actions they carry check full access themselves.
 	api.HandleFunc("POST /api/v1/subscriptions/-/ui", h.subscriptionUI)
 	api.HandleFunc("GET /api/v1/subscriptions/-/graph", h.subscriptionGraph)
-	api.HandleFunc("POST /api/v1/subscriptions/-/dry-run", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, _ subscriptions.Actor) {
-		var in subscriptions.DryRunRequest
-		if !readSubscriptionJSON(w, r, &in) {
-			return
-		}
-		dr, err := h.subs.DryRun(r.Context(), in)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, dr)
-	}))
 	api.HandleFunc("POST /api/v1/subscriptions", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
 		var in subscriptions.CreateRequest
 		if !readSubscriptionJSON(w, r, &in) {
@@ -309,72 +258,7 @@ func (h *Manager) subscriptionRoutes(mux *http.ServeMux) {
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(s)
 	}))
-	api.HandleFunc("PUT /api/v1/subscriptions/{id}", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
-		var in subscriptions.Patch
-		if !readSubscriptionJSON(w, r, &in) {
-			return
-		}
-		s, err := h.subs.Update(r.Context(), r.PathValue("id"), in, by)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, s)
-	}))
-	// Drafting a recipe with the model (#2040): {id} regenerates and saves the subscription; "-" drafts for
-	// {connector, source} and writes nothing.
-	api.HandleFunc("POST /api/v1/subscriptions/{id}/generate", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
-		in := subscriptions.GenerateRequest{}
-		if err := json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&in); err != nil && !errors.Is(err, io.EOF) { // a body is optional
-			writeErrCode(w, http.StatusBadRequest, subscriptions.CodeBadRequest, err)
-			return
-		}
-		if id := r.PathValue("id"); id != "-" {
-			in.ID, in.Connector, in.Source = id, "", ""
-		}
-		out, err := h.subs.Generate(r.Context(), in, by)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, out)
-	}))
-	api.HandleFunc("POST /api/v1/subscriptions/{id}/run", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
-		s, err := h.subs.RunNow(r.Context(), r.PathValue("id"), by)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusAccepted)
-		_ = json.NewEncoder(w).Encode(s)
-	}))
-	// A device's own items (#3848): the iOS Shortcuts action hands them in, and its push source is made on the first
-	// push (no items: only the source, added by hand).
-	api.HandleFunc("POST /api/v1/subscriptions/-/push", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
-		if principalOf(r.Context()).ID == "" {
-			writeErrCode(w, http.StatusBadRequest, subscriptions.CodeBadRequest, errors.New("a push comes from a paired device"))
-			return
-		}
-		var in subscriptions.PushRequest
-		if !readSubscriptionJSON(w, r, &in) {
-			return
-		}
-		out, err := h.subs.Push(r.Context(), by, in)
-		if err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		writeJSON(w, out)
-	}))
-	api.HandleFunc("DELETE /api/v1/subscriptions/{id}", h.subscriptionChange(func(w http.ResponseWriter, r *http.Request, by subscriptions.Actor) {
-		data, _ := strconv.ParseBool(r.URL.Query().Get("data"))
-		if err := h.subs.Delete(r.Context(), r.PathValue("id"), data, by); err != nil {
-			writeSubscriptionErr(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
+
 }
 
 // subscriptionChange lets only full-access devices through; the others can read but not change (or dry-run, which

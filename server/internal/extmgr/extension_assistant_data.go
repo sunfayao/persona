@@ -460,7 +460,6 @@ func (h *Manager) assistantDataRoutes(api *http.ServeMux, full func(f func(w htt
 		})
 	}
 	api.HandleFunc("GET /api/v1/extensions/{id}/-/assistant-data", status(false))
-	api.HandleFunc("POST /api/v1/extensions/{id}/-/assistant-data/apply", status(true))
 }
 
 // forgetAssistantData drops what was adopted of extension id (it was removed: installed again, it starts afresh).

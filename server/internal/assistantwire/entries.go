@@ -22,10 +22,6 @@ type AssistantEntriesChanged struct {
 	Personal bool `json:"personal,omitempty"`
 }
 
-func init() {
-	Routes = append(Routes, "GET /api/v1/assistant/entries")
-}
-
 type extensionReaderKey struct{}
 
 // WithEntriesReader is transport-only identity: the extension manager sets it

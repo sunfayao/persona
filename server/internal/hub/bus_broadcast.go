@@ -31,8 +31,7 @@ import (
 //     The assistant's go without it, as they always did (one it carried is taken out): no "manager" is the
 //     assistant's (docs/protocol/protocol.md).
 //   - its place in the stream: a top-level "event_seq" is taken out. The apps read it from every message for their
-//     resume cursor, and only the event log numbers a message; an extension_operation, which the log does not keep,
-//     goes without one.
+//     resume cursor and only the event log numbers a message.
 
 // managerMessageTypes are the types the managers send the apps (internal/assistant Service.event, internal/extmgr
 // Manager.broadcast and broadcastExtension, internal/devices Devices.broadcast).
@@ -40,12 +39,12 @@ var managerMessageTypes = map[string]bool{
 	// the assistant
 	"saved_agent_searches": true, "assistant_feed": true, "assistant_saved_prompts": true, "assistant_schedule": true, "assistant_view": true, "assistant_view_action": true,
 	"assistant_view_block": true, "interaction_reanswered": true, "launcher_health": true,
-	"model_profile": true, "navigation": true, "task_plan": true, "todos": true,
+	"navigation": true, "task_plan": true, "todos": true,
 	"resources": true,
 	// its extensions' manager
-	"agents": true, "agents.prefs": true, "inbox": true, "messaging": true,
-	"extension_auth": true, "extension_operation": true, "extension_ui": true, "plugin_ui": true,
-	"extension_upgrade": true, "plugin_upgrade": true, "subscription": true,
+	"agents": true, "agents.prefs": true, "inbox": true,
+	"extension_auth": true, "extension_ui": true, "plugin_ui": true,
+	"subscription": true,
 	// its devices
 }
 
@@ -58,7 +57,7 @@ var hubMessageTypes = map[string]bool{
 	"machines": true, "sessions": true, "sessions_delta": true, "sessions_list": true, "items": true, "revs": true,
 	"conversation_deleted": true,
 	"delta":                true, "live": true, proto.FeatureMessageSendState: true, proto.FeatureTodoSendState: true,
-	"screen": true, "hook_event": true, "fs_changed": true, "desktops": true, "endpoints": true,
+	"screen": true, "hook_event": true, "fs_changed": true, "endpoints": true,
 	"terminal": true, "terminal_control": true, "herdr_state": true, "herdr_focus": true, "herdr_end": true, "herdr_data": true,
 	"look": true, "personas": true, "managers": true, "hub_update": true,
 	"hub_restarting":      true,
@@ -100,7 +99,7 @@ func (h *Hub) relayBroadcastFrom(from string, message json.RawMessage) error {
 	} else {
 		m[ManagerQuery] = from
 	}
-	delete(m, "event_seq") // the event log's, and an extension_operation skips the log (stampEvent never sees it)
+	delete(m, "event_seq") // only the event log assigns cursors
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
@@ -108,10 +107,6 @@ func (h *Hub) relayBroadcastFrom(from string, message json.RawMessage) error {
 		return err
 	}
 	out := bytes.TrimSuffix(buf.Bytes(), []byte("\n"))
-	if typ == extensionOperationEvent {
-		h.toWanting(extensionOperationsFeature, out)
-		return nil
-	}
 	if typ == "inbox" { // before the apps hear it: the list they ask for then is fetched afresh (inbox_answers.go)
 		h.inboxAnswers.changed(from)
 	}

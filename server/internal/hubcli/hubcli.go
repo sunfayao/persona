@@ -1,6 +1,5 @@
 // Package hubcli is the hub's command line: `persona-hub <command>` (cmd/persona-hub) and `personad hub <command>`
-// (cmd/personad, the compatibility entry) run the same code. It links only the hub's side (docs/server/server.md
-// "Programs"): the manager's commands are internal/managercli's.
+// (cmd/personad, the compatibility entry) run the same code. It links only the hub's side. The manager's commands are in internal/managercli.
 package hubcli
 
 import (

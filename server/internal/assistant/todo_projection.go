@@ -171,11 +171,6 @@ func (s *Service) todoRunSessions(ctx context.Context, machine string, want map[
 // counts are the list's numbers.
 func (p todoProjection) counts() assistantwire.TodoCounts { return projection.Counts(p.facts, p.views) }
 
-// todoPlaces are the list's places, each project titled by its slug.
-func (s *Service) todoPlaces(ctx context.Context, p todoProjection) assistantwire.TodoPlaces {
-	return projection.Places(p.facts, p.views, nil)
-}
-
 // projectionFacts is listed row t as the projection reads it: the fields a decoder of the row's JSON would fill (the
 // test TestProjectionFactsMatchTheList holds the two together), the sessions of its active runs, and the owner's zone.
 func projectionFacts(t listedTodo, sessions map[[2]string]proto.Session, loc *time.Location) projection.Facts {

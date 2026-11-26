@@ -165,8 +165,4 @@ func TestUninstallOperationWarnings(t *testing.T) {
 	if !named {
 		t.Fatalf("the warning names where %s is: %q", left[0], v.Warnings[0])
 	}
-	code, out := call(t, h.routes(), "GET", "/api/v1/extensions/-/operations/"+id, phone, "")
-	if ws, _ := out["warnings"].([]any); code != 200 || len(ws) != 1 || ws[0] != v.Warnings[0] {
-		t.Fatalf("its answer has them: %d %v", code, out)
-	}
 }

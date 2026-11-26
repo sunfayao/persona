@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/emersion/go-imap/v2"
-	"github.com/emersion/go-imap/v2/imapclient"
 )
 
 const (
@@ -55,64 +54,6 @@ func (s *Service) accountLock(id string) accountLock {
 		s.opMu[id] = l
 	}
 	return l
-}
-
-// Mailboxes lists the mailboxes of an account with their role and counters.
-func (s *Service) Mailboxes(ctx context.Context, id string) ([]Mailbox, error) {
-	a, err := s.account(id)
-	if err != nil {
-		return nil, err
-	}
-	statusOpts := &imap.StatusOptions{NumMessages: true, NumUnseen: true}
-	var out []Mailbox
-	err = s.withConn(ctx, a, "mailboxes", func(c *imapclient.Client) error {
-		out = nil
-		data, err := c.List("", "*", listOptions(c.Caps(), statusOpts)).Collect()
-		if err != nil {
-			return err
-		}
-		needStatus := make([]*imap.ListData, 0, len(data))
-		for _, ld := range data {
-			if hasAttr(ld.Attrs, imap.MailboxAttrNoSelect) || hasAttr(ld.Attrs, imap.MailboxAttrNonExistent) {
-				continue
-			}
-			mb := Mailbox{Name: ld.Mailbox, Role: roleOf(ld.Mailbox, ld.Attrs)}
-			if ld.Status != nil {
-				if ld.Status.NumMessages != nil {
-					mb.Total = int(*ld.Status.NumMessages)
-				}
-				if ld.Status.NumUnseen != nil {
-					mb.Unseen = int(*ld.Status.NumUnseen)
-				}
-				out = append(out, mb)
-			} else {
-				needStatus = append(needStatus, ld)
-				out = append(out, mb)
-			}
-		}
-		// Servers without LIST-STATUS: fall back to one STATUS per mailbox.
-		for _, ld := range needStatus {
-			st, err := c.Status(ld.Mailbox, statusOpts).Wait()
-			if err != nil {
-				continue
-			}
-			for j := range out {
-				if out[j].Name == ld.Mailbox {
-					if st.NumMessages != nil {
-						out[j].Total = int(*st.NumMessages)
-					}
-					if st.NumUnseen != nil {
-						out[j].Unseen = int(*st.NumUnseen)
-					}
-				}
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // listOptions asks LIST only for the return options the server can take. RETURN

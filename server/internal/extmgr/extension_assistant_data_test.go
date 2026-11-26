@@ -178,30 +178,10 @@ func TestAssistantDataContributions(t *testing.T) {
 	if got := md("b3"); !strings.Contains(got, "long answers") {
 		t.Fatalf("a file over the limit is not adopted: %q", got)
 	}
-	_, out = call(t, mux, "POST", "/api/v1/extensions/notes/-/assistant-data/apply", master, "")
-	if first := out["items"].([]any)[0].(map[string]any); first["state"] != dataStateKept || first["reason"] != dataTooLarge ||
-		first["adopted_hash"] != textDigest("The user prefers long answers.") ||
-		first["bytes"] != float64(dataInstructionsMost+1) || !strings.Contains(stringOf(first["detail"]), fmt.Sprint(dataInstructionsMost+1)) {
-		t.Fatalf("too large (bytes is what the file weighs, as the detail says): %v", first)
-	}
-
-	// Applied by the user: at once.
-	mustWrite(t, instr, "The user prefers tables.\n")
-	if got := md("b3"); strings.Contains(got, "tables") {
-		t.Fatal("waits without the user")
-	}
-	if code, out := call(t, mux, "POST", "/api/v1/extensions/notes/-/assistant-data/apply", master, ""); code != 200 ||
-		out["items"].([]any)[0].(map[string]any)["state"] != dataStateAdopted {
-		t.Fatalf("apply: %d %v", code, out)
-	}
-	if got := md("b3"); !strings.Contains(got, "tables") {
-		t.Fatalf("applied: %q", got)
-	}
-
 	// A restart does not open the window again: what is adopted is kept.
 	mustWrite(t, instr, "The user prefers bullet points.\n")
 	h.extensions.dataState = nil
-	if got := md("b3"); !strings.Contains(got, "tables") || strings.Contains(got, "bullet") {
+	if got := md("b3"); !strings.Contains(got, "long answers") || strings.Contains(got, "bullet") {
 		t.Fatalf("after a restart: %q", got)
 	}
 

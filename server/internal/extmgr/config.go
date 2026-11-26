@@ -47,9 +47,6 @@ type Config struct {
 	// SentLedgerDays is how many days the ledger of what was written as the user is kept (sent_ledger.go): 0 or
 	// absent is 90, below 0 keeps it for good.
 	SentLedgerDays int `json:"sent_ledger_days,omitempty"`
-	// SentRecallHours is how many hours after a send it can be taken back (sent_recall.go): 0 or absent is 24, below 0
-	// is no limit; a connector may allow less.
-	SentRecallHours int `json:"sent_recall_hours,omitempty"`
 	// RemoteImages is manager.json's remote_images, read here for the avatars route's fetches (avatars.go) as the
 	// assistant reads it for /remote-image: its doh.
 	RemoteImages RemoteImagesConfig `json:"remote_images,omitempty"`

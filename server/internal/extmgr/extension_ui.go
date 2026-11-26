@@ -94,7 +94,7 @@ func (ps *extensions) uiPlaces(placement, base string) []UIPlace {
 			case !known:
 				continue
 			case placement == "" && (u.Placement == "launcher_section" || u.Placement == "widget"):
-				continue // a launcher's sections are asked for with the launcher; widgets are listed on their own
+				continue // launcher sections are requested with the launcher
 			case placement != "" && u.Placement != placement && !(extension.PageSlot(placement) && extension.PageSlot(u.Placement)):
 				continue
 			case u.Placement == "launcher_section" && (host == "" || (len(u.Hosts) > 0 && !hostMatches(host, u.Hosts)) || !p.Record.Granted.LauncherKeys):
@@ -178,6 +178,8 @@ var uiItemBlocks = []string{"lark", "doc", "moment", "mail", "connector"}
 
 // uiRequest is what the apps send: render (no action) or an action, with where it is drawn, for whom, and the
 // plugin's state.
+var errUseWidget = i18n.Err("hub-extension_system.use_widget")
+
 type uiRequest struct {
 	// lang is set only by an explicit HTTP preference; older clients retain their body locale.
 	lang         i18n.Lang
@@ -615,7 +617,6 @@ func (ps *extensions) tellInvalid(id string) {
 	if ps.h == nil || len(ids) == 0 {
 		return
 	}
-	ps.h.widgetsChanged(id, ids)
 	if ids[""] {
 		ps.h.broadcast(map[string]any{"type": "extension_ui", "extension": id, "invalidate": true})
 		return

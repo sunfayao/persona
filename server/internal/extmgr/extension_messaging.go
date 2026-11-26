@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/nwverse/persona/sdk/go/wire"
 )
@@ -142,13 +140,6 @@ func (ps *extensions) messagingOwner(source string) (*hubExtension, wire.Messagi
 }
 
 func (h *Manager) messagingRoutes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/messaging", func(w http.ResponseWriter, r *http.Request) {
-		sources := h.extensions.messagingSources()
-		if sources == nil {
-			sources = []wire.MessagingSource{}
-		}
-		writeJSON(w, wire.MessagingSources{Sources: sources})
-	})
 	api.HandleFunc("/api/v1/messaging/{source}/{rest...}", h.serveMessaging)
 }
 
@@ -326,86 +317,3 @@ func (b *bufferedAnswer) copyTo(w http.ResponseWriter) {
 // messagingFeature is in the hub's features while some extension has a messaging source: the apps use the "Messages"
 // entry of the protocol then (and the old /api/v1/lark otherwise).
 const messagingFeature = "messaging"
-
-// messagingChanges coalesces an extension's messaging.changed over a second per source and account before pushing it.
-type messagingChanges struct {
-	mu      sync.Mutex
-	pending map[string]*wire.MessagingChanged // "<source>\x00<account>"
-	timer   *time.Timer
-}
-
-// messagingChanged is an extension's event messaging.changed: only for a source it has; pushed to the apps as
-// {type: messaging, source, conversations, account?, settings_changed?} within a second.
-func (ps *extensions) messagingChanged(id string, params json.RawMessage) {
-	if ps == nil || ps.h == nil {
-		return
-	}
-	var ev wire.MessagingChanged
-	if json.Unmarshal(params, &ev) != nil || wire.ValidateJSON("MessagingChanged", params) != nil {
-		ps.logf("extension %s: messaging.changed that is not one: dropped", id)
-		return
-	}
-	p := ps.reg.Get(id)
-	if p == nil || !slices.ContainsFunc(p.Manifest.Messaging(), func(it wire.MessagingItem) bool { return it.ID == ev.Source }) {
-		ps.logf("extension %s: messaging.changed for a source it does not have (%q): dropped", id, ev.Source)
-		return
-	}
-	c := &ps.messaging
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.pending == nil {
-		c.pending = map[string]*wire.MessagingChanged{}
-	}
-	key := ev.Source + "\x00" + ev.Account
-	if have := c.pending[key]; have != nil {
-		mergeMessagingChanged(have, &ev)
-	} else {
-		c.pending[key] = &ev
-	}
-	if c.timer == nil {
-		c.timer = time.AfterFunc(time.Second, ps.flushMessaging)
-	}
-}
-
-// maxMessagingChanged is how many chats one push names; more is the same as none: read everything again
-// (docs/extensions/extension-messaging.md"8", the schema's maxItems).
-const maxMessagingChanged = 500
-
-// mergeMessagingChanged folds a later change into one waiting to go out: the chats of both, or every chat when either
-// says so (it names none) or together they name more than a push can.
-func mergeMessagingChanged(have, ev *wire.MessagingChanged) {
-	if len(have.Conversations) == 0 || len(ev.Conversations) == 0 {
-		have.Conversations = nil
-	} else {
-		for _, conv := range ev.Conversations {
-			if !slices.Contains(have.Conversations, conv) {
-				have.Conversations = append(have.Conversations, conv)
-			}
-		}
-		if len(have.Conversations) > maxMessagingChanged {
-			have.Conversations = nil
-		}
-	}
-	have.SettingsChanged = have.SettingsChanged || ev.SettingsChanged
-}
-
-func (ps *extensions) flushMessaging() {
-	c := &ps.messaging
-	c.mu.Lock()
-	pending := c.pending
-	c.pending, c.timer = nil, nil
-	c.mu.Unlock()
-	for _, ev := range pending {
-		out := map[string]any{"type": "messaging", "source": ev.Source, "conversations": ev.Conversations}
-		if ev.Conversations == nil {
-			out["conversations"] = []string{}
-		}
-		if ev.Account != "" {
-			out["account"] = ev.Account
-		}
-		if ev.SettingsChanged {
-			out["settings_changed"] = true
-		}
-		ps.h.broadcast(out)
-	}
-}

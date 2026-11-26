@@ -47,14 +47,6 @@ func TestInboxSourcesAreTheConnectors(t *testing.T) {
 	if c := listedExample(t, h); c["inbox"] != false {
 		t.Errorf("the pages' switch is Settings › Connectors' one: %v", c)
 	}
-	code, _ := call(t, h.routes(), "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, `{"inbox":true}`)
-	if l := b.List(ctx); code != 200 || !*l[0].Inbox {
-		t.Errorf("and the other way round: %d %+v", code, l[0])
-	}
-	code, _ = call(t, h.routes(), "PUT", "/api/v1/connectors/example/settings", h.cfg.Token, `{"inbox":false}`)
-	if l := b.List(ctx); code != 200 || *l[0].Inbox {
-		t.Errorf("and off again: %d %+v", code, l[0])
-	}
 	var cs connectorSettings
 	if _, err := h.store.Setting(ctx, connectorSettingsKey, &cs); err != nil || (*cs.feeds(connector.FeedInbox))["example"] {
 		t.Errorf("kept for the next start: %+v %v", cs, err)

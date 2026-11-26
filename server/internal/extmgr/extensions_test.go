@@ -69,10 +69,6 @@ func TestMain(m *testing.M) {
 		serveConnectorExtensionForTest()
 		return
 	}
-	if os.Getenv("PERSONA_TEST_PLUGIN") == "recall" {
-		serveRecallExtensionForTest()
-		return
-	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "auth" {
 		serveAuthExtensionForTest()
 		return
@@ -107,10 +103,6 @@ func TestMain(m *testing.M) {
 	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "images" {
 		serveImagesExtensionForTest()
-		return
-	}
-	if os.Getenv("PERSONA_TEST_PLUGIN") == "system" {
-		serveSystemExtensionForTest()
 		return
 	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "inboxui" {

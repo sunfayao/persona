@@ -62,7 +62,6 @@ func TestBuiltinProgramsSameFlows(t *testing.T) {
 		"ComputerExtensionIsOffUntilTurnedOnForAMachine": TestComputerExtensionIsOffUntilTurnedOnForAMachine,
 		"ComputerToolsCallTheNode":                       TestComputerToolsCallTheNode,
 		"ComputerJobs":                                   TestComputerJobs,
-		"ComputerClipboard":                              TestComputerClipboard,
 		"TheCursorAndTheClickSound":                      TestTheCursorAndTheClickSound,
 		"NoAutoLock":                                     TestNoAutoLock,
 		"ComputerTellsReachTheMacInOrder":                TestComputerTellsReachTheMacInOrder,
@@ -74,9 +73,6 @@ func TestBuiltinProgramsSameFlows(t *testing.T) {
 		"IPhoneCallFailures":                             TestIPhoneCallFailures,
 		"IPhoneJobs":                                     TestIPhoneJobs,
 		"BrowserCookies":                                 TestBrowserCookies,
-		"IMessageThroughTheHub":                          TestIMessageThroughTheHub,
-		"IMessageOldOrOfflineMac":                        TestIMessageOldOrOfflineMac,
-		"IMessageAISwitch":                               TestIMessageAISwitch,
 		"IMessageExtensionPicksTheMac":                   TestIMessageExtensionPicksTheMac,
 	} {
 		t.Run(name, test)

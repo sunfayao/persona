@@ -296,49 +296,6 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 	return out
 }
 
-// channelBindRoute is POST /api/v1/channels/{id}/bind: a step of binding (a plugin channel's connector signs in, the
-// Feishu bot takes its credentials, then a pairing code). The channels' other routes are the assistant's; this one
-// carries credentials and sign-in fields, which never pass through the assistant.
-func (h *Manager) channelBindRoute(api *http.ServeMux) {
-	api.HandleFunc("POST /api/v1/channels/{id}/bind", func(w http.ResponseWriter, r *http.Request) {
-		if principalOf(r.Context()).Role != roleFull {
-			writeErr(w, http.StatusForbidden, errors.New("this device can only read and answer"))
-			return
-		}
-		id := r.PathValue("id")
-		list := h.channelList(r.Context())
-		i := slices.IndexFunc(list, func(v channel.View) bool { return v.ID == id })
-		if i < 0 {
-			writeErrCode(w, http.StatusNotFound, "not_found", errors.New("no such channel"))
-			return
-		}
-		if v := list[i]; v.ReadOnly || v.Source == channel.SourceMarket {
-			writeErrCode(w, http.StatusConflict, "read_only", i18n.Err("hub-channels.not_set_here", i18n.Args{"name": v.Name}))
-			return
-		}
-		var in struct {
-			Step   string            `json:"step"`
-			Values map[string]string `json:"values"`
-		}
-		if r.ContentLength != 0 {
-			if err := decodeJSONBody(w, r, &in, 1<<20); err != nil {
-				writeBodyErr(w, err, err)
-				return
-			}
-		}
-		p, err := h.bindChannel(r.Context(), id, in.Step, in.Values)
-		if err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		if err := withQR(&p); err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		writeJSON(w, p)
-	})
-}
-
 // enableChannel switches a channel on or off (channels.enable): a plugin's program and its connector, the Feishu
 // bot.
 func (h *Manager) enableChannel(ctx context.Context, id string, on bool) error {
@@ -637,4 +594,44 @@ func (h *Manager) unbindChannel(ctx context.Context, id string) error {
 		return errors.New(i18n.T(lang, "hub-channels.not_bound", i18n.Args{"name": v.Name}))
 	}
 	return h.connectorLogout(ctx, pc.item.Connector, l) // the assistant forgets what the channel waited on
+}
+
+func (h *Manager) channelBindRoute(api *http.ServeMux) {
+	api.HandleFunc("POST /api/v1/channels/{id}/bind", func(w http.ResponseWriter, r *http.Request) {
+		if principalOf(r.Context()).Role != roleFull {
+			writeErr(w, http.StatusForbidden, errors.New("this device can only read and answer"))
+			return
+		}
+		id := r.PathValue("id")
+		list := h.channelList(r.Context())
+		i := slices.IndexFunc(list, func(v channel.View) bool { return v.ID == id })
+		if i < 0 {
+			writeErrCode(w, http.StatusNotFound, "not_found", errors.New("no such channel"))
+			return
+		}
+		if v := list[i]; v.ReadOnly || v.Source == channel.SourceMarket {
+			writeErrCode(w, http.StatusConflict, "read_only", i18n.Err("hub-channels.not_set_here", i18n.Args{"name": v.Name}))
+			return
+		}
+		var in struct {
+			Step   string            `json:"step"`
+			Values map[string]string `json:"values"`
+		}
+		if r.ContentLength != 0 {
+			if err := decodeJSONBody(w, r, &in, 1<<20); err != nil {
+				writeBodyErr(w, err, err)
+				return
+			}
+		}
+		p, err := h.bindChannel(r.Context(), id, in.Step, in.Values)
+		if err != nil {
+			writeErr(w, http.StatusBadGateway, err)
+			return
+		}
+		if err := withQR(&p); err != nil {
+			writeErr(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, p)
+	})
 }

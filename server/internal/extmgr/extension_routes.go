@@ -255,13 +255,10 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 	h.extensionUIRoutes(api)
 	h.extensionImageRoutes(api)
 	h.extensionLogoRoutes(api)
-	h.extensionSystemRoutes(api)
 	h.marketRoutes(api)
-	h.operationRoutes(api)
 	h.upgradeRoutes(api)
 	h.auditRoutes(api)
 	h.extensionDevRoutes(api)
-	h.storageRoutes(api)
 	h.sandboxRoutes(api)
 	h.contributionRoutes(api)
 	h.declaredRoutes(api)
@@ -490,7 +487,7 @@ func (h *Manager) extensionRoutes(api *http.ServeMux) {
 				h.resolveBundle(extension.WithoutProgress(ctx), pv, "")
 				return pv, nil
 			}}
-		op, pv, err := h.launch(r.Context(), job, nil, in.Async)
+		op, pv, err := h.launch(r.Context(), job, in.Async)
 		switch {
 		case in.Async:
 			h.writeOp(w, op)

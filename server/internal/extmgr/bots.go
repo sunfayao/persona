@@ -528,6 +528,199 @@ func (h *Manager) setSourceReportSettings(ctx context.Context, delay *int, fullR
 	return nil
 }
 
+// botPairCode is a new six-digit pairing code.
+func botPairCode() string {
+	n, _ := rand.Int(rand.Reader, big.NewInt(900000))
+	return fmt.Sprintf("%06d", 100000+n.Int64())
+}
+
+// unpairBot forgets the owner; the assistant forgets the chat's state (feishu.owner).
+func (h *Manager) unpairBot(ctx context.Context) error {
+	b := &h.bots
+	b.mu.Lock()
+	if err := h.loadBotsLocked(ctx); err != nil {
+		b.mu.Unlock()
+		return err
+	}
+	previous := b.set.copy()
+	had := b.set.Owner != nil
+	b.set.Owner, b.set.Pairing, b.set.TopicChats, b.set.AISources = nil, nil, nil, nil // the topic chats and the /ai sources were the owner's
+	b.set.Configure = nil
+	if err := h.saveBotSettingsLocked(); err != nil {
+		b.set = previous
+		b.mu.Unlock()
+		return errBotSettingsSave
+	}
+	b.pairLifecycle++
+	b.mu.Unlock()
+	if had {
+		h.auditBot(ctx, botRecord{action: auditBotUnpaired})
+	}
+	_ = h.notifyAssistant(assistantwire.EventFeishuOwner, assistantwire.FeishuOwner{})
+	return nil
+}
+
+var errBotOff = i18n.Err("hub-bots.bot_off")
+
+// botLang is the language of what the bots and the channels write: the request's when the context carries one, else
+// the user's (docs/protocol/i18n.md "Protocol").
+func (h *Manager) botLang(ctx context.Context) i18n.Lang {
+	return i18n.From(ctx).Or(h.userLang())
+}
+
+// updateBot applies the app's changes; new credentials are tried (the bot's info) before they are saved.
+func (h *Manager) updateBot(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate) error {
+	if appID != nil || secret != nil || domain != nil {
+		release, err := h.acquireFeishuBind(ctx)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
+	return h.applyBotUpdate(ctx, enabled, appID, secret, domain, features, false)
+}
+
+// applyBotUpdate requires the bind gate for credential updates. Only registration's own finish preserves its session.
+func (h *Manager) applyBotUpdate(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate, preserveRegistration bool) error {
+	_, err := h.applyBotUpdateWithReceipt(ctx, enabled, appID, secret, domain, features, preserveRegistration)
+	return err
+}
+
+// applyBotUpdateWithReceipt returns the exact committed credentials and pairing lifecycle before post-save work.
+// Credential updates require the binding gate; a caller already holding it must not acquire it again.
+func (h *Manager) applyBotUpdateWithReceipt(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate, preserveRegistration bool) (botConfigureReceipt, error) {
+	b := &h.bots
+	b.mu.Lock()
+	if err := h.loadBotsLocked(ctx); err != nil {
+		b.mu.Unlock()
+		return botConfigureReceipt{}, err
+	}
+	next := b.set.copy()
+	b.mu.Unlock()
+	reconnect := false
+	creds, credsChanged := false, false
+	if appID != nil || secret != nil || domain != nil {
+		id, dom := next.AppID, next.Domain
+		if appID != nil {
+			id = strings.TrimSpace(*appID)
+		}
+		if domain != nil {
+			dom = strings.TrimSpace(*domain)
+		}
+		newSecret := secret != nil && strings.TrimSpace(*secret) != ""
+		// The secret kept now: what a new one is compared with (for the audit), and what is used without one.
+		var prev string
+		if next.SecretEnc != "" {
+			var err error
+			if prev, err = h.openKey(next.SecretEnc); err != nil && !newSecret {
+				return botConfigureReceipt{}, err
+			}
+		}
+		plain := prev
+		if newSecret {
+			plain = strings.TrimSpace(*secret)
+		}
+		credsChanged = id != next.AppID || dom != next.Domain || (id != "" && plain != prev)
+		if id == "" {
+			// Cleared: back to hub.json's, if any.
+			next.AppID, next.SecretEnc, next.Domain = "", "", ""
+		} else {
+			if plain == "" {
+				return botConfigureReceipt{}, i18n.Err("hub-bots.needs_secret")
+			}
+			vctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			_, err := feishubot.New(id, plain, dom).BotInfo(vctx)
+			cancel()
+			if err != nil {
+				return botConfigureReceipt{}, errors.New(i18n.T(h.botLang(ctx), "hub-bots.cannot_reach_app", i18n.Args{"error": err.Error()}))
+			}
+			sealed, err := h.sealKey(plain)
+			if err != nil {
+				return botConfigureReceipt{}, err
+			}
+			next.AppID, next.SecretEnc, next.Domain = id, sealed, dom
+		}
+		reconnect, creds = true, true
+	}
+	b.mu.Lock()
+	// Onto the settings as they are now: the credentials were checked over the network meanwhile, and a pairing may
+	// have come in.
+	if creds && ctx.Err() != nil {
+		b.mu.Unlock()
+		return botConfigureReceipt{}, ctx.Err()
+	}
+	cur := &b.set
+	previous := cur.copy()
+	var merged BotFeatures
+	if features != nil {
+		var err error
+		merged, err = features.apply(cur.Features)
+		if err != nil {
+			b.mu.Unlock()
+			return botConfigureReceipt{}, err
+		}
+	}
+	var records []botRecord
+	if creds {
+		if credsChanged {
+			if !preserveRegistration {
+				cur.Registration, cur.RegistrationDeviceEnc, cur.RegistrationSecretEnc = nil, "", ""
+			}
+			d := map[string]any{"app_id": next.AppID}
+			if next.Domain != "" {
+				d["domain"] = next.Domain
+			}
+			if next.AppID == "" {
+				d["cleared"] = true
+			}
+			if next.AppID != cur.AppID && cur.Owner != nil {
+				d["owner_reset"] = true
+			}
+			records = append(records, botRecord{auditBotCredentials, d})
+		}
+		if next.AppID != cur.AppID {
+			cur.Owner, cur.Pairing, cur.TopicChats, cur.AISources = nil, nil, nil, nil
+		}
+		h.clearBotConfigureOnChangeLocked(next)
+		cur.AppID, cur.SecretEnc, cur.Domain = next.AppID, next.SecretEnc, next.Domain
+	}
+	if enabled != nil && *enabled != cur.Enabled {
+		cur.Enabled = *enabled
+		reconnect = true
+		records = append(records, botRecord{auditBotEnabled, map[string]any{"enabled": *enabled}})
+	}
+	if features != nil {
+		if merged != cur.Features {
+			records = append(records, botRecord{auditBotFeatures, map[string]any{"features": merged}})
+		}
+		cur.Features = merged
+	}
+	if err := h.saveBotSettingsLocked(); err != nil {
+		b.set = previous
+		b.mu.Unlock()
+		return botConfigureReceipt{}, errBotSettingsSave
+	}
+	receipt := h.botConfigureReceiptLocked()
+
+	b.mu.Unlock()
+	h.auditBot(ctx, records...)
+	if reconnect {
+		h.restartBot()
+	}
+	if creds {
+		syncCtx := h.ctx
+		if syncCtx == nil {
+			syncCtx = context.Background()
+		}
+		if err := h.syncLarkCLIProfile(syncCtx); err != nil {
+			h.logf("larkcli profile sync: %v", err)
+		}
+		h.refreshLarkCLIConnector(syncCtx)
+	}
+	h.sendReport()
+	return receipt, nil
+}
+
 func (h *Manager) botRoutes(api *http.ServeMux) {
 	h.channelBindRoute(api) // binding a channel carries its secrets: the hub's, never relayed
 	api.HandleFunc("GET /api/v1/bots/feishu", func(w http.ResponseWriter, r *http.Request) {
@@ -685,224 +878,4 @@ func (h *Manager) botRoutes(api *http.ServeMux) {
 		}
 		writeJSON(w, h.botView(r.Context()))
 	})
-	// test: a message to the owner, to see that the bot reaches them.
-	api.HandleFunc("POST /api/v1/bots/feishu/test", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-		defer cancel()
-		if err := h.testFeishuBot(ctx); err != nil {
-			code := http.StatusBadGateway
-			if errors.Is(err, errBotOff) {
-				code = http.StatusConflict
-			}
-			writeErr(w, code, err)
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true})
-	})
-}
-
-// botPairCode is a new six-digit pairing code.
-func botPairCode() string {
-	n, _ := rand.Int(rand.Reader, big.NewInt(900000))
-	return fmt.Sprintf("%06d", 100000+n.Int64())
-}
-
-// unpairBot forgets the owner; the assistant forgets the chat's state (feishu.owner).
-func (h *Manager) unpairBot(ctx context.Context) error {
-	b := &h.bots
-	b.mu.Lock()
-	if err := h.loadBotsLocked(ctx); err != nil {
-		b.mu.Unlock()
-		return err
-	}
-	previous := b.set.copy()
-	had := b.set.Owner != nil
-	b.set.Owner, b.set.Pairing, b.set.TopicChats, b.set.AISources = nil, nil, nil, nil // the topic chats and the /ai sources were the owner's
-	b.set.Configure = nil
-	if err := h.saveBotSettingsLocked(); err != nil {
-		b.set = previous
-		b.mu.Unlock()
-		return errBotSettingsSave
-	}
-	b.pairLifecycle++
-	b.mu.Unlock()
-	if had {
-		h.auditBot(ctx, botRecord{action: auditBotUnpaired})
-	}
-	_ = h.notifyAssistant(assistantwire.EventFeishuOwner, assistantwire.FeishuOwner{})
-	return nil
-}
-
-var errBotOff = i18n.Err("hub-bots.bot_off")
-
-// botLang is the language of what the bots and the channels write: the request's when the context carries one, else
-// the user's (docs/protocol/i18n.md "Protocol").
-func (h *Manager) botLang(ctx context.Context) i18n.Lang {
-	return i18n.From(ctx).Or(h.userLang())
-}
-
-// testFeishuBot sends the owner a card.
-func (h *Manager) testFeishuBot(ctx context.Context) error {
-	api, set := h.botAPI()
-	if api == nil {
-		return errBotOff
-	}
-	l := h.botLang(ctx)
-	body := i18n.T(l, "hub-bots.test_body")
-	card := feishubot.NewCard("", "", i18n.T(l, "hub-bots.test_title")).Markdown(body)
-	_, err := h.botPost(ctx, api, set.Owner.ChatID, "", card, body)
-	return err
-}
-
-// updateBot applies the app's changes; new credentials are tried (the bot's info) before they are saved.
-func (h *Manager) updateBot(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate) error {
-	if appID != nil || secret != nil || domain != nil {
-		release, err := h.acquireFeishuBind(ctx)
-		if err != nil {
-			return err
-		}
-		defer release()
-	}
-	return h.applyBotUpdate(ctx, enabled, appID, secret, domain, features, false)
-}
-
-// applyBotUpdate requires the bind gate for credential updates. Only registration's own finish preserves its session.
-func (h *Manager) applyBotUpdate(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate, preserveRegistration bool) error {
-	_, err := h.applyBotUpdateWithReceipt(ctx, enabled, appID, secret, domain, features, preserveRegistration)
-	return err
-}
-
-// applyBotUpdateWithReceipt returns the exact committed credentials and pairing lifecycle before post-save work.
-// Credential updates require the binding gate; a caller already holding it must not acquire it again.
-func (h *Manager) applyBotUpdateWithReceipt(ctx context.Context, enabled *bool, appID, secret, domain *string, features *botFeatureUpdate, preserveRegistration bool) (botConfigureReceipt, error) {
-	b := &h.bots
-	b.mu.Lock()
-	if err := h.loadBotsLocked(ctx); err != nil {
-		b.mu.Unlock()
-		return botConfigureReceipt{}, err
-	}
-	next := b.set.copy()
-	b.mu.Unlock()
-	reconnect := false
-	creds, credsChanged := false, false
-	if appID != nil || secret != nil || domain != nil {
-		id, dom := next.AppID, next.Domain
-		if appID != nil {
-			id = strings.TrimSpace(*appID)
-		}
-		if domain != nil {
-			dom = strings.TrimSpace(*domain)
-		}
-		newSecret := secret != nil && strings.TrimSpace(*secret) != ""
-		// The secret kept now: what a new one is compared with (for the audit), and what is used without one.
-		var prev string
-		if next.SecretEnc != "" {
-			var err error
-			if prev, err = h.openKey(next.SecretEnc); err != nil && !newSecret {
-				return botConfigureReceipt{}, err
-			}
-		}
-		plain := prev
-		if newSecret {
-			plain = strings.TrimSpace(*secret)
-		}
-		credsChanged = id != next.AppID || dom != next.Domain || (id != "" && plain != prev)
-		if id == "" {
-			// Cleared: back to hub.json's, if any.
-			next.AppID, next.SecretEnc, next.Domain = "", "", ""
-		} else {
-			if plain == "" {
-				return botConfigureReceipt{}, i18n.Err("hub-bots.needs_secret")
-			}
-			vctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-			_, err := feishubot.New(id, plain, dom).BotInfo(vctx)
-			cancel()
-			if err != nil {
-				return botConfigureReceipt{}, errors.New(i18n.T(h.botLang(ctx), "hub-bots.cannot_reach_app", i18n.Args{"error": err.Error()}))
-			}
-			sealed, err := h.sealKey(plain)
-			if err != nil {
-				return botConfigureReceipt{}, err
-			}
-			next.AppID, next.SecretEnc, next.Domain = id, sealed, dom
-		}
-		reconnect, creds = true, true
-	}
-	b.mu.Lock()
-	// Onto the settings as they are now: the credentials were checked over the network meanwhile, and a pairing may
-	// have come in.
-	if creds && ctx.Err() != nil {
-		b.mu.Unlock()
-		return botConfigureReceipt{}, ctx.Err()
-	}
-	cur := &b.set
-	previous := cur.copy()
-	var merged BotFeatures
-	if features != nil {
-		var err error
-		merged, err = features.apply(cur.Features)
-		if err != nil {
-			b.mu.Unlock()
-			return botConfigureReceipt{}, err
-		}
-	}
-	var records []botRecord
-	if creds {
-		if credsChanged {
-			if !preserveRegistration {
-				cur.Registration, cur.RegistrationDeviceEnc, cur.RegistrationSecretEnc = nil, "", ""
-			}
-			d := map[string]any{"app_id": next.AppID}
-			if next.Domain != "" {
-				d["domain"] = next.Domain
-			}
-			if next.AppID == "" {
-				d["cleared"] = true
-			}
-			if next.AppID != cur.AppID && cur.Owner != nil {
-				d["owner_reset"] = true
-			}
-			records = append(records, botRecord{auditBotCredentials, d})
-		}
-		if next.AppID != cur.AppID {
-			cur.Owner, cur.Pairing, cur.TopicChats, cur.AISources = nil, nil, nil, nil
-		}
-		h.clearBotConfigureOnChangeLocked(next)
-		cur.AppID, cur.SecretEnc, cur.Domain = next.AppID, next.SecretEnc, next.Domain
-	}
-	if enabled != nil && *enabled != cur.Enabled {
-		cur.Enabled = *enabled
-		reconnect = true
-		records = append(records, botRecord{auditBotEnabled, map[string]any{"enabled": *enabled}})
-	}
-	if features != nil {
-		if merged != cur.Features {
-			records = append(records, botRecord{auditBotFeatures, map[string]any{"features": merged}})
-		}
-		cur.Features = merged
-	}
-	if err := h.saveBotSettingsLocked(); err != nil {
-		b.set = previous
-		b.mu.Unlock()
-		return botConfigureReceipt{}, errBotSettingsSave
-	}
-	receipt := h.botConfigureReceiptLocked()
-
-	b.mu.Unlock()
-	h.auditBot(ctx, records...)
-	if reconnect {
-		h.restartBot()
-	}
-	if creds {
-		syncCtx := h.ctx
-		if syncCtx == nil {
-			syncCtx = context.Background()
-		}
-		if err := h.syncLarkCLIProfile(syncCtx); err != nil {
-			h.logf("larkcli profile sync: %v", err)
-		}
-		h.refreshLarkCLIConnector(syncCtx)
-	}
-	h.sendReport()
-	return receipt, nil
 }

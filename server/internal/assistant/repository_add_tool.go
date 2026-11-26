@@ -20,7 +20,7 @@ func (s *Service) toolRepositoryAdd(ctx context.Context, machine, self string, r
 	if err := repositoryArguments(raw, &in); err != nil {
 		return "", repositoryAddNotApplied(err)
 	}
-	binding, err := s.repositoryBinding(withProviderBudget(ctx), in, "")
+	binding, err := s.repositoryBinding(withProviderBudget(ctx), in)
 	if err != nil {
 		return "", repositoryAddNotApplied(s.repositoryToolError(ctx, err))
 	}
@@ -60,7 +60,7 @@ func (s *Service) toolRepositoryAdd(ctx context.Context, machine, self string, r
 					return "", approvalops.ErrStale
 				}
 			}
-			saved, err := s.saveRepository(ctx, "", binding)
+			saved, err := s.saveRepository(ctx, binding)
 			if err != nil {
 				return "", s.repositoryToolError(ctx, err)
 			}

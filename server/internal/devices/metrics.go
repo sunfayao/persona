@@ -445,9 +445,6 @@ func (d *Devices) metricsRoutes(mux *http.ServeMux) {
 		}
 		writeJSON(w, map[string]any{"metrics": list[0], "range": name, "step": rg.step})
 	})
-	mux.HandleFunc("GET /api/v1/usage", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, map[string]any{"usage": d.Usage()})
-	})
 }
 
 // ---- token usage ----

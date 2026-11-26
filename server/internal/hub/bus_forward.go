@@ -262,30 +262,6 @@ func (h *Hub) busBroadcast(c *busConn, params json.RawMessage) {
 	}
 }
 
-// An install's steps (docs/protocol/protocol.md "Extension install, upgrade and uninstall progress") go only to the apps that declared they know them,
-// and not into the event log: a download pushes once a second, and an app that comes back lists them again.
-const (
-	extensionOperationEvent    = "extension_operation"
-	extensionOperationsFeature = "extension_operations"
-)
-
-// toWanting sends b to the apps that asked for feature (?features= or client_hello), outside the event log. An
-// extension operation is localized once per language, not once per app.
-func (h *Hub) toWanting(feature string, b []byte) {
-	forms := map[i18n.Lang][]byte{}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for c := range h.clients {
-		if c.wants(feature) {
-			if feature == extensionOperationsFeature {
-				c.queue(localizedOnce(forms, c.lang(), b, i18n.ExtensionEvent))
-			} else {
-				c.queue(b)
-			}
-		}
-	}
-}
-
 // localizedOnce is localize(l, b), built on the first call for l and reused from forms after: a broadcast's localized
 // form depends only on its language, so every app that reads that language is queued the same bytes (client.queue
 // does not change what it is given).

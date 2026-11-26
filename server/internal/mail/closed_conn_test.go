@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strings"
 	"sync"
@@ -274,20 +272,6 @@ func TestConnectionThatKeepsEndingIsReportedInWords(t *testing.T) {
 		{i18n.Ja, "このメールボックスに接続できません。一度再接続しましたが、うまくいきませんでした。しばらくしてからもう一度お試しください。"},
 	} {
 		t.Run(string(c.lang), func(t *testing.T) {
-			w := httptest.NewRecorder()
-			s.Handler().ServeHTTP(mailLanguageWriter{w, c.lang},
-				httptest.NewRequest(http.MethodGet, "/api/v1/mail/messages?account_id=acc_test&q=invoice", nil))
-			var body struct {
-				Error string `json:"error"`
-				Code  string `json:"code"`
-			}
-			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-				t.Fatal(err)
-			}
-			if w.Code != http.StatusBadGateway || body.Code != "mail_unreachable" || body.Error != c.want ||
-				strings.Contains(w.Body.String(), "closed") || strings.Contains(w.Body.String(), "127.0.0.1") {
-				t.Fatalf("HTTP %d %s, want 502 and %q", w.Code, w.Body, c.want)
-			}
 			res := s.Call(i18n.With(context.Background(), c.lang), ToolSearch,
 				json.RawMessage(`{"account_id":"acc_test","query":"invoice"}`), nil)
 			if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != c.want {

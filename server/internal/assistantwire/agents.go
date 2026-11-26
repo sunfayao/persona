@@ -266,7 +266,6 @@ var agentRoutes = []string{
 	"PUT /api/v1/agents/display-settings",
 	"GET /api/v1/agents/triage",
 	"PUT /api/v1/agents/triage",
-	"GET /api/v1/agents/work/stats",
 	"POST /api/v1/sessions/{mid}/{sid}/review",
 	"GET /api/v1/sessions/{mid}/{sid}/review",
 }

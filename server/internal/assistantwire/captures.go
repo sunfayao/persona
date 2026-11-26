@@ -5,10 +5,7 @@ import "time"
 // captureRoutes are quick capture's (#13502): what the user jots down from
 // the share sheet, the watch, Siri or the web goes into a list of its own, never into a conversation; only a
 // full-access client (the user's own devices) adds to it or reads it.
-var captureRoutes = []string{
-	"GET /api/v1/assistant/captures",
-	"POST /api/v1/assistant/captures",
-}
+var captureRoutes = []string{}
 
 func init() { Routes = append(Routes, captureRoutes...) }
 

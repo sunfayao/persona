@@ -28,6 +28,7 @@ let onLoginRequired: () => void = () => {};
 
 export function setTransport(t: Transport) {
   transport = t;
+  rootFound = null;
 }
 
 export function setCsrf(token: string | undefined) {
@@ -176,11 +177,6 @@ function findRoot(): Promise<{ root: Root; list?: ListAnswer }> {
 
 /** The routes' root, for the calls below. */
 const extRoot = () => findRoot().then((f) => f.root);
-
-/** Only for tests: forget which routes the hub has. */
-export function resetExtensionRoot() {
-  rootFound = null;
-}
 
 export async function getExtensions(): Promise<AdminExtensions> {
   const read = (r: ListAnswer): AdminExtensions => ({ ...r, extensions: r.extensions ?? r.plugins ?? [] });

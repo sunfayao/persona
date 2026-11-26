@@ -7,10 +7,10 @@ import (
 	"github.com/nwverse/persona/server/internal/db"
 )
 
-// Cheap labels for a wrong "done" in GET /api/v1/agents/work/stats (#2586):
-// a to-do the hub's done judge closed that is reopened within a day, and a supervised task the judge found done that
-// its supervisor sends back with task_review. Each is a work event with no session (session_work_events, kept 30
-// days like the others); summarizeWork counts each to-do once.
+// wrongDoneWithin is the interval in which supervision counts a judge-closed to-do's reopening as a mistaken close.
+const wrongDoneWithin = 24 * time.Hour
+
+// Work events for reopened to-dos and supervised tasks sent back for rework.
 const (
 	// todoReopenedEvent: a done to-do was reopened, whichever way (by hand, a change asked on its "Please verify"
 	// card, its agent set to work again). Detail: todo, done_by as it was, judge (closedByJudge), after (how many
@@ -20,16 +20,6 @@ const (
 	// user instead, too). Detail: todo, judged_done (it was waiting for review because the judge found it done).
 	reviewReworkEvent = "review_rework"
 )
-
-// wrongDoneWithin: a reopen this soon after the judge closed a to-do says the close was wrong.
-const wrongDoneWithin = 24 * time.Hour
-
-// wrongDoneStats is the work stats' wrong_done: how many to-dos the judge closed were reopened within wrongDoneWithin,
-// and how many supervised tasks the judge found done task_review sent back.
-type wrongDoneStats struct {
-	Reopened int `json:"reopened"`
-	Rework   int `json:"rework"`
-}
 
 // closedByJudge: done to-do t was closed by the hub's done judge, not by a person: on its own (done_by auto), or a
 // supervised task whose check passed before #5732, which the judge accepted for its supervisor (its review by "judge").

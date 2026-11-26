@@ -27,7 +27,6 @@ var Routes = []string{
 	"/api/v1/bots/",
 	"/api/v1/channels/{id}/bind",
 	"/api/v1/mail/",
-	"/api/v1/imessage",
 	"/api/v1/imessage/",
 	"/api/v1/agents",
 	"/api/v1/agents/",
@@ -39,7 +38,6 @@ var Routes = []string{
 	"GET /api/v1/agents/sessions/{id}/avatar",
 	"POST /api/v1/agents/sessions/{id}/messages",
 	"POST /api/v1/agents/sessions/{id}/read",
-	"/api/v1/messaging",
 	"/api/v1/messaging/",
 	"/api/v1/machines/{mid}/computer",
 	"/api/v1/machines/{mid}/computer/",
@@ -47,7 +45,6 @@ var Routes = []string{
 	"/api/v1/machines/{mid}/browser/",
 	"/api/v1/machines/{mid}/iphone",
 	"/api/v1/machines/{mid}/iphone/",
-	"/api/v1/iphone",
 	"/api/v1/iphone/",
 	"/api/v1/error-reports",
 	"/api/v1/subscriptions",
@@ -61,9 +58,6 @@ var KeptRoutes = []string{
 	"/api/v1/extensions",
 	"/api/v1/extensions/-/ui",
 	"/api/v1/extensions/-/prompts",
-	"/api/v1/extensions/-/widgets",
-	"/api/v1/extensions/-/shortcuts",
-	"/api/v1/extensions/-/triage-templates",
 }
 
 // Headers the hub sets on a relayed request: who asked, as its auth found it. Any the client sent are dropped.

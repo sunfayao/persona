@@ -8,52 +8,11 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/nwverse/persona/server/internal/herdr"
 	"github.com/nwverse/persona/server/internal/host"
 	"github.com/nwverse/persona/server/internal/i18n"
 )
-
-// renameWorktree targets a listed host container, including one with no Agents.
-func (n *Node) renameWorktree(ctx context.Context, kind, workspace, name string) error {
-	name = strings.Join(strings.Fields(name), " ")
-	if workspace == "" || name == "" || utf8.RuneCountInString(name) > maxLabel {
-		return fmt.Errorf("worktree and a name of 1 to %d characters are required", maxLabel)
-	}
-	if rt, runtime, err := n.worktreeRuntime(ctx, kind); runtime { // an engine runtime's workspace: its title
-		if err != nil {
-			return err
-		}
-		return n.runtimeRenameWorkspace(ctx, rt, workspace, name)
-	}
-	h, err := n.hostOfKind(kind)
-	if err != nil {
-		return err
-	}
-	org, ok := h.(host.Organizer)
-	if !ok {
-		return unsupported(h)
-	}
-	launch, ok := h.(host.Launcher)
-	if !ok {
-		return unsupported(h)
-	}
-	spaces, err := launch.Spaces(ctx)
-	if err != nil {
-		return err
-	}
-	for _, space := range spaces {
-		if space.ID == workspace {
-			if err := org.RenameSpace(ctx, workspace, name); err != nil {
-				return err
-			}
-			_ = n.refreshHosts(ctx, h)
-			return nil
-		}
-	}
-	return fmt.Errorf("the selected worktree is no longer available")
-}
 
 // renameSpace renames a workspace (what the phone calls a space) in the host it is in (spaceOrganizer) and returns the
 // name it shows now: a named herdr session's with the session in front (sessionLabel, #2196), which the hub keys pins

@@ -163,7 +163,7 @@ func TestGitPRWithoutGh(t *testing.T) {
 
 // A pull request is made for a pushed branch only; merging passes the method, auto or turning auto off, and never
 // deletes the branch.
-func TestGitPRCreateAndMerge(t *testing.T) {
+func TestGitPRCreate(t *testing.T) {
 	f := newPullFixture(t)
 	calls := fakePRGh(t, "")
 	ctx := context.Background()
@@ -178,23 +178,13 @@ func TestGitPRCreateAndMerge(t *testing.T) {
 	if _, err := f.node.gitPRCreate(ctx, f.local, "Fix login", "Body", "main", true); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.node.gitPRMerge(ctx, f.local, 42, "squash", true, false); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.node.gitPRMerge(ctx, f.local, 42, "", false, true); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.node.gitPRMerge(ctx, f.local, 42, "octopus", false, false); err == nil {
-		t.Fatal("merged with an unknown method")
-	}
 	var made []string
 	for _, c := range calls() {
-		if strings.HasPrefix(c, "pr create") || strings.HasPrefix(c, "pr merge") {
+		if strings.HasPrefix(c, "pr create") {
 			made = append(made, c)
 		}
 	}
-	want := []string{"pr create --head fix/login --title Fix login --body Body --base main --draft", "pr merge 42 --squash --auto",
-		"pr merge 42 --disable-auto"}
+	want := []string{"pr create --head fix/login --title Fix login --body Body --base main --draft"}
 	if strings.Join(made, "|") != strings.Join(want, "|") {
 		t.Fatalf("gh calls\n%s\nwant\n%s", strings.Join(made, "\n"), strings.Join(want, "\n"))
 	}

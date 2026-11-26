@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -164,12 +165,13 @@ func TestScheduledPromptDeliveryThroughNode(t *testing.T) {
 	}); result.IsError {
 		t.Fatalf("schedule follow-up: %+v", result)
 	}
-	var list struct{ Followups []assistant.Task }
-	request(http.MethodGet, "/api/v1/assistant/followups", nil, &list)
-	if len(list.Followups) != 1 || list.Followups[0].Prompt != followupPrompt || list.Followups[0].PromptSelections {
+	var list struct{ Tasks []assistant.Task }
+	request(http.MethodGet, "/api/v1/assistant/tasks", nil, &list)
+	index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review example" })
+	if index < 0 || list.Tasks[index].Prompt != followupPrompt || list.Tasks[index].PromptSelections {
 		t.Fatalf("tool did not save a literal follow-up: %+v", list)
 	}
-	if continued := run(list.Followups[0].ID); continued != sid {
+	if continued := run(list.Tasks[index].ID); continued != sid {
 		t.Fatalf("follow-up started a new conversation: %q, want %q", continued, sid)
 	}
 	if text := input(3); !strings.Contains(text, followupPrompt) || strings.Contains(text, "file-instructions") {
@@ -392,12 +394,16 @@ func TestScheduledInboxSourceRefusesSelectedFilesWithoutChangingTask(t *testing.
 	}
 	getTask := func() assistant.Task {
 		t.Helper()
-		rec := call(http.MethodGet, "/api/v1/assistant/followups", nil)
-		var list struct{ Followups []assistant.Task }
-		if err := json.Unmarshal(rec.Body.Bytes(), &list); rec.Code != http.StatusOK || err != nil || len(list.Followups) != 1 {
+		rec := call(http.MethodGet, "/api/v1/assistant/tasks", nil)
+		var list struct{ Tasks []assistant.Task }
+		if err := json.Unmarshal(rec.Body.Bytes(), &list); rec.Code != http.StatusOK || err != nil {
 			t.Fatalf("follow-ups: %d %s (%v)", rec.Code, rec.Body, err)
 		}
-		return list.Followups[0]
+		index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review the fixture" })
+		if index < 0 {
+			t.Fatal("saved follow-up missing")
+		}
+		return list.Tasks[index]
 	}
 	task := getTask()
 	if task.SessionID != source.SessionID {
@@ -521,12 +527,16 @@ func TestScheduledRuntimeSourceRejectsFileSelection(t *testing.T) {
 	}
 	getTask := func() assistant.Task {
 		t.Helper()
-		w := request(http.MethodGet, "/api/v1/assistant/followups", nil)
-		var list struct{ Followups []assistant.Task }
-		if err := json.Unmarshal(w.Body.Bytes(), &list); w.Code != 200 || err != nil || len(list.Followups) != 1 {
+		w := request(http.MethodGet, "/api/v1/assistant/tasks", nil)
+		var list struct{ Tasks []assistant.Task }
+		if err := json.Unmarshal(w.Body.Bytes(), &list); w.Code != 200 || err != nil {
 			t.Fatalf("follow-ups: %d %s (%v)", w.Code, w.Body, err)
 		}
-		return list.Followups[0]
+		index := slices.IndexFunc(list.Tasks, func(task assistant.Task) bool { return task.Title == "Review" })
+		if index < 0 {
+			t.Fatal("saved follow-up missing")
+		}
+		return list.Tasks[index]
 	}
 	task := getTask()
 	if task.SessionID != id {

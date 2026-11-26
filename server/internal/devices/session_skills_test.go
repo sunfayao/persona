@@ -21,7 +21,9 @@ import (
 func TestOrdinarySkillCatalogRouteUsesManagerAndSessionFacts(t *testing.T) {
 	d := newTestDevices(t)
 	d.opts.ManagerID = "helper"
-	m, _ := clipMachine(t, d, "computer", nil)
+	m := newMachine(d, MachineConfig{ID: "computer", Name: "computer"})
+	m.info, m.online = current("test"), true
+	d.addEntry(m)
 	var got map[string]any
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

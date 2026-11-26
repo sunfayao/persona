@@ -29,7 +29,7 @@ func (h *Manager) settle(ctx context.Context, op *extOp, p *extension.Extension,
 		h.syncNodesFor(ctx, op, cur)
 	}
 	if h.needsSignIn(ctx, id) {
-		h.update(op, func(v *ExtensionOperation) bool { v.Next = "auth"; return true })
+		h.update(op, func(v *ExtensionOperation) { v.Next = "auth" })
 	}
 	h.opSucceed(op)
 }
@@ -76,10 +76,9 @@ func (h *Manager) syncNodesFor(ctx context.Context, op *extOp, p *extension.Exte
 			machines = append(machines, m)
 		}
 	}
-	h.update(op, func(v *ExtensionOperation) bool {
+	h.update(op, func(v *ExtensionOperation) {
 		setStep(v, extension.StepNodes, extension.StepRunning)
 		stepOf(v, extension.StepNodes).Machines = &OpMachines{Total: len(machines)}
-		return true
 	})
 	var wg sync.WaitGroup
 	for _, m := range machines {
@@ -96,7 +95,7 @@ func (h *Manager) syncNodesFor(ctx context.Context, op *extOp, p *extension.Exte
 					why = st.Error
 				}
 			}
-			h.update(op, func(v *ExtensionOperation) bool {
+			h.update(op, func(v *ExtensionOperation) {
 				ms := stepOf(v, extension.StepNodes).Machines
 				ms.Done++
 				if why != "" {
@@ -105,7 +104,6 @@ func (h *Manager) syncNodesFor(ctx context.Context, op *extOp, p *extension.Exte
 					}
 					ms.Errors[m.cfg.ID] = why
 				}
-				return true
 			})
 		}()
 	}
@@ -113,7 +111,7 @@ func (h *Manager) syncNodesFor(ctx context.Context, op *extOp, p *extension.Exte
 	h.opStep(op, extension.StepNodes, extension.StepDone)
 }
 
-// previewJob is a preview to run as an operation: what it is of, and how (again, for a retry).
+// previewJob identifies a preview and runs it as an operation.
 type previewJob struct {
 	kind, id string // opInstall or opUpgrade; the extension (as far as it is known before)
 	ofMarket bool
@@ -123,31 +121,15 @@ type previewJob struct {
 }
 
 // launch runs job as a new operation: in the background when async (its answer is nil, nil), else before it returns.
-// from is the failed operation it retries: what the user agreed to there carries over.
-func (h *Manager) launch(ctx context.Context, job previewJob, from *extOp, async bool) (*extOp, *extension.Preview, error) {
+func (h *Manager) launch(ctx context.Context, job previewJob, async bool) (*extOp, *extension.Preview, error) {
 	op := h.startOp(job.kind, job.id, job.actor, job.lang, job.ofMarket)
-	h.extensions.ops.mu.Lock()
-	op.retry = func() (*extOp, error) {
-		next, _, _ := h.launch(i18n.With(context.Background(), job.lang), job, op, true)
-		return next, nil
-	}
-	if from != nil {
-		op.consented, op.consentedBundle = from.consented, from.consentedBundle
-	}
-	h.extensions.ops.mu.Unlock()
-	asked := ctx
 	if async {
 		ctx = context.WithoutCancel(ctx)
 	}
-	ctx, cancel := context.WithCancelCause(ctx)
-	h.extensions.ops.mu.Lock()
-	op.cancel = cancel
-	h.extensions.ops.mu.Unlock()
 	do := func() (*extension.Preview, error) {
-		defer cancel(nil)
 		pv, err := job.run(extension.WithProgress(ctx, h.progress(op)))
 		if err != nil {
-			if !async && asked.Err() != nil && errors.Is(err, context.Canceled) && !errors.Is(context.Cause(ctx), extension.ErrUserCanceled) {
+			if !async && ctx.Err() != nil && errors.Is(err, context.Canceled) {
 				// The app stopped waiting (a phone's request timed out on a slow download, #3692): its package
 				// goes on downloading into the cache, and asking again picks it up.
 				err = i18n.Err("hub-extension_operations.client_left")
@@ -155,16 +137,7 @@ func (h *Manager) launch(ctx context.Context, job previewJob, from *extOp, async
 			h.opFail(op, err)
 			return nil, err
 		}
-		h.opPreviewed(op, pv, func(refs []bundleRef) {
-			upgrade := ""
-			if pv.Upgrade {
-				upgrade = pv.Manifest.ID
-				if pv.RenameFrom != "" {
-					upgrade = pv.RenameFrom
-				}
-			}
-			_, _ = h.installOp(i18n.With(context.Background(), job.lang), op, upgrade, pv.ID, pv.Digest, refs, job.actor)
-		})
+		h.opPreviewed(op, pv)
 		return pv, nil
 	}
 	if async {
@@ -186,7 +159,7 @@ func (h *Manager) installOp(ctx context.Context, op *extOp, upgrade, previewID, 
 		}
 		upgrade = pv.RenameFrom
 	}
-	h.installing(op, pv, digest)
+	h.installing(op)
 	p, err := h.installExtensionPlan(extension.WithProgress(ctx, h.progress(op)), upgrade, previewID, digest, refs, actor) // members and it together
 	if err != nil {
 		h.opFail(op, err)
@@ -230,29 +203,13 @@ func (h *Manager) uninstallOp(w http.ResponseWriter, r *http.Request, id string,
 		}
 		_ = json.Unmarshal(rec.body, &out)
 		if len(out.Warnings) > 0 {
-			h.update(op, func(v *ExtensionOperation) bool {
+			h.update(op, func(v *ExtensionOperation) {
 				v.Warnings = out.Warnings
-				return false // opSucceed pushes it
 			})
 		}
 		h.opSucceed(op)
 		return rec
 	}
-	ps.ops.mu.Lock()
-	op.retry = func() (*extOp, error) {
-		bg := r.Clone(context.WithoutCancel(r.Context()))
-		rec := &opRecorder{header: http.Header{}, status: http.StatusOK}
-		h.uninstallOp(rec, bg, id, o, true)
-		var out struct {
-			Operation ExtensionOperation `json:"operation"`
-		}
-		_ = json.Unmarshal(rec.body, &out)
-		if next := h.opByID(out.Operation.ID); next != nil {
-			return next, nil
-		}
-		return nil, i18n.Err("hub-extension_operations.not_found")
-	}
-	ps.ops.mu.Unlock()
 	if async {
 		bg := r.Clone(context.WithoutCancel(r.Context()))
 		go run(bg)

@@ -49,7 +49,6 @@ func isAssistantOf(s proto.Session, dir, owner string) bool {
 
 // assistantRoutes are the skills the assistant's machine has and the assistant's own routes, relayed to it.
 func (h *Hub) assistantRoutes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/skills", h.serveSkills)
 	h.assistantRoutesRelayed(api)
 	h.assistantSocketRoutesRelayed(api)
 }

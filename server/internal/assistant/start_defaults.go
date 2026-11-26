@@ -106,10 +106,9 @@ type StartDefaultsPolicy struct {
 // StartDefaultsRule is one match and what a matching task starts with; the first rule that fits wins, except for the
 // goal, which the first fitting rule naming one decides (matchStartDefaults).
 //
-// The wire name of the match is applies_when; when is its pre-convergence alias (#11719). Both names are accepted on
-// every decode — a stored policy, PUT /api/v1/assistant/start-defaults and the nested start_defaults of PUT
-// /api/v1/assistant alike — and a body naming both is refused, never merged. Reads answer with both names carrying
-// the same match, so a client of either generation round-trips the policy unchanged.
+// The wire name of the match is applies_when; when is its pre-convergence alias (#11719). The decoder accepts
+// either name in a stored policy or nested start_defaults. A body naming both is refused. Reads answer with both names
+// carrying the same match, so a client of either generation round-trips the policy unchanged.
 type StartDefaultsRule struct {
 	When StartDefaultsMatch `json:"applies_when"`
 	Then StartDefaultsThen  `json:"then"`

@@ -107,7 +107,6 @@ func TestWorkspaceNamingBodiesRejectTrailingValuesWithoutEffects(t *testing.T) {
 		{"PUT", path + "/workspace-rules", `{"expected_revision":0,"workspace_rules":{"branch_template":"custom/{task-id}"}}`},
 		{"POST", "/api/v1/assistant/workspace-naming/preview", `{"machine_id":"box","layout":"container","selected_repo_ids":[]}`},
 		{"POST", path + "/workspace-naming/preview", `{"machine_id":"box","layout":"container","selected_repo_ids":[]}`},
-		{"POST", path + "/workspace-naming/plans", `{"machine_id":"box","layout":"container","selected_repo_ids":[],"operation_id":"body-boundary-operation"}`},
 	}
 	for _, route := range routes {
 		for _, tail := range []string{` {}`, ` null`, ` 1`, ` "extra"`, ` []`, ` garbage`} {
@@ -129,38 +128,6 @@ func TestWorkspaceNamingBodiesRejectTrailingValuesWithoutEffects(t *testing.T) {
 		if w := placeDo(s, "", route.method, route.path, route.body+" \n\t"); w.Code != 200 {
 			t.Fatalf("valid %s: %d %s", route.path, w.Code, w.Body)
 		}
-	}
-}
-
-func TestWorkspaceNamingCrossTodoOperationConflictsBeforeNode(t *testing.T) {
-	s, _, calls := namingHTTPFixture(t)
-	first, err := s.createPlainTodo(t.Context(), "First example task", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := s.createPlainTodo(t.Context(), "Second example task", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := `{"machine_id":"box","layout":"container","selected_repo_ids":[],"operation_id":"shared-example-operation"}`
-	path := "/api/v1/todos/"
-	if w := placeDo(s, "", "POST", path+second.ID+"/workspace-naming/plans", body); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
-	}
-	calls.Store(0)
-	w := placeDo(s, "", "POST", path+first.ID+"/workspace-naming/plans", body)
-	if w.Code != 409 || calls.Load() != 0 {
-		t.Fatalf("cross-task operation: status %d, node calls %d, body %s", w.Code, calls.Load(), w.Body)
-	}
-	if strings.Contains(w.Body.String(), second.ID) || strings.Contains(w.Body.String(), "Second example task") {
-		t.Fatal("conflict exposed another task's data", w.Body)
-	}
-	w = placeDo(s, "", "GET", path+first.ID+"/workspace-naming/plans/shared-example-operation", "")
-	if w.Code != 404 || strings.Contains(w.Body.String(), second.ID) {
-		t.Fatal("scoped read exposed another task's plan", w.Code, w.Body)
-	}
-	if w := placeDo(s, "", "POST", path+second.ID+"/workspace-naming/plans", body); w.Code != 200 || calls.Load() != 0 {
-		t.Fatal("same-task retry called Node", w.Code, calls.Load(), w.Body)
 	}
 }
 
@@ -256,54 +223,5 @@ func TestWorkspaceNamingAndDispatchPolicySettingsAreAtomic(t *testing.T) {
 	got := newServiceOn(t, f, database).settings(t.Context())
 	if got.WorkspaceRules != (workspacenaming.Rules{}) || got.DispatchPolicy != nil || got.Notes == nil || *got.Notes != "Before" {
 		t.Fatalf("clearing both settings did not persist: %+v", got)
-	}
-}
-
-func TestWorkspaceNamingHTTPOverridesAndStableOperationRetry(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	f := newFakeHub()
-	f.sessions["box"] = nil
-	calls := 0
-	f.nodes = map[string]nodeAnswer{"workspace.naming.resolve": func(_ string, raw json.RawMessage) (any, error) {
-		calls++
-		var source workspacenaming.Source
-		if err := json.Unmarshal(raw, &source); err != nil {
-			return nil, err
-		}
-		return workspacenaming.Resolve(source, workspacenaming.NodeContext{Home: "/home/example"}), nil
-	}}
-	s := newServiceOn(t, f, database)
-	todo, err := s.createPlainTodo(t.Context(), "Original title", "", db.TodoEdit{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := "/api/v1/todos/" + todo.ID
-	if w := placeDo(s, "", "PUT", path+"/workspace-rules", `{"expected_revision":0,"workspace_rules":{"task_directory_template":"{yyyy}{mmdd}/{task-id}-{task-slug}"}}`); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
-	}
-	in := `{"machine_id":"box","layout":"container","selected_repo_ids":[],"operation_id":"example-operation"}`
-	w := placeDo(s, "", "POST", path+"/workspace-naming/plans", in)
-	var plan workspacenaming.Plan
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &plan) != nil || plan.Digest == "" {
-		t.Fatal(w.Code, w.Body)
-	}
-	if w := placeDo(s, "", "PATCH", path, `{"title":"Changed title"}`); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
-	}
-	if w := placeDo(s, "", "PUT", path+"/workspace-rules", `{"expected_revision":1,"workspace_rules":null}`); w.Code != 200 {
-		t.Fatal("Todo permanently frozen", w.Code, w.Body)
-	}
-	restarted := newServiceOn(t, f, database)
-	w = placeDo(restarted, "", "POST", path+"/workspace-naming/plans", in)
-	var retry workspacenaming.Plan
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &retry) != nil || retry.Digest != plan.Digest || calls != 1 {
-		t.Fatal(w.Code, w.Body, calls)
-	}
-	if w := placeDo(s, "read", "PUT", path+"/workspace-rules", `{"expected_revision":2,"workspace_rules":null}`); w.Code != 403 {
-		t.Fatal("readonly changed", w.Code)
 	}
 }

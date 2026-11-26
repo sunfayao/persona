@@ -2,7 +2,6 @@ package hub
 
 import (
 	"cmp"
-	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -181,29 +180,6 @@ func (h *Hub) webPushRoutes(api *http.ServeMux) {
 		}
 	})
 	// A test push now, whether a page is open or not: what the push service answered is what the page shows.
-	api.HandleFunc("POST /api/v1/push/web/{device}/test", func(w http.ResponseWriter, r *http.Request) {
-		wp := h.push.webPusher()
-		s, ok := wp.get(r.PathValue("device"))
-		if !ok {
-			writeErrCode(w, http.StatusNotFound, "not_subscribed", i18n.Err("hub-webpush.err_none"))
-			return
-		}
-		if s.Credential != "" && s.Credential != webPushCredential(r) {
-			writeErrCode(w, http.StatusForbidden, "owned", i18n.Err("hub-webpush.err_owned"))
-			return
-		}
-		l := webPushLang(s, h.userLang)
-		plain, _ := fitWebPush(map[string]any{"v": 1, "kind": "test", "title": i18n.T(l, "hub-webpush.test_title"), "body": i18n.T(l, "hub-webpush.test_body")})
-		ctx, cancel := context.WithTimeout(r.Context(), webPushTimeout*time.Duration(len(wp.retryWaits)+1)+5*time.Second)
-		defer cancel()
-		status, err := wp.push(ctx, s, plain, webpush.Message{TTL: webPushTestTTL, Urgency: webpush.UrgencyHigh, Topic: webpush.TopicFor("webpush-test")})
-		if err != nil {
-			body := localizedErrorBody(w, http.StatusBadGateway, "push_failed", i18n.Err("hub-webpush.err_push", i18n.Args{"error": clipWebPushError(err.Error())}))
-			writeErrorBody(w, http.StatusBadGateway, mergeBody(body, map[string]any{"push_status": status, "gone": webpush.Gone(status)}))
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true, "push_status": status})
-	})
 }
 
 // hostOf is an endpoint's host for a message ("" stays the checked one).

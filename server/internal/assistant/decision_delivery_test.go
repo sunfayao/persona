@@ -10,13 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/i18n"
 	"github.com/nwverse/persona/server/internal/proto"
 	"github.com/nwverse/persona/server/internal/rpc"
 )
 
-// Drive the real ask-answer route: the card must describe the relay result, not guess it from the answer's spelling.
+// The Lark card reports the actual decision delivery result.
 func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 	for _, tc := range []struct {
 		name, kind, supervisor string
@@ -68,12 +67,11 @@ func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 				tc.stop(f)
 			}
 			words := "Run only the unit tests first, then look again"
-			input := map[string]string{"text": words}
+			round := a.AskedAt.UTC().Format(timeKeyLayout)
 			wantKey, delivered, sends := "assistant-reports.decision_chosen_noted", "", 1
 			switch tc.kind {
 			case "label":
 				words = a.Options[1].Label
-				input["text"] = words
 			case "recommended", "option":
 				words = a.Recommend
 				wantKey = "assistant-reports.verdict_taken_supervisor"
@@ -81,7 +79,6 @@ func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 					words = a.Options[1].Label
 					wantKey = "assistant-reports.decision_chosen_supervisor"
 				}
-				input = map[string]string{"option": words}
 				sends = 0
 			}
 			if tc.stop != nil {
@@ -102,10 +99,15 @@ func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 				return map[string]any{}, nil
 			})
 			before := len(sentToAgent(f))
-			raw, _ := json.Marshal(input)
-			rec := answerTodoAsk(s, todo.ID, askDecisionPrefix+a.AskedAt.Format(timeKeyLayout), string(raw))
-			if rec.Code != tc.status {
-				t.Fatalf("answer: %d %s", rec.Code, rec.Body)
+			reply := func() (acceptResult, error) {
+				if tc.kind == "option" || tc.kind == "recommended" {
+					return s.chooseOption(ctx, todo.ID, round, words)
+				}
+				return s.answerDecisionText(ctx, todo.ID, round, words)
+			}
+			answer, err := reply()
+			if (err == nil && answer.taken) != (tc.status == http.StatusOK) {
+				t.Fatalf("decision result: %+v, %v", answer, err)
 			}
 			if got := len(sentToAgent(f)) - before; got != sends {
 				t.Fatalf("Agent sends: %d, want %d", got, sends)
@@ -118,13 +120,8 @@ func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 				s.waitWorkEvents()
 				return
 			}
-			// Normal completion omits delivered; the existing wire only names special delivery outcomes.
-			var answer assistantwire.TodoAskAnswered
-			if err := json.Unmarshal(rec.Body.Bytes(), &answer); err != nil {
-				t.Fatal(err)
-			}
-			if answer.Delivered != delivered {
-				t.Errorf("delivery response: %q, want %q", answer.Delivered, delivered)
+			if (answer.undelivered != nil) != (delivered != "") {
+				t.Errorf("decision delivery: %+v, want %q", answer, delivered)
 			}
 			if got.AcceptedAt.IsZero() || todoNow(s, todo.ID).Supervision.State == reviewNeedsUser {
 				t.Fatalf("still waits: %+v", got)
@@ -186,9 +183,8 @@ func TestCheckDecisionWordsCardDelivery(t *testing.T) {
 			if card := s.conclusionCard(ctx, todo, restored).JSON(); !strings.Contains(card, want) {
 				t.Errorf("restored card lacks %q: %s", want, card)
 			}
-			again := answerTodoAsk(s, todo.ID, askDecisionPrefix+a.AskedAt.Format(timeKeyLayout), string(raw))
-			if again.Code != http.StatusConflict || len(sentToAgent(f)) != before+sends {
-				t.Fatalf("duplicate answer: %d %s", again.Code, again.Body)
+			if again, err := reply(); again.taken || len(sentToAgent(f)) != before+sends {
+				t.Fatalf("duplicate decision: %+v, %v", again, err)
 			}
 			s.waitWorkEvents()
 		})

@@ -18,7 +18,6 @@ func (h *Hub) sessionRoutes(api *http.ServeMux) {
 	api.HandleFunc("POST /api/v1/sessions/{mid}/{sid}/agent-messages", h.withTerminalAgentTarget(h.withClientOp("message", h.withMachine(h.sendMessage))))
 	api.HandleFunc("POST /api/v1/sessions/{mid}/{sid}/attach", h.proxyBody("session.attach"))
 	api.HandleFunc("POST /api/v1/sessions/{mid}/{sid}/interrupt", h.extensionControllable(h.withClientOp("interrupt", h.withMachine(h.interruptSession))))
-	api.HandleFunc("POST /api/v1/sessions/{mid}/{sid}/keys", h.withClientOp("keys", h.proxyBody("session.keys"))) // keys pressed twice are not undone (#12532)
 	// #2436: rewind a Claude session to before one of its messages (rewind.go); a full device only, it restores files
 	api.HandleFunc("POST /api/v1/sessions/{mid}/{sid}/rewind", h.withClientOp("rewind", h.withMachine(h.rewindSession)))
 	// #2528: back to the configured model after a refusal fallback (restore_model.go); a full device only, a relay

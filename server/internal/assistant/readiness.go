@@ -287,29 +287,6 @@ func (s *Service) readinessRoutes() {
 		probe := (q == "1" || q == "true") && fullRole(r)
 		apierr.WriteJSON(w, s.readiness(r.Context(), probe, readinessWaitGet))
 	})
-	s.handle("POST /api/v1/assistant/readiness/dismiss", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Dismissed *bool `json:"dismissed"`
-		}
-		if r.ContentLength != 0 {
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				apierr.Write(w, http.StatusBadRequest, err)
-				return
-			}
-		}
-		on := in.Dismissed == nil || *in.Dismissed // an empty body dismisses
-		if err := s.readinessUpdate(r.Context(), func(rec *readinessRecord) {
-			rec.Dismissed, rec.DismissedAt = on, nil
-			if on {
-				now := time.Now().UTC()
-				rec.DismissedAt = &now
-			}
-		}); err != nil {
-			apierr.Write(w, http.StatusInternalServerError, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
-	})
 }
 
 // ---- working it out ----

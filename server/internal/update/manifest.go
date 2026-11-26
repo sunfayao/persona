@@ -61,7 +61,7 @@ var NodePrograms = []string{"persona-node"}
 var HelperPrograms = []string{"persona-iphone-bridge"}
 
 // ProgramNames are the programs released with personad, each built from server/cmd/<name>: the
-// hub's and the manager's own programs (personad runs the same code: docs/server/server.md "Programs").
+// hub's and the manager's own programs (personad runs the same code).
 var ProgramNames = []string{"persona-hub", "persona-manager"}
 
 // SplitPrograms are the ProgramNames named persona-* (no legacy name): their artifacts are <name>-<os>-<arch>.gz. A

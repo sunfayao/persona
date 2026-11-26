@@ -8,7 +8,7 @@ vi.hoisted(() => {
 });
 vi.mock("../../ui/atoms", async (original) => ({ ...(await original<typeof import("../../ui/atoms")>()), toast: vi.fn() }));
 import { toast } from "../../ui/atoms";
-import { resetExtensionRoot, setCsrf, setTransport } from "../api";
+import { setCsrf, setTransport } from "../api";
 import { Extensions } from "./Extensions";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -36,7 +36,6 @@ const open = async () => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.mocked(toast).mockClear();
-  resetExtensionRoot();
   setCsrf("tok");
   requests = [];
   replies = [{ body: { ok: true, warnings } }];
@@ -58,7 +57,6 @@ afterEach(() => {
   act(() => root.unmount());
   document.body.innerHTML = "";
   setTransport((path, init) => fetch(path, init));
-  resetExtensionRoot();
   setCsrf("");
   vi.useRealTimers();
 });

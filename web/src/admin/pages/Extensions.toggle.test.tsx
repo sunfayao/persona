@@ -7,7 +7,7 @@ vi.hoisted(() => {
   window.matchMedia ??= ((media: string) => ({ matches: false, media, addEventListener() {}, removeEventListener() {} })) as typeof window.matchMedia;
 });
 vi.mock("../../ui/atoms", async (original) => ({ ...(await original<typeof import("../../ui/atoms")>()), toast: vi.fn() }));
-import { resetExtensionRoot, setCsrf, setTransport } from "../api";
+import { setCsrf, setTransport } from "../api";
 import { Extensions } from "./Extensions";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,7 +19,6 @@ const toggle = (id: string) => host.querySelector<HTMLElement>(`[aria-label="启
 const isOn = (id: string) => toggle(id)?.getAttribute("aria-checked");
 
 beforeEach(() => {
-  resetExtensionRoot();
   setCsrf("tok");
   pending.clear();
   setTransport(async (path, init) => {
@@ -40,7 +39,6 @@ afterEach(() => {
   act(() => root.unmount());
   document.body.innerHTML = "";
   setTransport((path, init) => fetch(path, init));
-  resetExtensionRoot();
   setCsrf("");
 });
 

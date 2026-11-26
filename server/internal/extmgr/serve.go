@@ -115,8 +115,8 @@ func (h *Manager) ready(ctx context.Context) bool {
 
 // routes are the routes the hub relays here (extwire.Routes), as the hub had them.
 func (h *Manager) registerRoutes(api *http.ServeMux) {
-	h.botRoutes(api)
 	h.agentRoutes(api)
+	h.botRoutes(api)
 	h.connectorRoutes(api)
 	h.extensionRoutes(api)
 	h.messagingRoutes(api)
@@ -141,9 +141,6 @@ func (h *Manager) registerRoutes(api *http.ServeMux) {
 	api.HandleFunc("GET /api/v1/machines/{mid}/computer", withMachine(h.getComputer))
 	api.HandleFunc("PUT /api/v1/machines/{mid}/computer", withMachine(h.putComputer))
 	api.HandleFunc("POST /api/v1/machines/{mid}/computer/{action}", withMachine(h.postComputerJob))
-	api.HandleFunc("GET /api/v1/machines/{mid}/computer/clipboard", withMachine(h.computerClipboard))
-	api.HandleFunc("POST /api/v1/machines/{mid}/computer/clipboard", withMachine(h.computerClipboard))
-	api.HandleFunc("POST /api/v1/machines/{mid}/computer/phone-screen", withMachine(h.computerPhoneScreen))
 	api.HandleFunc("GET /api/v1/machines/{mid}/computer/apps", withMachine(h.getComputerApps))
 	api.HandleFunc("DELETE /api/v1/machines/{mid}/computer/apps/{bundle}", withMachine(h.deleteComputerApp))
 	api.HandleFunc("DELETE /api/v1/machines/{mid}/computer/apps/revoke/{bundle}", withMachine(h.revokeComputerApp))
@@ -156,9 +153,7 @@ func (h *Manager) registerRoutes(api *http.ServeMux) {
 	api.HandleFunc("GET /api/v1/machines/{mid}/iphone", withMachine(h.getIPhone))
 	api.HandleFunc("PUT /api/v1/machines/{mid}/iphone", withMachine(h.putIPhone))
 	api.HandleFunc("POST /api/v1/machines/{mid}/iphone/{action}", withMachine(h.postIPhoneJob))
-	api.HandleFunc("GET /api/v1/iphone", h.getIPhoneList)
 	api.HandleFunc("PUT /api/v1/iphone/consent", h.putIPhoneConsent)
-	api.HandleFunc("POST /api/v1/iphone/try", h.postIPhoneTry)
 	if h.mail != nil {
 		api.Handle("/api/v1/mail/", h.mail.Handler())
 	} else {

@@ -201,7 +201,7 @@ func TestChatSaveMigratesEveryPersistedRecordWithoutExtensionCatalog(t *testing.
 }
 
 func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T) {
-	s, f, st := chatAliasFixture(t)
+	s, _, st := chatAliasFixture(t)
 	ctx := context.Background()
 	setSettings(t, s, func(settings *Settings) { settings.Launcher = "chat" })
 	putAliasRecord(t, st, modelRecordKey("kb"), 2, ModelBinding{Provider: "launcher.other", Model: "current-other"})
@@ -252,9 +252,6 @@ func TestChatSaveMigratesProfilesAndRollbackWithTheirOwnInheritance(t *testing.T
 	if gotState.Previous.Purposes["kb"].Model != "gw/sonnet" ||
 		*gotState.Previous.Launchers["chat"].Model != "gw/fast" {
 		t.Fatalf("rollback image = %+v", gotState.Previous)
-	}
-	if f.eventTypes() != "model_profile" {
-		t.Fatalf("profile event = %q", f.eventTypes())
 	}
 
 	// The migrated rollback and profile can both be applied; neither sends an alias to the Chat gateway.
@@ -352,7 +349,7 @@ func TestChatSaveTierAliasUsesProfileLauncherOverlay(t *testing.T) {
 }
 
 func TestChatSaveTierAliasRollbackOnlyKeepsProfileRevision(t *testing.T) {
-	s, f, st := chatAliasFixture(t)
+	s, _, st := chatAliasFixture(t)
 	ctx := context.Background()
 	profiles := modelProfiles{Revision: 9, Profiles: []ModelProfile{{ID: "one", Name: "One"}}}
 	launchers := LauncherModels{
@@ -398,9 +395,6 @@ func TestChatSaveTierAliasRollbackOnlyKeepsProfileRevision(t *testing.T) {
 		if **field.set != want {
 			t.Fatalf("%s = %q, want %q", field.name, **field.set, want)
 		}
-	}
-	if f.eventTypes() != "model_profile" {
-		t.Fatalf("rollback-only event = %q", f.eventTypes())
 	}
 }
 
@@ -494,29 +488,6 @@ func TestChatSaveMigratesAliasesInheritedFromCandidateFallback(t *testing.T) {
 	}
 	if gotState.Previous.Purposes["kb"] != (ModelBinding{Model: "gw/fast"}) {
 		t.Fatalf("rollback binding = %+v", gotState.Previous.Purposes["kb"])
-	}
-}
-
-func TestChatSaveTierAliasProfileEventOutsideModelLock(t *testing.T) {
-	s, f, st := chatAliasFixture(t)
-	profiles := modelProfiles{Profiles: []ModelProfile{{
-		ID: "one", Launchers: map[string]LauncherModels{"chat": {Model: profileValue("sonnet")}},
-	}}}
-	if err := st.PutSetting(context.Background(), modelProfilesKey, profiles); err != nil {
-		t.Fatal(err)
-	}
-	f.onBroadcast = func() {
-		if !s.models.mu.TryLock() {
-			t.Error("model_profile broadcast holds models.mu")
-			return
-		}
-		s.models.mu.Unlock()
-	}
-	if code, body := clearChatAliasTiers(t, s); code != 200 {
-		t.Fatalf("save: %d %s", code, body)
-	}
-	if got := f.eventTypes(); got != "model_profile" {
-		t.Fatalf("profile events = %q, want model_profile", got)
 	}
 }
 

@@ -8,8 +8,7 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
-		s.SetGoogleClientID(google.ClientID)
-		s.SetMicrosoft(microsoft.ClientID, microsoft.RedirectURI)
+		s.SetMicrosoftRedirect(microsoft.RedirectURI)
 		if err := s.SetGoogleProxy(google.Proxy); err != nil {
 			s.Close()
 			return nil, err

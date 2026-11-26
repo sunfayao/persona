@@ -590,26 +590,7 @@ func TestTaskRoutes(t *testing.T) {
 	if rec.Code != 200 || created.Task.ID == "" || created.Task.SessionID != "" || created.Task.MachineID == "" && h.hello(context.Background()).Assistant.MachineID != "" {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body)
 	}
-	// Builds from before keep working: routines are the daily tasks, follow-ups the rest.
-	rec = do("GET", "/api/v1/assistant/routines", "")
-	if strings.Contains(rec.Body.String(), "fu_1") || !strings.Contains(rec.Body.String(), "morning") {
-		t.Fatalf("routines: %s", rec.Body)
-	}
-	rec = do("GET", "/api/v1/assistant/followups", "")
-	if !strings.Contains(rec.Body.String(), "fu_1") || !strings.Contains(rec.Body.String(), created.Task.ID) || strings.Contains(rec.Body.String(), "morning") {
-		t.Fatalf("follow-ups: %s", rec.Body)
-	}
-	rec = do("PUT", "/api/v1/assistant/routines", `{"routines":[{"id":"morning","title":"早报","prompt":"x2","time":"08:30","enabled":true}]}`)
-	if rec.Code != 200 {
-		t.Fatalf("put routines: %d %s", rec.Code, rec.Body)
-	}
-	if n := len(h.tasksView(context.Background(), nil)); n != 3 {
-		t.Fatalf("saving the routines leaves the other tasks alone, have %d", n)
-	}
-	if p, _ := taskByID(h, "fu_1"); p.PermissionMode != "acceptEdits" {
-		t.Fatal("and their settings")
-	}
-	if rec = do("DELETE", "/api/v1/assistant/followups/fu_1", ""); rec.Code != 200 {
+	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
 	if rec = do("DELETE", "/api/v1/assistant/tasks/fu_1", ""); rec.Code != 404 {
@@ -933,16 +914,12 @@ func TestScheduleReadFailureNeverOverwrites(t *testing.T) {
 	mux := h // the routes the hub relays
 	for _, req := range []struct{ method, path, body string }{
 		{"GET", "/api/v1/assistant/tasks", ""},
-		{"GET", "/api/v1/assistant/routines", ""},
-		{"GET", "/api/v1/assistant/followups", ""},
 		{"GET", "/api/v1/assistant/runs", ""},
 		{"POST", "/api/v1/assistant/tasks", `{"title":"喝水","prompt":"提醒我喝水","repeat":"once","at":"2099-01-01T09:00:00Z","enabled":true}`},
 		{"PUT", "/api/v1/assistant/tasks/rt_mine", `{"title":"我的","prompt":"p","repeat":"daily","time":"08:00","enabled":false}`},
-		{"PUT", "/api/v1/assistant/routines", `{"routines":[]}`},
 		{"POST", "/api/v1/assistant/tasks/rt_mine/run", ""},
 		{"POST", "/api/v1/assistant/tasks/rt_mine/fresh", ""},
 		{"DELETE", "/api/v1/assistant/tasks/fu_mine", ""},
-		{"DELETE", "/api/v1/assistant/followups/fu_mine", ""},
 	} {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequest(req.method, req.path, strings.NewReader(req.body)))

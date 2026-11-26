@@ -36,7 +36,7 @@ func TestTodoRepositoryBrowserHarness(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err = s.saveRepository(t.Context(), "", binding); err != nil {
+		if _, err = s.saveRepository(t.Context(), binding); err != nil {
 			t.Fatal(err)
 		}
 	}

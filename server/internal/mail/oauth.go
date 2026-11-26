@@ -3,8 +3,6 @@ package mail
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,24 +16,11 @@ import (
 	"time"
 
 	"github.com/emersion/go-sasl"
-
-	"github.com/nwverse/persona/server/internal/i18n"
 )
 
-// Gmail "Sign in with Google": the app opens Google's consent page in the system browser
-// (ASWebAuthenticationSession), Google redirects to the reversed client ID scheme of an
-// iOS OAuth client, and the hub exchanges the code (PKCE, no client secret) for a refresh
-// token. IMAP and SMTP then authenticate with SASL XOAUTH2.
-
-const (
-	AuthOAuth2 = "oauth2"
-
-	googleScopes    = "https://mail.google.com/ openid email"
-	oauthPendingTTL = 15 * time.Minute
-)
+const AuthOAuth2 = "oauth2"
 
 var (
-	googleAuthURL  = "https://accounts.google.com/o/oauth2/v2/auth"
 	googleTokenURL = "https://oauth2.googleapis.com/token"
 	httpClient     = &http.Client{Timeout: networkTimeout}
 )
@@ -48,189 +33,11 @@ type OAuthCreds struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-// OAuthStart is the POST /api/v1/mail/oauth/google/start response.
-type OAuthStart struct {
-	AuthURL        string `json:"auth_url"`
-	CallbackScheme string `json:"callback_scheme"`
-	State          string `json:"state"`
-}
-
-// OAuthFinishRequest is the POST /api/v1/mail/oauth/google/finish body: the callback URL's query.
-type OAuthFinishRequest struct {
-	State            string `json:"state"`
-	Code             string `json:"code"`
-	Error            string `json:"error,omitempty"`
-	ErrorDescription string `json:"error_description,omitempty"`
-}
-
-// oauthState is what the state parameter carries, sealed with the store key: the flow survives a
-// hub restart (or a redeploy) while the user is on Google's pages.
-type oauthState struct {
-	Verifier string `json:"v"`
-	Created  int64  `json:"t"`
-	ClientID string `json:"c,omitempty"` // Microsoft: the client the flow started with (the user may change it meanwhile)
-}
-
-func (s *Service) sealState(st oauthState) (string, error) {
-	plain, err := json.Marshal(st)
-	if err != nil {
-		return "", err
-	}
-	enc, err := s.store.encrypt(plain)
-	if err != nil {
-		return "", err
-	}
-	raw, err := base64.StdEncoding.DecodeString(enc)
-	if err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(raw), nil
-}
-
-func (s *Service) openState(state string) (*oauthState, error) {
-	raw, err := base64.RawURLEncoding.DecodeString(state)
-	if err != nil {
-		return nil, err
-	}
-	plain, err := s.store.decrypt(base64.StdEncoding.EncodeToString(raw))
-	if err != nil {
-		return nil, err
-	}
-	var st oauthState
-	if err := json.Unmarshal(plain, &st); err != nil {
-		return nil, err
-	}
-	return &st, nil
-}
-
 // accessCache holds one refresh token's current access token.
 type accessCache struct {
 	mu      sync.Mutex
 	token   string
 	expires time.Time
-}
-
-// googleRedirectURI is the redirect of an iOS OAuth client: its reversed client ID as the scheme.
-func googleRedirectURI(clientID string) (scheme, uri string) {
-	parts := strings.Split(clientID, ".")
-	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
-		parts[i], parts[j] = parts[j], parts[i]
-	}
-	scheme = strings.Join(parts, ".")
-	return scheme, scheme + ":/oauth2redirect"
-}
-
-func randomURLSafe(n int) string {
-	b := make([]byte, n)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
-		panic(err)
-	}
-	return base64.RawURLEncoding.EncodeToString(b)
-}
-
-// GoogleConfig says whether "Sign in with Google" can start on this hub (GET /mail/oauth/google/config). There is no
-// shared client: each hub has its own iOS OAuth client (google.client_id), so the apps ask before offering the button
-// and add Gmail with an app password on a hub without one (#2442).
-type GoogleConfig struct {
-	Configured bool `json:"configured"`
-}
-
-func (s *Service) GoogleConfig() GoogleConfig {
-	return GoogleConfig{Configured: s.googleClientID != ""}
-}
-
-// errGoogleNotConfigured says who sets Google sign-in up and what works meanwhile, in the client's language (English
-// without one). Every language's text keeps "not configured": Android apps that do not read google/config match that
-// phrase to fall back to the app-password form.
-var errGoogleNotConfigured = i18n.ErrEnglish("mail-oauth.google_not_configured")
-
-// googleNotConfiguredText is errGoogleNotConfigured in r's language: the signed-in user's, else Accept-Language.
-func googleNotConfiguredText(r *http.Request) string {
-	l := i18n.From(r.Context())
-	if l == "" {
-		l = i18n.FromRequest(r)
-	}
-	return i18n.Localize(errGoogleNotConfigured, l)
-}
-
-// StartGoogleOAuth begins a "Sign in with Google" flow. loginHint preselects an account.
-func (s *Service) StartGoogleOAuth(loginHint string) (*OAuthStart, error) {
-	if s.googleClientID == "" {
-		return nil, errGoogleNotConfigured
-	}
-	verifier := randomURLSafe(48)
-	state, err := s.sealState(oauthState{Verifier: verifier, Created: s.now().Unix()})
-	if err != nil {
-		return nil, err
-	}
-	sum := sha256.Sum256([]byte(verifier))
-	scheme, redirect := googleRedirectURI(s.googleClientID)
-	q := url.Values{
-		"client_id":             {s.googleClientID},
-		"redirect_uri":          {redirect},
-		"response_type":         {"code"},
-		"scope":                 {googleScopes},
-		"state":                 {state},
-		"code_challenge":        {base64.RawURLEncoding.EncodeToString(sum[:])},
-		"code_challenge_method": {"S256"},
-		// offline + consent: always hand out a refresh token, also when re-authorizing.
-		"access_type": {"offline"},
-		"prompt":      {"select_account consent"},
-	}
-	if hint := normalizeEmail(loginHint); hint != "" {
-		q.Set("login_hint", hint)
-	}
-
-	return &OAuthStart{AuthURL: googleAuthURL + "?" + q.Encode(), CallbackScheme: scheme, State: state}, nil
-}
-
-// FinishGoogleOAuth exchanges the authorization code, verifies IMAP and SMTP access and saves
-// the account. Signing in again with an existing Gmail account replaces its credentials.
-func (s *Service) FinishGoogleOAuth(ctx context.Context, req OAuthFinishRequest) (*MailAccount, error) {
-	// Each state is good for one attempt (remembered in memory; Google's codes are single use anyway).
-	st, err := s.claimState(req.State)
-	if err != nil {
-		return nil, err
-	}
-	if req.Error != "" {
-		return nil, fmt.Errorf("Google sign-in failed: %s", req.Error)
-	}
-	if req.Code == "" {
-		return nil, errors.New("code is required")
-	}
-
-	_, redirect := googleRedirectURI(s.googleClientID)
-	tr, err := s.googleToken(ctx, url.Values{
-		"client_id":     {s.googleClientID},
-		"code":          {req.Code},
-		"code_verifier": {st.Verifier},
-		"redirect_uri":  {redirect},
-		"grant_type":    {"authorization_code"},
-	})
-	if err != nil {
-		return nil, err
-	}
-	if tr.RefreshToken == "" {
-		return nil, errors.New("Google returned no refresh token, sign in again")
-	}
-	if !strings.Contains(" "+tr.Scope+" ", " https://mail.google.com/ ") {
-		return nil, errors.New("Gmail access was not granted: tick the mail permission on Google's consent page")
-	}
-	email, err := idTokenEmail(tr.IDToken)
-	if err != nil {
-		return nil, err
-	}
-
-	a, err := buildAccount(AddAccountRequest{Email: email, Provider: ProviderGmail, Auth: AuthOAuth2})
-	if err != nil {
-		return nil, err
-	}
-	a.OAuth = &OAuthCreds{ClientID: s.googleClientID, RefreshToken: tr.RefreshToken}
-	s.storeAccess(a.OAuth, tr.AccessToken, tr.ExpiresIn)
-	if err := s.testAccount(ctx, a); err != nil {
-		return nil, err
-	}
-	return s.upsertAccount(a)
 }
 
 // tokenResponse is the subset of Google's token endpoint reply we use.
@@ -277,30 +84,6 @@ func (s *Service) googleToken(ctx context.Context, form url.Values) (*tokenRespo
 		return nil, fmt.Errorf("oauth: token endpoint returned HTTP %d: %s", resp.StatusCode, msg)
 	}
 	return &tr, nil
-}
-
-// idTokenEmail reads the verified email from an ID token. The token came straight from Google's
-// token endpoint over TLS, so its signature does not need checking (OpenID Connect Core 3.1.3.7).
-func idTokenEmail(idToken string) (string, error) {
-	parts := strings.Split(idToken, ".")
-	if len(parts) != 3 {
-		return "", errors.New("oauth: Google returned no ID token")
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return "", fmt.Errorf("oauth: decode ID token: %w", err)
-	}
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return "", fmt.Errorf("oauth: parse ID token: %w", err)
-	}
-	if claims.Email == "" || !claims.EmailVerified {
-		return "", errors.New("oauth: Google account has no verified email")
-	}
-	return normalizeEmail(claims.Email), nil
 }
 
 func (s *Service) accessEntry(creds *OAuthCreds) *accessCache {

@@ -158,13 +158,6 @@ func (h *Manager) agentRoutes(api *http.ServeMux) {
 			res.Entry.Length, res.Entry.Origin, res.Duplicate)
 		writeJSON(w, res)
 	})
-	api.HandleFunc("DELETE /api/v1/agents/sessions/{id}/messages/{clientId}", func(w http.ResponseWriter, r *http.Request) {
-		if err := h.agents.DeleteMessage(r.Context(), r.PathValue("id"), r.PathValue("clientId")); err != nil {
-			agentsErr(w, err)
-			return
-		}
-		writeJSON(w, map[string]any{"ok": true})
-	})
 	api.HandleFunc("POST /api/v1/agents/sessions/{id}/read", func(w http.ResponseWriter, r *http.Request) {
 		if err := h.agents.MarkRead(r.Context(), r.PathValue("id")); err != nil {
 			agentsErr(w, err)

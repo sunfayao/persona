@@ -28,43 +28,6 @@
             "someday": 0,
             "done": 0
           }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 0,
-            "needs_you": 0,
-            "in_progress": 0,
-            "sections": {
-              "needs_you": 0,
-              "can_wait": 0,
-              "working": 0,
-              "waiting": 0,
-              "todo": 0,
-              "just_finished": 0,
-              "someday": 0,
-              "done": 0
-            }
-          }
         }
       }
     },
@@ -413,12 +376,6 @@
         ],
         "someday_until": {
           "todo_n1": "2026-12-01T00:00:00Z"
-        },
-        "projects": {
-          "home": "Home",
-          "kyoto-trip": "Kyoto trip",
-          "reading": "Reading list",
-          "travel-admin": "Travel admin"
         }
       },
       "expected": {
@@ -435,57 +392,6 @@
             "just_finished": 2,
             "someday": 1,
             "done": 1
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 1
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "project:home",
-              "kind": "project",
-              "title": "Home",
-              "project": "home",
-              "needs_you": 0
-            },
-            {
-              "id": "project:kyoto-trip",
-              "kind": "project",
-              "title": "Kyoto trip",
-              "project": "kyoto-trip",
-              "needs_you": 1
-            }
-          ],
-          "counts": {
-            "open": 7,
-            "needs_you": 1,
-            "in_progress": 2,
-            "sections": {
-              "needs_you": 2,
-              "can_wait": 1,
-              "working": 1,
-              "waiting": 1,
-              "todo": 1,
-              "just_finished": 2,
-              "someday": 1,
-              "done": 1
-            }
           }
         },
         "order": {
@@ -567,10 +473,7 @@
             "project": "errands"
           }
         ],
-        "sessions": [],
-        "projects": {
-          "garden": "Garden"
-        }
+        "sessions": []
       },
       "expected": {
         "counts": {
@@ -586,57 +489,6 @@
             "just_finished": 0,
             "someday": 0,
             "done": 1
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "project:errands",
-              "kind": "project",
-              "title": "errands",
-              "project": "errands",
-              "needs_you": 0
-            },
-            {
-              "id": "project:garden",
-              "kind": "project",
-              "title": "Garden",
-              "project": "garden",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 2,
-            "needs_you": 0,
-            "in_progress": 0,
-            "sections": {
-              "needs_you": 0,
-              "can_wait": 0,
-              "working": 0,
-              "waiting": 0,
-              "todo": 2,
-              "just_finished": 0,
-              "someday": 0,
-              "done": 1
-            }
           }
         },
         "order": {
@@ -691,10 +543,7 @@
             "project": "travel-admin"
           }
         ],
-        "sessions": [],
-        "projects": {
-          "travel-admin": "Travel admin"
-        }
+        "sessions": []
       },
       "expected": {
         "counts": {
@@ -710,43 +559,6 @@
             "just_finished": 1,
             "someday": 0,
             "done": 1
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 0,
-            "needs_you": 0,
-            "in_progress": 0,
-            "sections": {
-              "needs_you": 0,
-              "can_wait": 0,
-              "working": 0,
-              "waiting": 0,
-              "todo": 0,
-              "just_finished": 1,
-              "someday": 0,
-              "done": 1
-            }
           }
         },
         "order": {
@@ -894,10 +706,7 @@
             "updated_at": "2026-11-10T08:50:00Z",
             "pending_interactions": 0
           }
-        ],
-        "projects": {
-          "kyoto-trip": "Kyoto trip"
-        }
+        ]
       },
       "expected": {
         "counts": {
@@ -913,50 +722,6 @@
             "just_finished": 0,
             "someday": 0,
             "done": 0
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 1
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "project:kyoto-trip",
-              "kind": "project",
-              "title": "Kyoto trip",
-              "project": "kyoto-trip",
-              "needs_you": 1
-            }
-          ],
-          "counts": {
-            "open": 1,
-            "needs_you": 1,
-            "in_progress": 0,
-            "sections": {
-              "needs_you": 1,
-              "can_wait": 0,
-              "working": 0,
-              "waiting": 0,
-              "todo": 0,
-              "just_finished": 0,
-              "someday": 0,
-              "done": 0
-            }
           }
         },
         "order": {
@@ -1567,43 +1332,6 @@
             "done": 2
           }
         },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 4
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 18,
-            "needs_you": 4,
-            "in_progress": 6,
-            "sections": {
-              "needs_you": 4,
-              "can_wait": 2,
-              "working": 2,
-              "waiting": 4,
-              "todo": 6,
-              "just_finished": 2,
-              "someday": 3,
-              "done": 2
-            }
-          }
-        },
         "order": {
           "needs_you": [
             "todo_rk_n1",
@@ -1845,43 +1573,6 @@
             "just_finished": 0,
             "someday": 0,
             "done": 0
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 2
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 4,
-            "needs_you": 2,
-            "in_progress": 2,
-            "sections": {
-              "needs_you": 2,
-              "can_wait": 0,
-              "working": 0,
-              "waiting": 2,
-              "todo": 0,
-              "just_finished": 0,
-              "someday": 0,
-              "done": 0
-            }
           }
         },
         "order": {
@@ -2291,43 +1982,6 @@
             "just_finished": 0,
             "someday": 0,
             "done": 0
-          }
-        },
-        "places": {
-          "places": [
-            {
-              "id": "all",
-              "kind": "all",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "today",
-              "kind": "today",
-              "title": "",
-              "needs_you": 0
-            },
-            {
-              "id": "upcoming",
-              "kind": "upcoming",
-              "title": "",
-              "needs_you": 0
-            }
-          ],
-          "counts": {
-            "open": 8,
-            "needs_you": 0,
-            "in_progress": 8,
-            "sections": {
-              "needs_you": 0,
-              "can_wait": 0,
-              "working": 1,
-              "waiting": 7,
-              "todo": 0,
-              "just_finished": 0,
-              "someday": 0,
-              "done": 0
-            }
           }
         },
         "order": {

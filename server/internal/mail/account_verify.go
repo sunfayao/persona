@@ -7,15 +7,6 @@ import (
 	"net"
 )
 
-// TestAccount connects to IMAP and authenticates, and checks SMTP is reachable.
-func (s *Service) TestAccount(id string) error {
-	a, err := s.account(id)
-	if err != nil {
-		return err
-	}
-	return s.testAccount(context.Background(), a)
-}
-
 func (s *Service) testAccount(ctx context.Context, a *MailAccount) error {
 	if s.verify != nil {
 		return s.verify(ctx, a)

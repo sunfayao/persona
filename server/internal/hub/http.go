@@ -65,7 +65,6 @@ func (h *Hub) routes() http.Handler {
 	h.fileRoutes(api)
 	h.machineFileRoutes(api)
 	h.gitRoutes(api)
-	h.agentSettingsRoutes(api)
 	h.sessionRoutes(api)
 	h.paneRoutes(api)
 	h.nodeDoctorRoutes(api)
@@ -1327,7 +1326,6 @@ type client struct {
 	lazy            bool // asked for items without image data (subscribe with lazy_images)
 	fold            bool // asked for backlogs with the agent's work folded (subscribe with fold_work)
 	name            string
-	since           time.Time
 	meta            clientMeta // what it said about itself in client_hello (clientmeta.go)
 	acceptLang      i18n.Lang  // its upgrade request's Accept-Language (locale.go)
 	deviceSessionID int64      // immutable after registration in Hub.clients
@@ -1385,21 +1383,9 @@ func (h *Hub) broadcastTo(typ string, b []byte, elicitation bool) {
 		if elicitation && !c.has("elicitation") {
 			continue
 		}
-		if typ == legacyLarkEvent && c.has(featureLarkViaMessaging) {
-			continue
-		}
 		c.queue(localizedOnce(forms, c.lang(), b, localize))
 	}
 }
-
-// legacyLarkEvent is the Lark extension's old change notice ({"type":"lark","feed_ids":…}); while the old /api/v1/lark
-// is still read it comes beside the same change's "messaging" event.
-const legacyLarkEvent = "lark"
-
-// featureLarkViaMessaging: in client_hello, the app follows the "messaging" events for its Feishu screens and drops
-// the legacy "lark" one, so it is not sent to it (#9591). An app says it only while it uses a messaging source, and
-// says it again in a new client_hello when that changes; replayed events on resume, before its hello, still include it.
-const featureLarkViaMessaging = "lark_via_messaging"
 
 func (h *Hub) toSubscribers(machineID, sessionID string, v any) {
 	h.toSubscribersWith(machineID, sessionID, "", v)
@@ -1529,7 +1515,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(64 << 20)
 	ctx, cancel := context.WithCancel(r.Context())
 	who := principalOf(r.Context())
-	c := &client{cancel: cancel, done: ctx.Done(), hub: h, conn: conn, out: make(chan []byte, 512), subs: map[[2]string]bool{}, since: time.Now(),
+	c := &client{cancel: cancel, done: ctx.Done(), hub: h, conn: conn, out: make(chan []byte, 512), subs: map[[2]string]bool{},
 		device: who.ID, role: who.Role, delta: who.Role != roleScoped && wantsFeature(r, featureSessionsDelta), listMode: who.Role != roleScoped && wantsFeature(r, featureSessionsList), have: map[string]map[string][]byte{},
 		urlFeatures: urlFeatures(r), acceptLang: i18n.FromRequest(r), meta: clientMeta{updates: make(chan heartbeatConfig, 512), done: ctx.Done()}}
 	c.traffic = h.requestTrafficAttribution(r, who)
@@ -1631,7 +1617,6 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.sendPendingInteractions(c, false)
-	h.sendDesktops(c)
 
 	for {
 		_, data, readErr := conn.Read(ctx)

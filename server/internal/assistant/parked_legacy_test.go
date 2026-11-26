@@ -250,7 +250,9 @@ func TestLegacyOwnerPriorityPreservesOwnerDecisions(t *testing.T) {
 		t.Run(when, func(t *testing.T) {
 			database := &ledgerDown{DB: taskRecoveryDatabase(t)}
 			s, _, task := newSupervisedServiceOn(t, database)
-			holdDigest(s)
+			// An immediate decision bypasses the last-message gap. Keep it in the old
+			// manager's gather window so only the restarted manager can deliver it.
+			setSuperviseTimingsForTest(s, superviseTimings{gather: time.Hour})
 			ctx := context.Background()
 			legacyOwnerPark(t, s, task.ID)
 			if when != "before reconciliation" {

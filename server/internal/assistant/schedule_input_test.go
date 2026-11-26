@@ -583,7 +583,6 @@ func TestTaskInputOwnerMetadataKeepsSelections(t *testing.T) {
 		path string
 		body any
 	}{
-		{"existing client", "/api/v1/assistant/routines", map[string]any{"routines": []Task{task}}},
 		{"omitted prompt", "/api/v1/assistant/tasks/" + task.ID, map[string]any{"title": "Updated", "repeat": task.Repeat, "time": task.Time, "enabled": true}},
 	}
 	for _, update := range updates {
@@ -627,11 +626,6 @@ func TestTaskInputOwnerCanPauseWithUnavailableReferences(t *testing.T) {
 					"session_id": "", "time": task.Time, "weekdays": task.Weekdays, "enabled": false, "every_minutes": 0, "permission_mode": ""}, false},
 				{"legacy task client", path, map[string]any{"title": task.Title, "prompt": prompt, "repeat": task.Repeat,
 					"time": task.Time, "weekdays": task.Weekdays, "execution_machine_id": task.ExecutionMachineID, "enabled": false}, false},
-				{"legacy routines client", "/api/v1/assistant/routines", map[string]any{"routines": []Task{{
-					ID: task.ID, Title: task.Title, Prompt: prompt, Time: task.Time, Weekdays: task.Weekdays, Enabled: false,
-				}}}, false},
-				{"sparse pause", path, map[string]any{"enabled": false}, false},
-				{"sparse rename", path, map[string]any{"title": "Renamed"}, true},
 			} {
 				t.Run(edit.name, func(t *testing.T) {
 					setTasks(s, task)
@@ -719,62 +713,10 @@ func TestTaskInputOwnerEnableValidatesSavedSelections(t *testing.T) {
 		return map[string]bool{"valid": true}, nil
 	})
 
-	legacy := task
-	legacy.Enabled = true
-	body, _ := json.Marshal(map[string]any{"routines": []Task{legacy}})
-	r := request(s, "PUT", "/api/v1/assistant/routines", string(body))
+	r := request(s, "PUT", "/api/v1/assistant/tasks/job", `{"enabled":true}`)
 	kept, _ := taskByID(s, task.ID)
-	if r.Code != 400 || kept.Enabled || checks != 0 {
-		t.Fatalf("legacy bulk edit changed the approved schedule: %d %s; stored %+v", r.Code, r.Body, kept)
-	}
-
-	r = request(s, "PUT", "/api/v1/assistant/tasks/job", `{"enabled":true}`)
-	kept, _ = taskByID(s, task.ID)
 	if r.Code != 200 || !kept.Enabled || !kept.PromptSelections || kept.Prompt != task.Prompt || checks != 1 || f.sent() != 0 {
 		t.Fatalf("enable: %d %s; stored %+v; validation calls %d", r.Code, r.Body, kept, checks)
-	}
-}
-
-func TestTaskInputLegacyBatchKeepsStoredApproval(t *testing.T) {
-	f := newFakeHub().withMachine()
-	s := newTestService(t, f)
-	const approved = `<persona-context kind="skill" ref="review">Review</persona-context>` + "\n\nReview notes"
-	task := Task{ID: "review", Title: "Review", Prompt: approved, PromptSelections: true, Repeat: repeatDaily, Time: "12:00", Enabled: true}
-	plain := Task{ID: "plain", Title: "Plain", Prompt: "Summarize yesterday", Repeat: repeatDaily, Time: "09:00", Enabled: true}
-	setTasks(s, task, plain)
-	batch := func(tasks ...Task) int {
-		body, _ := json.Marshal(map[string]any{"routines": tasks})
-		return request(s, "PUT", "/api/v1/assistant/routines", string(body)).Code
-	}
-
-	changed := task
-	changed.Prompt = "Summarize the review notes"
-	changed.Time = "13:00"
-	renamed := plain
-	renamed.Title = "Summary"
-	status := batch(renamed, changed)
-	kept, _ := taskByID(s, task.ID)
-	keptPlain, _ := taskByID(s, plain.ID)
-	if status != 400 || !reflect.DeepEqual(kept, task) || !reflect.DeepEqual(keptPlain, plain) {
-		t.Fatalf("legacy batch changed an approved routine or partially saved: %d", status)
-	}
-
-	paused := task
-	paused.Title, paused.Enabled = "Daily review", false
-	renamed.Prompt = "Summarize today"
-	status = batch(renamed, paused)
-	kept, _ = taskByID(s, task.ID)
-	keptPlain, _ = taskByID(s, plain.ID)
-	if status != 200 || kept.Enabled || kept.Title != paused.Title || !kept.PromptSelections || kept.Prompt != approved ||
-		keptPlain.Title != renamed.Title || keptPlain.Prompt != renamed.Prompt {
-		t.Fatalf("legacy metadata or plain edit failed: %d", status)
-	}
-
-	body, _ := json.Marshal(map[string]any{"prompt": changed.Prompt, "time": changed.Time})
-	r := request(s, "PUT", "/api/v1/assistant/tasks/review", string(body))
-	kept, _ = taskByID(s, task.ID)
-	if r.Code != 200 || kept.PromptSelections || kept.Prompt != changed.Prompt || kept.Time != changed.Time || f.sent() != 0 {
-		t.Fatalf("single-task plain replacement failed: %d %s", r.Code, r.Body)
 	}
 }
 

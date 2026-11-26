@@ -1,5 +1,5 @@
-// Package dialogwire is a terminal dialog as the node protocol and the client API carry it (docs/server/architecture.md
-// "Contract packages"): internal/screen reads it off a screen, the node checks it before pressing keys, the apps show
+// Package dialogwire is a terminal dialog as the node protocol and the client API carry it.
+// internal/screen reads it off a screen, the node checks it before pressing keys, the apps show
 // it as a card. Types, constants and trivial pure helpers only.
 package dialogwire
 

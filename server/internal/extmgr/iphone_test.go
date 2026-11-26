@@ -147,9 +147,6 @@ func TestIPhoneExtension(t *testing.T) {
 	if len(seen()) != 0 {
 		t.Fatal("the node is not asked while it is off")
 	}
-	if code, out := call(t, mux, "GET", "/api/v1/iphone", phone, ""); code != 200 || out["on"] != false {
-		t.Fatalf("off: %d %v", code, out)
-	}
 	if code, _ := call(t, mux, "PUT", "/api/v1/iphone/consent", phone, `{"device": "dev-a1", "allowed": true}`); code != 404 {
 		t.Fatalf("no consent while it is off: %d", code)
 	}
@@ -158,20 +155,13 @@ func TestIPhoneExtension(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Every Mac is asked while it is on: the iPhone's own app finds itself among them before its Mac is on.
-	code, out := call(t, mux, "GET", "/api/v1/iphone", phone, "")
-	devs, _ := out["devices"].([]any)
-	if code != 200 || out["on"] != true || len(devs) != 2 {
-		t.Fatalf("%d %v", code, out)
-	}
-	if d := devs[0].(map[string]any); d["id"] != "dev-a1" || d["product_type"] != "iPhone17,1" || d["consented"] != false || d["allowed"] != false {
-		t.Fatalf("%v", d)
-	}
+	h.refreshIPhone(ctx, mac)
 	if p := shownIPhone(t, h, mac); p == nil || p.Enabled || len(p.Devices) != 2 || p.Devices[0].Allowed {
 		t.Fatalf("not on for this Mac, and the node's word is not taken for it: %+v", p)
 	}
 
 	// The Mac on, nobody consented: still nothing to operate.
-	code, out = call(t, mux, "PUT", "/api/v1/machines/mac/iphone", h.cfg.Token, `{"enabled": true}`)
+	code, out := call(t, mux, "PUT", "/api/v1/machines/mac/iphone", h.cfg.Token, `{"enabled": true}`)
 	if code != 200 || out["enabled"] != true {
 		t.Fatalf("%d %v", code, out)
 	}

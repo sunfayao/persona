@@ -256,7 +256,7 @@ func TestPushGradingHelloAndLiveBroadcast(t *testing.T) {
 	put := func(body string) {
 		t.Helper()
 		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/push/grading", strings.NewReader(body)))
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/push/ln-mode", strings.NewReader(body)))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("PUT %s: %d %s", body, rec.Code, rec.Body.String())
 		}

@@ -2,16 +2,15 @@ package node
 
 // The worktree.* methods (Node.handle, #8089); see handle_file.go.
 const (
-	methodWorktreePrepare  = "worktree.prepare"
-	methodWorktreeCreate   = "worktree.create"
-	methodWorktreeSource   = "worktree.source"
-	methodWorktreePreset   = "worktree.preset"
-	methodWorktreeDelete   = "worktree.delete"
+	methodWorktreePrepare = "worktree.prepare"
+	methodWorktreeCreate  = "worktree.create"
+	methodWorktreeSource  = "worktree.source"
+	methodWorktreePreset  = "worktree.preset"
+
 	methodWorktreeAdd      = "worktree.add"
 	methodWorktreeStatus   = "worktree.status"
 	methodWorktreeRemove   = "worktree.remove"
 	methodWorktreeSnapshot = "worktree.snapshot"
-	methodWorktreeRename   = "worktree.rename"
 )
 
 // worktreePrepareParams is worktree.prepare's request (worktree.go): Composer asks for the composer's variant.
@@ -77,11 +76,4 @@ type worktreeSnapshotParams struct {
 	Kind     string `json:"kind"`
 	Cwd      string `json:"cwd"`
 	NameHint string `json:"name_hint"`
-}
-
-// worktreeRenameParams is worktree.rename's request.
-type worktreeRenameParams struct {
-	Kind        string `json:"kind"`
-	WorkspaceID string `json:"workspace_id"`
-	Name        string `json:"name"`
 }

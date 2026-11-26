@@ -44,7 +44,6 @@ type todoCreateImagesKey struct{}
 // todoReceiptRoutes are the relayed to-do routes with a receipt, and the receipt's kind.
 var todoReceiptRoutes = map[string]string{
 	"POST /api/v1/todos":                              todoCreateOp,
-	"POST /api/v1/todos/{id}/asks/{ask}/answer":       todoAnswerOp,
 	"POST /api/v1/assistant/conversations/{id}/route": todoRouteOp,
 }
 

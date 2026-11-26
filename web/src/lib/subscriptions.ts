@@ -1,6 +1,5 @@
 // Source subscriptions (#2041): the manager draws the pages as declarative UI
-// (POST /api/v1/subscriptions/-/ui); the web opens them at /subscriptions and shows entry rows, once the manager reports
-// that subscriptions deliver to the Inbox (feature source_subscriptions).
+// (POST /api/v1/subscriptions/-/ui); the web opens them at /subscriptions.
 import { useStore } from "./store";
 
 const SUBSCRIPTIONS_FEATURE = "source_subscriptions";
@@ -10,21 +9,6 @@ const INBOX_SOURCES_FEATURE = "inbox_sources";
 const INBOX_SOURCES_GRAPH_FEATURE = "inbox_sources_graph";
 
 export { SUBSCRIPTIONS_UI } from "./subscriptions-ui";
-
-/** A connector's line of GET /api/v1/subscriptions/summary: subscribable is absent until its catalog was read. */
-export interface SubscriptionSummaryLine {
-  connector: string;
-  extension: string;
-  subscribable?: boolean;
-  on: number;
-  failing: number;
-}
-
-/** What an entry row says: how many are on and how many need attention. */
-export interface SubscriptionCounts {
-  on: number;
-  failing: number;
-}
 
 /** Whether the manager shows subscriptions (they deliver). */
 export function useSubscriptionsShown(): boolean {
@@ -39,14 +23,6 @@ export function useInboxSourcesShown(): boolean {
 /** Whether Inbox Sources offers its relationship view. */
 export function useInboxSourcesGraphShown(): boolean {
   return useStore((s) => s.features.includes(INBOX_SOURCES_GRAPH_FEATURE));
-}
-
-
-/** The counts for the lines one entry row stands for; null when none of them can be subscribed (the row is hidden). */
-export function countsOf(lines: SubscriptionSummaryLine[] | null, pick: (l: SubscriptionSummaryLine) => boolean): SubscriptionCounts | null {
-  const mine = (lines ?? []).filter(pick);
-  if (!mine.some((l) => l.subscribable === true || l.on > 0)) return null;
-  return mine.reduce((c, l) => ({ on: c.on + l.on, failing: c.failing + l.failing }), { on: 0, failing: 0 });
 }
 
 /** The pages' first state: all of them, one extension's or one connector's. */

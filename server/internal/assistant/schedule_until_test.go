@@ -251,19 +251,6 @@ func TestEnablingDropsAPastUntilTheClientLeftOut(t *testing.T) {
 	}
 }
 
-func TestUntilLegacyRoutinesPutKeepsIt(t *testing.T) {
-	h := newStorelessService(t, newFakeHub())
-	end := time.Now().Add(48 * time.Hour).UTC().Truncate(time.Second)
-	setTasks(h, Task{ID: "morning", Title: "早报", Prompt: "x", Repeat: repeatDaily, Time: "09:00", Enabled: true, Until: end})
-	rec := httptest.NewRecorder()
-	body := `{"routines":[{"id":"morning","title":"早报","prompt":"x2","time":"08:30","enabled":true}]}`
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/assistant/routines", strings.NewReader(body)))
-	got, _ := taskByID(h, "morning")
-	if rec.Code != 200 || got.Time != "08:30" || got.Prompt != "x2" || !got.Until.Equal(end) {
-		t.Fatalf("routines put %d kept until %v: %+v", rec.Code, end, got)
-	}
-}
-
 func TestUntilOnScheduleTools(t *testing.T) {
 	h, loc := untilService(t)
 	ctx := context.Background()

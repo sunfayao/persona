@@ -9,7 +9,7 @@ vi.hoisted(() => {
 });
 vi.mock("../../ui/atoms", async (original) => ({ ...(await original<typeof import("../../ui/atoms")>()), toast: vi.fn() }));
 import { toast } from "../../ui/atoms";
-import { resetExtensionRoot, setCsrf, setTransport } from "../api";
+import { setCsrf, setTransport } from "../api";
 import { Extensions } from "./Extensions";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -28,7 +28,6 @@ const render = async (search = "?extension=rsshub") => {
 };
 
 beforeEach(() => {
-  resetExtensionRoot();
   setCsrf("tok");
   puts = [];
   sent = [];

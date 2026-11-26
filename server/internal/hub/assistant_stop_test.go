@@ -10,7 +10,7 @@ import (
 )
 
 // The stop button in an app on a Feishu /agent conversation (a reporting one, #3308): the hub interrupts it and tells
-// the assistant, which marks it stopped by the app (the plugin reads that in GET /api/v1/assistant/reporters).
+// the assistant, which marks it stopped by the app.
 // Stopping any other conversation marks nothing.
 func TestInterruptingAReportingConversationMarksItStopped(t *testing.T) {
 	h, n := conversationsHub(t)
@@ -32,15 +32,11 @@ func TestInterruptingAReportingConversationMarksItStopped(t *testing.T) {
 		t.Fatalf("last call to the node = %v", last)
 	}
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(20 * time.Millisecond) {
-		code, out := call(t, mux, "GET", "/api/v1/assistant/reporters", tok, "")
-		list, _ := out["reporters"].([]any)
-		if code != 200 || len(list) != 1 {
-			t.Fatalf("reporters %d %v", code, out)
+		var reporters map[string]map[string]any
+		if _, err := assistantStoreOf(t, h).Setting(context.Background(), "assistant.task_reporters", &reporters); err != nil {
+			t.Fatal(err)
 		}
-		r, _ := list[0].(map[string]any)
-		if r["session_id"] != "code-0003" {
-			t.Fatalf("reporter %v", r)
-		}
+		r := reporters["code-0003"]
 		if r["stopped_by"] == "app" && r["stopped_at"] != nil {
 			break
 		}

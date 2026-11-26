@@ -2,15 +2,12 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -485,8 +482,7 @@ func (s *Service) dropQueuedTool(conversation, tool string) int {
 	return n
 }
 
-// UserStopped: the user stopped a conversation's turn in an app. A reporting one is stopped with what it handed out,
-// as the plugin's /stop does (the plugin sees it in GET /api/v1/assistant/reporters and says so in Feishu).
+// UserStopped stops reporting for a conversation whose turn the user stopped, including the work it handed out.
 func (s *Service) UserStopped(ctx context.Context, r SessionRef) {
 	s.retireTodoWork([2]string{r.MachineID, r.SessionID})
 	if _, ok := s.reporterOf(ctx, r.SessionID); !ok {
@@ -495,49 +491,4 @@ func (s *Service) UserStopped(ctx context.Context, r SessionRef) {
 	if _, err := s.stopReporting(ctx, r.SessionID, "app"); err != nil {
 		s.logf("stop %s from the app: %v", short(r.SessionID), err)
 	}
-}
-
-// reporterRoutes: POST /api/v1/assistant/conversations/{id}/stop (the plugin's /stop) and GET
-// /api/v1/assistant/reporters (which were stopped, and when).
-func (s *Service) reporterRoutes() {
-	s.handle("POST /api/v1/assistant/conversations/{id}/stop", func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		if !validSessionID(id) {
-			apierr.Write(w, http.StatusBadRequest, errors.New("invalid conversation id"))
-			return
-		}
-		res, err := s.stopReporting(r.Context(), id, "lark")
-		switch {
-		case errors.Is(err, errNotReporter):
-			apierr.Write(w, http.StatusNotFound, err)
-		case err != nil:
-			apierr.Call(w, err)
-		default:
-			apierr.WriteJSON(w, res)
-		}
-	})
-	s.handle("GET /api/v1/assistant/reporters", func(w http.ResponseWriter, r *http.Request) {
-		type view struct {
-			SessionID string `json:"session_id"`
-			reporter
-		}
-		b := &s.reporters
-		b.mu.Lock()
-		if !s.reportersLocked(r.Context()) {
-			b.mu.Unlock()
-			apierr.Write(w, http.StatusServiceUnavailable, errors.New("reporting conversations could not be read"))
-			return
-		}
-		list := make([]view, 0, len(b.m))
-		for id, rep := range b.m {
-			if time.Since(rep.At) <= reporterKeep {
-				list = append(list, view{SessionID: id, reporter: rep})
-			}
-		}
-		b.mu.Unlock()
-		sort.Slice(list, func(i, j int) bool { return list[i].At.After(list[j].At) })
-		raw, _ := json.Marshal(map[string]any{"reporters": list})
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = w.Write(raw)
-	})
 }

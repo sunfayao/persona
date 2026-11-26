@@ -42,7 +42,6 @@ func TestBroadcastPerLanguage(t *testing.T) {
 		elicitation bool
 	}{
 		{"machines", machines, localizedMachineEvent, true, false},
-		{"extension_operation", []byte(`{"type":"extension_operation","operation":{"id":"op1","kind":"install","error":"SDK error: invalid package","steps":[{"id":"nodes","machines":{"errors":{"example-machine":"SSH diagnostic: refused"}}}]}}`), i18n.ExtensionEvent, true, false},
 		{"extension_auth", []byte(`{"type":"extension_auth","extension":"example","hub_auth_message":true,"auth":{"state":"error","message":"not answering"}}`), i18n.ExtensionEvent, true, false},
 		{"extension_upgrade", []byte(`{"type":"extension_upgrade","extension":"example"}`), i18n.ExtensionEvent, false, false},
 		{"interaction", []byte(`{"type":"interaction","interaction":{"id":"example-form","kind":"elicitation"}}`), i18n.ExtensionEvent, false, true},

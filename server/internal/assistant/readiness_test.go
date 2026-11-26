@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -98,12 +97,7 @@ func TestReadinessWithoutComputer(t *testing.T) {
 	if c := readinessStep(t, getReadiness(t, s, "", "en"), StepComputer); c.Title != "Add your computer" {
 		t.Fatalf("en: %+v", c)
 	}
-	// warm carries the same.
-	status, body := serveJSON(t, s, "POST", "/api/v1/assistant/warm", "", `{}`)
-	rd, _ := body["readiness"].(map[string]any)
-	if status != 200 || body["ok"] != true || rd == nil || rd["mode"] != ReadinessSetup || rd["next"] != StepComputer {
-		t.Fatalf("warm: %d %v", status, body)
-	}
+
 }
 
 // A computer that is not online is named, and said to be asleep rather than the hub unreachable.
@@ -576,38 +570,6 @@ func TestReadinessProbeOutlivesTheClient(t *testing.T) {
 	}
 }
 
-// "Later" is kept in the settings (assistant.readiness), with the last result.
-func TestReadinessDismiss(t *testing.T) {
-	f, s, st := readyMachine(t)
-	if status, body := serveJSON(t, s, "POST", "/api/v1/assistant/readiness/dismiss", "", `{"dismissed":true}`); status != 200 || body["ok"] != true {
-		t.Fatalf("dismiss: %d %v", status, body)
-	}
-	if r := getReadiness(t, s, "", ""); !r.Dismissed {
-		t.Fatalf("readiness = %+v", r)
-	}
-	var rec readinessRecord
-	if ok, err := st.Setting(context.Background(), readinessKey, &rec); !ok || err != nil || !rec.Dismissed || rec.Last == nil ||
-		rec.Last.Mode != ReadinessFull {
-		t.Fatalf("record = %+v (%v %v)", rec, ok, err)
-	}
-	// A new assistant on the same database reads it back.
-	if r := getReadiness(t, newServiceOn(t, f, st), "", ""); !r.Dismissed {
-		t.Fatalf("after a restart: %+v", r)
-	}
-	// The same result again is not written again.
-	puts := st.puts
-	getReadiness(t, s, "", "")
-	if st.puts != puts {
-		t.Fatalf("written again: %d → %d", puts, st.puts)
-	}
-	if status, _ := serveJSON(t, s, "POST", "/api/v1/assistant/readiness/dismiss", "", `{"dismissed":false}`); status != 200 {
-		t.Fatal(status)
-	}
-	if r := getReadiness(t, s, "", ""); r.Dismissed {
-		t.Fatalf("undone: %+v", r)
-	}
-}
-
 // A launcher of the user's own that the machine no longer has: launcher_missing; one that runs Codex: skipped.
 func TestReadinessLauncher(t *testing.T) {
 	f, s, _ := readyMachine(t)
@@ -644,31 +606,6 @@ func TestReadinessManagedAPILauncher(t *testing.T) {
 	r := getReadiness(t, s, "", "")
 	if cl := readinessStep(t, r, StepClaude); r.Launcher != "direct" || cl.State == StepProblem || r.Mode != ReadinessFull {
 		t.Fatalf("readiness = %+v", r)
-	}
-}
-
-// A record that cannot be read is not written over: what was kept ("Later") survives a database hiccup.
-func TestReadinessUnreadRecordKept(t *testing.T) {
-	_, s, st := readyMachine(t)
-	if status, _ := serveJSON(t, s, "POST", "/api/v1/assistant/readiness/dismiss", "", `{}`); status != 200 {
-		t.Fatal(status)
-	}
-	s.ready.mu.Lock()
-	s.ready.loaded, s.ready.rec = false, readinessRecord{}
-	s.ready.mu.Unlock()
-	st.mu.Lock()
-	st.failSetting = errors.New("database hiccup")
-	st.mu.Unlock()
-	getReadiness(t, s, "", "")
-	if status, _ := serveJSON(t, s, "POST", "/api/v1/assistant/readiness/dismiss", "", `{"dismissed":false}`); status != 500 {
-		t.Fatalf("dismiss over an unread record: %d", status)
-	}
-	st.mu.Lock()
-	st.failSetting = nil
-	st.mu.Unlock()
-	var rec readinessRecord
-	if _, err := st.Setting(context.Background(), readinessKey, &rec); err != nil || !rec.Dismissed {
-		t.Fatalf("record = %+v (%v)", rec, err)
 	}
 }
 

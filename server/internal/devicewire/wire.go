@@ -479,16 +479,8 @@ var Routes = []string{
 	"GET /api/v1/machines/{mid}/claude-dirs",
 	"PUT /api/v1/machines/{mid}/claude-dirs/blocked",
 	// Hidden Agent folders, beside the blocked Claude config folders (internal/devices agentdirs.go).
-	"GET /api/v1/machines/{mid}/agent-dirs/hidden",
-	"PUT /api/v1/machines/{mid}/agent-dirs/hidden",
 	// Sharing the machine's clipboard with the phone (#3064, internal/devices clipboard.go).
-	"GET /api/v1/machines/{mid}/clipboard",
-	"PUT /api/v1/machines/{mid}/clipboard",
-	"GET /api/v1/machines/{mid}/clipboard/settings",
-	"PUT /api/v1/machines/{mid}/clipboard/settings",
 	// The file transfer switch (#3065, internal/devices transfer_settings.go).
-	"GET /api/v1/machines/{mid}/file-transfer/settings",
-	"PUT /api/v1/machines/{mid}/file-transfer/settings",
 	// Pollable copy / zip progress (#6113, internal/devices fileoperation.go).
 	"GET /api/v1/machines/{mid}/files/operations/{oid}",
 }
@@ -500,7 +492,6 @@ var MetricsRoutes = []string{
 	"GET /api/v1/metrics",
 	"GET /api/v1/machines/{id}/metrics",
 	"GET /api/v1/machines/{id}/usage",
-	"GET /api/v1/usage",
 	"GET /api/v1/usage/days",
 	"GET /api/v1/usage/hours",
 }

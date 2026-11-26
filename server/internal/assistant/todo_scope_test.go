@@ -183,9 +183,9 @@ func TestTodoRowsToAnExtension(t *testing.T) {
 		}
 
 		for id := range dev {
-			for _, path := range []string{"/api/v1/todos/" + id, "/api/v1/todos/" + id + "/timeline", "/api/v1/todos/" + id + "/decisions",
+			for _, path := range []string{"/api/v1/todos/" + id, "/api/v1/todos/" + id + "/decisions",
 				"/api/v1/todos/" + id + "/repositories"} {
-				if database == nil && !strings.HasSuffix(path, id) && !strings.HasSuffix(path, "/timeline") {
+				if database == nil && !strings.HasSuffix(path, id) {
 					continue // decisions and repositories need the hub's database
 				}
 				devBody := e.must("GET", path, "").Body.Bytes()

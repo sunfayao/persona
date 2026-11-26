@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Write the deployed-commits file a hub reads to tell what it runs without asking GitHub (#3205, #4867;
-docs/assistant/todo-status-sop.md "Without GitHub").
+"""Write the deployed-commits file a hub reads to tell what it runs without asking GitHub (#3205, #4867).
 
     python3 scripts/deploy/deployed_commits.py --out <file or directory> [--commit <rev>] [--repo <owner>/<name>]
         [--max 3000] [--pr <N>[=<head sha>] ...] [--no-open-prs] [--base origin/main]

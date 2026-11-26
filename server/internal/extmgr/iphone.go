@@ -417,31 +417,6 @@ func (h *Manager) iphoneDevices() []iphoneSeen {
 	return out
 }
 
-func (h *Manager) getIPhoneList(w http.ResponseWriter, r *http.Request) {
-	s := h.iphone()
-	out := iphoneList{On: s.On, Devices: []iphoneSeen{}}
-	if s.On {
-		var wait []chan struct{}
-		for _, m := range h.machinesNow() {
-			if h.iphoneOf(m) == nil || !m.isOnline() {
-				continue
-			}
-			done := make(chan struct{})
-			wait = append(wait, done)
-			go func() { defer close(done); h.refreshIPhone(r.Context(), m) }()
-		}
-		for _, c := range wait {
-			<-c
-		}
-		l := h.requestLang(r)
-		for _, d := range h.iphoneDevices() {
-			d.Note = i18n.ComputerText(l, d.Note)
-			out.Devices = append(out.Devices, d)
-		}
-	}
-	writeJSON(w, out)
-}
-
 // iphoneOwn is field (self_apps, self_names) as stored, whether the extension is on or not.
 func (h *Manager) iphoneOwn(field string) []string {
 	p := h.extensions.reg.Snapshot(iphoneExtensionID)

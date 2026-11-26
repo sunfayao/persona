@@ -33,7 +33,7 @@ func serveJSON(t *testing.T, s *Service, method, path, lang, body string) (int, 
 
 // With no machine the main conversation says why in plain words, in the request's language, with what to do; the
 // words it had are the detail. It used to be 502 internal "assistant machine is not
-// configured". The memory refuses with the same code.
+// configured".
 func TestMainConversationWithoutMachineSaysWhy(t *testing.T) {
 	s := newStorelessService(t, newFakeHub())
 	for _, tc := range []struct{ lang, want string }{
@@ -46,9 +46,7 @@ func TestMainConversationWithoutMachineSaysWhy(t *testing.T) {
 			t.Fatalf("%q: %d %v", tc.lang, status, body)
 		}
 	}
-	if status, body := serveJSON(t, s, "GET", "/api/v1/assistant/memory", "", ""); status != 409 || body["code"] != proto.CodeNoMachine {
-		t.Fatalf("memory: %d %v", status, body)
-	}
+
 }
 
 // A launcher that cannot start because Claude Code or the launcher is missing on the machine (the node's coded

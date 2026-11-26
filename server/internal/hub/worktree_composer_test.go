@@ -55,7 +55,6 @@ func TestWorktreeComposerMountedRoutesAndReceipt(t *testing.T) {
 		"prepare": `{"workspace_id":"w1","kind":"orca","composer":true,"locale":"ja"}`,
 		"source":  `{"workspace_id":"w1","kind":"orca","query":"42"}`,
 		"preset":  `{"workspace_id":"w1","kind":"orca","name":"UI","directories":"src\nshared"}`,
-		"delete":  `{"workspace_id":"w1","kind":"orca","preview_token":"opaque","force":true,"allowFailedArchiveHook":true,"allowUnverifiedPtyStop":true}`,
 	} {
 		path := "/api/v1/machines/machine/worktree/" + action
 		for _, role := range []string{roleRetiredAnswer, roleLink, roleExtension} {
@@ -69,9 +68,6 @@ func TestWorktreeComposerMountedRoutesAndReceipt(t *testing.T) {
 		mux.ServeHTTP(w, worktreeReceiptRequest(path, body, "", "device", roleFull))
 		if w.Code != http.StatusOK {
 			t.Fatalf("mounted %s: %d %s", action, w.Code, w.Body)
-		}
-		if params["allowFailedArchiveHook"] != nil || params["allowUnverifiedPtyStop"] != nil {
-			t.Fatal("waivers forwarded", params)
 		}
 		if action == "prepare" && params["composer"] != true {
 			t.Fatal("composer probe stripped", params)

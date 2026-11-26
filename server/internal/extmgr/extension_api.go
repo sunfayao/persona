@@ -88,7 +88,6 @@ func (h *Manager) features() []string {
 	out = append(out, extwire.FeatureUIStream)
 	if h.subscriptionsShown() {
 		out = append(out, subscriptionsFeature)     // /api/v1/subscriptions, once they deliver (subscriptions.go)
-		out = append(out, subscriptionPushFeature)  // and a device's own push source (#3848)
 		out = append(out, inboxSourcesFeature)      // and the pages as Inbox Sources (#5278)
 		out = append(out, inboxSourcesGraphFeature) // and their relationship view (#5741)
 	}

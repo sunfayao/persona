@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// A declarative kit: its quick prompt and triage template are listed for the apps, its skill and instructions go
+// A declarative kit: its quick prompt is listed for the apps, its skill and instructions go
 // to the assistant; switched off one by one, each leaves.
 func TestDeclarativeKit(t *testing.T) {
 	h, _ := extensionTestHub(t)
@@ -17,8 +17,7 @@ func TestDeclarativeKit(t *testing.T) {
 	dir := declarativePackage(t, `{"manifest_version": 1, "id": "kit", "name": "Kit", "version": "1.0.0", "contributes": {
 		"skills": [{"id": "review", "dir": "skills/review"}],
 		"prompts": [{"id": "tone", "kind": "instructions", "file": "assistant/tone.md"},
-			{"id": "today", "kind": "quick", "title": "今天", "text": "今天做了什么？"}],
-		"triage_templates": [{"id": "quiet", "title": "大群安静", "text": "只看提到我的。"}]}}`)
+			{"id": "today", "kind": "quick", "title": "今天", "text": "今天做了什么？"}]}}`)
 	_ = os.MkdirAll(filepath.Join(dir, "skills", "review"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "skills", "review", "SKILL.md"), []byte("# review\n"), 0o644)
 	_ = os.MkdirAll(filepath.Join(dir, "assistant"), 0o755)
@@ -29,10 +28,6 @@ func TestDeclarativeKit(t *testing.T) {
 	if ps := out["prompts"].([]any); len(ps) != 1 || ps[0].(map[string]any)["title"] != "今天" || ps[0].(map[string]any)["extension_name"] != "Kit" {
 		t.Fatalf("%v", out)
 	}
-	_, out = call(t, mux, "GET", "/api/v1/extensions/-/triage-templates", master, "")
-	if ts := out["templates"].([]any); len(ts) != 1 || ts[0].(map[string]any)["text"] != "只看提到我的。" {
-		t.Fatalf("%v", out)
-	}
 	skills := h.extensions.extensionSkills()
 	if len(skills) != 1 || skills[0].Name != "review" || string(skills[0].Files["SKILL.md"]) != "# review\n" {
 		t.Fatalf("%+v", skills)
@@ -41,7 +36,7 @@ func TestDeclarativeKit(t *testing.T) {
 		t.Fatal(got)
 	}
 
-	for _, c := range []string{"skills/review", "prompts/tone", "prompts/today", "triage_templates/quiet"} {
+	for _, c := range []string{"skills/review", "prompts/tone", "prompts/today"} {
 		if code, out := call(t, mux, "PUT", "/api/v1/extensions/kit/-/contributions/"+c, master, `{"enabled": false}`); code != 200 {
 			t.Fatalf("%s: %d %v", c, code, out)
 		}
@@ -52,7 +47,5 @@ func TestDeclarativeKit(t *testing.T) {
 	if _, out := call(t, mux, "GET", "/api/v1/extensions/-/prompts", master, ""); len(out["prompts"].([]any)) != 0 {
 		t.Fatal(out)
 	}
-	if _, out := call(t, mux, "GET", "/api/v1/plugins/-/triage-templates", master, ""); len(out["templates"].([]any)) != 0 {
-		t.Fatal("the old path too:", out)
-	}
+
 }

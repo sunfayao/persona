@@ -86,14 +86,6 @@ type AddAccountRequest struct {
 	SMTPSecurity string `json:"smtp_security,omitempty"`
 }
 
-// Mailbox is a mailbox with its role and counters.
-type Mailbox struct {
-	Name   string `json:"name"`
-	Role   string `json:"role"`
-	Unseen int    `json:"unseen"`
-	Total  int    `json:"total"`
-}
-
 // MailSummary is one row of a message list.
 type MailSummary struct {
 	AccountID string    `json:"account_id"`

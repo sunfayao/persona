@@ -127,7 +127,7 @@ func TestMigrationSets(t *testing.T) {
 		}
 	}
 	if !slices.Equal(both, sharedTables) {
-		t.Errorf("tables both sets make: %v, want %v: a table is one side's (docs/server/server.md \"Migrations\")", both, sharedTables)
+		t.Errorf("tables both sets make: %v, want %v: a table is one side's (AGENTS/04-database.md)", both, sharedTables)
 	}
 }
 

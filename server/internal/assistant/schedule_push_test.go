@@ -64,16 +64,6 @@ func TestTaskPushThroughTheApp(t *testing.T) {
 		t.Fatalf("push \"\" sets every run: %d %s, push %q", rec.Code, rec.Body, push(mail.ID))
 	}
 
-	// The app from before 2026-10-31 saves its routines (the daily tasks) as a list without the field.
-	daily := created(do("POST", "/api/v1/assistant/tasks", `{"title":"日报","prompt":"有要紧的才说","repeat":"daily","time":"18:00","enabled":true,"push":"asked"}`))
-	routines := `{"routines":[{"id":"` + plain.ID + `","title":"早报","prompt":"给我早报","time":"09:00","enabled":true},` +
-		`{"id":"` + daily.ID + `","title":"日报","prompt":"有要紧的才说","time":"18:30","enabled":true}]}`
-	if rec := do("PUT", "/api/v1/assistant/routines", routines); rec.Code != 200 {
-		t.Fatalf("routines: %d %s", rec.Code, rec.Body)
-	}
-	if got, _ := taskByID(h, daily.ID); got.Push != pushAsked || got.Time != "18:30" {
-		t.Fatalf("the old app's routines PUT keeps push: %+v", got)
-	}
 }
 
 // The scheduling tools take push: "asked" for a task that watches something, "every" to go back; left out, a new task

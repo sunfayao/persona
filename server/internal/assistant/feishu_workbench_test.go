@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -369,97 +368,6 @@ func (e *workbenchEnv) companionsCall(method, path, body string) (int, map[strin
 }
 
 const companionsBody = `{"bots":[{"kind":"inbox","name":"Inbox","icon":"📥","app_id":"cli_inboxbot01"},{"kind":"notify","name":"Notices","icon":"🔔","app_id":"cli_noticebot1"}]}`
-
-// The companions are checked and kept; the home card links to them, and the Inbox companion's link replaces the
-// /inbox button. A read-only device cannot change them.
-func TestWorkbenchCompanionsAreLinkedFromTheHomeCard(t *testing.T) {
-	e := newWorkbenchEnv(t, workbenchOnFeatures)
-	if code, _ := e.companionsCall("PUT", "/api/v1/assistant/feishu/companions", `{"bots":[{"kind":"inbox","name":"Inbox","app_id":"not an app"}]}`); code != http.StatusBadRequest {
-		t.Fatalf("a bad app id: %d", code)
-	}
-	if code, _ := e.companionsCall("PUT", "/api/v1/assistant/feishu/companions", `{"bots":[{"kind":"robot","name":"X","app_id":"cli_inboxbot01"}]}`); code != http.StatusBadRequest {
-		t.Fatalf("an unknown kind: %d", code)
-	}
-	rec := httptest.NewRecorder()
-	r := httptest.NewRequest("PUT", "/api/v1/assistant/feishu/companions", strings.NewReader(companionsBody))
-	r.Header.Set(RoleHeader, "read")
-	e.s.ServeHTTP(rec, r)
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("a read-only device: %d", rec.Code)
-	}
-	if code, out := e.companionsCall("PUT", "/api/v1/assistant/feishu/companions", companionsBody); code != http.StatusOK {
-		t.Fatalf("companions: %d %v", code, out)
-	}
-	card, _, _ := e.s.homeCard(context.Background(), workbenchOnFeatures)
-	js := card.JSON()
-	if !strings.Contains(js, "appId=cli_inboxbot01") || !strings.Contains(js, "appId=cli_noticebot1") || strings.Contains(js, `"to":"inbox"`) {
-		t.Fatalf("the home card's companions: %s", js)
-	}
-}
-
-// A push goes to the notifications companion only while it polls and the workbench is on; otherwise to the chat.
-// A press it relays is taken only when it needs no owner's action.
-func TestWorkbenchNoticesGoToAPollingCompanion(t *testing.T) {
-	e := newWorkbenchEnv(t, workbenchOnFeatures)
-	e.companionsCall("PUT", "/api/v1/assistant/feishu/companions", companionsBody)
-
-	before, _, _, _ := e.counts()
-	e.s.feishuPush("", "", "Not polled yet", "nobody takes it")
-	if after, _, _, _ := e.counts(); after != before+1 {
-		t.Fatalf("a push with no companion polling did not go to the chat: %d → %d posts", before, after)
-	}
-
-	code, out := e.companionsCall("GET", "/api/v1/assistant/feishu/notices?wait=0", "")
-	boot, _ := out["boot"].(string)
-	if code != http.StatusOK || boot == "" {
-		t.Fatalf("poll: %d %v", code, out)
-	}
-	before, _, _, _ = e.counts()
-	e.s.feishuPush("", "", "Morning brief", "the day ahead")
-	if after, _, _, _ := e.counts(); after != before {
-		t.Fatalf("a push went to the chat while the companion polls")
-	}
-	_, out = e.companionsCall("GET", "/api/v1/assistant/feishu/notices?wait=0&after=0&boot="+boot, "")
-	list, _ := out["notices"].([]any)
-	if len(list) != 1 || !strings.Contains(fmt.Sprint(list[0]), "Morning brief") {
-		t.Fatalf("notices: %v", out)
-	}
-
-	// A long poll waits for the next one.
-	got := make(chan map[string]any, 1)
-	go func() {
-		_, out := e.companionsCall("GET", "/api/v1/assistant/feishu/notices?wait=5&after=1&boot="+boot, "")
-		got <- out
-	}()
-	waitFor(t, "the long poll waiting", func() bool {
-		e.s.companions.mu.Lock()
-		defer e.s.companions.mu.Unlock()
-		return e.s.companions.wait != nil
-	})
-	e.s.feishuPush("", "", "Second", "later")
-	select {
-	case out := <-got:
-		if list, _ := out["notices"].([]any); len(list) != 1 || !strings.Contains(fmt.Sprint(list[0]), "Second") {
-			t.Fatalf("the long poll: %v", out)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("the long poll did not end on a notice")
-	}
-
-	l := e.s.botLang(context.Background())
-	if _, out := e.companionsCall("POST", "/api/v1/assistant/feishu/notices/action", `{"action":{"value":{"a":"ix","id":"ix_1"}}}`); !strings.Contains(fmt.Sprint(out), wbT(l, "answer_in_workbench")) {
-		t.Fatalf("a question answered through the companion: %v", out)
-	}
-
-	// Switched off, pushes go to the chat again.
-	e.setFeatures(FeishuFeatures{Main: true, Pushes: true})
-	_, _ = e.s.feishuFeatures(context.Background())
-	before, _, _, _ = e.counts()
-	e.s.feishuPush("", "", "Off again", "to the chat")
-	if after, _, _, _ := e.counts(); after != before+1 {
-		t.Fatal("a push with the workbench off did not go to the chat")
-	}
-}
 
 // /inbox lists what needs the owner first, each with Done and (for a reply that can be sent) AI draft; Done files it
 // and the card is redrawn without it.

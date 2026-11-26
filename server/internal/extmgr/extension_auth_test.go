@@ -144,24 +144,15 @@ func TestExtensionToolsAndAuth(t *testing.T) {
 		t.Fatalf("%d %v", code, out)
 	}
 	opID := out["operation"].(map[string]any)["id"].(string)
-	var op map[string]any
-	waitLong(t, "the install to end", func() bool {
-		_, op = call(t, mux, "GET", "/api/v1/extensions/-/operations/"+opID, master, "")
-		return op["state"] == "succeeded" || op["state"] == "failed"
-	})
-	if op["state"] != "succeeded" || op["next"] != "auth" {
-		t.Fatalf("installed, signing in next: %v", op)
-	}
-	var tools map[string]any
-	for _, s := range op["steps"].([]any) {
-		if st := s.(map[string]any); st["id"] == "tools" {
-			tools = st
-		}
-	}
-	if tools == nil || tools["state"] != "done" || fmt.Sprint(tools["tools"]) != "[map[name:hello-tool state:done]]" {
-		t.Fatalf("the tools step: %v", tools)
-	}
 
+	op := waitOp(t, h, opID, opSucceeded, opFailed)
+	if op.State != opSucceeded || op.Next != "auth" {
+		t.Fatalf("installed, signing in next: %+v", op)
+	}
+	tools := stepState(op, "tools")
+	if tools.State != "done" || len(tools.Tools) != 1 || tools.Tools[0].Name != "hello-tool" || tools.Tools[0].State != "done" {
+		t.Fatalf("the tools step: %+v", tools)
+	}
 	var auth map[string]any
 	waitLong(t, "its status", func() bool {
 		_, auth = call(t, mux, "GET", "/api/v1/extensions/example-auth/-/auth", master, "")

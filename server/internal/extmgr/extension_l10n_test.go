@@ -54,9 +54,9 @@ func TestExtensionTranslationsByRequestLanguage(t *testing.T) {
 	if code != 200 || pv["manifest"].(map[string]any)["name"] != "サンプルノート" || pv["manifest"].(map[string]any)["description"] != "Notes into the knowledge base" {
 		t.Fatalf("preview in Japanese: %d %v", code, pv["manifest"])
 	}
-	_, op := requestIn(t, mux, i18n.ZhHans, "GET", "/api/v1/extensions/-/operations/"+pv["operation_id"].(string), master, "")
-	if shown := op["preview"].(map[string]any); shown["manifest"].(map[string]any)["name"] != "Example Notes" || shown["permissions_digest"] != pv["permissions_digest"] {
-		t.Fatalf("the same preview in Simplified Chinese: %v", shown)
+	code, shown := requestIn(t, mux, i18n.ZhHans, "POST", "/api/v1/extensions/-/preview", master, `{"source": "dir:`+pkg+`"}`)
+	if code != 200 || shown["manifest"].(map[string]any)["name"] != "Example Notes" || shown["permissions_digest"] != pv["permissions_digest"] {
+		t.Fatalf("preview in Simplified Chinese: %d %v", code, shown)
 	}
 	if code, out := call(t, mux, "POST", "/api/v1/extensions/-/install", master, fmt.Sprintf(`{"preview_id": %q, "permissions_digest": %q}`, pv["preview_id"], pv["permissions_digest"])); code != 200 {
 		t.Fatalf("install: %d %v", code, out)

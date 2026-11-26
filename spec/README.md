@@ -28,7 +28,6 @@ Each domain is `spec/fixtures/<domain>/`, with a README that holds its rules and
 | `todo-view` | The view the manager works out for each to-do (phase, section, reason, line, asks), held to `schema/wire/todo-view.schema.json` |
 | `todo-counts` | A To-dos list's counts, its places and the order within each section, with the same schema |
 | `todo-rounds` | A to-do's conversation in rounds, its results and what changed since the owner looked |
-| `todo-asks` | An answer to one of a to-do's own asks: what it takes, refuses and changes |
 | `todo-writes` | How a to-do's message or answer that carries the owner's words ends: the manager's status and code, the hub's final `todo_send_state` and receipt |
 | `todo-push` | A decision's push: what the manager sends, and the push's category, `mutable-content` and `todo` |
 | `provider-import-link` | Provider import links: what the web app builds and what the hub reads |

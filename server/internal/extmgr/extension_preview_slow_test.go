@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -51,7 +50,10 @@ func TestPreviewDownloadOutlivesTheApp(t *testing.T) {
 	latest := func() string {
 		var id string
 		var at time.Time
-		for _, v := range h.opsView() {
+		h.extensions.ops.mu.Lock()
+		defer h.extensions.ops.mu.Unlock()
+		for _, op := range h.extensions.ops.byID {
+			v := op.v
 			if v.StartedAt.After(at) {
 				id, at = v.ID, v.StartedAt
 			}
@@ -79,7 +81,7 @@ func TestPreviewDownloadOutlivesTheApp(t *testing.T) {
 	for _, l := range []i18n.Lang{i18n.En, "zh-Hans", "ja"} {
 		texts = append(texts, i18n.T(l, "hub-extension_operations.client_left"))
 	}
-	if !slices.Contains(texts, v.Error) || !v.Retryable {
+	if !slices.Contains(texts, v.Error) {
 		t.Fatalf("the operation the app left: %+v", v)
 	}
 
@@ -96,21 +98,4 @@ func TestPreviewDownloadOutlivesTheApp(t *testing.T) {
 	if gets != 1 || stops != 0 {
 		t.Fatalf("downloaded %d times, stopped %d", gets, stops)
 	}
-	if code, _ := call(t, mux, "DELETE", "/api/v1/extensions/-/operations/"+next, phone, ""); code != http.StatusNoContent {
-		t.Fatalf("turned down: %d", code)
-	}
-
-	// Canceled while it downloads: the operation is canceled and the download stops (nothing in the cache).
-	_ = os.RemoveAll(h.packageCache())
-	gh.mu.Lock()
-	gh.hold = make(chan struct{})
-	gh.mu.Unlock()
-	third := opCall(t, mux, "POST", "/api/v1/extensions/-/catalog/preview", phone, fmt.Sprintf(`{"market": %q, "extension": "example-ui", "async": true}`, market))
-	eventually(t, 10*time.Second, "the third download", downloading(third))
-	if code, _ := call(t, mux, "DELETE", "/api/v1/extensions/-/operations/"+third, phone, ""); code != http.StatusNoContent {
-		t.Fatalf("cancel: %d", code)
-	}
-	waitOp(t, h, third, opCanceled)
-	eventually(t, 10*time.Second, "the download to stop", func() bool { gh.mu.Lock(); defer gh.mu.Unlock(); return gh.assetStops == 1 })
-	eventually(t, 10*time.Second, "nothing left in the cache", func() bool { entries, _ := os.ReadDir(h.packageCache()); return len(entries) == 0 })
 }

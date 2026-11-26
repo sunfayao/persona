@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strings"
 	"sync"
@@ -96,8 +95,6 @@ func dirsHub(t *testing.T) (*Devices, *settingsStore, *Machine, http.Handler) {
 	m := newMachine(h, MachineConfig{ID: "m1", Name: "box", ClaudeConfigDirs: []string{"~/.automation/claude-b"}})
 	h.addEntry(m)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/machines/{mid}/claude-dirs", h.withMachine(h.getClaudeDirs))
-	mux.HandleFunc("PUT /api/v1/machines/{mid}/claude-dirs/blocked", h.withMachine(h.putClaudeDirsBlocked))
 	return h, st, m, mux
 }
 
@@ -107,154 +104,6 @@ func listedIDs(m *Machine) []string {
 		ids = append(ids, s.SessionID)
 	}
 	return ids
-}
-
-// Blocking a pattern stores it, forgets the remembered directories it covers, tells the node and takes its new session
-// list; a node reporting a blocked directory again is not listened to; unblocking brings the sessions back.
-func TestBlockClaudeDirs(t *testing.T) {
-	_, st, m, mux := dirsHub(t)
-	ctx := context.Background()
-	_ = st.PutSetting(ctx, claudeDirsKey("m1"), []string{"/home/me/.automation/claude-a", "/home/me/.config/cc/work"})
-	f := connectDirsNode(t, m)
-
-	code, out := put(t, mux, "/api/v1/machines/m1/claude-dirs/blocked", `{"blocked":[" ~/.automation/* ",""]}`)
-	if code != 200 {
-		t.Fatalf("PUT = %d %v", code, out)
-	}
-	if b := m.blockedClaudeDirs(ctx); !slices.Equal(b, []string{"~/.automation/*"}) {
-		t.Fatalf("stored %v", b)
-	}
-	var seen []string
-	_, _ = st.Setting(ctx, claudeDirsKey("m1"), &seen)
-	if !slices.Equal(seen, []string{"/home/me/.config/cc/work"}) {
-		t.Fatalf("remembered %v", seen)
-	}
-	if ids := listedIDs(m); !slices.Equal(ids, []string{"work"}) {
-		t.Fatalf("sessions %v", ids)
-	}
-	f.mu.Lock()
-	last := f.configure[len(f.configure)-1]
-	f.mu.Unlock()
-	if string(last["claude_dirs"]) != `["/home/me/.config/cc/work"]` || string(last["claude_dirs_blocked"]) != `["~/.automation/*"]` {
-		t.Fatalf("node told %s / %s", last["claude_dirs"], last["claude_dirs_blocked"])
-	}
-	// The answer lists every directory, blocked ones marked, the configured one too.
-	dirs, _ := out["dirs"].([]any)
-	var blocked []string
-	for _, d := range dirs {
-		if dm := d.(map[string]any); dm["blocked"] == true {
-			blocked = append(blocked, dm["path"].(string))
-		}
-	}
-	if out["live"] != true || !slices.Equal(blocked, []string{"/home/me/.automation/claude-a", "~/.automation/claude-b"}) {
-		t.Fatalf("state %v", out)
-	}
-
-	// An older node reports the blocked directory again: not remembered.
-	m.rememberClaudeDirs(json.RawMessage(`{"dirs":["/home/me/.automation/claude-a","/home/me/.config/cc/new"]}`))
-	_, _ = st.Setting(ctx, claudeDirsKey("m1"), &seen)
-	if !slices.Equal(seen, []string{"/home/me/.config/cc/work", "/home/me/.config/cc/new"}) {
-		t.Fatalf("remembered %v", seen)
-	}
-	// Reconnecting hands the node the patterns.
-	m.configureNode(ctx, m.peer, nil, true)
-	f.mu.Lock()
-	last = f.configure[len(f.configure)-1]
-	f.mu.Unlock()
-	if string(last["claude_dirs_blocked"]) != `["~/.automation/*"]` || strings.Contains(string(last["claude_dirs"]), "automation") {
-		t.Fatalf("configure on connect: %s / %s", last["claude_dirs"], last["claude_dirs_blocked"])
-	}
-
-	if code, _ := put(t, mux, "/api/v1/machines/m1/claude-dirs/blocked", `{"blocked":[]}`); code != 200 {
-		t.Fatalf("unblock = %d", code)
-	}
-	if ids := listedIDs(m); !slices.Equal(ids, []string{"bot", "work"}) {
-		t.Fatalf("unblocked sessions %v", ids)
-	}
-}
-
-// Lifting the last pattern tells the node [] (null would leave it blocking): the directory reads unblocked, its
-// sessions are listed again, on the next connection too.
-func TestUnblockLastClaudeDir(t *testing.T) {
-	_, _, m, mux := dirsHub(t)
-	ctx := context.Background()
-	f := connectDirsNode(t, m)
-	if code, _ := put(t, mux, "/api/v1/machines/m1/claude-dirs/blocked", `{"blocked":["~/.automation/claude-a"]}`); code != 200 {
-		t.Fatalf("block = %d", code)
-	}
-	if ids := listedIDs(m); !slices.Equal(ids, []string{"work"}) {
-		t.Fatalf("blocked sessions %v", ids)
-	}
-
-	code, out := put(t, mux, "/api/v1/machines/m1/claude-dirs/blocked", `{"blocked":[]}`)
-	if code != 200 {
-		t.Fatalf("unblock = %d %v", code, out)
-	}
-	f.mu.Lock()
-	last := f.configure[len(f.configure)-1]
-	f.mu.Unlock()
-	if string(last["claude_dirs_blocked"]) != `[]` {
-		t.Fatalf("node told claude_dirs_blocked %s", last["claude_dirs_blocked"])
-	}
-	if ids := listedIDs(m); !slices.Equal(ids, []string{"bot", "work"}) {
-		t.Fatalf("unblocked sessions %v", ids)
-	}
-	st := m.claudeDirsState(ctx)
-	if len(st.Blocked) != 0 {
-		t.Fatalf("patterns %v", st.Blocked)
-	}
-	for _, d := range st.Dirs {
-		if d.Blocked {
-			t.Fatalf("%s still blocked: %+v", d.Path, st.Dirs)
-		}
-	}
-
-	m.configureNode(ctx, m.peer, nil, true)
-	f.mu.Lock()
-	last = f.configure[len(f.configure)-1]
-	f.mu.Unlock()
-	if string(last["claude_dirs_blocked"]) != `[]` {
-		t.Fatalf("configure on connect: claude_dirs_blocked %s", last["claude_dirs_blocked"])
-	}
-}
-
-func TestBlockClaudeDirsRefusesBadPatterns(t *testing.T) {
-	_, _, _, mux := dirsHub(t)
-	for _, body := range []string{`{"blocked":["relative/dir"]}`, `{"blocked":["~/["]}`, `nope`} {
-		if code, _ := put(t, mux, "/api/v1/machines/m1/claude-dirs/blocked", body); code != 400 {
-			t.Errorf("%s: %d", body, code)
-		}
-	}
-}
-
-// Offline: the hub's own record, blocked ones marked.
-func TestClaudeDirsOffline(t *testing.T) {
-	_, st, _, mux := dirsHub(t)
-	ctx := context.Background()
-	_ = st.PutSetting(ctx, claudeDirsKey("m1"), []string{"~/.config/cc/work"})
-	_ = st.PutSetting(ctx, claudeDirsBlockedKey("m1"), []string{"~/.automation/*"})
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/machines/m1/claude-dirs", nil))
-	var out claudeDirsState
-	_ = json.Unmarshal(rec.Body.Bytes(), &out)
-	if rec.Code != 200 || out.Live || len(out.Dirs) != 2 || !out.Dirs[0].Blocked || out.Dirs[0].Source != "config" || out.Dirs[1].Blocked {
-		t.Fatalf("%d %+v", rec.Code, out)
-	}
-}
-
-// An empty blocklist serializes as [] (not null): the web settings page treats blocked as a JSON array and crashes
-// rendering .filter on null (#977).
-func TestClaudeDirsEmptyBlocklistIsArray(t *testing.T) {
-	_, _, m, mux := dirsHub(t)
-	connectDirsNode(t, m)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/machines/m1/claude-dirs", nil))
-	if rec.Code != 200 {
-		t.Fatalf("GET = %d", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), `"blocked":[]`) {
-		t.Fatalf("blocklist is not an empty JSON array: %s", rec.Body.String())
-	}
 }
 
 // Connecting tells the node whether to list botmux's sessions: as before unless hub.json turns them off for the

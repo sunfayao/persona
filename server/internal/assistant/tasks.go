@@ -841,7 +841,6 @@ func (s *Service) trustKinds(ctx context.Context, tasks []PlanTask) {
 // ---- HTTP ----
 
 func (s *Service) taskRoutes() {
-	s.taskTerminalRoute()
 	s.draftDecisionRoutes()
 	s.doneCheckRoute()
 	s.handle("POST /api/v1/task-plans/{id}/workspace-preview", s.previewPlanWorkspaces)

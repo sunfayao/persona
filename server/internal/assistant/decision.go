@@ -774,22 +774,3 @@ func (s *Service) undecidableSignal(ctx context.Context, t Todo, now time.Time) 
 	return superviseSignal{Todo: t.ID, Kind: sigUndecidable, Key: "undecidable@" + r.At.UTC().Format(time.RFC3339Nano),
 		Minutes: int(now.Sub(r.At).Minutes()), Detail: clip(oneLine(cmp.Or(r.Reason, r.Note)), 300)}, true
 }
-
-// ---- counting ----
-
-// ownerCannotStats sums the owner_cannot_answer events by the supervisor conversation that asked, then by answer.
-func ownerCannotStats(events []db.WorkEvent) map[string]map[string]int {
-	out := map[string]map[string]int{}
-	for _, e := range events {
-		if e.Kind != workOwnerCannot {
-			continue
-		}
-		sup, _ := e.Detail["supervisor"].(string)
-		resp, _ := e.Detail["response"].(string)
-		if out[sup] == nil {
-			out[sup] = map[string]int{}
-		}
-		out[sup][resp]++
-	}
-	return out
-}

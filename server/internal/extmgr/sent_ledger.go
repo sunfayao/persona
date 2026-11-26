@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,10 +27,9 @@ import (
 // made on its own, outside the gate, comes in through sent.record instead (extensionSentRecord), and a write the
 // node's Lark gate proxy forwarded through lark.sent (RecordNodeSent).
 
-// sentStore keeps and reads the ledger (db.RecordSentAsUser…).
+// sentStore records writes and prunes expired ledger rows.
 type sentStore interface {
 	RecordSentAsUser(ctx context.Context, s db.SentAsUser) (int64, error)
-	SentAsUsers(ctx context.Context, before int64, limit int, connector string) ([]db.SentAsUser, int64, error)
 	PruneSentAsUser(ctx context.Context, before time.Time) (int64, error)
 }
 
@@ -607,54 +605,4 @@ func (h *Manager) sentLedgerLoop(ctx context.Context) {
 			h.pruneSentLedger(ctx)
 		}
 	}
-}
-
-// sentRoutes: GET /api/v1/connectors/sent?before=&limit=&connector=, the ledger newest first, a page at a time
-// (docs/protocol/protocol.md "Connector API"). Read by one of the user's own full devices or the owner on this machine, never
-// by an answer-only device, a pairing token (a script or an AI the user paired) or an extension's token: it holds the
-// text of what was written as the user.
-func (h *Manager) sentRoutes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/connectors/sent", func(w http.ResponseWriter, r *http.Request) {
-		if !mayReadLedger(r.Context()) {
-			writeErr(w, http.StatusForbidden, errors.New("only a device with full rights reads what was sent as the user"))
-			return
-		}
-		st, _ := h.store.(sentStore)
-		if st == nil {
-			writeErrCode(w, http.StatusServiceUnavailable, "no_database", errors.New("no database: there is no ledger"))
-			return
-		}
-		q := r.URL.Query()
-		limit := db.SentAsUserDefault
-		if v := q.Get("limit"); v != "" {
-			n, err := strconv.Atoi(v)
-			if err != nil || n < 1 {
-				writeErr(w, http.StatusBadRequest, fmt.Errorf("limit %q: a number from 1", v))
-				return
-			}
-			limit = min(n, db.SentAsUserMost)
-		}
-		var before int64
-		if v := q.Get("before"); v != "" {
-			n, err := strconv.ParseInt(v, 10, 64)
-			if err != nil || n < 1 {
-				writeErr(w, http.StatusBadRequest, fmt.Errorf("before %q: a row id, as next gave it", v))
-				return
-			}
-			before = n
-		}
-		rows, next, err := st.SentAsUsers(r.Context(), before, limit, q.Get("connector"))
-		if err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
-		}
-		if rows == nil {
-			rows = []db.SentAsUser{}
-		}
-		var nextOut any // null on the last page
-		if next > 0 {
-			nextOut = next
-		}
-		writeJSON(w, map[string]any{"items": h.sentItems(r.Context(), rows), "next": nextOut})
-	})
 }

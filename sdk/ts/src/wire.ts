@@ -1187,38 +1187,6 @@ export interface UIPlaces {
 }
 
 /**
- * A widget an extension draws outside the app (GET …/extensions/-/widgets; docs "System placements").
- */
-export interface WidgetPlace {
-  extension: string;
-  extension_name?: string;
-  id: string;
-  title: string;
-  families: WidgetFamily[];
-  refresh_minutes: number;
-  opens?: string;
-}
-
-export interface WidgetPlaces {
-  widgets: WidgetPlace[];
-}
-
-/**
- * An app's POST …/extensions/{id}/-/widget/{ui}: context.size is the family it draws (WidgetFamily).
- */
-export interface WidgetRequest {
-  context?: UIContext;
-}
-
-/**
- * A widget's view, held to what the family draws, and until when the hub keeps it (the app's timeline's next entry).
- */
-export interface WidgetAnswer {
-  view: View;
-  expires_at: string;
-}
-
-/**
  * A widget a device has on a screen (PUT /api/v1/devices/{id}/widgets): the hub wakes that device when it changes.
  */
 export interface DeviceWidget {
@@ -1238,32 +1206,6 @@ export interface DeviceWidgets {
 export interface WidgetPush {
   extension: string;
   id: string;
-}
-
-/**
- * An extension's action the system runs (GET …/extensions/-/shortcuts).
- */
-export interface ShortcutPlace {
-  extension: string;
-  extension_name?: string;
-  id: string;
-  title: string;
-  description?: string;
-  params?: ShortcutParam[];
-  ui?: string;
-}
-
-export interface ShortcutPlaces {
-  shortcuts: ShortcutPlace[];
-}
-
-/**
- * An app's POST …/extensions/{id}/-/shortcut/{sid}: the params' values (strings) and the context (tz, locale,
- * platform, ui_version).
- */
-export interface ShortcutRequest {
-  values?: Record<string, string>;
-  context?: UIContext;
 }
 
 /**

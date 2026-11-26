@@ -4,11 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/extwire"
@@ -62,73 +59,6 @@ func (s *Service) listEntries(ctx context.Context, p proto.AssistantEntriesParam
 	}
 	return st.ListAssistantEntries(ctx, p, personal)
 }
-
-func (s *Service) entriesRoutes() {
-	s.handle("GET /api/v1/assistant/entries", func(w http.ResponseWriter, r *http.Request) {
-		p, err := entriesQuery(r)
-		if err != nil {
-			apierr.Write(w, http.StatusBadRequest, err)
-			return
-		}
-		personal := true
-		if r.Header.Get(RoleHeader) == roleExtension {
-			allowed, granted := s.entriesReadAccess(r.Header.Get(ExtensionHeader))
-			if !allowed {
-				body := apierr.CodeBody(w, http.StatusForbidden, "permission_denied", errors.New("assistant.entries.list requires assistant.entries.read"))
-				body["scope"] = extwire.ScopeAssistantEntriesRead
-				apierr.WriteBody(w, http.StatusForbidden, body)
-				return
-			}
-			personal = granted || s.localEntriesReader(r.Context())
-		}
-		out, err := s.listEntries(r.Context(), p, personal)
-		if err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		apierr.WriteJSON(w, out)
-	})
-}
-
-func entriesQuery(r *http.Request) (proto.AssistantEntriesParams, error) {
-	var p proto.AssistantEntriesParams
-	q := r.URL.Query()
-	for k, values := range q {
-		if len(values) != 1 {
-			return p, errors.New("ledger parameters must occur once")
-		}
-		v := values[0]
-		switch k {
-		case "after":
-			p.After = v
-		case "limit":
-			n, err := strconv.Atoi(v)
-			if err != nil {
-				return p, errors.New("invalid limit")
-			}
-			p.Limit = n
-		case "by":
-			p.By = v
-		case "trust":
-			p.Trust = v
-		case "status":
-			p.Status = v
-		case "tag":
-			p.Tag = v
-		case "type":
-			p.Type = v
-		case "scope":
-			if err := strictParams("scope", json.RawMessage(v), &p.Scope); err != nil {
-				return p, err
-			}
-		default:
-			return p, errors.New("unknown ledger parameter")
-		}
-	}
-	return p, db.ValidateAssistantEntriesParams(&p)
-}
-
-type entriesEventPublisher interface{ EntriesEvent(string, any) error }
 
 func (b *BusHub) EntriesEvent(event string, params any) error { return b.notifyHub(event, params) }
 

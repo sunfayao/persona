@@ -49,11 +49,6 @@ export function subscribeResume(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Forgets how the last Resume went (the error once it was read, a test's leftovers). */
-export function clearResume(mid: string, sid: string) {
-  put(keyOf(mid, sid), IDLE);
-}
-
 type Post = (path: string, init: { method: "POST"; json: unknown }) => Promise<unknown>;
 
 /** Resumes the stopped Agent `sid` on `mid`; true when the hub started it. A second press while one is out does nothing. */

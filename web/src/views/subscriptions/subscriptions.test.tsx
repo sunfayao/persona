@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 // Source subscriptions on the web (#2041): the pages are the manager's declarative UI at /api/v1/subscriptions/-/ui,
-// drawn again when a subscription changes; entry rows only once the manager reports source_subscriptions, and only for
-// connectors that can be subscribed.
+// drawn again when a subscription changes.
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hub = vi.hoisted(() => ({
   calls: [] as { path: string; body?: Record<string, unknown> }[],
-  summary: [] as unknown[],
   features: [] as string[],
   listeners: new Map<string, Set<(m: Record<string, unknown>) => void>>(),
 }));
@@ -17,7 +15,6 @@ vi.mock("../../lib/api", async (original) => ({
   ...(await original<typeof import("../../lib/api")>()),
   api: async (path: string, init: { json?: Record<string, unknown> } = {}) => {
     hub.calls.push({ path, body: init.json });
-    if (path === "/subscriptions/summary") return { connectors: hub.summary };
     return { view: { title: "Subscriptions", sections: [{ items: [{ type: "text", text: `drawn ${hub.calls.length}` }] }] } };
   },
 }));
@@ -35,7 +32,7 @@ vi.mock("../../lib/store", async (original) => {
 });
 
 import { parse, href } from "../../lib/router";
-import { countsOf, subscriptionsHref, SUBSCRIPTIONS_UI } from "../../lib/subscriptions";
+import { subscriptionsHref, SUBSCRIPTIONS_UI } from "../../lib/subscriptions";
 import { LegacyExtensionUI } from "../settings/ExtensionView";
 
 vi.hoisted(() => {
@@ -52,7 +49,6 @@ const settle = async () => {
 
 beforeEach(() => {
   hub.calls.length = 0;
-  hub.summary = [];
   hub.listeners.clear();
   hub.features = [];
   host = document.createElement("div");
@@ -89,18 +85,5 @@ describe("the pages", () => {
     expect(href({ name: "subscriptions" })).toMatch(/\/subscriptions$/);
     expect(subscriptionsHref()).toBe("/subscriptions");
     expect(decodeURIComponent(subscriptionsHref({ ext: "apps" }))).toBe('/subscriptions?state={"ext":"apps"}');
-  });
-});
-
-describe("entry rows", () => {
-  const line = (l: Partial<{ connector: string; extension: string; subscribable: boolean; on: number; failing: number }>) =>
-    ({ connector: "apps", extension: "apps", on: 0, failing: 0, ...l });
-
-  it("count what is on and failing, and hide when nothing can be subscribed", () => {
-    expect(countsOf([line({ subscribable: true, on: 2, failing: 1 }), line({ connector: "x", extension: "other", subscribable: true, on: 5 })],
-      (l) => l.extension === "apps")).toEqual({ on: 2, failing: 1 });
-    expect(countsOf([line({ subscribable: false })], () => true)).toBeNull();
-    expect(countsOf([line({})], () => true)).toBeNull(); // not known yet
-    expect(countsOf([line({ subscribable: false, on: 1 })], () => true)).toEqual({ on: 1, failing: 0 }); // tools gone, subscriptions kept
   });
 });

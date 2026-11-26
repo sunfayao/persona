@@ -2,11 +2,8 @@ package assistant
 
 import (
 	"context"
-	"net/http"
 	"testing"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/prompts"
 )
 
@@ -30,7 +27,7 @@ func TestInboxTaskOwnerBotHandoffPolicy(t *testing.T) {
 }
 
 func TestInboxTaskOwnerBotHandoffSkipsBothRouters(t *testing.T) {
-	h, todo, it := taskRecheckHub(t)
+	h, todo, it := taskLinkPolicyHub(t)
 	const pr = "https://github.com/example/project/pull/123"
 	h.todos.mu.Lock()
 	h.todos.todos[todo.ID].PRURL = pr
@@ -47,43 +44,6 @@ func TestInboxTaskOwnerBotHandoffSkipsBothRouters(t *testing.T) {
 	if h.linkTask(context.Background(), it, []prompts.InboxTask{{ID: todo.ID, Title: todo.Title}}) ||
 		it.Agent.TodoID != "" || len(calls()) != 0 {
 		t.Fatalf("the owner request was judged or linked: %+v, calls=%d", it.Agent, len(calls()))
-	}
-	out, code, err := h.recheckInboxTask(context.Background(), it.ID)
-	if err != nil || code != http.StatusOK || out.Status != "excluded" || out.Method != "policy" || len(calls()) != 0 {
-		t.Fatalf("recheck: %d %+v %v; calls=%d", code, out, err, len(calls()))
-	}
-}
-
-func TestInboxTaskOwnerBotHandoffClearsStoredLinkOnly(t *testing.T) {
-	h, todo, it := taskRecheckHub(t)
-	it.Source, it.Kind, it.Connector = "larkcli", "bot_handoff", taskNotification("ou_example")
-	it.Agent.TodoID = todo.ID
-	it.Handoffs = []InboxHandoff{{MachineID: "box", SessionID: "main", At: time.Now().UTC()}}
-	before := *it.Agent
-	handoffs := string(rawJSON(it.Handoffs))
-	chain := string(rawJSON(it.Chain))
-	h.setConfig(func(c *assistantwire.InboxConfig) { c.Agent.Enabled = false })
-	model, calls := captureModel(t, `{"task_id":"`+todo.ID+`","evidence":"`+todo.Title+`"}`)
-	h.in.setModel(model)
-
-	code, out := inboxCall(t, h.routes(), "POST", "/api/v1/inbox/"+it.ID+"/task-link/recheck", "")
-	before.TodoID = ""
-	if code != http.StatusOK || out["status"] != "cleared" || out["method"] != "policy" ||
-		string(rawJSON(before)) != string(rawJSON(it.Agent)) {
-		t.Fatalf("correction: %d %+v; agent %+v", code, out, it.Agent)
-	}
-	if !it.open() || it.Handling.State != HandlingDone || it.Suggestion.Version != 3 ||
-		string(rawJSON(it.Handoffs)) != handoffs || string(rawJSON(it.Chain)) != chain ||
-		len(calls()) != 0 || len(h.f.notices()) != 0 {
-		t.Fatal("link correction changed handling or the handoff, called the model, or sent a message")
-	}
-	h.linkInboxTaskURLs(context.Background())
-	_, read := inboxCall(t, h.routes(), "GET", "/api/v1/inbox/"+it.ID, "")
-	if a, ok := read["agent"].(map[string]any); !ok || a["todo_id"] != nil {
-		t.Fatalf("the cleared association reappeared: %+v", read)
-	}
-	if got := todoNow(h.Service, todo.ID); got.DoneAt != nil {
-		t.Fatal("link correction closed the task")
 	}
 }
 

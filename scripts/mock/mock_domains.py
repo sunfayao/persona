@@ -53,7 +53,7 @@ DOMAINS = [
     "github_mock",  # GitHub's sign-ins and MOCK_GITHUB_INBOX's thread page (/api/v1/connectors/github/…)
     "mail_mock",  # mail accounts and write paths (/api/v1/mail/…, GET /mock/mail), MOCK_MAIL, MOCK_GOOGLE, MOCK_OUTLOOK
     "hub_update_mock",  # the hub's own update (/api/v1/hub/update…, GET /mock/hub_update), MOCK_HUB_UPDATE
-    "imessage_mock",  # Messages' reader (/api/v1/imessage…), MOCK_IMESSAGE; the connector stays in mock_hub.py
+    "imessage_mock",  # Deletion of iMessage inbox data
     "saved_prompts_mock",  # Settings › Saved Prompts (/api/v1/assistant/saved-prompts…), MOCK_SAVED_PROMPTS
     "link_switch_mock",  # SSH to Persona Link scenarios (/api/v1/machines/{mid}/link-switch), MOCK_LINK_SWITCH
     "page_counts_mock",  # A paged session read with its counts, MOCK_PAGE_COUNTS

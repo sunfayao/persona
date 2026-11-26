@@ -3,7 +3,6 @@ package hub
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -22,22 +21,8 @@ func sentPusher(t *testing.T, store *gradingStore, now time.Time) *Pusher {
 	return p
 }
 
-// statsViews are what the readers of the record answer: the daily counts for every manager and for one, over the
-// default day, two days and the whole 14 days.
-func statsViews(p *Pusher) map[string][]pushDayStats {
-	now := p.now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	out := map[string][]pushDayStats{}
-	for _, since := range []time.Time{today, today.AddDate(0, 0, -1), now.Add(-heldPushMaxAge)} {
-		for _, manager := range []string{"", "manager-a", "manager-b"} {
-			out[since.Format(time.RFC3339)+"/"+manager] = p.pushDailyStats(since, manager)
-		}
-	}
-	return out
-}
-
 // Upgrade: the entries of the old whole-list setting are added to the table once, at the first start; the expired
-// ones go, the counts equal what the old build read from the setting, and a second start adds nothing again. The
+// ones go, the entries equal what the old build read from the setting, and a second start adds nothing again. The
 // setting stays as the old build left it, for a switch back to that build.
 func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 	now := time.Now().UTC()
@@ -64,7 +49,7 @@ func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 			old.sent = append(old.sent, e)
 		}
 	}
-	want := statsViews(old)
+	want := old.sent
 
 	before := slices.Clone(store.vals[pushSentSettingKey])
 	p := sentPusher(t, store, now)
@@ -74,14 +59,20 @@ func TestPushSentAdoptsTheOldSetting(t *testing.T) {
 	if rows := store.sentTable(); len(rows) != pushSentMax-10 || rows[0].RelatedKey != "k-0" || rows[len(rows)-1].RelatedKey != fmt.Sprintf("k-%d", pushSentMax-11) {
 		t.Fatalf("table after the move: %d rows, want the %d unexpired entries in order", len(rows), pushSentMax-10)
 	}
-	if got := statsViews(p); !reflect.DeepEqual(got, want) {
-		t.Fatalf("counts after the upgrade differ from the old build's:\n got %+v\nwant %+v", got, want)
+	if !slices.EqualFunc(p.sent, want, func(got, old pushSent) bool {
+		if got.ID == "" {
+			return false
+		}
+		got.ID = old.ID
+		return got == old
+	}) {
+		t.Fatal("migrated entries changed or lack generated IDs")
 	}
 	again := sentPusher(t, store, now)
 	if rows := store.sentTable(); len(rows) != pushSentMax-10 {
 		t.Fatalf("a second start changed the table: %d rows", len(rows))
 	}
-	if got := statsViews(again); !reflect.DeepEqual(got, want) {
-		t.Fatalf("counts after a second start differ:\n got %+v\nwant %+v", got, want)
+	if !slices.Equal(again.sent, p.sent) {
+		t.Fatal("a second start changed the migrated entries")
 	}
 }

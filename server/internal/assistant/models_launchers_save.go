@@ -599,7 +599,6 @@ func (s *Service) saveLauncher(ctx context.Context, in launcherInput, old *store
 		s.models.mu.Unlock()
 		locked = false
 		s.ProfileChanged(ctx)
-		s.profileEvent(ctx, migrated.active)
 	}
 	return l, nil
 }

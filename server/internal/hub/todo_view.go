@@ -2,76 +2,44 @@ package hub
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
-	"slices"
 	"strconv"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/assistantwire"
 )
 
-// The To-dos view (#10226) is the managers': each works out its own
-// to-dos' views, counts and places. The hub relays them and joins several managers' answers, adding their counts up
-// field by field and key by key; it never works out a phase itself (docs/server/architecture.md "The hub is only a
-// communication center"). Clients order a merged list by rank, then manager, then id: the hub does not rank again.
+// Each manager works out its own to-dos' views and counts (#10226). The hub relays them and adds the counts
+// field by field and key by key. Clients order a merged list by rank, then manager, then id.
 
 const (
 	// featureTodoView: every row of GET /api/v1/todos carries `view`, the list `counts`, and GET /api/v1/todos/{id}
 	// answers one row so (docs/protocol/protocol.md, the to-dos rows).
 	featureTodoView = assistantwire.CapabilityTodoView
-	// featureTodoPlaces: GET /api/v1/todos/places answers the To-dos sidebar's places with the counts.
-	featureTodoPlaces = assistantwire.CapabilityTodoPlaces
-	// featureTodoAsks: POST /api/v1/todos/{id}/asks/{ask}/answer answers a to-do's own asks by their view's ids
-	// (#10465), with a receipt under X-Persona-Op-Id (todo_receipts.go).
-	featureTodoAsks = assistantwire.CapabilityTodoAsks
-	// featureTodoTimeline: GET /api/v1/todos/{id}/timeline answers a to-do's conversation, and GET /api/v1/todos/{id}
-	// carries the rounds the paper shows, its results and what changed since the owner looked (#10465).
+	// featureTodoTimeline: GET /api/v1/todos/{id} carries the rounds the paper shows, its results and
+	// what changed since the owner looked (#10465).
 	featureTodoTimeline = assistantwire.CapabilityTodoTimeline
 	// featureTodoImages: POST /api/v1/todos persists images and serves their private bytes (#11084). A hub-wide flag
 	// cannot promise image creation for only some managers, so an older or offline one hides the picker.
 	featureTodoImages = assistantwire.CapabilityTodoImages
-	// todoPlacesRoute is answered by every manager the to-dos list merges, joined (mergeTodoPlaces).
-	todoPlacesRoute = "GET /api/v1/todos/places"
 )
 
-// todoViewFeatures are todo_view and todo_places, each while every manager whose to-dos the list merges (listManagers)
+// todoViewFeatures advertises todo_view while every manager whose to-dos the list merges (listManagers)
 // is connected and names it in its hello: a hub-wide feature cannot promise the view for part of the list, so an older
 // or offline manager hides it until it is ready, and clients keep their own rules until then.
 func (h *Hub) todoViewFeatures() []string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	view, places := true, true
+	view := true
 	for _, id := range h.listManagers(ctx) {
 		view = view && h.archiveManagerHas(id, assistantwire.CapabilityTodoView) == http.StatusOK
-		places = places && h.archiveManagerHas(id, assistantwire.CapabilityTodoPlaces) == http.StatusOK
 	}
-	switch {
-	case view && places:
-		return []string{featureTodoView, featureTodoPlaces}
-	case view:
+	if view {
 		return []string{featureTodoView}
-	case places:
-		return []string{featureTodoPlaces}
 	}
 	return nil
-}
-
-// todoAsksFeatures is todo_asks while every manager whose to-dos the list merges is connected and names it, as
-// todoViewFeatures lists the view's: an answer goes to the manager that holds the to-do, and a client that answers
-// through the route before every manager has it would get 404 for the others' asks.
-func (h *Hub) todoAsksFeatures() []string {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	for _, id := range h.listManagers(ctx) {
-		if h.archiveManagerHas(id, assistantwire.CapabilityTodoAsks) != http.StatusOK {
-			return nil
-		}
-	}
-	return []string{featureTodoAsks}
 }
 
 // todoTimelineFeatures is todo_timeline while every manager whose to-dos the list merges is connected and names it, as
@@ -217,93 +185,4 @@ func mergedMember(a *listAnswer, key, name string) (json.RawMessage, bool) {
 		return v, has
 	}
 	return nil, false
-}
-
-// mergeTodoPlaces answers GET /api/v1/todos/places from the managers a merged list asks (mergedAsk): each place that
-// is no project (All To-dos, Today, Upcoming, and any fixed place a newer manager adds) once by id, its needs_you added
-// up; then each manager's projects as it lists them, stamped with it, the default's first (a project is its manager's:
-// two managers' project:<slug> are two places); and the counts added up as the list's are
-// (sumTodoCounts). The hub reads only a place's id, kind and needs_you, and passes every other member, of a place or of
-// the answer (the first answer's, the default's when it answers), on as sent: a newer manager's additions are not
-// dropped. A manager without the route (an older one answers 404 or 405) adds nothing, nor does one that gives no
-// places. When none gives places: the first other failure as it is (503 assistant_offline, say), else 404 as a hub
-// without the route.
-func (h *Hub) mergeTodoPlaces(w http.ResponseWriter, r *http.Request) {
-	ids, body, ok := h.mergedAsk(w, r)
-	if !ok {
-		return
-	}
-	type joined struct {
-		id       string
-		place    map[string]json.RawMessage
-		needsYou int64
-	}
-	var top map[string]json.RawMessage
-	var fixed []joined
-	var own, counts []json.RawMessage
-	var failed *bufferedWriter
-	for _, id := range ids {
-		bw := newBufferedWriter()
-		h.forwardHTTP(bw, withBody(r, body), id)
-		bw.status = cmp.Or(bw.status, http.StatusOK)
-		var ans map[string]json.RawMessage
-		var places []json.RawMessage
-		if bw.status >= 300 || json.Unmarshal(bw.body.Bytes(), &ans) != nil || ans == nil ||
-			ans["places"] != nil && json.Unmarshal(ans["places"], &places) != nil {
-			if failed == nil && bw.status >= 300 && bw.status != http.StatusNotFound && bw.status != http.StatusMethodNotAllowed {
-				failed = bw
-			}
-			continue
-		}
-		if top == nil {
-			top = ans
-		}
-		if c, has := ans["counts"]; has {
-			counts = append(counts, c)
-		}
-		for _, raw := range places {
-			var pl map[string]json.RawMessage
-			var head struct {
-				ID   string `json:"id"`
-				Kind string `json:"kind"`
-			}
-			if json.Unmarshal(raw, &pl) != nil || pl == nil || json.Unmarshal(raw, &head) != nil {
-				continue // no place
-			}
-			if head.Kind == assistantwire.TodoPlaceKindProject {
-				own = append(own, stampManager(raw, id))
-				continue
-			}
-			n, _ := jsonInteger(pl["needs_you"])
-			if i := slices.IndexFunc(fixed, func(f joined) bool { return f.id == head.ID }); i >= 0 {
-				fixed[i].needsYou += n
-				continue
-			}
-			delete(pl, ManagerQuery) // a place of every manager's is no one manager's
-			fixed = append(fixed, joined{id: head.ID, place: pl, needsYou: n})
-		}
-	}
-	switch {
-	case top != nil:
-		out := make([]json.RawMessage, 0, len(fixed)+len(own))
-		for _, f := range fixed {
-			if _, has := f.place["needs_you"]; has || f.needsYou != 0 {
-				f.place["needs_you"] = strconv.AppendInt(nil, f.needsYou, 10)
-			}
-			b, _ := json.Marshal(f.place)
-			out = append(out, b)
-		}
-		top["places"], _ = json.Marshal(append(out, own...))
-		delete(top, "counts")
-		if c, ok := sumTodoCounts(counts); ok {
-			top["counts"] = c
-		}
-		writeJSON(w, top)
-	case failed != nil:
-		copyHeader(w.Header(), failed.header)
-		w.WriteHeader(failed.status)
-		_, _ = w.Write(failed.body.Bytes())
-	default:
-		writeErr(w, http.StatusNotFound, errors.New(http.StatusText(http.StatusNotFound)))
-	}
 }

@@ -228,7 +228,6 @@ func (h *Hub) features() []string {
 	out = append(out, h.remoteImagesFeatures()...)
 	out = append(out, h.assistantStartServiceTierFeatures()...)
 	out = append(out, h.todoViewFeatures()...)
-	out = append(out, h.todoAsksFeatures()...)
 	out = append(out, h.todoTimelineFeatures()...)
 	out = append(out, h.todoImageFeatures()...)
 	// The assistant's card interfaces, always on (#5509): assistant_views is declarative
@@ -238,7 +237,7 @@ func (h *Hub) features() []string {
 	for _, f := range h.extReport().Features {
 		switch f {
 		case assistantwire.CapabilityAssistantSegments, featureAgentSessionArchives, featureAgentSessionArchiveClose,
-			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, featureTodoPlaces, featureTodoAsks, featureTodoTimeline:
+			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, "todo_asks", featureTodoTimeline:
 			continue // only manager hello can promise fleet archives, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
 		}
 		if !slices.Contains(out, f) {

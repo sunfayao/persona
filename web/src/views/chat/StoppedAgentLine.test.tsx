@@ -5,7 +5,6 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "../../i18n";
-import { clearResume } from "../../lib/agent-resume";
 import { StoppedAgentLine } from "./StoppedAgentLine";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -30,7 +29,6 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   el.remove();
-  clearResume("m1", "s1");
   vi.unstubAllGlobals();
 });
 

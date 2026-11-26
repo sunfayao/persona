@@ -232,19 +232,6 @@ func TestTypedHandleParamsDecodeAsTheSharedStructDid(t *testing.T) {
 				return reflect.DeepEqual(reflect.ValueOf(l).Elem().Convert(reflect.TypeOf(worktreeSnapshotParams{})).Interface(), *n.(*worktreeSnapshotParams))
 			},
 		},
-		{
-			name:   methodWorktreeRename,
-			sample: `{"kind":"herdr","workspace_id":"w1","name":"New","cwd":"/repo"}`,
-			legacy: &struct {
-				Kind        string `json:"kind"`
-				WorkspaceID string `json:"workspace_id"`
-				Name        string `json:"name"`
-			}{},
-			typed: &worktreeRenameParams{},
-			same: func(l, n any) bool {
-				return reflect.DeepEqual(reflect.ValueOf(l).Elem().Convert(reflect.TypeOf(worktreeRenameParams{})).Interface(), *n.(*worktreeRenameParams))
-			},
-		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -1,12 +1,4 @@
-"""GitHub's own routes in the mock hub (server/internal/connector/github), a domain of scripts/mock/mock_domains.py that
-moved out of mock_hub.py (#11543): the sign-in (GET / PUT /api/v1/connectors/github/auth, POST …/login and …/logout) and
-the thread page of MOCK_GITHUB_INBOX=1's pull request (GET …/thread and …/media, POST …/thread/reply), whose people's
-pictures it also draws on the hub's shared avatars route (GET /api/v1/avatars/github/…, #10923).
-
-mock_hub.py keeps the connector itself: GITHUB_CONNECTOR, listed in GET /api/v1/connectors and changed by PUT
-…/github/settings and by its MOCK_GITHUB* variants as the hub loads, and MOCK_GITHUB_INBOX=1's inbox rows. The routes here
-read and change that connector through the hub (HUB.GITHUB_CONNECTOR), as the code did inside mock_hub.py.
-"""
+"""Mock GitHub thread and avatar routes."""
 from datetime import datetime, timedelta, timezone
 import json
 import os
@@ -15,60 +7,6 @@ from urllib.parse import parse_qs, urlparse
 import mock_domains
 
 HUB = None  # mock_hub.py's globals (mock_domains.Hub), from register
-
-# MOCK_GITHUB=device: GitHub signed in neither way, its device-flow sign-in from the app (connector/github/login.go):
-# straight to the code ABCD-1234 (the hub uses the GitHub CLI's client ID); it is entered after two asks (one second
-# apart).
-GITHUB_DEVICE = {"polls": 0}
-
-# GET/PUT /api/v1/connectors/github/auth: where GitHub's token comes from (a computer's gh, or the device flow) and
-# each computer's gh login. MOCK_GITHUB=scopes: MacBook's gh lacks repo and notifications.
-GH_FULL = ["gist", "read:org", "repo", "workflow"]
-GH_MISSING = [{"scope": "repo", "affects": ["私有仓库的 PR、issue、评论、代码搜索读不到", "私有仓库的 CI 失败和日志读不到", "评论和 review 发不了"]},
-              {"scope": "notifications", "affects": ["收件箱收不到 GitHub 的通知"]}]
-GH_NARROW = os.environ.get("MOCK_GITHUB") == "scopes"
-GH_MACHINES = [
-    {"id": "mbp", "name": "MacBook", "state": "signed_in", "account": "alice", "scopes": ["read:org"] if GH_NARROW else GH_FULL,
-     **({"missing": GH_MISSING} if GH_NARROW else {})},
-    {"id": "studio", "name": "Mac Studio", "state": "not_signed_in"},
-    {"id": "server", "name": "服务器", "state": "offline"},
-]
-GITHUB_AUTH = {"source": "device" if os.environ.get("MOCK_GITHUB") == "device" else "machine",
-               "machine": None if os.environ.get("MOCK_GITHUB") == "device" else "mbp"}
-
-
-def github_auth_view():
-    v = {"source": GITHUB_AUTH["source"], "machines": GH_MACHINES, "scopes_known": False}
-    if GITHUB_AUTH["source"] == "machine":
-        v["machine"] = GITHUB_AUTH["machine"]
-        m = next((x for x in GH_MACHINES if x["id"] == GITHUB_AUTH["machine"]), {})
-        if m.get("state") == "signed_in":
-            v.update(scopes=m["scopes"], scopes_known=True)
-            if m.get("missing"): v["missing"] = m["missing"]
-    elif HUB.GITHUB_CONNECTOR.get("status") == "ok":
-        v.update(scopes=["repo"], scopes_known=True)
-    return v
-
-
-def set_github_auth(body):
-    GITHUB_CONNECTOR = HUB.GITHUB_CONNECTOR  # the hub's, which MOCK_GITHUB=device replaced as it loaded
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    for k in ("account", "via", "error", "last_sync"): GITHUB_CONNECTOR.pop(k, None)
-    if body.get("source") == "device":
-        GITHUB_AUTH.update(source="device", machine=None)
-        GITHUB_DEVICE["polls"] = 0
-        GITHUB_CONNECTOR.update(status="not_signed_in", error="还没登录 GitHub：在下面选一台电脑上的 gh 登录，或者用设备码登录")
-        return True
-    m = next((x for x in GH_MACHINES if x["id"] == body.get("machine")), None)
-    if not m: return False
-    GITHUB_AUTH.update(source="machine", machine=m["id"])
-    if m["state"] == "signed_in":
-        GITHUB_CONNECTOR.update(status="ok", account=m["account"], via="来自 %s 的 gh 登录" % m["name"], last_sync=now)
-    else:
-        GITHUB_CONNECTOR.update(status="not_signed_in", via="来自 %s 的 gh 登录" % m["name"],
-                                error={"not_signed_in": "%s 上的 gh 没有登录 github.com" % m["name"], "offline": "GitHub 未授权（%s 离线）：它连上后会自动再读" % m["name"]}.get(m["state"], m["state"]))
-    return True
-
 
 # GitHub's thread page (connector/github/thread.go, MOCK_GITHUB_INBOX=1): the made-up pull request
 # example-org/example-repo#12 as the hub reads it — header, description, comments, reviews, comments on a line, checks
@@ -165,37 +103,6 @@ def github_thread_area(h, method, p, raw):
     return False
 
 
-def github_area(h, method, p, raw):
-    """GitHub's device-flow sign-in (MOCK_GITHUB=device); True when it answered."""
-    if p == "/api/v1/connectors/github/auth" and (os.environ.get("MOCK_GITHUB") in ("device", "scopes") or os.environ.get("MOCK_GITHUB_LOGIN")):
-        if method == "PUT" and not set_github_auth(json.loads(raw or b"{}")):
-            return h.send_json({"error": "unknown machine"}, 400) or True
-        return h.send_json(github_auth_view()) or True
-    if os.environ.get("MOCK_GITHUB") != "device" or method != "POST" or p not in ("/api/v1/connectors/github/login", "/api/v1/connectors/github/logout"):
-        return False
-    GITHUB_CONNECTOR = HUB.GITHUB_CONNECTOR  # the hub's, which MOCK_GITHUB=device replaced as it loaded
-    if p.endswith("/logout"):
-        GITHUB_CONNECTOR.update(status="not_signed_in", error="还没登录 GitHub：在下面选一台电脑上的 gh 登录，或者用设备码登录")
-        GITHUB_CONNECTOR.pop("account", None); GITHUB_CONNECTOR.pop("via", None)
-        return h.send_json({"ok": True}) or True
-    body = json.loads(raw or b"{}")
-    step, d = body.get("step") or "", GITHUB_DEVICE
-    device = {"step": "device", "kind": "device_code", "url": "https://github.com/login/device", "user_code": "ABCD-1234", "interval": 1,
-              "hint": "在 GitHub 的验证页输入这个验证码并授权（授权页上显示的是「GitHub CLI」）；授权后这里会自动继续。"}
-    if step == "device":
-        d["polls"] += 1
-        if d["polls"] < 3 or os.environ.get("MOCK_GITHUB_WAIT"):
-            return h.send_json(device) or True
-        GITHUB_CONNECTOR.update(status="ok", account="example-user", via="设备码登录",
-                                last_sync=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
-        GITHUB_CONNECTOR.pop("error", None)
-        return h.send_json({"done": True, "account": "example-user"}) or True
-    if step:
-        return h.send_json({"error": "unknown step %r" % step}, 502) or True
-    d["polls"] = 0
-    return h.send_json(device) or True
-
-
 def github_avatar(h, req):
     """GET /api/v1/avatars/github/{value}?size= (#10923): the thread page's people (MOCK_GITHUB_INBOX=1), drawn at the size
     asked; any other value goes on to mock_hub.py's avatars_area, which refuses it as the hub does."""
@@ -209,10 +116,7 @@ def github_avatar(h, req):
 
 
 def route(h, req):
-    """Every method under /api/v1/connectors/github/: mock_hub.py's GET and POST chains asked the thread page first and
-    the sign-in next, and went on with the request when neither answered (PUT …/github/settings is still theirs)."""
-    return (github_thread_area(h, req.method, req.path, req.body)
-            or github_area(h, req.method, req.path, req.body))
+    return github_thread_area(h, req.method, req.path, req.body)
 
 
 def register(d):

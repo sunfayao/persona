@@ -179,8 +179,7 @@ func TestBusForwardsTheAssistantRoutes(t *testing.T) {
 	for _, c := range [][2]string{{"POST", "/api/v1/task-plans/p1/start"},
 		{"POST", "/api/v1/todos/t1/done-check"}, {"GET", "/api/v1/todos"},
 		{"PUT", "/api/v1/todos/t1/spaces/m1/group/alpha"}, {"GET", "/api/v1/assistant"}, {"PUT", "/api/v1/assistant"},
-		{"POST", "/api/v1/assistant/conversations"}, {"POST", "/api/v1/assistant/main/new"}, {"POST", "/api/v1/assistant/main/clear"},
-		{"DELETE", "/api/v1/assistant/memory/note.md"}} {
+		{"POST", "/api/v1/assistant/conversations"}, {"POST", "/api/v1/assistant/main/new"}, {"POST", "/api/v1/assistant/main/clear"}} {
 		if resp, _ := do(c[0], c[1], ""); resp.StatusCode != 201 {
 			t.Fatalf("%s %s: %d", c[0], c[1], resp.StatusCode)
 		}
@@ -189,7 +188,7 @@ func TestBusForwardsTheAssistantRoutes(t *testing.T) {
 		}
 	}
 	// The hub's own routes stay the hub's.
-	for _, c := range [][2]string{{"GET", "/api/v1/skills"}, {"GET", "/api/v1/machines"},
+	for _, c := range [][2]string{{"GET", "/api/v1/machines"},
 		{"GET", "/api/v1/todosx"}, {"GET", "/api/v1/assistantx"}} {
 		do(c[0], c[1], "")
 	}

@@ -59,11 +59,7 @@ func TestTodoRepositoryHTTPJourneyAndLegacyCompatibility(t *testing.T) {
 	s.todos.todos[id].Stage = "review"
 	s.todos.todos[id].PRURL = "https://github.com/example/web/pull/99"
 	s.todos.mu.Unlock()
-	w = placeDo(s, "", "PUT", path+"/"+repoID+"/links", `{"expected_revision":1,"links":[{"kind":"issue","number":"7"}]}`)
-	if w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
-	}
-	if w := placeDo(s, "", "PUT", path, `{"expected_revision":2,"expected_catalog_revision":1,"repositories":[]}`); w.Code != 200 {
+	if w := placeDo(s, "", "PUT", path, `{"expected_revision":1,"expected_catalog_revision":1,"repositories":[]}`); w.Code != 200 {
 		t.Fatal("task associations permanently frozen", w.Code, w.Body)
 	}
 	todo, _ := s.todoNow(id)
@@ -79,12 +75,12 @@ func TestTodoRepositoryHTTPJourneyAndLegacyCompatibility(t *testing.T) {
 	if err != nil || len(rows) != 1 {
 		t.Fatal("partial create", len(rows), err)
 	}
-	for _, bad := range []string{`null`, `{"expected_revision":3,"expected_catalog_revision":1,"repositories":null}`, `{"expected_revision":3,"expected_catalog_revision":1,"repositories":[],"manager":"other"}`, `{"expected_revision":3,"expected_catalog_revision":1,"repositories":[]} {}`} {
+	for _, bad := range []string{`null`, `{"expected_revision":2,"expected_catalog_revision":1,"repositories":null}`, `{"expected_revision":2,"expected_catalog_revision":1,"repositories":[],"manager":"other"}`, `{"expected_revision":2,"expected_catalog_revision":1,"repositories":[]} {}`} {
 		if w := placeDo(s, "", "PUT", path, bad); w.Code != 400 {
 			t.Fatal(bad, w.Code, w.Body)
 		}
 	}
-	if w := placeDo(s, "read", "PUT", path, `{"expected_revision":3,"expected_catalog_revision":1,"repositories":[]}`); w.Code != 403 {
+	if w := placeDo(s, "read", "PUT", path, `{"expected_revision":2,"expected_catalog_revision":1,"repositories":[]}`); w.Code != 403 {
 		t.Fatal("read-only write", w.Code, w.Body)
 	}
 	if w := placeDo(s, "", "PUT", path, `{"expected_revision":1,"expected_catalog_revision":1,"repositories":[]}`); w.Code != 409 || !strings.Contains(w.Body.String(), "task_repositories_revision_conflict") {
@@ -100,7 +96,7 @@ func TestTodoRepositoryHTTPJourneyAndLegacyCompatibility(t *testing.T) {
 	}
 }
 
-func TestTodoRepositoryToolsAndTransportCompatibility(t *testing.T) {
+func TestTodoRepositoryToolsAndCloneAddress(t *testing.T) {
 	dsn := newDatabase(t)
 	database, err := db.Open(t.Context(), dsn, db.ManagerSet)
 	if err != nil {
@@ -114,10 +110,7 @@ func TestTodoRepositoryToolsAndTransportCompatibility(t *testing.T) {
 		t.Fatal(w.Code, w.Body)
 	}
 	id := saved.Repository.ID
-	if w := placeDo(s, "", "PUT", repoBase+"/"+id, `{"url":"https://github.com/example/web","name":"Renamed"}`); w.Code != 200 || !strings.Contains(w.Body.String(), "git@"+"github.com:example/web.git") {
-		t.Fatal("old catalog client lost transport", w.Code, w.Body)
-	}
-	args := fmt.Sprintf(`{"title":"Tool work","repository_bindings":{"catalog_revision":2,"repositories":[{"repo_id":%q}]}}`, id)
+	args := fmt.Sprintf(`{"title":"Tool work","repository_bindings":{"catalog_revision":1,"repositories":[{"repo_id":%q}]}}`, id)
 	if _, err := s.toolTodoCreate(t.Context(), "machine", "conversation", json.RawMessage(args)); err != nil {
 		t.Fatal(err)
 	}
@@ -136,15 +129,21 @@ func TestTodoRepositoryToolsAndTransportCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if w := placeDo(s, "", "PUT", repoBase+"/"+id, `{"url":"https://github.com/example/other"}`); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
+	if err := s.changeRepositories(t.Context(), func(doc *repositoryDocument) error {
+		doc.Repositories[0].Path = "example/other"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	set, err := s.readTodoRepositories(t.Context(), rows[0].ID)
 	if err != nil || set.Repositories[0].CatalogState != "identity_changed" || set.Repositories[0].SourceSnapshot.Identity.Path != "example/web" {
 		t.Fatal(set, err)
 	}
-	if w := placeDo(s, "", "DELETE", repoBase+"/"+id, ""); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
+	if err := s.changeRepositories(t.Context(), func(doc *repositoryDocument) error {
+		doc.Repositories = nil
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	set, err = s.readTodoRepositories(t.Context(), rows[0].ID)
 	if err != nil || set.Repositories[0].CatalogState != "removed" || len(set.Repositories[0].Links) != 1 {

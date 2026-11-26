@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addUsageSource, editUsageSource, getUsageSources, removeUsageSource, saveUsageSettings, testUsageSource, addLinkMachine, addServiceMachine, adminApi, AdminError, errorText, handleLoginRequired, getExtensions, getMarkets, installExtension, linkPair, previewExtension, repairConnector, resetExtensionRoot, setCenter, setCsrf, setTransport, uninstallExtension, uploadExtension } from "./api";
+import { addUsageSource, editUsageSource, getUsageSources, removeUsageSource, saveUsageSettings, testUsageSource, addLinkMachine, addServiceMachine, adminApi, AdminError, errorText, handleLoginRequired, getExtensions, getMarkets, installExtension, linkPair, previewExtension, repairConnector, setCenter, setCsrf, setTransport, uninstallExtension, uploadExtension } from "./api";
 
 type Call = { url: string; init: RequestInit };
 
@@ -13,7 +13,6 @@ function stub(status: number, body: unknown, headers: Record<string, string> = {
 }
 
 afterEach(() => {
-  resetExtensionRoot();
   setCsrf("");
   handleLoginRequired(() => {});
 });
@@ -162,7 +161,6 @@ describe("extensions", () => {
     expect((await getExtensions()).extensions.map((e) => e.id)).toEqual(["a"]);
     expect(calls.map((c) => c.url)).toEqual(["/api/v1/admin/extensions"]);
 
-    resetExtensionRoot();
     calls = [];
     setTransport(async (url, init) => {
       calls.push({ url, init });

@@ -330,11 +330,11 @@ func TestStartDefaultsGoalRefusedStartsWithoutIt(t *testing.T) {
 	}
 }
 
-// putStartDefaults sends PUT /api/v1/assistant/start-defaults as role (full, extension, read-only) and answers the code
+// putStartDefaults sends PUT /api/v1/assistant as role (full, extension, read-only) and answers the code
 // and body.
 func putStartDefaults(t *testing.T, s *Service, role, ext, body string) (int, string) {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/assistant/start-defaults", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/assistant", strings.NewReader(body))
 	if role != "" {
 		req.Header.Set(RoleHeader, role)
 	}
@@ -344,67 +344,6 @@ func putStartDefaults(t *testing.T, s *Service, role, ext, body string) (int, st
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
-}
-
-// The route's rules: an extension's policy must expire within an hour; the owner may keep one without expiry; a
-// read-only device is refused; an unknown field, class or effort is a 400; empty rules clear it; once expired it is
-// gone from GET and from task starts.
-func TestStartDefaultsRoute(t *testing.T) {
-	s, f := defaultsHub(t)
-	soon := time.Now().Add(30 * time.Minute).UTC().Format(time.RFC3339)
-	late := time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339)
-	rule := `"rules":[{"when":{},"then":{"effort":"max"}}]`
-	for _, c := range []struct {
-		name, role, body string
-		code             int
-	}{
-		{"extension without expiry", roleExtension, `{"start_defaults":{` + rule + `}}`, http.StatusBadRequest},
-		{"extension too far ahead", roleExtension, `{"start_defaults":{"expires_at":"` + late + `",` + rule + `}}`, http.StatusBadRequest},
-		{"read-only device", "read", `{"start_defaults":{` + rule + `}}`, http.StatusForbidden},
-		{"unknown field", roleFull, `{"start_defaults":{"rules":[{"when":{},"then":{"efort":"max"}}]}}`, http.StatusBadRequest},
-		{"unknown class", roleFull, `{"start_defaults":{"rules":[{"when":{"supervisor":["owner"]},"then":{}}]}}`, http.StatusBadRequest},
-		{"unknown effort", roleFull, `{"start_defaults":{"rules":[{"when":{},"then":{"effort":"banana"}}]}}`, http.StatusBadRequest},
-		{"no body key", roleFull, `{}`, http.StatusBadRequest},
-		{"owner without expiry", roleFull, `{"start_defaults":{` + rule + `}}`, http.StatusOK},
-		{"extension within the hour", roleExtension, `{"start_defaults":{"expires_at":"` + soon + `",` + rule + `}}`, http.StatusOK},
-	} {
-		if code, body := putStartDefaults(t, s, c.role, "kit", c.body); code != c.code {
-			t.Errorf("%s: %d %s", c.name, code, body)
-		}
-	}
-	if p := s.activeStartDefaults(context.Background()); p == nil || p.By != "kit" {
-		t.Fatalf("the extension's policy is not the one in force: %+v", p)
-	}
-	// The policy in force reaches a task start.
-	task := defaultsTask()
-	if _, _, err := s.startTaskAgent(context.Background(), &task, false); err != nil {
-		t.Fatal(err)
-	}
-	if st := startsOf(f)[0]; st["effort"] != "max" {
-		t.Fatalf("the policy did not reach the start: %v", st)
-	}
-	// Expired: gone from GET and from starts.
-	past := time.Now().Add(-time.Minute)
-	setSettings(t, s, func(v *Settings) { v.StartDefaults.ExpiresAt = &past })
-	rec := httptest.NewRecorder()
-	s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/assistant/start-defaults", nil))
-	if got := strings.TrimSpace(rec.Body.String()); got != `{"start_defaults":{"rules":[]}}` {
-		t.Fatalf("expired policy still listed: %s", got)
-	}
-	task = defaultsTask()
-	if _, _, err := s.startTaskAgent(context.Background(), &task, false); err != nil {
-		t.Fatal(err)
-	}
-	if st := startsOf(f)[1]; st["effort"] == "max" {
-		t.Fatalf("an expired policy still applied: %v", st)
-	}
-	// Empty rules clear it.
-	if code, body := putStartDefaults(t, s, roleExtension, "kit", `{"start_defaults":{"rules":[]}}`); code != http.StatusOK {
-		t.Fatalf("clear: %d %s", code, body)
-	}
-	if s.settings(context.Background()).StartDefaults != nil {
-		t.Fatal("not cleared")
-	}
 }
 
 // A task that names its own model and asks ultracode off keeps both when a later try finds no matching policy: the
@@ -490,19 +429,14 @@ func TestStartDefaultsPresetStartsAsIfTheTaskNamedIt(t *testing.T) {
 	}
 }
 
-// A rule whose then does nothing is a mistake: it would shadow every later rule, so the write is refused; as is an
-// extension request without the header naming the extension.
-func TestStartDefaultsRouteRejectsEmptyThenAndAnUnknownExtension(t *testing.T) {
+// A rule whose then does nothing is a mistake: it would shadow every later rule, so the write is refused.
+func TestStartDefaultsRouteRejectsEmptyThen(t *testing.T) {
 	s, _ := defaultsHub(t)
 	if code, body := putStartDefaults(t, s, roleFull, "",
 		`{"start_defaults":{"rules":[{"when":{},"then":{}}]}}`); code != http.StatusBadRequest {
 		t.Fatalf("empty then: %d %s", code, body)
 	}
-	if code, body := putStartDefaults(t, s, roleExtension, "",
-		`{"start_defaults":{"expires_at":"`+time.Now().Add(time.Minute).Format(time.RFC3339)+`","rules":[{"when":{},"then":{"effort":"max"}}]}}`); code != http.StatusForbidden {
-		t.Fatalf("extension without its header: %d %s", code, body)
-	}
-	// The owner can also write the policy through the general settings route; empty rules clear it there.
+	// The settings route accepts a valid policy and clears it when the rules are empty.
 	rec := httptest.NewRecorder()
 	body := `{"start_defaults":{"rules":[{"when":{},"then":{"effort":"max"}}]}}`
 	s.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/assistant", strings.NewReader(body)))
