@@ -75,7 +75,7 @@ type traexState struct {
 // outside the rollout scan window, or absent from a cached metadata list.
 func (n *Node) traexLiveThread(pane, preferred string) string {
 	owners := map[int][]string{}
-	for pid, ids := range n.traexOwnerThreads(n.traexThreads()) {
+	for pid, ids := range n.traexOwnerThreads(codexPaginatedThreads(n.traexHome(), true)) {
 		if n.paneOfPID(pid) == pane {
 			owners[pid] = ids
 		}
@@ -85,7 +85,7 @@ func (n *Node) traexLiveThread(pane, preferred string) string {
 
 // No foreground match does not mean the native writer is gone. TRAE can keep another thread locked in the same TUI.
 func (n *Node) traexWriterOwns(id string) bool {
-	for _, ids := range n.traexOwnerThreads(n.traexThreads()) {
+	for _, ids := range n.traexOwnerThreads(codexPaginatedThreads(n.traexHome(), true)) {
 		for _, owned := range ids {
 			if owned == id {
 				return true

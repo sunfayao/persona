@@ -153,6 +153,9 @@ func (n *Node) sendLocked(ctx context.Context, id, text string, images []proto.I
 	if err != nil && (n.codexPath(id) != "" || n.traexPath(id) != "") {
 		if resumeClaim != nil {
 			if _, known := n.traexThread(id); known && !n.traexWriterOwns(id) {
+				if len(selected) > 0 {
+					text = selectedSkillInstructions(selected) + "\n\n" + text
+				}
 				return n.resumeOtherWith(ctx, id, stoppedLaunch, text, images)
 			}
 		}
