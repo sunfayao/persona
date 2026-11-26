@@ -4,7 +4,7 @@
 #   ./scripts/deploy/deploy.sh <hub machine>   # only the hub
 #   ./scripts/deploy/deploy.sh <machine id>    # only one machine (node binary; the hub restarts its connection)
 #   ./scripts/deploy/deploy.sh web # only the web client (web/): no restart
-# The checkout must contain the remote deploy branch (it fetches it first), else nothing is deployed;
+# The checkout must contain the remote main branch (it fetches it first), else nothing is deployed;
 # PERSONA_DEPLOY_ANY_COMMIT=1 skips the check.
 # Who may open the hub's admin UI: --admin-access <loopback|lan|cidrs|any> [--admin-cidrs a,b] (or
 # PERSONA_ADMIN_ACCESS / PERSONA_ADMIN_CIDRS) sets it on the hub; without them a hub that never had one chosen asks on
@@ -44,7 +44,7 @@ fi
 set -- ${ARGS[@]+"${ARGS[@]}"}
 # Require the fork trunk for ordinary deploys. Set PERSONA_DEPLOY_ANY_COMMIT=1 for a deliberate rollback.
 if [ -z "${PERSONA_DEPLOY_ANY_COMMIT:-}" ]; then
-  DEFAULT_BRANCH=deploy
+  DEFAULT_BRANCH=main
   if ! git fetch -q origin "refs/heads/$DEFAULT_BRANCH" 2>/dev/null; then
     echo "deploy: could not fetch origin/$DEFAULT_BRANCH to check this checkout is up to date; PERSONA_DEPLOY_ANY_COMMIT=1 deploys anyway" >&2
     exit 2

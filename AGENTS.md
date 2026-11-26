@@ -2,7 +2,7 @@
 
 This file is the top-level rule set you must follow whenever you develop, change or debug anything in this
 repository. It is complete on its own: read it and you can start working. The files it indexes under `AGENTS/` go
-deeper; open one when the table below says your task needs it. `CLAUDE.md` is a link to this file.
+deeper; open one when the table below says your task needs it.
 
 ---
 
@@ -10,8 +10,9 @@ deeper; open one when the table below says your task needs it. `CLAUDE.md` is a 
 
 **Persona** is a self-hosted agent product for one owner: a hub on a server, a node on each of the owner's computers
 that runs coding agents, an assistant that plans and supervises their work, and a web app as the only client. This
-repository is the owner's private fork: one person works on it with coding agents. There are no issues, pull
-requests, hosted CI, releases or native clients.
+repository is the owner's own project. It began as a fork of an open-source project and no longer follows it or
+takes anything from it. One person works on it with coding agents. There are no issues, pull requests, hosted CI,
+releases or native clients.
 
 | Layer | Technology |
 | --- | --- |
@@ -124,8 +125,8 @@ Details → [AGENTS/09-testing.md](AGENTS/09-testing.md)
 
 ### 11. Work on a task branch; the trunk, the machines and the secrets are the owner's
 
-**You must not merge into `deploy`, deploy, force-push, delete branches, restart a service, or read the owner's live
-configuration unless the owner asked for exactly that.** Work on `task/<slug>` cut from `origin/deploy`, commit in
+**You must not merge into `main`, deploy, force-push, delete branches, restart a service, or read the owner's live
+configuration unless the owner asked for exactly that.** Work on `task/<slug>` cut from `origin/main`, commit in
 Conventional Commits in English without attribution trailers, push the task branch, and clean up your worktree when
 it is merged. Nothing private enters a file, a fixture, a log or a commit message; the privacy hook is never skipped.
 
@@ -228,7 +229,7 @@ the owning file, briefly, in the same commit. If not, write nothing.
 
 ```
 persona/
-├── AGENTS.md                    # this file (CLAUDE.md links to it)
+├── AGENTS.md                    # this file
 ├── AGENTS/                      # detailed rules, 01 to 12
 ├── README.md
 ├── config.example.json          # shape of the deployment configuration
@@ -255,7 +256,6 @@ persona/
 ├── sdk/                         # go/ (separate module), ts/, templates/
 ├── schema/                      # configuration/, extension/, wire/: sources of generated code
 ├── spec/                        # fixtures shared by server and web tests
-├── native/iphone-bridge/        # source of the iPhone helper
 ├── scripts/                     # test/, deploy/, gen/, mock/, ci/, diag/, hooks/, privacy_check.py
 └── docs/                        # reference material
 ```
@@ -295,7 +295,7 @@ cd web && PERSONA_HUB_URL=http://127.0.0.1:18760 npx vite --port 5173 --strictPo
 
 # --- git ---
 git config core.hooksPath scripts/hooks          # once per clone
-git fetch origin && git switch -c task/<slug> origin/deploy
+git fetch origin && git switch -c task/<slug> origin/main
 ```
 
 ### Naming
@@ -333,7 +333,7 @@ git fetch origin && git switch -c task/<slug> origin/deploy
 | F11 | send a chat message with a bare `api()` post, write `/api/...` URLs by hand, or use raw `localStorage` for a persisted key |
 | F12 | statically import a lazy page from first-screen code, or add first-screen strings without building |
 | F13 | read, edit or print the owner's live configuration, data directory or secrets; restart or signal a running service |
-| F14 | merge into `deploy`, deploy, force-push or delete branches without being asked; open issues or pull requests |
+| F14 | merge into `main`, deploy, force-push or delete branches without being asked; open issues or pull requests |
 | F15 | commit a secret, a real name or address, or skip the privacy hook |
 | F16 | add a compatibility path, a fallback or an option without a caller that needs it today |
 | F17 | keep code, tests, fixtures, text keys or documents of a feature you removed |

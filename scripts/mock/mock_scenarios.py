@@ -171,7 +171,7 @@ def main():
     def interrupted(*_):
         raise KeyboardInterrupt
 
-    # Stopped by port (`kill`), as CLAUDE.md asks: take the hub down too, not leave it behind on its port.
+    # Stopped by port (`kill`): take the hub down too, not leave it behind on its port.
     signal.signal(signal.SIGTERM, interrupted)
     try:
         server.serve_forever()

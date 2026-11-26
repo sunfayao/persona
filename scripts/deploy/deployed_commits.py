@@ -26,7 +26,7 @@ import sys
 
 HEADER = "# persona deployed commits v1"
 NAME = "deployed-commits.txt"
-# A "(#N)" in commits written up to 2026-11-07 is the previous tracker's number (CLAUDE.md, "Old issue numbers"): the
+# A "(#N)" in commits written up to 2026-11-07 is the previous tracker's number: the
 # hub would read it as this repository's PR #N, another PR (#4867). Those commits are left out unless --since says so.
 SINCE = "2026-11-08T00:00:00+00:00"
 

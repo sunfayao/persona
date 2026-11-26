@@ -498,20 +498,20 @@ sys.exit(2)
         self.assertIn(message, result.stderr)
         self.assertFalse((self.state / 'web/index.html').exists())
 
-    def test_a_checkout_up_to_date_with_deploy_installs_web(self):
-        self.clone_of('deploy', 'deploy')
+    def test_a_checkout_up_to_date_with_main_installs_web(self):
+        self.clone_of('main', 'main')
         self.run_script('scripts/deploy/deploy.sh', 'web')
         self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')
 
-    def test_a_checkout_behind_deploy_is_refused_even_if_origin_head_points_elsewhere(self):
-        self.clone_of('deploy', 'another-branch')
-        self.advance_remote('deploy')
-        self.assert_refused('missing commits on origin/deploy')
+    def test_a_checkout_behind_main_is_refused_even_if_origin_head_points_elsewhere(self):
+        self.clone_of('main', 'another-branch')
+        self.advance_remote('main')
+        self.assert_refused('missing commits on origin/main')
 
     def test_an_unreachable_remote_deploys_nothing_unless_any_commit_is_set(self):
-        self.clone_of('deploy', None)
+        self.clone_of('main', None)
         self.git(self.repo, 'remote', 'set-url', 'origin', str(self.base / 'missing.git'))
-        self.assert_refused('could not fetch origin/deploy')
+        self.assert_refused('could not fetch origin/main')
         self.env['PERSONA_DEPLOY_ANY_COMMIT'] = '1'
         self.run_script('scripts/deploy/deploy.sh', 'web')
         self.assertEqual((self.state / 'web/index.html').read_text(), 'Persona fixture web')

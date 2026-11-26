@@ -6,19 +6,8 @@ import (
 )
 
 // TestDistBudget bounds what personad, persona-node and persona-manager embed of the runtime packages: every file
-// Generate writes from integrations/. The complete Antigravity package, including the image guard (#11790),
-// measured 192,060 B; preserving delivered replies through a background wake (#11756) added 1,822 B. Claude Code
-// plugin 0.2.0 session settings overrides brought the total to 196,211 B; busy owner input queueing + turn interrupts
-// add 2,129 B on their branch. Main measured 196,937 B on 2026-11-21, and keeping an Antigravity send from rewriting
-// the conversation's history (#12014) adds 738 B (199,188 B ceiling). Embedding persona-opencode-runtime
-// (opencode/package.json, index.js, companion.mjs, lib/*.js including #12504/#12545; shared runtime-sdk blob reused)
-// measured 248,704 B on 2026-11-21. Session-bound A2A tool bridges bring the generated total to about 251.3 kB.
-// Minifying the remaining non-compat Antigravity lib sources (acp.js, file-links.js, models.js; #12781, #13123)
-// brings the generated total from 254,085 B back to 251,311 B under the unchanged 252,000 B ceiling. Main measured
-// 251,491 B on 2026-11-23, and leaving conversations the agy CLI has open to it (#13451) adds 1,060 B (253,000 B ceiling).
-// Fork deploy branch only: it carries several open runtime PRs at once (fork/patches), each within its own ceiling
-// upstream, and together they measured 257,367 B on 2026-11-24, so the ceiling here is 258,000 B.
-// Raise the budget only for code a runtime needs, never to embed the packages raw again.
+// Generate writes from integrations/. They measured 257,367 B on 2026-11-24, so the ceiling is 258,000 B. Raise it
+// only for code a runtime needs, never to embed the packages raw again.
 func TestDistBudget(t *testing.T) {
 	const budget = 258_000
 	_, out := generateIntegrations(t)

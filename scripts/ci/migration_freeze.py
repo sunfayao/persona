@@ -12,7 +12,7 @@ one in it passes even against a base from before it merged.
 
 The frozen files are the .sql files directly under server/internal/db/migrations/hub and
 server/internal/db/migrations/manager at the merge base of HEAD and the base ref. The base ref
-is --base, else the local deploy branch or origin/deploy. Files are compared with
+is --base, else the local main branch or origin/main. Files are compared with
 the index and working tree.
 
 One exception: when two frozen files of one set have the same version, either may be renamed or
@@ -215,7 +215,7 @@ def _git(root, args, check=True):
 
 def _default_ref(root):
     """Resolve the fork trunk using local refs."""
-    for ref in ("refs/heads/deploy", "refs/remotes/origin/deploy"):
+    for ref in ("refs/heads/main", "refs/remotes/origin/main"):
         verify = subprocess.run(
             ["git", "-C", str(root), "rev-parse", "--verify", "--quiet", "--end-of-options", ref + "^{commit}"],
             capture_output=True, timeout=30)
@@ -229,7 +229,7 @@ def resolve_base_commit(root, base=None):
     ref = base or _default_ref(root)
     if not ref:
         raise FreezeError(
-            "migration freeze: no deploy ref (pass --base to select a base commit)")
+            "migration freeze: no main ref (pass --base to select a base commit)")
     sha = _git(root, ["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"]).stdout.decode().strip()
     return _git(root, ["merge-base", "HEAD", sha]).stdout.decode().strip()
 
@@ -337,7 +337,7 @@ def check(root, base=None, now=None):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--base", help="base ref (default: deploy, else origin/deploy)")
+    parser.add_argument("--base", help="base ref (default: main, else origin/main)")
     parser.add_argument("--root", default=".", help="repository root (default: the working directory)")
     args = parser.parse_args(argv)
     try:

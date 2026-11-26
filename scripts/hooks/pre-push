@@ -10,11 +10,11 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
   from="$remote_sha"
   if [ "$from" = "$zero" ]; then
-    from=$(git rev-parse --verify --quiet 'refs/remotes/origin/deploy^{commit}' ||
-      git rev-parse --verify --quiet 'refs/heads/deploy^{commit}' || true)
+    from=$(git rev-parse --verify --quiet 'refs/remotes/origin/main^{commit}' ||
+      git rev-parse --verify --quiet 'refs/heads/main^{commit}' || true)
   fi
   if [ -z "$from" ]; then
-    echo "pre-push: cannot find a scan base for $local_ref (expected deploy)" >&2
+    echo "pre-push: cannot find a scan base for $local_ref (expected main)" >&2
     refused+=("$remote_ref")
     continue
   fi
@@ -22,6 +22,6 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     refused+=("$remote_ref")
 done
 if [ "${#refused[@]}" -gt 0 ]; then
-  echo "pre-push: refused ${refused[*]}; see docs/operations/testing.md, \"Privacy scan\"" >&2
+  echo "pre-push: refused ${refused[*]}; see AGENTS/12-version-and-policies.md" >&2
   exit 1
 fi

@@ -39,7 +39,7 @@ scripts/deploy/deploy.sh web             # only the web app: no restart
 
 | What it does | Consequence for you |
 | --- | --- |
-| Refuses a checkout that lacks commits of `origin/deploy` | Deploy from the trunk or a branch that contains it. `PERSONA_DEPLOY_ANY_COMMIT=1` exists for a deliberate rollback only |
+| Refuses a checkout that lacks commits of `origin/main` | Deploy from the trunk or a branch that contains it. `PERSONA_DEPLOY_ANY_COMMIT=1` exists for a deliberate rollback only |
 | Takes the operation lock (`scripts/deploy/operation_lock.py`) | Two deploys never overlap; do not work around a held lock |
 | Builds the web app first (`npm ci` when the lock file changed, `npm run build`) | A failing web build, including the privacy scan and the first-screen budget, stops the deploy before any machine is touched |
 | Builds the server with `-tags "$(cat build-tags.txt)"` and a version from the nearest `v*` tag plus the build time | One build for all programs of a deploy; their versions must match |

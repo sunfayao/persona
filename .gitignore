@@ -11,7 +11,7 @@ __pycache__/
 /.worktrees/
 /node_modules/
 florak/
-# Personal notes for coding agents working in this checkout (machines, accounts); see CLAUDE.md.
+# Personal notes for coding agents working in this checkout (machines, accounts).
 /CLAUDE.local.md
 /repos/
 /server/internal/hub/webdist/*
