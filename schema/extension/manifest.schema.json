@@ -341,6 +341,7 @@
         "speech": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/NamedItem"}},
         "computer": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/NamedItem"}},
         "browser": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/NamedItem"}},
+        "iphone": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/NamedItem"}},
         "quota": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/QuotaItem"}},
         "usage": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/UsageItem"}},
         "providers": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/ProviderItem"}},
