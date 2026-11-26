@@ -1,4 +1,5 @@
 import { credentialOwner, onCredentialChange } from "./api";
+import { startsInDesktopApp } from "./desktop-start";
 import { storeDraft, type DraftImage } from "./drafts";
 import { currentHosts } from "./engines";
 import { baseName, uuid } from "./format";
@@ -52,7 +53,8 @@ export function openFolderAgentDraft(preset: NewAgentPreset): boolean {
   const manager = workspace?.manager || selected.manager || defaultManager();
   const owner = workspace?.owner || credentialOwner();
   if (owner !== credentialOwner()) return false;
-  const host = workspace?.host || preset.host || currentHosts(selected).default;
+  const sourceHost = workspace?.host || preset.host;
+  const host = (!startsInDesktopApp({ source: sourceHost }) && sourceHost) || currentHosts(selected).default;
   const key = JSON.stringify([owner, manager, machine, cwd, host, workspace?.workspaceId, preset.spaceId, preset.desktopProjectId, preset.launcher]);
   const seeded = preset.prompt || preset.forwards?.length || preset.images?.length || preset.onStarted;
   const existing = seeded ? undefined : [...drafts.values()].find((d) => d.key === key && !d.submitting);
