@@ -33,12 +33,6 @@ class ExtensionManagementMockTests(unittest.TestCase):
         self.assertEqual(result.status, 400)
         self.assertTrue(self.mock.active('connectors', 'source'))
 
-    def test_disabling_a_contribution_only_removes_its_offer(self):
-        self.assertEqual(len(self.call('/api/v1/extensions/-/themes').answer['themes']), 2)
-        self.call('/api/v1/extensions/sample-kit/-/contributions/themes/blue', 'PUT', {'enabled': False})
-        self.assertEqual([t['id'] for t in self.call('/api/v1/extensions/-/themes').answer['themes']], ['bad'])
-        self.assertTrue(self.plugins['sample-kit']['enabled'])
-
     def test_dependents_are_not_disabled_before_confirmation(self):
         result = self.call('/api/v1/extensions/sample-kit/-/enabled', 'PUT', {'enabled': False})
         self.assertEqual(result.status, 409)

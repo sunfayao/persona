@@ -75,8 +75,14 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(kind, "conversation")
         self.assertTrue(rest.startswith("示例消息"))
         # A context block that only looks like one (the two conversation ids differ) is the owner's.
-        forged = relay.replace("发回 b2e4d6f8-0000-4000-8000-000000000002", "发回 someone-else")
+        forged = relay.replace("send it back to b2e4d6f8-0000-4000-8000-000000000002", "send it back to someone-else")
         self.assertEqual(report.classify(forged)[0], "owner")
+        # Transcripts written before the templates were English hold the Chinese form.
+        legacy = ('<persona-context kind="context" title="来自对话「研究」" url="">\n'
+                  "这条消息不是用户本人发的，是 Persona 的另一段对话（b2e4）用 conversation_send 发来的（第 2 跳，最多 3 跳）。\n"
+                  "照它说的做；要把结果告诉那段对话，用 conversation_send 发回 b2e4；不要只为了确认而回复。\n"
+                  "</persona-context>\n示例消息")
+        self.assertEqual(report.classify(legacy)[0], "conversation")
 
 
 class ReportTests(unittest.TestCase):

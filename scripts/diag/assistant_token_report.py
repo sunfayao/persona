@@ -39,23 +39,25 @@ SOURCE_KINDS = {"conversation", "patrol", "followup", "supervision", "meeting", 
 CODEX_CONTEXT = re.compile(r"(?s)^\s*<(environment_context|codex_internal_context|turn_aborted)(?:\s[^>]*)?>.*</\1>\s*$")
 
 # First lines of the messages Persona types in (server/internal/prompts/injected.go), for transcripts written before
-# messages carried their source. They match the Chinese prompts the hub sends, so they stay in Chinese.
+# messages carried their source. Each kind has the English line the templates render and the Chinese line they
+# rendered earlier, which older transcripts still hold.
 FIRST_LINE_KINDS = [
-    ("supervision", re.compile(r"^📋 督办：")),
-    ("followup", re.compile(r"^<persona-limit-continue />$")),  # localized usage-limit continuation
-    ("followup", re.compile(r"^⏰（Persona 叫你接着做）")),  # limit_continue: the usage limit reset
-    ("wake", re.compile(r"^⏰（Persona 叫醒你")),
+    ("supervision", re.compile(r"^📋 (?:Supervision: |督办：)")),
+    ("followup", re.compile(r"^<persona-limit-continue />$")),  # the usage-limit continuation's marker
+    ("followup", re.compile(r"^⏰ ?(?:\(Persona is asking you to continue\.\)|（Persona 叫你接着做）)")),  # limit_continue
+    ("wake", re.compile(r"^⏰ ?(?:\(Persona is waking you|（Persona 叫醒你)")),
     ("followup", re.compile(r"^⏰ ")),
-    ("ask_later", re.compile(r"^🔔 你 .+ 用 ask_user 问过用户")),
-    ("task_notice", re.compile(r"^🔔 任务「")),
-    ("inbox", re.compile(r"^📥 收件箱事件")),
-    ("system", re.compile(r"^⚠️ 运行你的 node 刚重启过")),  # lost_tasks
-    ("conversation", re.compile(r"^这条消息不是用户本人发的，是 Persona 的另一段对话")),
+    ("ask_later", re.compile(r"^🔔 (?:At .+ you asked the user with ask_user|你 .+ 用 ask_user 问过用户)")),
+    ("task_notice", re.compile(r"^🔔 (?:Task “|任务「)")),
+    ("inbox", re.compile(r"^📥 (?:Inbox matter |收件箱事件)")),
+    ("system", re.compile(r"^⚠️ (?:The node running you was just restarted|运行你的 node 刚重启过)")),  # lost_tasks
+    ("conversation", re.compile(r"^(?:The user did not send this message: another Persona conversation|这条消息不是用户本人发的，是 Persona 的另一段对话)")),
 ]
 # A message relayed from another conversation (server/internal/prompts/assistant/relay.md) opens with a context block
-# that names the sending conversation twice; prompts.ParseRelaySource reads it the same way.
-RELAY_TITLE = re.compile(r'\btitle="来自对话「')
-RELAY_BODY = re.compile(r"(?s)^这条消息不是用户本人发的，是 Persona 的另一段对话（([^）\s]+)）用 \S+ 发来的.*发回 (\S+?)；")
+# that names the sending conversation twice; prompts.ParseRelaySource reads it the same way. English first, then the
+# Chinese form of older transcripts.
+RELAY_TITLE = re.compile(r'\btitle="(?:From the conversation “|来自对话「)')
+RELAY_BODY = re.compile(r"(?s)^(?:The user did not send this message: another Persona conversation \((\S+?)\) sent it with \S+, .*send it back to (\S+?) with |这条消息不是用户本人发的，是 Persona 的另一段对话（([^）\s]+)）用 \S+ 发来的.*发回 (\S+?)；)")
 # Where the general handling manual starts in a supervision event (server/internal/prompts/assistant/supervise.md).
 MANUAL_START = re.compile(r"(?m)^怎么处理")
 
@@ -153,7 +155,8 @@ def classify(text):
             return kind if isinstance(kind, str) and kind in SOURCE_KINDS else "other", rest
         if 'kind="context"' in m.group(1) and RELAY_TITLE.search(m.group(1)):
             body = RELAY_BODY.match(m.group(2).strip())
-            if body and body.group(1) == body.group(2):
+            ids = [g for g in body.groups() if g] if body else []
+            if len(ids) == 2 and ids[0] == ids[1]:
                 return "conversation", rest[m.end():]
         rest = rest[m.end():]
     first = rest.lstrip().split("\n", 1)[0]
