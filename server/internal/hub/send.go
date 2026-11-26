@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/nwverse/persona/server/internal/apierr"
 	"github.com/nwverse/persona/server/internal/assistantwire"
@@ -79,16 +78,6 @@ func (l *sendLog) forget(id string, f *sendFlight) {
 		delete(l.flights, id)
 	}
 	l.mu.Unlock()
-}
-
-// withoutControls drops what acts on a terminal rather than being read: line breaks and tabs stay.
-func withoutControls(s string) string {
-	return strings.Map(func(c rune) rune {
-		if unicode.IsControl(c) && c != '\n' && c != '\t' {
-			return -1
-		}
-		return c
-	}, s)
 }
 
 // switchSendWait is how long the hub waits for a message carrying out a launcher switch: the node's checks before the

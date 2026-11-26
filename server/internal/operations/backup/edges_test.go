@@ -134,10 +134,6 @@ func manifestJSON(t *testing.T, bundle string) []byte {
 	return raw
 }
 
-func strconvQuote(value string) string {
-	return `"` + strings.ReplaceAll(strings.ReplaceAll(value, `\`, `\\`), `"`, `\"`) + `"`
-}
-
 // A rename whose error arrives after the server committed it must not be taken
 // for "nothing happened": rollback has to put the databases back from what
 // actually exists, and must not leave files and databases from different

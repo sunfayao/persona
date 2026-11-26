@@ -9,14 +9,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/nodeclient"
 	"github.com/nwverse/persona/server/internal/rpc"
 	"github.com/nwverse/persona/server/internal/transcript"
 )
@@ -512,60 +510,6 @@ func TestUnlanded(t *testing.T) {
 		if got, over := unlanded(c.live, c.words, c.prev); got != c.want || over != c.over {
 			t.Errorf("%s: %q over %v, want %q over %v", c.name, got, over, c.want, c.over)
 		}
-	}
-}
-
-// MessageDisplay is a plugin of its own, written beside the Agents' hooks: the hook command that passes the lines on
-// (async, a short timeout), in exec form so no shell starts for each batch. No other plugin or settings file has it:
-// the assistant streams on its own, and the settings file is for a Claude Code without the event.
-func TestLiveRepliesPlugin(t *testing.T) {
-	home := t.TempDir()
-	bin := filepath.Join(mkdir(t, filepath.Join(home, "my apps")), "personad") // a space: exec form takes the path as it is
-	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	n := &Node{home: home, dir: mkdir(t, filepath.Join(home, ".persona")), bin: bin}
-	if err := n.writeClaudeConfig(); err != nil {
-		t.Fatal(err)
-	}
-	var manifest map[string]any
-	if b, err := os.ReadFile(filepath.Join(n.dir, liveRepliesDir, ".claude-plugin", "plugin.json")); err != nil || json.Unmarshal(b, &manifest) != nil ||
-		manifest["name"] != liveRepliesPluginName {
-		t.Fatalf("manifest %v (%v)", manifest, err)
-	}
-	for _, f := range []string{liveRepliesDir + "/hooks/hooks.json", "claude-hooks/hooks/hooks.json", "assistant-hooks/hooks/hooks.json",
-		"claude-settings.json", "assistant-settings.json"} {
-		hooks := readSettings(t, filepath.Join(n.dir, f))["hooks"].(map[string]any)
-		md, ok := hooks["MessageDisplay"].([]any)
-		if live := f == liveRepliesDir+"/hooks/hooks.json"; ok != live || live && len(hooks) != 1 {
-			t.Errorf("%s: hooks %v", f, hooks)
-			continue
-		}
-		if !ok {
-			continue
-		}
-		h := md[0].(map[string]any)["hooks"].([]any)[0].(map[string]any)
-		// no shell to put PERSONA_HOME in front: the node's directory is an argument (agentenv.go)
-		if args, _ := h["args"].([]any); h["command"] != bin || len(args) != 3 || args[0] != "hook" || args[1] != nodeclient.HomeFlag ||
-			args[2] != n.dir || h["async"] != true || h["timeout"] != float64(1) {
-			t.Errorf("the hook %v", h)
-		}
-	}
-	// The doctor finds the program of the exec-form hook, space and all.
-	if c := checkCommandPaths(n.dir); c.Status != DoctorOK {
-		t.Fatalf("command paths: %+v", c)
-	}
-	// It is part of the Agents' hooks for the doctor: current now, stale when it goes, and its command checked.
-	if c := checkGenerated(DoctorOptions{Dir: n.dir, Bin: n.bin}); c[slices.IndexFunc(c, func(c DoctorCheck) bool { return c.Name == "claude-hooks" })].Status != DoctorOK {
-		t.Fatalf("doctor: %+v", c)
-	}
-	if err := os.RemoveAll(filepath.Join(n.dir, liveRepliesDir)); err != nil {
-		t.Fatal(err)
-	}
-	c := checkGenerated(DoctorOptions{Dir: n.dir, Bin: n.bin})
-	if got := c[slices.IndexFunc(c, func(c DoctorCheck) bool { return c.Name == "claude-hooks" })]; got.Status == DoctorOK ||
-		!slices.Contains(got.Items, "missing "+liveRepliesDir+"/hooks/hooks.json") {
-		t.Fatalf("doctor without the plugin: %+v", got)
 	}
 }
 

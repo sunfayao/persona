@@ -315,15 +315,6 @@ func unplaced(procs []claudeProc, agents []host.Agent) bool {
 	return false
 }
 
-// setAgents maps live claude agents to session ids: the host's own report when it knows (herdr's claude integration),
-// else what our hooks told us about the pane, else the newest transcript in the agent's project directory.
-func (n *Node) setAgents(agents []host.Agent) {
-	n.mu.Lock()
-	epoch := n.engEpoch
-	n.mu.Unlock()
-	n.setAgentsAt(agents, epoch, nil)
-}
-
 // setAgentsAt is setAgents for a refresh of engine epoch: false (nothing set) when the engine changed since. heard is
 // the hosts that answered the refresh (nil: every host): only their panes' processes are asked for. The merge covers
 // every host's agents, and asking all of them tied each host's refresh to the others' I/O (#5816): Orca's poll every
@@ -713,4 +704,13 @@ func (n *Node) setAgentsAt(agents []host.Agent, epoch uint64, heard map[string]b
 func liveTaken(m map[string]host.Agent, id string) bool {
 	a, ok := m[id]
 	return ok && a.AgentStatus != proto.StatusOffline
+}
+
+// setAgents maps live claude agents to session ids: the host's own report when it knows (herdr's claude integration),
+// else what our hooks told us about the pane, else the newest transcript in the agent's project directory.
+func (n *Node) setAgents(agents []host.Agent) {
+	n.mu.Lock()
+	epoch := n.engEpoch
+	n.mu.Unlock()
+	n.setAgentsAt(agents, epoch, nil)
 }

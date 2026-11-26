@@ -93,12 +93,6 @@ func (s *helloStore) putCount(key string) int {
 	return s.putsByKey[key]
 }
 
-func (s *helloStore) putAttempts(key string) int {
-	s.stateMu.Lock()
-	defer s.stateMu.Unlock()
-	return s.attemptsByKey[key]
-}
-
 func (s *helloStore) savedSetting(t *testing.T, key string, out any) {
 	t.Helper()
 	s.settingsStore.mu.Lock()

@@ -222,10 +222,6 @@ func (n *Node) codexDesktopModes(ctx context.Context, id string, src codexSource
 	return nil
 }
 
-func (n *Node) setCodexDesktopEffort(ctx context.Context, id string, src codexSource, effort string) error {
-	return n.setCodexDesktopSettings(ctx, id, src, "", effort)
-}
-
 // setCodexDesktopSettings sets the model and/or effort of the next turn of a chat of the Codex App, in the App window
 // that owns it (the App is asked to open it first, as for a message). It is set once the window reads it back; the
 // running turn, if any, goes on with its own.

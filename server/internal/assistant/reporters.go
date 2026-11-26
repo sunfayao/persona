@@ -457,10 +457,6 @@ func (s *Service) dropQueuedNotices(conversation string) int {
 	return s.dropQueuedTool(conversation, noticeTool)
 }
 
-func (s *Service) dropQueuedSupervision(conversation string) int {
-	return s.dropQueuedTool(conversation, superviseTool)
-}
-
 // dropQueuedTool takes queued messages of one tool off conversation's relay queue (one going in right now stays).
 func (s *Service) dropQueuedTool(conversation, tool string) int {
 	b := &s.relays

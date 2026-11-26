@@ -1,14 +1,12 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"slices"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
 
@@ -45,12 +43,6 @@ func TestStandingCardPathsPunctuation(t *testing.T) {
 			}
 		})
 	}
-}
-
-type failingStandingStore struct{ *db.DB }
-
-func (f failingStandingStore) FinishStandingInteraction(context.Context, string, string, proto.Interaction, proto.Resolution, db.TodoDecisionRow, time.Time) error {
-	return errors.New("audit unavailable")
 }
 
 func TestStandingAuthorizationConditions(t *testing.T) {

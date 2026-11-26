@@ -363,45 +363,6 @@ func TestProviderReadFailureEditUsesConfirmedSnapshot(t *testing.T) {
 	}
 }
 
-func TestProviderReadFailureReconnectKeepsNodeConfiguration(t *testing.T) {
-	s, f, st := providerReadFixture(t)
-	ctx := context.Background()
-	before, writes := providerSettings(st.memStore)
-	pushes := providerPushes(f)
-	st.failAt = -1
-	if calls := s.managedNodeCalls(ctx, "server"); len(calls) != 0 {
-		t.Fatal("failed read produced a reconnect replacement")
-	}
-	if nodes, err := s.managedForNodes(ctx); err == nil || nodes != nil {
-		t.Fatal("node preparation hid its read failure")
-	}
-	after, afterWrites := providerSettings(st.memStore)
-	if writes != afterWrites || !reflect.DeepEqual(before, after) || !reflect.DeepEqual(pushes, providerPushes(f)) {
-		t.Fatal("failed reconnect read mutated settings or the node")
-	}
-	st.recover()
-	calls := s.managedNodeCalls(ctx, "server")
-	if len(calls) != 1 {
-		t.Fatalf("recovery produced %d calls", len(calls))
-	}
-	_, err := f.DeviceCall(ctx, DeviceCall{Device: calls[0].MachineID, Method: calls[0].Method, Params: calls[0].Params})
-	if fb := calls[0].Fallback; isUnknownMethod(err) && fb != nil { // a node from before the catalog, as internal/devices does
-		_, err = f.DeviceCall(ctx, DeviceCall{Device: fb.MachineID, Method: fb.Method, Params: fb.Params})
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := providerPushes(f)
-	if len(got) != len(pushes)+1 || !bytes.Equal(got[len(got)-1].Params, pushes[len(pushes)-1].Params) {
-		t.Error("recovered reconnect changed the complete node payload")
-	}
-	s.trustSrc = &trustStore{memStore: st.memStore, pending: []string{"pending_example"}}
-	reads := st.reads
-	if calls := s.managedNodeCalls(ctx, "pending_example"); len(calls) != 0 || st.reads != reads {
-		t.Error("pending computer received or read credentials")
-	}
-}
-
 func TestProviderReadFailureAssignmentIsCheckedAndRecovers(t *testing.T) {
 	s, _, st := providerReadFixture(t)
 	before, writes := providerSettings(st.memStore)

@@ -146,13 +146,6 @@ type pushPolicy struct {
 	manager    string
 }
 
-func (p pushPolicy) levelOr(level string) pushPolicy {
-	if p.level == "" {
-		p.level = level
-	}
-	return p
-}
-
 // levelFor derives the urgency of a manager notification that named no level itself, from its kind.
 func levelFor(kind, given string) string {
 	if given != "" {
@@ -371,13 +364,6 @@ func (p *Pusher) addInterceptLocked(in heldPushRecord, merge bool) {
 	p.scheduleSaveLocked()
 }
 
-// recordIntercept keeps one held push (tests and callers outside applyPushGrading).
-func (p *Pusher) recordIntercept(in heldPushRecord) {
-	p.gradingMu.Lock()
-	p.addInterceptLocked(in, false)
-	p.gradingMu.Unlock()
-}
-
 // addSentLocked remembers one delivered push for the daily counts, dropping entries past the age and count limits, and
 // queues it for the writer, which appends only the new rows to the store (never the whole list). gradingMu is held.
 func (p *Pusher) addSentLocked(in pushSent) {
@@ -515,23 +501,6 @@ func (p *Pusher) saveIntercepts() {
 		}
 		p.gradingMu.Unlock()
 		time.Sleep(pushSaveRetryBackoff)
-	}
-}
-
-// waitInterceptsSaved waits (up to d) for the writer to finish; true when nothing is left to save.
-func (p *Pusher) waitInterceptsSaved(d time.Duration) bool {
-	deadline := time.Now().Add(d)
-	for {
-		p.gradingMu.Lock()
-		idle := !p.gradingWriting && !p.heldDirty && len(p.sentPending) == 0
-		p.gradingMu.Unlock()
-		if idle {
-			return true
-		}
-		if time.Now().After(deadline) {
-			return false
-		}
-		time.Sleep(5 * time.Millisecond)
 	}
 }
 

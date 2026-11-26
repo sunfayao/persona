@@ -3,7 +3,6 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -100,18 +99,6 @@ func TestConfirmationMetricsDatabase(t *testing.T) {
 	}
 	t.Logf("BRIEFING_RENDER\n%s", plain)
 	t.Logf("BRIEFING_FEED %s", body)
-}
-
-type unavailableConfirmationStore struct{ Store }
-
-func (unavailableConfirmationStore) MarkConfirmationNotified(context.Context, string, time.Time, time.Time, string) error {
-	return errors.New("unavailable")
-}
-func (unavailableConfirmationStore) MarkConfirmationAutoAuthorized(context.Context, string, time.Time, time.Time, string, string) error {
-	return errors.New("unavailable")
-}
-func (unavailableConfirmationStore) ConfirmationCounts(context.Context, time.Time, time.Time) ([]db.ConfirmationCount, error) {
-	return nil, errors.New("unavailable")
 }
 
 func TestGoldenConfirmationBriefFacts(t *testing.T) {

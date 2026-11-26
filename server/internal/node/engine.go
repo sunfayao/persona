@@ -127,10 +127,6 @@ func engineHostsFor(c proto.EngineChoice, logf func(format string, args ...any))
 	return hs
 }
 
-// defaultHostKind is the default host of a single engine: the engine itself, except for the combined engine, whose
-// full-capability host is classic herdr.
-func defaultHostKind(engine string) string { return proto.EngineHostsOf(engine).Default }
-
 // engine is the single engine closest to the set in use (node.info's engine, user-facing names).
 func (n *Node) engine() string {
 	n.eng.mu.Lock()

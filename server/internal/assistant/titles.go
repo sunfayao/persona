@@ -2,12 +2,13 @@ package assistant
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/compat"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/nwverse/persona/server/internal/compat"
 
 	"github.com/nwverse/persona/sdk/go/wire"
 	"github.com/nwverse/persona/server/internal/ai"
@@ -253,21 +254,6 @@ func (s *Service) titleHinted(machine, id, hint string) {
 	s.publish(context.Background())
 }
 
-// renameConversation names an assistant conversation for the assistant's conversation_rename: like the app's "Rename",
-// Claude's transcript gets the title too (its own lists show it); a Codex conversation's title is only the
-// assistant's (the node would write Claude's custom-title line into the Codex rollout).
-func (s *Service) renameConversation(ctx context.Context, c proto.Session, title, by string) error {
-	if c.Agent != "codex" {
-		cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-		if err := s.call(cctx, c.MachineID, DeviceSessionRename, map[string]any{"session_id": c.SessionID, "title": title}, nil); err != nil {
-			return err
-		}
-	}
-	s.titleSet(c.MachineID, c.SessionID, title, by)
-	return nil
-}
-
 type shownTitle struct{ title, machine string }
 
 // conversationTitles are the titles to show, by session id; false while they could not be read.
@@ -457,9 +443,6 @@ func titleTopicMax(locale string) int {
 		return 32
 	}
 }
-
-// parseTitle is parseTitleMax for a Chinese topic.
-func parseTitle(out string) (kind, topic string, ok bool) { return parseTitleMax(out, maxTitleTopic) }
 
 // parseTitleMax reads "kind | topic" from what the model said (one line; a date it added anyway, quotes, a full-width
 // bar are tolerated). kind is "" when it isn't one of titleKinds; ok when the topic fits in max characters too.

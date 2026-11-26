@@ -150,16 +150,6 @@ func TestGoldenInboxJudge(t *testing.T) {
 	}
 }
 
-// An item about one of the user's tasks: the judge's input lists the tasks, the AI twin is told the linked one.
-func TestGoldenInboxTask(t *testing.T) {
-	items := goldenItems(t)
-	b := newInbox()
-	task := prompts.InboxTask{ID: "todo_1", Title: "修登录崩溃", State: "在做", Last: "测试通过 42/42"}
-	golden(t, "inbox_judge_input.with_task", prompts.RenderInboxJudgeInput(prompts.InboxJudgeInput{Summary: "张三问修复进度",
-		Item: b.promptItem(items["dm"]), Tasks: []prompts.InboxTask{task}}))
-	golden(t, "inbox_agent.with_task", b.inboxAgentPromptFor(items["dm"], "示例用户", &task, 1, time.UTC))
-}
-
 // Relating a batch to events: the first call (rules, the connector's meta description, the events) and the call after
 // one tool call.
 func TestGoldenInboxGroup(t *testing.T) {

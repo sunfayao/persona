@@ -319,50 +319,6 @@ func TestTheDesktopLauncherNeedsNoTerminalEngine(t *testing.T) {
 	}
 }
 
-// The launcher is offered where the app keeps Claude Code sessions and the CLI that writes them is found; a login
-// shell's launcher of its name runs instead, as for a runtime's.
-func TestTheDesktopLauncherIsOfferedWhereTheAppKeepsSessions(t *testing.T) {
-	n, home := testNode(t)
-	first, _ := useDesktopDirs(t)
-	fakeClaudeOnPath(t)
-	shellLaunchers(t)
-	if _, added := n.withDesktopLauncher(nil); added {
-		t.Fatal("offered with no session index")
-	}
-	if err := os.MkdirAll(filepath.Join(first, "claude-code-sessions"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	list, added := n.withDesktopLauncher([]proto.Launcher{{Name: "claude"}})
-	if !added || len(list) != 2 || list[1] != (proto.Launcher{Name: "claude-desktop", Source: "claude_desktop", Agent: "claude"}) {
-		t.Fatalf("list %+v", list)
-	}
-	if !n.knownLauncher(context.Background(), "claude-desktop") {
-		t.Fatal("not known")
-	}
-	models, err := n.launcherModels(context.Background(), "claude-desktop", "", false)
-	if err != nil || models.Agent != "claude" || len(models.Models) != 0 || models.Locked != "" {
-		t.Fatalf("models %+v, %v", models, err)
-	}
-	if c := n.launcherCheck(context.Background(), "claude-desktop"); c.Error != desktopCheckMsg {
-		t.Fatalf("check: %+v", c)
-	}
-
-	// No claude where the node looks: not offered (a machine-wide one, outside the test's home, skips this part).
-	t.Setenv("PATH", t.TempDir())
-	t.Setenv("HOME", home)
-	if _, err := desktopClaudeCLI(); err == nil {
-		t.Log("a claude is installed machine-wide: the no-claude case is not checked here")
-	} else if _, added := n.withDesktopLauncher(nil); added {
-		t.Fatal("offered without a claude")
-	}
-
-	fakeClaudeOnPath(t)
-	shellLaunchers(t, "claude-desktop")
-	if _, added := n.withDesktopLauncher([]proto.Launcher{{Name: "claude-desktop"}}); added || isDesktopLauncher("claude-desktop") {
-		t.Fatal("the login shell's claude-desktop is not the app's")
-	}
-}
-
 // With no folder, the session runs in the scratch folder beside most of the app's sessions' folders (made the first
 // time), so the app's sidebar shows them as one group; the scratch folder's own sessions count for the folder it is in.
 func TestADesktopStartWithNoFolderRunsInTheScratchFolder(t *testing.T) {

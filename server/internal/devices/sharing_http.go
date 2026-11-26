@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"encoding/hex"
+
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/devicewire"
 	"github.com/nwverse/persona/server/internal/i18n"
@@ -670,17 +671,6 @@ func (d *Devices) shareReadPublic(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 	return shareEncode(w, body)
-}
-
-// enableShareFuture always captures a fresh frontier. Unselected history and the
-// interval since the preview (or since disabling) are excluded, never backfilled.
-func (d *Devices) enableShareFuture(ctx context.Context, s *sealedShare) error {
-	p, err := d.projectShare(ctx, s.Owner, nil)
-	if err != nil {
-		return err
-	}
-	applyShareFuture(s, p)
-	return nil
 }
 
 // applyShareFuture installs a frontier captured outside the share transaction:

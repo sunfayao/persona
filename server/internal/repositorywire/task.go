@@ -568,9 +568,6 @@ func Snapshot(manager, todo string, revision int64, rows []TaskRepository, selec
 func ValidRevision(revision *int64) bool {
 	return revision != nil && *revision >= 0 && *revision < MaxRevision
 }
-func LinkKey(identity Identity, link TaskLink) string {
-	return identity.Provider + "|" + identity.InstanceURL + "|" + identity.Path + "|" + link.Kind + "|" + link.Number
-}
 
 // DefaultAlias is a suggestion only; callers must report collisions rather than silently rename.
 func DefaultAlias(identity Identity) string {

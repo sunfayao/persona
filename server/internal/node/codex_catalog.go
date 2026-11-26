@@ -70,9 +70,6 @@ var codexVersionTimeout = 5 * time.Second
 
 var codexCatalogLookups singleflight.Group
 
-// CodexCatalogWait is codexCatalogWait, for nodecmd's check that `personad launch` waits well longer for the node.
-func CodexCatalogWait() time.Duration { return codexCatalogWait }
-
 // codexCatalogAnswer is what the probe last learned of a gateway.
 type codexCatalogAnswer struct {
 	url   string    // the catalog, "" for none
@@ -147,17 +144,6 @@ func (n *Node) survive(launcher, what string) {
 	if r := recover(); r != nil {
 		n.logf("launcher %s: %s failed: %v", launcher, what, r)
 	}
-}
-
-// codexCatalog is the model catalog URL for l's codex (no client_version: Codex adds its own) and the codex executable
-// whose version allowed it; "" when l is no Codex provider with a gateway and a key, this computer's codex is too old
-// to read one, or its gateway serves none. It waits for the lookup; launcher.env uses codexCatalogFor.
-func (n *Node) codexCatalog(ctx context.Context, l proto.ManagedLauncher) (catalog, codex string) {
-	in, ok := codexCatalogInputOf(l)
-	if !ok {
-		return "", ""
-	}
-	return n.codexCatalogOf(ctx, in)
 }
 
 func (n *Node) codexCatalogOf(ctx context.Context, in codexCatalogInput) (catalog, codex string) {

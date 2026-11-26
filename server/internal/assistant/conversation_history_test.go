@@ -1,13 +1,11 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/conversationlog"
 	"github.com/nwverse/persona/server/internal/db"
 	"github.com/nwverse/persona/server/internal/proto"
 )
@@ -76,38 +74,6 @@ func (rt *historyRuntime) page(_ string, raw json.RawMessage) (any, error) {
 	}
 	return map[string]any{"items": items, "history": rt.history, "from_seq": from, "to_seq": end,
 		"has_more": hasMore, "more_after": more}, nil
-}
-
-func readHistory(t *testing.T, s *Service, sid string, params map[string]any) historyPage {
-	t.Helper()
-	params["session_id"] = sid
-	var page historyPage
-	if err := s.call(t.Context(), "server", DeviceSessionItems, params, &page); err != nil {
-		t.Fatal(err)
-	}
-	return page
-}
-
-type failedHistoryStore struct{ *db.DB }
-
-func (failedHistoryStore) ConversationHistory(context.Context, string, string) (*db.ConversationHistory, error) {
-	return nil, errors.New("fake database failure")
-}
-
-type gatedHistoryStore struct {
-	*db.DB
-	entered, release chan struct{}
-}
-
-func (st gatedHistoryStore) ConversationItems(ctx context.Context, machine, sid, history string, after, through, limit int, newest bool) ([]conversationlog.Item, error) {
-	rows, err := st.DB.ConversationItems(ctx, machine, sid, history, after, through, limit, newest)
-	close(st.entered)
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-st.release:
-	}
-	return rows, err
 }
 
 func historyFixture(t *testing.T, logs ...func(string, ...any)) (*Service, *fakeHub, *db.DB, *historyRuntime) {

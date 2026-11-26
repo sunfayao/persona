@@ -282,8 +282,6 @@ const (
 	tightKinds
 )
 
-var tightNames = [...]string{"fill", "jpeg", "copy", "palette", "gradient"}
-
 // tightRect is Tight (7): fill, JPEG, or basic compression (copy, palette or gradient filter) on one of four zlib
 // streams.
 func (c *client) tightRect(x, y, w, h int) error {

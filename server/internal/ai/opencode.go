@@ -13,14 +13,6 @@ import (
 
 type sessionIDKey struct{}
 
-// WithSessionID attaches a stable session identifier to ctx for gateways that require session routing.
-func WithSessionID(ctx context.Context, sessionID string) context.Context {
-	if s := strings.TrimSpace(sessionID); s != "" {
-		return context.WithValue(ctx, sessionIDKey{}, s)
-	}
-	return ctx
-}
-
 // openCodeClientSessions maps weak.Pointer[http.Client] to a stable UUIDv4 session ID so Client copies (such as
 // WithResult) share the underlying *http.Client's session without changing Client's fields.
 var openCodeClientSessions sync.Map

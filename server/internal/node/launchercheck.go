@@ -30,17 +30,6 @@ const launcherCheckDir = "persona-check-"
 // health round burst (2026-11-13: 90 seconds did not).
 var launcherCheckTimeout = 150 * time.Second
 
-// launcherCheck answers Settings › Models' "Test": runs the launcher once, headless, with a one-word prompt in an empty
-// directory, and says whether an answer came back, how long it took and which model answered. It is a real request
-// (a few tokens).
-func (n *Node) launcherCheck(ctx context.Context, name string, models ...string) proto.LauncherCheck {
-	model := ""
-	if len(models) > 0 {
-		model = models[0]
-	}
-	return n.launcherCheckWith(ctx, name, launcherCheckOpts{model: model})
-}
-
 // launcherCheckWith is launcherCheck with what launchers.check asked for: with assistantTurn, a claude launcher's
 // check runs as the assistant runs a turn of conversation (launchercheck_assistant.go).
 func (n *Node) launcherCheckWith(ctx context.Context, name string, o launcherCheckOpts) proto.LauncherCheck {

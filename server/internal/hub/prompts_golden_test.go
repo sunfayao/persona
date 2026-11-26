@@ -52,11 +52,6 @@ type capturedCall struct{ System, User string }
 // hands the assistant's snapshot.
 type goldenSnapshot struct{}
 
-func (goldenSnapshot) ID() string   { return "chatservice" }
-func (goldenSnapshot) Name() string { return "Chat service" }
-func (goldenSnapshot) Manifest() connector.Manifest {
-	return connector.Manifest{Capabilities: []connector.Capability{connector.CapSnapshot}}
-}
 func (goldenSnapshot) Snapshot(context.Context, string) (connector.SnapshotData, error) {
 	at := func(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
 	return connector.SnapshotData{

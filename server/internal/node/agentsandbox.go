@@ -188,17 +188,6 @@ var claudeManagedSettings = []string{"/Library/Application Support/ClaudeCode/ma
 // claudeManagedSettingsDirs hold more of them, one file each.
 var claudeManagedSettingsDirs = []string{"/Library/Application Support/ClaudeCode/managed-settings.d"}
 
-// claudeInner says why a Claude started with argv (its arguments, the program first or not) in cwd may run its
-// own sandbox (Claude Code's /sandbox, settings `sandbox.enabled`), "" when none of its settings turn it on: the
-// user's (settings.json in env's CLAUDE_CONFIG_DIR or ~/.claude, and in each of dirs: a shell launcher may set its own
-// CLAUDE_CONFIG_DIR, so the node passes every config directory it knows), the project's (.claude/settings.json and
-// settings.local.json in cwd and the folders above it), the administrator's (managed settings) and what argv passes
-// with --settings. A file that is there but cannot be read counts as on: not knowing is not wrapping.
-// It remains the default-text compatibility wrapper; agent starts persist claudeInnerReason's structured form.
-func claudeInner(argv, env []string, cwd, home string, dirs []string) string {
-	return claudeInnerReason(argv, env, cwd, home, dirs).Error()
-}
-
 func claudeInnerReason(argv, env []string, cwd, home string, dirs []string) *sandbox.StatusReason {
 	cfg := envValue(env, "CLAUDE_CONFIG_DIR")
 	if cfg == "" {
@@ -266,12 +255,6 @@ func claudeInnerReason(argv, env []string, cwd, home string, dirs []string) *san
 	return nil
 }
 
-// claudeSandboxIn says why settings (named where) may turn Claude's own sandbox on, "" when they do not.
-// Its default text is unchanged; claudeSandboxInReason carries the same fact for localized persistence.
-func claudeSandboxIn(b []byte, where string) string {
-	return claudeSandboxInReason(b, where).Error()
-}
-
 func claudeSandboxInReason(b []byte, where string) *sandbox.StatusReason {
 	var s map[string]json.RawMessage
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -298,20 +281,6 @@ func claudeSandboxInReason(b []byte, where string) *sandbox.StatusReason {
 
 // codexManagedConfig are an administrator's Codex settings: they can force a sandbox mode over the user's.
 var codexManagedConfig = []string{"/etc/codex/managed_config.toml", "/etc/codex/requirements.toml"}
-
-// codexInner says why a Codex started with argv (codex and its arguments) in cwd may run its own sandbox or its tools
-// elsewhere, "" only when it is sure to run them itself with none (danger-full-access in its own process):
-//   - on an app-server of its own (--remote), or with no flag that keeps a 0.163 off the shared daemon
-//     (codexOwnProcess), its tools run in a process Persona did not start: wrapping the TUI would not reach them;
-//   - an administrator's config, or a project's .codex/config.toml, may say otherwise: not knowing is not wrapping;
-//   - otherwise its mode is, first to last: --dangerously-bypass-approvals-and-sandbox / --yolo, -s / --sandbox /
-//     --full-auto, the profile's sandbox_mode (-p, else config's profile), -c sandbox_mode, config's sandbox_mode,
-//     read-only.
-//
-// It remains the default-text compatibility wrapper; agent starts persist codexInnerReason's structured form.
-func codexInner(argv, env []string, cwd, home string) string {
-	return codexInnerReason(argv, env, cwd, home).Error()
-}
 
 func codexInnerReason(argv, env []string, cwd, home string) *sandbox.StatusReason {
 	if codexOnRemote(argv) {

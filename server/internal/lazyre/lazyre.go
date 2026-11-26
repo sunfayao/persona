@@ -50,9 +50,6 @@ func (r *Regexp) Regexp() *regexp.Regexp {
 	return r.rx
 }
 
-// String is the source text, as regexp.Regexp's String.
-func (r *Regexp) String() string { return r.src }
-
 // The methods of regexp.Regexp the server uses, unchanged (a gated pattern's MatchString and its string replacements
 // look for its literals first).
 
@@ -80,10 +77,7 @@ func (r *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
 func (r *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 	return r.Regexp().FindAllStringSubmatchIndex(s, n)
 }
-func (r *Regexp) Find(b []byte) []byte             { return r.Regexp().Find(b) }
-func (r *Regexp) FindIndex(b []byte) []int         { return r.Regexp().FindIndex(b) }
 func (r *Regexp) FindSubmatch(b []byte) [][]byte   { return r.Regexp().FindSubmatch(b) }
-func (r *Regexp) FindSubmatchIndex(b []byte) []int { return r.Regexp().FindSubmatchIndex(b) }
 func (r *Regexp) FindAll(b []byte, n int) [][]byte { return r.Regexp().FindAll(b, n) }
 func (r *Regexp) FindAllIndex(b []byte, n int) [][]int {
 	return r.Regexp().FindAllIndex(b, n)
@@ -101,13 +95,6 @@ func (r *Regexp) ReplaceAllString(src, repl string) string {
 	}
 	return rx.ReplaceAllString(src, repl)
 }
-func (r *Regexp) ReplaceAllLiteralString(src, repl string) string {
-	rx := r.Regexp()
-	if r.gate != nil && !r.gate.open(src) {
-		return src
-	}
-	return rx.ReplaceAllLiteralString(src, repl)
-}
 func (r *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
 	rx := r.Regexp()
 	if r.gate != nil && !r.gate.open(src) {
@@ -120,6 +107,3 @@ func (r *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
 	return r.Regexp().ReplaceAllFunc(src, repl)
 }
 func (r *Regexp) Split(s string, n int) []string { return r.Regexp().Split(s, n) }
-func (r *Regexp) SubexpNames() []string          { return r.Regexp().SubexpNames() }
-func (r *Regexp) SubexpIndex(name string) int    { return r.Regexp().SubexpIndex(name) }
-func (r *Regexp) NumSubexp() int                 { return r.Regexp().NumSubexp() }

@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"bytes"
 	"runtime"
 	"runtime/debug"
 	"testing"
@@ -9,18 +8,7 @@ import (
 	"github.com/nwverse/persona/server/internal/assistantwire"
 	"github.com/nwverse/persona/server/internal/devices"
 	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
 )
-
-// lineOf is the line the bus writes for an event and its params.
-func lineOf(t *testing.T, event string, params any) []byte {
-	t.Helper()
-	var b bytes.Buffer
-	if err := rpc.New("m", &b).Notify(event, params); err != nil {
-		t.Fatalf("Notify(%s): %v", event, err)
-	}
-	return b.Bytes()
-}
 
 // fleetSessionsToldLimit bounds what telling a changed list of 200 sessions allocates when a GC has just emptied
 // json's pools of encoder buffers, which in a busy manager is every few lists: 708,868 bytes measured (the decorated

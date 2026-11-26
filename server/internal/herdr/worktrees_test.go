@@ -7,24 +7,6 @@ import (
 	"testing"
 )
 
-func TestWorktreesDirIn(t *testing.T) {
-	for in, want := range map[string]string{
-		"":                                    "",
-		"[worktrees]\ndirectory = \"~/wt\"\n": "~/wt",
-		"[ui]\ndirectory = \"x\"\n[worktrees] # c\ndirectory = '/srv/wt' # c\n": "/srv/wt",
-		"directory = \"top\"\n[worktrees]\n":                                    "",
-		"[worktrees]\n# directory = \"no\"\n":                                   "",
-		"[worktrees]\ndirectory = \"a\\\\b\\\"c\"\n":                            `a\b"c`,
-		"[worktrees]\ndirectory = unquoted\n":                                   "",
-		"[worktrees]\ndirectory = \"open\n":                                     "",
-		"[other]\n[worktrees]\nx = 1\n[last]\ndirectory = \"z\"":                "",
-	} {
-		if got := worktreesDirIn(in); got != want {
-			t.Errorf("%q: got %q, want %q", in, got, want)
-		}
-	}
-}
-
 func TestTerminalDefaultShellIn(t *testing.T) {
 	for _, tc := range []struct{ name, config, want string }{
 		{"basic string", "[terminal]\ndefault_shell = \"C:\\\\Program Files\\\\Git\\\\bin\\\\BASH.EXE\"\n", `C:\Program Files\Git\bin\BASH.EXE`},

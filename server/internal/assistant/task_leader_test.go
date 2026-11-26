@@ -1036,21 +1036,6 @@ func TestTaskLeaderNeedsUserIdenticalRecommendationIsDeduplicated(t *testing.T) 
 	}
 }
 
-// A worker's own card stays with the user (askRoute is a main-chat ladder this task does not extend), and no start
-// remedy is begun for a worker's failed start.
-func TestWorkerCardsStayWithTheUser(t *testing.T) {
-	s, f := newQuietService(t)
-	startTaskLeader(t, s, f)
-	w := planWorker(t, s, f, nil)
-	if !s.agentSupervisedSession("box", w.Agents[0].SessionID) {
-		t.Fatal("a worker is not agent-supervised")
-	}
-	if s.agentSupervisedSession("box", "s1") {
-		t.Fatal("the leader's own task counts as agent-supervised")
-	}
-	_ = f
-}
-
 // Even where the judge closes a main-chat task that passed its own check (spot checks off), it does not close a
 // leader's worker: the worker waits for its leader's review.
 func TestJudgeDoesNotCloseALeadersWorkerThatPassedItsCheck(t *testing.T) {
@@ -1127,50 +1112,6 @@ func TestWorkerAutomaticSignalsGoToLeader(t *testing.T) {
 				t.Fatalf("the main conversation was told: %q", got)
 			}
 		})
-	}
-}
-
-// A leader that cannot be reached: the signals are not dropped. While its task is open they become a decision for the
-// conversation above it (who to tell, with the reason), so the worker is not left unreviewed; with nobody above it they
-// stay pending and are tried again. A closed agent whose resume fails is handled the same way.
-func TestUnreachableLeaderEscalatesInsteadOfDropping(t *testing.T) {
-	s, f := newQuietService(t)
-	ctx := context.Background()
-	todo := startTaskLeader(t, s, f)
-	w := planWorker(t, s, f, nil)
-	// The leader's agent row is released (it was replaced): there is no leader agent to reach any more.
-	leadRow, _, _ := s.leaderSupervisor(todoNow(s, w.ID))
-	if leadRow.SessionID != "s1" {
-		t.Fatalf("setup: %v", leadRow)
-	}
-	s.todos.mu.Lock()
-	for i := range s.todos.todos[todo.ID].Agents {
-		a := &s.todos.todos[todo.ID].Agents[i]
-		if a.SessionID == "s1" {
-			now := time.Now().UTC()
-			a.ReleasedAt = &now
-		}
-	}
-	s.todos.mu.Unlock()
-	if lead, _, ok := s.leaderSupervisor(todoNow(s, w.ID)); ok {
-		t.Fatalf("setup: the leader is still reachable: %+v", lead)
-	}
-	if up := s.supervisorAbove(ctx, leadRow); up != "conv1" {
-		t.Fatalf("setup: the conversation above the released leader is %q", up)
-	}
-	f.setSessions("box", proto.Session{SessionID: w.Agents[0].SessionID, MachineID: "box", Cwd: "/code/app", Agent: "claude",
-		Status: proto.StatusDone, State: proto.StateUnread, LastText: "做完了", UpdatedAt: time.Now()})
-	s.signal(superviseSignal{Todo: w.ID, Kind: sigReview, Key: "review@1", Detail: "做完了，等你验收"})
-	waitFor(t, "the decision to go up to the main conversation", func() bool {
-		return len(f.notices()) == 1
-	})
-	n := f.notices()[0]
-	if !strings.Contains(n, "its task leader (a coding Agent") || !strings.Contains(n, "cannot be reached") {
-		t.Fatalf("the main conversation's escalation:\n%s", n)
-	}
-	// The worker's own task stays open; the leader's task is named in the decision so the conversation can act.
-	if cur := todoNow(s, w.ID); cur.DoneAt != nil {
-		t.Fatalf("the worker was closed by an escalation: %+v", cur)
 	}
 }
 

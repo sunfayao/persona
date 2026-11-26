@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"path/filepath"
 	"strings"
 
 	"github.com/nwverse/persona/server/internal/apierr"
@@ -166,21 +165,6 @@ func localizedTool(t *proto.WorkflowTool, summary string) *proto.WorkflowTool {
 	c := *t
 	c.Summary = summary
 	return &c
-}
-
-// workLogLine is what the knowledge base's project timeline gets for a finished turn: its conclusion when the Agents
-// business found it done, else its last words (kbAgentDone).
-func workLogLine(sess proto.Session) string {
-	if w := sess.Work; w != nil && w.Phase == proto.WorkDone && w.Line != "" {
-		line := "完成：" + w.Line
-		for _, a := range w.Artifacts {
-			if a.Kind == "pr" || a.Kind == "doc" {
-				line += " " + filepath.ToSlash(a.Ref)
-			}
-		}
-		return line
-	}
-	return sess.LastText
 }
 
 // claudeLiveTexts are what the node says about a Claude session outside Persona's terminals (proto/claudelive.go),

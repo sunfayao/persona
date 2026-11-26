@@ -60,8 +60,6 @@ func NormalizeLinkRole(role string) (string, Problem) { return repositorywire.No
 func NormalizeTaskWorkflow(workflow string) (string, Problem) {
 	return repositorywire.NormalizeTaskWorkflow(workflow)
 }
-func LinkKey(identity Identity, link TaskLink) string { return repositorywire.LinkKey(identity, link) }
-func DefaultAlias(identity Identity) string           { return repositorywire.DefaultAlias(identity) }
 
 func PreserveLinkTitles(current, next []TaskLink, input []LinkInput) {
 	repositorywire.PreserveLinkTitles(current, next, input)
@@ -76,5 +74,3 @@ func MergeTaskLinks(current []TaskRepository, urls []string, catalog Catalog) ([
 func MergeTaskLinkDetails(current []TaskRepository, input []LinkInput, catalog Catalog) ([]TaskRepository, error) {
 	return repositorywire.MergeTaskLinkDetails(current, input, catalog)
 }
-
-func IsWindowsReservedName(name string) bool { return repositorywire.IsWindowsReservedName(name) }

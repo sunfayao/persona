@@ -148,7 +148,6 @@ func HeaderConflict(h http.Header, name string) bool {
 	return a != "" && b != "" && a != b
 }
 func ContextPattern() string { return `(?:jarvis|persona)-context` }
-func FilePattern() string    { return `(?:jarvis|persona)-file` }
 func ContextNames() []string { return []string{"jarvis-context", "persona-context"} }
 
 // compat is also built on its own, copied without the rest of the server (scripts/test/test_persona_migration_edges.py),
@@ -163,9 +162,6 @@ func lazy(src string) func() *regexp.Regexp {
 func LegacyContextTags(s string) string {
 	return currentContextTags().ReplaceAllString(s, `${1}jarvis-${2}${3}`)
 }
-func AssistantSuffixes() []string {
-	return []string{"--persona-assistant", "--jarvis-assistant", "--persona-health", "--jarvis-health"}
-}
 func IsAssistantTranscript(path string) bool {
 	return strings.Contains(path, "-jarvis-assistant") || strings.Contains(path, "-persona-assistant")
 }
@@ -179,7 +175,6 @@ func LegacyBotCommand(cmd string) string {
 }
 func LegacyManagerUnit(id string) string  { return "jarvis-manager-" + id + ".service" }
 func LegacyManagerLabel(id string) string { return "com.jarvis.manager." + id }
-func LegacyHubDNS(id string) string       { return id + ".jarvis.invalid" }
 func Looks(name string) string {
 	switch name {
 	case "jarvis":

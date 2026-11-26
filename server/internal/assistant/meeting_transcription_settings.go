@@ -218,35 +218,6 @@ func (s *Service) transcriptionReadyNow() bool {
 	return s.transcriptionReady.ready.Load()
 }
 
-// transcriptionReadyCached is the answer as it stands, without a probe: the knowledge base asks it under its locks
-// (the first upload naming the hub), after the upload's handler waited for one (transcriptionReadyAwait).
-func (s *Service) transcriptionReadyCached() bool { return s.transcriptionReady.ready.Load() }
-
-// transcriptionReadyAwait is transcriptionReadyNow for a mode decided now (a meeting upload): while no answer stands
-// (none yet, or the choice just changed) it waits for the probe in flight, or its own, at most a probe's time.
-func (s *Service) transcriptionReadyAwait() bool {
-	c := &s.transcriptionReady
-	ctx, cancel := context.WithTimeout(s.runCtx(), transcriptionInfoTimeout+time.Second)
-	defer cancel()
-	for {
-		s.refreshTranscriptionReady(ctx)
-		c.mu.Lock()
-		stands := !c.at.IsZero()
-		if c.published == nil {
-			c.published = make(chan struct{})
-		}
-		published := c.published
-		c.mu.Unlock()
-		if stands || ctx.Err() != nil {
-			return c.ready.Load()
-		}
-		select {
-		case <-published:
-		case <-ctx.Done():
-		}
-	}
-}
-
 func (s *Service) refreshTranscriptionReady(ctx context.Context) {
 	c := &s.transcriptionReady
 	if !c.probe.TryLock() {

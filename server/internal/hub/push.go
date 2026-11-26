@@ -86,13 +86,6 @@ func newPusher(store Store, logf func(string, ...any)) *Pusher {
 	return p
 }
 
-func (p *Pusher) device(id string) (Device, bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	d, ok := p.devices[id]
-	return d, ok
-}
-
 // signedOut forgets the devices a revoked credential wrote settings for (Settings › Devices): they get no more
 // notifications, and pairing again starts from the defaults.
 func (p *Pusher) signedOut(credential string) {

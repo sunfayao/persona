@@ -60,13 +60,12 @@ type resumeBench struct {
 }
 
 type resumeBenchResult struct {
-	recovered                time.Duration // from the break until a call succeeded again
-	calls, failed            int
-	transfer                 time.Duration
-	transferFailed           int
-	reconnects, resumed      int
-	worstCall                time.Duration
-	pingsUnanswered, pingCut int
+	recovered           time.Duration // from the break until a call succeeded again
+	calls, failed       int
+	transfer            time.Duration
+	transferFailed      int
+	reconnects, resumed int
+	worstCall           time.Duration
 }
 
 func runResumeBench(t *testing.T, link netshape.Config, scenario string, resume bool) string {

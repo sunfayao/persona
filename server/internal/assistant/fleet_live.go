@@ -162,19 +162,6 @@ func keepList(kept map[string][]proto.Session, machine string, list []proto.Sess
 	kept[machine] = list
 }
 
-// round2 keeps two significant digits: 12345 → 12000, 987 → 990. The island shows "12k", so finer changes would
-// only spend the push budget.
-func round2(n int64) int64 {
-	if n < 100 {
-		return n
-	}
-	p := int64(1)
-	for n/p >= 100 {
-		p *= 10
-	}
-	return (n + p/2) / p * p
-}
-
 // fleetInput is one agent as the fleet sees it. Session is read, never written: it points into a list the fleet's
 // caller owns.
 type fleetInput struct {

@@ -119,54 +119,6 @@ func TestOnlyLarkDMTriageNamesLatestPreview(t *testing.T) {
 	}
 }
 
-// Drafts, the task judge and handling conversations share the item renderer, not triage's newest-message boundary.
-func TestLarkDMLatestPreviewDoesNotChangeNonTriageInputs(t *testing.T) {
-	for _, locale := range []string{"zh-Hans", "en", "ja"} {
-		t.Run(locale, func(t *testing.T) {
-			h := newInboxHub(t)
-			h.f.hello.Locale = locale
-			ctx := context.Background()
-			it := &InboxItem{ID: "larkcli:example", Source: "larkcli", Kind: KindDM,
-				Title: "Example peer", Preview: "[Image: img_example_new_screenshot]",
-				Context: "Example owner: Here is the report.\nExample peer: [Image: img_example_new_screenshot]",
-				Summary: "Check the new screenshot", Last: "om_new", UpdatedAt: time.Now(),
-				Connector: &InboxConnector{Thread: "larkcli:chat:oc_example", CanReply: true},
-				Agent:     &InboxAgent{State: AgentQueued, Task: "Check the screenshot"}}
-			h.inbox.items[it.ID] = it
-			plain := prompts.InboxItem{Language: answerLanguage(locale), Source: it.Source, Kind: it.Kind, Context: it.Context,
-				Described: h.inbox.kindWords(it.Source, it.Kind)}
-
-			model, calls := captureModel(t, "I will check.")
-			h.in.models[purposeDraft] = model
-			if _, err := h.draftReply(ctx, it.ID, "Keep it short"); err != nil {
-				t.Fatal(err)
-			}
-			want := prompts.RenderInboxDraftInput(prompts.InboxDraftInput{Language: plain.Language, Item: plain, Instruction: "Keep it short"})
-			if got := onlyCall(t, calls()).User; got != want {
-				t.Errorf("the draft input gained triage-only content:\n%s", got)
-			}
-
-			model, calls = captureModel(t, `{"task_id":"","evidence":""}`)
-			h.in.setModel(model)
-			tasks := []prompts.InboxTask{{ID: "todo_example", Title: "Investigate the screenshot"}}
-			if _, err := h.judgeInboxTask(ctx, it, tasks); err != nil {
-				t.Fatal(err)
-			}
-			want = prompts.RenderInboxJudgeInput(prompts.InboxJudgeInput{Language: plain.Language, Summary: it.Summary, Item: plain, Tasks: tasks})
-			if got := onlyCall(t, calls()).User; got != want {
-				t.Errorf("the judge input gained triage-only content:\n%s", got)
-			}
-
-			agent := h.inbox.inboxAgentFor(it, "Example owner", nil, 1, time.UTC)
-			agent.Item = plain
-			want = prompts.RenderInboxAgent(agent)
-			if got := h.inbox.inboxAgentPrompt(it, "Example owner"); got != want {
-				t.Errorf("the handling-agent input gained triage-only content:\n%s", got)
-			}
-		})
-	}
-}
-
 // The no-write preview must use the same Lark-DM input boundary as a real triage call.
 func TestLarkDMTriagePreviewKeepsLatestMessageBoundary(t *testing.T) {
 	h := newInboxHub(t)

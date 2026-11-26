@@ -30,13 +30,6 @@ func (w pushWants) fn() func(NotifyPrefs) bool {
 	return nil
 }
 
-// notifyDone delivers the same alert and preference decision through both channels. Only the center has apps and
-// devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
-// turned its pushes off get none (NotifyPrefs.MutedManagers).
-func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
-	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, pushPolicy{level: levelFor(kind, "")})
-}
-
 // pushOutcome is where one push went: the devices it was handed to now (a ws_notify connection or a
 // browser's Web Push), the devices that could take this kind before their settings decided, the offline devices that
 // keep it for their next connection (notifyring.go), and the ln-mode reason the push was held ("" when it was not).
@@ -75,15 +68,6 @@ func (h *Hub) notifyDoneUnder(owner, kind, machineID, machine, sessionID, title,
 		ws = h.notifyWSFrom(owner, kind, build, wants.fn(), wants.quiet())
 	}
 	return pushOutcome{devices: ws.selected, reachable: ws.reachable, kept: ws.kept, held: heldReason}
-}
-
-// notifyReply reminds the devices that take "needs you" pushes of an agent still waiting on the user's answer (#5096).
-// It is laid out as a finished turn's (answerable from the notification, opens the session), but nothing finished:
-// the extensions hear no agent.finished. On the WebSocket it is a "reply" notify (not "done": Android puts away the
-// finished notifications of seen sessions when it starts, and a reminder is about a seen one). owner is the manager
-// that asked for it, as for notifyDone.
-func (h *Hub) notifyReply(owner, machineID, machine, sessionID, title, text string) {
-	h.notifyReplyKeyed(owner, machineID, machine, sessionID, title, text, "")
 }
 
 // notifyReplyKeyed is notifyReply with the manager's related key for the question it waits on (low-distraction mode keeps one key
@@ -125,12 +109,6 @@ func (h *Hub) notifyDecide(owner, machineID, machine, sessionID, title, text str
 	if heldReason := h.push.grade(owner, policy, build); heldReason == "" {
 		h.notifyWSFrom(owner, "assistant", build, wants.fn(), wants.quiet())
 	}
-}
-
-// notifyInteraction pushes a new card. linkCovered: owner says its Persona Link summary rings for this card
-// (assistantwire.Notification.LinkCovered).
-func (h *Hub) notifyInteraction(owner string, ix proto.Interaction, machine string, linkCovered bool) {
-	h.notifyInteractionAt(owner, ix, machine, linkCovered, "", "")
 }
 
 // notifyInteractionAt is notifyInteraction with the manager's push level and related key for low-distraction mode (push_quiet.go):
@@ -289,4 +267,17 @@ func notifyMessage(kind string, payload map[string]any) map[string]any {
 		msg["todo"] = td
 	}
 	return msg
+}
+
+// notifyInteraction pushes a new card. linkCovered: owner says its Persona Link summary rings for this card
+// (assistantwire.Notification.LinkCovered).
+func (h *Hub) notifyInteraction(owner string, ix proto.Interaction, machine string, linkCovered bool) {
+	h.notifyInteractionAt(owner, ix, machine, linkCovered, "", "")
+}
+
+// notifyDone delivers the same alert and preference decision through both channels. Only the center has apps and
+// devices: a member's computers are the center's machines. owner is the manager that asked for it: the devices that
+// turned its pushes off get none (NotifyPrefs.MutedManagers).
+func (h *Hub) notifyDone(owner, kind, machineID, machine, sessionID, title, text string, wants pushWants) {
+	h.notifyDoneUnder(owner, kind, machineID, machine, sessionID, title, text, wants, pushPolicy{level: levelFor(kind, "")})
 }

@@ -4,34 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/nwverse/persona/server/internal/proto"
 )
-
-func TestAgyModelList(t *testing.T) {
-	output := "Loading models...\r\nprogress message\tignored\r\n" +
-		"\tmissing ID\r\nmissing-name\t\r\n" +
-		"example-high\tExample High\r\nexample-high\tDuplicate\r\n" +
-		"example\t\tExample Model\textra column\r\nexample-low\tExample Low\r\n" +
-		"example-max\tExample Max\r\nexample-xhigh\tExample Extra High\r\nplain\tPlain Model"
-	efforts := []string{"low", "high", "xhigh", "max"}
-	want := []proto.AgentModel{
-		{ID: "example-high", Name: "Example High", Efforts: efforts, DefaultEffort: "high"},
-		{ID: "example", Name: "Example Model", Efforts: efforts},
-		{ID: "example-low", Name: "Example Low", Efforts: efforts, DefaultEffort: "low"},
-		{ID: "example-max", Name: "Example Max", Efforts: efforts, DefaultEffort: "max"},
-		{ID: "example-xhigh", Name: "Example Extra High", Efforts: efforts, DefaultEffort: "xhigh"},
-		{ID: "plain", Name: "Plain Model"},
-	}
-	got, err := agyModelList(strings.NewReader(output))
-	if err != nil || !reflect.DeepEqual(got, want) {
-		t.Fatalf("agy models = %+v, %v; want %+v", got, err, want)
-	}
-}
 
 func fakeAgyModels(t *testing.T, home string) (catalog, calls string) {
 	t.Helper()

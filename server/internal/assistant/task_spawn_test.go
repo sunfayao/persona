@@ -74,28 +74,6 @@ func TestTaskSpawnStaysOnCallersSupervisedTodo(t *testing.T) {
 	}
 }
 
-func spawnKBFixture(t *testing.T) (*Service, *fakeHub, Todo) {
-	t.Helper()
-	f := newFakeHub()
-	f.sessions["box"] = nil
-	f.settings = &Settings{Timezone: "Asia/Shanghai"}
-	s := withSettings(t, f, New(Options{Hub: f, Logf: testLogf(t)}))
-	shortSupervise(t, s)
-	f.hello.Assistant.MachineID = "server"
-	setSettings(t, s, func(v *Settings) { v.Main = "conv1" })
-	f.known["conv1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	s.hub = &taskHandoffTestHub{fakeHub: f, info: map[string]proto.NodeInfo{"box": {Executable: "/test/persona-node"}}}
-	todo := startTaskLeader(t, s, f)
-	s.todos.mu.Lock()
-	s.todos.todos[todo.ID].Agents[0].Source = "manual"
-	s.todos.mu.Unlock()
-	f.launcherList = []proto.Launcher{{Name: "codex", Agent: "codex"}}
-	f.setSessions("box", proto.Session{MachineID: "box", SessionID: "s1", Agent: "codex", Launcher: "codex",
-		Cwd: "/code/app", PermissionMode: "plan", Status: proto.StatusWorking})
-	return s, f, todo
-}
-
 func TestTaskSpawnRefusesUnscopedArgumentsAndCallers(t *testing.T) {
 	for _, args := range []string{
 		`{}`, `null`, `[]`, `{"title":"x","prompt":" "}`, spawnArgs + `{}`,

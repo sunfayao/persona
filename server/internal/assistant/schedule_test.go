@@ -896,17 +896,6 @@ func (s *flakyScheduleStore) writes() int {
 	return s.puts
 }
 
-// stored is what is stored now, as text.
-func (s *flakyScheduleStore) stored() map[string]string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make(map[string]string, len(s.data))
-	for k, v := range s.data {
-		out[k] = string(v)
-	}
-	return out
-}
-
 // A failed read used to mark the schedule loaded with the two default routines, and the next save wrote them over
 // the stored routines and follow-ups (found in review, 2026-11-02). Now nothing is written, and nothing is changed in
 // memory either, until a read succeeds: the tools and the app get an error, the scheduler skips its turn.

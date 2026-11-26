@@ -272,11 +272,6 @@ func (s *Service) askTriage(ctx context.Context, it *InboxItem, timeout time.Dur
 	return last, s.triageModelIn(ctx, input, rules, timeout, hello)
 }
 
-// triageModel asks the triage model about one item's prompt input under rules (its source's; "" the Inbox's).
-func (s *Service) triageModel(ctx context.Context, input, rules string, timeout time.Duration) (v triageVerdict) {
-	return s.triageModelIn(ctx, input, rules, timeout, s.hello(ctx))
-}
-
 // triageModelIn uses the same owner/language snapshot as the input wrapper.
 func (s *Service) triageModelIn(ctx context.Context, input, rules string, timeout time.Duration, hello Hello) (v triageVerdict) {
 	if rules == "" {
@@ -361,10 +356,6 @@ func (b *inboxBook) triagePromptItem(it *InboxItem, language string) prompts.Inb
 		p.Latest = it.Preview
 	}
 	return p
-}
-
-func (b *inboxBook) promptItem(it *InboxItem) prompts.InboxItem {
-	return b.promptItemIn(it, answerLanguage(string(b.userLang())))
 }
 
 func (b *inboxBook) promptItemIn(it *InboxItem, language string) prompts.InboxItem {
