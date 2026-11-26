@@ -29,12 +29,14 @@ try {
     const phone = width < 1024;
     const long = fitting ? fits : prompt;
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: phone, isMobile: phone, colorScheme: theme, locale: "zh-CN", serviceWorkers: "block" });
+    let closing = false;
     try {
       await ctx.addInitScript(theme => {
         localStorage.setItem("persona.language", "zh-Hans");
         localStorage.setItem("persona.theme", theme);
       }, theme);
       await ctx.route("**/api/v1/sessions*", async route => {
+        try {
         if (new URL(route.request().url()).pathname !== "/api/v1/sessions") return route.continue();
         const source = await route.fetch();
         const body = await source.json();
@@ -42,7 +44,8 @@ try {
           if (row.session_id === widget) row.title = ordinary;
           if (row.session_id === tests) row.title = long;
         }
-        return route.fulfill({ response: source, json: body });
+        await route.fulfill({ response: source, json: body });
+        } catch (error) { if (!closing) throw error; }
       });
       const page = await ctx.newPage();
       page.setDefaultTimeout(15000);
@@ -83,6 +86,7 @@ try {
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await page.screenshot({ path: join(shots, `${width}-${theme}.png`), animations: "disabled" });
     } finally {
+      closing = true;
       await ctx.close();
     }
   }
