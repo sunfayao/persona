@@ -386,7 +386,7 @@ body {
     min-height: 1lh;
   }
   .sidebar-session-copy, .sidebar-session-prefix { grid-column: 2; min-width: 0; }
-  .sidebar-session-title, .mobile-nav-title {
+  .sidebar-session-title {
     white-space: normal;
     overflow-wrap: anywhere;
     text-overflow: clip;
@@ -406,7 +406,7 @@ body {
   }
   .sidebar-session-meta:empty, .sidebar-personal-meta:empty { display: none; }
   .sidebar-session-meta > .truncate { max-width: 65%; }
-  .sidebar-title-disclosure {
+  .sidebar-title-disclosure:not([hidden]) {
     display: inline-flex;
     min-height: 1.5rem;
     margin-inline-start: calc(var(--spacing) * 10);
