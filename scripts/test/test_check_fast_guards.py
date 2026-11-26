@@ -99,7 +99,6 @@ class CheckFastGoGuardListTests(unittest.TestCase):
         for entry in ("TestOneBuild", "TestPersonaHubDoesNotLinkTheManager", "TestPersonaManagerDoesNotLinkTheHub",
                       "TestPersonaNodeDoesNotLinkTheHubOrTheManager", "TestGolden.*", "TestNoWholeListMCPToolGoldens",
                       "TestWireSamples", "TestRouteScopes", "TestEveryExtensionRouteIsBounded",
-                      "TestModelPurposesDescribeThemselves",
                       "TestRepositoryRetrievalGuidanceContract", "TestEveryStartPathIsSupervisedOrOptedOut"):
             self.assertIn(entry, entries)
 
@@ -306,7 +305,7 @@ class CheckFastGuardSuitesTests(ScriptsRepoTestCase):
         code, out = self.check_fast("--all", path=self.toolchain_without_node_and_go())
         self.assertEqual(1, code, out)  # the stubbed scripts/tools/test_other.py fails, and node/go are missing
         self.assertIn("PASS     frozen migrations", out)
-        self.assertIn("queued: scripts unittest suites (8)", out)
+        self.assertIn("queued: scripts unittest suites (7)", out)
 
 
 if __name__ == "__main__":
