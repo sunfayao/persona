@@ -39,8 +39,8 @@ def go_test(shard, database_file):
 
 def commands(packages, shard, database_file, partitions=None):
     """The go test processes a shard runs at once: one for its other packages, and one more per partition of each
-    partitioned package it has (go_partitions: internal/node in the node shard, internal/assistant and internal/hub in the
-    managers shard, internal/devices and internal/extmgr in the other shard; the same split as the release build). partitions maps such a package to its -run patterns. Each process
+    partitioned package it has (go_partitions: internal/node in the node shard, internal/assistant, internal/hub and
+    internal/voice in the managers shard, internal/devices and internal/extmgr in the other shard; the same split as the release build). partitions maps such a package to its -run patterns. Each process
     keeps -p and -timeout."""
     prefix = go_test(shard, database_file)
     rest, parts = go_partitions.split(packages)
