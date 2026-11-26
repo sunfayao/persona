@@ -34,12 +34,12 @@ export function foldedRow(s: Session, sides?: SideRollup): Session {
 // (and the same side rule: hello can turn side folding on or off for the same rows)
 const folds = new WeakMap<Session[], { sides: boolean; out: Session[] }>();
 
-/** A list as the web shows and counts it: without the children folded under a row the list holds, each parent in its
+/** A list as the web shows and counts it: without folded children, each parent in its
  *  folded state (foldedRow, its side part from the side rows in `rows`); `rows` itself when nothing changes. */
 export function foldRows(rows: Session[]): Session[] {
   const known = folds.get(rows);
   if (known?.sides === sideFoldOn()) return known.out;
-  if (!rows.some((s) => s.folded_under || s.children)) return rows;
+  if (!rows.some((s) => s.folded_under || s.children || (s.is_subagent && s.agent_surface === "desktop"))) return rows;
   const listed = listedKeys(rows);
   // the side rows this list holds, by their parent
   const sides = new Map<string, Session[]>();

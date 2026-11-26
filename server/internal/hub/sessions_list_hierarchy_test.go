@@ -110,6 +110,42 @@ func TestRuntimeListHierarchy(t *testing.T) {
 	}
 }
 
+func TestAgentsRootsOmitInactiveCodexDesktopWorkersWithoutTheirParent(t *testing.T) {
+	h, m := hierarchyHub(t)
+	root := proto.Session{SessionID: "independent", Title: "project", Agent: "codex", Status: proto.StatusIdle, State: proto.StateIdle}
+	worker := proto.Session{
+		SessionID: "worker", Title: "project", Agent: "codex", AgentSurface: "desktop", SourceKind: "codex_history",
+		IsSubagent: true, ParentSessionID: "missing", Status: proto.StatusIdle, State: proto.StateIdle,
+	}
+	worker.SetFold("missing", "", "", nil)
+	pending := worker
+	pending.SessionID, pending.State, pending.PendingInteractions = "pending", proto.StateNeedsYou, 1
+	withoutFold := worker
+	withoutFold.SessionID = "without-fold"
+	withoutFold.SetFold("", "", "", nil)
+	working := worker
+	working.SessionID, working.State, working.Status = "working", proto.StateWorking, proto.StatusWorking
+	m.sessions = []proto.Session{root, worker, pending, withoutFold, working}
+
+	query := "machine_id=demo&provider=codex&agents_only=1"
+	page := runtimePage(t, h, query+"&roots=1&limit=30")
+	got := pageIDs(page)
+	slices.Sort(got)
+	if want := []string{"demo/independent", "demo/pending", "demo/working"}; !slices.Equal(got, want) || page.Total != len(want) {
+		t.Fatalf("root page: got %v (total %d), want %v", got, page.Total, want)
+	}
+	counts := hierarchyCounts(t, h, query+"&roots=1")
+	if counts.Total != 3 || counts.State[proto.StateNeedsYou] != 1 || counts.State[proto.StateIdle] != 1 {
+		t.Fatalf("root counts include inactive workers: %+v", counts)
+	}
+	childPage := runtimePage(t, h, "machine_id=demo&parent_session_id=missing&limit=30")
+	children := pageIDs(childPage)
+	slices.Sort(children)
+	if want := []string{"demo/without-fold", "demo/worker"}; !slices.Equal(children, want) {
+		t.Fatalf("explicit child lookup: got %v, want %v", children, want)
+	}
+}
+
 func TestRuntimeListActiveAgentsByMachine(t *testing.T) {
 	h := newTestHub(t)
 	m := newMachine(h, MachineConfig{ID: "demo"})

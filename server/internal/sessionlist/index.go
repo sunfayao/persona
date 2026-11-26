@@ -58,7 +58,7 @@ type Item struct {
 
 // Fold is how an Item folds and the open to-do it is on. Root is the session id (as parent_session_id names it, not the
 // composite ID) of the item on the same Machine this one is folded under (a child session under its topmost listed
-// ancestor), only when that item is in the same batch; State is the state the item shows with the items folded under it
+// ancestor). The adapter can keep that id for an inactive Codex Desktop subagent whose parent is absent. State is the state the item shows with the items folded under it
 // ("" for its own); BackgroundWaiting is Item.BackgroundWaiting for Options.Roots: none of the items folded under it
 // works or needs the user either. Todo is the id of the open to-do the row is on ("" for none): what Options.Todo
 // selects and Counts.Todo counts. The adapter knows which to-dos are open; the index only compares ids. Options.Roots
