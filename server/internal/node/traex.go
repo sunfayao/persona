@@ -48,7 +48,113 @@ func (n *Node) traexPath(id string) string {
 			return p
 		}
 	}
+	return n.traexRolloutPath(id)
+}
+
+// traexRolloutPath returns the native JSONL rollout for TRAE thread id when present on disk:
+// threads.rollout_path from state_*.sqlite first, then rolloutPath under ~/.trae/cli/sessions.
+func (n *Node) traexRolloutPath(id string) string {
+	if t, ok := n.traexThread(id); ok && t.RolloutPath != "" && fileExists(t.RolloutPath) {
+		return t.RolloutPath
+	}
 	return rolloutPath(n.traexHome(), id)
+}
+
+// traexEnrichMeta merges rollout-only telemetry (token_count context tokens/window/auto-compact,
+// output tokens, reasoning effort, context stats, version) onto quickMeta read from synthesized
+// paginated history, which contains chat items without turn_context or token_count events.
+func (n *Node) traexEnrichMeta(id, path string, m quickMeta) quickMeta {
+	rp := n.traexRolloutPath(id)
+	if rp == "" || rp == path {
+		return m
+	}
+	st, err := os.Stat(rp)
+	if err != nil {
+		return m
+	}
+	rm := n.meta(rp, st)
+	if m.contextTokens == 0 && rm.contextTokens > 0 {
+		m.contextTokens = rm.contextTokens
+		if m.contextWindow == 0 {
+			m.contextWindow = rm.contextWindow
+		}
+		if m.autoCompactThreshold == 0 {
+			m.autoCompactThreshold = rm.autoCompactThreshold
+		}
+	}
+	if m.outputTokens == 0 && rm.outputTokens > 0 {
+		m.outputTokens = rm.outputTokens
+	}
+	if !rm.contextStats.Empty() {
+		m.contextStats = rm.contextStats
+		m.contextFullWindow = rm.contextFullWindow
+	}
+	if m.effort == "" && rm.effort != "" {
+		m.effort, m.effortAt = rm.effort, rm.effortAt
+	}
+	if m.model == "" && rm.model != "" {
+		m.model, m.modelAt = rm.model, rm.modelAt
+	}
+	if m.version == "" && rm.version != "" {
+		m.version, m.versionAt = rm.version, rm.versionAt
+	}
+	return m
+}
+
+var traexModelWindowCache = struct {
+	sync.Mutex
+	byID map[string]int
+}{byID: map[string]int{}}
+
+func splitTraexEffortModel(id string) (base, effort string, ok bool) {
+	b, suf, found := strings.Cut(strings.TrimSpace(id), "@")
+	if !found || b == "" {
+		return "", "", false
+	}
+	lower := strings.ToLower(strings.TrimSpace(suf))
+	for _, lvl := range proto.EffortLevels {
+		if lower == lvl {
+			return b, lvl, true
+		}
+	}
+	return "", "", false
+}
+
+func recordTraexModelWindows(windows map[string]int) {
+	if len(windows) == 0 {
+		return
+	}
+	traexModelWindowCache.Lock()
+	defer traexModelWindowCache.Unlock()
+	for id, w := range windows {
+		key := strings.ToLower(strings.TrimSpace(id))
+		if key != "" && w > 0 {
+			traexModelWindowCache.byID[key] = w
+		}
+	}
+}
+
+func lookupTraexModelWindow(models ...string) int {
+	traexModelWindowCache.Lock()
+	defer traexModelWindowCache.Unlock()
+	if len(traexModelWindowCache.byID) == 0 {
+		return 0
+	}
+	for _, raw := range models {
+		key := strings.ToLower(strings.TrimSpace(raw))
+		if key == "" {
+			continue
+		}
+		if w := traexModelWindowCache.byID[key]; w > 0 {
+			return w
+		}
+		if base, _, ok := splitTraexEffortModel(key); ok {
+			if w := traexModelWindowCache.byID[base]; w > 0 {
+				return w
+			}
+		}
+	}
+	return 0
 }
 
 func (n *Node) traexTitle(id string) string {

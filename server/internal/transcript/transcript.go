@@ -151,6 +151,8 @@ type Meta struct {
 	// ContextWindow is the model's context window when the transcript says it (a Codex rollout's token_count carries
 	// model_context_window); 0 for Claude Code, whose transcripts do not (node/contextwindow.go knows by model id).
 	ContextWindow int
+	// AutoCompactThreshold is the explicit auto-compact token limit recorded by a rollout's token_count when present.
+	AutoCompactThreshold int
 	// ContextStats holds bounded category byte accumulators (and any native exact breakdown) for ContextBreakdown.
 	ContextStats     ContextStats
 	OutputTokens     int // total generated, counted once per message
@@ -333,10 +335,16 @@ func (m *Meta) ObserveNamingMetadata(line []byte) {
 			Usage *tokenuse.ClaudeUsage `json:"usage"`
 		} `json:"message"`
 		Payload struct {
-			Type   string              `json:"type"`
-			Model  string              `json:"model"`
-			Effort string              `json:"effort"`
-			Info   *tokenuse.CodexInfo `json:"info"`
+			Type              string `json:"type"`
+			Model             string `json:"model"`
+			Effort            string `json:"effort"`
+			ReasoningEffort   string `json:"reasoning_effort"`
+			CollaborationMode *struct {
+				Settings *struct {
+					ReasoningEffort string `json:"reasoning_effort"`
+				} `json:"settings"`
+			} `json:"collaboration_mode"`
+			Info *tokenuse.CodexInfo `json:"info"`
 		} `json:"payload"`
 	}
 	if json.Unmarshal(line, &e) != nil {
@@ -347,8 +355,15 @@ func (m *Meta) ObserveNamingMetadata(line []byte) {
 		if e.Payload.Model != "" && !e.Timestamp.Before(m.ModelAt) {
 			m.Model, m.ModelAt = e.Payload.Model, e.Timestamp
 		}
-		if e.Payload.Effort != "" && !e.Timestamp.Before(m.EffortAt) {
-			m.Effort, m.EffortAt = e.Payload.Effort, e.Timestamp
+		effort := e.Payload.Effort
+		if effort == "" {
+			effort = e.Payload.ReasoningEffort
+		}
+		if effort == "" && e.Payload.CollaborationMode != nil && e.Payload.CollaborationMode.Settings != nil {
+			effort = e.Payload.CollaborationMode.Settings.ReasoningEffort
+		}
+		if effort != "" && !e.Timestamp.Before(m.EffortAt) {
+			m.Effort, m.EffortAt = effort, e.Timestamp
 		}
 	case "custom-title":
 		if e.CustomTitle != "" {
@@ -380,6 +395,9 @@ func (m *Meta) ObserveNamingMetadata(line []byte) {
 		case "token_count":
 			if info := e.Payload.Info; info != nil {
 				m.OutputTokens = int(info.Total.Output)
+				if info.AutoCompactTokenLimit > 0 {
+					m.AutoCompactThreshold = info.AutoCompactTokenLimit
+				}
 				if m.restartCodex.Grew(info.Total.Total) && info.Last.Input > 0 && info.Last.Input <= MaxContextTokens {
 					m.restartContext.observe("", info.Last.Input)
 				}

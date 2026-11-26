@@ -34,6 +34,33 @@ func (n *Node) traexModelRow(s *proto.Session) {
 	if thread.Model != "" {
 		s.Model = thread.Model
 	}
+	if eff := strings.ToLower(strings.TrimSpace(thread.Effort)); eff != "" {
+		s.Effort = eff
+	} else if s.Effort == "" {
+		var requested string
+		if s.RequestedModel != nil && *s.RequestedModel != "" {
+			requested = *s.RequestedModel
+		} else if st, ok := n.state.get(s.SessionID); ok && st.Model != "" {
+			requested = st.Model
+		}
+		if base, eff, ok := splitTraexEffortModel(requested); ok && (s.Model == "" || strings.EqualFold(base, s.Model)) {
+			s.Effort = eff
+		}
+	}
+	if s.ContextTokens > 0 && s.ContextWindow == 0 {
+		var req string
+		if s.RequestedModel != nil {
+			req = *s.RequestedModel
+		}
+		if w := lookupTraexModelWindow(s.Model, req); w > 0 {
+			s.ContextWindow = proto.Tokens32(w)
+			if existing := s.ContextBreakdown(); existing != nil {
+				cp := existing.Clone()
+				cp.Free = proto.Int(max(int(s.ContextWindow)-int(s.ContextTokens), 0))
+				s.SetContextBreakdown(cp)
+			}
+		}
+	}
 	if n.traexModelLauncher(s.SessionID, thread) != "" {
 		s.Capabilities.Model = proto.Bool(true)
 	}

@@ -56,40 +56,42 @@ export function AgentStatusLine({ session, source, assistant, items, onCompact, 
   const placeLabel = place && [place.folder || place.name, place.branch].filter(Boolean).join(" · ");
   const placeContent = place && (
     <>
-      <Icon name={place.branch ? "git" : "folder"} size={12} className="shrink-0" />
+      <Icon name={place.branch ? "git" : "folder"} size={12} className="shrink-0 text-ink-3/85" />
       <span className="min-w-0 truncate">
         {place.name}
-        {place.subfolder && <span className="hidden @min-[28rem]/agent-status:inline">/{place.subfolder}</span>}
+        {place.subfolder && <span className="hidden text-ink-3/80 @min-[28rem]/agent-status:inline">/{place.subfolder}</span>}
       </span>
-      {place.branch && <span className="min-w-0 truncate">{place.branch}</span>}
+      {place.branch && <span className="min-w-0 truncate text-ink-3/80">{place.branch}</span>}
     </>
   );
-  const placeClass = "flex min-w-0 items-center gap-1 whitespace-nowrap text-submeta text-ink-3";
+  const placeClass = "flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-chip px-1.5 py-0.5 text-submeta text-ink-3 transition-colors";
 
   return (
-    <div data-composer-usage className="@container/agent-status min-w-0 px-2 pt-0.5">
-      <div className="flex min-w-0 items-center gap-3">
-        {place && (session.repo_root || session.worktree ? (
-          <button
-            type="button"
-            data-composer-source
-            className={`touch-hit ${placeClass}`}
-            title={placeLabel || undefined}
-            aria-label={`${t("chat-chatview.agent_status_repository")}: ${placeLabel}`}
-            onClick={() => togglePanel({ kind: "git", mid: session.machine_id, sid: session.session_id, cwd: session.cwd })}
-          >
-            {placeContent}
-          </button>
-        ) : (
-          <span data-composer-source className={placeClass} title={placeLabel || undefined}>{placeContent}</span>
-        ))}
-        {isAssistant && source}
-        {hasContext && <ContextMeter session={session} items={items} assistant={isAssistant} onCompact={onCompact} compactBlocked={compactBlocked} />}
-        {!isAssistant && source}
+    <div data-composer-usage className="@container/agent-status min-w-0 px-1.5 pt-1">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {place && (session.repo_root || session.worktree ? (
+            <button
+              type="button"
+              data-composer-source
+              className={`touch-hit -ml-1.5 hover:bg-hover hover:text-ink-2 ${placeClass}`}
+              title={placeLabel || undefined}
+              aria-label={`${t("chat-chatview.agent_status_repository")}: ${placeLabel}`}
+              onClick={() => togglePanel({ kind: "git", mid: session.machine_id, sid: session.session_id, cwd: session.cwd })}
+            >
+              {placeContent}
+            </button>
+          ) : (
+            <span data-composer-source className={`-ml-1.5 ${placeClass}`} title={placeLabel || undefined}>{placeContent}</span>
+          ))}
+          {isAssistant && source}
+          {hasContext && <ContextMeter session={session} items={items} assistant={isAssistant} onCompact={onCompact} compactBlocked={compactBlocked} />}
+          {!isAssistant && source}
+        </div>
         {quota && (
           <a
             href="/admin/usage"
-            className="touch-hit hidden min-w-0 shrink-0 items-center gap-2 whitespace-nowrap text-submeta text-ink-3 @min-[36rem]/agent-status:flex"
+            className="touch-hit hidden min-w-0 shrink-0 items-center gap-2 rounded-chip px-1.5 py-0.5 whitespace-nowrap text-submeta text-ink-3 transition-colors hover:bg-hover hover:text-ink-2 @min-[36rem]/agent-status:flex"
             aria-label={t("usage.title")}
             title={quota.windows.map((window) => [window.label, `${Math.round(window.used_percent)}%`, resetLabel(window.resets_at, now)].filter(Boolean).join(" ")).join(" · ")}
           >

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -113,5 +114,96 @@ printf '%s' '[{"name":"Next model","config_name":"fixture-next"},{"name":"High s
 				t.Fatal("switch started a process or opened another terminal")
 			}
 		})
+	}
+}
+
+func TestTraexModelListParsesEffortsAndContextWindow(t *testing.T) {
+	traexModelWindowCache.Lock()
+	traexModelWindowCache.byID = map[string]int{}
+	traexModelWindowCache.Unlock()
+
+	catalog := []byte(`[
+		{"name":"Relay Pro","config_name":"relay-pro","context_window":950000},
+		{"name":"Relay Pro · High","config_name":"relay-pro@high"},
+		{"name":"Relay Pro · XHigh","config_name":"relay-pro@xhigh"},
+		{"name":"Relay Lite","config_name":"relay-lite","_meta":{"trae":{"contextWindow":256000}}}
+	]`)
+	models, err := traexModelList(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(models) != 4 {
+		t.Fatalf("got %d models: %+v", len(models), models)
+	}
+	if !slices.Equal(models[0].Efforts, []string{"high", "xhigh"}) {
+		t.Fatalf("base model efforts = %v, want [high xhigh]", models[0].Efforts)
+	}
+	if models[1].DefaultEffort != "high" || !slices.Equal(models[1].Efforts, []string{"high", "xhigh"}) {
+		t.Fatalf("variant model = %+v", models[1])
+	}
+	if w := lookupTraexModelWindow("relay-pro"); w != 950_000 {
+		t.Fatalf("lookupTraexModelWindow(relay-pro) = %d, want 950000", w)
+	}
+	if w := lookupTraexModelWindow("relay-lite"); w != 256_000 {
+		t.Fatalf("lookupTraexModelWindow(relay-lite) = %d, want 256000", w)
+	}
+}
+
+func TestTraexContextWindowBreakdownAndEffortParity(t *testing.T) {
+	n := remoteTestNode(t)
+	traexHistoryFixture(t, n, []historyTurn{{
+		thread: threadMain, id: "turn-1", status: "completed", ordinal: 1,
+		items: [][2]string{userItem("u1", "Analyze the pipeline"), answerItem("a1", "Done.")},
+	}})
+	rolloutDir := filepath.Join(n.traexHome(), "sessions", "2026", "11", "26")
+	if err := os.MkdirAll(rolloutDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	rolloutFile := filepath.Join(rolloutDir, "rollout-2026-11-26T10-00-00-"+threadMain+".jsonl")
+	rollout := "" +
+		`{"timestamp":"2026-11-26T10:00:00Z","type":"session_meta","payload":{"id":"` + threadMain + `","cwd":"/work/app","cli_version":"0.220.0","originator":"trae_cli"}}` + "\n" +
+		`{"timestamp":"2026-11-26T10:00:01Z","type":"turn_context","payload":{"model":"relay-pro-max","collaboration_mode":{"mode":"default","settings":{"model":"relay-pro-max","reasoning_effort":"xhigh"}}}}` + "\n" +
+		`{"timestamp":"2026-11-26T10:00:02Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"UserMessage","id":"u1","content":[{"type":"text","text":"Analyze the pipeline"}]}}}` + "\n" +
+		`{"timestamp":"2026-11-26T10:00:03Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"CommandExecution","id":"c1","command":["ls"],"status":"completed","aggregated_output":"file1\nfile2"}}}` + "\n" +
+		`{"timestamp":"2026-11-26T10:00:04Z","type":"event_msg","payload":{"type":"item_completed","turn_id":"turn-1","item":{"type":"AgentMessage","id":"a1","content":[{"type":"text","text":"Done."}]}}}` + "\n" +
+		`{"timestamp":"2026-11-26T10:00:05Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":500000,"cached_input_tokens":400000,"output_tokens":1234,"total_tokens":501234},"last_token_usage":{"input_tokens":340000,"output_tokens":450,"total_tokens":340450},"model_context_window":950000,"auto_compact_token_limit":909040}}}` + "\n"
+	if err := os.WriteFile(rolloutFile, []byte(rollout), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db := codexAppDBPath(n.traexHome())
+	traexHistoryRevisionSQL(t, db, `ALTER TABLE threads ADD COLUMN model TEXT;
+		ALTER TABLE threads ADD COLUMN reasoning_effort TEXT;
+		ALTER TABLE threads ADD COLUMN model_provider TEXT;
+		UPDATE threads SET model = 'relay-pro-max', reasoning_effort = 'xhigh', rollout_path = '`+rolloutFile+`' WHERE id = '`+threadMain+`';`)
+	invalidateCodexPaginated(n.traexHome())
+
+	// Materialize paginated history so traexPath points at the synthesized file while rollout holds token_count/turn_context.
+	f, err := n.file(threadMain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Refresh(); err != nil {
+		t.Fatal(err)
+	}
+
+	rows := n.traexSessions(map[string]bool{})
+	if len(rows) != 1 {
+		t.Fatalf("traexSessions = %+v", rows)
+	}
+	row := rows[0]
+	if row.Model != "relay-pro-max" || row.Effort != "xhigh" || row.ContextTokens != 340_000 || row.ContextWindow != 950_000 || row.OutputTokens != 1234 {
+		t.Fatalf("traex row = model:%q effort:%q ctx:%d/%d out:%d", row.Model, row.Effort, row.ContextTokens, row.ContextWindow, row.OutputTokens)
+	}
+	bd := row.ContextBreakdown()
+	if bd == nil || bd.Source != proto.ContextBreakdownEstimated || bd.Free == nil || *bd.Free != 610_000 || bd.AutoCompactThreshold == nil || *bd.AutoCompactThreshold != 909_040 {
+		t.Fatalf("traex breakdown = %+v, want estimated free=610000 auto_compact=909040", bd)
+	}
+
+	info, err := n.sessionInfo(context.Background(), threadMain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info["model"] != "relay-pro-max" || info["effort"] != "xhigh" || info["context_tokens"] != 340_000 || info["output_tokens"] != 1234 || info["version"] != "0.220.0" {
+		t.Fatalf("traex sessionInfo = %+v", info)
 	}
 }

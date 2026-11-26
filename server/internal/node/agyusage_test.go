@@ -124,7 +124,10 @@ func TestAgyContextWindowResolution(t *testing.T) {
 		{"built-in Claude 1M model with agy effort suffix", nil, "claude-opus-5-5-high", 0, 50_000, nil, nil, 1_000_000},
 		{"built-in Claude 200k model with agy effort suffix", nil, "claude-opus-4-6-medium", 0, 50_000, nil, nil, 200_000},
 		{"built-in Claude 200k model promotes over 200k usage", nil, "claude-opus-4-6-medium", 0, 250_000, nil, nil, 1_000_000},
-		{"unknown model with no catalog stays 0 (honest degradation)", &undeclared, "gemini-4-neon-high", 0, 50_000, nil, nil, 0},
+		{"built-in Gemini 4 model resolves to 1M without catalog", &undeclared, "gemini-4-neon-high", 0, 50_000, nil, nil, 1_000_000},
+		{"built-in Gemini 3.8 flash resolves to 1M without catalog", nil, "gemini-3.8-flash-medium", 0, 50_000, nil, nil, 1_000_000},
+		{"built-in Gemini orchestrator resolves to 1M without catalog", nil, "gemini-pro-orchestrator-neon", 0, 50_000, nil, nil, 1_000_000},
+		{"unknown model with no catalog stays 0 (honest degradation)", &undeclared, "unlisted-model-high", 0, 50_000, nil, nil, 0},
 		{"unknown opaque model stays 0", nil, "unknown-model-high", 0, 50_000, lookup, nil, 0},
 		{"synthetic placeholder stays 0", &catalog, "<synthetic>", 0, 5_000, lookup, nil, 0},
 		{"empty model without MaxContext stays 0", &catalog, "", 0, 5_000, lookup, nil, 0},
@@ -314,6 +317,9 @@ func TestAgyPaneSessionTokensAndInfo(t *testing.T) {
 	if row.Model != "gemini-4-carbon-high" || row.ContextTokens != 35_000 || row.ContextWindow != 1_000_000 || row.OutputTokens != 400 {
 		t.Fatalf("pane row = model:%q ctx:%d/%d out:%d", row.Model, row.ContextTokens, row.ContextWindow, row.OutputTokens)
 	}
+	if bd := row.ContextBreakdown(); bd == nil || bd.Source != proto.ContextBreakdownEstimated || bd.Free == nil || *bd.Free != 965_000 {
+		t.Fatalf("pane row context breakdown = %+v, want estimated with free=965000", bd)
+	}
 
 	items, _ := agyTestItems(t, n, agyTestRow, nil)
 	var withUsage []proto.Item
@@ -448,12 +454,14 @@ func TestAgyRuntimeSessionTokensItemsAndInfo(t *testing.T) {
 	got := listed(t, n)
 	if s := got[claudeSID]; s.Model != "claude-opus-5-5-high" || s.ContextTokens != 51_500 || s.ContextWindow != 1_000_000 || s.OutputTokens != 250 {
 		t.Fatalf("claudeSID row = model:%q ctx:%d/%d out:%d", s.Model, s.ContextTokens, s.ContextWindow, s.OutputTokens)
+	} else if bd := s.ContextBreakdown(); bd == nil || bd.Source != proto.ContextBreakdownEstimated || bd.Free == nil || *bd.Free != 948_500 {
+		t.Fatalf("claudeSID breakdown = %+v, want estimated with free=948500", bd)
 	}
 	if s := got[unknownSID]; s.Model != "opaque-agy-model-medium" || s.ContextTokens != 10_000 || s.ContextWindow != 0 || s.OutputTokens != 55 {
 		t.Fatalf("unknownSID row = model:%q ctx:%d/%d out:%d", s.Model, s.ContextTokens, s.ContextWindow, s.OutputTokens)
 	}
-	if s := got[rewoundSID]; s.Model != "" || s.ContextTokens != 0 || s.ContextWindow != 0 || s.OutputTokens != 0 {
-		t.Fatalf("rewoundSID row must stay cleared despite stale disk transcript = model:%q ctx:%d/%d out:%d", s.Model, s.ContextTokens, s.ContextWindow, s.OutputTokens)
+	if s := got[rewoundSID]; s.Model != "" || s.ContextTokens != 0 || s.ContextWindow != 0 || s.OutputTokens != 0 || s.ContextBreakdown() != nil {
+		t.Fatalf("rewoundSID row must stay cleared despite stale disk transcript = model:%q ctx:%d/%d out:%d bd:%+v", s.Model, s.ContextTokens, s.ContextWindow, s.OutputTokens, s.ContextBreakdown())
 	}
 
 	// Verify session.items preserves companion-projected shifted-seq usage and model without raw-disk clobbering.

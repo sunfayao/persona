@@ -170,6 +170,12 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 		if p := n.transcriptPath(id); p != "" {
 			if st, err := os.Stat(p); err == nil {
 				m := n.meta(p, st)
+				if a.Agent == traexAgent {
+					m = n.traexEnrichMeta(id, p, m)
+					if m.effort != "" {
+						s.Effort = m.effort
+					}
+				}
 				if sp := identity.SpaceAt(m.cwd); sp != "" {
 					s.Space = sp
 				}
@@ -321,8 +327,10 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 				if hasRuntimeRow || s.Model != beforeModel {
 					if s.Model != beforeModel {
 						s.ContextWindow = 0
+						s.SetContextBreakdown(nil)
 					}
 					n.resolveAgyContextWindow(&s)
+					n.applyAgyBreakdown(&s, agyConversations[id])
 				}
 				n.agyPaneTitle(&s, agyConversations[id]) // its conversation's title, not the terminal's (agytitle.go)
 				if s.Status == proto.StatusWorking || s.Status == proto.StatusBlocked {
@@ -392,6 +400,7 @@ func (n *Node) sessionListIn(ctx context.Context, refreshAgents bool, pass *code
 			}
 		} else if s.Agent == agyAgent {
 			n.resolveAgyContextWindow(s)
+			n.applyAgyBreakdown(s, strings.TrimPrefix(s.SessionID, agyAgent+"-"))
 			if s.SourceInstanceID == agyRuntimeID {
 				agyBackgroundTasks{running: s.Background, ended: s.BackgroundEnded()}.apply(s)
 				n.agyRuntimeTaskLogs(s)

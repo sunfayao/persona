@@ -805,6 +805,10 @@ func (n *Node) agyPaneSessionInfo(id, pane string) map[string]any {
 				info["context_tokens"] = int(runtimeRow.ContextTokens)
 				info["output_tokens"] = runtimeRow.OutputTokens
 				delete(info, "usage_unknown")
+				if u, ok := n.agyTranscriptMeta(conversation); ok {
+					info["turns"] = u.turns
+					info["compactions"] = u.compactions
+				}
 			}
 		} else if u, ok := n.agyTranscriptMeta(conversation); ok {
 			if u.model != "" {

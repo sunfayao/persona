@@ -80,12 +80,36 @@ func (n *Node) traexSessions(seen map[string]bool) []proto.Session {
 			continue
 		}
 		s := proto.Session{SessionID: id, Agent: traexAgent, Title: t.Title, Cwd: t.Cwd, Model: t.Model,
-			Status: proto.StatusOffline, UpdatedAt: t.updated(), CodexRoute: codexRouteTerminal}
+			Effort: t.Effort, Status: proto.StatusOffline, UpdatedAt: t.updated(), CodexRoute: codexRouteTerminal}
+		var m quickMeta
+		var hasMeta bool
 		if p := n.traexPath(id); p != "" {
 			if st, err := os.Stat(p); err == nil {
-				m := n.meta(p, st)
+				m = n.traexEnrichMeta(id, p, n.meta(p, st))
+				hasMeta = true
 				s.LastText, s.Rev = snippet(m.lastText), st.Size()
 				m.turnErr.set(&s)
+			}
+		} else if rp := n.traexRolloutPath(id); rp != "" {
+			if st, err := os.Stat(rp); err == nil {
+				m = n.meta(rp, st)
+				hasMeta = true
+			}
+		}
+		if hasMeta {
+			if s.Effort == "" && m.effort != "" {
+				s.Effort = m.effort
+			}
+			n.setSessionContext(&s, m)
+			if s.ContextTokens > 0 && s.ContextWindow == 0 {
+				if w := lookupTraexModelWindow(s.Model); w > 0 {
+					s.ContextWindow = proto.Tokens32(w)
+					if existing := s.ContextBreakdown(); existing != nil {
+						cp := existing.Clone()
+						cp.Free = proto.Int(max(int(s.ContextWindow)-int(s.ContextTokens), 0))
+						s.SetContextBreakdown(cp)
+					}
+				}
 			}
 		}
 		n.decorate(&s)

@@ -278,20 +278,35 @@ export function matchesQuery(provider: Pick<PanelProvider, "name">, model: Pick<
 // ── thinking levels listed as models ─────────────────────────────────────────
 
 /** The ID a model would have without its level, when it is one level of a model listed per level (Antigravity's
- *  `gemini-4-neon-high`: its default effort is the ID's last word); undefined for any other model. */
+ *  `gemini-4-neon-high` or TRAE CLI's `relay-pro@high`: its default effort is the ID's last segment); undefined for
+ *  any other model. */
 function variantBase(m: PanelModel): string | undefined {
   const level = m.defaultEffort;
-  if (!level || m.custom || m.providerDefault || m.variants || !m.id.endsWith(`-${level}`)) return undefined;
-  return m.id.slice(0, -(level.length + 1)) || undefined;
+  if (!level || m.custom || m.providerDefault || m.variants) return undefined;
+  if (m.id.endsWith(`-${level}`) || m.id.endsWith(`@${level}`)) return m.id.slice(0, -(level.length + 1)) || undefined;
+  return undefined;
 }
 
 /** A list's models in groups, in list order: the levels of one model together (where its first level is listed), every
- *  other model alone. Only levels the node told apart (`default_effort` naming the ID's suffix, server agyModelList)
- *  group; a model with one level listed stays as it is. */
+ *  other model alone. Only levels the node told apart (`default_effort` naming the ID's suffix, server agyModelList or
+ *  traexModelList) group; a model with one level listed stays as it is. When a launcher also lists a bare base ID right
+ *  beside two or more `@effort` variants (TRAE CLI startup catalogs), the bare row folds into the variant group so the
+ *  user picks one model row and chooses thinking effort in the right column. */
 export function variantGroups(models: PanelModel[]): PanelModel[][] {
+  const atCounts = new Map<string, number>();
+  for (const m of models) {
+    const level = m.defaultEffort;
+    if (level && !m.custom && !m.providerDefault && !m.variants && m.id.endsWith(`@${level}`)) {
+      const base = m.id.slice(0, -(level.length + 1));
+      if (base) atCounts.set(base, (atCounts.get(base) ?? 0) + 1);
+    }
+  }
   const out: PanelModel[][] = [];
   const byBase = new Map<string, PanelModel[]>();
   for (const m of models) {
+    if (!m.defaultEffort && !m.custom && !m.providerDefault && !m.variants && (atCounts.get(m.id) ?? 0) >= 2) {
+      continue;
+    }
     const base = variantBase(m);
     const group = base === undefined ? undefined : byBase.get(base);
     if (group) {
@@ -322,7 +337,12 @@ const defaultLevel = (levels: PanelModel[]) => (levels.some((m) => m.defaultEffo
  *  as its efforts, and `chosen`'s level as its own. */
 function foldVariants(levels: PanelModel[], chosen: PanelModel): PanelModel {
   const base = variantBase(levels[0]) ?? chosen.id;
-  const names = new Set(levels.map((m) => m.name.replace(/\s*\([^()]*\)\s*$/, "")));
+  const stripLevel = (raw: string) =>
+    raw
+      .replace(/\s*\([^()]*\)\s*$/, "")
+      .replace(/\s*[·•-]\s*(?:low|medium|high|xhigh|max|very\s+high|extra\s+high)\s*$/i, "")
+      .trim();
+  const names = new Set(levels.map((m) => stripLevel(m.name)));
   const name = names.size === 1 ? [...names][0] || base : base;
   const sorted = levels.map((m) => ({ effort: m.defaultEffort ?? "", id: m.id })).sort((a, b) => levelRank(a.effort) - levelRank(b.effort));
   return { ...chosen, name, efforts: sorted.map((l) => l.effort), variants: { base, levels: sorted, first: defaultLevel(levels) } };
