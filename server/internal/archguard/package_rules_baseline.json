@@ -4,32 +4,32 @@
   },
   "sizes": {
     "internal/assistant": {
-      "files": 608,
-      "lines": 199707
+      "files": 604,
+      "lines": 197454
     },
     "internal/devices": {
       "files": 67,
-      "lines": 21506
+      "lines": 21171
     },
     "internal/extension": {
       "files": 73,
-      "lines": 18151
+      "lines": 18137
     },
     "internal/extmgr": {
-      "files": 176,
-      "lines": 41982
+      "files": 169,
+      "lines": 39728
     },
     "internal/hub": {
-      "files": 245,
-      "lines": 61993
+      "files": 241,
+      "lines": 61139
     },
     "internal/node": {
-      "files": 611,
-      "lines": 160358
+      "files": 604,
+      "lines": 157656
     },
     "internal/proto": {
       "files": 91,
-      "lines": 10179
+      "lines": 10150
     }
   }
 }
