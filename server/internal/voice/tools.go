@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The function tools the voice model may call (live dialect with tools): the agents on the user's machines, through the hub's API. Their descriptions are prompts (prompts/mcp/voice), and so is what they

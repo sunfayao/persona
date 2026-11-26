@@ -1,8 +1,8 @@
 package filemeta
 
 import (
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // ErrChanged reports a file no longer at the revision a download or transfer pinned.

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/screenlink"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/screenlink"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // linkRig is a node with a stand-in for Screen Sharing and a hub-side stream Mux wired to its own, so a test holds

@@ -3,7 +3,7 @@ package exttest
 import (
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // CheckLooks holds an extension's looks (contributes.looks, docs/extensions/extensions.md "Avatars") to what the hub checks when it

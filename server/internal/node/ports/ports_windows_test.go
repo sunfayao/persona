@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/portprobe"
-	"github.com/nwverse/persona/server/internal/processtable"
+	"github.com/sunfayao/persona/server/internal/portprobe"
+	"github.com/sunfayao/persona/server/internal/processtable"
 )
 
 // TestPortsHelper is the child TestScanListenersFindsAChildsServer starts: it serves a page on loopback, prints its

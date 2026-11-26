@@ -3,8 +3,8 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // stopProgressCard accepts the existing button payload only while the callback's

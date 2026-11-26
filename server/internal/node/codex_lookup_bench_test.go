@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // BenchmarkOldCodexTranscriptHit measures repeated successful opaque-id lookups over the same old rollouts. The cached
@@ -14,7 +15,7 @@ import (
 func BenchmarkOldCodexTranscriptHit(b *testing.B) {
 	n, _ := testNode(b)
 	n.codices = newCodexRegistry()
-	codex := canonicalCodexHome(n.codexHome(), n.home)
+	home := codex.CanonicalHome(n.codexHome(), n.home)
 	now := time.Now()
 	for i := range 5000 {
 		day := now.AddDate(0, 0, -(20 + i%300))
@@ -22,10 +23,10 @@ func BenchmarkOldCodexTranscriptHit(b *testing.B) {
 		if i == 0 {
 			raw = remoteRaw
 		}
-		writeRollout(b, filepath.Dir(codex), raw, "/w", day, day)
+		writeRollout(b, filepath.Dir(home), raw, "/w", day, day)
 	}
-	n.configureCodex(proto.CodexConfig{Homes: []string{codex}, LegacyHome: filepath.Join(n.home, "legacy-codex")})
-	id := codexSourceID(codex, remoteRaw, n.codexInventory().LegacyHome)
+	n.configureCodex(proto.CodexConfig{Homes: []string{home}, LegacyHome: filepath.Join(n.home, "legacy-codex")})
+	id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 	if got := n.oldCodexTranscript(id); got == "" {
 		b.Fatal("the benchmark transcript is missing")
 	}
@@ -43,14 +44,14 @@ func BenchmarkOldCodexTranscriptHit(b *testing.B) {
 func BenchmarkOldCodexTranscriptMissing(b *testing.B) {
 	n, _ := testNode(b)
 	n.codices = newCodexRegistry()
-	codex := n.codexHome()
+	home := n.codexHome()
 	now := time.Now()
 	for i := range 5000 {
 		day := now.AddDate(0, 0, -(20 + i%300))
-		writeRollout(b, filepath.Dir(codex), fmt.Sprintf("%08x-0000-4000-8000-%012x", i, i), "/w", day, day)
+		writeRollout(b, filepath.Dir(home), fmt.Sprintf("%08x-0000-4000-8000-%012x", i, i), "/w", day, day)
 	}
-	n.configureCodex(proto.CodexConfig{Homes: []string{codex}, LegacyHome: filepath.Join(n.home, "legacy-codex")})
-	missing := codexSourceID(codex, "aaaaaaaa-0000-4000-8000-000000000000", n.codexInventory().LegacyHome)
+	n.configureCodex(proto.CodexConfig{Homes: []string{home}, LegacyHome: filepath.Join(n.home, "legacy-codex")})
+	missing := codex.SourceID(home, "aaaaaaaa-0000-4000-8000-000000000000", n.codexInventory().LegacyHome)
 	if got := n.oldCodexTranscript(missing); got != "" {
 		b.Fatalf("unexpected transcript %q", got)
 	}

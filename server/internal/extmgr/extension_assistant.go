@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The assistant extension point: a plugin's skills go to the machine that runs the
@@ -178,33 +178,6 @@ func (ps *extensions) assistantGates(ctx context.Context, userRules func(connect
 				g.Env = ps.assistantCredentials(ctx, p.Record.ID, a.ID, gf.Env)
 			}
 			out = append(out, g)
-		}
-	}
-	return out
-}
-
-// gateCommands are the commands of the enabled extensions' command gates that are for connector id (their gate files'
-// connector field), as assistantGates hands them over.
-func (ps *extensions) gateCommands(connectorID string) []string {
-	var out []string
-	if ps == nil {
-		return out
-	}
-	for _, p := range ps.reg.List() {
-		if !p.Record.Enabled || p.Problem != "" || p.Dir == "" {
-			continue
-		}
-		for _, a := range p.Manifest.Assistants() {
-			if a.Gate == "" {
-				continue
-			}
-			raw, err := os.ReadFile(filepath.Join(p.Dir, filepath.FromSlash(a.Gate)))
-			if err != nil {
-				continue
-			}
-			if gf, err := extension.ParseGate(raw); err == nil && gf.Connector == connectorID {
-				out = append(out, gf.Command)
-			}
 		}
 	}
 	return out

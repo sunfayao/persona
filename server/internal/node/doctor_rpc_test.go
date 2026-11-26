@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // callDoctor runs node.doctor / node.doctor.fix through handle, as the hub's call would, and decodes the report.

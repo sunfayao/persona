@@ -3,8 +3,8 @@ package apierr
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // StartInstead is in plain words in l what a new Agent's start runs instead of what was asked (#8140): where its host

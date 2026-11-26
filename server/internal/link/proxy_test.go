@@ -27,7 +27,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // proxyEnv is every variable proxied reads; TestMain clears them for the package, tests set what they need.

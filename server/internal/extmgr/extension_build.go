@@ -21,11 +21,11 @@ import (
 	"strings"
 	"time"
 
-	sdk "github.com/nwverse/persona/sdk/go"
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/conformance"
-	"github.com/nwverse/persona/server/internal/i18n"
+	sdk "github.com/sunfayao/persona/sdk/go"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/conformance"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Writing an extension: `personad extension new |

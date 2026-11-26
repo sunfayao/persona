@@ -16,12 +16,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // What a to-do's write that failed did with the owner's words (todo_write_outcome.go, #10465): the shared cases of
@@ -108,22 +108,6 @@ func writeScene(t *testing.T, route, what string, answer json.RawMessage) *httpt
 	if route == "message" { // its Agent works on it
 		f.setSessions(a.MachineID, proto.Session{SessionID: a.SessionID, MachineID: a.MachineID, Cwd: a.Cwd, Agent: "claude",
 			Status: proto.StatusWorking, State: proto.StateWorking, UpdatedAt: time.Now()})
-	}
-	if route == "answer" {
-		waitsForReview(t, s, f, todo.ID, "Three ryokan fit the dates.")
-		if _, err := reviewErr(s, todo.ID, ryokanDecision()); err != nil {
-			t.Fatal(err)
-		}
-		round := viewRound(t, s, todo.ID, askDecisionPrefix)
-		if what == "round_over" {
-			at, _ := time.Parse(timeKeyLayout, round)
-			round = at.Add(-time.Hour).Format(timeKeyLayout) // an earlier round's, from a screen that is behind
-		}
-		id := todo.ID
-		if what == "no_such_todo" {
-			id = "todo_gone"
-		}
-		path, body = "/api/v1/todos/"+id+"/asks/"+askDecisionPrefix+round+"/answer", string(answer)
 	}
 	stopped := func() { // the task's Agent stops: the node lists it read-only
 		f.setSessions(a.MachineID, proto.Session{SessionID: a.SessionID, MachineID: a.MachineID, Cwd: a.Cwd, Agent: "claude",
@@ -328,7 +312,7 @@ func TestConversationRouteAnswerInDoubtSaysAnAnswer(t *testing.T) {
 	if _, err := reviewErr(s, todo.ID, ryokanDecision()); err != nil {
 		t.Fatal(err)
 	}
-	round := viewRound(t, s, todo.ID, askDecisionPrefix)
+	round := viewRound(t, s, todo.ID, "todo:decision@")
 	st.failDecision.Store(true)
 	rec := httptest.NewRecorder()
 	s.ServeHTTP(rec, httptest.NewRequest("POST", "/api/v1/assistant/conversations/conv1/route",

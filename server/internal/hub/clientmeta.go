@@ -2,13 +2,14 @@ package hub
 
 import (
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
 	"math/rand/v2"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/compat"
+
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
-// clientMeta is what a client says about itself in client_hello. A zero value is a legacy iOS client.
+// clientMeta is what a client says about itself in client_hello.
 // All access is protected by client.mu; identity here never replaces the authenticated device or role.
 type clientMeta struct {
 	DeviceID string          `json:"device_id"`
@@ -66,7 +67,6 @@ func (h *Hub) onClientHello(c *client, data []byte) {
 		return
 	}
 	wasElicitation := c.has("elicitation")
-	wasDesktopsLink := c.wants(featureDesktopsLink)
 	wasLang := c.lang()
 	c.mu.Lock()
 	hb := c.meta.heartbeat
@@ -109,10 +109,6 @@ func (h *Hub) onClientHello(c *client, data []byte) {
 	}
 	if !wasElicitation && c.has("elicitation") {
 		defer h.sendPendingInteractions(c, true)
-	}
-	if wasDesktopsLink != c.wants(featureDesktopsLink) {
-		// The list it has left the Persona Link desktops out, or holds ones it will not hear end.
-		defer h.sendDesktops(c)
 	}
 	if updates == nil {
 		c.helloAck(hb)

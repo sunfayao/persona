@@ -24,7 +24,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/netaddr"
 )
 
 // The tests here play the hub as docs/server/mesh.md section 4 has it: pin the connector's key from the pairing link,

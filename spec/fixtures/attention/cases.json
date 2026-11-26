@@ -298,7 +298,7 @@
     },
     {
       "name": "codex_subagent_counts",
-      "description": "A Codex sub-agent waiting for the user is its own row in the web app and counts there, so it is listed (the Live Activity leaves it out).",
+      "description": "A Codex sub-agent waiting for the user is its own row in the web app and counts there, so it is listed.",
       "source": [
         "web/src/lib/sessions.ts stateCounts (badge)",
         "web/src/lib/attention.ts lookingOnly",

@@ -7,15 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // A Persona start records its launcher. A plain native conversation can use the native catalog, but for an unrecorded
 // custom provider the database names the model's adapter, not the launcher that configured it.
-func (n *Node) traexModelLauncher(id string, thread codexAppThread) string {
+func (n *Node) traexModelLauncher(id string, thread codex.AppThread) string {
 	if st, ok := n.state.get(id); ok && st.Launcher != "" {
 		return st.Launcher
 	}

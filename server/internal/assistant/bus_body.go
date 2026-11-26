@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 // bodyStreamDial bounds dialing the relay a streamed request's body comes on (http.request_streamed, #6574).

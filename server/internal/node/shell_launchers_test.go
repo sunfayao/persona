@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // shellLaunchers sets the login shell's launcher list the node has from a minute ago.

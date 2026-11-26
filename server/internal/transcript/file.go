@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // File incrementally parses a transcript file. Safe for concurrent use.

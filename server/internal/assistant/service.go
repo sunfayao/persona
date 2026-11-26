@@ -13,17 +13,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/agents"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/assistant/saved"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/remoteimage"
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/assistant/agents"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // Options are what a Service runs with.
@@ -272,7 +272,6 @@ type Service struct {
 	tview            todoViewBook      // todo_view_push.go: what the apps were told each to-do is filed under
 	standing         standingBoard     // feishu_board.go: the standing "waiting for you" card
 	workbench        workbenchState    // feishu_workbench_pin.go: the pinned workbench
-	companions       companionState    // feishu_companions.go: the notices for a companion bot
 	inbox            inboxBook         // inbox_book.go
 	workspaces       workspaceBook     // workspaces.go: workspace discovery
 	viewEvents       viewNotifications // views.go: only coalesced notifications; contents are stored first
@@ -350,16 +349,9 @@ func New(o Options) *Service {
 	s.modelPickRoutes()
 	s.agentArchiveRoutes()
 	s.alwaysRoutes()
-	s.captureRoutes() // captures.go: quick capture
 	s.undeliveredRoutes()
 	s.ruleSuggestionRoutes()
-	s.reporterRoutes()
-	s.dispatchPolicyRoutes() // dispatch_policy_routes.go
-	s.dispatchGuardRoutes()  // dispatch_guard.go
-	s.startPresetRoutes()
-	s.startDefaultsRoutes() // start_defaults_routes.go
 	s.profileRoutes()
-	s.entriesRoutes()
 	s.readinessRoutes()
 	s.startRoutes()
 	s.skillRoutes()
@@ -380,7 +372,6 @@ func New(o Options) *Service {
 	s.workspaceRoutes()
 	s.navigationRoutes() // navigation.go: the page the apps open on
 	s.channelRoutes()
-	s.companionRoutes()
 	s.inboxRoutes()
 	s.modelConfigRoutes()
 	s.launcherRoutes()

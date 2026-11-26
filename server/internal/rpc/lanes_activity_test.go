@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netshape"
+	"github.com/sunfayao/persona/server/internal/netshape"
 )
 
 // A framed connection gives the heartbeat (devices.pingAnswered) the signals a connection of lines gives for the same

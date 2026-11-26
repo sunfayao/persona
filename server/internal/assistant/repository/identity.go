@@ -2,7 +2,7 @@
 // identity and task binding contract remains available through type aliases.
 package repository
 
-import "github.com/nwverse/persona/server/internal/repositorywire"
+import "github.com/sunfayao/persona/server/internal/repositorywire"
 
 type Identity = repositorywire.Identity
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 func TestChannelUnboundWhileMessageIsBeingForwarded(t *testing.T) {

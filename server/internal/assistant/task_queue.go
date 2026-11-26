@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The admission queue. A start the admission gate refuses because the machine is briefly full (a stale 30-second

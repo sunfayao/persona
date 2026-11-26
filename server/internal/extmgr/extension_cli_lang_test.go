@@ -14,8 +14,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // terminalLocale sets the environment i18n.Terminal reads to exactly env (the rest unset), whatever the machine
@@ -62,7 +62,7 @@ func TestExtensionCommandSpeaksTheTerminalLanguage(t *testing.T) {
 			_, _ = w.Write([]byte(`{"extensions":[]}`))
 		case "/api/v1/extensions/-/markets":
 			_ = json.NewEncoder(w).Encode(map[string]any{"markets": []MarketView{{ID: "m1", Name: "Example", Extensions: 1,
-				Spec: "github:example/plugins", Official: true, Signature: MarketSignatureView{State: extension.SigSigned, KeyID: "k1"}}}})
+				Spec: "github:example/plugins", Signature: MarketSignatureView{State: extension.SigSigned, KeyID: "k1"}}}})
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"error":"not here"}`))
@@ -76,10 +76,10 @@ func TestExtensionCommandSpeaksTheTerminalLanguage(t *testing.T) {
 		accept string
 		want   []string
 	}{
-		{"no locale", nil, "en", []string{"No extensions", "1 extension ", "signed k1", "official"}},
+		{"no locale", nil, "en", []string{"No extensions", "1 extension ", "signed k1"}},
 		{"C", map[string]string{"LANG": "C.UTF-8"}, "en", []string{"No extensions", "1 extension ", "signed k1"}},
-		{"Japanese", map[string]string{"LANG": "ja_JP.UTF-8"}, "ja", []string{"拡張機能はありません", "拡張機能1件", "署名済み：k1", "公式"}},
-		{"Chinese", map[string]string{"LC_ALL": "zh_CN.UTF-8", "LANG": "en_US.UTF-8"}, "zh-Hans", []string{"没有扩展", "1 个扩展", "已签名 k1", "官方"}},
+		{"Japanese", map[string]string{"LANG": "ja_JP.UTF-8"}, "ja", []string{"拡張機能はありません", "拡張機能1件", "署名済み：k1"}},
+		{"Chinese", map[string]string{"LC_ALL": "zh_CN.UTF-8", "LANG": "en_US.UTF-8"}, "zh-Hans", []string{"没有扩展", "1 个扩展", "已签名 k1"}},
 		{"PERSONA_LANG", map[string]string{"PERSONA_LANG": "en", "LANG": "zh_CN.UTF-8"}, "en", []string{"No extensions"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

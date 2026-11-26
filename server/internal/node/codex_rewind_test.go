@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 func rewindTurn(id string, texts ...string) codexRewindTurn {
@@ -40,7 +41,7 @@ func TestCodexHistoryLineageExcludesAbandonedDatabaseRows(t *testing.T) {
 		{thread: segmentID, id: "c", ordinal: 16, status: "completed", items: [][2]string{userItem("c", "replacement")}},
 	})
 	p := filepath.Join(home, "canonical.jsonl")
-	tt := codexAppThread{ID: remoteRaw, Cwd: home, RolloutPath: segment, Paginated: true}
+	tt := codex.AppThread{ID: remoteRaw, Cwd: home, RolloutPath: segment, Paginated: true}
 	if _, err := writeCodexAppHistory(context.Background(), filepath.Join(home, "thread_history_1.sqlite"), tt, p, codexHistoryMark{Turn: -1}, false); err != nil {
 		t.Fatal(err)
 	}

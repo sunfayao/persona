@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // The device's program: a computer that is a device runs persona-node as its

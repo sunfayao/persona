@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakeLinuxTools puts fake wl-paste / wl-copy / xclip in a directory: types and content are files (the clipboard),

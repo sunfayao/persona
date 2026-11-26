@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A hint names the sessions that changed, to the apps that ask for it (#6685).

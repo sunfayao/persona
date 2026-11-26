@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // wakeSlotsBypassTestFillCapacity occupies the only programmatic wake slot with another conversation.

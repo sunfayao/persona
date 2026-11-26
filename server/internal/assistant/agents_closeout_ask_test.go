@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/closeout"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The status question (agents_closeout_ask.go): one message to an agent nobody supervises whose turn did work and
@@ -343,10 +342,12 @@ func TestCloseoutAskSurvivesARestart(t *testing.T) {
 	if got := f.sentToAgents(); len(got) != 1 {
 		t.Fatalf("the answering turn was asked: %v", got)
 	}
-	s.waitWorkEvents()
-	w := serve(s, "GET", "/api/v1/agents/work/stats?hours=1", "")
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"closeout_ask_sent":1`) || !strings.Contains(w.Body.String(), `"closeout_ask_answered":1`) {
-		t.Fatalf("stats %d %s", w.Code, w.Body)
+	counts := map[string]int{}
+	for _, event := range recentStoredWorkEvents(t, s) {
+		counts[event.Kind]++
+	}
+	if counts[closeoutAskSentEvent] != 1 || counts[closeoutAskAnsweredEvent] != 1 {
+		t.Fatalf("closeout events: %v", counts)
 	}
 }
 
@@ -367,19 +368,6 @@ func TestCloseoutAskSwitchSurvivesOlderApps(t *testing.T) {
 	}
 	if (TriageSwitches{CloseoutAsk: true}).wakes(proto.WorkState{CloseoutAsk: closeoutAskPending}) {
 		t.Fatal("asked without the main switch")
-	}
-}
-
-// The stats count the status questions and what followed, and the stops held for a closeout.
-func TestSummarizeCloseoutAsks(t *testing.T) {
-	ev := func(kind string) db.WorkEvent {
-		return db.WorkEvent{At: turnEnd, MachineID: "box", SessionID: "s1", Kind: kind}
-	}
-	s := summarizeWork(24, []db.WorkEvent{ev("closeout_asked"), ev("closeout_asked"), ev(closeoutAskSentEvent), ev(closeoutAskSentEvent),
-		ev(closeoutAskSentEvent), ev(closeoutAskAnsweredEvent), ev(closeoutAskIgnoredEvent)})
-	if s.Actions["closeout_asked"] != 2 || s.Actions["closeout_ask_sent"] != 3 || s.Actions["closeout_ask_answered"] != 1 ||
-		s.Actions["closeout_ask_ignored"] != 1 {
-		t.Fatalf("actions %v", s.Actions)
 	}
 }
 

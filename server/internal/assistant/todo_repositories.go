@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repositorystore"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 type todoRepositoryStore interface {
@@ -223,18 +223,6 @@ func (s *Service) todoRepositoryRoutes() {
 			return
 		}
 		set, err := s.setTodoRepositories(r.Context(), r.PathValue("id"), in)
-		if err != nil {
-			taskRepositoriesError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, set)
-	})
-	s.handle("PUT /api/v1/todos/{id}/repositories/{repo_id}/links", func(w http.ResponseWriter, r *http.Request) {
-		var in repository.LinksInput
-		if !taskRepositoryBody(w, r, &in) {
-			return
-		}
-		set, err := s.setTodoRepositoryLinks(r.Context(), r.PathValue("id"), r.PathValue("repo_id"), in)
 		if err != nil {
 			taskRepositoriesError(w, err)
 			return

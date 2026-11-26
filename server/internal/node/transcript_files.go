@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // noTranscript is file's error for a session id this machine has no transcript for: an unknown id (a stale link, a
@@ -283,7 +282,7 @@ func (n *Node) findOwnTranscriptPath(id string, pass *codexListPass) string {
 	if known && !slices.Contains(matches, p) {
 		matches = append(matches, p)
 	}
-	matches = newestFirst(matches)
+	matches = filemeta.NewestFirst(matches)
 	if len(matches) == 0 {
 		if p := n.codexPath(id); p != "" {
 			matches = []string{p}
@@ -327,21 +326,6 @@ func (n *Node) setPath(id, p string) {
 		n.pathsAt = map[string]time.Time{}
 	}
 	n.pathsAt[id] = time.Now()
-}
-
-// newestFirst orders the copies of a transcript by modification time, newest first.
-func newestFirst(paths []string) []string {
-	if len(paths) < 2 {
-		return paths
-	}
-	mod := map[string]time.Time{}
-	for _, p := range paths {
-		if st, err := os.Stat(p); err == nil {
-			mod[p] = st.ModTime()
-		}
-	}
-	sort.SliceStable(paths, func(i, j int) bool { return mod[paths[i]].After(mod[paths[j]]) })
-	return paths
 }
 
 func validID(id string) bool { return nodeclient.ValidSessionID(id) }

@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/clitext"
 )
 
 // silentHub is a loopback listener that takes connections and never answers (a stuck hub, or another program on

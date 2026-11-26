@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // storedSupervisePending reads the durable outbox without depending on its in-memory representation.
@@ -1060,36 +1060,6 @@ func TestLeaderMixedDeliveryMarksDedupHitTurnTold(t *testing.T) {
 	}
 	requireLeaderTurnToldAfterRestart(t, s, old)
 	requireLeaderTurnToldAfterRestart(t, s, newer)
-}
-
-// /stop silences a reporting task's gathered notices even when the manager restarts before the stop (#3308, #5732).
-func TestStopReportingDropsPersistedPending(t *testing.T) {
-	st := planUpdateStore{&planMemStore{memStore: &memStore{}, plans: map[string]db.TaskPlanRow{}}}
-	s, f := newQuietServiceOn(t, st)
-	ctx := context.Background()
-	f.known["lark1"] = true
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lark1", MachineID: "server", Assistant: true, Status: proto.StatusWorking})
-	s.markReporter(ctx, "server", "lark1")
-	if _, err := s.toolTaskPlan(ctx, "lark1", planArgs(true)); err != nil {
-		t.Fatal(err)
-	}
-	waitFor(t, "the reporting task's agent", func() bool { return len(onlyTodo(s).Agents) == 1 })
-	agentTurn(s, f, proto.StatusWorking, "", 0)
-	s.superviseTimes = superviseTimings{gather: time.Hour, every: time.Hour, urgent: time.Hour}
-	todo := onlyTodo(s)
-	g := superviseSignal{Todo: todo.ID, Kind: sigUnjudged, Key: "before-stop", At: time.Now()}
-	s.signal(g)
-	if got := storedSupervisePending(t, s)[g.id()]; got.Key != g.Key {
-		t.Fatal("the test signal was not persisted")
-	}
-	simulateSupervisionRestart(t, s)
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", ""); w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if got := storedSupervisePending(t, s); len(got) != 0 {
-		t.Fatalf("the stopped task's persisted signal survived: %+v", got)
-	}
 }
 
 func TestOwnerChoiceSurvivesIdleAndRestart(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestDoctorCommandErrorsSpeakTerminalLanguage(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // The test binary stands in for the hub and the manager (`hub run` and persona-hub's `run`, `assistant`) when

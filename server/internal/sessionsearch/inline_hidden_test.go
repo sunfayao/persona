@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 func TestDocumentIndexesVisibleTextIndependently(t *testing.T) {

@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/herdrcore"
-	"github.com/nwverse/persona/server/internal/processtable"
+	"github.com/sunfayao/persona/server/internal/herdrcore"
+	"github.com/sunfayao/persona/server/internal/processtable"
 )
 
 // agentForegrounds puts the agent in front where herdr-core names a program above it. herdr-core on Windows reports

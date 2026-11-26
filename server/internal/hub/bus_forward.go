@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/memtrim"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/memtrim"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The apps' requests on the assistant's routes (assistantwire.Routes, assistant_link.go) are its to answer: the hub
@@ -259,30 +259,6 @@ func (h *Hub) busBroadcast(c *busConn, params json.RawMessage) {
 	}
 	if err != nil {
 		h.logf("bus: [%s] ws.broadcast: %v", c.ident.ID, err)
-	}
-}
-
-// An install's steps (docs/protocol/protocol.md "Extension install, upgrade and uninstall progress") go only to the apps that declared they know them,
-// and not into the event log: a download pushes once a second, and an app that comes back lists them again.
-const (
-	extensionOperationEvent    = "extension_operation"
-	extensionOperationsFeature = "extension_operations"
-)
-
-// toWanting sends b to the apps that asked for feature (?features= or client_hello), outside the event log. An
-// extension operation is localized once per language, not once per app.
-func (h *Hub) toWanting(feature string, b []byte) {
-	forms := map[i18n.Lang][]byte{}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for c := range h.clients {
-		if c.wants(feature) {
-			if feature == extensionOperationsFeature {
-				c.queue(localizedOnce(forms, c.lang(), b, i18n.ExtensionEvent))
-			} else {
-				c.queue(b)
-			}
-		}
 	}
 }
 

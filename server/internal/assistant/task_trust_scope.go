@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What a remembered kind of task (tasks.trust, trustKey: machine|directory|read or edit) covers (#8095): the directory

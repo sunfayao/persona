@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // forgetTodoOwner drops a to-do's cached owner (the hub itself keeps them; the test checks the cache it reads).
@@ -447,52 +447,6 @@ func TestACardIsNotReplacedByAnotherManager(t *testing.T) {
 	guardPost(t, h, srv, "/api/v1/interactions/ix/resolve", `{"allow":true}`)
 	if !strings.Contains(a.log(), "/api/v1/interactions/ix/resolve") || strings.Contains(b.log(), "/api/v1/interactions/ix/resolve") {
 		t.Fatalf("resolve went to the wrong manager\nA:\n%s\nB:\n%s", a.log(), b.log())
-	}
-}
-
-// A source move whose release failed, done again, releases it at the old manager.
-func TestASourceMoveDoneAgainReleasesIt(t *testing.T) {
-	h, srv, _ := newBusHub(t)
-	var mu sync.Mutex
-	releases, bHas := 0, false
-	connectGuardManager(t, h, srv.URL, assistantwire.AssistantID, func(method string, _ json.RawMessage) (any, error) {
-		switch method {
-		case extwire.MethodSourceExport:
-			return map[string]any{"source": "mail:x", "kind": "mail", "data": map[string]any{"password": "pw"}}, nil
-		case extwire.MethodSourceRelease:
-			mu.Lock()
-			defer mu.Unlock()
-			releases++
-			if releases == 1 {
-				return nil, &rpc.Error{Code: "boom", Message: "disk full"}
-			}
-		}
-		return map[string]any{}, nil
-	})
-	connectGuardManager(t, h, srv.URL, "m-0b0b0b", func(method string, _ json.RawMessage) (any, error) {
-		mu.Lock()
-		defer mu.Unlock()
-		switch method {
-		case extwire.MethodSourceImport:
-			if bHas {
-				return nil, &rpc.Error{Code: extwire.CodeSourceExists, Message: "has it"}
-			}
-			bHas = true
-			return map[string]any{"source": "mail:x"}, nil
-		case extwire.MethodSourceExport: // the hub asking whether it has it
-			if !bHas {
-				return nil, &rpc.Error{Code: extwire.CodeNoSource, Message: "no"}
-			}
-			return map[string]any{"source": "mail:x", "kind": "mail", "data": map[string]any{}}, nil
-		}
-		return map[string]any{}, nil
-	})
-	c1, o1 := guardPost(t, h, srv, "/api/v1/managers/m-0b0b0b/sources", `{"source":"mail:x"}`)
-	c2, o2 := guardPost(t, h, srv, "/api/v1/managers/m-0b0b0b/sources", `{"source":"mail:x"}`)
-	mu.Lock()
-	defer mu.Unlock()
-	if c1 != http.StatusBadGateway || o1["code"] != "source_not_released" || c2 != http.StatusOK || releases != 2 {
-		t.Fatalf("first %d %v, again %d %v, releases %d", c1, o1, c2, o2, releases)
 	}
 }
 

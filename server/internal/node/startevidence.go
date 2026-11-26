@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // A start in an Orca tab does not take Orca's word that claude runs there (#10588). Orca names a pane's agent from a

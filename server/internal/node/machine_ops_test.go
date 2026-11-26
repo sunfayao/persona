@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestMachineOpsSurfaceIsStrictlyReadOnly(t *testing.T) {

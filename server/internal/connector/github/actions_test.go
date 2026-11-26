@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 func fakeWrites(t *testing.T) (*Connector, *[]string) {

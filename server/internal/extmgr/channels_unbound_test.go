@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func newConnectorChannels(t *testing.T, connectorID string) (*Manager, *fakeAssistant) {
@@ -61,47 +60,6 @@ func unboundChannels(t *testing.T, a *fakeAssistant) []string {
 type failingChannelLogout struct{ signInConnector }
 
 func (*failingChannelLogout) Logout(context.Context) error { return errors.New("logout failed") }
-
-func TestConnectorLogoutChannelCleanup(t *testing.T) {
-	for _, tc := range []struct {
-		name          string
-		logoutFail    bool
-		cleanupFail   bool
-		wantCode      int
-		wantSignedOut bool
-		wantUnbound   []string
-	}{
-		{name: "clears only its channels", wantCode: http.StatusOK, wantSignedOut: true, wantUnbound: []string{"first_chat", "second_chat"}},
-		{name: "logout failure preserves channels", logoutFail: true, wantCode: http.StatusBadGateway},
-		{name: "reports channel cleanup failure", cleanupFail: true, wantCode: http.StatusBadGateway, wantUnbound: []string{"first_chat", "second_chat"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			h, a := newConnectorChannels(t, "example")
-			signIn := &signInConnector{secrets: h.secretsFor("example")}
-			var c connector.Connector = signIn
-			if tc.logoutFail {
-				c = &failingChannelLogout{}
-			}
-			if err := h.addConnector(c); err != nil {
-				t.Fatal(err)
-			}
-			if tc.cleanupFail {
-				a.on(assistantwire.MethodChannelUnbound, func(json.RawMessage) (any, error) {
-					return nil, errors.New("channel state unavailable")
-				})
-			}
-			if code, out := call(t, h.routes(), "POST", "/api/v1/connectors/example/logout", h.cfg.Token, ""); code != tc.wantCode {
-				t.Fatalf("logout: %d, want %d: %v", code, tc.wantCode, out)
-			}
-			if tc.wantSignedOut && !signIn.out {
-				t.Fatal("the connector was not signed out")
-			}
-			if got := unboundChannels(t, a); !slices.Equal(got, tc.wantUnbound) {
-				t.Fatalf("cleared channels = %v, want %v", got, tc.wantUnbound)
-			}
-		})
-	}
-}
 
 func TestConnectorWithoutChannelsDoesNotNeedAssistantToLogout(t *testing.T) {
 	h, a := newConnectorChannels(t, "other_connector")

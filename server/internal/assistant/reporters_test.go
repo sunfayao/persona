@@ -3,12 +3,10 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"slices"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // reportingWithTask is a reporting conversation lark1 (working) whose task's agent s1 on box is working.
@@ -58,160 +56,6 @@ func (f *fakeHub) sentTo(id string) int {
 	return n
 }
 
-// /stop from Feishu (#3308): the conversation's turn and its task's working agent are interrupted, the result names
-// the task, and the task's notices no longer go to the conversation (nor to the main one).
-func TestStopReportingStopsItsTasks(t *testing.T) {
-	s, f := reportingWithTask(t)
-	w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", "")
-	if w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	var res stopResult
-	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
-		t.Fatal(err)
-	}
-	if !res.Conversation || res.Already || len(res.Tasks) != 1 || res.Tasks[0].Title != "修登录崩溃" || res.Tasks[0].Agents != 1 {
-		t.Fatalf("result = %+v", res)
-	}
-	if got := strings.Join(f.interrupted(), " "); got != "server/lark1 box/s1" {
-		t.Fatalf("interrupted %q", got)
-	}
-	agentTurn(s, f, proto.StatusDone, "停在一半", 0)
-	// Force the delayed quiet-notice path: after /stop it has no pending notice to send.
-	s.sendQuietNotice(onlyTodo(s).ID)
-	if n := f.sentTo("lark1"); n != 0 {
-		t.Fatalf("the stopped conversation got %d notice(s)", n)
-	}
-	if got := f.notices(); len(got) != 0 {
-		t.Fatalf("the main conversation was told instead: %q", got)
-	}
-
-	w = serve(s, "GET", "/api/v1/assistant/reporters", "")
-	var list struct {
-		Reporters []struct {
-			SessionID string     `json:"session_id"`
-			MachineID string     `json:"machine_id"`
-			StoppedAt *time.Time `json:"stopped_at"`
-			StoppedBy string     `json:"stopped_by"`
-		} `json:"reporters"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil || len(list.Reporters) != 1 {
-		t.Fatalf("reporters: %v %s", err, w.Body)
-	}
-	if r := list.Reporters[0]; r.SessionID != "lark1" || r.MachineID != "server" || r.StoppedAt == nil || r.StoppedBy != "lark" {
-		t.Fatalf("reporter = %+v", r)
-	}
-
-	// Nothing is going on any more: stopping again says so and interrupts nothing.
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lark1", MachineID: "server", Assistant: true, Status: proto.StatusIdle})
-	before := len(f.interrupted())
-	w = serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", "")
-	res = stopResult{}
-	_ = json.Unmarshal(w.Body.Bytes(), &res)
-	if w.Code != 200 || !res.Already || res.Conversation || len(res.Tasks) != 0 || len(f.interrupted()) != before {
-		t.Fatalf("second stop: %d %s", w.Code, w.Body)
-	}
-
-	// The user talks in it again (a new /agent in the thread goes on in it): its tasks are told to it again.
-	s.UserSpoke(context.Background(), SessionRef{MachineID: "server", SessionID: "lark1"})
-	if s.reporterStopped(context.Background(), "lark1") {
-		t.Fatal("still stopped after the user spoke")
-	}
-}
-
-// A reporting conversation whose turn ended while a background command still runs is interrupted by a stop: for an
-// assistant conversation that ends its process with the command, which would otherwise wake it later (#8960).
-func TestStopReportingStopsItsBackgroundWork(t *testing.T) {
-	s, f := reportingWithTask(t)
-	bg := []proto.BackgroundTask{{ID: "b1", Kind: "shell", Command: "sleep 90", StartedAt: time.Now()}}
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lark1", MachineID: "server", Assistant: true, Status: proto.StatusIdle, Background: bg})
-	w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", "")
-	var res stopResult
-	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil || w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if !res.Conversation || res.Already || !slices.Contains(f.interrupted(), "server/lark1") {
-		t.Fatalf("result = %+v, interrupted %q", res, f.interrupted())
-	}
-
-	// A TUI agent's interrupt is Escape in its terminal and stops no background command: an idle one is not sent it (#3793).
-	f.setSessions("server", proto.Session{SessionID: "conv1", MachineID: "server", Assistant: true, Status: proto.StatusIdle},
-		proto.Session{SessionID: "lark1", MachineID: "server", Status: proto.StatusIdle, Background: bg})
-	before := len(f.interrupted())
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", ""); w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if got := f.interrupted()[before:]; slices.Contains(got, "server/lark1") {
-		t.Fatalf("an idle TUI agent was interrupted: %q", got)
-	}
-}
-
-// Notices already queued behind the conversation's turn go when it is stopped.
-func TestStopReportingDropsQueuedNotices(t *testing.T) {
-	s, f := reportingWithTask(t)
-	agentTurn(s, f, proto.StatusDone, "MR 提好了", 0)
-	waitFor(t, "the queued notice", func() bool {
-		q, _ := s.queuedRelays()
-		return len(q["lark1"]) == 1
-	})
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", ""); w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if q, _ := s.queuedRelays(); len(q["lark1"]) != 0 {
-		t.Fatalf("still queued: %q", q["lark1"])
-	}
-}
-
-// A supervision signal already gathered when /stop arrives is dropped with the reporting conversation's notices;
-// it must not surface in main after the digest timer fires (#3308, #5732).
-func TestStopReportingDropsPendingSupervision(t *testing.T) {
-	s, f := reportingWithTask(t)
-	todo := onlyTodo(s)
-	s.signal(superviseSignal{Todo: todo.ID, Kind: sigUnjudged, Key: "before-stop", Detail: "ready"})
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", ""); w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	waitFor(t, "the digest timer after stop", func() bool {
-		s.supervise.mu.Lock()
-		defer s.supervise.mu.Unlock()
-		return s.supervise.timer == nil
-	})
-	// The timer clears its handle before checking the now-empty pending list. Wait for that callback to finish too.
-	s.supervise.dedupMu.Lock()
-	s.supervise.dedupMu.Unlock()
-	if got := f.notices(); len(got) != 0 {
-		t.Fatalf("pending supervision reached main after stop: %q", got)
-	}
-	s.supervise.mu.Lock()
-	_, pending := s.supervise.pending[todo.ID+"|"+sigUnjudged]
-	s.supervise.mu.Unlock()
-	if pending {
-		t.Fatal("the stopped task's signal is still pending")
-	}
-}
-
-// The relay queue survives a manager restart even though supervise.queued does not. /stop must still remove the old
-// persisted supervision message for the stopped reporter's task (#5732).
-func TestStopReportingDropsSupervisionQueuedBeforeRestart(t *testing.T) {
-	s, _ := reportingWithTask(t)
-	todo := onlyTodo(s)
-	if s.queueRelay("conv1", relayMsg{From: superviseTool, Tool: superviseTool, Text: "📋 督办 " + todo.ID, At: time.Now().UTC()}) == 0 {
-		t.Fatal("could not queue the legacy supervision message")
-	}
-	// A restart loses this in-memory index, but not the persisted relay queue above.
-	s.supervise.mu.Lock()
-	s.supervise.queued = nil
-	s.supervise.mu.Unlock()
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/lark1/stop", ""); w.Code != 200 {
-		t.Fatalf("%d %s", w.Code, w.Body)
-	}
-	if q, _ := s.queuedRelays(); len(q["conv1"]) != 0 {
-		t.Fatalf("the stopped task's pre-restart supervision is still queued: %q", q["conv1"])
-	}
-}
-
 // The stop button in an app (the hub's session.user_stopped): the turn is stopped already, the task's agent is
 // interrupted and the conversation is marked stopped by the app.
 func TestUserStoppedStopsAReportingConversation(t *testing.T) {
@@ -232,13 +76,6 @@ func TestUserStoppedStopsAReportingConversation(t *testing.T) {
 	s.UserStopped(context.Background(), SessionRef{MachineID: "server", SessionID: "conv1"})
 	if got := strings.Join(f.interrupted(), " "); got != "box/s1" {
 		t.Fatalf("interrupted %q", got)
-	}
-}
-
-func TestStopNotAReportingConversation(t *testing.T) {
-	s, _ := newQuietService(t)
-	if w := serve(s, "POST", "/api/v1/assistant/conversations/conv1/stop", ""); w.Code != 404 {
-		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 }
 

@@ -88,7 +88,7 @@ const manifest = (id: string, name: string, subtitle?: string) => ({
 });
 const builtins: LookView[] = [{ id: "persona", source: "builtin", name: "Mochi", app_icon: "persona" }];
 const doudou: LookView = { id: "u-demo0001", source: "hub", name: "Doudou", app_icon: "persona", rev: "r1", manifest: manifest("u-demo0001", "Doudou"), uploaded: true };
-const frog: LookView = { id: "nwverse", source: "hub", name: "Milk Frog", app_icon: "persona", rev: "r2", manifest: { ...manifest("nwverse", "Milk Frog"), source: { kind: "hub" } } };
+const frog: LookView = { id: "example-look", source: "hub", name: "Example Frog", app_icon: "persona", rev: "r2", manifest: { ...manifest("example-look", "Example Frog"), source: { kind: "hub" } } };
 const ext: LookView = { id: "aurora", source: "extension", name: "Aurora", app_icon: "persona", rev: "r3", extension: "x", extension_name: "Example Looks", manifest: { ...manifest("aurora", "Aurora"), source: { kind: "extension" } } };
 const made = (): LookView => ({ id: "u-new00001", source: "hub", name: "Bean", subtitle: "A round one", app_icon: "persona", rev: "r9", manifest: manifest("u-new00001", "Bean", "A round one"), uploaded: true });
 
@@ -188,7 +188,7 @@ describe("uploaded looks in the picker", () => {
     const { t } = await draw();
     expect(byLabel(t("assistant-persona.upload_label"))).toBeNull();
     expect(byLabel(t("assistant-persona.delete_label", { name: "Doudou" }))).toBeNull();
-    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog", "Doudou", "Aurora"]);
+    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog", "Doudou", "Aurora"]);
   });
 
   it("offers Upload as the last card, after every look", async () => {
@@ -205,7 +205,7 @@ describe("uploaded looks in the picker", () => {
     const card = radios().find((r) => r.getAttribute("aria-label") === "Doudou")!;
     expect(card.textContent).toContain(t("assistant-persona.uploaded"));
     expect(byLabel(t("assistant-persona.delete_label", { name: "Doudou" }))).not.toBeNull();
-    expect(byLabel(t("assistant-persona.delete_label", { name: "Milk Frog" }))).toBeNull();
+    expect(byLabel(t("assistant-persona.delete_label", { name: "Example Frog" }))).toBeNull();
     expect(byLabel(t("assistant-persona.delete_label", { name: "Aurora" }))).toBeNull();
   });
 
@@ -219,7 +219,7 @@ describe("uploaded looks in the picker", () => {
     expect(hub.deletes).toEqual([]);
     await act(async () => dialogButton(t("assistant-persona.delete")).click());
     expect(hub.deletes).toEqual(["/looks/uploads/u-demo0001"]);
-    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog", "Aurora"]);
+    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog", "Aurora"]);
     expect(checked()).toBe("Mochi, the default avatar");
     expect(localStorage.getItem("persona.persona")).toBeNull();
     // the hub's pushes for it change nothing
@@ -230,14 +230,14 @@ describe("uploaded looks in the picker", () => {
   });
 
   it("does not say the current one goes when it deletes another", async () => {
-    hub.current = { id: "nwverse", effective: "nwverse" };
+    hub.current = { id: "example-look", effective: "example-look" };
     const { t } = await draw();
     await act(async () => byLabel(t("assistant-persona.delete_label", { name: "Doudou" }))!.click());
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain(t("assistant-persona.delete_body"));
     expect(dialog.textContent).not.toContain(t("assistant-persona.delete_body_current"));
     await act(async () => dialogButton(t("assistant-persona.delete")).click());
-    expect(checked()).toBe("Milk Frog");
+    expect(checked()).toBe("Example Frog");
   });
 
   it("shows the hub's refusal to delete as it is, and keeps the look", async () => {
@@ -255,7 +255,7 @@ describe("uploaded looks in the picker", () => {
     await uploadBean(t);
     expect(hub.uploads).toEqual([{ name: "Bean", image: "Q1JPUA==", choose: true }]);
     // in the hub's order: its own packages, then the extensions'
-    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog", "Doudou", "Bean", "Aurora"]);
+    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog", "Doudou", "Bean", "Aurora"]);
     expect(checked()).toBe("Bean");
     expect(radios().find((r) => r.getAttribute("aria-label") === "Bean")!.textContent).toContain("A round one");
     expect(localStorage.getItem("persona.persona")).toBe("u-new00001");
@@ -275,7 +275,7 @@ describe("uploaded looks in the picker", () => {
     await act(async () => push("look", { id: "u-new00001", effective: "u-new00001" }));
     await letImagesLoad();
     await settle();
-    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog", "Doudou", "Bean", "Aurora"]);
+    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog", "Doudou", "Bean", "Aurora"]);
     expect(checked()).toBe("Bean");
   });
 
@@ -285,28 +285,28 @@ describe("uploaded looks in the picker", () => {
       // the hub pushes its own choice first, the page reads the list for the look it does not know yet, then another
       // device chooses the frog, all before the upload's answer comes
       push("look", { id: "u-new00001", effective: "u-new00001" });
-      elsewhere("nwverse");
+      elsewhere("example-look");
       await new Promise((r) => setTimeout(r, 20));
     };
     await uploadBean(t);
     await settle();
     expect(radios().some((r) => r.getAttribute("aria-label") === "Bean")).toBe(true);
-    expect(checked()).toBe("Milk Frog");
-    expect(localStorage.getItem("persona.persona")).toBe("nwverse");
+    expect(checked()).toBe("Example Frog");
+    expect(localStorage.getItem("persona.persona")).toBe("example-look");
   });
 
   it("keeps a choice another device made while the delete's answer was on its way", async () => {
     const { t } = await draw();
     hub.meanwhile = async () => {
       push("look", { id: "persona", effective: "persona" }); // the hub's own, for the deleted current one
-      elsewhere("nwverse");
+      elsewhere("example-look");
       await new Promise((r) => setTimeout(r, 20));
     };
     await act(async () => byLabel(t("assistant-persona.delete_label", { name: "Doudou" }))!.click());
     await act(async () => dialogButton(t("assistant-persona.delete")).click());
     await settle();
-    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog", "Aurora"]);
-    expect(checked()).toBe("Milk Frog");
+    expect(radios().map((r) => r.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog", "Aurora"]);
+    expect(checked()).toBe("Example Frog");
   });
 
   it("reads the list again after a read already on its way when the hub no longer has the look", async () => {

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // sourceName is a lark.prefer value: "cli" or an extension's own source.

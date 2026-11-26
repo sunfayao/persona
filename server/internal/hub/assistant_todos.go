@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The todos are the manager's (internal/assistant, todos.go): it keeps them and answers their routes,
 // which the hub relays (assistantwire.Routes). The hub shows what the manager reports (the snapshot's TodoReport):
 // the todo on each agent's session (decorated), the task named on its agents' cards (withTask), which agents are
-// quiet (quietSession: no pushes, badges or Live Activity). An agent handed work for a todo through the hub's own
+// quiet (quietSession: no pushes, badges or Persona Link alerts). An agent handed work for a todo through the hub's own
 // routes (POST /api/v1/sessions, …/messages with todo_id) is the manager's to check, to give the todo's decisions
 // (and a new agent its project's background) and to link (todoHandoff; assistant.todo_link once it went through):
 // the hub passes on what it says. A workspace the hub renames is told (todos.space_renamed, pins.go).

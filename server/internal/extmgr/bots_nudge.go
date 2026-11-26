@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"math"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // botNudgeAfterMax bounds nudge_after (six days, in minutes): the chat keeps a card's record seven days, and the nudge

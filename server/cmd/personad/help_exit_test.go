@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/hubcli"
+	"github.com/sunfayao/persona/server/internal/hubcli"
 )
 
 // TestHelpExitsZero runs main in a child process (this test binary, re-executed): -h, --help and help print the usage

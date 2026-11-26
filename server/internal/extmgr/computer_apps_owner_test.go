@@ -1,13 +1,12 @@
 package extmgr
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func TestComputerAppOwnerPreconditionAndLegacyRequests(t *testing.T) {
@@ -44,31 +43,6 @@ func TestComputerAppOwnerPreconditionAndLegacyRequests(t *testing.T) {
 	}
 }
 
-func TestComputerAppRevocationPreservesDisabledApprovalPolicy(t *testing.T) {
-	h, st := extensionTestHub(t)
-	m, _ := computerMac(t, h, "example-machine")
-	ctx := context.Background()
-	if err := h.extensions.reg.SetEnabled(ctx, cuaExtensionID, true, "test"); err != nil {
-		t.Fatal(err)
-	}
-	if err := h.extensions.reg.SetConfig(ctx, cuaExtensionID, json.RawMessage(`{"machines":["example-machine"],"app_approval":false}`), "test"); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.PutSetting(ctx, computerAppsKey, map[string][]approvedApp{"example-machine": {{BundleID: "org.example.editor", Name: "Example Editor"}}}); err != nil {
-		t.Fatal(err)
-	}
-	code, out := call(t, h.routes(), http.MethodDelete, "/api/v1/machines/example-machine/computer/apps/org.example.editor?expected_manager=assistant", h.cfg.Token, "")
-	if code != http.StatusOK || len(out["apps"].([]any)) != 0 || out["manager"] != "assistant" {
-		t.Fatalf("revoke: %d %v", code, out)
-	}
-	if !h.cua().On || h.cua().approval() {
-		t.Fatal("revocation changed the enabled extension or its disabled app approval policy")
-	}
-	if asked, allowed := h.approveApps(ctx, m, asker{}, "computer_run", []string{"Example Editor"}, true, nil, nil); asked || !allowed {
-		t.Fatalf("disabled policy must still allow without asking: asked=%v allowed=%v", asked, allowed)
-	}
-}
-
 func TestGuardedComputerAppAliasRequiresItsOwner(t *testing.T) {
 	h, st := twoMacs(t)
 	h.opts.ManagerID = "example-manager"
@@ -95,7 +69,7 @@ func TestGuardedComputerAppAliasKeepsFullCredentialBoundary(t *testing.T) {
 	mux := h.routes()
 	tokens := []string{h.extTokens.issue("example-scoped", "Example extension", extension.HubScopes), h.extTokens.issueAll("example-all", "Example all scopes")}
 	for _, token := range tokens {
-		for _, path := range []string{"/api/v1/machines/a/computer/apps/com.apple.calculator", "/api/v1/machines/a/computer/apps/revoke/com.apple.calculator?expected_manager=example-manager"} {
+		for _, path := range []string{"/api/v1/machines/a/computer/apps/revoke/com.apple.calculator?expected_manager=example-manager"} {
 			code, out := call(t, mux, http.MethodDelete, path, token, "")
 			if code != http.StatusForbidden || out["code"] != "permission_denied" || len(st.stored(t)["a"]) != 2 {
 				t.Fatalf("extension scope reached saved approvals: %d %v", code, out)

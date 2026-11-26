@@ -6,8 +6,8 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // ContributionView is one contribution of an extension and its switch.

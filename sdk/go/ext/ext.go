@@ -25,7 +25,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Protocol is the version of the process protocol this SDK speaks.

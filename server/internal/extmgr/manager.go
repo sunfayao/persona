@@ -26,17 +26,17 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/agents"
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/remoteimage"
-	"github.com/nwverse/persona/server/internal/secretkey"
-	"github.com/nwverse/persona/server/internal/subscriptions"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/agents"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Host is the bus connection to the hub (the manager's).
@@ -119,8 +119,6 @@ type Manager struct {
 	errReports errorReports
 	// browserBackends: pluggable BrowserBackend registry for extension browser.machines / browser.run (#12866).
 	browserBackends browserRegistry
-	// iphoneTurns: one iphone_do at a time per iPhone, across conversations (iphone.go, iphoneTurn).
-	iphoneTurns sync.Map
 	// serving: the requests the hub relayed to the extensions being served now, a WebSocket (a voice call, an
 	// extension's live view) for as long as it is open (Serving).
 	serving atomic.Int64
@@ -148,7 +146,6 @@ type Manager struct {
 	migrated      sync.Map
 	media         mediaCache
 	avatars       *remoteimage.Fetcher // the avatars route's (avatars.go)
-	recalls       recallLocks
 	extensions    *extensions
 	hostCLIMu     sync.Mutex
 	hostCLIState  *hostCLIState
@@ -189,12 +186,6 @@ type Manager struct {
 	reportSent          []byte
 	reportBotIdentities []extwire.BotIdentity
 
-	// ruleStore keeps the user's per-chat rules (chat_rules.go): the manager's setting connector_chat_rules, made in New.
-	// It is set before Run, which reads it as the gate starts (startConnectorGate): assigned later it would race with that
-	// read. Tests put another in its place.
-	ruleStore userRuleStore
-	userRules userRules
-
 	// images are the pictures extensions serve through the hub (extension_images.go).
 	images imageProxy
 
@@ -224,7 +215,6 @@ func New(opts Options) *Manager {
 	h := &Manager{opts: opts, cfg: cfg, version: opts.Build.Version, build: opts.Build, store: opts.Store,
 		logger: log.New(logWriter(opts.Logf), "", 0)}
 	h.secret = secretkey.NewWithFallback(h.secretKeyPath()) // and the old keys while a rotation keeps them
-	h.ruleStore = &settingRuleStore{h: h}
 	h.byID = map[string]*Machine{}
 	h.started = make(chan struct{})
 	h.extTokens.dropped = h.tellHubDropped

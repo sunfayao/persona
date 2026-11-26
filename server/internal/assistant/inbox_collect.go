@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // larkRequestAccount sets a Feishu item's OLAccount for the lark.account the hub runs with now.

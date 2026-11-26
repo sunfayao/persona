@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // codexArgs are app-server's own flags: the persona MCP server (its session is the conversation's key until the
@@ -173,7 +173,7 @@ func (n *Node) spawnCodexWithMode(id, cwd, launcher string, resume, spare bool, 
 	p := &assistantProc{id: id, agent: "codex", launcher: launcher, cwd: cwd, cmd: cmd, stdin: stdin, exited: make(chan struct{}),
 		born: time.Now(), lastActive: time.Now(), model: execution, fingerprint: n.executionFingerprint(launcher, execution),
 		instructions: instructions, personaMCPOnly: personaMCPOnly, origin: execution.Origin}
-	c := &codexConn{n: n, p: p, key: key, memDir: memDir, pending: map[int64]chan codexReply{}, asks: map[string]context.CancelFunc{}, files: map[string][]string{},
+	c := &codexConn{n: n, p: p, key: key, memDir: memDir, asks: map[string]context.CancelFunc{}, files: map[string][]string{},
 		nameGates: nameGates}
 	p.cx = c
 	n.mu.Lock()
@@ -190,7 +190,7 @@ func (n *Node) spawnCodexWithMode(id, cwd, launcher string, resume, spare bool, 
 		_ = cmd.Wait()
 		releaseGates()
 		c.mu.Lock()
-		c.closed = true
+		c.rpcWire().Stop()
 		for _, cancel := range c.asks {
 			cancel()
 		}

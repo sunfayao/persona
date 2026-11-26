@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Messages provider's Base URL pasted with a trailing /v1 (#4886): Claude Code adds /v1/messages to

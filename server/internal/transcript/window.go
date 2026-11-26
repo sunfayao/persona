@@ -15,9 +15,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // Opening a big transcript cold (a node that just started, a session not opened for a while) used to parse all of it

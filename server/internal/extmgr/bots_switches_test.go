@@ -3,7 +3,7 @@ package extmgr
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The Lark bot's switches that came after the others: the board (#6052), only_conclusions (#1226), answer_new_card (#5396) and read_group (#11803).

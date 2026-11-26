@@ -12,8 +12,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // gatewayFixture is a gateway that lists models and records what it was sent.

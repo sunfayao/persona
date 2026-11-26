@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // settingsIDs and settingsNames: System Settings, by both bundle ids it has had and by the names macOS gives it, in

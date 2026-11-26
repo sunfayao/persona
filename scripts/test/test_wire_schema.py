@@ -65,9 +65,7 @@ def domain_cases(domain):
 
 
 def todo_views():
-    """(definition, sample) of every view todo-view expects, every counts and places todo-counts expects, every
-    timeline, result and recap todo-rounds expects with what the item route carries of them, every answer and
-    reply todo-asks holds, and every decision push's todo todo-push expects."""
+    """(definition, sample) of every view todo-view expects, the list counts, rounds, results, recaps, item details and decision pushes."""
     for where, c in domain_cases("todo-view"):
         view = c["expected"]["view"]
         yield "TodoSummary", f"{where}.expected.view", view
@@ -78,7 +76,6 @@ def todo_views():
                 yield "TodoLineArg", f"{where}.expected.view.line.args", key
     for where, c in domain_cases("todo-counts"):
         yield "TodoCounts", f"{where}.expected.counts", c["expected"]["counts"]
-        yield "TodoPlaces", f"{where}.expected.places", c["expected"]["places"]
     for where, c in domain_cases("todo-rounds"):
         e = c["expected"]
         yield "TodoTimeline", f"{where}.expected.timeline", e["timeline"]
@@ -89,10 +86,6 @@ def todo_views():
         yield "TodoItemDetail", f"{where} (the item route's)", item_detail(e)
     for where, c in domain_cases("todo-push"):
         yield "TodoDecidePush", f"{where}.expected.todo", c["expected"]["todo"]
-    for where, c in domain_cases("todo-asks"):
-        yield "TodoAskAnswer", f"{where}.input.answer", c["input"]["answer"]
-        if "answered" in c["expected"]:
-            yield "TodoAskAnswered", f"{where}.expected.answered", c["expected"]["answered"]
 
 
 def item_detail(expected):
@@ -222,10 +215,6 @@ class WireSchema(unittest.TestCase):
             self.assertGreater(count, 0, fname)
             self.assertEqual(sorted(set(doc["$defs"]) - reached), [], f"{fname}: definitions no sample reaches")
 
-    def test_places_carry_the_list_counts(self):
-        for where, c in domain_cases("todo-counts"):
-            self.assertEqual(c["expected"]["places"]["counts"], c["expected"]["counts"], where)
-
     def test_no_hand_written_copy_returns(self):
         tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, text=True,
                                  check=True).stdout.split("\0")
@@ -266,8 +255,6 @@ class WireSchema(unittest.TestCase):
         setups = [s for _, _, s in recent_setups()]
         self.assertTrue(any(s["launcher"] == "" for s in setups))
         self.assertTrue(any(s["mode"] == "" for s in setups))
-        places = [p for d, _, s in todo_views() if d == "TodoPlaces" for p in s["places"]]
-        self.assertTrue(any(p["title"] == "" for p in places))
 
 
 if __name__ == "__main__":

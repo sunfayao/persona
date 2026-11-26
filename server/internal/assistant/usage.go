@@ -3,7 +3,7 @@ package assistant
 import (
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // Using information by its categories and the scene it goes to (#13246, docs/assistant/tracks.md "Using information

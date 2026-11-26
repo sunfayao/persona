@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // ID is the connector's id: the key in hub.json, the RPCs' "id".

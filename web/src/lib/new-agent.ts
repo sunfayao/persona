@@ -62,6 +62,8 @@ export interface AgentLaunch {
   startPromptOpId: string;
   /** The first message's client_msg_id, its op id too. */
   messageId: string;
+  /** When this first-message operation was first sent, for matching transcript echoes after a delayed receipt. */
+  promptSentAt?: number;
   /** The hub answered that it doesn't know how this went: only the person can say whether to go on. */
   uncertain?: boolean;
   /** The target is locked on retry: work-session choices or a start that the hub may already have. */
@@ -126,8 +128,7 @@ export function launchModelForSession(
 export function acknowledgeLaunch(mid: string, sid: string, user: Seen) {
   for (const launch of Object.values(getState().launches)) {
     if (launch.phase !== "ready" || launch.machineId !== mid || launch.session?.session_id !== sid || !launch.outgoing) continue;
-    // the conversation's first message: nothing older in it can say the same, so no time to compare
-    if (isEcho({ id: launch.messageId, text: parseUserText(launch.outgoing.text).text, images: launch.outgoing.images, at: 0 }, user)) putLaunch({ ...launch, outgoing: undefined });
+    if (isEcho({ id: launch.messageId, text: parseUserText(launch.outgoing.text).text, images: launch.outgoing.images, at: launch.promptSentAt ?? 0 }, user)) putLaunch({ ...launch, outgoing: undefined });
   }
 }
 

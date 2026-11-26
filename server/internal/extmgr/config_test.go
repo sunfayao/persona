@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 // The manager's sections come from its manager.json; hub.json's copies (kept for an older build) are not read, its
@@ -12,7 +11,7 @@ import (
 func TestConfigReadsTheManagerSectionsFromManagerJSON(t *testing.T) {
 	dir := t.TempDir()
 	hub := `{"listen":":18999","token":"hub-token","public_url":"http://hub.example.com:18999",
-		"google":{"client_id":"stale"},"extensions":[{"id":"stale"}],"extension_market":{"proxy":"http://stale.example:3128"},"lark":{"account":7},"inbox":{"rules":"hub rules"}}`
+		"google":{"proxy":"http://stale-mail.example:3128"},"extensions":[{"id":"stale"}],"extension_market":{"proxy":"http://stale.example:3128"},"lark":{"account":7},"inbox":{"rules":"hub rules"}}`
 	if err := os.WriteFile(filepath.Join(dir, "hub.json"), []byte(hub), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +19,7 @@ func TestConfigReadsTheManagerSectionsFromManagerJSON(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	mine := `{"token":"not-the-hub's","google":{"client_id":"mine"},"bots":{"feishu":{"app_id":"cli_example"}},"extension_market":{"proxy":"socks5://proxy.example:1080","ca_file":"/etc/persona/market-ca.pem"},"inbox":{"rules":"my rules"}}`
+	mine := `{"token":"not-the-hub's","google":{"proxy":"socks5://mail.example:1080"},"bots":{"feishu":{"app_id":"cli_example"}},"extension_market":{"proxy":"socks5://proxy.example:1080","ca_file":"/etc/persona/market-ca.pem"},"inbox":{"rules":"my rules"}}`
 	if err := os.WriteFile(file, []byte(mine), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -31,7 +30,7 @@ func TestConfigReadsTheManagerSectionsFromManagerJSON(t *testing.T) {
 	if cfg.Listen != ":18999" || cfg.Token != "hub-token" || cfg.PublicURL != "http://hub.example.com:18999" || cfg.Inbox.Rules != "my rules" {
 		t.Fatalf("hub.json's own keys: %+v", cfg)
 	}
-	if cfg.Google.ClientID != "mine" || cfg.Bots.Feishu.AppID != "cli_example" || cfg.ExtensionMarket.Proxy != "socks5://proxy.example:1080" || cfg.ExtensionMarket.CAFile != "/etc/persona/market-ca.pem" {
+	if cfg.Google.Proxy != "socks5://mail.example:1080" || cfg.Bots.Feishu.AppID != "cli_example" || cfg.ExtensionMarket.Proxy != "socks5://proxy.example:1080" || cfg.ExtensionMarket.CAFile != "/etc/persona/market-ca.pem" {
 		t.Fatalf("manager.json's sections: %+v %+v %+v", cfg.Google, cfg.Bots, cfg.ExtensionMarket)
 	}
 	if len(cfg.Extensions) != 0 || cfg.Lark.Account != 0 {
@@ -39,7 +38,7 @@ func TestConfigReadsTheManagerSectionsFromManagerJSON(t *testing.T) {
 	}
 	// Without a manager.json yet everything moved stays empty (the move runs before, at start).
 	cfg, err = loadConfig(dir, filepath.Join(t.TempDir(), "manager.json"))
-	if err != nil || cfg.Google.ClientID != "" || cfg.ExtensionMarket.Proxy != "" || cfg.ExtensionMarket.CAFile != "" || cfg.Token != "hub-token" {
+	if err != nil || cfg.Google.Proxy != "" || cfg.ExtensionMarket.Proxy != "" || cfg.ExtensionMarket.CAFile != "" || cfg.Token != "hub-token" {
 		t.Fatalf("%+v %v", cfg, err)
 	}
 }
@@ -47,11 +46,11 @@ func TestConfigReadsTheManagerSectionsFromManagerJSON(t *testing.T) {
 // An invalid lark section no longer stops anything: it is said, and not read.
 func TestConfigInvalidLarkIsAWarning(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "manager.json")
-	if err := os.WriteFile(file, []byte(`{"lark":{"account":-1},"google":{"client_id":"mine"}}`), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte(`{"lark":{"account":-1},"google":{"proxy":"socks5://mail.example:1080"}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := loadConfig(t.TempDir(), file)
-	if err != nil || cfg.Lark.Account != 0 || cfg.Google.ClientID != "mine" || len(cfg.warnings) != 1 {
+	if err != nil || cfg.Lark.Account != 0 || cfg.Google.Proxy != "socks5://mail.example:1080" || len(cfg.warnings) != 1 {
 		t.Fatalf("%+v %v", cfg, err)
 	}
 }
@@ -69,7 +68,7 @@ func TestConfigUnreadableManagerJSONKeepsTheHubPart(t *testing.T) {
 			t.Fatal(err)
 		}
 		cfg, err := loadConfig(dir, file)
-		if err != nil || cfg.Token != "hub-token" || cfg.Listen != ":18999" || cfg.Google.ClientID != "" || len(cfg.warnings) != 1 {
+		if err != nil || cfg.Token != "hub-token" || cfg.Listen != ":18999" || cfg.Google.Proxy != "" || len(cfg.warnings) != 1 {
 			t.Fatalf("%s: %+v %v", bad, cfg, err)
 		}
 		if _, err := LoadConfig(dir, file); err == nil {
@@ -122,27 +121,24 @@ func TestLoadConfigPassesAReadableFile(t *testing.T) {
 	}
 }
 
-// The ledger's two settings are read from the manager.json (they are in managerconf.Moved: a key outside it is dropped
-// before the manager sees it), hub.json's copies are not, and they reach the places that use them.
-func TestConfigReadsTheLedgerSettingsFromManagerJSON(t *testing.T) {
+// The ledger's retention setting comes from manager.json.
+func TestConfigReadsTheLedgerRetentionFromManagerJSON(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "hub.json"), []byte(`{"token":"hub-token","sent_ledger_days":7,"sent_recall_hours":1}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "hub.json"), []byte(`{"token":"hub-token","sent_ledger_days":7}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	file := filepath.Join(dir, "managers", "assistant", "manager.json")
 	if err := os.MkdirAll(filepath.Dir(file), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(file, []byte(`{"sent_ledger_days":30,"sent_recall_hours":48}`), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte(`{"sent_ledger_days":30}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for name, load := range map[string]func(string, string) (*Config, error){"loadConfig": loadConfig, "LoadConfig": LoadConfig} {
 		cfg, err := load(dir, file)
-		if err != nil || cfg.SentLedgerDays != 30 || cfg.SentRecallHours != 48 {
+		if err != nil || cfg.SentLedgerDays != 30 {
 			t.Fatalf("%s: %+v %v", name, cfg, err)
 		}
-		if limit, limited := (&Manager{cfg: cfg}).recallWindow(); !limited || limit != 48*time.Hour {
-			t.Errorf("%s: the recall window is %v (limited %v)", name, limit, limited)
-		}
+
 	}
 }

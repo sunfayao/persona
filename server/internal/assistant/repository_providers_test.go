@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 const acmeProviderID = "ext:acme-code/acme"
@@ -146,13 +146,6 @@ func savedRepository(t *testing.T, s *Service, body string) RepositoryBinding {
 
 func TestRepositoryCatalogThroughAProvider(t *testing.T) {
 	s, f, checks := acmeService(t, ruleStore{&memStore{}})
-	w := placeDo(s, "", "POST", repoBase+"/preview", `{"url":"https://code.acme.test/team/app/reviews/3"}`)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"provider_name":"Acme Code"`) || !strings.Contains(w.Body.String(), `"provider":"`+acmeProviderID+`"`) {
-		t.Fatalf("preview: %d %s", w.Code, w.Body)
-	}
-	if got := f.asked(); !slices.Equal(got, []string{"parse"}) {
-		t.Fatal("preview asked", got)
-	}
 	// The host says which provider it is; the provider's own name for the repository is the default name.
 	saved := savedRepository(t, s, `{"url":"https://code.acme.test/team/app","purpose":"Demo"}`)
 	if saved.Provider != acmeProviderID || saved.ProviderName != "Acme Code" || saved.Name != "App" || saved.CanonicalURL != "https://code.acme.test/team/app" ||
@@ -179,22 +172,7 @@ func TestRepositoryCatalogThroughAProvider(t *testing.T) {
 	}
 	f.checkErr = nil
 	f.asked()
-	// With the provider off, a saved reference's details still change, without asking it anything.
 	f.set(true, repository.ProviderOff)
-	for _, body := range []string{
-		`{"url":"https://code.acme.test/team/app","provider":"` + acmeProviderID + `","name":"Renamed","purpose":"Demo"}`,
-		`{"url":"https://code.acme.test/team/app","name":"Again","clone_url":"https://code.acme.test/team/app.git"}`,
-	} {
-		w = placeDo(s, "", "PUT", repoBase+"/"+saved.ID, body)
-		var got struct{ Repository RepositoryBinding }
-		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Repository.Identity != saved.Identity ||
-			got.Repository.ProviderName != "Acme Code" || !got.Repository.VerifiedAt.Equal(saved.VerifiedAt) {
-			t.Fatalf("metadata edit: %d %s", w.Code, w.Body)
-		}
-	}
-	if w := placeDo(s, "", "PUT", repoBase+"/"+saved.ID, `{"url":"https://code.acme.test/team/app","clone_url":"https://elsewhere.example.test/team/app.git"}`); w.Code != 400 {
-		t.Fatalf("clone address off the provider's hosts: %d %s", w.Code, w.Body)
-	}
 	if w := placeDo(s, "", "POST", repoBase, `{"url":"https://code.acme.test/team/new"}`); w.Code != 409 || !strings.Contains(w.Body.String(), `"repository_provider_off"`) || !strings.Contains(w.Body.String(), "Acme Code") {
 		t.Fatalf("new reference, provider off: %d %s", w.Code, w.Body)
 	}
@@ -207,9 +185,6 @@ func TestRepositoryCatalogThroughAProvider(t *testing.T) {
 	}
 	// Uninstalled: the saved reference stays editable, a new one names the missing provider.
 	f.set(false, repository.ProviderOff)
-	if w := placeDo(s, "", "PUT", repoBase+"/"+saved.ID, `{"url":"https://code.acme.test/team/app","name":"Kept"}`); w.Code != 200 || !strings.Contains(w.Body.String(), "Kept") {
-		t.Fatalf("metadata edit, uninstalled: %d %s", w.Code, w.Body)
-	}
 	if w := placeDo(s, "", "POST", repoBase, `{"url":"https://code.acme.test/team/new","provider":"`+acmeProviderID+`"}`); w.Code != 409 || !strings.Contains(w.Body.String(), `"repository_no_provider"`) {
 		t.Fatalf("uninstalled: %d %s", w.Code, w.Body)
 	}
@@ -218,39 +193,6 @@ func TestRepositoryCatalogThroughAProvider(t *testing.T) {
 	}
 	if got := f.asked(); len(got) != 0 {
 		t.Fatal("an uninstalled provider was asked", got)
-	}
-}
-
-func TestRepositoryProvidersRoute(t *testing.T) {
-	s, f, _ := acmeService(t, ruleStore{&memStore{}})
-	read := func() []repository.ProviderInfo {
-		t.Helper()
-		w := placeDo(s, "read", "GET", repoBase+"/providers", "")
-		var out struct {
-			Manager   string
-			Providers []repository.ProviderInfo
-		}
-		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &out) != nil || out.Manager != s.managerIdentity() {
-			t.Fatalf("%d %s", w.Code, w.Body)
-		}
-		return out.Providers
-	}
-	got := read()
-	ids := []string{}
-	for _, p := range got {
-		ids = append(ids, p.ID)
-	}
-	if !slices.Equal(ids, []string{"github", "gitlab", "ext:acme-code/archive", acmeProviderID}) || !got[0].Builtin || got[3].Name != "Acme Code" ||
-		got[3].State != repository.ProviderAvailable || got[2].State != repository.ProviderOff || len(got[3].LinkKinds) != 1 {
-		t.Fatalf("%+v", got)
-	}
-	f.set(false, repository.ProviderOff)
-	if got := read(); len(got) != 2 {
-		t.Fatalf("uninstalled: %+v", got)
-	}
-	s.repoExt = nil
-	if got := read(); len(got) != 2 || got[0].ID != "github" || got[1].ID != "gitlab" {
-		t.Fatalf("no extensions: %+v", got)
 	}
 }
 
@@ -301,10 +243,10 @@ func TestTodoRepositoryLinksThroughAProvider(t *testing.T) {
 		linkTitles(row)[app+"/reviews/12"] != "Title of 12" {
 		t.Fatalf("%+v", set)
 	}
-	// PUT …/links: the saved link needs no call, the new one is one repo.link, and describe fills its title.
-	w = placeDo(s, "", "PUT", path+"/"+repo.ID+"/links", `{"expected_revision":1,"links":[{"kind":"pull_request","number":"12"},{"url":"`+app+`/issues/3"}]}`)
-	if w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
+
+	args := fmt.Sprintf(`{"id":%q,"repo_id":%q,"expected_revision":1,"links":[{"kind":"pull_request","number":"12"},{"url":"%s/issues/3"}]}`, id, repo.ID, app)
+	if _, err := s.toolTodoRepositories(t.Context(), "machine", "conversation", "todo_repository_links_set", json.RawMessage(args)); err != nil {
+		t.Fatal(err)
 	}
 	if got := f.asked(); !slices.Equal(got, []string{"link", "describe"}) {
 		t.Fatal("links asked", got)
@@ -338,7 +280,7 @@ func TestTodoRepositoryLinksThroughAProvider(t *testing.T) {
 	if r := before.Repositories[0]; r.ProviderState != repository.ProviderMissing || r.LinkKinds != nil || len(r.Links) != 2 || r.SourceSnapshot != row.SourceSnapshot {
 		t.Fatalf("uninstalled read: %+v", before)
 	}
-	args := fmt.Sprintf(`{"id":%q,"repo_id":%q,"expected_revision":%d,"links":[{"kind":"pull_request","number":"12"},{"url":"%s/issues/3"}]}`, id, repo.ID, before.Revision, app)
+	args = fmt.Sprintf(`{"id":%q,"repo_id":%q,"expected_revision":%d,"links":[{"kind":"pull_request","number":"12"},{"url":"%s/issues/3"}]}`, id, repo.ID, before.Revision, app)
 	if _, err := s.toolTodoRepositories(t.Context(), "machine", "conversation", "todo_repository_links_set", json.RawMessage(args)); err != nil {
 		t.Fatal(err)
 	}
@@ -435,39 +377,6 @@ func TestTodoRepositoryLegacyImportNeverAsksAProvider(t *testing.T) {
 	}
 	if got := f.asked(); len(got) != 0 {
 		t.Fatal("a read asked the provider", got)
-	}
-}
-
-func TestTodoRepositoryBuiltinLinksNeverAskAProvider(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	s, f, _ := acmeService(t, database)
-	repo := savedRepository(t, s, `{"url":"https://github.com/example/web"}`)
-	f.asked()
-	f.looked()
-	w := placeDo(s, "", "POST", "/api/v1/todos", fmt.Sprintf(`{"title":"Built-in work","repository_bindings":{"catalog_revision":1,"repositories":[{"repo_id":%q,"links":[{"kind":"pull_request","number":"7"}]}]}}`, repo.ID))
-	var created struct{ Todo Todo }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &created) != nil {
-		t.Fatal(w.Code, w.Body)
-	}
-	id := created.Todo.ID
-	if w := placeDo(s, "", "PUT", "/api/v1/todos/"+id+"/repositories/"+repo.ID+"/links", `{"expected_revision":1,"links":[{"kind":"pull_request","number":"7"},{"url":"https://github.com/example/web/issues/8"}]}`); w.Code != 200 {
-		t.Fatal(w.Code, w.Body)
-	}
-	args, _ := json.Marshal(map[string]any{"id": id, "urls": []string{"https://github.com/example/web/pull/9"}})
-	if _, err := s.toolTodoRepositoryLinksAdd(t.Context(), "", "", "todo_repository_links_add", args); err != nil {
-		t.Fatal(err)
-	}
-	s.advanceTaskReply(t.Context(), todoNow(s, id), "", "", "Opened https://github.com/example/web/pull/10 (see https://github.com/example/web/actions)")
-	set := todoRepositoriesOf(t, s, id)
-	if len(set.Repositories) != 1 || len(set.Repositories[0].Links) != 4 || set.Repositories[0].ProviderState != "" {
-		t.Fatalf("%+v", set)
-	}
-	if got, n := f.asked(), f.looked(); len(got) != 0 || n != 0 {
-		t.Fatal("built-in links reached the provider", got, n)
 	}
 }
 
@@ -654,47 +563,5 @@ func TestReportedLinksNeverWaitOnAProvider(t *testing.T) {
 	s.reportedLinks.runs.Wait()
 	if set := todoRepositoriesOf(t, s, todo.ID); len(set.Repositories) != 1 || len(set.Repositories[0].Links) != 1 {
 		t.Fatalf("%+v", set)
-	}
-}
-
-// A provider is sent only plain links on its own hosts: anything else is refused before any call.
-func TestProviderLinksSendOnlyPlainLinks(t *testing.T) {
-	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer database.Close()
-	s, f, _ := acmeService(t, database)
-	repo := savedRepository(t, s, `{"url":"https://code.acme.test/team/app"}`)
-	w := placeDo(s, "", "POST", "/api/v1/todos", fmt.Sprintf(`{"title":"Provider work","repository_bindings":{"catalog_revision":1,"repositories":[{"repo_id":%q,"links":[]}]}}`, repo.ID))
-	var created struct{ Todo Todo }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &created) != nil {
-		t.Fatal(w.Code, w.Body)
-	}
-	f.asked()
-	path := "/api/v1/todos/" + created.Todo.ID + "/repositories/" + repo.ID + "/links"
-	for link, code := range map[string]string{
-		`{"url":"https://me:s3cret@code.acme.test/team/app/reviews/1"}`:               "link_repository_mismatch",
-		`{"url":"https://elsewhere.example.test/private/doc?access_token=abc"}`:       "link_repository_mismatch",
-		`{"url":"https://elsewhere.example.test/team/app/reviews/1"}`:                 "link_repository_mismatch",
-		`{"url":"http://code.acme.test/team/app/reviews/2#part"}`:                     "link_repository_mismatch",
-		`{"url":"https://code.acme.test/team/app/reviews/2?tab=files"}`:               "link_repository_mismatch",
-		`{"url":"ssh://git@code.acme.test/team/app/reviews/2"}`:                       "link_repository_mismatch",
-		`{"url":"https://code.acme.test/team/app/` + strings.Repeat("a", 2048) + `"}`: "link_repository_mismatch",
-		`{"kind":"pull_request","number":"012"}`:                                      "invalid",
-		`{"kind":"issue","number":"1a"}`:                                              "invalid",
-		`{"kind":"issue","number":"123456789012345678901"}`:                           "invalid",
-	} {
-		w := placeDo(s, "", "PUT", path, `{"expected_revision":1,"links":[`+link+`]}`)
-		if w.Code == 200 || !strings.Contains(w.Body.String(), `"task_repositories_`+code+`"`) {
-			t.Errorf("%s: %d %s", link, w.Code, w.Body)
-		}
-	}
-	args, _ := json.Marshal(map[string]any{"id": created.Todo.ID, "urls": []string{"https://code.acme.test/team/app/reviews/5?token=abc"}})
-	if _, err := s.toolTodoRepositoryLinksAdd(t.Context(), "", "", "todo_repository_links_add", args); err == nil {
-		t.Fatal("links_add took a link with a query")
-	}
-	if got := f.asked(); len(got) != 0 {
-		t.Fatal("the provider was sent", got)
 	}
 }

@@ -6,8 +6,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // memoryReaders are the commands readsOnlyMemory lets through, with the flags that would make one write or run
@@ -76,24 +77,6 @@ func allUnder(paths []string, cwd, dir string) bool {
 	return true
 }
 
-// realPath is p with its symlinks resolved as far as it exists: its longest existing ancestor (a file about to be
-// written, a checkout to be made, need not exist yet), so two spellings of one place compare — a path written through a
-// link (~/.claude/..., macOS's /var for /private/var) and a resolved one. p as it is when nothing of it resolves.
-func realPath(p string) string {
-	rest := ""
-	for q := p; ; {
-		if real, err := filepath.EvalSymlinks(q); err == nil {
-			return filepath.Join(real, rest)
-		}
-		parent := filepath.Dir(q)
-		if parent == q {
-			return p
-		}
-		rest = filepath.Join(filepath.Base(q), rest)
-		q = parent
-	}
-}
-
 // codexMemoryPrompt tells Codex about the assistant's memory: the same directory and format as Claude Code's
 // auto-memory for the assistant's directory (memory.go), so both agents read and write one memory and the app's
 // "Memory" page shows it whichever runs. The index (MEMORY.md) goes in as it is now; the files are read when needed.
@@ -107,3 +90,5 @@ func codexMemoryPrompt(dir string) string {
 	}
 	return prompts.RenderCodexMemory(m)
 }
+
+func realPath(p string) string { return pathutil.Real(p) }

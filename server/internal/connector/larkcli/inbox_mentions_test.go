@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/prompts"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // The context marks whom each message @'s from its structured mentions, as the tier criteria read them

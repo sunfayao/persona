@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/errreport"
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/errreport"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveErrorsExtensionForTest takes error reports and writes each delivery as a line of JSON to ERRORS_OUT.
@@ -48,7 +48,7 @@ func errorsPackage(t *testing.T, out string) string {
 	manifest := fmt.Sprintf(`{"manifest_version": 1, "id": "example-errors", "name": "Example Errors", "version": "1.0.0",
 		"engines": {"plugin_protocol": 1}, "runtime": {"command": {%q: "bin/errors"}, "env": {"ERRORS_OUT": %q}},
 		"activation_events": ["on_startup"],
-		"contributes": {"error_reports": [{"id": "all"}, {"id": "apps", "sources": ["web", "android"]}]},
+		"contributes": {"error_reports": [{"id": "all"}, {"id": "apps", "sources": ["web"]}]},
 		"permissions": {"error_reports": true}}`, runtime.GOOS+"-"+runtime.GOARCH, out)
 	_ = os.WriteFile(filepath.Join(dir, extension.ManifestFile), []byte(manifest), 0o644)
 	return dir

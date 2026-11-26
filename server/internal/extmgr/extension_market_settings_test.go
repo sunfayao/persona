@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 type failingMarketSettingsStore struct {
@@ -39,8 +39,6 @@ func TestExtensionMarketSettingsNoCatalogAndRetry(t *testing.T) {
 	h.store = store
 	startTestExtensions(t, h)
 	phone, reader := deviceToken("dev_phone", roleFull), deviceToken("dev_watch", roleAnswer)
-	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
 	var requests int
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests++
@@ -103,7 +101,7 @@ func TestExtensionMarketSettingsPostgresRestartAndManagerIsolation(t *testing.T)
 	}
 	defer store.Close()
 	clear := func() {
-		var gone json.RawMessage
+		var gone extension.MarketMirrors
 		if _, err := store.TakeSetting(ctx, marketSettingsKey, &gone); err != nil {
 			t.Error(err)
 		}
@@ -135,7 +133,7 @@ func TestExtensionMarketSettingsPostgresRestartAndManagerIsolation(t *testing.T)
 	_ = h
 }
 
-func TestOfficialCatalogPostgresEnvelopeRestart(t *testing.T) {
+func TestStoredMarketKeyPostgresEnvelopeRestart(t *testing.T) {
 	address := os.Getenv("PERSONA_TEST_DATABASE_URL")
 	if address == "" {
 		t.Skip("PERSONA_TEST_DATABASE_URL is required for the Postgres fixture")
@@ -150,8 +148,7 @@ func TestOfficialCatalogPostgresEnvelopeRestart(t *testing.T) {
 	h.store = database
 	startTestExtensions(t, h)
 	key, unknown := newMarketKey(t), newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	payload := []byte(" \n{\"market_version\":1,\"name\":\"Official\",\"extensions\":[]}\t\n")
+	payload := []byte(" \n{\"market_version\":1,\"name\":\"Example\",\"extensions\":[]}\t\n")
 	raw := key.sign(payload)
 	gh := &fakeGitHub{files: map[string][]byte{extension.IndexFile: raw}, assets: map[string][]byte{}}
 	server := httptest.NewTLSServer(gh)
@@ -163,8 +160,6 @@ func TestOfficialCatalogPostgresEnvelopeRestart(t *testing.T) {
 		for _, id := range []string{"verified-cache", "unknown-cache", "legacy-cache"} {
 			_ = database.DeleteExtensionMarket(ctx, id)
 		}
-		var gone json.RawMessage
-		_, _ = database.TakeSetting(ctx, officialMarketKey, &gone)
 	}()
 	for _, row := range []extension.MarketRecord{
 		{ID: "verified-cache", Spec: "github:example/plugins", SigningKey: key.text, Index: raw, FetchedAt: &now, AddedAt: now},

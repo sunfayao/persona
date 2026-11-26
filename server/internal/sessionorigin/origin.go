@@ -4,7 +4,7 @@ package sessionorigin
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Of returns where a runtime session was opened, matching the clients'

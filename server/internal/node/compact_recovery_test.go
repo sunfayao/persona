@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestCompactRecoveryDeliveryRetryAndRestart(t *testing.T) {

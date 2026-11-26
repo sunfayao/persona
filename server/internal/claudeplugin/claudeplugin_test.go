@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/runtimepkg"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/runtimepkg"
 )
 
 // fakeClaude is Claude Code's plugin CLI as measured (2.1.291, docs/lessons/agents.md "Claude Code plugins from a

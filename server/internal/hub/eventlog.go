@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The event log: every message broadcastTo sends every app carries event_seq, one

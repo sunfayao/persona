@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 const maxManifestSize = 8 << 20

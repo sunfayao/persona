@@ -3,7 +3,7 @@ package assistant
 import (
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ---- children folded into their parent (#5120), a tab's workers into its lead (#5180), side sessions into the

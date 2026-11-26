@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 // Both native resume and Git requests share the physical workspace lock with cleanup.

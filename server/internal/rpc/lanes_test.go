@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netshape"
+	"github.com/sunfayao/persona/server/internal/netshape"
 )
 
 // gate is a transport whose writes wait for the test: each write is recorded, then held until release lets it return.

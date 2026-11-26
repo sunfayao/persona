@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // cmdCapabilities inspects this executable without loading configuration or joining a hub.

@@ -5,7 +5,7 @@ package sysmon
 import (
 	"golang.org/x/sys/unix"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // StorageMounts reports per-mount disk capacity and inode usage on macOS using getfsstat (sub-millisecond, no subprocess).

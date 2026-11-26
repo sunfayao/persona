@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
 )
 
 func runNodeUpdateWatch(ctx context.Context, args []string) error {

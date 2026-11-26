@@ -17,7 +17,7 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // KindProxy is the route through an outbound HTTP(S) proxy: Status.Kind

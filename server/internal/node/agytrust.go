@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // agy's folder-trust dialog (#11424). In a folder it has not trusted yet (a new worktree, which task_plan makes by

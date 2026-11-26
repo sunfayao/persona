@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // timeoutMemo is how long a source's list ask that timed out answers the asks after it (cache.timedOut). The

@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // A scheduled task's track (#13501). A task set up from a conversation

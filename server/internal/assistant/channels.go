@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // The channels: the ways of talking to Persona from a chat app — the Feishu bot (feishu*.go) and

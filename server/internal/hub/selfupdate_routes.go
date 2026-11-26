@@ -7,38 +7,15 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/operations/backup"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/operations/backup"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // developmentBackupRetainMax bounds the snapshot count a Web UI choice may set.
 const developmentBackupRetainMax = 50
 
 func (u *updater) routes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/hub/update/backups", func(w http.ResponseWriter, r *http.Request) {
-		if err := u.load(r.Context()); err != nil {
-			writeErr(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		backups, err := u.developmentBackups(r.Context())
-		if err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, map[string]any{"backups": backups})
-	})
-	api.HandleFunc("POST /api/v1/hub/update/backups/{id}/apply", func(w http.ResponseWriter, r *http.Request) {
-		if err := u.load(r.Context()); err != nil {
-			writeErr(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))
-			return
-		}
-		if err := u.beginDevelopmentRestore(context.WithoutCancel(r.Context()), r.PathValue("id")); err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, u.viewIn(u.h.requestLang(r)))
-	})
 	api.HandleFunc("GET /api/v1/hub/update", func(w http.ResponseWriter, r *http.Request) {
 		if err := u.load(r.Context()); err != nil {
 			writeErr(w, http.StatusServiceUnavailable, i18n.Err("http-status.unavailable"))

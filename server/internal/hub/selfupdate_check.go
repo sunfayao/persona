@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // loop checks for releases (a minute after starting, then every hour) and installs one when updating itself is
@@ -176,7 +176,7 @@ func (u *updater) check(ctx context.Context) (*update.Published, error) {
 }
 
 // noteBehind logs that the update source looks stopped (Build.Behind, #8108): its newest release is older than the one
-// this hub's code contains, so every check finds nothing newer and the phones no newer Android app. Once per source and
+// this hub's code contains, so every check finds nothing newer. Once per source and
 // release, not at every hourly check; again when either changes. The app shows it too (updateView.SourceBehind).
 func (u *updater) noteBehind(src updateSource, m *update.Manifest) {
 	note := ""

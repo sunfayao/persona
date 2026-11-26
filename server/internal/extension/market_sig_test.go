@@ -84,23 +84,3 @@ func TestCatalogRejectsAmbiguousDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-func TestOfficialCatalogAliases(t *testing.T) {
-	for _, spec := range []string{
-		"github:nwverse/persona-extensions@branch",
-		"git:https://github.com/nwverse/persona-extensions.git#branch",
-		"git:https://github.com:443/nwverse/persona-extensions.git",
-		"https://github.com/nwverse/persona-extensions/blob/main/persona-extensions.json",
-		"https://raw.githubusercontent.com/nwverse/persona-extensions/branch/persona-extensions.json",
-		"https://api.github.com/repos/nwverse/persona-extensions/contents/persona-extensions.json?ref=branch",
-	} {
-		if !IsOfficialMarket(spec) {
-			t.Errorf("official alias not recognized: %s", spec)
-		}
-	}
-	for _, spec := range []string{"github:other/persona-extensions", "https://raw.githubusercontent.com/other/persona-extensions/main/persona-extensions.json", "https://example.com/persona-extensions.json"} {
-		if IsOfficialMarket(spec) {
-			t.Errorf("unofficial alias recognized: %s", spec)
-		}
-	}
-}

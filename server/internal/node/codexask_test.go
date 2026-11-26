@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Codex question and approval cards against a fake herdr: what is listed, and the keys and text an answer turns into
@@ -464,7 +465,7 @@ func TestCodexCardsOfJoinedThreads(t *testing.T) {
 		t.Fatalf("to begin with: %+v", cards) // the async and the overlay question (an overlay hides any approval)
 	}
 	n.codices = newCodexRegistry()
-	home := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home)
+	home := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
 	n.codices.config.LegacyHome = home // the default home keeps the thread ids as they are
 	if id := n.registerCodex(home, cxID, ""); id != cxID {
 		t.Fatalf("registered as %q", id)

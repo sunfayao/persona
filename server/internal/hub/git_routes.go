@@ -46,7 +46,6 @@ func (h *Hub) gitRoutes(api *http.ServeMux) {
 	api.HandleFunc("POST /api/v1/machines/{mid}/git/switch", h.proxyBody("git.switch"))
 	api.HandleFunc("POST /api/v1/machines/{mid}/git/stash", h.proxyBody("git.stash"))
 	api.HandleFunc("POST /api/v1/machines/{mid}/git/pr", h.proxyBodyFor("git.pr_create", 2*time.Minute))
-	api.HandleFunc("POST /api/v1/machines/{mid}/git/pr/merge", h.proxyBodyFor("git.pr_merge", 3*time.Minute))
 }
 
 // backendGitTarget routes an explicit repository selection through a distinct RPC.

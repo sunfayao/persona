@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/ai"
 )
 
 // taskDoneDeferredRetries is how many judgment passes the supervision sweep makes after the initial pass (which already

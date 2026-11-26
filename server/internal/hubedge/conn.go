@@ -8,8 +8,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proxyproto"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proxyproto"
 )
 
 // SlotListener is a slot's end of one of the edge's ports: a Unix socket only the edge connects to. Every connection

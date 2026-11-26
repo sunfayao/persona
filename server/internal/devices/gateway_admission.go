@@ -3,7 +3,7 @@ package devices
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Quota to show in the usage sidebar can be much older than quota that may

@@ -16,10 +16,8 @@ import {
   confirmStage,
   isPending,
   knownOS,
-  LINK_LINUX_DOC,
   neverConnected,
   linuxCommand,
-  PERSONA_LINK_INSTALL_DOC,
   rememberOS,
   windowsCommand,
   type ComputerCodeReply,
@@ -379,15 +377,6 @@ function Instructions({ os, code }: { os: ComputerOS; code: ComputerCodeReply })
       <Steps>
         <Step n={1}>
           {t(installs ? "machines-addcomputer.linux_step_install" : "machines-addcomputer.linux_step_pair")}
-          {!installs && (
-            <>
-              {" "}
-              <a href={LINK_LINUX_DOC} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 whitespace-nowrap text-accent-ink hover:underline">
-                {t("machines-addcomputer.linux_install_link")}
-                <Icon name="external" size={11} />
-              </a>
-            </>
-          )}
         </Step>
         <Command line={line} label={t("machines-addcomputer.copy_command")} />
         <Step n={2}>{t("machines-addcomputer.linux_step_done")}</Step>
@@ -408,11 +397,7 @@ function Instructions({ os, code }: { os: ComputerOS; code: ComputerCodeReply })
   return (
     <Steps>
       <Step n={1}>
-        {t("machines-addcomputer.mac_step_install")}{" "}
-        <a href={PERSONA_LINK_INSTALL_DOC} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 whitespace-nowrap text-accent-ink hover:underline">
-          {t("machines-addcomputer.mac_install_link")}
-          <Icon name="external" size={11} />
-        </a>
+        {t("machines-addcomputer.mac_step_install")}
       </Step>
       <Step n={2}>{t("machines-addcomputer.mac_step_link")}</Step>
       <div className="flex flex-wrap gap-2 pl-7">

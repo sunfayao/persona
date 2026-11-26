@@ -5,8 +5,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The machines the apps see, as the manager that carries them reported (devices_reports.go): in its order, with the

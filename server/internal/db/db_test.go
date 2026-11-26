@@ -16,8 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // TestMain runs the tests on a database of their own (dbtest, #583): other runs on the same machine do not touch it.

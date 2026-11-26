@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/jsonsubset"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The shared To-dos view cases (spec/fixtures/todo-view and todo-counts, #10226): the projection answers every one
@@ -43,7 +43,6 @@ type countsInput struct {
 	RestoredAt   map[string]time.Time `json:"restored_at"`
 	SomedayUntil map[string]time.Time `json:"someday_until"`
 	Loc          string               `json:"loc"`
-	Projects     map[string]string    `json:"projects"`
 }
 
 type fixtureCase[I any] struct {
@@ -52,7 +51,6 @@ type fixtureCase[I any] struct {
 	Expected struct {
 		View   json.RawMessage     `json:"view"`
 		Counts json.RawMessage     `json:"counts"`
-		Places json.RawMessage     `json:"places"`
 		Order  map[string][]string `json:"order"`
 	} `json:"expected"`
 }
@@ -213,7 +211,6 @@ func TestProjectionFollowsTheCountsCases(t *testing.T) {
 				}
 			}
 			sameJSON(t, "TodoCounts", Counts(list, views), c.Expected.Counts)
-			sameJSON(t, "TodoPlaces", Places(list, views, c.Input.Projects), c.Expected.Places)
 			if c.Expected.Order == nil {
 				return
 			}

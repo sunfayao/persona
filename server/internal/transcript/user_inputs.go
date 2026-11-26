@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // UserInputPositions groups blocks by entry identity, not text or model turn. Genuine queued inputs count;

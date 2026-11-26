@@ -10,7 +10,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // On a real Mac with Cua Driver and ego lite (#1830 step 5): the built-in programs answer plugin.node.call as their

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The cases the web reads too (web/src/views/chat/TurnChanges.test.tsx): a folded run counts its edits exactly as the

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netshape"
+	"github.com/sunfayao/persona/server/internal/netshape"
 )
 
 // TestResumeBench is #10663's experiment: a machine downloads 8 MiB in 256 KiB file.chunk calls while it makes an

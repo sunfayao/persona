@@ -1,6 +1,5 @@
 // Package hubcli is the hub's command line: `persona-hub <command>` (cmd/persona-hub) and `personad hub <command>`
-// (cmd/personad, the compatibility entry) run the same code. It links only the hub's side (docs/server/server.md
-// "Programs"): the manager's commands are internal/managercli's.
+// (cmd/personad, the compatibility entry) run the same code. It links only the hub's side. The manager's commands are in internal/managercli.
 package hubcli
 
 import (
@@ -10,10 +9,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/hub"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/hub"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Usage is the hub's commands, as `personad hub …` (clitext.Named puts the program's name in).
@@ -30,7 +29,7 @@ const Usage = `  personad hub [run]        run the hub (config ~/.persona/hub.js
                                            --manager-service: an existing hub's built-in manager becomes a service of its own (a new one has that);
                                            PERSONA_SPLIT_PROGRAMS=0 keeps its services on personad (not persona-hub, persona-manager)
                                            and stays in their units until setup runs again without it (an installed Mac stays on personad)
-  personad hub pair [--legacy | --android] print a pairing QR code and optional Android download link
+  personad hub pair [--legacy] print a pairing QR code
   personad hub pair --machine <id> [--add [--name <name>]]
                                            print a pairing link for that link machine's persona-link (docs/operations/link.md);
                                            --add adds it to hub.json first when it is not there
@@ -140,7 +139,6 @@ func pair(ctx context.Context, args []string) error {
 	l := i18n.Terminal()
 	flags := flag.NewFlagSet(Word+"pair", flag.ContinueOnError)
 	legacy := flags.Bool("legacy", false, i18n.T(l, "hub-cli.pair_flag_legacy"))
-	android := flags.Bool("android", false, i18n.T(l, "hub-cli.pair_flag_android"))
 	machine := flags.String("machine", "", i18n.T(l, "hub-cli.pair_flag_machine"))
 	add := flags.Bool("add", false, i18n.T(l, "hub-cli.pair_flag_add"))
 	name := flags.String("name", "", i18n.T(l, "hub-cli.pair_flag_name"))
@@ -156,24 +154,22 @@ func pair(ctx context.Context, args []string) error {
 	switch {
 	case flags.NArg() != 0:
 		return clitext.UsageError(fmt.Sprintf("%s takes no positional arguments (got %q)\n%s", pairCommand(), flags.Arg(0), pairUsage()))
-	case *peer && (set["machine"] || *legacy || *android || *add || set["name"]):
-		return clitext.UsageError("--peer cannot be combined with --machine, --legacy, --android, --add or --name\n" + pairUsage())
+	case *peer && (set["machine"] || *legacy || *add || set["name"]):
+		return clitext.UsageError("--peer cannot be combined with --machine, --legacy, --add or --name\n" + pairUsage())
 	case *peer:
 		return hub.PairPeer(ctx)
 	case set["machine"] && *machine == "":
 		return clitext.UsageError("--machine needs a machine id\n" + pairUsage())
-	case *machine != "" && (*legacy || *android):
-		return clitext.UsageError("--machine cannot be combined with --legacy or --android\n" + pairUsage())
+	case *machine != "" && *legacy:
+		return clitext.UsageError("--machine cannot be combined with --legacy\n" + pairUsage())
 	case (*add || *name != "") && *machine == "":
 		return clitext.UsageError("--add and --name go with --machine\n" + pairUsage())
 	case *name != "" && !*add:
 		return clitext.UsageError("--name goes with --add\n" + pairUsage())
-	case *legacy && *android:
-		return clitext.UsageError("--android needs a temporary token, so it cannot be combined with --legacy\n" + pairUsage())
 	case *machine != "":
 		return hub.PairMachine(ctx, *machine, *add, *name)
 	}
-	return hub.Pair(ctx, *legacy, *android)
+	return hub.Pair(ctx, *legacy)
 }
 
 func pairCommand() string { return commandName() + " " + Word + "pair" }
@@ -181,7 +177,7 @@ func pairCommand() string { return commandName() + " " + Word + "pair" }
 // pairUsage is `hub pair`'s three forms.
 func pairUsage() string {
 	c := pairCommand()
-	return "usage: " + c + " [--legacy | --android]\n" +
+	return "usage: " + c + " [--legacy]\n" +
 		"       " + c + " --machine <id> [--add [--name <name>]]\n" +
 		"       " + c + " --peer"
 }

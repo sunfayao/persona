@@ -5,7 +5,7 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // adoptedPaneShells keeps an adopted pane's programs as they are on Unix: a pwsh there gets the command typed as

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The read shapes the assistant was refused as Lark writes (#11193), as it wrote them: a timeout wrapper, output piped

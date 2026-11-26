@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Forking a conversation ("Branch to New Chat", #2137): a new Claude Code session that knows the conversation up to one of its

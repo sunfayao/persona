@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Codex tool's input is clipped like a Claude tool_use's (clipJSON): a rollout that writes a big file carries the

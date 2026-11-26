@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // The tokens of the model requests a chat's items stand for (proto.Item.Usage, #5426), so a client can sum a turn's

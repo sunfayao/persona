@@ -21,7 +21,7 @@ import (
 
 	_ "golang.org/x/image/webp"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ToolImage is one picture of a read tool's answer (tools.call's images): base64 data, the type a hint only (the

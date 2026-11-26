@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // agentBranchPrefix is the branch prefix of a new agent's worktree.

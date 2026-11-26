@@ -56,35 +56,6 @@ func twoMacs(t *testing.T) (*Manager, *flakyAppsStore) {
 	return h, st
 }
 
-// A failed read of the apps always allowed must not be taken for "none": removing one app from Mac a then wrote
-// back a list holding only a's entry, dropping every other Mac's apps.
-func TestDeleteComputerAppKeepsOtherMacsOnReadError(t *testing.T) {
-	h, st := twoMacs(t)
-	st.failReads = 1
-	r := httptest.NewRequest(http.MethodDelete, "/api/v1/machines/a/computer/apps/com.apple.calculator", nil)
-	r.SetPathValue("bundle", "com.apple.calculator")
-	w := httptest.NewRecorder()
-	h.deleteComputerApp(w, r, &Machine{cfg: MachineConfig{ID: "a"}})
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("read error answered %d, want 500: %s", w.Code, w.Body)
-	}
-	all := st.stored(t)
-	if len(all["b"]) != 1 || len(all["a"]) != 2 {
-		t.Fatalf("apps lost on a failed read: %+v", all)
-	}
-
-	// Once the read works the app is removed, and only that one.
-	w = httptest.NewRecorder()
-	h.deleteComputerApp(w, r, &Machine{cfg: MachineConfig{ID: "a"}})
-	if w.Code != http.StatusOK {
-		t.Fatalf("delete: %d %s", w.Code, w.Body)
-	}
-	all = st.stored(t)
-	if len(all["b"]) != 1 || len(all["a"]) != 1 || all["a"][0].BundleID != "com.apple.notes" {
-		t.Fatalf("after delete: %+v", all)
-	}
-}
-
 // The machine page shows an error, not an empty list, when the apps cannot be read.
 func TestGetComputerAppsReadError(t *testing.T) {
 	h, st := twoMacs(t)

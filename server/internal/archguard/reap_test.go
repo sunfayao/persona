@@ -185,7 +185,7 @@ func TestEveryReapInheritedCallSiteIsPinned(t *testing.T) {
 func osprocNames(f *ast.File) map[string]bool {
 	names := map[string]bool{}
 	for _, imp := range f.Imports {
-		if imp.Path.Value != `"github.com/nwverse/persona/server/internal/osproc"` {
+		if imp.Path.Value != `"github.com/sunfayao/persona/server/internal/osproc"` {
 			continue
 		}
 		if imp.Name == nil {

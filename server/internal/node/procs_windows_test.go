@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/engine/orca"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/node/engine/orca"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // TestProcHelper is the child TestListWinProcsReadsTheChild reads: it waits until killed.

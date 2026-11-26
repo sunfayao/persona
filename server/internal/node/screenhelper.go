@@ -18,11 +18,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/nodesign"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/nodesign"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The live-screen video helper, Persona Screen (#3954).
@@ -37,7 +37,7 @@ import (
 // it; Persona Link builds it the same way each time, so the grant lasts until the helper itself changes.
 
 // advertiseScreenVideo says whether the computer and browser statuses carry screen_video, and whether the node asks
-// macOS for the helper's grant (askScreenPermission). On since the official TestFlight build decodes the video (#3954
+// macOS for the helper's grant (askScreenPermission). Enabled once clients could decode video (#3954
 // slices 3b and 3c); apps before it don't offer the picture switcher. screen.dial works either way.
 const advertiseScreenVideo = true
 

@@ -233,7 +233,6 @@ function Starter({ cleared, onToggleSidebar }: { cleared?: boolean; onToggleSide
     ? hubSuggestions.map((x) => ({
         key: x.id,
         title: x.title,
-        hint: x.needs?.includes("phone_calendar") ? t("personaassistant.needs_calendar") : undefined,
         onClick: () => (x.local ? gate.help(helpTopic(x.id)) : fill(x.prompt || x.title)),
       }))
     : SUGGESTIONS.map((x) => ({ key: x, title: x, onClick: () => fill(x) }));

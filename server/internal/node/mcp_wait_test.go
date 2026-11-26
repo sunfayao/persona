@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/mcpwait"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/mcpwait"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestNodeAnnouncesMCPWaitCapability(t *testing.T) {

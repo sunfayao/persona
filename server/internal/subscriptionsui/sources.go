@@ -4,9 +4,9 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // ① Inbox Sources (#5278): everything that brings new things into the Inbox or the knowledge base. What needs
@@ -101,13 +101,6 @@ func (p *pages) list() wire.View {
 		v.Sections[len(v.Sections)-1].Footer = p.t("list.recommended_footer")
 	}
 	available := len(recommended)
-	// This device's Shortcuts source (#3848) before the connectors' tools: it is the one source of its own.
-	if !filtered {
-		if sec, ok := p.pushSection(subs); ok {
-			v.Sections = append(v.Sections, sec)
-			available++
-		}
-	}
 	more := p.available(cats)
 	for _, sec := range more {
 		available += len(sec.Items)

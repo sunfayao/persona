@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Resolver authenticates/authorizes a request and binds a provider to its resource.

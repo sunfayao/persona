@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 // Real manager HTTP and PostgreSQL, synthetic Node metadata and mock unrelated
@@ -44,7 +44,7 @@ func TestWorkspaceNamingBrowserHarness(t *testing.T) {
 	}
 	for _, name := range []string{"web", "api"} {
 		identity, _ := repository.Parse("https://github.com/example/"+name, "")
-		if _, err = s.saveRepository(t.Context(), "", RepositoryBinding{Identity: identity, Name: "Example " + name}); err != nil {
+		if _, err = s.saveRepository(t.Context(), RepositoryBinding{Identity: identity, Name: "Example " + name}); err != nil {
 			t.Fatal(err)
 		}
 	}

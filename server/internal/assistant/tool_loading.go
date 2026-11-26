@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Which Persona tools an assistant conversation loads up front (#7317). Claude Code sends a tool personad mcp marks

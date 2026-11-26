@@ -23,19 +23,8 @@ func nextOfType(t *testing.T, c *client, typ string) map[string]any {
 	}
 }
 
-func desktopNames(t *testing.T, ev map[string]any) []string {
-	t.Helper()
-	list, _ := ev["desktops"].([]any)
-	names := []string{}
-	for _, d := range list {
-		m, _ := d.(map[string]any)
-		names = append(names, m["name"].(string)+"/"+m["device"].(string))
-	}
-	return names
-}
-
-// A Mac registers as a desktop, not as the phone: every client hears about it, and it goes when it disconnects.
-func TestRegisterDesktopIsAnnouncedAndGone(t *testing.T) {
+// Desktop alert suppression ends when the desktop disconnects.
+func TestRegisterDesktopPresenceEndsOnDisconnect(t *testing.T) {
 	h := newTestHub(t)
 	phone := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}, role: roleFull}
 	mac := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}, device: "dev_mac", role: roleFull}
@@ -44,17 +33,11 @@ func TestRegisterDesktopIsAnnouncedAndGone(t *testing.T) {
 	h.mu.Unlock()
 
 	h.onClientMessage(context.Background(), mac, []byte(`{"type":"register_desktop","device_name":"MacBook"}`))
-	if got := desktopNames(t, nextOfType(t, phone, "desktops")); len(got) != 1 || got[0] != "MacBook/dev_mac" {
-		t.Fatalf("desktops = %v", got)
-	}
 	if !h.desktopOnline() {
 		t.Fatal("a registered desktop is online")
 	}
 
 	h.dropClient(mac)
-	if got := desktopNames(t, nextOfType(t, phone, "desktops")); len(got) != 0 {
-		t.Fatalf("after the Mac left: %v", got)
-	}
 	if h.desktopOnline() {
 		t.Fatal("no desktop is online after it left")
 	}
@@ -69,13 +52,7 @@ func TestUnregisterDesktopKeepsClientAndCanRegisterAgain(t *testing.T) {
 	h.mu.Unlock()
 
 	h.onClientMessage(context.Background(), desktop, []byte(`{"type":"register_desktop","device_name":"Desktop","device_id":"push"}`))
-	if got := desktopNames(t, nextOfType(t, phone, "desktops")); len(got) != 1 {
-		t.Fatalf("desktops = %v", got)
-	}
 	h.onClientMessage(context.Background(), desktop, []byte(`{"type":"unregister_desktop"}`))
-	if got := desktopNames(t, nextOfType(t, phone, "desktops")); len(got) != 0 {
-		t.Fatalf("after unregister: %v", got)
-	}
 	if h.desktopOnline() || h.desktopOpen("push") {
 		t.Fatal("withdrawn desktop still suppresses phone alerts")
 	}
@@ -105,22 +82,6 @@ func TestAnswerOnlyCannotRegisterDesktop(t *testing.T) {
 	h.onClientMessage(context.Background(), watch, []byte(`{"type":"register_desktop","device_name":"Watch"}`))
 	if h.desktopOnline() {
 		t.Fatal("an answer-only device registered as a desktop")
-	}
-}
-
-// A client that is not a desktop leaving says nothing about desktops.
-func TestDropNonDesktopIsQuiet(t *testing.T) {
-	h := newTestHub(t)
-	phone := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}}
-	other := &client{out: make(chan []byte, 16), subs: map[[2]string]bool{}}
-	h.mu.Lock()
-	h.clients[phone], h.clients[other] = struct{}{}, struct{}{}
-	h.mu.Unlock()
-	h.dropClient(other)
-	select {
-	case b := <-phone.out:
-		t.Fatalf("unexpected event %s", b)
-	default:
 	}
 }
 

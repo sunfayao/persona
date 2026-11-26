@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The plugin → extension rename (#1844): the hub's routes live under
@@ -226,7 +226,6 @@ type legacyMarketView struct {
 	Error              string              `json:"error,omitempty"`
 	FetchedAt          *time.Time          `json:"fetched_at,omitempty"`
 	AddedAt            time.Time           `json:"added_at"`
-	Official           bool                `json:"official,omitempty"`
 	Signature          MarketSignatureView `json:"signature"`
 }
 

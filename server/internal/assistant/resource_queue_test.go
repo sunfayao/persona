@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	rq "github.com/nwverse/persona/server/internal/resourcequeue"
+	"github.com/sunfayao/persona/server/internal/db"
+	rq "github.com/sunfayao/persona/server/internal/resourcequeue"
 )
 
 func resourceFixture(t *testing.T) (*Service, *db.DB, rq.Definition) {

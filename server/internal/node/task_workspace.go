@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 type workspaceJournal struct {

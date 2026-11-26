@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 func TestShareAuthorityHandoverIncludesOnlyTrustedKeptMachines(t *testing.T) {

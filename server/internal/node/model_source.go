@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 const modelSourceEnv = "PERSONA_MODEL_SOURCE"

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Download fetches pkg into dir (a fresh staging directory) and checks its sha256; it returns the file and the

@@ -3,7 +3,7 @@ package assistant
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Events of a connector that groups but keeps no meta (capability group without meta): the inbox writes them itself,

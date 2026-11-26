@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
-	rq "github.com/nwverse/persona/server/internal/resourcequeue"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
+	rq "github.com/sunfayao/persona/server/internal/resourcequeue"
 )
 
 var resourceCall = func(ctx context.Context, name string, args any, out any) error {

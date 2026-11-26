@@ -14,10 +14,10 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Protocol 2 (4.2–4.6, 4.10): a call bound to the conversation it was opened from.
@@ -107,7 +107,7 @@ func TestBoundToAnAgent(t *testing.T) {
 		{"role": "assistant", "text": "登录页的测试挂了两个"}, {"role": "tool", "text": "ignored"}}}))
 	ready := a.until(ofType("ready"))
 	target, _ := ready["target"].(map[string]any)
-	if ready["protocol"] != float64(2) || fmt.Sprint(ready["features"]) != "[target runs asks resume suspend speak speech_gate hold dictation]" || target["kind"] != "agent" ||
+	if ready["protocol"] != float64(2) || fmt.Sprint(ready["features"]) != "[target runs asks resume suspend speech_gate hold dictation]" || target["kind"] != "agent" ||
 		target["agent_label"] != "Claude Code" || target["title"] != "修登录页的测试" || target["machine_name"] != "工作站" || target["session_id"] != "a1" {
 		t.Fatalf("ready: %v", ready)
 	}

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"math"
 
-	wire "github.com/nwverse/persona/server/internal/preview"
+	wire "github.com/sunfayao/persona/server/internal/preview"
 )
 
 type previewHistory struct {

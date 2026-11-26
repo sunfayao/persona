@@ -18,7 +18,6 @@ export interface ShortcutContext {
   route: Route;
   /** The conversation on the page. */
   pane?: PaneRef;
-  workPaneAvailable?: (pane: PaneRef) => boolean;
   /** A phone-width screen: the sidebar is a drawer, there is no column to hide. */
   narrow: boolean;
   toggleDrawer: () => void;
@@ -97,9 +96,9 @@ export function useShortcuts(ctx: ShortcutContext) {
       }),
       registerShortcut("maximize", () => (at.current.narrow ? false : void toggleMaximized())),
       registerShortcut("terminal-chat", () => {
-        const { route, pane, workPaneAvailable } = at.current;
+        const { route, pane } = at.current;
         const inWork = inWorkView(route);
-        const can = !!pane && canShowTerminal(getSession(pane.mid, pane.sid)) && (!inWork || workPaneAvailable?.(pane) === true);
+        const can = !!pane && canShowTerminal(getSession(pane.mid, pane.sid));
         const url = route.name === "session" || route.name === "tab" ? route.view : undefined;
         const to = terminalChat(route, pane ? resolveView(url, readView(pane.mid, pane.sid), can) : "chat", can);
         if (!to) return false;

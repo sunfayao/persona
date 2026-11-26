@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // previewFor is how long a preview's staged package is kept.
@@ -148,8 +148,8 @@ func (r *Registry) PreviewMarket(ctx context.Context, mk *Market, marketID strin
 		renameFrom = upgrade
 	}
 	verifiedKey := ""
-	if IsOfficialMarket(mk.Spec.String()) {
-		if e.verifiedKey == "" || e.verifiedKey != Official.SigningKey || e.verifiedKey != mk.TrustedKey || e.verifiedEntry != entryFingerprint(e) {
+	if mk.TrustedKey != "" {
+		if e.verifiedKey != mk.TrustedKey || e.verifiedEntry != entryFingerprint(e) {
 			return nil, i18n.Err("extension-market_security.signature")
 		}
 		verifiedKey = e.verifiedKey

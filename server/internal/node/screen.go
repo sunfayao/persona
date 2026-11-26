@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Live-screen hardware video channel (#3954), node side.

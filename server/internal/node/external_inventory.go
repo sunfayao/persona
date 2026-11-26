@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // externalLauncherList is source-scoped discovery. It never enters a host runtime or the login shell, and a failed

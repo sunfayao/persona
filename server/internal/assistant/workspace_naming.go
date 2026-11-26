@@ -7,15 +7,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/assistant/repositorystore"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repositorystore"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 type workspaceNamingStore interface {
@@ -233,72 +232,4 @@ func (s *Service) workspaceNamingRoutes() {
 			apierr.WriteJSON(w, preview)
 		})
 	}
-	s.handle("GET /api/v1/todos/{id}/workspace-naming/plans/{operation_id}", func(w http.ResponseWriter, r *http.Request) {
-		st, ok := s.store().(workspaceNamingStore)
-		if !ok {
-			namingError(w, repository.Problem("store_unavailable"))
-			return
-		}
-		p, err := st.WorkspaceNamingPlan(r.Context(), r.PathValue("id"), r.PathValue("operation_id"))
-		if err != nil {
-			namingError(w, err)
-			return
-		}
-		if p == nil {
-			namingError(w, db.ErrTodoNotFound)
-			return
-		}
-		apierr.WriteJSON(w, p)
-	})
-	s.handle("POST /api/v1/todos/{id}/workspace-naming/plans", func(w http.ResponseWriter, r *http.Request) {
-		var in namingRequest
-		if !namingBody(w, r, &in) {
-			return
-		}
-		if !workspacenaming.ValidOperationID(in.OperationID) || len(in.WorkspaceRules) > 0 || in.SelectedRepoIDs == nil {
-			namingError(w, repository.Problem("invalid"))
-			return
-		}
-		st, ok := s.store().(workspaceNamingStore)
-		if !ok {
-			namingError(w, repository.Problem("store_unavailable"))
-			return
-		}
-		id := r.PathValue("id")
-		prior, err := st.WorkspaceNamingPlanForSave(r.Context(), id, in.OperationID)
-		if err != nil {
-			namingError(w, err)
-			return
-		}
-		if prior != nil {
-			ids := []string{}
-			for _, repo := range prior.Source.Repositories.Repositories {
-				ids = append(ids, repo.RepoID)
-			}
-			selected := slices.Clone(in.SelectedRepoIDs)
-			slices.Sort(selected)
-			slices.Sort(ids)
-			if prior.Source.MachineID != in.MachineID || prior.Source.Layout != in.Layout || !slices.Equal(ids, selected) {
-				namingError(w, repository.Problem("revision_conflict"))
-				return
-			}
-			apierr.WriteJSON(w, prior)
-			return
-		}
-		preview, revision, err := s.namingPreview(r.Context(), id, in, false)
-		if err != nil {
-			namingError(w, err)
-			return
-		}
-		if preview.Plan == nil {
-			apierr.WriteJSON(w, preview)
-			return
-		}
-		plan, err := st.SaveWorkspaceNamingPlan(r.Context(), id, in.OperationID, revision, *preview.Plan)
-		if err != nil {
-			namingError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, plan)
-	})
 }

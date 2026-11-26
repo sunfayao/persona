@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 func TestSupervisionPRConflictDedupPersistsAcrossHeadsAndRestart(t *testing.T) {

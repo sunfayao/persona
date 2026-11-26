@@ -18,12 +18,11 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
-	"github.com/nwverse/persona/server/internal/voice"
-	"github.com/nwverse/persona/server/internal/volc"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/voice"
+	"github.com/sunfayao/persona/server/internal/volc"
 )
 
 // TestMain doubles as a plugin: re-run with PERSONA_TEST_PLUGIN=1 the test binary serves on PERSONA_PLUGIN_SOCKET.
@@ -69,10 +68,6 @@ func TestMain(m *testing.M) {
 		serveConnectorExtensionForTest()
 		return
 	}
-	if os.Getenv("PERSONA_TEST_PLUGIN") == "recall" {
-		serveRecallExtensionForTest()
-		return
-	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "auth" {
 		serveAuthExtensionForTest()
 		return
@@ -109,10 +104,6 @@ func TestMain(m *testing.M) {
 		serveImagesExtensionForTest()
 		return
 	}
-	if os.Getenv("PERSONA_TEST_PLUGIN") == "system" {
-		serveSystemExtensionForTest()
-		return
-	}
 	if os.Getenv("PERSONA_TEST_PLUGIN") == "inboxui" {
 		serveInboxUIExtensionForTest()
 		return
@@ -145,8 +136,6 @@ func TestMain(m *testing.M) {
 		serveLiveExtensionForTest()
 		return
 	}
-	// The official market (#2351) is added only by the tests about it: the others' markets are their own.
-	extension.Official = extension.OfficialMarket{}
 	os.Exit(dbtest.Main(m))
 }
 

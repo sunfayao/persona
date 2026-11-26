@@ -17,7 +17,7 @@ import (
 	"github.com/emersion/go-smtp"
 	xproxy "golang.org/x/net/proxy"
 
-	"github.com/nwverse/persona/server/internal/netproxy"
+	"github.com/sunfayao/persona/server/internal/netproxy"
 )
 
 // Gmail traffic can go through an HTTP proxy (hub.json google.proxy): some networks reach only some of Google's

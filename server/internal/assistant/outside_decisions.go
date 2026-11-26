@@ -13,11 +13,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Outside decisions (#8235): an authorized script or extension raises the same
@@ -510,76 +508,4 @@ func (s *Service) closeOutsideBacking(ctx context.Context, id string) {
 	if err != nil && !errors.Is(err, db.ErrTodoNotFound) {
 		s.logf("outside decision backing to-do %s: close: %v", id, err)
 	}
-}
-
-func outsideHTTPCaller(r *http.Request) (*outsideCaller, error) {
-	if fullRole(r) {
-		return &outsideCaller{key: "full", kind: "app", name: "Persona"}, nil
-	}
-	if r.Header.Get(RoleHeader) == roleExtension {
-		ext := strings.TrimSpace(r.Header.Get(ExtensionHeader))
-		if ext == "" {
-			return nil, outsideErr(http.StatusBadRequest, "extension_unknown", errors.New("extension unknown"))
-		}
-		return &outsideCaller{key: "extension:" + ext, kind: "extension", name: ext}, nil
-	}
-	return nil, outsideErr(http.StatusForbidden, "forbidden", i18n.ErrEnglish("http-status.forbidden"))
-}
-
-func writeOutsideError(w http.ResponseWriter, err error) {
-	var failure *outsideFailure
-	if errors.As(err, &failure) {
-		writeTypedNothing(w, failure.status, failure.code, failure.err)
-		return
-	}
-	if errors.Is(err, errAcceptStore) {
-		writeTypedNothing(w, http.StatusServiceUnavailable, "store_unavailable", err)
-		return
-	}
-	apierr.Write(w, http.StatusInternalServerError, err)
-}
-
-func (s *Service) outsideDecisionRoutes() {
-	s.handle("POST /api/v1/decisions", func(w http.ResponseWriter, r *http.Request) {
-		caller, err := outsideHTTPCaller(r)
-		if err != nil {
-			writeOutsideError(w, err)
-			return
-		}
-		var in assistantwire.OutsideDecisionRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
-			writeTypedNothing(w, http.StatusBadRequest, "invalid_decision", err)
-			return
-		}
-		rec, inserted, err := s.raiseOutsideDecision(r.Context(), caller, in)
-		if err != nil {
-			writeOutsideError(w, err)
-			return
-		}
-		apierr.WriteJSON(w, outsideReply(rec, inserted))
-	})
-	s.handle("GET /api/v1/decisions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		caller, err := outsideHTTPCaller(r)
-		if err == nil {
-			var rec *outsideDecision
-			rec, err = s.outsideForCaller(r.Context(), caller, r.PathValue("id"))
-			if err == nil {
-				apierr.WriteJSON(w, outsideReply(rec, false))
-				return
-			}
-		}
-		writeOutsideError(w, err)
-	})
-	s.handle("POST /api/v1/decisions/{id}/withdraw", func(w http.ResponseWriter, r *http.Request) {
-		caller, err := outsideHTTPCaller(r)
-		if err == nil {
-			var rec *outsideDecision
-			rec, err = s.withdrawOutsideDecision(r.Context(), caller, r.PathValue("id"))
-			if err == nil {
-				apierr.WriteJSON(w, outsideReply(rec, false))
-				return
-			}
-		}
-		writeOutsideError(w, err)
-	})
 }

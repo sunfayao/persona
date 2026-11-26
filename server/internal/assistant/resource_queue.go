@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/proto"
-	rq "github.com/nwverse/persona/server/internal/resourcequeue"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/proto"
+	rq "github.com/sunfayao/persona/server/internal/resourcequeue"
 )
 
 var resourceToolNames = []string{"resource_status", "resource_acquire", "resource_get", "resource_renew", "resource_release", "resource_cancel"}

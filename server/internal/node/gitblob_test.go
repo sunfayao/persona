@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // gitBlobEnv gives a test its own cache folder (cacheEnv) and git identity (gitEnv), and answers a folder for its

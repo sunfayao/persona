@@ -28,7 +28,7 @@ import zlib
 from urllib.parse import urlsplit, urlunsplit
 
 OWNER = "persona-web-development-backup-v1"
-REPOSITORY = "https://github.com/nwverse/persona.git"
+REPOSITORY = "https://github.com/sunfayao/persona.git"
 NAME = re.compile(r"snapshot-[0-9]{20}-[a-f0-9]{12}")
 PLATFORMS = {"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64"}
 # Automatic adoption must prove ancestry within this bounded history window.

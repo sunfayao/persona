@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // briefService is the main conversation conv1 on a fake hub, with task_plan held to what a brief requires, and the
@@ -478,7 +478,7 @@ func TestAgentSuperviseRescopesThroughTheLog(t *testing.T) {
 	// A turn the owner did not start: a risky criterion is refused, a plain one is logged.
 	f.setItems(proto.Item{ID: "m2", Role: "user", Kind: proto.KindText, TS: time.Now(),
 		Text: prompts.RenderSupervise(prompts.Supervise{Entries: []prompts.SuperviseEntry{{ID: todo.ID, Title: todo.Title, Kind: sigStalled}}})})
-	if got, isErr := tool(t, s, "agent_supervise", args("the table link is posted", "released to TestFlight")); !isErr || !strings.Contains(got, "only the owner may allow") {
+	if got, isErr := tool(t, s, "agent_supervise", args("the table link is posted", "deployed to preview")); !isErr || !strings.Contains(got, "only the owner may allow") {
 		t.Fatalf("agent_supervise with a risky criterion: %s", got)
 	}
 	if got, isErr := tool(t, s, "agent_supervise", args("the table link is posted", "last week's column is there")); isErr {

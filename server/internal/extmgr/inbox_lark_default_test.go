@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/lark"
 )
 
 // The inbox's default Feishu account is the Feishu extension's, not hub.json's lark.account (#5098); while the

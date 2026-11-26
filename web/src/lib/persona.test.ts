@@ -38,7 +38,7 @@ describe("persona packages", () => {
     expect(isBuiltinPersona(id)).toBe(false);
     expect(normalizePersonaChoice(id)).toBe("persona");
     expect(personaProblem(pack({}, id))).toBe(`id ${id}`);
-    expect(usablePersonas([pack({}, id), pack({}, "nwverse"), pack({}, "new-look")]).map((p) => p.id)).toEqual(["nwverse", "new-look"]);
+    expect(usablePersonas([pack({}, id), pack({}, "example-look"), pack({}, "new-look")]).map((p) => p.id)).toEqual(["example-look", "new-look"]);
   });
 
   it("keeps generic extension choices and defaults empty selections", () => {
@@ -66,9 +66,9 @@ describe("persona packages", () => {
   });
 });
 
-describe("a tiered look moving to another tier", () => {
+describe("a look package changing revisions", () => {
   const before = [{ ...pack(), rev: "rev-egg" }, pack({}, "other")];
-  const after = [{ ...pack({ about: "NWVERSE level" }), rev: "rev-frog" }, pack({}, "other")];
+  const after = [{ ...pack({ about: "Updated look" }), rev: "rev-updated" }, pack({}, "other")];
 
   it("shows the new tier once its files are in", () => {
     expect(withChosenReady(after, before, "doudou", true)).toBe(after);
@@ -81,7 +81,7 @@ describe("a tiered look moving to another tier", () => {
   });
 
   it("reads the words for the card", () => {
-    expect(after[0].manifest.about).toBe("NWVERSE level");
+    expect(after[0].manifest.about).toBe("Updated look");
     expect(personaProblem(after[0])).toBeNull();
   });
 });

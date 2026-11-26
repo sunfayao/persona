@@ -8,7 +8,7 @@ import (
 	"errors"
 	"math"
 
-	wire "github.com/nwverse/persona/server/internal/preview"
+	wire "github.com/sunfayao/persona/server/internal/preview"
 )
 
 //go:embed preview_pick.js

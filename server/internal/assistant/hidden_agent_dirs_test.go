@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // memAgentDirs keeps hidden Agent folders like the devices do (internal/devices agentdirs.go): per machine, one edit at
@@ -337,10 +337,6 @@ func TestBlockedDirectoryOlderNodeFallsBackToHide(t *testing.T) {
 		if got := ft.s.describeAgents(context.Background(), state, "", ""); strings.Contains(got, "Blocked") {
 			t.Fatalf("agents_list state=%s: %s", state, got)
 		}
-	}
-	fleet := ft.s.fleetSnapshot()
-	if fleet.NeedsYou != 0 || fleet.Unread != 0 || fleet.Working != 1 {
-		t.Fatalf("counts: %+v", fleet)
 	}
 	agents, ixs, told := ft.s.fleetInputs()
 	if got := linkAttention(i18n.Default, agents, ixs, told); got.NeedsYou != 0 {

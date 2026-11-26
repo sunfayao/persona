@@ -7,7 +7,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 type traexHistoryRevisionCache struct {
@@ -56,19 +57,19 @@ func traexHistoryStamp(db, thread, stamp string) string {
 // TRAE CLI 0.215 stores new conversations in state_<n>.sqlite and thread_history_<n>.sqlite, without a rollout.
 // Reuse the paginated Codex reader: both CLIs store the same ThreadItems. Writer locks still identify the exact
 // process and conversation. Subagent histories never become independent terminal conversations.
-func (n *Node) traexThreads() map[string]codexAppThread {
+func (n *Node) traexThreads() map[string]codex.AppThread {
 	return codexPaginatedThreads(n.traexHome())
 }
 
-func traexConversation(t codexAppThread) bool {
+func traexConversation(t codex.AppThread) bool {
 	var source map[string]json.RawMessage
 	return validID(t.ID) && t.Source != "subagent" &&
 		!(json.Unmarshal([]byte(t.Source), &source) == nil && source["subagent"] != nil)
 }
 
-func (n *Node) traexThread(id string) (codexAppThread, bool) {
+func (n *Node) traexThread(id string) (codex.AppThread, bool) {
 	t, ok := n.traexThreads()[id]
-	t.includeRunning = true
+	t.IncludeRunning = true
 	return t, ok && traexConversation(t)
 }
 
@@ -80,7 +81,7 @@ func (n *Node) traexSessions(seen map[string]bool) []proto.Session {
 			continue
 		}
 		s := proto.Session{SessionID: id, Agent: traexAgent, Title: t.Title, Cwd: t.Cwd, Model: t.Model,
-			Effort: t.Effort, Status: proto.StatusOffline, UpdatedAt: t.updated(), CodexRoute: codexRouteTerminal}
+			Effort: t.Effort, Status: proto.StatusOffline, UpdatedAt: t.Updated(), CodexRoute: codexRouteTerminal}
 		var m quickMeta
 		var hasMeta bool
 		if p := n.traexPath(id); p != "" {

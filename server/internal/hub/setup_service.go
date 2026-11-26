@@ -7,10 +7,10 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/update"
 	"html"
 	"io"
 	"os"
@@ -46,8 +46,8 @@ func (e *setupEnv) service(ctx context.Context, cfg *setupConfig) error {
 	return e.fail("service", i18n.T(e.l, "hub-setup.service_unsupported", i18n.Args{"os": e.goos}), i18n.T(e.l, "hub-setup.service_unsupported_next"))
 }
 
-// splitHub is <root>/bin/persona-hub when the hub's systemd unit runs it in personad's place (docs/server/server.md
-// "Programs"): it is there, it is <root>/bin/personad's build, and update.SplitEnv is not 0 (splitOff); "" otherwise.
+// splitHub returns <root>/bin/persona-hub when split mode is enabled and that file matches the build of
+// <root>/bin/personad. It returns "" otherwise.
 // note says why a persona-hub there was passed over. <root>/bin/personad, not the file it links to: the service names
 // this one.
 func (e *setupEnv) splitHub(ctx context.Context) (prog, note string) {

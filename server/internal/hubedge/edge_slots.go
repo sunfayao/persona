@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/procs"
+	"github.com/sunfayao/persona/server/internal/procs"
 )
 
 // proc is one slot: a hub process the edge started.

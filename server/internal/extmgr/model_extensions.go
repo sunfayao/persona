@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // ModelChoice is one model a voice plugin offers (plugin.<id> in the assistant's model configuration).

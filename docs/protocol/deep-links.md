@@ -86,7 +86,6 @@ checks; none of them is written by the hub's link builder.
 | `persona://pair?url=&token=` | pairs a client with a hub | asks "Connect to <host>?" first |
 | `persona://link?…`, `persona://peer?…`, `persona://connector?…` | a computer's, a linked hub's, a connector's pairing | pasted where they belong |
 | `persona://password-login?state=&code=` | finishes a sign-in | its `state` |
-| `persona://browser-login?hub=&request=` | a browser asks to sign in (the web sign-in page's code) | read only by a signed-in device's scanner; opened as a link it signs nothing in ([protocol.md](protocol.md) "Browser QR sign-in") |
 | `persona://ask?text=`, `persona://sources-graph` | the subscriptions pages' actions | only from those pages |
 | `persona://inbox/<id>/source` | an extension's link back to the Inbox item it is drawn for | only that item (`checkOpenURL`) |
 

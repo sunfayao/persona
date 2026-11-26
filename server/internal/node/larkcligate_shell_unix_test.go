@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The Lark gate asks the user's shell for its PATH and for where lark-cli is, inside a tool call's hook. A background

@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Card is a message card (card JSON 2.0: Markdown with headings, tables and code blocks; Feishu 7.20 and later).

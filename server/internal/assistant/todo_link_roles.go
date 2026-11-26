@@ -3,7 +3,7 @@ package assistant
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Link roles are decided twice, without any network call on the report path: prose that explicitly frames a PR as

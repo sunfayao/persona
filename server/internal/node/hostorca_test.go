@@ -15,16 +15,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/node/engine/orca"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/orcart"
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rexcli"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
-	"github.com/nwverse/persona/server/internal/terncli"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/engine/orca"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/orcart"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rexcli"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/terncli"
 )
 
 // Orca as the machine's engine (hostorca.go, engine.go), driven through the node's requests against a fake Orca
@@ -495,17 +495,9 @@ func TestOrcaClose(t *testing.T) {
 	}
 }
 
-// Container and Agent renames use different runtime operations and exact scoped identities.
-func TestOrcaRenameTargetsTheWorktreeOrAgent(t *testing.T) {
+// Agent renames target only the Agent terminal.
+func TestOrcaRenameTargetsTheAgent(t *testing.T) {
 	n, o, _ := orcaSession(t)
-	if _, err := request(t, n, "worktree.rename", map[string]any{"kind": "orca", "workspace_id": "repo::" + orcaCwd, "name": "  Backend work  "}); err != nil {
-		t.Fatal(err)
-	}
-	assertTrace(t, o.Trace("worktree.set"), []string{`worktree.set {"displayName":"Backend work","worktree":"id:repo::` + orcaCwd + `"}`})
-	if len(o.Trace("terminal.rename", "terminal.send")) != 0 {
-		t.Fatal("renaming a worktree touched its Agent")
-	}
-	o.Reset()
 	if _, err := request(t, n, "session.rename", map[string]any{"session_id": sidA, "tab_name": "Agent review"}); err != nil {
 		t.Fatal(err)
 	}
@@ -514,15 +506,6 @@ func TestOrcaRenameTargetsTheWorktreeOrAgent(t *testing.T) {
 		t.Fatal("renaming an Agent touched its worktree")
 	}
 	o.Reset()
-	for _, body := range []map[string]any{
-		{"kind": "orca", "workspace_id": "missing", "name": "Other"},
-		{"kind": "orca", "workspace_id": "repo::" + orcaCwd, "name": " "},
-		{"kind": "orca", "workspace_id": "repo::" + orcaCwd, "name": strings.Repeat("x", maxLabel+1)},
-	} {
-		if _, err := request(t, n, "worktree.rename", body); err == nil {
-			t.Fatal("invalid worktree rename accepted")
-		}
-	}
 	o.SetTerminals()
 	if _, err := request(t, n, "session.rename", map[string]any{"session_id": sidA, "tab_name": "Gone"}); err == nil {
 		t.Fatal("renamed a missing terminal")

@@ -3,7 +3,7 @@ package node
 import (
 	"runtime"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // claudeProcessCount counts the node user's running claude processes for the hub's admission gate. Linux reuses the

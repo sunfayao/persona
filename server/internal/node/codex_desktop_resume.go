@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A migrated Desktop conversation can retain both a rollout and its native index
@@ -21,7 +22,7 @@ func codexDesktopContinuationChat(src codexSource, pass *codexListPass) bool {
 		return true
 	}
 	origin := readCodexOrigin(src.path)
-	if !origin.desktop || origin.exec || origin.sub || origin.parent != "" {
+	if !origin.Desktop || origin.Exec || origin.Subagent || origin.Parent != "" {
 		return false
 	}
 	row, indexed := codexAppThreads(src.home)[src.thread]
@@ -73,16 +74,16 @@ func (n *Node) checkReleasedCodexDesktop(ctx context.Context, id string, src cod
 		}
 		rows, err := readCodexThreads(ctx, db, where)
 		row, found := rows[src.thread]
-		if err != nil || !found || row.origin().exec || row.origin().sub {
+		if err != nil || !found || row.Origin().Exec || row.Origin().Subagent {
 			return "", takeoverRefusal("desktop_resume_unavailable")
 		}
 		cwd = row.Cwd
 	} else if src.path != "" {
 		origin := readCodexOrigin(src.path)
-		if origin.exec || origin.sub || !pathWithin(src.path, src.home) || rolloutThreadID(src.home, src.path) != src.thread {
+		if origin.Exec || origin.Subagent || !pathWithin(src.path, src.home) || rolloutThreadID(src.home, src.path) != src.thread {
 			return "", takeoverRefusal("desktop_resume_unavailable")
 		}
-		cwd = metaOf(src.home, src.path).cwd
+		cwd = metaOf(src.home, src.path).Cwd
 	}
 	if info, err := os.Stat(cwd); err != nil || !info.IsDir() || !filepath.IsAbs(cwd) ||
 		identity.IsAssistantDir(cwd) || !n.sessionScopeAllows(cwd) {
@@ -193,7 +194,7 @@ func (c *codexRemote) resumeReleasedCodexDesktop(ctx context.Context, id string,
 		Effort      string           `json:"reasoningEffort"`
 		ServiceTier json.RawMessage  `json:"serviceTier"`
 	}
-	if err := c.wire.call(ctx, "thread/resume", map[string]any{"threadId": src.thread, "excludeTurns": true}, &reply); err != nil {
+	if err := c.wire.Call(ctx, "thread/resume", map[string]any{"threadId": src.thread, "excludeTurns": true}, &reply); err != nil {
 		if conflict := codexWriterConflict(err); conflict != nil {
 			return takeoverRefusal("writer_busy")
 		}
@@ -211,7 +212,7 @@ func (c *codexRemote) resumeReleasedCodexDesktop(ctx context.Context, id string,
 	current.title = firstNonEmpty(t.Name, t.Preview, current.title)
 	current.model = firstNonEmpty(reply.Model, t.Model, current.model)
 	current.effort = firstNonEmpty(reply.Effort, t.Effort, current.effort)
-	current.serviceTier = codexServiceTier(reply.ServiceTier)
+	current.serviceTier = codex.ServiceTier(reply.ServiceTier)
 	current.joined, current.releasedDesktop = true, true
 	current.status = proto.StatusDone
 	if t.Status.Type == "active" {

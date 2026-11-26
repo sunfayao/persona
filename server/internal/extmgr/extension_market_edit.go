@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // marketAdd registers a market after reading its index once (a market that cannot be read is not added).
@@ -23,7 +23,7 @@ func (h *Manager) marketAdd(ctx context.Context, specText, token string) (Market
 	id := extension.MarketID(spec)
 	ms := h.marketsState()
 	ms.mu.Lock()
-	n, dup := len(ms.byID), ms.byID[id] != nil || ms.withSpec(spec.String()) != nil || (extension.IsOfficialMarket(spec.String()) && ms.official() != nil)
+	n, dup := len(ms.byID), ms.byID[id] != nil || ms.withSpec(spec.String()) != nil
 	ms.mu.Unlock()
 	if dup {
 		return MarketView{}, i18n.Err("hub-extension_market.duplicate")
@@ -44,7 +44,6 @@ func (h *Manager) marketAdd(ctx context.Context, specText, token string) (Market
 		return MarketView{}, err
 	}
 	now := time.Now()
-	// Official identity determines verification; unofficial markets acquire no persistent pin.
 	rec, ix, err := signedIndex(extension.MarketRecord{ID: id, Spec: spec.String(), AddedAt: now}, f, now)
 	if err != nil {
 		mk.RemoveCheckout()
@@ -56,7 +55,7 @@ func (h *Manager) marketAdd(ctx context.Context, specText, token string) (Market
 		}
 	}
 	ms.mu.Lock()
-	if len(ms.byID) >= extension.MarketsMost || ms.byID[id] != nil || ms.withSpec(spec.String()) != nil || extension.IsOfficialMarket(spec.String()) && ms.official() != nil {
+	if len(ms.byID) >= extension.MarketsMost || ms.byID[id] != nil || ms.withSpec(spec.String()) != nil {
 		ms.mu.Unlock()
 		return MarketView{}, i18n.Err("hub-extension_market.duplicate")
 	}
@@ -125,9 +124,6 @@ func (h *Manager) marketSetSpec(ctx context.Context, id, specText string) (Marke
 	if other {
 		return MarketView{}, i18n.Err("hub-extension_market.address_taken")
 	}
-	if extension.IsOfficialMarket(snapshot.Spec) && !extension.IsOfficialMarket(spec.String()) {
-		return MarketView{}, i18n.Err("extension-market_security.move")
-	}
 	old, err := h.market(snapshot)
 	if err != nil {
 		return MarketView{}, err
@@ -139,7 +135,7 @@ func (h *Manager) marketSetSpec(ctx context.Context, id, specText string) (Marke
 	if err != nil {
 		return MarketView{}, err
 	}
-	mk := &extension.Market{Spec: spec, Token: old.Token, Client: client, GitHubAPI: ms.githubAPI, Dir: h.marketsDir(), Cache: h.packageCache()}
+	mk := &extension.Market{Spec: spec, TrustedKey: snapshot.SigningKey, Token: old.Token, Client: client, GitHubAPI: ms.githubAPI, Dir: h.marketsDir(), Cache: h.packageCache()}
 	if err := h.configureMarket(mk); err != nil {
 		return MarketView{}, err
 	}
@@ -163,10 +159,6 @@ func (h *Manager) marketSetSpec(ctx context.Context, id, specText string) (Marke
 	// Source and credential snapshots are checked again after the network read.
 	candidate := s.rec
 	candidate.Spec = spec.String()
-	// Moving away from an official identity never turns its artifacts into unsigned ones.
-	if extension.IsOfficialMarket(s.rec.Spec) && !extension.IsOfficialMarket(candidate.Spec) {
-		return MarketView{}, i18n.Err("extension-market_security.catalog")
-	}
 	rec, ix, err := signedIndex(candidate, f, now)
 	if err != nil {
 		if old.Spec.String() != spec.String() {

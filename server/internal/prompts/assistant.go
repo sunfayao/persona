@@ -283,7 +283,7 @@ type Snapshot struct {
 	// "Awaiting your reply", #5096).
 	Awaiting []SnapshotAgent
 	// Muted: agents (or their spaces) the user turned notifications off for that would be in one of the above; in
-	// none of them, as the Live Activity and the Agents badge count none of them (#4562).
+	// none of them, as the Persona Link summary and the Agents badge count none of them (#4562).
 	Muted []SnapshotAgent
 	// Working: running agents; the snapshot renders only their count in the Agents heading, leaving details to
 	// agents_list (#11261).
@@ -1125,7 +1125,7 @@ type TaskDoneInput struct {
 	Dropped        []string
 	Replies        []TaskDoneReply
 	Criteria       []string `json:"criteria,omitempty"`
-	// Hints the hub found in the replies: a merged pull request, a TestFlight build number.
+	// Hints the hub found in the replies: a merged pull request, a build number.
 	MergedPR, Build bool
 }
 

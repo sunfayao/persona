@@ -3,7 +3,7 @@ package transcript
 import (
 	"bytes"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ObserveModelFallback follows only refusal fallback state in a transcript scan that otherwise skips ordinary

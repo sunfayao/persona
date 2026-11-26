@@ -16,9 +16,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // The hub is the communication center only: clients <-> manager, hub <-> hub, connections, pairing / auth, admin,
@@ -26,9 +26,9 @@ import (
 // manager's (internal/assistant, internal/devices, internal/extmgr). These tests pin the hub's surface so new business
 // lands in the manager instead.
 
-const guardDoc = "see docs/server/architecture.md「The hub is only a communication center」"
+const guardDoc = "see AGENTS/02-server-architecture.md"
 
-const modulePath = "github.com/nwverse/persona/server/"
+const modulePath = "github.com/sunfayao/persona/server/"
 
 // hubSources parses the hub's non-test files.
 func hubSources(t *testing.T) map[string]*ast.File {

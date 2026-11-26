@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // FindSession reads the sessions of the machine Views lists with the id, as Views' copies of them were read before

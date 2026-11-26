@@ -13,7 +13,7 @@
 //
 // Only tests import this package. TestGoldenMCPTools (internal/hub) checks the files against the live lists and,
 // with UPDATE_GOLDEN set, rewrites them; the tests that read a whole list (the prompt size ratchet, the supervision
-// behaviour cases) rebuild it with Load. docs/assistant/prompts.md, "Golden tests".
+// behaviour cases) rebuild it with Load.
 package mcptoolgolden
 
 import (
@@ -28,8 +28,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Dir is where the hub's tool goldens live, relative to the hub package (internal/hub).

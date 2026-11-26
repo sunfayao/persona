@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // Claude Code's suggested next message: after a turn it may draw one in grey in the empty input box (Tab takes it,

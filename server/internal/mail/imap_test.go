@@ -349,69 +349,6 @@ func TestListMessagesSearchLocalPaging(t *testing.T) {
 	}
 }
 
-func TestMailboxes(t *testing.T) {
-	srv := newTestIMAP(t)
-	s := newServiceWithAccount(t, srv)
-	ctx := context.Background()
-
-	srv.appendMessage(t, "INBOX", rawMessage("Unread", "a@example.com", "hi"))
-	srv.appendMessage(t, "INBOX", rawMessage("Read", "b@example.com", "hi"))
-
-	boxes, err := s.Mailboxes(ctx, "acc_test")
-	if err != nil {
-		t.Fatalf("Mailboxes: %v", err)
-	}
-	byName := map[string]Mailbox{}
-	for _, b := range boxes {
-		byName[b.Name] = b
-	}
-	inbox, ok := byName["INBOX"]
-	if !ok {
-		t.Fatalf("INBOX missing from %v", boxes)
-	}
-	if inbox.Role != RoleInbox {
-		t.Errorf("INBOX role = %q", inbox.Role)
-	}
-	if inbox.Total != 2 || inbox.Unseen != 2 {
-		t.Errorf("INBOX counters = %d total / %d unseen, want 2/2", inbox.Total, inbox.Unseen)
-	}
-	// Special-use is not set by the in-memory server, so the name fallback
-	// applies.
-	if got := byName["Sent"].Role; got != RoleSent {
-		t.Errorf("Sent role = %q", got)
-	}
-	if got := byName["Junk"].Role; got != RoleJunk {
-		t.Errorf("Junk role = %q", got)
-	}
-}
-
-// QQ Mail's IMAP server advertises none of LIST-EXTENDED, LIST-STATUS and
-// SPECIAL-USE and never answers a LIST with RETURN options, so every mailbox
-// listing used to hit the timeout.
-func TestMailboxesWithoutListExtended(t *testing.T) {
-	srv := newTestIMAPCaps(t, imap.CapSet{imap.CapIMAP4rev1: {}})
-	srv.ignoreListReturn(t)
-	s := newServiceWithAccount(t, srv)
-	srv.appendMessage(t, "INBOX", rawMessage("Unread", "a@example.com", "hi"))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	boxes, err := s.Mailboxes(ctx, "acc_test")
-	if err != nil {
-		t.Fatalf("Mailboxes: %v", err)
-	}
-	byName := map[string]Mailbox{}
-	for _, b := range boxes {
-		byName[b.Name] = b
-	}
-	if inbox := byName["INBOX"]; inbox.Total != 1 || inbox.Unseen != 1 {
-		t.Errorf("INBOX counters = %d total / %d unseen, want 1/1 (from STATUS)", inbox.Total, inbox.Unseen)
-	}
-	if got := byName["Sent"].Role; got != RoleSent {
-		t.Errorf("Sent role = %q", got)
-	}
-}
-
 func TestListOptions(t *testing.T) {
 	status := &imap.StatusOptions{NumMessages: true, NumUnseen: true}
 	caps := func(cs ...imap.Cap) imap.CapSet {

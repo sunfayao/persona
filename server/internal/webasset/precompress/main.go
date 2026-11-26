@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/webasset"
+	"github.com/sunfayao/persona/server/internal/webasset"
 )
 
 func main() {

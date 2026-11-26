@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // The Linux agent sandbox uses only user and mount namespaces. In particular it does not unshare the network or pid

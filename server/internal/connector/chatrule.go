@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Per-chat rules (#5278): from a row of the sent-as-user ledger the user can say "don't ask again in this chat", which

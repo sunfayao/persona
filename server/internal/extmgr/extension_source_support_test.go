@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension/denohost"
+	"github.com/sunfayao/persona/server/internal/extension/denohost"
 )
 
 // sourceMarket is a market with one source extension (runtime.mode "deno") and one ordinary one, counting the

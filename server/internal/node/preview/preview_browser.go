@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // previewBrowserEnv names a browser to use instead of looking for one.

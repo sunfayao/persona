@@ -349,12 +349,6 @@ export function indexFresh(ctx: FileContext, now = Date.now()): boolean {
   return !!c && now - c.at < INDEX_TTL_MS;
 }
 
-/** Forgets what is held (tests; a changed hub). */
-export function clearIndexes() {
-  cache.clear();
-  inflight.clear();
-}
-
 async function fetchIndex(ctx: FileContext): Promise<FileIndex> {
   const signal = AbortSignal.timeout(INDEX_TIMEOUT_MS);
   try {

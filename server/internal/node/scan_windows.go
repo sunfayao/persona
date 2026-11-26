@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/node/engine/orca"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/node/engine/orca"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // agentImages are the programs an agent process runs as on Windows: Claude Code's native binary, Codex's, or either's

@@ -16,8 +16,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/protectedapps"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/protectedapps"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // protectedApp: a is one of the apps never operated (protectedapps.Is), by bundle id or by name.

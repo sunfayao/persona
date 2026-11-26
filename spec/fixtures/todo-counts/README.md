@@ -1,16 +1,11 @@
 # To-do counts fixtures
 
-The numbers of the To-dos list and its places: one list
-of to-dos → `counts` (`TodoCounts`, top level on `GET /api/v1/todos`) and the places (`TodoPlaces`, the answer of
-`GET /api/v1/todos/places`), both in `schema/wire/todo-view.schema.json`. Each to-do here is placed as in
-`spec/fixtures/todo-view`; most are the same rows. The manager's projection answers every case exactly
-(`server/internal/assistant/todo/projection/fixtures_test.go`); `scripts/test/test_wire_schema.py` holds the expected
-values to the schema and the generated types read them back unchanged (the tests named in
-`spec/fixtures/todo-view/README.md`).
+These fixtures describe the counts and ordering returned by the to-do list. The server projection replays every case
+and the wire schema test validates the counts.
 
 | File | What it pins | Cases |
 | --- | --- | --- |
-| `todo_counts.json` | A list → its counts, places and order | 8: an empty list, one to-do in each section, a failed start counted open, a superseded failed start, a step counted once, rows ranked in every section, rows ranked by what their steps carry, runs that wait counted In progress and ranked by their wake |
+| `todo_counts.json` | A list → its counts and order | 8: an empty list, one to-do in each section, a failed start counted open, a superseded failed start, a step counted once, rows ranked in every section, rows ranked by what their steps carry, runs that wait counted In progress and ranked by their wake |
 
 ## Format
 
@@ -19,10 +14,7 @@ values to the schema and the generated types read them back unchanged (the tests
 - `input.now`, `input.sessions`, `input.loc` (optional): as in `spec/fixtures/todo-view`.
 - `input.todos`: the list exactly as `GET /api/v1/todos` lists it (`listedTodo` rows).
 - `input.someday_until` and `input.restored_at` (optional): by to-do id, what `spec/fixtures/todo-view` gives one to-do.
-- `input.projects` (optional, added here): the knowledge base's project titles by slug. A row carries only its
-  project's slug, and a place is titled by its project.
-- `expected.counts`: the `TodoCounts`. `expected.places`: the `TodoPlaces` answer, whose `counts` equal
-  `expected.counts`. Compare as JSON values.
+- `expected.counts` contains the `TodoCounts` to compare as JSON values.
 - `expected.order` (added here): every to-do of the list by its view's section, in the order of its `rank`. Required
   for every case with to-dos (optional only for an empty list): the hub's projection test checks it against the ranks.
 
@@ -38,26 +30,10 @@ All data is made up.
 - `sections`: the rows of each section, every `TodoListSection` key present, 0 included. A quiet task counts here as the
   row it is, so `sections.needs_you` can be larger than `needs_you`: where N is drawn, clients show `needs_you`.
 - A step its parent carries is counted with its parent only: a to-do
-  whose `part_of` names an open to-do of the list adds to no count and to no place, its parent standing for both. A
+  whose `part_of` names an open to-do of the list adds no count of its own. A
   step whose parent is closed or not listed counts as the row it is.
 - A failed start whose work finished in a related to-do is closed (`superseded`), not open: related to-dos share a
   plan, a PR, an issue number in the title or the title itself, closed ones with closed ones.
-- `places`: `all`, `today`, `upcoming`, then one place for each project with an open to-do (as `open` counts), ordered
-  by slug (bytes, not a locale). `all` carries N; `today` and `upcoming` carry 0, since they draw no count; a
-  project carries its part of N, counted the same way. Fixed places have the title `""`; a project's title is its
-  `input.projects` title, else its slug. A manager's own answer has no `manager` field: the hub stamps it when it merges
-  several managers' places, and adds their counts up field by field and key by key.
-
-## Judgement calls
-
-- Quiet tasks are left out of `needs_you` only, not of `sections` or `open`, which count the rows the list shows.
-- `today` and `upcoming` say 0 rather than a number nobody draws, so their bytes need no Today rule yet.
-- Projects are ordered by slug, which stays stable across languages and managers.
-- **A project whose open to-dos are all in Someday gets no place** (`reading` in `mixed_list`): places follow `open`,
-  which leaves Someday out. Counting
-  Someday in would keep such a project in the sidebar; change `mixed_list` with this line.
-- **A project the knowledge base does not name still gets a place**, titled by its slug (`errands` in
-  `failed_start_counts_open`), so its to-dos stay reachable from the sidebar.
 - **The order within a section** (`rank`; `ranked_list`, `ranked_steps`): Needs you
   and Can wait by the soonest deadline (the earliest of the deadlines of the decisions on the row, a step's included,
   and the to-do's own due), then the oldest ask (`since`); Working by the latest activity, its steps' included;
@@ -74,8 +50,6 @@ All data is made up.
   they are. A wait the run ends by itself (background commands, a `/loop`) is Working, not Waiting.
 - Every to-do is ranked within its section, a step its parent carries too: clients sort the rows they draw by rank,
   and a gap left by a step they do not draw changes nothing.
-- Not pinned yet: Today's and Upcoming's own rows. What the hub does across several managers has its own test
-  (`server/internal/hub/todo_view_test.go`): it adds the counts up and joins the places, ranking nothing again.
   `rank` is worked out per manager's list, and the hub only joins the lists, so a merged section can hold equal ranks:
   clients order by `rank`, then the manager, then the id.
 

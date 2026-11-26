@@ -9,10 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // liveRound is what one of liveLoop's rounds reads and makes of the fleet: every agent's row copied out, the
@@ -21,19 +20,17 @@ type liveRound struct {
 	rows      []proto.Session
 	machines  []string
 	muted     []bool
-	started   []time.Time
 	ixs       []proto.Interaction
 	told      map[string]bool
-	state     assistantwire.FleetState
 	attention link.Attention
-	json      string // state and attention, as they are told
+	json      string // attention as sent to Persona Link
 }
 
 func roundOf(t *testing.T, agents []fleetInput, ixs []proto.Interaction, told map[string]bool) liveRound {
 	t.Helper()
-	r := liveRound{ixs: ixs, told: told, state: buildFleetIn("en", agents, ixs), attention: linkAttention("en", agents, ixs, told)}
+	r := liveRound{ixs: ixs, told: told, attention: linkAttention("en", agents, ixs, told)}
 	for _, a := range agents {
-		r.rows, r.machines, r.muted, r.started = append(r.rows, *a.Session), append(r.machines, a.Machine), append(r.muted, a.Muted), append(r.started, a.TurnStart)
+		r.rows, r.machines, r.muted = append(r.rows, *a.Session), append(r.machines, a.Machine), append(r.muted, a.Muted)
 	}
 	r.json = roundJSON(t, r)
 	return r
@@ -41,7 +38,7 @@ func roundOf(t *testing.T, agents []fleetInput, ixs []proto.Interaction, told ma
 
 func roundJSON(t *testing.T, r liveRound) string {
 	t.Helper()
-	b, err := json.Marshal([]any{r.state, r.attention})
+	b, err := json.Marshal(r.attention)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,8 +91,8 @@ func TestLiveRoundsOverKeptListsAreFreshRounds(t *testing.T) {
 	d.setSessions("box", liveRows("box", 3, proto.StatusIdle))
 	d.setSessions("far", liveRows("far", 2, proto.StatusDone))
 	round("the first lists")
-	if len(rounds[0].rows) != 9 || rounds[0].state.Working != 1 || len(kept) != 3 {
-		t.Fatalf("the first round: %d rows, %+v, %d lists kept", len(rounds[0].rows), rounds[0].state, len(kept))
+	if len(rounds[0].rows) != 9 || len(kept) != 3 {
+		t.Fatalf("the first round: %d rows, %d lists kept", len(rounds[0].rows), len(kept))
 	}
 	mac, box := arrayOf("mac"), arrayOf("box")
 
@@ -104,8 +101,8 @@ func TestLiveRoundsOverKeptListsAreFreshRounds(t *testing.T) {
 	putPending(s, &pending{ix: card})
 	s.markTold(card)
 	round("a card")
-	if rounds[1].state.NeedsYou != 1 || rounds[1].rows[2].PendingInteractions != 1 || rounds[1].attention.NeedsYou != 1 {
-		t.Fatalf("with a card: %+v, %+v", rounds[1].state, rounds[1].attention)
+	if rounds[1].rows[2].PendingInteractions != 1 || rounds[1].attention.NeedsYou != 1 {
+		t.Fatalf("with a card: %+v", rounds[1].attention)
 	}
 	if arrayOf("mac") != mac || arrayOf("box") != box {
 		t.Fatal("a round whose lists fit took new arrays")
@@ -118,8 +115,8 @@ func TestLiveRoundsOverKeptListsAreFreshRounds(t *testing.T) {
 	ended[1].LastText, ended[3].Status = "The retry waits for the write now.", proto.StatusWorking
 	d.setSessions("mac", ended)
 	round("the card answered and a turn ended")
-	if rounds[2].state.NeedsYou != 0 || rounds[2].rows[2].PendingInteractions != 0 {
-		t.Fatalf("after the card: %+v", rounds[2].state)
+	if rounds[2].attention.NeedsYou != 0 || rounds[2].rows[2].PendingInteractions != 0 {
+		t.Fatalf("after the card: %+v", rounds[2].attention)
 	}
 
 	d.setSessions("box", liveRows("box", 1, proto.StatusIdle))
@@ -206,9 +203,9 @@ func liveFleet(tb testing.TB, machines, rows int) *Service {
 
 // liveRoundOnce is one of liveLoop's rounds without the telling: the fleet read (over kept, nil: new copies) and the
 // state and the summary built from it.
-func liveRoundOnce(s *Service, kept map[string][]proto.Session) (assistantwire.FleetState, link.Attention) {
+func liveRoundOnce(s *Service, kept map[string][]proto.Session) link.Attention {
 	agents, ixs, told := s.fleetInputsInto(kept)
-	return buildFleetIn("en", agents, ixs), linkAttention("en", agents, ixs, told)
+	return linkAttention("en", agents, ixs, told)
 }
 
 // BenchmarkLiveRound: one of liveLoop's rounds over 10 computers of 50 sessions, with new copies of the lists
@@ -222,7 +219,7 @@ func BenchmarkLiveRound(b *testing.B) {
 			if way == "kept" {
 				kept = map[string][]proto.Session{}
 			}
-			if st, _ := liveRoundOnce(s, kept); st.Working != 10 {
+			if st := liveRoundOnce(s, kept); st.NeedsYou != 0 {
 				b.Fatalf("the fleet: %+v", st)
 			}
 			b.ReportAllocs()
@@ -234,7 +231,7 @@ func BenchmarkLiveRound(b *testing.B) {
 }
 
 // liveRoundLimit bounds what a round over kept lists allocates for 10 computers of 50 sessions: 79,524 to 80,265
-// bytes measured (the agents, the maps a decoration reads, the state and the summary), plus 5%. Over new copies of
+// bytes measured (the agents, the maps a decoration reads, the summary), plus 5%. Over new copies of
 // the lists a round was 905,941 to 908,537 bytes.
 const liveRoundLimit = 84000
 
@@ -268,8 +265,7 @@ func TestLiveRoundKeepsItsLists(t *testing.T) {
 }
 
 // A round over the kept lists folds children under their parents as a round over new copies does (decorated folds
-// the machine's whole list, foldInventory): the rows carry the same folded_under and children, the live counts leave
-// the children out the same way, and the fold kept for rows decorated on their own is the machine's.
+// the machine's whole list, foldInventory): the rows carry the same folded_under and children, and the fold kept for rows decorated on their own is the machine's.
 func TestLiveRoundsOverKeptListsFoldChildren(t *testing.T) {
 	d := newFleetDevs()
 	d.add("mac", "Mac")

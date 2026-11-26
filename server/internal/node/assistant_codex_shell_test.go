@@ -2,7 +2,7 @@ package node
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"os"
 	"os/exec"
 	"path/filepath"

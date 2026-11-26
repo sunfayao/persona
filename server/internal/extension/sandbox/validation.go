@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 const ValidationRunCommand = "__source-validator-run"

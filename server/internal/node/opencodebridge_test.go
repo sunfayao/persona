@@ -18,8 +18,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/runtimepkg"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/runtimepkg"
 )
 
 func startOpencodeHello(t *testing.T, ctx context.Context, host *RuntimeHost, runtimeID, instance string) (net.Conn, <-chan error) {

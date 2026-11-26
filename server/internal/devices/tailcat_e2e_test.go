@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/tunnel"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/tunnel"
 )
 
 // The whole way with real personad binaries over Tailscale's public relays: a machine the hub cannot ssh to is set up

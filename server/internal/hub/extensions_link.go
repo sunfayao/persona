@@ -19,13 +19,13 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The extensions, the connectors and the bots are the manager's (internal/extmgr): the
@@ -205,7 +205,7 @@ func machineExtrasEqual(a, b map[string]extwire.MachineExtras) bool {
 	}
 	for k, x := range a {
 		y, ok := b[k]
-		if !ok || string(x.Computer) != string(y.Computer) || string(x.Browser) != string(y.Browser) || string(x.IPhone) != string(y.IPhone) ||
+		if !ok || string(x.Computer) != string(y.Computer) || string(x.Browser) != string(y.Browser) ||
 			x.ScreenPort != y.ScreenPort {
 			return false
 		}
@@ -228,7 +228,6 @@ func (h *Hub) features() []string {
 	out = append(out, h.remoteImagesFeatures()...)
 	out = append(out, h.assistantStartServiceTierFeatures()...)
 	out = append(out, h.todoViewFeatures()...)
-	out = append(out, h.todoAsksFeatures()...)
 	out = append(out, h.todoTimelineFeatures()...)
 	out = append(out, h.todoImageFeatures()...)
 	// The assistant's card interfaces, always on (#5509): assistant_views is declarative
@@ -238,7 +237,7 @@ func (h *Hub) features() []string {
 	for _, f := range h.extReport().Features {
 		switch f {
 		case assistantwire.CapabilityAssistantSegments, featureAgentSessionArchives, featureAgentSessionArchiveClose,
-			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, featureTodoPlaces, featureTodoAsks, featureTodoTimeline:
+			assistantwire.CapabilityTaskInput, featureAssistantStartServiceTier, featureSessionsSideFold, featureRemoteImages, featureTodoView, "todo_asks", featureTodoTimeline:
 			continue // only manager hello can promise fleet archives, start speed, the side-session fold, remote images, the To-dos view, its answers and its history
 		}
 		if !slices.Contains(out, f) {
@@ -248,14 +247,14 @@ func (h *Hub) features() []string {
 	return out
 }
 
-// extrasOf is machine m's Cua, ego and iPhone state as the manager reports it (each nil when not on), read from one
+// extrasOf is machine m's Cua and ego state as the manager reports it (each nil when not on), read from one
 // report: extReport merges every manager's report each time it is called.
-func (h *Hub) extrasOf(m *Machine) (*proto.Computer, *proto.Browser, *proto.IPhone) {
+func (h *Hub) extrasOf(m *Machine) (*proto.Computer, *proto.Browser) {
 	x, ok := h.extReport().Machines[m.cfg.ID]
 	if !ok {
-		return nil, nil, nil
+		return nil, nil
 	}
-	return decodeExtra[proto.Computer](x.Computer), decodeExtra[proto.Browser](x.Browser), decodeExtra[proto.IPhone](x.IPhone)
+	return decodeExtra[proto.Computer](x.Computer), decodeExtra[proto.Browser](x.Browser)
 }
 
 func decodeExtra[T any](raw json.RawMessage) *T {

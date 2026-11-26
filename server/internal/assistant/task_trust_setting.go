@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // tasks.trust in persona_settings (#8095): the kinds of tasks that start without a plan card, each one computer, one

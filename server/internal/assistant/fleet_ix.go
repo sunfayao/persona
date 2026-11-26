@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The interactions (docs/protocol/protocol.md "Interactions"): the cards the user answers on the phone — a hook's permission, question
@@ -1289,7 +1289,7 @@ func (s *Service) ownCard(ctx context.Context, ix proto.Interaction) proto.Inter
 	return ix
 }
 
-// toolTitle is one of the manager's own tools by its name for people ("iPhone control"), "" for any other.
+// toolTitle is one of the manager's own tools by its name for people ("Computer control"), "" for any other.
 func toolTitle(l i18n.Lang, tool string) string {
 	key := "assistant-tool_titles." + strings.ReplaceAll(tool, ".", "_")
 	if tool == "" || !i18n.Has(key) {

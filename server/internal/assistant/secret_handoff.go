@@ -11,16 +11,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // The hand-off of secret values to one Agent run (docs/extensions/secret-providers.md "The hand-off to one Agent run",
@@ -220,7 +220,7 @@ func (s *Service) handoffApprove(ctx context.Context, convMachine, self string, 
 	case r.Dismiss && !time.Now().Before(expires.Add(-time.Second)):
 		return "", handoffAnswer(results(handoffExpired), "The hand-off card expired unanswered."), nil
 	case proto.SecretHandoffApproves(r): // not through the hub's gate: refused, as the hub would
-		return "", handoffAnswer(results(handoffDeclined), "The hand-off was not approved on iPhone or the web."), nil
+		return "", handoffAnswer(results(handoffDeclined), "The hand-off was not approved in the web app."), nil
 	default:
 		return "", handoffAnswer(results(handoffDeclined), "The user declined handing over the secrets."), nil
 	}

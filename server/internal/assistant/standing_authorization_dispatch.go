@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Read grants at dispatch, not while a plan waits to start, so changes made in between apply.

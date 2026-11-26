@@ -1,6 +1,6 @@
 package hub
 
-import "github.com/nwverse/persona/server/internal/textfmt"
+import "github.com/sunfayao/persona/server/internal/textfmt"
 
 // The text formatting the hub writes with, shared with the assistant (internal/textfmt).
 var (

@@ -5,7 +5,7 @@ package link
 import (
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 func sshProcAttr() *syscall.SysProcAttr {

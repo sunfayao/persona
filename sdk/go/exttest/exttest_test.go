@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/exttest"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/exttest"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 var manifest = []byte(`{

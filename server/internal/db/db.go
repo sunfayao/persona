@@ -492,9 +492,7 @@ func migrateSet(ctx context.Context, conn *pgxpool.Conn, fsys fs.FS, part string
 }
 
 // A migration file is named YYYYMMDDHHMMSS_<name>.sql, the UTC second it was written, so two lines of work adding one
-// at once practically never pick the same version, and neither has to look anything up (docs/server/server.md
-// "Migrations"; planMigrations refuses a set where they did). The files
-// from before are NNNN_<name>.sql, numbers picked by hand, frozen (migrations_test.go lastNumbered). A timestamp has
+// at once practically never pick the same version, and neither has to look anything up. planMigrations refuses duplicate versions. The earlier files are NNNN_<name>.sql, numbers picked by hand, frozen (migrations_test.go lastNumbered). A timestamp has
 // more digits than a number and starts with 2 where every number starts with 0, so the timestamped files sort after
 // the numbered ones, and name order is version order.
 const (

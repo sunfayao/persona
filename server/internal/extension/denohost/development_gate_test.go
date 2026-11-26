@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 )
 
 func TestProductionResourceMode(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 // Preparation must keep a saved provider's source even when its extension is no longer available.

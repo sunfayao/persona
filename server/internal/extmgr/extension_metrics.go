@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // How the extensions are running (#1857): the hub counts each extension's calls,

@@ -17,4 +17,4 @@ var Go embed.FS
 var Bundle []byte
 
 // GoMod is the go.mod of a copy of the Go SDK.
-const GoMod = "module github.com/nwverse/persona/sdk/go\n\ngo 1.24\n"
+const GoMod = "module github.com/sunfayao/persona/sdk/go\n\ngo 1.24\n"

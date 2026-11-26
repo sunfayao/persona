@@ -28,7 +28,7 @@ func TestTheHubOpensNoneOfTheManagersFiles(t *testing.T) {
 		}
 		for _, f := range forbidden {
 			if strings.Contains(string(b), f) {
-				t.Errorf("%s mentions %s: the built-in manager's own file, not the hub's (docs/assistant/managers.md \"The built-in manager's own files\")", name, f)
+				t.Errorf("%s mentions %s: the built-in manager's own file, not the hub's (AGENTS/04-database.md)", name, f)
 			}
 		}
 	}

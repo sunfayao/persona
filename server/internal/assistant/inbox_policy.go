@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // inboxReadOnlyTools are the assistant-owned tools an Inbox handling chat may call itself. Everything not listed is

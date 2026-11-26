@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/netaddr"
 )
 
 // Construct synthetic addresses for scope tests; no deployment address is a fixture.

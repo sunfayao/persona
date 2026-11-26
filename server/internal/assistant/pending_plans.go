@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 type openTaskPlanStore interface {

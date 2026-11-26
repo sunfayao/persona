@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // codexThread registers a Codex CLI rollout in n's own Codex home, the home whose threads are listed by their bare thread
@@ -16,7 +17,7 @@ func codexThread(t *testing.T, n *Node, thread string) {
 	n.codices = newCodexRegistry()
 	n.codices.scan = func() []codexProcess { return nil }
 	n.dir = filepath.Join(n.home, ".persona")
-	home := canonicalCodexHome(t.TempDir(), n.home)
+	home := codex.CanonicalHome(t.TempDir(), n.home)
 	n.configureCodex(proto.CodexConfig{LegacyHome: home})
 	raw, err := json.Marshal(map[string]any{"type": "session_meta", "payload": map[string]any{"id": thread, "originator": "codex-tui", "cwd": "/w/app"}})
 	if err != nil {

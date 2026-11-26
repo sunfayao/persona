@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // Use the actual extension process handler without launching a process. Calls from that handler reach the assistant

@@ -20,14 +20,14 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // capturedLog has h's log written to a buffer it returns.
@@ -134,7 +134,7 @@ func TestRelayedServerErrorStaysOutOfTheLog(t *testing.T) {
 	id := assistantwire.AssistantID
 	token := busToken(t, h, id, id)
 	// The manager answers the same over a relay stream, which a reverse proxy reads (relayTo: an extension route such as
-	// /api/v1/messaging), and as an http.request (relayHTTP: the assistant's routes, /api/v1/assistant).
+	// /api/v1/messaging/example/conversations/good/messages), and as an http.request (relayHTTP: the assistant's routes, /api/v1/assistant).
 	x := &relayingExt{serve: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -155,7 +155,7 @@ func TestRelayedServerErrorStaysOutOfTheLog(t *testing.T) {
 	if err := manager.call("manager.hello", map[string]any{"id": id}, nil); err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/api/v1/assistant", "/api/v1/messaging"} {
+	for _, path := range []string{"/api/v1/assistant", "/api/v1/messaging/example/conversations/good/messages"} {
 		if status, body := ownershipGet(t, h, srv, http.MethodGet, path, nil); status != http.StatusInternalServerError || body["error"] != secret {
 			t.Fatalf("%s: the manager's answer is passed on as it is: %d %v", path, status, body)
 		}

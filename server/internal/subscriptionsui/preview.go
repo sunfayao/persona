@@ -5,9 +5,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // The preview (#5278): a dry run's items drawn as the Inbox would list them (title, sender and the row's summary, time,

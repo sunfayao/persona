@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Delivering a finished task for review (#1092, #5732). Every test runs without a store (h.store nil: nothing
@@ -140,19 +140,19 @@ func receipts(h *Hub) int { return strings.Count(strings.Join(feedKinds(h, "conv
 // The agent remains attached to the task until the user or main actually accepts it (#5732).
 func TestTaskAutoDone(t *testing.T) {
 	h, _ := newTaskHub(t)
-	js := stubJudge(t, h, http.StatusOK, `{"verdict":"done","reason":"已合并 PR 并发了 TestFlight"}`)
+	js := stubJudge(t, h, http.StatusOK, `{"verdict":"done","reason":"已合并 PR 并部署了新版本"}`)
 	todo := startedTask(t, h)
-	runTurn(h, "修好了，PR https://github.com/o/r/pull/901 已合并，TestFlight 构建号 202611041200")
+	runTurn(h, "修好了，PR https://github.com/o/r/pull/901 已合并，部署构建号 202611041200")
 	waitFor(t, "delivery review", func() bool {
 		got := todoNow(h, todo.ID)
 		return got.Check != nil && got.Check.Verdict == "done"
 	})
 	got := todoNow(h, todo.ID)
-	if got.DoneAt != nil || got.Check == nil || got.Check.Verdict != "done" || got.Check.Reason != "已合并 PR 并发了 TestFlight" || receipts(h) != 1 {
+	if got.DoneAt != nil || got.Check == nil || got.Check.Verdict != "done" || got.Check.Reason != "已合并 PR 并部署了新版本" || receipts(h) != 1 {
 		t.Fatalf("todo = %+v, %d receipts", got, receipts(h))
 	}
 	in, _ := js.input.Load().(string)
-	for _, want := range []string{"修登录崩溃", "iPad 横屏时登录页崩溃", "pull/901", "a merged PR", "TestFlight 构建号"} {
+	for _, want := range []string{"修登录崩溃", "iPad 横屏时登录页崩溃", "pull/901", "a merged PR", "部署构建号"} {
 		if !strings.Contains(in, want) {
 			t.Errorf("judge input lacks %q: %s", want, in)
 		}
@@ -163,7 +163,7 @@ func TestTaskAutoDone(t *testing.T) {
 	if _, ok := taskOfAgent(h, "box", "s1"); !ok {
 		t.Fatal("a delivered task is no longer followed")
 	}
-	if line := taskLine(h, todo); !strings.Contains(line, "delivered; awaiting a look") || !strings.Contains(line, "TestFlight 构建号 202611041200") {
+	if line := taskLine(h, todo); !strings.Contains(line, "delivered; awaiting a look") || !strings.Contains(line, "部署构建号 202611041200") {
 		t.Fatalf("the live context = %q", line)
 	}
 	found := false
@@ -339,13 +339,13 @@ func TestTaskDoneSkipAndCheck(t *testing.T) {
 // proof that the assigned task was already finished.
 func TestTaskDoneReadsTheLatestTurn(t *testing.T) {
 	h, tn := newTaskHub(t)
-	js := stubJudge(t, h, http.StatusOK, `{"verdict":"done","reason":"已合并并发了 TestFlight"}`)
+	js := stubJudge(t, h, http.StatusOK, `{"verdict":"done","reason":"已合并并部署了新版本"}`)
 	startedTask(t, h)
 	tn.mu.Lock()
 	tn.items = []proto.Item{
 		{Kind: proto.KindText, Role: "user", Text: "再把「全部 N」挪到最左边"},
 		{Kind: proto.KindText, Role: "assistant", Text: "我先看看"},
-		{Kind: proto.KindText, Role: "assistant", Text: "挪好了，PR 已合并，TestFlight 构建号 202611040923。没截图的：Mac。"},
+		{Kind: proto.KindText, Role: "assistant", Text: "挪好了，PR 已合并，部署构建号 202611040923。没截图的：Mac。"},
 	}
 	tn.mu.Unlock()
 	runTurn(h, "挪好了")

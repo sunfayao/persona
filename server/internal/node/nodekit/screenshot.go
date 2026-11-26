@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ScreenshotImage is the screenshot cua-driver wrote, as a JPEG when that is smaller (a window's transparent corners
@@ -26,7 +26,7 @@ func ScreenshotImage(path string) *proto.Image {
 		return &proto.Image{Mime: http.DetectContentType(data), Data: base64.StdEncoding.EncodeToString(data)}
 	}
 	b := img.Bounds()
-	// The bytes' own type: a screenshot may come as a JPEG (the iPhone bridge's), not only a PNG.
+	// The bytes' own type: recognize JPEG and PNG screenshots.
 	out := &proto.Image{Mime: http.DetectContentType(data), Data: base64.StdEncoding.EncodeToString(data), Width: b.Dx(), Height: b.Dy()}
 	flat := image.NewRGBA(b)
 	draw.Draw(flat, b, &image.Uniform{C: color.White}, image.Point{}, draw.Src)

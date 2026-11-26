@@ -3,8 +3,8 @@ package voice
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // httpItems is a conversation's transcript read over the hub's HTTP API (…/items?after_seq=, …/items/{id}/full): the

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A launcher alias can bring its own settings (`alias work="claude --settings ~/.claude/settings.work.json …"`, with

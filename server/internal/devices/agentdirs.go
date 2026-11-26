@@ -2,15 +2,13 @@ package devices
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"slices"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Agent folder rules (proto/agentdirs.go): per computer, folders whose sessions are blocked (not collected) or hidden
@@ -161,54 +159,4 @@ func (m *Machine) blockedAgentDirsParam(ctx context.Context) []string {
 		return nil
 	}
 	return proto.BlockedAgentDirPatterns(rules)
-}
-
-func (m *Machine) hiddenAgentDirsState(rules []proto.HiddenAgentDir) proto.HiddenAgentDirs {
-	if rules == nil {
-		rules = []proto.HiddenAgentDir{}
-	}
-	return proto.HiddenAgentDirs{Rules: rules, Home: m.nodeHome()}
-}
-
-func (d *Devices) getHiddenAgentDirs(w http.ResponseWriter, r *http.Request, m *Machine) {
-	rules, err := m.hiddenAgentDirs(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusServiceUnavailable, err)
-		return
-	}
-	writeJSON(w, m.hiddenAgentDirsState(rules))
-}
-
-// putHiddenAgentDirs replaces the machine's whole list, like PUT claude-dirs/blocked.
-func (d *Devices) putHiddenAgentDirs(w http.ResponseWriter, r *http.Request, m *Machine) {
-	var in struct {
-		Rules []proto.HiddenAgentDir `json:"rules"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<18)).Decode(&in); err != nil {
-		writeErr(w, http.StatusBadRequest, fmt.Errorf("bad body: %w", err))
-		return
-	}
-	rules, err := m.editHiddenAgentDirs(r.Context(), func(now []proto.HiddenAgentDir) ([]proto.HiddenAgentDir, error) {
-		// An app from before blocking sends no actions: a rule it lists that exists keeps its own, so switching
-		// another rule there does not turn blocks into hides. A new rule without one hides, as it did then.
-		for i, rule := range in.Rules {
-			if rule.Action != "" {
-				continue
-			}
-			p, _ := proto.CleanDirPattern(rule.Pattern)
-			if j := slices.IndexFunc(now, func(o proto.HiddenAgentDir) bool { return o.Pattern == p }); j >= 0 {
-				in.Rules[i].Action = now[j].Action
-			}
-		}
-		return in.Rules, nil
-	})
-	if err != nil {
-		code := http.StatusInternalServerError
-		if errors.Is(err, errBadPattern) {
-			code = http.StatusBadRequest
-		}
-		writeErr(w, code, err)
-		return
-	}
-	writeJSON(w, m.hiddenAgentDirsState(rules))
 }

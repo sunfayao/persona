@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // longCodexRollout writes a Codex rollout of two exchanges; the second one runs `commands` commands (each with a

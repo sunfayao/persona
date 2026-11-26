@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func standingDirectoryContains(scope, cwd string) bool {

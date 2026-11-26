@@ -3,7 +3,7 @@ package extmgr
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func TestPageLegacyRenderInputSeparatesSourceAndTreeVersions(t *testing.T) {

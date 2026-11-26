@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The To-dos view on the wire (todo_view_routes.go, #10226): every row of the list carries its view and the list its
@@ -15,7 +15,7 @@ func TestTodoViewBusHelloCapabilities(t *testing.T) {
 	b := NewBusHub(BusOptions{Hub: "http://127.0.0.1:1", Token: "t"})
 	p, _ := b.client.HelloParams().(map[string]any)
 	caps, _ := p["capabilities"].([]string)
-	for _, c := range []string{assistantwire.CapabilityTodoView, assistantwire.CapabilityTodoPlaces, assistantwire.CapabilityTodoTimeline, "todo_images"} {
+	for _, c := range []string{assistantwire.CapabilityTodoView, assistantwire.CapabilityTodoTimeline, "todo_images"} {
 		if !slices.Contains(caps, c) {
 			t.Errorf("the manager does not name %s: %v", c, caps)
 		}

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // ultracodeRefusal: a session.start that asked for ultracode was refused for it. A Codex or other non-Claude agent, a

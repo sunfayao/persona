@@ -1,8 +1,8 @@
 package node
 
 import (
-	"github.com/nwverse/persona/server/internal/node/preview"
-	"github.com/nwverse/persona/server/internal/portprobe"
+	"github.com/sunfayao/persona/server/internal/node/preview"
+	"github.com/sunfayao/persona/server/internal/portprobe"
 )
 
 // previewProfileDir is a private cache folder because the profile stores dev app sign-ins.

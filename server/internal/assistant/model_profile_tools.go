@@ -7,7 +7,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // Profile tools expose the same operations as settings, without copying credentials into model context.

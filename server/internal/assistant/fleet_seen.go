@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // deviceSessionSeen tells a node the user saw one of its sessions (node runtimes_calls.go): a runtime keeping an unread

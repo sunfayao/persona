@@ -3,11 +3,10 @@
 // uses the app's /s and /t routes; a terminal opens on the right by its `pane:` address.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, enc, errorText } from "../../lib/api";
-import { isStoppedAgent } from "../../lib/format";
 import { useScopedMachines } from "../../lib/current-assistant";
 import { href, navigate, onLinkClick, type Route } from "../../lib/router";
 import { openPanel } from "../../lib/panel";
-import { getSession, refresh as refreshSessions, useStore } from "../../lib/store";
+import { refresh as refreshSessions, useStore } from "../../lib/store";
 import { usePanes, type Listing } from "../../lib/terminal-panes";
 import { buildTerminalTree, homeShellHost, keepOnlyShown, keepRecent, paneCwd, paneTrail, sameTerminal, type OpenTerminal, type TermSpace } from "../../lib/terminals";
 import type { Machine } from "../../lib/types";
@@ -27,17 +26,16 @@ import { Empty } from "../session/files/parts";
 import { TerminalPanel } from "../session/TerminalPanel";
 import { ShellHeaderSlots } from "../ShellSwitch";
 import { useCloseFinished } from "./CloseFinished";
-import { interactiveSessionPane, standaloneShells, type ShellSpace, type ShellTab } from "./work-terminal-layout";
+import { standaloneShells, type ShellSpace, type ShellTab } from "./work-terminal-layout";
 import { t } from "../../i18n";
 
 type TerminalRoute = Extract<Route, { name: "terminal" }>;
 
-export function TerminalPage({ route, onToggleSidebar, onNewAgent, detail, onWorkPane }: {
+export function TerminalPage({ route, onToggleSidebar, onNewAgent, detail }: {
   route?: TerminalRoute;
   onToggleSidebar: () => void;
   onNewAgent: () => void;
-  detail?: { selected?: { mid: string; sid: string }; render: (terminalAvailable: boolean) => ReactNode };
-  onWorkPane?: (pane?: { mid: string; sid: string }) => void;
+  detail?: { selected?: { mid: string; sid: string }; content: ReactNode };
 }) {
   const machines = useScopedMachines();
   const allMachines = useStore((s) => s.machines);
@@ -52,15 +50,6 @@ export function TerminalPage({ route, onToggleSidebar, onNewAgent, detail, onWor
   const [menu, setMenu] = useState<{ node: MenuNode; at: MenuAt; header?: string } | null>(null);
   const shown: OpenTerminal | undefined = route?.mid && route.id ? { mid: route.mid, id: route.id } : undefined;
   const selected = detail?.selected;
-  // a stopped Agent (#4754) has its terminal too: the shell it left, or Resume when that is gone
-  const stoppedSelected = useStore(() => Boolean(selected && isStoppedAgent(getSession(selected.mid, selected.sid))));
-  const terminalAvailable = Boolean(panesOn && selected && targets.some((m) => m.id === selected.mid && m.online) &&
-    (interactiveSessionPane(listing[selected.mid], selected.sid) || stoppedSelected));
-  const mid = selected?.mid, sid = selected?.sid;
-  useEffect(() => {
-    onWorkPane?.(terminalAvailable && mid && sid ? { mid, sid } : undefined);
-    return () => onWorkPane?.();
-  }, [mid, sid, onWorkPane, terminalAvailable]);
   const hasDetail = Boolean(detail || shown);
   const narrow = useMedia(NARROW);
   const hideList = hasDetail && narrow;
@@ -199,7 +188,7 @@ export function TerminalPage({ route, onToggleSidebar, onNewAgent, detail, onWor
               </div>
             );
           })}
-          {detail ? detail.render(terminalAvailable)
+          {detail ? detail.content
             : shown ? !panesOn && <Empty icon="terminal" title={t("work-entry.terminal_unavailable")} />
             : listsTerminals ? <Empty icon="terminal" title={t("terminal-terminalpage.pick_terminal")} detail={t("terminal-terminalpage.pick_terminal_detail")} />
             : <Empty icon="chat" title={t("work-entry.pick_session")} detail={t("work-entry.pick_session_detail")} />}

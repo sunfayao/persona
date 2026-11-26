@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // hubClient calls the Persona hub's API with the credential the hub hands its plugins (PERSONA_HUB_URL / PERSONA_HUB_TOKEN).

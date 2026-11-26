@@ -3,7 +3,7 @@ package devicewire
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 type sourcePermissionKey struct{}

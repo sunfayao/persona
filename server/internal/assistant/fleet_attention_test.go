@@ -13,9 +13,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // attentionFixtures is shared with the web app's tests (web/src/lib/attention-fixture.test.ts): the same sessions give
@@ -100,34 +100,6 @@ func TestLinkAttentionFollowsTheSharedFixtures(t *testing.T) {
 	}
 }
 
-// The Live Activity keeps its own count on the same agents: the assistant's questions and
-// the ones it is still deciding on counted, muted agents and Codex sub-agents left out.
-func TestLiveActivityKeepsItsOwnCount(t *testing.T) {
-	cases := readAttentionCases(t)
-	named := func(name string) attentionCase {
-		i := slices.IndexFunc(cases, func(c attentionCase) bool { return c.Name == name })
-		if i < 0 {
-			t.Fatalf("no case %s", name)
-		}
-		return cases[i]
-	}
-	agents, ixs, _ := fixtureInputs(t, named("badge_rules"))
-	agents = slices.DeleteFunc(agents, func(a fleetInput) bool { return a.Session.Quiet }) // as fleetInputs does
-	st := buildFleet(agents, ixs)
-	var ids []string
-	for _, it := range st.Items {
-		ids = append(ids, it.ID)
-	}
-	if st.NeedsYou != 7 || strings.Join(ids, " ") != "mac/s-perm mac/s-assistant mac/s-looking" {
-		t.Fatalf("Live Activity: needs you %d, items %v", st.NeedsYou, ids)
-	}
-	if agents, ixs, _ := fixtureInputs(t, named("codex_subagent_counts")); buildFleet(agents, ixs).NeedsYou != 0 {
-		t.Fatal("Live Activity counts a Codex sub-agent")
-	}
-}
-
-// Twenty items at most, the rest counted in more; the texts clipped; the largest summary far below what a post and
-// the link take.
 func TestLinkAttentionCapsAndClips(t *testing.T) {
 	long := strings.Repeat("<", 300) // escaped in JSON: the most bytes a rune can cost there
 	var agents []fleetInput
@@ -188,15 +160,12 @@ func TestLinkAttentionKeepsTheNewest(t *testing.T) {
 
 // fleetInputs reads the sessions, then the cards. A card answered in between leaves a row that counts a card no
 // longer read: listed as the web badge counts it, but not notified, as no terminal dialog waits there. A card raised in
-// between and not decided on yet does not notify either. The Live Activity shows the first as a dialog, as it did.
+// between and not decided on yet does not notify either.
 func TestLinkAttentionCardsReadApartFromTheirRows(t *testing.T) {
 	answered := []fleetInput{{Machine: "Mac", Session: &proto.Session{MachineID: "mac", SessionID: "s-1", State: proto.StateNeedsYou,
 		PendingInteractions: 1}}}
 	if a := linkAttention("en", answered, nil, nil); a.NeedsYou != 1 || a.Items[0].Kind != proto.IxScreen || a.Items[0].Notify {
 		t.Fatalf("a card answered between the reads: %+v", a)
-	}
-	if st := buildFleet(answered, nil); st.NeedsYou != 1 || st.Items[0].Kind != proto.IxScreen {
-		t.Fatalf("Live Activity %+v", st)
 	}
 	raised := []fleetInput{{Machine: "Mac", Session: &proto.Session{MachineID: "mac", SessionID: "s-1", State: proto.StateNeedsYou}}}
 	ixs := []proto.Interaction{{ID: "ix-1", MachineID: "mac", SessionID: "s-1", Kind: proto.IxPermission, CreatedAt: time.Now()}}
@@ -680,8 +649,7 @@ func TestLinkAttentionAfterAManagerRestart(t *testing.T) {
 }
 
 // The list is the badge's by the same rows: a card read after a row that said working or idle (fleetInputs reads the
-// rows, then the cards) is not listed until its row says "Needs you", announced or not. The Live Activity keeps its
-// own rule and shows the card.
+// rows, then the cards) is not listed until its row says "Needs you", announced or not.
 func TestLinkAttentionCountsByTheRow(t *testing.T) {
 	ixs := []proto.Interaction{{ID: "ix-1", MachineID: "mac", SessionID: "s-1", Kind: proto.IxPermission, CreatedAt: time.Now()}}
 	for _, state := range []string{proto.StateWorking, proto.StateIdle} {
@@ -690,9 +658,6 @@ func TestLinkAttentionCountsByTheRow(t *testing.T) {
 			if a := linkAttention("en", agents, ixs, told); a.NeedsYou != 0 || len(a.Items) != 0 {
 				t.Errorf("row %s, told %v: %+v", state, told, a)
 			}
-		}
-		if st := buildFleet(agents, ixs); st.NeedsYou != 1 {
-			t.Errorf("Live Activity, row %s: %+v", state, st)
 		}
 	}
 }

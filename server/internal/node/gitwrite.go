@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The Git panel's writes (#6121): stage, commit, push, switch branches, stash. Each is one click of the user's in a
@@ -61,10 +61,6 @@ func (n *Node) gitWrite(ctx context.Context, method string, params json.RawMessa
 		Body        string   `json:"body"`
 		Base        string   `json:"base"`
 		Draft       bool     `json:"draft"`
-		Number      int      `json:"number"`
-		Method      string   `json:"method"`
-		Auto        bool     `json:"auto"`
-		AutoOff     bool     `json:"auto_off"`
 	}
 	if err := json.Unmarshal(params, &p); err != nil {
 		return nil, err
@@ -88,10 +84,8 @@ func (n *Node) gitWrite(ctx context.Context, method string, params json.RawMessa
 		return n.gitStash(ctx, p.Cwd, p.Op, index, p.Message, p.Untracked, p.OID)
 	case methodGitPR:
 		return n.gitPR(ctx, p.Cwd)
-	case methodGitPRCreate:
+	default: // methodGitPRCreate
 		return n.gitPRCreate(ctx, p.Cwd, p.Title, p.Body, p.Base, p.Draft)
-	default: // git.pr_merge
-		return n.gitPRMerge(ctx, p.Cwd, p.Number, p.Method, p.Auto, p.AutoOff)
 	}
 }
 

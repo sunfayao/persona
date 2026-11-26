@@ -11,7 +11,7 @@ import (
 
 	"github.com/emersion/go-imap/v2"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestEncryptedStoreRoundTrip(t *testing.T) {

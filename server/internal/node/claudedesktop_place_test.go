@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // writeTranscriptIn writes a Claude transcript that ran in cwd, of the desktop app or of the command line.
@@ -110,7 +110,7 @@ func TestDesktopSessionsAreInTheirProject(t *testing.T) {
 	}
 
 	// The space is the one a Codex App chat in that worktree is in (decorateCodexSession).
-	if codex := projectSpace + codexProjectRoot(tree, map[string]string{}); rows[inTree].SpaceID != codex {
+	if codex := projectSpace + n.projectRoot(tree, map[string]string{}); rows[inTree].SpaceID != codex {
 		t.Errorf("space %q, a Codex App chat's there %q", rows[inTree].SpaceID, codex)
 	}
 

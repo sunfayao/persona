@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The Git panel's writes and pull request (#6121) reach the node as the method they name with what was sent; a
@@ -54,7 +54,6 @@ func TestGitWriteRoutes(t *testing.T) {
 		{"POST", "switch", `{"cwd":"/work/web","branch":"main"}`, "git.switch", "branch"},
 		{"POST", "stash", `{"cwd":"/work/web","op":"pop","index":1,"oid":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`, "git.stash", "oid"},
 		{"POST", "pr", `{"cwd":"/work/web","title":"Fix","base":"main"}`, "git.pr_create", "title"},
-		{"POST", "pr/merge", `{"cwd":"/work/web","number":7,"method":"squash","auto":true}`, "git.pr_merge", "auto"},
 	} {
 		code, res := call(t, handler, c.verb, base+c.path, h.cfg.Token, c.body)
 		mu.Lock()

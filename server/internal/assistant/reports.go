@@ -12,11 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Task reports in Feishu (#2768): the user reads the bot's chat, not the app, so how the
@@ -664,12 +664,6 @@ func (s *Service) sendReports() {
 	} else {
 		c, fb := s.goalCard(ctx, keep)
 		cards, fallbacks = []*feishubot.Card{c}, []string{fb}
-	}
-	// A notifications companion takes the report (feishu_companions.go); the decisions' own cards, which answer for
-	// the owner, still go to the chat below.
-	if s.divertNotices(ctx, "report", cards, fallbacks) {
-		s.postReportAsks(append(asks, keep...))
-		return
 	}
 	// Every card must land: a failure after some went out requeues the whole batch (reposts early ones, retry-capped).
 	for i, c := range cards {

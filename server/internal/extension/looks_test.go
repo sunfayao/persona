@@ -64,7 +64,7 @@ func TestLookItemRules(t *testing.T) {
 	bad := map[string]string{
 		"a built-in look's id":            `{"id": "persona", "name": "x", ` + ok + `}`,
 		"an id with an underscore":        `{"id": "my_look", "name": "x", ` + ok + `}`,
-		"a fallback that is not built in": `{"id": "x", "name": "x", "avatar": {"sizes": {"128": "a.png"}}, "app_icon_fallback": "nwverse"}`,
+		"a fallback that is not built in": `{"id": "x", "name": "x", "avatar": {"sizes": {"128": "a.png"}}, "app_icon_fallback": "example-look"}`,
 		"no fallback":                     `{"id": "x", "name": "x", "avatar": {"sizes": {"128": "a.png"}}}`,
 		"no PNG":                          `{"id": "x", "name": "x", "avatar": {"sizes": {}, "svg": "a.svg"}, "app_icon_fallback": "persona"}`,
 		"a size that is not a side":       `{"id": "x", "name": "x", "avatar": {"sizes": {"big": "a.png"}}, "app_icon_fallback": "persona"}`,

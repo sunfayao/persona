@@ -1,11 +1,10 @@
 package extmgr
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestMorePermissionsTextLanguages(t *testing.T) {
@@ -26,19 +25,5 @@ func TestMorePermissionsTextLanguages(t *testing.T) {
 	}
 	if got := morePermissionsText(i18n.Ja, many); got != "権限が7件増えます：p、p、p、p、p、p、p" {
 		t.Fatalf("ja: %q", got)
-	}
-}
-
-// An error with detail keeps its Chinese Error(), reads in a client's language, and still matches its kind.
-func TestShortcutErrorLocalizes(t *testing.T) {
-	kind := localizedKind(errShortcutArg, "hub-extension_system.shortcut_missing", i18n.Args{"title": "City"})
-	if !errors.Is(kind, errShortcutArg) {
-		t.Fatal("kind lost")
-	}
-	if kind.Error() != "快捷指令的参数不对：缺 City" {
-		t.Fatalf("default: %q", kind.Error())
-	}
-	if got := i18n.Localize(kind, i18n.En); got != "The shortcut’s parameters aren’t right: City is missing" {
-		t.Fatalf("en: %q", got)
 	}
 }

@@ -7,6 +7,9 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 var codexTranscriptGlob = filepath.Glob
@@ -34,7 +37,7 @@ func (n *Node) oldCodexTranscript(id string) string {
 	cfg := n.codexInventory()
 	var homes []string
 	for _, configured := range cfg.Homes {
-		home := canonicalCodexHome(configured, n.home)
+		home := codex.CanonicalHome(configured, n.home)
 		if home != "" && home != cfg.LegacyHome {
 			homes = append(homes, home)
 		}
@@ -65,7 +68,7 @@ func (n *Node) oldCodexTranscript(id string) string {
 			}
 			if len(matches) > 0 {
 				n.noteOldCodexTranscript(id, key, home, matches, stamp)
-				return newestFirst(matches)[0]
+				return filemeta.NewestFirst(matches)[0]
 			}
 		}
 	}
@@ -76,7 +79,7 @@ func (n *Node) oldCodexTranscript(id string) string {
 // oldCodexTranscriptMatch applies the same symlink, home, identity and file-type checks to a globbed path and to a
 // cached match. A cached path therefore cannot become a way to read somewhere the original lookup would have rejected.
 func (n *Node) oldCodexTranscriptMatch(home, legacy, id, path string) string {
-	thread := rolloutID(path)
+	thread := codex.RolloutID(path)
 	if thread == "" {
 		return ""
 	}
@@ -89,7 +92,7 @@ func (n *Node) oldCodexTranscriptMatch(home, legacy, id, path string) string {
 		}
 		return "" // A concurrently moved or unavailable transcript is not readable.
 	}
-	if rolloutID(real) != thread {
+	if codex.RolloutID(real) != thread {
 		return ""
 	}
 	rel, err := filepath.Rel(home, real)
@@ -108,7 +111,7 @@ func (n *Node) oldCodexTranscriptMatch(home, legacy, id, path string) string {
 		}
 		return ""
 	}
-	if st.Mode().IsRegular() && codexSourceID(home, rolloutThreadID(home, real), legacy) == id {
+	if st.Mode().IsRegular() && codex.SourceID(home, rolloutThreadID(home, real), legacy) == id {
 		return real
 	}
 	return ""
@@ -137,7 +140,7 @@ func (n *Node) oldCodexTranscriptCached(id, homes string, stamp []int64, legacy 
 	if len(matches) == 0 {
 		return "", false
 	}
-	return newestFirst(matches)[0], true
+	return filemeta.NewestFirst(matches)[0], true
 }
 
 func (n *Node) noteOldCodexTranscript(id, homes, home string, paths []string, stamp []int64) {

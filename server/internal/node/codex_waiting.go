@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // Starting a Codex with no first message (#4961).
@@ -355,7 +356,7 @@ func (n *Node) codexHeldThreads() codexHeld {
 	open, read := scanOpenRollouts(tuis)
 	held.ok = listed && read
 	for _, p := range tuis {
-		home := canonicalCodexHome(firstNonEmpty(p.home, n.codexHome()), n.home)
+		home := codex.CanonicalHome(firstNonEmpty(p.home, n.codexHome()), n.home)
 		pane := ""
 		if p.pane != "" {
 			pane = n.herdrPaneIn(p.pane, p.herdrSession)
@@ -365,7 +366,7 @@ func (n *Node) codexHeldThreads() codexHeld {
 				continue
 			}
 			thread := rolloutThreadID(home, path)
-			if thread == "" || metaOf(home, path).sub {
+			if thread == "" || metaOf(home, path).Subagent {
 				continue
 			}
 			id := n.codexPublicID(home, thread)
@@ -401,7 +402,7 @@ func (n *Node) newCodexThreads(w *codexWait, held codexHeld) []newThread {
 	seen := map[string]bool{}
 	for _, home := range homes {
 		for _, r := range rollouts(home) {
-			if r.sub || (r.cwd != w.cwd && r.cwd != resolved) || r.mtime.Before(w.began.Add(-time.Second)) {
+			if r.Subagent || (r.Cwd != w.cwd && r.Cwd != resolved) || r.mtime.Before(w.began.Add(-time.Second)) {
 				continue
 			}
 			at, first := codexThreadStart(r.path)
@@ -468,7 +469,7 @@ func (n *Node) codexTitleThread(a host.Agent) string {
 	home := n.codexPaneHome(a.PaneID)
 	var found []string
 	for _, id := range threadsNamed(home, func(t string) bool { return t == name }) {
-		if p := rolloutPath(home, id); p != "" && metaOf(home, p).sub {
+		if p := rolloutPath(home, id); p != "" && metaOf(home, p).Subagent {
 			continue
 		}
 		found = append(found, id)

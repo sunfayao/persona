@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // DevelopmentResourceEnv is an explicit isolated-instance opt-in, not hub config.

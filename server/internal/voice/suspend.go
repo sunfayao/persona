@@ -7,8 +7,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Pausing the upstream (docs/assistant/voice.md 4.9 "Suspension", protocol 2 only). A realtime session is billed by the second, silence

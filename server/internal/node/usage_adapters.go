@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // Where each agent keeps its token usage and how to read it: an adapter per
@@ -92,7 +93,7 @@ func (c codexUsage) paths(n *Node, since time.Time) []string {
 		homes[key] = true
 		var paths []string
 		if time.Since(since) > codexWindow-time.Hour {
-			paths = allRolloutPaths(home)
+			paths = codex.AllRolloutPaths(home)
 		} else {
 			for _, r := range rolloutSegments(home) {
 				paths = append(paths, r.path)
@@ -118,7 +119,7 @@ func (n *Node) meteredCodexHomes() []string {
 
 // session is a rollout's thread: the id its name ends with, before a continued segment's own (rolloutID).
 func (codexUsage) session(path string) string {
-	if id := rolloutID(path); id != "" {
+	if id := codex.RolloutID(path); id != "" {
 		return id
 	}
 	return strings.TrimSuffix(filepath.Base(path), ".jsonl")

@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // The fake dialect's transcription (manager.json only, for local end-to-end runs without a GPT-Live-compatible

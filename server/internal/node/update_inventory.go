@@ -11,9 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var updateInventoryInstance = newUUID()
@@ -102,7 +103,7 @@ func (n *Node) collectUpdateInventory(ctx context.Context, target nodeclient.Upd
 		authorities[spec.Endpoint] = updateTerminalSource{endpoint: spec.Endpoint, activity: observation}
 		out.Sources["app-server:"+spec.ID] = observation.Revision
 		for _, row := range observation.Threads {
-			row.ID = codexSourceID(spec.Home, row.ID, config.LegacyHome)
+			row.ID = codex.SourceID(spec.Home, row.ID, config.LegacyHome)
 			out.Rows = append(out.Rows, updateCodexActivity("app-server:"+spec.ID, row, observation.Revision))
 		}
 		coveredEndpoints[spec.Endpoint] = true

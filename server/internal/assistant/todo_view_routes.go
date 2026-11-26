@@ -10,19 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
-// The To-dos view on the wire (#10226): every row of
-// GET /api/v1/todos carries its view and the list its counts, GET /api/v1/todos/{id} answers one row the same way, and
-// GET /api/v1/todos/places the sidebar's places. Each read works the view out once, over the whole list, through the
-// adapter (todo_projection.go): a row's rank, its steps and a superseded failed start are read against the rest of the
-// list, so a row reads the same in the list and on its own. Every time in a view is absolute, so the same state gives
-// the same bytes and the list's ETag (#9590) holds while nothing changes. The manager names CapabilityTodoView and
-// CapabilityTodoPlaces in its hello; the hub adds the counts and places of several managers up.
+// The list and item use the same projection. Each view depends on the full list for rank, steps and superseded starts.
+// Views use absolute times so unchanged state produces the same bytes and ETag.
 
 // todosList is GET /api/v1/todos's answer: the rows, each with its view, and the list's counts.
 type todosList struct {
@@ -199,14 +194,5 @@ func (s *Service) todoViewRoutes() {
 			ext := r.Header.Get(RoleHeader) == roleExtension
 			apierr.WriteJSON(w, todoItem{Todo: raw, TodoItemDetail: s.todoItemDetail(r.Context(), t.Todo, raw, sessions, ext)})
 		}
-	})
-	// GET /api/v1/todos/places: the To-dos sidebar's places with the list's counts (assistantwire.TodoPlaces).
-	s.handle("GET /api/v1/todos/places", func(w http.ResponseWriter, r *http.Request) {
-		_, p, err := s.todosViewed(r.Context(), false)
-		if err != nil {
-			apierr.Write(w, http.StatusServiceUnavailable, errTodosUnavailable)
-			return
-		}
-		apierr.WriteJSON(w, s.todoPlaces(r.Context(), p))
 	})
 }

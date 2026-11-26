@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Claude Code keeps everything (projects/<cwd>/<session>.jsonl, sessions/<pid>.json, settings.json) under its config

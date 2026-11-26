@@ -3,9 +3,8 @@ docs/assistant/todos.md), for mock_hub.py's MOCK_TODO_VIEW: the design prototype
 to-dos as wire rows, each with its `view`, so an app's
 screenshot lines up with the V1 frame it draws.
 
-MOCK_TODO_VIEW=1      features todo_view and todo_places. GET /api/v1/todos: every row with `view`, the list's
-                      `counts`, ETag W/"t1-…" and 304 for it; GET /api/v1/todos/{id} → {"todo": row + view}; GET
-                      /api/v1/todos/places → the places and the counts. Today's answers work on these to-dos, whatever
+MOCK_TODO_VIEW=1      feature todo_view. GET /api/v1/todos: every row with `view`, the list's
+                      `counts`, ETag W/"t1-…" and 304 for it; GET /api/v1/todos/{id} → {"todo": row + view}. Today's answers work on these to-dos, whatever
                       MOCK_TASKS says: POST …/accept (T01's decision: an option, the plain press or a fixed answer),
                       …/decision-dismiss and …/decision-undo-dismiss (its review round), …/retry (T03's failed start
                       starts again on the MacBook). PATCH, DELETE and …/seen stay mock_hub.py's; once a PATCH is taken,
@@ -13,16 +12,16 @@ MOCK_TODO_VIEW=1      features todo_view and todo_places. GET /api/v1/todos: eve
                       failed) are applied. The Widget run's plan is a card (GET /api/v1/interactions); answering it
                       sets the run working. The views follow every write.
 MOCK_TODO_VIEW=old    a hub from before the view: the same to-dos with neither `view` nor `counts` (nor
-                      `someday_until` or `restored_at`), 405 for the item and places routes (PATCH and DELETE
+                      `someday_until` or `restored_at`), 405 for the item route (PATCH and DELETE
                       /api/v1/todos/{id} match their path, as docs/protocol/protocol.md says).
-MOCK_TODO_VIEW=late   as 1, except the hello names todo_view and todo_places only from the second connection on, as a
+MOCK_TODO_VIEW=late   as 1, except the hello names todo_view only from the second connection on, as a
                       hub whose manager reconnects after it: once an app has connected, the mock closes every socket
                       three times, MOCK_TODO_VIEW_LATE_SECONDS (default 5) apart, as a restarting hub does, so the
                       hellos read: without, with, without, with. /mock/reset starts the sequence again (and closes the
                       sockets, so the next hello lacks the view). The routes answer as under 1 throughout.
 MOCK_TODO_MANAGERS=2  the Weather App's to-dos are the second manager's (the first other one the roster lists, which
                       has the MacBook where their runs are): every row is stamped with its manager, the counts are
-                      added up and the places merged as the hub merges them (server/internal/hub/todo_view.go).
+                      added up (server/internal/hub/todo_view.go).
 Send receipts         (docs/protocol/protocol.md "Message feedback (#5258)") under every mode the hello carries
                       message_send_state: 1, and under 1 and late also todo_send_state: 1, as the hub writes them. A
                       session's message with a client_msg_id says message_send_state processing to the session's
@@ -537,24 +536,6 @@ def counts(rows, views):
     return out
 
 
-def places(rows, views, total):
-    titles = {"kyoto": "Kyoto trip", "weather": "Weather App", "home": "Home"}
-    out = [{"id": "all", "kind": "all", "title": "", "needs_you": total["needs_you"]},
-           {"id": "today", "kind": "today", "title": "", "needs_you": 0},
-           {"id": "upcoming", "kind": "upcoming", "title": "", "needs_you": 0}]
-    open_ids = {t["id"] for t in rows if views[t["id"]]["phase"] != "done"}
-    need = {}
-    for t in rows:
-        v = views[t["id"]]
-        if carried(t, open_ids) or not t.get("project") or v["phase"] == "done" or v["section"] == "someday":
-            continue
-        need[t["project"]] = need.get(t["project"], 0) + (v["section"] == "needs_you" and not t.get("quiet"))
-    for slug in sorted(need):
-        out.append({"id": "project:" + slug, "kind": "project", "title": titles.get(slug) or slug,
-                    "project": slug, "needs_you": need[slug]})
-    return out
-
-
 def add_up(objs):
     """The hub's sumMembers: integers added up member by member, objects key by key."""
     out = {}
@@ -604,7 +585,7 @@ def legacy_ask(t):
 
 
 def answers(now):
-    """Each manager's answer as it sends it: [(manager, rows with views, counts, places)]."""
+    """Each manager's answer as it sends it: [(manager, rows with views, counts)]."""
     rows = sorted(_hub["sorted_todos"](), key=lambda t: t["id"])
     rows.sort(key=lambda t: t.get("created_at") or "", reverse=True)  # newest first; equal times by id
     for t in rows:
@@ -623,13 +604,13 @@ def answers(now):
                 t.pop("restored_at", None)
             else:
                 t["view"] = views[t["id"]]
-        out.append((mid, mine, total, places(mine, views, total)))
+        out.append((mid, mine, total))
     return out
 
 
 def item(tid, now):
     """The to-do as the item route answers it (unstamped, as the hub forwards it); None when there is none."""
-    return next((t for _, rows, _, _ in answers(now) for t in rows if t["id"] == tid), None)
+    return next((t for _, rows, _ in answers(now) for t in rows if t["id"] == tid), None)
 
 
 def stamped(mid, row):
@@ -638,28 +619,10 @@ def stamped(mid, row):
 
 def list_answer(now):
     got = answers(now)
-    obj = {"todos": [stamped(mid, t) for mid, rows, _, _ in got for t in rows]}
+    obj = {"todos": [stamped(mid, t) for mid, rows, _ in got for t in rows]}
     if MODE != "old":
-        obj["counts"] = add_up([c for _, _, c, _ in got])
+        obj["counts"] = add_up([c for _, _, c in got])
     return obj
-
-
-def places_answer(now):
-    """GET /api/v1/todos/places as the hub merges it (mergeTodoPlaces): each fixed place once, its needs_you added
-    up, then every manager's projects stamped with it, the default's first; the counts added up."""
-    got = answers(now)
-    fixed, own = [], []
-    for mid, _, _, pl in got:
-        for p in pl:
-            if p["kind"] == "project":
-                own.append(dict({"manager": mid}, **p))
-                continue
-            same = next((f for f in fixed if f["id"] == p["id"]), None)
-            if same:
-                same["needs_you"] += p["needs_you"]
-            else:
-                fixed.append(dict(p))
-    return {"places": fixed + own, "counts": add_up([c for _, _, c, _ in got])}
 
 
 def tag_matches(values, tag):
@@ -931,8 +894,7 @@ def receipts(h, path):
     or 202 pending (withClientOp), with nothing done again; the same client_msg_id in flight waits for the first answer,
     and once taken mock_hub.py answers it as sent. What the hub refuses before it claims the id says nothing: an op id
     that is not a UUID (400), a read-only device's message to a to-do (403). MOCK_SEND_DELAY_MS holds the to-do's
-    message as long as a session's. The asks route is not served here (no todo_asks), so it gets none. True when the
-    request was answered here."""
+    message as long as a session's. Returns True when it answers the request."""
     body = body_of(h) or {}
     op = (h.headers.get("X-Persona-Op-Id") or "").lower()
     if ROUTE.fullmatch(path) and op and MODE != "old":
@@ -1043,8 +1005,6 @@ def route(h, method, path):
     if len(parts) == 5 and method == "GET":
         if MODE == "old":  # an older hub: the path matches its PATCH and DELETE routes only
             return h.send_json({"error": "method not allowed"}, 405) or True
-        if tid == "places":
-            return h.send_json(places_answer(now)) or True
         t = item(tid, now)
         return h.send_json({"todo": t} if t else {"error": "todo not found", "code": "todo_not_found"},
                            200 if t else 404) or True
@@ -1171,7 +1131,7 @@ def install(hub):
 
     def features():
         f = before()
-        return f + [x for x in ("todo_view", "todo_places") if x not in f] if listed() else f
+        return f + [x for x in ("todo_view",) if x not in f] if listed() else f
 
     hub["features"] = features
     hub["send_state_hello"] = receipt_versions

@@ -1,6 +1,6 @@
 package node
 
-import "github.com/nwverse/persona/server/internal/procinfo"
+import "github.com/sunfayao/persona/server/internal/procinfo"
 
 // parentPID is pid's parent process.
 func parentPID(pid int) (int, error) { return procinfo.Parent(pid) }

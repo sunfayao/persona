@@ -8,7 +8,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The inbox's lists (GET /api/v1/inbox and /inbox/done) are localized as they are merged, item by item, rather than

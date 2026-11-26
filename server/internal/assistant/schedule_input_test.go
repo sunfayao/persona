@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/promptcontent"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/promptcontent"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestTaskInputContextUsesDraftExecutionWithoutSaving(t *testing.T) {
@@ -42,7 +42,7 @@ func TestTaskInputContextUsesDraftExecutionWithoutSaving(t *testing.T) {
 	if r.Code != 200 || !strings.Contains(r.Body.String(), `"task_input":true`) || !strings.Contains(r.Body.String(), `"machine_id":"remote"`) || catalog["cwd"] != "/work/project" || catalog["launcher"] != "codex" {
 		t.Fatalf("context: %d %s %+v", r.Code, r.Body.String(), catalog)
 	}
-	if len(s.tasksView(context.Background(), nil)) != 0 {
+	if len(s.tasksView(context.Background())) != 0 {
 		t.Fatal("discovery saved a task")
 	}
 	b, _ := s.modelRecord(context.Background(), "task.__input_draft")
@@ -311,7 +311,7 @@ func TestTaskInputSaveReopenAndBothRunPaths(t *testing.T) {
 		t.Fatalf("save lost references: %+v", reply)
 	}
 	restarted := newServiceOn(t, f, s.store())
-	reopened := restarted.tasksView(context.Background(), nil)
+	reopened := restarted.tasksView(context.Background())
 	if len(reopened) != 1 || reopened[0].Prompt != prompt || !reopened[0].PromptSelections {
 		t.Fatalf("reopen: %+v", reopened)
 	}
@@ -407,7 +407,7 @@ func TestTaskInputLiteralPromptsStayLiteral(t *testing.T) {
 	if _, err := s.toolScheduleFollowup(t.Context(), "server", "source", followup); err != nil {
 		t.Fatal(err)
 	}
-	tasks := s.tasksView(t.Context(), nil)
+	tasks := s.tasksView(t.Context())
 	if len(tasks) != 3 {
 		t.Fatalf("expected three independent tasks, got %d", len(tasks))
 	}
@@ -470,7 +470,7 @@ func TestTaskInputDispatchKeepsLiteralFileExample(t *testing.T) {
 		if _, err := s.toolScheduleFollowup(t.Context(), "server", source, args); err != nil {
 			t.Fatal(err)
 		}
-		tasks := s.tasksView(t.Context(), nil)
+		tasks := s.tasksView(t.Context())
 		if len(tasks) != 1 || tasks[0].Prompt != prompt || tasks[0].PromptSelections || tasks[0].SessionID != source {
 			t.Fatalf("tool did not save the literal follow-up: %+v", tasks)
 		}
@@ -516,7 +516,7 @@ func TestTaskInputToolPromptEditsAreLiteral(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			tasks := s.tasksView(t.Context(), nil)
+			tasks := s.tasksView(t.Context())
 			if len(tasks) != 1 || tasks[0].ID != task.ID || tasks[0].Prompt != task.Prompt || tasks[0].PromptSelections {
 				t.Fatalf("tool write must save literal text on the existing task: %+v", tasks)
 			}
@@ -583,7 +583,6 @@ func TestTaskInputOwnerMetadataKeepsSelections(t *testing.T) {
 		path string
 		body any
 	}{
-		{"existing client", "/api/v1/assistant/routines", map[string]any{"routines": []Task{task}}},
 		{"omitted prompt", "/api/v1/assistant/tasks/" + task.ID, map[string]any{"title": "Updated", "repeat": task.Repeat, "time": task.Time, "enabled": true}},
 	}
 	for _, update := range updates {
@@ -627,11 +626,6 @@ func TestTaskInputOwnerCanPauseWithUnavailableReferences(t *testing.T) {
 					"session_id": "", "time": task.Time, "weekdays": task.Weekdays, "enabled": false, "every_minutes": 0, "permission_mode": ""}, false},
 				{"legacy task client", path, map[string]any{"title": task.Title, "prompt": prompt, "repeat": task.Repeat,
 					"time": task.Time, "weekdays": task.Weekdays, "execution_machine_id": task.ExecutionMachineID, "enabled": false}, false},
-				{"legacy routines client", "/api/v1/assistant/routines", map[string]any{"routines": []Task{{
-					ID: task.ID, Title: task.Title, Prompt: prompt, Time: task.Time, Weekdays: task.Weekdays, Enabled: false,
-				}}}, false},
-				{"sparse pause", path, map[string]any{"enabled": false}, false},
-				{"sparse rename", path, map[string]any{"title": "Renamed"}, true},
 			} {
 				t.Run(edit.name, func(t *testing.T) {
 					setTasks(s, task)
@@ -719,62 +713,10 @@ func TestTaskInputOwnerEnableValidatesSavedSelections(t *testing.T) {
 		return map[string]bool{"valid": true}, nil
 	})
 
-	legacy := task
-	legacy.Enabled = true
-	body, _ := json.Marshal(map[string]any{"routines": []Task{legacy}})
-	r := request(s, "PUT", "/api/v1/assistant/routines", string(body))
+	r := request(s, "PUT", "/api/v1/assistant/tasks/job", `{"enabled":true}`)
 	kept, _ := taskByID(s, task.ID)
-	if r.Code != 400 || kept.Enabled || checks != 0 {
-		t.Fatalf("legacy bulk edit changed the approved schedule: %d %s; stored %+v", r.Code, r.Body, kept)
-	}
-
-	r = request(s, "PUT", "/api/v1/assistant/tasks/job", `{"enabled":true}`)
-	kept, _ = taskByID(s, task.ID)
 	if r.Code != 200 || !kept.Enabled || !kept.PromptSelections || kept.Prompt != task.Prompt || checks != 1 || f.sent() != 0 {
 		t.Fatalf("enable: %d %s; stored %+v; validation calls %d", r.Code, r.Body, kept, checks)
-	}
-}
-
-func TestTaskInputLegacyBatchKeepsStoredApproval(t *testing.T) {
-	f := newFakeHub().withMachine()
-	s := newTestService(t, f)
-	const approved = `<persona-context kind="skill" ref="review">Review</persona-context>` + "\n\nReview notes"
-	task := Task{ID: "review", Title: "Review", Prompt: approved, PromptSelections: true, Repeat: repeatDaily, Time: "12:00", Enabled: true}
-	plain := Task{ID: "plain", Title: "Plain", Prompt: "Summarize yesterday", Repeat: repeatDaily, Time: "09:00", Enabled: true}
-	setTasks(s, task, plain)
-	batch := func(tasks ...Task) int {
-		body, _ := json.Marshal(map[string]any{"routines": tasks})
-		return request(s, "PUT", "/api/v1/assistant/routines", string(body)).Code
-	}
-
-	changed := task
-	changed.Prompt = "Summarize the review notes"
-	changed.Time = "13:00"
-	renamed := plain
-	renamed.Title = "Summary"
-	status := batch(renamed, changed)
-	kept, _ := taskByID(s, task.ID)
-	keptPlain, _ := taskByID(s, plain.ID)
-	if status != 400 || !reflect.DeepEqual(kept, task) || !reflect.DeepEqual(keptPlain, plain) {
-		t.Fatalf("legacy batch changed an approved routine or partially saved: %d", status)
-	}
-
-	paused := task
-	paused.Title, paused.Enabled = "Daily review", false
-	renamed.Prompt = "Summarize today"
-	status = batch(renamed, paused)
-	kept, _ = taskByID(s, task.ID)
-	keptPlain, _ = taskByID(s, plain.ID)
-	if status != 200 || kept.Enabled || kept.Title != paused.Title || !kept.PromptSelections || kept.Prompt != approved ||
-		keptPlain.Title != renamed.Title || keptPlain.Prompt != renamed.Prompt {
-		t.Fatalf("legacy metadata or plain edit failed: %d", status)
-	}
-
-	body, _ := json.Marshal(map[string]any{"prompt": changed.Prompt, "time": changed.Time})
-	r := request(s, "PUT", "/api/v1/assistant/tasks/review", string(body))
-	kept, _ = taskByID(s, task.ID)
-	if r.Code != 200 || kept.PromptSelections || kept.Prompt != changed.Prompt || kept.Time != changed.Time || f.sent() != 0 {
-		t.Fatalf("single-task plain replacement failed: %d %s", r.Code, r.Body)
 	}
 }
 

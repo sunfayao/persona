@@ -6,7 +6,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // assistantSocketRoutesRelayed relays the assistant's WebSocket routes (assistantwire.SocketRoutes: the A2A routes) to its manager as the extensions' sockets are

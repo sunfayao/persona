@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // The wrappers' target adds chat_id / in_thread to feishu.post and feishu.text only when set: the usual calls carry

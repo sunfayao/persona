@@ -3,7 +3,7 @@ package node
 import (
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A restart takes herdr's panes with it: the agents that ran in them are gone, and herdr brings one back only once a

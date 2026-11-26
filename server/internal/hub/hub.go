@@ -1,11 +1,10 @@
-// Package hub serves the iPhone / Watch apps and coordinates the nodes on every machine.
+// Package hub serves the web app and coordinates the nodes on every machine.
 package hub
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -13,15 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/hubedge"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/hubedge"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 type Hub struct {
 	passwordLogin passwordLoginState
-	browserLogin  browserLoginState
 	// errs: the hub's own error reports on their way to the managers (error_reports.go).
 	errs hubErrors
 
@@ -184,8 +182,6 @@ type Hub struct {
 	todoLinks todoLinks // what the assistant reports of its todos' agents (assistant_todos.go)
 
 	// The looks built into personad (persona.go; nil in unit tests) and the tier each tiered look shows (persona_tiers.go).
-	builtinLooks fs.FS
-	tiers        personaTierState
 }
 
 // Store is the hub's persistence (internal/db on Postgres).
@@ -263,7 +259,6 @@ func runHub(ctx context.Context, b update.Build, cfg *Config, budget *shutdownBu
 	defer func() { h.flushTraffic(time.Now(), true) }()
 	h.extLost.started = time.Now() // managers' extensions may call before their managers are back (extensions_proof.go)
 	h.teeErrors()                  // the log's error lines become reports while an extension takes them (error_reports.go)
-	h.builtinLooks = builtinPersonaFS()
 	h.upd = newUpdater(h)
 	h.upd.confirmed = !updating // an update under way is confirmed by this process (its watchdog waits for that)
 	h.upd.logSource()
@@ -318,7 +313,6 @@ func runHub(ctx context.Context, b update.Build, cfg *Config, budget *shutdownBu
 	}()
 	h.loadAssistantProfile(ctx) // the user's zone and the main conversation before the assistant reports (assistant_profile.go)
 	h.loadExtReport(ctx)        // what the apps saw of the extensions, until the manager reports (extensions_link.go)
-	go h.personaTiersLoop(ctx)
 	h.upd.start(ctx)
 	go h.adminStartup(ctx) // the admin UI's first-run setup code, while it has no password (admin_setupcode.go)
 	if err := h.startPublic(ctx); err != nil {

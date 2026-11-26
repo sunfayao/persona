@@ -3,12 +3,11 @@ package extmgr
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // imessageHub is a hub with two Macs (mac "Example Mac", mac2 "Another Mac", in Chinese), hub.json's imessage.machine
@@ -66,43 +65,6 @@ func TestIMessageMigratesOnce(t *testing.T) {
 	}
 	if got := imessageMacOf(h2); got != "示例 Mac" {
 		t.Fatalf("again: reads %q", got)
-	}
-}
-
-// A move that cannot be made leaves Messages on hub.json's: never cut off.
-func TestIMessageMigrationThatFailsKeepsHubJSON(t *testing.T) {
-	ctx := context.Background()
-	// A name that is no machine: nothing moved, not marked (tried at the next start), hub.json's read.
-	store := newExtensionStore()
-	h := imessageHub(t, store, "no such mac")
-	if p := h.extensions.reg.Get(imessageExtensionID); p.Record.Enabled || len(p.Record.Config) > 0 {
-		t.Fatalf("moved a name that is no machine: %+v", p.Record)
-	}
-	var done bool
-	if ok, _ := store.Setting(ctx, imessageMigratedKey, &done); ok && done {
-		t.Fatal("marked done")
-	}
-	if got := imessageMacOf(h); got != "no such mac" {
-		t.Fatalf("reads %q", got)
-	}
-	// The database cannot be written: hub.json's read.
-	store = newExtensionStore()
-	store.failPut = true
-	h = imessageHub(t, store, "示例 Mac")
-	if got := imessageMacOf(h); got != "示例 Mac" {
-		t.Fatalf("write failed: reads %q", got)
-	}
-	if ok, _ := store.Setting(ctx, imessageMigratedKey, &done); ok && done {
-		t.Fatal("marked done after a failed write")
-	}
-	// Nothing anywhere: no connector, and the app is told where to pick a Mac.
-	h = imessageHub(t, newExtensionStore(), "")
-	if h.imessage() != nil {
-		t.Fatal("a connector with no Mac")
-	}
-	if code, out := call(t, h.routes(), "GET", "/api/v1/imessage", h.cfg.Token, ""); code != 404 || out["code"] != "not_configured" ||
-		!strings.Contains(fmt.Sprint(out), "设置 › 扩展 › 信息") {
-		t.Fatalf("not configured: %d %v", code, out)
 	}
 }
 

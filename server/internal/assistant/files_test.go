@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // The built-in manager reads its keys in its own directory once they are copied there, never the hub's in the data

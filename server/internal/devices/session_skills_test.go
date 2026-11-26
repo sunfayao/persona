@@ -11,17 +11,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func TestOrdinarySkillCatalogRouteUsesManagerAndSessionFacts(t *testing.T) {
 	d := newTestDevices(t)
 	d.opts.ManagerID = "helper"
-	m, _ := clipMachine(t, d, "computer", nil)
+	m := newMachine(d, MachineConfig{ID: "computer", Name: "computer"})
+	m.info, m.online = current("test"), true
+	d.addEntry(m)
 	var got map[string]any
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

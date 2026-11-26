@@ -14,8 +14,7 @@ is unknown rather than zero. If an aggregate includes unknown values, it and its
 It also sizes each supervision event's text and the part of it that is the general handling manual (#5665).
 
 Prints counts and sizes only, never message content, so the output can be pasted into an issue.
---request-breakdown adds source byte inventories and explicit local request exports; see
-docs/assistant/assistant.md, "Local request source diagnostics" for boundaries and unknowns.
+--request-breakdown adds source byte inventories and explicit local request exports.
 """
 import argparse
 import collections

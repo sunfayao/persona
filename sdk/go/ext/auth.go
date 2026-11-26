@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Auth is an extension's sign-in (manifest.auth): the hub calls auth.status, auth.step and auth.logout. Keep what

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The readers of a machine's sessions that keep a few rows (nodeSessionsWhere, workspaceSessions) answer as they did when

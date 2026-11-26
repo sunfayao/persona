@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // gradingNotifyUserPush is a notify_user-shaped push (assistantwire.NotifyPush) from a session on the hub's own machine.

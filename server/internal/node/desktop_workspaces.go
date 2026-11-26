@@ -7,8 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // desktopWorkspaces lists saved desktop projects independently of running terminals and conversations. A scoped
@@ -23,7 +24,7 @@ func (n *Node) desktopWorkspaces() ([]proto.Workspace, int, []proto.WorkspaceSou
 	homes := append([]string{n.codexHome()}, n.codexInventory().Homes...)
 	seenHomes := map[string]bool{}
 	for _, home := range homes {
-		home = canonicalCodexHome(home, n.home)
+		home = codex.CanonicalHome(home, n.home)
 		if home == "" || seenHomes[folderKey(home)] {
 			continue
 		}
@@ -135,7 +136,7 @@ func (n *Node) desktopWorkspaces() ([]proto.Workspace, int, []proto.WorkspaceSou
 			if _, saved := index.environments[about.environment]; saved {
 				continue
 			}
-			root := claudeDesktopProjectRoot(firstNonEmpty(about.originCwd, about.cwd), projects)
+			root := n.claudeDesktopProjectRoot(firstNonEmpty(about.originCwd, about.cwd), projects)
 			if root == "" || inICloud(root) || n.cwdBlocked(root) {
 				continue
 			}
@@ -164,11 +165,11 @@ func codexDesktopProjectID(home, id string) string {
 	return "codex-project:" + codexHomeTag(home) + ":" + id
 }
 
-func claudeDesktopProjectRoot(cwd string, projects map[string]string) string {
+func (n *Node) claudeDesktopProjectRoot(cwd string, projects map[string]string) string {
 	if !filepath.IsAbs(cwd) || inICloud(cwd) {
 		return ""
 	}
-	return codexProjectRoot(cwd, projects)
+	return n.projectRoot(cwd, projects)
 }
 
 // Directory-only projects share Codex's space and the session list's home/ancestor exclusions. Native saved
@@ -195,10 +196,10 @@ func (n *Node) decorateClaudeDesktop(s *proto.Session, index claudeDesktopIndex,
 		return
 	}
 	s.AgentName, s.AgentSurface, s.SourceKind = "Claude Desktop", transcript.SurfaceDesktop, proto.SourceClaudeDesktop
-	root := claudeDesktopProjectRoot(firstNonEmpty(about.originCwd, about.cwd, s.Cwd), projects)
+	root := n.claudeDesktopProjectRoot(firstNonEmpty(about.originCwd, about.cwd, s.Cwd), projects)
 	if environment, saved := index.environments[about.environment]; saved {
 		if root == "" {
-			root = claudeDesktopProjectRoot(environment.Cwd, projects)
+			root = n.claudeDesktopProjectRoot(environment.Cwd, projects)
 		}
 		s.RepoRoot = root
 		s.SpaceKind, s.SpaceID, s.SpaceName = proto.SourceClaudeDesktop, about.environment, environment.Name

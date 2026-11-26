@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // trackDenyRules are the permission rules that keep an assistant conversation off the files of the spaces it is not

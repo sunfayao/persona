@@ -6,8 +6,8 @@ import (
 	"errors"
 	"runtime"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // The web machine page's "What this computer can do" card asks the node for the same report `personad node doctor` prints.

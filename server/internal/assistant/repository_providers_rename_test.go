@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // acmeRenamedID is Acme Code's provider id after its extension's market rename from acme-code to acme-hub.
@@ -54,7 +54,7 @@ func (p renamedAcme) RepositoryParse(ctx context.Context, provider, remote strin
 }
 
 // A repository saved before its extension was renamed stays one repository: the catalog does not save it twice, its
-// details stay editable under the provider's current id, and to-do links land on it.
+// to-do links land on it under the provider's current id.
 func TestRepositoriesSavedBeforeAnExtensionRename(t *testing.T) {
 	database, err := db.Open(t.Context(), newDatabase(t), db.ManagerSet)
 	if err != nil {
@@ -76,28 +76,6 @@ func TestRepositoriesSavedBeforeAnExtensionRename(t *testing.T) {
 		t.Fatal("tool:", err)
 	}
 	f.asked()
-	edit := func(body string) RepositoryBinding {
-		t.Helper()
-		w := placeDo(s, "", "PUT", repoBase+"/"+repo.ID, body)
-		var got struct{ Repository RepositoryBinding }
-		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Repository.Identity != repo.Identity ||
-			!got.Repository.VerifiedAt.Equal(repo.VerifiedAt) {
-			t.Fatalf("edit %s: %d %s", body, w.Code, w.Body)
-		}
-		return got.Repository
-	}
-	// Its own address under the provider's current id needs no call.
-	if got := edit(`{"url":"https://code.acme.test/team/app","provider":"` + acmeRenamedID + `","name":"Renamed"}`); got.Name != "Renamed" {
-		t.Fatalf("%+v", got)
-	}
-	if got := f.asked(); len(got) != 0 {
-		t.Fatal("a metadata edit asked", got)
-	}
-	// Another address of it is asked about, and is still the saved repository (not checked again).
-	edit(`{"url":"git@ssh.acme.test:team/app.git","name":"Again"}`)
-	if got := f.asked(); !slices.Equal(got, []string{"parse"}) {
-		t.Fatal("re-parse asked", got)
-	}
 	if doc, err := s.repositoryDocument(t.Context()); err != nil || len(doc.Repositories) != 1 {
 		t.Fatalf("%+v %v", doc, err)
 	}
@@ -118,18 +96,6 @@ func TestRepositoriesSavedBeforeAnExtensionRename(t *testing.T) {
 		set.Repositories[0].SourceSnapshot.TransportOrigin != "catalog" || len(set.Repositories[0].Links) != 2 ||
 		set.Repositories[0].ProviderState != repository.ProviderAvailable {
 		t.Fatalf("%+v", set)
-	}
-	// Removed, saved anew under the current id, the earlier one can't be restored beside it.
-	w := placeDo(s, "", "DELETE", repoBase+"/"+repo.ID, "")
-	var removed struct{ Receipt string }
-	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &removed) != nil {
-		t.Fatal(w.Code, w.Body)
-	}
-	if again := savedRepository(t, s, `{"url":"https://code.acme.test/team/app"}`); again.Provider != acmeRenamedID {
-		t.Fatalf("%+v", again)
-	}
-	if w := placeDo(s, "", "POST", repoBase+"/"+repo.ID+"/restore", `{"receipt":"`+removed.Receipt+`"}`); w.Code != 409 {
-		t.Fatalf("restored a second copy: %d %s", w.Code, w.Body)
 	}
 }
 

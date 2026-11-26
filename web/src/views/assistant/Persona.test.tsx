@@ -62,8 +62,8 @@ const aurora: LookView = {
 };
 const builtins: LookView[] = [{ id: "persona", source: "builtin", name: "Mochi", app_icon: "persona" }];
 const meadow: LookView = { ...aurora, id: "meadow", manifest: { ...aurora.manifest!, id: "meadow", name: "Meadow" } };
-const frog: LookView = { ...aurora, id: "nwverse", source: "hub", name: "Milk Frog", extension: undefined, extension_name: undefined,
-  manifest: { ...aurora.manifest!, id: "nwverse", name: "Milk Frog", names: undefined, source: { kind: "hub" } } };
+const frog: LookView = { ...aurora, id: "example-look", source: "hub", name: "Example Frog", extension: undefined, extension_name: undefined,
+  manifest: { ...aurora.manifest!, id: "example-look", name: "Example Frog", names: undefined, source: { kind: "hub" } } };
 
 async function load() {
   vi.resetModules();
@@ -243,7 +243,7 @@ describe("the look the hub keeps", () => {
     const node = await draw(p, true);
     expect(node.querySelector("output")?.getAttribute("data-builtin")).toBe("persona");
     const radios = [...node.querySelectorAll('[role="radio"]')];
-    expect(radios.map((n) => n.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Milk Frog"]);
+    expect(radios.map((n) => n.getAttribute("aria-label"))).toEqual(["Mochi, the default avatar", "Example Frog"]);
     expect(radios[0].getAttribute("aria-checked")).toBe("true");
   });
 

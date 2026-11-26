@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/connector"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
 )
 
 func docTestConnector(t *testing.T, scenario string) *Connector {

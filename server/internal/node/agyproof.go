@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // An agy pane's conversation is herdr's to report (reportedAgyConversation, agypane.go), and the node never guesses

@@ -3,7 +3,7 @@ package extmgr
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func (h *Manager) decorateMarketMetadata(ctx context.Context, v *ExtensionView, p *extension.Extension) {
@@ -18,7 +18,7 @@ func (h *Manager) decorateMarketMetadata(ctx context.Context, v *ExtensionView, 
 	if s == nil || s.index == nil || s.rec.Signature.Bad() {
 		return
 	}
-	if extension.IsOfficialMarket(s.rec.Spec) && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(extension.Official.SigningKey)) {
+	if s.rec.SigningKey != "" && (s.rec.Signature.State != extension.SigSigned || s.rec.Signature.KeyID != keyIDOf(s.rec.SigningKey)) {
 		return
 	}
 	for _, e := range s.index.Extensions {

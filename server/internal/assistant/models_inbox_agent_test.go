@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The AI twin's opt-in override (#4232), checked through the twin's own start (startInboxAgent) and the parameters the

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // parsePairLink reads what `personad hub pair` printed: persona://link?… (made for one machine) or persona://pair?…

@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // sharedStore is what a test hands both the hub and the assistant it runs in-process: the hub's store and the
@@ -45,11 +44,6 @@ func (s *settingsStore) PutSetting(_ context.Context, key string, v any) error {
 	s.vals[key] = b
 	s.puts++
 	return nil
-}
-
-// HoldLiveActivityStart: no start is claimed here, so a phone registering lifts nothing.
-func (s *settingsStore) HoldLiveActivityStart(context.Context, string, time.Time, time.Duration) (bool, error) {
-	return false, nil
 }
 
 func (s *settingsStore) ListTodos(context.Context) ([]db.TodoRow, error) { return nil, nil }

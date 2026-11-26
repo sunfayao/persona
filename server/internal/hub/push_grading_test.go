@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // gradingStore is the in-memory settings store plus the device-table methods newPusher and setPrefs touch, and the
@@ -121,8 +121,7 @@ func (s *gradingStore) sentTable() []db.PushSent {
 	return slices.Clone(s.sentRows)
 }
 
-func (s *gradingStore) Devices(context.Context) ([]db.Device, error)  { return nil, nil }
-func (s *gradingStore) UpsertDevice(context.Context, db.Device) error { return nil }
+func (s *gradingStore) Devices(context.Context) ([]db.Device, error) { return nil, nil }
 func (s *gradingStore) SetDevicePrefs(context.Context, string, string, json.RawMessage) error {
 	return nil
 }

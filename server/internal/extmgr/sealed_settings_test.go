@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // The bot's app secret is sealed in settings (botSettingsKey): the key rotation re-seals the fields listed for it in

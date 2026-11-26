@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Pages pushed for apps before UI version 3 (docs/extensions/extensions.md "Declarative UI" "Compatibility"): they do not know push and pop and

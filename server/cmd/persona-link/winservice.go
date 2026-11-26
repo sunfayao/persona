@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // On Windows persona-link runs from a scheduled task of the user's own: `install`

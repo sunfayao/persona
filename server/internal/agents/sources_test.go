@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
 )
 
 // memSource is an agents.Source held in memory, as a plugin's would be.

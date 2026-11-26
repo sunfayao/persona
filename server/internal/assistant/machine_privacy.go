@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // Machine trust comes from the manager's device configuration, never node.info or an MCP hint.

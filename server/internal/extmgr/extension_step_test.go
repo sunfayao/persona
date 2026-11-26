@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestExtensionStepSurvivesFormCopiesAndDetailSerialization(t *testing.T) {
@@ -25,7 +25,6 @@ func TestExtensionStepSurvivesFormCopiesAndDetailSerialization(t *testing.T) {
 	}}}
 	localized := ts.Schema(i18n.En, s)
 	form := nodeConfirmForm(i18n.En, localized, &extension.Manifest{Node: &extension.NodeRuntime{Machines: "machines"}}, "Example")
-	form = withoutIPhonePhones(&extension.Extension{Record: extension.Record{ID: iphoneExtensionID}}, form)
 	for _, path := range []string{"/api/v1/extensions/example/-/", "/api/v1/admin/extensions/example", "/api/v1/plugins/example/-/"} {
 		raw, err := json.Marshal(detailOut(httptest.NewRequest("GET", path, nil), ExtensionDetail{Form: form}))
 		if err != nil {

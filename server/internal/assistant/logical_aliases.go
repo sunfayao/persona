@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Physical equivalence comes from authenticated device configuration, never

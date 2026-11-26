@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/voice/voicetest"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/voice/voicetest"
 )
 
 func getInfo(t *testing.T, srv *httptest.Server, cid, role string) (int, extwire.TranscriptionInfo) {

@@ -1,26 +1,23 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	codexharness "github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"golang.org/x/sync/singleflight"
-
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
 )
 
 // A managed Codex provider's gateway may serve Codex's own model catalog: each model's context window, compaction
@@ -39,9 +36,6 @@ import (
 // request carries client_version, and with OpenAI's list otherwise), then /codex/models (a gateway that keeps /models
 // for OpenAI's list).
 var codexCatalogPaths = []string{"/models", "/codex/models"}
-
-// codexCatalogMinVersion is the first Codex that reads a provider's catalog without a feature switch.
-var codexCatalogMinVersion = [3]int{0, 161, 0}
 
 // codexCatalogTimeout bounds the whole probe (both paths at once), as Codex bounds its own catalog request.
 var codexCatalogTimeout = 5 * time.Second
@@ -148,7 +142,7 @@ func (n *Node) survive(launcher, what string) {
 
 func (n *Node) codexCatalogOf(ctx context.Context, in codexCatalogInput) (catalog, codex string) {
 	exe, version := codexVersion(ctx)
-	if !codexReadsCatalog(version) {
+	if !codexharness.ReadsCatalog(version) {
 		return "", ""
 	}
 	cacheKey := version + "\x00" + in.id
@@ -210,7 +204,7 @@ func probeCodexCatalog(ctx context.Context, base, key, version string, env map[s
 	for i, path := range codexCatalogPaths {
 		got[i] = make(chan int, 1)
 		go func() {
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path+"?"+url.Values{"client_version": {codexCatalogClientVersion(version)}}.Encode(), nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path+"?"+url.Values{"client_version": {codexharness.CatalogClientVersion(version)}}.Encode(), nil)
 			if err != nil {
 				got[i] <- none
 				return
@@ -238,7 +232,7 @@ func probeCodexCatalog(ctx context.Context, base, key, version string, env map[s
 			switch {
 			case err != nil: // cut off, or past the probe's time: an answer that did not arrive says nothing
 				got[i] <- unsure
-			case len(body) <= codexCatalogMost && isCodexCatalog(body):
+			case len(body) <= codexCatalogMost && codexharness.IsModelCatalog(body):
 				got[i] <- found
 			default:
 				got[i] <- none
@@ -255,80 +249,6 @@ func probeCodexCatalog(ctx context.Context, base, key, version string, env map[s
 		}
 	}
 	return "", sure
-}
-
-// codexCatalogFields are the fields every Codex model entry has, with the JSON kind of each ('"' a string, 'b' a
-// boolean, 'i' a whole number, '[' a list, '{' an object): those codex-rs ModelInfo cannot do without in every version that
-// reads a catalog by default (0.161 to 0.169 alike), slug aside. One without them fails Codex's whole catalog: it then
-// lists nothing and runs every model on fallback metadata, worse than no catalog.
-var codexCatalogFields = map[string]byte{"display_name": '"', "supported_reasoning_levels": '[', "shell_type": '"',
-	"visibility": '"', "supported_in_api": 'b', "priority": 'i', "support_verbosity": 'b', "truncation_policy": '{',
-	"experimental_supported_tools": '['}
-
-// jsonKind is raw's kind as codexCatalogFields writes it; 0 for null, nothing or anything else.
-func jsonKind(raw json.RawMessage) byte {
-	raw = bytes.TrimSpace(raw)
-	switch {
-	case len(raw) == 0:
-		return 0
-	case raw[0] == '"', raw[0] == '[', raw[0] == '{':
-		return raw[0]
-	case raw[0] == 't', raw[0] == 'f':
-		return 'b'
-	case raw[0] == '-', raw[0] >= '0' && raw[0] <= '9':
-		if bytes.ContainsAny(raw, ".eE") { // Codex's numbers here are integers: 1.0 or 1e3 fails its decoding
-			return 0
-		}
-		return 'i'
-	}
-	return 0
-}
-
-// fieldsOfKinds is obj's fields when it is a JSON object with each of fields of its kind; nil otherwise.
-func fieldsOfKinds(obj json.RawMessage, fields map[string]byte) map[string]json.RawMessage {
-	var m map[string]json.RawMessage
-	if jsonKind(obj) != '{' || json.Unmarshal(obj, &m) != nil {
-		return nil
-	}
-	for name, kind := range fields {
-		if jsonKind(m[name]) != kind {
-			return nil
-		}
-	}
-	return m
-}
-
-// isCodexCatalog: body is a catalog Codex can read, `{"models":[…]}` with at least one entry, each with a unique,
-// non-empty slug and every field of codexCatalogFields (each thinking level an effort and a description, the truncation
-// policy a mode and a limit), and one at least that its picker lists. OpenAI's model list ({"data":[…]}) is none. The
-// words inside (a level, a shell type, a visibility) are not checked: they change with Codex, whose version the gateway
-// was told.
-func isCodexCatalog(body []byte) bool {
-	var doc struct {
-		Models []json.RawMessage `json:"models"`
-	}
-	if json.Unmarshal(body, &doc) != nil || len(doc.Models) == 0 {
-		return false
-	}
-	seen, listed := map[string]bool{}, false
-	for _, raw := range doc.Models {
-		m := fieldsOfKinds(raw, codexCatalogFields)
-		var slug, visibility string
-		var levels []json.RawMessage
-		if m == nil || jsonKind(m["slug"]) != '"' || json.Unmarshal(m["slug"], &slug) != nil || strings.TrimSpace(slug) == "" ||
-			seen[slug] || json.Unmarshal(m["visibility"], &visibility) != nil || json.Unmarshal(m["supported_reasoning_levels"], &levels) != nil ||
-			fieldsOfKinds(m["truncation_policy"], map[string]byte{"mode": '"', "limit": 'i'}) == nil {
-			return false
-		}
-		for _, level := range levels {
-			if fieldsOfKinds(level, map[string]byte{"effort": '"', "description": '"'}) == nil {
-				return false
-			}
-		}
-		seen[slug] = true
-		listed = listed || visibility == "list"
-	}
-	return listed
 }
 
 var codexVersionCache = struct {
@@ -414,50 +334,11 @@ func readCodexVersion(ctx context.Context, exe, stamp string) string {
 		codexVersionCache.until = time.Now().Add(codexCatalogRetry)
 		return ""
 	}
-	version := parseCodexVersion(string(out))
+	version := codexharness.ParseVersion(string(out))
 	codexVersionCache.stamp, codexVersionCache.version, codexVersionCache.read = stamp, version, true
 	codexVersionCache.until = time.Now().Add(codexCatalogTTL)
 	return version
 }
-
-// parseCodexVersion reads `codex --version`'s "codex-cli 0.167.0": its first word that is a version, "0.167.0", or
-// "0.168.0-" for a prerelease (0.168.0-alpha.2); "" when there is none.
-func parseCodexVersion(out string) string {
-	for _, word := range strings.Fields(out) {
-		v, _, pre := strings.Cut(strings.SplitN(word, "+", 2)[0], "-")
-		parts := strings.Split(v, ".")
-		if len(parts) != 3 || slices.ContainsFunc(parts, func(p string) bool { _, err := strconv.Atoi(p); return err != nil }) {
-			continue
-		}
-		if pre {
-			return v + "-"
-		}
-		return v
-	}
-	return ""
-}
-
-// codexReadsCatalog: a codex of version (parseCodexVersion's) reads a provider's catalog by default; a prerelease of
-// the first one that does is taken for one that does not yet.
-func codexReadsCatalog(version string) bool {
-	if version == "" {
-		return false
-	}
-	v, pre := strings.CutSuffix(version, "-")
-	var got [3]int
-	for i, p := range strings.Split(v, ".") {
-		got[i], _ = strconv.Atoi(p)
-	}
-	for i := range got {
-		if got[i] != codexCatalogMinVersion[i] {
-			return got[i] > codexCatalogMinVersion[i]
-		}
-	}
-	return !pre
-}
-
-// codexCatalogClientVersion is the client_version Codex sends for version: major.minor.patch, no prerelease.
-func codexCatalogClientVersion(version string) string { return strings.TrimSuffix(version, "-") }
 
 // sameFile: paths a and b name one file (a link and its target too); false when either is empty or missing.
 func sameFile(a, b string) bool {

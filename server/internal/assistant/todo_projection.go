@@ -6,10 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/todo/projection"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/todo/projection"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The To-dos view (#10226): what the manager works out for each to-do and for the list, by the pure projection in
@@ -170,11 +170,6 @@ func (s *Service) todoRunSessions(ctx context.Context, machine string, want map[
 
 // counts are the list's numbers.
 func (p todoProjection) counts() assistantwire.TodoCounts { return projection.Counts(p.facts, p.views) }
-
-// todoPlaces are the list's places, each project titled by its slug.
-func (s *Service) todoPlaces(ctx context.Context, p todoProjection) assistantwire.TodoPlaces {
-	return projection.Places(p.facts, p.views, nil)
-}
 
 // projectionFacts is listed row t as the projection reads it: the fields a decoder of the row's JSON would fill (the
 // test TestProjectionFactsMatchTheList holds the two together), the sessions of its active runs, and the owner's zone.

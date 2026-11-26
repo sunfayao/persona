@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 func termClient(h *Hub, role string) *client {
@@ -162,8 +162,6 @@ var actionBodies = map[string]string{
 	"worktree/prepare": `{"workspace_id":"w1"}`,
 	"worktree/source":  `{"workspace_id":"w1","kind":"orca"}`,
 	"worktree/preset":  `{"workspace_id":"w1","kind":"orca","name":"UI","directories":"src"}`,
-	"worktree/delete":  `{"workspace_id":"w1","kind":"orca","preview":true}`,
-	"worktree/rename":  `{"workspace_id":"w1","kind":"orca","name":"Renamed tree"}`,
 	"worktree/create":  `{"workspace_id":"w1","branch":"feat/x","path":"/tmp/wt/feat-x"}`,
 	"worktree/add":     `{"cwd":"/tmp/proj","name_hint":"fix the crash"}`,
 	"worktree/status":  `{"cwd":"/tmp/wt/persona-fix-the-crash"}`,
@@ -196,24 +194,6 @@ func TestNodeActionsAreMountedOnTheHTTPRouter(t *testing.T) {
 	}
 }
 
-func TestHerdrWorkspaceCloseModeIsForwardedAsAStrictBoolean(t *testing.T) {
-	tn := newTermNode(t)
-	if code := postAction(tn.hub, roleFull, "worktree/delete", `{"workspace_id":"w1","kind":"herdr","preview":true,"close_only":true}`); code != http.StatusOK {
-		t.Fatal(code)
-	}
-	tn.await(t, 1)
-	var got map[string]any
-	if err := json.Unmarshal([]byte(tn.args["worktree.delete"]), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got["close_only"] != true || got["kind"] != "herdr" {
-		t.Fatal(got)
-	}
-	if code := postAction(tn.hub, roleFull, "worktree/delete", `{"workspace_id":"w1","kind":"herdr","preview":true,"close_only":"true"}`); code != http.StatusBadRequest {
-		t.Fatal(code)
-	}
-}
-
 // Every one of them changes a computer: answer-only devices and extension tokens are refused before the node hears of
 // it, a full device gets through.
 func TestNodeActionsNeedAFullDevice(t *testing.T) {
@@ -237,7 +217,7 @@ func TestNodeActionsNeedAFullDevice(t *testing.T) {
 		}
 	}
 	want := map[string]bool{"panes.close": true, "panes.split": true, "panes.agent": true, "panes.git": true, "tabs.close": true, "tabs.rename": true,
-		"worktree.source": true, "worktree.preset": true, "worktree.delete": true, "worktree.rename": true, "worktree.prepare": true, "worktree.create": true, "worktree.add": true, "worktree.status": true, "worktree.remove": true}
+		"worktree.source": true, "worktree.preset": true, "worktree.prepare": true, "worktree.create": true, "worktree.add": true, "worktree.status": true, "worktree.remove": true}
 	for _, m := range tn.await(t, len(want)) {
 		delete(want, m)
 	}
@@ -276,8 +256,7 @@ func TestNodeActionsPassOnlyTheirFields(t *testing.T) {
 		"panes/close": `{}`, "panes/split": `{"pane":"w1:p2"}`, "panes/agent": `{"pane":"w1:p2"}`, "panes/git": `{"pane":"w1:p2"}`,
 		"tabs/close": `{"tab_id":7}`, "tabs/rename": `{"tab_id":"w1:t2"}`, "panes/close ": `not json`,
 		"worktree/prepare": `{}`, "worktree/create": `{"workspace_id":"w1","branch":"feat/x"}`,
-		"worktree/rename": `{"workspace_id":"w1"}`,
-		"worktree/add":    `{"branch":"x"}`, "worktree/status": `{}`, "worktree/remove": `{"force":true}`,
+		"worktree/add": `{"branch":"x"}`, "worktree/status": `{}`, "worktree/remove": `{"force":true}`,
 	} {
 		path = strings.TrimSpace(path)
 		if code := postAction(h, roleFull, path, body); code != http.StatusBadRequest {
@@ -286,14 +265,6 @@ func TestNodeActionsPassOnlyTheirFields(t *testing.T) {
 	}
 	if got := tn.await(t, 2); len(got) != 2 { // the git call and the remove above
 		t.Errorf("a refused request reached the node: %q", got)
-	}
-}
-
-// Removing a closed Agent's worktree on a runtime engine waits for the runtime's archive as deleting one does (the
-// node gives both 145 s): the hub gives the user's request as long, not an answer of its own first (#8135).
-func TestWorktreeRemoveWaitsAsLongAsDelete(t *testing.T) {
-	if remove, del := nodeActions["worktree/remove"].timeout, nodeActions["worktree/delete"].timeout; remove < del {
-		t.Fatalf("worktree/remove %s, worktree/delete %s", remove, del)
 	}
 }
 

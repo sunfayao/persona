@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 func TestGoldenViewTools(t *testing.T) {

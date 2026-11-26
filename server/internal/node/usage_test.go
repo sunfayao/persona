@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 func claudeReply(ts time.Time, id, model string, in, write1h, read, out int) string {

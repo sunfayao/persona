@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A failing Unix endpoint waits 5, 10, 20, 40, then 60 s between attempts while its socket looks the same; a changed
@@ -87,7 +88,7 @@ func TestCodexRemoteBackoffJoinsANewSocketAtOnce(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	socket := filepath.Join(dir, "app-server-control.sock")
-	spec := proto.CodexServer{ID: "unix", Home: canonicalCodexHome(home, n.home), Endpoint: "unix://" + socket}
+	spec := proto.CodexServer{ID: "unix", Home: codex.CanonicalHome(home, n.home), Endpoint: "unix://" + socket}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	retry := func() (codexRetry, bool) {

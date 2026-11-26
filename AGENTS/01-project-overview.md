@@ -13,8 +13,9 @@ Antigravity, Trae and others) in terminals or headless runtimes. A **manager** p
 product logic: the assistant (the owner's main conversation, tasks, to-dos, inbox, schedules), the device manager and
 the extension manager. The **web app** is the only client.
 
-This repository is the owner's private fork. One person works on it with coding agents. There are no issues, pull
-requests, hosted CI, public releases or native clients.
+This repository is the owner's own project. It began as a fork of an open-source project and no longer follows it
+or takes anything from it. One person works on it with coding agents. There are no issues, pull requests, hosted
+CI, public releases or native clients.
 
 ## Processes and how they talk
 
@@ -44,7 +45,7 @@ the time. That is why `06-wire-contracts-and-extensions.md` matters for almost e
 
 | Layer | Choice |
 | --- | --- |
-| Server | Go 1.27, one module `server/` (`github.com/nwverse/persona/server`), 140 packages under `server/internal/` |
+| Server | Go 1.27, one module `server/` (`github.com/sunfayao/persona/server`), 140 packages under `server/internal/` |
 | Storage | Postgres through pgx v5 with hand-written SQL; embedded migrations in two sets (hub, manager) |
 | Web | React 19, TypeScript 5.9 (strict), Vite 7, Tailwind 4, vitest 4; hand-written router and store |
 | Agent runtimes | TypeScript packages under `integrations/`, embedded into the node by `server/internal/runtimepkg` |
@@ -66,7 +67,6 @@ the time. That is why `06-wire-contracts-and-extensions.md` matters for almost e
 | `web/` | The web app, the admin pages, the public share viewer, browser check scripts | `07` |
 | `integrations/` | Agent runtime packages and the runtime SDK | `06` |
 | `sdk/`, `schema/`, `spec/` | Extension SDKs, schemas that generate code, fixtures shared by server and web tests | `06` |
-| `native/iphone-bridge/` | Source of the helper the iPhone tools download | leave it unless you work on those tools |
 | `scripts/` | Test runner, deploy, generators, mock hub, privacy scan, commit hooks | `09`, `10` |
 | `docs/` | Reference material that the rule files link to | `12` |
 

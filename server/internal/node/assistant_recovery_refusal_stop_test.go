@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // With Claude Code's automatic refusal fallback off (CLAUDE_CODE_DISABLE_REFUSAL_FALLBACK, a gateway-shaped provider

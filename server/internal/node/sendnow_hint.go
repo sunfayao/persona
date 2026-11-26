@@ -3,7 +3,7 @@ package node
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Claude Code's send-now hint beside a queued message (#6088) names the keys of its chat:sendNow binding as

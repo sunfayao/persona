@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // Taking back what the assistant wrote (connector.Recaller): a comment can be

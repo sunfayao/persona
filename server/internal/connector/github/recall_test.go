@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // commentsServer is GitHub with comments on example-org/example-repo#12: it notes every request and answers the DELETE

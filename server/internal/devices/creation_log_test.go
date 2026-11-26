@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/devicewire"
 )
 
 type creationLogStore struct {

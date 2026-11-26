@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The app registers exactly these categories (apple/Persona/App/NotificationActions.swift); a different spelling would

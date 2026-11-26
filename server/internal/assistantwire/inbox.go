@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 // The inbox is the manager's: the items and their state (admission, triage, events, mutes, done,
@@ -31,7 +31,6 @@ var InboxRoutes = []string{
 	"POST /api/v1/inbox/{id}/retry",
 	"POST /api/v1/inbox/{id}/suggestion",
 	"POST /api/v1/inbox/{id}/handoff",
-	"POST /api/v1/inbox/{id}/task-link/recheck",
 	"POST /api/v1/inbox/{id}/doc/status",
 	"PUT /api/v1/inbox/{id}/parent",
 	"PUT /api/v1/inbox/{id}/folder",

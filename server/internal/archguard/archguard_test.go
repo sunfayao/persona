@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	modulePath = "github.com/nwverse/persona/server/"
-	guardDoc   = `see docs/server/architecture.md "Contract packages"`
+	modulePath = "github.com/sunfayao/persona/server/"
+	guardDoc   = `see AGENTS/02-server-architecture.md`
 )
 
 // readList reads a testdata list: one entry per line, `#` starts a comment, blank lines skipped.

@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestOldCodexOpaqueTranscriptReadableWithoutInventory(t *testing.T) {
@@ -19,7 +20,7 @@ func TestOldCodexOpaqueTranscriptReadableWithoutInventory(t *testing.T) {
 			old := time.Now().Add(-2 * codexWindow)
 			writeRollout(t, base, remoteRaw, "/wanted", old, old,
 				`{"type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage","id":"u1","content":[{"type":"text","text":"retained old transcript"}]}}}`)
-			home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home)
+			home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home)
 			path := rolloutPath(home, remoteRaw)
 			if path == "" {
 				t.Fatal("fixture not found")
@@ -43,7 +44,7 @@ func TestOldCodexOpaqueTranscriptReadableWithoutInventory(t *testing.T) {
 				t.Fatal(err)
 			}
 			n.configureCodex(proto.CodexConfig{Homes: []string{filepath.Join(other, ".codex"), alias}})
-			id := codexSourceID(home, remoteRaw, n.codexInventory().LegacyHome)
+			id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 			if rows := n.codexSessions(map[string]bool{}); len(rows) != 0 {
 				t.Fatalf("old inventory: %+v", rows)
 			}
@@ -76,12 +77,12 @@ func TestOldCodexOpaqueTranscriptRejectsOtherHomesAndEscapingSymlinks(t *testing
 	base := t.TempDir()
 	old := time.Now().Add(-2 * codexWindow)
 	writeRollout(t, base, remoteRaw, "/private", old, old)
-	home := canonicalCodexHome(filepath.Join(base, ".codex"), n.home)
-	id := codexSourceID(home, remoteRaw, n.codexInventory().LegacyHome)
+	home := codex.CanonicalHome(filepath.Join(base, ".codex"), n.home)
+	id := codex.SourceID(home, remoteRaw, n.codexInventory().LegacyHome)
 	if got := n.transcriptPath(id); got != "" {
 		t.Fatalf("unconfigured home: %s", got)
 	}
-	allowed := canonicalCodexHome(t.TempDir(), n.home)
+	allowed := codex.CanonicalHome(t.TempDir(), n.home)
 	n.configureCodex(proto.CodexConfig{Homes: []string{allowed}})
 	dir := filepath.Join(allowed, "sessions", "2000", "01", "01")
 	if err := os.MkdirAll(dir, 0700); err != nil {
@@ -90,7 +91,7 @@ func TestOldCodexOpaqueTranscriptRejectsOtherHomesAndEscapingSymlinks(t *testing
 	if err := os.Symlink(rolloutPath(home, remoteRaw), filepath.Join(dir, "rollout-old-"+remoteRaw+".jsonl")); err != nil {
 		t.Fatal(err)
 	}
-	allowedID := codexSourceID(allowed, remoteRaw, n.codexInventory().LegacyHome)
+	allowedID := codex.SourceID(allowed, remoteRaw, n.codexInventory().LegacyHome)
 	if got := n.transcriptPath(allowedID); got != "" {
 		t.Fatalf("escaped home via symlink: %s", got)
 	}

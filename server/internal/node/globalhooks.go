@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // Opt-in report-only hooks for the claude sessions Persona did not start (hub.json machines[].claude_global_hooks,

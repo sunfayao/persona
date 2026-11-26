@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // An agy pane's row is herdr's agent (sessions.go), titled with the terminal's title. agy sets none, so the row kept the

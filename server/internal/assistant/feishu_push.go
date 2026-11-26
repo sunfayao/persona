@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // --- pushes and the sync mirror ---
@@ -38,7 +38,6 @@ type todoReminderSend struct {
 	private                 bool
 	space                   string // the track the notice is said for when private
 	noticeTitle, noticeBody string
-	botAttempted            bool
 }
 
 // feishuTodoReminder keeps the claimed reminder's Feishu copy alive within the mirror's existing retry bounds.
@@ -168,11 +167,6 @@ func (s *Service) feishuPushToldTodo(ctx context.Context, machine, session, titl
 			}
 		}
 	}
-	if (reminder == nil || !reminder.botAttempted) && s.divertAnswer(ctx, "push", cards) {
-		s.markPushed(channel.Feishu, machine, session)
-		r.went(channel.Feishu, nil)
-		return nil
-	}
 	var missing []int // the pieces that did not get out (1-based): said at the end
 	var again error   // the first that may get out when sent again
 	for i, ac := range cards {
@@ -180,9 +174,7 @@ func (s *Service) feishuPushToldTodo(ctx context.Context, machine, session, titl
 		if key != "" {
 			k = key + strconv.Itoa(i)
 		}
-		if reminder != nil {
-			reminder.botAttempted = true
-		}
+
 		mid, err := s.botPostKeyed(ctx, "", ac.card, ac.fallback, k)
 		if err != nil {
 			s.logf("bots: push: %v", err)
@@ -337,14 +329,6 @@ func (s *Service) feishuMirrorPost(ctx context.Context, m *mirrorSend, attempt i
 		kind = "sync"
 	}
 	ctx = feishuSendAs(ctx, kind, m.target.MachineID, m.target.SessionID)
-	// A scheduled task's result goes to a notifications companion when one takes the notices (feishu_companions.go);
-	// the main conversation's turns stay in the chat, where a reply continues them.
-	if !m.main && s.divertAnswer(ctx, "task", m.cards) {
-		if m.sent != nil {
-			m.sent()
-		}
-		return
-	}
 	var missing []int // the pieces that did not get out (1-based): said at the end
 	for i, ac := range m.cards {
 		mid, err := s.botPostKeyed(ctx, "", ac.card, ac.fallback, m.key+strconv.Itoa(i))

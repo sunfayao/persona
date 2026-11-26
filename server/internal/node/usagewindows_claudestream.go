@@ -5,8 +5,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // After a model reply, Claude Code's stream-json output carries a rate_limit_event with the windows of the account the

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // ProgramOf says which program the executable at path is, from the Go build info it carries (readable for any OS and

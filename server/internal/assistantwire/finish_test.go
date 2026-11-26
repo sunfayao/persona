@@ -3,7 +3,7 @@ package assistantwire
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The finished push's text and whether a turn finished normally (#2396): a quiet task's conversation pushes nothing

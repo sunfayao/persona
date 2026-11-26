@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // sentRecallMessage is the core message of either the legacy or the current recall call. A missing target is an empty

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCallApps(t *testing.T) {
@@ -139,7 +139,7 @@ func TestComputerAppsAreAskedOnce(t *testing.T) {
 		}
 		<-done
 	}
-	if code, out := call(t, mux, "DELETE", "/api/v1/machines/mac/computer/apps/com.apple.calculator", h.cfg.Token, ""); code != 200 || len(out["apps"].([]any)) != 0 {
+	if code, out := call(t, mux, "DELETE", "/api/v1/machines/mac/computer/apps/revoke/com.apple.calculator?expected_manager="+h.computerAppsManager(), h.cfg.Token, ""); code != 200 || len(out["apps"].([]any)) != 0 {
 		t.Fatalf("removed: %d %v", code, out)
 	}
 	done = run(calc)

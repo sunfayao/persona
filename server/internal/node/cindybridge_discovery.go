@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cindyBin finds the installed Cindy executable; tests replace it or set CINDY_HOME to isolate from the host machine.

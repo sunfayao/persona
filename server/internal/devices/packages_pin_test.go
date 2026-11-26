@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/update"
-	"github.com/nwverse/persona/server/internal/update/updatetest"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update/updatetest"
 )
 
 // releaseFiles is release m as a source with no dl/<version>/ serves it: personad-<plat>.gz holding build, and

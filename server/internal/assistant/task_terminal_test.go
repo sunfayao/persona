@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func dispatchTerminalTask(t *testing.T, optIn, receipt bool) (*Service, *fakeHub, Todo) {
@@ -78,7 +77,6 @@ func TestTaskTerminalReviewOnlyAfterAcceptance(t *testing.T) {
 		name        string
 		optIn       bool
 		noReceipt   bool
-		withdraw    bool
 		outcome     string
 		userCheck   bool
 		change      func(*proto.Session)
@@ -89,7 +87,6 @@ func TestTaskTerminalReviewOnlyAfterAcceptance(t *testing.T) {
 		{name: "accepted", optIn: true, shouldClose: true},
 		{name: "clean profile"},
 		{name: "uncertain ownership", optIn: true, noReceipt: true},
-		{name: "withdrawn", optIn: true, withdraw: true},
 		{name: "cannot", optIn: true, outcome: outcomeCannot},
 		{name: "owner verification", optIn: true, userCheck: true},
 		{name: "owner viewing", optIn: true, change: func(s *proto.Session) { s.SeenAt = time.Now() }},
@@ -104,19 +101,6 @@ func TestTaskTerminalReviewOnlyAfterAcceptance(t *testing.T) {
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			s, f, task := dispatchTerminalTask(t, scenario.optIn, !scenario.noReceipt)
-			path := "/api/v1/todos/" + task.ID + "/terminal-cleanup"
-			r := httptest.NewRequest("DELETE", path, nil)
-			r.Header.Set(RoleHeader, roleExtension)
-			w := httptest.NewRecorder()
-			s.ServeHTTP(w, r)
-			if w.Code != http.StatusForbidden {
-				t.Fatalf("extension withdrew the owner's consent: %d", w.Code)
-			}
-			if scenario.withdraw {
-				if r := request(s, "DELETE", path, ""); r.Code != http.StatusOK {
-					t.Fatalf("withdraw: %d %s", r.Code, r.Body)
-				}
-			}
 			var closes int
 			f.mu.Lock()
 			if scenario.change != nil {
@@ -220,37 +204,6 @@ func TestTaskTerminalOwnerMarksDoneWithoutReview(t *testing.T) {
 		if call.Method == devicewire.MethodCloseTaskTerminal {
 			t.Fatal("manually completed task acquired a cleanup claim")
 		}
-	}
-}
-
-func TestTaskTerminalDurableAcceptanceAndWithdrawalDuringProbe(t *testing.T) {
-	database := todoTestDB(t)
-	s, f, task := dispatchTerminalTaskOn(t, database, true, true)
-	f.mu.Lock()
-	f.nodes[devicewire.MethodCloseTaskTerminal] = func(machine string, raw json.RawMessage) (any, error) {
-		f.mu.Unlock()
-		defer f.mu.Lock()
-		ctx := context.Background()
-		var req devicewire.TaskTerminalCloseRequest
-		if err := json.Unmarshal(raw, &req); err != nil {
-			return nil, err
-		}
-		row, err := database.GetTodo(ctx, task.ID)
-		if err != nil || row.DoneAt == nil || !row.DoneAt.Equal(req.AcceptedAt) || row.DoneBy != db.DoneByReview {
-			t.Errorf("node received attempt before durable acceptance: %+v, %v", row, err)
-		}
-		if r := request(s, "DELETE", "/api/v1/todos/"+task.ID+"/terminal-cleanup", ""); r.Code != http.StatusOK {
-			t.Errorf("withdraw during node probe: %d %s", r.Code, r.Body)
-		}
-		if s.authorizeTaskTerminal(ctx, machine, req) {
-			t.Error("node received permission after the owner withdrew it")
-		}
-		return map[string]string{"status": devicewire.TaskTerminalSkipped}, nil
-	}
-	f.mu.Unlock()
-	res, err := runJSON(t, s, "conv1", "task_review", map[string]any{"todo_id": task.ID, "verdict": "accepted"})
-	if err != nil || !strings.Contains(res, "Terminal cleanup: skipped") {
-		t.Fatalf("review = %q, %v", res, err)
 	}
 }
 

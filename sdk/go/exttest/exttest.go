@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Run is a running program: what the hub writes to and reads from it, and its exit (nil when it cannot be watched).
@@ -202,7 +202,7 @@ func Check(t testing.TB, manifest []byte, run Run, config ...json.RawMessage) wi
 	for _, sc := range m.Contributes.Shortcuts {
 		var raw json.RawMessage
 		err := h.call(ctx, "shortcut.run", wire.ShortcutRunParams{Contribution: sc.ID, Values: map[string]string{}, UIVersion: uiVersion,
-			TZ: "Asia/Shanghai", Locale: "zh-Hans-CN", Platform: wire.PlatformIos}, &raw)
+			TZ: "Asia/Shanghai", Locale: "zh-Hans-CN", Platform: wire.PlatformWeb}, &raw)
 		switch c := code(err); {
 		case c == wire.ErrorCodeUnknownMethod || c == wire.ErrorCodeNoContribution:
 			t.Fatalf("shortcut %s: shortcut.run answered %v", sc.ID, err)

@@ -17,9 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
 )
 
 func residentCheckFixture(t *testing.T, handover bool) string {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/hub"
-	"github.com/nwverse/persona/server/internal/hubedge"
+	"github.com/sunfayao/persona/server/internal/hub"
+	"github.com/sunfayao/persona/server/internal/hubedge"
 )
 
 // exitNoEdge: nothing to switch on (no edge answers, or one older than this binary's protocol): the caller restarts

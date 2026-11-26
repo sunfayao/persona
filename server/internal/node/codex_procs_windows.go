@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,7 +15,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // Codex on Windows has no ps, lsof or /proc to be found by (codex_discovery.go, codex_openfiles.go): its processes are
@@ -124,7 +125,7 @@ func openRolloutsOf(pid uint32, fileType uint32) ([]string, error) {
 			continue
 		}
 		if t, err := windows.GetFileType(dup); err == nil && t == windows.FILE_TYPE_DISK {
-			if p := finalPath(dup); rolloutIDRe.MatchString(p) {
+			if p := finalPath(dup); codex.RolloutID(p) != "" {
 				out = append(out, p)
 			}
 		}

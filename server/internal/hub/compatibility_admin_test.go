@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"net/http"
 	"net/http/httptest"
 	"testing"

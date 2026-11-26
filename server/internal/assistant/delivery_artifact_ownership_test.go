@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const researchNoPRCloseout = "<closeout status=\"done\" merged=\"n/a\" deployed=\"n/a\">\n" +

@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // machine.diagnose and machine.cleanup reach machdiag, which refuses what is not in its fixed lists (#8037).

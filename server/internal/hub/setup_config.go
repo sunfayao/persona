@@ -17,8 +17,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // installInputs are what newInstallConfig needs to know about this machine.

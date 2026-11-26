@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/jsonsubset"
+	"github.com/sunfayao/persona/server/internal/jsonsubset"
 )
 
 // A JSON Schema subset for model.complete's json_schema (#6102): what a reply is checked against before it goes back

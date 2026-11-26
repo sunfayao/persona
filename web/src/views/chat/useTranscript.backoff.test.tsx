@@ -278,6 +278,33 @@ describe("a history its computer can't find", () => {
     expect(older()).toBe(1);
   });
 
+  it.each(["empty", "refused"] as const)("reads the first turn after startup without a push when the early page was %s", async (first) => {
+    api.mockImplementation(async () => {
+      if (first === "refused") throw new ApiError(404, "Transcript not found", { reason: "no_transcript" });
+      return { items: [], has_more: false };
+    });
+    await act(async () => root.render(<Probe sid="new-agent" starting />));
+    expect(tr.current.items).toHaveLength(0);
+    expect(tr.current.error).toBe("");
+
+    api.mockClear();
+    api.mockResolvedValue(newest);
+    await act(async () => root.render(<Probe sid="new-agent" starting={false} />));
+    expect(api).toHaveBeenCalledTimes(1);
+    expect(tr.current.items).toEqual(newest.items);
+    expect(tr.current.error).toBe("");
+  });
+
+  it("shows the transcript error if the read after startup also fails", async () => {
+    api.mockRejectedValue(new Error("Transcript unavailable"));
+    await act(async () => root.render(<Probe sid="new-agent" starting />));
+    expect(tr.current.error).toBe("");
+
+    await act(async () => root.render(<Probe sid="new-agent" starting={false} />));
+    expect(tr.current.error).toContain("Transcript unavailable");
+    expect(tr.current.loading).toBe(false);
+  });
+
   it("reads no older page and keeps the error", async () => {
     api.mockImplementation(async (path: string) => {
       if (path.includes("before_seq=")) return { items: [], has_more: false };

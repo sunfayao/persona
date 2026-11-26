@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // Operator coordinates bundle, database, and file transactions.

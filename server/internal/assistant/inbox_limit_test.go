@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/ai"
 )
 
 // logBuffer keeps what the inbox logged.

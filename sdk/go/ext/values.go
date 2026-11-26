@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // Reading what an action carries (r.Values) as UI version 6 writes it: a switch "true" or "false", a slider's or a

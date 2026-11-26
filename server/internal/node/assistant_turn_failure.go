@@ -3,9 +3,9 @@ package node
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/modelretry"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/modelretry"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The scheduler owns a strict task result after the node's bounded recovery. A generic Continue would run

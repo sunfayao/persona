@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // handoffManager is the manager on the bus in these tests: it answers every relayed request 200 and keeps it, and
@@ -230,7 +230,7 @@ func handoffCard(id, kind string) proto.Interaction {
 		{Name: "CLOUD_KEY", Provider: "keys", Title: "cloud REFMARK"},
 	}})
 	return proto.Interaction{ID: id, MachineID: "box", SessionID: "s1", Kind: kind, ToolName: proto.SecretHandoffTool,
-		ToolInput: input, Summary: "Approve on iPhone or the web"}
+		ToolInput: input, Summary: "Approve in the web app"}
 }
 
 // An extension's token never approves a hand-off card, even with agents.control: refused and recorded on the providers

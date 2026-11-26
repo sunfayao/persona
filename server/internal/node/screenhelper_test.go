@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // fakeHelperBundle makes a minimal Persona Screen.app in dir: its executable and Info.plist, as Persona Link installs.
@@ -215,7 +215,7 @@ func TestAPairThatClosedBindsNoVideo(t *testing.T) {
 // switch still gates it, so a node can be built without it.
 func TestScreenVideoIsAdvertised(t *testing.T) {
 	if !advertiseScreenVideo {
-		t.Fatal("advertiseScreenVideo is off: the official TestFlight build decodes video since #3954 slices 3b and 3c")
+		t.Fatal("advertiseScreenVideo is off: the web app decodes video since #3954 slices 3b and 3c")
 	}
 	installedHelper(t, "granted")
 	ctx := context.Background()

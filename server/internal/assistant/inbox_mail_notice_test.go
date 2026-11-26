@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // A transient read gets background recovery rounds before the apps show a notice.

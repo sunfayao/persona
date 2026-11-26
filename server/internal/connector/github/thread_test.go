@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // fakeThreadAPI is GitHub's REST API for one made-up PR (example-org/example-repo#12) and issue (#7), answering

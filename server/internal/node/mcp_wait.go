@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Interim lines are optional: a suspended local client may delay one update only briefly, and loses later updates

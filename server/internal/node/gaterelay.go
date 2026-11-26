@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // gateRelayFor bounds one relayed call: the manager's own bound and the way there and back.

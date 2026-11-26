@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/nwverse/persona/server/internal/conversationlog"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/conversationlog"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 var (

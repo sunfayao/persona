@@ -3,7 +3,7 @@ package hub
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"maps"
 	"net/http"
 	"reflect"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The session lists the apps get (docs/protocol/protocol.md "Session deltas"). An app that asks for

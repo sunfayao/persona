@@ -6,7 +6,7 @@
       "description": "The hub took a message, then the app was killed before the transcript had it. Started again from what it stored, the app shows the message as pending until the transcript's copy arrives, then shows it once.",
       "source": {
         "rule": "Never missing: a message the hub accepted stays on screen until its transcript copy replaces it, across a relaunch",
-        "docs": "docs/apple/ios.md"
+        "docs": "docs/protocol/protocol.md"
       },
       "chat": {
         "machine_id": "m1",

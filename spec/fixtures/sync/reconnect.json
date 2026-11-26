@@ -8,9 +8,7 @@
         "rule": "from_seq > covered: a batch was lost; fill with after_seq=covered",
         "docs": "docs/protocol/protocol.md \"Continuity of items\"",
         "code": {
-          "web": "web/src/views/chat/useTranscript.ts",
-          "ios": "AppModel.settle",
-          "android": "ContinuitySync"
+          "web": "web/src/views/chat/useTranscript.ts"
         }
       },
       "chat": {
@@ -385,8 +383,7 @@
       "source": {
         "rule": "Items merge by id; a repeated id keeps the first",
         "code": {
-          "ios": "ChatStore.merge",
-          "android": "ContinuityReducer"
+          "web": "web/src/views/chat/sync/sync-scenarios.test.tsx"
         }
       },
       "chat": {
@@ -606,8 +603,7 @@
           "#759"
         ],
         "code": {
-          "web": "web/src/lib/stale-page.ts",
-          "ios": "AgentSync.checkStall"
+          "web": "web/src/lib/stale-page.ts"
         }
       },
       "chat": {
@@ -781,8 +777,7 @@
           "#1179"
         ],
         "code": {
-          "web": "web/src/lib/stale-page.ts",
-          "ios": "AgentSyncPacing.catchUpAt"
+          "web": "web/src/lib/stale-page.ts"
         }
       },
       "chat": {
@@ -1024,8 +1019,7 @@
           "#3191"
         ],
         "code": {
-          "web": "web/src/lib/stale-page.ts",
-          "ios": "AgentSyncPacing.RevReads"
+          "web": "web/src/lib/stale-page.ts"
         }
       },
       "chat": {
@@ -1234,8 +1228,7 @@
           "#3191"
         ],
         "code": {
-          "web": "web/src/lib/stale-page.ts",
-          "ios": "AgentSyncPacing.RevReads"
+          "web": "web/src/lib/stale-page.ts"
         }
       },
       "chat": {
@@ -1462,8 +1455,6 @@
         "rule": "delta: anything not yet drawn is dropped when the message lands in the transcript",
         "docs": "docs/protocol/protocol.md WebSocket (delta)",
         "code": {
-          "ios": "DeltaPacer, clearLive",
-          "android": "ChatRealtimeState.delta",
           "web": "useTranscript live"
         }
       },

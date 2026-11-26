@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extmgr/storage"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extmgr/storage"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func extmgrQueueRenewAcceptanceJSON(t *testing.T, value any) string {

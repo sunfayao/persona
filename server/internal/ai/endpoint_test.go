@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

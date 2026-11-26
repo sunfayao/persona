@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/ai"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/ai"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func profileStoreSnapshot(st *memStore) (map[string][]byte, int) {
@@ -195,8 +195,8 @@ func TestModelProfileSwitchRollbackPreservesSecretsAndNewConversationProfile(t *
 	if err != nil || state.Previous.Purposes["assistant"] != original.Binding || len(state.Events) != 1 || state.By != by {
 		t.Fatalf("switch did not save history and rollback: %+v %v", state, err)
 	}
-	if f.eventTypes() != "model_profile" || len(f.managed["server"]) != 1 {
-		t.Fatalf("switch was not published: %s", f.eventTypes())
+	if len(f.managed["server"]) != 1 {
+		t.Fatalf("switch did not sync the managed launcher: %+v", f.managed["server"])
 	}
 
 	// Repeating the same switch must preserve the rollback, cached context and preferences.
@@ -211,8 +211,8 @@ func TestModelProfileSwitchRollbackPreservesSecretsAndNewConversationProfile(t *
 		t.Fatalf("repeat switch: %+v %v", sw, err)
 	}
 	requireProfileStoreUnchanged(t, st.memStore, before, puts)
-	if s.live.snap != cached || s.live.at != cacheAt || s.prefs.at != prefsAt || f.eventTypes() != "model_profile" {
-		t.Fatal("no-op switch invalidated caches or broadcast an event")
+	if s.live.snap != cached || s.live.at != cacheAt || s.prefs.at != prefsAt {
+		t.Fatal("no-op switch invalidated caches")
 	}
 	f.mu.Lock()
 	for _, call := range f.calls[calls:] {

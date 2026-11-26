@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // privateCacheDir is <user cache>/persona/<name>, for files of this user only (images sent to an agent, a server's

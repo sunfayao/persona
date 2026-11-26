@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // The node's method table (#12920). A method that is not
@@ -94,7 +94,7 @@ func (e paramsError) Unwrap() error { return e.cause }
 // register adds h as the answer to m, or panics with why the table may not hold it (admit).
 func (t *methodTable) register(m methodName, h methodHandler) {
 	if err := t.admit(m, h); err != nil {
-		panic("node: " + err.Error() + `; see docs/server/architecture.md "The node's method table"`)
+		panic("node: " + err.Error() + `; see AGENTS/03-server-entry-points.md`)
 	}
 	if t.handlers == nil {
 		t.handlers = map[methodName]methodHandler{}

@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant"
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/testhome"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/testhome"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // TestMain runs the tests on a database of their own (dbtest, #583); re-run with PERSONA_TEST_ASSISTANT=1 the test

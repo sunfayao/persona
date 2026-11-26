@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A successful completed turn remains evidence after its process is released. Keep the event's

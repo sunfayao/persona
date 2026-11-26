@@ -10,10 +10,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/managerconf"
 )
 
 // NorthStarCommand is `personad assistant north-star [--date YYYY-MM-DD] [--split RFC3339] [--tz Area/City] [--brief lang] [--weekly]`: the

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // EngineText words a note a node wrote on one of its engines (proto.Engine.Note) in l. The node writes the canonical

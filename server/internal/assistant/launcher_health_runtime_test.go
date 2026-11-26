@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A runtime's launchers as a node lists them (node/runtimes_registry.go: the source is the runtime's id): agy, which

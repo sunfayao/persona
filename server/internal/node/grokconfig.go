@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 // The Grok CLI's own settings (Settings › Agents › Grok, #8353), in $GROK_HOME/config.toml (default ~/.grok/config.toml).
@@ -36,7 +38,7 @@ func (n *Node) getGrokSettings() ([]ClaudeSetting, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	vals := tomlValues(string(b))
+	vals := tomltext.Values(string(b))
 	out := make([]ClaudeSetting, len(grokSettings))
 	for i, s := range grokSettings {
 		if v, ok := vals[s.Key]; ok {
@@ -67,7 +69,7 @@ func (n *Node) setGrokSetting(key string, value any) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	text, err := tomlSetDotted(string(b), key, value)
+	text, err := tomltext.SetDotted(string(b), key, value)
 	if err != nil {
 		return err
 	}

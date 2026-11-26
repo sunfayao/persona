@@ -15,7 +15,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 func serveDirectHandoffLink(t *testing.T, hub *sshTestHub, w http.ResponseWriter, r *http.Request, onAccept func(*websocket.Conn), onEnd func()) {

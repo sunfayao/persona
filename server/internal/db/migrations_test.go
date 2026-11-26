@@ -17,7 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
 )
 
 // bothSets are the migrations in both sets, frozen: from before the split, 0001 made tables for both sides (each set
@@ -127,7 +127,7 @@ func TestMigrationSets(t *testing.T) {
 		}
 	}
 	if !slices.Equal(both, sharedTables) {
-		t.Errorf("tables both sets make: %v, want %v: a table is one side's (docs/server/server.md \"Migrations\")", both, sharedTables)
+		t.Errorf("tables both sets make: %v, want %v: a table is one side's (AGENTS/04-database.md)", both, sharedTables)
 	}
 }
 

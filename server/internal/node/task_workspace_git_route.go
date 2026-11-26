@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/taskworkspace"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 // backendGit uses the real registered worktree and the standard Git RPC under

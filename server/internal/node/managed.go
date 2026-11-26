@@ -17,16 +17,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // Launchers kept by the hub ("Settings › Model"): the manager names the ones in this
@@ -546,7 +547,7 @@ func Launch(ctx context.Context, name string, args []string, ticket string) erro
 	catalog := resp.CodexCatalogURL
 	// The node checked another codex than this one (another PATH): this one is asked, within codexVersionTimeout. That
 	// is after the node answered (not part of LaunchNodeWait), and a fresh process has no version kept.
-	if catalog != "" && !sameFile(exe, resp.CodexCatalogCodex) && !codexReadsCatalog(codexVersionAt(context.Background(), exe)) {
+	if catalog != "" && !sameFile(exe, resp.CodexCatalogCodex) && !codex.ReadsCatalog(codexVersionAt(context.Background(), exe)) {
 		catalog = ""
 	}
 	argv := launchArgv(agent, args, resp.Args, launchEffort(resp.Effort, resp.NoEffort, sessionModel(args, resp.Args, resp.Env)), resp.Model, resp.Env, catalog)

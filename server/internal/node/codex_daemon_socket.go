@@ -1,12 +1,8 @@
 package node
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
-	"path/filepath"
-
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // A shared app-server daemon (0.163 and later) that is still running but whose control socket is gone takes no new
@@ -27,30 +23,8 @@ func (n *Node) codexOnSharedDaemon(argv []string) bool {
 // user) while the socket its control alias points to is missing; the error then names the fix. nil otherwise: no
 // daemon (0.153, a stopped one: codex starts a new one), an alias that resolves, or nothing to tell.
 func codexDaemonSocketGone(home string) error {
-	if home == "" {
+	if !appserver.MissingDaemonSocket(home, osproc.AliveMine) {
 		return nil
-	}
-	alias := filepath.Join(home, "app-server-control", "app-server-control.sock")
-	st, err := os.Lstat(alias)
-	if err != nil || st.Mode()&os.ModeSymlink == 0 {
-		return nil // no alias: no 0.163 daemon here, or a plain socket whose absence codex reports itself
-	}
-	target, err := codexSocketPath(alias)
-	if err != nil {
-		return nil // not the alias codex makes: not ours to judge
-	}
-	if _, err := os.Lstat(target); !errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	b, err := os.ReadFile(filepath.Join(home, "app-server-daemon", "daemon.pid"))
-	if err != nil {
-		return nil
-	}
-	var pid struct {
-		PID int `json:"pid"`
-	}
-	if json.Unmarshal(b, &pid) != nil || pid.PID <= 0 || !osproc.AliveMine(pid.PID) {
-		return nil // no daemon running: codex starts one and makes the socket again
 	}
 	return refusal("codex_daemon_socket_gone",
 		"这台电脑上 Codex 的共享 app-server 还在运行，但它的控制 socket（/tmp/codex-daemon-*）已经不在了（多半是 /tmp 被清理过），新开的 Codex 都连不上它。"+

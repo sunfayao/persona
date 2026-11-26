@@ -12,8 +12,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // All calls terminate at fakeHub. Accepted cards are indexed by the transport UUID, independently of whether the
@@ -290,7 +290,7 @@ func (h *todoRetrySourceHub) DeviceCall(ctx context.Context, p DeviceCall) (json
 
 // These controls concern authorization and privacy, not the provider's response to a duplicate UUID.
 func TestFeishuTodoReminderRetryAuthority(t *testing.T) {
-	for _, change := range []string{"owner", "generation", "health disconnected", "unknown source", "known ordinary", "companion after bot", "companion after unknown first", "route refusal", "initial companion"} {
+	for _, change := range []string{"owner", "generation", "health disconnected", "unknown source", "known ordinary", "route refusal"} {
 		t.Run(change, func(t *testing.T) {
 			f, s, _ := todoReminderHub(t)
 			source := &todoRetrySourceHub{fakeHub: f}
@@ -309,28 +309,13 @@ func TestFeishuTodoReminderRetryAuthority(t *testing.T) {
 					}
 					return FeishuStatus{Ready: true, Owner: owner, PairedAt: paired, PublicURL: "https://hub.example.com", Features: FeishuFeatures{Pushes: true, Workbench: true}}, nil
 				})
-				companion := func() {
-					s.fbot.mu.Lock()
-					s.loadBotLocked(context.Background())
-					s.fbot.st.Companions = []CompanionBot{{Kind: CompanionNotify, Name: "Synthetic", AppID: "cli_synthetic"}}
-					s.fbot.mu.Unlock()
-					s.companions.mu.Lock()
-					s.companions.polled = time.Now()
-					s.companions.mu.Unlock()
-				}
 				f.answerAppBlocking(AppFeishu, FeishuPost, func(raw json.RawMessage) (any, error) {
 					n, mid := capture.record(raw, change != "route refusal")
 					fail := n == 1
-					if change == "companion after bot" {
-						fail = n == 2
-					}
 					if fail {
 						changed = true
 						if change == "health disconnected" {
 							source.down.Store(true)
-						}
-						if change == "companion after bot" || change == "companion after unknown first" {
-							companion()
 						}
 						if change == "route refusal" {
 							return nil, &rpc.Error{Code: CodeChatDenied, Message: "original pairing unavailable"}
@@ -350,18 +335,9 @@ func TestFeishuTodoReminderRetryAuthority(t *testing.T) {
 				if change == "known ordinary" {
 					todo.Origin = "m1"
 				}
-				if change == "companion after bot" || change == "companion after unknown first" {
-					todo.Notes = strings.Repeat("Synthetic paragraph.\n\n", 900)
-				}
 				installRetryTodo(s, todo)
-				if change == "initial companion" {
-					companion()
-				}
 				s.feishuTodoReminder("server", "m1", todo.Title, todo.Notes, todo)
 				posts, _ := capture.snapshot()
-				s.companions.mu.Lock()
-				notices := len(s.companions.list)
-				s.companions.mu.Unlock()
 				switch change {
 				case "owner", "generation", "route refusal":
 					if len(posts) != 1 {
@@ -392,14 +368,6 @@ func TestFeishuTodoReminderRetryAuthority(t *testing.T) {
 				case "known ordinary":
 					if len(posts) != 2 || !strings.Contains(posts[1]["card"].(string), todo.Notes) {
 						t.Fatal("known ordinary source lost original notes")
-					}
-				case "companion after bot", "companion after unknown first":
-					if notices != 0 || len(posts) < 4 {
-						t.Fatalf("bot route moved to companion: posts=%d notices=%d", len(posts), notices)
-					}
-				case "initial companion":
-					if len(posts) != 0 || notices == 0 {
-						t.Fatalf("initial companion lost: posts=%d notices=%d", len(posts), notices)
 					}
 				}
 				for _, p := range posts {

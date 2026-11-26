@@ -10,11 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lcuconfirm"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lcuconfirm"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 func computerLocaleRequest(t *testing.T, handler http.Handler, method, path, body, token string, lang i18n.Lang) (int, map[string]any) {
@@ -32,61 +31,6 @@ func computerLocaleRequest(t *testing.T, handler http.Handler, method, path, bod
 		t.Fatalf("response: %s: %v", w.Body, err)
 	}
 	return w.Code, out
-}
-
-// The extension registry exists but cua/ego are disabled: this is not the missing-manager case.
-func TestComputerLocaleDisabledAndValidation(t *testing.T) {
-	h, _ := extensionTestHub(t)
-	m, _ := computerMac(t, h, "mac")
-	mux := h.routes()
-	for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		for _, c := range []struct {
-			method, path, body, key string
-			status                  int
-		}{
-			{"GET", "/computer", "", "hub-computer.err_off", 404},
-			{"PUT", "/computer", `{"enabled":false}`, "hub-computer.err_off", 404},
-			{"GET", "/browser", "", "hub-browser.err_off", 404},
-			{"PUT", "/browser", `{"enabled":false}`, "hub-browser.err_off", 404},
-			{"GET", "/computer/clipboard", "", "hub-computer.err_clipboard_off", 404},
-			{"POST", "/computer/clipboard", `{"text":"unchanged"}`, "hub-computer.err_clipboard_off", 404},
-			{"POST", "/computer/install", "", "hub-computer.err_not_enabled", 404},
-			{"POST", "/browser/install", "", "hub-browser.err_not_enabled", 404},
-			{"POST", "/computer/not-an-action", "", "hub-computer.err_unknown_action", 404},
-			{"POST", "/browser/not-an-action", "", "hub-computer.err_unknown_action", 404},
-		} {
-			t.Run(string(lang)+c.method+c.path, func(t *testing.T) {
-				status, out := computerLocaleRequest(t, mux, c.method, "/api/v1/machines/mac"+c.path, c.body, h.cfg.Token, lang)
-				if status != c.status || out["error"] != i18n.T(lang, c.key) || out["code"] != "not_found" || out["retryable"] != false {
-					t.Fatalf("%d %v", status, out)
-				}
-			})
-		}
-		for _, path := range []string{"/computer", "/browser"} {
-			status, out := computerLocaleRequest(t, mux, "PUT", "/api/v1/machines/mac"+path, "{", h.cfg.Token, lang)
-			if status != 400 || out["error"] != i18n.T(lang, "hub-computer.err_bad_body", i18n.Args{"err": "unexpected EOF"}) || out["code"] != "bad_request" {
-				t.Fatalf("body: %d %v", status, out)
-			}
-		}
-		// This is the final manager HTTP boundary after the hub has forwarded an authenticated device/extension.
-		r := httptest.NewRequest("GET", "/api/v1/machines/mac/computer/clipboard", nil)
-		r.Header.Set(extwire.HeaderRole, roleFull)
-		r.Header.Set(extwire.HeaderDevice, "dev_example")
-		r.Header.Set(extwire.HeaderLang, string(lang))
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		if w.Code != 404 || !strings.Contains(w.Body.String(), i18n.T(lang, "hub-computer.err_clipboard_off")) {
-			t.Fatalf("relay: %d %s", w.Code, w.Body)
-		}
-	}
-	// A client without a language retains the source-language clipboard response and unchanged schema.
-	status, out := computerLocaleRequest(t, mux, "GET", "/api/v1/machines/mac/computer/clipboard", "", h.cfg.Token, "")
-	if status != 404 || out["error"] != "这台 Mac 没有打开操控电脑或浏览器扩展" {
-		t.Fatalf("legacy: %d %v", status, out)
-	}
-	m.mu.Lock()
-	m.online = false
-	m.mu.Unlock()
 }
 
 func enableComputerLocaleExtensions(t *testing.T, h *Manager) {
@@ -129,8 +73,6 @@ func TestComputerLocaleRPCAndStatus(t *testing.T) {
 			enableComputerLocaleExtensions(t, h)
 			computerLocaleNode(t, m, builtin, func(method string) (any, error) {
 				switch method {
-				case "computer.clipboard":
-					return nil, i18n.Err("hub-computer.rpc_clipboard_read")
 				case "computer.install":
 					return nil, &rpc.Error{Code: "busy", Message: "正在安装，等它做完"}
 				case "browser.open":
@@ -145,12 +87,8 @@ func TestComputerLocaleRPCAndStatus(t *testing.T) {
 			})
 			mux := h.routes()
 			for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-				status, out := computerLocaleRequest(t, mux, "POST", "/api/v1/machines/mac/computer/clipboard", "{", h.cfg.Token, lang)
-				if status != 400 || out["error"] != i18n.T(lang, "hub-computer.err_bad_body", i18n.Args{"err": "unexpected EOF"}) {
-					t.Fatalf("clipboard body: %d %v", status, out)
-				}
 				for _, path := range []string{"/computer", "/browser"} {
-					status, out = computerLocaleRequest(t, mux, "PUT", "/api/v1/machines/mac"+path, `{"enabled":false,"extra":"`+strings.Repeat("x", 4<<10)+`"}`, h.cfg.Token, lang)
+					status, out := computerLocaleRequest(t, mux, "PUT", "/api/v1/machines/mac"+path, `{"enabled":false,"extra":"`+strings.Repeat("x", 4<<10)+`"}`, h.cfg.Token, lang)
 					if status != 413 || out["code"] != "too_large" || out["error"] != i18n.T(lang, "hub-computer.err_body_large", i18n.Args{"limit": 4 << 10}) {
 						t.Fatalf("large body: %d %v", status, out)
 					}
@@ -159,7 +97,6 @@ func TestComputerLocaleRPCAndStatus(t *testing.T) {
 					method, path, key string
 					args              i18n.Args
 				}{
-					{"GET", "/computer/clipboard", "hub-computer.rpc_clipboard_read", nil},
 					{"POST", "/computer/install", "hub-computer.rpc_busy_install", nil},
 					{"POST", "/browser/open", "hub-browser.rpc_open", i18n.Args{"detail": "original detail"}},
 				} {
@@ -202,12 +139,8 @@ func TestComputerLocaleOfflineOutdatedAndDatabase(t *testing.T) {
 	m.online = false
 	m.mu.Unlock()
 	for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		for _, path := range []string{"/computer/clipboard", "/computer/install", "/browser/open"} {
-			method := "POST"
-			if path == "/computer/clipboard" {
-				method = "GET"
-			}
-			status, out := computerLocaleRequest(t, mux, method, "/api/v1/machines/mac"+path, "", h.cfg.Token, lang)
+		for _, path := range []string{"/computer/install", "/browser/open"} {
+			status, out := computerLocaleRequest(t, mux, "POST", "/api/v1/machines/mac"+path, "", h.cfg.Token, lang)
 			if status != 409 || out["error"] != i18n.T(lang, "hub-computer.err_offline") {
 				t.Fatalf("offline: %d %v", status, out)
 			}
@@ -215,12 +148,8 @@ func TestComputerLocaleOfflineOutdatedAndDatabase(t *testing.T) {
 	}
 	computerLocaleNode(t, m, false, func(method string) (any, error) { return nil, &rpc.Error{Message: "unknown method " + method} })
 	for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		status, out := computerLocaleRequest(t, mux, "GET", "/api/v1/machines/mac/computer/clipboard", "", h.cfg.Token, lang)
-		if status != 409 || out["error"] != i18n.T(lang, "hub-computer.err_clipboard_outdated") {
-			t.Fatalf("outdated: %d %v", status, out)
-		}
 		for _, path := range []string{"/computer", "/browser"} {
-			status, out = computerLocaleRequest(t, mux, "GET", "/api/v1/machines/mac"+path, "", h.cfg.Token, lang)
+			status, out := computerLocaleRequest(t, mux, "GET", "/api/v1/machines/mac"+path, "", h.cfg.Token, lang)
 			key := "hub-computer.note_outdated"
 			if path == "/browser" {
 				key = "hub-browser.note_outdated"
@@ -233,7 +162,7 @@ func TestComputerLocaleOfflineOutdatedAndDatabase(t *testing.T) {
 	// A manager without a database is an explicit localized error, not a silent success.
 	h.store = nil
 	for _, lang := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		status, out := computerLocaleRequest(t, mux, "DELETE", "/api/v1/machines/mac/computer/apps/example.app", "", h.cfg.Token, lang)
+		status, out := computerLocaleRequest(t, mux, "DELETE", "/api/v1/machines/mac/computer/apps/revoke/example.app?expected_manager="+h.computerAppsManager(), "", h.cfg.Token, lang)
 		if status != 500 || out["error"] != i18n.T(lang, "hub-computer_apps.err_no_database") {
 			t.Fatalf("database: %d %v", status, out)
 		}

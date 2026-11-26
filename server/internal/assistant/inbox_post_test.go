@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func postHub(t *testing.T) *inboxHub {
@@ -239,14 +239,7 @@ func TestTaskInboxThroughTheApp(t *testing.T) {
 	if rec := do("PUT", "/api/v1/assistant/tasks/"+watch.ID, strings.TrimSuffix(body, "}")+`,"inbox":"off"}`); rec.Code != 200 || mode(watch.ID) != inboxOff {
 		t.Fatalf("off: %d %s, %q", rec.Code, rec.Body, mode(watch.ID))
 	}
-	daily := created(do("POST", "/api/v1/assistant/tasks", `{"title":"日报","prompt":"总结","repeat":"daily","time":"18:00","enabled":true,"inbox":"every"}`))
-	routines := `{"routines":[{"id":"` + daily.ID + `","title":"日报","prompt":"总结","time":"18:30","enabled":true}]}`
-	if rec := do("PUT", "/api/v1/assistant/routines", routines); rec.Code != 200 {
-		t.Fatalf("routines: %d %s", rec.Code, rec.Body)
-	}
-	if got, _ := taskByID(h, daily.ID); got.Inbox != inboxEvery || got.Time != "18:30" {
-		t.Fatalf("the old app's routines PUT keeps the setting: %+v", got)
-	}
+
 }
 
 // A task set to "every" ends each run with a row: the run's conversation settles with an answer → one row titled by the

@@ -14,7 +14,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // clipGetenv and clipLookPath are os.Getenv and exec.LookPath (tests give fakes).

@@ -271,7 +271,6 @@ type Contributes struct {
 	Speech              []NamedItem              `json:"speech,omitempty"`
 	Computer            []NamedItem              `json:"computer,omitempty"`
 	Browser             []NamedItem              `json:"browser,omitempty"`
-	Iphone              []NamedItem              `json:"iphone,omitempty"`
 	Quota               []QuotaItem              `json:"quota,omitempty"`
 	Usage               []UsageItem              `json:"usage,omitempty"`
 	Providers           []ProviderItem           `json:"providers,omitempty"`
@@ -305,7 +304,7 @@ func (v *Contributes) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	declared := map[string]json.RawMessage{}
-	for _, key := range []string{"connectors", "voice", "transcription", "speech", "computer", "browser", "iphone", "quota", "usage", "providers", "api", "assistant", "mcp_servers", "ui", "agent_sources", "channel", "events", "shortcuts", "skills", "prompts", "themes", "looks", "triage_templates", "agent_filters", "tunnels", "error_reports", "auth_relay", "secret_providers", "repository_providers", "messaging"} {
+	for _, key := range []string{"connectors", "voice", "transcription", "speech", "computer", "browser", "quota", "usage", "providers", "api", "assistant", "mcp_servers", "ui", "agent_sources", "channel", "events", "shortcuts", "skills", "prompts", "themes", "looks", "triage_templates", "agent_filters", "tunnels", "error_reports", "auth_relay", "secret_providers", "repository_providers", "messaging"} {
 		if value, ok := extra[key]; ok {
 			declared[key] = value
 			delete(extra, key)
@@ -337,7 +336,7 @@ func (v Contributes) MarshalJSON() ([]byte, error) {
 	}
 	for key, value := range v.AdditionalProperties {
 		switch key {
-		case "connectors", "voice", "transcription", "speech", "computer", "browser", "iphone", "quota", "usage", "providers", "api", "assistant", "mcp_servers", "ui", "agent_sources", "channel", "events", "shortcuts", "skills", "prompts", "themes", "looks", "triage_templates", "agent_filters", "tunnels", "error_reports", "auth_relay", "secret_providers", "repository_providers", "messaging":
+		case "connectors", "voice", "transcription", "speech", "computer", "browser", "quota", "usage", "providers", "api", "assistant", "mcp_servers", "ui", "agent_sources", "channel", "events", "shortcuts", "skills", "prompts", "themes", "looks", "triage_templates", "agent_filters", "tunnels", "error_reports", "auth_relay", "secret_providers", "repository_providers", "messaging":
 			continue
 		}
 		fields[key] = value
@@ -1175,33 +1174,6 @@ type UIPlaces struct {
 	UI []UIPlace `json:"ui"`
 }
 
-// WidgetPlace: A widget an extension draws outside the app (GET …/extensions/-/widgets; docs "System placements").
-type WidgetPlace struct {
-	Extension      string   `json:"extension"`
-	ExtensionName  string   `json:"extension_name,omitempty"`
-	ID             string   `json:"id"`
-	Title          string   `json:"title"`
-	Families       []string `json:"families"`
-	RefreshMinutes int      `json:"refresh_minutes"`
-	Opens          string   `json:"opens,omitempty"`
-}
-
-type WidgetPlaces struct {
-	Widgets []WidgetPlace `json:"widgets"`
-}
-
-// WidgetRequest: an app's POST …/extensions/{id}/-/widget/{ui}: context.size is the family it draws (WidgetFamily).
-type WidgetRequest struct {
-	Context *UIContext `json:"context,omitempty"`
-}
-
-// WidgetAnswer: A widget's view, held to what the family draws, and until when the hub keeps it (the app's timeline's
-// next entry).
-type WidgetAnswer struct {
-	View      View      `json:"view"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
-
 // DeviceWidget: A widget a device has on a screen (PUT /api/v1/devices/{id}/widgets): the hub wakes that device when
 // it changes.
 type DeviceWidget struct {
@@ -1219,28 +1191,6 @@ type DeviceWidgets struct {
 type WidgetPush struct {
 	Extension string `json:"extension"`
 	ID        string `json:"id"`
-}
-
-// ShortcutPlace: an extension's action the system runs (GET …/extensions/-/shortcuts).
-type ShortcutPlace struct {
-	Extension     string          `json:"extension"`
-	ExtensionName string          `json:"extension_name,omitempty"`
-	ID            string          `json:"id"`
-	Title         string          `json:"title"`
-	Description   string          `json:"description,omitempty"`
-	Params        []ShortcutParam `json:"params,omitempty"`
-	UI            string          `json:"ui,omitempty"`
-}
-
-type ShortcutPlaces struct {
-	Shortcuts []ShortcutPlace `json:"shortcuts"`
-}
-
-// ShortcutRequest: an app's POST …/extensions/{id}/-/shortcut/{sid}: the params' values (strings) and the context
-// (tz, locale, platform, ui_version).
-type ShortcutRequest struct {
-	Values  map[string]string `json:"values,omitempty"`
-	Context *UIContext        `json:"context,omitempty"`
 }
 
 // ShortcutRunParams: shortcut.run's parameters: which shortcut, its values, for whom.
@@ -6431,16 +6381,9 @@ var newDef = map[string]func() any{
 	"UIRequest":                    func() any { return new(UIRequest) },
 	"UIPlace":                      func() any { return new(UIPlace) },
 	"UIPlaces":                     func() any { return new(UIPlaces) },
-	"WidgetPlace":                  func() any { return new(WidgetPlace) },
-	"WidgetPlaces":                 func() any { return new(WidgetPlaces) },
-	"WidgetRequest":                func() any { return new(WidgetRequest) },
-	"WidgetAnswer":                 func() any { return new(WidgetAnswer) },
 	"DeviceWidget":                 func() any { return new(DeviceWidget) },
 	"DeviceWidgets":                func() any { return new(DeviceWidgets) },
 	"WidgetPush":                   func() any { return new(WidgetPush) },
-	"ShortcutPlace":                func() any { return new(ShortcutPlace) },
-	"ShortcutPlaces":               func() any { return new(ShortcutPlaces) },
-	"ShortcutRequest":              func() any { return new(ShortcutRequest) },
 	"ShortcutRunParams":            func() any { return new(ShortcutRunParams) },
 	"ShortcutResult":               func() any { return new(ShortcutResult) },
 	"NotifyAction":                 func() any { return new(NotifyAction) },

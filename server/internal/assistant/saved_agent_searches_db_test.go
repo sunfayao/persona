@@ -3,14 +3,14 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/assistant/saved"
+	"github.com/sunfayao/persona/server/internal/assistant/saved"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // barrierSearchStore makes two managers read the same persisted revision before

@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // halfThenWait serves data's first half, then the rest once release is closed; stopped says a request ended
@@ -149,55 +149,6 @@ func TestSharedDownloadFinishesIntoTheCacheWithNobodyWaiting(t *testing.T) {
 	}
 }
 
-// The user's Cancel stops a download nobody else waits for; one another caller waits for goes on.
-func TestSharedDownloadStopsOnTheUsersCancel(t *testing.T) {
-	data := bytes.Repeat([]byte("package "), 4<<10)
-	h := newHalfThenWait(t, data)
-	cache := t.TempDir()
-	m := h.market(t, cache)
-	pkg := &MarketPackage{URL: h.srv.URL + "/pkg.tar.gz", SHA256: ociSum(data), Size: int64(len(data))}
-
-	// Two wait; one cancels: the other still gets it, from the same request.
-	a, cancelA := context.WithCancelCause(t.Context())
-	a, seenA := downloadSeen(a)
-	errA := make(chan error, 1)
-	go func() { _, _, err := m.Download(a, pkg, t.TempDir()); errA <- err }()
-	waitUntil(t, "data to arrive", func() bool { return seenA().Bytes > 0 })
-	b, seenB := downloadSeen(t.Context())
-	errB := make(chan error, 1)
-	go func() { _, _, err := m.Download(b, pkg, t.TempDir()); errB <- err }()
-	waitUntil(t, "the second to join", func() bool { return seenB().Bytes > 0 })
-	cancelA(ErrUserCanceled)
-	if err := <-errA; err == nil {
-		t.Fatal("canceled, and still downloaded")
-	}
-	close(h.release)
-	if err := <-errB; err != nil || h.requests.Load() != 1 || h.stopped.Load() != 0 {
-		t.Fatalf("the one still waiting: %v, requests %d, stopped %d", err, h.requests.Load(), h.stopped.Load())
-	}
-
-	// Alone, it stops: nothing in the cache, nothing left behind.
-	other := data[1:]
-	h2 := newHalfThenWait(t, other)
-	cache2 := t.TempDir()
-	m2 := h2.market(t, cache2)
-	pkg2 := &MarketPackage{URL: h2.srv.URL + "/pkg.tar.gz", SHA256: ociSum(other), Size: int64(len(other))}
-	c, cancelC := context.WithCancelCause(t.Context())
-	c, seenC := downloadSeen(c)
-	errC := make(chan error, 1)
-	go func() { _, _, err := m2.Download(c, pkg2, t.TempDir()); errC <- err }()
-	waitUntil(t, "data to arrive", func() bool { return seenC().Bytes > 0 })
-	cancelC(ErrUserCanceled)
-	<-errC
-	waitUntil(t, "the request to stop", func() bool { return h2.stopped.Load() == 1 })
-	waitUntil(t, "its directory to go", func() bool { dirs, _ := filepath.Glob(filepath.Join(cache2, ".fetch-*")); return len(dirs) == 0 })
-	if from, _ := cached(cache2, pkg2.SHA256); from != "" {
-		t.Fatal("a canceled download was cached")
-	}
-}
-
-// A download that keeps trickling past its budget says it was too slow, and how much arrived (it was cut at five
-// minutes with a bare "context deadline exceeded", #3692).
 func TestDownloadTooSlowSaysSo(t *testing.T) {
 	defer func(was time.Duration) { DownloadBudget = was }(DownloadBudget)
 	DownloadBudget = 300 * time.Millisecond

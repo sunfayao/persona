@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // copyDir copies the example package so a test may change it.
@@ -226,5 +226,29 @@ func TestExtensionLooks(t *testing.T) {
 	}
 	if n := broadcasts(app, "look"); n != 1 {
 		t.Fatalf("%d look broadcasts after the removal", n)
+	}
+}
+
+// appClient is an app connected to the hub: what is broadcast lands in its queue.
+func appClient(h *Hub) *client {
+	c := &client{out: make(chan []byte, 64), subs: map[[2]string]bool{}}
+	h.mu.Lock()
+	h.clients[c] = struct{}{}
+	h.mu.Unlock()
+	return c
+}
+
+func broadcasts(c *client, typ string) int {
+	n := 0
+	for {
+		select {
+		case b := <-c.out:
+			var m struct{ Type string }
+			if json.Unmarshal(b, &m) == nil && m.Type == typ {
+				n++
+			}
+		default:
+			return n
+		}
 	}
 }

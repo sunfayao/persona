@@ -2,10 +2,10 @@ package assistant
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A manager other than the built-in one keeps its assistant and health directories of its own on a computer

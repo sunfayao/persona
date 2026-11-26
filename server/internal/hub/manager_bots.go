@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // managerBotConflict identifies the managers sharing a bot, without exposing the bot's account ID to clients.

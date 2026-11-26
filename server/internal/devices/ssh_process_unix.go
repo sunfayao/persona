@@ -2,7 +2,7 @@
 
 package devices
 
-import "github.com/nwverse/persona/server/internal/osproc"
+import "github.com/sunfayao/persona/server/internal/osproc"
 
 func stopSSHProcessTree(pid int) error {
 	return osproc.StopGroup(pid, true)

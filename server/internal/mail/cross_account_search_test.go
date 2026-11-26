@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/emersion/go-imap/v2/imapclient"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Two independent loopback IMAP servers let one account fail without affecting the other.
@@ -64,11 +62,6 @@ func TestCrossAccountSearchCompleteness(t *testing.T) {
 		if err != nil || len(older.Messages) != 1 || older.Messages[0].Subject != "Quarterly A" {
 			t.Fatalf("single-account continuation = %+v, %v", older, err)
 		}
-		code, body := doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?q=quarterly", "")
-		var rows []MailSummary
-		if code != http.StatusOK || json.Unmarshal(body["messages"], &rows) != nil || len(rows) != 2 {
-			t.Fatalf("HTTP complete = %d %s", code, body["messages"])
-		}
 		text := s.Call(ctx, ToolSearch, args, nil)
 		if text.IsError || !strings.Contains(resultText(t, text), "Quarterly A") || !strings.Contains(resultText(t, text), "Quarterly B") {
 			t.Fatalf("MCP text complete = %+v", text)
@@ -96,10 +89,6 @@ func TestCrossAccountSearchCompleteness(t *testing.T) {
 		if res, err := s.ListMessages(ctx, ListOptions{}); err == nil || res != nil {
 			t.Errorf("incomplete unified inbox = %+v, %v", res, err)
 		}
-		code, body := doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?q=quarterly", "")
-		if code < 400 || len(body["messages"]) != 0 {
-			t.Errorf("incomplete HTTP = %d %+v", code, body)
-		}
 		text := s.Call(ctx, ToolSearch, args, nil)
 		if !text.IsError || strings.Contains(resultText(t, text), "Quarterly A") {
 			t.Errorf("incomplete MCP text = %+v", text)
@@ -116,11 +105,6 @@ func TestCrossAccountSearchCompleteness(t *testing.T) {
 		if res := s.Call(ctx, ToolSearch, args, nil); res.IsError || !strings.Contains(resultText(t, res), "Quarterly B") {
 			t.Errorf("repaired MCP text = %+v", res)
 		}
-		code, body = doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?q=quarterly", "")
-		var rows []MailSummary
-		if code != http.StatusOK || json.Unmarshal(body["messages"], &rows) != nil || len(rows) != 2 {
-			t.Errorf("repaired HTTP = %d %s", code, body["messages"])
-		}
 		raw, ok, err = s.CallJSON(ctx, ToolSearch, args)
 		var jsonOut searchJSON
 		if !ok || err != nil || json.Unmarshal(raw, &jsonOut) != nil || len(jsonOut.Messages) != 2 {
@@ -136,11 +120,6 @@ func TestCrossAccountSearchCompleteness(t *testing.T) {
 		if res := s.Call(ctx, ToolSearch, json.RawMessage(`{"query":"no-match-anywhere"}`), nil); res.IsError || !strings.Contains(resultText(t, res), "No messages matched") {
 			t.Errorf("healthy empty text = %+v", res)
 		}
-		code, body := doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?q=no-match-anywhere", "")
-		var rows []MailSummary
-		if code != http.StatusOK || json.Unmarshal(body["messages"], &rows) != nil || len(rows) != 0 {
-			t.Errorf("healthy empty HTTP = %d %s", code, body["messages"])
-		}
 		raw, ok, err := s.CallJSON(ctx, ToolSearch, json.RawMessage(`{"query":"no-match-anywhere"}`))
 		var jsonOut searchJSON
 		if !ok || err != nil || json.Unmarshal(raw, &jsonOut) != nil || len(jsonOut.Messages) != 0 {
@@ -150,10 +129,6 @@ func TestCrossAccountSearchCompleteness(t *testing.T) {
 		setCrossAccountPassword(s, "acc_b", "synthetic-wrong")
 		if res, err := s.ListMessages(ctx, ListOptions{Query: "quarterly"}); err == nil || res != nil {
 			t.Errorf("all failed service = %+v, %v", res, err)
-		}
-		code, _ = doJSON(t, s, http.MethodGet, "/api/v1/mail/messages?q=quarterly", "")
-		if code < 400 {
-			t.Errorf("all failed HTTP = %d", code)
 		}
 		if res := s.Call(ctx, ToolSearch, args, nil); !res.IsError {
 			t.Errorf("all failed MCP = %+v", res)
@@ -221,12 +196,6 @@ func TestCrossAccountCanceledCallers(t *testing.T) {
 	if result, err := s.ListMessages(ctx, ListOptions{Query: "quarterly"}); result != nil || !errors.Is(err, context.Canceled) {
 		t.Errorf("canceled service = %+v, %v", result, err)
 	}
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/mail/messages?q=quarterly", nil).WithContext(ctx)
-	s.Handler().ServeHTTP(w, r)
-	if w.Code < 400 {
-		t.Errorf("canceled HTTP = %d %s", w.Code, w.Body)
-	}
 	if res := s.Call(ctx, ToolSearch, args, nil); !res.IsError {
 		t.Errorf("canceled MCP = %+v", res)
 	}
@@ -252,22 +221,10 @@ func TestCrossAccountErrorPrivacyAndLocalization(t *testing.T) {
 		{i18n.Ja, "すべてのメールアカウントからメールを読み込めませんでした。アカウントを確認してもう一度お試しください。"},
 	} {
 		t.Run(string(c.lang), func(t *testing.T) {
-			w := httptest.NewRecorder()
-			s.Handler().ServeHTTP(mailLanguageWriter{w, c.lang}, httptest.NewRequest(http.MethodGet, "/api/v1/mail/messages?q=quarterly", nil))
-			var body struct {
-				Error string `json:"error"`
-				Code  string `json:"code"`
-			}
-			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
-				t.Fatal(err)
-			}
-			if w.Code != http.StatusBadGateway || body.Code != "mail_search_incomplete" || body.Error != c.want || strings.Contains(w.Body.String(), "synthetic-wrong") || strings.Contains(w.Body.String(), "private@example.com") {
-				t.Fatalf("unsafe or untyped HTTP failure: %d %s", w.Code, w.Body)
-			}
 			ctx := i18n.With(context.Background(), c.lang)
 			res := s.Call(ctx, ToolSearch, json.RawMessage(`{"query":"quarterly"}`), nil)
-			if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != body.Error {
-				t.Fatalf("localized MCP = %+v; HTTP = %s", res, body.Error)
+			if !res.IsError || len(res.Content) != 1 || res.Content[0].Text != c.want {
+				t.Fatalf("localized MCP = %+v; want %q", res, c.want)
 			}
 		})
 	}

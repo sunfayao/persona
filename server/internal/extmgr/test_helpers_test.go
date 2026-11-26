@@ -5,22 +5,12 @@ import (
 	"net/http"
 	"net/netip"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // Shortcuts the tests use into the manager's own code paths, with the defaults a test wants. Production calls the
-// functions underneath (removeChatRuleKey, feishuReplyUUIDIn, botNoteIn, the inbox's kicks) with its own arguments, and
+// functions underneath (feishuReplyUUIDIn, botNoteIn, the inbox's kicks) with its own arguments, and
 // reads the caller's address from principalOf.
-
-// removeChatRule is removeChatRuleKey by the rule's id (connector.UserRule.ID) rather than its key; false when there
-// was none.
-func (h *Manager) removeChatRule(ctx context.Context, id string) (bool, error) {
-	h.userRules.mu.Lock()
-	defer h.userRules.mu.Unlock()
-	ctx, cancel := context.WithTimeout(ctx, chatRuleStoreTime)
-	defer cancel()
-	return h.removeLocked(ctx, id)
-}
 
 // feishuReplyUUID is feishuReplyUUIDIn for a reply that does not go into a thread.
 func feishuReplyUUID(messageID, kind, content string) string {

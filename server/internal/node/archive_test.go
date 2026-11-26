@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // writeArchiveRollout writes thread's rollout in today's directory of home and returns its path.
@@ -78,7 +79,7 @@ func archiveIn(t *testing.T, home, thread string) bool {
 // with thread/archive and thread/unarchive; asking again for what already is answers done without a call.
 func TestNativeArchiveCodexThroughItsAppServer(t *testing.T) {
 	n := remoteTestNode(t)
-	home := canonicalCodexHome(t.TempDir(), n.home)
+	home := codex.CanonicalHome(t.TempDir(), n.home)
 	f, _ := connectRemoteFixture(t, n, home, "app", remoteRaw)
 	path := writeArchiveRollout(t, home, remoteRaw)
 	id := n.registerCodex(home, remoteRaw, path)
@@ -111,7 +112,7 @@ func TestNativeArchiveCodexThroughItsAppServer(t *testing.T) {
 // moved is refused, to be tried again; a turn running is refused before Codex is asked.
 func TestNativeArchiveCodexAnswersAreCheckedOnDisk(t *testing.T) {
 	n := remoteTestNode(t)
-	home := canonicalCodexHome(t.TempDir(), n.home)
+	home := codex.CanonicalHome(t.TempDir(), n.home)
 	f, c := connectRemoteFixture(t, n, home, "app", remoteRaw)
 	id := n.registerCodex(home, remoteRaw, writeArchiveRollout(t, home, remoteRaw))
 	waitFor(t, "owner", func() bool { _, _, err := n.codexOwner(id); return err == nil })
@@ -187,7 +188,7 @@ func stubCodexArchiveCommand(t *testing.T) *codexArchiveRecorder {
 func TestNativeArchiveCodexCommandLine(t *testing.T) {
 	n := remoteTestNode(t)
 	writeArchiveRollout(t, n.codexHome(), remoteOther)
-	home := canonicalCodexHome(n.codexHome(), n.home) // resolved once it exists, as the node resolves it
+	home := codex.CanonicalHome(n.codexHome(), n.home) // resolved once it exists, as the node resolves it
 	r := stubCodexArchiveCommand(t)
 	ctx := context.Background()
 

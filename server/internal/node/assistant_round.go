@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/claudeplugin"
+	"github.com/sunfayao/persona/server/internal/claudeplugin"
 )
 
 // The background supervisor's rounds (#7315). The manager

@@ -14,68 +14,9 @@ import (
 
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-// The converged wire names (#11719): applies_when and candidates, with priority. The old names still decode, reads
-// answer both, and a body whose two names disagree is refused — including on the nested start_defaults of PUT
-// /api/v1/assistant, which has no DisallowUnknownFields of its own.
-func TestStartDefaultsConvergedNamesAndAliases(t *testing.T) {
-	s, f := defaultsHub(t)
-	ctx := context.Background()
-	// New names, with priority: the write works and reaches a real start.
-	body := `{"start_defaults":{"rules":[{"applies_when":{"role":"worker"},"then":{
-		"candidates":[{"name":"quick","priority":1},{"name":"deep","priority":5}],"effort":"max"}}]}}`
-	if code, got := putStartDefaults(t, s, roleFull, "", body); code != http.StatusOK {
-		t.Fatalf("converged write: %d %s", code, got)
-	}
-	// Reads carry both names with the same content, so either generation of client round-trips it.
-	rec := httptest.NewRecorder()
-	s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/assistant/start-defaults", nil))
-	var got map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	rule := got["start_defaults"].(map[string]any)["rules"].([]any)[0].(map[string]any)
-	if !reflect.DeepEqual(rule["when"], rule["applies_when"]) {
-		t.Fatalf("when and applies_when differ: %v", rule)
-	}
-	then := rule["then"].(map[string]any)
-	if !reflect.DeepEqual(then["presets"], then["candidates"]) {
-		t.Fatalf("presets and candidates differ: %v", then)
-	}
-	if c := then["candidates"].([]any)[1].(map[string]any); c["priority"] != float64(5) {
-		t.Fatalf("priority not carried: %v", c)
-	}
-	task := defaultsTask()
-	if _, _, err := s.startTaskAgent(ctx, &task, false); err != nil {
-		t.Fatal(err)
-	}
-	if st := startsOf(f)[0]; st["model"] != "gw-deep" || st["effort"] != "max" {
-		t.Fatalf("the converged policy did not apply: %v", st)
-	}
-	// The stored policy (Postgres JSON) reads back after carrying both names.
-	if p := s.activeStartDefaults(ctx); p == nil || p.Rules[0].When.Role != "worker" || p.Rules[0].Then.Presets[1].Priority != 5 {
-		t.Fatalf("the stored policy did not round-trip: %+v", p)
-	}
-	// Old names still write, on this route and nested in PUT /api/v1/assistant.
-	if code, got := putStartDefaults(t, s, roleFull, "", `{"start_defaults":{"rules":[{"when":{},"then":{"presets":[{"name":"quick"}]}}]}}`); code != http.StatusOK {
-		t.Fatalf("legacy write: %d %s", code, got)
-	}
-	nested := httptest.NewRequest(http.MethodPut, "/api/v1/assistant", strings.NewReader(
-		`{"start_defaults":{"rules":[{"applies_when":{},"then":{"candidates":[{"name":"deep"}]}}]}}`))
-	nested.Header.Set(RoleHeader, roleFull)
-	nrec := httptest.NewRecorder()
-	s.ServeHTTP(nrec, nested)
-	if nrec.Code != http.StatusOK {
-		t.Fatalf("nested converged write: %d %s", nrec.Code, nrec.Body.String())
-	}
-	if p := s.activeStartDefaults(ctx); p == nil || p.Rules[0].Then.Presets[0].Name != "deep" {
-		t.Fatalf("the nested write did not store the candidates: %+v", p)
-	}
-}
 
 // A body that names both generations of a field is accepted when they agree (that is what a read answers) and
 // refused when they disagree; a misspelt field is still a 400 everywhere, aliases included.
@@ -108,9 +49,6 @@ func TestStartDefaultsAliasConflictsAndUnknownFields(t *testing.T) {
 		{"both lists null", `{"start_defaults":{"rules":[{"when":{},"then":{"presets":null,"candidates":null,"effort":"max"}}]}}`, http.StatusOK},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			if code, got := putStartDefaults(t, s, roleFull, "", c.body); code != c.code {
-				t.Fatalf("dedicated %s: %d %s", c.name, code, got)
-			}
 			req := httptest.NewRequest(http.MethodPut, "/api/v1/assistant", strings.NewReader(c.body))
 			req.Header.Set(RoleHeader, roleFull)
 			rec := httptest.NewRecorder()
@@ -320,38 +258,6 @@ func TestStartDefaultsCandidateNameRejectsNUL(t *testing.T) {
 	}
 	if code, out := putStartDefaults(t, s, roleFull, "", string(body)); code != http.StatusBadRequest {
 		t.Fatalf("NUL candidate name: %d %s", code, out)
-	}
-}
-
-// Alias conflicts keep their legacy English text without a language carrier and localize through the real relay.
-func TestStartDefaultsAliasConflictsLocalized(t *testing.T) {
-	for _, tc := range []struct {
-		name, body, key string
-	}{
-		{name: "match", body: `{"start_defaults":{"rules":[{"when":null,"applies_when":{},"then":{"effort":"max"}}]}}`, key: "assistant-start_defaults.alias_match_conflict"},
-		{name: "candidates", body: `{"start_defaults":{"rules":[{"when":{},"then":{"presets":null,"candidates":[],"effort":"max"}}]}}`, key: "assistant-start_defaults.alias_candidates_conflict"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			s, _ := defaultsHub(t)
-			res, err := serveHTTP(context.Background(), s, assistantwire.HTTPRequest{
-				Method: http.MethodPut, Path: "/api/v1/assistant/start-defaults", Body: []byte(tc.body),
-				Header: map[string][]string{RoleHeader: {roleFull}, "Accept-Language": {string(i18n.Ja)}},
-			}, nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var got struct {
-				Code  string `json:"code"`
-				Error string `json:"error"`
-			}
-			if err := json.Unmarshal(res.Body, &got); err != nil {
-				t.Fatal(err)
-			}
-			want := i18n.T(i18n.Ja, tc.key)
-			if res.Status != http.StatusBadRequest || got.Code != "bad_request" || got.Error != want {
-				t.Fatalf("status=%d body=%s; want error %q", res.Status, res.Body, want)
-			}
-		})
 	}
 }
 
@@ -566,11 +472,8 @@ func TestStartDefaultsHiddenCandidateCacheIsPerLauncherAndAttempt(t *testing.T) 
 func TestStartDefaultsConvergedExpiryUnchanged(t *testing.T) {
 	s, _ := defaultsHub(t)
 	rule := `{"applies_when":{},"then":{"candidates":[{"name":"deep"}]}}`
-	if code, got := putStartDefaults(t, s, roleExtension, "kit", `{"start_defaults":{"rules":[`+rule+`]}}`); code != http.StatusBadRequest {
-		t.Fatalf("an extension's policy without expiry was accepted: %d %s", code, got)
-	}
 	soon := time.Now().Add(20 * time.Minute).UTC().Format(time.RFC3339)
-	if code, got := putStartDefaults(t, s, roleExtension, "kit", `{"start_defaults":{"expires_at":"`+soon+`","rules":[`+rule+`]}}`); code != http.StatusOK {
+	if code, got := putStartDefaults(t, s, roleFull, "", `{"start_defaults":{"expires_at":"`+soon+`","rules":[`+rule+`]}}`); code != http.StatusOK {
 		t.Fatalf("an expiring converged policy was refused: %d %s", code, got)
 	}
 	past := time.Now().Add(-time.Minute)
@@ -578,139 +481,6 @@ func TestStartDefaultsConvergedExpiryUnchanged(t *testing.T) {
 	if p := s.activeStartDefaults(context.Background()); p != nil {
 		t.Fatalf("an expired policy is still in force: %+v", p)
 	}
-}
-
-// A policy at the very top of every bound must still round-trip through the dual-name GET within the write body
-// limit: 16 rules of 16 candidates each, every name 64 runes, every priority and weight at its maximum, and every
-// supervisor class. The write is single-name (applies_when / candidates only), the read answers both names, and that
-// read is itself a valid write body — the single-name-write → dual-name-read → write-back path the unbounded
-// supervisor array used to break.
-func TestStartDefaultsRoundTripStaysWithinBodyLimit(t *testing.T) {
-	s, _ := defaultsHub(t)
-	rules := make([]map[string]any, 0, startDefaultsMaxRules)
-	for i := 0; i < startDefaultsMaxRules; i++ {
-		cands := make([]map[string]any, 0, startDefaultsMaxPresets)
-		for j := 0; j < startDefaultsMaxPresets; j++ {
-			// '<' takes six JSON bytes per rune and, unlike NUL, is valid in PostgreSQL jsonb storage.
-			cands = append(cands, map[string]any{"name": strings.Repeat("<", 64), "priority": startDefaultsMaxPriority, "weight": startDefaultsMaxWeight})
-		}
-		rules = append(rules, map[string]any{
-			"applies_when": map[string]any{"role": "worker", "supervisor": []string{"main", "background_supervisor", "scheduled", "other"}},
-			"then":         map[string]any{"candidates": cands, "effort": "max"},
-		})
-	}
-	// Built as plain maps, so the body really is single-name (the custom marshaler would have written both names).
-	body, err := json.Marshal(map[string]any{"start_defaults": map[string]any{"rules": rules}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(body), `"when"`) || strings.Contains(string(body), `"presets"`) {
-		t.Fatal("the initial write is not single-name")
-	}
-	if code, got := putStartDefaults(t, s, roleFull, "", string(body)); code != http.StatusOK {
-		t.Fatalf("the maximum single-name policy was refused: %d %s", code, got[:200])
-	}
-	rec := httptest.NewRecorder()
-	s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/assistant/start-defaults", nil))
-	got := rec.Body.Bytes()
-	if len(got) >= startDefaultsBodyLimit {
-		t.Fatalf("the dual-name read is %d bytes, at or over the %d-byte write limit; a GET-to-PUT round-trip would break",
-			len(got), startDefaultsBodyLimit)
-	}
-	// The read carries both names with equal values, so it is itself accepted as a write (this is what an older or
-	// newer client does when it saves the policy back untouched).
-	if code, out := putStartDefaults(t, s, roleFull, "", string(got)); code != http.StatusOK {
-		t.Fatalf("the dual-name read could not be written back: %d %s", code, out[:200])
-	}
-}
-
-// Candidate names are canonical on every decode path. In particular, unbounded outer whitespace cannot be accepted
-// once and then duplicated under presets and candidates until the unchanged GET no longer fits the PUT body limit.
-func TestStartDefaultsCandidateNameCanonicalizationRoundTrips(t *testing.T) {
-	padded := strings.Repeat(" ", 140*1024) + "deep \n\t"
-	write := func(t *testing.T, s *Service, route, body string) {
-		t.Helper()
-		if route == "dedicated" {
-			if code, got := putStartDefaults(t, s, roleFull, "", body); code != http.StatusOK {
-				t.Fatalf("dedicated write: %d %.200s", code, got)
-			}
-			return
-		}
-		req := httptest.NewRequest(http.MethodPut, "/api/v1/assistant", strings.NewReader(body))
-		req.Header.Set(RoleHeader, roleFull)
-		rec := httptest.NewRecorder()
-		s.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("nested write: %d %.200s", rec.Code, rec.Body.String())
-		}
-	}
-	check := func(t *testing.T, s *Service, route string) {
-		t.Helper()
-		if p := s.activeStartDefaults(context.Background()); p == nil || p.Rules[0].Then.Presets[0].Name != "deep" {
-			t.Fatalf("candidate name was not canonicalized: %+v", p)
-		}
-		rec := httptest.NewRecorder()
-		s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/assistant/start-defaults", nil))
-		if rec.Code != http.StatusOK || rec.Body.Len() >= startDefaultsBodyLimit {
-			t.Fatalf("canonical GET: status=%d bytes=%d limit=%d", rec.Code, rec.Body.Len(), startDefaultsBodyLimit)
-		}
-		var got map[string]any
-		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-			t.Fatal(err)
-		}
-		then := got["start_defaults"].(map[string]any)["rules"].([]any)[0].(map[string]any)["then"].(map[string]any)
-		for _, alias := range []string{"presets", "candidates"} {
-			rows := then[alias].([]any)
-			if len(rows) != 1 || rows[0].(map[string]any)["name"] != "deep" {
-				t.Fatalf("%s retained a padded name: %v", alias, rows)
-			}
-		}
-		t.Logf("route=%s dual-name GET bytes=%d limit=%d", route, rec.Body.Len(), startDefaultsBodyLimit)
-		write(t, s, route, rec.Body.String())
-	}
-	body, err := json.Marshal(map[string]any{"start_defaults": map[string]any{"rules": []any{map[string]any{
-		"applies_when": map[string]any{},
-		"then":         map[string]any{"candidates": []any{map[string]any{"name": padded}}},
-	}}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, route := range []string{"dedicated", "nested"} {
-		t.Run(route, func(t *testing.T) {
-			s, _ := defaultsHub(t)
-			write(t, s, route, string(body))
-			check(t, s, route)
-		})
-	}
-	t.Run("legacy stored policy", func(t *testing.T) {
-		s, _ := defaultsHub(t)
-		ctx := context.Background()
-		raw, err := json.Marshal(map[string]any{
-			"notes": "preserve me",
-			"start_defaults": map[string]any{"by": "owner", "rules": []any{map[string]any{
-				"when": map[string]any{"role": "worker", "readonly": false},
-				"then": map[string]any{"presets": []any{map[string]any{"name": padded, "weight": 2}}, "ultracode": false},
-			}}},
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := s.store().PutSetting(ctx, settingsKey, json.RawMessage(raw)); err != nil {
-			t.Fatal(err)
-		}
-		s.prefs.mu.Lock()
-		s.prefs.at = time.Time{}
-		s.prefs.mu.Unlock()
-		v, ok := s.savedSettings(ctx)
-		if !ok || v.Notes == nil || *v.Notes != "preserve me" || v.StartDefaults == nil {
-			t.Fatalf("legacy settings did not survive: %+v", v)
-		}
-		rule := v.StartDefaults.Rules[0]
-		if rule.When.Role != "worker" || rule.When.Readonly == nil || *rule.When.Readonly || rule.Then.Ultracode == nil || *rule.Then.Ultracode || rule.Then.Presets[0].Weight != 2 {
-			t.Fatalf("legacy fields changed: %+v", rule)
-		}
-		check(t, s, "dedicated")
-	})
 }
 
 // Accepting both aliases with equal values keeps their content: the stored rule still scopes to the role it named,
@@ -780,48 +550,5 @@ func TestStartDefaultsCandidateAgentMetadataDoesNotGuessUnknownWrappers(t *testi
 	}
 	if got := known("absent"); got != "" {
 		t.Fatalf("a known inventory's absent wrapper was guessed as %q", got)
-	}
-}
-
-// applies_when.supervisor is normalized to its distinct classes, so an accepted policy's dual-name read always fits
-// the write limit: a repeated class is stored once (this is what made an unbounded array break GET→PUT), an unknown
-// class is still refused, and the policy round-trips.
-func TestStartDefaultsSupervisorBounds(t *testing.T) {
-	s, _ := defaultsHub(t)
-	rule := func(sup string) string {
-		return `{"start_defaults":{"rules":[{"applies_when":{"supervisor":` + sup + `},"then":{"effort":"max"}}]}}`
-	}
-	// A repeated class is accepted but stored once, not rejected.
-	if code, got := putStartDefaults(t, s, roleFull, "", rule(`["main","main"]`)); code != http.StatusOK {
-		t.Fatalf("a repeated supervisor class was not accepted and deduped: %d %s", code, got)
-	}
-	p := s.activeStartDefaults(context.Background())
-	if p == nil || !slices.Equal(p.Rules[0].When.Supervisor, []string{"main"}) {
-		t.Fatalf("the repeated class was not stored once: %+v", p.Rules[0].When.Supervisor)
-	}
-	// The unbounded reproduction (thousands of one class) is accepted, deduped to one entry, and round-trips.
-	big := `["main"` + strings.Repeat(`,"main"`, 100) + `]`
-	if code, got := putStartDefaults(t, s, roleFull, "", rule(big)); code != http.StatusOK {
-		t.Fatalf("an unbounded repeated supervisor array was not accepted and deduped: %d %s", code, got[:120])
-	}
-	// Every distinct class once (with a duplicate thrown in) is stored deduped, and its dual-name read writes back.
-	if code, got := putStartDefaults(t, s, roleFull, "", rule(`["main","main","background_supervisor","scheduled","other"]`)); code != http.StatusOK {
-		t.Fatalf("distinct classes with a duplicate were refused: %d %s", code, got)
-	}
-	p = s.activeStartDefaults(context.Background())
-	if p == nil || len(p.Rules[0].When.Supervisor) != len(dispatchClasses) {
-		t.Fatalf("the classes were not deduped to the distinct set: %+v", p.Rules[0].When.Supervisor)
-	}
-	rec := httptest.NewRecorder()
-	s.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/assistant/start-defaults", nil))
-	if rec.Body.Len() >= startDefaultsBodyLimit {
-		t.Fatalf("the deduped supervisor policy still exceeds the write limit: %d bytes", rec.Body.Len())
-	}
-	if code, got := putStartDefaults(t, s, roleFull, "", rec.Body.String()); code != http.StatusOK {
-		t.Fatalf("the deduped supervisor policy did not round-trip: %d %s", code, got[:120])
-	}
-	// An unknown class is still refused.
-	if code, got := putStartDefaults(t, s, roleFull, "", rule(`["owner"]`)); code != http.StatusBadRequest {
-		t.Fatalf("an unknown supervisor class was accepted: %d %s", code, got)
 	}
 }

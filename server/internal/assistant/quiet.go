@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Quiet tasks (#1731): a task the main conversation opened while the user wanted
-// those told only there (Settings › Assistant, assistant.main_tasks_quiet) gets no push, Live Activity or badge from the hub.
+// those told only there (Settings › Assistant, assistant.main_tasks_quiet) gets no push, Persona Link alert or badge from the hub.
 // What would have been pushed — done, waiting for the user, cut off, did not start — is a message into the main
 // conversation instead (prompts/assistant/task_notice.md), and the assistant decides what to tell the user; its
 // answer is pushed like any of its answers.

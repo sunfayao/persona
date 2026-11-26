@@ -9,8 +9,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/dialogwire"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/dialogwire"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Defined in the contract package dialogwire; the old names stay.

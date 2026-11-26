@@ -4,7 +4,7 @@ The official SDK for writing Persona extensions. It has no dependencies and is s
 
 | Directory | Contents |
 | --- | --- |
-| `go/` | Go module `github.com/nwverse/persona/sdk/go`, standard library only. `wire/` holds the generated types, `ext/` the runtime (process protocol, UI routing, HTTP, environment variables) and `exttest/` the conformance checks an extension runs in its own tests. The hub references the same copy with `replace`. The root package `sdk` compiles the SDK and `bundle/sdk.tar.gz` into personad for `personad extension new` |
+| `go/` | Go module `github.com/sunfayao/persona/sdk/go`, standard library only. `wire/` holds the generated types, `ext/` the runtime (process protocol, UI routing, HTTP, environment variables) and `exttest/` the conformance checks an extension runs in its own tests. The hub references the same copy with `replace`. The root package `sdk` compiles the SDK and `bundle/sdk.tar.gz` into personad for `personad extension new` |
 | `ts/` | TypeScript (Bun): `src/index.ts` is the runtime, `src/wire.ts` the generated types; an extension is built into one executable with `bun build --compile` |
 | `templates/` | The templates of `personad extension new`: `go/` and `ts/`. `{{id}}` and `{{name}}` are replaced and the `.tmpl` suffix is removed |
 

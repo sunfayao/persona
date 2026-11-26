@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Codex started in a herdr pane, joined on the app-server that runs its thread (#7538). herdr names the pane's
@@ -31,7 +32,7 @@ func TestCodexPaneKeepsItsRowUnderATitleTheIndexDoesNotName(t *testing.T) {
 		t.Run(title, func(t *testing.T) {
 			n := remoteTestNode(t)
 			n.panes, n.panePIDs = map[string]string{}, map[string]panePID{}
-			home := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home)
+			home := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
 			const (
 				cwd    = "/work/repo"
 				claude = "0c000000-0000-4000-8000-000000000001"
@@ -207,7 +208,7 @@ func TestCodexPaneOfARenamedThreadUnderANameItNeverHadIsLeftOut(t *testing.T) {
 func TestCodexPaneOfARenamedJoinedThreadKeepsItsRow(t *testing.T) {
 	n := remoteTestNode(t)
 	n.panes, n.panePIDs = map[string]string{}, map[string]panePID{}
-	home := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home)
+	home := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
 	const cwd = "/work/repo"
 	now := time.Now()
 	writeRollout(t, n.home, remoteRaw, cwd, now, now, event("task_started"), event("task_complete"))

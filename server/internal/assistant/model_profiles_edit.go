@@ -8,8 +8,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ---- checking a profile ----
@@ -231,11 +231,8 @@ func (s *Service) checkProfilePermissionModes(ctx context.Context, p ModelProfil
 // at the next start on one, as they are read then).
 func (s *Service) saveModelProfile(ctx context.Context, revision *int64, id string, by ProfileActor, edit func(p *ModelProfile, exists bool) error) (ModelProfile, error) {
 	s.models.mu.Lock()
-	p, active, err := s.saveModelProfileLocked(ctx, revision, id, by, edit)
+	p, _, err := s.saveModelProfileLocked(ctx, revision, id, by, edit)
 	s.models.mu.Unlock()
-	if err == nil {
-		s.profileEvent(ctx, active)
-	}
 	return p, err
 }
 
@@ -305,11 +302,8 @@ func (s *Service) saveModelProfileLocked(ctx context.Context, revision *int64, i
 // deleteModelProfile removes profile id; not the one in use.
 func (s *Service) deleteModelProfile(ctx context.Context, revision *int64, id string, by ProfileActor) error {
 	s.models.mu.Lock()
-	active, err := s.deleteModelProfileLocked(ctx, revision, id, by)
+	_, err := s.deleteModelProfileLocked(ctx, revision, id, by)
 	s.models.mu.Unlock()
-	if err == nil {
-		s.profileEvent(ctx, active)
-	}
 	return err
 }
 

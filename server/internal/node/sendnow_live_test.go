@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // Against a working claude pane with a message queued (it changes the session: the queue goes in now):

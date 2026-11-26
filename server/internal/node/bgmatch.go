@@ -4,7 +4,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // bgMatcher finds whether a line holds any of scanBackground's markers in one pass over it: an Aho-Corasick automaton

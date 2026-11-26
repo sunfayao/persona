@@ -21,7 +21,7 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const (

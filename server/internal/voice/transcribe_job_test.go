@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,9 +17,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/voice/voicetest"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/voice/voicetest"
 )
 
 // trScript is a meeting of six sentences in Chinese, English and both in one sentence, with names and terms.
@@ -74,9 +75,38 @@ func trProduction(t *testing.T) {
 func trLive(t *testing.T, s voicetest.Script) (*Plugin, *httptest.Server, *lockedLog, *voicetest.Live) {
 	t.Helper()
 	live := voicetest.NewLive(t, s)
-	pl, srv, logs := speakPlugin(t, Config{Providers: []Provider{{ID: "t", URL: live.URL(), Dialect: DialectLive, Key: "k",
+	pl, srv, logs := transcriptionPlugin(t, Config{Providers: []Provider{{ID: "t", URL: live.URL(), Dialect: DialectLive, Key: "k",
 		DefaultModel: "m1"}}, Default: "t/m1"})
 	return pl, srv, logs, live
+}
+
+type lockedLog struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedLog) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedLog) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+func transcriptionPlugin(t *testing.T, cfg Config) (*Plugin, *httptest.Server, *lockedLog) {
+	t.Helper()
+	if err := cfg.validate(); err != nil {
+		t.Fatal(err)
+	}
+	logs := &lockedLog{}
+	pl := New(cfg, "http://127.0.0.1:1", "hubtoken", log.New(logs, "", 0))
+	srv := httptest.NewServer(pl.Handler())
+	t.Cleanup(srv.Close)
+	return pl, srv, logs
 }
 
 // bareTrPlugin serves a plugin of cfg as it is (one without upstreams is not valid to Config.validate).
@@ -962,7 +992,7 @@ func TestTranscriptionFakeDialect(t *testing.T) {
 	trFast(t)
 	script, _ := json.Marshal([]map[string]any{{"start": 0.5, "end": 3.0, "text": trScript[0].Text}, {"start": 3.8, "end": 5.6, "text": trScript[1].Text}})
 	t.Setenv(fakeTranscriptEnv, string(script))
-	_, srv, _ := speakPlugin(t, Config{Providers: []Provider{{ID: "dev", Dialect: DialectFake}}})
+	_, srv, _ := transcriptionPlugin(t, Config{Providers: []Provider{{ID: "dev", Dialect: DialectFake}}})
 	tc := startTr(t, srv, liveStart())
 	if ready := tc.next(extwire.TFReady); strings.Join(ready.Features, ",") != "live,interim" {
 		t.Fatalf("ready %+v", ready)

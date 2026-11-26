@@ -4,7 +4,7 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // CallFrom is where tools.call, actions.describe and actions.do come from (#13246, connector.CallContext,

@@ -1,6 +1,6 @@
 package i18n
 
-import "github.com/nwverse/persona/server/internal/proto"
+import "github.com/sunfayao/persona/server/internal/proto"
 
 // ClipboardStatus is a copy of c with Reason in l's words for its ReasonCode (devices-clipboard.reason_<code>); an
 // unknown code keeps the Reason it had. The manager reports only the code: the reader's language is the hub's to know.

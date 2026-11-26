@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/usagesource"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/usagesource"
 )
 
 // Account-pool gateways as a source of subscription usage windows (#2595).

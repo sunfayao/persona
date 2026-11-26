@@ -5,8 +5,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // The card the user approves on the phone when the assistant changes a subscription (subscription_save in extmgr,

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // fakeDetourAPI answers reply with replyCode, chat sends with sendCardCode for cards and 0 for rich text. A client

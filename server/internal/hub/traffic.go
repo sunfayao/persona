@@ -51,20 +51,8 @@ func trafficPlatform(platform string) string {
 		return "unknown"
 	}
 	switch parts[0] {
-	case "ios", "iphone":
-		return "ios"
-	case "watchos", "watch":
-		return "watchos"
-	case "macos", "mac":
-		return "macos"
-	case "android":
-		return "android"
-	case "harmony":
-		return "harmony"
 	case "web":
 		return "web"
-	case "visionos":
-		return "visionos"
 	default:
 		return "unknown"
 	}

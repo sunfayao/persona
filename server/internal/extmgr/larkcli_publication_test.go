@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 func TestLarkCLIRecoveryPublicationRejectsCallsAndRetiredInstances(t *testing.T) {

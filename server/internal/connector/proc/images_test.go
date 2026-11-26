@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // imageProgram is exampleProgram whose read tools answer with two pictures besides the text (#8484).

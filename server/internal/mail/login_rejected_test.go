@@ -12,7 +12,7 @@ import (
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/emersion/go-smtp"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // A wrong password or authorization code is the user's to fix: it says so in words and is a 400, not the server's raw

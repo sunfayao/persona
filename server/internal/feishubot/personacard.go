@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The assistant's ```persona-card blocks (#886) are charts the apps draw (sdk/go/wire/personacard.go); a Feishu card

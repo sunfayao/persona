@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/webpush"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/webpush"
 )
 
 func TestWriteQuiescerWaitsForInFlightWrites(t *testing.T) {
@@ -213,7 +213,6 @@ func TestDevelopmentPauseRefusesOuterWriteRoutes(t *testing.T) {
 	h.store = newMeshStore()
 	mux := http.NewServeMux()
 	h.passwordLoginRoutes(mux)
-	h.browserLoginRoutes(mux)
 	h.managerJoinRoutes(mux)
 	setAdmin(h, AdminConfig{Access: accessAny})
 	h.adminRoutes(mux, http.NotFoundHandler(), http.NotFoundHandler())
@@ -224,7 +223,6 @@ func TestDevelopmentPauseRefusesOuterWriteRoutes(t *testing.T) {
 	defer h.quiesce.resume()
 	for _, path := range []string{
 		"/api/v1/auth/password/finish",
-		"/api/v1/auth/browser-login/approve",
 		"/api/v1/bus/join",
 		"/api/v1/admin/network/access",
 	} {
@@ -365,7 +363,6 @@ func (s *tokenTouchStore) TouchDeviceToken(_ context.Context, _ string) error {
 
 type bgWriteStore struct {
 	*meshStore
-	laClaims         atomic.Int32
 	clientOpCleanups atomic.Int32
 	settingMu        sync.Mutex
 	settingCounts    map[string]int
@@ -385,11 +382,6 @@ func (s *bgWriteStore) PutSetting(ctx context.Context, key string, v any) error 
 	s.settingCounts[key]++
 	s.settingMu.Unlock()
 	return s.meshStore.PutSetting(ctx, key, v)
-}
-
-func (s *bgWriteStore) ClaimLiveActivityStart(context.Context, string, string, time.Time, time.Duration, time.Duration) (time.Time, bool, error) {
-	s.laClaims.Add(1)
-	return time.Time{}, true, nil
 }
 
 func (s *bgWriteStore) CleanupClientOps(context.Context, time.Time) error {
@@ -1014,97 +1006,6 @@ func TestResumedAssistantProfileCannotOverwriteNewerReport(t *testing.T) {
 		var got assistantwire.Profile
 		if ok, err := store.Setting(ctx, assistantProfileKey, &got); err != nil || !ok || got.Main != "new-main" || got.Timezone != "Asia/Tokyo" {
 			t.Fatalf("stored assistant profile = %+v (ok=%v err=%v), want new-main/Asia/Tokyo", got, ok, err)
-		}
-	})
-}
-
-// Resumed persona tier snapshots cannot overwrite newer post-resume tier state.
-func TestResumedPersonaTiersCannotOverwriteNewerState(t *testing.T) {
-	t.Run("newer tier arrives while resumed write is in flight", func(t *testing.T) {
-		h := newTestHub(t)
-		store := &hookedSettingsStore{meshStore: newMeshStore()}
-		h.store = store
-		ctx := context.Background()
-		if err := h.quiesce.pause(ctx); err != nil {
-			t.Fatal(err)
-		}
-		tiers := &personaTiers{Default: "base"}
-		h.setPersonaTier(ctx, "pkg", tiers, "egg", "alice")
-
-		inOldPut := make(chan struct{})
-		releaseOld := make(chan struct{})
-		var once sync.Once
-		store.onPut = func(key string, v any) {
-			if m, ok := v.(map[string]tierSeen); ok && m["pkg"].Tier == "egg" {
-				once.Do(func() {
-					close(inOldPut)
-					<-releaseOld
-				})
-			}
-		}
-
-		h.resumeDevelopmentWriters()
-		select {
-		case <-inOldPut:
-		case <-time.After(2 * time.Second):
-			t.Fatal("resumed persona tiers write did not start")
-		}
-		newerDone := make(chan struct{})
-		go func() {
-			h.setPersonaTier(ctx, "pkg", tiers, "cosmic", "alice")
-			close(newerDone)
-		}()
-		waitFor(t, "newer persona tier queued", func() bool {
-			h.tiers.mu.Lock()
-			defer h.tiers.mu.Unlock()
-			return h.tiers.saveGen >= 2
-		})
-		close(releaseOld)
-		select {
-		case <-newerDone:
-		case <-time.After(2 * time.Second):
-			t.Fatal("newer setPersonaTier did not finish")
-		}
-		h.nodeWorkers.Wait()
-		var got map[string]tierSeen
-		if ok, err := store.Setting(ctx, personaTiersKey, &got); err != nil || !ok || got["pkg"].Tier != "cosmic" {
-			t.Fatalf("stored persona tiers = %+v (ok=%v err=%v), want cosmic", got, ok, err)
-		}
-	})
-
-	t.Run("newer tier arrives before resumed worker acquires write lock", func(t *testing.T) {
-		h := newTestHub(t)
-		store := &hookedSettingsStore{meshStore: newMeshStore()}
-		h.store = store
-		ctx := context.Background()
-		if err := h.quiesce.pause(ctx); err != nil {
-			t.Fatal(err)
-		}
-		tiers := &personaTiers{Default: "base"}
-		h.setPersonaTier(ctx, "pkg", tiers, "egg", "alice")
-
-		h.tiers.writeMu.Lock()
-		h.resumeDevelopmentWriters()
-		newerDone := make(chan struct{})
-		go func() {
-			h.setPersonaTier(ctx, "pkg", tiers, "cosmic", "alice")
-			close(newerDone)
-		}()
-		waitFor(t, "newer persona tier queued", func() bool {
-			h.tiers.mu.Lock()
-			defer h.tiers.mu.Unlock()
-			return h.tiers.saveGen >= 2
-		})
-		h.tiers.writeMu.Unlock()
-		select {
-		case <-newerDone:
-		case <-time.After(2 * time.Second):
-			t.Fatal("newer setPersonaTier did not finish")
-		}
-		h.nodeWorkers.Wait()
-		var got map[string]tierSeen
-		if ok, err := store.Setting(ctx, personaTiersKey, &got); err != nil || !ok || got["pkg"].Tier != "cosmic" {
-			t.Fatalf("stored persona tiers = %+v (ok=%v err=%v), want cosmic", got, ok, err)
 		}
 	})
 }

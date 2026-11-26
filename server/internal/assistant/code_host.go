@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 // Code hosts (#11584) are where a task's review requests live. The link's host picks one (codeHostFor): built-in

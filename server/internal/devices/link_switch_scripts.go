@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // The remote commands of a switch to Persona Link (link_switch.go). Each is a fixed POSIX sh script run through

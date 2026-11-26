@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 var word = lazyre.New(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`)

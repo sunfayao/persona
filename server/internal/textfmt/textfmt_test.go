@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Clip and Cut count runes, not bytes; a cut replaces invalid bytes the way []rune does, an uncut string keeps them.
@@ -87,7 +87,7 @@ func TestAgentLabel(t *testing.T) {
 	}
 }
 
-// A plan's title shows in a push, the live activity and the Agent lists as plain text: no Markdown marks (#4387).
+// A plan's title shows in a push, the Persona Link summary and the Agent lists as plain text: no Markdown marks (#4387).
 func TestPlanTitle(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"\n\n## 方案\n第一步", "方案"},

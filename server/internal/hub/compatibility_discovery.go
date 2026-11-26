@@ -1,7 +1,7 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/mdns"
+	"github.com/sunfayao/persona/server/internal/mdns"
 	"sync"
 )
 

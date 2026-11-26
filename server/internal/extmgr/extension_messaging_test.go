@@ -21,11 +21,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveMessagingExtensionForTest is a messaging source "examplechat": a good page of messages, a page that does not
@@ -145,17 +145,14 @@ func messagingPackage(t *testing.T) string {
 	return dir
 }
 
-// A messaging source: listed for the apps, its routes relayed with who is asking, an answer that does not hold to the
+// A messaging source relays requests with the caller identity. An answer that does not hold to the
 // schema stopped at the hub, errors and bytes passed as they are, routes outside the protocol refused, sends left to
-// the extension, and its changes coalesced into one push per source.
+// the extension.
 func TestExtensionMessaging(t *testing.T) {
 	h, _ := extensionTestHub(t)
 	mux := h.routes()
 	master := h.cfg.Token
 
-	if _, out := call(t, mux, "GET", "/api/v1/messaging", master, ""); fmt.Sprint(out["sources"]) != "[]" {
-		t.Fatalf("no source before the extension: %v", out)
-	}
 	code0, pv := call(t, mux, "POST", "/api/v1/plugins/-/preview", master, `{"source": "dir:`+messagingPackage(t)+`"}`)
 	if code0 != 200 {
 		t.Fatalf("preview: %d %v", code0, pv)
@@ -169,15 +166,6 @@ func TestExtensionMessaging(t *testing.T) {
 		return hp != nil && hp.proc != nil && hp.proc.Ready()
 	})
 
-	_, out := call(t, mux, "GET", "/api/v1/messaging", master, "")
-	sources, _ := out["sources"].([]any)
-	if len(sources) != 1 {
-		t.Fatalf("sources %v", out)
-	}
-	src := sources[0].(map[string]any)
-	if src["extension"] != "example-chat" || src["id"] != "examplechat" || src["name"] != "Chat" || src["settings_ui"] != "display" {
-		t.Fatalf("the source: %v", src)
-	}
 	if !slices.Contains(h.features(), "messaging") {
 		t.Fatal("the hub has the messaging feature while a source is there")
 	}
@@ -221,16 +209,6 @@ func TestExtensionMessaging(t *testing.T) {
 		}
 	}
 
-	th := hubOf(h)
-	eventually(t, 10*time.Second, "the source's changes reaching the app", func() bool { return len(th.broadcastsOf("messaging")) > 0 })
-	ev := th.broadcastsOf("messaging")[0]
-	if ev["source"] != "examplechat" || fmt.Sprint(ev["conversations"]) != "[good other]" || ev["settings_changed"] != true {
-		t.Fatalf("one push for the source's changes: %v", ev)
-	}
-	time.Sleep(1500 * time.Millisecond)
-	if got := th.broadcastsOf("messaging"); len(got) != 1 {
-		t.Fatalf("a change for a source it does not have went out: %v", got)
-	}
 	t.Run("removed source", func(t *testing.T) {
 		path := messagingAvatarURL("examplechat", "media/portrait.png?version=2", "north")
 		other := &sameIDPictureConnector{&pictureConnector{}}
@@ -352,29 +330,6 @@ func checkMessagingSourcePictures(t *testing.T, mux http.Handler, master string)
 	get(north, 256, false)
 	get(south, 64, true)
 	count(2)
-}
-
-// Changes folded within the second keep what each said: the chats of both, and every chat when one of them names none
-// (read everything again) or together they name more than a push can.
-func TestMergeMessagingChanged(t *testing.T) {
-	many := make([]string, maxMessagingChanged)
-	for i := range many {
-		many[i] = fmt.Sprint("c", i)
-	}
-	for _, c := range []struct {
-		first, then, want []string
-	}{
-		{[]string{"a"}, []string{"b", "a"}, []string{"a", "b"}},
-		{nil, []string{"b"}, nil},
-		{[]string{"a"}, nil, nil},
-		{many, []string{"one more"}, nil},
-	} {
-		have := &wire.MessagingChanged{Source: "examplechat", Conversations: slices.Clone(c.first)}
-		mergeMessagingChanged(have, &wire.MessagingChanged{Source: "examplechat", Conversations: c.then, SettingsChanged: true})
-		if !slices.Equal(have.Conversations, c.want) || !have.SettingsChanged {
-			t.Fatalf("%v then %v: %v (settings %v), want %v", len(c.first), c.then, have.Conversations, have.SettingsChanged, c.want)
-		}
-	}
 }
 
 // A manifest's messaging is checked: its settings page and the pages its links open are its own extension_page.

@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
 )
 
 // ConfigNetworkPrefix starts a permissions.network entry that names a configuration field instead of a host:

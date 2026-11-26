@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension/denohost"
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension/denohost"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // The actual installed adapter drives a separately bundled guest SDK over a portable

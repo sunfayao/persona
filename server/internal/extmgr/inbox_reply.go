@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	adapter "github.com/nwverse/persona/server/internal/larkcli"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	adapter "github.com/sunfayao/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // inboxSendWait bounds one reply's send.
@@ -120,5 +120,5 @@ func mailReply(lang i18n.Lang, accountID string, orig *mail.MailMessage, text st
 	}
 	body := text + "\n\n" + i18n.T(lang, "hub-inbox.reply_attribution", i18n.Args{"date": orig.Date, "from": from}) + "\n" + strings.Join(quoted, "\n")
 	return mail.SendRequest{AccountID: accountID, To: []mail.Address{orig.From}, Subject: subject, Text: body,
-		InReplyTo: orig.MessageID, References: mail.MessageIDs(strings.Join(refs, " "))}
+		InReplyTo: orig.MessageID, References: strings.Join(refs, " ")}
 }

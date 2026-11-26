@@ -7,7 +7,6 @@
   "markets_footer": "A market is an index of extensions (persona-extensions.json) published by a website or a git / GitHub repository. A GitHub market can take a read-only token: private repos need one to be read, and public repos get a higher rate limit so they're less likely to be throttled. The token is stored encrypted on the hub, sent only to that market and never shown again. git: markets use the hub machine's own SSH credentials. Removing a market doesn't affect extensions installed from it.",
   "no_markets": "No markets yet",
   "no_markets_detail": "Add an https address, {github} or {git}. Once the hub reads its index, you can browse and install its extensions here.",
-  "official": "Official",
   "read_failed": "Couldn't read: {error}",
   "token_rate_limit_hint": "Without a token, GitHub allows only 60 reads an hour, shared by every device on the same network. Adding a GitHub token raises that to 5,000, including for public repositories (for a fine-grained token, choose Public repositories and leave every permission unchecked).",
   "reread_label": "Reload \"{name}\"",
@@ -54,7 +53,6 @@
   "save": "Save",
   "new_token": "New token (the current one isn't shown)",
   "token_save_hint": "After saving, the hub reads the index again with it.",
-  "official_unreachable": "Can't reach the official extensions right now. Try again later.",
   "catalog_unreadable": "Can't read the marketplace right now. Its extensions show up here once it can be read",
   "token_create_hint": "No token yet? Create one on GitHub: the name, purpose and a one-year expiry are filled in and no permissions are needed. Click Generate token, then paste it above.",
   "token_create": "Create on GitHub"

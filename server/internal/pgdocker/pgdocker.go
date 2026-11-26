@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // Image is the Postgres image the containers run.

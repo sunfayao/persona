@@ -39,9 +39,6 @@ type session struct {
 	// Dictation: an unbound transcription session (dictation.go), with no delegation, voice or tools.
 	// DictationCaptions requests interim user captions; TextOnly requests output_modalities ["text"] until refused.
 	Dictation, DictationCaptions, TextOnly bool
-	// ReadAloud: the session only reads texts aloud (speak.go). The services are told so by Instructions alone; the
-	// fake dialect, which has no voice, answers such a session with a little silence.
-	ReadAloud bool
 }
 
 type toolDecl struct {

@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A runtime that runs Claude Code through its SDK (Paseo) has sessions whose conversation

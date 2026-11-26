@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // A merged row's title (#7229): once the user merges rows, the small-task model

@@ -11,8 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Meeting transcription (#3862 phase 5, docs/assistant/meeting-minutes.md "The `transcription` extension point" and
@@ -47,7 +47,7 @@ func (pl *Plugin) transcriptionCaller(w http.ResponseWriter, r *http.Request) bo
 		return false
 	}
 	if role := r.Header.Get(extwire.HeaderRole); role != "" && role != roleFull {
-		writeHTTPJSON(w, http.StatusForbidden, map[string]any{"error": "only the manager transcribes meetings", "code": codeForbidden})
+		writeHTTPJSON(w, http.StatusForbidden, map[string]any{"error": "only the manager transcribes meetings", "code": "forbidden"})
 		return false
 	}
 	return true

@@ -19,9 +19,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // botmuxHost is botmux, the Feishu topic ↔ AI CLI bridge: each topic is a session of a
@@ -839,7 +840,7 @@ func (n *Node) botmuxThreads(agents []host.Agent) map[string]string {
 		best := map[string]hit{} // botmux id → its newest rollout
 		for _, home := range homes {
 			for _, r := range rollouts(home) {
-				if r.sub || r.cwd == "" || !cwds[filepath.Clean(r.cwd)] {
+				if r.Subagent || r.Cwd == "" || !cwds[filepath.Clean(r.Cwd)] {
 					continue
 				}
 				for _, id := range botmuxIDsIn(r.path) {
@@ -874,7 +875,7 @@ func (n *Node) botmuxCodexHomes() []string {
 	}
 	var homes []string
 	for _, h := range append(n.codexInventory().Homes, n.codexHome()) {
-		if h = canonicalCodexHome(h, n.home); h != "" && !slices.Contains(homes, h) {
+		if h = codex.CanonicalHome(h, n.home); h != "" && !slices.Contains(homes, h) {
 			homes = append(homes, h)
 		}
 	}

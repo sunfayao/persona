@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCodexSessionEffortDoesNotFollowComputerDefault(t *testing.T) {
@@ -49,7 +50,7 @@ func TestCodexSessionEffortDoesNotFollowComputerDefault(t *testing.T) {
 
 func TestCodexRecordedEffortPrecedesModelDefault(t *testing.T) {
 	n := remoteTestNode(t)
-	c := &codexRemote{models: map[string]codexModelEfforts{"gpt-test": {def: "low"}}}
+	c := &codexRemote{models: map[string]codex.ModelEfforts{"gpt-test": {Default: "low"}}}
 	thread := remoteThread{model: "gpt-test"}
 	if got := n.codexEffortNow("session", c, thread, "max"); got != "max" {
 		t.Fatalf("recorded session effort replaced by model default: %q", got)

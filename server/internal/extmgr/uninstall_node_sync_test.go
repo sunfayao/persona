@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 type failingNodeSyncPeer struct{ nodeCaller }

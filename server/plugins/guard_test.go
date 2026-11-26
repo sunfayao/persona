@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	repo    = "github.com/nwverse/persona"
+	repo    = "github.com/sunfayao/persona"
 	module  = repo + "/server"
 	sdk     = repo + "/sdk/go"
 	plugins = module + "/plugins" // holds the plugins; no package of its own

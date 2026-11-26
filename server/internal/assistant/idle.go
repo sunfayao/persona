@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Idle says whether the manager can stop now without cutting its own work off, and what holds it when not:

@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // The node's direct routes (#6398): one TLS listener port, bound to each candidate address and open only while a

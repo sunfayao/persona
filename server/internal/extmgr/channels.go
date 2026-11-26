@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Channels: every way of talking to Persona in one list — the apps, the Feishu bot, /agent in
@@ -91,7 +91,7 @@ func appChannel(l i18n.Lang) channel.View {
 	return channel.View{ID: channel.App, Name: "Persona", Kind: channel.KindApp, Source: channel.SourceBuiltin, Installed: true,
 		Enabled: true, State: channel.StateConnected, Bind: channel.BindNone, ReadOnly: true,
 		Description: i18n.T(l, "hub-channels.app_description"),
-		Surfaces:    []string{"iPhone", "Mac", "Apple Watch", "Android", i18n.T(l, "hub-channels.web"), "Siri"},
+		Surfaces:    []string{i18n.T(l, "hub-channels.web")},
 		Capabilities: channel.Capabilities{ImagesIn: true, FilesIn: true, VoiceIn: true, Format: channel.FormatMarkdown, Asks: channel.AsksButtons,
 			Push: true, Typing: true, Progress: true}}
 }
@@ -259,7 +259,7 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 		// Few entries contribute a channel, and the catalog's item is costly (translations, permission lines, every
 		// contribution, whether this hub can install it): only the entries that do are built. The channel list is
 		// asked for every few seconds while agents work, and building the whole catalog for it was 4.4 ms and
-		// 1.1 MB a time with the official market's entries (#3197).
+		// 1.1 MB a time with all catalog entries.
 		var items []CatalogItem
 		channelKinds := map[string]channel.Kind{}
 		for i := range s.index.Extensions {
@@ -271,9 +271,6 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 				continue
 			}
 			items = append(items, h.catalogItem(l, s, e, e.Translations()))
-		}
-		if extension.IsOfficialMarket(s.rec.Spec) {
-			slices.SortFunc(items, officialCatalogOrder) // the catalog's order for that market
 		}
 		for _, it := range items {
 			if it.Installed != "" || len(it.Contributes["channel"]) == 0 || it.Problem != "" {
@@ -294,49 +291,6 @@ func (h *Manager) marketChannels(have []channel.View) []channel.View {
 		}
 	}
 	return out
-}
-
-// channelBindRoute is POST /api/v1/channels/{id}/bind: a step of binding (a plugin channel's connector signs in, the
-// Feishu bot takes its credentials, then a pairing code). The channels' other routes are the assistant's; this one
-// carries credentials and sign-in fields, which never pass through the assistant.
-func (h *Manager) channelBindRoute(api *http.ServeMux) {
-	api.HandleFunc("POST /api/v1/channels/{id}/bind", func(w http.ResponseWriter, r *http.Request) {
-		if principalOf(r.Context()).Role != roleFull {
-			writeErr(w, http.StatusForbidden, errors.New("this device can only read and answer"))
-			return
-		}
-		id := r.PathValue("id")
-		list := h.channelList(r.Context())
-		i := slices.IndexFunc(list, func(v channel.View) bool { return v.ID == id })
-		if i < 0 {
-			writeErrCode(w, http.StatusNotFound, "not_found", errors.New("no such channel"))
-			return
-		}
-		if v := list[i]; v.ReadOnly || v.Source == channel.SourceMarket {
-			writeErrCode(w, http.StatusConflict, "read_only", i18n.Err("hub-channels.not_set_here", i18n.Args{"name": v.Name}))
-			return
-		}
-		var in struct {
-			Step   string            `json:"step"`
-			Values map[string]string `json:"values"`
-		}
-		if r.ContentLength != 0 {
-			if err := decodeJSONBody(w, r, &in, 1<<20); err != nil {
-				writeBodyErr(w, err, err)
-				return
-			}
-		}
-		p, err := h.bindChannel(r.Context(), id, in.Step, in.Values)
-		if err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		if err := withQR(&p); err != nil {
-			writeErr(w, http.StatusBadGateway, err)
-			return
-		}
-		writeJSON(w, p)
-	})
 }
 
 // enableChannel switches a channel on or off (channels.enable): a plugin's program and its connector, the Feishu
@@ -637,4 +591,44 @@ func (h *Manager) unbindChannel(ctx context.Context, id string) error {
 		return errors.New(i18n.T(lang, "hub-channels.not_bound", i18n.Args{"name": v.Name}))
 	}
 	return h.connectorLogout(ctx, pc.item.Connector, l) // the assistant forgets what the channel waited on
+}
+
+func (h *Manager) channelBindRoute(api *http.ServeMux) {
+	api.HandleFunc("POST /api/v1/channels/{id}/bind", func(w http.ResponseWriter, r *http.Request) {
+		if principalOf(r.Context()).Role != roleFull {
+			writeErr(w, http.StatusForbidden, errors.New("this device can only read and answer"))
+			return
+		}
+		id := r.PathValue("id")
+		list := h.channelList(r.Context())
+		i := slices.IndexFunc(list, func(v channel.View) bool { return v.ID == id })
+		if i < 0 {
+			writeErrCode(w, http.StatusNotFound, "not_found", errors.New("no such channel"))
+			return
+		}
+		if v := list[i]; v.ReadOnly || v.Source == channel.SourceMarket {
+			writeErrCode(w, http.StatusConflict, "read_only", i18n.Err("hub-channels.not_set_here", i18n.Args{"name": v.Name}))
+			return
+		}
+		var in struct {
+			Step   string            `json:"step"`
+			Values map[string]string `json:"values"`
+		}
+		if r.ContentLength != 0 {
+			if err := decodeJSONBody(w, r, &in, 1<<20); err != nil {
+				writeBodyErr(w, err, err)
+				return
+			}
+		}
+		p, err := h.bindChannel(r.Context(), id, in.Step, in.Values)
+		if err != nil {
+			writeErr(w, http.StatusBadGateway, err)
+			return
+		}
+		if err := withQR(&p); err != nil {
+			writeErr(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, p)
+	})
 }

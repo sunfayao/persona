@@ -42,7 +42,7 @@ const card = (extra: Partial<Interaction> = {}): Interaction => ({
     ],
     agent: "Fix CI", machine_name: "MacBook", cwd: "/code/app", prompt: "Fix the release CI",
   },
-  summary: "Give 1Password › GitHub token › credential as GITHUB_TOKEN to “Fix CI” on MacBook, for this run only. Approve on iPhone or the web.",
+  summary: "Give 1Password › GitHub token › credential as GITHUB_TOKEN to “Fix CI” on MacBook, for this run only. Approve in the web app.",
   always_label: "以后在你自己开的对话里，MacBook 上的 claude 用这些条目不再询问",
   ...extra,
 });

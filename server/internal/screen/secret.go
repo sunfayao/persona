@@ -3,7 +3,7 @@ package screen
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // secretRE are password prompts as the last line of a screen. Deliberately narrow (after Ovis's secret-prompt.ts):

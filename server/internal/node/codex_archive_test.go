@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCodexInventoryArchiveRestoreAndStaleRegistry(t *testing.T) {
@@ -128,7 +129,7 @@ func TestCodexArchivedChildDoesNotRemoveParent(t *testing.T) {
 
 func TestCodexArchivedRolloutThroughHomeSymlink(t *testing.T) {
 	n := remoteTestNode(t)
-	home := canonicalCodexHome(t.TempDir(), n.home)
+	home := codex.CanonicalHome(t.TempDir(), n.home)
 	alias := filepath.Join(t.TempDir(), "codex")
 	if err := os.Symlink(home, alias); err != nil {
 		t.Fatal(err)

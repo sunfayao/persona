@@ -5,7 +5,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/dialogwire"
+	"github.com/sunfayao/persona/server/internal/dialogwire"
 )
 
 // Interaction kinds.
@@ -175,7 +175,7 @@ type Interaction struct {
 	// cards: the extensions' tools, persona_settings…), so the apps offer only Allow and Deny. Absent (an older manager,
 	// and Agents sessions' cards, whose agent keeps it itself) the apps keep their own rule.
 	AlwaysHonored *bool `json:"always_honored,omitempty"`
-	// ToolTitle is the tool's name for people in the user's language ("iPhone control" for iphone_do), set by the
+	// ToolTitle is the tool's name for people in the user's language ("Computer control"), set by the
 	// manager on its own tools' cards and on a node's card for one of Persona's own MCP tools ("Report to supervisor ·
 	// Done", #4966); the apps name the tool with it, else with ToolName as before.
 	ToolTitle string `json:"tool_title,omitempty"`

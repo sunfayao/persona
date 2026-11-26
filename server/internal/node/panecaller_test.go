@@ -3,8 +3,8 @@ package node
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // An agent's MCP call names no session: the node takes the one its pane runs as the host shows it now, else as the

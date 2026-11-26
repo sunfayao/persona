@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A shell wrapper does not replace the computer's built-in claude (#4660). The node's list omits plain claude when

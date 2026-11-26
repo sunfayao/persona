@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // TestMain lets the test binary be the built-in manager of TestAssistantSealsInherited (assistantEntryEnv).

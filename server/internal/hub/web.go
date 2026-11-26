@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/webasset"
+	"github.com/sunfayao/persona/server/internal/webasset"
 )
 
 // webDist is the web client built into a published personad (the release packager copies web/dist here before building);

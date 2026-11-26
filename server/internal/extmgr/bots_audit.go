@@ -3,7 +3,7 @@ package extmgr
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // What happened to the Feishu bot, as plugin_audit records it (#5353): the plugin column holds the channel's id

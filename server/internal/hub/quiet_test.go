@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistant"
+	"github.com/sunfayao/persona/server/internal/assistant"
 )
 
 // quietTodo is the task the conversation conv opened last, once its agent is linked.
@@ -39,7 +39,7 @@ func quietTodo(t *testing.T, h *Hub, conv string, n int) Todo {
 
 // A task the main conversation opens is quiet while "Notify main chat tasks in the main chat only" is on (the default), kept in the
 // store; one from another conversation is not; turning the setting off leaves the tasks there are. A quiet task's
-// agent is flagged on the session list, stays off the Live Activity and gets no notify event (#1731).
+// agent is flagged on the session list, stays off the Persona Link summary and gets no notify event (#1731).
 func TestQuietTasksFromTheMainConversation(t *testing.T) {
 	database := setupTestDB(t)
 	h := newTestHub(t)
@@ -93,6 +93,6 @@ func TestQuietTasksFromTheMainConversation(t *testing.T) {
 		t.Fatalf("PUT = %v, reported %+v", got, h.assistantProfile())
 	}
 
-	// A quiet task's agent flagged on the list, off the Live Activity and without a push is the manager's
+	// A quiet task's agent flagged on the list, off the Persona Link summary and without a push is the manager's
 	// (assistant TestQuietAgents).
 }

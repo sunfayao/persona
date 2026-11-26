@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
 )
 
 func prepareAssistantForTest(t *testing.T, n *Node, dir string, connectors []string, clis map[string]string) string {

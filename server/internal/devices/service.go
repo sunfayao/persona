@@ -23,9 +23,9 @@ import (
 	"github.com/coder/websocket"
 	"golang.org/x/net/proxy"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Computers of kind service: the computer's connector

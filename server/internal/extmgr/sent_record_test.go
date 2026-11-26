@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // sentExtensionSpec is the spec of an installed extension whose manifest has these connectors (a JSON list), as the
@@ -125,12 +125,6 @@ func TestSentRecordWritesARow(t *testing.T) {
 		t.Errorf("a row with no target fields: %+v", row)
 	}
 
-	// The ledger's read route gives it back like any other row.
-	code, out := call(t, h.routes(), "GET", "/api/v1/connectors/sent?connector=recordchat&limit=1", h.cfg.Token, "")
-	items, _ := out["items"].([]any)
-	if code != 200 || len(items) != 1 || items[0].(map[string]any)["origin"].(map[string]any)["extension"] != "example-chat" {
-		t.Errorf("read: %d %v", code, out)
-	}
 }
 
 // Only a connector of the caller's own that declares sends_as_user may record; anything else is permission_denied and

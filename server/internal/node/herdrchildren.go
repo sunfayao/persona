@@ -1,8 +1,8 @@
 package node
 
 import (
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // linkHerdrChildren draws each session running in a herdr terminal that another terminal started under the session of

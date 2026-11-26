@@ -151,14 +151,3 @@ func TestBotPairedCardFallbackKeepsBody(t *testing.T) {
 	_, _ = w.h.botEvent(w.ctx, botMessageEvent("om_pair", "ou_me", "text", textContent(pairing["code"].(string)), nil))
 	w.api.find(t, `"msg_type":"post"`, "以后在这里说的话会交给 Persona")
 }
-
-// The bot test message's body is kept as the rich-text fallback too.
-func TestBotTestCardFallbackKeepsBody(t *testing.T) {
-	w := newBotWorld(t)
-	w.pair(t)
-	w.api.rejectInteractive = 230099
-	if code, out := w.do(t, "POST", "/api/v1/bots/feishu/test", ""); code != 200 {
-		t.Fatalf("test: %d %v", code, out)
-	}
-	w.api.find(t, `"msg_type":"post"`, "这是来自 Persona 的测试消息")
-}

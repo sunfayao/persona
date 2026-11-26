@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lcuconfirm"
-	"github.com/nwverse/persona/server/internal/mcpwait"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lcuconfirm"
+	"github.com/sunfayao/persona/server/internal/mcpwait"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // AnswerComputerElicit is the node's computer.elicit: LCU asked something while a computer call was running. The

@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	larkcliconnector "github.com/nwverse/persona/server/internal/connector/larkcli"
-	larkcliadapter "github.com/nwverse/persona/server/internal/larkcli"
+	"github.com/sunfayao/persona/server/internal/connector"
+	larkcliconnector "github.com/sunfayao/persona/server/internal/connector/larkcli"
+	larkcliadapter "github.com/sunfayao/persona/server/internal/larkcli"
 )
 
 const managedLarkCLIProfile = "persona"

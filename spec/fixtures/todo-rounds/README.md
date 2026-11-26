@@ -1,6 +1,6 @@
 # To-do rounds fixtures
 
-A to-do's conversation (#10465, `docs/assistant/todo-status-sop.md` 3.6): its history grouped into rounds, what
+A to-do's conversation (#10465): its history grouped into rounds, what
 its work produced, and what changed since the owner last looked. The shapes are `TodoTimeline` (its `TodoRound`s and
 their `TodoTimelineEntry`s), `TodoResult` and `TodoRecap` in `schema/wire/todo-view.schema.json`. The manager's timeline
 (`server/internal/assistant/todo/timeline`) answers every case exactly, whatever order the rows come in
@@ -8,11 +8,9 @@ their `TodoTimelineEntry`s), `TodoResult` and `TodoRecap` in `schema/wire/todo-v
 value to the schema, and the generated Go type reads each one back unchanged
 (`server/internal/assistantwire/todo_view_gen_test.go`).
 
-Stage 2 reads the timeline from the stores the hub already keeps, and keeps nothing new; stage 3 stores the entries
-themselves (`todo_activity`, proposal 7.6), and these cases still hold for what both can say, ids aside. The manager
-serves them through `GET /api/v1/todos/{id}/timeline` (the rounds, paged) and `GET /api/v1/todos/{id}`, whose
-`TodoItemDetail` is a case's `latest` rounds, how many rounds it has, its `recap` and its `results`; the wire tests build
-that from each case too.
+The manager reads the timeline from its existing stores. On `GET /api/v1/todos/{id}`, `TodoItemDetail` gives
+the case's `latest` rounds, how many rounds it has, its `recap` and its `results`. The wire tests build that
+response from each case.
 
 | File | What it pins | Cases |
 | --- | --- | --- |

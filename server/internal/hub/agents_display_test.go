@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 func TestAgentsDisplayLookupUsesDefaultManager(t *testing.T) {

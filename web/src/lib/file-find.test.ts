@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
 import {
   cachedIndex,
-  clearIndexes,
   createFileSearch,
   fileContext,
   highlightRuns,
@@ -210,14 +209,13 @@ describe("walking a node that cannot list in one go", () => {
 });
 
 describe("the index", () => {
-  const ctx = { mid: "m1", cwd: "/work/app" };
   afterEach(() => {
-    clearIndexes();
     vi.useRealTimers();
   });
   const index = (...files: string[]): FileIndex => ({ files, truncated: false });
 
   it("is asked for once while it is fresh, and shared by those who ask meanwhile", async () => {
+    const ctx = { mid: "m1", cwd: "/work/app-1" };
     const fetcher = vi.fn(async () => index("a.ts"));
     const [one, two] = await Promise.all([loadFileIndex(ctx, fetcher), loadFileIndex(ctx, fetcher)]);
     expect(one).toBe(two);
@@ -226,6 +224,7 @@ describe("the index", () => {
     expect(cachedIndex(ctx)).toBe(one);
   });
   it("is asked for again once it is old, and keeps the old one meanwhile", async () => {
+    const ctx = { mid: "m1", cwd: "/work/app-2" };
     vi.useFakeTimers();
     const fetcher = vi.fn(async () => index("a.ts"));
     await loadFileIndex(ctx, fetcher);
@@ -236,6 +235,7 @@ describe("the index", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it("is kept per computer and directory", async () => {
+    const ctx = { mid: "m1", cwd: "/work/app-3" };
     const fetcher = vi.fn(async (c: { mid: string; cwd: string }) => index(`${c.mid}${c.cwd}`));
     await loadFileIndex(ctx, fetcher);
     await loadFileIndex({ ...ctx, cwd: "/other" }, fetcher);
@@ -243,6 +243,7 @@ describe("the index", () => {
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
   it("does not keep a failure", async () => {
+    const ctx = { mid: "m1", cwd: "/work/app-4" };
     const fetcher = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(index("a.ts"));
     await expect(loadFileIndex(ctx, fetcher)).rejects.toThrow("offline");
     expect(cachedIndex(ctx)).toBeUndefined();

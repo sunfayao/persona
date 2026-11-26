@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netshape"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/netshape"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // orderHub is a manager's side of a resident node's framed, resumable connection that records, in the order its read

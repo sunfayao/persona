@@ -15,8 +15,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 )
 
 const Version = "2.9.6"

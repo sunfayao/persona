@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // launchBrowser starts the browser with CDP on its fds 3 (it reads) and 4 (it writes). stop ends it and everything it

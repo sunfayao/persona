@@ -155,7 +155,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
     controller.signal.throwIfAborted();
     const out = launch.outgoing!;
     if (out.text || out.images.length) {
-      update({ phase: "sending" });
+      update({ phase: "sending", promptSentAt: launch.promptSentAt ?? Date.now() });
       const payload = { ...out, client_msg_id: launch.messageId, clear_draft: clearDraft, todo_id: launch.todoId || undefined };
       if (new TextEncoder().encode(JSON.stringify(payload)).byteLength > 32 * 1024 * 1024) throw new Error(t("lib-new-agent.attachments_too_large_retry"));
       await launchOp(`${sessionPath(launch.machineId, launch.session!.session_id)}/messages`, launch.messageId, controller.signal, payload);
@@ -186,7 +186,7 @@ export async function deliverLaunch(id: string, clearDraft?: string) {
     // the hub won't start it with ultracode here (an old node, a CLI or engine that can't take it): asking again would
     // get the same answer, so "Retry" starts it without, and the card says so (#3428)
     const noUltracode = creating && launch.ultracode === true && ultracodeRefused(e);
-    update({ phase: "failed", handoffAt: undefined, uncertain, repeatOnly: creating && (gap || launch.workSession === true), ...(gap ? {} : launchOpIds()),
+    update({ phase: "failed", handoffAt: undefined, uncertain, repeatOnly: creating && (gap || launch.workSession === true), ...(gap ? {} : { ...launchOpIds(), promptSentAt: undefined }),
       ...(noUltracode ? { ultracode: undefined } : {}),
       error: noUltracode ? t("ultracode.start_refused", { error: ultracodeErrorText(e) }) : t(creating ? "lib-new-agent.start_failed" : sending ? "lib-new-agent.first_message_failed" : "lib-new-agent.attachments_failed", { error: errorText(e) }),
       clearable: e instanceof ApiError && e.code === "input_draft" && typeof e.body.clearable === "string" ? e.body.clearable : undefined,

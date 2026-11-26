@@ -40,7 +40,6 @@ func inboxCore(name string) bool { return strings.HasPrefix(name, "inbox") && !i
 // file and add none. They leave the list when S9 gives the bridge the Links surface. Never add one.
 var inboxBookBridge = []string{
 	"inbox_task_links.go",
-	"inbox_task_recheck.go",
 	"inbox_todo.go",
 	"supervise_inbox.go",
 	"tasks_inbox.go",

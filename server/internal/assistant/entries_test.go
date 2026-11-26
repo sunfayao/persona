@@ -3,101 +3,11 @@ package assistant
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestEntriesHTTPAndRPC(t *testing.T) {
-	database := todoTestDB(t)
-	e := newTodoEnv(t, database)
-	ctx := context.Background()
-	e.f.setSessions("box", proto.Session{SessionID: "main-example", Assistant: true})
-	fixture := proto.AssistantEntry{ID: "entry-example", Type: "rule", Text: "Use the example workflow.", Scope: proto.AssistantEntryScope{Executor: "system"}, By: "agent", Trust: "agent", Status: "active"}
-	if _, err := database.AppendAssistantEntry(ctx, fixture); err != nil {
-		t.Fatal(err)
-	}
-	var rpcOut proto.AssistantEntriesResult
-	if err := askConversations(t, e.s, assistantwire.MethodAssistantEntriesList, `{"by":"agent","tag":"example"}`, &rpcOut); err != nil {
-		t.Fatal(err)
-	}
-	if len(rpcOut.Entries) != 0 {
-		t.Fatal("tag filter ignored")
-	}
-	if err := askConversations(t, e.s, assistantwire.MethodAssistantEntriesList, `{"by":"agent","scope":{"executor":"system"}}`, &rpcOut); err != nil {
-		t.Fatal(err)
-	}
-	request := httptest.NewRequest("GET", "/api/v1/assistant/entries?by=agent&scope="+url.QueryEscape(`{"executor":"system"}`), nil)
-	w := httptest.NewRecorder()
-	e.s.ServeHTTP(w, request)
-	if err := wire.ValidateResult(assistantwire.MethodAssistantEntriesList, w.Body.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	var httpOut proto.AssistantEntriesResult
-	if err := json.Unmarshal(w.Body.Bytes(), &httpOut); err != nil || w.Code != 200 || !reflect.DeepEqual(rpcOut, httpOut) {
-		t.Fatalf("HTTP != RPC: %d %s / %+v %v", w.Code, w.Body.String(), rpcOut, err)
-	}
-	for _, query := range []string{"cursor=x", "created_at=x", "by=robot", "limit=no", "limit=201", "scope=%7B%22unknown%22%3Atrue%7D", "by=user&by=agent"} {
-		w := httptest.NewRecorder()
-		e.s.ServeHTTP(w, httptest.NewRequest("GET", "/api/v1/assistant/entries?"+query, nil))
-		if w.Code != 400 {
-			t.Errorf("%s: %d %s", query, w.Code, w.Body.String())
-		}
-	}
-	for _, method := range []string{"assistant.entries.write", "assistant.entries.withdraw"} {
-		if _, ok, _ := e.s.conversationsRequest(ctx, method, json.RawMessage(`{}`)); ok {
-			t.Fatalf("I6 exposed: %s", method)
-		}
-	}
-}
-
-func TestEntriesPersonalInstanceBoundary(t *testing.T) {
-	database := todoTestDB(t)
-	e := newTodoEnv(t, database)
-	ctx := context.Background()
-	personal := proto.AssistantEntry{ID: "entry-personal", Type: "preference", Text: "Prefer concise replies.", Scope: proto.AssistantEntryScope{Executor: "any", Personal: true}, By: "agent", Trust: "inferred", Status: "active"}
-	if _, err := database.AppendAssistantEntry(ctx, personal); err != nil {
-		t.Fatal(err)
-	}
-	// Test the transport's authenticated local ping, not a machine named by a filter.
-	owner := e.s.settings(ctx).MachineID
-	if owner == "" {
-		t.Fatal("fixture has no owner machine")
-	}
-	for _, tc := range []struct {
-		name, raw string
-		err       error
-		want      int
-	}{
-		{"same machine", `{"ok":true,"machine_id":"` + owner + `"}`, nil, 1},
-		{"other machine", `{"ok":true,"machine_id":"elsewhere"}`, nil, 0},
-		{"older node", `{"ok":true}`, nil, 0},
-		{"offline", "", errors.New("offline"), 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			e.s.entriesDial = func(context.Context, any) ([]byte, error) { return []byte(tc.raw), tc.err }
-			var out proto.AssistantEntriesResult
-			if err := askConversations(t, e.s, assistantwire.MethodAssistantEntriesList, `{"scope":{"personal":true}}`, &out); err != nil || len(out.Entries) != tc.want {
-				t.Fatalf("got %+v %v", out, err)
-			}
-		})
-	}
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/api/v1/assistant/entries?scope="+url.QueryEscape(`{"personal":true}`), nil)
-	r.Header.Set(RoleHeader, roleExtension)
-	e.s.ServeHTTP(w, r)
-	var out proto.AssistantEntriesResult
-	_ = json.Unmarshal(w.Body.Bytes(), &out)
-	if w.Code != 403 {
-		t.Fatalf("HTTP boundary: %d %s", w.Code, w.Body.String())
-	}
-}
 
 func TestEntriesCardAnswerStructuredAndDefaultsExcluded(t *testing.T) {
 	database := todoTestDB(t)
@@ -171,65 +81,6 @@ func (h *entriesAccessHub) EntriesReadAccess(id string) (bool, bool) {
 		return false, false
 	}
 	return h.allowed, h.personal
-}
-
-func TestEntriesHTTPPersonalGrantRevocationAndCategories(t *testing.T) {
-	database := todoTestDB(t)
-	e := newTodoEnv(t, database)
-	ctx := context.Background()
-	h := &entriesAccessHub{fakeHub: e.f, allowed: true, personal: true}
-	e.s.hub = h
-	e.s.entriesDial = func(context.Context, any) ([]byte, error) {
-		return []byte(`{"ok":true,"machine_id":"a-different-computer"}`), nil
-	}
-	for _, space := range []string{"", "health", "finance", "relationship"} {
-		item := proto.AssistantEntry{ID: "entry-space-" + space, Type: "decision", Text: "Keep the example choice.", Quote: "Stage", OriginSpace: space, Category: []string{"health", "finance"}, Source: proto.AssistantEntrySource{Machine: "computer-example", Session: "session-example", Message: "message-example"}, Scope: proto.AssistantEntryScope{Executor: "assistant", Personal: true}, By: "user", Trust: "user_verbatim", Status: "active", Decision: &proto.AssistantEntryDecision{Options: []string{"Stage", "Release"}, Selected: []string{"Stage"}, Rejected: []string{"Release"}, Reason: "Example rationale."}}
-		if _, err := database.AppendAssistantEntry(ctx, item); err != nil {
-			t.Fatal(err)
-		}
-	}
-	get := func(id string) (int, proto.AssistantEntriesResult) {
-		r := httptest.NewRequest("GET", "/api/v1/assistant/entries?by=user", nil)
-		r.Header.Set(RoleHeader, roleExtension)
-		r.Header.Set(ExtensionHeader, id)
-		w := httptest.NewRecorder()
-		e.s.ServeHTTP(w, r)
-		var out proto.AssistantEntriesResult
-		_ = json.Unmarshal(w.Body.Bytes(), &out)
-		return w.Code, out
-	}
-	code, out := get("example-reader")
-	if code != 200 || len(out.Entries) != 4 || !reflect.DeepEqual(out.Entries[0].Category, []string{"health", "finance"}) {
-		t.Fatalf("approved cross-space personal read: %d %+v", code, out)
-	}
-	rpcCtx := assistantwire.WithEntriesReader(ctx, "example-reader")
-	value, handled, err := e.s.conversationsRequest(rpcCtx, assistantwire.MethodAssistantEntriesList, json.RawMessage(`{}`))
-	if err != nil || !handled || len(value.(proto.AssistantEntriesResult).Entries) != 4 {
-		t.Fatalf("authorized RPC: %+v %v", value, err)
-	}
-	code, _ = get("unapproved-reader")
-	if code != 403 {
-		t.Fatalf("unapproved read: %d", code)
-	}
-	// The token/extension ID stays identical; the live scope changes beneath it.
-	h.allowed, h.personal = false, false
-	code, _ = get("example-reader")
-	if code != 403 {
-		t.Fatalf("revoked grant still works: %d", code)
-	}
-	if _, _, err := e.s.conversationsRequest(rpcCtx, assistantwire.MethodAssistantEntriesList, json.RawMessage(`{}`)); err == nil {
-		t.Fatal("revoked RPC still works")
-	}
-	// A read grant without explicit personal consent can use the retained local proof.
-	h.allowed = true
-	owner := e.s.settings(ctx).MachineID
-	e.s.entriesDial = func(context.Context, any) ([]byte, error) {
-		return []byte(`{"ok":true,"machine_id":"` + owner + `"}`), nil
-	}
-	code, out = get("example-reader")
-	if code != 200 || len(out.Entries) != 4 {
-		t.Fatalf("local alternative: %d %+v", code, out)
-	}
 }
 
 func TestEntriesCollectOwnerCardAnswersAcrossSourceSpaces(t *testing.T) {

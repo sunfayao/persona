@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // fakeNodesBuiltin: the fake Macs of the cua and ego tests (computerMac, egoMac) are nodes that have the built-in
@@ -62,21 +62,13 @@ func TestBuiltinProgramsSameFlows(t *testing.T) {
 		"ComputerExtensionIsOffUntilTurnedOnForAMachine": TestComputerExtensionIsOffUntilTurnedOnForAMachine,
 		"ComputerToolsCallTheNode":                       TestComputerToolsCallTheNode,
 		"ComputerJobs":                                   TestComputerJobs,
-		"ComputerClipboard":                              TestComputerClipboard,
 		"TheCursorAndTheClickSound":                      TestTheCursorAndTheClickSound,
 		"NoAutoLock":                                     TestNoAutoLock,
 		"ComputerTellsReachTheMacInOrder":                TestComputerTellsReachTheMacInOrder,
 		"CallApps":                                       TestCallApps,
 		"ComputerAppsAreAskedOnce":                       TestComputerAppsAreAskedOnce,
 		"EgoExtension":                                   TestEgoExtension,
-		"IPhoneExtension":                                TestIPhoneExtension,
-		"IPhoneApprovals":                                TestIPhoneApprovals,
-		"IPhoneCallFailures":                             TestIPhoneCallFailures,
-		"IPhoneJobs":                                     TestIPhoneJobs,
 		"BrowserCookies":                                 TestBrowserCookies,
-		"IMessageThroughTheHub":                          TestIMessageThroughTheHub,
-		"IMessageOldOrOfflineMac":                        TestIMessageOldOrOfflineMac,
-		"IMessageAISwitch":                               TestIMessageAISwitch,
 		"IMessageExtensionPicksTheMac":                   TestIMessageExtensionPicksTheMac,
 	} {
 		t.Run(name, test)

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/nodesign"
+	"github.com/sunfayao/persona/server/internal/nodesign"
 )
 
 // PERSONA_TEST_CODESIGN_IDENTITY names a code signing certificate in this Mac's login keychain (run in the login

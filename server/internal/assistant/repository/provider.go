@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/repositorywire"
 )
 
 // Providers: GitHub and GitLab are built in and work offline as before; an

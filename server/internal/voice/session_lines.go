@@ -2,7 +2,7 @@ package voice
 
 import (
 	"fmt"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 	"slices"
 	"strings"
 	"time"

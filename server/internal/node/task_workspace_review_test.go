@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	repository "github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	repository "github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 func TestBackendWorkspaceCorrectionSkipsDeletedRemoteRef(t *testing.T) {

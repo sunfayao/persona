@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/filemeta"
-	"github.com/nwverse/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/filemeta"
+	"github.com/sunfayao/persona/server/internal/pathutil"
 )
 
 // The file page's Info sheet (#5827, docs/protocol/protocol.md "File details and links"): fs.stat with detail adds what

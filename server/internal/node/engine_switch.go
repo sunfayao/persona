@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // Switching a running terminal Agent between Claude Code and Codex (#5054
@@ -223,10 +223,10 @@ func (n *Node) codexCwd(id string) string {
 		return st.Cwd
 	}
 	if src, ok := n.codexSource(id); ok && src.path != "" {
-		return metaOf(src.home, src.path).cwd
+		return metaOf(src.home, src.path).Cwd
 	}
 	if p := n.codexPath(id); p != "" {
-		return metaOf(n.codexHome(), p).cwd
+		return metaOf(n.codexHome(), p).Cwd
 	}
 	return ""
 }

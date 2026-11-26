@@ -11,8 +11,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // modelHTTPTimeout is model.http's bound when the manager names none, and modelHTTPMax the most it may name, should

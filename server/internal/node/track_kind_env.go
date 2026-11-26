@@ -1,6 +1,6 @@
 package node
 
-import "github.com/nwverse/persona/server/internal/lazyre"
+import "github.com/sunfayao/persona/server/internal/lazyre"
 
 // The kind of an assistant process's track (#13472): next to PERSONA_SPACE
 // (its track's slug, from its directory), the process gets PERSONA_TRACK_KIND, the kind the manager last named for its

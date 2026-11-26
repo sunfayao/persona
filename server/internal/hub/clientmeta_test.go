@@ -128,9 +128,6 @@ func TestWSLegacyAndNegotiation(t *testing.T) {
 	if machines := read(); machines["type"] != "machines" {
 		t.Fatalf("machines: %v", machines)
 	}
-	if desktops := read(); desktops["type"] != "desktops" {
-		t.Fatalf("desktops: %v", desktops)
-	}
 	h.mu.Lock()
 	var c *client
 	for candidate := range h.clients {

@@ -3,7 +3,7 @@ package assistant
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A Windows node's main chat, health space and meeting room conversations are the assistant's on a hub of any

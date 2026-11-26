@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	approvalops "github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	approvalops "github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // persona_settings: Persona changes its own settings for the user (the
@@ -68,7 +68,7 @@ func (s *Service) ownSettings() []ownSetting {
 			get: func(ctx context.Context) (string, error) { return orNone(s.notes(ctx)), nil },
 			set: s.setNotes},
 		{Setting: Setting{Key: "assistant.main_tasks_quiet", Title: "主对话派的任务只在主对话里通知", Actions: getSet,
-			About: "on (the default): tasks the main conversation opens (task_plan, agent_start) send no pushes, stay off the Live Activity and " +
+			About: "on (the default): tasks the main conversation opens (task_plan, agent_start) send no pushes, stay off the Persona Link summary and " +
 				"task badges, and the main conversation is told when one is done, waits for the user or fails instead; off: they notify like any agent. " +
 				"Applies to tasks opened from now on",
 			Value: "true or false"},

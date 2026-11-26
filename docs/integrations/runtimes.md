@@ -299,7 +299,7 @@ with the same fields as Claude sessions (`Session.subagents` / `background` in `
 - **A session of its own that another session started** (Paseo's Agents created by another Agent) is not a `subagents` entry: it is opened, sent to and can need the user
   like any session. List it as its own row with `is_subagent: true` and `parent_session_id: <the starting session's id>`; node fills in `root_session_id`, and a daemon's
   parent ids get the daemon's prefix like its session ids. The hub sends no "done" push for it and holds its parent's while it runs or has background work. It is its parent's
-  subtask: an App that folds subtasks lists it under its parent, and the fleet counts (the Live Activity, a phone's notification and widget) count the parent, not it.
+  subtask: an App that folds subtasks lists it under its parent, and the fleet counts (the Persona Link summary) count the parent, not it.
   - While its `status` is `blocked` (it waits for the user) node lists it without its parent, so it is a row of its own in every App that folds subtasks by those fields: it
     shows it and counts it under Needs you, whatever it folds. Node names the parent in `asking_parent_session_id` meanwhile, so the Apps that show children as cards in
     their parent's chat keep it there (`docs/protocol/protocol.md` ("Session hierarchy")). It is listed under its parent again once it was answered.

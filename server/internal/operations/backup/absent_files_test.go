@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // pendingKeyName is a secret.key.next-* file as a key rotation names it.

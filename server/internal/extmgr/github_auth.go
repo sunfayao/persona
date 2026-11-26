@@ -5,16 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"sync"
-	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Where GitHub's token comes from, as the user picks it in Settings › Connectors › GitHub: a
@@ -27,24 +24,6 @@ const githubAuthKey = "github_auth"
 type githubAuth struct {
 	Source  string `json:"source"`            // github.SourceMachine | github.SourceDevice
 	Machine string `json:"machine,omitempty"` // the machine's id, for SourceMachine
-}
-
-// githubMachine is a computer GitHub's token can come from, with its gh login as GitHub sees it.
-type githubMachine struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	github.MachineLogin
-}
-
-// githubAuthView is GET /api/v1/connectors/github/auth: the choice, the computers to choose from, and what the token
-// in use may do (scopes are known once GitHub said; missing lists what the connector needs and does not have).
-type githubAuthView struct {
-	Source      string                 `json:"source"`
-	Machine     string                 `json:"machine,omitempty"`
-	Machines    []githubMachine        `json:"machines"`
-	Scopes      []string               `json:"scopes,omitempty"`
-	ScopesKnown bool                   `json:"scopes_known"`
-	Missing     []github.RequiredScope `json:"missing,omitempty"`
 }
 
 // githubConnector is the hub's own GitHub connector while it runs (not while an extension took its place).
@@ -134,102 +113,7 @@ func (h *Manager) githubExtensionTaken(ctx context.Context, c *proc.Conn, cs con
 	}
 }
 
-// githubAuthNow is what the page shows: every machine's gh login, asked at once (a few seconds at most). c checks the
-// logins (the hub's own connector, also while an extension's runs); ext, when set, says the choice and the scopes.
-func (h *Manager) githubAuthNow(ctx context.Context, c *github.Connector, ext *proc.Conn) githubAuthView {
-	v := githubAuthView{Source: c.Source(), Machine: c.MachineID(), Machines: []githubMachine{}}
-	v.Scopes, v.ScopesKnown = c.Scopes()
-	if ext != nil {
-		av, err := ext.Auth(ctx)
-		if err != nil {
-			a, _ := h.githubChoice(ctx)
-			av = serve.AuthView{Source: a.Source, Machine: a.Machine}
-		}
-		v.Source, v.Machine, v.Scopes, v.ScopesKnown = av.Source, av.Machine, av.Scopes, av.ScopesKnown
-	}
-	if v.ScopesKnown {
-		v.Missing = github.MissingScopes(v.Scopes)
-	}
-	ms := h.machinesNow()
-	out := make([]githubMachine, len(ms))
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	var wg sync.WaitGroup
-	for i, m := range ms {
-		out[i] = githubMachine{ID: m.cfg.ID, Name: m.name()}
-		if out[i].Name == "" {
-			out[i].Name = m.cfg.ID
-		}
-		if !m.isOnline() {
-			out[i].State = "offline"
-			continue
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			out[i].MachineLogin = c.Probe(ctx, h.ghToken(m.cfg.ID))
-		}()
-	}
-	wg.Wait()
-	v.Machines = out
-	return v
-}
-
 var errNoGitHub = errors.New("no GitHub connector")
-
-func (h *Manager) githubAuthRoutes(api *http.ServeMux) {
-	api.HandleFunc("GET /api/v1/connectors/github/auth", func(w http.ResponseWriter, r *http.Request) {
-		c := h.ownGitHub()
-		if c == nil {
-			writeErr(w, http.StatusNotFound, errNoGitHub)
-			return
-		}
-		writeJSON(w, h.githubAuthNow(r.Context(), c, h.githubExtension()))
-	})
-	// Choose where the token comes from: {"source": "machine", "machine": "<id>"} or {"source": "device"}. Choosing
-	// one leaves the other (the device flow's token is forgotten when a computer is chosen).
-	api.HandleFunc("PUT /api/v1/connectors/github/auth", func(w http.ResponseWriter, r *http.Request) {
-		c := h.ownGitHub()
-		if c == nil {
-			writeErr(w, http.StatusNotFound, errNoGitHub)
-			return
-		}
-		var a githubAuth
-		if err := decodeJSONBody(w, r, &a, 4<<10); err != nil {
-			writeBodyErr(w, err, err)
-			return
-		}
-		switch {
-		case a.Source == github.SourceDevice:
-			a.Machine = ""
-		case a.Source == github.SourceMachine && h.localMachine(a.Machine) != nil:
-		default:
-			writeErr(w, http.StatusBadRequest, fmt.Errorf("source %q / machine %q", a.Source, a.Machine))
-			return
-		}
-		if h.store != nil {
-			if err := h.store.PutSetting(r.Context(), githubAuthKey, a); err != nil {
-				writeErr(w, http.StatusInternalServerError, err)
-				return
-			}
-		}
-		detail := map[string]any{"source": a.Source}
-		if a.Machine != "" {
-			detail["machine"] = a.Machine
-		}
-		h.auditConnector(r.Context(), c.ID(), auditConnectorAuthSource, detail)
-		if ext := h.githubExtension(); ext != nil {
-			if _, err := h.applyGitHubExtensionSource(r.Context(), ext, a); err != nil {
-				writeErr(w, http.StatusBadGateway, err)
-				return
-			}
-			writeJSON(w, h.githubAuthNow(r.Context(), c, ext))
-			return
-		}
-		h.applyGitHubSource(r.Context(), c, a)
-		writeJSON(w, h.githubAuthNow(r.Context(), c, nil))
-	})
-}
 
 // ghTokenFor answers an extension's credentials.gh_token (one granted gh_login, the GitHub connector that took the
 // hub's place): the token of machine's gh login, as the hub's own connector reads it. The token goes to that program

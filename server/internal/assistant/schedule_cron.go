@@ -9,7 +9,7 @@ import (
 	crondesc "github.com/lnquy/cron"
 	"github.com/robfig/cron/v3"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // A cron task (repeat "cron", Task.Cron) runs on a standard 5-field cron expression, `minute hour day-of-month month

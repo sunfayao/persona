@@ -10,14 +10,13 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // secret_run: commands that need a password only the user knows (a computer's sudo password). The card shows the
-// computer, the purpose and every command verbatim; the user types the password into it in the Persona app (iPhone,
-// Mac, Vision Pro, Android or the web; the watch can only decline), and the target computer's node runs exactly those
+// computer, the purpose and every command verbatim; the user types the password into it in the web app, and the target computer's node runs exactly those
 // commands with it on their stdin (proto.MethodSecretRun). The Agent gets exit codes and redacted output, never the
 // password (#1137).
 //
@@ -138,9 +137,8 @@ func (s *Service) toolSecretRun(ctx context.Context, machine, self string, args 
 }
 
 const (
-	secretRefusedText = "The card was answered where the password cannot be typed in (the Persona app fills it in on the " +
-		"iPhone, Mac, Vision Pro, Android or the web; the watch can only decline), or without the password: nothing ran."
-	secretRunUsed = "The password was used once and discarded."
+	secretRefusedText = "The approval did not include a password. Nothing ran."
+	secretRunUsed     = "The password was used once and discarded."
 )
 
 // secretRunExpirySlack: a dismiss this close to the card's deadline is its expiry. Whatever expires the card (the

@@ -9,7 +9,6 @@
   "reopen_card": "Reopen the task “{title}”",
   "supervision_needs_deployment": "Merged; deployment and live verification still required",
   "not_found": "This to-do no longer exists",
-  "round_not_found": "That part of the to-do's conversation is no longer there",
   "agent_link_conflict": "This Agent is already linked to another to-do.",
   "agent_not_listed": "This Agent isn't listed on its computer yet. Try again in a moment.",
   "images_forbidden": "This device can’t read to-do images"

@@ -2,7 +2,6 @@ package extension
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,12 +14,7 @@ import (
 // the download went with it: asking again started from nothing, next to a second download of the same package on
 // the same link, which then stalled. Now a package (by its cache, sha256 and declared size) downloads once at a time: who asks for
 // it meanwhile waits for that download and sees its progress, and a download whose callers all went away goes on
-// into the cache within its budget, so the next try joins it or finds the package there. Only the user's Cancel
-// (a caller leaving with ErrUserCanceled) stops it, when nobody else waits for it.
-
-// ErrUserCanceled is the cause a preview's context is canceled with when the user cancels it: a download nobody
-// else waits for then stops, instead of going on into the cache.
-var ErrUserCanceled = errors.New("canceled by the user")
+// into the cache within its budget, so the next try joins it or finds the package there.
 
 // staleFetchAfter: a download's directory in the cache with no write for this long is left from a run that ended
 // mid-way (a running one writes at least every StallAfter, or gives up).
@@ -34,7 +28,6 @@ var fetches = struct {
 // fetching is one download going on; its fields but emit's are guarded by fetches.
 type fetching struct {
 	dir     string // its own directory in the cache, removed once it ended and nobody waits for it
-	cancel  context.CancelFunc
 	done    chan struct{}
 	waiters int
 	ended   bool
@@ -90,12 +83,6 @@ func (m *Market) sharedFetch(ctx context.Context, pkg *MarketPackage, oci *ociRe
 	defer fetches.Unlock()
 	f.waiters--
 	if !f.ended {
-		if f.waiters == 0 && errors.Is(context.Cause(ctx), ErrUserCanceled) {
-			if fetches.m[key] == f {
-				delete(fetches.m, key) // whoever asks next starts a new one
-			}
-			f.cancel()
-		}
 		return "", ctx.Err()
 	}
 	defer f.idle()
@@ -122,7 +109,6 @@ func (m *Market) startFetch(key string, pkg *MarketPackage, oci *ociReference) (
 	}
 	f := &fetching{dir: dir, done: make(chan struct{}), last: map[string]StepEvent{}, watchers: map[int]context.Context{}}
 	ctx, cancel := context.WithTimeoutCause(WithProgress(context.Background(), f.report), m.totalBudget(pkg), errOverBudget)
-	f.cancel = cancel
 	fetches.m[key] = f
 	go func() {
 		defer cancel()

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/mcptoolgolden"
+	"github.com/sunfayao/persona/server/internal/mcptoolgolden"
 )
 
 // TestAgentWaitPromptContract checks the meaning of the inline-observation guidance, not its current prose. The

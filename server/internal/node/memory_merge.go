@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // One memory for the assistant (#9440). Claude Code keeps auto memory under the config directory, so conversations in

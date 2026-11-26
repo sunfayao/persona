@@ -3,7 +3,7 @@ package extension
 import (
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // UI version 11 (#12544): a scene, a small 3D model the person turns,

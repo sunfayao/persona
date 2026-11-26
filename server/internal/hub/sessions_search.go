@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/sessionlist"
-	"github.com/nwverse/persona/server/internal/sessionsearch"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/sessionsearch"
 )
 
 const featureSessionsSearch = "sessions_search"

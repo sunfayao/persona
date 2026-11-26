@@ -13,19 +13,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/egress"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // An installed extension's program runs in a sandbox, reaching out only through the hub's egress proxy and only to the
 // hosts of permissions.network.
-// Whether it does: the owner's choice for that extension, otherwise on unless its
-// official catalog currently verifies with the final allowlisted key. Legacy
-// nonofficial pins and trusted-market configuration never confer an exemption.
+// Whether it does: the owner's choice for that extension, otherwise on by default.
 // Extensions installed before sandbox support keep their recorded choices.
 
 // sandboxProbe is what this machine can do (tests replace it).
@@ -33,9 +31,6 @@ var sandboxProbe = sandbox.Probe
 
 // extensionSandboxKey is the hub setting with the owner's choices.
 const extensionSandboxKey = "extension_sandbox"
-
-// officialMarketKeys contains only the final official catalog key id (not a secret).
-var officialMarketKeys = []string{"3cce0f471911a1cf"}
 
 type sandboxSettings struct {
 	// Seeded: the extensions installed before sandboxes were recorded off, once.
@@ -64,13 +59,11 @@ type SandboxView struct {
 	// Enabled: isolation is required. When unavailable, startup is refused (Active false, Why says why).
 	Enabled bool `json:"enabled"`
 	// Default is what it would be without the owner's choice; Chosen whether there is one.
-	Default bool   `json:"default"`
-	Chosen  bool   `json:"chosen"`
-	Active  bool   `json:"active"`
-	Why     string `json:"why,omitempty"`
-	Detail  string `json:"detail,omitempty"`
-	// Trusted: it came from a trusted market.
-	Trusted bool          `json:"trusted,omitempty"`
+	Default bool          `json:"default"`
+	Chosen  bool          `json:"chosen"`
+	Active  bool          `json:"active"`
+	Why     string        `json:"why,omitempty"`
+	Detail  string        `json:"detail,omitempty"`
 	Egress  egress.Counts `json:"egress"`
 	// OwnerAllowed are the hosts the owner allowed it in the admin UI (#5697).
 	OwnerAllowed []AllowedHost `json:"owner_allowed,omitempty"`
@@ -143,8 +136,7 @@ func (ps *extensions) sandboxOf(ctx context.Context, p *extension.Extension) san
 		return sandboxState{}
 	}
 	st := sandboxState{applies: true}
-	st.Trusted = ps.fromTrustedMarket(ctx, p)
-	st.Default = !st.Trusted && !ps.sandboxes.noDefault
+	st.Default = !ps.sandboxes.noDefault
 	ps.sandboxes.mu.Lock()
 	on, chosen := ps.sandboxes.settings.On[p.Record.StorageKey()]
 	ps.sandboxes.mu.Unlock()
@@ -167,29 +159,6 @@ func (ps *extensions) sandboxOf(ctx context.Context, p *extension.Extension) san
 	}
 	st.OwnerAllowed = ps.ownerHosts(p.Record.StorageKey())
 	return st
-}
-
-// fromTrustedMarket: p was installed from a market whose signing key the hub trusts.
-func (ps *extensions) fromTrustedMarket(ctx context.Context, p *extension.Extension) bool {
-	if p.Record.MarketKey == "" || !slices.Contains(officialMarketKeys, keyIDOf(p.Record.MarketKey)) {
-		return false
-	}
-	mid := extension.FromMarket(p.Record.Origin)
-	if mid == "" || ps.h == nil || ps.h.marketsLoad(ctx) != nil {
-		return false
-	}
-	ms := ps.h.marketsState()
-	ms.mu.Lock()
-	s := ms.byID[mid]
-	key := ""
-	if s != nil && extension.IsOfficialMarket(s.rec.Spec) && p.Record.MarketKey == extension.Official.SigningKey && s.rec.Signature.State == extension.SigSigned && s.rec.Signature.KeyID == keyIDOf(p.Record.MarketKey) {
-		key = p.Record.MarketKey
-	}
-	ms.mu.Unlock()
-	if key == "" {
-		return false
-	}
-	return slices.Contains(officialMarketKeys, keyIDOf(key))
 }
 
 func (sb *extensionSandboxes) proxyIfStarted() *egress.Proxy {

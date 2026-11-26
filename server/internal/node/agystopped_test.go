@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The user's Close on an agy pane lists its conversation as stopped by them (#14520), the plain close (session.close)

@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // anySharedBranchRepository reports whether this assistant has at least one saved repository configured for

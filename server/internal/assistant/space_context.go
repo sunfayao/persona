@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // A conversation in a track other than the main space (a domain space, the health space) gets a short context of its

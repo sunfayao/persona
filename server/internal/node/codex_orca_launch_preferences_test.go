@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
 
 const orcaCodexPreferencePrompt = "hello"

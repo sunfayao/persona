@@ -19,12 +19,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/egress"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	pserve "github.com/nwverse/persona/server/internal/extension/serve"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	pserve "github.com/sunfayao/persona/server/internal/extension/serve"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 // serveBoxedExtensionForTest answers GET /probe on its HTTP side with what it may do from where it runs.
@@ -401,22 +401,6 @@ func TestExtensionSandboxDefault(t *testing.T) {
 			t.Errorf("%s (%s %s): %+v", c.p.Record.ID, c.p.Record.Source, c.p.Record.Origin, st)
 		}
 	}
-	h.cfg.TrustedExtensionMarkets = []string{key}
-	if st := ps.sandboxOf(ctx, ext("c", extension.SourceInstalled, "market:mine/c")); !st.Enabled || st.Trusted {
-		t.Errorf("a legacy nonofficial pin must not grant a sandbox exemption (key): %+v", st)
-	}
-	h.cfg.TrustedExtensionMarkets = []string{keyIDOf(key)}
-	if st := ps.sandboxOf(ctx, ext("c", extension.SourceInstalled, "market:mine/c")); !st.Enabled || st.Trusted {
-		t.Errorf("a legacy nonofficial pin must not grant a sandbox exemption (key id): %+v", st)
-	}
-	if st := ps.sandboxOf(ctx, ext("x", extension.SourceInstalled, "market:another/x")); !st.Enabled {
-		t.Errorf("a market signed by a key nobody trusts: %+v", st)
-	}
-	for _, id := range officialMarketKeys {
-		if len(id) != 16 {
-			t.Errorf("official key id %q", id)
-		}
-	}
 	remote := ext("r", extension.SourceInstalled, "remote:rpc=/x.sock")
 	remote.Record.Remote = &extension.Remote{RPCSocket: "/x.sock"}
 	if st := ps.sandboxOf(ctx, remote); st.applies {
@@ -501,51 +485,6 @@ func TestExtensionSandboxMissing(t *testing.T) {
 	}
 }
 
-func TestExtensionSandboxMissingOfficialExemption(t *testing.T) {
-	h, _ := extensionTestHub(t)
-	// TestMain disables the public market; use a locally verified official-key fixture.
-	key := newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
-	oldKeys := officialMarketKeys
-	officialMarketKeys = []string{keyIDOf(key.text)}
-	t.Cleanup(func() { officialMarketKeys = oldKeys })
-	old := sandboxProbe
-	sandboxProbe = func() sandbox.Support {
-		t.Fatal("an exempt extension must not depend on sandbox support")
-		return sandbox.Support{}
-	}
-	t.Cleanup(func() { sandboxProbe = old })
-	ps := h.extensions
-	ps.sandboxes.noDefault = false
-	ms := h.marketsState()
-	ms.mu.Lock()
-	ms.loaded = true
-	ms.byID = map[string]*marketState{"official": {rec: extension.MarketRecord{
-		ID: "official", Spec: extension.Official.Spec,
-		Signature: extension.MarketSignature{State: extension.SigSigned, KeyID: keyIDOf(extension.Official.SigningKey)},
-	}}}
-	ms.mu.Unlock()
-	p := &extension.Extension{Record: extension.Record{ID: "notes", Source: extension.SourceInstalled,
-		Origin: "market:official/notes", MarketKey: extension.Official.SigningKey},
-		Manifest: &extension.Manifest{ID: "notes", Runtime: &extension.Runtime{}}}
-	st := ps.sandboxOf(t.Context(), p)
-	if st.Enabled || st.Default || !st.Trusted {
-		t.Fatalf("verified official extension lost its exemption: %+v", st)
-	}
-	spec := host.Spec{}
-	if err := ps.confine(t.Context(), p, &hubExtension{}, &spec); err != nil || spec.Wrap != nil {
-		t.Fatalf("official program was blocked or wrapped: %v", err)
-	}
-	// An owner who explicitly requires isolation for official code still gets fail-closed behavior.
-	sandboxProbe = func() sandbox.Support { return sandbox.Support{OS: "linux", Why: "no bwrap"} }
-	ps.sandboxes.settings.On = map[string]bool{"notes": true}
-	if err := ps.confine(t.Context(), p, &hubExtension{}, &spec); err == nil {
-		t.Fatal("an explicit sandbox choice was bypassed for official code")
-	}
-}
-
-// Choices set and forgotten from several goroutines at once: each saves a copy made under the lock (go test -race),
-// and the choices saved last are the ones in memory.
 func TestExtensionSandboxConcurrentChoices(t *testing.T) {
 	h, store := extensionTestHub(t)
 	ps := h.extensions

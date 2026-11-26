@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // proxyInvalid is status --json's proxy for a link.json setting that cannot be used.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/herdr"
 )
 
 // Codex started from the phone, the way session.start does it, against real Codex in the

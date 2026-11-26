@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // bands is a w×h picture of three vertical bands: red on the left, green in the middle, blue on the right, each side

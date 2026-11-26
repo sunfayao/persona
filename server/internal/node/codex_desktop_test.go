@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fakeCodexBus plays the Codex App's IPC bus: it answers initialize, asks the new client a discovery question (as the
@@ -295,13 +295,13 @@ func TestCodexOriginTellsAppChatsFromCLIAndSubagents(t *testing.T) {
 	if !codexDesktopChat(app) || !codexDesktopChat(work) || codexDesktopChat(cli) || codexDesktopChat(sub) || codexDesktopChat(workSub) || codexDesktopChat(tool) || codexDesktopChat(workTool) {
 		t.Fatal("only a chat the App lists goes through its bus")
 	}
-	if o := readCodexOrigin(cli.path); !o.cli || o.desktop {
+	if o := readCodexOrigin(cli.path); !o.CLI || o.Desktop {
 		t.Fatalf("cli origin = %+v", o)
 	}
-	if o := readCodexOrigin(sub.path); o.parent != "app" || !o.desktop {
+	if o := readCodexOrigin(sub.path); o.Parent != "app" || !o.Desktop {
 		t.Fatalf("subagent origin = %+v", o)
 	}
-	if o := readCodexOrigin(workSub.path); o.parent != "work" || !o.desktop {
+	if o := readCodexOrigin(workSub.path); o.Parent != "work" || !o.Desktop {
 		t.Fatalf("work subagent origin = %+v", o)
 	}
 }

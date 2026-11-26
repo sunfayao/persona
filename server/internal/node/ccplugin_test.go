@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // pluginSocket serves n's node socket at a short path of its own (the node's own path is the user's), and gives a

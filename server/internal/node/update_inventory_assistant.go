@@ -3,9 +3,10 @@ package node
 import (
 	"context"
 	"errors"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/proto"
 	"strconv"
+
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func (n *Node) observeUpdateAssistant(ctx context.Context, p *assistantProc) ([]nodeclient.UpdateActivity, string, error) {
@@ -16,13 +17,13 @@ func (n *Node) observeUpdateAssistant(ctx context.Context, p *assistantProc) ([]
 	}
 	c := p.cx
 	c.mu.Lock()
-	id, closed := c.threadID, c.closed
+	id, closed := c.threadID, c.rpcWire().Closed()
 	c.mu.Unlock()
 	if id == "" || closed {
 		return nil, "", errors.New("assistant app-server is starting or disconnected")
 	}
 	key := "owned:" + strconv.Itoa(p.cmd.Process.Pid)
-	reader := &codexRemote{spec: proto.CodexServer{ID: key}, generation: updateDigest([]any{p.cmd.Process.Pid, p.born}), wire: c, ready: true}
+	reader := &codexRemote{spec: proto.CodexServer{ID: key}, generation: updateDigest([]any{p.cmd.Process.Pid, p.born}), wire: c.rpcWire(), ready: true}
 	observation, err := reader.observeUpdateThreads(ctx)
 	if err != nil {
 		return nil, "", err
@@ -35,7 +36,7 @@ func (n *Node) observeUpdateAssistant(ctx context.Context, p *assistantProc) ([]
 		return nil, "", errors.New("owned main thread is absent from its live app-server inventory")
 	}
 	c.mu.Lock()
-	pending, turn, nowID, ended := len(c.asks), c.turnID, c.threadID, c.closed
+	pending, turn, nowID, ended := len(c.asks), c.turnID, c.threadID, c.rpcWire().Closed()
 	c.mu.Unlock()
 	if nowID != id || ended || !p.alive() {
 		return nil, "", errors.New("owned assistant source changed during read")

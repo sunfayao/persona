@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Thinking effort of a Codex thread Persona drives through its app-server: a session listed
@@ -34,13 +35,6 @@ import (
 // and what a thread offers when its app-server's model/list does not name its model.
 var codexEffortLevels = proto.CodexEffortLevels
 
-// codexModelEfforts is what model/list says about a model's efforts.
-type codexModelEfforts struct {
-	levels []string            // weakest first; empty: it takes none
-	def    string              // what it runs with when the thread sets none
-	tiers  []proto.ServiceTier // native model/list speed choices
-}
-
 // codexEffortThread is the app-server thread of a Codex session the phone drives through the protocol (sendCodex): a
 // session an app-server lists (joined when the phone first writes to it) or a herdr pane already joined. Not a pane on
 // the terminal route (its messages are typed), not a subagent (its parent drives it).
@@ -62,7 +56,7 @@ func (c *codexRemote) efforts(model string) []string {
 	e, ok := c.models[model]
 	c.mu.Unlock()
 	if model != "" && ok {
-		return e.levels
+		return e.Levels
 	}
 	return codexEffortLevels
 }
@@ -71,7 +65,7 @@ func (c *codexRemote) efforts(model string) []string {
 func (c *codexRemote) defaultEffort(model string) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.models[model].def
+	return c.models[model].Default
 }
 
 // loadModels reads model/list once per connection (hidden models too: a thread may run one) for the efforts each model
@@ -79,7 +73,7 @@ func (c *codexRemote) defaultEffort(model string) string {
 func (c *codexRemote) loadModels() {
 	ctx, cancel := context.WithTimeout(c.ctx, 20*time.Second)
 	defer cancel()
-	models, err := readCodexModels(ctx, c.wire.call)
+	models, err := codex.ReadModels(ctx, c.wire.Call)
 	if err != nil {
 		c.n.logf("codex %s: model/list: %v; threads offer every effort level", c.spec.ID, err)
 		return
@@ -88,51 +82,6 @@ func (c *codexRemote) loadModels() {
 	c.models = models
 	c.mu.Unlock()
 	c.n.notifyCodex()
-}
-
-// Both external and Persona-owned app-servers advertise the same model metadata.
-func readCodexModels(ctx context.Context, call func(context.Context, string, any, any) error) (map[string]codexModelEfforts, error) {
-	models := map[string]codexModelEfforts{}
-	cursor := ""
-	for page := 0; page < 20; page++ {
-		params := map[string]any{"includeHidden": true}
-		if cursor != "" {
-			params["cursor"] = cursor
-		}
-		var res struct {
-			Data []struct {
-				Model   string              `json:"model"`
-				ID      string              `json:"id"`
-				Default string              `json:"defaultReasoningEffort"`
-				Tiers   []proto.ServiceTier `json:"serviceTiers"`
-				Efforts []struct {
-					Effort string `json:"reasoningEffort"`
-				} `json:"supportedReasoningEfforts"`
-			} `json:"data"`
-			NextCursor *string `json:"nextCursor"`
-		}
-		if err := call(ctx, "model/list", params, &res); err != nil {
-			return nil, err
-		}
-		for _, m := range res.Data {
-			e := []string{}
-			for _, x := range m.Efforts {
-				if x.Effort != "" && !slices.Contains(e, x.Effort) {
-					e = append(e, x.Effort)
-				}
-			}
-			for _, k := range []string{m.Model, m.ID} {
-				if k != "" {
-					models[k] = codexModelEfforts{levels: e, def: m.Default, tiers: m.Tiers}
-				}
-			}
-		}
-		if res.NextCursor == nil || *res.NextCursor == "" || *res.NextCursor == cursor {
-			break
-		}
-		cursor = *res.NextCursor
-	}
-	return models, nil
 }
 
 // codexModelNow is the model a thread is shown with: the phone's choice still waiting for a turn/start (-32601), else
@@ -304,10 +253,10 @@ func (n *Node) setCodexSettings(ctx context.Context, id string, c *codexRemote, 
 		meta, known := c.models[model]
 		c.mu.Unlock()
 		if known {
-			if len(meta.levels) == 0 {
+			if len(meta.Levels) == 0 {
 				clearEffort = true
-			} else if curEffort := n.codexEffortNow(id, c, t, metaRollout.effort); curEffort != "" && !slices.Contains(meta.levels, curEffort) {
-				sendEffort = reconcileCodexEffort(meta)
+			} else if curEffort := n.codexEffortNow(id, c, t, metaRollout.effort); curEffort != "" && !slices.Contains(meta.Levels, curEffort) {
+				sendEffort = codex.ReconcileEffort(meta)
 			}
 		}
 	}
@@ -325,7 +274,7 @@ func (n *Node) setCodexSettings(ctx context.Context, id string, c *codexRemote, 
 		what = "模型"
 	}
 	call, cancel := context.WithTimeout(ctx, codexEffortTimeout)
-	err := c.wire.call(call, "thread/settings/update", params, nil)
+	err := c.wire.Call(call, "thread/settings/update", params, nil)
 	cancel()
 	var re *codexError
 	isCodex := errors.As(err, &re)

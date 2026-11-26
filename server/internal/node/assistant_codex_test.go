@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // fakeAppServer plays `codex app-server` on the other end of a codexConn: it records what the node sends, answers
@@ -153,7 +153,7 @@ func newFakeCodex(t *testing.T, n *Node, cwd string) (*assistantProc, *codexConn
 	outR, outW := io.Pipe() // app-server → node
 	p := &assistantProc{agent: "codex", launcher: "cx_test", cwd: cwd, stdin: inW, exited: make(chan struct{}),
 		born: time.Now(), lastActive: time.Now()}
-	c := &codexConn{n: n, p: p, key: "proc-test", pending: map[int64]chan codexReply{}, asks: map[string]context.CancelFunc{},
+	c := &codexConn{n: n, p: p, key: "proc-test", asks: map[string]context.CancelFunc{},
 		files: map[string][]string{}}
 	p.cx = c
 	f := &fakeAppServer{t: t, out: outW, replies: map[string]codexMessage{}, results: map[string]any{},

@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
 )
 
 // The launch key (#5588): a random value the node keeps in a 0600 file beside its socket (nodeclient.LaunchKeyPath).

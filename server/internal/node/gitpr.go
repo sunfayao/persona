@@ -8,12 +8,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The current branch's pull request for the Git panel (#6121), through `gh` on this machine as it is signed in: what
@@ -321,39 +320,6 @@ func (n *Node) gitPRCreate(ctx context.Context, cwd, title, body, base string, d
 		args = append(args, "--draft")
 	}
 	if _, err := ghRun(ctx, root, time.Minute, args...); err != nil {
-		return nil, err
-	}
-	return n.gitPR(ctx, root)
-}
-
-// gitPRMerge merges the branch's pull request now (method squash / merge / rebase), sets it to merge when its checks
-// and reviews allow (auto), or takes that back (autoOff). The branch is not deleted: gh would also switch this
-// checkout to the base, under the agent's feet.
-func (n *Node) gitPRMerge(ctx context.Context, cwd string, number int, method string, auto, autoOff bool) (map[string]any, error) {
-	if number <= 0 {
-		return nil, &rpc.Error{Code: gitCodeNoPR, Message: "no pull request number"}
-	}
-	root, done, err := n.writeRepo(ctx, cwd)
-	if err != nil {
-		return nil, err
-	}
-	defer done()
-	args := []string{"pr", "merge", strconv.Itoa(number)}
-	switch {
-	case autoOff:
-		args = append(args, "--disable-auto")
-	default:
-		switch method {
-		case "squash", "merge", "rebase":
-			args = append(args, "--"+method)
-		default:
-			return nil, &rpc.Error{Code: gitCodeFailed, Message: "unknown merge method " + method}
-		}
-		if auto {
-			args = append(args, "--auto")
-		}
-	}
-	if _, err := ghRun(ctx, root, 2*time.Minute, args...); err != nil {
 		return nil, err
 	}
 	return n.gitPR(ctx, root)

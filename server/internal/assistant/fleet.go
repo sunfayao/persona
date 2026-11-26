@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/modelretry"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/modelretry"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What comes from the nodes is the manager's. The hub did all of this until the
@@ -23,7 +23,7 @@ import (
 //     and what their sessions show, kept, waited for, answered, expired (fleet_ix*.go);
 //   - each Agent's state as the apps get it — the unified state, "Needs you", "Unread" / "Seen", the work and todos it shows —
 //     and the session lists (this file, fleet_sessions.go, fleet_seen.go);
-//   - the pushes and the Live Activity's content: when a finished turn is worth a push, a card's push, what the
+//   - the pushes and the Persona Link summary's content: when a finished turn is worth a push, a card's push, what the
 //     activity shows (fleet_push.go, fleet_live.go);
 //   - the nodes' MCP tools and assistant.lark (fleet_tools.go).
 //

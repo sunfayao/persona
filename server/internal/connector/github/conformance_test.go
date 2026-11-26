@@ -3,7 +3,7 @@ package github
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector/conformance"
+	"github.com/sunfayao/persona/server/internal/connector/conformance"
 )
 
 // GitHub is one implementation of the connector protocol: what it gives directly, it gives through the wire.

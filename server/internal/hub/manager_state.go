@@ -6,20 +6,19 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What the hub keeps of each manager: its snapshot (its
-// conversations, tasks, profile, todo links), its tools, its extensions' report and its Live Activity content. The
-// assistant the hub starts keeps its state where it always did (h.assistant, h.ext.report, h.reported.live); every
+// conversations, tasks, profile, todo links), its tools and extension reports. The
+// assistant the hub starts keeps its state where it always did (h.assistant, h.ext.report); every
 // other manager has one of its own here, made when it first reports and dropped when it is removed. Nothing a manager
 // reports replaces another's. Where the hub needs one of a thing for itself:
 //
 //   - its profile (the user's time zone, where skills go): the requested manager's, else the default's, falling back
 //     to the built-in's until it reports one. Only the built-in's is kept in the database (assistant_profile.go);
-//   - the Live Activity's content: the default manager's, else the assistant's;
 //   - the extensions' report (features, prefixes, looks, each machine's extras): every manager's merged, a machine's
 //     extras from its own manager, a prefix served by the first manager that reports it (the assistant's first).
 

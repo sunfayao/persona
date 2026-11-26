@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/nwverse/persona/server/internal/aiwire"
+import "github.com/sunfayao/persona/server/internal/aiwire"
 
 // model.run: one request of an API purpose answered by a launcher's CLI run headless on a computer
 // (docs/protocol/protocol.md "hub ↔ node RPC").

@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const ompResumeUnknownNote = "这个 omp 会话找不到会话文件，请在电脑上恢复，这次没有发送。"

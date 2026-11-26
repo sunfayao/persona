@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Several devices answering one card at once through the route the hub relays (#1073, spec/fixtures/sync

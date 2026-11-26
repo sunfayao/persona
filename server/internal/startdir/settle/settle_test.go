@@ -115,7 +115,7 @@ func TestDeviceProgramsHaveIt(t *testing.T) {
 	if err != nil {
 		t.Skip("no go tool:", err)
 	}
-	const self = "github.com/nwverse/persona/server/internal/startdir/settle"
+	const self = "github.com/sunfayao/persona/server/internal/startdir/settle"
 	cmd := exec.Command(goBin, "list", "-f", "{{.ImportPath}} {{join .Deps \" \"}}", "../../../cmd/personad",
 		"../../../cmd/persona-node", "../../../cmd/persona-manager")
 	cmd.Env = append(os.Environ(), "GOOS=darwin", "GOARCH=arm64")

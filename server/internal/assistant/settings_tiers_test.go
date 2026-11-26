@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // putTierProfiles stores two profiles (economy in use, unless active says otherwise) as a hub that has used them has.
@@ -157,9 +157,6 @@ func TestModelTiersSetting(t *testing.T) {
 	if last := st.Events[len(st.Events)-1]; last.Action != "save" || last.By.Kind != "assistant" ||
 		strings.Join(last.Changed, " ") != "economy.tiers.review performance.tiers.review" {
 		t.Fatalf("history: %+v", st.Events)
-	}
-	if !strings.Contains(f.eventTypes(), "model_profile") {
-		t.Fatalf("the apps were not told: %s", f.eventTypes())
 	}
 
 	// A field left out keeps the tier's own; a different launcher drops the old one's model and effort.
@@ -318,27 +315,6 @@ func TestApplySeededProfileKeepsTheSeed(t *testing.T) {
 	ps, st := storedTiers(t, s)
 	if len(ps.Profiles) != 2 || st.Active != seededProfile || st.Previous != nil {
 		t.Fatalf("profiles %+v state %+v", ps, st)
-	}
-}
-
-// Editing or deleting a profile tells the apps, as a switch does.
-func TestProfileEditTellsTheApps(t *testing.T) {
-	s, f, _ := modelService(t)
-	ctx := context.Background()
-	if _, err := s.saveModelProfile(ctx, nil, "custom", ProfileActor{Kind: "hub"}, func(p *ModelProfile, _ bool) error {
-		p.Name = "Custom"
-		return nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if got := f.eventTypes(); got != "model_profile" {
-		t.Fatalf("save: %q", got)
-	}
-	if err := s.deleteModelProfile(ctx, nil, "custom", ProfileActor{Kind: "hub"}); err != nil {
-		t.Fatal(err)
-	}
-	if got := f.eventTypes(); got != "model_profile model_profile" {
-		t.Fatalf("delete: %q", got)
 	}
 }
 

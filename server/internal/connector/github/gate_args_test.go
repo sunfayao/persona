@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // signedIn is the connector with a login nothing has to check: Registry.Call asks the status before it gates a write.

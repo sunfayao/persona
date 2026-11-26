@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Codex's TUI (codex-cli 0.153 / 0.163, a compatible CLI alike) read off its screen: which view has the keyboard, what its input

@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // A market git or a tool check runs as the leader of a process group: at its deadline the whole group is stopped, so a

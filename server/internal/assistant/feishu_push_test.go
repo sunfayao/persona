@@ -7,7 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/channel"
 )
 
 // feishuPushHub pairs the bot with the pushes switch on; the FeishuPost handler enters entered, blocks on release,

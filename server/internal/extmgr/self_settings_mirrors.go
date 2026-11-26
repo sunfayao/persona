@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // extensions.download_mirrors: where the extension market downloads from when its own addresses are slow or blocked

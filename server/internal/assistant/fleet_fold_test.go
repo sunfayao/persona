@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func foldRow(id, state string, set func(*proto.Session)) proto.Session {

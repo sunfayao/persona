@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestAdversarialInboxGroupStateWakeAgentStopRecapDoesNotResumeStoppedAgent(t *testing.T) {

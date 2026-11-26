@@ -1,7 +1,6 @@
 package extmgr
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -10,16 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
-// Installs, upgrades and uninstalls as operations with steps (docs/protocol/protocol.md "Extension install, upgrade and
-// uninstall progress", #3277): each one is kept here while it runs and for opKeep after, and every change of a step
-// goes to the apps as an extension_operation event, so a page closed and opened again still shows an install in
-// progress. They are only in this manager's memory: a manager that restarts forgets them (what was not installed yet
-// is not installed) and sends no final event, so the apps let go of one it no longer lists or answers 404 for. A hub
-// restart forgets them only when it restarts this manager too (the hub's own child); in service mode they survive it.
+// The manager tracks installs, upgrades and uninstalls in memory. A preview's operation is claimed
+// by at most one install. Finished operations age out after opKeep.
 
 const (
 	opInstall   = "install"
@@ -32,11 +27,9 @@ const (
 	opFailed       = "failed"
 	opCanceled     = "canceled"
 
-	// opKeep is how long a finished operation is still listed; opMost how many are kept at most.
+	// opKeep and opMost bound finished operations.
 	opKeep = 10 * time.Minute
 	opMost = 64
-	// opPushEvery is how often a download's progress is pushed at most (a step that changes is pushed at once).
-	opPushEvery = time.Second
 )
 
 // The steps of each kind, in order.
@@ -62,14 +55,11 @@ type ExtensionOperation struct {
 	Error     string            `json:"error,omitempty"`
 	ErrorCode string            `json:"error_code,omitempty"`
 	PreviewID string            `json:"preview_id,omitempty"`
-	Retryable bool              `json:"retryable"`
 	StartedAt time.Time         `json:"started_at"`
 	UpdatedAt time.Time         `json:"updated_at"`
 	EndedAt   *time.Time        `json:"ended_at,omitempty"`
 	// Next is what the user should do once it succeeded: "auth" when the extension signs in and is not signed in.
 	Next string `json:"next,omitempty"`
-	// Preview is the preview waiting for the user's consent (GET of one operation only, never in events).
-	Preview any `json:"preview,omitempty"`
 	// Warnings is what an uninstall that succeeded leaves the user to do by hand, e.g. files it could not delete.
 	Warnings []string `json:"warnings,omitempty"`
 }
@@ -112,20 +102,9 @@ type extensionOps struct {
 type extOp struct {
 	v        ExtensionOperation
 	lang     i18n.Lang
-	pushed   time.Time
 	ofMarket bool // a full-rights device may see to it (else only the owner, over loopback)
-	// retry starts it again (nil: it cannot be, as an upload whose body is gone).
-	retry func() (*extOp, error)
-	// consented: the digests the user agreed to (the main one's and its bundle's by extension id), so a retry after
-	// the consent goes on by itself when nothing it asks for changed.
-	consented       string
-	consentedBundle map[string]string
 	// claimed is the preview one install took this operation over with (claimOpOfPreview).
 	claimed string
-	// cancel stops its preview while it downloads and checks (DELETE, with extension.ErrUserCanceled: its download
-	// stops too when nothing else waits for it); canceling says it was asked to.
-	cancel    context.CancelCauseFunc
-	canceling bool
 }
 
 func newOpID() string {
@@ -134,7 +113,7 @@ func newOpID() string {
 	return hex.EncodeToString(b[:])
 }
 
-// startOp makes a new operation of kind for extension id and tells the apps.
+// startOp makes a new operation of kind for extension id.
 func (h *Manager) startOp(kind, id, actor string, l i18n.Lang, ofMarket bool) *extOp {
 	ps := h.extensions
 	now := time.Now()
@@ -167,13 +146,11 @@ func (h *Manager) startOp(kind, id, actor string, l i18n.Lang, ofMarket bool) *e
 	ps.ops.prune(now)
 	ps.ops.byID[op.v.ID] = op
 	ps.ops.mu.Unlock()
-	h.pushOp(op, true)
 	return op
 }
 
 // prune drops what is over for more than opKeep, and the oldest finished ones over opMost. Called with mu held.
-// Running and consent-waiting operations are never dropped: their goroutine still updates them and the apps still
-// ask for them, so the list can briefly hold more than opMost of them.
+// Running and consent-waiting operations stay available for updates and preview claims.
 func (o *extensionOps) prune(now time.Time) {
 	for id, op := range o.byID {
 		if op.v.EndedAt != nil && now.Sub(*op.v.EndedAt) > opKeep {
@@ -195,31 +172,13 @@ func (o *extensionOps) prune(now time.Time) {
 	}
 }
 
-// update changes op under the lock and tells the apps (a download's bytes at most every opPushEvery).
-func (h *Manager) update(op *extOp, f func(v *ExtensionOperation) (changed bool)) {
-	ps := h.extensions
-	changed := func() bool {
-		ps.ops.mu.Lock()
-		defer ps.ops.mu.Unlock() // a change that panics must not leave every operation locked
-		op.v.UpdatedAt = time.Now()
-		return f(&op.v)
-	}()
-	h.pushOp(op, changed)
-}
-
-func (h *Manager) pushOp(op *extOp, now bool) {
+// update changes op under the lock.
+func (h *Manager) update(op *extOp, f func(v *ExtensionOperation)) {
 	ps := h.extensions
 	ps.ops.mu.Lock()
-	if !now && time.Since(op.pushed) < opPushEvery {
-		ps.ops.mu.Unlock()
-		return
-	}
-	op.pushed = time.Now()
-	ps.ops.mu.Unlock()
-	v := h.snapshot(op)
-	// The hub passes it only to the apps that declared extension_operations, and keeps it out of the event log (a
-	// download pushes once a second; an app that comes back lists the operations again): hub/bus_forward.go.
-	h.broadcast(map[string]any{"type": "extension_operation", "operation": v})
+	defer ps.ops.mu.Unlock()
+	op.v.UpdatedAt = time.Now()
+	f(&op.v)
 }
 
 // stepOf is step id of v.
@@ -233,10 +192,10 @@ func stepOf(v *ExtensionOperation, id string) *ExtensionOpStep {
 }
 
 // setStep moves step id of v to state (a step that starts is the operation's current one).
-func setStep(v *ExtensionOperation, id, state string) bool {
+func setStep(v *ExtensionOperation, id, state string) {
 	s := stepOf(v, id)
 	if s == nil || s.State == state {
-		return false
+		return
 	}
 	now := time.Now()
 	switch state {
@@ -250,44 +209,44 @@ func setStep(v *ExtensionOperation, id, state string) bool {
 		s.EndedAt = &now
 	}
 	s.State = state
-	return true
 }
 
 // opStep moves op's step id to state.
 func (h *Manager) opStep(op *extOp, id, state string) {
-	h.update(op, func(v *ExtensionOperation) bool { return setStep(v, id, state) })
+	h.update(op, func(v *ExtensionOperation) { setStep(v, id, state) })
 }
 
 // progress is the ProgressFunc that moves op's steps as a preview reports them.
 func (h *Manager) progress(op *extOp) extension.ProgressFunc {
 	return func(step string, ev extension.StepEvent) {
-		h.update(op, func(v *ExtensionOperation) bool {
-			changed := setStep(v, step, ev.State)
-			if s := stepOf(v, step); s != nil && step == extension.StepDownload {
+		h.update(op, func(v *ExtensionOperation) {
+			setStep(v, step, ev.State)
+			s := stepOf(v, step)
+			if s == nil {
+				return
+			}
+			switch step {
+			case extension.StepDownload:
 				if ev.Bytes > 0 || ev.Total > 0 {
 					s.Bytes, s.Total = ev.Bytes, ev.Total
 				}
 				if ev.Cached {
-					s.Cached, changed = true, true
+					s.Cached = true
 				}
-			}
-			if s := stepOf(v, step); s != nil && step == extension.StepTools {
-				if toolProgress(s, ev) {
-					changed = true
-				}
+			case extension.StepTools:
+				toolProgress(s, ev)
 				if ev.State == extension.StepDone || ev.State == extension.StepSkipped {
-					changed = setStep(v, extension.StepInstall, extension.StepRunning) || changed
+					setStep(v, extension.StepInstall, extension.StepRunning)
 				}
 			}
-			return changed
 		})
 	}
 }
 
 // toolProgress records a tools step event on s: a program's state, and the bytes of the one downloading.
-func toolProgress(s *ExtensionOpStep, ev extension.StepEvent) bool {
+func toolProgress(s *ExtensionOpStep, ev extension.StepEvent) {
 	if ev.Tool == "" {
-		return false
+		return
 	}
 	i := slices.IndexFunc(s.Tools, func(t OpTool) bool { return t.Name == ev.Tool })
 	if i < 0 {
@@ -295,20 +254,18 @@ func toolProgress(s *ExtensionOpStep, ev extension.StepEvent) bool {
 		i = len(s.Tools) - 1
 	}
 	t := &s.Tools[i]
-	changed := t.State != ev.ToolState || t.Reused != ev.Reused
 	t.State, t.Reused = ev.ToolState, ev.Reused
 	switch {
 	case ev.ToolState == extension.StepRunning && ev.Bytes > 0:
-		s.Bytes, s.Total, changed = ev.Bytes, ev.Total, true
+		s.Bytes, s.Total = ev.Bytes, ev.Total
 	case ev.ToolState == extension.StepRunning:
 		s.Bytes, s.Total = 0, 0
 	}
-	return changed
 }
 
 // opFail ends op with err, at the step it was at (the first one not done when none was running).
 func (h *Manager) opFail(op *extOp, err error) {
-	h.update(op, func(v *ExtensionOperation) bool {
+	h.update(op, func(v *ExtensionOperation) {
 		at := ""
 		if s := stepOf(v, v.Step); s != nil && s.State == extension.StepRunning {
 			at = s.ID
@@ -326,16 +283,7 @@ func (h *Manager) opFail(op *extOp, err error) {
 		}
 		now := time.Now()
 		v.State, v.EndedAt, v.PreviewID = opFailed, &now, ""
-		if op.canceling {
-			v.State = opCanceled
-			if s := stepOf(v, at); s != nil {
-				s.State = extension.StepSkipped
-			}
-			return true
-		}
 		v.Error, v.ErrorCode = i18n.Localize(err, op.lang), opErrorCode(at, v.Kind, err)
-		v.Retryable = op.retry != nil
-		return true
 	})
 }
 
@@ -380,15 +328,14 @@ var errRolledBack = errors.New("rolled back")
 
 // opSucceed ends op: what it did not need to do is skipped.
 func (h *Manager) opSucceed(op *extOp) {
-	h.update(op, func(v *ExtensionOperation) bool {
+	h.update(op, func(v *ExtensionOperation) {
 		for i := range v.Steps {
 			if v.Steps[i].State == extension.StepPending || v.Steps[i].State == extension.StepRunning {
 				setStep(v, v.Steps[i].ID, extension.StepSkipped)
 			}
 		}
 		now := time.Now()
-		v.State, v.EndedAt, v.Step, v.PreviewID, v.Retryable = opSucceeded, &now, "", "", false
-		return true
+		v.State, v.EndedAt, v.Step, v.PreviewID = opSucceeded, &now, "", ""
 	})
 }
 
@@ -409,22 +356,14 @@ func (h *Manager) expireOps() {
 }
 
 func (h *Manager) cancelOp(op *extOp) {
-	h.update(op, func(v *ExtensionOperation) bool {
+	h.update(op, func(v *ExtensionOperation) {
 		if v.State != opNeedsConsent {
-			return false
+			return
 		}
 		setStep(v, extension.StepConsent, extension.StepSkipped)
 		now := time.Now()
 		v.State, v.EndedAt, v.PreviewID, v.Step = opCanceled, &now, "", ""
-		return true
 	})
-}
-
-func (h *Manager) opByID(id string) *extOp {
-	ps := h.extensions
-	ps.ops.mu.Lock()
-	defer ps.ops.mu.Unlock()
-	return ps.ops.byID[id]
 }
 
 // snapshot is a copy of op as it is now.

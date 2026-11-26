@@ -3,7 +3,7 @@ package assistant
 import (
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/closeout"
+	"github.com/sunfayao/persona/server/internal/closeout"
 )
 
 // asksMemo keeps what closeout.AskOf found in each session's last words, by machine and session, while those words

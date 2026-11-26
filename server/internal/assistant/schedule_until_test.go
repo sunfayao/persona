@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func untilService(t *testing.T) (*Service, *time.Location) {
@@ -251,19 +251,6 @@ func TestEnablingDropsAPastUntilTheClientLeftOut(t *testing.T) {
 	}
 }
 
-func TestUntilLegacyRoutinesPutKeepsIt(t *testing.T) {
-	h := newStorelessService(t, newFakeHub())
-	end := time.Now().Add(48 * time.Hour).UTC().Truncate(time.Second)
-	setTasks(h, Task{ID: "morning", Title: "早报", Prompt: "x", Repeat: repeatDaily, Time: "09:00", Enabled: true, Until: end})
-	rec := httptest.NewRecorder()
-	body := `{"routines":[{"id":"morning","title":"早报","prompt":"x2","time":"08:30","enabled":true}]}`
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/assistant/routines", strings.NewReader(body)))
-	got, _ := taskByID(h, "morning")
-	if rec.Code != 200 || got.Time != "08:30" || got.Prompt != "x2" || !got.Until.Equal(end) {
-		t.Fatalf("routines put %d kept until %v: %+v", rec.Code, end, got)
-	}
-}
-
 func TestUntilOnScheduleTools(t *testing.T) {
 	h, loc := untilService(t)
 	ctx := context.Background()
@@ -305,11 +292,11 @@ func TestUntilOnScheduleTools(t *testing.T) {
 		t.Fatalf("unset reply changed: %q %v", plain, err)
 	}
 
-	n := len(h.tasksView(ctx, nil))
+	n := len(h.tasksView(ctx))
 	if _, err := h.toolScheduleRoutine(ctx, "", "", json.RawMessage(`{"title":"过期","prompt":"看看","time":"09:00","enabled":true,"until":"2000-01-01 00:00"}`)); err == nil || err.Error() != i18n.T(i18n.Default, "assistant-schedule.until_passed") {
 		t.Fatalf("past until: %v", err)
 	}
-	if len(h.tasksView(ctx, nil)) != n {
+	if len(h.tasksView(ctx)) != n {
 		t.Fatal("a past until was saved")
 	}
 
@@ -318,7 +305,7 @@ func TestUntilOnScheduleTools(t *testing.T) {
 		t.Fatalf("every: %q %v", out, err)
 	}
 	var patrol Task
-	for _, task := range h.tasksView(ctx, nil) {
+	for _, task := range h.tasksView(ctx) {
 		if task.Title == "部署巡检" {
 			patrol = task
 		}
@@ -332,7 +319,7 @@ func TestUntilOnScheduleTools(t *testing.T) {
 		t.Fatalf("a one-off ignores until: %q %v", out, err)
 	}
 	var once Task
-	for _, task := range h.tasksView(ctx, nil) {
+	for _, task := range h.tasksView(ctx) {
 		if task.Title == "喝水" {
 			once = task
 		}
@@ -344,11 +331,11 @@ func TestUntilOnScheduleTools(t *testing.T) {
 		t.Fatalf("a bad until on a one-off is ignored: %v", err)
 	}
 
-	n = len(h.tasksView(ctx, nil))
+	n = len(h.tasksView(ctx))
 	if _, err := h.toolScheduleFollowup(ctx, "server", "s1", json.RawMessage(`{"every":"30m","prompt":"过期的","until":"2000-01-01 00:00"}`)); err == nil || err.Error() != i18n.T(i18n.Default, "assistant-schedule.until_passed") {
 		t.Fatalf("past every: %v", err)
 	}
-	if len(h.tasksView(ctx, nil)) != n {
+	if len(h.tasksView(ctx)) != n {
 		t.Fatal("a past until on a new interval was saved")
 	}
 

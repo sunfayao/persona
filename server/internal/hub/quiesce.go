@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The hub's built-in writer quiesce for a Web development snapshot:
@@ -267,7 +267,6 @@ func (h *Hub) resumeDevelopmentWriters() {
 	h.resumeMachineEntries()
 	h.wakeClientOps()
 	h.push.resumeWrites()
-	h.resumePersonaTiers()
 	h.resumeMeshPersist()
 	h.resumeAssistantProfile()
 	h.resumeCodexInventory()

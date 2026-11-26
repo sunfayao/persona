@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // oversizedJSON is a well-formed JSON object of about n bytes: cut at any cap below n it no longer parses.

@@ -14,9 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/tomltext"
 )
 
 // A purpose's or tier's effort reaches a new Codex as `-c model_reasoning_effort=<effort>` (control.go), but any -c
@@ -65,7 +66,7 @@ func (n *Node) codexEffortInherited(ctx context.Context, argv, pane []string, cw
 	if err != nil || codexProfileKey.Match(b) || bytes.Contains(b, []byte("project_root_markers")) {
 		return false
 	}
-	if v, _ := tomlTopLevel(string(b))["model_reasoning_effort"].(string); v != effort {
+	if v, _ := tomltext.TopLevel(string(b))["model_reasoning_effort"].(string); v != effort {
 		return false
 	}
 	dirs := []string{cwd}

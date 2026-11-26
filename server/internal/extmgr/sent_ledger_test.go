@@ -3,17 +3,15 @@ package extmgr
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // sentLedgerStore is keepStore with the ledger in memory (the database's rows, same paging).
@@ -34,50 +32,11 @@ func (s *sentLedgerStore) RecordSentAsUser(_ context.Context, r db.SentAsUser) (
 	return r.ID, nil
 }
 
-func (s *sentLedgerStore) SentAsUsers(_ context.Context, before int64, limit int, connector string) ([]db.SentAsUser, int64, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var out []db.SentAsUser
-	for i := len(s.rows) - 1; i >= 0; i-- {
-		r := s.rows[i]
-		if (before == 0 || r.ID < before) && (connector == "" || r.Connector == connector) {
-			out = append(out, r)
-		}
-	}
-	if len(out) <= limit {
-		return out, 0, nil
-	}
-	return out[:limit], out[limit-1].ID, nil
-}
-
 func (s *sentLedgerStore) PruneSentAsUser(_ context.Context, before time.Time) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pruned = append(s.pruned, before)
 	return 0, nil
-}
-
-func (s *sentLedgerStore) SentAsUserByID(_ context.Context, id int64) (db.SentAsUser, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if id < 1 || id > int64(len(s.rows)) {
-		return db.SentAsUser{}, false, nil
-	}
-	return s.rows[id-1], true, nil
-}
-
-// MarkSentAsUserRecalled is the database's UPDATE … WHERE recalled_at IS NULL: once, and not with a ctx that is done.
-func (s *sentLedgerStore) MarkSentAsUserRecalled(ctx context.Context, id int64, at time.Time) (bool, error) {
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if id < 1 || id > int64(len(s.rows)) || s.rows[id-1].RecalledAt != nil {
-		return false, nil
-	}
-	s.rows[id-1].RecalledAt = &at
-	return true, nil
 }
 
 func (s *sentLedgerStore) all() []db.SentAsUser {
@@ -353,100 +312,6 @@ func TestSentRowIsCleanAndShort(t *testing.T) {
 		Through: connector.LetThrough{Kind: connector.ThroughRule, Rule: &connector.Rule{Connector: "github", Action: "*", Decision: connector.Allow}}}, nil)
 	if row.Summary != "github_comment o/r#2" {
 		t.Fatalf("summary %q", row.Summary)
-	}
-}
-
-// GET /api/v1/connectors/sent pages the ledger newest first with next, filters by connector, and is for a device with
-// full rights only: not an answer-only device, not an extension's token.
-func TestSentLedgerRoute(t *testing.T) {
-	h := newTestManager(t)
-	st := newSentLedgerStore()
-	h.store = st
-	for i := range 5 {
-		c := "github"
-		if i%2 == 1 {
-			c = "example"
-		}
-		if _, err := st.RecordSentAsUser(context.Background(), db.SentAsUser{Connector: c, Action: c + "_x", Text: fmt.Sprint("row ", i),
-			Target: json.RawMessage(`{}`), Origin: json.RawMessage(`{}`), LetThrough: json.RawMessage(`{"kind":"rule"}`)}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	mux := h.routes()
-	read := func(path string) (int, []string, any) {
-		t.Helper()
-		code, out := call(t, mux, "GET", path, h.cfg.Token, "")
-		var texts []string
-		items, _ := out["items"].([]any)
-		for _, it := range items {
-			texts = append(texts, it.(map[string]any)["text"].(string))
-		}
-		if code == 200 {
-			if _, ok := out["items"].([]any); !ok {
-				t.Fatalf("%s: items is %v", path, out["items"])
-			}
-			if _, ok := out["next"]; !ok {
-				t.Fatalf("%s: no next in %v", path, out)
-			}
-		}
-		return code, texts, out["next"]
-	}
-	if code, texts, next := read("/api/v1/connectors/sent"); code != 200 || fmt.Sprint(texts) != "[row 4 row 3 row 2 row 1 row 0]" || next != nil {
-		t.Fatalf("all: %d %v next %v", code, texts, next)
-	}
-	code, texts, next := read("/api/v1/connectors/sent?limit=2")
-	if code != 200 || fmt.Sprint(texts) != "[row 4 row 3]" || next != float64(4) {
-		t.Fatalf("first page: %d %v next %v", code, texts, next)
-	}
-	if code, texts, next = read("/api/v1/connectors/sent?limit=2&before=4"); code != 200 || fmt.Sprint(texts) != "[row 2 row 1]" || next != float64(2) {
-		t.Fatalf("second page: %d %v next %v", code, texts, next)
-	}
-	if code, texts, next = read("/api/v1/connectors/sent?limit=2&before=2"); code != 200 || fmt.Sprint(texts) != "[row 0]" || next != nil {
-		t.Fatalf("last page: %d %v next %v", code, texts, next)
-	}
-	if code, texts, _ = read("/api/v1/connectors/sent?connector=example"); code != 200 || fmt.Sprint(texts) != "[row 3 row 1]" {
-		t.Fatalf("one connector's: %d %v", code, texts)
-	}
-	if code, texts, next = read("/api/v1/connectors/sent?connector=nobody"); code != 200 || texts != nil || next != nil {
-		t.Fatalf("nobody's: %d %v %v", code, texts, next)
-	}
-	if code, texts, _ = read("/api/v1/connectors/sent?limit=5000"); code != 200 || len(texts) != 5 {
-		t.Fatalf("too many asked for: %d %v", code, texts)
-	}
-	for _, bad := range []string{"limit=0", "limit=-1", "limit=ten", "before=0", "before=x"} {
-		if code, _, _ := read("/api/v1/connectors/sent?" + bad); code != 400 {
-			t.Errorf("%s: %d", bad, code)
-		}
-	}
-
-	as := func(p principal) int {
-		rec := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "/api/v1/connectors/sent", nil)
-		h.apiMux.ServeHTTP(rec, req.WithContext(withPrincipal(req.Context(), p)))
-		return rec.Code
-	}
-	if code := as(principal{ID: "dev_phone", Role: roleFull}); code != 200 {
-		t.Fatalf("a full device: %d", code)
-	}
-	if code := as(principal{ID: "dev_watch", Role: roleAnswer}); code != 403 {
-		t.Fatalf("an answer-only device: %d", code)
-	}
-	if code := as(principal{ID: "ext_example", Role: roleFull, Extension: "example"}); code != 403 {
-		t.Fatalf("an extension's token: %d", code)
-	}
-	if code := as(principal{ID: "tok_script", Role: roleFull, Paired: true}); code != 403 {
-		t.Fatalf("a pairing token: %d", code)
-	}
-	if code := as(principal{Role: roleFull, Owner: true}); code != 200 {
-		t.Fatalf("the owner on this machine: %d", code)
-	}
-	if code, _ := call(t, mux, "GET", "/api/v1/connectors/sent", deviceToken("dev_watch", roleAnswer), ""); code != 403 {
-		t.Fatalf("an answer-only device, by its token: %d", code)
-	}
-
-	h.store = newKeepStore() // no database
-	if code, _, _ := read("/api/v1/connectors/sent"); code != 503 {
-		t.Fatalf("without a database: %d", code)
 	}
 }
 

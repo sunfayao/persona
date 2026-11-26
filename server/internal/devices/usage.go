@@ -9,8 +9,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Token usage by machine (#4973). The nodes meter their transcripts per minute,

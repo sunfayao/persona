@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A node's "claude.plugin" notification (node/claudeplugin.go) is the machine's ClaudePlugin from then on; one that

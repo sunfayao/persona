@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/nwverse/persona/server/internal/node/clipshare"
+	"github.com/sunfayao/persona/server/internal/node/clipshare"
 )
 
 // The clipboard.* methods (Node.handle, #8089); see handle_file.go. Neither reads the shared request fields:

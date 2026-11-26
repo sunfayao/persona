@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/feishubot"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // listCardMaxBytes is the size the bot's own answer cards stay under (feishubot); the list cards stay under it too.
@@ -520,7 +520,7 @@ func TestFeishuPermissionCardOffersAlwaysOnlyWhereItWorks(t *testing.T) {
 	// remembers offers it even for an agent that would not.
 	yes, no := true, false
 	own := claude
-	own.ID, own.ToolName, own.AlwaysHonored = "ix_p6", "iphone_do", &no
+	own.ID, own.ToolName, own.AlwaysHonored = "ix_p6", "computer_run", &no
 	if bs := cardButtons(t, s.interactionCard(ctx, own)); len(bs) != 2 || bs[always] != nil {
 		t.Fatalf("the manager's own card offers 本会话总是允许: %v", bs)
 	}

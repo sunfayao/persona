@@ -20,7 +20,7 @@ func TestTrafficFastRequestsAndPrivacy(t *testing.T) {
 	defer h.flushTraffic(time.Now(), true)
 	for i := 0; i < 100; i++ {
 		r := httptest.NewRequest("GET", "/api/v1/sessions/private-machine/private-session/items?token=secret-token", nil)
-		r = r.WithContext(context.WithValue(r.Context(), requestClientKey{}, requestClient{Platform: "ios", Version: "private-version"}))
+		r = r.WithContext(context.WithValue(r.Context(), requestClientKey{}, requestClient{Platform: "web", Version: "private-version"}))
 		h.observeClientRequest(h.apiMux, httptest.NewRecorder(), r, principal{ID: "private-credential", Name: "private-name", Role: roleFull})
 	}
 	h.flushTraffic(time.Now(), true)

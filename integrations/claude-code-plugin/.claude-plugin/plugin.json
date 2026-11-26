@@ -2,8 +2,8 @@
   "name": "persona",
   "version": "0.2.0",
   "description": "Delivers your own messages, turn interrupts and session model choices from the Persona apps into this session.",
-  "author": { "name": "Persona", "url": "https://github.com/nwverse/persona" },
-  "homepage": "https://github.com/nwverse/persona/tree/main/integrations/claude-code-plugin",
-  "repository": "https://github.com/nwverse/persona",
+  "author": { "name": "Persona", "url": "https://github.com/sunfayao/persona" },
+  "homepage": "https://github.com/sunfayao/persona/tree/main/integrations/claude-code-plugin",
+  "repository": "https://github.com/sunfayao/persona",
   "license": "MIT"
 }

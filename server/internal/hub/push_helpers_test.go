@@ -1,8 +1,8 @@
 package hub
 
 import (
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Shortcuts the notification tests use. The hub itself notifies through Hub.notifyInteraction / Hub.notifyDone

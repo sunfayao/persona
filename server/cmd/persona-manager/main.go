@@ -14,17 +14,17 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/managercli"
-	"github.com/nwverse/persona/server/internal/modelhttp"
-	"github.com/nwverse/persona/server/internal/nodecmd"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/update"
-	"github.com/nwverse/persona/server/internal/voice"
-	"github.com/nwverse/persona/server/internal/volc"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/managercli"
+	"github.com/sunfayao/persona/server/internal/modelhttp"
+	"github.com/sunfayao/persona/server/internal/nodecmd"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/voice"
+	"github.com/sunfayao/persona/server/internal/volc"
 )
 
 // What the build wrote in (-X), as personad's (the hub's update checks a program by `version -v`).

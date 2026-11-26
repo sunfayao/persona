@@ -14,15 +14,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/nodesign"
-	"github.com/nwverse/persona/server/internal/nodeupdate"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/sysmon"
-	"github.com/nwverse/persona/server/internal/tunnel"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/nodesign"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/sysmon"
+	"github.com/sunfayao/persona/server/internal/tunnel"
 )
 
 // NodeUsage is the node part of the usage, also what `personad node -h` prints.

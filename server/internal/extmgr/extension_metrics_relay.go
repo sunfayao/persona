@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extension/host"
 )
 
 // relayStatusWriter notes the status the extension answered with; Unwrap keeps flushing and WebSocket upgrades working

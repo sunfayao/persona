@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func TestUnknownAccountError(t *testing.T) {
@@ -51,7 +51,6 @@ func TestHTTPUnknownAccountLocalized(t *testing.T) {
 		{i18n.En, http.MethodGet, "/api/v1/mail/messages/none/1", english},
 		{i18n.ZhHans, http.MethodGet, "/api/v1/mail/messages/none/1", "邮箱账号“none”已不在这个助手上了。"},
 		{i18n.Ja, http.MethodGet, "/api/v1/mail/messages/none/1", "メールアカウント「none」はこのアシスタントに接続されていません。"},
-		{i18n.Ja, http.MethodDelete, "/api/v1/mail/accounts/none", "メールアカウント「none」はこのアシスタントに接続されていません。"},
 	} {
 		t.Run(string(c.lang)+"/"+c.method+c.path, func(t *testing.T) {
 			w := httptest.NewRecorder()

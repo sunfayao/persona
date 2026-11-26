@@ -16,9 +16,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/protectedapps"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/protectedapps"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 // cuaToolOf is the Cua Driver tool of an MCP tool name, "" for one of another server: mcp__<server>__<tool> with

@@ -1,9 +1,9 @@
 package assistant
 
 import (
-	"github.com/nwverse/persona/server/internal/deeplink"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/deeplink"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Formatting for tool results and the hub's logs, the same the hub writes with (one copy, internal/textfmt).

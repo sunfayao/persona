@@ -43,7 +43,7 @@ describe("always permission scope", () => {
   });
   // #3590: the manager's word wins where it gives one, both ways; absent (older hubs, Agents sessions) the old rule.
   it("offers Always as the manager says, else by the card's own rule", () => {
-    const manager = { tool_name: "iphone_do" };
+    const manager = { tool_name: "computer_run" };
     expect(offersAlways(manager)).toBe(true);
     expect(offersAlways({ ...manager, always_honored: false })).toBe(false);
     expect(alwaysScope({ ...manager, always_honored: false })).toBe("");
@@ -53,7 +53,7 @@ describe("always permission scope", () => {
     expect(offersAlways({ agent: "codex", tool_name: "Bash", always_label: "npm test", always_honored: false })).toBe(false);
   });
   it("titles the manager's own tools by their name for people", () => {
-    expect(cardToolName({ tool_name: "iphone_do", tool_title: "iPhone control" })).toBe("iPhone control");
+    expect(cardToolName({ tool_name: "computer_run", tool_title: "Run on computer" })).toBe("Run on computer");
     expect(cardToolName({ tool_name: "Bash" })).toBe("Bash");
   });
 });

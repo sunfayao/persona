@@ -6,7 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 
-	"github.com/nwverse/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/ext"
 )
 
 //go:embed persona-extension.json

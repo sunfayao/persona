@@ -10,10 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // The Codex App keeps its threads in <CODEX_HOME>/state_<n>.sqlite (table threads). Since it moved their history into
@@ -33,43 +34,10 @@ const codexAppDBRefresh = 5 * time.Second
 // codexAppSidebarMax bounds the ids put in one query; a sidebar lists far fewer.
 const codexAppSidebarMax = 2000
 
-type codexAppThread struct {
-	ID          string `json:"id"`
-	RolloutPath string `json:"rolloutPath"`
-	Title       string `json:"title"`
-	Cwd         string `json:"cwd"`
-	Source      string `json:"source"`
-	UpdatedAtMs int64  `json:"updatedAtMs"`
-	Paginated   bool   `json:"-"`
-	// Model and Effort are what the App runs the chat with (its model and reasoning_effort columns, #6501): its
-	// history in the App's database says neither. Empty in a schema without them.
-	Model         string `json:"model"`
-	Effort        string `json:"effort"`
-	ModelProvider string `json:"modelProvider"`
-	// Terminal CLIs have no app-server stream: include the stored items of their running turn too.
-	includeRunning bool
-}
-
-func (t codexAppThread) updated() time.Time { return time.UnixMilli(t.UpdatedAtMs) }
-
-// origin is where the thread came from as its database row says, for a row whose rollout is gone (codexThreadOrigin):
-// its source is the rollout's session_meta source, a plain string ("vscode", "exec") or a subagent's object
-// (codexSourceObject), and every row read is the App's (readCodexAppThreads). It names no root and no start time.
-func (t codexAppThread) origin() codexOrigin {
-	o := codexOrigin{desktop: true}
-	source := strings.TrimSpace(t.Source)
-	if !strings.HasPrefix(source, "{") {
-		o.exec, o.sub = source == "exec", source == "subagent"
-		return o
-	}
-	o.parent, o.guardian, o.sub = codexSourceObject(json.RawMessage(source))
-	return o
-}
-
 type codexAppDB struct {
 	at    time.Time // when the database was last looked at
 	stamp string    // the database's files and the sidebar's ids when last read
-	byID  map[string]codexAppThread
+	byID  map[string]codex.AppThread
 }
 
 var codexAppDBs = struct {
@@ -83,20 +51,13 @@ var codexAppDBGlob = filepath.Glob
 // codexAppDBPath is the newest state database in home (state_5.sqlite in 2026-11): its number goes up with its schema.
 func codexAppDBPath(home string) string {
 	paths, _ := codexAppDBGlob(filepath.Join(home, "state_*.sqlite"))
-	best, bestN := "", -1
-	for _, p := range paths {
-		n, err := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), "state_"), ".sqlite"))
-		if err == nil && n > bestN {
-			best, bestN = p, n
-		}
-	}
-	return best
+	return codex.NewestStateDB(paths)
 }
 
 // codexAppThreads: the database's unarchived rows of the chats the Codex App's sidebar lists, by thread id; nil without
 // the App's state or its database. The list is rebuilt every second and asks for each row: within codexAppDBRefresh the
 // last answer is given without touching a file. A read that fails keeps the last rows read.
-func codexAppThreads(home string) map[string]codexAppThread {
+func codexAppThreads(home string) map[string]codex.AppThread {
 	codexAppDBs.Lock()
 	c := codexAppDBs.byHome[home]
 	if c == nil {
@@ -124,7 +85,7 @@ func codexAppThreads(home string) map[string]codexAppThread {
 	if stamp == lastStamp {
 		return last
 	}
-	var rows map[string]codexAppThread
+	var rows map[string]codex.AppThread
 	if db != "" {
 		var err error
 		if rows, err = readCodexAppThreads(context.Background(), db, app.sidebar); err != nil {
@@ -176,8 +137,8 @@ func fileStamp(path string) string {
 // sidebar chats; subagent rows must stay available so their origin and guardian filters still work once the rollout
 // is gone (#8191). That second read is a separate query so a schema without the originator column keeps the explicit
 // sidebar answer instead of failing it.
-func readCodexAppThreads(ctx context.Context, db string, ids []string) (map[string]codexAppThread, error) {
-	byID := map[string]codexAppThread{}
+func readCodexAppThreads(ctx context.Context, db string, ids []string) (map[string]codex.AppThread, error) {
+	byID := map[string]codex.AppThread{}
 	if len(ids) > 0 {
 		rows, err := readCodexThreads(ctx, db, `archived = 0 AND id IN ('`+strings.Join(ids, "', '")+`')`)
 		if err != nil {
@@ -190,7 +151,7 @@ func readCodexAppThreads(ctx context.Context, db string, ids []string) (map[stri
 		for id, t := range migrated {
 			// Subagent metadata is needed for parent folding and guardian suppression. Other inferred sources are not
 			// desktop conversations; explicit sidebar IDs above remain authoritative for legacy rows.
-			if strings.TrimSpace(t.Source) != "vscode" && !t.origin().sub {
+			if strings.TrimSpace(t.Source) != "vscode" && !t.Origin().Subagent {
 				continue
 			}
 			if _, ok := byID[id]; !ok {
@@ -201,7 +162,7 @@ func readCodexAppThreads(ctx context.Context, db string, ids []string) (map[stri
 	return byID, nil
 }
 
-func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAppThread, error) {
+func readCodexThreads(ctx context.Context, db, where string) (map[string]codex.AppThread, error) {
 	sqlite, err := codexSQLiteProgram()
 	if err != nil {
 		return nil, err
@@ -234,26 +195,7 @@ func readCodexThreads(ctx context.Context, db, where string) (map[string]codexAp
 	if err != nil {
 		return nil, err
 	}
-	byID := map[string]codexAppThread{}
-	if len(bytes.TrimSpace(out)) == 0 { // no row: none of the sidebar's chats is in the database
-		return byID, nil
-	}
-	var rows []struct {
-		codexAppThread
-		ContextPrompt string `json:"contextPrompt"`
-	}
-	if err := json.Unmarshal(out, &rows); err != nil {
-		return nil, err
-	}
-	for _, r := range rows {
-		if r.ContextPrompt != "" {
-			if caption := promptTitle(r.ContextPrompt); caption != "" {
-				r.Title = caption
-			}
-		}
-		byID[r.ID] = r.codexAppThread
-	}
-	return byID, nil
+	return codex.DecodeThreads(out, promptTitle)
 }
 
 // querySQLite runs q against a SQLite database with the system sqlite3 and decodes the json rows into into
@@ -279,9 +221,9 @@ func querySQLite(ctx context.Context, db, q string, into any) error {
 }
 
 // codexAppThreadOf: src is a chat the Codex App's sidebar lists that has no rollout, and its row in the App's database.
-func codexAppThreadOf(src codexSource) (codexAppThread, bool) {
+func codexAppThreadOf(src codexSource) (codex.AppThread, bool) {
 	if src.path != "" {
-		return codexAppThread{}, false
+		return codex.AppThread{}, false
 	}
 	t, ok := codexAppThreads(src.home)[src.thread]
 	return t, ok
@@ -294,7 +236,7 @@ func (n *Node) registerCodexAppThreads(home string, pass *codexListPass) {
 	if len(threads) == 0 {
 		return
 	}
-	canonical := canonicalCodexHome(home, n.home)
+	canonical := codex.CanonicalHome(home, n.home)
 	for _, t := range threads {
 		path := ""
 		if t.RolloutPath != "" {

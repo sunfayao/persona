@@ -2,7 +2,7 @@
 # Copies the extension SDK of this checkout into an extension repository:
 # <repo>/sdk/go (the Go SDK: wire, ext, exttest, and a go.mod) and <repo>/sdk/ts (the TypeScript SDK), and records
 # which commit it came from in <repo>/sdk/VERSION. Extension repositories keep this copy instead of fetching the
-# private main repository; their go.mod replaces github.com/nwverse/persona/sdk/go with ./sdk/go.
+# private main repository; their go.mod replaces github.com/sunfayao/persona/sdk/go with ./sdk/go.
 #
 #   scripts/gen/sync-sdk.sh <extension repository> [go|ts|all]
 set -eu

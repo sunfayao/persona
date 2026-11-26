@@ -7,8 +7,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Where an Agent the assistant starts opens (#13447). A new Agent with the computer's default host runs agy in a herdr

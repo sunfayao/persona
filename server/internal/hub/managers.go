@@ -14,13 +14,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Managers: every bus identity of role manager is one, all equal, each a whole assistant. The
@@ -631,50 +629,6 @@ func (h *Hub) managerRoutes(api *http.ServeMux) {
 		}
 	})
 	// Move a source ({"source": "mail:<account>", "from"?: its manager, the default when not said}) to this manager.
-	api.HandleFunc("POST /api/v1/managers/{id}/sources", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Source string `json:"source"`
-			From   string `json:"from"`
-		}
-		if err := decodeJSONBody(w, r, &req, 4<<10); err != nil || req.Source == "" {
-			writeBodyErr(w, err, errors.New("source is required"))
-			return
-		}
-		id := r.PathValue("id")
-		if _, ok := h.installedManager(w, r, id); !ok {
-			return
-		}
-		from := cmp.Or(req.From, h.defaultOwner(r.Context()))
-		if _, ok := h.installedManager(w, r, from); !ok {
-			return
-		}
-		if from == id {
-			writeJSON(w, map[string]any{"source": req.Source, "manager": id, "from": from})
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-		defer cancel()
-		src, err := h.moveSource(ctx, req.Source, from, id)
-		var coded *rpc.Error
-		switch {
-		case errors.Is(err, errMoveOffline):
-			writeErrCode(w, http.StatusServiceUnavailable, assistantwire.CodeAssistantOffline, err)
-		case errors.Is(err, errUnknownManager): // removed meanwhile
-			writeErrCode(w, http.StatusNotFound, "no_manager", err)
-		case errors.Is(err, errSourceInDoubt): // the new one may have it: moving it again finds out
-			writeErrCode(w, http.StatusBadGateway, "source_in_doubt", err)
-		case src == "" && errors.As(err, &coded) && coded.Code == extwire.CodeNoSource:
-			writeErrCode(w, http.StatusNotFound, coded.Code, err)
-		case src == "" && errors.As(err, &coded) && (coded.Code == extwire.CodeSourceExists || coded.Code == extwire.CodeSourceKind):
-			writeErrCode(w, http.StatusConflict, coded.Code, err)
-		case src != "" && err != nil: // the new one has it; the old one may still too
-			writeErrCode(w, http.StatusBadGateway, "source_not_released", err)
-		case err != nil:
-			writeErr(w, http.StatusBadGateway, err)
-		default:
-			writeJSON(w, map[string]any{"source": src, "manager": id, "from": from})
-		}
-	})
 	// Revoke: its token stops working and its connection is hung up; a pending install is called off. Not the
 	// default (make another one the default first) and not the one the hub runs itself.
 	api.HandleFunc("DELETE /api/v1/managers/{id}", func(w http.ResponseWriter, r *http.Request) {

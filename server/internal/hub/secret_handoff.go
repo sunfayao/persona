@@ -9,20 +9,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The hand-off card's gate. A hand-off card
 // (proto.SecretHandoffTool) hands secret values to one Agent run once it is approved, so only a full device approves it,
 // from the card itself: the approval request declares featureSecretHandoff in its own X-Persona-Features header
-// (requestDeclares; a connection's client_hello does not count, or every request of that app, a lock-screen button's
-// included, would). An answer-only device (the watch), an extension's token, the hub's own token and a request without
-// the feature (Android, the Mac app, an older app, a notification's or a widget's button) get 403
+// (requestDeclares; a connection's client_hello does not count, or every request of that app, a notification action's
+// included, would). An answer-only device, an extension's token, the hub's own token and a request without
+// the feature get 403
 // secret_handoff_elsewhere, and the refusal is recorded on every provider the card names
 // (extwire.AuditSecretHandoffRefused), once per card, credential and reason in handoffRecordEvery. A plain no (deny,
 // dismiss, cancel: proto.SecretHandoffDeclines) goes through from any of them.
@@ -33,11 +33,11 @@ import (
 // The device that may approve goes to the manager in HTTPRequest.HandoffApprover, never in a header, on an answer to a
 // hand-off card and on one to a card the hub does not hold (after a restart, before the manager reported its cards
 // again): the manager approves a hand-off only with it, so it checks the cards the hub could not. A card's push never
-// offers buttons (interactionPayloadIn), and the Live Activity shows it without Allow / Deny (assistant/fleet_live.go).
+// offers buttons (interactionPayloadIn).
 
 // featureSecretHandoff: the request approving a hand-off card comes from the card itself, which its client shows whole
 // (what is handed over, from where, to which Agent on which computer). A client sends it on that request only, never in
-// a header every request carries, nor from a notification, a widget, the Live Activity, the watch or Siri.
+// a header every request carries, nor from a notification.
 const featureSecretHandoff = "secret_handoff"
 
 // handoffRecordEvery: a refusal of the same card, credential and reason is recorded once in this long; handoffRecordMost

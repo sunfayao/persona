@@ -3,7 +3,7 @@ package assistantwire
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const MethodAssistantEntriesList = "assistant.entries.list"
@@ -20,10 +20,6 @@ type AssistantEntriesChanged struct {
 	Status   string `json:"status"`
 	// Personal is internal routing metadata, omitted from plugin notifications.
 	Personal bool `json:"personal,omitempty"`
-}
-
-func init() {
-	Routes = append(Routes, "GET /api/v1/assistant/entries")
 }
 
 type extensionReaderKey struct{}

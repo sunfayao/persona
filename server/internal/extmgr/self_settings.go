@@ -9,18 +9,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The manager's part of persona_settings (Control Persona itself): the settings of what moved here
 // from the hub — the inbox's rules, the mail accounts, a source's own triage rules (self_settings_sources.go). The hub lists them with
 // its own (extwire.HubSettingsList) and hands an action on one of them here (extwire.HubSettingsTool); the card on
-// the phone is the hub's (waitInteraction). The registry is the hub's, moved as it was.
+// the web app is the hub's (waitInteraction). The registry is the hub's, moved as it was.
 
 // selfSettings are the manager's settings (mail only with mail set up).
 func (h *Manager) selfSettings() []selfSetting {
@@ -60,7 +60,7 @@ func (h *Manager) selfSettings() []selfSetting {
 	if h.mail != nil {
 		out = append(out, selfSetting{key: "mail.accounts", title: ss(l, "title_mail"),
 			about: "the user's mail accounts: Persona reads them in the inbox and mail_* use them. add connects (IMAP and SMTP) before saving; " +
-				"the password is typed on the phone, never pass one. Gmail: with Google sign-in set up it is added in the app (Sign In with Google); otherwise a Gmail address with an app password (not the Google password; needs 2-Step Verification, made at myaccount.google.com/apppasswords) is typed in the app's Add Mail Account page. If the hub machine cannot reach Gmail, an admin sets google.proxy (http://[user:pass@]host:port or socks5://[user:pass@]host:port) in manager.json and restarts the hub",
+				"the owner enters the password in the approval card. Gmail uses a Google app password created at myaccount.google.com/apppasswords after enabling 2-Step Verification. If the hub machine cannot reach Gmail, an admin sets google.proxy (http://[user:pass@]host:port or socks5://[user:pass@]host:port) in manager.json and restarts the hub",
 			value: `add: {"email", "provider": "imap|feishu" (default imap; feishu = Feishu / Lark mail), "name"?, "username"?, "imap_host"?, ` +
 				`"imap_port"?, "smtp_host"?, "smtp_port"?, "smtp_security"?: "tls|starttls"}; most providers need only the email. remove: the account id`,
 			get: h.getMailAccounts, add: h.addMailAccount, remove: h.removeMailAccount})
@@ -92,7 +92,7 @@ type selfSetting struct {
 	remove            func(ctx context.Context, id string) (*selfChange, error)
 }
 
-// selfChange is a change waiting for the phone: what the card says, what it asks for, and how it is made.
+// selfChange is a change waiting for the web app: what the card says, what it asks for, and how it is made.
 type selfChange struct {
 	summary string
 	fields  []proto.Field
@@ -244,8 +244,7 @@ func (h *Manager) addMailAccount(_ context.Context, v json.RawMessage) (*selfCha
 		}}, nil
 }
 
-// mailAccountRequest reads add's value into the request and what the card says. Gmail is an error: Google sign-in
-// only happens in the app.
+// mailAccountRequest reads the account fields and builds the approval card summary.
 func mailAccountRequest(l i18n.Lang, v json.RawMessage) (mail.AddAccountRequest, string, error) {
 	var a struct {
 		Email        string `json:"email"`
@@ -266,8 +265,7 @@ func mailAccountRequest(l i18n.Lang, v json.RawMessage) (mail.AddAccountRequest,
 		return mail.AddAccountRequest{}, "", errors.New("email is required")
 	}
 	if a.Provider == "gmail" || strings.HasSuffix(email, "@gmail.com") || strings.HasSuffix(email, "@googlemail.com") {
-		return mail.AddAccountRequest{}, "", errors.New("Gmail is added with Google sign-in, which only works in the app: " +
-			"ask the user to open 设置 › 邮箱 › 添加邮箱, pick Gmail and tap 使用 Google 账号登录")
+		return mail.AddAccountRequest{}, "", errors.New("Add Gmail in the web app with a Google app password")
 	}
 	provider := a.Provider
 	if provider == "" {
@@ -322,19 +320,6 @@ func (h *Manager) removeMailAccount(_ context.Context, id string) (*selfChange, 
 }
 
 func (h *Manager) toolPersonaSettings(ctx context.Context, machineID, sessionID string, args json.RawMessage) (string, error) {
-	out, err := h.personaSettings(ctx, machineID, sessionID, args)
-	// iPhone control's own setting read or changed while no iPhone is allowed: the rest of its setup (this iPhone's
-	// consent, pairing, Developer Mode) happens on the iPhone, in the guided setup (#8199).
-	var a struct {
-		Key string `json:"key"`
-	}
-	if err == nil && json.Unmarshal(args, &a) == nil && a.Key == "extension."+iphoneExtensionID && !h.iphoneSomeAllowed() {
-		out += "\n" + iphoneSetupHint
-	}
-	return out, err
-}
-
-func (h *Manager) personaSettings(ctx context.Context, machineID, sessionID string, args json.RawMessage) (string, error) {
 	var a struct {
 		Action string          `json:"action"`
 		Key    string          `json:"key"`
@@ -424,7 +409,7 @@ func (h *Manager) personaSettings(ctx context.Context, machineID, sessionID stri
 			}
 			for _, f := range fresh.fields {
 				if !f.Optional && strings.TrimSpace(r.Values[f.Key]) == "" {
-					return "", fmt.Errorf("%s was left empty on the phone: nothing changed", f.Label)
+					return "", fmt.Errorf("%s was left empty in the web app: nothing changed", f.Label)
 				}
 			}
 			return fresh.apply(ctx, r.Values)

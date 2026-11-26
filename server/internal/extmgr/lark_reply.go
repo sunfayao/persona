@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	larkconnector "github.com/nwverse/persona/server/internal/connector/larkcli"
-	"github.com/nwverse/persona/server/internal/connectorwire"
+	larkconnector "github.com/sunfayao/persona/server/internal/connector/larkcli"
+	"github.com/sunfayao/persona/server/internal/connectorwire"
 )
 
 func (h *Manager) observeLarkReply(ctx context.Context, raw json.RawMessage) (any, error) {

@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const modulePath = "github.com/nwverse/persona/server/"
+const modulePath = "github.com/sunfayao/persona/server/"
 
 // The commands a computer runs for its Agents link only this client and the contracts: never the node, the manager or
 // the hub (the self-contained packaging plan, step 4: the device's program owns these commands).

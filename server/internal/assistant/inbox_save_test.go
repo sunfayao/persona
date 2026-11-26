@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // inboxBatchMemStore is an inboxMemStore that also writes many items at once, as the database does (PutInboxItems).

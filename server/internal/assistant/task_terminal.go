@@ -3,14 +3,12 @@ package assistant
 import (
 	"context"
 	"errors"
-	"net/http"
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 type taskTerminalTarget struct {
@@ -34,50 +32,6 @@ func (s *Service) taskTerminalPlan(ctx context.Context, t Todo) (PlanTask, int, 
 		return PlanTask{}, -1, nil
 	}
 	return p.Tasks[i], i, nil
-}
-
-func (s *Service) taskTerminalRoute() {
-	s.handle("DELETE /api/v1/todos/{id}/terminal-cleanup", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("only the owner can withdraw terminal cleanup"))
-			return
-		}
-		ctx := r.Context()
-		t, ok, err := s.todo(ctx, r.PathValue("id"))
-		if err != nil || !ok {
-			if err == nil {
-				err = db.ErrTodoNotFound
-			}
-			todoErr(w, err)
-			return
-		}
-		_, i, err := s.taskTerminalPlan(ctx, t)
-		status := devicewire.TaskTerminalSkipped
-		if err == nil && i >= 0 {
-			err = s.patchPlanTask(ctx, t.PlanID, i, func(pt *PlanTask) {
-				if pt.TodoID != t.ID {
-					return
-				}
-				if pt.TerminalAuthorized && (pt.TerminalCleanup == devicewire.TaskTerminalPending ||
-					pt.TerminalCleanup == devicewire.TaskTerminalClosed) {
-					status = pt.TerminalCleanup
-				} else if pt.CloseTabOnAccept {
-					pt.CloseTabOnAccept = false
-					pt.TerminalTarget = taskTerminalTarget{}
-					pt.TerminalCleanup = status
-				}
-			})
-		}
-		if err != nil {
-			todoErr(w, err)
-			return
-		}
-		if status != devicewire.TaskTerminalSkipped {
-			apierr.Write(w, http.StatusConflict, errors.New("terminal cleanup has already been dispatched"))
-			return
-		}
-		apierr.WriteJSON(w, map[string]string{"terminal_cleanup": status})
-	})
 }
 
 // finishTaskTerminal claims one close attempt in the plan before it can reach

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // botmuxKey is where a machine's own choice is kept. hub.json's machines[].botmux is only the default now: the switch

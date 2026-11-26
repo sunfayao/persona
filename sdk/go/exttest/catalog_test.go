@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/exttest"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/exttest"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 const catalogManifest = `{"manifest_version":1,"id":"examplecatalog","name":"Example Catalog","version":"1.0.0","engines":{"extension_protocol":1},"runtime":{"command":"bin/examplecatalog"},"activation_events":["on_startup"],"contributes":{"connectors":[{"id":"examplecatalog","name":"Example Catalog","capabilities":["catalog"]}]}}`

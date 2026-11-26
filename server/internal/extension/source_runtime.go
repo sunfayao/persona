@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/extension/sourcevalidate"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension/sourcevalidate"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 const RuntimeDeno = "deno"

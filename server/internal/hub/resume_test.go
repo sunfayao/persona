@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // memStore keeps interaction outcomes like the interactions table; other Store methods are not used here.

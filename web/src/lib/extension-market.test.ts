@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  addMarket, agreeLabel, canUninstall, catalogOf, catalogQuery, getCatalog, isGitMarket, itemLine, itemState, MARKET_SPEC_HINT, marketView, marketKind, marketLine, marketOf,
+  addMarket, agreeLabel, canUninstall, catalogQuery, getCatalog, isGitMarket, itemLine, itemState, MARKET_SPEC_HINT, marketKind, marketLine, marketOf,
   extensionsRoute, previewFromMarket, previewVersion, renameConsent, refreshMarket, removeMarket, routeSub, setMarketToken, specLabel, uninstallExtension, upgradingFrom, wantsGitHubToken,
   type CatalogItem, type Market, type MarketPreview, type ExtensionsRoute,
 } from "./extension-market";
@@ -164,18 +164,6 @@ describe("GITHUB_TOKEN_URL", () => {
     expect([...u.searchParams.keys()].some((k) => k === "contents" || k.endsWith("_permissions"))).toBe(false); // no permission asked
     expect(isGitHubMarket({ spec: "github:example/extensions" })).toBe(true);
     expect(isGitHubMarket({ spec: "https://example.com/extensions/" })).toBe(false);
-  });
-});
-
-// #5017: the official market reads Official extensions whatever its index calls itself; the others keep their own names.
-describe("官方市场的名字", () => {
-  const official = { id: "o1", spec: "github:example/official", name: "Example 扩展", has_token: false, extensions: 1, warnings: [], official: true } as Market;
-  const own = { ...official, id: "m2", spec: "https://extensions.example.com", name: "团队扩展", official: undefined } as Market;
-  it("names the official market, and its catalog extensions' market, 官方扩展", () => {
-    expect(marketView(official).name).toBe("官方扩展");
-    expect(marketView(own).name).toBe("团队扩展");
-    const c = catalogOf({ markets: [official, own], extensions: [item({ market: "o1" }), item({ market: "m2", market_name: "团队扩展" })] });
-    expect(c.extensions.map((it) => it.market_name)).toEqual(["官方扩展", "团队扩展"]);
   });
 });
 

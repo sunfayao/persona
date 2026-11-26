@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A runtime that runs Codex itself (Paseo) has sessions whose conversation is a Codex thread
@@ -19,7 +20,7 @@ import (
 
 // namesCodexThread: a row of session id names Codex thread t as its conversation.
 func namesCodexThread(id, t string) bool {
-	return rolloutUUID(t) && runtimeIDRe.MatchString(id)
+	return codex.IsUUID(t) && runtimeIDRe.MatchString(id)
 }
 
 // runtimeCodexThreads reads the codex_thread of each session in a runtime.sessions push: session → thread.

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 func TestAliveIsIdentityFallback(t *testing.T) {

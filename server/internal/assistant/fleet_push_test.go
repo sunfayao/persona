@@ -2,13 +2,13 @@ package assistant
 
 import (
 	"context"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The session lists show what the assistant's snapshot says: the todo each agent works for, the quiet ones, the task
@@ -42,7 +42,7 @@ func TestSessionsShowTheTodoReport(t *testing.T) {
 	}
 }
 
-// A quiet task's agent (#1731) is flagged on the list, stays off the Live Activity, and its card is no push (the main
+// A quiet task's agent (#1731) is flagged on the list, stays off the Persona Link summary, and its card is no push (the main
 // conversation is told); another agent's card is pushed.
 func TestQuietAgents(t *testing.T) {
 	ft := newFleetTestNoStore(t)
@@ -54,9 +54,6 @@ func TestQuietAgents(t *testing.T) {
 	s.fleetTakeSnapshot(Snapshot{Todos: &TodoReport{Quiet: []SessionRef{{MachineID: "mac", SessionID: "s1"}}}})
 	if !listed(t, s, "mac", "s1").Quiet || listed(t, s, "mac", "s2").Quiet {
 		t.Fatal("quiet flags")
-	}
-	if st := s.fleetSnapshot(); st.Working != 1 || len(st.Items) != 1 || st.Items[0].ID != "mac/s2" {
-		t.Fatalf("fleet = %+v", st)
 	}
 	s.announce(proto.Interaction{ID: "ix_q", MachineID: "mac", SessionID: "s1", Kind: proto.IxPermission, ToolName: "Bash"})
 	s.announce(proto.Interaction{ID: "ix_s", MachineID: "mac", SessionID: "s2", Kind: proto.IxPermission, ToolName: "Bash"})

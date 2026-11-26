@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ErrStale says the current state no longer produces the proposal on the card.

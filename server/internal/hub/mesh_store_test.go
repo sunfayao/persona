@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // meshStore is an in-memory Store with the peers table (peerStore), for hubs in the mesh tests: everything a hub
@@ -64,13 +64,6 @@ func (s *meshStore) ClaimSend(context.Context, string, string, string) (string, 
 	return "new", nil
 }
 func (s *meshStore) SettleSend(context.Context, string, string) error { return nil }
-
-func (s *meshStore) UpsertDevice(_ context.Context, d db.Device) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.devices[d.DeviceID] = d
-	return nil
-}
 
 func (s *meshStore) Devices(context.Context) ([]db.Device, error) {
 	s.mu.Lock()

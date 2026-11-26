@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // parse runs one line through ParseLine and returns the items.
@@ -620,7 +620,7 @@ func TestDeveloperInfoAndQueueTags(t *testing.T) {
 func TestBackgroundTasks(t *testing.T) {
 	meta := &Meta{}
 	lines := []string{
-		`{"type":"assistant","uuid":"a1","timestamp":"2026-10-25T07:40:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"./scripts/release/release.sh","description":"Upload to TestFlight","run_in_background":true}}]}}`,
+		`{"type":"assistant","uuid":"a1","timestamp":"2026-10-25T07:40:00Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu1","name":"Bash","input":{"command":"./scripts/release/release.sh","description":"Deploy the preview","run_in_background":true}}]}}`,
 		`{"type":"user","uuid":"u1","timestamp":"2026-10-25T07:40:01Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"Command running in background with ID: b85polnoj. Output is being written to: /tmp/tasks/b85polnoj.output. You will be notified when it completes"}]}}`,
 		`{"type":"assistant","uuid":"a2","timestamp":"2026-10-25T07:40:02Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu2","name":"Agent","input":{"description":"Survey code","prompt":"x"}}]}}`,
 		`{"type":"user","uuid":"u2","timestamp":"2026-10-25T07:40:03Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu2","content":"Async agent launched successfully.\nagentId: a3497dfa0fb026376 (internal ID)"}]}}`,

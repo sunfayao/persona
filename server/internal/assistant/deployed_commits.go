@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // The deployed commits (#3205): a hub that cannot reach

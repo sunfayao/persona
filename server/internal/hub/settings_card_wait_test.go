@@ -14,13 +14,13 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/approval"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/approval"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // A persona_settings change is a card good for fifteen minutes. The hub waited for it through callBus, whose two
@@ -454,7 +454,7 @@ func TestOtherBusCallsKeepTwoMinutes(t *testing.T) {
 				return h.callBus(context.Background(), assistantwire.AssistantID, unanswered, nil, nil)
 			}},
 			{"what the hub asks of the manager's extensions", func() error {
-				return h.extCall(context.Background(), extwire.HubGitHubLogin, map[string]any{}, nil)
+				return h.extCall(context.Background(), extwire.HubClarificationTake, map[string]any{}, nil)
 			}},
 			{"reading one of the manager's settings", func() error {
 				text, failed, err := mgr.settingsTool(mgr.ctx, 0, `{"action":"get","key":"inbox.rules"}`)

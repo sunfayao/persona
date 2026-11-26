@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A card's push carries the manager's level: with the switch on a P1 escalation is held (recorded, no alert) while a
@@ -256,7 +256,7 @@ func TestPushGradingHelloAndLiveBroadcast(t *testing.T) {
 	put := func(body string) {
 		t.Helper()
 		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/push/grading", strings.NewReader(body)))
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/push/ln-mode", strings.NewReader(body)))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("PUT %s: %d %s", body, rec.Code, rec.Body.String())
 		}

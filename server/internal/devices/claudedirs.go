@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Claude Code config directories per machine (node/claudedirs.go): the configured ones (hub.json
@@ -262,30 +262,6 @@ func (m *Machine) setBlockedClaudeDirs(ctx context.Context, patterns []string) e
 	return nil
 }
 
-// storeBlockedClaudeDirs writes the patterns and prunes the remembered dirs they block, under claudeDirsMu so a
-// concurrent rememberClaudeDirs cannot write back a list read before the patterns changed.
-func (m *Machine) storeBlockedClaudeDirs(ctx context.Context, patterns []string) error {
-	m.claudeDirsMu.Lock()
-	defer m.claudeDirsMu.Unlock()
-	// The patterns go in whatever the remembered list's state: blocking is the user keeping a dir out, and every use
-	// of that list (claudeDirs, claudeDirsState) filters it by the patterns anyway.
-	if err := m.d.opts.Store.PutSetting(ctx, claudeDirsBlockedKey(m.cfg.ID), patterns); err != nil {
-		return err
-	}
-	seen, rewrite, err := m.readRememberedClaudeDirs(ctx)
-	if err != nil {
-		// Pruning waits for the next block: writing a list not read would drop the other remembered dirs.
-		m.d.logf("[%s] blocked claude dirs: not pruning the remembered ones: %v", m.cfg.ID, err)
-		return nil
-	}
-	home := m.nodeHome()
-	kept := slices.DeleteFunc(slices.Clone(seen), func(d string) bool { return proto.ClaudeDirBlocked(d, home, patterns) })
-	if len(kept) == len(seen) && !rewrite {
-		return nil
-	}
-	return m.d.opts.Store.PutSetting(ctx, claudeDirsKey(m.cfg.ID), kept)
-}
-
 // reconfigureClaudeDirs hands an online node its directories and blocked patterns again and takes the session list
 // it then has (the apps get it in the next machines / sessions broadcast). Offline, the next connection does it.
 func (m *Machine) reconfigureClaudeDirs(ctx context.Context) {
@@ -312,6 +288,28 @@ func (m *Machine) reconfigureClaudeDirs(ctx context.Context) {
 	if err := m.callWithSnapshot(ctx, "sessions.list", map[string]any{}, &list, snapshot); err == nil {
 		m.acceptSessionsList(snapshot, list.Sessions, true)
 	}
+}
+
+func (m *Machine) storeBlockedClaudeDirs(ctx context.Context, patterns []string) error {
+	m.claudeDirsMu.Lock()
+	defer m.claudeDirsMu.Unlock()
+	// The patterns go in whatever the remembered list's state: blocking is the user keeping a dir out, and every use
+	// of that list (claudeDirs) filters it by the patterns anyway.
+	if err := m.d.opts.Store.PutSetting(ctx, claudeDirsBlockedKey(m.cfg.ID), patterns); err != nil {
+		return err
+	}
+	seen, rewrite, err := m.readRememberedClaudeDirs(ctx)
+	if err != nil {
+		// Pruning waits for the next block: writing a list not read would drop the other remembered dirs.
+		m.d.logf("[%s] blocked claude dirs: not pruning the remembered ones: %v", m.cfg.ID, err)
+		return nil
+	}
+	home := m.nodeHome()
+	kept := slices.DeleteFunc(slices.Clone(seen), func(d string) bool { return proto.ClaudeDirBlocked(d, home, patterns) })
+	if len(kept) == len(seen) && !rewrite {
+		return nil
+	}
+	return m.d.opts.Store.PutSetting(ctx, claudeDirsKey(m.cfg.ID), kept)
 }
 
 // claudeDirsState is what GET /api/v1/machines/{mid}/claude-dirs answers: the machine's config directories (blocked

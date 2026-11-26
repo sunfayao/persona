@@ -3,7 +3,7 @@ package devices
 import (
 	"os/exec"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // stopSSHTreeOnCancel makes cancellation end ProxyCommand and ssh's other descendants too, not just ssh itself.

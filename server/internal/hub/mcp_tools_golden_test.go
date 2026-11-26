@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/mcptoolgolden"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/mcptoolgolden"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The MCP tools the hub offers, as they go over the wire (json.Marshal compacts the schemas; the goldens are indented
 // for reading, which is a function of the same bytes). One golden a tool, an index a list, and for the assistant's
 // variants only their difference from its list (mcptoolgolden, #11252), so a change to one tool rewrites one small
-// file. docs/assistant/prompts.md: regenerate with UPDATE_GOLDEN=1, which also deletes the goldens of removed tools.
+// file. Regenerate with UPDATE_GOLDEN=1, which also deletes the goldens of removed tools.
 // The connectors', Cua's and ego's are the manager's (extmgr's connector_tools goldens, its answer to
 // extensions.hub_call connector_tools); the hub lists them with its own and the assistant's, in the same order.
 func TestGoldenMCPTools(t *testing.T) {

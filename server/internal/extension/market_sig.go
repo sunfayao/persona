@@ -8,10 +8,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 	"io"
-	"net/url"
-	"path"
 	"reflect"
 	"strings"
 	"unicode/utf8"
@@ -35,7 +33,7 @@ func (s MarketSignature) Bad() bool { return s.State == SigInvalid || s.State ==
 //   - ErrCatalogUnavailable: the catalog could not be read (network, timeout, an HTTP status other than 200, a
 //     body over the limit). Nothing was learned about the catalog: the last verified one stays usable.
 //   - ErrCatalogUnverified: a catalog was read and does not verify (not an envelope where a signature is required,
-//     malformed, a bad signature, another signer). An official market whose catalog does not verify is quarantined.
+//     malformed, a bad signature, another signer). A signed market whose catalog does not verify is quarantined.
 var (
 	ErrCatalogUnavailable = errors.New("market catalog unavailable")
 	ErrCatalogUnverified  = errors.New("market catalog failed verification")
@@ -81,51 +79,6 @@ type catalogSignature struct {
 	Sig   string `json:"sig"`
 }
 
-// IsOfficialMarket includes direct HTTPS catalog aliases, not just repository specs.
-// The request location never determines which signing key to trust.
-func IsOfficialMarket(spec string) bool {
-	if Official.Is(spec) {
-		return true
-	}
-	want, err := ParseMarket(Official.Spec)
-	if err != nil || want.Kind != "github" {
-		return false
-	}
-	got, err := ParseMarket(spec)
-	if err != nil {
-		return false
-	}
-	if got.Kind == "git" {
-		u, err := url.Parse(got.URL)
-		if err == nil && (strings.EqualFold(u.Hostname(), "github.com") || strings.EqualFold(u.Hostname(), "ssh.github.com")) {
-			return strings.EqualFold(strings.TrimSuffix(strings.Trim(path.Clean(u.Path), "/"), ".git"), want.Owner+"/"+want.Repo)
-		}
-		return false
-	}
-	if got.Kind != "https" {
-		return false
-	}
-	u, err := url.Parse(got.URL)
-	if err != nil || u.Scheme != "https" || u.Port() != "" && u.Port() != "443" {
-		return false
-	}
-	p := strings.Split(strings.Trim(u.Path, "/"), "/")
-	ownerRepo := func(i int) bool {
-		return len(p) > i+1 && strings.EqualFold(p[i], want.Owner) && strings.EqualFold(p[i+1], want.Repo)
-	}
-	switch strings.ToLower(u.Hostname()) {
-	case "raw.githubusercontent.com", "raw.github.com":
-		return len(p) >= 4 && ownerRepo(0) && p[len(p)-1] == IndexFile
-	case "api.github.com":
-		return len(p) == 5 && p[0] == "repos" && ownerRepo(1) && p[3] == "contents" && p[4] == IndexFile
-	case "github.com":
-		return len(p) >= 5 && ownerRepo(0) && (p[2] == "blob" || p[2] == "raw") && p[len(p)-1] == IndexFile
-	}
-	return false
-}
-
-// strictJSON rejects ambiguous objects and invalid UTF-8 before encoding/json can
-// silently replace bytes. Signed payloads are validated too, without rewriting them.
 func strictJSON(raw []byte) error {
 	if !utf8.Valid(raw) {
 		return i18n.Err("extension-market_security.catalog")

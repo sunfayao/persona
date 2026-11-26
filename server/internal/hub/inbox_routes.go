@@ -3,7 +3,7 @@ package hub
 import (
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // The inbox is the manager's (internal/assistant's inbox*.go), its sources too (internal/extmgr inbox.go): the hub

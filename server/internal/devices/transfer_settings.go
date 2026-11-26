@@ -7,15 +7,11 @@ package devices
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // fileTransferKey is the settings key holding map[machineID]bool: the machines the user turned file transfer on for.
@@ -62,34 +58,6 @@ func (d *Devices) loadFileTransferLocked(ctx context.Context) error {
 	return nil
 }
 
-// setFileTransferOn stores the switch of machine: read, changed and written under the lock, so two switches flipped
-// at once both stay.
-func (d *Devices) setFileTransferOn(ctx context.Context, machine string, on bool) error {
-	if d.opts.Store == nil {
-		return i18n.Err("devices-api.no_store")
-	}
-	c := &d.fileTransfer
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if err := d.loadFileTransferLocked(ctx); err != nil {
-		return err
-	}
-	next := make(map[string]bool, len(c.on)+1)
-	for id, v := range c.on {
-		next[id] = v
-	}
-	if on {
-		next[machine] = true
-	} else {
-		delete(next, machine)
-	}
-	if err := d.opts.Store.PutSetting(ctx, fileTransferKey, next); err != nil {
-		return err
-	}
-	c.on = next
-	return nil
-}
-
 // fileTransferState is proto.Machine.FileTransfer: the switch, and the receive folder while it is on.
 func (m *Machine) fileTransferState(enabled bool) *proto.MachineFileTransfer {
 	st := &proto.MachineFileTransfer{Enabled: enabled}
@@ -100,32 +68,4 @@ func (m *Machine) fileTransferState(enabled bool) *proto.MachineFileTransfer {
 		}
 	}
 	return st
-}
-
-// getFileTransferSettings: GET /api/v1/machines/{mid}/file-transfer/settings → {enabled, inbox?}.
-func (d *Devices) getFileTransferSettings(w http.ResponseWriter, r *http.Request, m *Machine) {
-	writeJSON(w, m.fileTransferState(d.fileTransferOn(m.cfg.ID)))
-}
-
-// putFileTransferSettings: PUT /api/v1/machines/{mid}/file-transfer/settings {"enabled": bool} → {enabled, inbox?}.
-// Only a full device turns it on or off; stored while the machine is offline too.
-func (d *Devices) putFileTransferSettings(w http.ResponseWriter, r *http.Request, m *Machine) {
-	if role := r.Header.Get(assistantwire.RoleHeader); role != "" && role != "full" {
-		writeErrCode(w, http.StatusForbidden, proto.CodeReadOnly, i18n.Err("devices-file_transfer.read_only"))
-		return
-	}
-	var in struct {
-		Enabled *bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil || in.Enabled == nil {
-		writeErrCode(w, http.StatusBadRequest, "bad_request", i18n.Err("devices-file_transfer.need_enabled"))
-		return
-	}
-	if err := d.setFileTransferOn(r.Context(), m.cfg.ID, *in.Enabled); err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
-		return
-	}
-	d.logf("[%s] file transfer turned %s", m.cfg.ID, map[bool]string{true: "on", false: "off"}[*in.Enabled])
-	d.changed() // the machine list carries the switch, and the hub checks dest=inbox uploads against it
-	writeJSON(w, m.fileTransferState(*in.Enabled))
 }

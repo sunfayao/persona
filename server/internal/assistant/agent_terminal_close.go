@@ -3,7 +3,7 @@ package assistant
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Closing an Agent's terminal when its session ends (#10355): the owner's setting assistant.close_ended_terminals,

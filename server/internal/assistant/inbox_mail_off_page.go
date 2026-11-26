@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // A mail round reads each eligible mailbox's latest page (extmgr readMailAccount) and applyMail settles the threads on

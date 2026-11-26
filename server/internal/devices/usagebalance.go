@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Prepaid balances as a source of the sidebar's usage strip (#11825, docs/server/usage-windows.md "Prepaid

@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // diagNode is a node that answers machine.diagnose and machine.cleanup with what the test sets, and keeps the params
@@ -194,4 +197,17 @@ func TestDiagnosisNodeErrors(t *testing.T) {
 			t.Errorf("%v: error %q", c.fail, msg)
 		}
 	}
+}
+
+func clipCall(t *testing.T, mux http.Handler, method, path, body, role string) (int, map[string]any) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	if role != "" {
+		req.Header.Set(assistantwire.RoleHeader, role)
+	}
+	mux.ServeHTTP(rec, req)
+	out := map[string]any{}
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	return rec.Code, out
 }

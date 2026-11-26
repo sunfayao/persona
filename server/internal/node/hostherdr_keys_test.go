@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/herdr"
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // herdr 0.9 answers invalid_key for home, end, page up and page down: those go as their xterm bytes through

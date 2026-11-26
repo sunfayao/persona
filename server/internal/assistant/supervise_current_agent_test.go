@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // #6483: a to-do handed over from an Agent that went offline keeps that earlier link. Supervision follows the Agent

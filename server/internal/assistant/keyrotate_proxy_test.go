@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // pgProxy forwards a connection to Postgres (no TLS: the test database's sslmode=disable) and, armed, breaks it at the

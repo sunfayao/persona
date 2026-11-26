@@ -14,7 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // Every column of the manager set that looks sealed (its name says so) is one the key rotation re-seals: a new sealed

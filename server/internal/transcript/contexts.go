@@ -2,8 +2,8 @@ package transcript
 
 import (
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 	"html"
 	"slices"
 	"sort"

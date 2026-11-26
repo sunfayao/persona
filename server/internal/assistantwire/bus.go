@@ -1,6 +1,6 @@
 package assistantwire
 
-import "github.com/nwverse/persona/server/internal/devicewire"
+import "github.com/sunfayao/persona/server/internal/devicewire"
 
 // ---- the bus ----
 
@@ -48,17 +48,7 @@ const (
 	// rows). The hub lists the todo_view feature only while every manager whose to-dos it merges names it; until then
 	// clients keep their own rules, and draw a row without `view` as before.
 	CapabilityTodoView = "todo_view"
-	// CapabilityTodoPlaces: the manager answers GET /api/v1/todos/places, the To-dos sidebar's places with the list's
-	// counts (#10226, TodoPlaces). The hub lists the todo_places feature only while every manager whose to-dos it
-	// merges names it.
-	CapabilityTodoPlaces = "todo_places"
-	// CapabilityTodoAsks: the manager answers POST /api/v1/todos/{id}/asks/{ask}/answer, one route for every answer to a
-	// to-do's own asks, named by the ask ids of its view (#10465, TodoAskAnswer). The hub lists the todo_asks feature
-	// only while every manager whose to-dos it merges names it; until then clients answer through the accept,
-	// decision-dismiss and retry routes. It gates the route alone: the to-do count unit rides on its own payload.
-	CapabilityTodoAsks = "todo_asks"
-	// CapabilityTodoTimeline: the manager answers GET /api/v1/todos/{id}/timeline, a to-do's conversation grouped into
-	// rounds (#10465, TodoTimeline), and GET /api/v1/todos/{id} carries the rounds the paper shows, how many there are,
+	// CapabilityTodoTimeline: GET /api/v1/todos/{id} carries the rounds the paper shows (#10465), how many there are,
 	// the to-do's results and what changed since the owner looked (TodoItemDetail). The hub lists the todo_timeline
 	// feature only while every manager whose to-dos it merges names it; until then clients draw none of them.
 	CapabilityTodoTimeline = "todo_timeline"
@@ -209,15 +199,6 @@ var Routes = []string{
 	"DELETE /api/v1/assistant/conversations/{id}/always/{hash}",
 	"POST /api/v1/assistant/conversations/{id}/undelivered/{msg}/retry",
 	"DELETE /api/v1/assistant/conversations/{id}/undelivered/{msg}",
-	"POST /api/v1/assistant/conversations/{id}/stop",
-	"GET /api/v1/assistant/reporters",
-	"GET /api/v1/assistant/dispatch-policy",
-	"PUT /api/v1/assistant/dispatch-policy",
-	"GET /api/v1/assistant/dispatch-guard",
-	"PUT /api/v1/assistant/dispatch-guard",
-	"GET /api/v1/assistant/worker-presets",
-	"GET /api/v1/assistant/start-defaults",
-	"PUT /api/v1/assistant/start-defaults",
 	"GET /api/v1/assistant/conversations/{id}/feed",
 	"POST /api/v1/assistant/feed/{id}/dismiss",
 	"POST /api/v1/assistant/feed/{id}/undo-dismiss",
@@ -235,41 +216,24 @@ var Routes = []string{
 	"POST /api/v1/assistant/tasks/{id}/fresh",
 	"DELETE /api/v1/assistant/tasks/{id}/start-grant",
 	"GET /api/v1/assistant/repositories",
-	"GET /api/v1/assistant/repositories/{id}",
-	"GET /api/v1/assistant/repositories/providers",
-	"POST /api/v1/assistant/repositories/preview",
 	"POST /api/v1/assistant/repositories",
-	"PUT /api/v1/assistant/repositories/{id}",
-	"DELETE /api/v1/assistant/repositories/{id}",
-	"POST /api/v1/assistant/repositories/{id}/restore",
 	"GET /api/v1/assistant/saved-prompts",
 	"POST /api/v1/assistant/saved-prompts",
 	"PUT /api/v1/assistant/saved-prompts/{id}",
 	"GET /api/v1/assistant/runs",
-	"GET /api/v1/assistant/routines",
-	"PUT /api/v1/assistant/routines",
-	"POST /api/v1/assistant/routines/{id}/run",
-	"GET /api/v1/assistant/followups",
-	"POST /api/v1/assistant/followups/{id}/run",
-	"DELETE /api/v1/assistant/followups/{id}",
 	"POST /api/v1/task-plans/{id}/start",
 	"POST /api/v1/task-plans/{id}/workspace-preview",
 	"POST /api/v1/task-plans/{id}/dismiss",
-	"DELETE /api/v1/todos/{id}/terminal-cleanup",
 	// The todos (the assistant's todos.go).
 	"GET /api/v1/todos",
-	"GET /api/v1/todos/places",              // the To-dos places and counts (todo_view_routes.go, #10226); the literal wins over {id}
 	"GET /api/v1/todos/{id}",                // one to-do as the list has it, with its view
 	"GET /api/v1/todos/{id}/images/{image}", // one attached picture's exact bytes (todo_images.go, #11084)
 	"GET /api/v1/todos/{id}/repositories",
 	"GET /api/v1/todos/{id}/workspace-rules",
 	"PUT /api/v1/todos/{id}/workspace-rules",
 	"POST /api/v1/todos/{id}/workspace-naming/preview",
-	"POST /api/v1/todos/{id}/workspace-naming/plans",
-	"GET /api/v1/todos/{id}/workspace-naming/plans/{operation_id}",
 	"POST /api/v1/assistant/workspace-naming/preview",
 	"PUT /api/v1/todos/{id}/repositories",
-	"PUT /api/v1/todos/{id}/repositories/{repo_id}/links",
 	"POST /api/v1/todos",
 	"PATCH /api/v1/todos/{id}",
 	"DELETE /api/v1/todos/{id}",
@@ -279,10 +243,6 @@ var Routes = []string{
 	"PUT /api/v1/todos/{id}/agents/{mid}/{sid}/attach",
 	"DELETE /api/v1/todos/{id}/agents/{mid}/{sid}",
 	"GET /api/v1/todos/{id}/decisions",
-	"POST /api/v1/decisions",
-	"GET /api/v1/decisions/{id}",
-	"POST /api/v1/decisions/{id}/withdraw",
-	"GET /api/v1/todos/{id}/timeline", // its conversation's rounds (todo_timeline.go, #10465)
 	"POST /api/v1/todos/{id}/decisions",
 	"PATCH /api/v1/todos/{id}/decisions/{did}",
 	"PUT /api/v1/todos/{id}/thread",
@@ -293,7 +253,6 @@ var Routes = []string{
 	"POST /api/v1/todos/{id}/decision-dismiss",
 	"POST /api/v1/todos/{id}/decision-undo-dismiss",
 	// Any answer to a to-do's own ask, by the id its view lists (todo_asks_routes.go, #10465).
-	"POST /api/v1/todos/{id}/asks/{ask}/answer",
 	"POST /api/v1/later/{id}/handled", // a question that can wait, marked handled (later.go)
 	"POST /api/v1/todos/{id}/done-check",
 	"POST /api/v1/todos/{id}/retry",
@@ -301,12 +260,7 @@ var Routes = []string{
 	// Its settings and its main conversation (profile.go, start.go).
 	"GET /api/v1/assistant",
 	"PUT /api/v1/assistant",
-	"POST /api/v1/assistant/warm",
 	"GET /api/v1/assistant/readiness",
-	"POST /api/v1/assistant/readiness/dismiss",
-	"GET /api/v1/assistant/memory",
-	"PUT /api/v1/assistant/memory/{name}",
-	"DELETE /api/v1/assistant/memory/{name}",
 	"GET /api/v1/assistant/capabilities",
 	"GET /api/v1/assistant/skills",
 	"POST /api/v1/assistant/conversations",
@@ -321,10 +275,6 @@ var Routes = []string{
 	"POST /api/v1/assistant/conversations/{id}/views/{key}/html-actions",
 	// The Lark bot's workbench: companion bots and their notices (feishu_companions.go there
 	// "Companion bots").
-	"PUT /api/v1/assistant/feishu/companions",
-	"GET /api/v1/assistant/feishu/notices",
-	"POST /api/v1/assistant/feishu/notices/action",
-	"POST /api/v1/assistant/feishu/workbench",
 	"GET /api/v1/assistant/segments",
 	"PUT /api/v1/assistant/segments",
 	"GET /api/v1/assistant/conversations/{id}/segments",

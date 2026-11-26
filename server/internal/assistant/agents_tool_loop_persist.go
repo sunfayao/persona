@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 const toolLoopsSetting = "agents.tool_loops"

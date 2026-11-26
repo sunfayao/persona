@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The manager's own list of computers (managerconf.MachinesKey in its manager.json; docs/assistant/managers.md "Each

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Native archive against a real Codex, in a throwaway CODEX_HOME of its own:
@@ -82,11 +82,11 @@ func TestLiveCodexNativeArchive(t *testing.T) {
 	}
 	cctx, ccancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer ccancel()
-	if err := c.wire.call(cctx, "thread/start", map[string]any{"cwd": home}, &started); err != nil {
+	if err := c.wire.Call(cctx, "thread/start", map[string]any{"cwd": home}, &started); err != nil {
 		t.Fatal(err)
 	}
 	thread := started.Thread.ID
-	if err := c.wire.call(cctx, "thread/name/set", map[string]any{"threadId": thread, "name": "persona archive check"}, nil); err != nil {
+	if err := c.wire.Call(cctx, "thread/name/set", map[string]any{"threadId": thread, "name": "persona archive check"}, nil); err != nil {
 		t.Fatal(err) // writes the rollout, so the thread is on disk
 	}
 	id := n.registerCodex(home, thread, "")

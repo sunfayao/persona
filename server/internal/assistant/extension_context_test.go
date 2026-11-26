@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // answerInboxContext makes the extension manager answer plugins.inbox_context with one extension's block and

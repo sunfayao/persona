@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // infoCategoryMemStore is a registry store that keeps information categories as assistant_info_categories does: a

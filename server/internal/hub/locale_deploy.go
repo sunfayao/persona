@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The manager's deployment reports (and saved errors) are canonical, not tied to the language at job start, and so
@@ -19,7 +19,6 @@ func localizedMachines(l i18n.Lang, machines []proto.Machine) []proto.Machine {
 		out[i].DeployReason = i18n.DeploymentText(l, out[i].DeployReason)
 		out[i].Computer = i18n.ComputerStatus(l, out[i].Computer)
 		out[i].Browser = i18n.BrowserStatus(l, out[i].Browser)
-		out[i].IPhone = i18n.IPhoneStatus(l, out[i].IPhone)
 		out[i].Clipboard = i18n.ClipboardStatus(l, out[i].Clipboard)
 		out[i].Engines = i18n.EngineNotes(l, out[i].Engines)
 	}
@@ -43,7 +42,6 @@ func localizedMachineEvent(l i18n.Lang, raw []byte) []byte {
 	for i := range machines {
 		changed = changed || machines[i].DeployError != translated[i].DeployError || machines[i].DeployReason != translated[i].DeployReason ||
 			!reflect.DeepEqual(machines[i].Computer, translated[i].Computer) || !reflect.DeepEqual(machines[i].Browser, translated[i].Browser) ||
-			!reflect.DeepEqual(machines[i].IPhone, translated[i].IPhone) ||
 			!reflect.DeepEqual(machines[i].Clipboard, translated[i].Clipboard) ||
 			!reflect.DeepEqual(machines[i].Engines, translated[i].Engines)
 	}

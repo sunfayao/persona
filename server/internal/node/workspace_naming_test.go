@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 func TestWorkspaceNamingUsesTargetHomeWithoutEngineOrCreation(t *testing.T) {

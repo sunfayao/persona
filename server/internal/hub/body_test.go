@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // endlessBody is a JSON object whose string value never ends; it counts what the server read of it.
@@ -191,7 +191,6 @@ func TestAppHandlersBodyLimitTooLarge(t *testing.T) {
 		{"POST", "/api/v1/sessions/m1/s1/messages", "", 32 << 20},
 		{"POST", "/api/v1/sessions/m1/s1/messages", opID, 32 << 20},
 		{"POST", "/api/v1/sessions/m1/s1/interrupt", "", 32 << 20},
-		{"POST", "/api/v1/sessions/m1/s1/keys", "", 32 << 20},
 		{"POST", "/api/v1/sessions/m1/s1/rename", "", 1 << 20},
 		{"POST", "/api/v1/sessions/m1/s1/rewind", "", rewindMaxPrompt + 4<<10},
 		{"POST", "/api/v1/machines/m1/preview/start", "", 64 << 10},

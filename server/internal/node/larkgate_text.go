@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Where text naming lark-cli matters (#8119). Words only run as a command at a command's own position, which

@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"unicode"
 
-	repository "github.com/nwverse/persona/server/internal/repositorywire"
-	"github.com/nwverse/persona/server/internal/taskworkspace"
+	repository "github.com/sunfayao/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/taskworkspace"
 )
 
 func (e *workspaceExecutor) source(ctx context.Context, r *taskworkspace.Instance) string {

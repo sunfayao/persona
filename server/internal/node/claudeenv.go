@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // paneEnvOfPID reads the engine pane variables (enginePaneEnvs) from a process's environment: what tells a claude in

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // 设置 › 模型供应商 with a bash machine, an offline one and one too slow to answer (#2854): the bash machine's

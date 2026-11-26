@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // TestReapInherited: a process that starts a child and then replaces itself (syscall.Exec, as the resident node, the

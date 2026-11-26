@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/bus"
 )
 
 type authBucket struct {

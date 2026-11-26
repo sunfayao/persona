@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 type readinessPendingDevices struct {

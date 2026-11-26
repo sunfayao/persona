@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/clitext"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/manager"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/clitext"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/manager"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // A flag mistake in a manager command ends with exit 2 and, on stderr, the flag's message and then the usage; a bare

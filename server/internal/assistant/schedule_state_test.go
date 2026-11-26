@@ -10,8 +10,8 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestTaskStateNoteEdit(t *testing.T) {
@@ -231,13 +231,13 @@ func TestTaskStateRecurringFollowupLeavesMainChat(t *testing.T) {
 	node := readyHub()
 	node.settings = &Settings{Main: "main", Timezone: "UTC"}
 	s := newStorelessService(t, node)
-	before := len(s.tasksView(t.Context(), nil))
+	before := len(s.tasksView(t.Context()))
 	if _, err := s.toolScheduleFollowup(t.Context(), "server", "main", json.RawMessage(
 		`{"title":"Public issue patrol","prompt":"Report only changes","every":"30m"}`,
 	)); err != nil {
 		t.Fatal(err)
 	}
-	tasks := s.tasksView(t.Context(), nil)
+	tasks := s.tasksView(t.Context())
 	if len(tasks) != before+1 {
 		t.Fatalf("expected one new task, got %d", len(tasks)-before)
 	}

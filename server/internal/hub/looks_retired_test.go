@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extwire"
 )
 
 func TestLegacyExtensionIconFallbackUsesMochi(t *testing.T) {
@@ -32,21 +32,11 @@ func TestLegacyExtensionIconFallbackUsesMochi(t *testing.T) {
 	}
 }
 
-func TestBundledLooksOnlyMochiAndMilkFrog(t *testing.T) {
+func TestBundledLooksOnlyMochi(t *testing.T) {
 	h := newTestHub(t)
-	h.builtinLooks = builtinPersonaFS()
 	_, out := call(t, h.routes(), "GET", "/api/v1/looks", h.cfg.Token, "")
-	if len(out["looks"].([]any)) != 2 {
+	if len(out["looks"].([]any)) != 1 || lookByID(t, out, "persona") == nil {
 		t.Fatalf("bundled catalog: %v", out)
-	}
-	for _, id := range []string{"persona", "nwverse"} {
-		if lookByID(t, out, id) == nil {
-			t.Fatalf("missing %s: %v", id, out)
-		}
-	}
-	t.Log("GET /api/v1/looks: ids=[persona nwverse], current.effective=persona")
-	if lookByID(t, out, "nwverse")["source"] != "hub" {
-		t.Fatalf("Milk Frog must remain a downloadable bundled pack: %v", out)
 	}
 }
 
@@ -55,7 +45,6 @@ func TestRemovedAndUnknownLookChoicesFallBack(t *testing.T) {
 	for _, id := range append(slices.Clone(extension.RetiredLookIDs), "unknown-look") {
 		t.Run(id, func(t *testing.T) {
 			h := newTestHub(t)
-			h.builtinLooks = builtinPersonaFS()
 			h.store = &settingsStore{vals: map[string][]byte{}}
 			at := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
 			if err := h.store.PutSetting(context.Background(), lookKey, lookChoice{ID: id, UpdatedAt: at}); err != nil {
@@ -85,7 +74,6 @@ func TestRetiredLookIDsCannotBeReclaimed(t *testing.T) {
 	for _, id := range extension.RetiredLookIDs {
 		t.Run(id, func(t *testing.T) {
 			h := newTestHub(t)
-			h.builtinLooks = builtinPersonaFS()
 			h.store = &settingsStore{vals: map[string][]byte{}}
 			_ = h.store.PutSetting(context.Background(), lookKey, lookChoice{ID: id})
 			lp := lookReport(t, exampleLooksDir(t), "pebble")[0]
@@ -99,7 +87,7 @@ func TestRetiredLookIDsCannotBeReclaimed(t *testing.T) {
 			writePersona(t, h.personasDir(), id, personaManifestJSON(id), personaFilesOK())
 			mux := h.routes()
 			_, out := call(t, mux, "GET", "/api/v1/looks", h.cfg.Token, "")
-			if len(out["looks"].([]any)) != 2 || lookByID(t, out, id) != nil || out["current"].(map[string]any)["effective"] != "persona" {
+			if len(out["looks"].([]any)) != 1 || lookByID(t, out, id) != nil || out["current"].(map[string]any)["effective"] != "persona" {
 				t.Fatalf("retired ID reclaimed: %v", out)
 			}
 			srv := httptest.NewServer(mux)

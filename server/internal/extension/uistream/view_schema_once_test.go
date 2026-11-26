@@ -3,7 +3,7 @@ package uistream
 import (
 	"testing"
 
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 // check no longer walks the View schema over the normalized view. For every

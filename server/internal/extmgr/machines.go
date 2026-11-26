@@ -10,12 +10,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/devices"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/devices"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // The computers are the manager's (internal/devices): the code moved
@@ -59,9 +59,6 @@ type Machine struct {
 	// browser, browserAt: the same for ego lite (browser.status, the plugin ego; browser.go).
 	browser   *proto.Browser
 	browserAt time.Time
-	// iphone, iphoneAt: the same for the iPhones it reaches (iphone.status, the extension iphone; iphone.go).
-	iphone   *proto.IPhone
-	iphoneAt time.Time
 	// streams are the manager's streams to its node (portStreams).
 	streams *streams.Mux
 	// noLockMu and cursorMu send computer.nolock and computer.cursor to the node one at a time (tellNoLock,

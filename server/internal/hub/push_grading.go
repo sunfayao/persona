@@ -4,15 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 // Push grading: when its switch is on, the hub delivers pushes by urgency instead of pushing
@@ -697,76 +695,6 @@ func (p *Pusher) heldPushesView(manager string, limit int) []heldPushRecord {
 	return out
 }
 
-// pushDayStats is one UTC calendar day's delivery counts for one manager, counted from the full in-memory records
-// (up to 500 held / 2000 delivered entries) rather than the 200-entry view, so the numbers stay exact past 200.
-type pushDayStats struct {
-	Date        string         `json:"date"`
-	Manager     string         `json:"manager"`
-	Sent        int            `json:"sent"`
-	Intercepted int            `json:"intercepted"`
-	ByReason    map[string]int `json:"by_reason,omitempty"`
-}
-
-// pushDailyStats counts delivered and held pushes at or after since, per UTC day and manager. When manager is not empty
-// only that manager's pushes are counted (an extension's view). Days with no pushes are omitted; days sort ascending.
-func (p *Pusher) pushDailyStats(since time.Time, manager string) []pushDayStats {
-	type agg struct {
-		sent, intercepted int
-		byReason          map[string]int
-	}
-	p.gradingMu.Lock()
-	days := map[string]map[string]*agg{}
-	add := func(at time.Time, mgr string, reason string, delivered bool) {
-		if at.Before(since) {
-			return
-		}
-		if manager != "" && mgr != manager {
-			return
-		}
-		day := at.UTC().Format("2006-01-02")
-		if days[day] == nil {
-			days[day] = map[string]*agg{}
-		}
-		a := days[day][mgr]
-		if a == nil {
-			a = &agg{byReason: map[string]int{}}
-			days[day][mgr] = a
-		}
-		if delivered {
-			a.sent++
-			return
-		}
-		a.intercepted++
-		a.byReason[reason]++
-	}
-	for _, e := range p.sent {
-		add(e.At, e.Manager, "", true)
-	}
-	for _, e := range p.intercepts {
-		add(e.At, e.Manager, e.Reason, false)
-	}
-	p.gradingMu.Unlock()
-
-	dates := make([]string, 0, len(days))
-	for d := range days {
-		dates = append(dates, d)
-	}
-	slices.Sort(dates)
-	out := make([]pushDayStats, 0, len(dates))
-	for _, d := range dates {
-		managers := make([]string, 0, len(days[d]))
-		for m := range days[d] {
-			managers = append(managers, m)
-		}
-		slices.Sort(managers)
-		for _, m := range managers {
-			a := days[d][m]
-			out = append(out, pushDayStats{Date: d, Manager: m, Sent: a.sent, Intercepted: a.intercepted, ByReason: a.byReason})
-		}
-	}
-	return out
-}
-
 // interceptReaderAllowed says whether the extension token r carries is on the hub's explicit allow-list
 // (hub.json intercept_readers). The scope gate already proved it has notify; this names the extension by ID.
 func (h *Hub) interceptReaderAllowed(r *http.Request) bool {
@@ -814,9 +742,7 @@ func (h *Hub) pushGradingRoutes(api *http.ServeMux) {
 		writeJSON(w, map[string]any{"enabled": body.Enabled})
 	}
 	api.HandleFunc("GET /api/v1/push/ln-mode", getSwitch)
-	api.HandleFunc("GET /api/v1/push/grading", getSwitch)
 	api.HandleFunc("PUT /api/v1/push/ln-mode", putSwitch)
-	api.HandleFunc("PUT /api/v1/push/grading", putSwitch)
 	api.HandleFunc("GET /api/v1/push/intercepts", func(w http.ResponseWriter, r *http.Request) {
 		em := extensionManager(r)
 		if extensionToken(r) && !h.interceptReaderAllowed(r) {
@@ -829,33 +755,5 @@ func (h *Hub) pushGradingRoutes(api *http.ServeMux) {
 		// pushes; a full credential reads every manager's. Bodies are summaries already (summaryBody at record time).
 		view := h.push.heldPushesView(em, 0)
 		writeJSON(w, map[string]any{"intercepts": view})
-	})
-	api.HandleFunc("GET /api/v1/push/stats/daily", func(w http.ResponseWriter, r *http.Request) {
-		now := h.push.now().UTC()
-		since := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-		q := r.URL.Query()
-		if raw := q.Get("since"); raw != "" {
-			parsed, err := time.Parse(time.RFC3339, raw)
-			if err != nil {
-				writeErr(w, http.StatusBadRequest, errors.New("since must be an RFC3339 timestamp"))
-				return
-			}
-			since = parsed
-		} else if raw := q.Get("days"); raw != "" {
-			days, err := strconv.Atoi(raw)
-			if err != nil || days < 1 || days > pushStatsDaysMax {
-				writeErr(w, http.StatusBadRequest, fmt.Errorf("days must be a number from 1 to %d", pushStatsDaysMax))
-				return
-			}
-			since = since.AddDate(0, 0, -(days - 1))
-		}
-		if oldest := now.Add(-heldPushMaxAge); since.Before(oldest) {
-			since = oldest
-		}
-		// An extension token counts only its own manager's pushes; a full credential counts every manager's.
-		writeJSON(w, map[string]any{
-			"since": since.UTC().Format(time.RFC3339),
-			"days":  h.push.pushDailyStats(since, extensionManager(r)),
-		})
 	})
 }

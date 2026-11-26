@@ -6,7 +6,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // notifySignals: Windows has no SIGUSR1 / SIGUSR2, so the tray sets named events instead (link.Poke): recheck calls

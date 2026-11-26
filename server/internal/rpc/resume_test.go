@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/netshape"
+	"github.com/sunfayao/persona/server/internal/netshape"
 )
 
 // resumeLink is a manager peer h and a node peer n, framed and resumable over a shaped link that a test cuts (both

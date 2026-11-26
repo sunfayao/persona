@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db/dbtest"
-	"github.com/nwverse/persona/server/internal/testhome"
+	"github.com/sunfayao/persona/server/internal/db/dbtest"
+	"github.com/sunfayao/persona/server/internal/testhome"
 )
 
 // The tests that need Postgres run on a database of their own (dbtest, #583); without PERSONA_TEST_DATABASE_URL they

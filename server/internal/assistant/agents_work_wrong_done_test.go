@@ -7,22 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
-// statsOf is GET /api/v1/agents/work/stats over the last hour, once the events written in the background are in.
-func statsOf(t *testing.T, s *Service) workStats {
+// recentStoredWorkEvents reads the last hour after background writes settle.
+func recentStoredWorkEvents(t *testing.T, s *Service) []db.WorkEvent {
 	t.Helper()
 	s.waitWorkEvents()
-	w := serve(s, "GET", "/api/v1/agents/work/stats?hours=1", "")
-	if w.Code != 200 {
-		t.Fatalf("stats %d %s", w.Code, w.Body)
-	}
-	var out workStats
-	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+	events, err := s.workDB().WorkEvents(t.Context(), time.Now().Add(-time.Hour))
+	if err != nil {
 		t.Fatal(err)
 	}
-	return out
+	return events
 }
 
 // storedEvents are the events st took; testEvents those a service without a database kept.
@@ -50,50 +46,9 @@ func eventsOf(events []db.WorkEvent, kind string) map[string][]map[string]any {
 	return out
 }
 
-// The counts: a reopen of a to-do the judge closed counts up to 24 hours after the close, the boundary included; one
-// a person closed (by hand, or a supervisor's acceptance) never does; a rework counts only after the judge's done; each
-// to-do once.
-func TestSummarizeWrongDone(t *testing.T) {
-	ev := func(kind string, d map[string]any) db.WorkEvent {
-		return db.WorkEvent{At: turnEnd, Kind: kind, Detail: d}
-	}
-	reopen := func(todo, doneBy string, judge bool, after time.Duration) db.WorkEvent {
-		return ev(todoReopenedEvent, map[string]any{"todo": todo, "done_by": doneBy, "judge": judge, "after": after.Seconds()})
-	}
-	rework := func(todo string, judged bool) db.WorkEvent {
-		return ev(reviewReworkEvent, map[string]any{"todo": todo, "judged_done": judged})
-	}
-	s := summarizeWork(24, []db.WorkEvent{
-		reopen("todo_hour", db.DoneByAuto, true, time.Hour),
-		reopen("todo_hour", db.DoneByAuto, true, time.Minute), // closed and reopened again: one to-do
-		reopen("todo_day", db.DoneByAuto, true, 24*time.Hour), // the boundary counts
-		reopen("todo_judge", db.DoneByReview, true, time.Minute),
-		reopen("todo_late", db.DoneByAuto, true, 24*time.Hour+time.Second),
-		reopen("todo_user", "", false, time.Minute),
-		reopen("todo_accepted", db.DoneByReview, false, time.Minute),
-		rework("todo_judged", true),
-		rework("todo_judged", true),
-		rework("todo_working", false),
-	})
-	if s.WrongDone != (wrongDoneStats{Reopened: 3, Rework: 1}) {
-		t.Fatalf("wrong_done %+v", s.WrongDone)
-	}
-	if len(s.Actions) != 0 || len(s.Triaged) != 0 {
-		t.Fatalf("counted elsewhere too: actions %v, triaged %v", s.Actions, s.Triaged)
-	}
-	// Only added: with nothing to count it is there with zeros, next to the fields that were there.
-	b, _ := json.Marshal(summarizeWork(24, nil))
-	for _, want := range []string{`"wrong_done":{"reopened":0,"rework":0}`, `"triaged":{}`, `"needs_you":{`, `"waits":{}`} {
-		if !strings.Contains(string(b), want) {
-			t.Errorf("stats lack %s: %s", want, b)
-		}
-	}
-}
-
 // Every way a done to-do reopens records it, with who had closed it and how long ago: the hub's judge on its own, the
-// judge for a supervised task's supervisor (judgeClose), a supervisor's acceptance, the user. The stats count the
-// judge's closes reopened within a day.
-func TestWorkStatsCountReopenedAutoDone(t *testing.T) {
+// judge for a supervised task's supervisor (judgeClose), a supervisor's acceptance, and the user.
+func TestReopeningRecordsWhoClosedTheTodo(t *testing.T) {
 	st := &workMemStore{}
 	s, _ := newTaskServiceOn(t, st)
 	ctx := context.Background()
@@ -152,16 +107,13 @@ func TestWorkStatsCountReopenedAutoDone(t *testing.T) {
 			t.Errorf("%s: %v, want done_by %q judge %v after ~%v", id, d, want.doneBy, want.judge, want.after)
 		}
 	}
-	if s := statsOf(t, s); s.WrongDone != (wrongDoneStats{Reopened: 2}) {
-		t.Fatalf("wrong_done %+v (want todo_auto and todo_judge)", s.WrongDone)
-	}
 }
 
 // task_review sending back a supervised task that waited for review because the judge found it done counts, past
 // the last round too (that goes to the user as a decision; one refused for want of a decision records nothing); one
 // sent back while it was not waiting for review (the agent was told more before it stopped again) does not, nor does
 // an acceptance. The task counts once.
-func TestWorkStatsCountReworkAfterJudgedDone(t *testing.T) {
+func TestReworkRecordsIfTheJudgeFoundTheTaskDone(t *testing.T) {
 	s, f, todo := newSupervisedService(t)
 	ctx := context.Background()
 
@@ -193,9 +145,6 @@ func TestWorkStatsCountReworkAfterJudgedDone(t *testing.T) {
 	if len(judged) != 3 || !judged[0] || judged[1] || !judged[2] {
 		t.Fatalf("judged_done %v, want [true false true]", judged)
 	}
-	if got := summarizeWork(1, testEvents(s)).WrongDone; got != (wrongDoneStats{Rework: 1}) {
-		t.Fatalf("wrong_done %+v", got)
-	}
 
 	// An acceptance after the judge's done is no rework.
 	s2, f2, other := newSupervisedService(t)
@@ -204,7 +153,5 @@ func TestWorkStatsCountReworkAfterJudgedDone(t *testing.T) {
 	if n := len(eventsOf(testEvents(s2), reviewReworkEvent)); n != 0 {
 		t.Fatalf("an acceptance recorded %d reworks", n)
 	}
-	if got := summarizeWork(1, testEvents(s2)).WrongDone; got != (wrongDoneStats{}) {
-		t.Fatalf("an acceptance counted: %+v", got)
-	}
+
 }

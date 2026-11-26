@@ -2,9 +2,6 @@ package hub
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,10 +10,9 @@ import (
 	"time"
 
 	"github.com/bytemare/opaque"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/passwordpake"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/passwordpake"
 )
 
 const passwordFlowLifetime = 5 * time.Minute // Protocol lifetime, not a latency claim.
@@ -29,11 +25,11 @@ type passwordStore interface {
 }
 
 type passwordFlow struct {
-	until                           time.Time
-	registration                    *db.ClientPassword
-	admin, previous                 string
-	mac                             []byte
-	revision, name, kind, challenge string
+	until           time.Time
+	registration    *db.ClientPassword
+	admin, previous string
+	mac             []byte
+	revision, name  string
 }
 
 type passwordLoginState struct {
@@ -62,7 +58,7 @@ func (s *passwordLoginState) put(f passwordFlow) (string, bool) {
 	return id, true
 }
 
-// take always consumes the state, including failed proofs and wrong PKCE verifiers.
+// take always consumes the state, including failed proofs.
 func (s *passwordLoginState) take(id string) (passwordFlow, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -121,9 +117,6 @@ func (h *Hub) passwordLimited(w http.ResponseWriter, r *http.Request, count bool
 	return false
 }
 
-var pkceChallenge = lazyre.New(`^[A-Za-z0-9_-]{43}$`)
-var pkceVerifier = lazyre.New(`^[A-Za-z0-9._~-]{43,128}$`)
-
 func (h *Hub) passwordLoginRoutes(mux *http.ServeMux) {
 	open := http.NewServeMux()
 	open.HandleFunc("GET /api/v1/auth/password/state", func(w http.ResponseWriter, r *http.Request) {
@@ -151,11 +144,11 @@ func (h *Hub) passwordLoginRoutes(mux *http.ServeMux) {
 		if !passwordJSON(w, r, &in) {
 			return
 		}
-		if in.Challenge != "" && !pkceChallenge.MatchString(in.Challenge) {
-			writeErrCode(w, 400, "bad_request", i18n.Err("hub-password_login.invalid_authorization"))
+		if in.Challenge != "" {
+			writeErrCode(w, 400, "bad_request", i18n.Err("hub-password_login.invalid_request"))
 			return
 		}
-		if in.Kind != "web" && in.Kind != "phone" && in.Kind != "desktop" {
+		if in.Kind != "web" {
 			writeErrCode(w, 400, "bad_request", i18n.Err("hub-password_login.invalid_kind"))
 			return
 		}
@@ -198,7 +191,7 @@ func (h *Hub) passwordLoginRoutes(mux *http.ServeMux) {
 			passwordInvalid(w)
 			return
 		}
-		id, ok := h.passwordLogin.put(passwordFlow{mac: output.ClientMAC, revision: p.Revision, name: in.Name, kind: in.Kind, challenge: in.Challenge})
+		id, ok := h.passwordLogin.put(passwordFlow{mac: output.ClientMAC, revision: p.Revision, name: in.Name})
 		if !ok {
 			writeErrCode(w, 503, "busy", i18n.Err("hub-password_login.busy"))
 			return
@@ -224,36 +217,6 @@ func (h *Hub) passwordLoginRoutes(mux *http.ServeMux) {
 		server, _ := passwordpake.Configuration().Server()
 		ke3, err := server.Deserialize.KE3(in.Message)
 		if err != nil || server.LoginFinish(ke3, f.mac) != nil {
-			passwordInvalid(w)
-			return
-		}
-		if f.challenge != "" {
-			f.mac = nil
-			code, ok := h.passwordLogin.put(f)
-			if !ok {
-				writeErrCode(w, 503, "busy", i18n.Err("hub-password_login.retry"))
-				return
-			}
-			writeJSON(w, map[string]string{"code": code})
-			return
-		}
-		h.issuePasswordDevice(w, r, f)
-	})
-	open.HandleFunc("POST /api/v1/auth/password/exchange", func(w http.ResponseWriter, r *http.Request) {
-		if h.passwordLimited(w, r, false) {
-			return
-		}
-		var in struct {
-			Code     string `json:"code"`
-			Verifier string `json:"verifier"`
-		}
-		if !passwordJSON(w, r, &in) {
-			return
-		}
-		f, ok := h.passwordLogin.take(in.Code)
-		sum := sha256.Sum256([]byte(in.Verifier))
-		challenge := base64.RawURLEncoding.EncodeToString(sum[:])
-		if !ok || f.mac != nil || f.challenge == "" || !pkceVerifier.MatchString(in.Verifier) || subtle.ConstantTimeCompare([]byte(f.challenge), []byte(challenge)) != 1 {
 			passwordInvalid(w)
 			return
 		}
@@ -292,11 +255,7 @@ func (h *Hub) issuePasswordDevice(w http.ResponseWriter, r *http.Request, f pass
 	if !ok {
 		return
 	}
-	kind := f.kind
-	if kind == "desktop" {
-		kind = "other"
-	}
-	d := db.DeviceToken{ID: "dev_" + randomHex(6), Name: f.name, Kind: kind, Role: roleFull}
+	d := db.DeviceToken{ID: "dev_" + randomHex(6), Name: f.name, Kind: "web", Role: roleFull}
 	token := "jd_" + randomHex(24)
 	issued, err := s.IssuePasswordDevice(r.Context(), f.revision, d, hashToken(token))
 	if err != nil {

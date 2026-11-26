@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // dependencyGraph is one immutable registry snapshot. Readiness is manifest/configuration availability, not whether

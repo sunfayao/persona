@@ -16,8 +16,7 @@ import (
 	"testing"
 )
 
-// The feature flags take a domain's flags from that domain's own file (docs/server/architecture.md "Registering a
-// domain's entries", #12901). The Features literal in proto.go comes first and keeps its entries; a new flag is
+// The feature flags take a domain's flags from that domain's own file (#12901). The Features literal in proto.go comes first and keeps its entries; a new flag is
 // appended from an init() in proto/features_<domain>.go, beside the flag's constant:
 //
 //	func init() { Features = append(Features, FeatureX) }
@@ -27,7 +26,7 @@ import (
 // server/internal/archguard/central_lists_test.go keeps new names out of the literal, and wire documentation review
 // reads the appends, so every flag keeps its row in the protocol docs.
 
-const featureSeamDoc = `docs/server/architecture.md "Registering a domain's entries"`
+const featureSeamDoc = `AGENTS/03-server-entry-points.md`
 
 const featureSeamHint = "the package's own code only declares it, in proto.go, and appends a domain's flags from an " +
 	"init() in that domain's file, proto/features_<domain>.go: func init() { Features = append(Features, FeatureX) }"
@@ -246,7 +245,7 @@ func featureAppend(s ast.Stmt, info *types.Info, features *types.Var) (call *ast
 	return call, to, from
 }
 
-const featureModulePath = "github.com/nwverse/persona/server/"
+const featureModulePath = "github.com/sunfayao/persona/server/"
 
 // featureImporter type-checks the server module's packages from their source, enough for their constants: a flag may be
 // a constant of another package (nodeproto.PersonaContracts). Every other import fails, which leaves constants alone

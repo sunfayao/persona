@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func bundleTestPreview(t *testing.T, h *Manager, id, version, upgrade, providerID string, members []extension.PackMember, edit func(map[string]any)) *extension.Preview {

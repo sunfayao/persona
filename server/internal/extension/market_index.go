@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // MarketIndex is the canonical extension index.
@@ -60,7 +60,7 @@ type MarketEntry struct {
 	// Parsed is Manifest, read.
 	Parsed *Manifest `json:"-"`
 	// Only ParseCatalog can create this proof; public fields remain checked
-	// against the snapshot before the registry accepts official provenance.
+	// against the snapshot before the registry accepts signed provenance.
 	verifiedKey   string
 	verifiedEntry [sha256.Size]byte
 }

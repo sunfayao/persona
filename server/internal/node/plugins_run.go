@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // specSum is what makes two starts the same: everything in it, Init (configuration, secrets) included.
@@ -218,7 +218,7 @@ func (ph *pluginHost) status() proto.PluginNodeStates {
 }
 
 func (ph *pluginHost) call(ctx context.Context, p proto.PluginNodeCall) (json.RawMessage, error) {
-	if _, ok := builtinPrograms[p.ID]; ok { // cua, ego, imessage, iphone: in this process, always there (builtin.go)
+	if _, ok := builtinPrograms[p.ID]; ok { // cua, ego, imessage: in this process, always there (builtin.go)
 		ph.mu.Lock()
 		lcu := ph.lcu
 		ph.mu.Unlock()

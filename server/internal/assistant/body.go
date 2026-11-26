@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // decodeBody decodes the request's JSON body into v, reading at most limit bytes: a larger body stops the read with an

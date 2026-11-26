@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/netaddr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/netaddr"
 )
 
 // Passive mode: the hub dials this computer instead. persona-link listens on a TLS port with its

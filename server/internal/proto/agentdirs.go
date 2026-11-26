@@ -104,13 +104,6 @@ func CleanAgentDirAction(action string) (string, bool) {
 	return "", false
 }
 
-// HiddenAgentDirs is what GET / PUT /api/v1/machines/{mid}/agent-dirs/hidden answer: the computer's rules, in the
-// order the user added them, and its home for showing "~" (empty before its node first said).
-type HiddenAgentDirs struct {
-	Rules []HiddenAgentDir `json:"rules"`
-	Home  string           `json:"home,omitempty"`
-}
-
 // MaxHiddenAgentDirs bounds one computer's rules.
 const MaxHiddenAgentDirs = 100
 

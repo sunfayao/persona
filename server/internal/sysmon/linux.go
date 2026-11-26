@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ReadSystem reads /etc/os-release, the kernel release, DMI and /proc/cpuinfo.

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
 )
 
 // File is a manager's configuration file in its directory.
@@ -38,7 +38,7 @@ func DefaultFile(home string) string { return filepath.Join(DefaultDir(home), Fi
 // (Marker lists what was).
 var Moved = []string{
 	"lark", "lark_gate", "connector_gate", "github", "imessage", "google", "microsoft", "bots",
-	"extensions", "plugins", "trusted_extension_markets", "extension_market", "extension_runtime", "ui_page_sessions", "usage", "sent_ledger_days", "sent_recall_hours",
+	"extensions", "plugins", "trusted_extension_markets", "extension_market", "extension_runtime", "ui_page_sessions", "usage", "sent_ledger_days",
 	"agents", "ai", "inbox", "hook_timeout_minutes",
 	"assistant.owner", "assistant.notes", "assistant.machine", "assistant.launcher", "assistant.memory_dreaming",
 	"assistant.complete_agentless_todos", "assistant.supervision_batch_minutes",

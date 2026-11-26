@@ -12,9 +12,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/pathutil"
 )
 
 // What a client may look at by a path a conversation names (fs.stat, file.read, fs.list, downloads): anything the

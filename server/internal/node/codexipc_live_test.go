@@ -22,8 +22,8 @@ func TestCodexIPCLive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initialize on the App's bus: %v", err)
 	}
-	defer c.close()
-	f, err := c.owner(newUUID())
+	defer c.Close()
+	f, err := c.Owner(newUUID())
 	if err == nil {
 		t.Fatalf("a made-up thread has an owner: %+v", f)
 	}

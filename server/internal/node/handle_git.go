@@ -17,7 +17,6 @@ const (
 	methodGitStash    = "git.stash"
 	methodGitPR       = "git.pr"
 	methodGitPRCreate = "git.pr_create"
-	methodGitPRMerge  = "git.pr_merge"
 )
 
 // methodGitBackendPrefix starts a git.* method addressed to a repository of a backend task workspace (#11687):

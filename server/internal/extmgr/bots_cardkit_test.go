@@ -3,8 +3,8 @@ package extmgr
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/feishubot"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/feishubot"
 )
 
 // The assistant's card entities (CardKit, feishubot/cardkit.go): it makes one, sends it with feishu.post by its id,

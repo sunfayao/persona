@@ -3,7 +3,7 @@ package screen
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // A rewind done in Claude Code's terminal (/rewind or Esc Esc, then "Restore conversation") writes nothing to the

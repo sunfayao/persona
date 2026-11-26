@@ -8,9 +8,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // What the hub asks of the manager about the machines (devicewire), and what the manager asks of it.
@@ -300,23 +300,15 @@ func (d *Devices) Handler(next http.Handler) http.Handler {
 	route("POST /api/v1/machines/{mid}/link-switch", d.postLinkSwitch)
 	route("GET /api/v1/machines/{mid}/diagnosis", d.getDiagnosis)
 	route("POST /api/v1/machines/{mid}/cleanup", d.postCleanup)
-	route("GET /api/v1/machines/{mid}/claude-dirs", d.getClaudeDirs)
-	route("GET /api/v1/machines/{mid}/agent-dirs/hidden", d.getHiddenAgentDirs)
-	route("PUT /api/v1/machines/{mid}/agent-dirs/hidden", d.putHiddenAgentDirs)
-	route("GET /api/v1/machines/{mid}/clipboard", d.getClipboard)
-	route("PUT /api/v1/machines/{mid}/clipboard", d.putClipboard)
-	route("GET /api/v1/machines/{mid}/clipboard/settings", d.getClipboardSettings)
-	route("PUT /api/v1/machines/{mid}/clipboard/settings", d.putClipboardSettings)
-	route("GET /api/v1/machines/{mid}/file-transfer/settings", d.getFileTransferSettings)
-	route("PUT /api/v1/machines/{mid}/file-transfer/settings", d.putFileTransferSettings)
 	route("GET /api/v1/machines/{mid}/files/operations/{oid}", d.getFileOperation)
 	d.metricsRoutes(mux)
 	d.usageRoutes(mux)
 	d.usageHistoryRoutes(mux)
+	route("GET /api/v1/machines/{mid}/claude-dirs", d.getClaudeDirs)
+	route("PUT /api/v1/machines/{mid}/claude-dirs/blocked", d.putClaudeDirsBlocked)
 	d.usageWindowRoutes(mux)
 	d.adminUsageRoutes(mux)
 	d.shareRoutes(mux)
-	route("PUT /api/v1/machines/{mid}/claude-dirs/blocked", d.putClaudeDirsBlocked)
 	mux.Handle("/", next)
 	return mux
 }

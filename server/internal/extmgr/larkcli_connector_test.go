@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/lark"
 )
 
 func TestLarkCLIConnectorOnlyRegistersWhenConfigured(t *testing.T) {

@@ -12,15 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The todos: something to do, handed to one or more agents; a task the assistant hands out is a todo
@@ -74,7 +74,7 @@ type Todo struct {
 	Spaces          []TodoSpace `json:"spaces"`
 	Agents          []TodoAgent `json:"agents"`
 	// Quiet: a task from the main conversation while assistant.main_tasks_quiet was on (#1731,
-	// docs/assistant/unified-entry.md "Quiet tasks"): no pushes, Live Activity or task badges for its agents; the main
+	// docs/assistant/unified-entry.md "Quiet tasks"): no pushes, Persona Link alerts or task badges for its agents; the main
 	// conversation is told instead (quiet.go). Set when it is made, never changed.
 	Quiet bool `json:"quiet"`
 	// Supervision: the task's ledger when the main conversation handed it out and follows it up (#3124,
@@ -980,12 +980,9 @@ func (s *Service) todoRoutes() {
 	s.workspaceNamingRoutes()
 	s.taskReviewDismissalRoutes()
 	s.todoDecisionRoutes()
-	s.outsideDecisionRoutes()
 	s.todoThreadRoutes()
 	s.todoSeenRoutes()
 	s.todoViewRoutes()
-	s.todoAskRoutes()
-	s.todoTimelineRoutes()
 	// GET /api/v1/todos: list all todos (newest created_at first), agents sorted (active first, then released); a todo
 	// waiting for the owner carries its ask (todo_ask.go), an open one nobody works on why (tasks_orphan.go); each its
 	// view, and the list its counts (todo_view_routes.go); to an extension's token without the to-dos it is not shown

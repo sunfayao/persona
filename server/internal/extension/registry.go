@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Where a plugin comes from.
@@ -40,7 +40,7 @@ type Record struct {
 	NewInstallation bool     `json:"-"`
 	Source          string   `json:"source"`
 	Origin          string   `json:"origin,omitempty"`
-	// MarketKey is the verified official key captured from this installed package's
+	// MarketKey is the verified market key captured from this installed package's
 	// catalog entry, never inferred from the market's current mutable identity.
 	MarketKey       string `json:"market_key,omitempty"`
 	Version         string `json:"version"`

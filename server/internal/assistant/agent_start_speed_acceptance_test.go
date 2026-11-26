@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // speedTier11141 adds speed through JSON, as the settings and MCP callers do. Keeping the construction on the wire

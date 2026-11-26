@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // credential is the provider's Bearer credential: Key, the first line of KeyFile, or the first line KeyCommand

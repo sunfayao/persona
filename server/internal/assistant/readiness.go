@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/nodeproto"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // The main conversation's readiness (5.1): whether it can answer now and, when not, the first
@@ -286,29 +286,6 @@ func (s *Service) readinessRoutes() {
 		// A probe spends tokens: only a full device starts one (the hub relays this route for full devices alone).
 		probe := (q == "1" || q == "true") && fullRole(r)
 		apierr.WriteJSON(w, s.readiness(r.Context(), probe, readinessWaitGet))
-	})
-	s.handle("POST /api/v1/assistant/readiness/dismiss", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Dismissed *bool `json:"dismissed"`
-		}
-		if r.ContentLength != 0 {
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				apierr.Write(w, http.StatusBadRequest, err)
-				return
-			}
-		}
-		on := in.Dismissed == nil || *in.Dismissed // an empty body dismisses
-		if err := s.readinessUpdate(r.Context(), func(rec *readinessRecord) {
-			rec.Dismissed, rec.DismissedAt = on, nil
-			if on {
-				now := time.Now().UTC()
-				rec.DismissedAt = &now
-			}
-		}); err != nil {
-			apierr.Write(w, http.StatusInternalServerError, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
 	})
 }
 

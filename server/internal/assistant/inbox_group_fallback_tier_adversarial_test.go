@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 func fallbackTierAdversarialAppend(t *testing.T, g *groupLark, it *InboxItem, messages ...string) connector.InboxThing {

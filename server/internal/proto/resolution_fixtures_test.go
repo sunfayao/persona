@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 type answerFixture struct {
@@ -132,9 +132,6 @@ func TestResolutionFixtures(t *testing.T) {
 							t.Fatal("duplicate action")
 						}
 						ids[a.ID] = true
-						if c.Input.Profile == "unified" && c.Input.Entry != "conversation" && a.Mode != "" && a.Mode != "acceptEdits" {
-							t.Fatal("peripheral plan approval must use acceptEdits")
-						}
 						if !c.Input.Locked && (a.RequiresUnlock == nil || *a.RequiresUnlock) {
 							t.Fatal("unlocked entry must not request unlock")
 						}
@@ -242,15 +239,9 @@ func TestResolutionFixtures(t *testing.T) {
 			t.Errorf("review-confirmed case missing: %s", name)
 		}
 	}
-	for _, profile := range []string{"ios_current", "unified"} {
-		for _, entry := range []string{"conversation", "notification", "lock_screen", "watch", "siri_shortcut"} {
-			for _, kind := range []string{IxPlan, IxPermission, IxQuestion, IxScreen} {
-				for _, lock := range []string{"locked", "unlocked"} {
-					if policies[profile+"/"+entry+"/"+kind+"/"+lock] != 1 {
-						t.Errorf("missing or duplicate policy: %s/%s/%s/%s", profile, entry, kind, lock)
-					}
-				}
-			}
+	for _, kind := range []string{IxPlan, IxPermission, IxQuestion, IxScreen} {
+		if policies["unified/conversation/"+kind+"/unlocked"] != 1 {
+			t.Errorf("missing or duplicate conversation policy for %s", kind)
 		}
 	}
 }

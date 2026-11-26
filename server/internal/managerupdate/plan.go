@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // Plan is produced by the existing release publisher, never inferred from a default manager.
@@ -180,7 +180,7 @@ func validateRelease(p Plan, build update.Build, exe string) error {
 	if e != nil {
 		return e
 	}
-	if info.Path != "github.com/nwverse/persona/server/cmd/personad" {
+	if info.Path != "github.com/sunfayao/persona/server/cmd/personad" {
 		return errors.New("executor is not the full personad program")
 	}
 	revision, modified := "", ""

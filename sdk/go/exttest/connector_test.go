@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/sdk/go/ext"
-	"github.com/nwverse/persona/sdk/go/exttest"
-	"github.com/nwverse/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/sdk/go/ext"
+	"github.com/sunfayao/persona/sdk/go/exttest"
+	"github.com/sunfayao/persona/sdk/go/wire"
 )
 
 var connectorManifest = []byte(`{
@@ -199,5 +199,17 @@ func TestStartWithAnotherGrant(t *testing.T) {
 	})
 	if in := c.init; in == nil || !slices.Equal(in.Granted.Hub, []string{"todos.read", "todos.write"}) {
 		t.Errorf("initialize: %+v", c.init)
+	}
+}
+
+// waitFor polls cond until it holds, failing the test after five seconds.
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for the condition")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }

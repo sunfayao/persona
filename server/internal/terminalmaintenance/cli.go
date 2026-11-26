@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 const Usage = "usage: personad manager maintenance prepare --record PATH | observe --prepared PATH [--wait DURATION] | recovery-recipe --prepared PATH\nOnly recovery material and process observations; no exit, resume or update execution.\n"

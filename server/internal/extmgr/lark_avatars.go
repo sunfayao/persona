@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/lark"
-	"github.com/nwverse/persona/server/internal/remoteimage"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/remoteimage"
 )
 
 // The legacy gateway owns a registered API prefix, independently of the messaging source named "lark".

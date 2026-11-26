@@ -3,7 +3,7 @@ package node
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A relayed gate (#12904) is one the proxy stands in for (an Auth of its own, no header); a gate with its own Auth and

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A to-do's relayed writes that keep an operation receipt (#10465, #11084): creating one, including its images;
@@ -44,7 +44,6 @@ type todoCreateImagesKey struct{}
 // todoReceiptRoutes are the relayed to-do routes with a receipt, and the receipt's kind.
 var todoReceiptRoutes = map[string]string{
 	"POST /api/v1/todos":                              todoCreateOp,
-	"POST /api/v1/todos/{id}/asks/{ask}/answer":       todoAnswerOp,
 	"POST /api/v1/assistant/conversations/{id}/route": todoRouteOp,
 }
 

@@ -9,9 +9,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
-	"github.com/nwverse/persona/server/internal/extmgr"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/extmgr"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Repository providers: GitHub and GitLab work offline as before; an
@@ -124,29 +124,8 @@ func providerArgs(pe *repository.ProviderError) i18n.Args {
 	return i18n.Args{"provider": pe.Provider, "why": pe.Why}
 }
 
-// repositoryBinding is a catalog input normalized by its provider: the built-ins offline as before (binding), an
-// extension's address through it (repo.parse). A PUT that sends back a saved extension repository's own address keeps
-// that identity without asking anyone, so its details stay editable while the provider is off or gone.
-func (s *Service) repositoryBinding(ctx context.Context, in repositoryInput, id string) (RepositoryBinding, error) {
-	if saved, ok := s.savedProviderRepository(ctx, in, id); ok {
-		out := RepositoryBinding{Identity: saved.Identity, ProviderName: saved.ProviderName}
-		if in.CloneURL != nil {
-			if *in.CloneURL == "" || *in.CloneURL != saved.CloneURL {
-				if err := s.providersReady(ctx, saved.Provider, saved.ProviderName); err != nil {
-					return out, err
-				}
-				info, ok := s.repositoryProvider(saved.Provider)
-				if !ok {
-					return out, noProvider(saved.Provider, saved.ProviderName)
-				}
-				if repository.CheckProviderClone(info, *in.CloneURL) != nil {
-					return out, repositoryProblem("remote")
-				}
-			}
-			out.CloneURL = *in.CloneURL
-		}
-		return in.details(out)
-	}
+// repositoryBinding normalizes a built-in remote offline and calls repo.parse for an extension's remote.
+func (s *Service) repositoryBinding(ctx context.Context, in repositoryInput) (RepositoryBinding, error) {
 	if providerAddress(in) {
 		// Right after a restart the providers are not listed yet: wait for them rather than call one missing.
 		if err := s.providersReady(ctx, in.Provider, ""); err != nil {
@@ -168,7 +147,7 @@ func (s *Service) repositoryBinding(ctx context.Context, in repositoryInput, id 
 		return RepositoryBinding{}, catalogProviderError(err, info.ID, info.Name)
 	}
 	// A repository saved before its extension was renamed keeps the identity it was saved with.
-	out := RepositoryBinding{Identity: s.catalogIdentity(ctx, id, parsed.Identity), ProviderName: cmp.Or(parsed.ProviderName, info.Name),
+	out := RepositoryBinding{Identity: s.catalogIdentity(ctx, parsed.Identity), ProviderName: cmp.Or(parsed.ProviderName, info.Name),
 		CloneURL: parsed.CloneURL}
 	if in.CloneURL != nil {
 		if repository.CheckProviderClone(info, *in.CloneURL) != nil {
@@ -207,8 +186,8 @@ func (s *Service) providersReady(ctx context.Context, provider, saved string) er
 }
 
 // catalogIdentity is identity as the catalog saved it: a saved repository that is the same one under an earlier id of
-// its extension (sameRepository) keeps its own, id's first. No call.
-func (s *Service) catalogIdentity(ctx context.Context, id string, identity repository.Identity) repository.Identity {
+// its extension (sameRepository) keeps its own identity.
+func (s *Service) catalogIdentity(ctx context.Context, identity repository.Identity) repository.Identity {
 	if !repository.IsExtensionProvider(identity.Provider) {
 		return identity
 	}
@@ -216,21 +195,17 @@ func (s *Service) catalogIdentity(ctx context.Context, id string, identity repos
 	if err != nil {
 		return identity
 	}
-	return s.savedIdentity(doc, id, identity)
+	return s.savedIdentity(doc, identity)
 }
 
 // savedIdentity is catalogIdentity for doc.
-func (s *Service) savedIdentity(doc repositoryDocument, id string, identity repository.Identity) repository.Identity {
+func (s *Service) savedIdentity(doc repositoryDocument, identity repository.Identity) repository.Identity {
 	if !repository.IsExtensionProvider(identity.Provider) {
 		return identity
 	}
 	saved := make([]repository.Identity, 0, len(doc.Repositories))
 	for _, b := range doc.Repositories {
-		if b.ID == id {
-			saved = append([]repository.Identity{b.Identity}, saved...)
-		} else {
-			saved = append(saved, b.Identity)
-		}
+		saved = append(saved, b.Identity)
 	}
 	return s.storedIdentity(identity, saved)
 }
@@ -241,29 +216,6 @@ func catalogProviderError(err error, provider, saved string) error {
 		return repositoryProblem("remote")
 	}
 	return providerProblem(err, provider, saved)
-}
-
-// savedProviderRepository is the saved extension repository a PUT of id sends back unchanged (its canonical address,
-// and its provider, under the id it was saved with or its extension's current one, or none). Built-in addresses never
-// match, so their path is the one it always was.
-func (s *Service) savedProviderRepository(ctx context.Context, in repositoryInput, id string) (RepositoryBinding, bool) {
-	if id == "" || in.Provider == repository.GitHub || in.Provider == repository.GitLab {
-		return RepositoryBinding{}, false
-	}
-	if host, ok := repository.RemoteHost(in.URL); !ok || slices.Contains(repository.BuiltinHosts, host) {
-		return RepositoryBinding{}, false
-	}
-	doc, err := s.repositoryDocument(ctx)
-	if err != nil {
-		return RepositoryBinding{}, false
-	}
-	for _, saved := range doc.Repositories {
-		if saved.ID == id {
-			return saved, repository.IsExtensionProvider(saved.Provider) && in.URL == saved.CanonicalURL &&
-				(in.Provider == "" || s.sameProvider(in.Provider, saved.Provider))
-		}
-	}
-	return RepositoryBinding{}, false
 }
 
 // checkProviderRepository asks an extension provider whether its repository exists (repo.check).

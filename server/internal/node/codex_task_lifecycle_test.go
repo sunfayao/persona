@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func activeRolloutEvent(at time.Time, typ string) string {
@@ -26,7 +27,7 @@ func TestPersonaBoundCodexPaneStaysWritableUnderUnindexedTitle(t *testing.T) {
 		n.configureCodex(proto.CodexConfig{})
 
 		cwd := mkdir(t, filepath.Join(home, "repo"))
-		codexHome := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home)
+		codexHome := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
 		now := time.Now().UTC()
 		writeRollout(t, n.home, remoteRaw, cwd, now, now, activeRolloutEvent(now, "task_started"))
 
@@ -136,7 +137,7 @@ func TestQuitMidTurnCodexSendsConfirmCtrlC(t *testing.T) {
 		n.configureCodex(proto.CodexConfig{})
 
 		cwd := mkdir(t, filepath.Join(home, "repo"))
-		codexHome := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home)
+		codexHome := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home)
 		now := time.Now().UTC()
 		writeRollout(t, n.home, remoteRaw, cwd, now, now, activeRolloutEvent(now, "task_started"))
 

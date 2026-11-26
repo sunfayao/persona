@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // checkOutput feeds the launcher health record and the Test result: what the shell printed through its prompt hooks must

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // planLines writes synthetic Claude Code lines: a plan tool's call (an assistant line) and its result (a user line).

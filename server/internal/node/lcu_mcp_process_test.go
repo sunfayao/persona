@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // TestHelperLCUProcess is not a test: run by the tests below as a stand-in `lcu`, it answers initialize and every

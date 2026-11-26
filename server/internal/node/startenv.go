@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/host"
 )
 
 // A tab a start opens runs the user's shell, and its startup files run before anything the node types: oh-my-zsh's

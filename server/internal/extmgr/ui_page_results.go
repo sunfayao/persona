@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/uistream"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/uistream"
 )
 
 // pageResult checks the presentation-only schema and the existing native gates.

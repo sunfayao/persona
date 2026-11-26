@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // A reply answers what the item held when it was sent (#1828, ported from the hub's inbox_reply_test.go of #2123):

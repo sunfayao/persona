@@ -11,7 +11,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/herdr"
+	"github.com/sunfayao/persona/server/internal/herdr"
 )
 
 // claudeSim is a Claude Code pane that behaves the way /rewind was recorded to (screen/testdata/

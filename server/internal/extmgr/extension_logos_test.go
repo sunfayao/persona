@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 func testLogoPNG(t *testing.T) []byte {
@@ -37,7 +37,6 @@ func logoRequest(handler http.Handler, path, token, etag string) *httptest.Respo
 }
 
 func TestBundledLogosCatalogInstalledAndAuthentication(t *testing.T) {
-	useOfficialMarket(t, "", "")
 	h, phone, reader := marketHub(t)
 	root := uiPackage(t)
 	data := testLogoPNG(t)
@@ -169,7 +168,6 @@ func TestBundledIconURLDoesNotFallBackToAnExternalHost(t *testing.T) {
 }
 
 func TestBundledCatalogLogoRejectsDigestMismatchAndMalformedPNG(t *testing.T) {
-	useOfficialMarket(t, "", "")
 	h, phone, _ := marketHub(t)
 	root := uiPackage(t)
 	if err := os.Mkdir(filepath.Join(root, "assets"), 0o700); err != nil {

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // acceptMorningHour is when, in the user's zone, the cards not accepted the day before are posted again, when the

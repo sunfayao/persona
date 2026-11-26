@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Resuming a Codex thread nothing runs, from the phone (#5220): a message to it, or a resume (session.start with
@@ -69,11 +69,11 @@ func (n *Node) codexResumableIn(ctx context.Context, id string, pass *codexListP
 	if n.codexRemoteConnecting(src.home) { // its app-server may own the thread once it is back
 		return false
 	}
-	if o := readCodexOrigin(src.path); o.desktop || o.exec || o.sub || o.parent != "" {
+	if o := readCodexOrigin(src.path); o.Desktop || o.Exec || o.Subagent || o.Parent != "" {
 		return false
 	}
 	m := metaOf(src.home, src.path)
-	return !m.sub && m.cwd != ""
+	return !m.Subagent && m.Cwd != ""
 }
 
 // codexRemoteConnecting: an app-server of home is configured but not connected yet.
@@ -191,7 +191,7 @@ func (n *Node) resumeCodexThread(ctx context.Context, id, launcher, text string,
 			return refusal(codexResumeRefused, "Codex 会话请在电脑上恢复（codex resume）：找不到它的会话记录。", nil)
 		}
 		st.Launcher = n.codexResumeLauncher(ctx, launcher)
-		st.Cwd = metaOf(src.home, src.path).cwd
+		st.Cwd = metaOf(src.home, src.path).Cwd
 	}
 	err := n.resumeOtherWith(ctx, id, st, text, images)
 	if maybeDelivered(err) && n.paneOf(id) != "" { // a tab runs it (one never made holds nothing off)

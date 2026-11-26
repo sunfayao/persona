@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func repositoryAddCall(ctx context.Context, s *Service, name, args string) proto.ToolResult {
@@ -53,7 +53,7 @@ func TestRepositoryAddToolConfirmationAndSharedStore(t *testing.T) {
 	if out.IsError || json.Unmarshal([]byte(out.Content[0].Text), &binding) != nil || binding.ID == "" || binding.VerifiedAt.IsZero() || *checks != 1 {
 		t.Fatalf("add: %+v, checks %d", out, *checks)
 	}
-	if w := placeDo(s, "", "GET", repoBase+"/"+binding.ID, ""); w.Code != 200 || !strings.Contains(w.Body.String(), binding.ID) {
+	if w := placeDo(s, "", "GET", repoBase, ""); w.Code != 200 || !strings.Contains(w.Body.String(), binding.ID) {
 		t.Fatalf("MCP save not visible to Settings: %d %s", w.Code, w.Body)
 	}
 	if out := repositoryAddCall(ctx, s, "repository_add", repoExample); !out.IsError || !strings.Contains(out.Content[0].Text, "repository_duplicate") || len(s.pendingQuestions()) != 0 || *checks != 1 {

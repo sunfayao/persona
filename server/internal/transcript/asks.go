@@ -5,7 +5,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // What an agent's last reply asks the user (docs/protocol/agent-states.md "Awaiting your reply", #5096): its closing question ("要不要推到

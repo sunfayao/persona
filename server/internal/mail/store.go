@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/secretkey"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/secretkey"
 )
 
 // Records is where accounts are persisted: Postgres (internal/db) in production, memory in tests.

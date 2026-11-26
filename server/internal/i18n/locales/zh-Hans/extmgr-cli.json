@@ -62,7 +62,6 @@
   "list_separator": "、",
   "market_one": "{id}：{name}，{count} 个扩展",
   "market_other": "{id}：{name}，{count} 个扩展",
-  "market_official": "官方",
   "market_source": "写成 market:<市场 id>/<扩展 id>（市场 id 见 personad extension market list）",
   "market_spec_one": "{id}：{name}，{count} 个扩展（{spec}）",
   "market_spec_other": "{id}：{name}，{count} 个扩展（{spec}）",

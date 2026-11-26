@@ -146,7 +146,7 @@ func TestTestOutputFilterRedactsCredentials(t *testing.T) {
 		{"Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload", "eyJhbGciOiJIUzI1NiJ9"},
 		{"postgres://persona:hunter2@db.example:5432/persona", "hunter2"},
 		{"postgres://only-user-name@db.example/persona", "only-user-name"},
-		{"https://x-access-token:hunter2@github.com/nwverse/persona.git", "hunter2"},
+		{"https://x-access-token:hunter2@github.com/sunfayao/persona.git", "hunter2"},
 		{`{"database_url":"postgres://u@h/d","token":"hunter2"}`, "hunter2"},
 		{`map[string]string{"PGPASSWORD":"hunter2"}`, "hunter2"},
 		{"postgres://persona:hun@ter2@db.example/persona", "ter2"},

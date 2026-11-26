@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Extension markets publish persona-extensions.json
@@ -199,8 +199,7 @@ type MarketRecord struct {
 	Error       string          `json:"error,omitempty"`
 	FetchedAt   *time.Time      `json:"fetched_at,omitempty"`
 	AddedAt     time.Time       `json:"added_at"`
-	// SigningKey is a legacy stored official pin. Unofficial pins are cleared on load;
-	// official verification uses the compiled-in key and quarantines unrecognized pins.
+	// SigningKey is the stored public key used to verify the market's catalogs.
 	SigningKey string `json:"-"`
 	// Signature is the state of the index last read.
 	Signature MarketSignature `json:"signature"`

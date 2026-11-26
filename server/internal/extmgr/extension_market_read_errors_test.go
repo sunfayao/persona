@@ -10,15 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
-// officialReadHub is an official market already read once (signed, its index cached) behind a server whose catalog
+// signedReadHub is a signed market already read once (its index cached) behind a server whose catalog
 // answer the test chooses; packages are always served.
-func officialReadHub(t *testing.T) (h *Manager, key marketKey, setCatalog func(http.HandlerFunc)) {
+func signedReadHub(t *testing.T) (h *Manager, key marketKey, setCatalog func(http.HandlerFunc)) {
 	t.Helper()
 	key = newMarketKey(t)
-	useOfficialMarket(t, "github:example/plugins", key.text)
 	dir := uiPackage(t)
 	pkg := tarDir(t, dir)
 	var mu sync.Mutex
@@ -34,34 +33,34 @@ func officialReadHub(t *testing.T) (h *Manager, key marketKey, setCatalog func(h
 		serve(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	raw := key.sign(marketIndex(t, "Official", marketEntry(t, dir, srv.URL+"/pkg.tar.gz", pkg)))
+	raw := key.sign(marketIndex(t, "Example", marketEntry(t, dir, srv.URL+"/pkg.tar.gz", pkg)))
 	setCatalog = func(f http.HandlerFunc) { mu.Lock(); catalog = f; mu.Unlock() }
 	setCatalog(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(raw) })
 	h = provenanceTestManager(t, map[string]*marketState{
-		"official": {rec: extension.MarketRecord{ID: "official", Spec: "github:example/plugins", AddedAt: time.Now()}},
+		"example": {rec: extension.MarketRecord{ID: "example", Spec: "github:example/plugins", SigningKey: key.text, AddedAt: time.Now()}},
 	}, srv.Client(), srv.URL)
 	h.extensions.reg = extension.NewRegistry(h.extensions.root, h.store.(extension.Store), nil, 202611100000)
-	if _, err := h.marketRead(context.Background(), "official"); err != nil {
+	if _, err := h.marketRead(context.Background(), "example"); err != nil {
 		t.Fatal(err)
 	}
-	if st := officialSignature(h); st.State != extension.SigSigned {
+	if st := storedSignature(h); st.State != extension.SigSigned {
 		t.Fatalf("first read: %+v", st)
 	}
 	return h, key, setCatalog
 }
 
-func officialSignature(h *Manager) extension.MarketSignature {
+func storedSignature(h *Manager) extension.MarketSignature {
 	ms := h.marketsState()
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	return ms.byID["official"].rec.Signature
+	return ms.byID["example"].rec.Signature
 }
 
-// installFromCache previews and installs example-ui from the official market's kept index, as the install route does.
+// installFromCache previews and installs example-ui from the signed market's kept index, as the install route does.
 func installFromCache(t *testing.T, h *Manager) error {
 	t.Helper()
 	ctx := context.Background()
-	rec, e, err := h.marketEntry("official", "example-ui")
+	rec, e, err := h.marketEntry("example", "example-ui")
 	if err != nil {
 		return err
 	}
@@ -69,7 +68,7 @@ func installFromCache(t *testing.T, h *Manager) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pv, err := h.extensions.reg.PreviewMarket(ctx, mk, "official", e, "")
+	pv, err := h.extensions.reg.PreviewMarket(ctx, mk, "example", e, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,9 +78,9 @@ func installFromCache(t *testing.T, h *Manager) error {
 	return nil
 }
 
-// A catalog the official market cannot read (404, 401, 500, a timeout) is a network problem, not a signature
+// A catalog the signed market cannot read (404, 401, 500, a timeout) is a network problem, not a signature
 // failure: the last verified index and its signed state stay, the error is recorded, and installs keep working.
-func TestOfficialMarketReadFailureKeepsVerifiedCatalog(t *testing.T) {
+func TestSignedMarketReadFailureKeepsVerifiedCatalog(t *testing.T) {
 	for _, c := range []struct {
 		name  string
 		serve http.HandlerFunc
@@ -92,23 +91,23 @@ func TestOfficialMarketReadFailureKeepsVerifiedCatalog(t *testing.T) {
 		{"timeout", func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			h, key, setCatalog := officialReadHub(t)
+			h, key, setCatalog := signedReadHub(t)
 			setCatalog(c.serve)
 			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
-			_, err := h.marketRead(ctx, "official")
+			_, err := h.marketRead(ctx, "example")
 			if err == nil || errors.Is(err, errMarketSignature) || errors.Is(err, extension.ErrCatalogUnverified) {
 				t.Fatalf("a read failure was reported as a signature failure: %v", err)
 			}
 			if !errors.Is(err, extension.ErrCatalogUnavailable) {
 				t.Fatalf("a read failure is not typed as unavailable: %v", err)
 			}
-			if st := officialSignature(h); st.State != extension.SigSigned || st.KeyID != keyIDText(t, key.text) {
+			if st := storedSignature(h); st.State != extension.SigSigned || st.KeyID != keyIDText(t, key.text) {
 				t.Fatalf("a read failure changed the signature state: %+v", st)
 			}
 			ms := h.marketsState()
 			ms.mu.Lock()
-			s := ms.byID["official"]
+			s := ms.byID["example"]
 			kept, recorded := s.index != nil && len(s.index.Extensions) == 1, s.rec.Error != ""
 			ms.mu.Unlock()
 			if !kept || !recorded {
@@ -123,23 +122,23 @@ func TestOfficialMarketReadFailureKeepsVerifiedCatalog(t *testing.T) {
 
 // A catalog that was read (HTTP 200) and does not verify quarantines the market: unsigned, signed by another (old)
 // signer, a broken signature, or not a catalog at all. Nothing installs, not even from the last good index.
-func TestOfficialMarketUnverifiedCatalogQuarantines(t *testing.T) {
+func TestSignedMarketUnverifiedCatalogQuarantines(t *testing.T) {
 	other := newMarketKey(t)
 	for _, c := range []struct {
 		name string
 		body func(signed marketKey) []byte
 	}{
-		{"unsigned", func(marketKey) []byte { return []byte(`{"market_version":1,"name":"Official","extensions":[]}`) }},
+		{"unsigned", func(marketKey) []byte { return []byte(`{"market_version":1,"name":"Example","extensions":[]}`) }},
 		{"old signer", func(marketKey) []byte {
-			return other.sign([]byte(`{"market_version":1,"name":"Official","extensions":[]}`))
+			return other.sign([]byte(`{"market_version":1,"name":"Example","extensions":[]}`))
 		}},
 		{"bad signature", func(k marketKey) []byte {
-			return []byte(strings.Replace(string(k.sign([]byte(`{"market_version":1,"name":"Official","extensions":[]}`))), "Official", "Offici4l", 1))
+			return []byte(strings.Replace(string(k.sign([]byte(`{"market_version":1,"name":"Example","extensions":[]}`))), "Example", "Examp1e", 1))
 		}},
 		{"malformed", func(marketKey) []byte { return []byte(`{"payload":`) }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			h, key, setCatalog := officialReadHub(t)
+			h, key, setCatalog := signedReadHub(t)
 			body := c.body(key)
 			served := make(chan struct{}, 4)
 			setCatalog(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +146,7 @@ func TestOfficialMarketUnverifiedCatalogQuarantines(t *testing.T) {
 				_, _ = w.Write(body)
 				served <- struct{}{}
 			})
-			_, err := h.marketRead(context.Background(), "official")
+			_, err := h.marketRead(context.Background(), "example")
 			select {
 			case <-served:
 			default:
@@ -156,7 +155,7 @@ func TestOfficialMarketUnverifiedCatalogQuarantines(t *testing.T) {
 			if !errors.Is(err, errMarketSignature) || !errors.Is(err, extension.ErrCatalogUnverified) || errors.Is(err, extension.ErrCatalogUnavailable) {
 				t.Fatalf("an unverified catalog was not a signature failure: %v", err)
 			}
-			if st := officialSignature(h); st.State != extension.SigInvalid {
+			if st := storedSignature(h); st.State != extension.SigInvalid {
 				t.Fatalf("an unverified catalog left the market %+v", st)
 			}
 			if err := installFromCache(t, h); err == nil {
@@ -164,10 +163,10 @@ func TestOfficialMarketUnverifiedCatalogQuarantines(t *testing.T) {
 			}
 			// A network failure afterwards does not lift the quarantine.
 			setCatalog(func(w http.ResponseWriter, r *http.Request) { http.NotFound(w, r) })
-			if _, err := h.marketRead(context.Background(), "official"); errors.Is(err, errMarketSignature) {
+			if _, err := h.marketRead(context.Background(), "example"); errors.Is(err, errMarketSignature) {
 				t.Fatalf("a later network failure was a signature failure: %v", err)
 			}
-			if st := officialSignature(h); st.State != extension.SigInvalid {
+			if st := storedSignature(h); st.State != extension.SigInvalid {
 				t.Fatalf("a later network failure lifted the quarantine: %+v", st)
 			}
 		})

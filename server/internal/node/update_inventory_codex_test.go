@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestUpdateCodexInventoryRetainsEphemeralThreads(t *testing.T) {
@@ -91,18 +91,15 @@ func TestUpdateCodexInventoryRequiresFreshExplicitBackground(t *testing.T) {
 func TestUpdateOwnedCodexReadsFreshThreadsTerminalsAndPendingActivity(t *testing.T) {
 	n := remoteTestNode(t)
 	f, c := connectRemoteFixture(t, n, t.TempDir(), "fixture", remoteRaw)
-	c.wire.mu.Lock()
-	c.wire.threadID = remoteRaw
-	c.wire.turnID = "active-turn"
-	c.wire.mu.Unlock()
-	p := &assistantProc{cx: c.wire, cmd: &exec.Cmd{Process: &os.Process{Pid: 123}}, exited: make(chan struct{})}
+	cx := &codexConn{transport: c.wire, threadID: remoteRaw, turnID: "active-turn"}
+	p := &assistantProc{cx: cx, cmd: &exec.Cmd{Process: &os.Process{Pid: 123}}, exited: make(chan struct{})}
 	rows, _, err := n.observeUpdateAssistant(context.Background(), p)
 	if err != nil || len(rows) != 1 || rows[0].Status != proto.StatusWorking {
 		t.Fatalf("owned activity: %+v %v", rows, err)
 	}
-	c.wire.mu.Lock()
-	c.wire.turnID = ""
-	c.wire.mu.Unlock()
+	cx.mu.Lock()
+	cx.turnID = ""
+	cx.mu.Unlock()
 	f.mu.Lock()
 	f.backgroundReply = map[string]any{"data": []any{map[string]any{"processId": "fixture-process", "command": "synthetic"}}}
 	f.mu.Unlock()

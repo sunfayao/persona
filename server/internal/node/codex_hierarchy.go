@@ -2,111 +2,52 @@ package node
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/gitworktree"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
-const codexProjectCacheTTL = 30 * time.Second
-const codexProjectCacheLimit = 512
+type projectRootClock struct{}
 
-type codexProjectCacheEntry struct {
-	root string
-	at   time.Time
+func (projectRootClock) Now() time.Time { return time.Now() }
+
+func (projectRootClock) WithTimeout(ctx context.Context, d time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, d)
 }
 
-var codexProjectRoots = struct {
-	sync.Mutex
-	entries map[string]codexProjectCacheEntry
-}{entries: make(map[string]codexProjectCacheEntry)}
-
-// codexRepositoryMarker says whether cwd or an ancestor has a .git entry. An uncertain read stays on the Git path.
-// Ordinary Codex App folders are not repositories: starting Git for each of them on every cache expiry turns an
-// unreadable working directory into a two-second stall without producing any useful project information.
-func codexRepositoryMarker(cwd string) bool {
-	for {
-		if _, err := os.Stat(filepath.Join(cwd, ".git")); err == nil || !os.IsNotExist(err) {
-			return true
-		}
-		parent := filepath.Dir(cwd)
-		if parent == cwd {
-			return false
-		}
-		cwd = parent
-	}
-}
-
-// Resolve Git's shared metadata on the source machine, never by directory name.
-func codexProjectRoot(cwd string, cache map[string]string) string {
-	if cwd == "" || !filepath.IsAbs(cwd) {
-		return ""
-	}
-	cwd = realPath(filepath.Clean(cwd))
-	if root, ok := cache[cwd]; ok {
-		return root
-	}
-	codexProjectRoots.Lock()
-	entry, cached := codexProjectRoots.entries[cwd]
-	codexProjectRoots.Unlock()
-	if cached && time.Since(entry.at) < codexProjectCacheTTL {
-		cache[cwd] = entry.root
-		return entry.root
-	}
-	root := cwd
-	if codexRepositoryMarker(cwd) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if common, err := git(ctx, cwd, "rev-parse", "--git-common-dir"); err == nil {
-			common = strings.TrimSpace(common)
-			if !filepath.IsAbs(common) {
-				common = filepath.Join(cwd, common)
-			}
-			common = realPath(filepath.Clean(common))
-			if filepath.Base(common) == ".git" {
-				root = filepath.Dir(common)
-			} else if top, err := git(ctx, cwd, "rev-parse", "--show-toplevel"); err == nil {
-				root = realPath(strings.TrimSpace(top))
-			}
-		}
-	}
-	// Failures use the same short TTL: a later git init or restored directory
-	// must become visible without restarting the node.
-	codexProjectRoots.Lock()
-	if len(codexProjectRoots.entries) >= codexProjectCacheLimit {
-		clear(codexProjectRoots.entries)
-	}
-	codexProjectRoots.entries[cwd] = codexProjectCacheEntry{root: root, at: time.Now()}
-	codexProjectRoots.Unlock()
-	cache[cwd] = root
-	return root
+func (n *Node) projectRoot(cwd string, pass map[string]string) string {
+	n.projectRootsOnce.Do(func() {
+		n.projectRoots = gitworktree.NewProjectRoots(git, projectRootClock{})
+	})
+	return n.projectRoots.Resolve(cwd, pass)
 }
 
 // decorateCodexSessionIn is decorateCodexSession with the App's state looked up once per home in a list pass
 // (codexListPass).
 func (n *Node) decorateCodexSessionIn(s *proto.Session, src codexSource, legacy string, projects map[string]string, pass *codexListPass) {
 	origin := codexThreadOrigin(src) // a rollout's first line, else the App's database row (#8191)
-	s.ParentThreadID = firstNonEmpty(s.ParentThreadID, origin.parent)
-	s.IsSubagent = origin.sub || s.ParentThreadID != ""
+	s.ParentThreadID = firstNonEmpty(s.ParentThreadID, origin.Parent)
+	s.IsSubagent = origin.Subagent || s.ParentThreadID != ""
 	if s.ParentThreadID != "" {
-		s.ParentSessionID = codexSourceID(src.home, s.ParentThreadID, legacy)
+		s.ParentSessionID = codex.SourceID(src.home, s.ParentThreadID, legacy)
 	}
-	if s.IsSubagent && origin.root != "" && origin.root != src.thread {
-		s.RootSessionID = codexSourceID(src.home, origin.root, legacy)
+	if s.IsSubagent && origin.Root != "" && origin.Root != src.thread {
+		s.RootSessionID = codex.SourceID(src.home, origin.Root, legacy)
 	}
 	if s.IsSubagent {
 		s.Capabilities.Send, s.Capabilities.Attach, s.Capabilities.Interrupt = false, false, false
 		s.Capabilities.Rewind = proto.CanModes(false)
 	}
-	if origin.started != nil && s.Hierarchy == nil {
-		s.Hierarchy = origin.started // when the thread began, read with its origin: no read of its own (#5120)
+	if origin.Started != nil && s.Hierarchy == nil {
+		s.Hierarchy = origin.Started // when the thread began, read with its origin: no read of its own (#5120)
 	}
-	if !origin.desktop {
+	if !origin.Desktop {
 		// An App chat whose rollout is gone is grouped as one with a rollout (codex_appdb.go).
 		if _, app := codexAppThreadOf(src); !app {
 			return
@@ -117,7 +58,7 @@ func (n *Node) decorateCodexSessionIn(s *proto.Session, src codexSource, legacy 
 	s.SpaceKind = "codex_app"
 	chat := src.thread
 	if s.IsSubagent {
-		chat = firstNonEmpty(origin.root, s.ParentThreadID, chat)
+		chat = firstNonEmpty(origin.Root, s.ParentThreadID, chat)
 	}
 	cwd := s.Cwd
 	if pid, _ := app.project(chat, cwd); pid != "" {
@@ -126,7 +67,7 @@ func (n *Node) decorateCodexSessionIn(s *proto.Session, src codexSource, legacy 
 			cwd = project.RootPaths[0]
 		}
 	}
-	s.RepoRoot = codexProjectRoot(cwd, projects)
+	s.RepoRoot = n.projectRoot(cwd, projects)
 	if app != nil && !app.inNoProject(chat) {
 		if pid := app.assigned[chat]; pid != "" {
 			if p, ok := app.projects[pid]; ok {
@@ -161,53 +102,11 @@ func (n *Node) decorateCodexSessionIn(s *proto.Session, src codexSource, legacy 
 // pins and clients' remembered sections name spaces by it.
 const projectSpace = "codex-project:"
 
-// Public IDs isolate Codex homes. Missing parents remain explicit; cycles terminate.
-func resolveCodexHierarchy(sessions []proto.Session) {
-	byID := make(map[string]int, len(sessions))
-	for i, s := range sessions {
-		byID[s.SessionID] = i
-	}
-	for i := range sessions {
-		s := &sessions[i]
-		if !s.IsSubagent {
-			continue
-		}
-		visited := map[string]bool{s.SessionID: true}
-		parent := s.ParentSessionID
-		rootIndex := -1
-		metadataRoot := s.RootSessionID
-		for parent != "" && !visited[parent] {
-			visited[parent] = true
-			s.RootSessionID = parent
-			index, ok := byID[parent]
-			if !ok {
-				if metadataRoot != "" {
-					s.RootSessionID = metadataRoot
-					if idx, exists := byID[metadataRoot]; exists {
-						rootIndex = idx
-					}
-				}
-				parent = ""
-				break
-			}
-			rootIndex = index
-			parent = sessions[index].ParentSessionID
-		}
-		if parent != "" && visited[parent] {
-			s.RootSessionID = ""
-		}
-		if rootIndex >= 0 {
-			root := sessions[rootIndex]
-			s.RepoRoot, s.SpaceID, s.SpaceKind, s.SpaceName, s.SpaceIndex = root.RepoRoot, root.SpaceID, root.SpaceKind, root.SpaceName, root.SpaceIndex
-		}
-	}
-}
-
 // programRun: a one-shot run a program started (`codex exec`, an SDK; an evaluation opens dozens at once, #2131),
 // known only from its rollout: not one of the user's agents. A thread a shared app-server holds is drivable and stays,
 // as does a run the Codex App lists in its sidebar.
 func (n *Node) programRun(id string, src codexSource, pass *codexListPass) bool {
-	if src.path == "" || !readCodexOrigin(src.path).exec {
+	if src.path == "" || !readCodexOrigin(src.path).Exec {
 		return false
 	}
 	if _, _, err := n.codexOwner(id); err != errCodexNoOwner {

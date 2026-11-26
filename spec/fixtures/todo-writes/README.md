@@ -1,8 +1,8 @@
 # To-do write outcome fixtures
 
-How a to-do's write that carries the owner's words ends (`docs/protocol/protocol.md` "Message feedback", its "To-do writes"): a message on `POST /api/v1/assistant/conversations/{id}/route {todo_id, text}` or an
-answer on `POST /api/v1/todos/{id}/asks/{ask}/answer`. Given what happens on its way to the to-do's Agent, the manager's
-answer (its status, `code` and `delivered`) and what the hub makes of that answer under an `X-Persona-Op-Id`: the final
+These cases exercise `POST /api/v1/assistant/conversations/{id}/route {todo_id, text}` as the owner's words
+travel to a to-do's Agent. They cover the manager's status, `code` and `delivered`, plus the hub's response
+to `X-Persona-Op-Id` and the final
 `todo_send_state` and the operation's receipt. The manager replays every case against its routes
 (`server/internal/assistant/todo_write_outcome_test.go`); the hub relays each answer to an app that sent the write with
 an op id and checks the final state and the receipt (`server/internal/hub/todo_send_state_test.go`). The two packages
@@ -10,7 +10,7 @@ never import each other (the hub's architecture guard), so this file is the seam
 
 | File | What it pins | Cases |
 | --- | --- | --- |
-| `outcomes.json` | What happens to the words → the manager's status, code and `delivered` → the hub's final state and receipt | 24: taken, refused before anything went out, refused by the node, never sent, in doubt (no answer, the node not sure, a new Agent's start), typed and then not recorded (by the Agent that took them, or by a new one that started with them) or refused once the node had them, and a 200 for words recorded for the supervisor |
+| `outcomes.json` | What happens to the words → the manager's status, code and `delivered` → the hub's final state and receipt | 12 outcomes |
 
 ## Format
 
@@ -18,9 +18,6 @@ never import each other (the hub's architecture guard), so this file is the seam
 that decides it (`<repository path> <function>`), the descriptions are English, and all data is made up (the
 prototype's trip to Kyoto).
 
-- `input.route`: `message` (the conversation route, from the conversation that opened the to-do) or `answer` (the asks
-  route, on the decision that waits: "Which ryokan?", Ryokan Hanami recommended, as in `spec/fixtures/todo-asks`).
-- `input.answer`: an answer's body, a `TodoAskAnswer`.
 - `input.what`: what happens, one of the scenes below.
 - `expected.status`: the manager's HTTP status.
 - `expected.code` (optional): its error body's `code`.
@@ -44,9 +41,6 @@ prototype's trip to Kyoto).
 | `start_then_not_kept` | Every Agent of the to-do has stopped, a new one starts with the words as its first, then the conversation's routed item cannot be written |
 | `typed_then_not_kept` | The Agent takes the words, then the conversation's routed item cannot be written |
 | `typed_then_deleted` | The node takes the words, then the Agent's conversation is marked deleted before the manager answers |
-| `typed_then_gone` | The Agent takes the words, then the to-do is gone before the decision they answer is recorded |
-| `round_over` | The answer names a round of the decision that no longer waits |
-| `no_such_todo` | The answer names a to-do that is not there |
 
 ## Rules
 
@@ -57,8 +51,7 @@ prototype's trip to Kyoto).
   start's answer never came, or the node is not sure) or are (`delivered: "yes"`: what followed failed) are
   `send_in_doubt`, never retryable, in words that say to look at the to-do before sending again: `unknown` on the hub,
   and a phone checks the op id instead of sending again (and shows `yes` as delivered, with no run named). The
-  conversation route answers them 409, as its other refusals; the asks route 502, since apps read its 409s as
-  "answered elsewhere".
+  conversation route answers them with 409.
 - **Never a 2xx in doubt.** A 200 is delivered on the hub, `delivered: "none"` included: the words were recorded and
   handed to the supervisor, and answering again would only be stale.
 - **An older manager** answers 409 `conflict` or 502 `accept_not_taken` with no `delivered`; the hub reads those as

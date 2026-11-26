@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestRuntimeSummaryBackgroundProgress(t *testing.T) {

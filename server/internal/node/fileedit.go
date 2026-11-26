@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/pathutil"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/pathutil"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Renaming, moving and deleting a machine's files from the Files browser (docs/protocol/protocol.md "Changing files", #315):

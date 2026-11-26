@@ -3,7 +3,7 @@ package hub
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/lark"
 )
 
 // (assistant.lark, what a node gets for the skills' gated commands, is the manager's: extmgr's larkcli_test.go.)

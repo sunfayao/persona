@@ -170,14 +170,14 @@ class GitFreezeTests(unittest.TestCase):
     def setUp(self):
         self.repo = Path(tempfile.mkdtemp(prefix="migration-freeze-"))
         self.addCleanup(self._cleanup)
-        self.git("init", "-q", "-b", "main")
+        self.git("init", "-q", "-b", "work")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
         self.write(HUB, ORIGINAL)
         self.write(MANAGER, OTHER)
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
 
     def _cleanup(self):
         subprocess.run(["rm", "-rf", str(self.repo)], check=True)
@@ -260,7 +260,7 @@ class GitFreezeTests(unittest.TestCase):
         self.write(later, "CREATE TABLE later (id int);\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "both merged")
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.git("mv", later, "server/internal/db/migrations/manager/20261119123001_later.sql")
         self.assertEqual(0, self.run_check())
         self.write(first, "CREATE TABLE first (id text);\n")
@@ -336,12 +336,12 @@ class GitFreezeTests(unittest.TestCase):
         self.write("server/internal/db/migrations/hub/0009_later.sql", "CREATE TABLE later (id int);\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "later")
-        self.git("update-ref", "refs/remotes/origin/deploy", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.git("checkout", "-q", "topic")
         self.assertEqual(0, self.run_check())
 
     def test_no_base_exits_2(self):
-        self.git("update-ref", "-d", "refs/remotes/origin/deploy")
+        self.git("update-ref", "-d", "refs/remotes/origin/main")
         stderr = sys.stderr
         try:
             from io import StringIO
@@ -351,7 +351,7 @@ class GitFreezeTests(unittest.TestCase):
         finally:
             sys.stderr = stderr
         self.assertEqual(2, code)
-        self.assertIn("no deploy ref", buf.getvalue())
+        self.assertIn("no main ref", buf.getvalue())
 
 
 if __name__ == "__main__":

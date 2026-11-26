@@ -11,7 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 var errAccountWrite = errors.New("injected account write failure")
@@ -492,4 +492,9 @@ func TestConcurrentAccountRepairsKeepCommittedCredentials(t *testing.T) {
 			})
 		})
 	}
+}
+func (s *Service) accessEntry(creds *OAuthCreds) *accessCache {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.accessEntryLocked(creds)
 }

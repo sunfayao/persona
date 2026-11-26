@@ -18,7 +18,7 @@ const REPOSITORIES = [
     provider: "github",
     instance_url: "https://github.com",
     path: "nwverse/persona",
-    canonical_url: "https://github.com/nwverse/persona",
+    canonical_url: "https://github.com/sunfayao/persona",
     name: "Persona",
     aliases: ["hub", "main-repo"],
     purpose: "Main monorepo",
@@ -195,10 +195,10 @@ describe("@ assistant-bound repositories (#12531)", () => {
     expect(onSend).toHaveBeenCalledOnce();
     const text = onSend.mock.calls[0][0].text;
     expect(text).toMatch(
-      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/nwverse\/persona" repo_id="repo-1" provider="github" path="nwverse\/persona" inline_label="@Persona" inline_start="0">\n/,
+      /^<persona-context kind="repository" title="Persona" url="https:\/\/github\.com\/[^"]+" repo_id="repo-1" provider="github" path="nwverse\/persona" inline_label="@Persona" inline_start="0">\n/,
     );
     expect(text).toContain("nwverse/persona");
-    expect(text).toContain("https://github.com/nwverse/persona");
+    expect(text).toContain("https://github.com/sunfayao/persona");
     expect(text).not.toContain('cwd="');
     expect(text).not.toContain('machine="');
     expect(text.endsWith("</persona-context>\n\n@Persona Check open issues")).toBe(true);

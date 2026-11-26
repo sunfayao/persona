@@ -21,9 +21,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/acceptloop"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/acceptloop"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/osproc"
 )
 
 // RunCommand is personad's hidden subcommand that is the sandbox's first process on Linux: it carries the proxy's

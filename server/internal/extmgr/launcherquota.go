@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/quota"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/quota"
 )
 
 // A launcher's quota at its gateway is read by the quota plugins (docs/extensions/extensions.md

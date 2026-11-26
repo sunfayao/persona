@@ -3,7 +3,7 @@ package node
 import (
 	"io"
 
-	"github.com/nwverse/persona/server/internal/imageorient"
+	"github.com/sunfayao/persona/server/internal/imageorient"
 )
 
 // jpegThumbOrientation reads headers only, stopping before compressed pixels; the complete scan shares the thumbnail

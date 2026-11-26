@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // Exercise the actual launch boundary, including guest restrictions. The fake runtimes never call a model or read a real home.

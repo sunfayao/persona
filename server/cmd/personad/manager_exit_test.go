@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/bus"
 )
 
 // `personad manager join` and `manager run --join` without a database to use (no Docker to make one, no --database-url) say

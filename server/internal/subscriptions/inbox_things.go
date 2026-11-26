@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // InboxThingsTool reads a connector's own Inbox rows for a things recipe (#6381, P4b of

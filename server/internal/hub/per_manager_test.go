@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A conversation is the assistant's only in the directories of the computer's manager: the built-in's assistant and
@@ -67,10 +67,7 @@ func TestAssistantDirectoriesAreTheMachinesManagers(t *testing.T) {
 		Profile: &assistantwire.Profile{MachineID: "mb"}}, &res); err != nil {
 		t.Fatal(err)
 	}
-	if code, out := ownershipGet(t, h, srv, http.MethodGet, "/api/v1/skills?manager=m-0b0b0b", nil); code != http.StatusOK ||
-		!strings.Contains(b.log(), `"cwd":"/home/me/.persona/assistant-m-0b0b0b"`) {
-		t.Fatalf("B's skills: %d %v\n%s", code, out, b.log())
-	}
+
 }
 
 // An extension's token is its manager's: a request with it that names no manager goes to that manager (a route of

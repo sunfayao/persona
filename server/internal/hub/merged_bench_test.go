@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The merged lists against the code before #2807 (legacyWriteMerged, legacyInboxMerge), for 400 inbox items:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail when the repository holds this person's private values (CLAUDE.md: no intranet or personal data, ever).
+"""Fail when the repository holds this person's private values (AGENTS.md: no intranet or personal data, ever).
 
     python3 scripts/privacy_check.py            # tracked files (content and paths)
     python3 scripts/privacy_check.py --staged   # what `git commit` is about to record, plus its message file if given
@@ -683,11 +683,10 @@ def main():
     for f, where, kind in bad:
         print("%s:%s: %s" % (f, where, kind))
     if bad:
-        print("privacy_check: %d hit(s). Use placeholders (<hub address>, me@example.com); see CLAUDE.md." % len(bad), file=sys.stderr)
+        print("privacy_check: %d hit(s). Use placeholders (<hub address>, me@example.com); see AGENTS.md." % len(bad), file=sys.stderr)
         if hit & waivable:
             print("privacy_check: a config value that is an ordinary word and names nobody (a machine id like a room's "
-                  "name) can be marked not private with a !<word> line in private-words.txt "
-                  "(docs/operations/testing.md, \"Privacy scan\").", file=sys.stderr)
+                  "name) can be marked not private with a !<word> line in private-words.txt.", file=sys.stderr)
         sys.exit(1)
     print("privacy_check: clean (%d values checked)" % len(words))
 

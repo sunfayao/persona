@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // ToolCall is the latest tool call of a transcript that no assistant text or new prompt came after (Meta.LastTool):
@@ -132,7 +132,7 @@ var commandRules = []commandRule{
 	{lazyre.New(`\bgh\s+(pr\s+checks|run\s+(watch|view|list))\b|statuscheckrollup|\bgh\s+pr\s+view\b.*\bchecks\b`), "在等 CI"},
 	{lazyre.New(`\bgh\s+pr\s+create\b`), "在提 PR"},
 	{lazyre.New(`\bgh\s+pr\s+merge\b`), "在合并 PR"},
-	{lazyre.New(`\b(release|publish)\.(sh|py)\b|\b(npm|cargo)\s+publish\b|\basc_testflight\.py\b`), "在发版"},
+	{lazyre.New(`\b(release|publish)\.(sh|py)\b|\b(npm|cargo)\s+publish\b`), "在发版"},
 	{lazyre.New(`\bdeploy\.sh\b|\bkubectl\s+(apply|rollout)\b|\bwrangler\s+deploy\b`), "在部署"},
 	{lazyre.New(`\b(go|cargo|swift|mvn|dotnet|deno|bun)\s+test\b|\b(npm|pnpm|yarn)\s+(run\s+)?test\b|\bpytest\b|\bjest\b|\bvitest\b|\bxcodebuild\b.*\btest(-without-building)?\b|\bgradlew\b.*\b(test|check|connected\w*test)\b|\btest[-_][\w-]*\.sh\b|\bscripts/test/|\bmake\s+(test|check)\b|\bctest\b|\brspec\b|\bphpunit\b|\bunittest\b`), "在跑测试"},
 	{lazyre.New(`\b(golangci-lint|eslint|swiftlint|ruff|flake8|mypy|shellcheck|prettier\s+--check)\b|\b(go|cargo)\s+(vet|clippy)\b|\b(npm|pnpm|yarn)\s+(run\s+)?lint\b`), "在检查代码"},

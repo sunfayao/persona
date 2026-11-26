@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/nwverse/persona/server/internal/repositorywire"
+import "github.com/sunfayao/persona/server/internal/repositorywire"
 
 // Preserve the delivered import path while contracts live outside Manager code.
 const CatalogKey = repositorywire.CatalogKey

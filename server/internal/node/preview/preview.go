@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	wire "github.com/nwverse/persona/server/internal/preview"
-	"github.com/nwverse/persona/server/internal/rpc"
+	wire "github.com/sunfayao/persona/server/internal/preview"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // previewTitleBinding is the function the page's title is reported through (Runtime.addBinding): the browser does not

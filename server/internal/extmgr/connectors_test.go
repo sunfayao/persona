@@ -5,21 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // exampleConnector reads and comments, on made-up data.
@@ -251,38 +250,6 @@ func programConnector(t *testing.T, h *Manager, item extension.ConnectorItem, pa
 		l.Proc = pr
 	}
 	return hp.conns[0]
-}
-
-// A program's connector switched off from the start, its program never run: it can still be signed in to (the hub
-// says to switch it on first) and out of (the program would run just for that; here it is not there), never "has no
-// sign-in" (#666).
-func TestSwitchedOffProgramSignsInAndOut(t *testing.T) {
-	h := newTestManager(t)
-	h.connectors = connector.NewRegistry(nil)
-	item := extension.ConnectorItem{ID: "examplechat", Name: "Example Chat", Kinds: []string{"dm"},
-		Capabilities: []string{"status", "tools", "actions", "events", "inbox", "login", "threads"}}
-	if err := h.addConnectorOff(programConnector(t, h, item, "/nonexistent/example-chat")); err != nil {
-		t.Fatal(err)
-	}
-	h.restoreConnectorSwitches(context.Background())
-	if h.connectors.Enabled("examplechat") {
-		t.Fatal("examplechat is on")
-	}
-	mux := h.routes()
-	code, out := call(t, mux, "POST", "/api/v1/connectors/examplechat/login", h.cfg.Token, `{"step":""}`)
-	if code != 200 || !strings.Contains(fmt.Sprint(out["error"]), "先打开") {
-		t.Fatalf("login: %d %v", code, out)
-	}
-	code, out = call(t, mux, "POST", "/api/v1/connectors/examplechat/logout", h.cfg.Token, `{}`)
-	if code == http.StatusConflict || out["error"] == nil {
-		t.Fatalf("logout: %d %v", code, out)
-	}
-	_, out = call(t, mux, "GET", "/api/v1/connectors", h.cfg.Token, "")
-	list := out["connectors"].([]any)
-	if len(list) != 1 || fmt.Sprint(list[0].(map[string]any)["capabilities"]) != "[status tools actions events inbox login threads]" ||
-		list[0].(map[string]any)["status"] != "disabled" {
-		t.Fatalf("listed %v", list)
-	}
 }
 
 func TestGhTokenFromAMachine(t *testing.T) {

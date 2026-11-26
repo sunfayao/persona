@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 func TestBetaSettingsPersistAndInvalidateTheOtherChannel(t *testing.T) {
 	h := newTestHub(t)
-	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/nwverse/persona/releases/latest/download")
+	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/sunfayao/persona/releases/latest/download")
 	h.store = &settingsStore{vals: map[string][]byte{}}
 	h.upd.release = &update.Published{Manifest: &update.Manifest{Version: "0.7.0", Build: 1}}
 	srv := httptest.NewServer(h.routes())
@@ -52,11 +52,11 @@ func TestBetaSettingsPersistAndInvalidateTheOtherChannel(t *testing.T) {
 
 func TestBetaInstallSourcePinsTheSelectedImmutableTag(t *testing.T) {
 	h := newTestHub(t)
-	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/nwverse/persona/releases/latest/download")
+	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/sunfayao/persona/releases/latest/download")
 	h.upd.settings.Source = update.ChannelBeta
 	m := &update.Manifest{Version: "0.7.0-beta.1", Channel: update.ChannelBeta}
 	source, err := h.upd.installSource(m)
-	if err != nil || source.url != "https://github.com/nwverse/persona/releases/download/v0.7.0-beta.1" {
+	if err != nil || source.url != "https://github.com/sunfayao/persona/releases/download/v0.7.0-beta.1" {
 		t.Fatalf("beta install source %q, %v", source.url, err)
 	}
 	if _, err := h.upd.installSource(&update.Manifest{Version: "0.7.0"}); err == nil {
@@ -80,7 +80,7 @@ func TestBetaSettingsRejectCustomSourcesAndBusySwitches(t *testing.T) {
 		}
 	}
 	h := newTestHub(t)
-	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/nwverse/persona/releases/latest/download")
+	h.build = update.Make("v1", update.Release, "202611171200", "https://github.com/sunfayao/persona/releases/latest/download")
 	h.upd.settings.Source, h.upd.running = update.ChannelBeta, true
 	srv := httptest.NewServer(h.routes())
 	defer srv.Close()

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The agent's goal: Claude Code's /goal writes goal_status attachments and the command's own

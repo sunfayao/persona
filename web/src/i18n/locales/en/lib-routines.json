@@ -61,7 +61,7 @@
   "late_hours_other": "{count} hours late",
   "earlier": "Earlier",
   "template_meeting_title": "Meeting prep",
-  "template_meeting_prompt": "Check today's meetings in my Lark calendar and iPhone calendar. For each one that needs prep, use schedule_followup to set up a prep 10 minutes before it: related docs, notes from the last meeting, open questions, and the points I should make. If nothing needs prep today, just say so briefly.",
+  "template_meeting_prompt": "Check today's meetings in my Lark calendar. For each one that needs prep, use schedule_followup to set up a prep 10 minutes before it: related docs, notes from the last meeting, open questions, and the points I should make. If nothing needs prep today, just say so briefly.",
   "template_weekly_title": "Weekly report",
   "template_weekly_prompt": "Draft my weekly report: from my Lark calendar, meeting notes, docs, and messages, pull together what I did this week, progress and results, problems I ran into, and next week's plan. Include the main changes the agents on my computers finished this week. Give me a draft first and ask if I want changes. Don't send it.",
   "template_patrol_title": "Agent check",

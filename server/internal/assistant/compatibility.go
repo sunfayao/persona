@@ -2,7 +2,7 @@ package assistant
 
 import (
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 )
 
 // Persist the pre-cutover enum so an older manager can resume the same bot

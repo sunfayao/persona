@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 func init() { nodeRPC("workspace.naming.resolve", (*Node).resolveWorkspaceNaming) }

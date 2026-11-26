@@ -2,10 +2,8 @@ package assistant
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
 	"net/http"
 	"path"
 	"slices"
@@ -13,11 +11,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/workspacenaming"
+	"github.com/sunfayao/persona/server/internal/compat"
+
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/workspacenaming"
 )
 
 // The assistant's own settings (settings `assistant`): the machine its
@@ -65,7 +65,7 @@ type Settings struct {
 	// Former are the main conversations replaced since (newest first, POST /api/v1/assistant/main/new): their machine
 	// keeps listing them, archived, however long they are quiet.
 	Former []FormerMain `json:"former_main,omitempty"`
-	// MainTasksQuiet: tasks the main conversation opens are told only there, not pushed, on the Live Activity or in
+	// MainTasksQuiet: tasks the main conversation opens are told only there, not pushed, on the Persona Link summary or in
 	// task badges (#1731). nil is on (the default); the view always says what is in effect.
 	MainTasksQuiet         *bool `json:"main_tasks_quiet,omitempty"`
 	IdleAutoCompact        *bool `json:"idle_auto_compact,omitempty"`
@@ -710,58 +710,6 @@ func (s *Service) profileRoutes() {
 	s.handle("PUT /api/v1/assistant", s.putSettings)
 	// warm: the app opened the chat tab; get a process ready so the first message skips claude's startup, and say what
 	// the main conversation still needs.
-	s.handle("POST /api/v1/assistant/warm", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Launcher string `json:"launcher"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&in)
-		go s.warm(in.Launcher)
-		// What the main conversation still needs, for the first screen's card; no probe, and
-		// bounded so that opening the tab stays quick.
-		out := map[string]any{"ok": true}
-		if rd := s.readinessQuick(r.Context(), readinessWaitWarm); rd != nil {
-			out["readiness"] = rd
-		}
-		apierr.WriteJSON(w, out)
-	})
-	s.handle("GET /api/v1/assistant/memory", func(w http.ResponseWriter, r *http.Request) {
-		var res json.RawMessage
-		if err := s.memory(r.Context(), map[string]any{"op": "list", "space": r.URL.Query().Get("space")}, &res); err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(res)
-	})
-	s.handle("PUT /api/v1/assistant/memory/{name}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot change memory"))
-			return
-		}
-		var in struct {
-			Content string `json:"content"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-			apierr.Write(w, http.StatusBadRequest, err)
-			return
-		}
-		if err := s.memory(r.Context(), map[string]any{"op": "write", "name": r.PathValue("name"), "content": in.Content, "space": r.URL.Query().Get("space")}, nil); err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
-	})
-	s.handle("DELETE /api/v1/assistant/memory/{name}", func(w http.ResponseWriter, r *http.Request) {
-		if !fullRole(r) {
-			apierr.Write(w, http.StatusForbidden, errors.New("read-only role cannot change memory"))
-			return
-		}
-		if err := s.memory(r.Context(), map[string]any{"op": "delete", "name": r.PathValue("name"), "space": r.URL.Query().Get("space")}, nil); err != nil {
-			apierr.Call(w, err)
-			return
-		}
-		apierr.WriteJSON(w, map[string]any{"ok": true})
-	})
 }
 
 // warm gets a process ready (node assistant.warm) for the launcher on the assistant's machine; "" is what the main

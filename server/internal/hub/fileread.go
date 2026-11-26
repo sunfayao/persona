@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // readFile is a file for the viewers (node file.read). A node from before #7974 calls every .ts video/mp2t by its

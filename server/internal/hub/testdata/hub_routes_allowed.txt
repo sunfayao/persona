@@ -34,15 +34,11 @@ GET /api/v1/devices/{id}/prefs
 GET /api/v1/endpoints
 GET /api/v1/health
 GET /api/v1/hub/update
-GET /api/v1/hub/update/backups # hub installation administration: owned local recovery snapshots
 GET /api/v1/hub/update/history
 GET /api/v1/interactions
 GET /api/v1/interactions/history
 GET /api/v1/looks
 GET /api/v1/machines
-GET /api/v1/machines/{mid}/agy-settings
-GET /api/v1/machines/{mid}/claude-settings
-GET /api/v1/machines/{mid}/codex-settings
 GET /api/v1/machines/{mid}/dirs
 GET /api/v1/machines/{mid}/doctor
 GET /api/v1/machines/{mid}/file
@@ -64,9 +60,7 @@ GET /api/v1/machines/{mid}/git/pr
 GET /api/v1/machines/{mid}/git/review
 GET /api/v1/machines/{mid}/git/show
 GET /api/v1/machines/{mid}/git/status
-GET /api/v1/machines/{mid}/grok-settings
 GET /api/v1/machines/{mid}/network
-GET /api/v1/machines/{mid}/omp-settings
 GET /api/v1/machines/{mid}/panes
 GET /api/v1/machines/{mid}/ports
 GET /api/v1/machines/{mid}/ports/{port}
@@ -95,7 +89,6 @@ GET /api/v1/sessions/{mid}/{sid}/items/{iid}/full
 GET /api/v1/sessions/{mid}/{sid}/items/{iid}/image
 GET /api/v1/sessions/{mid}/{sid}/items/{iid}/visualization
 GET /api/v1/sessions/{mid}/{sid}/screen
-GET /api/v1/skills
 GET /api/v1/ws
 GET {bus.Path}
 GET {devicewire.RelayPath}
@@ -128,9 +121,7 @@ POST /api/v1/admin/setup-code
 POST /api/v1/auth/pair-codes
 POST /api/v1/auth/tokens
 POST /api/v1/hub/update
-POST /api/v1/hub/update/backups/{id}/apply # hub installation administration: shared self-update transaction
 POST /api/v1/hub/update/check
-POST /api/v1/interactions/{id}/choose
 POST /api/v1/interactions/{id}/clarify # owner-only relay to the prepared operation's manager, like resolve
 POST /api/v1/interactions/{id}/reanswer
 POST /api/v1/interactions/{id}/resolve
@@ -152,7 +143,6 @@ POST /api/v1/machines/{mid}/files/write
 POST /api/v1/machines/{mid}/files/zip
 POST /api/v1/machines/{mid}/git/commit
 POST /api/v1/machines/{mid}/git/pr
-POST /api/v1/machines/{mid}/git/pr/merge
 POST /api/v1/machines/{mid}/git/pull
 POST /api/v1/machines/{mid}/git/push
 POST /api/v1/machines/{mid}/git/stage
@@ -175,17 +165,14 @@ POST /api/v1/machines/{mid}/tabs/close
 POST /api/v1/machines/{mid}/tabs/rename
 POST /api/v1/machines/{mid}/worktree/add
 POST /api/v1/machines/{mid}/worktree/create
-POST /api/v1/machines/{mid}/worktree/delete
 POST /api/v1/machines/{mid}/worktree/prepare
 POST /api/v1/machines/{mid}/worktree/preset
 POST /api/v1/machines/{mid}/worktree/remove
-POST /api/v1/machines/{mid}/worktree/rename
 POST /api/v1/machines/{mid}/worktree/source
 POST /api/v1/machines/{mid}/worktree/status
 POST /api/v1/managers
 POST /api/v1/managers/{id}/code
 POST /api/v1/managers/{id}/machines
-POST /api/v1/managers/{id}/sources
 POST /api/v1/notify
 POST /api/v1/sessions
 POST /api/v1/sessions/{mid}/{sid}/agent-messages
@@ -194,7 +181,6 @@ POST /api/v1/sessions/{mid}/{sid}/close
 POST /api/v1/sessions/{mid}/{sid}/continue-in-new-chat # starts a new chat from the computer's handoff, like POST /api/v1/sessions and .../fork (context_handoff.go, #12751)
 POST /api/v1/sessions/{mid}/{sid}/fork
 POST /api/v1/sessions/{mid}/{sid}/interrupt
-POST /api/v1/sessions/{mid}/{sid}/keys
 POST /api/v1/sessions/{mid}/{sid}/messages
 POST /api/v1/sessions/{mid}/{sid}/modes
 POST /api/v1/sessions/{mid}/{sid}/queue
@@ -214,16 +200,10 @@ PUT /api/v1/devices/{id}/prefs
 PUT /api/v1/hub/update/settings
 PUT /api/v1/looks/current
 PUT /api/v1/machines/{id}/name
-PUT /api/v1/machines/{mid}/agy-settings
-PUT /api/v1/machines/{mid}/claude-settings
-PUT /api/v1/machines/{mid}/codex-settings
 PUT /api/v1/machines/{mid}/files/content
-PUT /api/v1/machines/{mid}/grok-settings
-PUT /api/v1/machines/{mid}/omp-settings
 PUT /api/v1/mutes
 PUT /api/v1/pins
 PUT /api/v1/push/ln-mode # push grading switch, legacy alias (push_grading.go)
-PUT /api/v1/push/grading # push grading switch, neutral alias of ln-mode (push_grading.go)
 
 # Phone write delivery receipts (full credentials only).
 
@@ -233,26 +213,17 @@ PUT /api/v1/push/grading # push grading switch, neutral alias of ln-mode (push_g
 DELETE /api/v1/push/web/{device}
 GET /api/v1/push/intercepts # held pushes, read-only (push_grading.go)
 GET /api/v1/push/ln-mode # push grading switch, legacy alias (push_grading.go)
-GET /api/v1/push/grading # push grading switch, neutral alias of ln-mode (push_grading.go)
-GET /api/v1/push/stats/daily # push grading delivered/held counts per day, read-only (push_grading.go)
 GET /api/v1/push/web
 GET /api/v1/push/web/{device}
-POST /api/v1/push/web/{device}/test
 PUT /api/v1/push/web/{device}
 
 /api/v1/auth/password/
 GET /api/v1/auth/password/state
 POST /api/v1/auth/password/start
 POST /api/v1/auth/password/finish
-POST /api/v1/auth/password/exchange
 GET /api/v1/admin/password-login
 POST /api/v1/admin/password-login/register/start
 POST /api/v1/admin/password-login/register/finish
 PUT /api/v1/admin/password-login
 
 # Browser sign-in belongs to the hub authentication boundary.
-/api/v1/auth/browser-login/
-POST /api/v1/auth/browser-login/start
-POST /api/v1/auth/browser-login/poll
-POST /api/v1/auth/browser-login/confirm
-POST /api/v1/auth/browser-login/approve

@@ -3,8 +3,8 @@ package node
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/claudeplugin"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/claudeplugin"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // A message the user sends while a Claude conversation is still answering is written to the running process, and

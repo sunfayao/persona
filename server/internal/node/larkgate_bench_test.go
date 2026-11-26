@@ -3,7 +3,7 @@ package node
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // benchGates is two gates: the example one and a second with only a command name.

@@ -17,7 +17,7 @@ import type { Interaction, Session } from "./types";
 
 type DonePref = "off" | "long" | "always";
 
-/** The part of a device's prefs this page reads and writes; the rest (the phone's Live Activity, translation) stays as
+/** The part of a device's prefs this page reads and writes; the rest (preferences managed elsewhere) stays as
  *  the hub has it: a PUT decodes over the device's stored prefs. */
 export interface NotifyPrefs {
   input: boolean;

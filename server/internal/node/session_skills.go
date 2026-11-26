@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/prompts"
 )
 
 // sessionSkillCatalog derives the execution environment from the target, never from client paths or launchers.
@@ -27,7 +27,7 @@ func (n *Node) sessionSkillCatalog(ctx context.Context, owner, id string) (assis
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		var out codexSkillList
-		if err := c.wire.call(ctx, "skills/list", map[string]any{"cwds": []string{t.cwd}, "forceReload": true}, &out); err != nil {
+		if err := c.wire.Call(ctx, "skills/list", map[string]any{"cwds": []string{t.cwd}, "forceReload": true}, &out); err != nil {
 			return unavailable()
 		}
 		entries, complete, err := n.codexSkillEntries(t.cwd, out)

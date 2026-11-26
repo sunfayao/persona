@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
 )
 
 // pairLinkTo is a pairing link for a hub whose TLS port is srv's, pinned to srv's key.

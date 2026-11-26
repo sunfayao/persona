@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // bodyManager is the assistant on a real bus connection, answering the forwarded requests: http.request as it
@@ -118,10 +118,10 @@ func bodyHub(t *testing.T) (*Hub, *httptest.Server) {
 	return h, srv
 }
 
-// putPlace is an app's upload of body on one of the assistant's routes, with the hub's own token.
-func putPlace(t *testing.T, h *Hub, srv *httptest.Server, id string, body []byte) (int, string) {
+// putAssistantSettingsBody is an app's upload of body on one of the assistant's routes, with the hub's own token.
+func putAssistantSettingsBody(t *testing.T, h *Hub, srv *httptest.Server, body []byte) (int, string) {
 	t.Helper()
-	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant/memory/"+id+"?x=1", bytes.NewReader(body))
+	r, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/assistant?x=1", bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,10 +153,10 @@ func TestAssistantTakesBodyStreams(t *testing.T) {
 	if !h.managerCan(assistantwire.AssistantID, assistantwire.CapabilityHTTPBodyStream) {
 		t.Fatal("the assistant's hello does not name the body stream")
 	}
-	code, small := putPlace(t, h, srv, "r1", []byte(`{}`))
+	code, small := putAssistantSettingsBody(t, h, srv, []byte(`{}`))
 	large := append([]byte(`{"pad":"`), bytes.Repeat([]byte("a"), bodyStreamMin)...)
 	large = append(large, `"}`...)
-	if c, out := putPlace(t, h, srv, "r1", large); c != code || out != small {
+	if c, out := putAssistantSettingsBody(t, h, srv, large); c != code || out != small {
 		t.Fatalf("large: %d %s, small: %d %s", c, out, code, small)
 	}
 	eventually(t, 5*time.Second, "the relay let go", func() bool { return relaysLeft(h) == 0 })

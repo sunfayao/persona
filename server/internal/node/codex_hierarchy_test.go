@@ -1,65 +1,14 @@
 package node
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
-	"syscall"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
-
-func TestCodexProjectRootRealWorktrees(t *testing.T) {
-	base := t.TempDir()
-	repo := filepath.Join(base, "one", "project")
-	if err := os.MkdirAll(repo, 0700); err != nil {
-		t.Fatal(err)
-	}
-	run := func(dir string, args ...string) {
-		t.Helper()
-		if out, err := git(context.Background(), dir, args...); err != nil {
-			t.Fatalf("git %v: %s %v", args, out, err)
-		}
-	}
-	run(repo, "init")
-	run(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "Initial")
-	cache := map[string]string{}
-	for _, name := range []string{"tree-one", "tree-two"} {
-		tree := filepath.Join(base, name)
-		run(repo, "worktree", "add", "--detach", tree)
-		nested := filepath.Join(tree, "src")
-		if err := os.Mkdir(nested, 0700); err != nil {
-			t.Fatal(err)
-		}
-		if got := codexProjectRoot(nested, cache); got != realPath(repo) {
-			t.Fatalf("%s root=%s", tree, got)
-		}
-	}
-	other := filepath.Join(base, "two", "project")
-	if err := os.MkdirAll(other, 0700); err != nil {
-		t.Fatal(err)
-	}
-	run(other, "init")
-	if got := codexProjectRoot(other, cache); got == codexProjectRoot(repo, cache) {
-		t.Fatal("same basename merged independent repositories")
-	}
-	t.Run("symlink", func(t *testing.T) {
-		alias := filepath.Join(base, "alias")
-		if err := os.Symlink(repo, alias); err != nil {
-			if runtime.GOOS == "windows" && errors.Is(err, syscall.Errno(1314)) {
-				t.Skip("Windows symlink creation requires Developer Mode or the symlink privilege")
-			}
-			t.Fatal(err)
-		}
-		if codexProjectRoot(alias, cache) != realPath(repo) {
-			t.Fatal("symlink did not resolve")
-		}
-	})
-}
 
 // A Guardian approval review is Codex's own check of a tool call before it runs. It writes a rollout next to its chat,
 // but it is no Agent: neither the list nor its chat's sub-Agents have it, while a thread_spawn sub-Agent stays (#5486).
@@ -70,7 +19,7 @@ func TestCodexListLeavesOutGuardianReviews(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			n := remoteTestNode(t)
-			home := canonicalCodexHome(t.TempDir(), n.home)
+			home := codex.CanonicalHome(t.TempDir(), n.home)
 			chat, spawned, review := "0e000000-0000-4000-8000-000000000011", "0e000000-0000-4000-8000-000000000012", "0e000000-0000-4000-8000-000000000013"
 			metas := map[string]map[string]any{
 				chat: {"id": chat, "originator": tc.originator, "cwd": "/work/project", "source": tc.source},
@@ -91,10 +40,10 @@ func TestCodexListLeavesOutGuardianReviews(t *testing.T) {
 				}
 				n.registerCodex(home, id, path)
 			}
-			if o := readCodexOrigin(filepath.Join(home, review+".jsonl")); !o.guardian || !o.sub {
+			if o := readCodexOrigin(filepath.Join(home, review+".jsonl")); !o.Guardian || !o.Subagent {
 				t.Fatalf("guardian origin = %+v", o)
 			}
-			if o := readCodexOrigin(filepath.Join(home, spawned+".jsonl")); o.guardian || o.parent != chat {
+			if o := readCodexOrigin(filepath.Join(home, spawned+".jsonl")); o.Guardian || o.Parent != chat {
 				t.Fatalf("thread_spawn origin = %+v", o)
 			}
 			list := n.codexSessions(map[string]bool{})
@@ -109,42 +58,6 @@ func TestCodexListLeavesOutGuardianReviews(t *testing.T) {
 				t.Fatalf("sub-Agent %+v under chat %+v", s, root)
 			}
 		})
-	}
-}
-
-func TestCodexHierarchyCycleTerminates(t *testing.T) {
-	list := []proto.Session{{SessionID: "a", ParentSessionID: "b", IsSubagent: true}, {SessionID: "b", ParentSessionID: "a", IsSubagent: true}}
-	resolveCodexHierarchy(list)
-	for _, s := range list {
-		if s.RootSessionID != "" {
-			t.Fatalf("cycle has root: %+v", s)
-		}
-	}
-}
-
-func TestCodexProjectCacheRetriesAfterExpiry(t *testing.T) {
-	root := t.TempDir()
-	cwd := filepath.Join(root, "nested")
-	if err := os.Mkdir(cwd, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if got := codexProjectRoot(cwd, map[string]string{}); got != realPath(cwd) {
-		t.Fatalf("non-repository root=%s", got)
-	}
-	if out, err := git(context.Background(), root, "init"); err != nil {
-		t.Fatalf("init: %s %v", out, err)
-	}
-	// A separate inventory pass still reuses the cached result within the TTL.
-	if got := codexProjectRoot(cwd, map[string]string{}); got != realPath(cwd) {
-		t.Fatalf("cache was not reused: %s", got)
-	}
-	codexProjectRoots.Lock()
-	entry := codexProjectRoots.entries[realPath(cwd)]
-	entry.at = entry.at.Add(-codexProjectCacheTTL)
-	codexProjectRoots.entries[realPath(cwd)] = entry
-	codexProjectRoots.Unlock()
-	if got := codexProjectRoot(cwd, map[string]string{}); got != realPath(root) {
-		t.Fatalf("expired failure did not retry: %s", got)
 	}
 }
 
@@ -165,7 +78,7 @@ func TestCodexHistoryAttachesToAlreadySeenTerminalParent(t *testing.T) {
 		t.Fatalf("history=%+v", history)
 	}
 	list := append([]proto.Session{{SessionID: parentID, Agent: "codex", SpaceID: "terminal-project", SpaceName: "Project", RepoRoot: "/work/project"}}, history...)
-	resolveCodexHierarchy(list)
+	codex.ResolveHierarchy(list)
 	if list[1].RootSessionID != parentID || list[1].SpaceID != list[0].SpaceID || list[1].RepoRoot != list[0].RepoRoot {
 		t.Fatalf("terminal child=%+v", list[1])
 	}

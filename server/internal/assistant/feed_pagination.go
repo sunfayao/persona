@@ -9,7 +9,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/db"
 )
 
 var errFeedCursor = errors.New("invalid feed cursor")

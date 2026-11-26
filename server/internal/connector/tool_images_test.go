@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Pictures in a read tool's answer (#8484): the text first, then each picture that passes with a line before it, and

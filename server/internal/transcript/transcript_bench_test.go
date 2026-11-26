@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // benchTranscript writes a Claude transcript of about size bytes shaped like a real session's: each line carries the
@@ -22,7 +22,7 @@ func benchTranscript(b *testing.B, size int) string {
 		`"gitBranch":"perf/transcript-read","timestamp":"2026-11-05T01:00:00.000Z"`
 	const usage = `"usage":{"input_tokens":3,"cache_creation_input_tokens":1520,"cache_read_input_tokens":48211,` +
 		`"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":1520},"output_tokens":412,"service_tier":"standard"}`
-	output := strings.Repeat("ok  \tgithub.com/nwverse/persona/server/internal/x\t0.012s\n", 80)
+	output := strings.Repeat("ok  \tgithub.com/sunfayao/persona/server/internal/x\t0.012s\n", 80)
 	thinking := strings.Repeat("Look at the package first, then run go test and read what fails. ", 12)
 	var sb strings.Builder
 	for i := 0; sb.Len() < size; i++ {

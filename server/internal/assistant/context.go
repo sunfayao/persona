@@ -9,11 +9,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // Context is the <persona-context> block a message to conversation p.SessionID starts with (the node asks on every
@@ -397,7 +397,7 @@ func snapshotAgentGroup(c proto.Session, now time.Time) snapshotAgentGroupKind {
 
 // snapshotAgents sorts the agents by what they need: the work state (agents_work.go) says what a stopped one
 // waits for or concluded. Each has its page in the web app at web ("" for none). The muted ones (the agent or its
-// space) are in none of the others: the Live Activity, the Agents badge and the inbox leave them out,
+// space) are in none of the others: the Persona Link summary, the Agents badge and the inbox leave them out,
 // so "Needs you" here does too; they are told apart, for when the user asks about them (#4562).
 func (s *Service) snapshotAgents(ctx context.Context, devices []Device, web string) (needs, unread, awaiting, waiting, done, muted []prompts.SnapshotAgent,
 	working []prompts.SnapshotAgent) {

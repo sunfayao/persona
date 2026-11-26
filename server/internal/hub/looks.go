@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"net/http"
 	"slices"
 	"strconv"
@@ -13,9 +13,9 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Looks: one list of every look a user can choose — the ones the apps
@@ -89,10 +89,9 @@ var extLooks = &extensionLookCache{pkgs: map[string]*personaPackage{}}
 // left out (the hub's wins).
 func (h *Hub) extensionLooks() []*personaPackage {
 	var out []*personaPackage
-	own := h.builtinPersonaIDs()
 	for _, lp := range h.extReport().Looks {
 		var l extension.LookItem
-		if err := json.Unmarshal(lp.Item, &l); err != nil || slices.Contains(own, l.ID) {
+		if err := json.Unmarshal(lp.Item, &l); err != nil {
 			continue
 		}
 		pkg, err := extensionLookPackage(lp, l)

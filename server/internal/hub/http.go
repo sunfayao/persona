@@ -19,20 +19,20 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/apierr"
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/bus"
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/link"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
-	"github.com/nwverse/persona/server/internal/sessionlist"
-	"github.com/nwverse/persona/server/internal/textfmt"
+	"github.com/sunfayao/persona/server/internal/apierr"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/bus"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/sessionlist"
+	"github.com/sunfayao/persona/server/internal/textfmt"
 )
 
 // nodeOutdated recognizes the prefix also returned by an old manager that lacks
@@ -50,7 +50,6 @@ func (h *Hub) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/v1/health", h.health)
 	h.passwordLoginRoutes(mux)
-	h.browserLoginRoutes(mux)
 	api := http.NewServeMux()
 	h.apiMux = api
 	if h.upd != nil {
@@ -65,7 +64,6 @@ func (h *Hub) routes() http.Handler {
 	h.fileRoutes(api)
 	h.machineFileRoutes(api)
 	h.gitRoutes(api)
-	h.agentSettingsRoutes(api)
 	h.sessionRoutes(api)
 	h.paneRoutes(api)
 	h.nodeDoctorRoutes(api)
@@ -1311,9 +1309,7 @@ type client struct {
 	uiConnection string // hub-owned identity for targeted extension page transport
 	uiRequests   chan struct{}
 	uiManagers   map[string]bool
-	// pushDevice: the app's id for pushes (register_phone's / register_desktop's device_id, PushRegistrar.deviceID in
-	// the app): while it is connected its app is open, and a phone draws its Live Activity itself (liveactivity.go), a
-	// desktop posts its own notifications (desktopOpen). Empty for an older app.
+	// pushDevice is the desktop client's notification device ID.
 	pushDevice string
 	// delta: the app asked for sessions_delta (sessions_push.go); have is, by machine, each session it has (id -> its
 	// JSON as sent), under the hub's sessionsMu.
@@ -1327,7 +1323,6 @@ type client struct {
 	lazy            bool // asked for items without image data (subscribe with lazy_images)
 	fold            bool // asked for backlogs with the agent's work folded (subscribe with fold_work)
 	name            string
-	since           time.Time
 	meta            clientMeta // what it said about itself in client_hello (clientmeta.go)
 	acceptLang      i18n.Lang  // its upgrade request's Accept-Language (locale.go)
 	deviceSessionID int64      // immutable after registration in Hub.clients
@@ -1385,21 +1380,9 @@ func (h *Hub) broadcastTo(typ string, b []byte, elicitation bool) {
 		if elicitation && !c.has("elicitation") {
 			continue
 		}
-		if typ == legacyLarkEvent && c.has(featureLarkViaMessaging) {
-			continue
-		}
 		c.queue(localizedOnce(forms, c.lang(), b, localize))
 	}
 }
-
-// legacyLarkEvent is the Lark extension's old change notice ({"type":"lark","feed_ids":…}); while the old /api/v1/lark
-// is still read it comes beside the same change's "messaging" event.
-const legacyLarkEvent = "lark"
-
-// featureLarkViaMessaging: in client_hello, the app follows the "messaging" events for its Feishu screens and drops
-// the legacy "lark" one, so it is not sent to it (#9591). An app says it only while it uses a messaging source, and
-// says it again in a new client_hello when that changes; replayed events on resume, before its hello, still include it.
-const featureLarkViaMessaging = "lark_via_messaging"
 
 func (h *Hub) toSubscribers(machineID, sessionID string, v any) {
 	h.toSubscribersWith(machineID, sessionID, "", v)
@@ -1529,7 +1512,7 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(64 << 20)
 	ctx, cancel := context.WithCancel(r.Context())
 	who := principalOf(r.Context())
-	c := &client{cancel: cancel, done: ctx.Done(), hub: h, conn: conn, out: make(chan []byte, 512), subs: map[[2]string]bool{}, since: time.Now(),
+	c := &client{cancel: cancel, done: ctx.Done(), hub: h, conn: conn, out: make(chan []byte, 512), subs: map[[2]string]bool{},
 		device: who.ID, role: who.Role, delta: who.Role != roleScoped && wantsFeature(r, featureSessionsDelta), listMode: who.Role != roleScoped && wantsFeature(r, featureSessionsList), have: map[string]map[string][]byte{},
 		urlFeatures: urlFeatures(r), acceptLang: i18n.FromRequest(r), meta: clientMeta{updates: make(chan heartbeatConfig, 512), done: ctx.Done()}}
 	c.traffic = h.requestTrafficAttribution(r, who)
@@ -1631,7 +1614,6 @@ func (h *Hub) serveWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.sendPendingInteractions(c, false)
-	h.sendDesktops(c)
 
 	for {
 		_, data, readErr := conn.Read(ctx)
@@ -1655,7 +1637,7 @@ func (h *Hub) onClientMessage(ctx context.Context, c *client, data []byte) {
 		LazyImages bool   `json:"lazy_images"`
 		FoldWork   bool   `json:"fold_work"`
 		DeviceName string `json:"device_name"`
-		DeviceID   string `json:"device_id"` // register_phone / register_desktop: the app's id for pushes
+		DeviceID   string `json:"device_id"` // register_desktop: the app's id for pushes
 		Epoch      string `json:"epoch"`
 		AfterSeq   int    `json:"after_seq"`
 		// terminal_subscribe, terminal_input: the grid the app drives the terminal at

@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 func ociSum(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }

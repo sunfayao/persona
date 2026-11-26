@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/github"
-	"github.com/nwverse/persona/server/internal/connector/imessage"
-	"github.com/nwverse/persona/server/internal/extension/denohost"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lark"
-	"github.com/nwverse/persona/server/internal/managerconf"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/github"
+	"github.com/sunfayao/persona/server/internal/connector/imessage"
+	"github.com/sunfayao/persona/server/internal/extension/denohost"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lark"
+	"github.com/sunfayao/persona/server/internal/managerconf"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Config is the manager's configuration for the extensions, connectors, bots and the inbox: Listen, Token and
@@ -31,13 +31,11 @@ type Config struct {
 	GitHub        *github.Config   `json:"github,omitempty"`
 	IMessage      *imessage.Config `json:"imessage,omitempty"`
 	// Google and Microsoft: mail's sign-ins.
-	Google                  GoogleConfig      `json:"google"`
-	Microsoft               MicrosoftConfig   `json:"microsoft,omitempty"`
-	Inbox                   InboxConfig       `json:"inbox"`
-	Bots                    BotsConfig        `json:"bots,omitempty"`
-	Extensions              []ExtensionConfig `json:"extensions,omitempty"`
-	LegacyExtensions        []ExtensionConfig `json:"plugins,omitempty"`
-	TrustedExtensionMarkets []string          `json:"trusted_extension_markets,omitempty"`
+	Google           GoogleConfig      `json:"google"`
+	Inbox            InboxConfig       `json:"inbox"`
+	Bots             BotsConfig        `json:"bots,omitempty"`
+	Extensions       []ExtensionConfig `json:"extensions,omitempty"`
+	LegacyExtensions []ExtensionConfig `json:"plugins,omitempty"`
 	// ExtensionMarket configures outbound marketplace reads and package downloads.
 	ExtensionMarket ExtensionMarketConfig `json:"extension_market,omitempty"`
 	// ExtensionRuntime pins the shared engine; missing/unsupported enforcement blocks source activation.
@@ -47,9 +45,6 @@ type Config struct {
 	// SentLedgerDays is how many days the ledger of what was written as the user is kept (sent_ledger.go): 0 or
 	// absent is 90, below 0 keeps it for good.
 	SentLedgerDays int `json:"sent_ledger_days,omitempty"`
-	// SentRecallHours is how many hours after a send it can be taken back (sent_recall.go): 0 or absent is 24, below 0
-	// is no limit; a connector may allow less.
-	SentRecallHours int `json:"sent_recall_hours,omitempty"`
 	// RemoteImages is manager.json's remote_images, read here for the avatars route's fetches (avatars.go) as the
 	// assistant reads it for /remote-image: its doh.
 	RemoteImages RemoteImagesConfig `json:"remote_images,omitempty"`
@@ -74,17 +69,10 @@ type RemoteImagesConfig struct {
 	DoH *string `json:"doh,omitempty"`
 }
 
-// GoogleConfig is the iOS OAuth client behind Gmail's "Sign in with Google".
+// GoogleConfig configures Gmail network access.
 type GoogleConfig struct {
-	ClientID string `json:"client_id"`
 	// Proxy is an http:// (CONNECT) or socks5:// proxy for Gmail IMAP / SMTP and Google's OAuth / Gmail API.
 	Proxy string `json:"proxy,omitempty"`
-}
-
-// MicrosoftConfig is Outlook's "Sign in with Microsoft".
-type MicrosoftConfig struct {
-	ClientID    string `json:"client_id,omitempty"`
-	RedirectURI string `json:"redirect_uri,omitempty"`
 }
 
 // loadConfig reads dir's hub.json with the environment over it as the hub does (PERSONA_PUBLIC_URL, PERSONA_LISTEN),

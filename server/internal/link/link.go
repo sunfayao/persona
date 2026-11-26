@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	appidentity "github.com/nwverse/persona/server/internal/identity"
+	appidentity "github.com/sunfayao/persona/server/internal/identity"
 	"net"
 	"net/netip"
 	"net/url"
@@ -21,7 +21,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // The link is a WebSocket on the hub's TLS port (or under the path of the HTTPS reverse proxy in front of it); each node

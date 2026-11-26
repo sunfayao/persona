@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // preflightLinuxAgentForReal uses the same full-profile probe as a real start before a test invokes bwrap itself.

@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nwverse/persona/server/internal/repositorywire"
+	"github.com/sunfayao/persona/server/internal/repositorywire"
 )
 
 const Version = "workspace-naming/v1"

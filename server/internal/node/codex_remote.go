@@ -7,24 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/coder/websocket"
-
-	"github.com/nwverse/persona/server/internal/assistantskills"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/assistantskills"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex/appserver"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 var errCodexNoOwner = errors.New("没有可共享的 app-server 运行入口")
@@ -71,8 +63,8 @@ type codexRemote struct {
 	n            *Node
 	spec         proto.CodexServer
 	generation   string
-	wire         *codexConn
-	socket       *websocket.Conn
+	wire         *appserver.Wire
+	socket       *appserver.Socket
 	ctx          context.Context
 	cancel       context.CancelFunc
 	done         chan struct{}
@@ -87,7 +79,7 @@ type codexRemote struct {
 	ready        bool
 	verifiedHome bool
 	// models: the efforts each model takes, from model/list (codex_effort.go); nil until read.
-	models map[string]codexModelEfforts
+	models map[string]codex.ModelEfforts
 	// slow: loaded threads whose last thread/read timed out; read again only after codexRetryWait (codex_backoff.go).
 	slow map[string]codexRetry
 	// seen: what the refreshes learned about each loaded thread, listed or not; an id is forgotten once it is no
@@ -144,76 +136,6 @@ func (n *Node) ensureCodexRemote(ctx context.Context, spec proto.CodexServer) {
 	go c.run()
 }
 
-func rejectCodexRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-
-func validateCodexEndpoint(endpoint string) (string, *http.Client, error) {
-	parse := endpoint
-	if rest, ok := strings.CutPrefix(endpoint, "unix://"); ok && runtime.GOOS == "windows" {
-		parse = "unix:///" + filepath.ToSlash(rest) // C:\… is no URL; the checks below want only its query and the like
-	}
-	u, err := url.Parse(parse)
-	if err != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return "", nil, errors.New("app-server 入口无效")
-	}
-	if u.Scheme == "unix" {
-		path := strings.TrimPrefix(endpoint, "unix://")
-		if !filepath.IsAbs(path) {
-			return "", nil, errors.New("Unix 入口必须是绝对路径")
-		}
-		path, err := codexSocketPath(path)
-		if err != nil {
-			return "", nil, err
-		}
-		if err := privateSocket(path); err != nil { // codex_remote_unix.go, codex_remote_windows.go
-			return "", nil, err
-		}
-		tr := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", path)
-		}}
-		return "ws://localhost/", &http.Client{Transport: tr, CheckRedirect: rejectCodexRedirect}, nil
-	}
-	if u.Scheme != "ws" || u.Port() == "" || u.Path != "" && u.Path != "/" {
-		return "", nil, errors.New("只支持本机 Unix 或回环 WebSocket 入口")
-	}
-	ip := net.ParseIP(u.Hostname())
-	if ip == nil || !ip.IsLoopback() {
-		return "", nil, errors.New("WebSocket 入口必须是回环 IP，不能是外部地址或主机名")
-	}
-	// Never use HTTP_PROXY for a private local endpoint.
-	return endpoint, &http.Client{Transport: &http.Transport{Proxy: nil}, CheckRedirect: rejectCodexRedirect}, nil
-}
-
-// codexSocketPath is the socket a Unix control endpoint names: the path itself (0.153), or — from 0.163, where every
-// control socket is an alias — the one target Codex itself recognises as its own: a socket named after the SHA-256 of
-// the alias's canonical path in <canonical /tmp>/codex-daemon-<uid> (codex-rs uds/src/daemon_directory.rs,
-// app-server-transport unix_socket.rs). Any other symlink is refused; the alias's directory must be the user's and not
-// writable by others. The caller checks the target's own directory and mode.
-func codexSocketPath(path string) (string, error) {
-	st, err := os.Lstat(path)
-	if err != nil || st.Mode()&os.ModeSymlink == 0 {
-		return path, nil // a missing path fails the caller's checks
-	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
-	if err != nil {
-		return "", errors.New("Unix 入口不可访问")
-	}
-	if pst, err := os.Stat(parent); err != nil {
-		return "", errors.New("Unix 入口不可访问")
-	} else if !osproc.OwnedByMe(pst) || pst.Mode().Perm()&0o022 != 0 {
-		return "", errors.New("Unix 入口所在目录不属于当前用户，或别人能改")
-	}
-	tmp, err := filepath.EvalSymlinks("/tmp")
-	if err != nil {
-		return "", errors.New("Unix 入口不可访问")
-	}
-	sum := sha256.Sum256([]byte(filepath.Join(parent, filepath.Base(path))))
-	want := filepath.Join(tmp, "codex-daemon-"+strconv.Itoa(os.Geteuid()), hex.EncodeToString(sum[:]))
-	if target, err := os.Readlink(path); err != nil || target != want {
-		return "", errors.New("Unix 入口是指向别处的符号链接")
-	}
-	return want, nil
-}
-
 func (c *codexRemote) run() {
 	reached := false // the handshake went through: the endpoint's backoff ends (codex_backoff.go)
 	defer func() {
@@ -225,59 +147,34 @@ func (c *codexRemote) run() {
 		}
 		c.n.codices.mu.Unlock()
 	}()
-	target, client, err := validateCodexEndpoint(c.spec.Endpoint)
+	socket, err := c.n.codexClient().Dial(c.ctx, c.spec.Endpoint)
 	if err != nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
-	socket, resp, err := websocket.Dial(ctx, target, &websocket.DialOptions{HTTPClient: client})
-	cancel()
-	if resp != nil && resp.Body != nil {
-		resp.Body.Close()
-	}
-	if err != nil {
-		return
-	}
-	socket.SetReadLimit(64 << 20)
 	c.mu.Lock()
 	c.socket = socket
 	c.mu.Unlock()
-	wire := &codexConn{pending: map[int64]chan codexReply{}, ended: c.done}
-	wire.writeMessage = func(b []byte) error {
-		ctx, cancel := context.WithTimeout(c.ctx, 10*time.Second)
-		defer cancel()
-		return socket.Write(ctx, websocket.MessageText, b)
-	}
-	wire.onMessage = c.message
+	wire := socket.Bind(c.done, c.message)
 	c.mu.Lock()
 	c.wire = wire
 	c.mu.Unlock()
 	go func() {
-		for {
-			_, b, err := socket.Read(c.ctx)
-			if err != nil {
-				c.close()
-				return
-			}
-			var m codexMessage
-			if json.Unmarshal(b, &m) == nil {
-				wire.receive(m)
-			}
-		}
+		socket.Read(c.ctx, wire.Receive)
+		c.close()
 	}()
-	ctx, cancel = context.WithTimeout(c.ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(c.ctx, 15*time.Second)
 	var init struct {
 		CodexHome string `json:"codexHome"`
 	}
-	err = wire.call(ctx, "initialize", map[string]any{"clientInfo": map[string]any{"name": "persona", "title": "Persona", "version": c.n.Version}, "capabilities": map[string]any{"experimentalApi": true}}, &init)
+	err = wire.Call(ctx, "initialize", map[string]any{"clientInfo": map[string]any{"name": "persona", "title": "Persona", "version": c.n.Version}, "capabilities": map[string]any{"experimentalApi": true}}, &init)
 	cancel()
 	if err != nil {
 		return
 	}
-	if init.CodexHome != "" && canonicalCodexHome(init.CodexHome, c.n.home) != c.spec.Home {
+	if init.CodexHome != "" && codex.CanonicalHome(init.CodexHome, c.n.home) != c.spec.Home {
 		return
 	}
-	if err = wire.send(map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}}); err != nil {
+	if err = wire.Send(map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}}); err != nil {
 		return
 	}
 	c.mu.Lock()
@@ -292,9 +189,7 @@ func (c *codexRemote) run() {
 	reached = true
 	c.n.notifyCodex()
 	go c.loadModels()
-	tick := time.NewTicker(5 * time.Second)
-	defer tick.Stop()
-	for {
+	c.n.codexClient().Watch(c.ctx, 5*time.Second, func() {
 		cfg := c.n.codexInventory()
 		for id, instance := range cfg.Joined {
 			if instance == c.spec.ID {
@@ -303,15 +198,7 @@ func (c *codexRemote) run() {
 				}
 			}
 		}
-		select {
-		case <-c.ctx.Done():
-			return
-		case <-tick.C:
-			if c.refresh() != nil {
-				return
-			}
-		}
-	}
+	}, c.refresh)
 }
 
 func (c *codexRemote) close() {
@@ -332,9 +219,7 @@ func (c *codexRemote) close() {
 		}
 		c.mu.Unlock()
 		if wire != nil {
-			wire.mu.Lock()
-			wire.closed = true
-			wire.mu.Unlock()
+			wire.Stop()
 		}
 		close(c.done)
 		if socket != nil {
@@ -347,55 +232,7 @@ func (c *codexRemote) close() {
 	})
 }
 
-func (c *codexRemote) loaded(ctx context.Context) ([]string, error) {
-	var ids []string
-	cursor := ""
-	seen := map[string]bool{}
-	for {
-		var page struct {
-			Data       []string `json:"data"`
-			NextCursor *string  `json:"nextCursor"`
-		}
-		p := map[string]any{"limit": 100}
-		if cursor != "" {
-			p["cursor"] = cursor
-		}
-		if err := c.wire.call(ctx, "thread/loaded/list", p, &page); err != nil {
-			return nil, err
-		}
-		ids = append(ids, page.Data...)
-		if page.NextCursor == nil || *page.NextCursor == "" {
-			break
-		}
-		cursor = *page.NextCursor
-		if seen[cursor] {
-			return nil, errors.New("app-server 返回重复的分页游标")
-		}
-		seen[cursor] = true
-	}
-	return ids, nil
-}
-
-type remoteThreadData struct {
-	ID             string          `json:"id"`
-	Name           string          `json:"name"`
-	Model          string          `json:"model"`
-	Effort         string          `json:"reasoningEffort"` // configured now; null (unset) reads as ""
-	Preview        string          `json:"preview"`
-	Cwd            string          `json:"cwd"`
-	Path           string          `json:"path"`
-	ParentThreadID string          `json:"parentThreadId"`
-	Ephemeral      bool            `json:"ephemeral"`
-	Source         json.RawMessage `json:"source"`
-	Status         struct {
-		Type        string   `json:"type"`
-		ActiveFlags []string `json:"activeFlags"`
-	} `json:"status"`
-	Turns []struct {
-		ID     string `json:"id"`
-		Status string `json:"status"`
-	} `json:"turns"`
-}
+type remoteThreadData = appserver.Thread
 
 func (c *codexRemote) refresh() error {
 	c.refreshMu.Lock()
@@ -410,7 +247,7 @@ func (c *codexRemote) refresh() error {
 	}
 	ctx, cancel := context.WithTimeout(c.ctx, budget)
 	defer cancel()
-	ids, err := c.loaded(ctx)
+	ids, err := c.wire.LoadedThreads(ctx)
 	if err != nil {
 		return err
 	}
@@ -469,7 +306,7 @@ func (c *codexRemote) refresh() error {
 					Thread remoteThreadData `json:"thread"`
 				}
 				rctx, rcancel := context.WithTimeout(ctx, wait)
-				err := c.wire.call(rctx, "thread/read", map[string]any{"threadId": reads[i], "includeTurns": false}, &reply)
+				err := c.wire.Call(rctx, "thread/read", map[string]any{"threadId": reads[i], "includeTurns": false}, &reply)
 				rcancel()
 				results[i] = read{data: reply.Thread, err: err, cut: err != nil && ctx.Err() != nil, asked: true}
 			}
@@ -700,7 +537,7 @@ func (c *codexRemote) join(ctx context.Context, id string, remember bool) error 
 	if t.joined {
 		return nil
 	}
-	ids, err := c.loaded(ctx)
+	ids, err := c.wire.LoadedThreads(ctx)
 	if err != nil || !slices.Contains(ids, t.id) {
 		return refusal("codex_read_only", "会话已不在原 app-server 中运行，未恢复或新建会话", nil)
 	}
@@ -717,7 +554,7 @@ func (c *codexRemote) join(ctx context.Context, id string, remember bool) error 
 	joining.revision++
 	c.threads[t.id] = joining
 	c.mu.Unlock()
-	if err = c.wire.call(ctx, "thread/resume", map[string]any{"threadId": t.id, "excludeTurns": true}, &reply); err != nil {
+	if err = c.wire.Call(ctx, "thread/resume", map[string]any{"threadId": t.id, "excludeTurns": true}, &reply); err != nil {
 		c.mu.Lock()
 		joining = c.threads[t.id]
 		joining.joined = false
@@ -739,7 +576,7 @@ func (c *codexRemote) join(ctx context.Context, id string, remember bool) error 
 	current, ok := c.threads[t.id]
 	if ok {
 		current.joined = true
-		if tier := codexServiceTier(reply.ServiceTier); tier != "" && current.serviceTier == "" {
+		if tier := codex.ServiceTier(reply.ServiceTier); tier != "" && current.serviceTier == "" {
 			current.serviceTier = tier
 			current.serviceTierRevision++
 		}
@@ -839,7 +676,7 @@ func (n *Node) sendCodex(ctx context.Context, id, text string, images []proto.Im
 		if c != previous || !t.joined {
 			return takeoverRefusal("writer_busy")
 		}
-		loaded, err := c.loaded(ctx)
+		loaded, err := c.wire.LoadedThreads(ctx)
 		if err != nil || !slices.Contains(loaded, t.id) {
 			return takeoverRefusal("writer_busy")
 		}
@@ -876,7 +713,7 @@ func (n *Node) sendCodex(ctx context.Context, id, text string, images []proto.Im
 			ID string `json:"id"`
 		} `json:"turn"`
 	}
-	err = c.wire.call(ctx, method, params, &reply)
+	err = c.wire.Call(ctx, method, params, &reply)
 	var re *codexError
 	if errors.As(err, &re) && (pModel != "" || pEffort != "") {
 		// Codex refused a turn that carried the choice: drop it, so it does not fail every message after this one.
@@ -916,7 +753,7 @@ func (c *codexRemote) activeTurn(ctx context.Context, thread string) string {
 	var reply struct {
 		Thread remoteThreadData `json:"thread"`
 	}
-	if c.wire.call(ctx, "thread/read", map[string]any{"threadId": thread, "includeTurns": true}, &reply) != nil {
+	if c.wire.Call(ctx, "thread/read", map[string]any{"threadId": thread, "includeTurns": true}, &reply) != nil {
 		return ""
 	}
 	turn := ""
@@ -956,7 +793,7 @@ func (n *Node) interruptCodex(ctx context.Context, id string) error {
 	if t.turn == "" || t.parent != "" {
 		return refusal("codex_read_only", "没有可停止的已观察轮次", nil)
 	}
-	return c.wire.call(ctx, "turn/interrupt", map[string]any{"threadId": t.id, "turnId": t.turn}, nil)
+	return c.wire.Call(ctx, "turn/interrupt", map[string]any{"threadId": t.id, "turnId": t.turn}, nil)
 }
 
 // interruptCodexActiveTurn interrupts a running app-server turn without acquiring n.typing.lock, for callers like
@@ -980,7 +817,7 @@ func (n *Node) interruptCodexActiveTurn(ctx context.Context, id string) bool {
 	if turn == "" {
 		return false
 	}
-	if c.wire.call(ictx, "turn/interrupt", map[string]any{"threadId": tid, "turnId": turn}, nil) != nil {
+	if c.wire.Call(ictx, "turn/interrupt", map[string]any{"threadId": tid, "turnId": turn}, nil) != nil {
 		return false
 	}
 	for deadline := time.Now().Add(500 * time.Millisecond); time.Now().Before(deadline) && ctx.Err() == nil; {
@@ -1030,10 +867,10 @@ func (c *codexRemote) message(m codexMessage) {
 	}
 	if m.Method == "serverRequest/resolved" {
 		c.mu.Lock()
-		c.finished[codexRequestKey(ev.RequestID)] = true
-		a := c.asks[codexRequestKey(ev.RequestID)]
+		c.finished[appserver.RequestKey(ev.RequestID)] = true
+		a := c.asks[appserver.RequestKey(ev.RequestID)]
 		if a != nil && a.thread == ev.ThreadID {
-			delete(c.asks, codexRequestKey(ev.RequestID))
+			delete(c.asks, appserver.RequestKey(ev.RequestID))
 		}
 		c.mu.Unlock()
 		if a != nil && a.thread == ev.ThreadID {
@@ -1111,7 +948,7 @@ func (c *codexRemote) message(m codexMessage) {
 		}
 	case "thread/settings/updated": // the thread's settings changed: on the computer, or from here (codex_effort.go)
 		t.model, t.effort = firstNonEmpty(ev.Settings.Model, t.model), ev.Settings.Effort
-		if tier := codexServiceTier(ev.Settings.ServiceTier); tier != "" {
+		if tier := codex.ServiceTier(ev.Settings.ServiceTier); tier != "" {
 			t.serviceTier = tier
 			t.serviceTierRevision++
 		}
@@ -1147,6 +984,6 @@ func (c *codexRemote) message(m codexMessage) {
 }
 
 func remoteInteractionID(machine, instance, generation, thread string, id json.RawMessage) string {
-	h := sha256.Sum256([]byte(machine + "\x00" + instance + "\x00" + generation + "\x00" + thread + "\x00" + codexRequestKey(id)))
+	h := sha256.Sum256([]byte(machine + "\x00" + instance + "\x00" + generation + "\x00" + thread + "\x00" + appserver.RequestKey(id)))
 	return "codex-" + hex.EncodeToString(h[:])
 }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Adding a computer (docs/assistant/onboarding.md 4.2 "Your computer ↔ hub", 5.3). The admin page adds one (admin_machines.go), and so

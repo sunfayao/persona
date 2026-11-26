@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // featureAssistantStartServiceTier is a start option of the default manager, not a hub-global promise: an older

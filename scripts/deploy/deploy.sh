@@ -4,7 +4,7 @@
 #   ./scripts/deploy/deploy.sh <hub machine>   # only the hub
 #   ./scripts/deploy/deploy.sh <machine id>    # only one machine (node binary; the hub restarts its connection)
 #   ./scripts/deploy/deploy.sh web # only the web client (web/): no restart
-# The checkout must contain the remote deploy branch (it fetches it first), else nothing is deployed;
+# The checkout must contain the remote main branch (it fetches it first), else nothing is deployed;
 # PERSONA_DEPLOY_ANY_COMMIT=1 skips the check.
 # Who may open the hub's admin UI: --admin-access <loopback|lan|cidrs|any> [--admin-cidrs a,b] (or
 # PERSONA_ADMIN_ACCESS / PERSONA_ADMIN_CIDRS) sets it on the hub; without them a hub that never had one chosen asks on
@@ -44,7 +44,7 @@ fi
 set -- ${ARGS[@]+"${ARGS[@]}"}
 # Require the fork trunk for ordinary deploys. Set PERSONA_DEPLOY_ANY_COMMIT=1 for a deliberate rollback.
 if [ -z "${PERSONA_DEPLOY_ANY_COMMIT:-}" ]; then
-  DEFAULT_BRANCH=deploy
+  DEFAULT_BRANCH=main
   if ! git fetch -q origin "refs/heads/$DEFAULT_BRANCH" 2>/dev/null; then
     echo "deploy: could not fetch origin/$DEFAULT_BRANCH to check this checkout is up to date; PERSONA_DEPLOY_ANY_COMMIT=1 deploys anyway" >&2
     exit 2
@@ -63,7 +63,7 @@ cd server
 # (UTC), so an older release never replaces it and the next release does.
 BUILD="$(date -u +%Y%m%d%H%M)"
 # The nearest vX.Y.Z tag names it, a lightweight one too (a GitHub release's tag is one; plain `git describe` counts
-# annotated tags only, so builds after v0.4.0 read v0.3.1-…, #7201); testflight/<build> and other tags never do.
+# annotated tags only, so builds after v0.4.0 read v0.3.1-…, #7201); non-release tags never do.
 VERSION="$(git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)-$BUILD"
 TARGETS=("$@")
 [ ${#TARGETS[@]} -eq 0 ] && read -ra TARGETS <<< "$PERSONA_MACHINES"

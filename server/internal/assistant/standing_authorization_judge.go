@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 type standingCardAssessment struct {
@@ -119,7 +119,7 @@ var standingSensitiveWords = []struct {
 	action  string
 	pattern *lazyre.Regexp
 }{
-	{"deploy-production", lazyre.New(`(?i)\bproduction\b|\bprod\b|\brelease\b|testflight|app store|生产|线上|上线|发版`)},                                                                                                // i18n-ignore: card action data
+	{"deploy-production", lazyre.New(`(?i)\bproduction\b|\bprod\b|\brelease\b|app store|生产|线上|上线|发版`)},                                                                                                           // i18n-ignore: card action data
 	{"send", lazyre.New(`(?i)\bsend\b|\breply\b|\bcomment\b|发送|发消息|发邮件|对外|回复|评论`)},                                                                                                                               // i18n-ignore: card action data
 	{"delete", lazyre.New(`(?i)\bdelete\b|\bremove\b|\bdrop\b|force[-\s]+push(?:ing)?|rewrit(?:e|ing)[-\s]+(?:remote[-\s]+)?history|reset\s+--hard|--force(?:-with-lease)?|强推|强制推送|改写历史|重写历史|覆盖远端|删除|删掉|清空|削除`)}, // i18n-ignore: card action data
 	{"spend", lazyre.New(`(?i)\bspend\b|\bpurchase\b|\bbuy\b|\bpay\b|购买|花钱|付费|续费|充值|購入|支払`)},                                                                                                                     // i18n-ignore: card action data

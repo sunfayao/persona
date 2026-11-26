@@ -1,11 +1,11 @@
 package assistantwire
 
 import (
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What comes from the nodes is the manager's: it creates and answers the
-// interactions, works out each Agent's state, decides the pushes and the Live Activity's content, runs the nodes' MCP
+// interactions, works out each Agent's state, decides the pushes and the Persona Link summary's content, runs the nodes' MCP
 // tools and keeps the machines' monitoring. The hub shows and delivers what it reports: the session lists, the
 // pending interactions and the fleet (kept while the manager is away), and the pushes (APNs, the relay, the apps'
 // notify events).
@@ -140,79 +140,6 @@ const (
 	// recommendation through POST /api/v1/todos/{id}/accept with its asked_at.
 	NotifyDecide = "decide"
 )
-
-// FleetState is the Live Activity's ContentState, field for field (apple/Shared/FleetState.swift). Times
-// are Unix seconds: ActivityKit decodes pushed JSON with a default JSONDecoder, which would read a Date as seconds
-// since 2001. The manager works out what it shows; the hub fills in each device's part (Details, Left, Right, Stats,
-// Look) when it pushes.
-type FleetState struct {
-	Phase    string      `json:"phase"` // needsYou | working | done | "" (nothing to show)
-	NeedsYou int         `json:"needsYou"`
-	Working  int         `json:"working"`
-	Unread   int         `json:"unread"`
-	Items    []FleetItem `json:"items"`
-	// WorkingSince is when the longest-running working agent started its turn (the phone runs the clock).
-	WorkingSince float64 `json:"workingSince,omitempty"`
-	// Details: the lock screen may show titles (the device's lock_details setting); otherwise only counts.
-	Details bool `json:"details"`
-	// Assistant: the assistant ("Chat" tab) is answering. Pushed only to devices that show it.
-	Assistant bool `json:"assistant,omitempty"`
-	// Left / Right: the compact Dynamic Island's sides (the device's island setting); empty means status counts.
-	Left  string `json:"left,omitempty"`
-	Right string `json:"right,omitempty"`
-	// Stats: the numbers the device shows, rounded so that small changes do not cost a push.
-	Stats *FleetStats `json:"stats,omitempty"`
-	// Look: the persona the device's activity draws, as the app told the hub (prefs look); nil until it did.
-	Look *FleetLook `json:"look,omitempty"`
-}
-
-// FleetLook is the persona the activity draws (apple/Shared/FleetState.swift FleetLook): the hub only passes on what
-// the device told it.
-type FleetLook struct {
-	Design  string `json:"design"` // a built-in's drawing ("visor", "circuit"); a package's while its pictures cannot be read
-	Light   uint32 `json:"light"`  // the accent, 0xRRGGBB, light and dark
-	Dark    uint32 `json:"dark"`
-	Package string `json:"package,omitempty"` // a hub package, "<id>/<rev>": its pictures are on the phone
-}
-
-// FleetStats are the island's numbers. A push carries only those the device shows; the app's own copy has them all.
-type FleetStats struct {
-	TPM      int64       `json:"tpm,omitempty"`
-	Tokens   int64       `json:"tokens,omitempty"`
-	Requests int         `json:"requests,omitempty"`
-	Loads    []FleetLoad `json:"loads,omitempty"`
-}
-
-// FleetLoad is a machine's 1-minute load average over its cores, in percent (rounded to 5).
-type FleetLoad struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Percent int    `json:"percent"`
-}
-
-// FleetItem is one agent the activity lists.
-type FleetItem struct {
-	ID     string `json:"id"` // machine/session, also the deep link
-	Title  string `json:"title"`
-	Place  string `json:"place"`
-	Kind   string `json:"kind"` // permission | plan | question | screen | working | unread
-	Detail string `json:"detail"`
-	// Background: a working item whose turn ended while its background work runs (#2935, Session.BackgroundWorking);
-	// Detail then says what runs ("parity-audit · Verify · 169/185"). Older apps ignore it and show it working.
-	Background bool `json:"background,omitempty"`
-	// Progress: the counts of the workflow Detail names, for the expanded island's bar (#3437). Nil when the item is not
-	// a background workflow or its workflow has started no agent yet. It moves only when Detail does, so it costs no push.
-	Progress    *FleetProgress `json:"progress,omitempty"`
-	Interaction string         `json:"interaction,omitempty"` // what "Allow" / "Deny" / "Approve" resolve
-	Since       float64        `json:"since,omitempty"`
-}
-
-// FleetProgress is a background workflow's agents done of those it started so far, as Detail prints them ("169/185"):
-// the total is not known before the workflow ends, since scripts fan out as they go.
-type FleetProgress struct {
-	Done    int `json:"done"`
-	Started int `json:"started"`
-}
 
 // UsageSummary is the token usage across the machines (GET /api/v1/usage, the manager's).
 type UsageSummary struct {

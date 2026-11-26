@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/sysmon"
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/sysmon"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // Token usage of every agent on this machine, for the Dynamic Island's TPM / today's tokens / requests.

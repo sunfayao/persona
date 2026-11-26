@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // The clients' SOP cases (spec/fixtures/triage, web/src/lib/todo-triage-fixture.test.ts reads the same files): the hub's
@@ -304,7 +304,7 @@ func TestTriageNeverShelvesAConcern(t *testing.T) {
 func TestPRFactsCannotReopenCompletedTasks(t *testing.T) {
 	now := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
 	old := now.Add(-time.Hour)
-	const pr = "https://github.com/nwverse/persona/pull/123"
+	const pr = "https://github.com/sunfayao/persona/pull/123"
 	for _, tc := range []struct {
 		name, review, delivery, kind string
 		closed                       bool

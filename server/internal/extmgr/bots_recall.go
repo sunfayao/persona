@@ -1,6 +1,6 @@
 package extmgr
 
-import "github.com/nwverse/persona/server/internal/feishubot"
+import "github.com/sunfayao/persona/server/internal/feishubot"
 
 // A message belongs to the bot and owner that received it, in one chat.
 // The same id in another chat or after replacing the bot cannot recall it.

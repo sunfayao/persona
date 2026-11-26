@@ -2,12 +2,11 @@ package extmgr
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/mail"
-	"github.com/nwverse/persona/server/internal/subscriptions"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/mail"
+	"github.com/sunfayao/persona/server/internal/subscriptions"
 )
 
 // Mail's Add to Inbox (#5307): on until turned off, kept like the other connector switches; off, the mail rounds read
@@ -24,11 +23,8 @@ func TestMailInboxSwitch(t *testing.T) {
 	if l := connectorSources(b.List(ctx)); len(l) != 1 || l[0].Inbox == nil || !*l[0].Inbox || l[0].InboxAlways || l[0].InboxEvery != 180 {
 		t.Fatalf("Inbox Sources shows mail's switch: %+v", l)
 	}
-	mux := http.NewServeMux() // Settings' route (the fake mail serves no pages of its own)
-	h.connectorRoutes(mux)
-	code, out := call(t, mux, "PUT", "/api/v1/connectors/mail/settings", h.cfg.Token, `{"inbox":false}`)
-	if code != 200 || out["inbox"] != false {
-		t.Fatalf("Settings' switch: %d %v", code, out)
+	if err := b.SetFeed(ctx, "mail", true, false, subscriptions.Actor{}); err != nil {
+		t.Fatal(err)
 	}
 	if h.readMail(ctx) != nil {
 		t.Error("off, a mail round still read the accounts")

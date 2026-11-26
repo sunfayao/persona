@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/orcart/orcarttest"
+	"github.com/sunfayao/persona/server/internal/orcart/orcarttest"
 )
 
 func composerNode(t *testing.T) *orcaWorktreeFixture {
@@ -293,3 +293,6 @@ func TestWorktreeComposerRefusesIncompleteCatalog(t *testing.T) {
 		t.Fatal("partial catalog used for safety decisions")
 	}
 }
+
+var composerTestCapabilities = []string{"worktree.open-existing-branch.v2-request.v1", "worktree.create.exact-name.v1", "worktree.set.folder-parent.v1",
+	"worktree.remove-branch-policy.v1", "worktree.archive-failure-blocking.v1", "folder-workspace.unique-id-mutation.v1"}

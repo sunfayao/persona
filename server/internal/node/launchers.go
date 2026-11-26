@@ -14,8 +14,8 @@ import (
 
 	"golang.org/x/sync/singleflight"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/shellcmd"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/shellcmd"
 )
 
 var launcherCache struct {

@@ -3,8 +3,8 @@ package node
 import (
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // linkHerdrChildren links a child to its agent parent when that parent has a listed session, leaves a child without a

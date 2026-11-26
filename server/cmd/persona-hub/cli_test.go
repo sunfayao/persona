@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/hubcli"
+	"github.com/sunfayao/persona/server/internal/hubcli"
 )
 
 // runHub runs main as persona-hub with args in a child process (this test binary again, through

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What failed a Codex turn, in a rollout's words (snake_case) and an app-server's (camelCase), sorted into worth a

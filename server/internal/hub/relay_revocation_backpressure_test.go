@@ -14,7 +14,7 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/nwverse/persona/server/internal/streams"
+	"github.com/sunfayao/persona/server/internal/streams"
 )
 
 // relayPipeTransport upgrades over an in-memory pipe so synctest can wait until the relay's pumps are blocked.

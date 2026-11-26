@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // A runtime that runs Claude Code through its SDK (Paseo) has sessions whose conversation is an

@@ -10,11 +10,11 @@
 
 | Step | Rule |
 | --- | --- |
-| Trunk | `deploy`. `main` is a stale copy of the upstream project and is not used |
-| Your branch | `task/<short-slug>` cut from the newest `origin/deploy`, in a worktree of its own. One task per branch |
-| While working | Commit often on your branch. Merge `origin/deploy` into it when the trunk moves; do not rebase a branch someone else may have fetched |
+| Trunk | `main`, the only long-lived branch. There is no upstream to follow or merge from |
+| Your branch | `task/<short-slug>` cut from the newest `origin/main`, in a worktree of its own. One task per branch |
+| While working | Commit often on your branch. Merge `origin/main` into it when the trunk moves; do not rebase a branch someone else may have fetched |
 | Verify | Build and test the pushed commit on the build machine (`09`) |
-| Publish | Push your `task/*` branch. Merging into `deploy`, deploying, deleting branches and force-pushing happen only when the owner asks |
+| Publish | Push your `task/*` branch. Merging into `main`, deploying, deleting branches and force-pushing happen only when the owner asks |
 | Afterwards | Once merged, remove the worktree and the branch. Leftover branches and worktrees are clutter the owner has to clean |
 
 There are no issues, claims, pull requests, reviews by other people, hosted CI lanes or releases. Anything in old
@@ -65,7 +65,7 @@ one of those as new, something was built in the wrong place.
 | F11 | send a chat message from the web app with a bare `api()` post, write `/api/...` URLs by hand, or use raw `localStorage` for a persisted key |
 | F12 | statically import a lazy page from first-screen code, or add first-screen strings without building |
 | F13 | read, edit or print the owner's live configuration, data directory or secrets; restart or signal a running service |
-| F14 | merge into `deploy`, deploy, force-push, or delete branches without being asked; open issues or pull requests anywhere |
+| F14 | merge into `main`, deploy, force-push, or delete branches without being asked; open issues or pull requests anywhere |
 | F15 | commit a secret, a real name or address, or skip the privacy hook |
 | F16 | add a compatibility path, a fallback or an option "in case" without a caller that needs it today |
 | F17 | keep code, tests, fixtures, text keys or documents of a feature you removed |

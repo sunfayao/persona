@@ -10,10 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/db"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/tokenuse"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/db"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/tokenuse"
 )
 
 // Machine monitoring is the manager's: every node sends a sample every 10 s (sysmon); the manager
@@ -444,9 +444,6 @@ func (d *Devices) metricsRoutes(mux *http.ServeMux) {
 			return
 		}
 		writeJSON(w, map[string]any{"metrics": list[0], "range": name, "step": rg.step})
-	})
-	mux.HandleFunc("GET /api/v1/usage", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, map[string]any{"usage": d.Usage()})
 	})
 }
 

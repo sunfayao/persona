@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"syscall"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // claudeFileStart is the start a sessions/<pid>.json's procStart stands for on this platform.

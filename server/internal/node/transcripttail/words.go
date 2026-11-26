@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 const (

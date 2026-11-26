@@ -112,10 +112,8 @@ func TestValidateReadsNullsAsTheHub(t *testing.T) {
 	answers := []struct{ name, raw string }{
 		{"connector.thread.page", `{"chat":{"id":"c","name":"C","kind":"dm"},"messages":null}`},
 		{"connector.manifest", `{"protocol":2,"id":"x","name":"X","capabilities":null}`},
-		{"kb.list", `{"items":null,"tags":null,"total":0}`},
 		{"connector.group.fallback", `{"assign":null,"new":null}`},
 		{"channel.typing", `null`},
-		{"kb.owner", `{"name":"","aliases":null,"handles":null}`},
 		{"connector.secrets.delete", `null`},
 		// a nil pointer to an optional object: absent, even when the object has required fields
 		{"connector.thread.page", `{"chat":{"id":"c","name":"C","kind":"pr","author":null,"branch":null},"messages":[{"id":"1","at":"2026-11-04T08:00:00Z","sender":{"name":"A"},"reply_to":null,"code":null}],"before":null}`},

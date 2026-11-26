@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // A scheduled run waits for the main conversation to be ready (docs/assistant/onboarding.md 4.4 "Scheduled tasks"). A new hub has the

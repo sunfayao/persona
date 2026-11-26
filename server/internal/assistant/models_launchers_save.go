@@ -13,9 +13,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/proto"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -599,7 +599,6 @@ func (s *Service) saveLauncher(ctx context.Context, in launcherInput, old *store
 		s.models.mu.Unlock()
 		locked = false
 		s.ProfileChanged(ctx)
-		s.profileEvent(ctx, migrated.active)
 	}
 	return l, nil
 }

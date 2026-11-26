@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "./api";
-import { clearResume, resumeAgent, resumeInTerminal, resumeState, subscribeResume, terminalResume } from "./agent-resume";
+import { resumeAgent, resumeInTerminal, resumeState, subscribeResume, terminalResume } from "./agent-resume";
 import type { Session } from "./types";
 
 afterEach(() => {
-  clearResume("m1", "s1");
   vi.unstubAllGlobals();
 });
 

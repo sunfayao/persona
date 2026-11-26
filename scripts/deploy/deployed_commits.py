@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Write the deployed-commits file a hub reads to tell what it runs without asking GitHub (#3205, #4867;
-docs/assistant/todo-status-sop.md "Without GitHub").
+"""Write the deployed-commits file a hub reads to tell what it runs without asking GitHub (#3205, #4867).
 
     python3 scripts/deploy/deployed_commits.py --out <file or directory> [--commit <rev>] [--repo <owner>/<name>]
         [--max 3000] [--pr <N>[=<head sha>] ...] [--no-open-prs] [--base origin/main]
@@ -27,7 +26,7 @@ import sys
 
 HEADER = "# persona deployed commits v1"
 NAME = "deployed-commits.txt"
-# A "(#N)" in commits written up to 2026-11-07 is the previous tracker's number (CLAUDE.md, "Old issue numbers"): the
+# A "(#N)" in commits written up to 2026-11-07 is the previous tracker's number: the
 # hub would read it as this repository's PR #N, another PR (#4867). Those commits are left out unless --since says so.
 SINCE = "2026-11-08T00:00:00+00:00"
 

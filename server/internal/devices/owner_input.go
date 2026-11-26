@@ -6,8 +6,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/devicewire"
-	"github.com/nwverse/persona/server/internal/nodeproto"
+	"github.com/sunfayao/persona/server/internal/devicewire"
+	"github.com/sunfayao/persona/server/internal/nodeproto"
 )
 
 // ownerInputParams rebuilds owner_input on session.send from the Hub's verified full-device provenance.

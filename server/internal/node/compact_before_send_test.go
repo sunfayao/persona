@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // A send asking for compaction (#11137) compacts only a nearly full Agent Persona can compact; mid-turn it holds the

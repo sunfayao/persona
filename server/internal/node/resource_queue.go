@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	rq "github.com/nwverse/persona/server/internal/resourcequeue"
+	rq "github.com/sunfayao/persona/server/internal/resourcequeue"
 )
 
 func init() {

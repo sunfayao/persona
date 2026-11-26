@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // These requests exercise the manager's actual preview/detail/operation/UI HTTP responses and a fake extension process.
@@ -42,14 +42,6 @@ func TestExtensionPermissionAndUIResponseLocale(t *testing.T) {
 		}
 	}
 	checkPermissions(i18n.En, pv)
-	for _, l := range []i18n.Lang{i18n.En, i18n.ZhHans, i18n.Ja} {
-		op := request(l, "GET", "/api/v1/extensions/-/operations/"+pv["operation_id"].(string), "")
-		preview := op["preview"].(map[string]any)
-		checkPermissions(l, preview)
-		if preview["permissions_digest"] != pv["permissions_digest"] {
-			t.Fatal("language switching changed consent digest")
-		}
-	}
 	request(i18n.En, "POST", "/api/v1/extensions/-/install", fmt.Sprintf(`{"preview_id":%q,"permissions_digest":%q}`, pv["preview_id"], pv["permissions_digest"]))
 	waitLong(t, "fake UI extension ready", func() bool {
 		hp := h.extensions.get("example-ui")

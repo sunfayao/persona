@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Opt-in deterministic routing of actionable PR events (merge conflicts, current-head CI failures, and current-head

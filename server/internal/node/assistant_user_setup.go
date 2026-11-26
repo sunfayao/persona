@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/nwverse/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/identity"
 )
 
 // What of the user's own Claude Code setup reaches an assistant conversation in a private profile (#7318): one of the

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Logical cursors must also fit clients whose sequence type is a signed int32.

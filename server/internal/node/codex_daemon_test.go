@@ -2,19 +2,17 @@ package node
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/host"
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/host"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // A Codex pane on a shared app-server: joined on its own, then its messages, async
@@ -25,7 +23,7 @@ func daemonPane(t *testing.T) (*Node, *remoteFixture, *codexRemote, *fakeHub) {
 	t.Helper()
 	n := remoteTestNode(t)
 	fh := withFakeHub(t, n)
-	home := canonicalCodexHome(filepath.Join(n.home, ".codex"), n.home) // the default home: thread ids stay as they are
+	home := codex.CanonicalHome(filepath.Join(n.home, ".codex"), n.home) // the default home: thread ids stay as they are
 	f, c := connectRemoteFixture(t, n, home, "daemon", remoteRaw)
 	if id := n.registerCodex(home, remoteRaw, ""); id != remoteRaw {
 		t.Fatalf("registered as %q", id)
@@ -182,35 +180,5 @@ func TestCodexDaemonAsyncAnswer(t *testing.T) {
 	want := transcript.CodexReplyMessage([]transcript.CodexReply{{QuestionItemID: transcript.QuestionItemID("call_a1", 0), Question: "Which color should the banner be?", Answer: "Blue"}})
 	if got := inputText(f.sent("turn/start")[0]); got != want {
 		t.Errorf("sent %q, want %q", got, want)
-	}
-}
-
-// 0.163's control sockets are aliases: only the target Codex itself computes is followed.
-func TestCodexSocketAlias(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.Chmod(dir, 0o700); err != nil { // as Codex makes app-server-control/ (a umask may leave it group-writable)
-		t.Fatal(err)
-	}
-	alias := filepath.Join(dir, "app-server-control.sock")
-	parent, _ := filepath.EvalSymlinks(dir)
-	tmp, _ := filepath.EvalSymlinks("/tmp")
-	sum := sha256.Sum256([]byte(filepath.Join(parent, "app-server-control.sock")))
-	want := filepath.Join(tmp, "codex-daemon-"+strconv.Itoa(os.Geteuid()), hex.EncodeToString(sum[:]))
-	if err := os.Symlink(want, alias); err != nil {
-		t.Fatal(err)
-	}
-	if got, err := codexSocketPath(alias); err != nil || got != want {
-		t.Errorf("alias: %q %v, want %q", got, err, want)
-	}
-	other := filepath.Join(dir, "other.sock")
-	if err := os.Symlink(filepath.Join(tmp, "somewhere-else"), other); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := codexSocketPath(other); err == nil {
-		t.Error("a symlink to anywhere else was followed")
-	}
-	plain := filepath.Join(dir, "plain.sock")
-	if got, err := codexSocketPath(plain); err != nil || got != plain {
-		t.Errorf("plain: %q %v", got, err)
 	}
 }

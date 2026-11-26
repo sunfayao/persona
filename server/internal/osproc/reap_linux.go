@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/nwverse/persona/server/internal/procinfo"
+	"github.com/sunfayao/persona/server/internal/procinfo"
 )
 
 // ownChildren are the processes /proc lists with this one as their parent, zombies included. None when /proc cannot

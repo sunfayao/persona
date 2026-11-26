@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/screen"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/screen"
 )
 
 // screen reads the session's terminal. source "visible" is the screen; "recent" also reaches back into the pane's

@@ -1,6 +1,6 @@
 package prompts
 
-import "github.com/nwverse/persona/server/internal/lazyre"
+import "github.com/sunfayao/persona/server/internal/lazyre"
 
 // closingTag is anything a reader of a message could take for the end of a <persona-context>
 // block: either name (#3182), any case, spaces around the slash and before `>` (the apps match it as loosely, web

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func draftAction(t *testing.T, h *inboxHub, card FeedItem, action string, body any) (int, map[string]any) {

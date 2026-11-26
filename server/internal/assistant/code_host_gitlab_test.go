@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistant/repository"
+	"github.com/sunfayao/persona/server/internal/assistant/repository"
 )
 
 // fakeGitLab is the GitLab API as GitLabReview reads it: one state for every merge request, the reads it was asked.

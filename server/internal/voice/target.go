@@ -3,17 +3,17 @@ package voice
 import (
 	"context"
 	"encoding/json"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"path"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/prompts"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/prompts"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Protocol 2: a call is bound to the conversation it was opened from (start.target), fixed
@@ -69,11 +69,11 @@ type resumeRun struct {
 }
 
 // The features this extension's protocol 2 has (GET /info, ready): only what is there.
-// speak is POST /speak (speak.go), outside a call. speech_gate (#5904): a run the user-speech gate refused (unprompted)
+// speech_gate (#5904): a run the user-speech gate refused (unprompted)
 // can be sent again (resend), and start takes speech_gate. hold
 // (#9290): the app's hold frame pauses the upstream at once and nothing wakes it until the hold is off (suspend.go).
 // dictation (#2083): start mode dictation opens one unbound, text-only transcription session (dictation.go).
-var features = []string{"target", "runs", "asks", "resume", "suspend", "speak", "speech_gate", "hold", "dictation"}
+var features = []string{"target", "runs", "asks", "resume", "suspend", "speech_gate", "hold", "dictation"}
 
 const (
 	// snapshotTurns is how many of the bound conversation's last exchanges its snapshot is read from.

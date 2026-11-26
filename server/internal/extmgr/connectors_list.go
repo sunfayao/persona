@@ -3,7 +3,7 @@ package extmgr
 import (
 	"context"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // legacyConnectors had rows of their own in Settings › Connectors before the app drew them from GET /api/v1/connectors

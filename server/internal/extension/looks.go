@@ -3,15 +3,15 @@ package extension
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nwverse/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/compat"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nwverse/persona/sdk/go/wire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/sdk/go/wire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/lazyre"
 )
 
 // Looks: an extension adds looks — Persona's name, face, colors and the dot's
@@ -80,7 +80,7 @@ const (
 var BuiltinLooks = []string{DefaultLook}
 
 // RetiredLookIDs stay reserved so an extension cannot hijack a saved choice after its built-in artwork is removed.
-var RetiredLookIDs = []string{"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob"}
+var RetiredLookIDs = []string{"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob", "nwverse"}
 
 // ReservedLookID excludes both the current built-in drawing and retired choices from downloadable packages.
 func ReservedLookID(id string) bool {

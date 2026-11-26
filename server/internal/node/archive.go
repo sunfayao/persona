@@ -10,8 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Native archive (docs/protocol/protocol.md "session.archive"): when the user archives an agent session in Persona,
@@ -91,7 +92,7 @@ func (n *Node) codexThread(id string) (home, thread string, ok bool) {
 	if a, live := n.agent(id); live && a.Agent != "codex" {
 		return "", "", false
 	}
-	if home := canonicalCodexHome(n.codexHome(), n.home); home != "" && rolloutPath(home, id) != "" {
+	if home := codex.CanonicalHome(n.codexHome(), n.home); home != "" && rolloutPath(home, id) != "" {
 		return home, id, true
 	}
 	return "", "", false
@@ -208,7 +209,7 @@ func (n *Node) codexArchiveBusy(id string, c *codexRemote, thread string) bool {
 func (n *Node) codexArchiveOnServer(ctx context.Context, c *codexRemote, thread string, archive bool) error {
 	cctx, cancel := context.WithTimeout(ctx, codexArchiveTimeout)
 	defer cancel()
-	return c.wire.call(cctx, codexArchiveMethod(archive), map[string]any{"threadId": thread}, nil)
+	return c.wire.Call(cctx, codexArchiveMethod(archive), map[string]any{"threadId": thread}, nil)
 }
 
 // errCodexNoArchiveCLI: the codex command has no archive / unarchive subcommand (older than them).

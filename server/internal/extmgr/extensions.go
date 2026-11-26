@@ -19,18 +19,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/assistantwire"
-	"github.com/nwverse/persona/server/internal/channel"
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/connector/proc"
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/extension/host"
-	"github.com/nwverse/persona/server/internal/extwire"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/identity"
-	"github.com/nwverse/persona/server/internal/lazyre"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/assistantwire"
+	"github.com/sunfayao/persona/server/internal/channel"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector/proc"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/extension/host"
+	"github.com/sunfayao/persona/server/internal/extwire"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/identity"
+	"github.com/sunfayao/persona/server/internal/lazyre"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // Plugins: one registry of every plugin — built into personad, written in hub.json, installed on
@@ -153,12 +153,8 @@ type hubExtension struct {
 	status  string       // when proc is nil
 	err     string
 
-	// gateCommands are the commands of its assistant gates (the gate files' command), read when it starts, for an enabled
-	// extension without a problem whether or not it runs a program (the ones assistantGates reads): which writes the
-	// node's gate proxy reports (lark.sent) are its own (sent_recall_gate.go).
-	gateCommands []string
 	// recallNotBefore is when this install of an installed extension began (zero for any other: a built-in or a dev one is
-	// not replaced by another under its id): a ledger row from before it was not the extension's (sent_recall_gate.go).
+	// not replaced by another under its id): a ledger row from before it was not the extension's.
 	recallNotBefore time.Time
 
 	// agentSources are its agent_sources registered with the agents service (extension_agents.go).
@@ -196,7 +192,6 @@ type extensions struct {
 	mu   sync.Mutex
 	byID map[string]*hubExtension
 	// messaging coalesces the messaging sources' changes before they reach the apps (extension_messaging.go).
-	messaging messagingChanges
 	// skillsSent remembers which skill digests each machine was sent (machine id → *sync.Map of name → digest), so
 	// the files go once (again after the hub restarts).
 	skillsSent sync.Map
@@ -226,8 +221,6 @@ type extensions struct {
 	filtersSent []byte
 	// invalid are the extensions' ui.invalidate waiting to be told to the apps (extension_ui.go), at most one a second.
 	invalid invalidations
-	// widgets are the views drawn for widgets and the widgets each device has (extension_system.go).
-	widgets widgets
 	// nodes are plugins' programs on computers (extension_nodes.go).
 	nodes extensionNodes
 	// sandboxes are the owner's sandbox choices and the egress proxy (extension_sandbox.go).
@@ -495,9 +488,6 @@ func (h *Manager) attachExtensions(ctx context.Context) {
 	if err := reg.AddBuiltin(egoManifest(h), "", false); err != nil { // the same, for ego lite (browser.go)
 		h.logf("plugin ego: %v", err)
 	}
-	if err := reg.AddBuiltinTranslated(iphoneManifest(h), "", false, iphoneTranslations()); err != nil { // the same, for paired iPhones (iphone.go)
-		h.logf("plugin iphone: %v", err)
-	}
 	if err := reg.AddBuiltin(imessageManifest(h), "", false); err != nil { // which Mac's Messages (imessage_extension.go)
 		h.logf("plugin imessage: %v", err)
 	}
@@ -642,9 +632,6 @@ func (ps *extensions) changed(c extension.Change) {
 	if c.ID == egoExtensionID && ps.h != nil {
 		ps.h.browserChanged(ctx)
 	}
-	if c.ID == iphoneExtensionID && ps.h != nil {
-		ps.h.iphoneChanged(ctx)
-	}
 	if c.ID == imessageExtensionID && ps.h != nil {
 		ps.h.applyIMessage() // its Mac changed, or it went on or off (imessage_extension.go)
 	}
@@ -720,7 +707,6 @@ func (ps *extensions) apply(ctx context.Context, id string) {
 	ps.mu.Unlock()
 	why := tokenStopReason(ps.reg.GetExact(id))
 	if ps.h != nil {
-		ps.h.widgetsDropExtension(id)
 		ps.h.pageDropExtension(id)
 		// Switched off, upgraded (maybe to fewer scopes), uninstalled or reconfigured: its token goes now, and a new
 		// one comes with its next start.
@@ -760,9 +746,6 @@ func (ps *extensions) apply(ctx context.Context, id string) {
 	}
 	if c, ok := p.Legacy.(ExtensionConfig); ok {
 		hp.kind = c.Kind
-	}
-	if p.Record.Enabled && p.Problem == "" { // the extensions whose gates the assistant is given (assistantGates), running or not
-		hp.gateCommands = gateCommandsOf(p)
 	}
 	if p.Record.Source == extension.SourceInstalled {
 		hp.recallNotBefore = p.Record.InstalledAt
@@ -1216,10 +1199,6 @@ func (ps *extensions) specOf(ctx context.Context, p *extension.Extension, hp *hu
 			ps.apiBroadcast(id, params)
 			return
 		}
-		if event == "messaging.changed" {
-			ps.messagingChanged(id, params)
-			return
-		}
 		if event == "agentsrc.updated" {
 			ps.agentSourceUpdated(id, hp, params)
 			return
@@ -1525,4 +1504,21 @@ func (ps *extensions) connectorSwitched(ctx context.Context, id string, on bool)
 	}
 	ps.logf("plugin %s: restarted for its connector %s switched %s", owner, id, state)
 	ps.apply(ctx, owner)
+}
+
+// ownerOf is the extension that runs c now (nil: none, c is not an extension's connector).
+func (ps *extensions) ownerOf(c connector.Connector) *hubExtension {
+	if ps == nil {
+		return nil
+	}
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+	for _, hp := range ps.byID {
+		for _, own := range hp.conns {
+			if connector.Connector(own) == c {
+				return hp
+			}
+		}
+	}
+	return nil
 }

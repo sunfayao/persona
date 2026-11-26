@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // What Paseo 0.15.4 titles an agent with from its first prompt, as its create-agent-title.js answers for each (a lone

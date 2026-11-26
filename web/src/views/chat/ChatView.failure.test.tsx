@@ -117,7 +117,7 @@ vi.mock("../../ui/atoms", async (importOriginal) => ({
 const { ChatView } = await import("./ChatView");
 const { toast } = await import("../../ui/atoms");
 const { t } = await import("../../i18n");
-const { applyCompleteSessions, getSession, getState, onHubEvent, send, setOutbox, subscribe } = await import("../../lib/store");
+const { applyCompleteSessions, getSession, getState, onHubEvent, putLaunch, send, setOutbox, subscribe } = await import("../../lib/store");
 const { setRoute } = await import("../../lib/feed");
 const { keepOutgoing, outboxKey, resetOutboxClaimsForTests, resetRestoredForTests, SENT_GRACE_MS } = await import("../../lib/outbox");
 const { configureMessageFeedback, receiveMessageSend, resetMessageFeedback } = await import("../../lib/message-send");
@@ -205,6 +205,32 @@ describe("the header's title", () => {
 });
 
 describe("message feedback before runtime execution", () => {
+  it("shows an accepted first prompt as processing and reconciles its echo after a long delay", async () => {
+    const session = { machine_id: "hub", session_id: "c1", title: "Conversation", cwd: "/code", state: "working", status: "working" } as Session;
+    captured.session = session;
+    const sentAt = Date.now() - 180_000;
+    const text = "First prompt for the project";
+    const launch = {
+      id: "local-first-prompt", machineId: "hub", cwd: "/code", launcher: "agy", text, attachments: [], uploaded: {},
+      phase: "ready" as const, startOpId: "start", startPromptOpId: "start-first", messageId: "first", promptSentAt: sentAt,
+      session, outgoing: { text, images: [] },
+    };
+    putLaunch(launch);
+    try {
+      await act(async () => root.render(<ChatView mid="hub" sid="c1" />));
+      expect(host.querySelector('[data-message-feedback="processing"]')).not.toBeNull();
+      expect(host.querySelector('[data-message-feedback="sending"]')).toBeNull();
+
+      transcript.items = [{ id: "native-first", seq: 1, role: "user", kind: "text", text, ts: new Date(sentAt + 1000).toISOString() }];
+      await act(async () => root.render(<ChatView mid="hub" sid="c1" />));
+      expect(host.querySelectorAll("[data-user-bubble]")).toHaveLength(1);
+      expect(host.querySelector("[data-message-feedback]")).toBeNull();
+    } finally {
+      transcript.items = [];
+      act(() => putLaunch({ ...launch, outgoing: undefined }));
+    }
+  });
+
   it.each([false, true])("shows the receipt through delayed HTTP without manufacturing execution (assistant=%s)", async (assistant) => {
     captured.session = { machine_id: "hub", session_id: "c1", title: "Conversation", cwd: "/code", state: "idle", status: "idle" } as Session;
     let accept!: (r: Response) => void;

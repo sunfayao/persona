@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/connector"
 )
 
 // With github.proxy set, the device flow (code and polling) and the REST API all go to the proxy, addressed to

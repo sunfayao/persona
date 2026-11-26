@@ -109,8 +109,6 @@ class ScenarioGoldenTests(unittest.TestCase):
                             self.assertEqual({"status": status, "body": body}, want[key], key)
                         elif path.stem not in START_ELSEWHERE:
                             self.assertEqual(status, 200, body)  # it starts (the turn fails afterwards)
-                    status, warm = h.call("POST", "/api/v1/assistant/warm", {})
-                    self.assertEqual((status, warm["ok"], blank(warm["readiness"])), (200, True, want["zh-Hans"]))
                 finally:
                     h.stop()
 
@@ -201,14 +199,6 @@ class ReadinessMockTests(unittest.TestCase):
         _, r = h.call("GET", "/api/v1/assistant/readiness")
         self.assertEqual((r["machine"]["name"], r["steps"][0]["state"]), ("办公室的电脑", "ok"))
 
-    def test_dismiss(self):
-        h = hub(self, MOCK_READINESS="zero")
-        self.assertEqual(h.call("POST", "/api/v1/assistant/readiness/dismiss", b""), (200, {"ok": True}))
-        self.assertTrue(h.call("GET", "/api/v1/assistant/readiness")[1]["dismissed"])
-        h.call("POST", "/api/v1/assistant/readiness/dismiss", {"dismissed": False})
-        self.assertFalse(h.call("GET", "/api/v1/assistant/readiness")[1]["dismissed"])
-        self.assertEqual(h.call("POST", "/api/v1/assistant/readiness/dismiss", b"{")[0], 400)
-
     def test_probe(self):
         h = hub(self, MOCK_READINESS="unverified")
         _, r = h.call("GET", "/api/v1/assistant/readiness?probe=1")
@@ -244,7 +234,7 @@ class ReadinessMockTests(unittest.TestCase):
 
     def test_assistant_offline(self):
         h = hub(self, MOCK_READINESS="assistant_offline")
-        for method, path in (("GET", "/api/v1/assistant/readiness"), ("POST", "/api/v1/assistant/warm"),
+        for method, path in (("GET", "/api/v1/assistant/readiness"),
                              ("POST", "/api/v1/assistant/conversations")):
             status, body = h.call(method, path, None if method == "GET" else {}, lang="en")
             self.assertEqual((status, body["code"]), (503, "assistant_offline"), path)

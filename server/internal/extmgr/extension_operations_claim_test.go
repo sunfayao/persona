@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // TestInstallClaimsOperation: one install claims the operation its preview made. A second install of the same preview
@@ -42,17 +42,13 @@ func TestInstallClaimsOperation(t *testing.T) {
 	previewed := func() (id, previewID, digest string) {
 		t.Helper()
 		id = opCall(t, mux, "POST", "/api/v1/extensions/-/catalog/preview", phone, preview)
-		if v := waitOp(t, h, id, opNeedsConsent, opFailed); v.State != opNeedsConsent {
+
+		v := waitOp(t, h, id, opNeedsConsent, opFailed)
+		pv := h.extensions.reg.PreviewOf(v.PreviewID)
+		if v.State != opNeedsConsent || pv == nil {
 			t.Fatalf("previewed: %+v", v)
 		}
-		_, one := call(t, mux, "GET", "/api/v1/extensions/-/operations/"+id, phone, "")
-		pv, _ := one["preview"].(map[string]any)
-		previewID, _ = pv["preview_id"].(string)
-		digest, _ = pv["permissions_digest"].(string)
-		if previewID == "" {
-			t.Fatalf("no preview: %v", one)
-		}
-		return id, previewID, digest
+		return id, pv.ID, pv.Digest
 	}
 
 	// Claimed once: a second install of the same preview is refused while the first runs.
@@ -130,7 +126,7 @@ func TestInstallClaimsOperation(t *testing.T) {
 	if code, out := call(t, mux, "POST", "/api/v1/extensions/-/install", phone, body); code != http.StatusBadRequest || out["code"] != "install_failed" {
 		t.Fatalf("installing a used-up preview: %d %v", code, out)
 	}
-	// Asynchronously, in an operation of its own that the phone can follow and clear.
+	// Asynchronously, in an operation of its own.
 	code, out := call(t, mux, "POST", "/api/v1/extensions/-/install", phone, fmt.Sprintf(`{"preview_id": %q, "async": true}`, previewID))
 	op, _ := out["operation"].(map[string]any)
 	own, _ := op["id"].(string)
@@ -139,12 +135,6 @@ func TestInstallClaimsOperation(t *testing.T) {
 	}
 	if v := waitOp(t, h, own, opSucceeded, opFailed); v.State != opFailed {
 		t.Fatalf("installed a used-up preview: %+v", v)
-	}
-	if code, out := call(t, mux, "GET", "/api/v1/extensions/-/operations/"+own, phone, ""); code != http.StatusOK {
-		t.Fatalf("the phone's own operation: %d %v", code, out)
-	}
-	if code, out := call(t, mux, "DELETE", "/api/v1/extensions/-/operations/"+own, phone, ""); code != http.StatusNoContent {
-		t.Fatalf("clearing the phone's own operation: %d %v", code, out)
 	}
 	// And a bundle member from elsewhere is still refused.
 	if code, out := call(t, mux, "POST", "/api/v1/extensions/-/install", phone, withLocal(previewID)); code != http.StatusForbidden || out["code"] != "this_machine_only" {

@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 func TestCopyIntoAFolder(t *testing.T) {

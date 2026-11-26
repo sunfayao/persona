@@ -6,17 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
-// The notify events kept for a device with no push route when no ws_notify socket accepts them (#4043, #10394). APNs keeps an
-// iPhone's alert until the phone is back, but an Android phone or a browser hears of a question or a finished turn only
-// on its WebSocket, and notifyWSFrom sends to live sockets alone: a device that was away at that moment (a network
-// change, Doze, a frozen app) never got the notification, only the card in its lists. So the hub keeps, per such device,
-// the events notifyWSFrom selected for it, its settings (manager mutes, Phone Muted, quiet hours, "Finished") decided
-// at that moment exactly as for a live socket, and sends them after the client_hello of its next connection, skipping
-// the cards resolved meanwhile. Clients collapse them with their usual notification tags. In memory only: a hub restart
-// loses them, as it loses the sockets (docs/protocol/protocol.md "Notifications over the persistent connection (ws_notify)").
+// The ring keeps notifications until a device without a push route reconnects.
+
 const (
 	notifyRingMax     = 50               // events kept per device; the oldest goes first
 	notifyRingMaxAge  = 30 * time.Minute // an older one is news no more: its card is in the lists

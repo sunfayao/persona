@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/egress"
+	"github.com/sunfayao/persona/server/internal/extension/egress"
 )
 
 // TestMain: this test binary is also the sandbox's first process (RunCommand) and the program it runs (probe).

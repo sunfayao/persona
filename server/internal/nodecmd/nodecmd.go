@@ -8,7 +8,7 @@ package nodecmd
 import (
 	// A command started in a folder that does not answer: `tool` goes on from "/", the rest goes back to the folder
 	// (internal/startdir moves it before Go's os package would wait for the folder; settle decides once os has started).
-	_ "github.com/nwverse/persona/server/internal/startdir/settle"
+	_ "github.com/sunfayao/persona/server/internal/startdir/settle"
 
 	"context"
 	"encoding/json"
@@ -18,18 +18,17 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
-	"github.com/nwverse/persona/server/internal/iphone"
-	"github.com/nwverse/persona/server/internal/machineops"
-	"github.com/nwverse/persona/server/internal/mcpserver"
-	"github.com/nwverse/persona/server/internal/node"
-	"github.com/nwverse/persona/server/internal/nodeclient"
-	"github.com/nwverse/persona/server/internal/nodeupdate"
-	"github.com/nwverse/persona/server/internal/office"
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/procs"
-	"github.com/nwverse/persona/server/internal/scriptcli"
-	"github.com/nwverse/persona/server/internal/toolcli"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/machineops"
+	"github.com/sunfayao/persona/server/internal/mcpserver"
+	"github.com/sunfayao/persona/server/internal/node"
+	"github.com/sunfayao/persona/server/internal/nodeclient"
+	"github.com/sunfayao/persona/server/internal/nodeupdate"
+	"github.com/sunfayao/persona/server/internal/office"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/procs"
+	"github.com/sunfayao/persona/server/internal/scriptcli"
+	"github.com/sunfayao/persona/server/internal/toolcli"
 )
 
 // Build is what the program was built as (its -X flags).
@@ -64,7 +63,7 @@ const Usage = `  personad resource status [resource]  shared runner status as JS
   personad codex-start <file>
                            run the Codex launcher in file (written by the node, removed once read) with the first
                            message as its last argument, no shell in between (docs/integrations/codex.md "Starting from the phone")
-` + iphone.Usage
+`
 
 // SysmonUsage is `sysmon`'s line in the usage text.
 const SysmonUsage = `  personad sysmon [n]       print this machine's system info and 1 + n metric samples (n default 3, at most 8640,
@@ -124,8 +123,6 @@ func Run(ctx context.Context, stop func(), args []string, b Build) (handled bool
 		os.Exit(machineops.Main(ctx, b.Version, rest, os.Stdin, os.Stdout, os.Stderr))
 	case "claude-plugin": // the Persona plugin for Claude Code here, as JSON (node/claudeplugin.go; persona-link plugin)
 		os.Exit(node.ClaudePluginCommand(ctx, rest, os.Stdout, os.Stderr))
-	case "iphone": // this computer's paired iPhones for phone control (internal/iphone)
-		os.Exit(iphone.Command(ctx, rest, os.Stdout, os.Stderr))
 	case "sysmon":
 		n, err := sysmonCount(rest)
 		if err != nil {

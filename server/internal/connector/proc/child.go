@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/connector/serve"
-	"github.com/nwverse/persona/server/internal/rpc"
+	"github.com/sunfayao/persona/server/internal/connector/serve"
+	"github.com/sunfayao/persona/server/internal/rpc"
 )
 
 // child is one run of the program.

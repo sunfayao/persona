@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"runtime/debug"
 
-	"github.com/nwverse/persona/server/internal/extension/sandbox"
+	"github.com/sunfayao/persona/server/internal/extension/sandbox"
 	"github.com/tdewolff/parse/v2"
 	"github.com/tdewolff/parse/v2/js"
 )

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/extension"
-	"github.com/nwverse/persona/server/internal/i18n"
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // Plugins upgrade themselves from their markets: the hub reads the registered
@@ -527,7 +527,7 @@ func (u *extensionUpgrades) install(ctx context.Context, p *extension.Extension,
 	} // Identity changes never install automatically.
 	h, reg, id := u.h, u.h.extensions.reg, p.Record.ID
 	key := p.Record.StorageKey()
-	op := h.startOp(opUpgrade, id, extensionUpgradeActor, h.contextLang(ctx), true) // the apps see it go (#3277)
+	op := h.startOp(opUpgrade, id, extensionUpgradeActor, h.contextLang(ctx), true)
 	mk, err := h.market(rec)
 	var pv *extension.Preview
 	if err == nil {
@@ -544,8 +544,8 @@ func (u *extensionUpgrades) install(ctx context.Context, p *extension.Extension,
 		}
 		u.inflight[key] = up.To
 		u.mu.Unlock()
-		h.opPreviewed(op, pv, nil)
-		h.installing(op, pv, "")
+		h.opPreviewed(op, pv)
+		h.installing(op)
 		h.opStep(op, extension.StepConsent, extension.StepSkipped) // nothing more than was granted: nobody is asked
 		var np *extension.Extension
 		if np, err = reg.UpgradePlan(ctx, id, pv.ID, "", nil, extensionUpgradeActor); err != nil {
@@ -573,7 +573,6 @@ func (u *extensionUpgrades) install(ctx context.Context, p *extension.Extension,
 	u.mu.Unlock()
 	n := ExtensionUpgradeNote{Kind: upgradeFailed, From: up.From, To: up.To, Detail: err.Error(), At: time.Now()}
 	_ = u.change(ctx, func(s *extensionUpgradeSettings) { s.note(key, n) })
-	h.broadcastExtension("upgrade", id, map[string]any{"note": n})
 }
 
 // watched is how an upgrade of plugin id from one version to another ended: rolled back (that version is skipped from
@@ -616,7 +615,6 @@ func (u *extensionUpgrades) watched(ctx context.Context, id, from, to string, ro
 // tell tells the apps (the plugin's page) and sends a quiet push, like the hub's own update. The push's title and
 // body are hub-extension_autoupgrade.<what>_title / _body, each device's in its language.
 func (u *extensionUpgrades) tell(id string, n ExtensionUpgradeNote, what string, args func(i18n.Lang) i18n.Args) {
-	u.h.broadcastExtension("upgrade", id, map[string]any{"note": n})
 	u.h.pushLocalized(func(l i18n.Lang) map[string]any {
 		a := args(l)
 		return map[string]any{

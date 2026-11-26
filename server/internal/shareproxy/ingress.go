@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/osproc"
-	"github.com/nwverse/persona/server/internal/shareproof"
+	"github.com/sunfayao/persona/server/internal/osproc"
+	"github.com/sunfayao/persona/server/internal/shareproof"
 )
 
 // readIngressKey reads only a private owned regular configuration file, without logging its values.

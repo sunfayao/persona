@@ -12,14 +12,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/link"
+	"github.com/sunfayao/persona/server/internal/node/harness/codex"
 )
 
 // A Codex App chat whose rollout is gone (codex_appdb.go) keeps its history in <CODEX_HOME>/thread_history_<n>.sqlite:
@@ -151,8 +151,8 @@ func (n *Node) codexAppHistoryPath(src codexSource, pass *codexListPass) string 
 	if _, err := pass.stat(p); err != nil {
 		return ""
 	}
-	if paginated && !codexContinuationPath(t.RolloutPath) && !rolloutless() {
-		if mark, _ := readCodexHistoryMark(p); !codexContinuationPath(mark.Lineage) {
+	if paginated && !codex.IsContinuation(t.RolloutPath) && !rolloutless() {
+		if mark, _ := readCodexHistoryMark(p); !codex.IsContinuation(mark.Lineage) {
 			return ""
 		}
 	}
@@ -160,25 +160,25 @@ func (n *Node) codexAppHistoryPath(src codexSource, pass *codexListPass) string 
 }
 
 // codexAppHistoryChat: session id is an App chat with no rollout, whose transcript comes from the App's database.
-func (n *Node) codexAppHistoryChat(id string) (codexSource, codexAppThread, bool) {
+func (n *Node) codexAppHistoryChat(id string) (codexSource, codex.AppThread, bool) {
 	if t, ok := n.traexThread(id); ok {
 		return codexSource{home: n.traexHome(), thread: id}, t, true
 	}
 	src, ok := n.codexSource(id)
 	if !ok || n.codexBlocked(id) || n.ownedAssistantSource(id) { // as findTranscriptPath: no transcript of these here
-		return codexSource{}, codexAppThread{}, false
+		return codexSource{}, codex.AppThread{}, false
 	}
 	if t, paginated := codexPaginatedThreadOf(src); paginated {
 		if _, thread, err := n.codexOwner(id); err == nil && thread.path != "" {
 			t.RolloutPath = thread.path
 		}
-		if codexContinuationPath(t.RolloutPath) {
+		if codex.IsContinuation(t.RolloutPath) {
 			return src, t, true
 		}
 	}
 	src = withoutGoneRollout(src, nil)
 	if src.path != "" || rolloutPath(src.home, src.thread) != "" {
-		return codexSource{}, codexAppThread{}, false // a rollout is there: it is the transcript
+		return codexSource{}, codex.AppThread{}, false // a rollout is there: it is the transcript
 	}
 	t, ok := codexAppThreadOf(src)
 	return src, t, ok
@@ -211,7 +211,7 @@ func (n *Node) refreshCodexAppHistory(id string) error {
 	history := ""
 	if db != "" {
 		history = fileStamp(db) + fileStamp(db+"-wal")
-		if t.includeRunning {
+		if t.IncludeRunning {
 			history = traexHistoryStamp(db, t.ID, history)
 		}
 	}
@@ -233,7 +233,7 @@ func (n *Node) refreshCodexAppHistory(id string) error {
 	if t.Paginated {
 		lineage = t.RolloutPath
 	}
-	grow := !t.includeRunning && mark.Version == codexAppHistoryVersion && mark.Size >= 0 && mark.Size == size && mark.TurnID != "" && mark.Lineage == lineage
+	grow := !t.IncludeRunning && mark.Version == codexAppHistoryVersion && mark.Size >= 0 && mark.Size == size && mark.TurnID != "" && mark.Lineage == lineage
 	res, err := writeCodexAppHistory(ctx, db, t, p, mark, grow)
 	if errors.Is(err, errCodexHistoryChanged) { // a written turn is not what it was (the App rolled back): anew
 		res, err = writeCodexAppHistory(ctx, db, t, p, codexHistoryMark{Turn: -1}, false)
@@ -254,7 +254,7 @@ func (n *Node) refreshCodexAppHistory(id string) error {
 		n.logf("codex app history %s: %v", src.thread, err)
 		return err
 	}
-	live := map[string]codexAppThread{}
+	live := map[string]codex.AppThread{}
 	for id, row := range codexAppThreads(src.home) {
 		live[id] = row
 	}
@@ -298,7 +298,7 @@ func writeCodexHistoryMark(p string, m codexHistoryMark) error {
 
 // pruneCodexAppHistory removes the files of home's chats the App no longer lists, and temporary files a stopped write left
 // behind.
-func pruneCodexAppHistory(dir, tag string, live map[string]codexAppThread) {
+func pruneCodexAppHistory(dir, tag string, live map[string]codex.AppThread) {
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
 		name := e.Name()
@@ -334,7 +334,7 @@ type codexHistoryWrite struct {
 // (through a temporary one renamed over it) beginning with session_meta, and no file when no turn finished. A finished
 // turn is written as it streams in; the last turn while it still runs is left for later; one that never finished but has
 // turns after it is written as interrupted.
-func writeCodexAppHistory(ctx context.Context, db string, t codexAppThread, path string, mark codexHistoryMark, grow bool) (codexHistoryWrite, error) {
+func writeCodexAppHistory(ctx context.Context, db string, t codex.AppThread, path string, mark codexHistoryMark, grow bool) (codexHistoryWrite, error) {
 	res := codexHistoryWrite{turn: -1}
 	if grow {
 		res = codexHistoryWrite{turn: mark.Turn, turnID: mark.TurnID, status: mark.Status}
@@ -381,7 +381,7 @@ func writeCodexAppHistory(ctx context.Context, db string, t codexAppThread, path
 	oneLine := func(col string) string {
 		return `REPLACE(REPLACE(COALESCE(` + col + `, ''), char(10), ' '), char(13), ' ')`
 	}
-	cte, err := codexHistoryTurnsSQL(filepath.Dir(db), t)
+	cte, err := codex.HistoryTurnsSQL(filepath.Dir(db), t)
 	if err != nil {
 		return res, err
 	}
@@ -486,7 +486,7 @@ func writeCodexAppHistory(ctx context.Context, db string, t codexAppThread, path
 				}
 			}
 			cur.last = at
-			if item := codexRolloutItem(parts[6], []byte(parts[7])); item != nil && !cur.done {
+			if item := codex.RolloutItem(parts[6], []byte(parts[7])); item != nil && !cur.done {
 				if cur.final {
 					line(at, "event_msg", map[string]any{"type": "item_completed", "item": item})
 				} else {
@@ -517,7 +517,7 @@ func writeCodexAppHistory(ctx context.Context, db string, t codexAppThread, path
 	}
 	if cur != nil && !cur.done && cur.final {
 		closeTurn(cur, false) // the last turn while it still runs is left for later
-	} else if cur != nil && !cur.done && t.includeRunning {
+	} else if cur != nil && !cur.done && t.IncludeRunning {
 		// Terminal CLIs have no separate live stream. Include their stored current items
 		// without inventing a completion; the next revision rebuilds this snapshot.
 		startTurn(cur, cur.heldStart)
@@ -542,181 +542,4 @@ func writeCodexAppHistory(ctx context.Context, db string, t codexAppThread, path
 		return res, nil
 	}
 	return res, os.Rename(file.Name(), path)
-}
-
-// codexShellArgv splits the App's command line ("/bin/bash -lc 'git status'") into the argv a rollout carries, so the
-// transcript reader drops the login shell around it as it does for a rollout's (transcript.shellCommand). The command is
-// one shell word, unquoted as a POSIX shell does; one that is not (several words, an open quote) is kept whole.
-func codexShellArgv(command string) []string {
-	fields := strings.SplitN(command, " ", 3)
-	if len(fields) != 3 || (fields[1] != "-lc" && fields[1] != "-c") || !codexShells[path.Base(fields[0])] {
-		return []string{command}
-	}
-	if inner, ok := shellWord(fields[2]); ok {
-		return []string{fields[0], fields[1], inner}
-	}
-	return []string{command}
-}
-
-// codexShells are the shells whose "-c"/"-lc" the App puts around a command.
-var codexShells = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "fish": true}
-
-// shellWord unquotes s as one POSIX shell word: '…' as it is, "…" with \\ \" \$ \` and a backslashed newline, a
-// backslash outside quotes escaping the next character. false when s is not one whole word.
-func shellWord(s string) (string, bool) {
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		switch c := s[i]; c {
-		case '\'':
-			j := strings.IndexByte(s[i+1:], '\'')
-			if j < 0 {
-				return "", false
-			}
-			b.WriteString(s[i+1 : i+1+j])
-			i += j + 1
-		case '"':
-			for i++; ; i++ {
-				if i >= len(s) {
-					return "", false
-				}
-				if s[i] == '"' {
-					break
-				}
-				if s[i] == '\\' && i+1 < len(s) && strings.IndexByte("\\\"$`\n", s[i+1]) >= 0 {
-					i++
-					if s[i] == '\n' {
-						continue
-					}
-				}
-				b.WriteByte(s[i])
-			}
-		case '\\':
-			if i+1 >= len(s) {
-				return "", false
-			}
-			i++
-			b.WriteByte(s[i])
-		case ' ', '\t', '\n':
-			return "", false // a second word
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String(), true
-}
-
-// codexRolloutItem turns one of the app-server's ThreadItems (v2, camelCase) into the item a rollout's item_completed
-// carries (transcript/codex.go codexItem); nil for a kind the chat does not show (a sleep, a subagent's progress) and for
-// an item still running.
-func codexRolloutItem(kind string, raw []byte) map[string]any {
-	var v struct {
-		ID      string `json:"id"`
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-			Path string `json:"path"`
-		} `json:"content"`
-		Text             string          `json:"text"`
-		Phase            string          `json:"phase"`
-		Summary          []string        `json:"summary"`
-		Command          string          `json:"command"`
-		Status           string          `json:"status"`
-		AggregatedOutput string          `json:"aggregatedOutput"`
-		ExitCode         *int            `json:"exitCode"`
-		DurationMs       *int64          `json:"durationMs"`
-		Server           string          `json:"server"`
-		Tool             string          `json:"tool"`
-		Arguments        json.RawMessage `json:"arguments"`
-		Result           *struct {
-			Content []struct {
-				Type     string `json:"type"`
-				Text     string `json:"text"`
-				Data     string `json:"data"`
-				MimeType string `json:"mimeType"`
-			} `json:"content"`
-			IsError bool `json:"isError"`
-		} `json:"result"`
-		Error     json.RawMessage `json:"error"`
-		Path      string          `json:"path"`
-		SavedPath string          `json:"savedPath"`
-		Changes   []struct {
-			Path string `json:"path"`
-			Kind struct {
-				Type string `json:"type"`
-			} `json:"kind"`
-			Diff string `json:"diff"`
-		} `json:"changes"`
-		Query  string `json:"query"`
-		Action *struct {
-			Type    string   `json:"type"`
-			URL     string   `json:"url"`
-			Queries []string `json:"queries"`
-		} `json:"action"`
-		Results []struct {
-			Title   string `json:"title"`
-			URL     string `json:"url"`
-			Domain  string `json:"domain"`
-			Snippet string `json:"snippet"`
-		} `json:"results"`
-	}
-	if json.Unmarshal(raw, &v) != nil || v.Status == "inProgress" {
-		return nil
-	}
-	item := map[string]any{"id": v.ID}
-	switch kind {
-	case "userMessage":
-		var content []map[string]string
-		for _, c := range v.Content {
-			switch c.Type {
-			case "text":
-				content = append(content, map[string]string{"type": "text", "text": c.Text})
-			case "localImage":
-				content = append(content, map[string]string{"type": "local_image", "path": c.Path})
-			}
-		}
-		item["type"], item["content"] = "UserMessage", content
-	case "agentMessage":
-		item["type"], item["content"], item["phase"] = "AgentMessage", []map[string]string{{"type": "text", "text": v.Text}}, v.Phase
-	case "reasoning":
-		item["type"], item["summary_text"] = "Reasoning", v.Summary
-	case "commandExecution":
-		item["type"], item["command"], item["status"], item["aggregated_output"] = "CommandExecution", codexShellArgv(v.Command), v.Status, v.AggregatedOutput
-		if v.ExitCode != nil {
-			item["exit_code"] = *v.ExitCode
-		}
-		if v.DurationMs != nil && *v.DurationMs >= 0 {
-			item["duration"] = map[string]int64{"secs": *v.DurationMs / 1000, "nanos": *v.DurationMs % 1000 * 1_000_000}
-		}
-	case "fileChange":
-		changes := map[string]map[string]string{}
-		for _, c := range v.Changes {
-			changes[c.Path] = map[string]string{"type": c.Kind.Type, "unified_diff": c.Diff}
-		}
-		item["type"], item["changes"], item["status"] = "FileChange", changes, v.Status
-	case "mcpToolCall":
-		item["type"], item["server"], item["tool"], item["arguments"], item["status"] = "McpToolCall", v.Server, v.Tool, v.Arguments, v.Status
-		if v.Result != nil {
-			item["result"] = v.Result
-		}
-		if len(v.Error) > 0 {
-			item["error"] = v.Error
-		}
-	case "imageView":
-		item["type"], item["path"] = "ImageView", v.Path
-	case "imageGeneration": // the picture it made, shown as a rollout shows an image it looked at
-		if v.SavedPath == "" {
-			return nil
-		}
-		item["type"], item["path"] = "ImageView", v.SavedPath
-	case "webSearch":
-		item["type"], item["kind"], item["query"], item["results"] = "Extension", "web.search", v.Query, v.Results
-		if v.Action != nil {
-			item["action"] = v.Action
-		}
-	case "contextCompaction":
-		item["type"] = "ContextCompaction"
-	default:
-		return nil
-	}
-	return item
 }

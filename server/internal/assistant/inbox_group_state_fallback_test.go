@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/connector"
-	"github.com/nwverse/persona/server/internal/extension"
+	"github.com/sunfayao/persona/server/internal/connector"
+	"github.com/sunfayao/persona/server/internal/extension"
 )
 
 // A fallback plan may assign new messages to a handled candidate. The manager accepts the assignment and reopens

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/i18n"
+	"github.com/sunfayao/persona/server/internal/i18n"
 )
 
 // Installing in steps (docs/protocol/protocol.md "Extension install, upgrade and uninstall progress"): a preview says which step it is at through the

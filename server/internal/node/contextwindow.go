@@ -3,8 +3,8 @@ package node
 import (
 	"strings"
 
-	"github.com/nwverse/persona/server/internal/proto"
-	"github.com/nwverse/persona/server/internal/transcript"
+	"github.com/sunfayao/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/transcript"
 )
 
 // Context usage of a session for the apps' agent rows and session header (#2430). The numbers come from the

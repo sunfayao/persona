@@ -11,7 +11,7 @@ import { stateName } from "./state-labels";
 /** The default, Mochi (nothing saved means it). */
 export const BUILTIN_PERSONA = "persona";
 /** Retired bundled IDs stay reserved so a package cannot hijack an existing user's selection. */
-export const RETIRED_PERSONAS = ["persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob"] as const;
+export const RETIRED_PERSONAS = ["persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob", "nwverse"] as const;
 const RESERVED: readonly string[] = [BUILTIN_PERSONA, ...RETIRED_PERSONAS, ...legacyBuiltins];
 
 function isRetiredPersona(id: string): boolean {
@@ -156,8 +156,7 @@ export function personaFileURL(p: Pick<PersonaInfo, "id" | "rev">, file: string,
 
 /**
  * The list to show after a refresh: the chosen package at its new rev once its files are in the browser (`ready`),
- * else still at the rev on screen, as the phone keeps its copy until the new one is downloaded whole (a tiered look
- * moving to another tier never shows half a face).
+ * else keep the on-screen revision until the new files have loaded.
  */
 export function withChosenReady(next: PersonaInfo[], prev: PersonaInfo[], chosen: string, ready: boolean): PersonaInfo[] {
   if (ready) return next;

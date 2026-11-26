@@ -610,7 +610,7 @@ describe("交付与等待处理的状态标签 (#5732)", () => {
 describe("自动完成 (docs/assistant/todos.md「Automatic completion」)", () => {
   const base = { id: "t", title: "统一连接器 logo 尺寸", created_at: "2026-11-04T06:00:00Z", updated_at: "2026-11-04T08:00:00Z" };
   it("hub 判断做完后关掉的任务标「自动完成」", () => {
-    const todo = { ...base, done_at: "2026-11-04T08:00:00Z", done_by: "auto", done_reason: "已合并 PR 并发了 TestFlight" };
+    const todo = { ...base, done_at: "2026-11-04T08:00:00Z", done_by: "auto", done_reason: "已合并 PR 并部署了新版本" };
     expect(isAutoDone(todo)).toBe(true);
     expect(todoStatusLabel(todo, todoStatus(todo))).toBe("自动完成");
   });

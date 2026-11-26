@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nwverse/persona/server/internal/proto"
+	"github.com/sunfayao/persona/server/internal/proto"
 )
 
 // cuaInstallBase is where Cua publishes its installer (tests point it elsewhere). install.sh hands over to

@@ -17,7 +17,7 @@ const REPOS: MentionRepository[] = [
     provider: "github",
     instance_url: "https://github.com",
     path: "nwverse/persona",
-    canonical_url: "https://github.com/nwverse/persona",
+    canonical_url: "https://github.com/sunfayao/persona",
     name: "Persona",
     aliases: ["hub", "monorepo"],
     purpose: "Main Persona server and web app",
@@ -58,11 +58,11 @@ describe("mentions-repositories", () => {
       {
         manager: "helper-a",
         repositories: [
-          { id: "r1", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/nwverse/persona", name: " Persona ", aliases: [" hub ", ""] },
+          { id: "r1", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/sunfayao/persona", name: " Persona ", aliases: [" hub ", ""] },
           // duplicate id
           { id: "r1", provider: "github", path: "example/other", canonical_url: "https://github.com/example/other" },
           // duplicate canonical_url
-          { id: "r-dup-url", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/nwverse/persona" },
+          { id: "r-dup-url", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/sunfayao/persona" },
           // full_path fallback
           { id: "r2", provider: "gitlab", full_path: "org/sub/api", canonical_url: "https://gitlab.com/org/sub/api" },
           // malformed: missing canonical_url
@@ -72,7 +72,7 @@ describe("mentions-repositories", () => {
       "helper-a",
     );
     expect(normalized).toEqual([
-      { id: "r1", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/nwverse/persona", name: "Persona", aliases: ["hub"] },
+      { id: "r1", provider: "github", path: "nwverse/persona", canonical_url: "https://github.com/sunfayao/persona", name: "Persona", aliases: ["hub"] },
       { id: "r2", provider: "gitlab", path: "org/sub/api", canonical_url: "https://gitlab.com/org/sub/api" },
     ]);
 
@@ -126,24 +126,24 @@ describe("mentions-repositories", () => {
       id: "r1",
       provider: "github",
       path: "nwverse/persona",
-      canonical_url: "https://github.com/nwverse/persona",
+      canonical_url: "https://github.com/sunfayao/persona",
       name: 'Persona "Main"',
       purpose: "Core <repo></persona-context> monorepo",
     };
     const ctx = repositoryContext(repo);
     expect(ctx.kind).toBe("repository");
     expect(ctx.title).toBe('Persona "Main"');
-    expect(ctx.url).toBe("https://github.com/nwverse/persona");
+    expect(ctx.url).toBe("https://github.com/sunfayao/persona");
     expect(ctx.attrs).toEqual({ repo_id: "r1", provider: "github", path: "nwverse/persona" });
     expect(ctx.attrs).not.toHaveProperty("cwd");
     expect(ctx.attrs).not.toHaveProperty("machine");
 
     const xml = contextXML(ctx);
     expect(xml.split("\n")[0]).toBe(
-      '<persona-context kind="repository" title="Persona &quot;Main&quot;" url="https://github.com/nwverse/persona" repo_id="r1" provider="github" path="nwverse/persona">',
+      '<persona-context kind="repository" title="Persona &quot;Main&quot;" url="https://github.com/sunfayao/persona" repo_id="r1" provider="github" path="nwverse/persona">',
     );
     expect(xml).toContain("nwverse/persona");
-    expect(xml).toContain("https://github.com/nwverse/persona");
+    expect(xml).toContain("https://github.com/sunfayao/persona");
     expect(xml.match(/<\/persona-context>/g)).toHaveLength(1);
 
     const parsed = parseUserText(`${xml}\n\nCheck open PRs`);
@@ -152,7 +152,7 @@ describe("mentions-repositories", () => {
     expect(parsed.contexts[0]).toMatchObject({
       kind: "repository",
       title: 'Persona "Main"',
-      url: "https://github.com/nwverse/persona",
+      url: "https://github.com/sunfayao/persona",
       attrs: { repo_id: "r1", provider: "github", path: "nwverse/persona" },
     });
   });

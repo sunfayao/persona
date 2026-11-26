@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nwverse/persona/server/internal/compat"
-	"github.com/nwverse/persona/server/internal/osproc/osproctest"
-	"github.com/nwverse/persona/server/internal/update"
+	"github.com/sunfayao/persona/server/internal/compat"
+	"github.com/sunfayao/persona/server/internal/osproc/osproctest"
+	"github.com/sunfayao/persona/server/internal/update"
 )
 
 // listenHelperEnv runs the test binary as a hub that systemd started with one socket at descriptor 3 (the variables

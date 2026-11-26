@@ -2234,10 +2234,8 @@ if os.environ.get("MOCK_RECENT") == "1":
         ASSISTANT.append(c)
 
 # ---------- the assistant's schedule (Settings › Assistant › Act proactively; Persona › Info › Scheduled tasks) ----------
-# One list, like the hub's (assistant_schedule.go): every day at a time, every N minutes, or once. GET
-# /api/v1/assistant/tasks serves it whole; the routines (the daily tasks) and follow-ups (the enabled once / interval
-# ones, by their next run) are the hub's two older views of the same list, which the Android app reads and writes.
-# Times follow the rules in UTC+8 (the screenshot simulators' zone): a routine's last run is its last scheduled time.
+# GET /api/v1/assistant/tasks serves the schedule with daily, interval and one-off tasks.
+# Times follow the rules in UTC+8: a routine's last run is its last scheduled time.
 # MOCK_SCHEDULE=empty serves no tasks or runs (the empty pages); GET /mock/schedule/reset restores them.
 SCHEDULE_TZ = timezone(timedelta(hours=8))
 WEEKDAYS = [1, 2, 3, 4, 5]
@@ -2310,9 +2308,6 @@ def prev_at(hhmm, weekdays, back=0, late=timedelta()):
     return (found[back] + late).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-# The fields of a routine the user edits; a PUT of the routines keeps the rest of each daily task (the hub's own fields,
-# where its runs go) by id.
-ROUTINE_FIELDS = ("title", "prompt", "time", "weekdays", "enabled")
 SCHEDULE = [
     {"id": "morning", "title": "早报", "prompt": "给我今天的早报，一屏以内，结论先行。", "repeat": "daily", "time": "09:00",
      "weekdays": WEEKDAYS, "enabled": True, "last_run": prev_at("09:00", WEEKDAYS, late=timedelta(minutes=3)),
@@ -2464,20 +2459,6 @@ RUNS = sorted([
 if os.environ.get("MOCK_SCHEDULE") == "empty":
     SCHEDULE[:], RUNS[:] = [], []
 SCHEDULE_START = copy.deepcopy({"schedule": SCHEDULE, "runs": RUNS})
-HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-
-
-def schedule_routines():
-    """GET /api/v1/assistant/routines: the daily tasks."""
-    return [t for t in SCHEDULE if t.get("repeat") == "daily"]
-
-
-def schedule_followups():
-    """GET /api/v1/assistant/followups: the enabled once and interval tasks, `at` their next run, soonest first."""
-    due = [dict(t, at=t.get("next_run") or t.get("at")) for t in SCHEDULE if t.get("repeat") != "daily" and t.get("enabled")]
-    return sorted(due, key=lambda t: t["at"] or "")
-
-
 def task_label(t):
     """What the history calls a task (the hub's Task.label)."""
     if t.get("title"):
@@ -2492,35 +2473,9 @@ def record_run(kind, ref, title, session, due=None, machine="server"):
                     "status": "ok", "manual": True, "machine_id": machine, "session_id": session})
 
 
-def put_routines(body):
-    """PUT replaces the daily tasks; like the hub it reads only what the user edits, keeps the rest of each task by id
-    and works out the next run of the enabled ones. The once and interval tasks stay as they are."""
-    old = {t["id"]: t for t in schedule_routines()}
-    new = []
-    for r in body.get("routines", []):
-        if not HHMM.match(str(r.get("time", ""))) or not str(r.get("prompt", "")).strip() or not str(r.get("title", "")).strip():
-            return None, "routine %s needs a title, a prompt and a time HH:MM" % json.dumps(r.get("title", ""), ensure_ascii=False)
-        rid = r.get("id") or "rt_" + uuid.uuid4().hex[:8]
-        kept = {k: v for k, v in old.get(rid, {}).items() if k not in ROUTINE_FIELDS + ("next_run",)}
-        routine = {**kept, "id": rid, "repeat": "daily", "title": r["title"], "prompt": r["prompt"], "time": r["time"],
-                   "weekdays": r.get("weekdays") or [], "enabled": bool(r.get("enabled"))}
-        if routine["enabled"]:
-            routine["next_run"] = next_at(routine["time"], routine["weekdays"])
-        new.append(routine)
-    SCHEDULE[:] = [t for t in SCHEDULE if t.get("repeat") != "daily"] + new
-    return schedule_routines(), None
-
-
 # Saved prompts (Settings › Saved Prompts, /api/v1/assistant/saved-prompts…, MOCK_SAVED_PROMPTS) are
 # scripts/mock/saved_prompts_mock.py's, a domain (#11649).
 
-MEMORY = [
-    {"name": "MEMORY.md", "content": "- [早报格式](morning-format.md) — 一屏以内，结论先行", "updated_at": ago(days=1)},
-    {"name": "morning-format.md", "content": "---\nname: morning-format\ndescription: 早报一屏以内\nmetadata:\n  type: feedback\n---\n\n早报一屏以内，结论先行。",
-     "updated_at": ago(days=1)},
-    {"name": "weekly-report.md", "content": "---\nname: weekly-report\ndescription: 周报先给草稿\nmetadata:\n  type: feedback\n---\n\n周报先给草稿，不要直接发。",
-     "updated_at": ago(days=3)},
-]
 SCHEDULE_RAN = []  # what "Run now" started (UI tests read it back at /mock/schedule)
 
 # ---------- where the assistant runs (Settings › Assistant) ----------
@@ -2795,13 +2750,13 @@ TODOS_INIT = [
         # A task the hub closed itself.
         "id": "todo_done_auto",
         "title": "统一连接器 logo 尺寸",
-        "notes": "设置页里各个连接器的 logo 统一成同样大小、同一中心，走 PR 合并后发 TestFlight。",
+        "notes": "设置页里各个连接器的 logo 统一成同样大小、同一中心，走 PR 合并后部署到预览环境。",
         "done_at": ago(hours=2),
         "created_at": ago(hours=5),
         "updated_at": ago(hours=2),
         "origin": "conv_demo",
         "done_by": "auto",
-        "done_reason": "已合并 PR 并发了 TestFlight",
+        "done_reason": "已合并 PR 并部署了新版本",
         "spaces": [],
         "agents": [],
     },
@@ -4700,7 +4655,7 @@ if MOCK_TASKS:
                "pr": "https://github.com/example/weather/pull/43"}),
         _feed("feed_m7b", 12, "message", "lark:mock-task-msg", {
             "todo_id": "todo_task_widget", "source": "lark", "account": "飞书", "chat": "客户端发版群", "sender": "韩梅梅",
-            "text": "小组件横屏崩溃今天能修好吗？下午想发一版 TestFlight",
+            "text": "小组件横屏崩溃今天能修好吗？下午想部署一个新版本",
             "draft": "在修了，测试已经过了，十点前提 PR，下午发版来得及。"}),
         _feed("feed_m8", 10, "routed", "todo_task_tests", {"text": "Mock 用协议注入，不要用单例"}),
         _feed("feed_m8a", 8, "plan", "plan_mock_4"),
@@ -6157,7 +6112,6 @@ def mock_delegate(q):
         except Exception: pass
     if not handover:
         push_machine(ix["machine_id"])
-    push_fleet()
     return {"ok": True}, 200
 
 
@@ -6272,14 +6226,6 @@ if os.environ.get("MOCK_ASSISTANT_CARDS") == "run":
              "summary": "性能 · %s：（无） → %s — 备用：主账号没额度时代替" % (_name, _to),
              "always_honored": False})
 
-if os.environ.get("MOCK_IPHONE_ASK") == "1":  # an iphone_do step the node says needs approval
-    INTERACTIONS.append(
-        {"id": "ix_iphone_do", "machine_id": "server", "session_id": ASK1, "session_title": "Persona",
-         "kind": "permission", "created_at": ago(minutes=1), "expires_at": later(minutes=14),
-         "tool_name": "iphone_do", "tool_input": {"steps": [{"action": "tap", "target": 7}]},
-         "summary": "在「我的 iPhone」上：在「钱包」里点「支付 ¥ 36.00」",
-         "always_honored": False, "tool_title": "iPhone 操控"})  # the manager's own tool (#3590)
-
 # MOCK_AGENT_OWN_TOOL=before|after: the tests Agent's only card asks about one of Persona's own MCP tools
 # (report_to_supervisor, #4966). `before`: the raw name only, as a card was titled until then; `after`: the title the
 # manager gives a node's card for Persona's tools now (tool_title, in the user's language), and the tool alone for what
@@ -6381,7 +6327,7 @@ if os.environ.get("MOCK_SECRET_HANDOFF") == "1":
              {"name": "DEPLOY_KEY", "provider": "example-vault", "provider_name": "Example Vault", "title": "Deploy key › private key"}],
              "agent": "修发布的 CI", "machine_name": "MacBook", "cwd": "~/code/example-app",
              "prompt": "修发布的 CI：publish 这一步登录 registry 失败。"},
-         "summary": "把 Example Vault › Registry token › credential（作为 REGISTRY_TOKEN）交给 MacBook 上的「修发布的 CI」，只用于这一次运行。请在 iPhone 或网页上批准。",
+         "summary": "把 Example Vault › Registry token › credential（作为 REGISTRY_TOKEN）交给 MacBook 上的「修发布的 CI」，只用于这一次运行。请在网页上批准。",
          "always_label": "以后在你自己开的对话里，MacBook 上的 claude 用这些条目不再询问", "always_honored": True})
 
 # MOCK_SCREEN_DIALOG=1: a terminal dialog (screen interaction) as a newer hub reads it; MOCK_PROMPT_CHANGED=1 makes
@@ -6804,18 +6750,6 @@ if os.environ.get("MOCK_SCRIPT_ASK") == "1":
 REQUEST_LOCK = threading.RLock()
 
 
-def mock_tool_call(name, args):
-    """Send a tool_call to every connected phone that declared [name] (GET /mock/tool_call)."""
-    call_id = uuid.uuid4().hex[:8]
-    with FAULT_LOCK:
-        phones = [x["send"] for x in PHONES.values()
-                  if any(t.get("name") == name for t in x["registration"].get("tools") or [])]
-    for send in phones:
-        try: send({"type": "tool_call", "call_id": call_id, "name": name, "args": json.loads(args or "{}")})
-        except OSError: pass
-    return {"call_id": call_id, "sent": len(phones)}
-
-
 # MOCK_CLAUDE_DESKTOP_ASK=1: the
 # Claude in the desktop app on the server waits on an AskUserQuestion of four questions (one multi-select). No hook of
 # Persona's runs there; the node reads the question from its transcript and lists it as a card it answers through the
@@ -6867,44 +6801,12 @@ def mock_interactions():
     return [dict(x, **folds[(x.get("machine_id"), x.get("session_id"))]) if (x.get("machine_id"), x.get("session_id")) in folds else x for x in out]
 
 
-# MOCK_FLEET: the hub's fleet summary (server/internal/hub/liveactivity.go buildFleet) for Android's ongoing notification,
-# home-screen widget and Quick Settings tile. Sent on every connect and after each answer (the real hub pushes it when
-# it changes; GET /api/v1/fleet always serves it). Values pick what is in it, for captures:
-#   1 / all     every pending request, working and finished-unseen agent the mock has
-#   permission  only the permission requests (the first request gets "Deny" / "Allow")
-#   working     only working agents (the clock), plus the finished ones
-#   done        only finished-unseen agents
-#   one         exactly one working agent (a tap opens it)
-#   empty       nothing (the connection line)
-#   off         the default: GET serves an empty Fleet, with no fleet events
-# A working agent whose turn is over while its background work runs (MOCK_WORKFLOW=1, MOCK_WORKFLOW_CARDS=1) is a
-# background item, as the hub sends it (#3437): background, its workflow's line and bar, the workflow's start as since.
-MOCK_FLEET = os.environ.get("MOCK_FLEET", "")
-
-
-def _fleet_clip(text, n):
+def _notify_clip(text, n):
     text = " ".join((text or "").split())
     return text if len(text) <= n else text[:n - 1] + "…"
 
 
-def _fleet_title(s):
-    title = s.get("title") or ""
-    if not title or title == "Claude Code":
-        title = os.path.basename(s.get("cwd") or "")
-    return _fleet_clip(title, 24)
-
-
-def _fleet_place(s):
-    machine = next((m["name"] for m in MACHINES if m["id"] == s["machine_id"]), s["machine_id"])
-    place = machine
-    if s.get("space_name"):
-        place += " · " + s["space_name"]
-        if s.get("slot_name") and s["slot_name"] != str(s.get("slot_index")):
-            place += " › " + s["slot_name"]
-    return _fleet_clip(place, 32)
-
-
-def _fleet_first_line(text):
+def _notify_first_line(text):
     for line in (text or "").split("\n"):
         line = line.lstrip("# ").strip()
         if line:
@@ -6912,106 +6814,16 @@ def _fleet_first_line(text):
     return ""
 
 
-def _fleet_detail(ix):
+def _notify_detail(ix):
     kind = ix.get("kind")
     if kind == "permission":  # the node writes the summary as "Tool: command"
         command = (ix.get("tool_input") or {}).get("command")
         return ix.get("summary") or ("%s: %s" % (ix.get("tool_name"), command) if command else ix.get("tool_name") or "")
     if kind == "plan":
-        return _fleet_first_line(ix.get("plan"))
+        return _notify_first_line(ix.get("plan"))
     if kind == "question":
         return (ix.get("questions") or [{}])[0].get("question") or ix.get("summary") or ""
     return "终端等你处理"
-
-
-def _fleet_unix(stamp):
-    return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp() if stamp else 0
-
-
-def _fleet_background(s):
-    """A working session's background part, as the hub's buildFleet adds it (server/internal/assistant/fleet_live.go):
-    {} unless its turn is over while background work runs; else background, the one-line detail, the bar's counts of the
-    workflow that line names (the first running one, #3437), and since from the earliest running workflow (#3433)."""
-    runs = [w for w in s.get("workflows") or [] if w.get("running")]
-    tasks = [b for b in s.get("background") or [] if b.get("kind") != "workflow" or not s.get("workflows")]
-    if not (s.get("background_working") or (s.get("status") != "working" and (runs or tasks))):
-        return {}
-    out = {"background": True}
-    if runs:
-        w = runs[0]
-        parts = [w.get("name") or w.get("summary") or "workflow"] + ([w["phase"]] if w.get("phase") else [])
-        counts = " · %d/%d" % (w.get("agents_done", 0), w.get("agents_started", 0))  # never clipped: the bar draws them
-        out["detail"] = _fleet_clip(" · ".join(parts), max(60 - len(counts), 0)) + counts
-        if w.get("agents_started", 0) > 0:
-            out["progress"] = {"done": min(max(w.get("agents_done", 0), 0), w["agents_started"]), "started": w["agents_started"]}
-        starts = [_fleet_unix(r["started_at"]) for r in runs if r.get("started_at")]
-        if starts:
-            out["since"] = min(starts)
-    else:
-        out["detail"] = "后台 %d 个任务在跑" % (len(tasks) + sum(1 for a in s.get("subagents") or [] if a.get("running")))  # i18n-ignore: the hub's zh-Hans text
-    return out
-
-
-def mock_fleet():
-    """The fleet as the hub computes it, narrowed by MOCK_FLEET."""
-    mode = MOCK_FLEET or "all"
-    sessions = {(s["machine_id"], s["session_id"]): s for s in all_sessions()}
-    needs, working, unread, asked = [], [], [], set()
-    if mode in ("1", "all", "permission"):
-        for ix in sorted(mock_interactions(), key=lambda x: x.get("created_at") or ""):
-            if mode == "permission" and ix.get("kind") != "permission":
-                continue
-            s = sessions.get((ix.get("machine_id"), ix.get("session_id")))
-            if s is None:
-                continue
-            asked.add((s["machine_id"], s["session_id"]))
-            needs.append({"id": "%s/%s" % (s["machine_id"], s["session_id"]), "title": _fleet_title(s), "place": _fleet_place(s),
-                          "kind": ix.get("kind") if ix.get("kind") in ("permission", "plan", "question") else "screen",
-                          "detail": _fleet_clip(_fleet_detail(ix), 60), "interaction": ix["id"], "since": _fleet_unix(ix.get("created_at"))})
-    for key, s in sessions.items():
-        if key in asked or mode == "empty":
-            continue
-        item = {"id": "%s/%s" % key, "title": _fleet_title(s), "place": _fleet_place(s)}
-        if s.get("state") == "working" and not s.get("assistant") and mode in ("1", "all", "permission", "working", "one"):
-            working.append({**item, "kind": "working", "detail": "", "since": _fleet_unix(s.get("updated_at")), **_fleet_background(s)})
-        elif s.get("state") == "unread" and not s.get("assistant") and not s.get("loop") and mode in ("1", "all", "permission", "working", "done"):
-            unread.append(dict(item, kind="unread", detail=_fleet_clip(_fleet_first_line(s.get("last_text")), 60),
-                               since=_fleet_unix(s.get("updated_at"))))
-    working.sort(key=lambda x: x["since"])
-    unread.sort(key=lambda x: -x["since"])
-    if mode == "one":
-        working, unread = working[:1], []
-    st = {"phase": "needsYou" if needs else "working" if working else "done" if unread else "",
-          "needsYou": len(needs), "working": len(working), "unread": len(unread),
-          "items": (needs + working + unread)[:3], "details": False}
-    if working:
-        st["workingSince"] = working[0]["since"]
-    return st
-
-
-def push_fleet():
-    """Send the fleet to every open app (MOCK_FLEET only), as the hub does when it changes."""
-    if not MOCK_FLEET:
-        return
-    st = mock_fleet()
-    for out, _ in list(LIVE):
-        try: out({"type": "fleet", "fleet": st})
-        except Exception: pass
-
-
-FLEET_MODES = ("1", "all", "permission", "working", "done", "one", "empty", "off")
-
-
-def set_fleet_mode(mode):
-    """GET /mock/fleet?mode=…: switch MOCK_FLEET while running and push the new fleet. Restarting the mock instead
-    changes HUB_ID, and the app's pairing no longer matches. `off` restores the default."""
-    global MOCK_FLEET
-    if mode not in FLEET_MODES:
-        return {"error": "mode is one of " + ", ".join(FLEET_MODES)}, 400
-    MOCK_FLEET = "" if mode == "off" else mode
-    push_fleet()
-    fleet = mock_fleet() if MOCK_FLEET else {"phase": "", "needsYou": 0, "working": 0, "unread": 0, "items": []}
-    return {"mode": MOCK_FLEET, "fleet": fleet}, 200
 
 
 def mock_notify(interaction_id):
@@ -7023,7 +6835,7 @@ def mock_notify(interaction_id):
     machine = next((m["name"] for m in MACHINES if m["id"] == ix["machine_id"]), ix["machine_id"])
     event = {"type": "notify", "kind": "interaction", "machine_id": ix["machine_id"], "session_id": ix["session_id"],
              "title": ix.get("session_title") or "需要你", "subtitle": machine,
-             "body": _fleet_clip(_fleet_detail(ix), 120), "interaction_id": ix["id"]}
+             "body": _notify_clip(_notify_detail(ix), 120), "interaction_id": ix["id"]}
     with FAULT_LOCK:
         targets = [c["send"] for c in CLIENTS.values() if "ws_notify" in c["features"]]
     for send in targets:
@@ -7092,7 +6904,6 @@ def renew_requests(minutes):
         for ix in pending:
             try: out({"type": "interaction", "interaction": ix})
             except Exception: pass
-    push_fleet()
     return {"renewed": len(pending), "expires_at": later(minutes=minutes)}, 200
 
 
@@ -7826,18 +7637,13 @@ def scrolling_screen(cols, rows, typed="", tick=0):
     return lines, len(lines) - 3
 
 
-PREFS = {"input": True, "done": "long", "live_activity": True, "lock_details": False, "long_turn_seconds": 60, "done_delay_seconds": 60,
+PREFS = {"input": True, "done": "long", "long_turn_seconds": 60, "done_delay_seconds": 60,
          "muted_managers": [],
-         "island": {"preset": "a", "left": "", "right": "", "machine": ""},
          # quiet hours (#5806): never set until a client sets them; MOCK_QUIET_HOURS=1 starts with 23:00–07:00 on
          "quiet": {"enabled": True, "start": "23:00", "end": "07:00"} if os.environ.get("MOCK_QUIET_HOURS") else {"enabled": False, "start": "", "end": ""}}  # one device is enough
 PREFS_FAIL = [os.environ.get("MOCK_PREFS_FAIL") == "1"]  # Settings › Notifications can't read the prefs (503, #1860); GET /mock/prefs_fail?on=0|1
 RESOLVED = []  # resolve calls, newest last (GET /mock/resolved)
 RESOLVE_MODE = [os.environ.get("MOCK_RESOLVE", "ok")]  # how answers to cards go: ok | slow | fail (MOCK_RESOLVE, /mock/resolve-mode)
-DEVICES = []  # POST /api/v1/devices, newest last (GET /mock/devices): each one's id, kind and push `features` (#2433)
-# GET /mock/devices/retire?on=1: the hub retired this device's push registration (#9611): its prefs writes answer 409
-# push_registration_required until the app registers again (POST /api/v1/devices), as the hub does (#9612).
-PUSH_RETIRED = [False]
 # The last client_hello's features, platform and version, and the X-Persona-Client of the last GET /api/v1/interactions
 # (GET /mock/hello): the hub lists MCP elicitation cards in REST answers only when the two match (docs/protocol/protocol.md
 # "MCP elicitation").
@@ -7853,11 +7659,6 @@ if os.environ.get("MOCK_BOT") == "pairing":
     FEISHU_BOT.update(owner=None, agents=[], target="", pairing={"code": "482913", "expires_at": int(time.time()) + 540})
 elif os.environ.get("MOCK_BOT") == "off":
     FEISHU_BOT.update(enabled=False, app_id="", has_secret=False, connected=False, bot_name=None, owner=None, agents=[], target="")
-# Phone tools: what each connected phone declared (register_phone) and the tool_result messages it
-# sent back. GET /mock/tool_call?name=phone_…&args=<JSON> sends a tool_call to the phones that declared the tool, as the
-# hub does when Claude calls it; GET /mock/phone shows the registrations and results.
-PHONES = {}  # socket -> {"send", "registration"}
-TOOL_RESULTS = []
 # MOCK_CF_ACCESS=<client id>:<client secret>: the hub behind Cloudflare Access (docs/operations/network.md "Behind
 # Cloudflare Access"): /api/ without those CF-Access-Client-Id / CF-Access-Client-Secret headers gets Access's answers.
 MOCK_CF_ACCESS = tuple(os.environ.get("MOCK_CF_ACCESS", "").split(":", 1)) if ":" in os.environ.get("MOCK_CF_ACCESS", "") else None
@@ -7874,17 +7675,13 @@ PAIR_DEVICE_TOKENS = set()
 PAIR_DEVICE_ROLES = {}  # exchanged device token -> the role the exchange returned
 
 TOKENS = [  # Settings › Devices (GET/POST/DELETE /api/v1/auth/tokens)
-    {"id": "dev_phone", "name": "我的 iPhone", "kind": "phone", "role": "full", "created_at": ago(days=12), "last_seen": ago()},
-    {"id": "dev_watch", "name": "Apple Watch", "kind": "watch", "role": "answer", "created_at": ago(days=12), "last_seen": ago(hours=3)},
-    {"id": "dev_work", "name": "工作 iPhone", "kind": "phone", "role": "full", "created_at": ago(days=3), "last_seen": ago(hours=1)},
-    {"id": "dev_ipad", "name": "iPad", "kind": "phone", "role": "full", "created_at": ago(days=40), "last_seen": ago(days=20),
+    {"id": "dev_browser", "name": "Firefox", "kind": "web", "role": "full", "created_at": ago(days=12), "last_seen": ago()},
+    {"id": "dev_other_browser", "name": "Safari", "kind": "web", "role": "full", "created_at": ago(days=3), "last_seen": ago(hours=1)},
+    {"id": "dev_old_browser", "name": "Chrome", "kind": "web", "role": "full", "created_at": ago(days=40), "last_seen": ago(days=20),
      "revoked_at": ago(days=2)},
 ]
-# Per credential, the way the hub pushes to the device it registered.
-TOKEN_PUSH = {
-    "dev_phone": {"route": "relay"},
-    "dev_work": {"route": "none", "reason": "relay_failed", "detail": "403 topic not served"},
-}
+
+
 def _claude_settings():  # Settings › Claude Code Settings: the node's whitelist (server/internal/node/claudeconfig.go)
     return [
         {"key": "awaySummaryEnabled", "title": "回来时先说进展", "detail": "离开 5 分钟以上再回来时，Claude 先简单说说这段时间做了什么",
@@ -8761,39 +8558,6 @@ def triage_route(h, method, p, raw):
     return h.send_json(TRIAGE) or True
 
 
-def wechat_area(h, method, p, raw):
-    """The WeChat connector's sign-in and switch; True when it answered."""
-    if not WECHAT_MODE or not p.startswith("/api/v1/connectors/wechat"):
-        return False
-    w, body = WECHAT, json.loads(raw or b"{}")
-    if method == "PUT" and p == "/api/v1/connectors/wechat/settings":
-        if "enabled" in body:
-            w["enabled"] = bool(body["enabled"])
-        return h.send_json(wechat_connector()) or True
-    if method != "POST":
-        return False
-    if p.endswith("/logout"):
-        w.update(signed_in=False, polls=0)
-        return h.send_json({"ok": True}) or True
-    if not p.endswith("/login"):
-        return False
-    qr = {"step": "qr", "kind": "qr", "url": WECHAT_QR_URL, "interval": 1, "qr": {"size": len(WECHAT_QR_ROWS), "rows": WECHAT_QR_ROWS},
-          "hint": "用微信扫一扫这个二维码，在手机上确认后这里会自动继续。在同一部手机上：先保存二维码，再在微信里扫一扫、从相册选它。"}
-    # MOCK_WECHAT_QR=link drops the modules (only the link left), none drops both: a step the page can't draw (#1693).
-    if os.environ.get("MOCK_WECHAT_QR") in ("link", "none"):
-        qr.pop("qr")
-        if os.environ.get("MOCK_WECHAT_QR") == "none":
-            qr.pop("url")
-    if (body.get("step") or "") == "qr":
-        w["polls"] += 1
-        if w["polls"] < 6 or os.environ.get("MOCK_WECHAT_WAIT"):
-            return h.send_json(qr) or True
-        w["signed_in"] = True
-        return h.send_json({"done": True, "account": "示例用户"}) or True
-    w["polls"] = 0
-    return h.send_json(qr) or True
-
-
 # MOCK_LARKCLI=1: the Lark connector that reads Lark as you (larkcli), not signed in. lark-cli
 # follows the bot's app; its sign-in is a device-code step whose link carries the code, so the hub adds its QR code
 # (#5818); confirmed after a few polls.
@@ -8813,19 +8577,6 @@ def larkcli_status():
     app = FEISHU_BOT.get("app_id") if FEISHU_BOT.get("has_secret") else ""
     return {"profile": "persona-bot" if app else "", "app_id": app or None, "same_app": bool(app),
             "mode": "bot" if app else "default", "choice": "", "profiles": []}
-
-
-def larkcli_area(h, method, p, raw):
-    """The Lark connector's sign-in; True when it answered."""
-    if not LARKCLI_MODE or method != "POST" or p != "/api/v1/connectors/larkcli/login":
-        return False
-    step = json.loads(raw or b"{}").get("step") or ""
-    LARKCLI["polls"] = LARKCLI["polls"] + 1 if step == "device" else 0
-    if step == "device" and LARKCLI["polls"] >= 6 and not os.environ.get("MOCK_WECHAT_WAIT"):
-        LARKCLI["signed_in"] = True
-        return h.send_json({"done": True, "account": "示例用户"}) or True
-    return h.send_json({"step": "device", "kind": "device_code", "url": LARKCLI_URL, "user_code": "MOCK-1234", "interval": 2,
-                        "qr": {"size": len(WECHAT_QR_ROWS), "rows": WECHAT_QR_ROWS}}) or True
 
 
 
@@ -9361,8 +9112,7 @@ def _imessage_connector():
     return {**base, "account": name, "via": name + " 上的「信息」", "enabled": True}
 
 
-# Messages' reader (GET /api/v1/imessage, …/chats and a chat's …/messages, PUT …/settings, DELETE …/data) is
-# scripts/mock/imessage_mock.py's, a domain (#11649). The connector above stays here: GET /api/v1/connectors lists it.
+# imessage_mock.py serves deletion of locally collected iMessage data.
 
 
 if os.environ.get("MOCK_INBOX") == "empty":
@@ -12048,7 +11798,7 @@ MOMENT_COMMENTS = [
 ]
 
 # Mail's accounts and write paths (GET / POST /api/v1/mail/accounts, …/send, …/flags, the sign-ins, GET /mock/mail and
-# MOCK_MAIL's whole mails, MOCK_GOOGLE, MOCK_OUTLOOK, MOCK_OUTLOOK_CLIENT) are scripts/mock/mail_mock.py's, a domain
+# MOCK_MAIL's whole mails, MOCK_OUTLOOK) are scripts/mock/mail_mock.py's, a domain
 # (#11543). MOCK_MAIL=1's inbox row for its two-mail thread stays here, among the inbox's rows, so the switches
 # below that change the inbox (MOCK_LINKS, MOCK_NEEDS) still see it.
 if os.environ.get("MOCK_MAIL"):
@@ -15512,15 +15262,9 @@ def file_read(path, cwd, offset, stream=False):
 
 # ---------- personas ----------
 # MOCK_PERSONAS=<dir>: the packages in it, as the hub lists and serves ~/.persona/personas. MOCK_PERSONAS=demo: the
-# original placeholder (scripts/assets/make_persona.py demo), made into a temporary directory at start. With "builtin"
-# among them (MOCK_PERSONAS=builtin, demo,builtin): the packages built into personad too (server/internal/hub/personas,
-# the frog look), first, as the hub lists them. A tiered one shows MOCK_PERSONA_TIER (default: its default tier); GET
-# /mock/persona-tier?tier=<key> moves it and pushes "personas", as the hub does when the board moves the user.
+# original placeholder (scripts/assets/make_persona.py demo), made into a temporary directory at start.
 _PERSONA_ARGS = [x for x in os.environ.get("MOCK_PERSONAS", "").split(",") if x]
-BUILTIN_PERSONAS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "server", "internal", "hub", "personas")
-PERSONA_ROOTS = []  # directories of packages, the built-in one first
-if "builtin" in _PERSONA_ARGS:
-    PERSONA_ROOTS.append(os.path.realpath(BUILTIN_PERSONAS))
+PERSONA_ROOTS = []
 for arg in _PERSONA_ARGS:
     if arg == "demo":
         import subprocess, tempfile
@@ -15528,10 +15272,8 @@ for arg in _PERSONA_ARGS:
         subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "make_persona.py"),
                         "demo", "--out", d], check=True, stdout=sys.stderr)
         PERSONA_ROOTS.append(d)
-    elif arg != "builtin":
+    else:
         PERSONA_ROOTS.append(arg)
-PERSONA_TIER = {"tier": os.environ.get("MOCK_PERSONA_TIER", "")}
-
 
 def _persona_files(root):
     return sorted(os.path.relpath(os.path.join(r, f), root) for r, ds, fs in os.walk(root) for f in fs
@@ -15560,18 +15302,8 @@ def personas():
                 continue
             seen.add(pid)
             m = json.load(open(mpath))
-            tiers = m.get("tiers")
-            if not tiers:
-                rev, total = _persona_rev(root, _persona_files(root))
-                out.append({"id": pid, "rev": rev, "bytes": total, "manifest": m})
-                continue
-            levels = {t["key"]: t for t in tiers["levels"]}
-            key = PERSONA_TIER["tier"] if PERSONA_TIER["tier"] in levels else tiers["default"]
-            raw = open(os.path.join(root, levels[key]["manifest"]), "rb").read()
-            tm = json.loads(raw)
-            named = sorted(set(tm["avatar"]["sizes"].values()) | {st["file"] for st in tm["dot"]["states"].values()})
-            rev, total = _persona_rev(root, named, ("tier:%s\0" % key).encode() + raw)
-            out.append({"id": pid, "rev": rev, "bytes": total + len(raw), "manifest": tm})
+            rev, total = _persona_rev(root, _persona_files(root))
+            out.append({"id": pid, "rev": rev, "bytes": total, "manifest": m})
     return out
 
 
@@ -15591,16 +15323,6 @@ def persona_file(rest):
     return None
 
 
-def set_persona_tier(key):
-    """Moves the tiered looks to that tier and tells every app, as the hub does (persona_tiers.go)."""
-    PERSONA_TIER["tier"] = key
-    for send, _ in list(LIVE):
-        try:
-            send({"type": "personas"})
-        except Exception:
-            pass
-
-
 # ---------- looks (#3200) ----------
 # MOCK_LOOKS=example (or a package directory): an extension's looks (schema/extension/examples/example-looks), listed
 # and served as the hub does (a made persona.json; only the files a look names). GET /api/v1/looks lists the built-in
@@ -15610,7 +15332,7 @@ LOOKS_ROOT = (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..
               if _LOOKS_ARG == "example" else _LOOKS_ARG)
 LOOK_CHOICE = {"id": os.environ.get("MOCK_LOOK") or None, "updated_at": "2026-11-05T12:00:00Z"}
 BUILTIN_LOOKS = [("persona", "团子", {"en": "Mochi", "ja": "だんご"})]
-RETIRED_LOOK_IDS = {"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob"}
+RETIRED_LOOK_IDS = {"persona-visor", "persona-circuit", "persona-pixel", "persona-facet", "persona-blob", "nwverse"}
 
 
 def _ext_looks():
@@ -15620,7 +15342,7 @@ def _ext_looks():
     ext = json.load(open(os.path.join(LOOKS_ROOT, "persona-extension.json")))
     out = {}
     for l in ext.get("contributes", {}).get("looks", []):
-        if l["id"] in RETIRED_LOOK_IDS or l["id"] in {"persona", "nwverse"}:
+        if l["id"] in RETIRED_LOOK_IDS or l["id"] == "persona":
             continue
         av = l["avatar"]
         files = sorted(set(av["sizes"].values()) | ({av["svg"]} if av.get("svg") else set())
@@ -16831,7 +16553,7 @@ def mock_pdf():
     pages = [("Weather widget guide", ["Small: the temperature now.", "Medium: the temperature and the next 6 hours of rain.",
                                        "Both refresh every hour from the shared cache."], [0.2, 0.4, 0.8, 0.6, 0.3, 0.1]),
              ("Release checklist", ["Screenshots in light and dark.", "Widget gallery text in both sizes.",
-                                    "A TestFlight build for the internal group."], [0.9, 0.7, 0.5, 0.5, 0.2, 0.4])]
+                                    "A preview build for the internal group."], [0.9, 0.7, 0.5, 0.5, 0.2, 0.4])]
     objs = ["<< /Type /Catalog /Pages 2 0 R >>",
             "<< /Type /Pages /Kids [%s] /Count %d >>" % (" ".join("%d 0 R" % (4 + 2 * i) for i in range(len(pages))), len(pages)),
             "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
@@ -17417,8 +17139,7 @@ def broadcast(msg):
         try: send(msg)
         except Exception: pass
 # MOCK_MESSAGING=1 (#2138): the messaging extension point over the mock's Feishu (scripts/mock/lark_messaging.py):
-# GET /api/v1/messaging lists the source lark, /api/v1/messaging/lark/… answers in the protocol's shapes, the feature
-# messaging is on, every {type: lark} push goes out as {type: messaging} too.
+# Lark messaging requests use /api/v1/messaging/lark/.
 MOCK_MESSAGING = os.environ.get("MOCK_MESSAGING") == "1"
 # Settings › Inbox Sources › Source Relationships (`GET /api/v1/subscriptions/-/graph`, SourcesGraphView): one
 # extension's reads, two sources and the Inbox; `-openSourcesGraph YES`, then tap `graph.source.news` for its sheet.
@@ -17436,13 +17157,6 @@ SOURCES_GRAPH = {
 if MOCK_MESSAGING:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import lark_messaging
-
-# MOCK_SENT=1|empty|nodb|forbidden|old (#5278, scripts/mock/sent_ledger_mock.py): GET /api/v1/connectors/sent and POST …/{id}/recall, the ledger of
-# what was sent as the user (Settings › Sent as you).
-_sent = None
-if os.environ.get("MOCK_SENT"):
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import sent_ledger_mock as _sent
 
 # MOCK_WEB_PUSH=1|failed (#7459, scripts/mock/web_push_mock.py): Settings › Notifications › When Persona is closed, the
 # routes of a browser's Web Push; without it they are an older hub's 404.
@@ -18592,7 +18306,7 @@ if TOOL_TURN:
     _asks = [("第 %d 处改动：顺便看一下这一块的写法有没有问题？" % _k, "看过了，第 %d 处没有问题，两处重复的判断已经合并。" % _k, 240 - _k * 20)
              for _k in range(1, 11)]
     _asks += [("把收件箱的折叠改一下", "收件箱的折叠改好了：已处理的分组默认收起，网页和 iOS 都在里面。", 30),
-              ("网页那边部署了吗", "部署了，网页已经是新版本，iOS 跟下次 TestFlight 走。", 30)]
+              ("网页那边部署了吗", "部署了，网页已经是新版本，", 30)]
     for _q, _a, _m in _asks:
         _earlier += [it("user", "text", _m, text=_q)] + tool("Bash", {"command": "git log --oneline -3", "description": "Recent commits"},
                                                               "abc1234 fix(web): fold handled groups\nbcd2345 docs: inbox folds", _m) \
@@ -19201,170 +18915,6 @@ if MOCK_BROWSER:
         if _m.get("os") == "darwin":
             _m["browser"] = browser_of(_m["id"], _m["id"] == "macbook")
 
-# MOCK_IPHONE=one|several|none|off: the extension iphone is on and every Mac lists the
-# iPhones it reaches; MacBook is turned on. `one`: one of them is this simulator (MOCK_IPHONE_MODEL / MOCK_IPHONE_IOS,
-# what the app reads of itself: `xcrun simctl getenv <udid> SIMULATOR_MODEL_IDENTIFIER` and the runtime's version);
-# `several`: two alike, the user picks; `none`: none is this one; `pair`: this simulator is plugged into MacBook but not
-# paired (Pair moves on through Trust to paired every MOCK_COMPUTER_STEP seconds); `off`: the extension is off.
-# MOCK_IPHONE_CONSENT=1 starts with this iPhone consented. PUT …/iphone and PUT /api/v1/iphone/consent are kept in
-# memory. MOCK_IPHONE_ASK=1 puts an iphone_do approval card in Persona's main conversation.
-MOCK_IPHONE = os.environ.get("MOCK_IPHONE", "")
-IPHONE_MODEL = os.environ.get("MOCK_IPHONE_MODEL", "iPhone18,1")
-IPHONE_IOS = os.environ.get("MOCK_IPHONE_IOS", "26.1")
-IPHONE_CONSENT = {"dev-mock-1"} if os.environ.get("MOCK_IPHONE_CONSENT") == "1" else set()
-IPHONE_ON = {"macbook"}
-IPHONE_SELF_APP = {}  # what the app said of itself with its consent (bundle_id, name)
-IPHONE_JOBS = {}  # machine id -> {"at", "started", "cancelled"}: a pairing from the app (MOCK_IPHONE=pair)
-IPHONE_MODES = ("one", "several", "none", "pair", "setup")
-# MOCK_IPHONE=setup (#8199): the guided setup from the start. The extension off (with MOCK_EXTENSIONS=1 its built-in
-# entry is listed, and turning it on there starts the rest); MacBook without the bridge (Install runs
-# 2 × MOCK_COMPUTER_STEP); this simulator on MacBook's cable once MacBook is turned on (Pair waits for Trust a step,
-# then pairs); Developer Mode off until 2 steps after pairing (as if the user turned it on and the phone restarted), then
-# the developer disk image missing until Prepare (2 steps); Mac Studio a Mac without Xcode (ddi_present false); the
-# server a Linux computer (listed as the hub lists one, without the bridge or a developer disk image). Forget unpairs.
-# The install job's step is in MOCK_LANG (en, ja, zh-Hans), as the hub words it for the web (#8217). POST
-# /api/v1/iphone/try answers a screenshot and Weather opened. GET /mock/iphone shows it, GET /mock/iphone?reset=1
-# starts it over.
-IPHONE_SETUP = {"ext": MOCK_IPHONE != "setup", "installed": {"studio"}, "paired_at": None, "prepared_at": None, "tried": 0}
-
-
-IPHONE_SETUP_STEPS = {
-    "zh-Hans": {"install": "正在下载 iPhone 助手程序", "pair": "在这台 iPhone 上点「信任」，再输入锁屏密码", "prepare": "正在准备这台 iPhone，大约一分钟"},
-    "en": {"install": "Downloading the iPhone helper", "pair": "On the iPhone, tap Trust, then enter its passcode", "prepare": "Getting the iPhone ready, about a minute"},
-    "ja": {"install": "iPhoneヘルパーをダウンロードしています", "pair": "iPhoneで「信頼」をタップしてからパスコードを入力してください", "prepare": "iPhoneを準備しています（1分ほど）"},
-}
-
-
-def iphone_system(machine):
-    """A computer the hub lists iPhone control for: a Mac, and in the setup mode a Linux computer too (as the hub does)."""
-    return machine.get("os") == "darwin" or (MOCK_IPHONE == "setup" and machine.get("os") == "linux")
-
-
-def iphone_setup_job(machine_id):
-    """The setup mode's job on a computer, moved on by the clock: what it says now, and its effect once done."""
-    job = IPHONE_JOBS.get(machine_id)
-    if not job:
-        return None
-    t = time.time() - job["at"]
-    kind = job.get("kind", "pair")
-    if job.get("cancelled"):
-        return {"kind": kind, "state": "cancelled", "started": job["started"]}
-    if t <= 2 * COMPUTER_STEP:
-        steps = IPHONE_SETUP_STEPS.get(LAUNCHER_HEALTH_LANG, IPHONE_SETUP_STEPS["zh-Hans"])
-        out = {"kind": kind, "state": "running", "started": job["started"], "step": steps.get(kind, "")}
-        if kind == "pair":
-            out.update(code="trust_pending", device="dev-mock-1")
-        elif kind == "prepare":
-            out["device"] = "dev-mock-1"
-        return out
-    if kind == "install":
-        IPHONE_SETUP["installed"].add(machine_id)
-    elif kind == "pair" and IPHONE_SETUP["paired_at"] is None:
-        IPHONE_SETUP["paired_at"] = job["at"] + 2 * COMPUTER_STEP
-    elif kind == "prepare" and IPHONE_SETUP["prepared_at"] is None:
-        IPHONE_SETUP["prepared_at"] = job["at"] + 2 * COMPUTER_STEP
-    return {"kind": kind, "state": "done", "started": job["started"], **({"device": "dev-mock-1"} if kind != "install" else {})}
-
-
-def iphone_setup_devices(machine_id):
-    me = {"id": "dev-mock-1", "name": "我的 iPhone", "product_type": IPHONE_MODEL, "ios": IPHONE_IOS, "locked": False}
-    if machine_id != "macbook" or machine_id not in IPHONE_ON or machine_id not in IPHONE_SETUP["installed"]:
-        return []
-    now, paired, prepared = time.time(), IPHONE_SETUP["paired_at"], IPHONE_SETUP["prepared_at"]
-    if paired is None:
-        return [{**me, "paired": False, "usb": True, "connected": False, "ready": False, "state": "idle", "code": "usb_unpaired",
-                 "note": "已用数据线连上，还没有配对：在机器页点「配对」"}]
-    base = {**me, "paired": True, "usb": True, "transport": "network"}
-    if now - paired < 2 * COMPUTER_STEP:
-        return [{**base, "connected": False, "ready": False, "state": "backoff", "developer_mode": False, "code": "developer_mode_off",
-                 "note": "这台 iPhone 没打开开发者模式：在「设置 › 隐私与安全性 › 开发者模式」里打开，重启后确认"}]
-    if prepared is None:
-        return [{**base, "connected": True, "ready": False, "state": "connected", "developer_mode": True, "code": "ddi_not_mounted",
-                 "note": "这台 iPhone 还没装载开发者磁盘映像：用数据线把它连到这台电脑一次，装载后再试"}]
-    return [{**base, "connected": True, "ready": True, "state": "connected", "developer_mode": True, "auto_prepare": True,
-             "capabilities": {"screenshot": True, "input": True, "apps": True, "ax_tree": False}}]
-
-
-def iphone_devices(machine_id):
-    me = {"id": "dev-mock-1", "name": "我的 iPhone", "product_type": IPHONE_MODEL, "ios": IPHONE_IOS, "paired": True, "connected": True,
-          "transport": "network", "locked": False, "ready": True}
-    other = {"id": "dev-mock-2", "name": "家里的 iPhone", "product_type": "iPhone14,5", "ios": "18.6", "paired": True, "connected": False,
-             "locked": False, "ready": False, "note": "没有连上：放在 Mac 旁边并解锁"}
-    if MOCK_IPHONE == "several":
-        twin = {**me, "id": "dev-mock-3", "name": "工作用 iPhone", "locked": True, "ready": False}
-        return [me, twin] if machine_id == "macbook" else [twin]
-    if MOCK_IPHONE == "none":
-        return [other]
-    if MOCK_IPHONE == "pair":
-        job = IPHONE_JOBS.get(machine_id)
-        done = job and not job.get("cancelled") and time.time() - job["at"] > 2 * COMPUTER_STEP
-        if machine_id != "macbook":
-            return []
-        return [me] if done else [{**me, "paired": False, "usb": True, "connected": False, "ready": False, "transport": None}]
-    return [me, other] if machine_id == "macbook" else [me]
-
-
-def iphone_of(machine):
-    enabled = machine["id"] in IPHONE_ON
-    if MOCK_IPHONE == "setup":
-        job = iphone_setup_job(machine["id"])
-        devices = [{**d, "allowed": enabled and d["id"] in IPHONE_CONSENT} for d in iphone_setup_devices(machine["id"])]
-        installed = machine["id"] in IPHONE_SETUP["installed"]
-        out = {"enabled": enabled, "installed": installed, "devices": devices,
-               "ddi_present": machine.get("os") == "darwin" and machine["id"] != "studio"}
-        if installed:
-            out["version"] = "0.1.0"
-        else:
-            out.update(note="这台电脑上没有装 iPhone 设备桥（persona-iphone-bridge）", code="bridge_missing")
-        if job:
-            out["job"] = job
-        return out
-    devices = [{**d, "allowed": enabled and d["id"] in IPHONE_CONSENT} for d in iphone_devices(machine["id"])]
-    out = {"enabled": enabled, "installed": True, "version": "0.1.0", "devices": devices}
-    job = IPHONE_JOBS.get(machine["id"])
-    if job:
-        t = time.time() - job["at"]
-        state = "cancelled" if job.get("cancelled") else ("running" if t <= 2 * COMPUTER_STEP else "done")
-        out["job"] = {"kind": "pair", "state": state, "started": job["started"],
-                      **({"step": "在 iPhone 上点「信任」"} if state == "running" else {})}
-    return out
-
-
-def iphone_list():
-    if MOCK_IPHONE not in IPHONE_MODES or not IPHONE_SETUP["ext"]:
-        return {"on": False, "devices": []}
-    seen = {}
-    for m in MACHINES:
-        if m.get("os") != "darwin":
-            continue
-        p = iphone_of(m)
-        for d in p["devices"]:
-            row = seen.setdefault(d["id"], {**d, "machines": [], "consented": d["id"] in IPHONE_CONSENT})
-            row["machines"].append({"id": m["id"], "name": m["name"], "enabled": p["enabled"]})
-            if d["allowed"]: row["allowed"] = True
-    return {"on": True, "devices": list(seen.values())}
-
-
-def refresh_iphones():
-    if MOCK_IPHONE in IPHONE_MODES:
-        for m in MACHINES:
-            if iphone_system(m):
-                if IPHONE_SETUP["ext"]:
-                    m["iphone"] = iphone_of(m)
-                else:
-                    m.pop("iphone", None)
-    for send, _ in list(LIVE):
-        try: send({"type": "machines", "machines": out_machines()})
-        except Exception: pass
-
-
-if MOCK_IPHONE in IPHONE_MODES:
-    if MOCK_IPHONE == "setup":
-        IPHONE_ON.clear()  # nothing turned on yet
-    for _m in MACHINES:
-        if iphone_system(_m) and IPHONE_SETUP["ext"]:
-            _m["iphone"] = iphone_of(_m)
-
 # Every fixture, including machines added by optional modes, follows the engine contract.
 for _m in MACHINES:
     _m["engine"] = "herdr"
@@ -19712,15 +19262,7 @@ if MOCK_BROWSER:
                       "config": {"machines": ["macbook"]}, "secrets": [], "permissions": []}
 
 
-if MOCK_IPHONE == "setup":
-    PLUGINS["iphone"] = {"id": "iphone", "name": "操控手机", "kind": "", "status": "disabled", "version": "202611151200",
-                         "source": "builtin", "enabled": False, "contributes": {},
-                         "description": "让助手经你的电脑操作配对的 iPhone：看屏幕、点按、滑动、输入、截图。",
-                         "form": {"fields": [
-                             {"name": "machines", "type": "array", "title": "能操控 iPhone 的电脑", "unique_items": True,
-                              "items": {"name": "items", "type": "string", "format": "machine", "os": ["darwin", "linux"]}},
-                             {"name": "confirm", "type": "boolean", "title": "每一步操作前都在手机上问我", "default": False}]},
-                         "config": {"machines": [], "confirm": False}, "secrets": [], "permissions": []}
+
 
 
 # Messages (iMessage) as a built-in extension (#1830 step 6): which Mac's Messages the connector reads, one Mac only.
@@ -20019,7 +19561,7 @@ _MARKET_A, _MARKET_B = "3f2a9c1d0b", "8e01b7c4a2"
 MARKETS = {
     _MARKET_A: {"id": _MARKET_A, "spec": "https://plugins.example.com/persona/persona-extensions.json", "name": "Example 扩展",
                 "description": "Example 官方维护的插件。", "homepage": "https://plugins.example.com/", "has_token": False, "plugins": 3,
-                "warnings": [], "fetched_at": "2026-11-04T06:00:00Z", "added_at": "2026-11-01T08:00:00Z", "official": True},
+                "warnings": [], "fetched_at": "2026-11-04T06:00:00Z", "added_at": "2026-11-01T08:00:00Z"},
     _MARKET_B: {"id": _MARKET_B, "spec": "github:example/team-plugins", "name": "团队扩展", "description": "团队内部用的扩展（私有仓库）。",
                 "has_token": True, "plugins": 2, "warnings": ["第 3 个扩展：没有 manifest"], "fetched_at": "2026-11-04T05:30:00Z",
                 "added_at": "2026-11-02T08:00:00Z"},
@@ -20215,273 +19757,12 @@ def upgrades_route(handler, p, req):
     return False
 
 
-# ---------- MOCK_EXTENSIONS: places outside the app ----------
-# example-gateway draws a widget "today" (small / medium / Lock Screen and watch face complications) that opens its
-# nav_page "usage", and has two shortcuts. The hub's new paths only (these came after the rename).
-_WIDGETS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "today", "title": "今天的用量",
-             "families": ["small", "medium", "accessory_circular", "accessory_rectangular", "accessory_inline"], "refresh_minutes": 30, "opens": "usage"}]
-_SHORTCUTS = [{"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "usage_today", "title": "今天用了多少",
-               "description": "说出今天的用量", "ui": "usage"},
-              {"extension": "example-gateway", "extension_name": "Example 网关面板", "id": "set_budget", "title": "设预算", "params": [
-                  {"name": "amount", "title": "金额", "kind": "number", "required": True},
-                  {"name": "period", "title": "周期", "kind": "choice", "choices": [{"value": "day", "title": "每天"}, {"value": "month", "title": "每月"}]}]}]
-DEVICE_WIDGETS = {}
-
-
-def _widget_view(family):
-    """The widget "today" at a family, as the hub holds it to what the family draws."""
-    if family == "accessory_inline":
-        return {"sections": [{"items": [{"type": "text", "text": "今天 1.2M tokens"}]}]}
-    if family in ("accessory_circular", "accessory_rectangular"):
-        return {"sections": [{"items": [{"type": "progress", "label": "今天的预算", "ratio": 0.62, "detail": "¥3.10 / ¥5", "tone": "caution"}]}]}
-    stats = [{"label": "费用", "value": "¥3.10"}, {"label": "7 天", "value": "8.4M"}]
-    items = [{"type": "metric", "label": "今天", "value": "1.2M", "detail": "+12% 比昨天", "tone": "caution"},
-             {"type": "stat_grid", "stats": stats if family == "medium" else stats[:1]}]
-    if family == "medium":
-        items.append({"type": "chart", "kind": "bar", "unit": "tokens", "series": [{"points": [
-            {"label": d, "value": v} for d, v in [("11-01", 0.9e6), ("11-02", 1.4e6), ("11-03", 0.7e6), ("11-04", 1.1e6), ("11-05", 1.2e6)]]}]})
-    return {"sections": [{"items": items}]}
-
-
-def system_route(handler, p, req):
-    """MOCK_EXTENSIONS: widgets and shortcuts under /api/v1/extensions/…, and the widgets each device has. False otherwise."""
-    method = handler.command
-    on = "example-gateway" in PLUGINS and PLUGINS["example-gateway"]["enabled"]
-    parts = p.split("/")
-    if p == "/api/v1/extensions/-/widgets" and method == "GET":
-        handler.send_json({"widgets": _WIDGETS if on else []}); return True
-    if p == "/api/v1/extensions/-/shortcuts" and method == "GET":
-        handler.send_json({"shortcuts": _SHORTCUTS if on else []}); return True
-    if len(parts) == 8 and parts[3] == "extensions" and parts[5] == "-" and parts[6] == "widget" and method == "POST":
-        family = (req.get("context") or {}).get("size", "")
-        if not on or parts[4] != "example-gateway" or parts[7] != "today":
-            handler.send_json({"error": "no such extension", "code": "not_found"}, 404); return True
-        if family not in _WIDGETS[0]["families"]:
-            handler.send_json({"error": "这个小组件不画这个尺寸", "code": "bad_request"}, 400); return True
-        expires = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 30 * 60))
-        handler.send_json({"view": _widget_view(family), "expires_at": expires}); return True
-    if len(parts) == 8 and parts[3] == "extensions" and parts[5] == "-" and parts[6] == "shortcut" and method == "POST":
-        sc = next((s for s in _SHORTCUTS if s["id"] == parts[7]), None) if on and parts[4] == "example-gateway" else None
-        if not sc:
-            handler.send_json({"error": "这个扩展没有这个快捷指令", "code": "not_found"}, 404); return True
-        values = req.get("values") or {}
-        if sc["id"] == "set_budget":
-            if not values.get("amount"):
-                handler.send_json({"error": "快捷指令的参数不对：缺 金额", "code": "bad_request"}, 400); return True
-            period = {"day": "每天", "month": "每月"}.get(values.get("period", "day"), "每天")
-            handler.send_json({"text": "预算设好了：%s ¥%s。" % (period, values["amount"])}); return True
-        handler.send_json({"text": "今天用了 1.2M tokens，约 ¥3.10。",
-                           "view": {"sections": [{"items": [{"type": "metric", "label": "今天", "value": "1.2M", "detail": "约 ¥3.10"}]}]}}); return True
-    if len(parts) == 6 and parts[3] == "devices" and parts[5] == "widgets" and method == "PUT":
-        DEVICE_WIDGETS[parts[4]] = req.get("widgets") or []
-        handler.send_json({"widgets": DEVICE_WIDGETS[parts[4]]}); return True
-    return False
-
-
-# ---------- MOCK_EXTENSION_OPS: installs in steps (docs/protocol/protocol.md "Extension install, upgrade and uninstall progress", #3277, #3307) ----------
-# MOCK_EXTENSION_OPS=1 (with MOCK_EXTENSIONS): the hub says extension_operations. A preview asked for with async answers
-# 202 {"operation"} at once and goes through download (in four parts) → verify → unpack → check, then waits at consent
-# (needs_consent, GET …/-/operations/{id} carries the preview); the install or upgrade agreed to with async goes on with
-# the same operation (install → start; nodes skipped). A removal, async or not, is recorded as an operation too.
-# =fail: the first install or upgrade of each extension stops at start (retryable: …/retry starts a new operation, its
-# download from the cache and the consent already given, so it goes on by itself); the first removal stops at remove.
-# =stall (#3692): the first preview of each extension stops half-way through its download, three steps later, with
-# download_stalled (retryable: …/retry downloads it again and waits for consent).
-# MOCK_EXTENSION_OPS_STEP=<seconds> per step (default 0.6).
-EXT_OPS = os.environ.get("MOCK_EXTENSION_OPS", "") if os.environ.get("MOCK_EXTENSIONS") else ""
-EXT_OPS_STEP = float(os.environ.get("MOCK_EXTENSION_OPS_STEP", "0.6"))
-EXT_OPERATIONS = {}
-EXT_OP_JOBS = {}  # what each operation does: {"retry": fn, "preview": id, "consented": digest}
-_EXT_FAILED = set()  # (kind, extension) that failed once (MOCK_EXTENSION_OPS=fail)
-_EXT_OPS_LOCK = threading.RLock()
-_INSTALL_STEPS = ["download", "verify", "unpack", "check", "consent", "install", "start", "nodes"]
-_UNINSTALL_STEPS = ["stop", "remove", "nodes"]
-_PACKAGE_BYTES = 4 * 1024 * 1024
-# MOCK_EXTENSION_INSTALL_DELAY=<seconds>: a hub without operations takes that long to answer an install or a removal.
 EXT_INSTALL_DELAY = float(os.environ.get("MOCK_EXTENSION_INSTALL_DELAY", "0"))
-# MOCK_EXTENSION_PREVIEW_DELAY=<seconds>: a synchronous preview takes that long to answer (a slow download, #3692).
 EXT_PREVIEW_DELAY = float(os.environ.get("MOCK_EXTENSION_PREVIEW_DELAY", "0"))
 
 
 def _ext_now():
-    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + ".%03dZ" % (int(time.time() * 1000) % 1000)
-
-
-def _ext_op_view(op):
-    return {k: v for k, v in copy.deepcopy(op).items() if v is not None}
-
-
-def _ext_op_push(op):
-    msg = {"type": "extension_operation", "operation": _ext_op_view(op)}
-    for send, _ in list(LIVE):
-        try: send(msg)
-        except Exception: pass
-
-
-def _ext_op_new(kind, ext, name, version=None, frm=None, market=None):
-    steps = _UNINSTALL_STEPS if kind == "uninstall" else _INSTALL_STEPS
-    op = {"id": "op_%s" % uuid.uuid4().hex[:10], "kind": kind, "extension": ext, "name": name, "actor": "iPhone",
-          "state": "running", "step": steps[0], "steps": [{"id": i, "state": "pending"} for i in steps],
-          "retryable": False, "started_at": _ext_now(), "updated_at": _ext_now(), "version": version, "from": frm, "market": market}
-    with _EXT_OPS_LOCK:
-        EXT_OPERATIONS[op["id"]] = op
-        EXT_OP_JOBS[op["id"]] = {}
-    _ext_op_push(op)
-    return op
-
-
-def _ext_step(op, sid, state, **extra):
-    with _EXT_OPS_LOCK:
-        for st in op["steps"]:
-            if st["id"] == sid:
-                st["state"] = state
-                st.update(extra)
-        if state == "running": op["step"] = sid
-        op["updated_at"] = _ext_now()
-    _ext_op_push(op)
-
-
-def _ext_fails(op, sid):
-    """MOCK_EXTENSION_OPS=fail: the first install / upgrade fails at start, the first removal at remove."""
-    want = "remove" if op["kind"] == "uninstall" else "start"
-    key = (op["kind"], op["extension"])
-    if EXT_OPS != "fail" or sid != want or key in _EXT_FAILED: return False
-    _EXT_FAILED.add(key)
-    return True
-
-
-def _ext_fail(op, sid, retry):
-    why, code = ("扩展启动后 5 秒内没有起来（exit status 1）", "start_failed") if sid == "start" else ("删不掉扩展目录：目录被占用（resource busy）", "uninstall_failed")
-    with _EXT_OPS_LOCK:
-        for st in op["steps"]:
-            if st["id"] == sid: st["state"] = "failed"
-        op.update(state="failed", step=sid, error=why, error_code=code, retryable=True, updated_at=_ext_now(), ended_at=_ext_now())
-        EXT_OP_JOBS[op["id"]]["retry"] = retry
-    _ext_op_push(op)
-
-
-def _ext_preview_run(op, c, cached=False):
-    """download → verify → unpack → check, then waits for consent (or goes on, the same permissions agreed to)."""
-    if cached:
-        _ext_step(op, "download", "done", cached=True)
-    else:
-        _ext_step(op, "download", "running", bytes=0, total=_PACKAGE_BYTES)
-        for part in range(1, 5):
-            time.sleep(EXT_OPS_STEP)
-            if op["state"] == "canceled": return
-            _ext_step(op, "download", "running", bytes=_PACKAGE_BYTES * part // 4, total=_PACKAGE_BYTES)
-            if part == 2 and EXT_OPS == "stall" and ("preview", c["id"]) not in _EXT_FAILED:
-                _EXT_FAILED.add(("preview", c["id"]))
-                time.sleep(EXT_OPS_STEP * 3)
-                with _EXT_OPS_LOCK:
-                    for st in op["steps"]:
-                        if st["id"] == "download": st["state"] = "failed"
-                    op.update(state="failed", step="download", error="包下载停滞，请重试。", error_code="download_stalled",  # i18n-ignore: the hub's words
-                              retryable=True, updated_at=_ext_now(), ended_at=_ext_now())
-
-                    def retry(c=c, was=op):
-                        nxt = _ext_op_new(was["kind"], c["id"], c["name"], version=c["version"], frm=was.get("from"), market=c["market"])
-                        threading.Thread(target=_ext_preview_run, args=(nxt, c), daemon=True).start()
-                        return nxt
-                    EXT_OP_JOBS[op["id"]]["retry"] = retry
-                _ext_op_push(op)
-                return
-        _ext_step(op, "download", "done")
-    for sid in ("verify", "unpack", "check"):
-        _ext_step(op, sid, "running"); time.sleep(EXT_OPS_STEP); _ext_step(op, sid, "done")
-    if op["state"] == "canceled": return
-    pv = _ext_make_preview(c)
-    with _EXT_OPS_LOCK:
-        EXT_OP_JOBS[op["id"]]["preview"] = pv["preview_id"]
-        consented = EXT_OP_JOBS[op["id"]].get("consented")
-    if consented == pv["permissions_digest"]:
-        _ext_step(op, "consent", "done")
-        _ext_install_run(op, c)
-        return
-    with _EXT_OPS_LOCK:
-        op.update(state="needs_consent", preview_id=pv["preview_id"])
-    _ext_step(op, "consent", "running")
-
-
-def _ext_install_run(op, c):
-    """install → start (nodes skipped): what was agreed to goes in."""
-    with _EXT_OPS_LOCK:
-        op.update(state="running"); op.pop("preview_id", None)
-        EXT_OP_JOBS[op["id"]]["consented"] = "d-" + c["id"]
-    _ext_step(op, "consent", "done")
-    for sid in ("install", "start"):
-        _ext_step(op, sid, "running"); time.sleep(EXT_OPS_STEP)
-        if _ext_fails(op, sid):
-            def retry(c=c, was=op):
-                nxt = _ext_op_new(was["kind"], c["id"], c["name"], version=c["version"], frm=was.get("from"), market=c["market"])
-                EXT_OP_JOBS[nxt["id"]]["consented"] = EXT_OP_JOBS[was["id"]].get("consented")
-                threading.Thread(target=_ext_preview_run, args=(nxt, c, True), daemon=True).start()
-                return nxt
-            _ext_fail(op, sid, retry)
-            return
-        if sid == "install": _ext_install(c)
-        _ext_step(op, sid, "done")
-    _ext_step(op, "nodes", "skipped")
-    with _EXT_OPS_LOCK:
-        op.update(state="succeeded", step=None, updated_at=_ext_now(), ended_at=_ext_now())
-    _ext_op_push(op)
-
-
-def _ext_uninstall_run(op, ext):
-    """stop → remove (nodes skipped). True: removed."""
-    _ext_step(op, "stop", "running"); time.sleep(EXT_OPS_STEP); _ext_step(op, "stop", "done")
-    _ext_step(op, "remove", "running"); time.sleep(EXT_OPS_STEP)
-    if _ext_fails(op, "remove"):
-        def retry(ext=ext, name=op["name"]):
-            nxt = _ext_op_new("uninstall", ext, name)
-            threading.Thread(target=_ext_uninstall_run, args=(nxt, ext), daemon=True).start()
-            return nxt
-        _ext_fail(op, "remove", retry)
-        return False
-    PLUGINS.pop(ext, None)
-    _ext_step(op, "remove", "done")
-    _ext_step(op, "nodes", "skipped")
-    with _EXT_OPS_LOCK:
-        op.update(state="succeeded", step=None, updated_at=_ext_now(), ended_at=_ext_now())
-    _ext_op_push(op)
-    return True
-
-
-def _ext_ops_route(handler, p, method):
-    """GET …/-/operations, GET / DELETE …/-/operations/{id}, POST …/-/operations/{id}/retry."""
-    if not EXT_OPS or not p.startswith("/api/v1/plugins/-/operations"): return False
-    parts = [x for x in p.split("/")[6:] if x]  # after /api/v1/plugins/-/operations
-    with _EXT_OPS_LOCK:
-        if not parts and method == "GET":
-            ops = sorted(EXT_OPERATIONS.values(), key=lambda o: o["started_at"], reverse=True)
-            handler.send_json({"operations": [_ext_op_view(o) for o in ops]}); return True
-        op = EXT_OPERATIONS.get(parts[0]) if parts else None
-        if not op:
-            handler.send_json({"error": "没有这次操作，或者已经过期了", "code": "not_found"}, 404); return True
-        if len(parts) == 1 and method == "GET":
-            v = _ext_op_view(op)
-            if op["state"] == "needs_consent" and op.get("preview_id") in _PREVIEW_BODIES:
-                v["preview"] = _PREVIEW_BODIES[op["preview_id"]]
-            handler.send_json(v); return True
-        if len(parts) == 1 and method == "DELETE":
-            consent = next((st for st in op["steps"] if st["id"] == "consent"), None)
-            if op["state"] == "needs_consent" or (op["state"] == "running" and consent and consent["state"] == "pending"):
-                _PREVIEWS.pop(op.pop("preview_id", "") or "", None)
-                op.update(state="canceled", updated_at=_ext_now(), ended_at=_ext_now())
-                _ext_op_push(op)
-            elif op["state"] == "running":
-                handler.send_json({"error": "已经开始安装了，不能取消", "code": "cannot_cancel"}, 409); return True
-            else:
-                EXT_OPERATIONS.pop(op["id"], None)
-            handler.send_response(204); handler.end_headers(); return True
-        if parts[1:] == ["retry"] and method == "POST":
-            if op["state"] != "failed":
-                handler.send_json({"error": "这次操作没有失败", "code": "not_failed"}, 409); return True
-            retry = EXT_OP_JOBS.get(op["id"], {}).get("retry")
-            if not retry:
-                handler.send_json({"error": "这次操作不能重试", "code": "not_retryable"}, 409); return True
-    nxt = retry()
-    handler.send_json({"operation": _ext_op_view(nxt)}, 202); return True
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def markets_route(handler, p, body):
@@ -20491,7 +19772,6 @@ def markets_route(handler, p, body):
     q = {k: v[0] for k, v in parse_qs(urlparse(handler.path).query).items()}
     req = json.loads(body or b"{}") if body else {}
     if upgrades_route(handler, p, req): return True
-    if _ext_ops_route(handler, p, method): return True
     if p == "/api/v1/plugins/-/markets" and method == "GET":
         handler.send_json({"markets": list(MARKETS.values())}); return True
     if p == "/api/v1/plugins/-/markets" and method == "POST":
@@ -20536,31 +19816,12 @@ def markets_route(handler, p, body):
         pid = pv["preview_id"]
         _PREVIEWS[pid] = c
         _PREVIEW_BODIES[pid] = pv
-        if EXT_OPS and req.get("async"):
-            cur = PLUGINS.get(c["id"])
-            upgrade = bool(cur and cur["source"] == "installed")
-            op = _ext_op_new("upgrade" if upgrade else "install", c["id"], c["name"], version=c["version"],
-                             frm=cur.get("version") if upgrade else None, market=c["market"])
-            _PREVIEWS.pop(pid, None); _PREVIEW_BODIES.pop(pid, None)  # the operation makes its own
-            threading.Thread(target=_ext_preview_run, args=(op, c), daemon=True).start()
-            handler.send_json({"operation": _ext_op_view(op)}, 202); return True
         time.sleep(EXT_PREVIEW_DELAY)
         handler.send_json(pv); return True
     if p in ("/api/v1/plugins/-/install",) or (p.startswith("/api/v1/plugins/") and p.endswith("/-/upgrade")):
         c = _PREVIEWS.pop(req.get("preview_id", ""), None)
         if not c:
             handler.send_json({"error": "预览过期了，重新预览一次", "code": "install_failed"}, 400); return True
-        if EXT_OPS:
-            # The operation the preview came from goes on (an older client's synchronous install is recorded too).
-            op = next((o for o in EXT_OPERATIONS.values() if EXT_OP_JOBS.get(o["id"], {}).get("preview") == req.get("preview_id")), None)
-            if op and op["state"] == "needs_consent":
-                if req.get("async"):
-                    threading.Thread(target=_ext_install_run, args=(op, c), daemon=True).start()
-                    handler.send_json({"operation": _ext_op_view(op)}, 202); return True
-                _ext_install_run(op, c)
-                if op["state"] == "failed":
-                    handler.send_json({"error": op["error"], "code": op["error_code"]}, 500); return True
-                handler.send_json({k: v for k, v in _plugin_needs(PLUGINS[c["id"]]).items() if v is not None} | {"operation_id": op["id"]}); return True
         time.sleep(EXT_INSTALL_DELAY)
         handler.send_json({k: v for k, v in _plugin_needs(_ext_install(c)).items() if v is not None}); return True
     if method == "DELETE" and len(parts) >= 6 and parts[3] == "plugins" and parts[5] == "-" and parts[6:] in ([], [""]) and parts[4] in PLUGINS:
@@ -20571,16 +19832,6 @@ def markets_route(handler, p, body):
             handler.send_json({"ok": False, "code": "partial_uninstall", "error": "卸载未完成。已卸载成员：example-notes；未卸载：example-helper。合集仍保留，可以重试。",  # i18n-ignore: the hub's words
                                "removed_members": ["example-notes"], "failed_members": [{"id": "example-helper", "error": "扩展还在运行，停不下来"}],  # i18n-ignore: the hub's words
                                "remaining_members": ["example-helper", "example-gateway"]}, 409); return True
-        if EXT_OPS:
-            # Recorded as an operation either way; async answers at once, else when it is done (as the hub does).
-            ext = parts[4]
-            op = _ext_op_new("uninstall", ext, PLUGINS[ext].get("name", ext))
-            if q.get("async"):
-                threading.Thread(target=_ext_uninstall_run, args=(op, ext), daemon=True).start()
-                handler.send_json({"operation": _ext_op_view(op)}, 202); return True
-            if not _ext_uninstall_run(op, ext):
-                handler.send_json({"error": op["error"], "code": op["error_code"]}, 500); return True
-            handler.send_json({"ok": True}); return True
         time.sleep(EXT_INSTALL_DELAY)
         PLUGINS.pop(parts[4]); handler.send_json({"ok": True}); return True
     if p == "/api/v1/plugins/-/ui" and method == "GET":
@@ -21015,8 +20266,7 @@ _features_without_plugins = features
 
 def features():
     return _features_without_plugins() + (["plugins", "plugin_manager", "plugin_ui_slots", "plugin_auto_upgrade", "extension_ui_v3",
-                                           "extension_widgets", "extension_shortcuts", "extension_notify_actions"] if PLUGINS_MODE else []) + (
-                                           ["extension_operations"] if EXT_OPS else []) + (
+                                           "extension_notify_actions"] if PLUGINS_MODE else []) + (
                                            ["plugin_secret_references"] if PLUGINS_MODE and SECRET_HANDOFF else [])
 
 
@@ -21059,8 +20309,6 @@ def _pack_switch_detail(pl, response):
 def plugins_route(handler, p, body):
     """MOCK_EXTENSIONS: GET /api/v1/plugins, a plugin's page and its switch, settings and secrets. False otherwise."""
     if not PLUGINS_MODE: return False
-    if (p.startswith("/api/v1/extensions/") or p.startswith("/api/v1/devices/") and p.endswith("/widgets")) and \
-            system_route(handler, p, json.loads(body or b"{}") if body else {}): return True
     if not p.startswith("/api/v1/plugins"): return False
     if markets_route(handler, p, body): return True
     if p == "/api/v1/plugins":
@@ -21088,9 +20336,6 @@ def plugins_route(handler, p, body):
                 _auto_upgrade_paused(member)
         pl["enabled"] = bool(req.get("enabled"))
         pl["status"] = "disabled" if not pl["enabled"] else ("needs_setup" if pl["source"] == "installed" else "running")
-        if pl["id"] == "iphone" and MOCK_IPHONE == "setup":  # the guided setup's first step (#8199)
-            IPHONE_SETUP["ext"] = pl["enabled"]
-            refresh_iphones()
         if following_pack and pl["enabled"]:
             for member_id in list(_EXTENSION_PACK_OFF):
                 member = PLUGINS.get(member_id)
@@ -21713,11 +20958,10 @@ class H(BaseHTTPRequestHandler):
         if custom_models_route(self, "GET", p, q): return
         if managers_route(self, "GET", p): return
         if file_operation_route(self, p): return
-        if _sent and _sent.route(self, "GET", p, q): return
         if _web_push and _web_push.route(self, "GET", p): return
         if _todo_view and _todo_view.route(self, "GET", p): return
         if providers_route(self, "GET", p, q, b""): return
-        if MOCK_MESSAGING and p.startswith("/api/v1/messaging") and lark_messaging.route(self, "GET", p, q, b""): return
+        if MOCK_MESSAGING and p.startswith("/api/v1/messaging/") and lark_messaging.route(self, "GET", p, q, b""): return
         if net_control(p, q): return self.send_json({"ok": True, **NET})
         if p == "/mock/fs-watch" and FS_LIVE:  # what the browsers asked to watch now
             with FAULT_LOCK:
@@ -21800,9 +21044,6 @@ class H(BaseHTTPRequestHandler):
         if p == "/mock/frames":
             name = q.get("name", [None])[0]
             return self.send_json({"runs": [r for r in FRAMES["runs"] if name is None or r.get("test") == name]})
-        if p == "/mock/persona-tier":
-            set_persona_tier(q.get("tier", [""])[0])
-            return self.send_json({"ok": True, "tier": PERSONA_TIER["tier"]})
         if p == "/mock/lark_churn":
             LARK_CHURN["rounds"] = 0
             threading.Thread(target=lark_churn, args=(q.get("feed", ["f3"])[0], int(q.get("n", ["16"])[0]), int(q.get("ms", ["500"])[0]),
@@ -21869,7 +21110,6 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"ok": True, "version": SERVER_VERSION, "channel": "release", "build": 202611021500, "protocol": 1,
                                    "min_app_build": 0, "features": features(), **identity(), **hub_name_field()})
         if p == "/api/v1/endpoints": return self.send_json({**identity(), **hub_name_field(), "endpoints": list(ENDPOINTS)})
-        if p == "/api/v1/skills": return self.send_json({"machine_id": "macbook", "machine": "MacBook", "skills": MOCK_SKILLS})
         if p == "/api/v1/machines": return self.send_json({"machines": out_machines()})
         if p == "/api/v1/workspaces": return self.send_json({"workspaces": mock_workspaces()})
         if p.startswith("/api/v1/machines/") and p.endswith("/browser/cookies") and MOCK_BROWSER:  # sign-ins in ego (#1304)
@@ -21888,23 +21128,6 @@ class H(BaseHTTPRequestHandler):
             if machine is None or "browser" not in machine:
                 return self.send_json({"error": "浏览器插件没打开，或这台不是 Mac"}, 404)
             return self.send_json(browser_now(machine))
-        if p == "/mock/iphone" and "reset" in q and MOCK_IPHONE == "setup":  # the guided setup from the start again
-            IPHONE_SETUP.update(ext=False, installed={"studio"}, paired_at=None, prepared_at=None, tried=0)
-            IPHONE_ON.clear(); IPHONE_JOBS.clear(); IPHONE_CONSENT.clear()
-            if "iphone" in PLUGINS:
-                PLUGINS["iphone"].update(enabled=False, status="disabled", config={"machines": [], "confirm": False})
-            refresh_iphones()
-        if p == "/mock/iphone":
-            return self.send_json({"consent": sorted(IPHONE_CONSENT), "self_app": IPHONE_SELF_APP, "on": sorted(IPHONE_ON),
-                                   "setup": {**IPHONE_SETUP, "installed": sorted(IPHONE_SETUP["installed"])}})
-        if p == "/api/v1/iphone":  # the extension iphone (MOCK_IPHONE)
-            return self.send_json(iphone_list())
-        if p.startswith("/api/v1/machines/") and p.endswith("/iphone"):
-            machine = next((m for m in MACHINES if m["id"] == p.split("/")[4]), None)
-            if machine is None or "iphone" not in machine:
-                return self.send_json({"error": "操控手机的扩展没打开，或这台不是 Mac"}, 404)
-            machine["iphone"] = iphone_of(machine)
-            return self.send_json(machine["iphone"])
         if p == "/mock/herdr":
             if "stopped" in q:
                 HERDR_STOPPED.clear()
@@ -22003,8 +21226,6 @@ class H(BaseHTTPRequestHandler):
         review_match = AGENT_REVIEW and re.fullmatch(r"/api/v1/sessions/([^/]+)/([^/]+)/review", p)
         if review_match:
             return self.send_json(mock_agent_review.state())
-        if p == "/api/v1/fleet":
-            return self.send_json({"fleet": mock_fleet() if MOCK_FLEET else {"phase": "", "needsYou": 0, "working": 0, "unread": 0, "items": []}})
         if p == "/api/v1/interactions/history":
             return self.send_json({"interactions": out_by_machine(INTERACTION_HISTORY) + delegate_history(q)})
         if p == "/mock/delegate": return self.send_json(*mock_delegate(q))
@@ -22014,22 +21235,13 @@ class H(BaseHTTPRequestHandler):
             if q.get("mode", [""])[0] in ("ok", "slow", "fail"): RESOLVE_MODE[0] = q["mode"][0]
             return self.send_json({"mode": RESOLVE_MODE[0]})
         if p == "/mock/screen-steps": return self.send_json(mock_screen_steps(q))
-        if p == "/mock/devices": return self.send_json({"devices": DEVICES})
-        if p == "/mock/devices/retire":
-            PUSH_RETIRED[0] = q.get("on", ["1"])[0] == "1"
-            return self.send_json({"retired": PUSH_RETIRED[0]})
         if p == "/mock/hello": return self.send_json(HELLO)
-        if p == "/mock/phone":
-            with FAULT_LOCK:
-                return self.send_json({"registrations": [x["registration"] for x in PHONES.values()], "results": TOOL_RESULTS})
-        if p == "/mock/tool_call": return self.send_json(mock_tool_call(q.get("name", [""])[0], q.get("args", ["{}"])[0]))
-        if p == "/mock/fleet": return self.send_json(*set_fleet_mode(q.get("mode", [""])[0]))
         if p == "/mock/notify": return self.send_json(*mock_notify(q.get("interaction", [""])[0]))
         if p == "/mock/assistant_ask": return self.send_json(*mock_assistant_ask(q))
         if p == "/mock/notify_user": return self.send_json(*mock_notify_user(q))
         if p == "/mock/renew": return self.send_json(*renew_requests(int(q.get("minutes", ["30"])[0] or 30)))
         if p == "/api/v1/auth/tokens":
-            return self.send_json({"tokens": TOKENS, "current": "dev_phone", "push": TOKEN_PUSH})
+            return self.send_json({"tokens": TOKENS, "current": "dev_browser"})
         if p == "/mock/sent": return self.send_json({"sent": SENT})
         if p == "/mock/picture.png":  # a picture for replies to show (MOCK_EXPORT): ?w=&h=, a blue-to-violet gradient
             data = _fs_png(min(int(q.get("w", ["600"])[0] or 600), 2000), min(int(q.get("h", ["400"])[0] or 400), 2000), (110, 160, 255), (190, 140, 255))
@@ -22076,8 +21288,6 @@ class H(BaseHTTPRequestHandler):
             # ExtensionMarketTests' update installed (#2988): example-gateway at 1.0.0 again, its newer version waiting.
             PLUGINS.pop("example-gateway-next", None); _UPGRADE_WHILE_ON.pop("example-gateway", None)
             PLUGINS["example-gateway"] = copy.deepcopy(_GATEWAY_START)
-            # MOCK_EXTENSION_OPS=stall: the next preview of each extension stalls again (ExtensionSettingsReviewTests).
-            _EXT_FAILED.difference_update({k for k in _EXT_FAILED if k[0] == "preview"})
             for m in MACHINES:
                 m["engine"] = "herdr"
                 if m["id"] == "lab":
@@ -22239,8 +21449,6 @@ class H(BaseHTTPRequestHandler):
             expr, lang = " ".join(q.get("cron", [""])[0].split()), cron_lang(self.headers.get("Accept-Language"))
             if expr not in CRON_PREVIEWS: return self.send_json({"error": cron_refusal(expr, lang)}, 400)
             return self.send_json({"cron": expr, "text": CRON_PREVIEWS[expr][0][lang], "timezone": "Asia/Taipei", "next_runs": cron_runs(expr)})
-        if p == "/api/v1/assistant/routines": return self.send_json({"routines": schedule_routines()})
-        if p == "/api/v1/assistant/followups": return self.send_json({"followups": schedule_followups()})
         if p.startswith("/api/v1/machines/") and p.endswith("/stat"):
             cwd = q.get("cwd", [""])[0]
             paths = q.get("path", []) + [x for x in q.get("paths", [""])[0].split("\n") if x]
@@ -22378,8 +21586,6 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/v1/assistant/runs":
             ref = parse_qs(urlparse(self.path).query).get("ref", [""])[0]
             return self.send_json({"runs": [r for r in RUNS if not ref or r["ref_id"] == ref]})
-        if p == "/api/v1/assistant/memory":
-            return self.send_json({"files": MEMORY, "dir": "/home/me/.persona/assistant/memory"})
         if p == "/mock/schedule": return self.send_json({"ran": SCHEDULE_RAN})
         if p == "/mock/schedule/reset":  # back to the starting schedule (captures that ran or cancelled something)
             start = copy.deepcopy(SCHEDULE_START)
@@ -22446,7 +21652,6 @@ class H(BaseHTTPRequestHandler):
                 "subject": item["title"], "from": item["mail"]["from"], "to": [{"name": "Me", "email": "me@example.com"}],
                 "date": item["updated_at"], "text": MAIL_BODIES.get(uid, item["preview"]), "seen": False}})
             return self.send_json({"error": "邮件不存在"}, 404)
-        if p == "/api/v1/mail/messages": return self.send_json({"messages": [], "has_more": False})
         if p == "/api/v1/lark/unread-count": return self.send_json({"count": 4})
         if telegram_area(self, "GET", p, b""): return
         if avatars_area(self, p): return
@@ -22454,7 +21659,6 @@ class H(BaseHTTPRequestHandler):
         if larkcli_thread_area(self, "GET", p): return
         if plugin_connector_area(self, "GET", p, b""): return
         if triage_route(self, "GET", p, b""): return
-        if wechat_area(self, "GET", p, b""): return
         if subscription_thread_area(self, "GET", p): return
         if assistant_inbox_area(self, "GET", p): return
         if p == "/api/v1/connectors":  # Settings › Connectors › GitHub; MOCK_GITHUB=signed_out: its gh login has expired
@@ -22795,7 +21999,6 @@ class H(BaseHTTPRequestHandler):
         if CASE and case_route(self, self.command, p, parse_qs(urlparse(self.path).query), self.last_body): return
         if preview_route and preview_route(self, self.command, p, parse_qs(urlparse(self.path).query)): return
         if custom_models_route(self, self.command, p, parse_qs(urlparse(self.path).query), self.last_body): return
-        if _sent and _sent.route(self, self.command, p, {}, self.last_body): return
         if _web_push and _web_push.route(self, self.command, p, self.last_body): return
         if _todo_view and _todo_view.route(self, self.command, p): return
         if PERSONAL_AGENTS and p.startswith("/api/v1/agents/sessions/") and p.rsplit("/", 1)[-1] in ("hide", "unhide"):
@@ -22842,17 +22045,12 @@ class H(BaseHTTPRequestHandler):
             key = p.rsplit("/", 1)[-1]
             ALWAYS_GRANTS[:] = [g for g in ALWAYS_GRANTS if g["key_hash"] != key]
             return self.send_json({"ok": True, "restart_required": False})
-        if p == "/api/v1/devices":  # a push registration: kept without its token, key or grant
-            d = json.loads(self.last_body or b"{}")
-            DEVICES.append({k: d.get(k) for k in ("device_id", "kind", "features")})
-            PUSH_RETIRED[0] = False
-            return self.send_json({"ok": True, "push": {"route": "relay"}})
         if p == "/mock/frames":
             run = json.loads(self.last_body or b"{}")
             run["test"] = run.get("name") or FRAMES["label"]
             FRAMES["runs"].append(run)
             return self.send_json({"ok": True})
-        if MOCK_MESSAGING and (p.startswith("/api/v1/messaging") or p.startswith(tuple(
+        if MOCK_MESSAGING and (p.startswith("/api/v1/messaging/") or p.startswith(tuple(
                 "/api/v1/%s/%s/-/ui/" % (kind, lark_messaging.EXTENSION) for kind in ("extensions", "plugins")))) and \
                 lark_messaging.route(self, self.command, p, parse_qs(urlparse(self.path).query), self.last_body): return
         if pins_route(self, p): return
@@ -23019,8 +22217,6 @@ class H(BaseHTTPRequestHandler):
             return self.send_json({"status": status, "updated": updated}, code)
         if telegram_area(self, self.command, p, self.last_body): return
         if triage_route(self, self.command, p, self.last_body): return
-        if wechat_area(self, self.command, p, self.last_body): return
-        if larkcli_area(self, self.command, p, self.last_body): return
         if plugin_connector_area(self, self.command, p, self.last_body): return
         if MOCK_LARK and fs_post(self, p, parse_qs(urlparse(self.path).query), self.last_body): return  # area: feishu chat page
         if rule_suggestions_area(self, self.command, p): return
@@ -23310,27 +22506,6 @@ class H(BaseHTTPRequestHandler):
             port = int(p.split("/")[6])
             if not port_listening(port): return self.send_json({"error": "nothing is listening on port %d" % port}, 404)
             return self.send_json({"port": port, "listening": True, "http": True})
-        if self.command == "PUT" and p == "/api/v1/connectors/mail/settings":  # mail's Add to Inbox (#5307)
-            body = json.loads(self.last_body or b"{}")
-            mail_c = LEGACY_CONNECTORS[1]
-            for feed in ("inbox", "archive"):
-                if feed in body:
-                    if not isinstance(body[feed], bool):
-                        return self.send_json({"error": feed + ": true or false"}, 400)
-                    mail_c[feed] = body[feed]
-            return self.send_json(mail_c)
-        if self.command == "PUT" and p == "/api/v1/connectors/github/settings":  # GitHub's inbox options
-            body = json.loads(self.last_body or b"{}")
-            if "inbox" in body:  # "Send to inbox" (MOCK_GITHUB_EXTENSION), from the connector's page or the extension's
-                if not isinstance(body["inbox"], bool) or "inbox" not in GITHUB_CONNECTOR:
-                    return self.send_json({"error": "inbox: true or false"}, 400)
-                GITHUB_CONNECTOR["inbox"] = body["inbox"]
-                return self.send_json(GITHUB_CONNECTOR)
-            o = body.get("options") or {}
-            if o.get("ci") not in (None, "off", "default_branch", "mine", "all") or any("/" not in r for r in o.get("muted_repos") or []):
-                return self.send_json({"error": "bad options"}, 400)
-            GITHUB_CONNECTOR.setdefault("options", {}).update({k: v for k, v in o.items() if v is not None})
-            return self.send_json(GITHUB_CONNECTOR)
         if p.startswith("/api/v1/machines/") and p.endswith("/browser/cookies") and MOCK_BROWSER:  # sign-ins in ego (#1304)
             return self.send_json(*cookie_call(self.command, parse_qs(urlparse(self.path).query), self.last_body))
         if MOCK_CLIPBOARD and p.startswith("/api/v1/machines/") and (p.endswith("/clipboard") or p.endswith("/clipboard/settings")):
@@ -23338,49 +22513,6 @@ class H(BaseHTTPRequestHandler):
             if status == 204:
                 self.send_response(204); self.end_headers(); return
             return self.send_json(answer, status)
-        if self.command == "PUT" and p == "/api/v1/iphone/consent":  # this iPhone's own consent (MOCK_IPHONE)
-            if MOCK_IPHONE not in IPHONE_MODES:
-                return self.send_json({"error": "操控手机的扩展没打开"}, 404)
-            body = json.loads(self.last_body or b"{}")
-            device = (body.get("device") or "").strip()
-            if not device: return self.send_json({"error": "没说是哪台 iPhone"}, 400)
-            (IPHONE_CONSENT.add if body.get("allowed") else IPHONE_CONSENT.discard)(device)
-            IPHONE_SELF_APP.update({k: v for k, v in (body.get("app") or {}).items() if v})  # GET /mock/iphone shows it
-            refresh_iphones()
-            row = next((d for d in iphone_list()["devices"] if d["id"] == device), {"id": device, "name": "", "machines": [], "consented": device in IPHONE_CONSENT})
-            return self.send_json(row)
-        if self.command == "POST" and p == "/api/v1/iphone/try":  # the guided setup's Try It (MOCK_IPHONE=setup)
-            body = json.loads(self.last_body or b"{}")
-            if (body.get("device") or "") not in IPHONE_CONSENT:
-                return self.send_json({"error": "这台 iPhone 还没准备好：在这台 iPhone 上允许操控，并让它的电脑开着"}, 409)
-            IPHONE_SETUP["tried"] += 1
-            png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
-            return self.send_json({"screenshot": {"mime": "image/png", "data": png}, "opened": True, "app": "com.apple.weather"})
-        if self.command == "POST" and p.startswith("/api/v1/machines/") and "/iphone/" in p:  # Pair / Forget / Cancel
-            machine = next((m for m in MACHINES if m["id"] == p.split("/")[4]), None)
-            if machine is None or "iphone" not in machine:
-                return self.send_json({"error": "操控手机的扩展没打开，或这台电脑连不了 iPhone"}, 404)
-            action = p.rsplit("/", 1)[1]
-            if MOCK_IPHONE == "setup" and action in ("pair", "install", "prepare"):
-                IPHONE_JOBS[machine["id"]] = {"kind": action, "at": time.time(), "started": ago()}
-            elif action == "pair":
-                IPHONE_JOBS[machine["id"]] = {"at": time.time(), "started": ago()}
-            elif action == "cancel":
-                if machine["id"] in IPHONE_JOBS: IPHONE_JOBS[machine["id"]]["cancelled"] = True
-            elif action == "forget" and MOCK_IPHONE == "setup":
-                IPHONE_SETUP.update(paired_at=None, prepared_at=None)
-                IPHONE_CONSENT.discard("dev-mock-1")
-            elif action != "forget":
-                return self.send_json({"error": "unknown action"}, 404)
-            refresh_iphones()
-            return self.send_json(iphone_of(machine))
-        if self.command == "PUT" and p.startswith("/api/v1/machines/") and p.endswith("/iphone"):
-            machine = next((m for m in MACHINES if m["id"] == p.split("/")[4]), None)
-            if machine is None or "iphone" not in machine:
-                return self.send_json({"error": "操控手机的扩展没打开，或这台不是 Mac"}, 404)
-            (IPHONE_ON.add if json.loads(self.last_body or b"{}").get("enabled") else IPHONE_ON.discard)(machine["id"])
-            refresh_iphones()
-            return self.send_json(iphone_of(machine))
         if p.startswith("/api/v1/machines/") and (p.endswith("/browser") or "/browser/" in p):  # the plugin ego (MOCK_BROWSER)
             machine = next((m for m in MACHINES if m["id"] == p.split("/")[4]), None)
             if machine is None or "browser" not in machine:
@@ -23878,14 +23010,10 @@ class H(BaseHTTPRequestHandler):
             t = save_task({"id": "task_" + uuid.uuid4().hex[:8], "created_at": ago()}, json.loads(self.last_body or b"{}"))
             SCHEDULE.append(t)
             return self.send_json({"task": cron_view(t, cron_lang(self.headers.get("Accept-Language")))})
-        if p == "/api/v1/assistant/routines" and self.command == "PUT":  # the Android app saves all its routines at once
-            saved, error = put_routines(json.loads(self.last_body or b"{}"))
-            if error: return self.send_json({"error": error}, 400)
-            return self.send_json({"routines": saved})
-        # "Run now" behaves like the hub, whichever list it comes from: an unknown id is a 404, every run lands in the
+        # "Run now" behaves like the hub, an unknown id is a 404, every run lands in the
         # history (manual), a one-off is done (it leaves the list), a repeating task's run updates its last status and
         # conversation but not last_run, and the first run of one that has no conversation starts its own.
-        if p.startswith(("/api/v1/assistant/tasks/", "/api/v1/assistant/routines/", "/api/v1/assistant/followups/")) \
+        if p.startswith("/api/v1/assistant/tasks/") \
                 and p.endswith("/run"):
             tid = p.split("/")[5]
             t = next((t for t in SCHEDULE if t["id"] == tid), None)
@@ -23932,11 +23060,6 @@ class H(BaseHTTPRequestHandler):
             if l is None: return self.send_json({"error": "没有这个启动器"}, 404)
             if l["source"] == "persona" and self.command == "DELETE": LAUNCHERS.remove(l)  # a Persona one is deleted
             else: l["hidden"] = self.command == "DELETE"
-            return self.send_json({"ok": True})
-        if p.startswith("/api/v1/assistant/followups/") and self.command == "DELETE":  # the Android app's "Cancel"
-            fid = p.split("/")[5]
-            if not any(t["id"] == fid for t in SCHEDULE): return self.send_json({"error": "这个定时任务已经不在了"}, 404)
-            SCHEDULE[:] = [t for t in SCHEDULE if t["id"] != fid]
             return self.send_json({"ok": True})
         if p.startswith("/api/v1/assistant/tasks/"):
             tid = p.split("/")[5]
@@ -24123,18 +23246,6 @@ class H(BaseHTTPRequestHandler):
                     and os.environ.get("MOCK_RECENT_TASK_CHATS") != "absent":
                 ASSISTANT_CONFIG["recent_task_chats"] = body["recent_task_chats"]
             return self.send_json(assistant_state())
-        if p.startswith("/api/v1/assistant/memory/") and self.command in ("PUT", "DELETE"):
-            name = unquote(p.rsplit("/", 1)[1])
-            files = MEMORY
-            if self.command == "PUT":
-                content = json.loads(self.last_body or b"{}").get("content", "")
-                files[:] = [f for f in files if f["name"] != name] + [{"name": name, "content": content, "updated_at": ago()}]
-            else:  # like the hub, deleting a memory also drops its line from the index
-                files[:] = [f for f in files if f["name"] != name]
-                for f in files:
-                    if f["name"] == "MEMORY.md":
-                        f["content"] = "\n".join(line for line in f["content"].split("\n") if "(%s)" % name not in line)
-            return self.send_json({"ok": True})
         if p.startswith("/api/v1/machines/") and p.endswith("/deploy"):  # "Redeploy": deploying for 3 s, then the hub's build
             mid = p.split("/")[4]
             m = next((m for m in MACHINES if m["id"] == mid), None)
@@ -24269,7 +23380,6 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/v1/bots/feishu/owner" and self.command == "DELETE":
             FEISHU_BOT.update(owner=None, agents=[], target="", pairing=None)
             return self.send_json({k: v for k, v in FEISHU_BOT.items() if v is not None})
-        if p == "/api/v1/bots/feishu/test": return self.send_json({"ok": True})
         if p.startswith("/api/v1/interactions/") and p.endswith("/reanswer") and p.count("/") == 5:
             return self.send_json(*mock_reanswer(p.split("/")[4], json.loads(self.last_body or b"{}")))
         review_match = AGENT_REVIEW and re.fullmatch(r"/api/v1/sessions/([^/]+)/([^/]+)/review", p)
@@ -24295,7 +23405,6 @@ class H(BaseHTTPRequestHandler):
             if SCREEN_STEPS and p.split("/")[4].startswith("scr_macbook_%s_" % REVIEW):
                 screen_steps_answer(p.split("/")[4], json.loads(self.last_body or b"{}"))
             sync_resolved(p.split("/")[4])
-            push_fleet()
             return self.send_json({"ok": True})
         if p.startswith("/api/v1/machines/") and p.endswith("/agent-dirs/hidden") and self.command == "PUT":
             state, err = _set_agent_dirs_hidden(p.split("/")[4], json.loads(self.last_body or b"{}"))
@@ -24326,14 +23435,10 @@ class H(BaseHTTPRequestHandler):
             LN["on"] = json.loads(self.last_body or b"{}").get("enabled") is True
             return self.send_json({"enabled": LN["on"]})
         if p.startswith("/api/v1/devices/") and p.endswith("/prefs"):  # Settings › Notifications
-            if PUSH_RETIRED[0]:
-                return self.send_json({"error": "mock: register this device for notifications again",
-                                       "code": "push_registration_required"}, 409)
             body = json.loads(self.last_body or b"{}")
-            PREFS.update({k: v for k, v in body.items() if k in ("input", "done", "live_activity", "lock_details")})
+            PREFS.update({k: v for k, v in body.items() if k in ("input", "done")})
             if isinstance(body.get("muted_managers"), list):  # 设置 › 管理者 › 推送通知
                 PREFS["muted_managers"] = [x for x in dict.fromkeys(body["muted_managers"]) if isinstance(x, str) and x]
-            PREFS["island"].update({k: v for k, v in (body.get("island") or {}).items() if k in ("preset", "left", "right", "machine")})
             if isinstance(body.get("quiet"), dict):
                 PREFS["quiet"] = {k: body["quiet"].get(k, "") for k in ("enabled", "start", "end", "tz")}
             return self.send_json(PREFS)
@@ -24619,8 +23724,6 @@ class H(BaseHTTPRequestHandler):
                     observation["session_frames"] += 1
                 elif obj.get("type") == "items":
                     observation["item_frames"] += 1
-            if MOCK_MESSAGING and obj.get("type") == "lark":  # what the Lark extension's messaging.changed becomes
-                send(lark_messaging.event_of(obj))
 
         SOCKETS.add(self.connection)
         subscribed = set()
@@ -24710,7 +23813,6 @@ class H(BaseHTTPRequestHandler):
         # The pending interactions, as the real hub does on connect (what GET /api/v1/interactions serves: answered ones
         # are gone, so they do not come back with the next connection).
         for ix in out_by_machine(mock_interactions()): send({"type": "interaction", "interaction": ix})
-        if MOCK_FLEET: send({"type": "fleet", "fleet": mock_fleet()})
         r = self.rfile
         try:
             while True:
@@ -24769,14 +23871,6 @@ class H(BaseHTTPRequestHandler):
                         sets = FS_WATCHES.setdefault(self.connection, {})
                         if msg.get("paths") or msg.get("git"): sets[key] = {**msg, "_send": send}
                         else: sets.pop(key, None)
-                    continue
-                if msg.get("type") == "register_phone":
-                    with FAULT_LOCK:
-                        PHONES[self.connection] = {"send": send, "registration": msg}
-                    continue
-                if msg.get("type") == "tool_result":
-                    with FAULT_LOCK:
-                        TOOL_RESULTS.append(msg)
                     continue
                 if msg.get("type") == "seen":
                     mark_seen(msg.get("session_id"))
@@ -24944,7 +24038,6 @@ class H(BaseHTTPRequestHandler):
         with FAULT_LOCK:
             observation.update(connected=False, disconnected_at=time.monotonic())
             CLIENTS.pop(self.connection, None)
-            PHONES.pop(self.connection, None)
             FS_WATCHES.pop(self.connection, None)
         DOMAINS.ws_closed(domain_socket)
         LIVE[:] = [x for x in LIVE if x[0] is not send]
@@ -24970,7 +24063,7 @@ def _plugin_features(on):
 CHANNELS = {
     "app": {"id": "app", "name": "Persona", "kind": "app", "source": "builtin", "installed": True, "enabled": True, "state": "connected",
             "bind": "none", "read_only": True, "description": "Persona 自己的各端：在哪一端说的话都进同一段对话，提问和批准在卡片上原地作答",
-            "surfaces": ["iPhone", "Mac", "Apple Watch", "Android", "网页", "Siri"],
+            "surfaces": ["网页"],
             "capabilities": {"images_in": True, "files_in": True, "voice_in": True, "format": "markdown", "asks": "buttons", "push": True,
                              "typing": True, "progress": True}},
     "feishu": {"id": "feishu", "name": "飞书机器人", "kind": "im", "source": "builtin", "installed": True, "enabled": True, "state": "connected",
@@ -25137,7 +24230,6 @@ MOCK_HELP.append("MOCK_EXTENSION_COLUMNS=1  (with MOCK_EXTENSIONS=1) A made-up e
 MOCK_HELP.append("MOCK_EXTENSION_GRAPH=1  (with MOCK_EXTENSIONS=1) A made-up Work page, UI version 10's graph (#9727): a 200-node tree of work in states with groups, progress, a folded part and a selected step; a node pushes its own page; each draw moves one step to Done; an overview card shows the graph as a still preview")
 MOCK_HELP.append("MOCK_EXTENSION_GAUGE=1  (with MOCK_EXTENSIONS=1) A made-up gateway's Quota page, UI version 9's gauge (#9337): a row of status tiles, then a card of three rings (5 hours, This week, Fable this week; the last one low, in amber) with the reset times in its footer")
 MOCK_HELP.append("MOCK_EXTENSION_PICKERS=1  （配合 MOCK_EXTENSIONS=1）多一个扩展「Example 聊天」：设置里选一台电脑（format machine）、选启动器（format launcher，代答的那个已经不在了）、整数带步进（#2385）")
-MOCK_HELP.append("MOCK_EXTENSION_OPS=1|fail  （配合 MOCK_EXTENSIONS）扩展的安装 / 升级 / 卸载分步骤推进度（extension_operation 事件）：后台预览、停在等你同意、同意后同一个操作接着装；fail：每个扩展第一次安装停在「启动」、第一次卸载停在「删除」，都能重试；MOCK_EXTENSION_OPS_STEP=秒 每步的时长；MOCK_EXTENSION_INSTALL_DELAY=秒 没有分步骤的旧 hub 安装 / 卸载要这么久才回（#3307）")
 MOCK_HELP.append("MOCK_MANAGER_NAS=1  （默认的三个管理者）NAS 归离线的「家里」：像 hub 一样显示成离线，error 是 hub 的「助手暂时连不上，稍后再试」；它的一个 agent（备份脚本）状态 unknown")
 MOCK_HELP.append("MOCK_ASSISTANT_CARDS=run  主对话连着请求改六项设置（persona_settings set），输入区上方只占一张卡的位置（「1 / 6」），答完下一张在原位顶上来，已回答的合成一行，最后一次回答后约 3 秒收起")
 MOCK_HELP.append("MOCK_ASSISTANT_BASH=1  主对话自己的第一条 Bash 在等批准（#4883），是它唯一的卡片：对话里输入区上方显示「在等你批准」，不只在收起的「需要你」里")
@@ -25151,7 +24243,6 @@ MOCK_HELP.append("MOCK_MANAGER_OUTDATED=1  设置 › 管理者：「工作」�
 MOCK_HELP.append("MOCK_MANAGERS=1  只有 hub 自己的管理者（没有切换、不分组，电脑、会话、卡片和合并的列表照样带 manager）；默认三个装好的（一个离线）：电脑、收件箱、扩展带 manager，会话和卡片跟它的电脑走；默认管理者换成别的时，模拟助手发的实时消息带它的 manager；助手页按 X-Persona-Manager 切换（工作：还没有主对话、有自己的说明，PUT 改它的；家里：503 assistant_offline；不认识的 404 no_manager）；POST /api/v1/managers/{id}/machines、…/sources 移电脑 / 邮箱，删掉的管理者的电脑回到 hub 自己的")
 MOCK_HELP.append("MOCK_MANAGER_EXPIRED=1  设置 › 管理者：多一个安装码过期了还没装的（码已过期，可以拿新的安装码），和一个过期超过 7 天的（像 hub 一样不在名册里）")
 MOCK_HELP.append("MOCK_MANAGER_COMMANDS=1  设置 › 管理者：新建 / 换个地方装的回答带安装命令（commands.service / docker）；MOCK_MANAGERS=0 是还没有名册的旧 hub（/api/v1/managers 404）")
-MOCK_HELP.append("MOCK_SENT=1|empty|nodb|forbidden|old  Settings > Sent as you (#5278, scripts/mock/sent_ledger_mock.py): 1 is about 70 made-up rows (four ways through the gate, one text of 4000 characters), empty has none, nodb is 503 no_database, forbidden 403, old a hub from before the ledger (404 with no code); POST …/sent/{id}/recall takes back row 66 and refuses row 60 (502 recall_refused), row 54 is already recalled")
 MOCK_HELP.append("MOCK_SHARED_BOTS=1  Settings > Managers: two managers share a Feishu app and a WeChat account (#5826)")
 MOCK_HELP.append("MOCK_REWIND=1|safeguards|codex|agy  检查 PR 的对话里有四条你的消息（两条同样的「继续」），试「回退到这里」（#2436）；safeguards 显示安全拦截；POST …/rewind 记在 REWINDS，MOCK_REWIND_ERROR=<code>:<提示> 让它像节点一样拒绝，MOCK_REWIND_DELAY=<秒> 调等待")
 MOCK_HELP.append("MOCK_INBOX_SOURCES=none  还没接任何消息来源：收件箱空、没有邮箱账号、飞书没设置、GitHub 没登录（#4480）")
@@ -26338,13 +25429,9 @@ if os.environ.get("MOCK_EXTENSION_NOTIFICATIONS") == "1" and EXTENSIONS_API:
 
 
 # ---------- MOCK_EXTENSION_AUTH: CLI tools and sign-in (docs/extensions/extensions.md "Command-line programs (tools)" "Sign-in (auth)", #4507) ----------
-# MOCK_EXTENSION_AUTH=1 (with MOCK_EXTENSIONS and MOCK_EXTENSION_OPS): the hub says extension_auth, and the first market lists
-# "Example queries", which installs two command-line programs (node: the machine's own; example-cli: downloaded in four
-# parts in the operation's tools step, between consent and install) and signs in. The install ends with next "auth";
-# signing in is a QR step (=1, or =device: a device code with its link) asked again until the third poll
-# (MOCK_EXTENSION_AUTH_POLLS) says done; logout signs out. =installed / =device-installed: installed already, not signed
-# in. Every change is pushed as extension_auth.
-EXT_AUTH = os.environ.get("MOCK_EXTENSION_AUTH", "") if EXT_OPS and EXTENSIONS_API else ""
+# MOCK_EXTENSION_AUTH=1 adds the Example queries extension with QR sign-in; =device uses a device code.
+# Add -installed to start with the extension already installed.
+EXT_AUTH = os.environ.get("MOCK_EXTENSION_AUTH", "") if EXTENSIONS_API else ""
 if EXT_AUTH:
     _AUTH_ID = "example-lookup"
     _AUTH_POLLS = int(os.environ.get("MOCK_EXTENSION_AUTH_POLLS", "3"))
@@ -26410,45 +25497,6 @@ if EXT_AUTH:
         url = "https://login.example.com/qr?code=4f2a"
         return {"step": "scan", "kind": "qr", "url": url, "interval": 1, "hint": "用 Example App 扫码确认。", "qr": _auth_qr(url)}
 
-    _ext_op_new_without_tools = _ext_op_new
-
-    def _ext_op_new(kind, ext, name, version=None, frm=None, market=None):
-        op = _ext_op_new_without_tools(kind, ext, name, version=version, frm=frm, market=market)
-        if kind != "uninstall" and ext == _AUTH_ID:
-            with _EXT_OPS_LOCK:
-                i = next(i for i, st in enumerate(op["steps"]) if st["id"] == "consent")
-                op["steps"].insert(i + 1, {"id": "tools", "state": "pending"})
-        return op
-
-    _ext_install_run_without_tools = _ext_install_run
-
-    def _ext_install_run(op, c):
-        if c["id"] != _AUTH_ID: return _ext_install_run_without_tools(op, c)
-        with _EXT_OPS_LOCK:
-            op.update(state="running"); op.pop("preview_id", None)
-            EXT_OP_JOBS[op["id"]]["consented"] = "d-" + c["id"]
-        _ext_step(op, "consent", "done")
-        tools = [{"name": "node", "state": "running"}, {"name": "example-cli", "state": "pending"}]
-        _ext_step(op, "tools", "running", tools=copy.deepcopy(tools)); time.sleep(EXT_OPS_STEP)
-        tools[0].update(state="done", reused=True); tools[1]["state"] = "running"
-        total = 30 * 1024 * 1024
-        for part in range(1, 5):
-            _ext_step(op, "tools", "running", tools=copy.deepcopy(tools), bytes=total * part // 4, total=total); time.sleep(EXT_OPS_STEP)
-        tools[1]["state"] = "done"
-        with _EXT_OPS_LOCK:
-            for st in op["steps"]:
-                if st["id"] == "tools": st.pop("bytes", None); st.pop("total", None)
-        _ext_step(op, "tools", "done", tools=copy.deepcopy(tools))
-        for sid in ("install", "start"):
-            _ext_step(op, sid, "running"); time.sleep(EXT_OPS_STEP)
-            if sid == "install": _auth_installed(_ext_install(c))
-            _ext_step(op, sid, "done")
-        _ext_step(op, "nodes", "skipped")
-        with _EXT_OPS_LOCK:
-            op.update(state="succeeded", step=None, updated_at=_ext_now(), ended_at=_ext_now())
-            if AUTH_STATE["state"] != "signed_in": op["next"] = "auth"
-        _ext_op_push(op)
-
     _ext_make_preview_without_tools = _ext_make_preview
 
     def _ext_make_preview(c):
@@ -26457,8 +25505,16 @@ if EXT_AUTH:
         if c.get("auth"): pv["manifest"]["auth"] = c["auth"]
         return pv
 
+    _ext_install_without_auth = _ext_install
+
+    def _ext_install(c):
+        pl = _ext_install_without_auth(c)
+        if c["id"] == _AUTH_ID:
+            _auth_installed(pl)
+        return pl
+
     if EXT_AUTH.endswith("installed"):
-        _auth_installed(_ext_install(_AUTH_ITEM))
+        _ext_install(_AUTH_ITEM)
 
     _features_without_auth = features
 
@@ -26733,7 +25789,7 @@ if TOOL_SEARCH:
 # MOCK_READINESS=<scenario> (scripts/mock/readiness_mock.py): a new user's hub in one of
 # the states the setup card shows, in the hub's shapes and words (its own catalogs, by Accept-Language): the features
 # assistant_readiness, machines_add, machine_trust, builtin_presets and launcher_auto_name; GET /api/v1/assistant/readiness[?probe=1],
-# POST …/readiness/dismiss, POST /api/v1/assistant/warm with readiness; POST /api/v1/assistant/conversations refused
+# POST /api/v1/assistant/conversations refused
 # with the scenario's code (409 no_machine / machine_pending / claude_missing / launcher_missing, 503 node_unreachable); POST
 # /api/v1/sessions on a pending computer 409 machine_pending; GET /api/v1/launchers/presets with the built-in providers
 # (presets_builtin.json) before the plugins'. The computer is the example user's MacBook (mbp) alone, with no agents, except in
@@ -26891,8 +25947,7 @@ if READINESS or BUILTIN_PRESETS:
         if not READINESS:
             return False
         lang = ready_lang(handler)
-        assistant = p in ("/api/v1/assistant/readiness", "/api/v1/assistant/readiness/dismiss", "/api/v1/assistant/warm",
-                          "/api/v1/assistant/conversations")
+        assistant = p in ("/api/v1/assistant/readiness", "/api/v1/assistant/conversations")
         if assistant and READY["sc"].get("assistant_offline"):
             status, reply = readiness_mock.refusal("assistant_offline", lang)
             handler.send_json(reply, status)
@@ -26908,18 +25963,6 @@ if READINESS or BUILTIN_PRESETS:
                 handler.send_json({"error": words, "code": "probe_failed", "retryable": True}, READINESS_PROBE_ERROR)
                 return True
             handler.send_json(ready_state(handler, probing))
-            return True
-        if p == "/api/v1/assistant/readiness/dismiss" and method == "POST":
-            try:
-                req = json.loads(body) if body else {}
-            except ValueError as e:
-                handler.send_json({"error": str(e), "code": "bad_request", "retryable": False}, 400)
-                return True
-            READY["dismissed"] = req.get("dismissed") is not False  # an empty body dismisses
-            handler.send_json({"ok": True})
-            return True
-        if p == "/api/v1/assistant/warm" and method == "POST":
-            handler.send_json({"ok": True, "readiness": ready_state(handler)})
             return True
         if p == "/api/v1/assistant/conversations" and method == "POST":
             m = ready_machine()
