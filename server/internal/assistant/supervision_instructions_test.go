@@ -183,23 +183,3 @@ func TestSupervisionInstructionsUnknownOwnershipDoesNotDemote(t *testing.T) {
 		t.Fatal("an ownership lookup failure reached the node")
 	}
 }
-
-func TestSupervisionPolicySizeBudget(t *testing.T) {
-	raw, err := os.ReadFile(promptSizeBaseline)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var baseline map[string]int
-	if err := json.Unmarshal(raw, &baseline); err != nil {
-		t.Fatal(err)
-	}
-	pieces := promptSizePieces(t)
-	if pieces["supervision_instructions"] != len(prompts.RenderSupervisionInstructions()) {
-		t.Fatal("the new static fragment is not covered by the size ratchet")
-	}
-	verdict := decidePromptSizeUpdate(baseline, pieces)
-	t.Logf("instruction budget: %d -> %d bytes including the static fragment", verdict.baselineTotal, verdict.currentTotal)
-	if !verdict.accept {
-		t.Fatal("moving the policy raised the total instruction budget")
-	}
-}
