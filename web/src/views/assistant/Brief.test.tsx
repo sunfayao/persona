@@ -274,7 +274,7 @@ describe("a brief item", () => {
       drawDecision({ ...todo, ...ask, waited_s: 60 });
       const buttons = [...rows("accept")[0].querySelectorAll("button")];
       expect(buttons.map((b) => b.textContent)).toEqual(["打开", "直接完成", "按推荐来"]);
-      expect(buttons[1].classList).toContain("shadow-btn");
+      expect(buttons[1].classList).toContain("bg-field");
       expect(buttons[2].classList).toContain("bg-ink");
       await act(async () => buttons[1].click());
       expect(api.mock.calls.filter(([, opts]) => opts?.method && opts.method !== "GET")).toEqual([["/todos/todo_finish", { method: "PATCH", json: { done: true } }]]);
