@@ -24,8 +24,6 @@ type SessionCapabilities struct {
 	Approve   bool `json:"approve"`
 	Terminal  bool `json:"terminal"`
 	Attach    bool `json:"attach"`
-	// NativeSlashCommands marks a Codex pane whose native commands bypass the app-server prompt route.
-	NativeSlashCommands bool `json:"native_slash_commands,omitempty"`
 	// PluginInput: a Claude outside Persona's terminals whose Persona plugin polls the node: the owner's own messages
 	// go in as their input while it rests, not as another session's through its inbox (docs/integrations/
 	// claude-integration.md "Owner input through the Persona plugin"). Absent from older nodes and everywhere else.
@@ -48,6 +46,8 @@ type SessionCapabilities struct {
 	Fork              bool `json:"fork,omitempty"`
 	// QueueNextTurn permits selecting next-turn queueing in session.send.
 	QueueNextTurn bool `json:"queue_next_turn,omitempty"`
+	// NativeSlashCommands marks a Codex pane whose native commands bypass the app-server prompt route.
+	NativeSlashCommands bool `json:"native_slash_commands,omitempty"`
 	// Close is independent of terminal access. Absent on older nodes, where clients retain terminal-only closing.
 	Close *bool `json:"close,omitempty"`
 	// Rename permits session.rename's title without a terminal (a runtime's session, #6294). Absent on older nodes,
